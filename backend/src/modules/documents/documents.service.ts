@@ -47,6 +47,10 @@ import {
 } from './descriptors/types';
 import { validateAgainstDescriptor } from './descriptors/validate';
 import { RunActionDto } from './dto/documents.dto';
+import { FormatProviderRegistry, UnknownFormatError } from './formats/format-registry';
+import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
+import { companyToFormatParty, clientToFormatParty } from './formats/party-snapshot';
+import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import { findOwnedDocument, listDocuments } from './persistence';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
@@ -79,6 +83,7 @@ import {
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
+  FORMAT_PROVIDER_REGISTRY,
   TRANSPORT_REGISTRY,
   VAT_RATE_CATALOG_REGISTRY,
 } from './tokens';
@@ -139,6 +144,13 @@ export class DocumentsService implements OnModuleInit {
     ),
     @Inject(VAT_RATE_CATALOG_REGISTRY)
     private readonly vatRateCatalog: VatRateCatalog = new VatRateCatalog([]),
+    // Defaulted to an EMPTY registry, same discipline as `countryFieldOverlayCatalog`/
+    // `vatRateCatalog` just above: the eight pre-existing `documents.service.*.spec.ts` files that
+    // construct `DocumentsService` with positional args and stop before this one keep meaning
+    // exactly what they always did (an empty registry only matters to `downloadDocumentFormat`,
+    // which none of them exercise) — never a breaking change to add a new capability.
+    @Inject(FORMAT_PROVIDER_REGISTRY)
+    private readonly formatProviderRegistry: FormatProviderRegistry = new FormatProviderRegistry(),
   ) {}
 
   /**
@@ -749,5 +761,131 @@ export class DocumentsService implements OnModuleInit {
       instance,
     );
     return pdf;
+  }
+
+  /**
+   * "GET .../formats/:syntax" — a normalized EN 16931 export (item 12, "formats normalisés"),
+   * built and validated on demand, exactly like `renderInstancePdf` above (never cached — a small
+   * document, cheap to rebuild, and this way an edited-then-resaved document can never serve a stale
+   * export). NOT reached through `runAction`/`ActionRegistry` (see `invoice.descriptor.ts`'s own
+   * comment on why "download-xml" is declared but never registered as a handler there) — this method
+   * runs the SAME four gates by hand, in the SAME order `runAction` already documents, so a scripted
+   * client hitting this endpoint directly is refused exactly the way the screen's own button would
+   * be, never a looser check because the path is different:
+   *
+   *  1. country policy (403) — `evaluateCountryPolicy`, identical to `runAction`'s own check.
+   *  2. status (409) — `isActionAvailable` against the descriptor's own `availableWhen` (only once
+   *     the document is actually numbered — see `invoice.descriptor.ts`'s own comment on
+   *     "download-xml"), PLUS the country policy's own per-status narrowing, same as `runAction`.
+   *  3. implementation (501) — `FormatProviderRegistry.resolve(syntax)` throws `UnknownFormatError`
+   *     for a syntax nobody registered a provider for (structurally always reachable — the
+   *     descriptor's own `syntax` param is a closed `options` list of exactly the syntaxes THIS
+   *     registry knows, so this only ever fires for a scripted client sending a value outside it).
+   *  4. validation (400) — THE GATE THIS TICKET EXISTS FOR: the provider's own `build()` runs the
+   *     real structural + Schematron checks (`formats/structural-check.ts` +
+   *     `formats/vendored/validate-schematron.ts`) against the vendored EN 16931 ruleset. An invalid
+   *     artifact is NEVER returned — this method throws instead, citing every violated rule (BR-*).
+   *     `SemanticBuildError` (`formats/semantic/build-semantic-invoice.ts` — an unresolvable BT-151)
+   *     is the narrower case where the bridge could not even ATTEMPT to build; both land on the same
+   *     400, the same way `runAction`'s own data/param validation errors do.
+   */
+  async downloadDocumentFormat(
+    companyId: string,
+    typeId: string,
+    id: string,
+    syntax: string,
+  ): Promise<{ bytes: Uint8Array; mime: string; filename: string }> {
+    const { descriptor, action } = this.resolveAction(typeId, 'download-xml');
+
+    const policyDecision = await evaluateCountryPolicy(companyId, typeId, 'download-xml');
+    if (!policyDecision.allowed) {
+      throw new ForbiddenException(policyDecision.reason);
+    }
+
+    const instance = await findOwnedDocument(companyId, typeId, id);
+
+    if (!isActionAvailable(action, instance.status)) {
+      // A dedicated message, not `runAction`'s generic one: "download-xml" refuses for exactly ONE
+      // structural reason (no number yet — see invoice.descriptor.ts's own comment), so the 409 says
+      // so directly rather than making the caller cross-reference `availableWhen` themselves. This IS
+      // the "un brouillon sans numéro refuse en le disant" behavior this ticket asks for.
+      throw new ConflictException(
+        `Cannot download a normalized XML export of a document with status "${instance.status}" — an ` +
+          'EN 16931 invoice requires a definitive invoice number (BT-1), only assigned once sending ' +
+          'actually starts.',
+      );
+    }
+    if (
+      policyDecision.restrictedToStatuses &&
+      !policyDecision.restrictedToStatuses.includes(instance.status)
+    ) {
+      throw new ConflictException(
+        `Action "download-xml" of document type "${typeId}" is restricted by this company's country ` +
+          `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${instance.status}".`,
+      );
+    }
+
+    let provider: DocumentFormatProvider;
+    try {
+      provider = this.formatProviderRegistry.resolve(syntax);
+    } catch (error) {
+      if (error instanceof UnknownFormatError) {
+        throw new NotImplementedException(
+          `Document format "${syntax}" is not implemented — known formats: ` +
+            `${this.formatProviderRegistry
+              .list()
+              .map((f) => f.id)
+              .join(', ')}.`,
+        );
+      }
+      throw error;
+    }
+
+    const data = (instance.data ?? {}) as Record<string, unknown>;
+    const clientId = typeof data.client === 'string' ? data.client : undefined;
+    const [company, client] = await Promise.all([
+      prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } }),
+      clientId
+        ? prisma.client.findUnique({ where: { id: clientId }, include: { partyIdentifiers: true } })
+        : Promise.resolve(null),
+    ]);
+    if (!company) {
+      throw new NotFoundException(`Company "${companyId}" not found.`);
+    }
+    if (!client) {
+      throw new BadRequestException(
+        'Cannot build a normalized XML export: this invoice has no valid client on file.',
+      );
+    }
+
+    let buildResult: DocumentFormatBuildResult;
+    try {
+      buildResult = await provider.build(
+        descriptor,
+        instance,
+        companyToFormatParty(company),
+        clientToFormatParty(client),
+      );
+    } catch (error) {
+      if (error instanceof SemanticBuildError) {
+        throw new BadRequestException({ message: error.message, errors: [error.message] });
+      }
+      throw error;
+    }
+
+    if (!buildResult.validation.valid) {
+      // THE GATE — never served. Every string here cites the violated rule (BR-*), so the caller can
+      // act on it rather than guess.
+      throw new BadRequestException({
+        message: `The generated ${provider.syntax} document failed EN 16931 validation and was not served.`,
+        errors: buildResult.validation.errors,
+      });
+    }
+
+    return {
+      bytes: buildResult.bytes,
+      mime: provider.mime,
+      filename: `${instance.displayNumber ?? id}-${provider.id}.xml`,
+    };
   }
 }

@@ -3019,6 +3019,10 @@
       },
       "downloadPdf": "Download PDF",
       "downloadPdfError": "The PDF could not be generated.",
+      "downloadXml": "Download normalized XML",
+      "downloadXmlCii": "CII (UN/CEFACT)",
+      "downloadXmlUbl": "UBL 2.1",
+      "downloadXmlError": "The normalized XML export could not be generated.",
       "processing": "Processing…",
       "lastActionError": "Last error: {{message}}"
     },

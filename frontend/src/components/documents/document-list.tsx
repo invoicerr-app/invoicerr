@@ -1,6 +1,6 @@
 import { toast } from "sonner"
 import { authenticatedFetch } from "@/hooks/use-fetch"
-import { Download, FileStack, Pencil, Plus, Repeat, Search } from "lucide-react"
+import { Download, FileCode, FileStack, Pencil, Plus, Repeat, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -28,6 +28,12 @@ import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -206,6 +212,37 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
     }
   }
 
+  // "download-xml" (root TODO item 12, "formats normalisés") is declared on the descriptor — that is
+  // what `isActionAvailable` reads for status/country-policy gating below — but, like the PDF button
+  // just above, its actual download is a plain GET, never `runAction` (see
+  // `documents.service.ts#downloadDocumentFormat`'s own header, and `invoice.descriptor.ts`'s comment
+  // on why "download-xml" is never registered as an `ActionRegistry` handler): a scripted client
+  // POSTing to `.../actions/download-xml` would only ever get a 501, so this button must NOT be
+  // rendered through the generic `availableActions` cluster below (which DOES POST through
+  // `useDocumentActionRunner`) — it gets its OWN dropdown (CII/UBL), same shape as the PDF button.
+  const downloadXmlAction = descriptor.actions.find((action) => action.id === "download-xml")
+  const showDownloadXml = !!downloadXmlAction && isActionAvailable(downloadXmlAction, instance.status)
+
+  const handleDownloadXml = async (syntax: "cii" | "ubl") => {
+    try {
+      const response = await authenticatedFetch(
+        `/api/documents/${instance.id}/formats/${syntax}?typeId=${descriptor.id}`,
+      )
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.message || `HTTP ${response.status}`)
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+    } catch (error) {
+      // The backend's OWN message — it cites the failing BR-* rule when validation is what refused
+      // it, and a generic fallback would hide exactly the information this ticket's own gate exists
+      // to surface.
+      toast.error(error instanceof Error ? error.message : t("documents.list.downloadXmlError"))
+    }
+  }
+
   // "sending" is the generic queue-processing status the async "send" mechanism introduces (TODO.md
   // item 22, actions/async-send.ts on the backend) — not a per-document-type name, a property of the
   // record itself: something is actively in flight for it, driven by the worker, not by a further
@@ -216,7 +253,9 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   const isProcessing = instance.status === "sending"
   const availableActions = isProcessing
     ? []
-    : descriptor.actions.filter((action) => isActionAvailable(action, instance.status))
+    : descriptor.actions.filter(
+        (action) => action.id !== "download-xml" && isActionAvailable(action, instance.status),
+      )
   const CustomExtra = getDocumentCustomComponent(descriptor.id, "list-row-extra")
   // A disabled <button> (Button's own `disabled:pointer-events-none`, see ui/button.tsx) never
   // receives a REAL hover at all — the `tooltip` prop below still opens it for a keyboard/
@@ -257,6 +296,49 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
         >
           <Download className="h-4 w-4" />
         </Button>
+
+        {showDownloadXml && (
+          <DropdownMenu>
+            {/* No `tooltip` prop here, deliberately: `Button`'s own tooltip wraps its DOM node in a
+                Radix `<Tooltip>` component, which breaks `DropdownMenuTrigger`'s `asChild` Slot
+                cloning (it needs a component that forwards props straight onto a real DOM element —
+                see sidebar.tsx's own theme-toggle button, the one other `DropdownMenuTrigger asChild`
+                in this codebase, which drops `tooltip` for the exact same reason). A native `title`
+                carries the policy-blocked reason instead — less polished, still accessible. */}
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={!!downloadXmlAction?.policyBlockedReason}
+                title={
+                  downloadXmlAction?.policyBlockedReason
+                    ? t("documents.form.actionBlockedByPolicy", {
+                        reason: downloadXmlAction.policyBlockedReason,
+                      })
+                    : t("documents.list.downloadXml")
+                }
+                dataCy={`document-xml-button-${instance.id}`}
+              >
+                <FileCode className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => handleDownloadXml("cii")}
+                data-cy={`document-xml-cii-${instance.id}`}
+              >
+                {t("documents.list.downloadXmlCii")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleDownloadXml("ubl")}
+                data-cy={`document-xml-ubl-${instance.id}`}
+              >
+                {t("documents.list.downloadXmlUbl")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {showRecurrenceButton && (
           <Button

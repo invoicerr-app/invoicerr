@@ -150,6 +150,16 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * before this task, and "convert-to-invoice" held for the quote before it was implemented. The 501
  * mechanism this proves lives on THIS action now — see documents.service.invoice.spec.ts.
  *
+ * "download-xml" (root TODO item 12, "formats normalisés") is declared here but, unlike every other
+ * action above, is NOT run through `ActionRegistry`/`runAction` at all — it produces BINARY bytes
+ * (an XML document), not the JSON `ActionResult` every registered handler returns, so it has no
+ * business pretending to fit that shape. It exists on THIS descriptor purely so the same four gates
+ * (country policy 403, status 409, implementation 501, validation 400) apply to it — see
+ * `documents.service.ts#downloadDocumentFormat`'s own header for exactly how, and `documents/
+ * formats/`'s own module for the descriptor → EN 16931 bridge and the real XSD/Schematron gate. The
+ * actual download is a GET endpoint (the same "download, not an action result" shape "GET .../pdf"
+ * already holds), never a POST to `.../actions/download-xml`.
+ *
  * A note on `unit`/`vatRate` NOT carrying a legal citation directly on the field: a purely
  * STRUCTURAL fact (there is a unit; there is a VAT-rate choice) is not itself a legal rule and needs
  * none — the modeling is free. What DOES need a citation is any claim about WHICH rates exist and
@@ -423,6 +433,33 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         // row and the projected balance, never on this record's own declared status.
         availableWhen: ['sent'],
         params: RECORD_PAYMENT_PARAMS,
+      },
+      {
+        id: 'download-xml',
+        label: 'Download normalized XML',
+        // "Available once numbered" — the same GUARD `documents/formats/`'s own header on
+        // `documents.service.ts#downloadDocumentFormat` explains: EN 16931's BT-1 (Invoice number)
+        // has cardinality 1..1, and a "draft" has none (numbering/, `numbering.onEnterStatus:
+        // 'sending'` above) — so this action is offered from EXACTLY the same three statuses a
+        // number is already guaranteed to exist on: 'sending' (the number is taken the moment this
+        // status is FIRST entered, before delivery itself is even attempted — see this file's own
+        // numbering paragraph), 'sent', and 'send_failed' (a failed SEND does not un-number the
+        // document — see `DocumentInstance.number`'s own schema comment: never cleared once set).
+        // NO `transitions`: like "record-payment"/"export-accounting", downloading a normalized
+        // export has no status effect of its own on this record.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+        params: [
+          {
+            key: 'syntax',
+            kind: 'select',
+            label: 'Syntax',
+            required: true,
+            options: [
+              { value: 'cii', label: 'CII (UN/CEFACT Cross Industry Invoice)' },
+              { value: 'ubl', label: 'UBL 2.1' },
+            ],
+          },
+        ],
       },
       {
         id: 'export-accounting',

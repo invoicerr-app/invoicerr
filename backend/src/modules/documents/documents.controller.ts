@@ -364,6 +364,47 @@ export class DocumentsController {
     res.send(pdfBuffer);
   }
 
+  @Get(':id/formats/:syntax')
+  @ApiOperation({
+    summary: 'Get a normalized EN 16931 export of a document instance',
+    description:
+      'Builds and validates a normalized XML export (CII or UBL — see the "download-xml" action\'s ' +
+      'own `syntax` param) on demand, same mould as GET .../pdf. Never serves an artifact that ' +
+      'failed EN 16931 validation.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'syntax', type: String, description: 'e.g. "cii" or "ubl"' })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'XML generated', schema: { type: 'string', format: 'binary' } })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  @ApiResponse({ status: 403, description: "The active company's country document-action policy forbids it" })
+  @ApiResponse({
+    status: 409,
+    description: "Not available for the record's current status (e.g. still a draft)",
+  })
+  @ApiResponse({ status: 501, description: 'Unknown/unimplemented format' })
+  @ApiResponse({
+    status: 400,
+    description: 'The generated document failed EN 16931 validation, or could not be built',
+  })
+  async downloadFormat(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Param('syntax') syntax: string,
+    @Query('typeId') typeId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { bytes, mime, filename } = await this.documentsService.downloadDocumentFormat(
+      companyId,
+      typeId,
+      id,
+      syntax,
+    );
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(bytes));
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a document instance', description: 'One saved document instance by id.' })
   @ApiParam({ name: 'id', type: String })

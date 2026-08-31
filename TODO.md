@@ -48,7 +48,7 @@
 |---|---|---|
 | 10 | **Transports nationaux** | Le registre n'a que `email`. Réintégrer PDP, KSeF, SdI… comme transports enregistrés avec credentials par société. Les round-trips PDP et KSeF **prouvés en réel** sont au repère — c'est une reprise, pas une réécriture. |
 | 11 | **Canal imposé par pays** ⚖ | Aujourd'hui le transport est un choix de la société. Mécanisme pour qu'un fichier pays en rende un obligatoire, avec sa source. |
-| 12 | **Formats normalisés** ⚖ | EN 16931 (Factur-X, UBL, CII…) pour que ce qui part soit conforme. Dépend de 1 et 17. |
+| 12 ◐ | **Formats normalisés** ⚖ (CII/UBL faits, 2026-08-31 ; reste Factur-X/XRechnung/Peppol BIS) | EN 16931 CII et UBL 2.1 : `documents/formats/` (registre de `DocumentFormatProvider`, motif `transports/transport-registry.ts`), pont descripteur → modèle sémantique (`semantic/build-semantic-invoice.ts`, montants venant de `compute-totals.ts`, jamais recalculés), gate XSD-équivalent + Schematron EN 16931 VENDORÉ (repris du repère, jamais un compilateur maison) — un artefact invalide n'est jamais servi. Action `download-xml` sur la facture (param `syntax`), bouton front, i18n. Factur-X (embarqueur existant au repère, non branché — périmètre CII/UBL purs), XRechnung/Peppol BIS (rulesets rangés, non branchés) et la légalité du caractère obligatoire (item 11/15) sont consignés dans `TODO_ISSUES.md`, pas devinés ici. Dépend de 1 et 17. |
 | 13 | **Signature électronique** | Certificats de société et signature des documents (module supprimé). |
 | 14 | **Archivage légal** ⚖ | Rétention par pays, intégrité. |
 | 15 | **Mentions obligatoires** ⚖ | Les notes légales sur facture (pénalités de retard, escompte…), en donnée pays sourcée. |

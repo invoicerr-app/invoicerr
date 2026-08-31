@@ -87,6 +87,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE (le socle des formats de facturation électronique dans l'UE, via la directive 2014/55/UE) — ce n'est pas en soi une obligation légale française pour CETTE entreprise de la produire ni de la fournir sur demande. La question de savoir si, et à partir de quand, une facture française doit exister sous une forme structurée EN 16931 (le futur mandat de facturation électronique B2B, réforme portée par le PPF/PDP) est exactement l'item 11 (« canal imposé par pays ») ou 15 (« mentions obligatoires ») du TODO racine — PAS celui-ci, qui ne construit que le FORMAT lui-même (item 12) sans se prononcer sur son caractère obligatoire. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export normalisé (une commodité produit, comme 'export-accounting' juste en dessous) sans affirmer qu'il est LÉGALEMENT requis. Aucun `statuses` ici : le descripteur lui-même (invoice.descriptor.ts's `availableWhen` sur 'download-xml') restreint déjà l'action aux statuts numérotés (BT-1, cardinalité 1..1 dans la norme) — un `statuses` identique ici serait une redondance, pas une restriction country-policy supplémentaire réelle (voir data/all.spec.ts's own guard contre cet usage). Ce qui trancherait le caractère obligatoire : suivre l'avancement du mandat de facturation électronique B2B (calendrier officiel DGFiP/PPF) et la question posée à l'item 11/15."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "export-accounting",
       "allowed": true,
       "provenance": {

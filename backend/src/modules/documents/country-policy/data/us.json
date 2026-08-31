@@ -80,6 +80,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "EN 16931 is a EUROPEAN TECHNICAL STANDARD (the socle of e-invoicing formats under EU Directive 2014/55/EU) — nothing found requiring a US company to produce or offer one; the US has no federal e-invoicing mandate at all (consistent with this same file's own notes elsewhere, and with country-identifiers/data/us.json's own EIN entry). Whether a normalized export should ever be REQUIRED for a US-based company is out of scope here on purpose — this ticket (item 12, \"formats normalisés\") only builds the FORMAT itself, never a legal claim about when it must be used; that question belongs to item 11 (\"canal imposé par pays\") or 15 (\"mentions obligatoires\"), neither of which this rule pretends to answer. This rule only allows the VOLUNTARY download of a normalized export (a product convenience, same category as 'export-accounting' below) — a US seller might still want to hand a European counterparty an EN 16931 document even with no domestic mandate of its own. No `statuses` here: the descriptor itself (invoice.descriptor.ts's own `availableWhen` on \"download-xml\") already restricts the action to already-numbered statuses (BT-1 has cardinality 1..1 in the standard) — a matching `statuses` here would be redundant, not a real extra country-policy restriction (see data/all.spec.ts's own guard against that). What would settle whether this should ever be mandatory: none of this standard's own scope names the US at all, so nothing to check here — only a hypothetical future US requirement would."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "export-accounting",
       "allowed": true,
       "provenance": {

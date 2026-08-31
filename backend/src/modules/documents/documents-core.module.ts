@@ -39,6 +39,9 @@ import { buildDocumentReferenceProvider } from './references/document-reference.
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { buildEmailTransport } from './transports/email-transport';
 import { TransportRegistry } from './transports/transport-registry';
+import { ciiFormatProvider } from './formats/cii-provider';
+import { FormatProviderRegistry } from './formats/format-registry';
+import { ublFormatProvider } from './formats/ubl-provider';
 import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
@@ -47,6 +50,7 @@ import {
   DOCUMENT_TYPE_REGISTRY,
   ENTITY_REFERENCE_REGISTRY,
   FIELD_KIND_REGISTRY,
+  FORMAT_PROVIDER_REGISTRY,
   TRANSPORT_REGISTRY,
   VAT_RATE_CATALOG_REGISTRY,
 } from './tokens';
@@ -81,6 +85,22 @@ function buildContributionRegistry(): ContributionRegistry {
 function buildFieldKindRegistry(): FieldKindRegistry {
   const registry = new FieldKindRegistry();
   registerCoreFieldKinds(registry);
+  return registry;
+}
+
+/**
+ * The invoice's "download-xml" action's own registry — same registration shape as
+ * `buildTransportRegistry` above (a plugin adds a jurisdiction's syntax by registering ONE more
+ * provider here, never by touching `documents.service.ts#downloadDocumentFormat`). Only the two
+ * EN 16931 base syntaxes this ticket built (item 12) are registered today — see
+ * `formats/format-registry.ts`'s own header for what stays deliberately unbranched (Peppol BIS,
+ * XRechnung, Factur-X/ZUGFeRD PDF/A-3 embedding — item 10/16, and the note left in
+ * `TODO_ISSUES.md` on the Factur-X embedder that DOES exist, unused, at the repère).
+ */
+function buildFormatProviderRegistry(): FormatProviderRegistry {
+  const registry = new FormatProviderRegistry();
+  registry.register(ciiFormatProvider);
+  registry.register(ublFormatProvider);
   return registry;
 }
 
@@ -246,6 +266,7 @@ function buildEntityReferenceRegistry(
     // country-policy's own data — no factory function needed, there is nothing to inject.
     { provide: COUNTRY_FIELD_OVERLAY_REGISTRY, useValue: new CountryFieldOverlayCatalog() },
     { provide: VAT_RATE_CATALOG_REGISTRY, useValue: new VatRateCatalog() },
+    { provide: FORMAT_PROVIDER_REGISTRY, useFactory: buildFormatProviderRegistry },
   ],
   exports: [
     DocumentsService,
@@ -260,6 +281,7 @@ function buildEntityReferenceRegistry(
     CONTRIBUTION_REGISTRY,
     COUNTRY_FIELD_OVERLAY_REGISTRY,
     VAT_RATE_CATALOG_REGISTRY,
+    FORMAT_PROVIDER_REGISTRY,
   ],
 })
 export class DocumentsCoreModule {}

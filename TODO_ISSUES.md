@@ -69,3 +69,62 @@
   déclaré côté US — délibérément, comme trou "jamais examiné" gardé vivant et documenté dans us.json
   même (le bouton "Duplicate" d'un devis y est donc 403 en le disant) ; le combler serait le deviner,
   pas le trancher.
+
+- **Aucun XSD racine UBL 2.1 / UN-CEFACT CII n'a jamais été vendoré dans ce dépôt** (item 12,
+  "formats normalisés", tâche `formats/`) : vérifié sur TOUT l'historique git (pas seulement le
+  repère `avant-refonte-documents`) avant d'écrire la moindre ligne — seuls des XSD NATIONAUX (PL
+  FA(2)/FA(3), ES Facturae, IT FatturaPA, MX CFDI) et le Schematron EN 16931/Peppol/XRechnung ont
+  jamais été vendorés ; l'ancien `providers.ts` lui-même ne validait CII/UBL EN 16931 de base QUE
+  par Schematron. La porte « XSD » demandée pour cette tâche n'a donc pas de ruleset officiel à
+  charger tel quel — fabriquer un XSD maison aurait été exactement le « compilateur maison »
+  interdit. `formats/structural-check.ts` fait donc office de porte structurelle : bonne formation
+  XML (`@xmldom/xmldom`, déjà whitelisté) + élément racine attendu (repris de `wrongRootElement` de
+  l'ancien `providers.ts`), PUIS le vrai Schematron EN 16931 vendoré (`formats/vendored/`). Un futur
+  format NATIONAL (PL/ES/IT/MX, hors périmètre ici) qui voudrait un vrai XSD n'aurait qu'à reprendre
+  `validateXsd` du repère (`compliance/schemas/validate.ts`) — rien ne s'y oppose.
+
+- **Factur-X : embarqueur existant au repère, NON repris** (item 12) : `@e-invoice-eu/core` (déjà
+  dans `package.json`, aucune nouvelle dépendance) sait embarquer le CII généré dans un PDF/A-3 —
+  l'ancien `BuiltEInvoice.embedInPdf` (git tag `avant-refonte-documents`,
+  `modules/invoice-rendering/invoice-rendering.service.ts`) l'appelait avec
+  `{ format: 'Factur-X-EN16931', pdf: { buffer, filename, mimetype } }`, un embarqueur trivial (pas
+  de code maison). Non repris ici : le périmètre borné de cette tâche est CII/UBL PURS (l'action
+  `download-xml` n'expose que `syntax ∈ {cii, ubl}`) ; ajouter Factur-X aurait été étendre le
+  périmètre plutôt que le construire. Reprendre consiste en : un troisième `DocumentFormatProvider`
+  (`id: 'facturx'`) qui appelle `buildEuInvoiceForDocument` (déjà partagé par `cii-provider.ts`/
+  `ubl-provider.ts`) puis `service.generate(euInvoice, { format: 'Factur-X-EN16931', pdf: {...} })`
+  avec le PDF déjà produit par `rendering/render-instance-pdf.ts` — pas de nouveau code de fond,
+  juste un provider de plus dans `formats/format-registry.ts` et une troisième option `syntax`.
+
+- **BT-151 (catégorie de TVA) : seules S et Z sont atteignables aujourd'hui** (item 12) : EN 16931
+  distingue six catégories (S, Z, E, AE, K, G, O), chacune avec des exigences contradictoires (voir
+  `formats/semantic/build-semantic-invoice.ts`'s own header, "VAT category"). Le descripteur
+  d'aujourd'hui n'a qu'un `vatRate` (pourcentage) par ligne, sans catégorie — dériver E (exonéré), O
+  (hors champ), AE (autoliquidation), K (livraison intra-UE) ou G (export) exigerait un fait que ce
+  pont, volontairement sans nom de pays, n'a pas (l'ancien moteur fiscal transfrontalier, supprimé —
+  item 16, "transfrontalier", jamais reconstruit). `formats/pitfalls.spec.ts` prouve que le GATE
+  (le Schematron vendoré) réagit correctement à E et O quand on les lui présente directement
+  (BR-E-02/BR-E-10, BR-O-02/BR-O-10/BR-O-11..14) — c'est le pont lui-même qui ne peut pas encore les
+  produire. Combler ce trou est le vrai contenu de l'item 16, pas une extension de cette tâche-ci.
+
+- **BT-23 (cadre de facturation français) : logique reprise et testée, jamais branchée** (item 12) :
+  `formats/semantic/business-process.ts` reprend `frenchBusinessProcessCode`/
+  `applyFrenchBusinessProcess` VERBATIM du repère (seul l'import a changé), avec son propre spec
+  repris quasi verbatim (`business-process.spec.ts`) — mais rien dans le pont générique
+  (`build-semantic-invoice.ts`) ne l'appelle : les valeurs limitatives qu'elle dérive (`B1 S1 M1...`)
+  sont une exigence FRANÇAISE (CGI ann. II art. 242 nonies A 8° bis), et le brancher sans condition
+  de pays affirmerait une règle française sur une facture américaine. Décider QUELS pays l'exigent,
+  avec quelles valeurs, est l'item 11 (« canal imposé par pays ») ou 15 (« mentions obligatoires »),
+  pas celui-ci — le descripteur `invoice.descriptor.ts` est délibérément sans pays, il n'a rien sur
+  quoi conditionner ce branchement aujourd'hui.
+
+- **Un vrai bug trouvé en testant contre le vrai serveur, pas contre un fixture à la main** (item
+  12) : la première version du pont passait `data.issueDate` tel quel à `@e-invoice-eu/core` ; tous
+  les fixtures jest écrits à la main l'écrivaient déjà comme une date nue ("2026-08-30"), ce qui
+  cachait le vrai format stocké par le champ 'date' du descripteur — un DATETIME ISO complet
+  ("2026-05-31T00:00:00.000Z"). Un `curl` contre le backend de test, sur une VRAIE facture
+  enregistrée par l'écran, a renvoyé 500 (l'ajv interne de la lib rejette le format datetime pour
+  BT-2). Corrigé par `shared-build.ts`'s `toDateOnly` (normalise via `new Date(...).toISOString()`
+  avant de tronquer), et un test de régression ajouté (`providers.spec.ts`, "a REAL saved
+  document's own issueDate shape"). Consigné pour le rappel de méthode : un fixture à la main ne
+  remplace jamais un aller-retour contre le vrai serveur avec une vraie donnée sauvegardée.
