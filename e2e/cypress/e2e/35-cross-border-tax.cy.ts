@@ -277,4 +277,122 @@ describe("Root TODO item 16 — le transfrontalier, à travers l'écran", () => 
 			});
 		});
 	});
+
+	// Root TODO item 16 FOLLOW-UP (2026-09-01) — the OSS gate's own real-world gap ("OSS hors FR"):
+	// this task sourced Germany's real standard VAT rate (19%) from the European Commission's TEDB
+	// (`documents/tax/tax-systems/data/de.json`'s own `provenance`), so a B2C sale of GOODS to a
+	// German consumer with NO VAT number no longer hits `UnsupportedOssDestinationError` — it now
+	// resolves to DE's own destination rate. Same discipline as the first test in this file: the
+	// client is created BY THE SCREEN, the invoice is sent BY A REAL CLICK, and the assertion that
+	// counts is the actual downloaded XML.
+	it("un client allemand SANS numéro de TVA (B2C) — facture FR→DE en email, OSS charge le taux allemand LU (19%), total TTC chiffré", () => {
+		setInvoiceTransport("email");
+
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Privatkunde Ohne USt-IdNr");
+		cy.selectCountry("client-country-select", "Germany");
+
+		// The VAT field is OFFERED (same country-identifiers/data/de.json as the first test) but
+		// deliberately left EMPTY — this is what makes `resolveBuyerRole` treat this buyer as B2C
+		// (`resolve-invoice-tax.ts`'s own contract: no VAT value at all → B2C, before VIES is even
+		// consulted), which is exactly the shape the OSS branch (not reverse charge) needs.
+		cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 }).should("exist");
+
+		cy.get('[name="contactEmail"]').clear().type("privatkunde@ohne-ustidnr.example");
+		cy.get('[name="address"]').clear().type("Alexanderplatz 1");
+		cy.get('[name="postalCode"]').clear().type("10178");
+		cy.get('[name="city"]').clear().type("Berlin");
+
+		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Privatkunde Ohne USt-IdNr", { timeout: 10000 });
+
+		// The invoice — a GOODS line (not SERVICES) so the engine actually reaches the OSS branch
+		// (`tax-engine.ts`: B2C GOODS/DIGITAL across the union → `ossDestinationVat`; B2C SERVICES
+		// falls back to the seller's own rate and never needs a destination table at all).
+		cy.request({ url: `${api}/api/documents/references/client/search?q=Privatkunde` })
+			.its("body")
+			.then((clients: { id: string; label: string }[]) => {
+				const client = clients.find((c) => c.label.includes("Privatkunde Ohne USt-IdNr"));
+				expect(client, "le client allemand B2C créé ci-dessus se retrouve par la recherche").to.exist;
+
+				const data = {
+					client: client!.id,
+					issueDate: "2026-08-30",
+					dueDate: "2026-09-30",
+					currency: "EUR",
+					lines: [
+						{
+							description: "Casque audio sans fil",
+							quantity: 10,
+							unit: "unit",
+							unitPrice: 100,
+							vatRate: "20",
+							supplyType: "GOODS",
+						},
+					],
+				};
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data },
+				}).then((saved) => {
+					const invoiceId = saved.body?.document?.id as string;
+					expect(invoiceId).to.be.a("string");
+
+					cy.visit("/documents/invoice");
+					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+						.find('[data-cy="document-status-badge"]')
+						.should("contain.text", "Draft");
+
+					// L'ACTION : un vrai clic sur "Send".
+					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+
+					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
+						.find('[data-cy="document-status-badge"]')
+						.should("contain.text", "Sent");
+
+					// Le XML téléchargé — la preuve : 19% (le taux allemand LU depuis TEDB), catégorie
+					// S (standard-rated, à destination), jamais les 20% saisis au brouillon et jamais un
+					// blocage `UnsupportedOssDestinationError`.
+					cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
+					cy.intercept({ method: "GET", pathname: `/api/documents/${invoiceId}/formats/cii` }).as(
+						"xmlCiiOss",
+					);
+					cy.get(`[data-cy="document-xml-button-${invoiceId}"]`, { timeout: 10000 }).click();
+					cy.get(`[data-cy="document-xml-cii-${invoiceId}"]`, { timeout: 10000 })
+						.should("be.visible")
+						.click();
+					cy.wait("@xmlCiiOss", { timeout: 20000 }).then((x) => {
+						expect(x.response?.statusCode, "le téléchargement CII réussit").to.eq(200);
+						const body = String(x.response?.body);
+						// BT-152/BT-151 — 19% (DE), catégorie S, jamais les 20% du vendeur français.
+						expect(body).to.match(/<ram:RateApplicablePercent>19<\/ram:RateApplicablePercent>/);
+						expect(body).to.contain("<ram:CategoryCode>S</ram:CategoryCode>");
+						// Totaux : 10 × 100 = 1000,00 € HT, 19% de TVA = 190,00 €, TTC = 1190,00 €.
+						expect(body).to.match(
+							/<ram:TaxTotalAmount currencyID="EUR">190\.00<\/ram:TaxTotalAmount>/,
+						);
+						expect(body).to.match(/<ram:GrandTotalAmount>1190\.00<\/ram:GrandTotalAmount>/);
+					});
+
+					// Et c'est bien ce qui est enregistré et lettrable — même discipline que le premier
+					// test : l'assertion qui compte relit l'API, sur les totaux RÉSOLUS et STOCKÉS.
+					cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })
+						.its("body")
+						.then((body) => {
+							expect(body.totals.grossMinor, "total résolu : 1190,00 € (19% OSS DE)").to.eq(119000);
+						});
+				});
+			});
+	});
 });

@@ -131,4 +131,49 @@ describe('FieldKindRegistry', () => {
       ]);
     });
   });
+
+  // Root TODO item 16 follow-up (2026-09-01) — a REAL bug this task's own Cypress extension caught,
+  // never a jest test: `resolveInvoiceCrossBorderTax` (documents/tax/resolve-invoice-tax.ts) replaces
+  // a line's `vatRate` with a FOREIGN destination country's real rate (e.g. Germany's 19% for a FR
+  // seller's OSS sale) and persists it as `instance.data` at "sending". `queue/processors/document-
+  // action.processor.ts` then REPLAYS the send action through `DocumentsService.runAction` — which
+  // re-validates that SAME data against this exact 'select' validator, using the SELLER's own
+  // (FR) vatRate catalog. Every existing B2B case (reverse charge/intra-Community/export) resolves to
+  // 0%, which happens to already be a valid FR rate — so this never surfaced until a REAL non-zero
+  // OSS destination rate (this task's own de.json et al.) reached a genuine end-to-end send and threw
+  // "Invalid document data" (verified live: `35-cross-border-tax.cy.ts`'s new OSS test failed with
+  // exactly this error before the fix below, confirmed by fetching the failed document over the API —
+  // `lastActionError: "Invalid document data"`, `data.lines[0].vatRate: "19"` already correctly
+  // resolved). Fixed by a NARROW, additive exception — never a relaxation of `allowCustomValue`'s own
+  // contract, proven unchanged by the three tests above.
+  describe("'select' with usesVatRateCatalog — a cross-border-resolved row is exempt from the seller's own catalog", () => {
+    const registry = new FieldKindRegistry();
+    registerCoreFieldKinds(registry);
+    const vatRateField = {
+      key: 'vatRate',
+      kind: 'select',
+      label: 'VAT rate',
+      options: [{ value: '20', label: '20%' }], // the SELLER's own (FR) catalog — 19% is foreign to it
+      usesVatRateCatalog: true,
+    };
+
+    it('a row carrying __crossBorderCategory accepts a rate foreign to the seller catalog (the OSS destination rate)', () => {
+      expect(
+        validateAgainstDescriptor([vatRateField], { vatRate: '19', __crossBorderCategory: 'S' }, registry),
+      ).toEqual([]);
+    });
+
+    it('a NORMAL row (no __crossBorderCategory) is still refused a value foreign to the seller catalog — the exception never leaks to ordinary drafts', () => {
+      expect(validateAgainstDescriptor([vatRateField], { vatRate: '19' }, registry)).toEqual([
+        { key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' },
+      ]);
+    });
+
+    it('a select field that does NOT declare usesVatRateCatalog gets no such exception, even with __crossBorderCategory present', () => {
+      const otherField = { ...vatRateField, usesVatRateCatalog: undefined };
+      expect(
+        validateAgainstDescriptor([otherField], { vatRate: '19', __crossBorderCategory: 'S' }, registry),
+      ).toEqual([{ key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' }]);
+    });
+  });
 });

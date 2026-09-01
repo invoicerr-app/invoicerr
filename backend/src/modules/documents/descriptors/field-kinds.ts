@@ -78,7 +78,7 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
 
   registry.register('boolean', (value) => (typeof value === 'boolean' ? null : 'must be true or false.'));
 
-  registry.register('select', (value, { field }) => {
+  registry.register('select', (value, { field, data }) => {
     if (typeof value !== 'string') return 'must be one of the offered choices.';
     const options = field.options ?? [];
     if (options.some((o) => o.value === value)) return null;
@@ -87,6 +87,24 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     // exactly as before regardless of this flag: a scripted client must be refused exactly what the
     // screen would refuse, never allowed to bypass a real, sourced list by posting directly.
     if (field.allowCustomValue && options.length === 0) return null;
+    // Root TODO item 16 follow-up (2026-09-01) — a DIFFERENT, NARROWER exception, not a relaxation of
+    // the one above: a VAT-rate-catalog field (`usesVatRateCatalog`, today only the invoice line's
+    // `vatRate`) whose ROW was already resolved by the cross-border tax engine — marked by the
+    // `__crossBorderCategory` sidecar `documents/tax/resolve-invoice-tax.ts` writes onto that SAME
+    // row — legitimately carries a FOREIGN country's real rate (e.g. Germany's 19% on a FR seller's
+    // OSS sale), which the seller's own domestic catalog (`options` here) was never supposed to
+    // validate in the first place. Without this, root TODO item 16's own "surgical fix" (the resolved
+    // treatment is persisted at "sending" and REPLAYED through this exact validator when the queued
+    // worker job runs `runAction` again — see `queue/processors/document-action.processor.ts`'s own
+    // header, "the EXACT SAME entry point") rejects its own output with "Invalid document data" the
+    // moment a destination rate isn't ALSO one of the seller's own rates. Invisible for every
+    // existing B2B case (0% — reverse charge/intra-Community/export — happens to already be a valid
+    // FR rate); only surfaced once a REAL non-zero OSS destination rate (this task's own de.json,
+    // it.json, ...) reached a genuine end-to-end send, caught by `35-cross-border-tax.cy.ts` — never
+    // by a jest test that calls `resolveInvoiceCrossBorderTax` directly and never replays through
+    // `runAction`. `allowCustomValue`'s own contract (never bypass a known, non-empty list for a
+    // genuinely user-typed value) stays exactly as strict as before for every OTHER case.
+    if (field.usesVatRateCatalog && typeof data.__crossBorderCategory === 'string') return null;
     return 'is not one of the offered choices.';
   });
 

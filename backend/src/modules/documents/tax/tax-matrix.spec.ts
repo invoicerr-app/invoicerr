@@ -109,6 +109,38 @@ describe('LA MATRICE — TaxEngine — OSS destination rate from a real buyer pr
     expect(t.components[0].rate).toBe(22);
     expect(t.reportingFlags).toContain('OSS');
   });
+
+  // Root TODO item 16 follow-up (2026-09-01): the 26 other EU member states' standard rate, read
+  // from the European Commission's TEDB — HU is the highest in the EU (27%), DE is the destination
+  // the OSS gate's own error message used to name verbatim as missing.
+  it('11. FR→HU B2C goods: OSS charges the real HU standard rate (27%, the highest in the EU)', () => {
+    const t = determineLineTax(
+      party('FR', 'B2C'),
+      party('HU', 'B2C'),
+      line('GOODS'),
+      prof('FR'),
+      vat,
+      prof('HU'),
+    );
+    expect(t.components[0].jurisdiction).toBe('HU');
+    expect(t.components[0].rate).toBe(27);
+    expect(t.components[0].category).toBe('S');
+    expect(t.reportingFlags).toContain('OSS');
+  });
+
+  it('12. FR→DE B2C goods: OSS charges the real DE standard rate (19%) — DE used to be the gate’s own textbook missing-table example', () => {
+    const t = determineLineTax(
+      party('FR', 'B2C'),
+      party('DE', 'B2C'),
+      line('GOODS'),
+      prof('FR'),
+      vat,
+      prof('DE'),
+    );
+    expect(t.components[0].jurisdiction).toBe('DE');
+    expect(t.components[0].rate).toBe(19);
+    expect(t.reportingFlags).toContain('OSS');
+  });
 });
 
 describe('LA MATRICE — TaxEngine — schemes & zero rating', () => {

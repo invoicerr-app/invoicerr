@@ -44,6 +44,19 @@ const US_BUYER: DocumentFormatParty = {
   partyIdentifiers: [],
 };
 
+// A true B2C German consumer — NO VAT identifier at all (unlike DE_BUYER above, which carries one
+// for the B2B reverse-charge tests). Root TODO item 16 follow-up (2026-09-01): this is exactly the
+// buyer shape that used to hit `UnsupportedOssDestinationError` before this task sourced DE's real
+// standard VAT rate from TEDB.
+const DE_BUYER_B2C: DocumentFormatParty = {
+  name: 'Klaus Mustermann',
+  address: 'Friedrichstraße 42',
+  city: 'Berlin',
+  postalCode: '10117',
+  country: 'Germany',
+  partyIdentifiers: [],
+};
+
 describe('root TODO item 16 — FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schematron', () => {
   it('the downloaded CII carries 0%, category AE, and the art. 196 mention in BG-1', async () => {
     const rawData = {
@@ -86,6 +99,64 @@ describe('root TODO item 16 — FR→DE B2B, valid VAT: reverse charge, judged b
     // Totals actually reflect the resolved 0% treatment, not the originally-typed 20%.
     expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/);
     expect(xml).toMatch(/<ram:GrandTotalAmount>12000\.00<\/ram:GrandTotalAmount>/);
+  });
+});
+
+// Root TODO item 16 follow-up (2026-09-01): the OSS branch — FR→DE B2C GOODS used to be a hard,
+// named block (`UnsupportedOssDestinationError`, "no VAT rate table is known for DE") because no
+// tax-system file existed for DE. This task read DE's real standard VAT rate (19%) from the European
+// Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) — the send now goes through, and
+// the vendored EN 16931 Schematron judges the resulting CII, not a hand-asserted opinion of it.
+describe('root TODO item 16 follow-up — FR→DE B2C GOODS: OSS charges DE’s real standard rate, judged by real EN 16931 Schematron', () => {
+  it('the downloaded CII carries 19% (DE’s real rate), category S, and totals computed on it — never FR’s 20% and never a block', async () => {
+    const rawData = {
+      client: 'client-4',
+      issueDate: '2026-08-30',
+      dueDate: '2026-09-30',
+      currency: 'EUR',
+      lines: [
+        {
+          description: 'Casque audio sans fil',
+          quantity: 10,
+          unit: 'unit',
+          unitPrice: 100,
+          vatRate: '20',
+          supplyType: 'GOODS',
+        },
+      ],
+    };
+
+    const resolved = resolveInvoiceCrossBorderTax({
+      seller: { country: FR_SELLER.country },
+      buyer: { country: DE_BUYER_B2C.country },
+      // no buyerVat at all — a true B2C consumer, exactly the shape this task's own Cypress
+      // extension (35-cross-border-tax.cy.ts) drives through the screen.
+      data: rawData,
+    });
+    expect(resolved.crossBorder).toBe(true);
+    const line = (resolved.data.lines as Record<string, unknown>[])[0];
+    expect(line.vatRate).toBe('19');
+    expect(line.__crossBorderCategory).toBe('S');
+
+    const document = {
+      id: 'doc-fr-de-b2c',
+      data: resolved.data,
+      displayNumber: 'INV-2026-0045',
+      status: 'sent',
+    };
+    const result = await ciiFormatProvider.build(descriptor, document, FR_SELLER, DE_BUYER_B2C);
+
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toEqual([]);
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+
+    // BT-152/BT-151 — DE's real 19% rate, category S (standard-rated, destination jurisdiction).
+    expect(xml).toMatch(/<ram:RateApplicablePercent>19<\/ram:RateApplicablePercent>/);
+    expect(xml).toMatch(/<ram:CategoryCode>S<\/ram:CategoryCode>/);
+    // Totals: 10 × 100 = 1000.00 net, 19% VAT = 190.00, grand total = 1190.00 — never FR's 20%
+    // (which would have been 200.00 tax / 1200.00 total) and never a block.
+    expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">190\.00<\/ram:TaxTotalAmount>/);
+    expect(xml).toMatch(/<ram:GrandTotalAmount>1190\.00<\/ram:GrandTotalAmount>/);
   });
 });
 

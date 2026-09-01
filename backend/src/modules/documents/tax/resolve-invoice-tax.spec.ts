@@ -5,6 +5,8 @@ import {
   UnresolvedSellerCountryError,
   UnsupportedOssDestinationError,
 } from './resolve-invoice-tax';
+import { ALL_TAX_SYSTEM_FILES } from './tax-systems/data/all';
+import { TaxSystemRegistry } from './tax-systems/registry';
 
 const FR_DE_VALID_VAT = 'DE136695976'; // a widely-published, checksum-valid German VAT number
 
@@ -182,16 +184,80 @@ describe('resolveInvoiceCrossBorderTax — FR→US export: G/O, art. 146', () =>
   });
 });
 
-describe('resolveInvoiceCrossBorderTax — FR→DE B2C: blocked, no destination rate table', () => {
-  it('blocks, named, never invents a rate and never applies the seller own rate silently', () => {
+// Root TODO item 16 follow-up (2026-09-01): DE used to be the textbook example of "no destination
+// rate table" — the OSS gate's own error message names it verbatim (see resolve-invoice-tax.ts's own
+// header, "OSS with no destination rate table"). This task read Germany's real standard VAT rate
+// (19%) from the European Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) along
+// with all 26 other EU member states — DE no longer blocks. The BLOCK MECHANISM itself is still
+// exercised below, via dependency injection, against a registry that genuinely has no destination
+// file — proving the gate did not get weakened, only the real-world DE gap got closed.
+describe('resolveInvoiceCrossBorderTax — FR→DE B2C GOODS: OSS now resolves a REAL destination rate', () => {
+  it('19% (DE’s real TEDB-sourced standard rate), category S, never the seller’s own 20%', () => {
+    const data = dataWithLines([
+      { description: 'Widgets', quantity: 1, unitPrice: 100, vatRate: '20', supplyType: 'GOODS' },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      data,
+    });
+    expect(result.crossBorder).toBe(true);
+    const line = (result.data.lines as Record<string, unknown>[])[0];
+    expect(line.vatRate).toBe('19'); // DE's real standard rate, never FR's 20% and never invented
+    expect(line.__crossBorderCategory).toBe('S');
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('re-resolving the already-resolved 19% OSS line is stable (idempotence — the same property the B2B paths already prove)', () => {
+    const draft = dataWithLines([
+      { description: 'Widgets', quantity: 2, unitPrice: 500, vatRate: '20', supplyType: 'GOODS' },
+    ]);
+    const parties = { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' } };
+    const firstPass = resolveInvoiceCrossBorderTax({ ...parties, data: draft });
+    const secondPass = resolveInvoiceCrossBorderTax({ ...parties, data: firstPass.data });
+    expect(secondPass.data).toEqual(firstPass.data);
+    const line = (secondPass.data.lines as Record<string, unknown>[])[0];
+    expect(line.vatRate).toBe('19');
+  });
+
+  it('FR→DE B2B (valid VAT) is UNCHANGED — the OSS branch never fires for B2B, reverse charge still applies', () => {
+    const data = dataWithLines([
+      { description: 'Widgets', quantity: 10, unitPrice: 50, vatRate: '20', supplyType: 'GOODS' },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      buyerVat: { value: FR_DE_VALID_VAT, validationStatus: 'VALID' },
+      data,
+    });
+    const line = (result.data.lines as Record<string, unknown>[])[0];
+    expect(line.vatRate).toBe('0'); // intra-Community supply, never DE's 19% and never OSS
+    expect(line.__crossBorderCategory).toBe('K');
+  });
+});
+
+// The block mechanism itself, proven independently of whether any REAL country happens to be
+// uncatalogued today: a registry built from a subset of files (FR only) has no DE profile, so the
+// exact same gate `resolve-invoice-tax.ts` holds for the real (uncatalogued) case still fires here —
+// this is what stays true even after this task closes the real-world DE/EU gap entirely.
+describe('resolveInvoiceCrossBorderTax — the OSS block itself still fires for ANY uncatalogued destination', () => {
+  it('a registry with no DE file (dependency-injected) still blocks FR→DE B2C GOODS, named', () => {
+    const frOnly = ALL_TAX_SYSTEM_FILES.filter((f) => f.countryCode === 'FR');
+    const registry = new TaxSystemRegistry(frOnly);
     const data = dataWithLines([
       { description: 'Widgets', quantity: 1, unitPrice: 100, vatRate: '20', supplyType: 'GOODS' },
     ]);
     expect(() =>
-      resolveInvoiceCrossBorderTax({ seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' }, data }),
+      resolveInvoiceCrossBorderTax(
+        { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' }, data },
+        { taxSystemRegistry: registry },
+      ),
     ).toThrow(UnsupportedOssDestinationError);
     expect(() =>
-      resolveInvoiceCrossBorderTax({ seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' }, data }),
+      resolveInvoiceCrossBorderTax(
+        { seller: { countryCode: 'FR' }, buyer: { countryCode: 'DE' }, data },
+        { taxSystemRegistry: registry },
+      ),
     ).toThrow(/no VAT rate table is known for DE/);
   });
 

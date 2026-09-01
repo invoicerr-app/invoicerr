@@ -9,7 +9,44 @@ import { join } from 'node:path';
 
 import { assertValidTaxSystemProvenance, CountryTaxSystemFact } from '../schema';
 
-const COUNTRY_FILES = ['fr', 'us', 'it', 'sa', 'ae', 'in', 'qa'] as const;
+const COUNTRY_FILES = [
+  'fr',
+  'us',
+  'it',
+  'sa',
+  'ae',
+  'in',
+  'qa',
+  // The 26 other EU member states — root TODO item 16's own OSS follow-up ("sourcer les tables de
+  // taux par pays de destination"), standard VAT rate only, read from the European Commission's
+  // TEDB (DG TAXUD) — see each file's own `provenance`/`notes` for the exact HTTP request and
+  // response quoted. Alphabetical, not the OSS-gate's own historical example order.
+  'at',
+  'be',
+  'bg',
+  'hr',
+  'cy',
+  'cz',
+  'dk',
+  'ee',
+  'gr',
+  'es',
+  'fi',
+  'de',
+  'hu',
+  'ie',
+  'lv',
+  'lt',
+  'lu',
+  'mt',
+  'nl',
+  'pl',
+  'pt',
+  'ro',
+  'sk',
+  'si',
+  'se',
+] as const;
 
 function loadCountryFile(code: string): CountryTaxSystemFact {
   const path = join(__dirname, `${code}.json`);
@@ -27,6 +64,8 @@ function loadCountryFile(code: string): CountryTaxSystemFact {
 
 /** Every wired jurisdiction's tax-system fact, one file per country. A country with NO entry here has
  *  no known tax-system profile at all — `registry.ts#resolve` returns `undefined` for it, which is
- *  exactly what makes an unknown destination (e.g. Germany, in this branch, for the OSS gate) a
- *  NAMED BLOCK rather than a guessed rate — see `../resolve-invoice-tax.ts`'s own header. */
+ *  exactly what makes an unknown destination a NAMED BLOCK rather than a guessed rate — see
+ *  `../resolve-invoice-tax.ts`'s own header, "OSS with no destination rate table". Germany used to be
+ *  that example (the OSS gate's own historical error message names DE); it no longer blocks — see
+ *  `de.json` — but the mechanism itself still blocks any EU member state whose file is missing here. */
 export const ALL_TAX_SYSTEM_FILES: CountryTaxSystemFact[] = COUNTRY_FILES.map(loadCountryFile);

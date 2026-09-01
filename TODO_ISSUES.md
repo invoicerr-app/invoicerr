@@ -180,6 +180,63 @@
   desormais le pont qui PRODUIT G/AE/K/O pour le cas transfrontalier ; E reste hors d'atteinte, par
   choix explicite pour ne pas régresser le domestique.
 
+- ~~**OSS B2C sans table de taux destination — sourcé pour la France seulement**~~ — **RÉSOLU pour
+  les 27 États membres UE** (item 16 follow-up, 2026-09-01) : `resolve-invoice-tax.ts`'s own OSS
+  gate ("OSS with no destination rate table") bloquait toute vente B2C intra-UE de biens vers un
+  pays sans `tax-systems/data/<cc>.json` — seule la France avait ses taux (item 21, sourcés au CGI).
+  Les 26 autres États membres (`at, be, bg, hr, cy, cz, dk, ee, gr(EL), es, fi, de, hu, ie, lv, lt,
+  lu, mt, nl, pl, pt, ro, sk, si, se`) sont désormais sourcés — taux STANDARD uniquement, chacun LU
+  en direct dans la réponse HTTP de la **Taxes in Europe Database** (TEDB, DG TAXUD,
+  `POST https://ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch`, le MÊME appel que l'app web
+  officielle émet), `provenance.kind: "legal"`, `sourceCheckedAt: "2026-09-01"`, le fragment JSON de
+  la réponse cité verbatim dans chaque fichier. **Aucun pays non lu ne reste** : les 27 États
+  membres UE ont désormais une table (FR dérivée de `vat-rates/`, les 26 autres directement sourcés)
+  — le mécanisme de blocage lui-même n'a PAS été affaibli, seulement le gap réel comblé : prouvé par
+  injection de dépendance dans `resolve-invoice-tax.spec.ts` (un `TaxSystemRegistry` construit avec
+  le seul fichier FR bloque toujours FR→DE, nommé) puisqu'aucun État membre réel ne peut plus
+  illustrer le blocage aujourd'hui. Deux pièges trouvés en lisant, pas en devinant : l'Allemagne
+  porte une entrée `STANDARD` "VAT - Import - " à 19% en plus de la générale (même valeur, sans
+  ambiguïté) ; l'Espagne porte DEUX entrées `STANDARD` distinctes — 7% "VAT - Canary Islands -"
+  (les Canaries ont leur propre IGIC, hors territoire TVA UE) et 21% sans commentaire (le taux
+  espagnol général/péninsulaire, celui retenu) — voir `es.json`'s own `notes` pour le détail. La
+  Grèce est indexée "EL" dans TEDB, jamais "GR" — ce catalogue garde `countryCode: "GR"` (la
+  convention de `classification.ts#EU_MEMBERS`), la correspondance EL⇄GR est documentée dans
+  `gr.json`'s own `notes`. **Volontairement non fait** : les taux RÉDUITS ne sont PAS modélisés,
+  même quand TEDB les fournit proprement — `tax-engine.ts#ossDestinationVat` (le seul consommateur
+  de cette table) ne lit que `standardRate`, jamais `reducedRates`, et `DocumentLine` n'a aucune
+  catégorie de produit par ligne pour en sélectionner un ; ajouter une table non consommée aurait été
+  de la donnée sans lecteur, pas une vraie capacité. Preuve chiffrée par le vrai Schematron vendoré :
+  `cross-border-formats.spec.ts` — FR→DE B2C biens → 19%, catégorie S, total TTC 1190,00 € (jamais
+  les 20% du vendeur) ; `tax-matrix.spec.ts` cas 11/12 (HU 27%, le plus haut d'Europe ; DE 19%) ;
+  `tax-systems/data/all.spec.ts` épingle DE=19, HU=27 (le plus haut), LU=17 (le plus bas), et les 22
+  autres, plus le mécanisme de provenance (un fichier sans `provenance` ne charge pas — testé en
+  cassant réellement `de.json` en cours de tâche, restauré ensuite). FR→DE B2B reste inchangé
+  (autoliquidation, l'OSS ne déborde jamais sur le B2B) ; Cypress 35 étendue (client allemand SANS
+  numéro de TVA, donc B2C) prouve le même chemin à travers l'écran.
+
+  **Un second vrai bug trouvé en testant contre le vrai serveur, jamais par jest seul** : le premier
+  passage de la Cypress 35 étendue restait bloqué sur "Sending" puis retombait "send_failed",
+  `lastActionError: "Invalid document data"` — alors que `resolveInvoiceCrossBorderTax` avait
+  correctement écrit `vatRate: "19"` (le vrai taux allemand). Cause : `runAsyncSendAction`
+  (`actions/async-send.ts`) enqueue le job avec la donnée DÉJÀ RÉSOLUE (taux destination), et
+  `queue/processors/document-action.processor.ts` REJOUE ensuite ce job à travers
+  `DocumentsService.runAction` — le MÊME point d'entrée que l'appel HTTP initial, donc la MÊME
+  validation de descripteur (`validateAgainstDescriptor`). Le champ `vatRate` (kind `select`,
+  `usesVatRateCatalog: true`) est peuplé, par entreprise, avec le catalogue du VENDEUR (FR :
+  20/10/5,5/2,1/0) — un taux OSS de destination (19% allemand, 22% italien, 27% hongrois…) n'y
+  appartient jamais et se faisait rejeter par sa propre revalidation. Invisible pour tous les cas B2B
+  existants (autoliquidation/livraison intra-UE/export → 0%, qui EST une valeur FR valide, par
+  coïncidence) — jamais rencontré avant que cette tâche ne rende un taux OSS non-nul réellement
+  atteignable en envoi de bout en bout. **Corrigé** (`descriptors/field-kinds.ts`'s own `'select'`
+  validator) : une exception NARROW et additive — une ligne qui porte `__crossBorderCategory` (le
+  sidecar que `resolve-invoice-tax.ts` écrit sur la MÊME ligne) est exemptée du catalogue du vendeur
+  pour un champ `usesVatRateCatalog`, jamais un assouplissement du contrat de `allowCustomValue`
+  (qui reste aussi strict qu'avant — trois tests dédiés le prouvent dans `field-kinds.spec.ts`) ni un
+  changement pour tout autre champ `select` de l'application. Reproduit et vérifié en LIVE contre le
+  backend de test (avant/après le correctif, par `curl` direct sur `/actions/send`, pas seulement par
+  jest) avant d'être fixé par jest (`field-kinds.spec.ts`) et par la Cypress 35 elle-même, désormais
+  verte de bout en bout.
+
 - ~~**BT-23 (cadre de facturation français) : logique reprise et testée, jamais branchée**~~ —
   **RÉSOLU** (2026-08-31, suite de l'item 12) : branché conditionnellement par pays via le nouveau
   `content-requirements/` (même moule que channel-policy : provenance `legal` obligatoire, gel à la

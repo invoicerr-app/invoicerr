@@ -30,8 +30,28 @@ describe('TaxSystemRegistry', () => {
     expect(registry.resolve('QA')?.taxSystem).toEqual({ kind: 'NONE' });
   });
 
-  it('an uncatalogued country (Germany) has no known profile at all — the fact the OSS gate relies on', () => {
-    expect(registry.has('DE')).toBe(false);
-    expect(registry.resolve('DE')).toBeUndefined();
+  it('an uncatalogued country (the United Kingdom, GB — left the EU, no tax-system file shipped) has no known profile at all — the fact the OSS gate relies on', () => {
+    expect(registry.has('GB')).toBe(false);
+    expect(registry.resolve('GB')).toBeUndefined();
+  });
+
+  // Root TODO item 16 follow-up (2026-09-01): DE used to be the OSS gate's own textbook example of
+  // "no destination rate table" — its own error message names DE verbatim. It no longer is: this
+  // task sourced all 26 other EU member states' standard VAT rate from the European Commission's
+  // TEDB (DG TAXUD) — see `data/de.json`'s own `provenance`. `data/all.spec.ts` pins every rate;
+  // this test pins that the REGISTRY's own public `resolve()` — what `resolve-invoice-tax.ts`
+  // actually calls — surfaces it correctly, composed through `toTaxSystemSpec`.
+  it('DE now resolves with a real, TEDB-sourced standard rate (19%) — the OSS gate no longer blocks it', () => {
+    const de = registry.resolve('DE');
+    expect(de?.taxSystem.kind).toBe('VAT');
+    if (de?.taxSystem.kind === 'VAT') {
+      expect(de.taxSystem.standardRate).toBe(19);
+      expect(de.taxSystem.reducedRates).toEqual([]); // not modeled — see de.json's own notes
+    }
+  });
+
+  it('HU (27%, the highest in the EU) and LU (17%, the lowest) both resolve — the two extremes this task’s own report cites', () => {
+    expect(registry.resolve('HU')?.taxSystem).toMatchObject({ kind: 'VAT', standardRate: 27 });
+    expect(registry.resolve('LU')?.taxSystem).toMatchObject({ kind: 'VAT', standardRate: 17 });
   });
 });
