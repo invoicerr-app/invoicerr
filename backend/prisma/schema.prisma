@@ -348,7 +348,7 @@ model Company {
   // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
   referenceCurrency String?
 
-  createdAt               DateTime                 @default(now())
+  createdAt               DateTime                    @default(now())
   emailTemplates          MailTemplate[]
   webhooks                Webhook[]
   Article                 Article[]
@@ -362,6 +362,7 @@ model Company {
   documentNumberSequences DocumentNumberSequence[]
   documentPayments        DocumentPayment[]
   documentArchives        DocumentArchive[]
+  documentDownloadTokens  DocumentDownloadToken[]
   currencyRates           CurrencyRate[]
   channelConfigs          CompanyChannelConfig[]
   signingCertificates     CompanySigningCertificate[]
@@ -978,6 +979,10 @@ model DocumentInstance {
   // datés, pas un conflit").
   archives DocumentArchive[]
 
+  // Root TODO item 24 — see DocumentDownloadToken below. A document can have several (a re-share, a
+  // link for two different recipients); each is its own row, never overwritten.
+  shareLinkTokens DocumentDownloadToken[]
+
   @@index([companyId, typeId])
 }
 
@@ -1108,7 +1113,7 @@ model DocumentPayment {
 model DocumentArchive {
   id         String           @id @default(cuid())
   company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String
+  companyId  String
   document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId String
 
@@ -1145,6 +1150,41 @@ model DocumentArchive {
   retentionBasis String?
 
   @@index([companyId, documentId])
+}
+
+// Root TODO item 24 ("liens publics de téléchargement") — a token that lets an unauthenticated
+// caller download ONE document instance's PDF, on the model of the repère's own PdfDownloadToken
+// (git tag `avant-refonte-documents`, backend/src/modules/pdf-links/) with the same security
+// discipline: `tokenHash` is a SHA-256 digest of a 256-bit `crypto.randomBytes` value — the raw
+// token is NEVER stored, and (unlike a password) never needs to be, since `tokenHash` is only ever
+// looked up by EXACT match (a unique index), not compared byte-by-byte — there is no timing oracle
+// to close here, the same reasoning the repère's own service already carried in its header.
+//
+// Two differences from the repère's own model, both deliberate:
+//  - `typeId` replaces `PdfDocumentType` (a closed two-value enum: QUOTE/INVOICE) — this codebase no
+//    longer has a fixed set of document types (documents/descriptors/), so the type is a plain
+//    string, exactly like `DocumentInstance.typeId` itself.
+//  - `revokedAt` is NEW: the repère's own token was a short-lived (1h), throwaway link minted by an
+//    MCP chat tool with no screen to revoke it from. THIS feature is a persistent, LISTED link a
+//    company hands to a client — see share-links/share-links.service.ts's own header for why its
+//    default expiry is deliberately NOT the repère's 1 hour. Revocation is a SOFT delete (never a
+//    hard one): who shared what, and when it was pulled back, is itself information worth keeping —
+//    the same "immutable history" instinct `DocumentArchive` above already holds, though this row
+//    (unlike an archive) DOES get one further write: the moment it is revoked.
+model DocumentDownloadToken {
+  id         String           @id @default(cuid())
+  tokenHash  String           @unique
+  typeId     String
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId  String
+
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([documentId])
 }
 
 // The per-(company, type) monotonic counter numbering/sequence.ts's `bumpSequence` advances — see

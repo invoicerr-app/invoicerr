@@ -1,6 +1,6 @@
 import { toast } from "sonner"
 import { authenticatedFetch } from "@/hooks/use-fetch"
-import { Download, FileCode, FileStack, Pencil, Plus, Repeat, Search } from "lucide-react"
+import { Download, FileCode, FileStack, Link2, Pencil, Plus, Repeat, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -14,6 +14,7 @@ import "@/components/documents/custom-registrations"
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponent } from "@/components/documents/custom-slots"
+import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { DocumentSettlementBadge } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
@@ -172,6 +173,7 @@ interface DocumentRowActionsProps {
 function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: DocumentRowActionsProps) {
   const { t } = useTranslation()
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
+  const [shareLinkDialogOpen, setShareLinkDialogOpen] = useState(false)
   const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
     useDocumentActionRunner({
       typeId: descriptor.id,
@@ -243,6 +245,14 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
     }
   }
 
+  // "share-link" (root TODO item 24) — same reasoning as "download-xml" right above: declared on the
+  // descriptor purely for the country-policy/status gates (see invoice.descriptor.ts's own comment
+  // on that action), but its create/list/revoke are REST resources (share-links/), never a POST
+  // through `runAction` — so it gets its OWN dialog (share-link-dialog.tsx), not the generic
+  // `availableActions` button cluster below.
+  const shareLinkAction = descriptor.actions.find((action) => action.id === "share-link")
+  const showShareLink = !!shareLinkAction && isActionAvailable(shareLinkAction, instance.status)
+
   // "sending" is the generic queue-processing status the async "send" mechanism introduces (TODO.md
   // item 22, actions/async-send.ts on the backend) — not a per-document-type name, a property of the
   // record itself: something is actively in flight for it, driven by the worker, not by a further
@@ -254,7 +264,10 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   const availableActions = isProcessing
     ? []
     : descriptor.actions.filter(
-        (action) => action.id !== "download-xml" && isActionAvailable(action, instance.status),
+        (action) =>
+          action.id !== "download-xml" &&
+          action.id !== "share-link" &&
+          isActionAvailable(action, instance.status),
       )
   const CustomExtra = getDocumentCustomComponent(descriptor.id, "list-row-extra")
   // A disabled <button> (Button's own `disabled:pointer-events-none`, see ui/button.tsx) never
@@ -359,6 +372,24 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           </Button>
         )}
 
+        {showShareLink && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!!shareLinkAction?.policyBlockedReason}
+            tooltip={
+              shareLinkAction?.policyBlockedReason
+                ? t("documents.form.actionBlockedByPolicy", { reason: shareLinkAction.policyBlockedReason })
+                : t("documents.list.shareLink")
+            }
+            onClick={() => setShareLinkDialogOpen(true)}
+            dataCy={`document-share-link-button-${instance.id}`}
+          >
+            <Link2 className="h-4 w-4" />
+          </Button>
+        )}
+
         {CustomExtra && <CustomExtra descriptor={descriptor} instance={instance} />}
 
         {isProcessing && (
@@ -434,6 +465,15 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           offerThenSend={offerThenSend}
           open={recurrenceDialogOpen}
           onOpenChange={setRecurrenceDialogOpen}
+        />
+      )}
+
+      {showShareLink && shareLinkDialogOpen && (
+        <ShareLinkDialog
+          typeId={descriptor.id}
+          documentId={instance.id}
+          open={shareLinkDialogOpen}
+          onOpenChange={setShareLinkDialogOpen}
         />
       )}
     </div>

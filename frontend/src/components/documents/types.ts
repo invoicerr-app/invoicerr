@@ -283,6 +283,28 @@ export type ArchiveVerificationResult =
   | { status: "intact" }
   | { status: "corrupted"; details: { role: string; expected: string; actual: string | null }[] }
 
+/** What `POST /documents/:id/share-link` returns — mirrors the backend's `CreatedShareLink`. The
+ *  ONLY place `token`/`path` ever appear: this response is shown once (share-link-dialog.tsx keeps
+ *  it in local state only, never persisted), and `GET /documents/:id/share-links` afterwards never
+ *  carries either field again — see `ShareLinkSummary` below. */
+export interface CreatedShareLink {
+  id: string
+  token: string
+  path: string
+  expiresAt: string
+}
+
+/** One row from `GET /documents/:id/share-links` — mirrors the backend's `ShareLinkSummary`.
+ *  Deliberately carries NO `token`/`tokenHash`: re-displaying a past link's URL is not merely
+ *  refused by the screen, the API response makes it impossible. */
+export interface ShareLinkSummary {
+  id: string
+  createdAt: string
+  expiresAt: string
+  revokedAt: string | null
+  active: boolean
+}
+
 export interface EntityReferenceOption {
   id: string
   label: string

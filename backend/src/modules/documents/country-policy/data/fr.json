@@ -48,6 +48,15 @@
       }
     },
     {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis (item 24 du TODO racine) est une commodité produit — un devis n'est même pas un document fiscal (voir invoice.send ci-dessus sur l'art. 289 V du CGI, qui ne couvre que les factures). Aucun texte identifié qui encadrerait spécifiquement le fait de PARTAGER un lien vers un document déjà transmis par ailleurs à son destinataire (le RGPD encadre le traitement de données personnelles qu'un tel lien pourrait exposer, pas l'acte de partage d'un document dont le destinataire légitime a déjà eu communication) ; le lien lui-même reste soumis à la discipline de sécurité du jeton (entropie, hachage, expiration, révocation — share-links/share-links.service.ts). À confirmer par une revue dédiée si un texte propre à la facturation électronique venait à encadrer le partage de documents commerciaux par lien."
+      }
+    },
+    {
       "typeId": "invoice",
       "actionId": "save-draft",
       "allowed": true,
@@ -104,6 +113,15 @@
       }
     },
     {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture (item 24 du TODO racine) est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime (le régime probant de l'écrit électronique, code civil art. 1366 et suivants, gouverne la facture elle-même, pas ce mécanisme de partage additionnel). La sécurité du lien (jeton haute entropie, haché, jamais journalisé en clair, expirant, révocable) est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici. À confirmer par une revue dédiée si le futur mandat de facturation électronique B2B (PPF/PDP, voir la note de 'download-xml') venait à encadrer spécifiquement ce mode de mise à disposition."
+      }
+    },
+    {
       "typeId": "credit-note",
       "actionId": "save-draft",
       "allowed": true,
@@ -119,6 +137,15 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est ce qui le rend opposable au lettrage (voir settlement/credits.ts, item 8 du TODO racine) — un mécanisme produit interne (aucune transmission, aucun email), pas en soi l'acte juridique d'émission d'un avoir. Le régime légal français d'un avoir (rectification de TVA, mentions obligatoires du CGI/BOFiP) porte sur le CONTENU du document une fois émis, pas sur ce changement de statut — même distinction que credit-note.save-draft ci-dessus. À confirmer par une revue dédiée si ce noyau venait à donner un effet légal propre à cette transition (horodatage probant, numérotation séquentielle)."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire. À confirmer par la même revue dédiée."
       }
     },
     {

@@ -487,6 +487,33 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         // that was never actually issued makes no sense either.
         availableWhen: ['sent'],
       },
+      {
+        id: 'share-link',
+        label: 'Share link',
+        // Root TODO item 24 ("liens publics de téléchargement") — declared here for EXACTLY the same
+        // reason "download-xml" above is: a company sharing a public download link is an ACTION this
+        // country's document-action policy should get an opinion on (a country's data-protection or
+        // professional-secrecy posture on "give an unauthenticated third party a link to this
+        // document" is a real, distinct question from "may this action run on this type at all" —
+        // even though every shipped policy file today answers it the same permissive, `unverified`
+        // way "download-xml" already does — see country-policy/data/fr.json's own new entry). This
+        // is NOT registered as an `ActionRegistry` handler (documents-core.module.ts) — unlike
+        // "download-xml" it does not need the bypass for a BINARY-payload reason (creating a share
+        // link returns plain JSON, which fits `ActionResult` fine) but for a ROUTE-SHAPE reason
+        // instead: share-links/share-links.service.ts's own create/list/revoke are REST resources
+        // under "/documents/:id/share-link[s]" (create a link, list active links, revoke one by id),
+        // not a single POST-and-forget action — a shape `runAction`'s generic
+        // "POST .../actions/:actionId" endpoint was never built to express. `documents.controller.ts`
+        // runs the SAME two gates by hand (country policy 403, status 409) before calling into that
+        // service, on the same model `documents.service.ts#downloadDocumentFormat`'s own four-gate
+        // comment documents — only two of those four ever have anything to say for THIS action
+        // (there is no format to pick, so no 501; no document to build and validate, so no 400).
+        //
+        // "Available once numbered" — same three statuses as "download-xml": a draft has no number
+        // (numbering/, `numbering.onEnterStatus: 'sending'` above) and, this ticket's own words, "no
+        // legal existence" to hand a stranger a link to yet.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+      },
     ],
   };
 }

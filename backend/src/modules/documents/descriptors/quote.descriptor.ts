@@ -251,6 +251,15 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
           },
         ],
       },
+      {
+        id: 'share-link',
+        label: 'Share link',
+        // Root TODO item 24 — see invoice.descriptor.ts's own "share-link" comment for the full
+        // reasoning (declared for the country-policy/status gates, served by share-links/ REST
+        // routes, never through ActionRegistry). Same three statuses as the invoice's own: a quote
+        // still in "draft" has no number and nothing worth handing a stranger a link to.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+      },
     ],
   };
 }

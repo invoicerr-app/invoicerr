@@ -8,6 +8,7 @@ import { DocumentsService } from './documents.service';
 import { RunActionDto } from './dto/documents.dto';
 import { CreateDocumentScheduleDto, UpdateDocumentScheduleDto } from './schedules/schedule.dto';
 import { DocumentSchedulesService } from './schedules/schedules.service';
+import { ShareLinksService } from './share-links/share-links.service';
 
 @ApiTags('documents')
 @Controller('documents')
@@ -15,6 +16,7 @@ export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly schedulesService: DocumentSchedulesService,
+    private readonly shareLinksService: ShareLinksService,
   ) {}
 
   // Static segments ('types', 'transports', 'references/:entity/search', 'schedules') are declared
@@ -447,6 +449,74 @@ export class DocumentsController {
     @Query('typeId') typeId: string,
   ) {
     return this.documentsService.verifyDocumentArchive(companyId, typeId, id, archiveId);
+  }
+
+  @Post(':id/share-link')
+  @ApiOperation({
+    summary: 'Create a public share link',
+    description:
+      'Root TODO item 24. Mints a new, high-entropy token (see share-links/share-link-token.ts) and ' +
+      'returns the PUBLIC url ONCE — the raw token is never stored (only its hash) and this ' +
+      'response is the only time this API ever hands it back; GET .../share-links afterwards shows ' +
+      'only metadata (createdAt/expiresAt/revokedAt), never the token itself. Same four-gate story ' +
+      'as "download-xml" (documents.service.ts#downloadDocumentFormat) — only country policy (403) ' +
+      'and status (409) ever fire for this action: a draft document has no number and no legal ' +
+      'existence to share yet.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 201, description: 'Link created — the token is shown here, and only here' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type, or type has no such action' })
+  @ApiResponse({ status: 403, description: "The active company's country document-action policy forbids it" })
+  @ApiResponse({ status: 409, description: "Not available for the record's current status (e.g. a draft)" })
+  createShareLink(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.shareLinksService.create(companyId, typeId, id);
+  }
+
+  @Get(':id/share-links')
+  @ApiOperation({
+    summary: 'List the public share links of a document instance',
+    description:
+      'Metadata only (id/createdAt/expiresAt/revokedAt/active) — never the token or its hash. See ' +
+      'POST .../share-link for the one-time creation response that DOES carry the token.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Share links retrieved (possibly empty)' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  listShareLinks(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.shareLinksService.list(companyId, typeId, id);
+  }
+
+  @Delete(':id/share-link/:tokenId')
+  @ApiOperation({
+    summary: 'Revoke a public share link',
+    description:
+      'A SOFT delete — sets `revokedAt`, never removes the row (who shared what, and when it was ' +
+      'pulled back, is information worth keeping). The public url stops resolving immediately: ' +
+      'GET /api/public/documents/:token/pdf answers the exact same 404 a revoked token gets as an ' +
+      'expired or an unknown one.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'tokenId', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Link revoked' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type, or unknown share link' })
+  revokeShareLink(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Param('tokenId') tokenId: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.shareLinksService.revoke(companyId, typeId, id, tokenId);
   }
 
   @Get(':id')

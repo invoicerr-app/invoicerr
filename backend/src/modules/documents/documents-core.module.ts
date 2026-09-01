@@ -39,6 +39,7 @@ import { DocumentQueueDispatcher } from './queue/document-queue.dispatcher';
 import { DocumentQueueModule } from './queue/document-queue.module';
 import { DocumentScheduleSweepRunner } from './schedules/schedule-sweep-runner';
 import { DocumentSchedulesService } from './schedules/schedules.service';
+import { ShareLinksService } from './share-links/share-links.service';
 import { buildArticleReferenceProvider } from './references/article-reference.provider';
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
@@ -298,6 +299,10 @@ function buildEntityReferenceRegistry(
     // `DocumentsService`/`MailService` already are — nothing here needs a factory.
     DocumentSchedulesService,
     DocumentScheduleSweepRunner,
+    // Root TODO item 24 — the CRUD half of a public download link (share-links/). Same shape as
+    // `DocumentSchedulesService` right above (a plain class, resolved by Nest, reusing
+    // `DocumentsService` for its own tenant-scoped 404s) — no factory needed.
+    ShareLinksService,
     { provide: DOCUMENT_TYPE_REGISTRY, useFactory: buildDocumentTypeRegistry },
     { provide: FIELD_KIND_REGISTRY, useFactory: buildFieldKindRegistry },
     {
@@ -356,6 +361,7 @@ function buildEntityReferenceRegistry(
     DocumentsService,
     DocumentSchedulesService,
     DocumentScheduleSweepRunner,
+    ShareLinksService,
     DOCUMENT_TYPE_REGISTRY,
     FIELD_KIND_REGISTRY,
     TRANSPORT_REGISTRY,

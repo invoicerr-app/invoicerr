@@ -3041,6 +3041,7 @@
       "downloadXmlUbl": "UBL 2.1",
       "downloadXmlFacturx": "Factur-X (PDF/A-3)",
       "downloadXmlError": "The normalized XML export could not be generated.",
+      "shareLink": "Share link",
       "processing": "Processing…",
       "lastActionError": "Last error: {{message}}"
     },
@@ -3094,6 +3095,21 @@
       "resultCorrupted": "Corrupted",
       "corruptedDetail": "{{role}}: expected {{expected}}, got {{actual}}",
       "corruptedMissing": "file missing"
+    },
+    "shareLink": {
+      "title": "Public share link",
+      "description": "Anyone with this link can download the PDF — no account needed. Shown once: copy it now.",
+      "createButton": "Create a link",
+      "createError": "The share link could not be created.",
+      "copy": "Copy",
+      "copied": "Link copied to clipboard.",
+      "activeLinksTitle": "Active links",
+      "noActiveLinks": "No active links yet.",
+      "createdAt": "Created {{date}}",
+      "expiresAt": "Expires {{date}}",
+      "revoke": "Revoke",
+      "revokeError": "The link could not be revoked.",
+      "close": "Close"
     }
   }
 }

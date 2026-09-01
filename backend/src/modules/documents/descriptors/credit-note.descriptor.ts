@@ -173,6 +173,15 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         // No params — see this file's own "Actions" paragraph: this is a plain status transition,
         // not a delivery, so there is no recipient (or anything else) to type in here.
       },
+      {
+        id: 'share-link',
+        label: 'Share link',
+        // Root TODO item 24 — see invoice.descriptor.ts's own "share-link" comment for the full
+        // reasoning. This type has no `numbering` declared at all (this file's own header, above),
+        // so "available once numbered" doesn't apply here the way it does for the invoice/quote —
+        // the gate that matters is simply "not a draft any more", the same status set anyway.
+        availableWhen: ['sending', 'sent', 'send_failed'],
+      },
     ],
   };
 }

@@ -108,9 +108,12 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     );
   });
 
-  it('declares exactly two actions: "save-draft" and "send" — nothing more', () => {
+  it('declares exactly three actions: "save-draft", "send", and "share-link" — nothing more', () => {
+    // "share-link" (root TODO item 24) joined "save-draft"/"send" here — see
+    // credit-note.descriptor.ts's own comment on that action for why it is declared at all despite
+    // never running through ActionRegistry.
     const descriptor = buildService().service.getType('credit-note');
-    expect(descriptor.actions.map((a) => a.id)).toEqual(['save-draft', 'send']);
+    expect(descriptor.actions.map((a) => a.id)).toEqual(['save-draft', 'send', 'share-link']);
   });
 
   it('"send" (phase 1): draft -> sending, enqueued — no params, no email, no delivery yet', async () => {

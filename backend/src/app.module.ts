@@ -12,6 +12,7 @@ import { CompanyModule } from './modules/company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
@@ -66,6 +67,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     CompanyLookupModule,
     DangerModule,
     DocumentsModule,
+    PublicDocumentsModule,
     ReceivedInvoicesModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     PluginsModule,
