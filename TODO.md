@@ -65,7 +65,7 @@
 
 | # | Titre | Description |
 |---|---|---|
-| 19 | **Allemagne + Royaume-Uni** ⚖ | Les 5 tests e2e rouges restants : leurs fichiers d'exigences d'identifiants n'existent pas. |
+| 19 ✅ | **Allemagne + Royaume-Uni** ⚖ (fait, 2026-09-01) | Les sources primaires LUES en ligne : UK VAT Regulations 1995 reg. 14(1)(d) — première entrée `legal` du catalogue d'identifiants — et § 14/14a UStG cités verbatim (gesetze-im-internet.de, legislation.gov.uk). Deux refus honnêtes de surinterpréter : § 37a HGB couvre les « Geschäftsbriefe » (pas « Rechnung ») et SI 2015/17 reg. 25 les « business letters » (pas les factures) — les LEGAL_ID restent unverified. Pas de pattern UK faute de source sur le format, en le disant. Les 5 rouges de 05-clients éteints (23/23) : la base de rouges permanents passe de 6 à UN (item 20). |
 | 20 | **Couverture recherche 40→118** | La liste des pays de `company-lookup` venait des profils supprimés. Décider de sa nouvelle source. |
 | 21 | **Sourcer FR et US** ⚖ | Tout ce qui existe est `unverified` — honnête mais non tranché. Lire les textes (Légifrance refuse les requêtes automatisées : il faudra peut-être un humain). |
 

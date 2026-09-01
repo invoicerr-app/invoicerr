@@ -5,10 +5,9 @@
 
 ## Rouges e2e permanents (7), connus et rattachés à des items du TODO
 
-- **`05-clients` : 5 tests (Allemagne, Royaume-Uni)** — ces pays n'ont aucun fichier d'exigences
-  d'identifiants. Le produit dit correctement qu'il n'en connaît aucune ; les tests attendent un
-  champ `LEGAL_ID`. Rattaché à l'item **19** du TODO : les livrer demande de sourcer leur droit,
-  pas de l'inventer.
+- ~~`05-clients` : 5 tests (Allemagne, Royaume-Uni)~~ — **RÉSOLU à l'item 19** (2026-09-01) :
+  fichiers de/gb livrés avec les sources primaires lues (UStG, VAT Regulations 1995), spec 05 à
+  23/23. La base de rouges permanents passe de 6 à UN (16-company-lookup, item 20).
 - **`16-company-lookup` : 1 test (`expected 40 to be above 100`)** — la couverture de la recherche
   d'entreprise est tombée de 118 à ~40 pays à la démolition (la liste venait des profils
   supprimés). Rattaché à l'item **20** : décider de la nouvelle source de la liste.
