@@ -365,3 +365,9 @@
   l'onboarding) mais le repli reste un pays NOMMÉ dans le code cœur : une société DE aux données
   cassées serait traitée fiscalement comme française sans le dire. Alternative plus stricte : bloquer
   l'envoi aussi côté vendeur, avec le même genre de message nommé. À trancher.
+
+- **`country-identifiers/seed.ts` ne purge jamais un pays entièrement retiré** (découvert à la
+  tâche 19, en prouvant une mutation) : le nettoyage des schémas obsolètes ne parcourt que les pays
+  encore listés dans `data/all.ts` — retirer un pays du registre laisse ses lignes en base pour
+  toujours (0 deleted au lieu de 2, vérifié en direct). Sans conséquence tant qu'on n'enlève jamais
+  de pays ; à corriger le jour où ça arrive (delete WHERE countryCode NOT IN (pays listés)).
