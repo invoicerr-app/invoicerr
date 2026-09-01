@@ -370,3 +370,43 @@
   encore listés dans `data/all.ts` — retirer un pays du registre laisse ses lignes en base pour
   toujours (0 deleted au lieu de 2, vérifié en direct). Sans conséquence tant qu'on n'enlève jamais
   de pays ; à corriger le jour où ça arrive (delete WHERE countryCode NOT IN (pays listés)).
+
+- **SIRET vs SIREN sur la facture française — le champ `LEGAL_ID` de
+  `country-identifiers/data/fr.json` demande peut-être le mauvais numéro** (item 21, 2026-09-01) :
+  les deux textes candidats laissés en suspens par la resolutionNote d'origine ont été LUS à leur
+  source (codes.droit.org, miroir Légifrance — Légifrance lui-même a continué de refuser toute
+  requête automatisée), et les deux pointent vers le SIREN, pas le SIRET.
+  Code de commerce **art. R.123-237** : « Toute personne immatriculée indique sur ses factures
+  […] : 1° Le numéro unique d'identification de l'entreprise délivré conformément à l'article D.
+  123-235 ; 2° La mention RCS suivie du nom de la ville où se trouve le greffe où elle est
+  immatriculée ; […] ». L'art. **D. 123-235**, auquel il renvoie : « Le numéro unique
+  d'identification […] est le numéro d'identité qui lui est attribué lors de son inscription au
+  répertoire des entreprises et de leurs établissements » — le numéro de l'UNITÉ LÉGALE, pas de
+  l'établissement. L'art. **R.123-221** définit les deux numéros sans ambiguïté : « Le numéro
+  d'identification attribué à CHAQUE UNITÉ LÉGALE est un numéro d'ordre composé de NEUF chiffres.
+  Le numéro d'identification attribué à CHAQUE ÉTABLISSEMENT est composé des neuf chiffres du
+  numéro d'identification de l'unité légale […], suivis d'un numéro d'identification complémentaire
+  de CINQ chiffres propre à cet établissement » — la première phrase est le SIREN, la seconde le
+  SIRET. Donc R.123-237 exige le SIREN (+ la mention RCS), pas le SIRET.
+  CGI ann. II **art. 242 nonies A**, I, 1° (mentions obligatoires de la facture, pris en application
+  de l'art. 289 II du CGI) converge indépendamment sur la même réponse : il exige « le numéro
+  d'identification mentionné au PREMIER ALINÉA de l'article R. 123-221 du code de commerce » — le
+  premier alinéa de R.123-221 est précisément le numéro à neuf chiffres de l'unité légale, c'est-à-
+  dire le SIREN, jamais le second alinéa (l'établissement, le SIRET).
+  **Ce que ça implique** : le champ actuel (`label: "SIRET"`, `pattern: ^\d{14}$`, `required: true`
+  pour les deux types de tiers) demande un numéro à 14 chiffres alors que les deux textes lus
+  pointent vers un numéro à 9. Un SIRET valide CONTIENT toujours un SIREN valide (ses 9 premiers
+  chiffres), donc le champ actuel n'est pas nécessairement FAUX au sens où il accepterait un mauvais
+  numéro — mais il est potentiellement TROP STRICT (il refuserait un SIREN seul, à 9 chiffres, alors
+  que c'est apparemment ce que la loi demande sur une facture) et son libellé (« SIRET ») induit en
+  erreur sur ce qu'exige réellement le texte.
+  **Comportement volontairement INCHANGÉ ici** (le champ n'a pas été retouché — `required`,
+  `pattern` et `label` restent identiques) : cette tâche est un chantier de PROVENANCE, pas de
+  comportement, et le choix entre resserrer sur le SIREN, élargir pour accepter les deux formats, ou
+  garder le SIRET (par exemple si un autre texte, non trouvé dans cette passe, exige spécifiquement
+  le SIRET pour un usage différent — facturation par établissement d'une société multi-sites) est
+  une DÉCISION PRODUIT, pas une correction de bug à faire en douce. Voir
+  `country-identifiers/data/fr.json`'s own LEGAL_ID `resolutionNote` (reste `unverified`, enrichie
+  avec ces citations) et `country-identifiers/data/all.spec.ts`'s own describe block pour item 21.
+  Ce qui trancherait pour de bon : une décision explicite sur le champ, ou un troisième texte qui
+  imposerait spécifiquement le SIRET (pas trouvé ici).

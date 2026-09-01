@@ -165,3 +165,40 @@ describe('country-identifiers/data — the shipped DE and GB files', () => {
     );
   });
 });
+
+// Root TODO item 21 — "Sourcer FR et US". FR's VAT scheme was read at its own text this time (CGI
+// ann. II art. 242 nonies A, on codes.droit.org, a Légifrance mirror — Légifrance itself still
+// refused every automated request) and promoted to "legal", the same way task 19 promoted GB's own
+// VAT fact above. FR's LEGAL_ID (SIRET) stays "unverified" DELIBERATELY: both candidate texts named
+// in its old resolutionNote were read too, and they settle the underlying legal question (a French
+// invoice must carry the SIREN, not necessarily the SIRET) — but that answer diverges from what this
+// scheme currently encodes, and this task's own scope is provenance, not behavior, so nothing here
+// changed. See TODO_ISSUES.md ("SIRET vs SIREN sur la facture") for the citations and the product
+// decision this opens.
+describe('country-identifiers/data — FR VAT promoted to "legal" by root TODO item 21 (2026-09-01)', () => {
+  it('FR VAT cites CGI ann. II art. 242 nonies A (the VAT number is a mandatory mention, except under franchise-en-base)', () => {
+    const fr = fileFor('FR');
+    const vat = fr.schemes.find((s) => s.scheme === 'VAT')!;
+    expect(vat.provenance.kind).toBe('legal');
+    if (vat.provenance.kind === 'legal') {
+      expect(vat.provenance.sourceText).toMatch(/franchise en base/);
+      expect(vat.provenance.sourceCheckedAt).toBe('2026-09-01');
+    }
+    expect(vat.required).toBe(false); // unchanged: the exemption is why this stays optional at country level
+  });
+
+  it('FR LEGAL_ID (SIRET) is untouched in BEHAVIOR by this task, but its resolutionNote now names the read texts and the SIREN divergence they surface', () => {
+    const fr = fileFor('FR');
+    const legalId = fr.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
+    expect(legalId.provenance.kind).toBe('unverified'); // stays unverified: the read texts diverge from this value
+    expect(legalId.label).toBe('SIRET');
+    expect(legalId.pattern).toBe('^\\d{14}$');
+    expect(legalId.required).toBe(true);
+    if (legalId.provenance.kind === 'unverified') {
+      expect(legalId.provenance.resolutionNote).toMatch(/R\.123-237/);
+      expect(legalId.provenance.resolutionNote).toMatch(/242 nonies A/);
+      expect(legalId.provenance.resolutionNote).toMatch(/SIREN/);
+      expect(legalId.provenance.resolutionNote).toMatch(/TODO_ISSUES\.md/);
+    }
+  });
+});

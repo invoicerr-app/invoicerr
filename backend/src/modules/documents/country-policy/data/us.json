@@ -18,9 +18,9 @@
       "provenance": {
         "kind": "legal",
         "sourceText": "a signature, contract, or other record relating to such transaction may not be denied legal effect, validity, or enforceability solely because it is in electronic form; […] a contract relating to such transaction may not be denied legal effect, validity, or enforceability solely because an electronic signature or electronic record was used in its formation.",
-        "sourceCheckedAt": "2026-08-30"
+        "sourceCheckedAt": "2026-09-01"
       },
-      "notes": "Electronic Signatures in Global and National Commerce Act (\"E-SIGN Act\"), 15 U.S.C. § 7001(a)(1)-(2), Pub. L. 106-229. Verified live on 2026-08-30 via law.cornell.edu (Legal Information Institute's mirror of the US Code) — the official source is the US Code itself; Cornell's text was used because it is the one government-adjacent mirror this tool could actually reach on the day. This is a GENERAL rule about electronic records/signatures, not a document-specific one, so it applies equally to a quote (not a tax document) — unlike FR's invoice.send rule, which is grounded in a tax-code article specific to invoices."
+      "notes": "Electronic Signatures in Global and National Commerce Act (\"E-SIGN Act\"), 15 U.S.C. § 7001(a)(1)-(2), Pub. L. 106-229. Originally verified on 2026-08-30 via law.cornell.edu (Legal Information Institute's mirror). RE-VERIFIED live on 2026-09-01 directly against the official source itself: govinfo.gov (U.S. Government Publishing Office), https://www.govinfo.gov/content/pkg/USCODE-2021-title15/html/USCODE-2021-title15-chap96-subchapI-sec7001.htm (\"From the U.S. Government Publishing Office, www.gpo.gov\") — the quoted text matches verbatim. uscode.house.gov (the House Office of the Law Revision Counsel's own site) was also attempted but timed out both times; govinfo.gov is an equally official, GPO-published source, not a secondary mirror. This is a GENERAL rule about electronic records/signatures, not a document-specific one, so it applies equally to a quote (not a tax document) — unlike FR's invoice.send rule, which is grounded in a tax-code article specific to invoices."
     },
     {
       "typeId": "quote",
@@ -65,9 +65,9 @@
       "provenance": {
         "kind": "legal",
         "sourceText": "a signature, contract, or other record relating to such transaction may not be denied legal effect, validity, or enforceability solely because it is in electronic form; […] a contract relating to such transaction may not be denied legal effect, validity, or enforceability solely because an electronic signature or electronic record was used in its formation.",
-        "sourceCheckedAt": "2026-08-30"
+        "sourceCheckedAt": "2026-09-01"
       },
-      "notes": "Same E-SIGN Act basis as quote.send above (15 U.S.C. § 7001(a)(1)-(2)) — the US has no federal e-invoicing mandate and no federally-required transmission channel for a B2B invoice (unlike France's PDP mandate), so a plain electronic transmission is the ordinary case here, not an exception to a stricter default."
+      "notes": "Same E-SIGN Act basis as quote.send above (15 U.S.C. § 7001(a)(1)-(2)) — re-verified 2026-09-01 against the same official govinfo.gov (U.S. Government Publishing Office) text as quote.send, see that rule's own notes for the URL and what was tried. The US has no federal e-invoicing mandate and no federally-required transmission channel for a B2B invoice (unlike France's PDP mandate), so a plain electronic transmission is the ordinary case here, not an exception to a stricter default."
     },
     {
       "typeId": "invoice",

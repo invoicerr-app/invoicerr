@@ -90,11 +90,14 @@ describe('country-policy/data — the shipped FR and US files', () => {
   });
 
   // The per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`) — TWO real, shipped
-  // examples, both `unverified` (neither is sourced to a legal text directly, see each rule's own
-  // `resolutionNote`): FR's invoice.save-draft (the original example — "an issued invoice is no
-  // longer editable"), and received-invoice.receive in BOTH shipped files (root TODO item 18 — "a
-  // reviewed [approved/rejected] received invoice's fields are no longer editable", the same shape
-  // of fact applied to a different type's own lifecycle).
+  // examples: FR's invoice.save-draft (the original example — "an issued invoice is no longer
+  // editable"), and received-invoice.receive in BOTH shipped files (root TODO item 18 — "a reviewed
+  // [approved/rejected] received invoice's fields are no longer editable", the same shape of fact
+  // applied to a different type's own lifecycle). Root TODO item 21 (2026-09-01) promoted FR's
+  // invoice.save-draft to `legal` (CGI art. 289 I.5, read directly — see its own `notes`);
+  // received-invoice.receive stays `unverified` in both files (neither rule's own resolutionNote
+  // named a checkable text for the STATUS narrowing itself, as opposed to the separate, already-
+  // sourced reception-channel mandate FR's own rule documents).
   it('invoice.save-draft (FR) and received-invoice.receive (FR+US) restrict to their own "still editable" status', () => {
     const fr = fileFor('FR');
     const us = fileFor('US');
@@ -126,6 +129,58 @@ describe('country-policy/data — the shipped FR and US files', () => {
     for (const file of ALL_COUNTRY_POLICY_FILES) {
       const unknown = (file.documentTypes ?? []).filter((typeId) => !ALL_DOCUMENT_TYPE_IDS.includes(typeId));
       expect(unknown).toEqual([]);
+    }
+  });
+});
+
+// Root TODO item 21 — "Sourcer FR et US": the primary texts were read this time (codes.droit.org, a
+// Légifrance mirror, for the CGI/code civil articles; govinfo.gov, the official US Government
+// Publishing Office, for the US Code) — three FR rules promoted to "legal", pinned here by their
+// exact reference the same way country-identifiers/data/all.spec.ts pins GB's own promoted VAT fact.
+describe('country-policy/data — FR rules promoted to "legal" by root TODO item 21 (2026-09-01)', () => {
+  it('FR quote.send cites code civil art. 1366 (the electronic writing has the same probative force as paper)', () => {
+    const fr = fileFor('FR');
+    const rule = fr.rules.find((r) => r.typeId === 'quote' && r.actionId === 'send')!;
+    expect(rule.provenance.kind).toBe('legal');
+    if (rule.provenance.kind === 'legal') {
+      expect(rule.provenance.sourceText).toMatch(/même force probante/);
+      expect(rule.provenance.sourceCheckedAt).toBe('2026-09-01');
+    }
+    expect(rule.notes).toMatch(/art\. 1366/);
+  });
+
+  it('FR invoice.send cites CGI art. 289 VI (electronic invoices are emitted and received in electronic form)', () => {
+    const fr = fileFor('FR');
+    const rule = fr.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'send')!;
+    expect(rule.provenance.kind).toBe('legal');
+    if (rule.provenance.kind === 'legal') {
+      expect(rule.provenance.sourceText).toMatch(/factures électroniques sont émises et reçues/);
+      expect(rule.provenance.sourceCheckedAt).toBe('2026-09-01');
+    }
+    expect(rule.notes).toMatch(/289, VI/);
+  });
+
+  it('FR invoice.save-draft cites CGI art. 289 I.5 (a correction is a new, referencing document — never a silent rewrite of the original)', () => {
+    const fr = fileFor('FR');
+    const rule = fr.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'save-draft')!;
+    expect(rule.provenance.kind).toBe('legal');
+    if (rule.provenance.kind === 'legal') {
+      expect(rule.provenance.sourceText).toMatch(/modifie la facture initiale/);
+      expect(rule.provenance.sourceCheckedAt).toBe('2026-09-01');
+    }
+    expect(rule.statuses).toEqual(['draft']); // the underlying restriction this citation now grounds
+  });
+
+  it("US quote.send/invoice.send E-SIGN citation was re-verified 2026-09-01 against the official govinfo.gov text, not just Cornell's mirror", () => {
+    const us = fileFor('US');
+    for (const actionId of ['send'] as const) {
+      const quoteRule = us.rules.find((r) => r.typeId === 'quote' && r.actionId === actionId)!;
+      const invoiceRule = us.rules.find((r) => r.typeId === 'invoice' && r.actionId === actionId)!;
+      for (const rule of [quoteRule, invoiceRule]) {
+        expect(rule.provenance.kind).toBe('legal');
+        if (rule.provenance.kind === 'legal') expect(rule.provenance.sourceCheckedAt).toBe('2026-09-01');
+        expect(rule.notes).toMatch(/govinfo\.gov/);
+      }
     }
   });
 });

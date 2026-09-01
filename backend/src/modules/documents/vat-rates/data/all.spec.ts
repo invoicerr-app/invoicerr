@@ -31,9 +31,34 @@ describe('vat-rates/data — the shipped FR catalog', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('honestly, none of the FR rates claim "legal" provenance today — each is corroborated, not quoted from the statute text itself (see fr.json’s own header)', () => {
+  // Root TODO item 21 (2026-09-01) read every one of these five articles at its own text on
+  // codes.droit.org (a Légifrance mirror — Légifrance itself still refused every automated request)
+  // and promoted all five rates from "unverified" to "legal". This REPLACES the previous version of
+  // this test, which asserted the opposite ("honestly, none of the FR rates claim legal provenance
+  // today") — that was the honest state on 2026-08-31; this is the honest state now. Two apparent
+  // divergences flagged back then (10%: art. 278 bis vs 279; 2.1%: art. 281 quater vs 281 octies vs
+  // 298 septies) turned out to be parallel provisions for different categories at the same rate, not
+  // a contradiction — see each rate's own `notes` for the resolution.
+  it('every FR rate now claims "legal" provenance, each citing a distinct CGI article verbatim', () => {
     const fr = ALL_VAT_RATE_FILES.find((f) => f.countryCode === 'FR');
-    const legal = (fr?.rates ?? []).filter((r) => r.provenance.kind === 'legal');
-    expect(legal).toEqual([]);
+    const rates = fr?.rates ?? [];
+    expect(rates.length).toBe(5);
+    for (const rate of rates) {
+      expect(rate.provenance.kind).toBe('legal');
+      if (rate.provenance.kind === 'legal') {
+        expect(rate.provenance.sourceText.length).toBeGreaterThan(20);
+        expect(rate.provenance.sourceCheckedAt).toBe('2026-09-01');
+      }
+    }
+  });
+
+  it('pins the exact CGI article each FR rate cites, by id', () => {
+    const fr = ALL_VAT_RATE_FILES.find((f) => f.countryCode === 'FR');
+    const byId = (id: string) => fr?.rates.find((r) => r.id === id);
+    expect(byId('fr-standard')?.notes).toMatch(/art\. 278\b/);
+    expect(byId('fr-intermediate')?.notes).toMatch(/278 bis ET art\. 279/);
+    expect(byId('fr-reduced')?.notes).toMatch(/278-0 bis/);
+    expect(byId('fr-particular')?.notes).toMatch(/281 quater, 281 octies ET 298 septies/);
+    expect(byId('fr-exempt-293b')?.notes).toMatch(/293 B/);
   });
 });
