@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 import type { RecurringInvoice } from "@/types"
 import { formatAmount } from "@/lib/utils"
+import { isVatApplicable } from "@/lib/vat"
 import { useTranslation } from "react-i18next"
 
 interface RecurringInvoiceViewDialogProps {
@@ -13,6 +14,8 @@ export function RecurringInvoiceViewDialog({ recurringInvoice, onOpenChange }: R
     const { t } = useTranslation()
 
     if (!recurringInvoice) return null
+
+    const showVat = isVatApplicable(recurringInvoice.totalVAT, recurringInvoice.items)
 
     return (
         <Dialog open={!!recurringInvoice} onOpenChange={onOpenChange}>
@@ -41,21 +44,30 @@ export function RecurringInvoiceViewDialog({ recurringInvoice, onOpenChange }: R
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalHT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalHT, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
-                        </div>
+                    <div className={`grid grid-cols-1 ${showVat ? "sm:grid-cols-3" : ""} gap-6 bg-muted/50 p-4 rounded-lg`}>
+                        {showVat ? (
+                            <>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalHT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalHT, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalVAT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalVAT, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
-                        </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalVAT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalVAT, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalTTC")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
-                        </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.totalTTC")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <div>
+                                <p className="text-sm text-muted-foreground">{t("recurringInvoices.view.fields.total")}</p>
+                                <p className="font-medium">{t("common.valueWithCurrency", { amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country), currency: recurringInvoice.currency })}</p>
+                            </div>
+                        )}
                     </div>
 
                     {recurringInvoice.notes && (

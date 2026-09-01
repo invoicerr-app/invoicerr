@@ -246,6 +246,7 @@
                 "client": "Client",
                 "issued": "Issued",
                 "validUntil": "Valid Until",
+                "total": "Total",
                 "totalHT": "Total (excl. VAT)",
                 "totalTTC": "Total (incl. VAT)"
             },
@@ -470,6 +471,7 @@
                 "signedBy": "Signed By",
                 "discountRate": "Discount Rate",
                 "discountAmount": "Discount Amount",
+                "total": "Total",
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
@@ -623,6 +625,7 @@
                 "due": "Due",
                 "nextInvoiceDate": "Next invoice on",
                 "payment": "Payment",
+                "total": "Total",
                 "totalHT": "Total (excl. VAT)",
                 "totalTTC": "Total (incl. VAT)"
             },
@@ -789,6 +792,7 @@
                 "paymentMethod": "Payment Method",
                 "discountRate": "Discount Rate",
                 "discountAmount": "Discount Amount",
+                "total": "Total",
                 "totalHT": "Total (excl. VAT)",
                 "totalVAT": "VAT Amount",
                 "totalTTC": "Total (incl. VAT)",
@@ -853,6 +857,7 @@
             "item": {
                 "client": "Client",
                 "payment": "Payment Method",
+                "total": "Total",
                 "totalHT": "Total (excl. VAT)",
                 "totalTTC": "Total (incl. VAT)"
             },
@@ -984,6 +989,19 @@
                 "cancel": "Cancel",
                 "create": "Create Recurring Invoice",
                 "save": "Save Changes"
+            }
+        },
+        "view": {
+            "title": "Recurring Invoice",
+            "description": "View all details of this recurring invoice.",
+            "fields": {
+                "client": "Client",
+                "paymentMethod": "Payment Method",
+                "total": "Total",
+                "totalHT": "Total (excl. VAT)",
+                "totalVAT": "VAT Amount",
+                "totalTTC": "Total (incl. VAT)",
+                "notes": "Notes"
             }
         }
     },

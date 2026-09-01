@@ -13,6 +13,7 @@ import { InvoiceUpsert } from "./invoice-upsert"
 import { InvoiceViewDialog } from "./invoice-view"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import { formatAmount } from "@/lib/utils"
+import { isVatApplicable } from "@/lib/vat"
 import type React from "react"
 import { toast } from "sonner"
 import { useNavigate } from "react-router"
@@ -275,6 +276,8 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                     {((invoice.paymentMethod as any)?.name ?? (invoice.paymentMethod as any)?.type) ?? "-"}
                                                                 </span>
                                                             )}
+                                                            {isVatApplicable(invoice.totalVAT, invoice.items) ? (
+                                                                <>
                                                             <span>
                                                                 <span className="font-medium text-foreground">{t("invoices.list.item.totalHT")}:</span>{" "}
                                                                 {t("common.valueWithCurrency", {
@@ -289,6 +292,16 @@ export const InvoiceList = forwardRef<InvoiceListHandle, InvoiceListProps>(
                                                                     amount: formatAmount(invoice.totalTTC, invoice.company?.country),
                                                                 })}
                                                             </span>
+                                                                </>
+                                                            ) : (
+                                                            <span>
+                                                                <span className="font-medium text-foreground">{t("invoices.list.item.total")}:</span>{" "}
+                                                                {t("common.valueWithCurrency", {
+                                                                    currency: invoice.currency,
+                                                                    amount: formatAmount(invoice.totalTTC, invoice.company?.country),
+                                                                })}
+                                                            </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

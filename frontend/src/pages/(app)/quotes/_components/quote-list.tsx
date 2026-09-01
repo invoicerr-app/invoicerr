@@ -16,6 +16,7 @@ import { QuoteUpsert } from "@/pages/(app)/quotes/_components/quote-upsert"
 import { QuoteViewDialog } from "@/pages/(app)/quotes/_components/quote-view"
 import { SendConfirmationDialog } from "@/components/send-confirmation-dialog"
 import { formatAmount } from "@/lib/utils"
+import { isVatApplicable } from "@/lib/vat"
 import type React from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
@@ -258,6 +259,8 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                                     {new Date(quote.validUntil).toLocaleDateString()}
                                                                 </span>
                                                             )}
+                                                            {isVatApplicable(quote.totalVAT, quote.items) ? (
+                                                                <>
                                                             <span>
                                                                 <span className="font-medium text-foreground">{t("quotes.list.item.totalHT")}:</span>{" "}
                                                                 {t("common.valueWithCurrency", {
@@ -272,6 +275,16 @@ export const QuoteList = forwardRef<QuoteListHandle, QuoteListProps>(
                                                                     amount: formatAmount(quote.totalTTC, quote.company?.country),
                                                                 })}
                                                             </span>
+                                                                </>
+                                                            ) : (
+                                                            <span>
+                                                                <span className="font-medium text-foreground">{t("quotes.list.item.total")}:</span>{" "}
+                                                                {t("common.valueWithCurrency", {
+                                                                    currency: quote.currency,
+                                                                    amount: formatAmount(quote.totalTTC, quote.company?.country),
+                                                                })}
+                                                            </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

@@ -25,6 +25,29 @@ export function clampDiscountRate(rate?: number | null): number {
     return Math.min(Math.max(rate, 0), 100);
 }
 
+/**
+ * VAT including/excluding UI and PDF columns are shown only when a real rate
+ * applies (any line vatRate > 0 or a non-zero VAT total). 0% and VAT-exempt
+ * documents (e.g. USA, FR 293 B CGI) display a single Total instead.
+ */
+export function isVatApplicable(
+    totalVAT?: number | null,
+    items?: Array<{ vatRate?: number | null }> | null,
+): boolean {
+    if ((Number(totalVAT) || 0) > 0) {
+        return true;
+    }
+    return (items ?? []).some((item) => (Number(item.vatRate) || 0) > 0);
+}
+
+export function getVatDisplayContext(
+    totalVAT?: number | null,
+    items?: Array<{ vatRate?: number | null }> | null,
+): { showVat: boolean; totalsColspan: number } {
+    const showVat = isVatApplicable(totalVAT, items);
+    return { showVat, totalsColspan: showVat ? 5 : 4 };
+}
+
 export function calculateDiscountedTotals(
     items: FinancialLineItem[],
     discountRate: number,

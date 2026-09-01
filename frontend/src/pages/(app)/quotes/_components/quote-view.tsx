@@ -4,6 +4,7 @@ import { PaymentMethodType, type PaymentMethod, type Quote } from "@/types"
 import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
 import { formatAmount } from "@/lib/utils"
+import { isVatApplicable } from "@/lib/vat"
 import { useTranslation } from "react-i18next"
 
 interface QuoteViewDialogProps {
@@ -20,6 +21,7 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
     const discountRateValue = Number(quote.discountRate ?? 0)
     const subtotalBeforeDiscount = quote.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) ?? 0
     const discountAmount = Math.max(0, subtotalBeforeDiscount - quote.totalHT)
+    const showVat = isVatApplicable(quote.totalVAT, quote.items)
 
     const getStatusLabel = (status: string) => {
         return t(`quotes.view.status.${status.toLowerCase()}`)
@@ -90,30 +92,42 @@ export function QuoteViewDialog({ quote, onOpenChange }: QuoteViewDialogProps) {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalHT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: quote.currency,
-                                amount: formatAmount(quote.totalHT, quote.company?.country)
-                            })}</p>
-                        </div>
+                    <div className={`grid grid-cols-1 ${showVat ? "sm:grid-cols-3" : ""} gap-6 bg-muted/50 p-4 rounded-lg`}>
+                        {showVat ? (
+                            <>
+                                <div data-cy="quote-total-ht">
+                                    <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalHT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: quote.currency,
+                                        amount: formatAmount(quote.totalHT, quote.company?.country)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalVAT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: quote.currency,
-                                amount: formatAmount(quote.totalVAT, quote.company?.country)
-                            })}</p>
-                        </div>
+                                <div data-cy="quote-total-vat">
+                                    <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalVAT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: quote.currency,
+                                        amount: formatAmount(quote.totalVAT, quote.company?.country)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalTTC")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: quote.currency,
-                                amount: formatAmount(quote.totalTTC, quote.company?.country)
-                            })}</p>
-                        </div>
+                                <div data-cy="quote-total-ttc">
+                                    <p className="text-sm text-muted-foreground">{t("quotes.view.fields.totalTTC")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: quote.currency,
+                                        amount: formatAmount(quote.totalTTC, quote.company?.country)
+                                    })}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <div data-cy="quote-total">
+                                <p className="text-sm text-muted-foreground">{t("quotes.view.fields.total")}</p>
+                                <p className="font-medium">{t("common.valueWithCurrency", {
+                                    currency: quote.currency,
+                                    amount: formatAmount(quote.totalTTC, quote.company?.country)
+                                })}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">

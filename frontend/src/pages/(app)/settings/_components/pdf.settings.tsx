@@ -108,7 +108,9 @@ const defaultInvoiceTemplate = `
                 <th>{{labels.type}}</th>
                 <th>{{labels.quantity}}</th>
                 <th>{{labels.unitPrice}}</th>
+                {{#if showVat}}
                 <th>{{labels.vatRate}}</th>
+                {{/if}}
                 <th>{{labels.total}}</th>
             </tr>
         </thead>
@@ -119,28 +121,32 @@ const defaultInvoiceTemplate = `
                 <td>{{type}}</td>
                 <td>{{quantity}}</td>
                 <td>{{../currency}} {{unitPrice}}</td>
+                {{#if ../showVat}}
                 <td>{{vatRate}}%</td>
+                {{/if}}
                 <td>{{../currency}} {{totalPrice}}</td>
             </tr>
             {{/each}}
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.subtotal}}</strong></td>
                 <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
             </tr>
             {{#if hasDiscount}}
             <tr>
-                <td colspan="5"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
                 <td><strong>-{{currency}} {{discountAmount}}</strong></td>
             </tr>
             {{/if}}
+            {{#if showVat}}
             <tr>
-                <td colspan="5"><strong>{{labels.vat}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
             </tr>
+            {{/if}}
             <tr class="total-row">
-                <td colspan="5"><strong>{{labels.grandTotal}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{#if showVat}}{{labels.grandTotal}}{{else}}{{labels.total}}{{/if}}</strong></td>
                 <td><strong>{{currency}} {{totalTTC}}</strong></td>
             </tr>
         </tfoot>
@@ -239,7 +245,9 @@ const defaultQuoteTemplate = `
                 <th>{{labels.type}}</th>
                 <th>{{labels.quantity}}</th>
                 <th>{{labels.unitPrice}}</th>
+                {{#if showVat}}
                 <th>{{labels.vatRate}}</th>
+                {{/if}}
                 <th>{{labels.total}}</th>
             </tr>
         </thead>
@@ -250,28 +258,32 @@ const defaultQuoteTemplate = `
                 <td>{{type}}</td>
                 <td>{{quantity}}</td>
                 <td>{{../currency}} {{unitPrice}}</td>
+                {{#if ../showVat}}
                 <td>{{vatRate}}%</td>
+                {{/if}}
                 <td>{{../currency}} {{totalPrice}}</td>
             </tr>
             {{/each}}
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.subtotal}}</strong></td>
                 <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
             </tr>
             {{#if hasDiscount}}
             <tr>
-                <td colspan="5"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
                 <td><strong>-{{currency}} {{discountAmount}}</strong></td>
             </tr>
             {{/if}}
+            {{#if showVat}}
             <tr>
-                <td colspan="5"><strong>{{labels.vat}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
             </tr>
+            {{/if}}
             <tr class="total-row">
-                <td colspan="5"><strong>{{labels.grandTotal}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{#if showVat}}{{labels.grandTotal}}{{else}}{{labels.total}}{{/if}}</strong></td>
                 <td><strong>{{currency}} {{totalTTC}}</strong></td>
             </tr>
         </tfoot>
@@ -641,6 +653,8 @@ export default function PDFTemplatesSettings() {
             totalTTC: "4320.00",
             totalBeforeDiscount: "4800.00",
             hasDiscount: true,
+            showVat: true,
+            totalsColspan: 5,
             currency: "EUR",
             fontFamily: settings.fontFamily,
             primaryColor: settings.primaryColor,

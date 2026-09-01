@@ -14,7 +14,7 @@ import { formatAmount } from '@/utils/format-amount';
 import { formatDate } from '@/utils/date';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { calculateDiscountedTotals, clampDiscountRate, getVatDisplayContext } from '@/utils/financial';
 import { formatNotes, formatRichText } from '@/utils/format-text';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
@@ -442,6 +442,7 @@ export class QuotesService {
         const normalizedDiscountRate = clampDiscountRate(quote.discountRate);
         const discountAmountValue = Math.max(0, subtotalBeforeDiscount - quote.totalHT);
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+        const { showVat, totalsColspan } = getVatDisplayContext(quote.totalVAT, quote.items);
 
         const html = template({
             number: quote.rawNumber || quote.number.toString(),
@@ -466,6 +467,8 @@ export class QuotesService {
             discountAmount: formatAmount(discountAmountValue, quote.company.country),
             discountRate: Number(normalizedDiscountRate.toFixed(2)),
             hasDiscount,
+            showVat,
+            totalsColspan,
             vatExemptText: quote.company.exemptVat && (quote.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
 
             paymentMethod: paymentMethodType,

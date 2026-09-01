@@ -6,7 +6,7 @@ import { BadRequestException } from '@nestjs/common';
 import { baseTemplate } from '@/modules/quotes/templates/base.template';
 import { formatDate } from '@/utils/date';
 import prisma from '@/prisma/prisma.service';
-import { clampDiscountRate } from '@/utils/financial';
+import { clampDiscountRate, getVatDisplayContext } from '@/utils/financial';
 import { formatNotes, formatRichText } from '@/utils/format-text';
 import { formatAmount } from '@/utils/format-amount';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
@@ -72,6 +72,7 @@ export async function generateQuotePdf(quoteId: string): Promise<Uint8Array> {
     const normalizedDiscountRate = clampDiscountRate(quote.discountRate);
     const discountAmountValue = Math.max(0, subtotalBeforeDiscount - quote.totalHT);
     const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+    const { showVat, totalsColspan } = getVatDisplayContext(quote.totalVAT, quote.items);
 
     const html = template({
         number: quote.rawNumber || quote.number.toString(),
@@ -96,6 +97,8 @@ export async function generateQuotePdf(quoteId: string): Promise<Uint8Array> {
         discountAmount: formatAmount(discountAmountValue, quote.company.country),
         discountRate: Number(normalizedDiscountRate.toFixed(2)),
         hasDiscount,
+        showVat,
+        totalsColspan,
         vatExemptText: quote.company.exemptVat && (quote.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
 
         paymentMethod: paymentMethodType,

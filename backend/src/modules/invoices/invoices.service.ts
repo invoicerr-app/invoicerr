@@ -17,7 +17,7 @@ import { formatNotes, formatRichText } from '@/utils/format-text';
 import { logger } from '@/logger/logger.service';
 import { parseAddress } from '@/utils/adress';
 import prisma from '@/prisma/prisma.service';
-import { calculateDiscountedTotals, clampDiscountRate } from '@/utils/financial';
+import { calculateDiscountedTotals, clampDiscountRate, getVatDisplayContext } from '@/utils/financial';
 import { getDraftWatermarkLabel } from '@/utils/watermark';
 
 @Injectable()
@@ -432,6 +432,7 @@ export class InvoicesService {
         const normalizedDiscountRate = clampDiscountRate(invoice.discountRate);
         const discountAmountValue = Math.max(0, subtotalBeforeDiscount - invoice.totalHT);
         const hasDiscount = normalizedDiscountRate > 0 && discountAmountValue > 0;
+        const { showVat, totalsColspan } = getVatDisplayContext(invoice.totalVAT, invoice.items);
 
         const html = template({
             isDraft: invoice.status === 'DRAFT',
@@ -458,6 +459,8 @@ export class InvoicesService {
             discountAmount: formatAmount(discountAmountValue, invoice.company.country),
             discountRate: Number(normalizedDiscountRate.toFixed(2)),
             hasDiscount,
+            showVat,
+            totalsColspan,
             vatExemptText: invoice.company.exemptVat && (invoice.company.country || '').toUpperCase() === 'FRANCE' ? 'TVA non applicable, art. 293 B du CGI' : null,
 
             paymentMethod: paymentMethodName,

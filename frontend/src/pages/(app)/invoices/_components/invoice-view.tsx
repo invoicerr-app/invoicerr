@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { languageToLocale } from "@/lib/i18n"
 import { formatAmount } from "@/lib/utils"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
+import { isVatApplicable } from "@/lib/vat"
 import { useTranslation } from "react-i18next"
 
 interface InvoiceViewDialogProps {
@@ -22,6 +23,7 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
     const discountRateValue = Number(invoice.discountRate ?? 0)
     const subtotalBeforeDiscount = invoice.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) ?? 0
     const discountAmount = Math.max(0, subtotalBeforeDiscount - invoice.totalHT)
+    const showVat = isVatApplicable(invoice.totalVAT, invoice.items)
 
     const getStatusLabel = (status: string) => {
         return t(`invoices.view.status.${getDisplayInvoiceStatus(status).toLowerCase()}`)
@@ -103,30 +105,42 @@ export function InvoiceViewDialog({ invoice, onOpenChange }: InvoiceViewDialogPr
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-muted/50 p-4 rounded-lg">
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalHT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: invoice.currency,
-                                amount: formatAmount(invoice.totalHT, invoice.company?.country)
-                            })}</p>
-                        </div>
+                    <div className={`grid grid-cols-1 ${showVat ? "sm:grid-cols-3" : ""} gap-6 bg-muted/50 p-4 rounded-lg`}>
+                        {showVat ? (
+                            <>
+                                <div data-cy="invoice-total-ht">
+                                    <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalHT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: invoice.currency,
+                                        amount: formatAmount(invoice.totalHT, invoice.company?.country)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalVAT")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: invoice.currency,
-                                amount: formatAmount(invoice.totalVAT, invoice.company?.country)
-                            })}</p>
-                        </div>
+                                <div data-cy="invoice-total-vat">
+                                    <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalVAT")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: invoice.currency,
+                                        amount: formatAmount(invoice.totalVAT, invoice.company?.country)
+                                    })}</p>
+                                </div>
 
-                        <div>
-                            <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalTTC")}</p>
-                            <p className="font-medium">{t("common.valueWithCurrency", {
-                                currency: invoice.currency,
-                                amount: formatAmount(invoice.totalTTC, invoice.company?.country)
-                            })}</p>
-                        </div>
+                                <div data-cy="invoice-total-ttc">
+                                    <p className="text-sm text-muted-foreground">{t("invoices.view.fields.totalTTC")}</p>
+                                    <p className="font-medium">{t("common.valueWithCurrency", {
+                                        currency: invoice.currency,
+                                        amount: formatAmount(invoice.totalTTC, invoice.company?.country)
+                                    })}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <div data-cy="invoice-total">
+                                <p className="text-sm text-muted-foreground">{t("invoices.view.fields.total")}</p>
+                                <p className="font-medium">{t("common.valueWithCurrency", {
+                                    currency: invoice.currency,
+                                    amount: formatAmount(invoice.totalTTC, invoice.company?.country)
+                                })}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg">

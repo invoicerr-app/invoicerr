@@ -5,6 +5,7 @@ import type { TemplateSettings } from "../../settings/_components/pdf.settings"
 import type { QuoteFormValues } from "./quote-form"
 import { formatAmount } from "@/lib/utils"
 import { getDraftWatermarkLabel } from "@/lib/watermark"
+import { isVatApplicable } from "@/lib/vat"
 
 /**
  * Frontend-only mirror of backend/src/modules/quotes/templates/base.template.ts, kept
@@ -38,6 +39,8 @@ export const quotePreviewTemplate = `
         .items-table th:nth-child(4), .items-table td:nth-child(4) { width: 16%; }
         .items-table th:nth-child(5), .items-table td:nth-child(5) { width: 9%; }
         .items-table th:nth-child(6), .items-table td:nth-child(6) { width: 18%; }
+        .items-table.no-vat th:nth-child(1), .items-table.no-vat td:nth-child(1) { width: 47%; }
+        .items-table.no-vat th:nth-child(5), .items-table.no-vat td:nth-child(5) { width: 18%; }
         .total-row { font-weight: bold; background-color: {{secondaryColor}}; color: {{tableTextColor}}; }
         .totals-table { width: 100%; border-collapse: collapse; margin: 0 0 20px; page-break-inside: avoid; break-inside: avoid; }
         .totals-table td:last-child { text-align: right; }
@@ -108,14 +111,16 @@ export const quotePreviewTemplate = `
             {{#if client.VAT}}<br><strong>{{labels.VATId}}:</strong> {{client.VAT}}{{/if}}</p>
         </div>
     </div>
-    <table class="items-table">
+    <table class="items-table{{#unless showVat}} no-vat{{/unless}}">
         <thead>
             <tr>
                 <th>{{labels.description}}</th>
                 <th>{{labels.type}}</th>
                 <th>{{labels.quantity}}</th>
                 <th>{{labels.unitPrice}}</th>
+                {{#if showVat}}
                 <th>{{labels.vatRate}}</th>
+                {{/if}}
                 <th>{{labels.total}}</th>
             </tr>
         </thead>
@@ -126,7 +131,9 @@ export const quotePreviewTemplate = `
                 <td>{{type}}</td>
                 <td>{{quantity}}</td>
                 <td>{{../currency}} {{unitPrice}}</td>
+                {{#if ../showVat}}
                 <td>{{vatRate}}%</td>
+                {{/if}}
                 <td>{{../currency}} {{totalPrice}}</td>
             </tr>
             {{/each}}
@@ -135,27 +142,29 @@ export const quotePreviewTemplate = `
     <table class="totals-table">
         <tbody>
             <tr>
-                <td colspan="5"><strong>{{labels.subtotal}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.subtotal}}</strong></td>
                 <td><strong>{{currency}} {{subtotalBeforeDiscount}}</strong></td>
             </tr>
             {{#if hasDiscount}}
             <tr>
-                <td colspan="5"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.discount}} ({{discountRate}}%)</strong></td>
                 <td><strong>-{{currency}} {{discountAmount}}</strong></td>
             </tr>
             {{/if}}
+            {{#if showVat}}
             <tr>
-                <td colspan="5"><strong>{{labels.vat}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{labels.vat}}</strong></td>
                 <td><strong>{{currency}} {{totalVAT}}</strong></td>
             </tr>
+            {{/if}}
             {{#if vatExemptText}}
             <tr>
                 <td></td>
-                <td colspan="5" style="font-size:12px; color:#666; text-align:right;"><em>{{vatExemptText}}</em></td>
+                <td colspan="{{totalsColspan}}" style="font-size:12px; color:#666; text-align:right;"><em>{{vatExemptText}}</em></td>
             </tr>
             {{/if}}
             <tr class="total-row">
-                <td colspan="5"><strong>{{labels.grandTotal}}</strong></td>
+                <td colspan="{{totalsColspan}}"><strong>{{#if showVat}}{{labels.grandTotal}}{{else}}{{labels.total}}{{/if}}</strong></td>
                 <td><strong>{{currency}} {{totalTTC}}</strong></td>
             </tr>
         </tbody>
@@ -289,6 +298,7 @@ export function buildQuotePreviewData(
     const isVatExempt = !!(quote.company.exemptVat && (quote.company.country || "").toUpperCase() === "FRANCE")
     const totals = calculateDiscountedTotals(values.items, values.discountRate, isVatExempt)
     const hasDiscount = totals.discountRate > 0 && totals.discountAmountHT > 0
+    const showVat = isVatApplicable(totals.totalVAT, values.items)
 
     const clientName = quote.client.name || `${quote.client.contactFirstname || ""} ${quote.client.contactLastname || ""}`.trim()
 
@@ -315,6 +325,8 @@ export function buildQuotePreviewData(
         discountAmount: formatAmount(totals.discountAmountHT, quote.company.country),
         discountRate: Number(totals.discountRate.toFixed(2)),
         hasDiscount,
+        showVat,
+        totalsColspan: showVat ? 5 : 4,
         vatExemptText: isVatExempt ? "TVA non applicable, art. 293 B du CGI" : null,
 
         paymentMethod: paymentMethodType,

@@ -38,6 +38,10 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/1[.,\s]?800/, { timeout: 10000 });
+            cy.get('[data-cy="invoice-total-ht"]').should('be.visible');
+            cy.get('[data-cy="invoice-total-vat"]').should('be.visible');
+            cy.get('[data-cy="invoice-total-ttc"]').should('be.visible');
+            cy.get('[data-cy="invoice-total"]').should('not.exist');
             cy.get('body').type('{esc}');
         });
 
@@ -166,6 +170,10 @@ describe('Invoices E2E', () => {
             cy.get('[data-cy="invoice-name"]').first().click();
             cy.get('[role="dialog"]').should('be.visible');
             cy.contains(/1[.,\s]?000/, { timeout: 10000 });
+            cy.get('[data-cy="invoice-total"]').should('be.visible');
+            cy.get('[data-cy="invoice-total-ht"]').should('not.exist');
+            cy.get('[data-cy="invoice-total-vat"]').should('not.exist');
+            cy.get('[data-cy="invoice-total-ttc"]').should('not.exist');
             cy.get('body').type('{esc}');
         });
 

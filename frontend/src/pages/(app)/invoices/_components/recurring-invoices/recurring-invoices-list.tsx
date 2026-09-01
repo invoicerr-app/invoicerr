@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import type React from "react"
 import type { RecurringInvoice } from "@/types"
 import { formatAmount } from "@/lib/utils"
+import { isVatApplicable } from "@/lib/vat"
 import { RecurringInvoiceDeleteDialog } from "./recurring-invoices-delete"
 import { RecurringInvoiceUpsert } from "./recurring-invoices-upsert"
 import { RecurringInvoiceViewDialog } from "./recurring-invoices-view"
@@ -111,6 +112,8 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                                     {((recurringInvoice.paymentMethod as any)?.name ?? (recurringInvoice.paymentMethod as any)?.type) ?? "-"}
                                                                 </span>
                                                             )}
+                                                            {isVatApplicable(recurringInvoice.totalVAT, recurringInvoice.items) ? (
+                                                                <>
                                                             <span>
                                                                 <span className="font-medium text-foreground">{t("recurringInvoices.list.item.totalHT")}:</span>{" "}
                                                                 {t("common.valueWithCurrency", {
@@ -125,6 +128,16 @@ export const RecurringInvoiceList = forwardRef<RecurringInvoiceListHandle, Recur
                                                                     amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country),
                                                                 })}
                                                             </span>
+                                                                </>
+                                                            ) : (
+                                                            <span>
+                                                                <span className="font-medium text-foreground">{t("recurringInvoices.list.item.total")}:</span>{" "}
+                                                                {t("common.valueWithCurrency", {
+                                                                    currency: recurringInvoice.currency,
+                                                                    amount: formatAmount(recurringInvoice.totalTTC, recurringInvoice.company?.country),
+                                                                })}
+                                                            </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
