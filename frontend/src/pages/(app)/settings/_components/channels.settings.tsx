@@ -48,7 +48,7 @@ interface ChannelsResponse {
 /** Friendly display names for known providers — `TransportRegistry.list()`'s own label ("PDP
  *  (France)") is written for the invoice-transport PICKER, not this settings screen; falls back to
  *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
-const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI" }
+const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI", peppol: "Peppol" }
 
 /**
  * One provider's config field — the settings-screen half of what wave 1 (PDP) had hard-coded
@@ -145,6 +145,35 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.sdiCertificatePassword",
       labelDefault: "Certificate password",
       type: "password",
+    },
+  ],
+  // Peppol — root TODO item 10 remainder / item 26 wave. The GENERIC Access Point contract
+  // (`transports/peppol/peppol-client.ts`): a company connects ITS OWN AP vendor's REST endpoint,
+  // API key, and its OWN Peppol participant id (the SENDER side — the RECEIVER side is read per-
+  // invoice from the client's own "Peppol / electronic routing" field, already collected on the
+  // client edit screen, never asked here). No `apProvider` selector the way the pre-refonte engine's
+  // own multi-vendor registry had — see `peppol-transport.ts`'s own header for why this wave ships
+  // exactly one, generic adapter.
+  peppol: [
+    {
+      key: "accessPointUrl",
+      labelKey: "settings.channels.fields.peppolAccessPointUrl",
+      labelDefault: "Access Point URL",
+      type: "text",
+      placeholder: "https://ap.example.com",
+    },
+    {
+      key: "apiKey",
+      labelKey: "settings.channels.fields.peppolApiKey",
+      labelDefault: "API key",
+      type: "password",
+    },
+    {
+      key: "participantId",
+      labelKey: "settings.channels.fields.peppolParticipantId",
+      labelDefault: "Peppol participant ID (yours)",
+      type: "text",
+      placeholder: "0009:12345678900011",
     },
   ],
 }

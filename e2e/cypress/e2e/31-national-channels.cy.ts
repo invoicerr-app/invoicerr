@@ -68,6 +68,19 @@ const FAKE_SDI = {
 	certificatePassword: "e2e-fake-cert-password",
 };
 
+/** Le canal Peppol (root TODO item 10 remainder / item 26 wave) — voir `transports/peppol-transport.ts`'s
+ *  own header. `accessPointUrl` pointe le même port fermé que `FAKE_PDP`/`FAKE_SDI`, mais l'envoi ci-
+ *  dessous ne l'atteint JAMAIS : le client de test ("Test Client", seedé par `cy.resetAndSeed()`, sans
+ *  aucun `PEPPOL_ENDPOINT`) déclenche le refus NOMMÉ le plus en amont — "this client has no Peppol
+ *  endpoint on file" — avant tout appel réseau. C'est une DÉMONSTRATION RÉELLE et honnête du nouveau
+ *  mécanisme (jamais un routage deviné vers un participant Peppol), pas un raccourci qui évite de
+ *  tester le vrai comportement. */
+const FAKE_PEPPOL = {
+	accessPointUrl: "http://127.0.0.1:1",
+	apiKey: "e2e-fake-peppol-api-key",
+	participantId: "0009:12345678900011",
+};
+
 /** Bascule le pays de la société seedée — voir ce fichier's own header, point 1, pour pourquoi ce
  *  n'est utilisé QUE pour vérifier la suggestion de canal, jamais pour créer/envoyer un document. */
 function setCompanyCountry(country: string, countryCode: string) {
@@ -423,5 +436,131 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Channel disconnected");
 		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should("contain.text", "Not connected");
+	});
+
+	// ── Peppol (root TODO item 10 remainder / item 26 wave) — même motif que PDP/KSeF/SdI, avec une
+	// DIFFÉRENCE assumée (voir FAKE_PEPPOL's own header) : l'échec de l'envoi n'est pas un port fermé,
+	// c'est le refus NOMMÉ du client sans PEPPOL_ENDPOINT — un vrai comportement métier, pas un stub ──
+
+	it("une société BELGE voit la suggestion Peppol sur l'écran des canaux — la donnée vient de data/be.json, jamais d'un `if`", () => {
+		setCompanyCountry("Belgium", "BE");
+		cy.visit("/settings/channels");
+
+		cy.get('[data-cy="channel-peppol"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-peppol-suggested"]').should("exist");
+		// PDP n'est plus suggéré à une société belge — la suggestion suit le pays, jamais un canal
+		// par défaut figé.
+		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
+
+		setCompanyCountry("France", "FR");
+	});
+
+	it('connecte le canal Peppol par l\'écran avec des identifiants fictifs — statut "Connected"', () => {
+		cy.visit("/settings/channels");
+
+		cy.get('[data-cy="channel-peppol"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-peppol-status"]').should("contain.text", "Not connected");
+
+		cy.get('[data-cy="channel-peppol-accesspointurl-input"]').clear().type(FAKE_PEPPOL.accessPointUrl);
+		cy.get('[data-cy="channel-peppol-apikey-input"]').clear().type(FAKE_PEPPOL.apiKey);
+		cy.get('[data-cy="channel-peppol-participantid-input"]').clear().type(FAKE_PEPPOL.participantId);
+		cy.get('[data-cy="channel-peppol-connect-button"]').click();
+
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Channel connected");
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 10000 }).should("contain.text", "Connected");
+
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string; isActive: boolean; environment: string }[] }) => {
+				const peppol = body.configured.find((c) => c.providerId === "peppol");
+				expect(peppol, "le canal peppol est bien en base, actif").to.include({
+					isActive: true,
+					environment: "TEST",
+				});
+			});
+	});
+
+	it("choisit peppol comme transport de facturation, sur l'écran des réglages société", () => {
+		cy.visit("/settings/company");
+		cy.get('[data-cy="company-invoice-transport-select"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="company-invoice-transport-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="company-invoice-transport-option-peppol"]').click();
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait(2000);
+
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body")
+			.then((company: { invoiceTransportId: string }) => {
+				expect(company.invoiceTransportId, "le transport choisi est bien enregistré").to.eq("peppol");
+			});
+	});
+
+	it('envoie une facture via Peppol → la file échoue réellement (le client seedé n\'a pas de PEPPOL_ENDPOINT) et "send_failed" nomme le canal', () => {
+		createInvoiceDraft().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+				.find('[data-cy="document-status-badge"]')
+				.should("contain.text", "Draft");
+
+			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+
+			// Même budget que les tests PDP/KSeF/SdI ci-dessus — voir leur commentaire. Le refus ici
+			// est un pur contrôle métier (pas d'attente réseau), donc en pratique plus rapide encore.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+				.should("contain.text", "Send failed");
+
+			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should("contain.text", "Peppol");
+
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(doc.status, 'la facture est réellement "send_failed" en base').to.eq("send_failed");
+					expect(doc.lastActionError, "l'erreur enregistrée nomme le canal Peppol").to.match(/Peppol/);
+					expect(doc.lastActionError, "et la cause précise : pas de Peppol endpoint sur le client").to.match(
+						/Peppol endpoint/,
+					);
+					expect(doc.transportRef, "aucune référence de message sans envoi réel").to.not.be.a("string");
+				});
+		});
+	});
+
+	it("déconnecte le canal Peppol par l'écran → un nouvel envoi bloque au PREFLIGHT, en le disant", () => {
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 15000 }).should("contain.text", "Connected");
+		cy.get('[data-cy="channel-peppol-disconnect-button"]').click();
+
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Channel disconnected");
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 10000 }).should("contain.text", "Not connected");
+
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string }[] }) => {
+				expect(
+					body.configured.find((c) => c.providerId === "peppol"),
+					"plus aucune ligne peppol en base — un disconnect complet, pas juste isActive:false",
+				).to.be.undefined;
+			});
+
+		createInvoiceDraft().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+
+			// Le PREFLIGHT bloque AVANT toute persistance — même le passage à "sending" n'a jamais
+			// lieu (voir async-send.ts / peppol-transport.ts's own header) : un toast visible le dit
+			// tout de suite, pas d'attente de file.
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should(
+				"contain.text",
+				"Peppol channel is not connected",
+			);
+
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(doc.status, "jamais persisté au-delà de \"draft\" — bloqué avant toute écriture").to.eq(
+						"draft",
+					);
+				});
+		});
 	});
 });

@@ -24,6 +24,7 @@ import { AuthorityStatusPollerRegistry } from './conformity/authority-status-pol
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
+import { buildPeppolStatusPoller } from './conformity/pollers/peppol-status-poller';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
@@ -52,6 +53,7 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
+import { buildPeppolTransport } from './transports/peppol-transport';
 import { buildSdiTransport } from './transports/sdi-transport';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
@@ -166,11 +168,17 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * `buildFormatProviderRegistry`'s own header) rather than sharing `FORMAT_PROVIDER_REGISTRY`'s
  * instance, for the identical "no reason to couple two registries" argument.
  *
+ * "peppol" (`transports/peppol-transport.ts`) is the FIFTH — root TODO item 10's remainder / item 26
+ * wave. Same reasoning again: its own `peppolBisFormatProvider` reference is the SAME stateless plain
+ * object `buildFormatProviderRegistry` already registers under "peppol-bis" for `download-xml` — a
+ * second reference to the identical object, not a second instance (there is nothing to construct: the
+ * provider takes no dependency at all, unlike `facturx`'s own `referenceRegistry`-bound factory).
+ *
  * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`, root
  * TODO item 13) is threaded into "email" only — the one transport that hands a human-readable PDF to
- * someone (see `EmailTransportDeps.signingCertificates`'s own header); "pdp"/"ksef"/"sdi" transmit
- * XML/Factur-X formats built by `formats/*-provider.ts`, which this task deliberately does NOT sign
- * (see `sign-instance-pdf.ts`'s own header on why Factur-X's raw-PDF material is exempt).
+ * someone (see `EmailTransportDeps.signingCertificates`'s own header); "pdp"/"ksef"/"sdi"/"peppol"
+ * transmit XML/Factur-X formats built by `formats/*-provider.ts`, which this task deliberately does
+ * NOT sign (see `sign-instance-pdf.ts`'s own header on why Factur-X's raw-PDF material is exempt).
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -202,13 +210,19 @@ function buildTransportRegistry(
   );
   registry.register('ksef', 'KSeF (Poland)', buildKsefTransport({ channelCredentials, fa3FormatProvider }));
   registry.register('sdi', 'SdI (Italy)', buildSdiTransport({ channelCredentials, fatturapaFormatProvider }));
+  registry.register(
+    'peppol',
+    'Peppol',
+    buildPeppolTransport({ channelCredentials, peppolBisFormatProvider }),
+  );
   return registry;
 }
 
 /**
  * Root TODO item 10's own named remainder — post-deposit conformity tracking (`conformity/`). Same
  * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
- * registry's own read-side twin: "pdp" and "ksef" both register a poller; "sdi" does not (push-only
+ * registry's own read-side twin: "pdp", "ksef", and "peppol" (generic AP `getStatus()` —
+ * `conformity/pollers/peppol-status-poller.ts`) all register a poller; "sdi" does not (push-only
  * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
  * permanent, not a gap to fill later).
  */
@@ -218,6 +232,7 @@ function buildAuthorityStatusPollerRegistry(
   const registry = new AuthorityStatusPollerRegistry();
   registry.register(buildPdpStatusPoller({ channelCredentials }));
   registry.register(buildKsefStatusPoller({ channelCredentials }));
+  registry.register(buildPeppolStatusPoller({ channelCredentials }));
   return registry;
 }
 

@@ -23,7 +23,7 @@ Hard-success contract (enforced per-spec):
 | PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
-| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | 🔴 **Cassé le 2026-08-29** — `invalid_country` sur FR à la création de société (voir ci-dessous) |
+| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `FR` reste cassé (`invalid_country`), mais `BE` (+ `peppol_id` explicite) marche : `doc_…` → `DELIVERED` en ~10 s, reproduit deux fois (voir ci-dessous) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (connected AP required) |
 | Peppol via Storecove | _(mocked only)_ | `apProvider=storecove` config: `apiKey`, `legalEntityId` | `peppol/storecove-client.spec.ts` | 🔴 Deferred (30-day manual trial, no self-serve signup) |
 | National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
@@ -116,6 +116,45 @@ Hard-success contract (enforced per-spec):
 > Non corrigé : changer le pays de la fixture ferait repasser le test, mais prouverait autre chose
 > que ce qu'il prétend prouver. La question à trancher d'abord est de savoir si la France est
 > encore une destination Peppol.
+
+> ### ✅ Peppol via peppol.sh — RETENTÉ le 2026-09-02, round-trip réel obtenu (transport `peppol`
+> reconstruit dans `documents/transports/`)
+>
+> Le nouveau transport (`transports/peppol-transport.ts` + `transports/peppol/peppol-client.ts`,
+> l'adaptateur AP générique) est câblé et testé (jest, `peppol-transport.spec.ts`). Pour la tentative
+> live elle-même, le spec `peppol/peppol-sh-live.spec.ts` a été repris quasi verbatim du repère, puis
+> RE-EXÉCUTÉ en vrai (`PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`), avec trois résultats bruts,
+> aucun deviné :
+>
+> 1. **`country: 'FR'` — TOUJOURS cassé.** Réponse brute, identique à celle du 29/08 :
+>    `HTTP 400 — {"error":{"code":"invalid_country","message":"country must be an active Peppol
+>    country code","param":"country"}}`. Ni corrigé côté peppol.sh, ni une panne passagère — reproduit
+>    à l'identique quatre jours plus tard.
+> 2. **`country: 'BE'` — une NOUVELLE panne d'abord, différente, puis un succès.** Le premier essai
+>    (sans `peppol_id` explicite, exactement le payload du repère de 2026-07-11) échoue avec
+>    `HTTP 400 — {"error":{"code":"missing_peppol_id","message":"peppol_id is required and must be a
+>    valid <scheme>:<value> Peppol participant identifier"}}` — l'API a donc changé depuis la preuve
+>    du repère : `tax_id` seul ne suffit plus à créer une société sandbox. Une fois un `peppol_id`
+>    explicite fourni (`createCompany` a gagné ce paramètre optionnel), la création réussit :
+>    `com_IO3upwIDxk45Daf8y41h7` (puis `com_…` à nouveau au second run).
+> 3. **Le round-trip complet, jusqu'au bout, RÉUSSIT — deux fois.** Un vendeur ALLEMAND (jamais
+>    français, exprès — un vendeur français aurait trébuché sur PEPPOL-EN16931-R002, la limitation
+>    déjà documentée de `peppol-bis-provider.ts`, avant même d'atteindre le réseau) construit un
+>    Peppol BIS UBL réel et VALIDE (le vrai Schematron vendu, base + delta), envoyé via
+>    `PeppolShApClient.send()` :
+>    - Run 1 : `{"messageId":"doc_tSynOlxg9LaKv4mTJVnxI","status":"QUEUED"}` → poll 2/24 →
+>      `DELIVERED` (~10 s).
+>    - Run 2 : `{"messageId":"doc_t477L6zcVzFbp7IguAIi7","status":"QUEUED"}` → poll 2/24 →
+>      `DELIVERED` (~10 s).
+>
+> **Conclusion, honnête** : peppol.sh lui-même fonctionne bien aujourd'hui (signup, société, envoi,
+> statut, tout est réel) — l'hypothèse du 29/08 ("la France est passée au mandat PDP et peppol.sh
+> l'aurait retirée") reste NON tranchée à sa cause exacte (la BELGIQUE, elle, est acceptée — ce
+> n'est donc pas un retrait total du sandbox), mais l'observation elle-même (FR rejeté) est
+> confirmée, reproduite, et contournée avec un pays alternatif comme demandé. C'est le PREMIER envoi
+> Peppol réel de cette nouvelle architecture `documents/` — voir `peppol-sh-live.spec.ts`'s own
+> header pour le détail et le knob `PEPPOL_SH_FALLBACK_COUNTRY` qui automatise ce contournement pour
+> une future ré-exécution.
 
 ## Running a single live spec
 

@@ -1,0 +1,15 @@
+{
+  "countryCode": "BE",
+  "facts": [
+    {
+      "providerId": "peppol",
+      "requirement": "suggested",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "\"Vanaf 1 januari 2026 geldt dat gestructureerde elektronische facturen in principe via het Peppol-netwerk moeten worden uitgewisseld.\" (\"From 1 January 2026, structured electronic invoices must IN PRINCIPLE be exchanged via the Peppol network.\") — efactuur.belgium.be, FAQ \"Algemene vragen B2B\", question 18. The SAME FAQ page's question 8 states the real, documented exception this task's own read surfaced: \"Als uw klant niet klaar is om facturen te ontvangen via Peppol, mag u als verzender een andere wijze van overdracht kiezen van de factuur.\" (\"If your customer is not ready to receive invoices via Peppol, you as the sender may choose another transmission method.\")",
+        "sourceCheckedAt": "2026-09-02"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-02 sur https://efactuur.belgium.be (FOD BOSA — le portail e-invoicing fédéral belge officiel, en lien avec le FOD Financiën), pages /nl/FAQ/algemene-vragen-b2b (obligation B2B, Peppol par défaut, l'exception de la question 8) et /nl/FAQ/algemene-vragen-over-peppol (mécanique Peppol elle-même). SOCLE LÉGAL cité PAR CE PORTAIL, non relu directement à sa source primaire dans cette tâche : la loi du 6 février 2024 modifiant le Code de la TVA pour introduire l'obligation de facturation électronique structurée B2B au 1er janvier 2026 (moniteur belge). DÉCISION 'suggested', PAS 'mandated', bien qu'une source LÉGALE ait été lue (voir channel-policy/schema.ts's own header : 'mandated' exige une provenance légale, mais n'exige PAS qu'une source légale implique automatiquement 'mandated') : le texte lu dit EXPLICITEMENT 'in principe' et documente une VRAIE exception (le client non équipé Peppol → un autre canal est permis) — notre mécanisme de mandat (`channel-policy/mandate.ts`) est BINAIRE, sans portée conditionnelle (`scope` existe dans le schéma mais n'est lu par AUCUN mécanisme aujourd'hui, voir schema.ts's own comment) : le déclarer 'mandated' bloquerait au preflight TOUT envoi belge par un autre canal, y compris le cas légitime de la question 8, ce qui serait un FAUX blocage — exactement le genre d'erreur que cette discipline (⚖) existe pour éviter. Cette entrée reste donc 'suggested', mais avec une provenance 'legal' authentique (jamais 'unverified' — la source A été lue) : plus précise que les entrées PL/IT (qui, elles, admettent ne pas avoir vérifié leur propre citation à la source), sans pour autant prétendre à un mandat que le texte lui-même ne pose pas sans condition. Ce qui trancherait pour un vrai passage à 'mandated' un jour : lire le texte de loi lui-même (Moniteur belge, loi du 6 février 2024) à sa source primaire, ET étendre `channel-policy/mandate.ts` pour porter une exception conditionnelle (le client non équipé Peppol) avant de rendre ce fait bloquant."
+    }
+  ]
+}

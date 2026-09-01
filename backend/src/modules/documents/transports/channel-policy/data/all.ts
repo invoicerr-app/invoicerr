@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 import { assertValidChannelPolicyFact, CountryChannelPolicyFile } from '../schema';
 
-const COUNTRY_FILES = ['fr', 'pl', 'it'] as const;
+const COUNTRY_FILES = ['fr', 'pl', 'it', 'be'] as const;
 
 function loadCountryFile(code: string): CountryChannelPolicyFile {
   const path = join(__dirname, `${code}.json`);

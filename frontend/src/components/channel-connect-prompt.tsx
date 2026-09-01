@@ -33,7 +33,7 @@ interface ChannelsResponse {
 }
 
 /** Friendly display names — same map `channels.settings.tsx` keeps for the identical reason. */
-const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI" }
+const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI", peppol: "Peppol" }
 
 function sourceLine(channel: SuggestedChannel): string {
   return channel.provenance.kind === "legal" && channel.provenance.sourceText

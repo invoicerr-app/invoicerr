@@ -39,6 +39,21 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ]);
   });
 
+  // Root TODO item 10 remainder ("Peppol") — BE's own mandate is real but READ AS CONDITIONAL ("in
+  // principe... tenzij" — see `data/be.json`'s own note): this catalog's `mandate.ts` has no room for
+  // a conditional block, so promoting this to `mandated` would hard-refuse a legitimate case the law
+  // itself allows. `suggested` with `legal` provenance (never `unverified`) is the honest middle
+  // ground — a SOURCED fact, not enforced as an unconditional block.
+  it('BE suggests (never mandates) the "peppol" provider, with a REAL legal citation — a fact read from data/be.json', () => {
+    expect(defaultChannelPolicyCatalog.factsFor('BE')).toEqual([
+      expect.objectContaining({
+        providerId: 'peppol',
+        requirement: 'suggested',
+        provenance: expect.objectContaining({ kind: 'legal', sourceCheckedAt: '2026-09-02' }),
+      }),
+    ]);
+  });
+
   it('lower-cased or absent country codes never crash — no fact, not a throw', () => {
     expect(defaultChannelPolicyCatalog.factsFor('fr')).toEqual(defaultChannelPolicyCatalog.factsFor('FR'));
     expect(defaultChannelPolicyCatalog.factsFor('')).toEqual([]);
