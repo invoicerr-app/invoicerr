@@ -362,6 +362,7 @@ model Company {
   documentNumberSequences DocumentNumberSequence[]
   documentPayments        DocumentPayment[]
   documentArchives        DocumentArchive[]
+  documentAuthorityEvents DocumentAuthorityEvent[]
   documentDownloadTokens  DocumentDownloadToken[]
   currencyRates           CurrencyRate[]
   channelConfigs          CompanyChannelConfig[]
@@ -954,6 +955,26 @@ model DocumentInstance {
   // nothing stale to clear: a reference is only ever written once delivery actually succeeds).
   transportRef String?
 
+  // The registered transport ("pdp"/"ksef"/"sdi"/…, `transports/transport-registry.ts` ids) that
+  // ACTUALLY delivered this document — set on the SAME write as `transportRef` above, for the exact
+  // same reason and by the exact same caller (`actions/async-send.ts`'s phase-2 delivery). Needed
+  // because `Company.invoiceTransportId` is the company's CURRENT choice, which can change after this
+  // document was sent — the post-deposit conformity poll (`conformity/`, this task) must poll the
+  // channel this document actually went through, never whatever the company happens to have
+  // configured today. Null for "email" (no concept of a provider-side conformity verdict to poll) and
+  // for every type with no transport at all — the poll sweep's own eligibility query
+  // (`conformity/authority-events.persistence.ts`) filters on this column being one of the REGISTERED
+  // pollers' own provider ids, so a transport that never registers a poller (e.g. "sdi" — push-only
+  // SOAP notifiche, nothing to poll, see `conformity/pollers/`'s own header) is simply never selected,
+  // no matter what this column holds.
+  channelProviderId String?
+
+  // See DocumentAuthorityEvent below (conformity/) — the post-deposit conformity journal (this task):
+  // every event the ISSUING PLATFORM itself reported for this document (fr:200/201/202/213 for PDP,
+  // …), append-only. Never drives `status` above — see that model's own header for why the declared
+  // lifecycle and the platform's own verdict are deliberately two separate facts.
+  authorityEvents DocumentAuthorityEvent[]
+
   // Root TODO item 14 ("archivage légal") — the error from the most recent FAILED archiving attempt
   // (documents/archive/archive-on-send.ts), deliberately its OWN column, never `lastActionError`
   // above. Two reasons: (1) `lastActionError` is reset to null by EVERY ordinary write this instance
@@ -1149,6 +1170,105 @@ model DocumentArchive {
   retentionUntil DateTime?
   retentionBasis String?
 
+  @@index([companyId, documentId])
+}
+
+// The post-deposit CONFORMITY journal — the reconstruction TODO's own named remainder: a PDP/KSeF
+// deposit today succeeds the moment the PLATFORM ACCEPTS the upload (`DocumentInstance.transportRef`,
+// lifecycle status "sent") and nothing ever follows up on the platform's own later verdict
+// (fr:200 déposée → fr:201 émise → fr:202 reçue, or fr:213 rejetée). This table is that follow-up:
+// one row per PLATFORM-REPORTED event, written by the conformity sweep (`conformity/`), and read back
+// as a timeline + a badge on the document screen.
+//
+// ## APPEND-ONLY, on purpose — the exact same discipline as DocumentArchive above
+//
+// No update/delete API exists anywhere in this codebase for this table (see
+// `conformity/authority-events.persistence.ts`'s own header) — once written, a row is never mutated.
+// A platform's OWN lifecycle is itself an append-only sequence of facts (fr:200 does not stop being
+// true the moment fr:201 arrives); recording it any other way (e.g. one row per document, overwritten
+// on every poll) would throw away the very history a rejection's own root cause needs ("was BT-23
+// ever cited before the final verdict flipped?" — see `pdp/pdp.live.spec.ts`'s own header for exactly
+// that kind of question, asked for real during this branch's own work).
+//
+// ## Why the document's own `status` NEVER changes because of a row here
+//
+// The declared lifecycle (`DocumentInstance.status`) is the record of the USER'S OWN ACTS — draft,
+// sending, sent — driven entirely by `actions/async-send.ts`. The platform's conformity verdict is a
+// DIFFERENT fact: an EXTERNAL authority's opinion about a delivery that already, genuinely, happened.
+// Folding fr:213 (rejected) back into `status` would conflate "we did not deliver this" (false — the
+// deposit WAS accepted and IS sitting on the platform) with "the platform is unhappy with what we
+// delivered" (true, and actionable, but a different axis entirely) — exactly the same reasoning
+// `DocumentInstance.lastArchiveError`'s own comment already holds for why archiving failure is never
+// folded into `lastActionError` either. A rejection is surfaced as a BADGE, projected from this
+// table (`conformity/` + the frontend's own conformity section), never as a status transition — a
+// human still sees it just as loudly (the whole point of building this), but the descriptor's own
+// lifecycle graph (`descriptors/lifecycle.ts`) stays exactly what it has always been: the truth of
+// what THIS application did, not a mirror of what a third party thinks of it.
+//
+// ## Dedup key: (documentId, providerId, statusCode) — not the platform's own per-event id
+//
+// SuperPDP's own `events[]` (`transports/pdp/pdp-client.ts#SuperPdpInvoiceEvent`) carries an OPTIONAL
+// numeric `id` per event — not guaranteed present on every payload shape the client already
+// tolerates (see that interface's own comment), and no such per-event id exists at all for a
+// a provider whose own API instead answers with a single current-status SNAPSHOT on each call (KSeF's
+// own `invoiceStatus` — polled repeatedly, never a list of past events). A dedup key that only some
+// providers could ever supply is not a general mechanism. `statusCode` is, by construction, the one
+// thing every poller (`conformity/authority-status-poller.ts`) always produces, and this table's own
+// lifecycle is monotonic per provider (fr:200 happens once, fr:201 happens once, ...) — two polls
+// that observe the SAME status code for the SAME document are, by definition, reporting the same
+// underlying fact, never two distinct ones. `@@unique` below is enforced at the DATABASE, not merely
+// checked in application code first: `authority-events.persistence.ts`'s own `createMany({
+// skipDuplicates: true })` is what makes two genuinely CONCURRENT sweep passes race safely — proven
+// against a real Redis/Postgres by `queue/__tests__/document-conformity-queue.redis.spec.ts`.
+model DocumentAuthorityEvent {
+  id         String           @id @default(cuid())
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId  String
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  // Which registered transport/poller reported this — 'pdp' | 'ksef' | … (never 'sdi': see
+  // `conformity/pollers/`'s own header on why it has no poller registered at all), OR the sweep
+  // ITSELF for a synthetic event (still the document's own `channelProviderId` — a synthetic event is
+  // scoped to the same provider it gave up on / was blocked polling, never a bare "unknown").
+  providerId String
+
+  // The platform's own code, verbatim — 'fr:200'/'fr:201'/'fr:202'/'fr:213' for PDP (see
+  // `pollers/pdp-status-poller.ts`), a KSeF status code for 'ksef' (see that poller's own header for
+  // how it maps a KSeF response, and the honesty note on why it is NOT live-verified), OR one of the
+  // two SWEEP-OWNED synthetic codes this table also carries: 'poll:gave-up' (the max poll age was
+  // exceeded — `DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS` — with NO terminal verdict ever observed) and
+  // 'poll:blocked' (the channel's credentials were missing/invalid at poll time). Never a bare status
+  // number without its provider prefix — see the unique index below for why the PAIR is what matters,
+  // not this column alone.
+  statusCode String
+  // The platform's own human-readable label for `statusCode` (e.g. "Reçue par la plateforme") —
+  // verbatim, never translated/reworded here; i18n of the SURROUNDING UI chrome is a frontend concern
+  // (`locales/en/translation.json`), this column is what the AUTHORITY itself said.
+  statusText String?
+  // Populated ONLY on a rejection (PDP's own `events[].data.reason` — see `pdp-client.ts`'s own
+  // `SuperPdpInvoiceEvent.data.reason` comment) or a synthetic event's own explanation (gave-up:
+  // states the age limit; blocked: the credential error's own message). Null for an ordinary
+  // non-terminal/accepted event, which the platform gives no "reason" for in the first place.
+  reason     String?
+  // The RAW payload this event was extracted from — the platform's own JSON object (PDP: one entry
+  // of `events[]`; KSeF: the `InvoiceStatusResponse` polled) — kept verbatim, never re-derived, so a
+  // mapping bug discovered later (the exact "read `invoice.status_code` instead of `events[]`"
+  // mistake this whole task exists to fix) can be diagnosed from what was ACTUALLY received, not
+  // trusted blind from this table's own already-interpreted columns. Null for a synthetic event
+  // (gave-up/blocked), which has no platform payload to keep.
+  rawPayload Json?
+
+  // WHEN THE PLATFORM ITSELF recorded this event (PDP's own `events[].created_at`) — never the
+  // moment THIS application happened to poll and notice it (that is `createdAt` below). A synthetic
+  // event (gave-up/blocked, which the platform never reported) sets this to the sweep's own "now" at
+  // the moment it fired — the only honest value available for a fact this application invented, not
+  // observed.
+  observedAt DateTime
+  createdAt  DateTime @default(now())
+
+  // See this model's own header — the dedup key a concurrent sweep race relies on.
+  @@unique([documentId, providerId, statusCode])
   @@index([companyId, documentId])
 }
 

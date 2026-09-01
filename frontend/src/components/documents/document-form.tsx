@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { DocumentArchiveSection } from "@/components/documents/document-archive-section"
+import { DocumentConformitySection } from "@/components/documents/document-conformity-section"
 import { DocumentField } from "@/components/documents/document-field"
 import { DocumentSettlementSection } from "@/components/documents/document-settlement"
 import { DocumentTotals } from "@/components/documents/document-totals"
@@ -160,6 +161,14 @@ export function DocumentForm({
             that fact (a draft has no archive yet, whatever its type). */}
         {currentDocumentId && (
           <DocumentArchiveSection typeId={descriptor.id} documentId={currentDocumentId} />
+        )}
+
+        {/* Root TODO item 10's own named remainder ("le suivi de conformité") — same gate as the
+            archive section right above (any type/status once it has at least one event; renders
+            nothing otherwise, see that component's own header): a document sent by email, or by a
+            channel with no poller (e.g. "sdi"), never shows a section here at all. */}
+        {currentDocumentId && (
+          <DocumentConformitySection typeId={descriptor.id} documentId={currentDocumentId} />
         )}
 
         <div className="flex flex-wrap gap-2 border-t pt-4">

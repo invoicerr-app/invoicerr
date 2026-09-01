@@ -19,6 +19,10 @@ import { registerQuoteActions } from './actions/quote-actions';
 import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { registerReceivedInvoiceActions } from './actions/received-invoice-actions';
+import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
+import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
+import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
+import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
@@ -192,6 +196,22 @@ function buildTransportRegistry(
 }
 
 /**
+ * Root TODO item 10's own named remainder — post-deposit conformity tracking (`conformity/`). Same
+ * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
+ * registry's own read-side twin: "pdp" and "ksef" both register a poller; "sdi" does not (push-only
+ * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
+ * permanent, not a gap to fill later).
+ */
+function buildAuthorityStatusPollerRegistry(
+  channelCredentials: ChannelCredentialsService,
+): AuthorityStatusPollerRegistry {
+  const registry = new AuthorityStatusPollerRegistry();
+  registry.register(buildPdpStatusPoller({ channelCredentials }));
+  registry.register(buildKsefStatusPoller({ channelCredentials }));
+  return registry;
+}
+
+/**
  * `queueDispatcher` (DocumentQueueDispatcher, queue/document-queue.dispatcher.ts) is what turns
  * "send" asynchronous for every type that has one (TODO.md item 22) — see actions/async-send.ts for
  * the shared two-phase engine every one of these registrations now goes through. Injecting the
@@ -303,6 +323,19 @@ function buildEntityReferenceRegistry(
     // `DocumentSchedulesService` right above (a plain class, resolved by Nest, reusing
     // `DocumentsService` for its own tenant-scoped 404s) — no factory needed.
     ShareLinksService,
+    // Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) —
+    // `AuthorityStatusPollerRegistry` is this mechanism's read-side twin of `TRANSPORT_REGISTRY`
+    // (registered as a plain class token, not a string one, the same choice `DocumentScheduleSweepRunner`
+    // makes: nothing outside this module ever needs to `@Inject()` it by name — only
+    // `ConformitySweepRunner`, resolved right below, constructor-injects it). `ConformitySweepRunner`
+    // itself is the RUNTIME half the queue's own processor calls, the exact same split
+    // `DocumentScheduleSweepRunner` already holds for the recurrence sweep.
+    {
+      provide: AuthorityStatusPollerRegistry,
+      useFactory: buildAuthorityStatusPollerRegistry,
+      inject: [ChannelCredentialsService],
+    },
+    ConformitySweepRunner,
     { provide: DOCUMENT_TYPE_REGISTRY, useFactory: buildDocumentTypeRegistry },
     { provide: FIELD_KIND_REGISTRY, useFactory: buildFieldKindRegistry },
     {
@@ -362,6 +395,8 @@ function buildEntityReferenceRegistry(
     DocumentSchedulesService,
     DocumentScheduleSweepRunner,
     ShareLinksService,
+    AuthorityStatusPollerRegistry,
+    ConformitySweepRunner,
     DOCUMENT_TYPE_REGISTRY,
     FIELD_KIND_REGISTRY,
     TRANSPORT_REGISTRY,

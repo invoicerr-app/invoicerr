@@ -382,14 +382,16 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
           attachments: [expect.objectContaining({ contentType: 'application/pdf' })],
         }),
       );
-      // `null, undefined`: no lastActionError, and no transport reference — the "email" transport's
-      // result never carries one (see transport-registry.ts's own `DocumentTransportResult.reference`).
+      // `null, undefined, undefined`: no lastActionError, no transport reference, and no provider id
+      // — the "email" transport's result never carries either (see transport-registry.ts's own
+      // `DocumentTransportResult.reference`/`.providerId`).
       expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'doc-1',
         'sent',
         null,
+        undefined,
         undefined,
       );
       // Never re-enqueued — the worker's own replay is what got here in the first place.

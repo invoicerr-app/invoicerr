@@ -36,5 +36,8 @@ export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     await this.queueDispatcher.registerScheduleSweepRepeatable();
+    // Root TODO item 10's own named remainder (post-deposit conformity tracking) — same idempotent-
+    // registration guarantee, same reasoning: see `registerConformitySweepRepeatable`'s own header.
+    await this.queueDispatcher.registerConformitySweepRepeatable();
   }
 }

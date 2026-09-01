@@ -283,6 +283,23 @@ export type ArchiveVerificationResult =
   | { status: "intact" }
   | { status: "corrupted"; details: { role: string; expected: string; actual: string | null }[] }
 
+/** One row from `GET /documents/:id/authority-events` — mirrors the backend's
+ *  `DocumentAuthorityEventResult` (post-deposit conformity tracking, root TODO item 10's own named
+ *  remainder). Append-only, most recent (`observedAt`) first. `statusText`/`reason` are shown
+ *  VERBATIM, never translated — the same convention `ActionResult.message`/
+ *  `DocumentInstance.lastActionError` already hold: this is what the ISSUING PLATFORM itself said,
+ *  not this app's own copy. `statusCode` is either a real platform code (`"fr:202"`, `"pl:200"`, …)
+ *  or one of the two SWEEP-OWNED synthetic codes, `"poll:gave-up"`/`"poll:blocked"` — see
+ *  `document-conformity-section.tsx`'s own `computeConformityVerdict` for how these map to a badge. */
+export interface DocumentAuthorityEvent {
+  id: string
+  providerId: string
+  statusCode: string
+  statusText: string | null
+  reason: string | null
+  observedAt: string
+}
+
 /** What `POST /documents/:id/share-link` returns — mirrors the backend's `CreatedShareLink`. The
  *  ONLY place `token`/`path` ever appear: this response is shown once (share-link-dialog.tsx keeps
  *  it in local state only, never persisted), and `GET /documents/:id/share-links` afterwards never

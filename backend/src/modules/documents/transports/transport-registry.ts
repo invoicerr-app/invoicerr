@@ -28,6 +28,19 @@ export interface DocumentTransportResult {
    *  moves the record to "sent". */
   reference?: string;
   /**
+   * This transport's OWN registered id (e.g. "pdp", "ksef") — set by every transport that has one
+   * (never by "email", which has no provider-side conformity concept at all). Root TODO item 10's
+   * own named remainder (post-deposit conformity tracking, `conformity/`): `actions/async-send.ts`'s
+   * phase-2 delivery persists this onto `DocumentInstance.channelProviderId` on the SAME write as
+   * `reference` above — the conformity sweep needs to know which channel THIS document actually went
+   * through, which `Company.invoiceTransportId` alone cannot answer (it is the company's CURRENT
+   * choice, free to change after this document was sent). A transport that registers no poller for
+   * this id (e.g. "sdi" — push-only SOAP notifiche, see `conformity/pollers/`'s own header) still
+   * sets this for the record's own honesty; the sweep simply never selects it, since eligibility is
+   * gated on the POLLER REGISTRY knowing the id, not on this column's mere presence.
+   */
+  providerId?: string;
+  /**
    * Root TODO item 14 ("archivage légal") — the artifacts THIS transport actually delivered, in
    * delivery order: the human-readable PDF (already signed if it was — see
    * `signing/sign-instance-pdf.ts`) for "email", or the structured format actually

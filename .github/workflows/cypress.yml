@@ -148,6 +148,13 @@ jobs:
           # instead of failing on pure test-run topology. Removing this line makes this job skip
           # everything it exists to run, silently. See the specs' own headers.
           DOCUMENTS_QUEUE_REDIS_TESTS: '1'
+          # `document-conformity-queue.redis.spec.ts` connects a REAL "pdp" channel (its own encrypted
+          # `CompanyChannelConfig` row, pointing at a local HTTP stub it starts itself) — without this,
+          # `isEncryptionAvailable()` is false and that spec's own `upsertChannelConfig` call throws
+          # before it ever gets to enqueue anything. A throwaway key for this job's own disposable
+          # Postgres container, never a production secret — same reasoning `.env.test`'s own copy
+          # documents at length.
+          CREDENTIALS_ENCRYPTION_KEY: e2896d60a5fe20415931030ea7eadb3352f2698948ba29948a9f2e04b8840e6d
         run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 
   cypress-run:

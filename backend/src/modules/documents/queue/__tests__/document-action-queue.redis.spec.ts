@@ -59,6 +59,7 @@ import { DocumentQueueDispatcher } from '../document-queue.dispatcher';
 import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
+import { removeQueueJobsForCompany } from './queue-test-cleanup';
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set: a bare local
 // `npx jest` loads `.env` (so REDIS_URL is always set on a dev machine) and runs spec files in
@@ -248,10 +249,14 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
   });
 
   afterAll(async () => {
+    // TARGETED cleanup, never `queue.obliterate()` — this queue is SHARED with a live `start:test`
+    // backend's own worker, which registers its recurrence/conformity sweep repeatables on it ONLY
+    // at boot; obliterating the whole queue silently erases those registrations too, with nothing
+    // in this suite's own output pointing at the cause. See queue-test-cleanup.ts's own header.
+    if (queue && companyId) await removeQueueJobsForCompany(queue, companyId);
     if (companyId) {
       await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
     }
-    await queue?.obliterate({ force: true }).catch(() => undefined);
     await moduleRef?.close();
     if (archiveDir) rmSync(archiveDir, { recursive: true, force: true });
     delete process.env.DOCUMENTS_ARCHIVE_DIR;

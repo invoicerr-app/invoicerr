@@ -56,7 +56,7 @@ const PROVIDER_ID = 'pdp';
  *  payload for. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
-interface PdpCredentials {
+export interface PdpCredentials {
   baseUrl: string;
   clientId: string;
   clientSecret: string;
@@ -64,7 +64,7 @@ interface PdpCredentials {
 
 /** Extracts and validates the three fields this transport actually needs out of a resolved config —
  *  shared by `preflight()` and `send()` so neither can drift from what "complete enough to try" means. */
-function extractCredentials(resolved: ResolvedChannelConfig): PdpCredentials | null {
+export function extractPdpCredentials(resolved: ResolvedChannelConfig): PdpCredentials | null {
   const { baseUrl, clientId, clientSecret } = resolved.config;
   if (typeof baseUrl !== 'string' || !baseUrl || typeof clientId !== 'string' || !clientId) return null;
   if (typeof clientSecret !== 'string' || !clientSecret) return null;
@@ -76,7 +76,7 @@ async function requireConnectedPdp(
   companyId: string,
 ): Promise<PdpCredentials> {
   const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractCredentials(resolved);
+  const credentials = resolved && extractPdpCredentials(resolved);
   if (!credentials) {
     logger.warn('PDP transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -175,9 +175,10 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
 
       return {
         message:
-          `Deposited to the PDP — deposit id ${depositId}. Conformity status not tracked yet ` +
-          "(polling is TODO_ISSUES.md's named remainder of this item).",
+          `Deposited to the PDP — deposit id ${depositId}. Conformity status (fr:200→201→202, or a ` +
+          'fr:213 rejection) is tracked by the post-deposit sweep — see conformity/ for the timeline.',
         reference: depositId,
+        providerId: PROVIDER_ID,
         // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
         // the Factur-X actually deposited (`buildResult.bytes`, already gated valid above): never a
         // second, separately-rendered "plain PDF" nobody actually sent anywhere through this

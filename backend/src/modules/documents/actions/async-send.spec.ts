@@ -333,14 +333,16 @@ describe('runAsyncSendAction', () => {
         data: baseInput.data,
         params: baseInput.params,
       });
-      // `null, undefined`: no lastActionError, and no transport reference — this `deliver` result
-      // carries none (see transport-registry.ts's own `DocumentTransportResult.reference`).
+      // `null, undefined, undefined`: no lastActionError, no transport reference, and no provider id
+      // — this `deliver` result carries none of the two (see transport-registry.ts's own
+      // `DocumentTransportResult.reference`/`.providerId`).
       expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
         'company-1',
         'quote',
         'doc-1',
         'sent',
         null,
+        undefined,
         undefined,
       );
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
@@ -354,10 +356,12 @@ describe('runAsyncSendAction', () => {
     });
 
     // Root TODO item 10 ("transports nationaux") — the "pdp" transport hands back a `reference`
-    // (the deposit id) alongside `message`; this proves it reaches `updateDocumentStatus` as
-    // `transportRef`, on the SAME write that records "sent" — see `DocumentInstance.transportRef`'s
-    // own schema comment and `transports/pdp-transport.ts`'s own header.
-    it('threads a deliver() `reference` through to updateDocumentStatus as `transportRef`', async () => {
+    // (the deposit id) AND a `providerId` alongside `message`; this proves BOTH reach
+    // `updateDocumentStatus` as `transportRef`/`channelProviderId`, on the SAME write that records
+    // "sent" — see `DocumentInstance.transportRef`/`.channelProviderId`'s own schema comments and
+    // `transports/pdp-transport.ts`'s own header. This is exactly what the post-deposit conformity
+    // sweep (`conformity/`) later reads to know which channel this document actually went through.
+    it('threads a deliver() `reference`/`providerId` through to updateDocumentStatus as `transportRef`/`channelProviderId`', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
         typeId: 'invoice',
@@ -371,11 +375,14 @@ describe('runAsyncSendAction', () => {
         typeId: 'invoice',
         status: 'sent',
         transportRef: '375037',
+        channelProviderId: 'pdp',
       });
       const queueDispatcher = { enqueueAction: jest.fn() };
-      const deliver = jest
-        .fn()
-        .mockResolvedValue({ message: 'Deposited — deposit id 375037.', reference: '375037' });
+      const deliver = jest.fn().mockResolvedValue({
+        message: 'Deposited — deposit id 375037.',
+        reference: '375037',
+        providerId: 'pdp',
+      });
 
       await runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver });
 
@@ -386,6 +393,7 @@ describe('runAsyncSendAction', () => {
         'sent',
         null,
         '375037',
+        'pdp',
       );
     });
 

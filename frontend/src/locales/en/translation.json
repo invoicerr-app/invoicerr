@@ -3460,6 +3460,18 @@
       "revoke": "Revoke",
       "revokeError": "The link could not be revoked.",
       "close": "Close"
+    },
+    "conformity": {
+      "title": "Compliance tracking",
+      "badge": {
+        "accepted": "Validated by the platform",
+        "rejected": "Rejected",
+        "pending": "Awaiting verdict",
+        "gaveUp": "Abandoned"
+      },
+      "timeline": {
+        "reason": "Reason: {{reason}}"
+      }
     }
   }
 }

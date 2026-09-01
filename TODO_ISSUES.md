@@ -108,9 +108,22 @@
      `client-upsert.tsx` — une fonctionnalité écran existante, jamais branchée jusqu'ici au pont de
      formats. `explicitEndpointFor()`'s own header.
 
-  Reste NOMMÉ de cette vague : le dépôt réussit sur l'ACCUSÉ (`api:uploaded`, identifiant non vide,
+  ~~Reste NOMMÉ de cette vague : le dépôt réussit sur l'ACCUSÉ (`api:uploaded`, identifiant non vide,
   prouvé en réel — `transports/pdp/pdp.live.spec.ts`), jamais suivi au-delà. Construire le POLLER
-  lui-même (l'ancien moteur avait un `InboxPoller`) est un chantier à part, non commencé ici.
+  lui-même (l'ancien moteur avait un `InboxPoller`) est un chantier à part, non commencé ici.~~ —
+  **RÉSOLU** (2026-09-01) : `conformity/` — un journal append-only (`DocumentAuthorityEvent`, dédup
+  par `(documentId, providerId, statusCode)`, jamais un statut de descripteur muté — le cycle déclaré
+  reste la vérité des actes de l'utilisateur, le verdict de la plateforme est une information de
+  transport superposée), un sweep (`conformity-sweep-runner.ts`, même moule que le sweep des
+  récurrences — un seul repeatable, un jobId par fenêtre d'horloge) et un `AuthorityStatusPoller` par
+  provider (`pollers/pdp-status-poller.ts`, `pollers/ksef-status-poller.ts` — gaté, voir sa propre
+  note d'honnêteté ; jamais "sdi", qui est du push SOAP, pas du poll). **Preuve live, avec le VRAI
+  code du sweep (pas une copie)** : `pdp/pdp-conformity.live.spec.ts` — un dépôt conforme atteint
+  fr:200→201→202 et le journal les contient réellement ; un dépôt délibérément non conforme (mentions
+  BG-1 retirées de l'artefact embarqué) atteint fr:213 avec son motif réel
+  ("BR-FR-05/BT-22 ... absente ... BG-1"), reproduit trois fois. Écran : section "Suivi de conformité"
+  (timeline + badge) sur le document, indicateur discret sur la liste pour un rejet — rien pour un
+  envoi par e-mail ou un canal sans poller (`document-conformity-section.tsx`).
 
   **MISE À JOUR (item 15, 2026-08-31) — les mentions BG-1 sont désormais émises, et le poll
   informationnel a changé de motif exactement comme prévu.** Le `fr:213 Rejetée` observé par un poll
@@ -215,13 +228,22 @@
   nationaux (`formats/national/fa3-provider.ts` PL, `fatturapa-provider.ts` IT, chacun jugé par son
   propre XSD OFFICIEL vendoré — `formats/vendored/{pl,it}/`, jamais le Schematron EN 16931) et deux
   transports (`transports/ksef-transport.ts`, `sdi-transport.ts`). Ce qui reste, précisément :
-  1. **Ni KSeF ni SdI ne suivent le statut au-delà de l'accusé de réception** — même gap que PDP
-     (vague 1, entrée ci-dessus). `ksef-transport.ts#send()` s'arrête à "session+facture acceptées
-     par KSeF" (référence non vide, jamais un succès à référence vide — mutation #2 de cette tâche),
-     jamais à CLEARED/ksefNumber ; `sdi-transport.ts#send()` s'arrête à "idSdI accepté", jamais à une
-     notifica RC/NS/NE/DT/AT. Construire le POLLER (KSeF) ou le ROUTEUR DE NOTIFICHE entrantes (SdI)
-     est un chantier à part, non commencé ici — voir `sdi/sdi-client.ts`'s own `SdiClient.mapNotifica`,
-     REPRISE mais jamais appelée par ce wave (aucun poller pour l'invoquer).
+  1. ~~**Ni KSeF ni SdI ne suivent le statut au-delà de l'accusé de réception**~~ — **PARTIELLEMENT
+     RÉSOLU** (2026-09-01, `conformity/`) : KSeF a désormais un poller câblé derrière la même
+     interface que PDP (`pollers/ksef-status-poller.ts`, `invoiceStatus()` — le seul endpoint de
+     statut que le client repris expose réellement), MAIS **jamais prouvé live** — `KSEF_AUTH_TOKEN`
+     est absent de cet environnement (même trou que `ksef-live.spec.ts`'s own header le documentait
+     déjà pour `send()`), et deux inconnues restent NOMMÉES, pas devinées : (a) le mapping
+     `{code, description, details}` → terminal/rejeté REPREND la convention que
+     `ksef-transport.ts#authenticate` utilise déjà pour l'endpoint AUTH, appliquée par extrapolation
+     à `invoiceStatus` — jamais vérifiée pour CET endpoint précis ; (b) `send()` FERME la session
+     juste après l'envoi — si `invoiceStatus` répond encore une fois la session close est, à ce jour,
+     INCONNU. `ksef-status-poller.live.spec.ts` est prêt, gaté `KSEF_LIVE=1`, pour répondre aux deux
+     le jour où un jeton existe. SdI, lui, reste ENTIÈREMENT ouvert : aucun poller n'est enregistré
+     (push SOAP, pas de endpoint à interroger — voir `conformity/authority-status-poller.ts`'s own
+     header) ; construire le ROUTEUR DE NOTIFICHE entrantes reste un chantier à part, non commencé
+     ici — voir `sdi/sdi-client.ts`'s own `SdiClient.mapNotifica`, REPRISE mais jamais appelée par ce
+     wave (aucun poller pour l'invoquer).
   2. **KSeF n'a de clé MF vendorée que pour l'environnement TEST** (`transports/ksef/certs/test/*.pem`,
      repris du repère à l'identique) — AUCUNE clé PROD n'a jamais existé dans ce dépôt, à aucun
      repère. `ksef-public-keys.ts#loadVendorizedKeys('prod')` échoue donc bruyamment (fail-fast, par
@@ -309,14 +331,19 @@
   `uri` porte déjà `file://` OU pourrait porter `s3://` sans migration).
 
 - **Item 14 — le poller de conformité PDP/KSeF (item 10) n'archive PAS le VERDICT, seulement le DÉPÔT**
-  (2026-08-31) : l'artefact archivé pour "pdp"/"ksef" est le Factur-X/FA(3) au moment où le transport
-  l'a DÉPOSÉ (deposit accepté, jamais la conformité fr:201/202 ou le ksefNumber CLEARED — ce poller
-  reste le remainder nommé de l'item 10 lui-même, pas de celui-ci). Le jour où ce poller existe, le
-  verdict qu'il obtient (accepté/rejeté par l'administration) est un FAIT DATÉ DISTINCT de la
-  livraison — une SECONDE archive (ou un enrichissement de la première, à trancher alors) serait la
-  suite logique, pas une réouverture de ce qui est livré ici : ce que l'entreprise a réellement
-  ENVOYÉ, hashé et conservé, est un fait acquis dès le dépôt, indépendamment de ce que l'administration
-  en fait ensuite.
+  (2026-08-31 ; le poller lui-même existe depuis le 2026-09-01, voir l'entrée résolue de l'item 10 —
+  cette entrée-ci reste PARTIELLEMENT ouverte, précisée ci-dessous) : l'artefact archivé
+  (`DocumentArchive`, WORM/content-hash) pour "pdp"/"ksef" reste le Factur-X/FA(3) au moment où le
+  transport l'a DÉPOSÉ — ça n'a PAS changé. Ce qui A changé : le verdict (fr:201/202/213, ou le
+  ksefNumber CLEARED) est désormais SUIVI et CONSULTABLE (`DocumentAuthorityEvent`, append-only,
+  `conformity/`) — mais délibérément PAS archivé au sens WORM du terme : c'est un journal applicatif
+  ordinaire (une table Postgres), jamais un second artefact haché/conservé selon la même discipline
+  que `DocumentArchive`. Le raisonnement d'origine tient toujours : le verdict est un FAIT DATÉ
+  DISTINCT de la livraison (celle-ci reste acquise, hashée, conservée, indépendamment de ce que
+  l'administration en fait ensuite) — une SECONDE archive WORM pour le verdict (ou un enrichissement
+  de la première) reste à trancher, non fait ici : ce mécanisme répond au besoin OPÉRATIONNEL (voir,
+  agir sur un rejet), pas encore au besoin PROBATOIRE (prouver après coup, de façon inaltérable, quel
+  verdict a été reçu et quand).
 
 - **Item 14 — la rétention FR applique les deux durées simultanément (leur MAXIMUM) plutôt que de
   trancher FR-D9** (2026-08-31) : `docs/compliance/audit/03-LEGAL-VERIFICATION.md` (FR-D9) et

@@ -16,6 +16,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 import {
+  CONFORMITY_POLL_JOB_NAME,
+  CONFORMITY_SWEEP_JOB_ID,
+  CONFORMITY_SWEEP_JOB_NAME,
+  ConformityPollJobData,
+  readConformitySweepIntervalMs,
+} from '../conformity/conformity-sweep';
+import {
   readSweepIntervalMs,
   SCHEDULE_OCCURRENCE_JOB_NAME,
   SCHEDULE_SWEEP_JOB_ID,
@@ -139,6 +146,52 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(
       `Occurrence ${jobId} enqueued (schedule="${data.scheduleId}", action="${data.actionId}").`,
     );
+    return true;
+  }
+
+  /**
+   * Registers the ONE conformity-sweep repeatable — same idempotent-registration guarantee as
+   * `registerScheduleSweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
+   * across the whole cluster), same `attempts: 1` reasoning (a sweep pass that itself throws is a
+   * real bug, loud now rather than silently retried — the next tick, `readConformitySweepIntervalMs()`
+   * away, is already the natural retry for "the sweep didn't run this time").
+   */
+  async registerConformitySweepRepeatable(): Promise<void> {
+    await this.queue.add(CONFORMITY_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
+      jobId: CONFORMITY_SWEEP_JOB_ID,
+      repeat: { every: readConformitySweepIntervalMs() },
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(
+      `Registered the document-conformity sweep repeatable (every ${readConformitySweepIntervalMs()}ms).`,
+    );
+  }
+
+  /**
+   * Enqueues ONE conformity poll job under `jobId` — the CALLER's own wall-clock-window id
+   * (`conformity-sweep.ts#buildConformityPollJobId`). Same "skip unconditionally if a job already
+   * exists under this id, whatever its state" discipline `enqueueScheduleOccurrence` already holds,
+   * for the identical reason: re-polling the SAME window is never legitimate — a genuine re-poll
+   * happens at the NEXT window's own, differently-bucketed id. Same "fast-path pre-check, real
+   * guarantee is BullMQ's own jobId idempotency" caveat as that method's own header — proven against
+   * a real Redis by `queue/__tests__/document-conformity-queue.redis.spec.ts`'s own racing test.
+   */
+  async enqueueConformityPoll(jobId: string, data: ConformityPollJobData): Promise<boolean> {
+    const existing = await this.queue.getJob(jobId);
+    if (existing) {
+      this.logger.log(`Conformity poll ${jobId} already dispatched — not enqueuing a duplicate.`);
+      return false;
+    }
+
+    await this.queue.add(CONFORMITY_POLL_JOB_NAME, data as unknown as DocumentActionJobData, {
+      jobId,
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: { count: 50 },
+    });
+    this.logger.log(`Conformity poll ${jobId} enqueued (document="${data.documentId}").`);
     return true;
   }
 }

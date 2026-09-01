@@ -23,6 +23,7 @@ import {
   verifyDocumentArchive,
 } from './archive/persistence';
 import { ActionExtensionRegistry } from './actions/action-extensions';
+import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
 import { ActionRegistry, ActionResult } from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
@@ -978,5 +979,21 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<ArchiveVerificationResult> {
     await findOwnedDocument(companyId, typeId, id);
     return verifyDocumentArchive(companyId, id, archiveId);
+  }
+
+  /**
+   * "GET .../authority-events" — root TODO item 10's own named remainder (post-deposit conformity
+   * tracking, `conformity/`). Every event journaled for this document, most recent first — see
+   * `DocumentAuthorityEvent`'s own schema comment for why this is a plain read of an append-only log,
+   * never a computed "current status". `findOwnedDocument` first, the same tenant/existence check
+   * every other per-document read in this class already runs.
+   */
+  async listAuthorityEvents(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<DocumentAuthorityEventResult[]> {
+    await findOwnedDocument(companyId, typeId, id);
+    return listAuthorityEvents(companyId, id);
   }
 }

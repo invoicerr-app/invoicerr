@@ -56,9 +56,16 @@ export interface AsyncSendDeliverContext {
   params: Record<string, unknown>;
 }
 
-export type AsyncSendDeliver = (
-  ctx: AsyncSendDeliverContext,
-) => Promise<{ message?: string; reference?: string; artifacts?: ArchivedArtifactInput[] }>;
+export type AsyncSendDeliver = (ctx: AsyncSendDeliverContext) => Promise<{
+  message?: string;
+  reference?: string;
+  /** Mirrors `DocumentTransportResult.providerId` (`transports/transport-registry.ts`) — persisted
+   *  onto `DocumentInstance.channelProviderId` on the SAME write as `reference` below, so the
+   *  conformity sweep (`conformity/`) always knows which channel THIS document actually went
+   *  through, regardless of what the company's transport choice has since become. */
+  providerId?: string;
+  artifacts?: ArchivedArtifactInput[];
+}>;
 
 export interface RunAsyncSendInput {
   companyId: string;
@@ -125,7 +132,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   const existing = await findOwnedDocument(companyId, typeId, documentId);
 
   if (existing.status === 'sending') {
-    const { message, reference, artifacts } = await deliver({
+    const { message, reference, providerId, artifacts } = await deliver({
       companyId,
       typeId,
       documentId,
@@ -133,7 +140,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       data,
       params,
     });
-    const sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', null, reference);
+    const sent = await updateDocumentStatus(
+      companyId,
+      typeId,
+      documentId,
+      'sent',
+      null,
+      reference,
+      providerId,
+    );
 
     // Root TODO item 14 ("archivage légal") — archived ONLY once delivery has genuinely succeeded
     // (this line runs after `sent` is already persisted, never before): archiving a delivery that

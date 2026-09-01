@@ -426,6 +426,26 @@ export class DocumentsController {
     return this.documentsService.listDocumentArchives(companyId, typeId, id);
   }
 
+  @Get(':id/authority-events')
+  @ApiOperation({
+    summary: 'List the post-deposit conformity events of a document instance',
+    description:
+      "Root TODO item 10's own named remainder — every event the ISSUING PLATFORM itself reported " +
+      "(e.g. PDP's fr:200/201/202/213), most recent first, append-only. Empty for a document sent " +
+      'by a channel with no conformity poller (e.g. "email", or "sdi" — push-only notifiche).',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Events retrieved (possibly empty)' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  listAuthorityEvents(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.listAuthorityEvents(companyId, typeId, id);
+  }
+
   @Post(':id/archives/:archiveId/verify')
   @ApiOperation({
     summary: 'Verify one legal archive’s integrity',

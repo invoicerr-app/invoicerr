@@ -178,9 +178,10 @@ export function buildSdiTransport(deps: SdiTransportDeps): DocumentTransport {
       return {
         message:
           `Submitted to SdI — idSdI ${reference}. Delivery status (the RC/NS/NE/DT/AT notifiche) is ` +
-          "not tracked yet — see TODO_ISSUES.md for this item's named remainder, same shape as " +
-          "KSeF's own clearance-poll gap.",
+          'still not tracked — those are PUSHED to us over SOAP, not polled, so this channel has no ' +
+          "poller registered in conformity/ (see that module's own header on why).",
         reference,
+        providerId: PROVIDER_ID,
         // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
         // the FatturaPA actually submitted (`xmlBytes`, already gated valid above), same reasoning as
         // `pdp-transport.ts`'s own `artifacts`.

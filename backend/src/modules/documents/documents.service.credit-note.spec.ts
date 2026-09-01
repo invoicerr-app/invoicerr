@@ -180,14 +180,16 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
 
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ id: 'cn-1', status: 'sent' });
-    // `null, undefined`: no lastActionError, and no transport reference — a credit note's "send"
-    // has no transport at all (see transport-registry.ts's own `DocumentTransportResult.reference`).
+    // `null, undefined, undefined`: no lastActionError, no transport reference, and no provider id —
+    // a credit note's "send" has no transport at all (see transport-registry.ts's own
+    // `DocumentTransportResult.reference`/`.providerId`).
     expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
       'company-1',
       'credit-note',
       'cn-1',
       'sent',
       null,
+      undefined,
       undefined,
     );
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();

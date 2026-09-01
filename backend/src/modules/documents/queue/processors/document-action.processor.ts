@@ -35,6 +35,12 @@ import { Logger, Optional } from '@nestjs/common';
 import { Job } from 'bullmq';
 
 import { ActionResult } from '../../actions/action-registry';
+import {
+  CONFORMITY_POLL_JOB_NAME,
+  CONFORMITY_SWEEP_JOB_NAME,
+  ConformityPollJobData,
+} from '../../conformity/conformity-sweep';
+import { ConformitySweepRunner, RunConformitySweepResult } from '../../conformity/conformity-sweep-runner';
 import { DocumentsService } from '../../documents.service';
 import { DocumentScheduleSweepRunner, RunSweepResult } from '../../schedules/schedule-sweep-runner';
 import {
@@ -52,11 +58,18 @@ export class DocumentActionProcessor extends WorkerHost {
   constructor(
     private readonly documentsService: DocumentsService,
     @Optional() private readonly sweepRunner?: DocumentScheduleSweepRunner,
+    // Same `@Optional()` reasoning as `sweepRunner` above — every EXISTING spec in this file (and
+    // the ordinary-action real-Redis integration spec) constructs this processor without one and
+    // never sends a conformity-named job; production wiring (documents-core.module.ts) always
+    // provides a real one.
+    @Optional() private readonly conformitySweepRunner?: ConformitySweepRunner,
   ) {
     super();
   }
 
-  async process(job: Job<DocumentActionJobData>): Promise<ActionResult | RunSweepResult> {
+  async process(
+    job: Job<DocumentActionJobData>,
+  ): Promise<ActionResult | RunSweepResult | RunConformitySweepResult | { journaled: number }> {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
       this.logger.log(`Running the document-schedule sweep (job ${job.id})`);
       return this.requireSweepRunner().runSweep();
@@ -69,6 +82,19 @@ export class DocumentActionProcessor extends WorkerHost {
           `(${occurrence.typeId}/${occurrence.actionId}, job ${job.id})`,
       );
       return this.requireSweepRunner().runOccurrence(occurrence);
+    }
+
+    if (job.name === CONFORMITY_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the document-conformity sweep (job ${job.id})`);
+      return this.requireConformitySweepRunner().runSweep();
+    }
+
+    if (job.name === CONFORMITY_POLL_JOB_NAME) {
+      const poll = job.data as unknown as ConformityPollJobData;
+      this.logger.log(
+        `Running conformity poll for document ${poll.documentId} ("${poll.providerId}", job ${job.id})`,
+      );
+      return this.requireConformitySweepRunner().runPoll(poll);
     }
 
     const { companyId, typeId, documentId, actionId, payload } = job.data;
@@ -97,6 +123,15 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.sweepRunner;
   }
 
+  private requireConformitySweepRunner(): ConformitySweepRunner {
+    if (!this.conformitySweepRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a conformity job but has no ConformitySweepRunner.');
+    }
+    return this.conformitySweepRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -115,7 +150,17 @@ export class DocumentActionProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   async onFailed(job: Job<DocumentActionJobData> | undefined, error: Error): Promise<void> {
     if (!job) return;
-    if (job.name === SCHEDULE_SWEEP_JOB_NAME || job.name === SCHEDULE_OCCURRENCE_JOB_NAME) return;
+    if (
+      job.name === SCHEDULE_SWEEP_JOB_NAME ||
+      job.name === SCHEDULE_OCCURRENCE_JOB_NAME ||
+      // Same reasoning — a conformity job's `documentId`/outcome vocabulary is not a "send" action's,
+      // and `runPoll` itself never throws in the first place (it journals `poll:blocked` instead —
+      // see conformity-sweep-runner.ts's own header), so reaching this branch for one at all would
+      // already mean something unexpected happened above `runPoll`'s own try/catch.
+      job.name === CONFORMITY_SWEEP_JOB_NAME ||
+      job.name === CONFORMITY_POLL_JOB_NAME
+    )
+      return;
 
     const attempts = job.opts?.attempts ?? 1;
     if (job.attemptsMade < attempts) {

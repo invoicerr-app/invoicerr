@@ -16,6 +16,7 @@ import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence
 import { getDocumentCustomComponent } from "@/components/documents/custom-slots"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import { DocumentFieldValue } from "@/components/documents/field-value"
+import { DocumentConformityListIndicator } from "@/components/documents/document-conformity-section"
 import { DocumentSettlementBadge } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import type {
@@ -533,6 +534,10 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
                   dataCySuffix={instance.id}
                 />
               )}
+              {/* Root TODO item 10's own named remainder — "un indicateur discret pour rejeté" on
+                  the list (this task's own brief): renders nothing unless the platform actually
+                  rejected this deposit (see that component's own header). */}
+              <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
             </div>
             <DocumentCardSecondaryInfo descriptor={descriptor} instance={instance} />
           </div>

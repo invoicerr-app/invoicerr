@@ -3,12 +3,14 @@ import { useQueries } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
+import { computeConformityVerdict } from "@/components/documents/document-conformity-section"
 import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@/lib/descriptor-i18n"
 
 import type {
   ActionResult,
   ArchiveVerificationResult,
   DocumentArchive,
+  DocumentAuthorityEvent,
   DocumentInstance,
   DocumentSettlementResult,
   DocumentTypeDescriptor,
@@ -146,6 +148,30 @@ export function useVerifyDocumentArchive() {
   return useApiMutation<VerifyDocumentArchiveVariables, ArchiveVerificationResult>(
     "POST",
     (vars) => `/api/documents/${vars.documentId}/archives/${vars.archiveId}/verify?typeId=${vars.typeId}`,
+  )
+}
+
+/** Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) — every
+ *  event the ISSUING PLATFORM itself reported for this document, most recent first. Empty (not an
+ *  error) for a document sent by a channel with no poller ("email", "sdi") or a PDP/KSeF deposit the
+ *  background sweep hasn't polled yet. Polls the API every 5s of its own, but ONLY once something is
+ *  actually IN FLIGHT (at least one event already journaled, none of them terminal yet) — a document
+ *  with zero events (nothing sent through a polled channel yet, or the very first sweep pass hasn't
+ *  run) is not worth hot-polling for; one that already reached a verdict stops on its own the moment
+ *  `computeConformityVerdict` sees it. Same "poll only while something could still change"
+ *  discipline `useDocumentInstances`'s own `refetchInterval` already holds for the "sending" status. */
+export function useDocumentAuthorityEvents(typeId: string | undefined, id: string | undefined) {
+  return useApiQuery<DocumentAuthorityEvent[]>(
+    ["documents", typeId, id, "authority-events"],
+    `/api/documents/${id}/authority-events?typeId=${typeId}`,
+    {
+      enabled: !!typeId && !!id,
+      refetchInterval: (query) => {
+        const events = query.state.data as DocumentAuthorityEvent[] | undefined
+        if (!events || events.length === 0) return false
+        return computeConformityVerdict(events) === "pending" ? 5000 : false
+      },
+    },
   )
 }
 

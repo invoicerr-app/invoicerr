@@ -67,7 +67,7 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 const AUTH_POLL_ATTEMPTS = 5;
 const AUTH_POLL_INTERVAL_MS = 2000;
 
-interface KsefCredentials {
+export interface KsefCredentials {
   nip: string;
   ksefToken: string;
   environment: KsefEnvironment;
@@ -78,7 +78,7 @@ interface KsefCredentials {
  *  itself (`ResolvedChannelConfig.environment`, TEST/PROD — already a first-class concept the whole
  *  channels module carries for every provider), never a second, redundant `config.environment`
  *  field: the settings screen's existing Environment selector already IS this. */
-function extractCredentials(resolved: ResolvedChannelConfig): KsefCredentials | null {
+export function extractKsefCredentials(resolved: ResolvedChannelConfig): KsefCredentials | null {
   const { nip, ksefToken } = resolved.config;
   if (typeof nip !== 'string' || !nip || typeof ksefToken !== 'string' || !ksefToken) return null;
   return { nip, ksefToken, environment: resolved.environment === 'PROD' ? 'prod' : 'test' };
@@ -89,7 +89,7 @@ async function requireConnectedKsef(
   companyId: string,
 ): Promise<KsefCredentials> {
   const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractCredentials(resolved);
+  const credentials = resolved && extractKsefCredentials(resolved);
   if (!credentials) {
     logger.warn('KSeF transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -106,8 +106,11 @@ async function requireConnectedKsef(
 /** The short auth handshake (challenge → ksef-token → poll status → redeem) — REPRISED verbatim in
  *  SHAPE from `ksef-transmission.ts` at the repère, just no longer wrapped in a `TransmissionResult`.
  *  Throws on outright rejection or on exhausting the poll budget — both are genuine send() failures,
- *  never a silent partial state. */
-async function authenticate(client: KsefClient): Promise<string> {
+ *  never a silent partial state. Exported so `conformity/pollers/ksef-status-poller.ts` can reuse the
+ *  EXACT same handshake rather than a second, drifting copy — a poll needs its own fresh access token
+ *  just like `send()` does (KSeF access tokens are short-lived), and this is the one place that
+ *  already gets it right. */
+export async function authenticate(client: KsefClient): Promise<string> {
   const challenge = await client.authChallenge();
   const authResponse = await client.authKsefToken(challenge.challenge, challenge.timestampMs);
 
@@ -238,9 +241,11 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
       return {
         message:
           `Submitted to KSeF — session ${sessionRef}, invoice ${invoiceRef}. Clearance status (the ` +
-          "ksefNumber) is not tracked yet — polling is TODO_ISSUES.md's named remainder of this item, " +
-          "same gap as PDP's own conformity poll.",
+          'ksefNumber) is tracked by the post-deposit sweep, gated behind KSeF credentials — see ' +
+          'conformity/ for the timeline (and that module for the honesty note on how well-verified ' +
+          'this particular mapping is).',
         reference,
+        providerId: PROVIDER_ID,
         // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
         // the FA(3) actually submitted (`buildResult.bytes`, already gated valid above), same
         // reasoning as `pdp-transport.ts`'s own `artifacts`.

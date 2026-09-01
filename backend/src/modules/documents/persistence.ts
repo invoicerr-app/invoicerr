@@ -66,7 +66,10 @@ export async function upsertDocument(
  * `DocumentInstance.transportRef`'s own schema comment and `transports/transport-registry.ts`'s
  * `DocumentTransportResult.reference`) — `undefined` (the default) means "leave it untouched", not
  * "clear it": unlike `lastActionError`, there is nothing stale to reset on an ordinary write, since a
- * reference is only ever written once, on the write that records success.
+ * reference is only ever written once, on the write that records success. `channelProviderId` is the
+ * SAME transport result's own `providerId` (`DocumentInstance.channelProviderId`'s own schema
+ * comment) — written on the exact same call, for the exact same reason, so the two columns can never
+ * disagree about which delivery they describe.
  */
 export async function updateDocumentStatus(
   companyId: string,
@@ -75,11 +78,17 @@ export async function updateDocumentStatus(
   status: string,
   lastActionError: string | null = null,
   transportRef?: string,
+  channelProviderId?: string,
 ): Promise<DocumentInstanceResult> {
   await findOwnedDocument(companyId, typeId, id);
   return prisma.documentInstance.update({
     where: { id },
-    data: { status, lastActionError, ...(transportRef !== undefined ? { transportRef } : {}) },
+    data: {
+      status,
+      lastActionError,
+      ...(transportRef !== undefined ? { transportRef } : {}),
+      ...(channelProviderId !== undefined ? { channelProviderId } : {}),
+    },
   });
 }
 
