@@ -9,7 +9,7 @@
     "start:test": "dotenv -e .env.test vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test src/lib/**/*.test.ts",
+    "test": "node --experimental-strip-types --test test/**/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

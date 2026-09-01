@@ -409,16 +409,17 @@ describe('Invoices E2E', () => {
 
             cy.get('[data-cy="invoice-due-date"]').scrollIntoView().click();
             cy.get('[data-slot="calendar"]', { timeout: 5000 }).should('be.visible');
+            cy.get('[data-slot="calendar"] select').should('have.length.at.least', 1);
 
             cy.get('[data-slot="calendar"] select').then(($selects) => {
-                const yearSelect = [...$selects].find((select) =>
+                const yearSelect = $selects.toArray().find((select) =>
                     [...(select as HTMLSelectElement).options].some((option) =>
-                        option.textContent?.includes(String(currentYear))
+                        option.textContent?.includes(String(currentYear)) || option.value === String(currentYear)
                     )
                 ) as HTMLSelectElement | undefined;
 
                 expect(yearSelect, 'year dropdown').to.exist;
-                const years = [...yearSelect!.options].map((option) => option.textContent?.trim());
+                const years = [...yearSelect!.options].map((option) => option.textContent?.trim() || option.value);
                 expect(years).to.include(String(currentYear));
                 expect(years).to.include(String(futureYear));
                 expect(years).to.include('2027');

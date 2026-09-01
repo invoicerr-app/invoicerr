@@ -5,7 +5,7 @@ import {
     DATE_PICKER_FUTURE_YEARS,
     DATE_PICKER_PAST_YEARS,
     getDatePickerMonthBounds,
-} from "./date-picker-range.ts"
+} from "../src/lib/date-picker-range.ts"
 
 describe("getDatePickerMonthBounds", () => {
     it("includes 2027 when the calendar is opened in 2025 (issue #251)", () => {
