@@ -241,6 +241,16 @@ enum ClientType {
   COMPANY
 }
 
+// B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to this
+// client MUST use, per its own COUNTRY (see B2gRoutingRule below); BUSINESS (the default) leaves
+// every existing transport/mandate mechanism untouched. Uppercase, same convention as ClientType
+// right above — never a bare string, so a typo in a future caller fails to compile rather than
+// silently matching nothing.
+enum ClientKind {
+  BUSINESS
+  GOVERNMENT
+}
+
 // Document kind for Invoice (EN 16931 document taxonomy)
 enum DocumentKind {
   INVOICE
@@ -464,6 +474,10 @@ model Client {
   countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   currency         Currency?
   type             ClientType        @default(COMPANY)
+  // B2G routing — see ClientKind above and B2gRoutingRule below. Default BUSINESS: every existing
+  // client, and every client created without touching this field, keeps today's behavior exactly —
+  // no transport/mandate precedence change unless a client is explicitly marked GOVERNMENT.
+  kind             ClientKind        @default(BUSINESS)
   salutation       String            @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
   sex              String            @default("other") // male, female, other (We need a default value for the invoice generation)
   title            String            @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)
@@ -1421,6 +1435,74 @@ model CountryIdentifierRequirement {
   updatedAt DateTime @updatedAt
 
   @@unique([countryCode, scheme])
+  @@index([countryCode])
+}
+
+// B2G routing table — mirror of backend/src/modules/documents/b2g-routing/data/*.json, ONE row per
+// country. Answers a single question, per the CLIENT's own country (never the seller's): when this
+// invoice's recipient is a GOVERNMENT client (Client.kind), which channel/format is imposed, which
+// identifiers must already be on that client, and which document fields must be filled in before
+// sending is allowed at all.
+//
+// Upserted AT BACKEND BOOT (b2g-routing/boot-upsert.service.ts's OnModuleInit), DELIBERATELY NOT
+// `prisma/seed.ts` (the Prisma migrate/reset hook `DocumentCountryActionRule` above still uses) — see
+// that service's own header for why. In short: `prisma/seed.ts` only runs after `migrate dev`/
+// `migrate reset`/`db seed`, exactly the gap TODO_ISSUES.md's own "`resetAndSeed` ne re-sème pas la
+// politique pays" note names for DocumentCountryActionRule — a NEW rule added to data/*.json would
+// otherwise only reach an already-migrated, already-booted database (e2e's own `cy.resetAndSeed()`,
+// a self-hosted instance that never re-runs `db seed`) via a manual reseed nobody remembers to run.
+// Running the identical idempotent upsert from `OnModuleInit` instead means EVERY process that boots
+// — the API inline, or a scaled worker replica — brings THIS table to match the data files itself, no
+// separate step to forget. This fixes that reseed gap for THIS table specifically; every OTHER
+// mechanism (DocumentCountryActionRule, CountryIdentifierRequirement) keeps its existing prisma-seed
+// path unchanged — see b2g-routing/boot-upsert.service.ts for the full reasoning.
+//
+// The READ side (b2g-routing/b2g-routing.ts) reads THIS TABLE, never the data files directly — the
+// same DB-mirror split DocumentCountryActionRule already holds, deliberately kept even though a
+// single in-memory catalog (channel-policy/'s own choice) would be simpler for one instance: every
+// API/worker replica must see the SAME rule the instant ANY of them boots with a newer data file, not
+// whichever one happened to load the newest code first.
+model B2gRoutingRule {
+  id           String @id @default(cuid())
+  countryCode  String @unique // ISO 3166-1 alpha-2, uppercase — the CLIENT's own country, never the
+  // seller's: a B2G rule is a regime of the DESTINATION, exactly like directive 2014/55/UE itself
+  // (obligations bind the receiving contracting authority) — see actions/invoice-actions.ts's own
+  // header on the precedence this implies (B2G > the seller-country channel mandate > the company's
+  // free transport choice).
+  transportId  String // a transports/transport-registry.ts id — deliberately NOT validated against the
+  // live registry at load time (same reasoning as channel-policy/schema.ts's own `providerId`): a
+  // rule may legitimately name a transport that does not exist YET (e.g. "chorus-pro", "zre-ozgre") —
+  // sending then refuses loudly, naming exactly that channel, never a load-time crash for an
+  // intentionally-unimplemented one. This IS the model's own thesis, not an oversight — see
+  // actions/invoice-actions.ts's header.
+  formatSyntax String // a formats/format-registry.ts id, e.g. "facturx", "xrechnung", "fatturapa"
+
+  // [{ scheme, label, why }] — `scheme` matches a PartyIdentifier.scheme on the CLIENT; a government
+  // client missing one of these blocks sending, naming the field, the screen, and `why` verbatim.
+  requiredClientIdentifiers Json @default("[]")
+  // [{ field, label, why, required }] — `field` matches a top-level key of the INVOICE's own `data`
+  // (e.g. "buyerReference"); `required: true` blocks sending when absent, `required: false` is
+  // informational only (shown as a help hint, never a block) — see FR's own "code service" entry for
+  // why that distinction exists.
+  requiredDocumentFields    Json @default("[]")
+
+  // Provenance — same two-shape discipline as DocumentCountryActionRule/CountryIdentifierRequirement
+  // above (never a DB constraint, enforced by assertValidB2gRoutingFact before a row is ever written).
+  // Unlike channel-policy's own `requirement: 'mandated'`, an 'unverified' B2G rule is still LOADED
+  // and still ENFORCED — every row in this table is inherently a mandate (there is no "suggested"
+  // tier for B2G routing, see b2g-routing/schema.ts's own header) — 'unverified' only ever means the
+  // underlying legal text was not independently re-checked at its primary source in this pass, never
+  // "this rule is optional".
+  provenanceKind  String // 'legal' | 'unverified'
+  sourceText      String? // 'legal': the exact legal text this rule is based on
+  sourceCheckedAt DateTime? // 'legal': when `sourceText` was last checked against its source
+  resolutionNote  String? // 'unverified': what would have to be checked to settle this rule
+
+  notes String? // free-form caveats, same convention as the models above
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([countryCode])
 }
 

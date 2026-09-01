@@ -90,13 +90,22 @@ export class DocumentsController {
     description:
       'The full descriptor (fields, actions) a frontend renders a form from. Each action carries a ' +
       "policyBlockedReason when the active company's country document-action policy refuses it — " +
-      'absent when the action is allowed.',
+      'absent when the action is allowed. Optional `clientId`: when it names a GOVERNMENT client ' +
+      "(Client.kind) whose own country declares a B2G routing rule, that rule's own " +
+      '`requiredDocumentFields` are folded into `fields` too (e.g. a French company invoicing a ' +
+      "German public body sees the Leitweg-ID input even though this company's own country has no " +
+      "field overlay for it — see documents.service.ts#describeTypeForCompany's own header).",
   })
   @ApiParam({ name: 'typeId', type: String })
+  @ApiQuery({ name: 'clientId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Descriptor retrieved' })
   @ApiResponse({ status: 404, description: 'Unknown document type' })
-  getType(@ActiveCompany() companyId: string, @Param('typeId') typeId: string) {
-    return this.documentsService.describeTypeForCompany(companyId, typeId);
+  getType(
+    @ActiveCompany() companyId: string,
+    @Param('typeId') typeId: string,
+    @Query('clientId') clientId?: string,
+  ) {
+    return this.documentsService.describeTypeForCompany(companyId, typeId, clientId);
   }
 
   @Get('types/:typeId/fields/:fieldKey/rows')
@@ -155,6 +164,25 @@ export class DocumentsController {
   @ApiResponse({ status: 200, description: 'Requirements retrieved (possibly empty, with a reason)' })
   listRequiredIdentifiers(@Query('countryCode') countryCode: string, @Query('partyType') partyType: string) {
     return this.documentsService.listRequiredIdentifiers(countryCode, partyType);
+  }
+
+  @Get('b2g-routing')
+  @ApiOperation({
+    summary: 'The B2G routing rule declared for a country, if any',
+    description:
+      'What sending an invoice to a GOVERNMENT client of the given country requires — the imposed ' +
+      'channel/format, any required client identifiers, and any required invoice fields (see ' +
+      "b2g-routing/b2g-routing.ts's resolveB2gRoutingRule). `null` means no B2G rule is declared for " +
+      'this country YET — the client edit screen shows this as help, never a block: a client can ' +
+      'still be marked GOVERNMENT and saved, the actual refusal only happens when an invoice to it ' +
+      "is sent (see actions/invoice-actions.ts's own B2G precedence). Not scoped by @ActiveCompany() " +
+      "— same reasoning as 'required-identifiers' above: this is the CLIENT's own country, unrelated " +
+      "to the active company's.",
+  })
+  @ApiQuery({ name: 'countryCode', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'The rule, or null when none is declared for this country' })
+  async getB2gRoutingRule(@Query('countryCode') countryCode: string) {
+    return (await this.documentsService.getB2gRoutingRule(countryCode)) ?? null;
   }
 
   @Get('dashboard')

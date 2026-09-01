@@ -1,0 +1,29 @@
+{
+  "countryCode": "FR",
+  "rule": {
+    "countryCode": "FR",
+    "transportId": "chorus-pro",
+    "formatSyntax": "facturx",
+    "requiredClientIdentifiers": [
+      {
+        "scheme": "LEGAL_ID",
+        "label": "SIRET",
+        "why": "Chorus Pro identifies every public-sector recipient by its SIRET (the 14-digit establishment number) — the SAME \"LEGAL_ID\" scheme this catalog already uses for a French client's own identifier (see country-identifiers/data/fr.json, which already accepts both the 9-digit SIREN and the 14-digit SIRET). A government client with no SIRET on file cannot be routed to Chorus Pro at all."
+      }
+    ],
+    "requiredDocumentFields": [
+      {
+        "field": "buyerReference",
+        "label": "Code service (destinataire)",
+        "why": "Chorus Pro routes an invoice inside a public entity by a \"code service\" identifying which department/service ordered it — not every public entity requires one (it depends on how that entity organized its own Chorus Pro account), so this stays optional rather than a hard block. Reuses the SAME generic `buyerReference` field the DE/XRechnung rule below also reads (`formats/shared-build.ts#extractBuyerReference`, `country-fields/data/de.json`'s own header) — a deliberate modeling choice, not a coincidence: both are \"which unit inside the recipient should receive this\" facts, even though French doctrine calls it \"code service\" and German law calls it \"Leitweg-ID\".",
+        "required": false
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Code de la commande publique, art. L. 2192-1 (LOI n°2022-1157 du 16 août 2022, art. 26) : « Les titulaires de marchés conclus avec les personnes morales de droit public, ainsi que leurs sous-traitants admis au paiement direct, transmettent leurs factures sous forme électronique. » Art. L. 2192-2 (même loi) : « Les personnes morales de droit public acceptent les factures transmises sous forme électronique par les titulaires de marchés mentionnés à l'article L. 2192-1 et leurs sous-traitants admis au paiement direct. » Art. L. 2192-5 (LOI n°2026-103 du 19 février 2026, art. 123) : « Une solution mutualisée, mise à disposition par l'Etat et dénommée \" portail public de facturation \", permet le dépôt, la réception et la transmission des factures sous forme électronique [...]. Pour la mise en œuvre des obligations fixées à la sous-section 1 de la présente section, utilisent le portail public de facturation : 1° L'Etat, les collectivités territoriales et les établissements publics ; 2° Les titulaires de marchés conclus avec un acheteur mentionné au 1° ainsi que leurs sous-traitants admis au paiement direct. »",
+      "sourceCheckedAt": "2026-09-01"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-01 sur codes.droit.org (PDF officiel du Code de la commande publique, https://codes.droit.org/PDF/Code%20de%20la%20commande%20publique.pdf, articles L. 2192-1/L. 2192-2/L. 2192-5 — voir sourceText ci-dessus, citation verbatim extraite du PDF lui-même, pas paraphrasée). Légifrance a continué de refuser toute requête automatisée (même mur que country-policy/data/fr.json et country-identifiers/data/fr.json documentent déjà pour ce site précis). SOCLE EUROPÉEN commun aux trois pays de cette vague : directive 2014/55/UE, art. 7 (EUR-Lex, https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32014L0055, consulté 2026-09-01) : « Member States shall ensure that contracting authorities and contracting entities receive and process electronic invoices which comply with the European standard on electronic invoicing [...] » — cette directive impose la RÉCEPTION par le pouvoir adjudicateur, jamais l'émission par le fournisseur ; ce sont les art. L. 2192-1 et suivants ci-dessus qui, en droit français, imposent en RETOUR l'émission électronique par le titulaire du marché. `transportId: \"chorus-pro\"` référence DÉLIBÉRÉMENT un canal qui N'EXISTE PAS dans `transports/transport-registry.ts` (email/pdp/ksef/sdi seuls) — c'est la thèse même de ce modèle (voir actions/invoice-actions.ts's own header) : le texte légal ci-dessus nomme \"le portail public de facturation\" (opéré sous la marque \"Chorus Pro\" par l'AIFE — fait notoire, documenté ailleurs dans ce dépôt à `documentation/compliance/FR-France.md`, mais PAS re-confirmé à sa source primaire par CETTE tâche, faute d'accès : chorus-pro.gouv.fr/portail.chorus-pro.gouv.fr sont des applications JavaScript qui ne rendent aucun texte à une requête simple), jamais l'un des quatre canaux déjà implémentés ici — l'envoi doit donc REFUSER, en le nommant, plutôt que de router silencieusement vers un canal (email, pdp) que le texte ne désigne pas. `formatSyntax: \"facturx\"` est un choix DÉLIBÉRÉ mais NON re-vérifié à la documentation Chorus Pro elle-même (la communauté Chorus Pro, communaute.chorus-pro.gouv.fr, n'a rendu aucun texte exploitable à cette tâche non plus) : Factur-X est le format hybride PDF/XML EN 16931 déjà construit par ce dépôt (`formats/facturx-provider.ts`) et le format déjà utilisé pour le canal PDP français existant (`transports/pdp-transport.ts`) — un choix cohérent avec l'existant plutôt qu'un fait indépendamment sourcé sur ce que Chorus Pro accepte précisément (UBL est également probablement accepté ; non tranché ici)."
+  }
+}

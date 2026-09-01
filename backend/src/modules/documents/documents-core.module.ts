@@ -19,6 +19,7 @@ import { registerQuoteActions } from './actions/quote-actions';
 import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { registerReceivedInvoiceActions } from './actions/received-invoice-actions';
+import { B2gRoutingBootUpsertService } from './b2g-routing/boot-upsert.service';
 import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
@@ -332,6 +333,11 @@ function buildEntityReferenceRegistry(
     // `DocumentSchedulesService` right above (a plain class, resolved by Nest, reusing
     // `DocumentsService` for its own tenant-scoped 404s) — no factory needed.
     ShareLinksService,
+    // B2G routing (b2g-routing/) — `OnModuleInit`, runs `upsertB2gRoutingRules` on EVERY process that
+    // imports this Core module (API inline, or a scaled worker replica) — see that service's own
+    // header for why this is registered here, unconditionally, rather than gated the way the queue's
+    // own repeatable registration is behind `WORKER_INLINE`.
+    B2gRoutingBootUpsertService,
     // Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) —
     // `AuthorityStatusPollerRegistry` is this mechanism's read-side twin of `TRANSPORT_REGISTRY`
     // (registered as a plain class token, not a string one, the same choice `DocumentScheduleSweepRunner`

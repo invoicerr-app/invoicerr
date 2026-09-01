@@ -3,6 +3,11 @@ import { BadRequestException, NotImplementedException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 import { decimalsFor, toMinor } from '@/utils/financial';
 
+import {
+  B2gClientRoutingDecision,
+  B2gRoutingRuleView,
+  resolveClientB2gRouting,
+} from '../b2g-routing/b2g-routing';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
@@ -55,6 +60,165 @@ function describeMandateSource(mandate: ActiveChannelMandate): string {
   return `"${mandate.provenance.sourceText}" (checked ${mandate.provenance.sourceCheckedAt})`;
 }
 
+/**
+ * B2G routing (`b2g-routing/`) — a client marked GOVERNMENT (`Client.kind`) changes which channel an
+ * invoice addressed to it must use, per THAT CLIENT's OWN country — never the seller's. This is a
+ * DIFFERENT axis from root TODO item 11's own seller-country mandate just above: item 11 asks "does
+ * the ISSUING COMPANY's country force a channel on every invoice it sends"; B2G routing asks "does
+ * the RECIPIENT's status as a public body, in ITS OWN country, force a channel on THIS ONE invoice".
+ *
+ * ## PRECEDENCE — the exact reason this check runs FIRST in `resolveInvoiceTransport`, before the
+ * seller-country mandate is even consulted
+ *
+ * A B2G rule, once it applies, decides the WHOLE question by itself — it does not merely add one more
+ * constraint on top of the seller-country mandate or the company's free choice, it REPLACES them for
+ * this invoice: `resolveClientB2gRouting`'s own `applies: true` short-circuits `resolveInvoiceTransport`
+ * below entirely, so `activeChannelMandateFor` (item 11) is never even called for a government client,
+ * regardless of what the ISSUING company's own country would otherwise mandate. This is deliberate,
+ * not an oversight: a B2G obligation is a regime of the DESTINATION (directive 2014/55/UE itself binds
+ * the RECEIVING contracting authority, never the seller's own country — see `b2g-routing/data/fr.json`'s
+ * own EU-baseline note), so a French seller invoicing a German public body follows GERMANY's B2G rule,
+ * never France's own seller-country PDP mandate, even though that seller would otherwise be bound by
+ * it for every OTHER invoice it sends. Precedence, in order: (1) a B2G rule for the CLIENT's country,
+ * when the client is GOVERNMENT; (2) failing that, the SELLER's own country mandate (item 11); (3)
+ * failing that, the company's free transport choice. A BUSINESS client (the default, and every client
+ * that predates this mechanism) sees NO change at all — `resolveClientB2gRouting` returns
+ * `applies: false` and every line below this comment runs exactly as it did before this task.
+ *
+ * ## The three outcomes `resolveB2gInvoiceTransport` below can reach, all HONEST, never a silent B2B
+ * fallback (the task's own explicit red line: "le mauvais canal vers un gouvernement est pire qu'un
+ * blocage")
+ *
+ *  - the client's own country cannot be resolved to an ISO code at all → refused, naming the client
+ *    and asking for an explicit country code;
+ *  - the country resolves but has NO B2G rule declared (`b2g-routing/data/` has no file for it) →
+ *    refused, naming the country and where to add one — never silently treated as an ordinary B2B
+ *    send;
+ *  - a rule exists: its `requiredClientIdentifiers` (e.g. a French SIRET) are checked against the
+ *    client's own `PartyIdentifier`s FIRST — missing one refuses, naming the exact identifier, the
+ *    screen to fill it in (the client's own edit form), and the rule's own sourced `why`; then its
+ *    `requiredDocumentFields` marked `required: true` (e.g. Germany's Leitweg-ID, carried generically
+ *    as `data.buyerReference`) are checked against THIS invoice's own submitted fields, same refusal
+ *    shape; only once both pass is `rule.transportId` actually resolved against the live registry —
+ *    a rule naming a channel not yet implemented (`"chorus-pro"`, `"zre-ozgre"` — see each shipped
+ *    file's own header for why that is this model's own thesis, not a gap) refuses too, naming
+ *    exactly that channel and citing the rule's own source.
+ */
+function b2gUnresolvedCountryMessage(decision: B2gClientRoutingDecision): string {
+  return (
+    'This client is marked as a government body, but its own country could not be resolved to a ' +
+    `recognized ISO 3166-1 code ("${decision.clientCountryRaw ?? 'unknown'}") — set an explicit ` +
+    'country code on the client (Clients → this client → Country) before sending it an invoice.'
+  );
+}
+
+function b2gNoRuleMessage(decision: B2gClientRoutingDecision): string {
+  return (
+    `No B2G routing rule is declared for "${decision.countryCode}" — sending an invoice to a public-` +
+    'sector body in this country is not covered yet. To unblock it, add ' +
+    `backend/src/modules/documents/b2g-routing/data/${decision.countryCode!.toLowerCase()}.json ` +
+    '(see fr.json/de.json/it.json in that directory for the format) and restart the backend so the ' +
+    'boot upsert picks it up.'
+  );
+}
+
+function b2gMissingIdentifierMessage(countryCode: string, rule: B2gRoutingRuleView, scheme: string): string {
+  const requirement = rule.requiredClientIdentifiers.find((r) => r.scheme === scheme)!;
+  return (
+    `${countryCode} requires this government client to have a "${requirement.label}" ` +
+    `(${requirement.scheme}) on file before an invoice can be sent to it — ${requirement.why} Add it ` +
+    "on the client's own edit screen (Clients → this client → country-specific identifiers) before " +
+    'sending.'
+  );
+}
+
+function b2gMissingFieldMessage(
+  countryCode: string,
+  field: B2gRoutingRuleView['requiredDocumentFields'][number],
+): string {
+  return (
+    `${countryCode} requires "${field.label}" on this invoice before it can be sent to a government ` +
+    `client — ${field.why} Fill it in on the invoice form before sending.`
+  );
+}
+
+function b2gTransportNotAvailableMessage(countryCode: string, rule: B2gRoutingRuleView): string {
+  return (
+    `${countryCode} routes invoices to government bodies through the "${rule.transportId}" channel — ` +
+    `${rule.provenanceDescription}. That channel is not available in this deployment yet, so sending ` +
+    'this invoice is blocked until it is — this is a known, named gap, never a silent fallback to ' +
+    'another channel.'
+  );
+}
+
+function b2gChannelNotReadyMessage(
+  countryCode: string,
+  rule: B2gRoutingRuleView,
+  underlyingMessage: string,
+): string {
+  return (
+    `${countryCode} routes invoices to government bodies through the "${rule.transportId}" channel — ` +
+    `${rule.provenanceDescription}. This company already has "${rule.transportId}" available, but it ` +
+    `is not ready yet: ${underlyingMessage}`
+  );
+}
+
+function hasValue(value: unknown): boolean {
+  return typeof value === 'string' ? value.trim() !== '' : value != null;
+}
+
+/**
+ * The B2G half of `resolveInvoiceTransport` — see this file's own header just above for the full
+ * precedence reasoning. Returns the transport a B2G rule FORCES, having already checked every
+ * required client identifier and required document field; throws the exact named refusal otherwise.
+ * `data` is the invoice's OWN submitted fields (needed only to check `requiredDocumentFields`) — may
+ * be `undefined` at call sites that have no document data on hand yet (none today, but never assumed).
+ */
+function resolveB2gInvoiceTransport(
+  transportRegistry: TransportRegistry,
+  decision: B2gClientRoutingDecision,
+  data: Record<string, unknown> | undefined,
+): DocumentTransport {
+  if (!decision.rule) {
+    logger.warn('Invoice "send" blocked: B2G client with no usable routing rule', {
+      category: 'documents',
+      details: { countryCode: decision.countryCode, clientCountryRaw: decision.clientCountryRaw },
+    });
+    throw new NotImplementedException(
+      decision.countryCode ? b2gNoRuleMessage(decision) : b2gUnresolvedCountryMessage(decision),
+    );
+  }
+
+  const rule = decision.rule;
+  const countryCode = decision.countryCode!;
+
+  if (decision.missingIdentifierSchemes.length > 0) {
+    throw new BadRequestException(
+      b2gMissingIdentifierMessage(countryCode, rule, decision.missingIdentifierSchemes[0]),
+    );
+  }
+
+  const missingField = rule.requiredDocumentFields.find(
+    (field) => field.required && !hasValue(data?.[field.field]),
+  );
+  if (missingField) {
+    throw new BadRequestException(b2gMissingFieldMessage(countryCode, missingField));
+  }
+
+  try {
+    return transportRegistry.resolve(rule.transportId);
+  } catch (error) {
+    if (error instanceof UnknownTransportError) {
+      logger.warn('Invoice "send" blocked: B2G channel not implemented in this deployment', {
+        category: 'documents',
+        details: { countryCode, transportId: rule.transportId },
+      });
+      throw new NotImplementedException(b2gTransportNotAvailableMessage(countryCode, rule));
+    }
+    throw error;
+  }
+}
+
 /** The company's configured transport is anything OTHER than the mandated one (including nothing
  *  configured at all) — see `resolveInvoiceTransport`'s own call site below. */
 function mandateOverridesTransportMessage(
@@ -105,12 +269,25 @@ function mandateChannelNotReadyMessage(
  * channel has, by construction, already made that choice FOR the company; letting a mismatched
  * `invoiceTransportId` silently win would mean this product believed it did exactly what the company
  * asked while quietly sending a legally non-compliant invoice.
+ *
+ * B2G routing (`b2g-routing/`, see this file's own header just above `resolveB2gInvoiceTransport`)
+ * adds a check that runs BEFORE even this one: when the invoice's `clientId` names a GOVERNMENT
+ * client, `resolveClientB2gRouting` short-circuits this whole function — the seller-country mandate
+ * below is never consulted at all for that invoice, precedence documented in full at this file's own
+ * B2G section header.
  */
 async function resolveInvoiceTransport(
   transportRegistry: TransportRegistry,
   companyId: string,
   issueDate: string | undefined,
+  clientId: string | undefined,
+  data: Record<string, unknown> | undefined,
 ): Promise<DocumentTransport> {
+  const b2g = await resolveClientB2gRouting(companyId, clientId);
+  if (b2g.applies) {
+    return resolveB2gInvoiceTransport(transportRegistry, b2g, data);
+  }
+
   const transportId = await getCompanyInvoiceTransportId(companyId);
 
   const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
@@ -168,19 +345,26 @@ async function runInvoiceSendPreflight(
   transportRegistry: TransportRegistry,
   companyId: string,
   issueDate: string | undefined,
+  clientId: string | undefined,
+  data: Record<string, unknown> | undefined,
 ): Promise<void> {
-  const transport = await resolveInvoiceTransport(transportRegistry, companyId, issueDate);
+  const transport = await resolveInvoiceTransport(transportRegistry, companyId, issueDate, clientId, data);
   try {
     await transport.preflight?.(companyId);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // B2G routing takes precedence over the seller-country mandate here too — see this file's own
+    // B2G section header. Checked FIRST, same order as `resolveInvoiceTransport` above.
+    const b2g = await resolveClientB2gRouting(companyId, clientId);
+    if (b2g.applies && b2g.rule) {
+      throw new NotImplementedException(b2gChannelNotReadyMessage(b2g.countryCode!, b2g.rule, message));
+    }
+
     const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
     if (activeMandate) {
       throw new NotImplementedException(
-        mandateChannelNotReadyMessage(
-          activeMandate.countryCode,
-          activeMandate.mandate,
-          error instanceof Error ? error.message : String(error),
-        ),
+        mandateChannelNotReadyMessage(activeMandate.countryCode, activeMandate.mandate, message),
       );
     }
     throw error;
@@ -306,7 +490,8 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       // run the record already has one (validated at "save-draft").
       preflight: async () => {
         const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
-        await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate);
+        const clientId = typeof data.client === 'string' ? data.client : undefined;
+        await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate, clientId, data);
         // Root TODO item 16 — see `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
         // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
         // `data`, so the record that just left "draft" already carries the resolved treatment, not
@@ -329,7 +514,14 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       // between the two calls, which must still be judged fresh.
       deliver: async ({ companyId: c, document, data: deliverData }) => {
         const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
-        const transport = await resolveInvoiceTransport(deps.transportRegistry, c, issueDate);
+        const clientId = typeof deliverData.client === 'string' ? deliverData.client : undefined;
+        const transport = await resolveInvoiceTransport(
+          deps.transportRegistry,
+          c,
+          issueDate,
+          clientId,
+          deliverData,
+        );
         // Root TODO item 16 — RECOMPUTED here (never a value cached from the preflight call above,
         // same discipline `resolveInvoiceTransport`'s own re-resolution already holds): every
         // transport (email/pdp/ksef/sdi) reads `ctx.document.data` generically, so rewriting it HERE,

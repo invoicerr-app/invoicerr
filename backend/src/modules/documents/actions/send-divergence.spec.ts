@@ -13,6 +13,7 @@ import * as companyEmailTemplates from './company-email-templates';
 import { registerInvoiceActions } from './invoice-actions';
 import { registerQuoteActions } from './quote-actions';
 import * as taxLoadAndResolve from '../tax/load-and-resolve';
+import * as b2gRouting from '../b2g-routing/b2g-routing';
 
 jest.mock('../persistence');
 jest.mock('../transports/company-transport');
@@ -38,6 +39,13 @@ jest.mock('../country-policy/country-policy');
 // wrappers: this file is about WHICH path each type's "send" takes, never about cross-border tax,
 // which is `tax/resolve-invoice-tax.spec.ts` and `tax/cross-border-formats.spec.ts`'s own job.
 jest.mock('../tax/load-and-resolve');
+// B2G routing (`b2g-routing/`) reaches Prisma directly too, same reason as `country-policy` above.
+// Unlike `country-policy` (an automocked `undefined` country code IS the neutral case), this one
+// MUST be given an explicit `{ applies: false }` in `beforeEach` below — `invoice-actions.ts` reads
+// `b2g.applies` off the resolved value, and an automocked bare `undefined` would throw before ever
+// reaching the divergence this file actually tests. No test here uses a GOVERNMENT client — see
+// `invoice-b2g-routing.spec.ts` for that mechanism's own dedicated suite.
+jest.mock('../b2g-routing/b2g-routing');
 
 /**
  * Guardrail against the exact mistake this branch once made: generic-actions.ts used to export a
@@ -65,6 +73,10 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
+    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+      applies: false,
+      missingIdentifierSchemes: [],
+    });
   });
 
   const documentData = {

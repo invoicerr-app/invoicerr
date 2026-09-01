@@ -5,6 +5,7 @@ import { ActionRegistry } from './actions/action-registry';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import * as countryPolicy from './country-policy/country-policy';
+import * as b2gRouting from './b2g-routing/b2g-routing';
 import { DocumentsService } from './documents.service';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
@@ -50,6 +51,11 @@ jest.mock('./numbering/take-number');
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since
 // `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
 jest.mock('./country-policy/country-policy');
+// B2G routing (`b2g-routing/`) reaches Prisma directly too, same reason as every mock above.
+// Defaulted to `applies: false` in `beforeEach` below — every client in this file's own fixtures is
+// BUSINESS by construction (a bare id string, no real row), so this concern is unrelated to what this
+// file tests; see `actions/invoice-b2g-routing.spec.ts` for the dedicated B2G suite.
+jest.mock('./b2g-routing/b2g-routing');
 
 /**
  * Same wiring discipline as documents.service.spec.ts's quote coverage, applied to the invoice — the
@@ -124,6 +130,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
+    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+      applies: false,
+      missingIdentifierSchemes: [],
+    });
   });
   afterEach(() => jest.resetAllMocks());
 

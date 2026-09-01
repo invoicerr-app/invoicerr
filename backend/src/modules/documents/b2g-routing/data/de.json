@@ -1,0 +1,22 @@
+{
+  "countryCode": "DE",
+  "rule": {
+    "countryCode": "DE",
+    "transportId": "zre-ozgre",
+    "formatSyntax": "xrechnung",
+    "requiredDocumentFields": [
+      {
+        "field": "buyerReference",
+        "label": "Buyer reference (Leitweg-ID)",
+        "why": "§ 5 ERechV: \"Die elektronische Rechnung hat neben den umsatzsteuerrechtlichen Rechnungsbestandteilen mindestens folgende Angaben zu enthalten: 1. eine Leitweg-Identifikationsnummer, [...]\" — a Leitweg-ID is a MANDATORY invoice component under federal law, not optional the way France's own \"code service\" is (see fr.json's own entry). Carried generically as `data.buyerReference` (`formats/shared-build.ts#extractBuyerReference`), the SAME field the `country-fields/data/de.json` overlay's own Leitweg-ID input feeds — see that file's own header.",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "§ 4 Abs. 1 ERechV (Verordnung über die elektronische Rechnungsstellung im öffentlichen Auftragswesen des Bundes): « Für die Ausstellung von elektronischen Rechnungen haben Rechnungssteller und Rechnungssender grundsätzlich den Datenaustauschstandard XRechnung vom 29. September 2017 (BAnz AT 10.10.2017 B1) in der jeweils aktuellen Fassung zu verwenden. » § 4 Abs. 3 ERechV: « Für die Übermittlung von elektronischen Rechnungen haben Rechnungssteller und Rechnungssender ein Verwaltungsportal des Bundes im Sinne von § 2 Absatz 2 des Onlinezugangsgesetzes zu nutzen. Voraussetzung für die Übermittlung einer elektronischen Rechnung ist, dass der Rechnungssteller oder Rechnungssender sich zuvor mit einem Nutzerkonto im Sinne von § 2 Absatz 5 des Onlinezugangsgesetzes registriert. » § 5 ERechV: « Die elektronische Rechnung hat neben den umsatzsteuerrechtlichen Rechnungsbestandteilen mindestens folgende Angaben zu enthalten: 1. eine Leitweg-Identifikationsnummer, 2. die Bankverbindungsdaten, 3. die Zahlungsbedingungen und 4. die De-Mail-Adresse oder eine E-Mail-Adresse des Rechnungsstellers. »",
+      "sourceCheckedAt": "2026-09-01"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-01 sur gesetze-im-internet.de (https://www.gesetze-im-internet.de/erechv/__4.html et .../__5.html — citations verbatim ci-dessus, extraites du texte allemand officiel lui-même). SOCLE EUROPÉEN : directive 2014/55/UE, art. 7 (voir fr.json's own note pour la citation complète — le même socle s'applique aux trois pays de cette vague). DÉCISION SUR LE TRANSPORT — TRANCHÉE PAR LA LECTURE, PAS DEVINÉE : le texte lu (§ 4 Abs. 3 ERechV) EXIGE explicitement un dépôt via \"ein Verwaltungsportal des Bundes\" (un portail administratif FÉDÉRAL au sens de l'Onlinezugangsgesetz — le \"OZG\"), avec inscription préalable via un \"Nutzerkonto\" — ce ne sont ni un simple envoi par e-mail, ni un canal déjà implémenté dans ce dépôt (email/pdp/ksef/sdi). `transportId: \"zre-ozgre\"` référence donc DÉLIBÉRÉMENT les deux plateformes fédérales réellement connues sous ces noms (ZRE — Zentrale Rechnungseingangsplattform des Bundes ; OZG-RE — la plateforme mutualisée OZG pour les Länder qui l'ont rejointe), qui N'EXISTENT PAS dans `transports/transport-registry.ts` — exactement la même thèse que le blocage \"chorus-pro\" français (voir fr.json's own note et actions/invoice-actions.ts's own header) : émettre une facture par e-mail à une entité publique fédérale allemande NE SATISFAIT PAS le texte ci-dessus (qui exige le PORTAIL, pas simplement le format XRechnung), donc router silencieusement vers \"email\" ferait exactement ce que ce projet refuse ailleurs (servir un artefact qui A L'AIR conforme — le bon format XML — sans emprunter le canal que la loi impose réellement). Envoyer bloque donc, en le nommant, jusqu'à ce qu'un canal ZRE/OZG-RE (ou Peppol, si un jour retenu comme alternative) soit réellement implémenté. LIMITE ASSUMÉE : l'ERechV lu ici est le texte FÉDÉRAL (Bund) — chacun des 16 Länder allemands a sa propre ordonnance de facturation électronique, potentiellement différente (portail propre, voire canal moins strict) ; cette règle ne couvre QUE ce qu'un texte fédéral uniforme permet d'affirmer pour l'ensemble du pays, jamais une moyenne ou une supposition sur les Länder — ce qui trancherait : lire les 16 textes régionaux un par un, hors de portée de cette tâche."
+  }
+}

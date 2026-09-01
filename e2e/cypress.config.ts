@@ -81,9 +81,19 @@ export default defineConfig({
             // identifier-requirements file at all (country-identifiers.ts) — the client/company/
             // onboarding identifier fields this task exists to keep visible would silently stop
             // rendering for the rest of the run, not just this table's own data disappearing quietly.
+            //
+            // `B2gRoutingRule` (documents/b2g-routing/) joins this SAME exclusion list for the exact
+            // same reason, with one added wrinkle: it is NOT seeded by `prisma/seed.ts` at all — it
+            // is upserted at BACKEND BOOT (`B2gRoutingBootUpsertService`, an `OnModuleInit`), on
+            // purpose (schema.prisma's own comment on `B2gRoutingRule` explains why: fixing exactly
+            // the "`resetAndSeed` ne re-sème pas" gap the two comments above already describe for
+            // those other two tables). The backend process behind this e2e run booted ONCE, before
+            // this task ever runs, and stays running for the whole suite — truncating this table
+            // here would leave it EMPTY until the next full backend restart, which nothing in a
+            // Cypress run ever triggers. `40-b2g-routing.cy.ts` is the one spec that reads it.
             const { rows } = await client.query(
               `SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement')`,
+                 AND tablename NOT IN ('_prisma_migrations', 'DocumentCountryActionRule', 'CountryIdentifierRequirement', 'B2gRoutingRule')`,
             );
             if (rows.length === 0) {
               return null;

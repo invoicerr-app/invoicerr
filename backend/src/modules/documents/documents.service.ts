@@ -38,7 +38,9 @@ import {
   RequiredIdentifiersDecision,
 } from './country-identifiers/country-identifiers';
 import { PartyType } from './country-identifiers/schema';
+import { resolveB2gRoutingRule, resolveClientB2gRouting } from './b2g-routing/b2g-routing';
 import { applyFieldOverlay } from './country-fields/apply-overlay';
+import { FieldOverlayOperation } from './country-fields/schema';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
 import { applyCompanyFieldView } from './descriptors/company-view';
 import { FieldKindRegistry } from './descriptors/field-kinds';
@@ -50,6 +52,7 @@ import {
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
 import {
   DocumentActionDescriptor,
+  DocumentFieldDescriptor,
   DocumentTypeDescriptor,
   isActionAvailable,
   WidgetLocation,
@@ -364,21 +367,36 @@ export class DocumentsService implements OnModuleInit {
    * elsewhere in this module — so the frontend can show it verbatim without knowing any country.
    * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
    * from "explicitly not blocked" here, only "has a reason" from "doesn't".
+   *
+   * `clientId` (optional) adds a THIRD, orthogonal source on top of the two `applyCompanyFieldView`
+   * already folds in — see `applyB2gDocumentFieldHints`'s own header just below for why this is keyed
+   * on the CLIENT's own country, never the company's: a French company invoicing a German government
+   * body has no field-overlay file of its OWN country to thank for a Leitweg-ID input
+   * (`country-fields/data/de.json`'s own overlay only ever applies for a DE-country COMPANY — see
+   * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
+   * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
+   * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs —
+   * never hardcoded to Germany or to "buyerReference" specifically.
    */
-  async describeTypeForCompany(companyId: string, typeId: string): Promise<DocumentTypeDescriptorView> {
+  async describeTypeForCompany(
+    companyId: string,
+    typeId: string,
+    clientId?: string,
+  ): Promise<DocumentTypeDescriptorView> {
     const descriptor = this.mergedDescriptor(typeId);
     const [decisions, countryCode] = await Promise.all([
       Promise.all(descriptor.actions.map((action) => evaluateCountryPolicy(companyId, typeId, action.id))),
       resolveCompanyCountryCode(companyId),
     ]);
 
-    const fields = applyCompanyFieldView({
+    const companyViewFields = applyCompanyFieldView({
       typeId,
       fields: descriptor.fields,
       countryCode,
       fieldOverlayCatalog: this.countryFieldOverlayCatalog,
       vatRateCatalog: this.vatRateCatalog,
     });
+    const fields = await this.applyB2gDocumentFieldHints(companyViewFields, companyId, clientId);
 
     return {
       ...descriptor,
@@ -396,6 +414,58 @@ export class DocumentsService implements OnModuleInit {
         return action;
       }),
     };
+  }
+
+  /**
+   * B2G routing's own field-overlay bridge — see `describeTypeForCompany`'s own header for why this
+   * exists at all. `clientId` names the invoice's own already-selected/known client; when it resolves
+   * to a GOVERNMENT client whose country has a B2G rule declaring `requiredDocumentFields`, each one
+   * NOT already present on `fields` (from the company's own country overlay, or the trunk descriptor
+   * itself) is added as a plain optional-or-required 'text' field, its `helpText` set to the rule's
+   * own sourced `why` — reusing `applyFieldOverlay` (`country-fields/apply-overlay.ts`) exactly like
+   * `applyCompanyFieldView` does, just fed operations synthesized from a DIFFERENT source (a B2G rule
+   * matched by the CLIENT's country, not a file matched by the company's).
+   *
+   * A field ALREADY present (e.g. Germany's own `buyerReference` overlay, when the company itself is
+   * also DE) is left untouched — `applyFieldOverlay`'s own 'add' throws on a duplicate key, so this
+   * filters those out first rather than letting a legitimate double-source collide.
+   *
+   * Never throws on a bad/missing client: `resolveClientB2gRouting` already returns `applies: false`
+   * for a client that doesn't exist or isn't GOVERNMENT, which this treats as "nothing to add" — a
+   * descriptor fetch is a read, never the place a data problem should surface as an error page.
+   */
+  private async applyB2gDocumentFieldHints(
+    fields: DocumentFieldDescriptor[],
+    companyId: string,
+    clientId: string | undefined,
+  ): Promise<DocumentFieldDescriptor[]> {
+    if (!clientId) return fields;
+
+    const decision = await resolveClientB2gRouting(companyId, clientId);
+    if (!decision.applies || !decision.rule) return fields;
+
+    const existingKeys = new Set(fields.map((field) => field.key));
+    const operations: FieldOverlayOperation[] = decision.rule.requiredDocumentFields
+      .filter((requirement) => !existingKeys.has(requirement.field))
+      .map((requirement) => ({
+        op: 'add' as const,
+        path: '',
+        field: {
+          key: requirement.field,
+          kind: 'text',
+          label: requirement.label,
+          required: requirement.required,
+          helpText: requirement.why,
+        },
+      }));
+
+    return operations.length > 0 ? applyFieldOverlay(fields, operations) : fields;
+  }
+
+  /** The B2G routing rule declared for a country, or `undefined` — see
+   *  `documents.controller.ts#getB2gRoutingRule`'s own header. */
+  async getB2gRoutingRule(countryCode: string) {
+    return resolveB2gRoutingRule(countryCode);
   }
 
   private resolveType(typeId: string): DocumentTypeDescriptor {

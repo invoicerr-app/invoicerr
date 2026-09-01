@@ -16,6 +16,7 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import { TransportRegistry } from './transports/transport-registry';
 import { VatRateCatalog } from './vat-rates/registry';
 import { CountryVatRatesFile } from './vat-rates/schema';
+import * as b2gRouting from './b2g-routing/b2g-routing';
 
 jest.mock('./persistence');
 // See documents.service.spec.ts's own comment on this mock — the real decision code (country
@@ -23,6 +24,11 @@ jest.mock('./persistence');
 // actually WIRE country-fields/ + vat-rates/ into describeTypeForCompany and runAction — the field
 // analogue of what documents.service.country-policy.spec.ts already proves for actions.
 jest.mock('./country-policy/country-policy');
+// B2G routing's own field-hint bridge (`applyB2gDocumentFieldHints`) — mocked wholesale, same
+// reason as `country-policy` above (reaches Prisma directly). Defaulted to `applies: false` in the
+// new describe block below so every OTHER test in this file (none of which ever passes a `clientId`)
+// keeps meaning exactly what it always did.
+jest.mock('./b2g-routing/b2g-routing');
 
 /**
  * A SYNTHETIC field overlay, injected directly into this test's own DocumentsService instance — NOT
@@ -238,6 +244,95 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
       await expect(
         buildService().runAction('company-1', 'invoice', 'save-draft', { data: dataWithBadRate }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  /**
+   * B2G routing's own field-hint bridge (`applyB2gDocumentFieldHints`, documents.service.ts) — the
+   * SAME `describeTypeForCompany`, given an OPTIONAL `clientId`, folds in a government client's B2G
+   * rule's own `requiredDocumentFields` — e.g. Germany's Leitweg-ID (`data.buyerReference`) — even
+   * for a company whose OWN country has no field overlay for it at all (here: FR, `FR_OVERLAY` above,
+   * which adds "siren", never "buyerReference"). This is what closes the documented UX gap
+   * `country-fields/data/de.json`'s own header names: "a seller in a country with no overlay for
+   * this field... has no SCREEN control for it today".
+   */
+  describe('describeTypeForCompany(companyId, typeId, clientId) — the B2G document-field hint bridge', () => {
+    beforeEach(() => {
+      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+    });
+
+    it('no clientId at all — never even asks b2g-routing, fields unchanged', async () => {
+      const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice');
+      expect(b2gRouting.resolveClientB2gRouting).not.toHaveBeenCalled();
+      expect(descriptor.fields.find((f) => f.key === 'buyerReference')).toBeUndefined();
+    });
+
+    it('a BUSINESS client (applies: false) — fields unchanged, same as no clientId', async () => {
+      (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+        applies: false,
+        missingIdentifierSchemes: [],
+      });
+
+      const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
+      expect(descriptor.fields.find((f) => f.key === 'buyerReference')).toBeUndefined();
+    });
+
+    it('a GOVERNMENT client whose rule requires "buyerReference" — the field is ADDED, label/required/helpText straight from the rule', async () => {
+      (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+        applies: true,
+        countryCode: 'DE',
+        rule: {
+          countryCode: 'DE',
+          transportId: 'zre-ozgre',
+          formatSyntax: 'xrechnung',
+          requiredClientIdentifiers: [],
+          requiredDocumentFields: [
+            {
+              field: 'buyerReference',
+              label: 'Buyer reference (Leitweg-ID)',
+              why: '§ 5 ERechV.',
+              required: true,
+            },
+          ],
+          provenanceDescription: '"§ 4/§ 5 ERechV" (checked 2026-09-01)',
+        },
+        missingIdentifierSchemes: [],
+      });
+
+      const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
+      const buyerReference = descriptor.fields.find((f) => f.key === 'buyerReference');
+      expect(buyerReference).toMatchObject({
+        kind: 'text',
+        label: 'Buyer reference (Leitweg-ID)',
+        required: true,
+        helpText: '§ 5 ERechV.',
+      });
+      // The company's OWN overlay (FR_OVERLAY, "siren") is untouched — the two sources compose,
+      // neither replaces the other.
+      expect(descriptor.fields.find((f) => f.key === 'siren')).toBeDefined();
+    });
+
+    it('a field the rule requires that ALREADY exists on the descriptor is left alone — never a duplicate/throwing "add"', async () => {
+      (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+        applies: true,
+        countryCode: 'FR',
+        rule: {
+          countryCode: 'FR',
+          transportId: 'chorus-pro',
+          formatSyntax: 'facturx',
+          requiredClientIdentifiers: [],
+          // "notes" already exists on the trunk invoice descriptor — must not collide.
+          requiredDocumentFields: [
+            { field: 'notes', label: 'Notes', why: 'already exists', required: false },
+          ],
+          provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
+        },
+        missingIdentifierSchemes: [],
+      });
+
+      const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
+      // FR_OVERLAY's own "modify" (required: true) still won — the B2G rule never overwrote it.
+      expect(descriptor.fields.find((f) => f.key === 'notes')?.required).toBe(true);
     });
   });
 });

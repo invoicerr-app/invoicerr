@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import { useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -47,6 +48,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const clientSchema = z
     .object({
       type: z.enum(["INDIVIDUAL", "COMPANY"]),
+      // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
+      // this client must use, per its own country (see the B2G hint panel further down this form).
+      kind: z.enum(["BUSINESS", "GOVERNMENT"]),
       name: z.string().optional(),
       description: z.string().max(500, t("clients.upsert.validation.description.maxLength")).optional(),
       currency: z.string().nullable().optional(),
@@ -119,6 +123,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     resolver: zodResolver(clientSchema),
     defaultValues: {
       type: "COMPANY",
+      kind: "BUSINESS",
       name: "",
       description: "",
       currency: null,
@@ -153,6 +158,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : ""
       form.reset({
         type: client.type || "COMPANY",
+        kind: client.kind || "BUSINESS",
         name: client.name || "",
         description: client.description || "",
         currency: client.currency || null,
@@ -177,6 +183,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     } else if (!isEditing) {
       form.reset({
         type: "COMPANY",
+        kind: "BUSINESS",
         name: "",
         description: "",
         currency: null,
@@ -219,18 +226,54 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   const countryCodeValue = form.watch("countryCode")
   const clientTypeWatch = form.watch("type")
+  const clientKindWatch = form.watch("kind")
+  const isGovernment = clientKindWatch === "GOVERNMENT"
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(
     countryCodeValue || undefined,
     clientTypeWatch === "INDIVIDUAL" ? "INDIVIDUAL" : "COMPANY",
   )
-  const requiredIdentifiers = requiredIdentifiersResult?.requirements
+  // B2G routing (documents/b2g-routing/) — asked for ONLY when this client is GOVERNMENT. `null`
+  // (not an error) means no B2G rule is declared for this country yet — rendered as HELP below, an
+  // invoice to this client will refuse at send time (never a silent B2B send), but the client itself
+  // can still be saved.
+  const { data: b2gRule, isLoading: b2gRuleLoading } = useB2gRoutingRule(
+    countryCodeValue || undefined,
+    isGovernment,
+  )
+
+  // The country's OWN identifier requirements (every client of that country, regardless of kind)
+  // PLUS whatever the B2G rule additionally requires of a GOVERNMENT client specifically (e.g. Italy's
+  // Codice Univoco Ufficio) — merged into ONE list so the existing "country-specific identifiers"
+  // section below (and its own sync effect / submit validation) needs no separate B2G-only code path.
+  // A scheme already required by the country's own catalog is never duplicated. Stays `undefined`
+  // while the country-identifiers query itself hasn't resolved yet — same "no data yet" shape the
+  // rest of this form already relies on (the sync effect below short-circuits on it).
+  const requiredIdentifiers = (() => {
+    const base = requiredIdentifiersResult?.requirements
+    if (!base) return base
+    if (!isGovernment || !b2gRule?.requiredClientIdentifiers?.length) return base
+    const known = new Set(base.map((r) => r.scheme))
+    const extra = b2gRule.requiredClientIdentifiers
+      .filter((r) => !known.has(r.scheme))
+      .map((r) => ({
+        scheme: r.scheme,
+        label: r.label,
+        appliesTo: "BOTH" as const,
+        required: true,
+        helpText: r.why,
+      }))
+    return [...base, ...extra]
+  })()
   // Present only when the country has NO identifier-requirements file at all — see
   // use-required-identifiers.ts's own RequiredIdentifiersResult. Surfaced instead of a silently
   // empty section, so "this country requires nothing" and "we don't know what this country
-  // requires" never look identical to the user.
-  const requiredIdentifiersReason = requiredIdentifiersResult?.reason
+  // requires" never look identical to the user. Never shown once the B2G rule itself already added a
+  // requirement — that section renders as usual instead, the reason has nothing left to explain.
+  const requiredIdentifiersReason = requiredIdentifiers?.length
+    ? undefined
+    : requiredIdentifiersResult?.reason
 
-  // Sync identifier fields with what the country requires
+  // Sync identifier fields with what the country (+ B2G rule, for a government client) requires
   useEffect(() => {
     if (!requiredIdentifiers) return
     const requiredSchemes = new Set(requiredIdentifiers.map((r) => r.scheme))
@@ -365,6 +408,79 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="kind"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.kind.label", "Client kind")}</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value || "BUSINESS"}
+                        onValueChange={(value) => field.onChange(value)}
+                      >
+                        <SelectTrigger dataCy="client-kind-select">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BUSINESS" dataCy="client-kind-business">
+                            {t("clients.upsert.fields.kind.business", "Business")}
+                          </SelectItem>
+                          <SelectItem value="GOVERNMENT" dataCy="client-kind-government">
+                            {t("clients.upsert.fields.kind.government", "Government / public body")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {isGovernment ? (
+                <div
+                  className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm"
+                  data-cy="client-b2g-hint"
+                >
+                  {b2gRuleLoading ? null : b2gRule ? (
+                    <>
+                      <p className="font-medium text-muted-foreground">
+                        {t(
+                          "clients.upsert.fields.b2gHint.knownTitle",
+                          "This country requires a specific channel/format for public-sector invoices",
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground" data-cy="client-b2g-hint-channel">
+                        {t(
+                          "clients.upsert.fields.b2gHint.channel",
+                          'Channel: "{{transportId}}" · Format: "{{formatSyntax}}"',
+                          { transportId: b2gRule.transportId, formatSyntax: b2gRule.formatSyntax },
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{b2gRule.provenanceDescription}</p>
+                      {b2gRule.requiredDocumentFields.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {t(
+                            "clients.upsert.fields.b2gHint.documentFields",
+                            "The invoice itself will also need: {{fields}}",
+                            {
+                              fields: b2gRule.requiredDocumentFields.map((f) => f.label).join(", "),
+                            },
+                          )}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground" data-cy="client-b2g-hint-no-rule">
+                      {t(
+                        "clients.upsert.fields.b2gHint.noRule",
+                        "No B2G routing rule is declared for this country yet — sending an invoice to this client will refuse until one is added.",
+                      )}
+                    </p>
+                  )}
+                </div>
+              ) : null}
 
               {clientType === "COMPANY" ? (
                 <FormField

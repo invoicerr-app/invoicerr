@@ -98,6 +98,17 @@
           "individual": "Individual",
           "description": "Select whether the client is an individual or a company"
         },
+        "kind": {
+          "label": "Client kind",
+          "business": "Business",
+          "government": "Government / public body"
+        },
+        "b2gHint": {
+          "knownTitle": "This country requires a specific channel/format for public-sector invoices",
+          "channel": "Channel: \"{{transportId}}\" · Format: \"{{formatSyntax}}\"",
+          "documentFields": "The invoice itself will also need: {{fields}}",
+          "noRule": "No B2G routing rule is declared for this country yet — sending an invoice to this client will refuse until one is added."
+        },
         "country": {
           "label": "Country",
           "placeholder": "Enter country"

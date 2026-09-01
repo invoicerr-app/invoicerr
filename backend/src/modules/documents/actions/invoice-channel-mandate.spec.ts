@@ -14,6 +14,7 @@ import { NotImplementedException } from '@nestjs/common';
 import * as persistence from '../persistence';
 import * as countryPolicy from '../country-policy/country-policy';
 import * as mandate from '../transports/channel-policy/mandate';
+import * as b2gRouting from '../b2g-routing/b2g-routing';
 import { TransportRegistry } from '../transports/transport-registry';
 import * as companyTransport from '../transports/company-transport';
 import { ActionRegistry } from './action-registry';
@@ -24,6 +25,12 @@ jest.mock('../persistence');
 jest.mock('../transports/company-transport');
 jest.mock('../country-policy/country-policy');
 jest.mock('../transports/channel-policy/mandate');
+// B2G routing (`b2g-routing/`) reaches Prisma directly, exactly like `country-policy/country-policy`
+// above — mocked here for the SAME "no Nest, no DB" reason, and defaulted to `applies: false` in
+// `beforeEach` below: this file's own concern is the SELLER-country mandate, never a GOVERNMENT
+// client — see `invoice-b2g-routing.spec.ts` for that mechanism's own dedicated tests, including the
+// one proving this mandate machinery is skipped ENTIRELY once a B2G rule applies.
+jest.mock('../b2g-routing/b2g-routing');
 // `async-send.ts`'s own "number at enqueue time" mechanism (see that file's header) reaches Prisma
 // directly for a real invoice — mocked here for the same reason `send-divergence.spec.ts` and
 // `documents.service.invoice.spec.ts` already mock it: this file has no Nest, no DB, and does not
@@ -89,6 +96,12 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
     );
+    // No B2G client in any of this file's own fixtures — see `invoice-b2g-routing.spec.ts` for the
+    // dedicated suite that exercises `applies: true`.
+    (b2gRouting.resolveClientB2gRouting as jest.Mock).mockResolvedValue({
+      applies: false,
+      missingIdentifierSchemes: [],
+    });
   });
 
   it('BLOCKS at the preflight when the company is configured for a DIFFERENT transport — never persisted, message names channel + source', async () => {
