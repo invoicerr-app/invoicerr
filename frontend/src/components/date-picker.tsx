@@ -7,6 +7,7 @@ import { FormControl } from "./ui/form";
 import React from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { getDatePickerMonthBounds } from "@/lib/date-picker-range";
 import { languageToLocale } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 
@@ -21,6 +22,7 @@ interface DatePickerProps {
 
 const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
   const { i18n } = useTranslation()
+  const { startMonth, endMonth } = React.useMemo(() => getDatePickerMonthBounds(), [])
 
   return (
     <Popover>
@@ -53,6 +55,8 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
           selected={field.value || undefined}
           onSelect={field.onChange}
           captionLayout="dropdown"
+          startMonth={startMonth}
+          endMonth={endMonth}
           showOutsideDays={field.showOutsideDays || true}
         />
       </PopoverContent>

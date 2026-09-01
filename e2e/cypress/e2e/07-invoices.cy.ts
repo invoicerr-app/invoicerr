@@ -396,4 +396,33 @@ describe('Invoices E2E', () => {
             cy.get('body').type('{esc}');
         });
     });
+
+    describe('Due date calendar', () => {
+        it('offers years beyond the current year so 2027 can be selected', () => {
+            const currentYear = new Date().getFullYear();
+            const futureYear = currentYear + 5;
+
+            cy.visit('/invoices');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.wait(500);
+            cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[data-cy="invoice-due-date"]').scrollIntoView().click();
+            cy.get('[data-slot="calendar"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[data-slot="calendar"] select').then(($selects) => {
+                const yearSelect = [...$selects].find((select) =>
+                    [...(select as HTMLSelectElement).options].some((option) =>
+                        option.textContent?.includes(String(currentYear))
+                    )
+                ) as HTMLSelectElement | undefined;
+
+                expect(yearSelect, 'year dropdown').to.exist;
+                const years = [...yearSelect!.options].map((option) => option.textContent?.trim());
+                expect(years).to.include(String(currentYear));
+                expect(years).to.include(String(futureYear));
+                expect(years).to.include('2027');
+            });
+        });
+    });
 });

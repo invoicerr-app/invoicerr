@@ -387,6 +387,7 @@ export function InvoiceUpsert({ invoice, open, onOpenChange }: InvoiceUpsertDial
                                                         value={field.value || null}
                                                         onChange={field.onChange}
                                                         placeholder={t("invoices.upsert.form.dueDate.placeholder")}
+                                                        data-cy="invoice-due-date"
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
