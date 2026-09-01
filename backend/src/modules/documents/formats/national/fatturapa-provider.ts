@@ -22,6 +22,53 @@
  * not invented — see `fattura-pa.ts`'s own header at the repère and its `fattura-pa.spec.ts` (kept,
  * `fatturapa-provider.spec.ts`, adapted to this module's own fixture shape) for the sourcing already
  * established there. Nothing here asserts a NEW tax rule.
+ *
+ * ## FPA12 vs FPR12 — the two named gaps `3cb39f91` left open, closed here
+ *
+ * `b2g-routing/data/it.json` already reads, verbatim, the Specifiche tecniche del formato
+ * FatturaPA v1.3.2 par. 1.4 (Allegato B): `FormatoTrasmissione` is `FPA12` ("fattura verso PA") when
+ * `CodiceDestinatario` is the recipient's 6-character "Codice Ufficio" from IndicePA, `FPR12`
+ * ("fattura verso privati") when it is the 7-character B2B code — see par. 1.1's own text, quoted
+ * there. This builder now reads that SAME discriminant off the client:
+ *
+ * **Discriminant chosen: the presence of a valid 6-character `IT_PA_CODE` party identifier on the
+ * CLIENT — never `Client.kind` itself.** Both signals were available (the b2g-routing decision
+ * already knows `Client.kind === 'GOVERNMENT'`), but this builder receives only a
+ * `DocumentFormatParty` (`party-snapshot.ts`) — a shape shared verbatim with `Company` and
+ * deliberately free of any business-entity concept (see that file's own header: "a provider never has
+ * to know whether it is looking at a seller … or a buyer"). Threading `kind` through it would mean
+ * either growing `CompanyRowForFormat` with a field companies don't have, or making the shared
+ * interface lie for one party and not the other. The identifier, by contrast, is EXACTLY the fact the
+ * SdI specification itself keys off — a `CodiceDestinatario` IS a 6-character IndicePA code or it
+ * ISN'T, independent of any internal `kind` label — and it slots into the SAME
+ * `getIdentifier(client, scheme)` mechanism the CodiceDestinatario/PEC 4-branch routing below already
+ * uses for `IT_SDI`/`PEC`, no new plumbing. It is also the ONLY signal `b2g-routing`'s own preflight
+ * (`actions/invoice-actions.ts`'s B2G block) actually guarantees is present by the time a send reaches
+ * this builder: a GOVERNMENT client's invoice is hard-blocked before this code ever runs unless
+ * `IT_PA_CODE` is already on file (`resolveClientB2gRouting`'s `requiredClientIdentifiers`), so "does
+ * the client carry a valid 6-char code" and "is this recipient the government body the B2G rule is
+ * routing to" agree in every case this repo can actually reach send with. A `download` on a
+ * GOVERNMENT client that has not yet filled in its code degrades to FPR12/XXXXXXX — the honest
+ * consequence of not having a code to put in `CodiceDestinatario` at all, not a mislabel.
+ *
+ * **The XSD: verified, not assumed, to already judge FPA12 correctly — nothing new to vendor.** The
+ * vendored `vendored/it/Schema_VFPR12.xsd` was suspected (see `b2g-routing/data/it.json`'s own "TROU
+ * CONNU" note) of being a B2B-only schema that would wrongly reject an `FPA12` document. It is not:
+ * its OWN root `xs:documentation` reads "XML schema fatture destinate a PA e privati in forma
+ * ordinaria" ("… for PA AND privates …"), its `FormatoTrasmissioneType` enumerates BOTH `FPA12` and
+ * `FPR12`, and its `CodiceDestinatarioType` is `[A-Z0-9]{6,7}` — 6 OR 7 characters, exactly the two
+ * lengths the Specifiche distinguish. Fetched directly from fatturapa.gov.it on 2026-09-01 to make
+ * sure this was not a repère-era approximation: the tax agency in fact publishes this SAME schema
+ * (identical `FormatoTrasmissioneType`/`CodiceDestinatarioType`/root element/targetNamespace) under
+ * TWO different file names for its current 1.2.3 revision —
+ * `https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPA12_V1.2.3.xsd` (linked
+ * under "FatturaPA", i.e. the PA-facing page) and
+ * `.../Schema_VFPR12_v1.2.3.xsd` (linked under "Fattura Ordinaria", the private-facing page) — one
+ * schema, two download links for two audiences, not two different rule sets. The vendored 1.2 copy
+ * predates that 1.2.3 renumbering but carries the identical two type definitions, so it judges an
+ * `FPA12` document exactly as correctly as it judges an `FPR12` one; nothing to vendor twice. (Not
+ * independently diffed byte-for-byte beyond those two types across the FULL 1.2 → 1.2.3 schema — a
+ * pre-existing version gap that applies equally to the B2B path already, unrelated to this fix.)
  */
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
@@ -150,25 +197,41 @@ async function build(
   // ── ProgressivoInvio: unique per invoice ─────────────────────────
   const progressivoInvio = invoiceNumber.replace(/[^A-Za-z0-9]/g, '').slice(0, 10) || '00001';
 
-  // ── CodiceDestinatario / PECDestinatario (F-16/M-8) — VERBATIM 4-branch routing ───────────────
+  // ── FormatoTrasmissione / CodiceDestinatario / PECDestinatario ──────────────────────────────────
+  // The PA discriminant is checked FIRST and, when it fires, decides BOTH fields outright — see this
+  // file's own header ("FPA12 vs FPR12") for why a valid 6-char `IT_PA_CODE` identifier is the signal
+  // used, not `Client.kind`. Only once it does NOT fire does the ORIGINAL 4-branch B2B/private routing
+  // (VERBATIM from the repère) run unchanged — same outcomes as before this task for every client that
+  // has no `IT_PA_CODE` on file, which is every test/fixture that predates it.
+  const clientePaCode = getIdentifier(client, 'IT_PA_CODE') || '';
+  const isValidPaCode = /^[A-Za-z0-9]{6}$/.test(clientePaCode);
+
   const clienteSdiCode = getIdentifier(client, 'IT_SDI') || '';
   const clientePec = getIdentifier(client, 'PEC') || '';
   const isValidSdiCode = /^[A-Za-z0-9]{7}$/.test(clienteSdiCode);
 
+  let formatoTrasmissione: 'FPA12' | 'FPR12';
   let codiceDestinatario: string;
   let pecDestinatario: string | undefined;
-  if (isValidSdiCode) {
+  if (isValidPaCode) {
+    formatoTrasmissione = 'FPA12';
+    codiceDestinatario = clientePaCode.toUpperCase();
+  } else if (isValidSdiCode) {
+    formatoTrasmissione = 'FPR12';
     codiceDestinatario = clienteSdiCode.toUpperCase();
   } else if (clientePec) {
+    formatoTrasmissione = 'FPR12';
     codiceDestinatario = '0000000';
     pecDestinatario = clientePec;
   } else if (clienteVatCountry && clienteVatCountry !== 'IT') {
+    formatoTrasmissione = 'FPR12';
     codiceDestinatario = 'XXXXXXX';
   } else {
     // Domestic IT, neither code nor PEC on file — '0000000' would fail @digitalia/fatturapa's own
     // yup business-rule gate (PECDestinatario required whenever CodiceDestinatario is '0000000');
     // 'XXXXXXX' is the least-wrong fallback that needs no data we don't have. See fattura-pa.ts's
     // own header for the same call, reprised verbatim.
+    formatoTrasmissione = 'FPR12';
     codiceDestinatario = 'XXXXXXX';
   }
 
@@ -194,18 +257,20 @@ async function build(
   const fattura = {
     'p:FatturaElettronica': {
       '@': {
-        versione: 'FPR12',
+        versione: formatoTrasmissione,
         'xmlns:p': 'http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2',
         'xmlns:ds': 'http://www.w3.org/2000/09/xmldsig#',
         'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-        'xsi:schemaLocation':
-          'http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2 http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2/Schema_VFPR12.xsd',
+        // The schema itself judges BOTH FormatoTrasmissione values identically (see this file's own
+        // header) — only the location HINT's own filename tracks which official download page a human
+        // would find it under, never a second schema this codebase actually validates against.
+        'xsi:schemaLocation': `http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2 http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2/Schema_${formatoTrasmissione === 'FPA12' ? 'VFPA12' : 'VFPR12'}.xsd`,
       },
       FatturaElettronicaHeader: {
         DatiTrasmissione: {
           IdTrasmittente: { IdPaese: vatCountry, IdCodice: cf || vatId },
           ProgressivoInvio: progressivoInvio,
-          FormatoTrasmissione: 'FPR12',
+          FormatoTrasmissione: formatoTrasmissione,
           CodiceDestinatario: codiceDestinatario,
           ...(pecDestinatario ? { PECDestinatario: pecDestinatario } : {}),
         },

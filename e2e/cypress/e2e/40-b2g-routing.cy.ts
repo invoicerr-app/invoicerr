@@ -26,7 +26,13 @@
  *    implemented — proving the Leitweg-ID/BR-DE-15 mechanism end-to-end stays a JEST-level guarantee
  *    (`formats/xrechnung-provider.spec.ts`, `documents.service.country-fields.spec.ts`'s own new B2G
  *    describe block for the field-hint bridge), not an E2E artifact. This spec proves what IS
- *    reachable on screen for DE: the client-side help panel, and the named channel block.
+ *    reachable on screen for DE: the client-side help panel, and the named channel block. A SEPARATE
+ *    test below ("le champ Leitweg-ID … apparaît RÉACTIVEMENT") closes the OTHER named gap
+ *    (`document-form.tsx`'s own screen wiring, `use-document-types.ts`'s `clientId`-aware descriptor
+ *    fetch): the field ITSELF, appearing and disappearing on the invoice FORM as the user picks a
+ *    client, never just at the service level. The structural limit above still holds for it too — it
+ *    proves the field on screen and the SAME named block, never a downloaded XRechnung (still a
+ *    JEST-only guarantee, same citation).
  *  - IT (SdI): the ONE rule whose channel is ALREADY implemented. The company's own free choice is
  *    deliberately set to "email" (a channel that WOULD succeed) to prove precedence for real: the
  *    invoice still fails via SdI (a fake, unreachable endpoint — same fixture as 31's own SdI wave),
@@ -51,6 +57,33 @@ function setInvoiceTransport(transportId: string) {
 		.request({ method: "POST", url: `${api}/api/company/info`, body: { invoiceTransportId: transportId } })
 		.then((res) => {
 			expect(res.status, "transport configured").to.be.oneOf([200, 201]);
+		});
+}
+
+// A plain BUSINESS client, created via the API — baseline data for the Leitweg-ID reactivity test
+// below, never the subject of that test itself (same "create the setup by API, drive only the
+// actual delta through the screen" convention 20-document-totals.cy.ts's own discount test already
+// documents).
+function createBusinessClient(name: string) {
+	return cy
+		.request({
+			method: "POST",
+			url: `${api}/api/clients`,
+			body: {
+				name,
+				address: "1 Rue Quelconque",
+				postalCode: "75002",
+				city: "Paris",
+				country: "France",
+				currency: "EUR",
+				isActive: true,
+			},
+		})
+		.then((res) => {
+			expect(res.status, "client BUSINESS créé par API").to.be.oneOf([200, 201]);
+			const id = res.body?.id as string;
+			expect(id, "le client créé a un identifiant").to.be.a("string");
+			return id;
 		});
 }
 
@@ -238,6 +271,92 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.its("body")
 					.then((doc) => {
 						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq("draft");
+					});
+			});
+		});
+	});
+
+	// Le trou nommé par 3cb39f91 : le champ Leitweg (`buyerReference`) n'était prouvé qu'au NIVEAU
+	// SERVICE (`documents.service.country-fields.spec.ts`) — le formulaire de création ne passait
+	// jamais le client sélectionné au descripteur (`?clientId=`), donc le champ n'apparaissait jamais
+	// À L'ÉCRAN, quel que soit le client choisi. `document-form.tsx` watche désormais le champ
+	// "client" du formulaire et refait vivre `useDocumentType(typeId, clientId)`
+	// (`use-document-types.ts`) — ce test le prouve PAR L'ÉCRAN : le champ est absent avec un client
+	// BUSINESS, apparaît dès que "Stadt Testhausen" (le client GOVERNMENT allemand du test précédent,
+	// même fichier) est choisi — jamais un rechargement de page.
+	//
+	// Le brouillon de départ est créé par API avec un client BUSINESS ordinaire (donnée de base —
+	// voir createBusinessClient's own header) ; SEUL le changement de client, le remplissage du
+	// Leitweg et l'enregistrement passent par l'écran, exactement la portion que ce trou concerne.
+	// Le téléchargement XRechnung lui-même reste hors de portée de CE test — voir l'en-tête de ce
+	// fichier ("GENUINE STRUCTURAL LIMIT") : un B2G bloqué au préflight ne numérote jamais, et
+	// "download-xml" exige un numéro ; la preuve que ce Leitweg-ID atterrit bien en BT-10 reste donc
+	// au niveau Jest (`xrechnung-provider.spec.ts`, même valeur "04011000-1234512345-06").
+	it("DE — le champ Leitweg-ID (buyerReference) apparaît RÉACTIVEMENT à l'écran dès qu'un client GOVERNMENT allemand est choisi dans le formulaire (jamais avant, jamais pour un client BUSINESS), avec son aide sourcée ; l'envoi bloque toujours nommément sur zre-ozgre", () => {
+		setInvoiceTransport("email");
+
+		createBusinessClient("Client Ordinaire SARL").then((businessClientId) => {
+			createInvoiceDraft(businessClientId).then((invoiceId) => {
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+
+				// AVANT tout changement : le client chargé est BUSINESS — aucun champ Leitweg à l'écran.
+				cy.get('[data-cy="document-field-buyerReference"]').should("not.exist");
+
+				// Change le client, À L'ÉCRAN, vers "Stadt Testhausen" — le client GOVERNMENT allemand
+				// créé par le test DE précédent (même describe, même `before`, données conservées).
+				cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
+				cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should(
+					"be.visible",
+				);
+				cy.get('[data-cy="document-field-client-input"] input').type("Stadt Testhausen");
+				cy.contains(
+					'[data-cy="document-field-client-input-options"] button',
+					"Stadt Testhausen",
+					{ timeout: 10000 },
+				).click();
+
+				// RÉACTIF, sans rechargement de page : le champ apparaît, avec son `why` (le texte de
+				// l'ERechV) sourcé en aide — jamais juste un label nu. Il est ajouté en QUEUE de
+				// descripteur (`applyFieldOverlay`'s own "add"), donc hors du cadre visible de la boîte
+				// de dialogue tant qu'on ne l'y fait pas défiler — même motif que le SearchSelect de la
+				// devise ailleurs dans cette suite.
+				cy.get('[data-cy="document-field-buyerReference"]', { timeout: 10000 })
+					.scrollIntoView()
+					.should("be.visible");
+				cy.get('[data-cy="document-field-buyerReference"]').should("contain.text", "ERechV");
+
+				cy.get('[data-cy="document-field-buyerReference-input"]').scrollIntoView().clear().type("04011000-1234512345-06");
+
+				// Attend la VRAIE requête réseau plutôt que la visibilité du formulaire après coup (le
+				// défilement provoqué par scrollIntoView ci-dessus rend cette dernière fragile) — même
+				// motif que 20-document-totals.cy.ts's own discount test.
+				cy.intercept("POST", `${api}/api/documents/types/invoice/actions/save-draft`).as("saveDraft");
+				cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+				cy.wait("@saveDraft").its("response.statusCode").should("be.oneOf", [200, 201]);
+
+				// L'envoi bloque toujours, nommément, sur zre-ozgre — CE détour par l'écran ne change
+				// rien à la préséance B2G ; jamais un envoi silencieux par email.
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.get('[data-sonner-toast]', { timeout: 10000 })
+					.should("contain.text", "zre-ozgre")
+					.and("contain.text", "ERechV");
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq("draft");
+						// Le client ET le Leitweg tapés à l'écran sont bien ceux qui ont été enregistrés
+						// — pas seulement affichés le temps d'un rendu.
+						expect(doc.data?.client, "le nouveau client est bien celui enregistré").to.not.eq(
+							businessClientId,
+						);
+						expect(
+							doc.data?.buyerReference,
+							"le Leitweg-ID tapé à l'écran est bien sauvegardé",
+						).to.eq("04011000-1234512345-06");
 					});
 			});
 		});

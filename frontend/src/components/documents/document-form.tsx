@@ -15,6 +15,7 @@ import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/compo
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
+import { useDocumentType } from "@/hooks/queries"
 
 interface DocumentFormProps {
   descriptor: DocumentTypeDescriptor
@@ -65,11 +66,55 @@ export function DocumentForm({
   const [currentStatus, setCurrentStatus] = useState(status)
   const [currentDisplayNumber, setCurrentDisplayNumber] = useState(displayNumber ?? null)
 
-  const schema = useMemo(() => buildZodSchema(descriptor.fields), [descriptor])
+  // The B2G document-field bridge's OWN screen gap (root TODO's "the Leitweg field is proven only at
+  // the service level, not interactive"): `descriptor` (this component's own prop) was fetched by the
+  // PAGE with no client known yet, so a rule's `requiredDocumentFields` (e.g. Germany's Leitweg-ID,
+  // `documents.service.ts#applyB2gDocumentFieldHints`) never reaches it. This watches whichever field
+  // is THIS type's own single-target 'reference' to "client" (the same key `b2g-routing.ts`'s own
+  // header names — "the invoice's own submitted `data.client`") and re-fetches the descriptor WITH
+  // that id the moment it changes, so picking a GOVERNMENT client adds the field reactively, and
+  // picking a different one removes it again — never a static, page-load-time-only view.
+  //
+  // `watchedClientId` is plain `useState`, NOT `form.watch` read directly — it (and the descriptor,
+  // and the schema built from it) must all be known BEFORE `useForm` below is even called, so the
+  // VERY FIRST resolver already validates any B2G-added field; `form.watch` needs `form` to exist
+  // first, which is exactly the ordering this avoids. Seeded from `initialData` so an EXISTING
+  // government-client document already shows its B2G field(s) on the first paint, not only after the
+  // user re-touches the client field.
+  const clientFieldKey = descriptor.fields.find(
+    (field) => field.kind === "reference" && field.entity === "client" && !field.entities,
+  )?.key
+  const [watchedClientId, setWatchedClientId] = useState<string | undefined>(() => {
+    if (!clientFieldKey) return undefined
+    const raw = (initialData as Record<string, unknown> | undefined)?.[clientFieldKey]
+    return typeof raw === "string" && raw ? raw : undefined
+  })
+  const { data: liveDescriptor } = useDocumentType(descriptor.id, watchedClientId)
+  // Falls back to the page-provided `descriptor` the instant the client-aware fetch hasn't resolved
+  // yet (a fresh id just picked, or none at all) — never a blank form while it's in flight, and this
+  // hook's own query-key collapse (see use-document-types.ts) means the "no client yet" case reuses
+  // the SAME cache entry `descriptor` itself came from, not a second request.
+  const effectiveDescriptor = liveDescriptor ?? descriptor
+  const schema = useMemo(() => buildZodSchema(effectiveDescriptor.fields), [effectiveDescriptor])
+
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: initialData ?? defaultValuesFor(descriptor.fields),
   })
+
+  // Keeps `watchedClientId` in sync with the LIVE form value of the client field — a plain
+  // subscription into local state (see the comment above for why this isn't `form.watch` read
+  // directly): every change re-derives `liveDescriptor`/`effectiveDescriptor` above, which is what
+  // makes the B2G field(s) appear or disappear the moment the user picks a different client.
+  useEffect(() => {
+    if (!clientFieldKey) return
+    const subscription = form.watch((values, info) => {
+      if (info.name !== undefined && info.name !== clientFieldKey) return
+      const raw = (values as Record<string, unknown>)[clientFieldKey]
+      setWatchedClientId(typeof raw === "string" && raw ? raw : undefined)
+    })
+    return () => subscription.unsubscribe()
+  }, [form, clientFieldKey])
 
   // The page keys DocumentForm by document id (a "new" vs. an existing one are different mounts),
   // so useState above already seeds currentDocumentId/currentStatus correctly. What a fresh mount
@@ -144,7 +189,7 @@ export function DocumentForm({
         )}
 
         <div className="space-y-4">
-          {descriptor.fields.map((field) => (
+          {effectiveDescriptor.fields.map((field) => (
             <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
           ))}
         </div>

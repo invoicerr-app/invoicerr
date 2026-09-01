@@ -138,6 +138,58 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(result.validation.valid).toBe(true);
   });
 
+  // ── FPA12 (government recipient) — the two named gaps `3cb39f91` left open, closed by this task ──
+  // See fatturapa-provider.ts's own header ("FPA12 vs FPR12") for the discriminant chosen (a valid
+  // 6-char `IT_PA_CODE` party identifier, never `Client.kind`) and the XSD verification.
+  it('PA: a valid 6-char IT_PA_CODE on the client wins outright → FPA12 (versione + FormatoTrasmissione), CodiceDestinatario = that code, judged by the SAME real XSD', async () => {
+    const buyer: DocumentFormatParty = {
+      ...BUYER,
+      partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_PA_CODE', value: 'abc123' }],
+    };
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
+    const xml = new TextDecoder().decode(result.bytes);
+
+    expect(xml).toMatch(/versione="FPA12"/);
+    expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPA12');
+    // Uppercased, same convention the existing IT_SDI test already proves for the B2B branch.
+    expect(extractTag(xml, 'CodiceDestinatario')).toBe('ABC123');
+    expect(xml).not.toContain('PECDestinatario');
+
+    // The REAL vendored XSD — the SAME `Schema_VFPR12.xsd` used for every FPR12 case above (see this
+    // provider's own header: it judges BOTH transmission formats, confirmed directly against the two
+    // schemas fatturapa.gov.it itself publishes today for its 1.2.3 revision). Never asserted against
+    // a B2B-only schema that would wrongly reject this.
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toEqual([]);
+  });
+
+  it('PA code wins outright even when a 7-char IT_SDI is ALSO on file — a client is never routed as both PA and B2B at once', async () => {
+    const buyer: DocumentFormatParty = {
+      ...BUYER,
+      partyIdentifiers: [
+        ...BUYER.partyIdentifiers,
+        { scheme: 'IT_SDI', value: 'abc123x' },
+        { scheme: 'IT_PA_CODE', value: 'UFE0A1' },
+      ],
+    };
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
+    const xml = new TextDecoder().decode(result.bytes);
+    expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPA12');
+    expect(extractTag(xml, 'CodiceDestinatario')).toBe('UFE0A1');
+    expect(result.validation.valid).toBe(true);
+  });
+
+  it('an IT_PA_CODE that is NOT exactly 6 characters never fires the PA branch — falls through to the ordinary B2B routing, FPR12 unchanged (regression: same fallback "4." already proves)', async () => {
+    const buyer: DocumentFormatParty = {
+      ...BUYER,
+      partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_PA_CODE', value: 'TOOLONG7' }],
+    };
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
+    const xml = new TextDecoder().decode(result.bytes);
+    expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPR12');
+    expect(extractTag(xml, 'CodiceDestinatario')).toBe('XXXXXXX');
+  });
+
   it('MUTATION-STYLE PROOF: stripping a mandatory field (Data, the document date) from an otherwise-valid document makes the SAME schema reject it', async () => {
     const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, BUYER);
     expect(result.validation.valid).toBe(true);

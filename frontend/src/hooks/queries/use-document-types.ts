@@ -70,11 +70,25 @@ export function useAvailableDocumentTypes() {
  * (DocumentForm, DocumentList, ActionParamsDialog, every custom slot, the page header) reads already-
  * resolved `label`s on every field/action/status, with zero changes needed to any of them: they all
  * always just displayed whatever string `.label` held.
+ *
+ * Optional `clientId` — the backend's own `describeTypeForCompany(companyId, typeId, clientId)` third
+ * argument (see documents.controller.ts's `?clientId=` query param): when it names a GOVERNMENT
+ * client whose country declares B2G `requiredDocumentFields` (e.g. Germany's Leitweg-ID), those are
+ * folded into `fields` too. Omitting it (every call site before this one) keeps the EXACT same query
+ * key/URL as before — `document-form.tsx` is the one caller that passes it, watching its own "client"
+ * field and re-fetching reactively; when it passes `undefined` (no client picked yet, or the
+ * descriptor has no client field at all) this collapses to the SAME key `[typeId].tsx`'s own call
+ * already populated, so React Query serves the cached descriptor instantly rather than a second
+ * network round-trip for the common case.
  */
-export function useDocumentType(typeId: string | undefined) {
+export function useDocumentType(typeId: string | undefined, clientId?: string) {
   const { t } = useTranslation()
   const select = useCallback((data: DocumentTypeDescriptor) => translateDocumentTypeDescriptor(t, data), [t])
-  return useApiQuery<DocumentTypeDescriptor>(["document-types", typeId], `/api/documents/types/${typeId}`, {
+  const queryKey = clientId ? ["document-types", typeId, clientId] : ["document-types", typeId]
+  const url = clientId
+    ? `/api/documents/types/${typeId}?clientId=${encodeURIComponent(clientId)}`
+    : `/api/documents/types/${typeId}`
+  return useApiQuery<DocumentTypeDescriptor>(queryKey, url, {
     enabled: !!typeId,
     select,
   })
