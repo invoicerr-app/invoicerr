@@ -522,7 +522,10 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
               >
                 <DocumentCardTitle descriptor={descriptor} instance={instance} />
               </h3>
-              <DocumentStatusBadge status={instance.status} />
+              <DocumentStatusBadge
+                status={instance.status}
+                label={descriptor.statuses?.find((s) => s.id === instance.status)?.label}
+              />
               {showSettlementBadge && (
                 <DocumentSettlementBadge
                   typeId={descriptor.id}

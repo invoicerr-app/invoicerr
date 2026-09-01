@@ -2928,6 +2928,356 @@
       "description": "Every document type registered on the backend, rendered here without any type-specific code.",
       "empty": "No document type is registered yet."
     },
+    "descriptors": {
+      "invoice": {
+        "label": "Invoice",
+        "fields": {
+          "client": {
+            "label": "Client"
+          },
+          "origin": {
+            "label": "Origin document"
+          },
+          "issueDate": {
+            "label": "Date"
+          },
+          "dueDate": {
+            "label": "Due date"
+          },
+          "currency": {
+            "label": "Currency"
+          },
+          "notes": {
+            "label": "Notes"
+          },
+          "lines": {
+            "label": "Lines",
+            "fields": {
+              "description": {
+                "label": "Designation"
+              },
+              "quantity": {
+                "label": "Quantity"
+              },
+              "unit": {
+                "label": "Unit"
+              },
+              "unitPrice": {
+                "label": "Unit price"
+              },
+              "vatRate": {
+                "label": "VAT rate"
+              },
+              "discountPercent": {
+                "label": "Discount %"
+              }
+            }
+          }
+        },
+        "actions": {
+          "save-draft": {
+            "label": "Save draft"
+          },
+          "send": {
+            "label": "Send"
+          },
+          "record-payment": {
+            "label": "Record payment",
+            "params": {
+              "amount": {
+                "label": "Amount"
+              },
+              "currency": {
+                "label": "Currency"
+              },
+              "paidAt": {
+                "label": "Paid at"
+              },
+              "method": {
+                "label": "Method",
+                "options": {
+                  "bank_transfer": "Bank transfer",
+                  "card": "Card",
+                  "cash": "Cash",
+                  "other": "Other"
+                }
+              },
+              "note": {
+                "label": "Note"
+              }
+            }
+          },
+          "download-xml": {
+            "label": "Download normalized XML",
+            "params": {
+              "syntax": {
+                "label": "Syntax",
+                "options": {
+                  "cii": "CII (UN/CEFACT Cross Industry Invoice)",
+                  "ubl": "UBL 2.1",
+                  "facturx": "Factur-X (PDF/A-3 with embedded CII)",
+                  "fa3": "FA(3) — Polish KSeF national schema",
+                  "fatturapa": "FatturaPA — Italian SdI national schema"
+                }
+              }
+            }
+          },
+          "export-accounting": {
+            "label": "Export to accounting"
+          },
+          "share-link": {
+            "label": "Share link"
+          }
+        },
+        "statuses": {
+          "draft": "Draft",
+          "sending": "Sending",
+          "sent": "Sent",
+          "send_failed": "Send failed"
+        },
+        "widgets": {
+          "invoice:pending": {
+            "label": "Pending invoices"
+          },
+          "invoice:issued-per-month": {
+            "label": "Invoices issued"
+          },
+          "invoice:pending-total:consolidated": {
+            "label": "Pending invoices total (consolidated, converted)"
+          },
+          "invoice:all": {
+            "label": "All invoices"
+          },
+          "invoice:count": {
+            "label": "Total invoices"
+          }
+        }
+      },
+      "quote": {
+        "label": "Quote",
+        "fields": {
+          "client": {
+            "label": "Client"
+          },
+          "issueDate": {
+            "label": "Date"
+          },
+          "dueDate": {
+            "label": "Due date"
+          },
+          "currency": {
+            "label": "Currency"
+          },
+          "notes": {
+            "label": "Notes"
+          },
+          "lines": {
+            "label": "Lines",
+            "fields": {
+              "description": {
+                "label": "Designation"
+              },
+              "quantity": {
+                "label": "Quantity"
+              },
+              "unitPrice": {
+                "label": "Unit price"
+              },
+              "vatRate": {
+                "label": "VAT rate"
+              },
+              "discountPercent": {
+                "label": "Discount %"
+              }
+            }
+          }
+        },
+        "actions": {
+          "save-draft": {
+            "label": "Save draft"
+          },
+          "send": {
+            "label": "Send",
+            "params": {
+              "recipient": {
+                "label": "Recipient email"
+              }
+            }
+          },
+          "convert-to-invoice": {
+            "label": "Convert to invoice"
+          },
+          "request-deposit": {
+            "label": "Request deposit",
+            "params": {
+              "percent": {
+                "label": "Deposit percentage"
+              }
+            }
+          },
+          "share-link": {
+            "label": "Share link"
+          }
+        },
+        "statuses": {
+          "draft": "Draft",
+          "sending": "Sending",
+          "sent": "Sent",
+          "send_failed": "Send failed"
+        },
+        "widgets": {
+          "quote:draft": {
+            "label": "Draft quotes"
+          },
+          "quote:all": {
+            "label": "All quotes"
+          },
+          "quote:sent-count": {
+            "label": "Quotes sent"
+          }
+        }
+      },
+      "credit-note": {
+        "label": "Credit note",
+        "fields": {
+          "invoice": {
+            "label": "Invoice"
+          },
+          "issueDate": {
+            "label": "Date"
+          },
+          "currency": {
+            "label": "Currency"
+          },
+          "notes": {
+            "label": "Notes"
+          },
+          "correctedLines": {
+            "label": "Corrected lines"
+          }
+        },
+        "actions": {
+          "save-draft": {
+            "label": "Save draft"
+          },
+          "send": {
+            "label": "Send"
+          },
+          "share-link": {
+            "label": "Share link"
+          }
+        },
+        "statuses": {
+          "draft": "Draft",
+          "sending": "Sending",
+          "sent": "Sent",
+          "send_failed": "Send failed"
+        },
+        "widgets": {
+          "credit-note:all": {
+            "label": "All credit notes"
+          }
+        }
+      },
+      "expense": {
+        "label": "Expense",
+        "fields": {
+          "description": {
+            "label": "Description"
+          },
+          "amount": {
+            "label": "Amount"
+          },
+          "currency": {
+            "label": "Currency"
+          },
+          "date": {
+            "label": "Date"
+          },
+          "notes": {
+            "label": "Notes"
+          }
+        },
+        "actions": {
+          "save-draft": {
+            "label": "Save"
+          },
+          "delete": {
+            "label": "Delete"
+          }
+        },
+        "statuses": {
+          "draft": "Draft"
+        },
+        "widgets": {
+          "expense:this-month": {
+            "label": "Expenses this month"
+          },
+          "expense:this-month:consolidated": {
+            "label": "Expenses this month (consolidated, converted)"
+          },
+          "expense:all": {
+            "label": "All expenses"
+          }
+        }
+      },
+      "received-invoice": {
+        "label": "Received invoice",
+        "fields": {
+          "supplier": {
+            "label": "Supplier"
+          },
+          "supplierNumber": {
+            "label": "Supplier's invoice number"
+          },
+          "issueDate": {
+            "label": "Issue date"
+          },
+          "dueDate": {
+            "label": "Due date"
+          },
+          "currency": {
+            "label": "Currency"
+          },
+          "netAmount": {
+            "label": "Net amount (excl. VAT)"
+          },
+          "vatAmount": {
+            "label": "VAT amount"
+          },
+          "grossAmount": {
+            "label": "Gross amount (incl. VAT)"
+          }
+        },
+        "actions": {
+          "receive": {
+            "label": "Save"
+          },
+          "approve": {
+            "label": "Approve"
+          },
+          "reject": {
+            "label": "Reject"
+          },
+          "delete": {
+            "label": "Delete"
+          }
+        },
+        "statuses": {
+          "received": "Received",
+          "approved": "Approved",
+          "rejected": "Rejected"
+        },
+        "widgets": {
+          "received-invoice:pending-count": {
+            "label": "Received invoices pending review"
+          },
+          "received-invoice:pending-amount:consolidated": {
+            "label": "Received invoices pending (consolidated, converted)"
+          }
+        }
+      }
+    },
     "numbering": {
       "noneYet": "Draft — no number yet"
     },

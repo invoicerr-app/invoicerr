@@ -1,6 +1,9 @@
+import { useCallback } from "react"
 import { useQueries } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 
 import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
+import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@/lib/descriptor-i18n"
 
 import type {
   ActionResult,
@@ -13,9 +16,19 @@ import type {
   EntityReferenceOption,
 } from "@/components/documents/types"
 
-/** Every registered document type — a front-end nav renders this without knowing any type by name. */
+/**
+ * Every registered document type — a front-end nav renders this without knowing any type by name.
+ * Translated here (root TODO item 25's own reliquat — see lib/descriptor-i18n.ts's own header) so
+ * every consumer (reference-field.tsx's multi-target picker, recurring.settings.tsx's type badges)
+ * reads an already-resolved `label`, never a raw one: this is the ONE place this response is fetched.
+ */
 export function useDocumentTypesList() {
-  return useApiQuery<DocumentTypeSummary[]>(["document-types"], "/api/documents/types")
+  const { t } = useTranslation()
+  const select = useCallback(
+    (data: DocumentTypeSummary[]) => data.map((summary) => translateDocumentTypeSummary(t, summary)),
+    [t],
+  )
+  return useApiQuery<DocumentTypeSummary[]>(["document-types"], "/api/documents/types", { select })
 }
 
 export interface AvailableDocumentTypesResult {
@@ -26,21 +39,42 @@ export interface AvailableDocumentTypesResult {
   reason?: string
 }
 
-/** The document types the active company's COUNTRY makes available — what the sidebar's Documents
- *  group renders. Distinct from `useDocumentTypesList` above (every REGISTERED type, unfiltered): a
- *  type can be registered on this build and still be absent here for a country whose policy file
- *  doesn't declare it, or for a country with no policy file at all. */
+/**
+ * The document types the active company's COUNTRY makes available — what the sidebar's Documents
+ * group renders. Distinct from `useDocumentTypesList` above (every REGISTERED type, unfiltered): a
+ * type can be registered on this build and still be absent here for a country whose policy file
+ * doesn't declare it, or for a country with no policy file at all. Translated the same way
+ * `useDocumentTypesList` is — see that hook's own comment.
+ */
 export function useAvailableDocumentTypes() {
+  const { t } = useTranslation()
+  const select = useCallback(
+    (data: AvailableDocumentTypesResult) => ({
+      ...data,
+      types: data.types.map((summary) => translateDocumentTypeSummary(t, summary)),
+    }),
+    [t],
+  )
   return useApiQuery<AvailableDocumentTypesResult>(
     ["document-types", "available"],
     "/api/documents/available-types",
+    { select },
   )
 }
 
-/** The full descriptor a form is rendered from. */
+/**
+ * The full descriptor a form is rendered from — translated in ONE place (root TODO item 25's own
+ * reliquat, see lib/descriptor-i18n.ts's own header) so every consumer of this hook's `data`
+ * (DocumentForm, DocumentList, ActionParamsDialog, every custom slot, the page header) reads already-
+ * resolved `label`s on every field/action/status, with zero changes needed to any of them: they all
+ * always just displayed whatever string `.label` held.
+ */
 export function useDocumentType(typeId: string | undefined) {
+  const { t } = useTranslation()
+  const select = useCallback((data: DocumentTypeDescriptor) => translateDocumentTypeDescriptor(t, data), [t])
   return useApiQuery<DocumentTypeDescriptor>(["document-types", typeId], `/api/documents/types/${typeId}`, {
     enabled: !!typeId,
+    select,
   })
 }
 

@@ -55,20 +55,33 @@ function capitalize(value: string): string {
 
 interface DocumentStatusBadgeProps {
   status: string
+  /**
+   * The status's own DECLARED, already-translated label — e.g.
+   * `descriptor.statuses?.find((s) => s.id === status)?.label`, where `descriptor` came back through
+   * `useDocumentType` (hooks/queries/use-document-types.ts), which already ran it through the
+   * `documents.descriptors.<typeId>.statuses.<statusId>` derivation (root TODO item 25's own
+   * reliquat — see lib/descriptor-i18n.ts). Absent — a status this descriptor never declared at all,
+   * e.g. a data mismatch, or a THIRD-PARTY type whose status vocabulary this app has never heard of —
+   * falls back to the capitalized raw id below, exactly this component's ENTIRE behavior before this
+   * prop existed: a plugin's own status string still displays, unmolested, in any language it wrote
+   * it in. */
+  label?: string
   className?: string
 }
 
-/** `status` is shown AS-IS, capitalized only — never translated. Same convention as a descriptor's
- *  own `label` or an action's `policyBlockedReason` (see types.ts): plain data a plugin can name in
- *  any language, not a closed set this app's locale files could ever fully enumerate. */
-export function DocumentStatusBadge({ status, className }: DocumentStatusBadgeProps) {
+/** Falls back to `capitalize(status)` — the raw status id, capitalized — when `label` is absent: the
+ *  original, ENTIRE behavior of this component, kept as the escape hatch for a status no descriptor
+ *  declares at all. Same convention as a descriptor's own `label` or an action's
+ *  `policyBlockedReason` (see types.ts): plain data a plugin can name in any language, not a closed
+ *  set this app's locale files could ever fully enumerate. */
+export function DocumentStatusBadge({ status, label, className }: DocumentStatusBadgeProps) {
   return (
     <Badge
       variant="outline"
       className={cn("border-transparent font-semibold", TONE_CLASSES[toneOf(status)], className)}
       data-cy="document-status-badge"
     >
-      {capitalize(status)}
+      {label ?? capitalize(status)}
     </Badge>
   )
 }
