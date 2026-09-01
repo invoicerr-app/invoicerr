@@ -318,6 +318,12 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 
 **Official sources**
 - https://www.fatturapa.gov.it/it/SistemaAccreditamento/
+- Re-vérifié le 2026-09-01 contre https://www.fatturapa.gov.it/it/sistemainterscambio/ (sections
+  « Accreditamento al Sistema di Interscambio » et « sperimentazione ») : la procédure ci-dessus est
+  toujours exacte — portail d'accréditation https://accreditamento.fatturapa.gov.it/, l'ambiente di
+  test « rimane disponibile permettendo la trasmissione e/o la ricezione dei file come se fosse in
+  produzione ma privi di valore legale », codici destinatario de test sous « Test di
+  interoperabilità - Gestione test interoperabilità », limite quotidienne de fichiers en test.
 - https://www.fatturapa.gov.it/it/SistemaAccreditamento/cose-il-sistema-di-accreditamento/
 - https://www.fatturapa.gov.it/it/SistemaAccreditamento/processo-per-nuovo-accreditamento/
 - https://www.fatturapa.gov.it/it/sistemainterscambio/sperimentazione/
