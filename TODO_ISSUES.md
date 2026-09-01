@@ -296,11 +296,23 @@
      à `invoiceStatus` — jamais vérifiée pour CET endpoint précis ; (b) `send()` FERME la session
      juste après l'envoi — si `invoiceStatus` répond encore une fois la session close est, à ce jour,
      INCONNU. `ksef-status-poller.live.spec.ts` est prêt, gaté `KSEF_LIVE=1`, pour répondre aux deux
-     le jour où un jeton existe. SdI, lui, reste ENTIÈREMENT ouvert : aucun poller n'est enregistré
-     (push SOAP, pas de endpoint à interroger — voir `conformity/authority-status-poller.ts`'s own
-     header) ; construire le ROUTEUR DE NOTIFICHE entrantes reste un chantier à part, non commencé
-     ici — voir `sdi/sdi-client.ts`'s own `SdiClient.mapNotifica`, REPRISE mais jamais appelée par ce
-     wave (aucun poller pour l'invoquer).
+     le jour où un jeton existe. SdI, lui, reste ENTIÈREMENT ouvert au sens "poller" : aucun n'est
+     enregistré (push SOAP, pas de endpoint à interroger — voir
+     `conformity/authority-status-poller.ts`'s own header). **MIS À JOUR (2026-09-01)** : le ROUTEUR
+     DE NOTIFICHE entrantes EXISTE désormais — `sdi/sdi-notifiche.controller.ts` (endpoint `@Public()`
+     POST `/api/public/sdi/notifiche`), `sdi-notifiche.ts` (parsing des six opérations
+     `TrasmissioneFatture`, lu du WSDL/XSD publié) et `sdi-notifiche.service.ts` (rapprochement par
+     `IdentificativoSdI` = `transportRef`, journalisation dans `DocumentAuthorityEvent`, 200 pour une
+     référence inconnue — jamais de retry infini côté SdI). `sdi/sdi-client.ts`'s own
+     `SdiClient.mapNotifica` reste REPRISE mais toujours jamais appelée (le nouveau routeur journalise
+     l'événement brut RC/NS/MC/NE/DT/AT, il ne calcule pas encore CLEARED/REJECTED/PENDING — ce
+     calcul-là resterait à faire si un jour ce statut doit peser sur `DocumentInstance.status`). Ce qui
+     MANQUE encore, dit sans l'enjoliver : le mTLS SERVEUR (un second certificat, distinct du client,
+     qu'AdE émet à l'accréditation) n'est pas terminé par cet endpoint — nginx/`main.ts` ne fait pas de
+     mTLS par route aujourd'hui — et l'URL elle-même doit être déclarée à AdE via le Système
+     d'Accréditation, une étape opérationnelle qu'aucun code ne peut faire à la place de l'opérateur.
+     Tant que ni l'un ni l'autre n'existe, ce routeur ne reçoit aucun trafic SdI réel — voir
+     `sdi-notifiche.service.ts`'s own header.
   2. **KSeF n'a de clé MF vendorée que pour l'environnement TEST** (`transports/ksef/certs/test/*.pem`,
      repris du repère à l'identique) — AUCUNE clé PROD n'a jamais existé dans ce dépôt, à aucun
      repère. `ksef-public-keys.ts#loadVendorizedKeys('prod')` échoue donc bruyamment (fail-fast, par
@@ -308,19 +320,32 @@
      production. Obtenir la clé PROD (`GET /api/v2/security/public-key-certificates` sur
      `api.ksef.mf.gov.pl`) est un aller simple mais non fait ici, faute de besoin réel avant une
      société PROD réelle.
-  3. **SdI n'a AUCUNE implémentation SOAP réelle** — ni au repère, ni ici. `sdi/sdi-client.ts#UNACCREDITED_SDI_HTTP_PORT`
-     est la SEULE implémentation de `SdiHttpPort` qui existe dans ce dépôt à ce jour ; elle échoue
-     honnêtement, immédiatement, sans réseau — "AdE (Agenzia delle Entrate) intermediary
-     accreditation... required". Tant que cette accréditation n'est pas obtenue (voir
-     `LIVE_TESTING.md`'s own "SdI prerequisites (currently deferred)"), `sdi-transport.ts#send()`
-     échoue TOUJOURS en production, quels que soient les identifiants saisis — ce n'est pas un bug de
-     cette tâche, c'est l'état réel du produit sur ce canal.
+  3. ~~**SdI n'a AUCUNE implémentation SOAP réelle**~~ — **STATUT PRÉCISÉ (2026-09-01) :
+     implemented-awaiting-accreditation.** Décision utilisateur explicite : construire le vrai client
+     SOAP `SdIRiceviFile.RiceviFile` MAINTENANT plutôt que d'attendre l'accréditation —
+     `sdi/sdicoop-client.ts` (`SdiCoopClient`), bâti à partir du WSDL/XSD/instructions PUBLIÉS sur
+     fatturapa.gov.it (lus et cités dans l'en-tête de ce fichier — enveloppe SOAP `xmlbuilder2`, mTLS
+     natif `node:https` avec `pfx`/`passphrase`, parsing `@xmldom/xmldom`, erreurs nommées
+     EI01/EI02/EI03 + SOAP Fault + le contrat de succès dur (jamais de succès sans
+     `IdentificativoSdI`)). `sdi-transport.ts` bascule dessus dès que les QUATRE identifiants sont
+     complets (idTrasmittente/certificate/certificatePassword/`endpoint` — ce dernier, l'URL
+     SdIRiceviFile, jamais codée en dur : elle est assignée par AdE à l'accréditation, jamais publiée
+     comme constante fixe — le WSDL public ne montre qu'un espace réservé). CE QUI RESTE VRAI, sans
+     enjolivement : `sdi/sdi-client.ts#UNACCREDITED_SDI_HTTP_PORT` documente toujours l'échec honnête
+     par défaut (canal non connecté) ; et surtout, **ce client n'a JAMAIS tourné contre le vrai
+     endpoint AdE** — aucune accréditation n'existe dans cet environnement (voir
+     `LIVE_TESTING.md`'s own "SdI prerequisites (currently deferred)"), donc `sdi-transport.ts#send()`
+     échoue TOUJOURS en production aujourd'hui, quels que soient les identifiants saisis — plus
+     jamais par un stub figé, mais par une vraie tentative réseau/SOAP qui ne trouve personne en face.
+     Le premier vrai collaudo peut révéler des écarts d'enveloppe que la seule lecture des specs ne
+     pouvait pas anticiper — `sdicoop-client.ts`'s own header dit précisément quoi est lu contre quoi
+     est extrapolé. Le récepteur de notifiche entrantes est traité au point 1 ci-dessus.
   4. **Credentials absents aujourd'hui pour les deux live specs** — `ksef/ksef-live.spec.ts`
-     (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`/`KSEF_NIP`) et `sdi/sdi-live.spec.ts` (`SDI_LIVE=1` +
-     `SDI_ID_TRASMITTENTE`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD`) skippent proprement (le premier
-     parce que le jeton KSeF prouvé au repère (2026-06-28) a expiré/tourné et n'a pas été remplacé
-     dans ce checkout ni en CI ; le second parce que l'accréditation AdE, ci-dessus, n'existe pas).
-     Aucun des deux n'a été forcé au vert par un serveur ou un jeton inventé.
+     (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`/`KSEF_NIP`) et `sdi/sdicoop.live.spec.ts` (`SDI_LIVE=1` +
+     `SDI_ID_TRASMITTENTE`/`SDI_ENDPOINT`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD`) skippent proprement
+     (le premier parce que le jeton KSeF prouvé au repère (2026-06-28) a expiré/tourné et n'a pas été
+     remplacé dans ce checkout ni en CI ; le second parce que l'accréditation AdE, ci-dessus, n'existe
+     pas). Aucun des deux n'a été forcé au vert par un serveur ou un jeton inventé.
   5. **Correction post-clearance (`faktura korygująca`, le mode KOR de FA(3))** : `fa-vat.ts` au
      repère avait un mode KOR complet (voir son en-tête, M-4) ; cette vague ne le reprend PAS — le
      descripteur `invoice.descriptor.ts` d'aujourd'hui n'a pas de lien de correction compatible avec

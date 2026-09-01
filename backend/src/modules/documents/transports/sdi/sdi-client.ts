@@ -5,19 +5,32 @@
  * `TransmissionResult` (`execution/types.ts`) — replaced here by `SdiNotificaOutcome`, a small local
  * type carrying the same three facts (`status`/`ref`/`notes`) that engine's own runtime consumed.
  * Nothing about the notifica-mapping LOGIC changed — see this file's own header at the repère for the
- * full RC/NS/MC/NE/DT/AT sourcing.
+ * full RC/NS/MC/NE/DT/AT sourcing (independently confirmed against the published WSDL — see
+ * `sdicoop-client.ts`'s own header — while building the REAL client below).
  *
  * Real SdI access for intermediaries requires:
  *   - AdE (Agenzia delle Entrate) accreditation
- *   - A qualified digital certificate (PFX/P12) issued to the intermediary
- *   - A dedicated channel: SDICoop (SOAP web service) or SFTP
+ *   - A PKCS#12 client certificate AdE's own CA issues on a CSR submitted during accreditation
+ *     (`CREDENTIALS_GUIDE.md` §4 — NOT a commercially-purchased "qualified" certificate)
+ *   - A dedicated channel: SDICoop (SOAP web service) or SDIFTP
  *
- * SDICoop SOAP endpoint:
- *   https://sdi.fatturapa.gov.it/SdI_riceviFile/v1.0/RiceviFileService
+ * CORRECTION (2026-09-01): the SDICoop endpoint this header used to state
+ * (`https://sdi.fatturapa.gov.it/SdI_riceviFile/v1.0/RiceviFileService`) was NEVER read from an
+ * official source — it does not appear in the published WSDL (`SdIRiceviFile_v1.0.wsdl`'s own
+ * `soapbind:address` is a placeholder, `http://servizi.fatturapa.it/ricevi_file`) nor in either
+ * instructions PDF fetched this task (see `sdicoop-client.ts`'s own header for the full citation
+ * list). Removed rather than left standing uncorrected: the real endpoint is assigned per
+ * intermediary at accreditation and is a required "sdi" channel credential (`endpoint`), never a
+ * constant.
  *
- * LIVE PROOF: DEFERRED — pending AdE intermediary accreditation, same as at the repère (see this
- * task's own report). This module is structured so the SdiHttpPort can be swapped for a real SOAP
- * transport once accreditation is obtained. All tests use a mocked port.
+ * STATUS: **implemented-awaiting-accreditation** — `sdicoop-client.ts`'s `SdiCoopClient` is the REAL
+ * `SdiHttpPort` now (see that file's own header for what was read vs extrapolated); this file's own
+ * `UNACCREDITED_SDI_HTTP_PORT` below is no longer what `sdi-transport.ts` reaches in production (it
+ * now builds a `SdiCoopClient` once credentials — including `endpoint` — are complete), kept only as
+ * the honest default for a caller that constructs an `SdiClient` with no port at all. LIVE PROOF:
+ * still DEFERRED — pending AdE intermediary accreditation (see `sdicoop.live.spec.ts`, gated
+ * `SDI_LIVE=1`). Every test in `sdi-transport.spec.ts` and this file's own sibling specs uses either a
+ * mocked port or the real `SdiCoopClient` against a local stub — never the true AdE endpoint.
  *
  * SdI notification types (notifiche) that drive the lifecycle:
  *   RC — Ricevuta di Consegna (delivery receipt): buyer received the invoice → CLEARED

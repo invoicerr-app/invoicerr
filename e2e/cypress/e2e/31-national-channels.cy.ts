@@ -25,9 +25,10 @@
  *     aucun champ de configuration ne la remplace. Le test KSeF envoie donc un jeton FICTIF au VRAI
  *     bac à sable public `ksef-test.mf.gov.pl`, qui le rejette réellement (code 450, "jeton
  *     invalide") — vérifié à la main avant d'écrire ce test (probe direct : réponse en moins de
- *     300ms, jamais un blocage réseau). SdI, lui, n'a besoin d'AUCUN réseau réel : la seule
- *     implémentation existante (`UNACCREDITED_SDI_HTTP_PORT`) échoue localement et immédiatement,
- *     accréditation AdE non obtenue — voir `sdi-transport.ts`'s own header.
+ *     300ms, jamais un blocage réseau). SdI a désormais un vrai client SOAP (`sdicoop-client.ts`,
+ *     "implemented-awaiting-accreditation" — accréditation AdE non obtenue, voir `sdi-transport.ts`'s
+ *     own header) : comme PDP, son `endpoint` est un champ saisi par l'utilisateur, donc falsifiable
+ *     vers le même port fermé — le dépôt échoue réellement (ECONNREFUSED), jamais un message figé.
  *
  * L'ACTION passe par un vrai clic sur l'écran (connecter, choisir le transport, envoyer,
  * déconnecter) ; les ASSERTIONS qui comptent relisent l'enregistrement via l'API — même discipline
@@ -56,11 +57,13 @@ const FAKE_KSEF = {
 	ksefToken: "e2e-fake-ksef-token",
 };
 
-/** Jamais atteint par un vrai appel réseau — `UNACCREDITED_SDI_HTTP_PORT` échoue avant toute tentative
- *  de connexion (accréditation AdE non obtenue, voir `sdi-transport.ts`'s own header) ; le contenu de
- *  ces valeurs n'a donc aucune importance, seule leur PRÉSENCE compte (le formulaire les exige). */
+/** Un vrai client SOAP existe désormais (`sdicoop-client.ts`) — `endpoint` pointe le même port fermé
+ *  que `FAKE_PDP` (ECONNREFUSED immédiat, aucune vraie plateforme derrière) ; le contenu des trois
+ *  autres champs n'a aucune importance, seule leur PRÉSENCE compte (le formulaire les exige avant de
+ *  déclarer le canal "connecté" — voir `sdi-transport.ts#extractCredentials`). */
 const FAKE_SDI = {
 	idTrasmittente: "IT01234567890",
+	endpoint: "https://127.0.0.1:1/ricevi_file",
 	certificate: "ZTJlLWZha2UtcGZ4LWNvbnRlbnRz",
 	certificatePassword: "e2e-fake-cert-password",
 };
@@ -333,7 +336,8 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 		cy.get('[data-cy="channel-ksef-status"]', { timeout: 10000 }).should("contain.text", "Not connected");
 	});
 
-	// ── Vague 2 : SdI (Italie) — même motif, aucun réseau réel (accréditation AdE non obtenue) ──
+	// ── Vague 2 : SdI (Italie) — même motif que PDP, serveur fictif (port fermé) — un vrai client
+	// SOAP existe désormais (`sdicoop-client.ts`, "implemented-awaiting-accreditation") ──
 
 	it("une société ITALIENNE voit la suggestion SdI sur l'écran des canaux — la donnée vient de data/it.json, jamais d'un `if`", () => {
 		setCompanyCountry("Italy", "IT");
@@ -353,6 +357,7 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 		cy.get('[data-cy="channel-sdi-status"]').should("contain.text", "Not connected");
 
 		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]').clear().type(FAKE_SDI.idTrasmittente);
+		cy.get('[data-cy="channel-sdi-endpoint-input"]').clear().type(FAKE_SDI.endpoint);
 		cy.get('[data-cy="channel-sdi-certificate-input"]').clear().type(FAKE_SDI.certificate);
 		cy.get('[data-cy="channel-sdi-certificatepassword-input"]').clear().type(FAKE_SDI.certificatePassword);
 		cy.get('[data-cy="channel-sdi-connect-button"]').click();
@@ -386,7 +391,7 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 			});
 	});
 
-	it('envoie une facture via SdI → la file échoue réellement (accréditation AdE non obtenue, aucun réseau) et "send_failed" nomme le canal', () => {
+	it('envoie une facture via SdI → la file échoue réellement (serveur fictif, port fermé) et "send_failed" nomme le canal', () => {
 		createInvoiceDraft().then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })

@@ -112,9 +112,13 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       type: "password",
     },
   ],
-  // SdI (IT) — item 10, wave 2. Exactly the three fields `sdi-transport.ts#extractCredentials`
-  // reads (idTrasmittente/certificate required to be "connected"; certificatePassword read through
-  // when present — see that file's own header on why it isn't required here either).
+  // SdI (IT) — item 10, wave 2, now "implemented-awaiting-accreditation" (a real SdICoop SOAP client
+  // exists, `transports/sdi/sdicoop-client.ts` — see that file's own header). Exactly the four fields
+  // `sdi-transport.ts#extractCredentials` reads: idTrasmittente/certificate/`endpoint` are required to
+  // be "connected"; certificatePassword is read through when present without being required (a real
+  // PFX legitimately can carry an empty one — see that file's own header). `endpoint` is the
+  // SdIRiceviFile HTTPS URL AdE's own Sistema di Accreditamento hands the accredited intermediary —
+  // never a fixed constant this screen could default to (see `sdicoop-client.ts`'s own header on why).
   sdi: [
     {
       key: "idTrasmittente",
@@ -122,6 +126,13 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelDefault: "IdTrasmittente",
       type: "text",
       placeholder: "IT01234567890",
+    },
+    {
+      key: "endpoint",
+      labelKey: "settings.channels.fields.sdiEndpoint",
+      labelDefault: "SdIRiceviFile endpoint URL",
+      type: "text",
+      placeholder: "https://sdi.example.it/ricevi_file",
     },
     {
       key: "certificate",

@@ -90,6 +90,28 @@ export async function listAuthorityEvents(
   });
 }
 
+/**
+ * Cross-tenant lookup by (`channelProviderId`, `transportRef`) — the same "resolve by a globally-
+ * scoped key, hand back the companyId" shape `share-links/share-links.service.ts#resolvePublicToken`
+ * already holds for its own public, unauthenticated caller. Needed by
+ * `sdi-notifiche.service.ts`: SdI's own push notifiche carry an `IdentificativoSdI`
+ * (`transportRef`) and NOTHING else identifying which company/document it belongs to — a value SdI
+ * itself assigns globally (one `RiceviFile` submission, one identifier), never scoped to a tenant on
+ * our side. Returns `null` for an unknown ref (the exact "notifica for a document we never sent, or
+ * already forgot" case `sdi-notifiche.service.ts`'s own header handles) — never throws, the same
+ * "unknown token = null, not an error" discipline `resolvePublicToken` holds.
+ */
+export async function findDocumentByTransportRef(
+  channelProviderId: string,
+  transportRef: string,
+): Promise<{ id: string; companyId: string } | null> {
+  const row = await prisma.documentInstance.findFirst({
+    where: { channelProviderId, transportRef },
+    select: { id: true, companyId: true },
+  });
+  return row;
+}
+
 export interface ConformitySweepCandidateRow {
   id: string;
   companyId: string;

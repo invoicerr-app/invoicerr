@@ -279,11 +279,24 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 
 ## 4. SdI (Sistema di Interscambio) — Italy (FatturaPA clearance)
 
-> **GitHub secrets:** `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` &nbsp;•&nbsp; **Live flag:** `SDI_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes (ambiente di collaudo) &nbsp;•&nbsp; **Repo status:** 🔴 missing
+> **GitHub secrets:** `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` &nbsp;•&nbsp; **Live flag:** `SDI_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes (ambiente di collaudo) &nbsp;•&nbsp; **Repo status:** 🔴 missing (credentials — see below) &nbsp;•&nbsp; **Code status:** implemented-awaiting-accreditation
+
+**Code status, precisely** (2026-09-01): a real SdICoop SOAP client exists
+(`backend/src/modules/documents/transports/sdi/sdicoop-client.ts`, `SdiCoopClient` — the `RiceviFile`
+envelope, mTLS via `pfx`/`passphrase`, response parsing, named EI01/EI02/EI03/SOAP-Fault errors), built
+directly from the WSDL/XSD/instructions PDFs published on fatturapa.gov.it (read and cited in that
+file's own header, fetched 2026-09-01) — plus a minimal PUSH receiver for the six `TrasmissioneFatture`
+notifiche (`sdi-notifiche.controller.ts`, journaling into `DocumentAuthorityEvent`). Neither has ever
+been run against, or received a call from, the real Sistema di Interscambio — the four secrets above
+are, as of this writing, unset everywhere (no accreditation exists yet — Step-by-step below is the
+actual blocker). The code is ready the day accreditation lands; `SDI_ENDPOINT` (the `SdIRiceviFile`
+HTTPS URL) is a NEW secret this status introduces — see its own bullet below for why it can't be a
+fixed constant the way KSeF's base URLs are.
 
 **What each secret is / where it comes from**
 
 - `SDI_ID_TRASMITTENTE` — the `<IdTrasmittente><IdCodice>` value stamped in every FatturaPA XML header. For an Italian subject it is simply the **Codice Fiscale** of whoever's accredited channel is doing the sending (prefixed `IT` in `IdPaese`). It is *not* a code SdI hands you separately — it's derived from the Partita IVA/Codice Fiscale used to run the accreditation in Step 1 below.
+- `SDI_ENDPOINT` — the HTTPS URL of the `SdIRiceviFile` SOAP web-service (`RiceviFile` operation) THIS trasmittente submits to. Unlike KSeF's fixed test/prod base URLs, the WSDL Invoicerr's client is built from (`SdIRiceviFile_v1.0.wsdl`, published on fatturapa.gov.it) shows only a placeholder address (`http://servizi.fatturapa.it/ricevi_file`) — the real one (collaudo, then production) is assigned to the accredited intermediary during the Sistema di Accreditamento flow below, and can change over time (see Step-by-step, "è possibile modificare gli endpoint... in qualsiasi momento"). Never a constant in the codebase — a required field on the "sdi" channel config.
 - `SDI_CERTIFICATE` — base64 of a **PKCS#12/PFX** bundling (a) an RSA private key you generate yourself and (b) the **client certificate that Agenzia delle Entrate's own CA signs and issues back to you** during SDICoop accreditation, in response to a CSR you submit through the portal. This is *not* a commercially-purchased eIDAS "qualified certificate" — it's AdE's own PKI issuing an X.509 client cert for mutual-TLS authentication against the SDICoop web-service endpoint. (A separate *server* CSR/cert is also required if your channel is bidirectional — same distinct-RSA-key rule.)
 - `SDI_CERT_PASSWORD` — the password protecting that PFX/P12 file.
 
@@ -332,6 +345,20 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 - https://www.fatturapa.gov.it/it/news/Aggiornate-richieste-di-Certificate-signing-request-csr-e-chiavi-private-distinte/
 - https://www.fatturapa.gov.it/export/documenti/guide/Guida-allavvio-SA-v1.0.pdf (Agenzia delle Entrate, "Sistema di Accreditamento – Guida all'avvio", v1.0, 03/02/2025)
 - https://www.agenziaentrate.gov.it/portale/documents/20143/289347/Accreditamento+e+richiesta+codici+destinatario_Accreditamento+e+richiesta+codici+destinatario_v1.0.pdf/8333539f-f864-ac00-3ab0-74ce8a47db69
+
+**SDICoop technical specs actually READ while building `sdicoop-client.ts`** (fetched 2026-09-01, via
+`curl`/WebFetch — WebSearch budget was exhausted this session, direct URLs were fetched instead):
+- https://www.fatturapa.gov.it/export/documenti/ws/trasmissione/v1.0/SdIRiceviFile_v1.0.wsdl
+- https://www.fatturapa.gov.it/export/documenti/ws/trasmissione/v1.0/TrasmissioneTypes_v1.0.xsd
+- https://www.fatturapa.gov.it/export/documenti/ws/trasmissione/v1.0/TrasmissioneTypes_v1.1.xsd
+- https://www.fatturapa.gov.it/export/documenti/ws/trasmissione/v1.0/TrasmissioneFatture_v1.1.wsdl
+- https://www.fatturapa.gov.it/export/documenti/ws/trasmissione/v3.x/Istruzioni-per-il-servizio-SDICoop-Trasmissione-versione3.3.pdf
+- https://www.fatturapa.gov.it/export/documenti/ws/ricezione/v1.0/SdIRiceviNotifica_v1.0.wsdl,
+  https://www.fatturapa.gov.it/export/documenti/ws/ricezione/v1.0/RicezioneFatture_v1.0.wsdl,
+  https://www.fatturapa.gov.it/export/documenti/ws/ricezione/v1.0/RicezioneTypes_v1.0.xsd,
+  https://www.fatturapa.gov.it/export/documenti/ws/ricezione/v3.x/Istruzioni-per-il-servizio-SDICoop-Ricezione-versione3.3.pdf
+  (fetched too, for completeness — this is the RECEPTION direction, us-as-buyer, NOT built by this
+  task; see `sdicoop-client.ts`'s own header)
 
 ---
 

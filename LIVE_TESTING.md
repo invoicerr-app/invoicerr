@@ -22,7 +22,7 @@ Hard-success contract (enforced per-spec):
 | PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-live.spec.ts` | ✅ **Round-trip prouvé** — `fr:200 → fr:201 → fr:202`, dépôt 375037, 2026-08-29 |
 | PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
-| SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdi-live.spec.ts` | 🔴 Deferred (AdE accreditation) |
+| SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | 🔴 **Cassé le 2026-08-29** — `invalid_country` sur FR à la création de société (voir ci-dessous) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (connected AP required) |
 | Peppol via Storecove | _(mocked only)_ | `apProvider=storecove` config: `apiKey`, `legalEntityId` | `peppol/storecove-client.spec.ts` | 🔴 Deferred (30-day manual trial, no self-serve signup) |
@@ -135,10 +135,10 @@ PDP_AFNOR_LIVE=1 PDP_BASE_URL=<url> PDP_CLIENT_ID=<id> PDP_CLIENT_SECRET=<secret
 # Email (Ethereal SMTP — no creds needed)
 EMAIL_LIVE=1 npx jest email-live --no-coverage
 
-# SdI (IT) — requires AdE accreditation + qualified PFX certificate
-SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_CERTIFICATE=<base64-pfx> \
-  SDI_CERT_PASSWORD=<pass> [SDI_CHANNEL=SDICoop] \
-  npx jest sdi-live --no-coverage --runInBand
+# SdI (IT) — requires AdE accreditation + qualified PFX certificate (code implemented-awaiting-accreditation)
+SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_ENDPOINT=<accredited-SdIRiceviFile-url> \
+  SDI_CERTIFICATE=<base64-pfx> SDI_CERT_PASSWORD=<pass> \
+  npx jest sdicoop.live --no-coverage --runInBand
 
 # Peppol via peppol.sh — ZERO SECRETS (self-signup, like Ethereal email)
 PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
@@ -177,7 +177,7 @@ cd backend
 npx jest ksef-live --no-coverage
 # Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
 
-npx jest pdp-live pdp-afnor-live email-live sdi-live peppol-live portal-live tsa-live choruspro-live --no-coverage
+npx jest pdp-live pdp-afnor-live email-live sdicoop.live peppol-live portal-live tsa-live choruspro-live --no-coverage
 # Expected: all suites skipped
 ```
 
@@ -211,7 +211,7 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
 - Suggested local file layout:
   - `.env.ksef.local` — `KSEF_AUTH_TOKEN`, `KSEF_NIP`
   - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
-  - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
+  - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
   - `.env.peppol.local` — `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`
     (generic AP only — the peppol.sh path needs no local secrets at all)
 - Load with: `set -a; . .env.<channel>.local; set +a`
@@ -362,13 +362,24 @@ ANAF_LIVE=1  ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
 
 ---
 
-## SdI prerequisites (currently deferred)
+## SdI prerequisites (currently deferred — code is implemented-awaiting-accreditation)
+
+Status (2026-09-01): step 3 below is DONE — a real `SdiHttpPort` (`SdiCoopClient`,
+`backend/src/modules/documents/transports/sdi/sdicoop-client.ts`) exists, built from the published
+SdICoop WSDL/XSD/instructions (see `CREDENTIALS_GUIDE.md` §4's own citation list), and
+`sdi-transport.ts` already uses it whenever a company's "sdi" channel credentials are complete. What
+remains is entirely OUTSIDE this codebase's control:
 
 1. Register as an intermediary (*intermediario*) with AdE.
-2. Obtain a qualified digital certificate (PFX/P12) from an accredited CA.
-3. Implement `SdiHttpPort` for SDICoop SOAP (`RiceviFileService`) or PEC channel.
-4. Inject the implementation into `SdiTransmissionProvider` constructor.
-5. Set `SDI_LIVE=1` + creds and run the live spec.
+2. Obtain a qualified digital certificate (PFX/P12) from an accredited CA (client cert; a distinct-key
+   server cert too, if the notifiche receiver is to be mTLS-authenticated server-side — see
+   `sdi-notifiche.service.ts`'s own header on what that endpoint still lacks).
+3. ~~Implement `SdiHttpPort` for SDICoop SOAP~~ — done (`sdicoop-client.ts`).
+4. Declare the accredited `SDI_ENDPOINT` (the `SdIRiceviFile` URL AdE assigns) as this company's "sdi"
+   channel credential, alongside `SDI_ID_TRASMITTENTE`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD`.
+5. Set `SDI_LIVE=1` + all four creds and run `sdicoop.live.spec.ts` — the first real run against
+   collaudo may reveal envelope discrepancies reading the spec alone could not anticipate (see that
+   spec's own header).
 
 ## Peppol — multi-provider Access Point support
 
@@ -410,7 +421,8 @@ Live proof needs a trial account (manual request, 30-day sandbox; no self-serve 
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
-- The `live` job handles proven channels (KSeF, PDP, SdI, Peppol, email, TSA) plus the
+- The `live` job handles KSeF/PDP/Peppol/email/TSA (proven or gated) and SdI (implemented-awaiting-
+  accreditation, still deferred — see "SdI prerequisites" above) plus the
   creds-free `apply-signal.live.spec.ts` DB test (`COMPLIANCE_LIVE_DB_TESTS=1`, set as a workflow
   constant — needs only the job's own disposable Postgres, no secret).
 - The `national-portals-live` job runs `portal-live.spec.ts` with all namespaced `<PREFIX>_*`
@@ -458,7 +470,7 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 |---|---|---|
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ `PDP_API_STYLE`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP + AFNOR | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. AFNOR uses the same creds + `PDP_API_STYLE=afnor`. |
-| `SDI_ID_TRASMITTENTE`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD`, `SDI_CHANNEL` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) + qualified PFX from an eIDAS TSP (Aruba, InfoCert, Namirial). |
+| `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see `CREDENTIALS_GUIDE.md` §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
 | _(none)_ | Peppol via peppol.sh | Self-signup in the spec — no secret needed. `PEPPOL_AP_PROVIDER` is a constant (`'peppol-sh'`) in the workflow — not a secret. ✅ proven. |
 | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol generic AP | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. |
 | `<PREFIX>_CLIENT_ID`, `<PREFIX>_CLIENT_SECRET`, `<PREFIX>_API_KEY`, `<PREFIX>_AUTH_TOKEN`, `<PREFIX>_CERTIFICATE`, `<PREFIX>_CERT_PASSWORD`, `<PREFIX>_TAXPAYER_ID`, `<PREFIX>_BASE_URL`, `<PREFIX>_SELLER_VAT`, `<PREFIX>_BUYER_VAT`, `<PREFIX>_COUNTRY` (per portal) | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… `<PREFIX>_LIVE` and `<PREFIX>_ENVIRONMENT` are constants in the workflow YAML — **not secrets**. |

@@ -1,16 +1,23 @@
 /**
- * The "sdi" transport in isolation — root TODO item 10, wave 2. `@/prisma/prisma.service` is mocked
- * wholesale, same discipline `pdp-transport.spec.ts`/`ksef-transport.spec.ts` hold. Two distinct
- * things are proven here:
+ * The "sdi" transport in isolation — root TODO item 10, wave 2, now **implemented-awaiting-
+ * accreditation** (a real SdICoop SOAP client exists — `sdi/sdicoop-client.ts`). `@/prisma/prisma.service`
+ * is mocked wholesale, same discipline `pdp-transport.spec.ts`/`ksef-transport.spec.ts` hold. Three
+ * distinct things are proven here:
  *
- *  1. The REAL production wiring (no `httpPort` override) genuinely fails, honestly, the moment
- *     `send()` is reached — `UNACCREDITED_SDI_HTTP_PORT` (`sdi/sdi-client.ts`) is what a deployment
- *     gets today, pending AdE accreditation (see `sdi-transport.ts`'s own header). This is NOT a bug
- *     this spec papers over: it is the honest, current state, asserted rather than assumed.
- *  2. The ORCHESTRATION around a (mocked) accredited client — preflight gate, FatturaPA payload
+ *  1. Without a fully-connected channel (missing ANY of idTrasmittente/certificate/`endpoint`) —
+ *     today's honest default for every company, since none holds real AdE accreditation — `preflight()`
+ *     throws, pointing at `CREDENTIALS_GUIDE.md` §4 (the exact "renvoi au guide" this task's own brief
+ *     asks for).
+ *  2. The REAL production wiring (no `httpPort` override), WITH a fully-connected (but necessarily
+ *     unaccredited-in-reality) config, genuinely reaches a REAL `SdiCoopClient` and genuinely fails —
+ *     against a local, unroutable endpoint (`127.0.0.1:1`, connection refused — no real network
+ *     dependency, no `.live.spec.ts` gate needed for THIS assertion) rather than the old unconditional
+ *     stub. This is NOT a bug this spec papers over: it is the honest, current state
+ *     (implemented-awaiting-accreditation), asserted rather than assumed.
+ *  3. The ORCHESTRATION around a (mocked) accredited client — preflight gate, FatturaPA payload
  *     build+gate, and this task's mutation #2-adjacent fact for THIS channel: an empty `idSdI` is
- *     NEVER a success — using an injected mock `SdiHttpPort`, the seam a real SOAP client plugs into
- *     once accreditation lands. The real wire is `sdi/sdi-live.spec.ts`, gated `SDI_LIVE=1`.
+ *     NEVER a success — using an injected mock `SdiHttpPort`, the seam the real `SdiCoopClient` also
+ *     plugs into. The real wire is `sdi/sdicoop.live.spec.ts`, gated `SDI_LIVE=1`.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
@@ -44,6 +51,10 @@ const CONNECTED_CONFIG = {
     idTrasmittente: 'IT01234567890',
     certificate: 'base64-pfx-contents',
     certificatePassword: 'secret',
+    // A local, unroutable address (connection refused immediately, no DNS, no real network — see
+    // this file's own header, point 2) — NOT a placeholder for "any string will do": this is what
+    // actually makes `send()`'s REAL-wiring test below reach a genuine `SdiCoopClient` attempt.
+    endpoint: 'https://127.0.0.1:1/ricevi_file',
   },
 };
 
@@ -112,12 +123,29 @@ describe('buildSdiTransport', () => {
       const deps = buildDeps({
         resolveActive: jest.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
-          config: { idTrasmittente: 'IT01234567890' },
+          config: { idTrasmittente: 'IT01234567890', endpoint: 'https://127.0.0.1:1/ricevi_file' },
         }),
       });
       const transport = buildSdiTransport(deps);
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
     });
+
+    it(
+      'throws, pointing at CREDENTIALS_GUIDE.md §4, when connected but missing `endpoint` — ' +
+        "today's honest default: nobody holds real AdE accreditation yet",
+      async () => {
+        const deps = buildDeps({
+          resolveActive: jest.fn().mockResolvedValue({
+            ...CONNECTED_CONFIG,
+            config: { idTrasmittente: 'IT01234567890', certificate: 'base64-pfx-contents' },
+          }),
+        });
+        const transport = buildSdiTransport(deps);
+        await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
+        await expect(transport.preflight!('company-1')).rejects.toThrow(/CREDENTIALS_GUIDE\.md §4/);
+        await expect(transport.preflight!('company-1')).rejects.toThrow(/AdE|accreditation/i);
+      },
+    );
 
     it('resolves cleanly when fully connected', async () => {
       const deps = buildDeps();
@@ -127,14 +155,19 @@ describe('buildSdiTransport', () => {
   });
 
   describe('send() — the REAL production wiring (no httpPort override)', () => {
-    it('genuinely fails — AdE accreditation is not obtained today, and this transport never pretends otherwise', async () => {
+    it('reaches a REAL SdiCoopClient and genuinely fails — no company holds real AdE accreditation ' +
+      'today, so `endpoint` never points at a reachable SdI server; this transport never pretends ' +
+      'otherwise (implemented-awaiting-accreditation)', async () => {
       const deps = buildDeps();
       const transport = buildSdiTransport(deps);
 
+      // `CONNECTED_CONFIG.config.endpoint` is `https://127.0.0.1:1/ricevi_file` — connection
+      // refused immediately, no external network dependency, no `.live.spec.ts` gate needed: this
+      // proves the REAL client is reached (a network-level failure, not the old stub's fixed
+      // "not implemented" message) without ever touching the real internet.
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/SdI submission failed/);
-      await expect(transport.send(CTX)).rejects.toThrow(/AdE|accreditation/i);
-    });
+    }, 15_000);
   });
 
   describe('send() — orchestration, with a mocked (future-accredited) SdiHttpPort', () => {

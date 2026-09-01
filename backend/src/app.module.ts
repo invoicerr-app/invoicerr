@@ -13,6 +13,7 @@ import { ConfigModule } from '@nestjs/config';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
+import { SdiNotificheModule } from './modules/documents/transports/sdi/sdi-notifiche.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
@@ -69,6 +70,10 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     DangerModule,
     DocumentsModule,
     PublicDocumentsModule,
+    // Root TODO item 10, SdI wave — the ONE `@Public()` route for the six `TrasmissioneFatture`
+    // notifiche SdI pushes at us (see `sdi-notifiche.module.ts`'s own header on why its own module,
+    // not folded into `PublicDocumentsModule`).
+    SdiNotificheModule,
     ReceivedInvoicesModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,

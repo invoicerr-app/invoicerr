@@ -2201,6 +2201,7 @@
         "ksefToken": "KSeF token",
         "sdiCertificate": "PFX certificate (base64)",
         "sdiCertificatePassword": "Certificate password",
+        "sdiEndpoint": "SdIRiceviFile endpoint URL",
         "sdiIdTrasmittente": "IdTrasmittente"
       },
       "mandatePrompt": {
