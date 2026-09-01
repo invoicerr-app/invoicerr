@@ -35,7 +35,7 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
               !field.value && "text-muted-foreground",
               field.className
             )}
-            data-cy={field['data-cy']}
+            dataCy={field['data-cy']}
           >
             {field.value ? (
               format(field.value, "PPP", {
