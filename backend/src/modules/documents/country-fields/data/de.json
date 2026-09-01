@@ -1,0 +1,22 @@
+{
+  "countryCode": "DE",
+  "overlays": [
+    {
+      "typeId": "invoice",
+      "operations": [
+        {
+          "op": "add",
+          "path": "",
+          "field": {
+            "key": "buyerReference",
+            "kind": "text",
+            "label": "Buyer reference (Leitweg-ID)",
+            "required": false,
+            "helpText": "The buyer's own reference — for a German public-sector buyer this is usually a Leitweg-ID. Used as BT-10 (\"Buyer reference\") on an EN 16931 export; XRechnung's own BR-DE-15 refuses the document when this is missing (`formats/xrechnung-provider.ts`)."
+          }
+        }
+      ]
+    }
+  ],
+  "notes": "Germany's FIRST field-overlay file — same mechanism and shape as France's own `fr.json` (`lines[].supplyType`), applied here at the DOCUMENT level instead of a line: BT-10 (\"Buyer reference\") is a document-wide fact, not a per-line one. Added as an OPTIONAL top-level field (`path: ''` — schema.ts's own top-level convention) rather than a change to the trunk `invoice.descriptor.ts`: BT-10 only becomes MANDATORY under the XRechnung/Peppol deltas (`formats/xrechnung-provider.ts`'s BR-DE-15, `formats/peppol-bis-provider.ts`'s PEPPOL-EN16931-R003), never at the base EN 16931 layer every OTHER seller builds against — the same 'a country's own difference from the trunk is data, never a change forced on everyone' discipline `country-fields/schema.ts`'s own header documents. `formats/shared-build.ts#extractBuyerReference` reads `data.buyerReference` generically, off ANY document regardless of which overlay (if any) put an input for it on screen — see that function's own header: a seller in a country with no overlay for this field (e.g. a French seller invoicing a German public body, the exact case XRechnung exists for) has no SCREEN control for it today, a known, documented UX gap, not a format that refuses to serve them — the underlying JSON value, however it got there, is read the same way for every seller. Labeled directly (no i18n key), matching every other field label already shipped on `fr.json`'s own `supplyType` overlay and `invoice.descriptor.ts` itself — see that file's own comment on `DocumentFieldDescriptor.label` for why the frontend renders it verbatim, never through `t()`."
+}
