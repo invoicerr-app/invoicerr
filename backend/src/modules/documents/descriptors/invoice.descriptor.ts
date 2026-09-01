@@ -473,6 +473,13 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
               // syntax", the same way a French company can already download a `ubl` export today.
               { value: 'fa3', label: 'FA(3) — Polish KSeF national schema' },
               { value: 'fatturapa', label: 'FatturaPA — Italian SdI national schema' },
+              // Root TODO item 26 ("Peppol/Allemagne") — SIXTH and SEVENTH entries, same "no country
+              // gate, ever" rule as every option above: a French seller can request 'xrechnung' for a
+              // German public buyer just as freely as a US one can already request 'ubl' today (see
+              // this file's own comment on the entries above). What differs is the DATA the chosen
+              // syntax's own delta then demands at build time — never something this select decides.
+              { value: 'peppol-bis', label: 'Peppol BIS Billing 3.0' },
+              { value: 'xrechnung', label: 'XRechnung 3.0 (KoSIT, Germany)' },
             ],
           },
         ],

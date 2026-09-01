@@ -58,7 +58,9 @@ import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
 import { fa3FormatProvider } from './formats/national/fa3-provider';
 import { fatturapaFormatProvider } from './formats/national/fatturapa-provider';
+import { peppolBisFormatProvider } from './formats/peppol-bis-provider';
 import { ublFormatProvider } from './formats/ubl-provider';
+import { xrechnungFormatProvider } from './formats/xrechnung-provider';
 import {
   ACTION_EXTENSION_REGISTRY,
   ACTION_REGISTRY,
@@ -122,6 +124,11 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * `sdi-transport.ts`), registered here too so `download-xml` can also offer them directly (see that
  * action's own `syntax` param options). Neither needs a companyId or any extra dependency, so
  * (unlike `facturx`) they are plain objects, not factories.
+ *
+ * `peppol-bis` and `xrechnung` (root TODO item 26, wave: "Peppol/Allemagne") are the SIXTH and
+ * SEVENTH — both UBL-syntax EN 16931 profiles judged by the base Schematron PLUS their own vendored
+ * delta (see each provider's own header for exactly which BR-DE-* / PEPPOL-EN16931-R* rules that
+ * delta enforces and how). Neither needs a companyId either, so both are plain objects too.
  */
 function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
   const registry = new FormatProviderRegistry();
@@ -130,6 +137,8 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
   registry.register(buildFacturxFormatProvider({ referenceRegistry }));
   registry.register(fa3FormatProvider);
   registry.register(fatturapaFormatProvider);
+  registry.register(peppolBisFormatProvider);
+  registry.register(xrechnungFormatProvider);
   return registry;
 }
 

@@ -226,14 +226,20 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   const downloadXmlAction = descriptor.actions.find((action) => action.id === "download-xml")
   const showDownloadXml = !!downloadXmlAction && isActionAvailable(downloadXmlAction, instance.status)
 
-  const handleDownloadXml = async (syntax: "cii" | "ubl" | "facturx") => {
+  const handleDownloadXml = async (syntax: "cii" | "ubl" | "facturx" | "peppol-bis" | "xrechnung") => {
     try {
       const response = await authenticatedFetch(
         `/api/documents/${instance.id}/formats/${syntax}?typeId=${descriptor.id}`,
       )
       if (!response.ok) {
         const body = await response.json().catch(() => null)
-        throw new Error(body?.message || `HTTP ${response.status}`)
+        // `body.message` alone is the GENERIC "failed EN 16931 validation" wrapper — the actual named
+        // rule (BR-DE-1, BR-DE-15, ...) lives in `body.errors` (documents.service.ts#downloadDocument
+        // Format's own "THE GATE" comment). A named refusal (root TODO item 26, "Peppol/Allemagne" —
+        // e.g. "download an xrechnung export with no IBAN on file") must actually SAY which rule/field
+        // is missing, not just that something failed — the generic message alone used to hide it.
+        const detail = Array.isArray(body?.errors) && body.errors.length ? body.errors.join(" — ") : null
+        throw new Error(detail || body?.message || `HTTP ${response.status}`)
       }
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
@@ -355,6 +361,18 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
                 data-cy={`document-xml-facturx-${instance.id}`}
               >
                 {t("documents.list.downloadXmlFacturx")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleDownloadXml("peppol-bis")}
+                data-cy={`document-xml-peppol-bis-${instance.id}`}
+              >
+                {t("documents.list.downloadXmlPeppolBis")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleDownloadXml("xrechnung")}
+                data-cy={`document-xml-xrechnung-${instance.id}`}
+              >
+                {t("documents.list.downloadXmlXrechnung")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -28,12 +28,10 @@ const { Schema } = require('node-schematron');
 
 /**
  * Enregistre la fonction XPath personnalisée `u:slack` (tolérance ± sur une comparaison de
- * montant/prix) que le Peppol BIS Billing 3.0 Schematron (PEPPOL-EN16931-UBL.sch, rangé mais pas
- * encore branché — voir vendored/peppol/) déclare comme fonction XSLT. node-schematron s'appuie sur
- * fontoxpath, qui exige un enregistrement explicite via `registerCustomXPathFunction` — les
- * déclarations `xsl:function` internes au .sch ne sont pas lues automatiquement. Reprise VERBATIM du
- * repère : ce fichier ne branche pas encore Peppol BIS (item 10/16), mais le jour où il le fera, la
- * fonction sera déjà enregistrée ici plutôt que redécouverte en prod sur un premier échec silencieux.
+ * montant/prix) que le Peppol BIS Billing 3.0 Schematron (PEPPOL-EN16931-UBL.sch, branché par
+ * `../peppol-bis-provider.ts`) déclare comme fonction XSLT. node-schematron s'appuie sur fontoxpath,
+ * qui exige un enregistrement explicite via `registerCustomXPathFunction` — les déclarations
+ * `xsl:function` internes au .sch ne sont pas lues automatiquement. Reprise VERBATIM du repère.
  * Idempotent (même clé → no-op au réimport via le cache de modules).
  */
 try {
@@ -141,3 +139,8 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
 /** Chemins des rulesets vendorés RÉELLEMENT branchés aujourd'hui, relatifs à ce fichier. */
 export const EN16931_CII_SCH = 'en16931/EN16931-CII-validation-preprocessed.sch';
 export const EN16931_UBL_SCH = 'en16931/EN16931-UBL-validation-preprocessed.sch';
+/** Le delta OpenPEPPOL BIS Billing 3.0 — s'exécute EN PLUS de `EN16931_UBL_SCH`, jamais à la place
+ *  (voir `../peppol-bis-provider.ts`), exactement comme les deltas nationaux ci-dessous. */
+export const PEPPOL_BIS_UBL_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
+/** Le delta KoSIT XRechnung 3.0.x — idem, branché par `../xrechnung-provider.ts`. */
+export const XRECHNUNG_UBL_SCH = 'de/XRechnung-UBL-validation-preprocessed.sch';

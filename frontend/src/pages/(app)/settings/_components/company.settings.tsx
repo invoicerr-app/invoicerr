@@ -122,6 +122,17 @@ export default function CompanySettings() {
       .refine((val) => {
         return z.string().email().safeParse(val).success
       }, t("settings.company.form.email.errors.format")),
+    // BT-84 (Payment account identifier) — optional; the backend never fabricates one (see
+    // Company.iban's own schema.prisma comment). Format checked loosely here (ISO 13616 shape); the
+    // real checksum/format gate is the vendored XRechnung Schematron itself (BR-DE-19), never
+    // duplicated here.
+    iban: z
+      .string()
+      .optional()
+      .refine((val) => {
+        if (!val?.trim()) return true
+        return /^[A-Za-z]{2}[0-9]{2}[A-Za-z0-9]{1,30}$/.test(val.replace(/\s+/g, ""))
+      }, t("settings.company.form.iban.errors.format")),
     quoteStartingNumber: z.number().min(1, t("settings.company.form.quoteStartingNumber.errors.min")),
     quoteNumberFormat: z
       .string()
@@ -197,6 +208,7 @@ export default function CompanySettings() {
       countryCode: "",
       phone: "",
       email: "",
+      iban: "",
       invoicePDFFormat: "",
       quoteStartingNumber: 1,
       quoteNumberFormat: "Q-{year}-{number}",
@@ -228,6 +240,7 @@ export default function CompanySettings() {
         state: data.state ?? "",
         foundedAt: new Date(data.foundedAt),
         exemptVat: !!data.exemptVat,
+        iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
         referenceCurrency: data.referenceCurrency ?? "",
         identifiers: (data.partyIdentifiers || [])
@@ -326,6 +339,10 @@ export default function CompanySettings() {
       ],
       // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
       referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
+      // Same "empty means unset, stored as null" convention as referenceCurrency above — an IBAN is
+      // never fabricated (see Company.iban's own schema.prisma comment), so leaving this blank must
+      // stay indistinguishable from "never set one".
+      iban: values.iban?.trim() ? values.iban.trim().toUpperCase().replace(/\s+/g, "") : null,
     }
     trigger(payload)
       .then((result) => {
@@ -752,6 +769,25 @@ export default function CompanySettings() {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="iban"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.company.form.iban.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("settings.company.form.iban.placeholder")}
+                        {...field}
+                        data-cy="company-iban-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.iban.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
           </Card>
 
@@ -958,7 +994,26 @@ export default function CompanySettings() {
                   <FormItem>
                     <FormLabel>{t("settings.company.form.invoiceTransportId.label")}</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select
+                        // NOT `field.onChange` directly — found empirically (a real "no transport
+                        // configured" 501 hit while proving item 26's own e2e coverage, never from a
+                        // guess): `invoiceTransports` (useDocumentTransports) loads ASYNCHRONOUSLY,
+                        // unlike every other <Select>'s options on this page (all static arrays,
+                        // available on the very first render). Radix's own hidden native-`<select>`
+                        // mirror ("SelectBubbleInput", kept in sync for native form semantics) fires
+                        // a REAL `change` event the moment `SelectItem`s go from zero (before the
+                        // fetch resolves) to populated — and since NONE matched the already-loaded
+                        // `field.value` while the list was still empty, that native mirror's own
+                        // value is "", which bubbles up as a SPURIOUS `onValueChange("")` call,
+                        // silently wiping a value this form never touched. A real user selection
+                        // NEVER produces "" here (there is no "none" `SelectItem`), so simply
+                        // ignoring an empty callback drops only that spurious event, never a genuine
+                        // choice.
+                        onValueChange={(value) => {
+                          if (value) field.onChange(value)
+                        }}
+                        value={field.value || ""}
+                      >
                         <SelectTrigger className="w-full" data-cy="company-invoice-transport-select">
                           <SelectValue
                             placeholder={t("settings.company.form.invoiceTransportId.placeholder")}

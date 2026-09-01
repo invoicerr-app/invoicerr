@@ -74,6 +74,9 @@ export class EditCompanyDto {
   countryCode?: string;
   phone?: string;
   email?: string;
+  /** BT-84 (Payment account identifier) — see Company.iban's own schema.prisma comment. Null/absent
+   *  clears it; never validated/fabricated here, the vendored XRechnung Schematron is the real gate. */
+  iban?: string | null;
   pdfConfig: PDFConfigDto;
   quoteStartingNumber: number;
   quoteNumberFormat: string;

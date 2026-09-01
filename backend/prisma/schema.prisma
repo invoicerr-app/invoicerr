@@ -295,6 +295,17 @@ model Company {
   phone        String
   email        String
 
+  // BT-84 (Payment account identifier) — the seller's OWN receiving account, threaded into
+  // `formats/semantic/build-semantic-invoice.ts` as `cac:PaymentMeans/cac:PayeeFinancialAccount`
+  // (BG-16/BG-17) whenever set. Optional, and never invented: XRechnung's BR-DE-1 (a PAYMENT
+  // INSTRUCTIONS group is mandatory) is exactly what this column exists to satisfy honestly — a
+  // company with none on file gets a NAMED refusal citing BR-DE-1 and this field, never a fabricated
+  // value (see formats/xrechnung-provider.ts's own header). Free `String`, not validated against the
+  // ISO 13616 checksum here — the vendored XRechnung Schematron itself already checks that
+  // (BR-DE-19, non-blocking) the moment a document is actually built; duplicating that check on
+  // write would be a second, divergent copy of the same rule.
+  iban String?
+
   quoteStartingNumber   Int    @default(1) // Starting number for quotes
   quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"
   invoiceStartingNumber Int    @default(1) // Starting number for invoices

@@ -1674,6 +1674,14 @@
             "format": "Email format is invalid"
           }
         },
+        "iban": {
+          "label": "IBAN",
+          "placeholder": "e.g. DE89 3704 0044 0532 0130 00",
+          "description": "Your company's receiving bank account, used as \"Payment instructions\" (BG-16) on formats that require one, such as XRechnung. Optional — leave blank if you don't take bank transfers on invoices, or haven't set one up yet.",
+          "errors": {
+            "format": "IBAN format is invalid"
+          }
+        },
         "quoteStartingNumber": {
           "label": "Quote Starting Number",
           "placeholder": "Enter starting number for quotes",
@@ -3018,7 +3026,9 @@
                   "ubl": "UBL 2.1",
                   "facturx": "Factur-X (PDF/A-3 with embedded CII)",
                   "fa3": "FA(3) — Polish KSeF national schema",
-                  "fatturapa": "FatturaPA — Italian SdI national schema"
+                  "fatturapa": "FatturaPA — Italian SdI national schema",
+                  "peppol-bis": "Peppol BIS Billing 3.0",
+                  "xrechnung": "XRechnung 3.0 (KoSIT, Germany)"
                 }
               }
             }
@@ -3391,6 +3401,8 @@
       "downloadXmlCii": "CII (UN/CEFACT)",
       "downloadXmlUbl": "UBL 2.1",
       "downloadXmlFacturx": "Factur-X (PDF/A-3)",
+      "downloadXmlPeppolBis": "Peppol BIS Billing 3.0",
+      "downloadXmlXrechnung": "XRechnung 3.0 (Germany)",
       "downloadXmlError": "The normalized XML export could not be generated.",
       "shareLink": "Share link",
       "processing": "Processing…",

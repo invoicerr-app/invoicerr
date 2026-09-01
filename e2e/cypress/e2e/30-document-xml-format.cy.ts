@@ -339,4 +339,187 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 			});
 		});
 	});
+
+	// Root TODO item 26 ("Peppol/Allemagne") — the two NEW EN 16931 profiles, each judged by the base
+	// Schematron PLUS its own vendored delta (backend/src/modules/documents/formats/{peppol-bis,
+	// xrechnung}-provider.ts). Same discipline as the rest of this file: the ACTION is a real click,
+	// the ASSERTIONS intercept the real network request, never the screen alone.
+	describe("XRechnung (KoSIT) — the named refusal without an IBAN, then the full happy path", () => {
+		// FIRST, deliberately: the seeded baseline company (resetAndSeed) never sets an IBAN, so this
+		// runs before the next test gives it one — proving the refusal on the company's OWN, real
+		// "nothing set yet" state, not a state this spec engineered by clearing a field back out.
+		it("without an IBAN on file, downloading xrechnung through the screen refuses, naming BR-DE-1", () => {
+			// buyerReference (BT-10, Leitweg-ID) IS provided — the seeded FR company has no
+			// country-fields overlay UI for it (that is DE-only, see country-fields/data/de.json's
+			// own header), so it is set directly via the API body, exactly like this file's own
+			// `createAndSendInvoice` already does for every other field. The intent is a clean,
+			// SINGLE-cause refusal: the IBAN, and only the IBAN, is missing.
+			createAndSendInvoice({ buyerReference: "04011000-1234512345-06" }).then(({ id }) => {
+				cy.visit("/documents/invoice", { timeout: 20000 });
+
+				cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/xrechnung` }).as(
+					"xrechnungNoIban",
+				);
+				cy.get(`[data-cy="document-xml-button-${id}"]`, { timeout: 10000 }).click();
+				cy.get(`[data-cy="document-xml-xrechnung-${id}"]`, { timeout: 10000 })
+					.should("be.visible")
+					.click();
+				cy.wait("@xrechnungNoIban", { timeout: 20000 }).then((x) => {
+					expect(x.response?.statusCode, "refused, never served").to.eq(400);
+				});
+				// The NAMED refusal — the toast carries the backend's own `errors` array (the exact
+				// rule id), not just the generic "failed EN 16931 validation" wrapper.
+				cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "BR-DE-1");
+			});
+		});
+
+		it("sets the IBAN via Settings on screen, then a complete DE-ready invoice downloads a real XRechnung — 0 error", () => {
+			cy.visit("/settings/company", { timeout: 20000 });
+			// The form renders immediately with EMPTY defaults and only fills in from the real
+			// company (including `invoiceTransportId`, set in this file's own `before()`) once its
+			// own GET resolves and calls `form.reset(data)` — waiting for the NAME's real VALUE (not
+			// merely the input's existence) is what actually proves that reset already ran, so
+			// submitting below never clobbers `invoiceTransportId` back to empty (a real 501 this
+			// spec hit once, "no transport configured", before this wait was added).
+			cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("have.value", "Acme Corp");
+			cy.get('[data-cy="company-iban-input"]', { timeout: 15000 }).should("exist");
+			// Same overflow-clipped-by-a-parent quirk `company-legalid-input` already has a documented
+			// fix for (02-company.cy.ts's own `completeCompanyProfile`) — scroll it into view first.
+			cy.get('[data-cy="company-iban-input"]').scrollIntoView();
+			// ISO 13616's own published example (Deutsche Bundesbank) — the same fixture value the
+			// jest master proof uses, never a real account.
+			cy.get('[data-cy="company-iban-input"]').clear({ force: true }).type("DE89370400440532013000", {
+				force: true,
+			});
+			cy.get('[data-cy="company-submit-btn"]').click();
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("be.visible");
+			cy.wait(1000);
+
+			createAndSendInvoice({ buyerReference: "04011000-1234512345-06" }).then(({ id, displayNumber }) => {
+				cy.visit("/documents/invoice", { timeout: 20000 });
+				cy.window().then((win) => cy.stub(win, "open").as("windowOpenXRechnung"));
+
+				cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/xrechnung` }).as(
+					"xrechnungOk",
+				);
+				cy.get(`[data-cy="document-xml-button-${id}"]`, { timeout: 10000 }).click();
+				cy.get(`[data-cy="document-xml-xrechnung-${id}"]`, { timeout: 10000 })
+					.should("be.visible")
+					.click();
+				cy.wait("@xrechnungOk", { timeout: 20000 }).then((x) => {
+					expect(x.response?.statusCode, "a real, validated XRechnung export").to.eq(200);
+					const body = String(x.response?.body);
+					expect(body).to.contain(displayNumber);
+					expect(body).to.contain("240.00");
+					expect(body).to.contain("<cbc:BuyerReference>04011000-1234512345-06</cbc:BuyerReference>");
+					expect(body).to.contain("DE89370400440532013000");
+					expect(body).to.contain(
+						"urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0",
+					);
+				});
+				cy.get("@windowOpenXRechnung").its("callCount").should("eq", 1);
+			});
+		});
+	});
+
+	// The seeded baseline seller is French — its own three mandatory C. com. mentions (BG-1) push
+	// `cbc:Note` past Peppol's own PEPPOL-EN16931-R002 cap of one, a KNOWN, DOCUMENTED gap (see
+	// `peppol-bis-provider.ts`'s own header, and its spec's "a documented gap" test) that this ticket
+	// does not fix (it would mean collapsing the note-array mechanism `cii-post-process.ts` and every
+	// FR mentions test already depend on — a cross-cutting change, out of scope here). Proving a real
+	// HAPPY PATH through the actual application therefore needs a seller with no mandated BG-1
+	// mentions at all — the US (mentions/data/all.ts ships only 'fr') is also the ONLY other country
+	// with its OWN `country-policy/data/*.json` file (`us.json`, so save-draft/send/download-xml stay
+	// allowed): switching to Germany instead was tried FIRST and empirically hits a SEPARATE,
+	// unrelated gate — `country-policy` denies EVERY action for any country with no policy file at
+	// all ("No document action policy is declared for 'DE'"), a real, pre-existing gap this ticket
+	// does not attempt to close (it would mean writing a sourced DE country-policy file, a distinct,
+	// unrelated body of legal research this ticket's own scope — two new FORMATS — never asked for).
+	//
+	// A DOMESTIC US-US invoice, not a cross-border US-seller/FR-buyer one: also tried FIRST and
+	// empirically hit a SECOND, unrelated pre-existing gap — a non-EU seller against an EU buyer
+	// makes `tax/resolve-invoice-tax.ts` (root TODO item 16) recategorize the line "O" (out of
+	// scope), but `build-semantic-invoice.ts` still emits BT-152 (the item VAT rate) unconditionally,
+	// which BR-O-05 forbids for that category — a genuine gap in the item-16 cross-border bridge,
+	// unrelated to Peppol/XRechnung format work, so this spec routes AROUND it (both parties in the
+	// same country) rather than silently depending on a fix that belongs to a different ticket.
+	//
+	// Both parties also need a REAL electronic address (`cbc:EndpointID`) the Peppol codelist itself
+	// accepts (PEPPOL-EN16931-CL008) — this bridge's own base-layer fallback ('EM', a bare email, see
+	// `build-semantic-invoice.ts#endpointFor`) is NOT one of Peppol's own CEF-EAS codes, discovered
+	// empirically the same way, so both sides are given a REAL `PEPPOL_ENDPOINT` party identifier —
+	// the EXACT EXISTING mechanism item 10 already built (`explicitEndpointFor`), the same one the
+	// Settings screen's own "Peppol / Electronic routing" section (company.settings.tsx) already
+	// collects for a company. Set here via the API for the SAME reason every other piece of this
+	// file's own supporting data is (the client's own country/identifiers have no dedicated screen
+	// beyond what client-upsert.tsx already covers) — the DOWNLOAD itself, the one thing this test
+	// exists to prove, still happens through a real click.
+	//
+	// Runs LAST in this file on purpose — it changes the seeded company's own country and
+	// identifiers, and every OTHER spec file gets a fresh `resetAndSeed()` regardless (see
+	// e2e/cypress/support/e2e.ts's own global `before()`), the same reasoning 15-multi-company.cy.ts's
+	// own header already documents for switching the active company.
+	describe("Peppol BIS Billing 3.0", () => {
+		it("a domestic US invoice downloads a real Peppol BIS export through the screen — 0 error", () => {
+			cy.request({
+				method: "POST",
+				url: `${api}/api/company/info`,
+				body: {
+					country: "United States",
+					countryCode: "US",
+					identifiers: [
+						{ scheme: "VAT", value: "US987654321" },
+						{ scheme: "PEPPOL_ENDPOINT", value: "0060:123456789" },
+					],
+				},
+			}).then((res) => {
+				expect(res.status, "seller switched to a Peppol-ready US company").to.be.oneOf([200, 201]);
+			});
+
+			cy.request({ url: `${api}/api/documents/references/client/search` })
+				.its("body")
+				.then((clients: { id: string }[]) => {
+					cy.request({
+						method: "PATCH",
+						url: `${api}/api/clients/${clients[0].id}`,
+						body: {
+							name: "Test Client",
+							country: "United States",
+							countryCode: "US",
+							identifiers: [{ scheme: "PEPPOL_ENDPOINT", value: "9945:987654321" }],
+						},
+					}).then((res) => {
+						expect(res.status, "buyer switched to a Peppol-ready US client").to.be.oneOf([200, 201]);
+					});
+				});
+
+			createAndSendInvoice({ buyerReference: "PO-2026-00099" }).then(({ id, displayNumber }) => {
+				cy.visit("/documents/invoice", { timeout: 20000 });
+				cy.window().then((win) => cy.stub(win, "open").as("windowOpenPeppol"));
+
+				cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/peppol-bis` }).as(
+					"peppolBisOk",
+				);
+				cy.get(`[data-cy="document-xml-button-${id}"]`, { timeout: 10000 }).click();
+				cy.get(`[data-cy="document-xml-peppol-bis-${id}"]`, { timeout: 10000 })
+					.should("be.visible")
+					.click();
+				cy.wait("@peppolBisOk", { timeout: 20000 }).then((x) => {
+					expect(x.response?.statusCode, "a real, validated Peppol BIS export").to.eq(200);
+					const body = String(x.response?.body);
+					expect(body).to.contain(displayNumber);
+					expect(body).to.contain("240.00");
+					expect(body).to.contain("<cbc:BuyerReference>PO-2026-00099</cbc:BuyerReference>");
+					expect(body).to.contain(
+						"urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0",
+					);
+					// The real Peppol endpoints on both sides — CL008's own requirement, not the base
+					// bridge's plain-email fallback.
+					expect(body).to.contain('schemeID="0060">123456789<');
+					expect(body).to.contain('schemeID="9945">987654321<');
+				});
+				cy.get("@windowOpenPeppol").its("callCount").should("eq", 1);
+			});
+		});
+	});
 });

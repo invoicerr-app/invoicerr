@@ -126,17 +126,38 @@ function extractCrossBorderMentions(data: Record<string, unknown>): { code: stri
 }
 
 /**
+ * BT-10 — read straight off `data.buyerReference` for ANY document, regardless of which (if any)
+ * country-fields overlay put the input control on screen. Today only the DE overlay
+ * (`country-fields/data/de.json`) adds a Leitweg-ID field for it, but this extraction deliberately
+ * does not know that: see `build-semantic-invoice.ts`'s own header on `SemanticInvoiceInput.
+ * buyerReference` for why this stays country-neutral (a French seller invoicing a German public
+ * body needs the exact same fact, and a value saved via any other route — the API directly, a future
+ * second overlay — must be read the same way).
+ */
+function extractBuyerReference(data: Record<string, unknown>): string | undefined {
+  return typeof data.buyerReference === 'string' && data.buyerReference.trim()
+    ? data.buyerReference.trim()
+    : undefined;
+}
+
+/**
  * Builds the semantic `EuInvoice` for one document instance — descriptor + already-computed totals
  * + party snapshots, composed exactly once here so `cii-provider.ts`/`ubl-provider.ts` never diverge
  * on how a document's data becomes the semantic model. Throws `SemanticBuildError`
  * (`semantic/build-semantic-invoice.ts`) when a line's VAT category cannot be resolved — the caller
  * (`documents.service.ts#downloadDocumentFormat`) is what turns that into a 400.
+ *
+ * `options.customizationId` is the ONE thing `peppol-bis-provider.ts`/`xrechnung-provider.ts` pass
+ * that `cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts` never do — see
+ * `SemanticInvoiceInput.customizationId`'s own header. Every other extraction below (buyer reference,
+ * cross-border mentions, lines) is already syntax/profile-agnostic and stays exactly as it was.
  */
 export function buildEuInvoiceForDocument(
   descriptor: DocumentTypeDescriptor,
   document: Pick<DocumentInstanceResult, 'data' | 'displayNumber'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
+  options?: { customizationId?: string },
 ) {
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
@@ -154,5 +175,7 @@ export function buildEuInvoiceForDocument(
     lines,
     totals,
     additionalMentions: extractCrossBorderMentions(data),
+    buyerReference: extractBuyerReference(data),
+    customizationId: options?.customizationId,
   });
 }

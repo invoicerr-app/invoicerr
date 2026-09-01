@@ -33,6 +33,10 @@ export interface Company {
   countryCode?: string | null
   phone: string
   email: string
+  /** BT-84 (Payment account identifier) — the seller's own receiving account, optional. Required by
+   *  XRechnung's own BR-DE-1 (backend/src/modules/documents/formats/xrechnung-provider.ts); absent
+   *  for every other syntax. Never auto-filled — see Company.iban's own schema.prisma comment. */
+  iban?: string | null
   quoteStartingNumber: number
   quoteNumberFormat: string
   invoiceStartingNumber: number

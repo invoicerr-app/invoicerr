@@ -21,7 +21,7 @@ import { join } from 'node:path';
 
 import { CountryFieldOverlayFile } from '../schema';
 
-const COUNTRY_FILES: readonly string[] = ['fr'];
+const COUNTRY_FILES: readonly string[] = ['fr', 'de'];
 
 function loadCountryFile(code: string): CountryFieldOverlayFile {
   const path = join(__dirname, `${code}.json`);

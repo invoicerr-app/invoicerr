@@ -10,8 +10,8 @@ export class UnknownFormatError extends Error {
 /**
  * Registry of normalized document format providers, keyed by id — the exact same shape as
  * `transports/transport-registry.ts`'s `TransportRegistry` (register/list/has/resolve), for the same
- * reason: a NEW jurisdiction's syntax (Peppol BIS, XRechnung — item 10/16, deliberately NOT branched
- * by this ticket, see `format-registry.spec.ts`'s own header) is a plugin registration here, never a
+ * reason: a NEW jurisdiction's syntax (Peppol BIS — `peppol-bis-provider.ts`, XRechnung —
+ * `xrechnung-provider.ts`, both branched by root TODO item 26) is a plugin registration here, never a
  * change to `documents.service.ts#downloadDocumentFormat`, which only ever asks this registry
  * "do you have `id`?" and never enumerates known ids by name.
  *

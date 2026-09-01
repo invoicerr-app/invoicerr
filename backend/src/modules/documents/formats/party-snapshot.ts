@@ -16,6 +16,10 @@ export interface CompanyRowForFormat {
   country: string;
   email?: string | null;
   phone?: string | null;
+  /** BT-84 — see Company.iban's own schema comment. Absent for a Client on purpose: a BUYER's own
+   *  receiving account has no business term in this bridge today (only the seller ever gets paid on
+   *  an invoice), so `clientToFormatParty` below never reads an equivalent column. */
+  iban?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
 }
 
@@ -43,6 +47,7 @@ export function companyToFormatParty(company: CompanyRowForFormat): DocumentForm
     country: company.country,
     email: company.email,
     phone: company.phone,
+    iban: company.iban,
     partyIdentifiers: company.partyIdentifiers,
   };
 }

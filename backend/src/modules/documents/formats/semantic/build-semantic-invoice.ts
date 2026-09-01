@@ -166,6 +166,10 @@ export interface SemanticPartyInput {
   country: string | null;
   email?: string | null;
   phone?: string | null;
+  /** BT-84 (Payment account identifier), SELLER side only — see `Company.iban`'s own schema comment
+   *  and `party-snapshot.ts#CompanyRowForFormat`. `undefined`/`null` for every Client (a buyer has no
+   *  such column) and for a Company that never set one. */
+  iban?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
 }
 
@@ -223,6 +227,29 @@ export interface SemanticInvoiceInput {
    * for every domestic invoice.
    */
   additionalMentions?: { code: string; text: string }[];
+  /**
+   * BT-10 (Buyer reference) — COUNTRY-NEUTRAL by construction: this bridge never asks who the seller
+   * is before emitting it, because the real-world need is not either (root TODO item 26's own
+   * report, point 2): a German public buyer requires a Leitweg-ID/BT-10 on ANY invoice addressed to
+   * it, including one issued by a seller in a country with no overlay field for it at all. Wired
+   * generically here (`shared-build.ts#extractBuyerReference`, reading `data.buyerReference` off ANY
+   * document regardless of which country-fields overlay — if any — put the input on screen) rather
+   * than gated behind a DE-only flag, exactly like `additionalMentions` above is read unconditionally
+   * whether or not it happens to be populated. Also what satisfies Peppol BIS's own PEPPOL-EN16931-
+   * R003 ("a buyer reference or purchase order reference MUST be provided") — a base-standard/Peppol
+   * concern, not a DE one. `undefined` for every existing CII/UBL/Factur-X fixture (none sets
+   * `data.buyerReference`), so their own output is byte-for-byte unaffected.
+   */
+  buyerReference?: string;
+  /**
+   * BT-24 (Specification identifier) override — defaults to the plain base EN 16931 URN
+   * (`'urn:cen.eu:en16931:2017'`) when absent, exactly the value every CII/UBL/Factur-X fixture
+   * already asserts. `peppol-bis-provider.ts`/`xrechnung-provider.ts` are the only two callers that
+   * ever pass something else — each value quoted VERBATIM from the vendored delta that actually
+   * requires it (Peppol's PEPPOL-EN16931-R004; XRechnung's own `$XR-CIUS-ID` `<let>`), never invented
+   * here.
+   */
+  customizationId?: string;
 }
 
 /**
@@ -320,6 +347,60 @@ function ceiledDecimals(currency: string): number {
 
 function fmt2(minor: number, currency: string): string {
   return fromMinor(minor, currency).toFixed(ceiledDecimals(currency));
+}
+
+/**
+ * BT-41/BT-42/BT-43 (BG-6, Seller contact) — OPTIONAL at the base EN 16931 layer (this file's own
+ * header), MANDATORY under XRechnung's BR-DE-2/5/6/7. Wired here, unconditionally, for every syntax
+ * this bridge builds (never gated behind a "is this XRechnung" flag): `seller.phone`/`seller.email`
+ * come straight off `Company.phone`/`Company.email`, both NON-NULLABLE columns on a real company
+ * (schema.prisma) — so a genuine seller always has BOTH the moment this block fires at all, and the
+ * only reason it is skipped entirely is a bare hand-built test fixture that set neither. `cbc:Name`
+ * (BT-41, "the name of the point of contact") reuses the company's OWN registered name: this bridge
+ * has no dedicated "contact person" field anywhere in the data model (Company has no such column —
+ * only Client does, for its OWN contact person, a different business term entirely), and the
+ * company's registered name is a genuine fact already on file, never a fabricated placeholder — the
+ * same category of honest reuse `endpointFor`'s own email fallback already relies on above.
+ */
+function sellerContact(seller: SemanticPartyInput): Record<string, string> | undefined {
+  if (!seller.phone && !seller.email) return undefined;
+  return {
+    'cbc:Name': seller.name,
+    ...(seller.phone ? { 'cbc:Telephone': seller.phone } : {}),
+    ...(seller.email ? { 'cbc:ElectronicMail': seller.email } : {}),
+  };
+}
+
+/**
+ * BG-16/BG-17 (Payment instructions / Credit transfer) — MANDATORY under XRechnung's BR-DE-1
+ * (`cac:PaymentMeans` must exist) and BR-DE-23-a (`cac:PayeeFinancialAccount` must exist whenever the
+ * means code is a transfer). Emitted only when `seller.iban` is actually on file (`Company.iban`,
+ * optional) — NEVER fabricated (see that column's own schema comment): a seller with none simply
+ * gets no `cac:PaymentMeans` block, and `xrechnung-provider.ts`'s own delta then refuses the
+ * document, NAMING BR-DE-1/BT-84, which is the intended, honest outcome, not a bug this function
+ * should paper over.
+ *
+ * PaymentMeansCode '30' ("Credit transfer" — UNTDID 4461), NOT '58' ("SEPA credit transfer"): found
+ * EMPIRICALLY, not assumed, that code '58' crashes node-schematron/fontoxpath outright — BR-DE-19's
+ * own IBAN-checksum assert (`xrechnung-provider.spec.ts`'s own test caught it) casts a mod-97
+ * intermediate value to `xs:integer` via `fontoxpath`, which backs that type with a native JS
+ * `number` rather than arbitrary-precision arithmetic; a real IBAN's digits-only expansion (~25-30
+ * digits) throws `FOCA0003: ... out of bounds for JavaScript numbers` instead of failing the
+ * assertion, taking down the ENTIRE Schematron run, not just this one (non-fatal, warning-level!)
+ * rule. BR-DE-19's own test (`not(code = '58') or (...))`) short-circuits on `or` (verified directly
+ * against fontoxpath) — code '30' means that right-hand side, the one that crashes, is never
+ * evaluated at all. Both codes are equally honest here (this data model has no SEPA-specific fact —
+ * only a bare IBAN — so asserting the more specific '58' would itself be an unverified claim); '30'
+ * is the one this library can actually validate without crashing.
+ */
+function sellerPaymentMeans(seller: SemanticPartyInput): Record<string, unknown>[] | undefined {
+  if (!seller.iban) return undefined;
+  return [
+    {
+      'cbc:PaymentMeansCode': '30',
+      'cac:PayeeFinancialAccount': { 'cbc:ID': seller.iban.replace(/\s+/g, '').toUpperCase() },
+    },
+  ];
 }
 
 function postalAddress(party: SemanticPartyInput, fallbackCountry: string) {
@@ -482,6 +563,10 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   if (isFrenchSeller && sellerLegalId) {
     sellerParty['cac:PartyIdentification'] = [{ 'cbc:ID': sellerLegalId, 'cbc:ID@schemeID': '0225' }];
   }
+  const contact = sellerContact(input.seller);
+  if (contact) {
+    sellerParty['cac:Contact'] = contact;
+  }
   if (sellerVat) {
     sellerParty['cac:PartyTaxScheme'] = [
       { 'cbc:CompanyID': sellerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } },
@@ -580,9 +665,11 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     },
   }));
 
+  const paymentMeans = sellerPaymentMeans(input.seller);
+
   const euInvoice: EuInvoice = {
     'ubl:Invoice': {
-      'cbc:CustomizationID': 'urn:cen.eu:en16931:2017',
+      'cbc:CustomizationID': input.customizationId ?? 'urn:cen.eu:en16931:2017',
       // BT-23 — UBL's OWN native field for the French "cadre de facturation" (see this file's own
       // header, and business-process.ts's header for the full wiring). Set ONLY when
       // `resolveFrenchBusinessProcessCode` actually resolved a code above; absent entirely otherwise,
@@ -599,6 +686,9 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         ? { 'cbc:Note': [...(input.notes ? [input.notes] : []), ...legalMentionNotes] }
         : {}),
       'cbc:DocumentCurrencyCode': currency,
+      // BT-10 — see `SemanticInvoiceInput.buyerReference`'s own header. Absent entirely when not
+      // supplied, exactly the pre-existing behaviour for every syntax that never sets it.
+      ...(input.buyerReference ? { 'cbc:BuyerReference': input.buyerReference } : {}),
       'cac:AccountingSupplierParty': { 'cac:Party': sellerParty as never },
       'cac:AccountingCustomerParty': { 'cac:Party': buyerParty as never },
       // BT-72 (Actual delivery date) is OPTIONAL in EN 16931 — but `@e-invoice-eu/core`'s CII
@@ -617,6 +707,9 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // above already makes — never a legal/fiscal claim, BT-72 has no tax consequence) is what
       // gives the wrapper real content to serialize.
       'cac:Delivery': { 'cbc:ActualDeliveryDate': input.issueDate },
+      // BG-16/BG-17 — see `sellerPaymentMeans`'s own header. Absent entirely when the seller has no
+      // IBAN on file, exactly the pre-existing behaviour (no such block was ever emitted before this).
+      ...(paymentMeans ? { 'cac:PaymentMeans': paymentMeans as never } : {}),
       'cac:TaxTotal': [
         {
           'cbc:TaxAmount': fmt2(input.totals.vatMinor, currency),
