@@ -8,9 +8,10 @@
 - ~~`05-clients` : 5 tests (Allemagne, Royaume-Uni)~~ — **RÉSOLU à l'item 19** (2026-09-01) :
   fichiers de/gb livrés avec les sources primaires lues (UStG, VAT Regulations 1995), spec 05 à
   23/23. La base de rouges permanents passe de 6 à UN (16-company-lookup, item 20).
-- **`16-company-lookup` : 1 test (`expected 40 to be above 100`)** — la couverture de la recherche
-  d'entreprise est tombée de 118 à ~40 pays à la démolition (la liste venait des profils
-  supprimés). Rattaché à l'item **20** : décider de la nouvelle source de la liste.
+- ~~`16-company-lookup` : 1 test (`expected 40 to be above 100`)~~ — **RÉSOLU à l'item 20**
+  (2026-09-01, décision utilisateur : liste ISO complète) : 250 capabilities (REGISTER pour les
+  registres dédiés, PARTIAL + note pour le reste via GLEIF/Peppol Directory), spec 16 à 7/7.
+  **La base de rouges permanents est VIDE — première batterie intégralement verte.**
 - ~~`14-articles` : pré-remplissage depuis le catalogue~~ — **RÉSOLU à la tâche 6** (2026-08-31) :
   le descripteur déclare `prefillFrom`, le formulaire générique offre « From catalog », la spec 14
   est à 10/10. La base de rouges permanents passe de 7 à 6.

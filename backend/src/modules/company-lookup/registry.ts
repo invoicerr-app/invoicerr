@@ -34,6 +34,7 @@ import { VietnamTaxCodeProvider } from './providers/vn.provider';
 // Cross-border, not countries: the EU VAT check and the two worldwide directories.
 import { PeppolDirectoryProvider } from './providers/peppol-directory.provider';
 import { ViesProvider } from './providers/vies.provider';
+import { ISO_COUNTRY_CODES } from './data/iso-countries';
 import {
   CompanyRegistryProvider,
   CountryLookupCapability,
@@ -144,44 +145,6 @@ function toCapability(p: CompanyRegistryProvider): ProviderCapability {
   };
 }
 
-/**
- * Les États membres de l'UE — un fait public, pas une règle fiscale.
- *
- * Cette liste venait des profils pays du moteur de conformité, supprimé. Elle est ici parce que
- * VIES couvre l'Union et rien d'autre : sans elle, `capabilities()` ne rendait plus que les pays
- * ayant leur propre registre national, et la couverture annoncée s'effondrait de plus de cent pays
- * à quarante. Trouvé en rejouant les tests e2e après la suppression.
- */
-const EU_MEMBER_STATES: readonly string[] = [
-  'AT',
-  'BE',
-  'BG',
-  'HR',
-  'CY',
-  'CZ',
-  'DK',
-  'EE',
-  'FI',
-  'FR',
-  'DE',
-  'GR',
-  'HU',
-  'IE',
-  'IT',
-  'LV',
-  'LT',
-  'LU',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SK',
-  'SI',
-  'ES',
-  'SE',
-];
-
 export class CompanyLookupRegistry {
   constructor(private readonly providers: CompanyRegistryProvider[] = buildDefaultProviders()) {}
 
@@ -238,9 +201,21 @@ export class CompanyLookupRegistry {
     };
   }
 
-  /** Capabilities for every country the compliance profiles know about, plus any extra a provider covers. */
+  /**
+   * Capabilities for every ISO 3166-1 country (`data/iso-countries.ts`), plus any extra a
+   * provider covers that the standard list wouldn't (defensive: a provider is the source
+   * of truth for what it serves, the ISO list should never be the reason a real country
+   * goes unlisted).
+   *
+   * Before this enumerated the full ISO list, it walked the EU member states (for VIES)
+   * union the countries each provider named explicitly — a ~40-country result, because
+   * that union only ever reached as far as a national register or VIES existed. Almost
+   * every country outside that union still gets an answer from `capability()` (GLEIF and
+   * Peppol Directory are keyless and worldwide), so the previous list was undercounting
+   * coverage that already existed, not gating it.
+   */
   capabilities(): CountryLookupCapability[] {
-    const countries = new Set<string>(EU_MEMBER_STATES);
+    const countries = new Set<string>(ISO_COUNTRY_CODES);
     for (const p of this.providers) {
       if (p.countries === 'ALL') continue; // worldwide providers add no country of their own
       for (const c of p.countries) countries.add(c);

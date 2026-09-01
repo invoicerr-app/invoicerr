@@ -103,6 +103,26 @@ describe('CompanyLookupRegistry', () => {
     expect(registry.capability('PL').identifierLabel).toMatch(/NIP/);
   });
 
+  it('enumerates every ISO country, not just the ~40 with a provider of their own', () => {
+    // The permanent-red e2e assertion this backs: 16-company-lookup.cy.ts expects > 100.
+    // Before the full ISO list, `capabilities()` only walked EU members ∪ providers'
+    // explicit country lists — every country outside that union still answered fine
+    // through `capability()` (GLEIF/Peppol are worldwide), it just never got listed.
+    expect(registry.capabilities().length).toBeGreaterThan(100);
+  });
+
+  it('gives a country with its own register REGISTER coverage', () => {
+    expect(registry.capability('FR').coverage).toBe('REGISTER');
+  });
+
+  it('gives a country with no register at all — not even VIES — PARTIAL coverage and names its sources', () => {
+    const tuvalu = registry.capability('TV');
+    expect(tuvalu.status).toBe('AVAILABLE');
+    expect(tuvalu.coverage).toBe('PARTIAL');
+    expect(tuvalu.providers.map((p) => p.id)).toEqual(['gleif', 'peppol-directory']);
+    expect(tuvalu.note).toMatch(/GLEIF LEI index, Peppol Directory/);
+  });
+
   it('can be built with a custom provider set', () => {
     const empty = new CompanyLookupRegistry([]);
     expect(empty.forCountry('FR')).toEqual([]);
