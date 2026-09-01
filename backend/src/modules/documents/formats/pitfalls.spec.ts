@@ -286,3 +286,55 @@ describe("today's bridge limitation, stated rather than hidden", () => {
     ).toThrow(SemanticBuildError);
   });
 });
+
+// USER DECISION (2026-09-01, TODO_ISSUES.md "le pays vendeur irrésolu retombait sur 'FR'
+// silencieusement", now RÉSOLU) — this bridge's OWN independent block, symmetric to
+// `tax/resolve-invoice-tax.ts`'s own `UnresolvedSellerCountryError` (see that file's own header) for
+// the one path that can reach `buildSemanticInvoice` without going through the tax resolver first.
+describe("today's bridge limitation, stated rather than hidden — an unresolvable SELLER country", () => {
+  function inputWith(sellerCountry: string | null) {
+    const totals = computeDocumentTotals(descriptor, DATA_ZERO_RATE);
+    return {
+      displayNumber: 'INV-NOCC-01',
+      issueDate: DATA_ZERO_RATE.issueDate,
+      seller: { ...frSeller(true), country: sellerCountry },
+      buyer: BUYER,
+      lines: DATA_ZERO_RATE.lines.map((l) => ({
+        description: l.description,
+        quantity: l.quantity,
+        unit: l.unit,
+        unitPrice: l.unitPrice,
+      })),
+      totals,
+    };
+  }
+
+  it('a seller with no country at all refuses to build, named — never a silent FR default', () => {
+    expect(() => buildSemanticInvoice(inputWith(null))).toThrow(SemanticBuildError);
+    expect(() => buildSemanticInvoice(inputWith(null))).toThrow(
+      /seller's own country could not be determined/,
+    );
+  });
+
+  it("an unresolvable BUYER country refuses the same way — the last silent ?? 'FR' is gone", () => {
+    // Reachable only when a client record breaks AFTER its invoice was sent (the send path already
+    // hard-blocks an unresolvable buyer at tax resolution) — still a named refusal, never a default
+    // FR quietly stamped into BT-55 for what might be a German buyer.
+    const totals = computeDocumentTotals(descriptor, DATA_ZERO_RATE);
+    const input = {
+      ...inputWith('France'),
+      totals,
+      buyer: { ...BUYER, country: 'Nowhereland' },
+    };
+    expect(() => buildSemanticInvoice(input)).toThrow(SemanticBuildError);
+    expect(() => buildSemanticInvoice(input)).toThrow(/buyer's country could not be determined/);
+  });
+
+  it('an unresolvable free-text seller country ("Nowhereland") refuses the same way', () => {
+    expect(() => buildSemanticInvoice(inputWith('Nowhereland'))).toThrow(SemanticBuildError);
+  });
+
+  it("MUTATION TARGET (task's own mutation #2) — a NORMAL, resolvable FR seller is completely unaffected", () => {
+    expect(() => buildSemanticInvoice(inputWith('France'))).not.toThrow();
+  });
+});

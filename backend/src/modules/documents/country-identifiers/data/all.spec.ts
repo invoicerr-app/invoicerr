@@ -144,11 +144,12 @@ describe('country-identifiers/data — the shipped DE and GB files', () => {
     expect(vat.helpText).toMatch(/DE \+ 9 digits/);
   });
 
-  it('the FR LEGAL_ID pattern is untouched by this task — still SIRET (14 digits), still required for BOTH party types', () => {
+  it('the FR LEGAL_ID pattern accepts SIREN (9 digits) OR SIRET (14 digits) — user decision, 2026-09-01 — still required for BOTH party types', () => {
     const fr = fileFor('FR');
     const legalId = fr.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
     const regex = new RegExp(legalId.pattern!);
-    expect(regex.test('12345678901234')).toBe(true); // 14 digits
+    expect(regex.test('123456789')).toBe(true); // 9 digits — SIREN
+    expect(regex.test('12345678901234')).toBe(true); // 14 digits — SIRET
     expect(regex.test('12345')).toBe(false); // the exact value 05-clients.cy.ts's format-error test types
     expect(legalId.appliesTo).toBe('BOTH');
     expect(legalId.required).toBe(true);
@@ -169,12 +170,15 @@ describe('country-identifiers/data — the shipped DE and GB files', () => {
 // Root TODO item 21 — "Sourcer FR et US". FR's VAT scheme was read at its own text this time (CGI
 // ann. II art. 242 nonies A, on codes.droit.org, a Légifrance mirror — Légifrance itself still
 // refused every automated request) and promoted to "legal", the same way task 19 promoted GB's own
-// VAT fact above. FR's LEGAL_ID (SIRET) stays "unverified" DELIBERATELY: both candidate texts named
-// in its old resolutionNote were read too, and they settle the underlying legal question (a French
-// invoice must carry the SIREN, not necessarily the SIRET) — but that answer diverges from what this
-// scheme currently encodes, and this task's own scope is provenance, not behavior, so nothing here
-// changed. See TODO_ISSUES.md ("SIRET vs SIREN sur la facture") for the citations and the product
-// decision this opens.
+// VAT fact above. FR's LEGAL_ID stayed "unverified" at the time item 21 first ran: both candidate
+// texts named in its old resolutionNote were read too, and they settled the underlying legal question
+// (a French invoice must carry the SIREN, not necessarily the SIRET) while that answer diverged from
+// what the scheme encoded — item 21's own scope was provenance, not behavior, so nothing changed yet.
+//
+// USER DECISION (2026-09-01, TODO_ISSUES.md "SIRET vs SIREN sur la facture" — now RÉSOLU): the field
+// accepts EITHER length. Label "SIREN / SIRET", pattern `^\d{9}(\d{5})?$`, provenance promoted to
+// "legal" (the citations settle the question; accepting the longer SIRET on top is a documented
+// product choice, not an unsourced claim — see the fact's own `notes`), `required` unchanged (true).
 describe('country-identifiers/data — FR VAT promoted to "legal" by root TODO item 21 (2026-09-01)', () => {
   it('FR VAT cites CGI ann. II art. 242 nonies A (the VAT number is a mandatory mention, except under franchise-en-base)', () => {
     const fr = fileFor('FR');
@@ -186,19 +190,39 @@ describe('country-identifiers/data — FR VAT promoted to "legal" by root TODO i
     }
     expect(vat.required).toBe(false); // unchanged: the exemption is why this stays optional at country level
   });
+});
 
-  it('FR LEGAL_ID (SIRET) is untouched in BEHAVIOR by this task, but its resolutionNote now names the read texts and the SIREN divergence they surface', () => {
+// USER DECISION (2026-09-01) — FR's LEGAL_ID accepts SIREN (9 digits) OR SIRET (14 digits). See
+// TODO_ISSUES.md's own entry, now RÉSOLU, and fr.json's own `notes` for the full reasoning: a valid
+// SIRET always CONTAINS the required SIREN as its own first 9 digits (R.123-221's second alinéa), so
+// accepting the longer value is not a departure from the text, only a tolerance for a more precise
+// input the codebase already knows how to reduce (`build-semantic-invoice.ts#toSiren`).
+describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or SIRET (2026-09-01)', () => {
+  it('is now "legal" provenance, citing R.123-237/D.123-235/R.123-221 and CGI ann. II art. 242 nonies A, I, 1°', () => {
     const fr = fileFor('FR');
     const legalId = fr.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
-    expect(legalId.provenance.kind).toBe('unverified'); // stays unverified: the read texts diverge from this value
-    expect(legalId.label).toBe('SIRET');
-    expect(legalId.pattern).toBe('^\\d{14}$');
-    expect(legalId.required).toBe(true);
-    if (legalId.provenance.kind === 'unverified') {
-      expect(legalId.provenance.resolutionNote).toMatch(/R\.123-237/);
-      expect(legalId.provenance.resolutionNote).toMatch(/242 nonies A/);
-      expect(legalId.provenance.resolutionNote).toMatch(/SIREN/);
-      expect(legalId.provenance.resolutionNote).toMatch(/TODO_ISSUES\.md/);
+    expect(legalId.provenance.kind).toBe('legal');
+    if (legalId.provenance.kind === 'legal') {
+      expect(legalId.provenance.sourceText).toMatch(/R\.123-237/);
+      expect(legalId.provenance.sourceText).toMatch(/242 nonies A/);
+      expect(legalId.provenance.sourceText).toMatch(/SIREN/);
+      expect(legalId.provenance.sourceCheckedAt).toBe('2026-09-01');
     }
+    expect(legalId.notes).toMatch(/TODO_ISSUES\.md/);
+    expect(legalId.notes).toMatch(/RÉSOLUE/);
+  });
+
+  it('label is "SIREN / SIRET", pattern accepts 9 OR 14 digits, still required for BOTH party types', () => {
+    const fr = fileFor('FR');
+    const legalId = fr.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
+    expect(legalId.label).toBe('SIREN / SIRET');
+    expect(legalId.pattern).toBe('^\\d{9}(\\d{5})?$');
+    const regex = new RegExp(legalId.pattern!);
+    expect(regex.test('123456789')).toBe(true); // 9 digits
+    expect(regex.test('12345678901234')).toBe(true); // 14 digits
+    expect(regex.test('1234567890')).toBe(false); // 10 — neither length
+    expect(regex.test('12345')).toBe(false);
+    expect(legalId.appliesTo).toBe('BOTH');
+    expect(legalId.required).toBe(true);
   });
 });

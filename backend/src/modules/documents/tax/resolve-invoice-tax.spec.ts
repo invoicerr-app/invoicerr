@@ -2,6 +2,7 @@ import {
   ForeignVatRateError,
   resolveInvoiceCrossBorderTax,
   UnresolvedBuyerCountryError,
+  UnresolvedSellerCountryError,
   UnsupportedOssDestinationError,
 } from './resolve-invoice-tax';
 
@@ -65,6 +66,46 @@ describe('resolveInvoiceCrossBorderTax — unresolved buyer country: hard block,
         data,
       }),
     ).toThrow(UnresolvedBuyerCountryError);
+  });
+});
+
+// USER DECISION (2026-09-01, TODO_ISSUES.md "le pays vendeur irrésolu retombait sur 'FR'
+// silencieusement", now RÉSOLU) — symmetric to the buyer block above: this function used to fall
+// back to `'FR'` for an unresolvable SELLER country, the SAME class of bug the buyer block already
+// exists to prevent. MUTATION TARGET (task's own mutation #2): reinstating `?? 'FR'` on `sellerCC`
+// makes every test in this block pass with the OLD, silent behaviour instead of throwing — this is
+// exactly what a reviewer should watch for.
+describe("resolveInvoiceCrossBorderTax — unresolved SELLER country: hard block, never a silent 'FR'", () => {
+  it('a seller with no country at all blocks, named — even for a pure-domestic-looking send', () => {
+    const data = dataWithLines([{ description: 'x', quantity: 1, unitPrice: 100, vatRate: '20' }]);
+    expect(() => resolveInvoiceCrossBorderTax({ seller: {}, buyer: { countryCode: 'FR' }, data })).toThrow(
+      UnresolvedSellerCountryError,
+    );
+    expect(() => resolveInvoiceCrossBorderTax({ seller: {}, buyer: { countryCode: 'FR' }, data })).toThrow(
+      /seller's own country could not be determined/,
+    );
+  });
+
+  it('an unresolvable free-text seller country ("Nowhereland") blocks the same way', () => {
+    const data = dataWithLines([{ description: 'x', quantity: 1, unitPrice: 100, vatRate: '20' }]);
+    expect(() =>
+      resolveInvoiceCrossBorderTax({
+        seller: { country: 'Nowhereland' },
+        buyer: { countryCode: 'FR' },
+        data,
+      }),
+    ).toThrow(UnresolvedSellerCountryError);
+  });
+
+  it('a NORMAL, resolvable FR seller is completely unaffected — regression guard', () => {
+    const data = dataWithLines([{ description: 'x', quantity: 1, unitPrice: 100, vatRate: '20' }]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'FR' },
+      data,
+    });
+    expect(result.crossBorder).toBe(false);
+    expect(result.data).toBe(data);
   });
 });
 

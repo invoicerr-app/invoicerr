@@ -384,14 +384,31 @@
   re-comptabilisation ligne à ligne du document du fournisseur) plutôt qu'un oubli : voir
   `received-invoice.descriptor.ts`'s own header.
 
-- **Le pays VENDEUR irrésolu retombe silencieusement sur FR** (constaté à la relecture de l'item 16) :
+~~**Le pays VENDEUR irrésolu retombe silencieusement sur FR** (constaté à la relecture de l'item 16) :
   `tax/resolve-invoice-tax.ts` et `formats/semantic/build-semantic-invoice.ts` partagent la même
   convention `?? 'FR'` quand le pays de la SOCIÉTÉ ne se résout pas (problème de qualité de données
   que la fonction ne peut pas réparer en refusant tout envoi — dixit le commentaire). L'acheteur, lui,
   bloque dur (jamais de repli — le bug du 0 % payé). Risque borné (le pays est obligatoire à
   l'onboarding) mais le repli reste un pays NOMMÉ dans le code cœur : une société DE aux données
   cassées serait traitée fiscalement comme française sans le dire. Alternative plus stricte : bloquer
-  l'envoi aussi côté vendeur, avec le même genre de message nommé. À trancher.
+  l'envoi aussi côté vendeur, avec le même genre de message nommé. À trancher.~~ — **RÉSOLU**
+  (décision utilisateur, 2026-09-01) : les deux replis `?? 'FR'` sont remplacés par un blocage
+  NOMMÉ, symétrique de celui de l'acheteur. `tax/resolve-invoice-tax.ts` lève `UnresolvedSellerCountryError`
+  (nouvelle classe, ajoutée à `isInvoiceTaxBlockError`) — message : « the seller's own country could
+  not be determined — refusing to silently default to FR (the exact same class of bug this product
+  already fixed for an unresolved BUYER country…). Complete the country field on this company in
+  Settings before sending. » `formats/semantic/build-semantic-invoice.ts` lève le même genre de
+  blocage (`SemanticBuildError`, symétrique) pour le seul chemin qui peut l'atteindre sans passer par
+  le résolveur fiscal d'abord. Les deux points d'entrée réels sont couverts : le préflight/deliver de
+  "send" (`invoice-actions.ts`, via `tax/load-and-resolve.ts` → le même résolveur, donc échoue AVANT
+  toute persistance) et `documents.service.ts#downloadDocumentFormat` (le pont est partagé — preuve
+  directe à ce niveau, pas seulement au résolveur pur). Aucune fixture existante ne s'appuyait sur le
+  repli (recherché explicitement — aucun test n'omettait le pays vendeur) ; l'onboarding rend déjà le
+  pays obligatoire (`onboarding.tsx`'s own `country: z.string().min(1, …)`, une étape dédiée qui
+  bloque la suite du wizard), donc aucun nouveau cas e2e n'était nécessaire. Tests : `tax/resolve-
+  invoice-tax.spec.ts`'s own "unresolved SELLER country" describe block, `formats/pitfalls.spec.ts`'s
+  own symmetric block, `documents.service.formats.spec.ts`'s own "gate 4… unresolvable SELLER
+  country" — vendeur FR normal inchangé (regression guard) dans les trois.
 
 - **`country-identifiers/seed.ts` ne purge jamais un pays entièrement retiré** (découvert à la
   tâche 19, en prouvant une mutation) : le nettoyage des schémas obsolètes ne parcourt que les pays
@@ -421,7 +438,7 @@
   d'identification mentionné au PREMIER ALINÉA de l'article R. 123-221 du code de commerce » — le
   premier alinéa de R.123-221 est précisément le numéro à neuf chiffres de l'unité légale, c'est-à-
   dire le SIREN, jamais le second alinéa (l'établissement, le SIRET).
-  **Ce que ça implique** : le champ actuel (`label: "SIRET"`, `pattern: ^\d{14}$`, `required: true`
+  ~~**Ce que ça implique** : le champ actuel (`label: "SIRET"`, `pattern: ^\d{14}$`, `required: true`
   pour les deux types de tiers) demande un numéro à 14 chiffres alors que les deux textes lus
   pointent vers un numéro à 9. Un SIRET valide CONTIENT toujours un SIREN valide (ses 9 premiers
   chiffres), donc le champ actuel n'est pas nécessairement FAUX au sens où il accepterait un mauvais
@@ -437,4 +454,18 @@
   `country-identifiers/data/fr.json`'s own LEGAL_ID `resolutionNote` (reste `unverified`, enrichie
   avec ces citations) et `country-identifiers/data/all.spec.ts`'s own describe block pour item 21.
   Ce qui trancherait pour de bon : une décision explicite sur le champ, ou un troisième texte qui
-  imposerait spécifiquement le SIRET (pas trouvé ici).
+  imposerait spécifiquement le SIRET (pas trouvé ici).~~ — **RÉSOLU** (décision utilisateur,
+  2026-09-01) : le champ accepte désormais LES DEUX formats — `label: "SIREN / SIRET"`,
+  `pattern: ^\d{9}(\d{5})?$` (9 OU 14 chiffres), `required` inchangé (`true`). La provenance passe à
+  `legal` (les citations ci-dessus, verbatim, en deviennent le `sourceText`, `sourceCheckedAt:
+  "2026-09-01"`) ; le raisonnement produit ("accepter le sur-précis n'est pas un écart au texte : un
+  SIRET valide CONTIENT le SIREN exigé dans ses 9 premiers chiffres, donc le tolérer n'invente rien")
+  vit dans le `notes` de cette même entrée. Aucun aval ne s'appuyait sur le pattern à 14 chiffres
+  précisément (ni le SIRET→SIREN de `build-semantic-invoice.ts#toSiren`, qui réduisait déjà toute
+  entrée de 14 chiffres et laissait un 9-chiffres tel quel — donc rien à corriger là ; ni un écran, ni
+  aucune validation serveur : le pattern n'a jamais été appliqué nulle part, seulement affiché en
+  `helpText`). Preuve : `country-identifiers/data/all.spec.ts`'s own describe block ("FR LEGAL_ID
+  resolved to accept SIREN or SIRET") et `formats/providers.spec.ts`'s own describe block ("SIREN (9
+  digits) is accepted and emits the identical SIREN as a SIRET") — un SIREN à 9 chiffres et un SIRET à
+  14 chiffres produisent le MÊME XML CII/UBL, jugé par le vrai Schematron vendoré. Specs e2e (02, 05,
+  18) inchangées et vertes telles quelles (elles tapent des 14 chiffres, toujours acceptés).

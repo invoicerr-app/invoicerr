@@ -34,9 +34,10 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
   const buyerVatRow = client?.partyIdentifiers?.[0];
 
   return resolveInvoiceCrossBorderTax({
-    // An unresolvable/absent SELLER company is not this function's problem to invent a block for —
-    // `resolve-invoice-tax.ts`'s own fallback-to-FR (documented, matching `build-semantic-
-    // invoice.ts`'s pre-existing behaviour) applies exactly as it would with real data.
+    // An unresolvable/absent SELLER company (never configured, or a country row that cannot be
+    // resolved) resolves to an unresolved seller country, which is the named hard block USER DECISION
+    // (2026-09-01) requires — `resolve-invoice-tax.ts`'s own `UnresolvedSellerCountryError` — never a
+    // silent fallback to FR, same discipline the buyer side already held below.
     seller: { country: company?.country, countryCode: company?.countryCode },
     // No client row at all (a data problem `documents.service.ts`'s own validation already catches
     // earlier — `client` is a required field) resolves to an unresolved buyer country, which is

@@ -247,3 +247,55 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
     });
   });
 });
+
+/**
+ * USER DECISION (2026-09-01, TODO_ISSUES.md "SIRET vs SIREN sur la facture", now RÉSOLU) —
+ * `country-identifiers/data/fr.json`'s LEGAL_ID field now accepts EITHER a 9-digit SIREN or a
+ * 14-digit SIRET (see that file's own `notes`). This is the proof the DECISION actually holds where
+ * it matters — the exported BT-29/BT-30 (`cac:PartyLegalEntity/cbc:CompanyID`, ISO 6523 scheme
+ * '0002') — not just that the catalog's own `pattern` string was edited: a 9-digit SIREN typed
+ * directly must reach the SAME XML as a 14-digit SIRET, because `build-semantic-invoice.ts#toSiren`
+ * only ever SLICES a 14-digit value and passes anything else through unchanged (see that function's
+ * own header) — so a 9-digit input was already, structurally, never re-derived. Judged by the REAL
+ * vendored EN 16931 Schematron, exactly like the master proof above, never a hand-asserted opinion.
+ */
+describe('root TODO item 21 — SIREN (9 digits) is accepted and emits the identical SIREN as a SIRET (14 digits)', () => {
+  const SELLER_WITH_SIREN: DocumentFormatParty = {
+    ...SELLER,
+    partyIdentifiers: [
+      { scheme: 'VAT', value: 'FR12345678901' },
+      { scheme: 'LEGAL_ID', value: '123456789' }, // 9-digit SIREN, typed directly — no SIRET on file
+    ],
+  };
+
+  describe.each([
+    ['CII', ciiFormatProvider] as const,
+    ['UBL', ublFormatProvider] as const,
+  ])('%s', (_label, provider) => {
+    it('a bare 9-digit SIREN builds a VALID artifact carrying scheme 0002 = 123456789', async () => {
+      const result = await provider.build(descriptor, DOCUMENT, SELLER_WITH_SIREN, BUYER);
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
+
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+      // CII: <ram:SpecifiedLegalOrganization><ram:ID schemeID="0002">123456789</ram:ID></...>
+      // UBL: <cac:PartyLegalEntity><cbc:CompanyID schemeID="0002">123456789</cbc:CompanyID></...>
+      expect(xml).toMatch(/(?:ram:ID|cbc:CompanyID) schemeID="0002">123456789<\/(?:ram:ID|cbc:CompanyID)>/);
+    }, 30_000);
+
+    it('a 9-digit SIREN and a 14-digit SIRET emit the EXACT SAME seller identity XML (the SIREN portion is byte-identical)', async () => {
+      const withSiren = await provider.build(descriptor, DOCUMENT, SELLER_WITH_SIREN, BUYER);
+      const withSiret = await provider.build(descriptor, DOCUMENT, SELLER, BUYER); // SELLER: 14-digit SIRET
+      expect(withSiren.validation.valid).toBe(true);
+      expect(withSiret.validation.valid).toBe(true);
+
+      const xmlSiren = Buffer.from(withSiren.bytes).toString('utf-8');
+      const xmlSiret = Buffer.from(withSiret.bytes).toString('utf-8');
+      // Byte-identical: neither fixture's own raw digits (9 vs 14) leak through anywhere — both reduce
+      // to the SAME 9-digit SIREN before this bridge ever builds the semantic model.
+      expect(xmlSiren).toBe(xmlSiret);
+      expect(xmlSiren).not.toContain('12345678900017'); // the 14-digit SIRET never appears
+      expect(xmlSiren).toContain('123456789'); // only the derived SIREN does
+    }, 30_000);
+  });
+});

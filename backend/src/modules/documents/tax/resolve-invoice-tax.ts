@@ -28,7 +28,7 @@
  * unlocks B2B. A VAT number that fails ITS OWN SYNTAX CHECK (`vat-syntax.ts`, reprised from the
  * repère) is treated as B2C before VIES is even consulted, with a NAMED warning — never a silent B2B.
  *
- * ## The two hard blocks this product's own history required
+ * ## The three hard blocks this product's own history required
  *
  * - **Unresolved buyer country**: this is the exact bug the product paid for once — "B2C pays inconnu
  *   → 0% de TVA silencieux" (see the root TODO item 16 brief, and `vat-unknown-country-undercharge`
@@ -38,6 +38,18 @@
  *   "domestic" (or silently OSS at the seller's own rate) instead of refusing. This function never
  *   applies that fallback to the BUYER: unresolved buyer country is `UnresolvedBuyerCountryError`,
  *   always, before anything else runs.
+ * - **Unresolved SELLER country** (USER DECISION, 2026-09-01, symmetric to the buyer block above —
+ *   see TODO_ISSUES.md, "le pays vendeur irrésolu retombait sur 'FR' silencieusement", now RÉSOLU):
+ *   this function used to fall back to `'FR'` for an unresolvable seller country — the SAME class of
+ *   silent-wrong-tax bug the buyer block above already exists to prevent, just on the other party. A
+ *   company whose own country cannot be resolved (never configured, or a free-text value
+ *   `guessCountryCode` cannot map) would silently be treated as FRENCH: a genuinely foreign seller
+ *   could see its cross-border sale misjudged as domestic (or judged cross-border against the WRONG
+ *   home jurisdiction's own rate catalog/mentions), never refused. `resolveCountryCode(input.seller)`
+ *   with no fallback, `UnresolvedSellerCountryError` when it comes back empty — same posture as the
+ *   buyer's own block, always before anything else runs. `formats/semantic/build-semantic-invoice.ts`
+ *   holds the exact same block independently (see that file's own header) for the one path that can
+ *   reach it without going through this function first.
  * - **OSS with no destination rate table**: the repère's own `ossDestinationVat` silently fell back to
  *   the SELLER's own rate when the destination profile was unknown (kept, verbatim, in
  *   `tax-engine.ts` — a PURE-ENGINE property `tax-engine.spec.ts` still tests). This wiring never lets
@@ -67,6 +79,7 @@ import { DocumentLine, LegalMention, PartyTaxProfile, SupplyType } from './types
 import { validateVat } from './vat-syntax';
 
 export class UnresolvedBuyerCountryError extends Error {}
+export class UnresolvedSellerCountryError extends Error {}
 export class UnresolvedSellerTaxSystemError extends Error {}
 export class UnsupportedOssDestinationError extends Error {}
 export class ForeignVatRateError extends Error {}
@@ -78,6 +91,7 @@ export class ForeignVatRateError extends Error {}
 export function isInvoiceTaxBlockError(error: unknown): error is Error {
   return (
     error instanceof UnresolvedBuyerCountryError ||
+    error instanceof UnresolvedSellerCountryError ||
     error instanceof UnresolvedSellerTaxSystemError ||
     error instanceof UnsupportedOssDestinationError ||
     error instanceof ForeignVatRateError
@@ -205,11 +219,21 @@ export function resolveInvoiceCrossBorderTax(
   const taxSystemRegistry = deps.taxSystemRegistry ?? defaultTaxSystemRegistry;
   const vatRateCatalog = deps.vatRateCatalog ?? defaultVatRateCatalog;
 
-  // The SAME fallback-to-FR convention `build-semantic-invoice.ts` already applies to a seller whose
-  // own country cannot be resolved (a company-settings data-quality issue this function cannot fix
-  // by refusing every send) — see that file's own header on BT-35-BT-40.
-  const sellerCC = resolveCountryCode(input.seller) ?? 'FR';
-  // NEVER the same fallback for the BUYER — see this file's own header, "unresolved buyer country".
+  // USER DECISION (2026-09-01) — NEVER a fallback-to-FR for the SELLER either: see this file's own
+  // header, "unresolved SELLER country". `build-semantic-invoice.ts` holds the symmetric block for
+  // the one path that can reach it without going through this function.
+  const sellerCC = resolveCountryCode(input.seller);
+  if (!sellerCC) {
+    throw new UnresolvedSellerCountryError(
+      "Cannot resolve this invoice's cross-border VAT treatment: the seller's own country could not " +
+        'be determined — refusing to silently default to FR (the exact same class of bug this ' +
+        'product already fixed for an unresolved BUYER country: a wrong default here could silently ' +
+        "misjudge this invoice as domestic, or as cross-border against the wrong home jurisdiction's " +
+        'own rates and mentions, never again). Complete the country field on this company in Settings ' +
+        'before sending.',
+    );
+  }
+  // NEVER a fallback for the BUYER either — see this file's own header, "unresolved buyer country".
   const buyerCC = resolveCountryCode(input.buyer);
   if (!buyerCC) {
     throw new UnresolvedBuyerCountryError(

@@ -356,6 +356,31 @@ describe('Clients E2E', () => {
             cy.contains('Société Française', { timeout: 10000 });
         });
 
+        // USER DECISION (2026-09-01, TODO_ISSUES.md "SIRET vs SIREN sur la facture", now RÉSOLU) —
+        // `country-identifiers/data/fr.json`'s LEGAL_ID field accepts EITHER a 9-digit SIREN or a
+        // 14-digit SIRET (see that file's own `notes`). Every OTHER FR fixture in this spec types a
+        // 14-digit-shaped value (unaffected by the decision — both lengths pass); this is the one
+        // that proves the 9-digit SIREN saves too, at the screen.
+        it('accepts a bare 9-digit SIREN for a French company client (SIREN or SIRET, decision 2026-09-01)', () => {
+            cy.visit('/clients');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[name="name"]').clear().type('SIREN Seul SARL');
+            cy.selectCountry('client-country-select', 'France');
+            cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('123456789');
+            cy.get('[name="contactEmail"]').clear().type('contact@siren-seul.fr');
+            cy.get('[name="address"]').clear().type('2 Rue de la Paix');
+            cy.get('[name="postalCode"]').clear().type('75001');
+            cy.get('[name="city"]').clear().type('Paris');
+
+            cy.get('[data-cy="client-submit"]').click();
+
+            cy.get('[data-cy="client-dialog"]').should('not.exist');
+            cy.contains('SIREN Seul', { timeout: 10000 });
+        });
+
         it('accepts valid EU VAT format', () => {
             cy.visit('/clients');
             cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();

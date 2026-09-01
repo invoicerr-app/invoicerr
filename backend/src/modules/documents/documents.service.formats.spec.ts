@@ -186,6 +186,28 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     }
   }, 30_000);
 
+  // USER DECISION (2026-09-01, TODO_ISSUES.md "le pays vendeur irrésolu retombait sur 'FR'
+  // silencieusement", now RÉSOLU) — `download-xml` shares `resolveInvoiceCrossBorderTax` with the
+  // "send" preflight/deliver path (`tax/load-and-resolve.ts`'s own header: "both real call sites...
+  // share this"), so this is the SECOND of the task's own two named entry points, proven directly at
+  // the SERVICE layer rather than only at the pure resolver (`tax/resolve-invoice-tax.spec.ts`).
+  it('gate 4 (400) — an unresolvable SELLER country blocks, named, before any artifact is built or served', async () => {
+    mockDocument({});
+    prismaMock.company.findUnique.mockResolvedValue({ ...SELLER_ROW, country: '', countryCode: null });
+    const { service } = buildService();
+
+    await expect(service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii')).rejects.toThrow(
+      BadRequestException,
+    );
+    try {
+      await service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii');
+      fail('expected a BadRequestException');
+    } catch (error) {
+      const response = (error as BadRequestException).getResponse() as { message: string };
+      expect(response.message).toMatch(/seller's own country could not be determined/);
+    }
+  });
+
   it('the happy path: a real CII artifact is built, validated, and served', async () => {
     mockDocument({});
     const { service } = buildService();

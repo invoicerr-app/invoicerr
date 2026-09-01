@@ -69,10 +69,14 @@
  *    BR-Z-02 (see below) then correctly refuse the document, which is the STANDARD's own
  *    requirement, not a bug this bridge should paper over by inventing an identifier.
  *  - BT-35-BT-40 Seller postal address → `cac:PostalAddress` (StreetName/AdditionalStreetName/
- *    CityName/PostalZone/Country) — `guessCountryCode` resolves the free-text `country` column;
- *    unresolved falls back to 'FR' (same fallback the old code used — this product's primary market;
- *    a genuinely unresolvable seller country is a company-settings data-quality issue this bridge
- *    cannot fix by refusing every export).
+ *    CityName/PostalZone/Country) — `guessCountryCode` resolves the free-text `country` column.
+ *    USER DECISION (2026-09-01): an unresolvable SELLER country no longer falls back to 'FR' — it is
+ *    a NAMED hard block (`SemanticBuildError`, see this function's own body), symmetric to
+ *    `tax/resolve-invoice-tax.ts`'s own `UnresolvedSellerCountryError`. The BUYER side of this same
+ *    address block still falls back to 'FR' when unresolvable (see BT-50-BT-55 below) — a genuinely
+ *    unresolvable BUYER country here would already have been refused earlier, by
+ *    `resolve-invoice-tax.ts`, for every real invoice send; this bridge's own buyer fallback is
+ *    untouched by this decision, which is scoped to the SELLER only.
  *  - BT-44 Buyer name                  → `cac:AccountingCustomerParty/.../cbc:RegistrationName`
  *  - BT-48 Buyer VAT identifier        → same shape as BT-31, buyer side, OPTIONAL (only required at
  *    all by BR-IC/BR-AE/BR-G, none of which this bridge ever emits — see BT-151 below)
@@ -360,8 +364,39 @@ function exemptionReasonFields(reason: string | undefined): Record<string, strin
 
 export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   const currency = input.totals.currency ?? 'EUR';
-  const sellerCountryCode = guessCountryCode(input.seller.country ?? undefined) ?? 'FR';
-  const buyerCountryCode = guessCountryCode(input.buyer.country ?? undefined) ?? 'FR';
+  // USER DECISION (2026-09-01, symmetric to `tax/resolve-invoice-tax.ts`'s own
+  // `UnresolvedSellerCountryError` — see that file's own header, "unresolved SELLER country"): this
+  // used to fall back to `'FR'` for a seller whose own country cannot be resolved. For an INVOICE,
+  // this bridge is reached only AFTER `resolve-invoice-tax.ts` already ran (`documents.service.ts`'s
+  // `downloadDocumentFormat`, `invoice-actions.ts`'s preflight/deliver — every real caller), so that
+  // block already fires first in practice; this one stays because a silent `'FR'` here would still be
+  // wrong on its own terms — every seller-country-derived fact below (postal address country, country-
+  // mandated mentions via `sellerCountryCode`, BT-23's business-process code, the SIREN-vs-bare-id
+  // branching) would silently assert a French identity for a company that was never confirmed French.
+  const sellerCountryCode = guessCountryCode(input.seller.country ?? undefined);
+  if (!sellerCountryCode) {
+    throw new SemanticBuildError(
+      "Cannot build an EN 16931 export: the seller's own country could not be determined — refusing " +
+        'to silently default to FR (the same class of bug this product already fixed for an ' +
+        'unresolved buyer country in the cross-border tax resolver, tax/resolve-invoice-tax.ts: a ' +
+        "wrong default here would misjudge the seller's own jurisdiction — its postal address " +
+        'country, its country-mandated legal mentions, its SIREN/legal-id formatting — never again). ' +
+        'Complete the country field on this company in Settings before exporting.',
+    );
+  }
+  const buyerCountryCode = guessCountryCode(input.buyer.country ?? undefined);
+  if (!buyerCountryCode) {
+    // Same principle as the seller block just above, now enshrined on BOTH parties: the send path
+    // already hard-blocks an unresolvable buyer at tax resolution (resolve-invoice-tax.ts), so the
+    // only way to reach this line without a country is a client record corrupted AFTER the invoice
+    // was sent — and emitting FR in BT-55 for a German buyer because their record broke later is
+    // exactly the silent-default class of bug this file refuses twice already.
+    throw new SemanticBuildError(
+      "Cannot build an EN 16931 export: the buyer's country could not be determined — refusing to " +
+        'silently default to FR (same discipline as the seller block above). Fix the country on ' +
+        "this invoice's client before exporting.",
+    );
+  }
   const isFrenchSeller = sellerCountryCode === 'FR';
 
   // Root TODO item 15 ("mentions obligatoires") — resolved against the SAME `sellerCountryCode` the
