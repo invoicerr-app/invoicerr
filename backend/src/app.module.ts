@@ -17,6 +17,7 @@ import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-q
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { MailService } from './mail/mail.service';
+import { McpModule } from './modules/mcp/mcp.module';
 import { Module } from '@nestjs/common';
 import { PluginsModule } from './modules/plugins/plugins.module';
 import { ReceivedInvoicesModule } from './modules/documents/received-invoices/received-invoices.module';
@@ -70,6 +71,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     PublicDocumentsModule,
     ReceivedInvoicesModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
+    McpModule,
     PluginsModule,
     WebhooksModule,
     InvitationsModule,
