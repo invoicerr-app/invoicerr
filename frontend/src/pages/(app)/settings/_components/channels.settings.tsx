@@ -55,6 +55,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   peppol: "Peppol",
   "chorus-pro": "Chorus Pro",
   anaf: "ANAF e-Factura",
+  face: "FACe",
 }
 
 /**
@@ -255,6 +256,37 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.anafRefreshToken",
       labelDefault: "Refresh token (obtained once via the qualified-certificate flow)",
       type: "password",
+    },
+  ],
+  // FACe (ES, B2G) — Spain's own general entry point for public-sector invoices
+  // (`b2g-routing/data/es.json`'s own Ley 25/2013 citation). Exactly the three fields
+  // `face-transport.ts#extractFaceCredentials` reads: `certificate`/`certificatePassword` are the
+  // FACe-registered PKCS#12 the SSPP web service authenticates with (see `face/face-client.ts`'s own
+  // header on why this is deferred to a real WS-Security signature, not yet implemented), and
+  // `notificationEmail` is the SSPP contract's own mandatory "correo". The DIR3 routing triad (órgano
+  // gestor/unidad tramitadora/oficina contable) is NOT a channel-connection field — it arrives per
+  // INVOICE, through the SAME `requiredDocumentFields` mechanism Germany's single Leitweg-ID field
+  // already proves for one field (this is the first B2G rule that proves it for three at once — see
+  // `client-upsert.tsx`'s own B2G hint and `documents.service.ts#applyB2gDocumentFieldHints`).
+  face: [
+    {
+      key: "certificate",
+      labelKey: "settings.channels.fields.faceCertificate",
+      labelDefault: "FACe-registered certificate (PKCS#12, base64)",
+      type: "password",
+    },
+    {
+      key: "certificatePassword",
+      labelKey: "settings.channels.fields.faceCertificatePassword",
+      labelDefault: "Certificate password",
+      type: "password",
+    },
+    {
+      key: "notificationEmail",
+      labelKey: "settings.channels.fields.faceNotificationEmail",
+      labelDefault: "Notification email (correo)",
+      type: "text",
+      placeholder: "facturacion@empresa.es",
     },
   ],
 }

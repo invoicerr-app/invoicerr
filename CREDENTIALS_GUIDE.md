@@ -89,6 +89,7 @@ Legend — **Repo:** ✅ set · 🟡 partial · 🔴 missing &nbsp;|&nbsp; **Mar
 | 17 | IRP (GST) | 🇮🇳 India | 🔴 | ▫️ | Two-layer creds (app + per-GSTIN) don't fit the 4-secret shape |
 | 18 | MyInvois | 🇲🇾 Malaysia | 🔴 | ▫️ | client_id/secret free & instant; signing cert is paid (RM1.5k–15k, 3–5 d) |
 | 19 | Coretax / e-Faktur | 🇮🇩 Indonesia | 🔴 | ▫️ | No public sandbox; PJAP appointment or reseller middleman |
+| 20 | FACe (SSPP) | 🇪🇸 Spain | 🔴 | ▫️ | FNMT cert = human ID check; WS-Security signing itself not yet implemented |
 
 ### ⚠️ The secret list is a superset — some secrets are placeholders
 `compliance-live.yml` declares a uniform `CLIENT_ID / CLIENT_SECRET / API_KEY / CERTIFICATE`
@@ -1164,4 +1165,47 @@ Sandbox and production credentials are **not interchangeable** — each environm
 
 ---
 
-_Guide généré via recherche par plateforme (sources officielles citées par section). Statuts secrets vérifiés le 2026-07-12._
+## 20. FACe (SSPP) — Spain (B2G mandatory)
+
+> **GitHub secrets:** `FACE_CERTIFICATE`, `FACE_CERTIFICATE_PASSWORD`, `FACE_NOTIFICATION_EMAIL` &nbsp;•&nbsp; **Live flag:** `FACE_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes, and REACHABLE without any credential (see below) &nbsp;•&nbsp; **Repo status:** 🔴 missing (and see "what is genuinely NOT wired yet" below — this is not merely a missing secret)
+
+**What each secret is / where it comes from**
+
+- `FACE_CERTIFICATE` (base64 PKCS#12) / `FACE_CERTIFICATE_PASSWORD` — a **FACe-registered digital certificate**. Unlike Chorus Pro's OAuth application (self-service, minutes), a FACe certificate is a **personal identity document**: FNMT (Fábrica Nacional de Moneda y Timbre, `fnmt.es`) issues qualified certificates to a physical person or to a legal-entity representative ("certificado de representante") after in-person or video-call identity verification — there is no headless/API path to obtain one. The same certificate is what a company/software vendor registers with FACe as an authorized "aplicación" allowed to call the SSPP web service on the structure's behalf.
+- `FACE_NOTIFICATION_EMAIL` — not a secret, the SSPP contract's own mandatory `correo` field (`transports/face/face-client.ts`) — any reachable address works.
+
+**⚠️ Even with all three secrets set, this codebase's own `enviarFactura` call is expected to FAIL, honestly.** FACe's SSPP web service authenticates every request with a **WS-Security X.509 signature** over the SOAP envelope (`<wsse:BinarySecurityToken>` + `<ds:Signature>` covering the `<wsu:Timestamp>` and `<soapenv:Body>`) — this codebase sends the envelope **unsigned** (`transports/face-transport.ts#FaceSoapHttpPort` — see that file's own header for why: computing a WS-Security signature a live server will actually accept cannot be verified offline, the same reasoning `sdicoop-client.ts` gives for deferring its own mTLS specifics). The certificate above therefore currently has **no live consumer** in this codebase beyond being stored and offered defensively as a TLS client cert — it does not yet make a real deposit succeed. `face/face.live.spec.ts`'s own gated `describeLive` block proves exactly this: a real call, real credentials, and the SAME named "not signed" SOAP Fault every time.
+
+**Prerequisites**
+
+- A **FNMT qualified certificate** (personal or "representante de persona jurídica") — see FNMT's own procedure below.
+- Registration of that certificate/application with FACe as an authorized integration (`administracionelectronica.gob.es`'s own FACe onboarding for software providers — this task could not reach that specific onboarding page directly; every attempt to browse `administracionelectronica.gob.es` interactively returned no usable content, the SAME wall the repère's own `face-client.ts` header already recorded).
+- A SIRET-equivalent: the Spanish public-body recipient's own DIR3 codes (órgano gestor / unidad tramitadora / oficina contable) are looked up per-invoice on `https://ssweb.seap.minhap.es/dir3` or via FACe's own `consultarUnidades` operation (not called by this codebase — the DIR3 codes are collected as plain invoice fields, `b2g-routing/data/es.json`'s own `requiredDocumentFields`).
+
+**Step-by-step: obtaining a certificate (FNMT)**
+1. `https://www.sede.fnmt.gob.es/certificados` → choose the certificate type: **"Certificado de Persona Física"** (an individual acting on the company's behalf) or **"Certificado de Representante"** (a legal-entity representative — the one a company would actually want for FACe, since it is issued to the ROLE, not the person).
+2. Request the certificate online (generates a request code).
+3. **Prove identity in person or by video-call** — this is the actual bottleneck: an FNMT registration office (`Oficina de Registro`, often a local tax/administrative office) or FNMT's own remote video-identification service. No API, no headless path.
+4. Download and install the issued certificate (a `.p12`/`.pfx` file, or delivered to a browser keystore that must then be exported to PKCS#12).
+5. Base64-encode the `.pfx` → `FACE_CERTIFICATE`; the password chosen at export → `FACE_CERTIFICATE_PASSWORD`.
+
+**Step-by-step: registering as a FACe integration**
+1. A company/software vendor wanting to call the SSPP web service programmatically (rather than using the FACe web portal by hand) registers as an **"aplicación"** with FACe, associating it with the certificate above — this step's exact screen flow was **not independently verified** by this task (the FACe/administracionelectronica.gob.es onboarding pages did not render usable content to an automated fetch — same wall the repère recorded; a human with FNMT credentials and portal access is needed to confirm the exact clicks).
+2. Once registered, the SAME certificate authenticates every SSPP call at the WS-Security layer (see the warning above — this codebase does not yet compute that signature).
+
+**What IS independently, live-verified without any credential at all (this task, 2026-09-02)** — see `face/face.live.spec.ts`'s own header for the full account: the sandbox host `https://se-face-webservice.redsara.es/facturasspp2` is reachable and answers an unsigned SOAP request with a real Fault, `faultcode 401`, `faultstring "La petición no esta firmada"` — confirming the WS-Security requirement live, not merely from documentation. The HTTP status code itself was observed to flip between `200` and `500` across repeated calls for the identical fault body (a load-balanced backend, evidently) — `face-client.ts`'s own response parsing accounts for this (tries to parse a Fault regardless of status). **Also observed** (2026-09-02): the HUMAN-FACING `face.gob.es` portal now redirects to a successor, `proveedores.face.gob.es`, with a banner "en este portal solo se pueden consultar facturas remitidas hasta el 27/02/2026" — a **portal migration for invoice CONSULTATION**; nothing found today indicates the machine SSPP SOAP endpoints above have themselves moved, but this was not independently confirmed against a production credential either — worth re-checking before relying on the endpoint constants in `transports/face-transport.ts#FACE_ENDPOINTS` for a real production rollout.
+
+**Cost, lead time & blockers**
+- FNMT certificates are **free** (no issuance fee for the standard qualified certificate); the blocker is entirely the identity-verification step (in-person office visit or scheduled video-call), typically resolvable within days but requiring an appointment.
+- The FACe integration/"aplicación" registration step's cost/lead time could not be independently assessed (onboarding pages unreachable to automated fetch, as above) — budget for at least one round of human-driven exploration of `administracionelectronica.gob.es`/`face.gob.es`'s own developer documentation before assuming a specific timeline.
+- **Biggest blocker for THIS codebase specifically, distinct from credential acquisition**: even a company that obtains a real FNMT certificate and registers it cannot yet complete a real deposit through `invoicerr` — WS-Security XML-DSig signing of the SOAP envelope is a genuinely unimplemented seam (see the warning above), separate from and in addition to the credential-acquisition effort described here.
+
+**Official sources**
+- https://www.boe.es/eli/es/l/2013/12/27/25 (Ley 25/2013, de 27 de diciembre — texto consolidado; arts. 4 y 6 cited in `b2g-routing/data/es.json`)
+- https://www.sede.fnmt.gob.es/certificados (FNMT certificate types and request flow)
+- https://github.com/josemmo/Facturae-PHP (actively maintained OSS client — endpoint hosts, `FacturaeCentre.php`'s own DIR3 RoleTypeCode constants, cross-checked against the vendored `Facturaev3_2_2.xsd` itself)
+- `face.gob.es` / `proveedores.face.gob.es` (human portal — reachable, but rendered no onboarding/API documentation to an automated fetch this task performed)
+
+---
+
+_Guide généré via recherche par plateforme (sources officielles citées par section). Statuts secrets vérifiés le 2026-07-12 ; section 20 (FACe) ajoutée et vérifiée le 2026-09-02._

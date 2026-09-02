@@ -10,9 +10,9 @@ describe('b2g-routing/data/all.ts', () => {
     expect(ALL_B2G_ROUTING_FILES.length).toBeGreaterThan(0);
   });
 
-  it("ships exactly FR, DE, IT this wave — never a country beyond this task's own declared scope", () => {
+  it('ships exactly FR, DE, IT, ES — the original three-country wave plus the ES/FACe follow-up', () => {
     const countries = ALL_B2G_ROUTING_FILES.map((f) => f.countryCode).sort();
-    expect(countries).toEqual(['DE', 'FR', 'IT']);
+    expect(countries).toEqual(['DE', 'ES', 'FR', 'IT']);
   });
 
   it('every shipped rule carries LEGAL provenance with a real citation', () => {
@@ -44,5 +44,18 @@ describe('b2g-routing/data/all.ts', () => {
     expect(it.transportId).toBe('sdi');
     expect(it.formatSyntax).toBe('fatturapa');
     expect(it.requiredClientIdentifiers?.some((i) => i.scheme === 'IT_PA_CODE')).toBe(true);
+  });
+
+  it('ES routes to the ALREADY IMPLEMENTED "face" channel with "facturae", requires the NIF, and the FULL DIR3 triad', () => {
+    const es = ALL_B2G_ROUTING_FILES.find((f) => f.countryCode === 'ES')!;
+    expect(es.transportId).toBe('face');
+    expect(es.formatSyntax).toBe('facturae');
+    expect(es.requiredClientIdentifiers?.some((i) => i.scheme === 'VAT')).toBe(true);
+    const dir3Fields = ['dir3OrganoGestor', 'dir3UnidadTramitadora', 'dir3OficinaContable'];
+    for (const field of dir3Fields) {
+      const entry = es.requiredDocumentFields?.find((f) => f.field === field);
+      expect(entry).toBeDefined();
+      expect(entry?.required).toBe(true);
+    }
   });
 });

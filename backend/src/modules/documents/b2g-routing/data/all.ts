@@ -4,8 +4,11 @@
  * `fs.readFileSync` rather than `import`ing it as a TS module: editing a rule is then a plain data
  * change, never a TypeScript one.
  *
- * This wave ships exactly three countries — fr, de, it — per the task's own explicit scope ("AUCUN
- * pays au-delà de fr/de/it dans cette vague"). A country with no entry here has NO B2G rule at all:
+ * This wave shipped exactly three countries — fr, de, it — per that task's own explicit scope
+ * ("AUCUN pays au-delà de fr/de/it dans cette vague"). A FOURTH, es, is added by a LATER task (Spain
+ * — FACe, Ley 25/2013, see `data/es.json`'s own header for the citation): unlike fr/de, es routes to
+ * a channel THIS task also implements (`transports/face-transport.ts`), the same "already wired"
+ * shape it.json already holds for SdI. A country with no entry here has NO B2G rule at all:
  * `b2g-routing.ts`'s own read side (which reads the DATABASE, not this file — see that module's own
  * header) surfaces that as an HONEST refusal ("no B2G rule declared for XX"), never a silent B2B
  * fallback — the entire point of this mechanism.
@@ -15,7 +18,7 @@ import { join } from 'node:path';
 
 import { assertValidB2gRoutingFact, B2gRoutingRuleFact } from '../schema';
 
-const COUNTRY_FILES = ['fr', 'de', 'it'] as const;
+const COUNTRY_FILES = ['fr', 'de', 'it', 'es'] as const;
 
 interface RawB2gRoutingFile {
   countryCode: string;

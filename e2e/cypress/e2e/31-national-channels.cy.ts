@@ -51,6 +51,21 @@
  * comme KSeF/SdI/Peppol — le test RO vérifie donc EN PLUS le badge "Mandatory from…", jamais testé pour
  * les vagues précédentes.
  *
+ * Vague 5 (FACe/ES, B2G) — même motif que Chorus Pro/ANAF (hôte SSPP FIXE par environnement,
+ * `face-transport.ts`'s own `FACE_ENDPOINTS`, jamais un champ de configuration) : des identifiants
+ * fictifs sont envoyés au VRAI `se-face-webservice.redsara.es`, qui les rejette réellement — un
+ * authentique SOAP Fault, `faultcode 401`, `faultstring "La petición no esta firmada"` (la requête
+ * n'est pas signée), puisque ce dépôt n'implémente pas (encore) la signature WS-Security que FACe
+ * exige — vérifié à la main avant d'écrire ce test (`curl` ET `fetch` directs, le jour même — voir
+ * `face/face.live.spec.ts`'s own header pour le compte-rendu complet, y compris le code HTTP
+ * OBSERVÉ INCOHÉRENT — 200 ou 500 selon l'appel — pour le MÊME corps de faute, ce qui est la raison
+ * documentée pour laquelle `face-client.ts` ne fait jamais confiance au seul code HTTP). DIFFÉRENCE
+ * PROPRE À CETTE VAGUE : `face` exige en plus la triade DIR3 (órgano gestor/unidad tramitadora/
+ * oficina contable) SUR LA FACTURE elle-même avant de tenter le moindre appel réseau — voir
+ * `createInvoiceDraftWithDir3()` plus bas, et `40-b2g-routing.cy.ts` pour la preuve, À L'ÉCRAN, que
+ * les TROIS champs apparaissent réactivement dès qu'un client GOVERNMENT espagnol est choisi (le même
+ * mécanisme que le Leitweg-ID allemand, prouvé pour un seul champ, étendu ici à trois).
+ *
  * L'ACTION passe par un vrai clic sur l'écran (connecter, choisir le transport, envoyer,
  * déconnecter) ; les ASSERTIONS qui comptent relisent l'enregistrement via l'API — même discipline
  * que 28 (l'envoi asynchrone) et le reste de cette suite.
@@ -131,6 +146,23 @@ const FAKE_ANAF = {
 	refreshToken: "e2e-fake-anaf-refresh-token",
 };
 
+/** FACe (ES, B2G) — same "fixed host" discipline as Chorus Pro/ANAF above:
+ *  `se-face-webservice.redsara.es` is reachable and answers a genuine SOAP Fault ("La petición no
+ *  esta firmada" — the request is not signed) since this codebase does not yet compute the
+ *  WS-Security signature FACe requires (see `transports/face-transport.ts`'s own header) —
+ *  independently, credential-free-ly re-verified by `face/face.live.spec.ts`'s own gated block,
+ *  never a closed port, never a silent success. UNLIKE Chorus Pro/ANAF, though, THIS suite's own
+ *  "Vague 5" tests never actually reach that host: FACe additionally requires a Facturae signed
+ *  with XAdES (root TODO item 13), and no signing certificate is configured anywhere in this file
+ *  — so the send fails at that LOCAL gate first (see "Vague 5"'s own header, below). `certificate`
+ *  only needs to be valid base64 (it is offered defensively as a TLS client cert, never actually
+ *  parsed as a real PFX by this transport before the network call — see that file's own header). */
+const FAKE_FACE = {
+	certificate: btoa("e2e-fake-pfx-bytes"),
+	certificatePassword: "e2e-fake-cert-password",
+	notificationEmail: "facturacion@e2e-testville.example",
+};
+
 /** Bascule le pays de la société seedée — voir ce fichier's own header, point 1, pour pourquoi ce
  *  n'est utilisé QUE pour vérifier la suggestion de canal, jamais pour créer/envoyer un document. */
 function setCompanyCountry(country: string, countryCode: string) {
@@ -169,6 +201,79 @@ function createInvoiceDraft() {
 									vatRate: "20",
 								},
 							],
+						},
+					},
+					failOnStatusCode: false,
+				})
+				.then((saved) => {
+					expect(saved.status, "brouillon de facture créé").to.be.oneOf([
+						200, 201,
+					]);
+					const invoiceId = saved.body?.document?.id as string;
+					expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
+					return invoiceId;
+				});
+		});
+}
+
+/** Même recette que `createInvoiceDraft()` ci-dessus, avec en plus la triade DIR3 — SANS elle, le
+ *  transport `face` bloque au GATE applicatif (`send()`'s own "DIR3 routing codes are incomplete"),
+ *  jamais un vrai appel réseau au bac à sable FACe — voir `face-transport.ts`'s own header, "THE
+ *  DIR3 GATE". Seule cette section (Vague 5) en a besoin.
+ *
+ * DÉLIBÉRÉMENT un client DÉDIÉ, créé ici, PLUTÔT que le premier résultat de la recherche générique
+ * (comme `createInvoiceDraft()` ci-dessus le fait pour PDP/KSeF/SdI/Peppol/Chorus Pro/ANAF) — trouvé
+ * EN ÉCRIVANT ce test : le client par défaut du jeu d'essai n'a AUCUN identifiant VAT/NIF sur
+ * fichier, et Facturae's own XSD (`TaxIdentificationType.TaxIdentificationNumber`) l'EXIGE, non vide,
+ * sur le BuyerParty — sans lui, le document XSD-invalide échoue AVANT tout appel réseau (un échec
+ * réel mais qui prouve la MAUVAISE chose : jamais testé pour les autres canaux ci-dessus, qui n'ont
+ * pas cette exigence de schéma). Ce client dédié porte un NIF pour que l'échec observé soit bien
+ * celui annoncé par ce test : un VRAI rejet réseau du bac à sable FACe, jamais un refus de schéma
+ * local maquillé en échec réseau. */
+function createInvoiceDraftWithDir3() {
+	return cy
+		.request({
+			method: "POST",
+			url: `${api}/api/clients`,
+			body: {
+				name: "Cliente Español SL",
+				address: "Calle Mayor 1",
+				postalCode: "28013",
+				city: "Madrid",
+				country: "Spain",
+				currency: "EUR",
+				isActive: true,
+				identifiers: [{ scheme: "VAT", value: "ESB87654321" }],
+			},
+		})
+		.then((created) => {
+			expect(created.status, "client espagnol (avec NIF) créé par API").to.be.oneOf([
+				200, 201,
+			]);
+			const clientId = created.body?.id as string;
+			expect(clientId, "le client créé a un identifiant").to.be.a("string");
+			return cy
+				.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: {
+						data: {
+							client: clientId,
+							issueDate: "2026-08-31",
+							dueDate: "2026-09-30",
+							currency: "EUR",
+							lines: [
+								{
+									description: "Conseil",
+									quantity: 2,
+									unit: "hour",
+									unitPrice: 150,
+									vatRate: "20",
+								},
+							],
+							dir3OrganoGestor: "L01280796",
+							dir3UnidadTramitadora: "L01280796",
+							dir3OficinaContable: "L01280796",
 						},
 					},
 					failOnStatusCode: false,
@@ -1162,6 +1267,187 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 			cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 				"contain.text",
 				"ANAF channel is not connected",
+			);
+
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'jamais persisté au-delà de "draft" — bloqué avant toute écriture',
+					).to.eq("draft");
+				});
+		});
+	});
+
+	// ── Vague 5 : FACe (Espagne, B2G) — DIFFÉRENCE PROPRE À CETTE VAGUE, TROUVÉE EN ÉCRIVANT CE TEST :
+	// contrairement à Chorus Pro/ANAF (qui échouent toujours au RÉSEAU, faute d'identifiants réels),
+	// FACe exige EN PLUS une Facturae SIGNÉE XAdES (root TODO item 13 — voir `facturae-provider.ts`'s
+	// own header) — et cette suite ne configure JAMAIS de certificat de signature (aucun écran
+	// "Signing certificates" n'est piloté ici). L'échec observé ici est donc le GATE DE SIGNATURE
+	// LOCAL (`FacturaeSigningRequiredError`, avant tout appel réseau), jamais le rejet SOAP du vrai
+	// `se-face-webservice.redsara.es` — une preuve DIFFÉRENTE, et tout aussi réelle : que le premier
+	// vrai consommateur du provider XAdES (item 13) est bien câblé de bout en bout, jusqu'à l'écran.
+	// Le rejet réseau réel du bac à sable FACe (SOAP Fault "La petición no esta firmada") est prouvé
+	// séparément, sans écran, par `face/face.live.spec.ts`'s own credential-free reachability test —
+	// voir ce fichier's own header. `face` exige AUSSI la triade DIR3 sur LA FACTURE elle-même
+	// (`createInvoiceDraftWithDir3()` ci-dessous) — sans elle l'échec serait le GATE DIR3 encore plus
+	// tôt, jamais même le gate de signature. ──
+
+	it('connecte le canal face par l\'écran avec des identifiants fictifs — statut "Connected"', () => {
+		cy.visit("/settings/channels");
+
+		cy.get('[data-cy="channel-face"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-face-status"]').should("contain.text", "Not connected");
+
+		cy.get('[data-cy="channel-face-certificate-input"]')
+			.clear()
+			.type(FAKE_FACE.certificate);
+		cy.get('[data-cy="channel-face-certificatepassword-input"]')
+			.clear()
+			.type(FAKE_FACE.certificatePassword);
+		cy.get('[data-cy="channel-face-notificationemail-input"]')
+			.clear()
+			.type(FAKE_FACE.notificationEmail);
+		// Environnement laissé sur "Test (sandbox)" — c'est justement ce qui pointe vers le VRAI
+		// se-face-webservice.redsara.es (voir ce fichier's own header, Vague 5).
+		cy.get('[data-cy="channel-face-connect-button"]').click();
+
+		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+			"contain.text",
+			"Channel connected",
+		);
+		cy.get('[data-cy="channel-face-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
+
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then(
+				(body: {
+					configured: {
+						providerId: string;
+						isActive: boolean;
+						environment: string;
+					}[];
+				}) => {
+					const face = body.configured.find((c) => c.providerId === "face");
+					expect(face, "le canal face est bien en base, actif").to.include({
+						isActive: true,
+						environment: "TEST",
+					});
+				},
+			);
+	});
+
+	it("choisit face comme transport de facturation, sur l'écran des réglages société", () => {
+		cy.visit("/settings/company");
+		cy.get('[data-cy="company-invoice-transport-select"]', {
+			timeout: 15000,
+		}).click();
+		cy.get('[data-cy="company-invoice-transport-options"]', {
+			timeout: 10000,
+		}).should("be.visible");
+		cy.get('[data-cy="company-invoice-transport-option-face"]').click();
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait(2000);
+
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body")
+			.then((company: { invoiceTransportId: string }) => {
+				expect(
+					company.invoiceTransportId,
+					"le transport choisi est bien enregistré",
+				).to.eq("face");
+			});
+	});
+
+	it('envoie une facture (avec la triade DIR3) via face → la file échoue réellement au GATE DE SIGNATURE XAdES (aucun certificat configuré dans cette suite) et "send_failed" nomme FACe, jamais un dépôt non signé silencieusement accepté', () => {
+		createInvoiceDraftWithDir3().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+				.find('[data-cy="document-status-badge"]')
+				.should("contain.text", "Draft");
+
+			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+				timeout: 15000,
+			}).click();
+
+			// Même budget que les tests PDP/KSeF/SdI/Peppol/Chorus Pro/ANAF ci-dessus — voir leur
+			// commentaire. Le refus de signature est LOCAL (jamais un aller-retour réseau), donc en
+			// pratique quasi immédiat ; ce budget reste large, pas juste suffisant.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+				.should("contain.text", "Send failed");
+
+			// Le message nomme FACe ET la vraie cause (root TODO item 13's own gate) — jamais un texte
+			// générique qui masquerait LAQUELLE des deux preuves (réseau vs signature) ce test apporte.
+			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`)
+				.should("contain.text", "FACe")
+				.and("contain.text", "XAdES");
+
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'la facture est réellement "send_failed" en base',
+					).to.eq("send_failed");
+					expect(
+						doc.lastActionError,
+						"l'erreur enregistrée nomme FACe ET la vraie cause (XAdES) — jamais un texte générique",
+					)
+						.to.match(/FACe/i)
+						.and.match(/XAdES/);
+					// Jamais un succès à référence vide : voir la mutation #2 du sujet. Ici la cause est
+					// le gate de signature (jamais atteint le réseau), donc doublement absent.
+					expect(
+						doc.transportRef,
+						"aucun numeroRegistro sans dépôt accepté",
+					).to.not.be.a("string");
+				});
+		});
+	});
+
+	it("déconnecte le canal face par l'écran → un nouvel envoi bloque au PREFLIGHT, en le disant", () => {
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-face-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
+		cy.get('[data-cy="channel-face-disconnect-button"]').click();
+
+		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+			"contain.text",
+			"Channel disconnected",
+		);
+		cy.get('[data-cy="channel-face-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
+
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string }[] }) => {
+				expect(
+					body.configured.find((c) => c.providerId === "face"),
+					"plus aucune ligne face en base — un disconnect complet, pas juste isActive:false",
+				).to.be.undefined;
+			});
+
+		createInvoiceDraftWithDir3().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+				timeout: 15000,
+			}).click();
+
+			// Le PREFLIGHT bloque AVANT toute persistance — même le passage à "sending" n'a jamais lieu
+			// (voir async-send.ts / face-transport.ts's own header) : un toast visible le dit tout de
+			// suite, pas d'attente de file.
+			cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+				"contain.text",
+				"FACe channel is not connected",
 			);
 
 			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })

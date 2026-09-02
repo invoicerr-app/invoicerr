@@ -24,6 +24,7 @@ import { AuthorityStatusPollerRegistry } from './conformity/authority-status-pol
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
 import { buildAnafStatusPoller } from './conformity/pollers/anaf-status-poller';
 import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
+import { buildFaceStatusPoller } from './conformity/pollers/face-status-poller';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
 import { buildPeppolStatusPoller } from './conformity/pollers/peppol-status-poller';
@@ -55,12 +56,14 @@ import { EntityReferenceRegistry } from './references/reference-registry';
 import { buildAnafTransport } from './transports/anaf-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
+import { buildFaceTransport } from './transports/face-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
 import { buildPeppolTransport } from './transports/peppol-transport';
 import { buildSdiTransport } from './transports/sdi-transport';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
+import { buildFacturaeFormatProvider } from './formats/national/facturae-provider';
 import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
 import { fa3FormatProvider } from './formats/national/fa3-provider';
@@ -136,8 +139,17 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * SEVENTH — both UBL-syntax EN 16931 profiles judged by the base Schematron PLUS their own vendored
  * delta (see each provider's own header for exactly which BR-DE-* / PEPPOL-EN16931-R* rules that
  * delta enforces and how). Neither needs a companyId either, so both are plain objects too.
+ *
+ * `facturae` (ES, `national/facturae-provider.ts`) is the EIGHTH — Spain's B2G channel FACe's own
+ * payload (`transports/face-transport.ts`, `b2g-routing/data/es.json`). Unlike `fa3`/`fatturapa`, it
+ * DOES need a dependency (`signingCertificates` — root TODO item 13's own port, the first real
+ * consumer of the XAdES provider, see that provider's own header) so it is a factory, the same shape
+ * `facturx`'s own `referenceRegistry` dependency already established here.
  */
-function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
+function buildFormatProviderRegistry(
+  referenceRegistry: EntityReferenceRegistry,
+  signingCertificates: SigningCertificatesService,
+): FormatProviderRegistry {
   const registry = new FormatProviderRegistry();
   registry.register(ciiFormatProvider);
   registry.register(ublFormatProvider);
@@ -146,6 +158,7 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
   registry.register(fatturapaFormatProvider);
   registry.register(peppolBisFormatProvider);
   registry.register(xrechnungFormatProvider);
+  registry.register(buildFacturaeFormatProvider({ signingCredentials: signingCertificates }));
   return registry;
 }
 
@@ -254,6 +267,19 @@ function buildTransportRegistry(
     'ANAF e-Factura (Romania)',
     buildAnafTransport({ channelCredentials, ublFormatProvider }),
   );
+  // "face" (Spain, B2G) — makes the channel the B2G ES routing rule (`b2g-routing/data/es.json`)
+  // names actually EXIST, the same "chorus-pro"/"anaf" precedent above. Own `facturaeFormatProvider`
+  // instance (needs `signingCertificates` — root TODO item 13's XAdES port, see
+  // `formats/national/facturae-provider.ts`'s own header), same "stateless factory, no reason to
+  // couple two registries" reasoning every sibling transport above already holds.
+  registry.register(
+    'face',
+    'FACe (Spain, B2G)',
+    buildFaceTransport({
+      channelCredentials,
+      facturaeFormatProvider: buildFacturaeFormatProvider({ signingCredentials: signingCertificates }),
+    }),
+  );
   return registry;
 }
 
@@ -282,6 +308,10 @@ function buildAuthorityStatusPollerRegistry(
   // (`anaf/anaf-client.ts`) — see `conformity/pollers/anaf-status-poller.ts`'s own header for what is,
   // and is not, live-verified.
   registry.register(buildAnafStatusPoller({ channelCredentials }));
+  // "face" — `consultarFactura`, the repère's own status-consultation endpoint
+  // (`face/face-client.ts`) — see `conformity/pollers/face-status-poller.ts`'s own header for what is,
+  // and is not, live-verified.
+  registry.register(buildFaceStatusPoller({ channelCredentials }));
   return registry;
 }
 
@@ -466,7 +496,7 @@ function buildEntityReferenceRegistry(
     {
       provide: FORMAT_PROVIDER_REGISTRY,
       useFactory: buildFormatProviderRegistry,
-      inject: [ENTITY_REFERENCE_REGISTRY],
+      inject: [ENTITY_REFERENCE_REGISTRY, SigningCertificatesService],
     },
   ],
   exports: [

@@ -1,0 +1,41 @@
+{
+  "countryCode": "ES",
+  "rule": {
+    "countryCode": "ES",
+    "transportId": "face",
+    "formatSyntax": "facturae",
+    "requiredClientIdentifiers": [
+      {
+        "scheme": "VAT",
+        "label": "NIF (Número de Identificación Fiscal)",
+        "why": "Facturae 3.2.2's own vendored XSD (`formats/vendored/es/Facturaev3_2_2.xsd`, `TaxIdentificationType`) makes `TaxIdentificationNumber` MANDATORY (not `minOccurs=\"0\"`) and at least 3 characters (`TextMin3Max30Type`) on BOTH `SellerParty` and `BuyerParty` — a government client with no NIF/CIF on file cannot even produce a schema-valid Facturae document, let alone one FACe would accept. Reuses the SAME generic `VAT` scheme this catalog already collects for every other country (a Spanish public body's own NIF, e.g. a 'Q' or 'P'-prefixed one, IS its VAT/tax identifier in this catalog's own model) — never a Spain-only third scheme for what is, structurally, the same fact `country-identifiers/` already has a slot for."
+      }
+    ],
+    "requiredDocumentFields": [
+      {
+        "field": "dir3OrganoGestor",
+        "label": "Órgano Gestor (DIR3)",
+        "why": "FACe's SSPP `enviarFactura`/`consultarFactura` contract echoes back an `organoGestor`/`unidadTramitadora`/`oficinaContable` triad on every accepted deposit (`transports/face/face-client.ts`, REPRISED from the repère) — the receiving AAPP is only able to route a deposited invoice to the correct internal unit when the Facturae document itself carries these three DIR3 codes (Directorio Común de Unidades Orgánicas). Carried as an `AdministrativeCentres` block on `BuyerParty` (`formats/national/facturae-provider.ts`), `RoleTypeCode` \"02\" — órgano gestor is the managing/receiving body (`ROLE_GESTOR`/`ROLE_RECEPTOR` in `github.com/josemmo/Facturae-PHP`'s `FacturaeCentre.php`, cross-checked against this repo's own vendored XSD's `RoleTypeCodeType` documentation: \"02\" = Receptor).",
+        "required": true
+      },
+      {
+        "field": "dir3UnidadTramitadora",
+        "label": "Unidad Tramitadora (DIR3)",
+        "why": "The second leg of the SAME DIR3 triad as `dir3OrganoGestor` above — the processing unit, `RoleTypeCode` \"03\" (`ROLE_TRAMITADOR`/`ROLE_PAGADOR` in `josemmo/Facturae-PHP`'s `FacturaeCentre.php`; the vendored XSD's own `RoleTypeCodeType` documents \"03\" = Pagador). See `dir3OrganoGestor`'s own `why` for the full sourcing — repeated per-field only because this catalog's `requiredDocumentFields` shape has no way to group three fields under one citation.",
+        "required": true
+      },
+      {
+        "field": "dir3OficinaContable",
+        "label": "Oficina Contable (DIR3)",
+        "why": "The third leg of the SAME DIR3 triad — the accounting office, `RoleTypeCode` \"01\" (`ROLE_CONTABLE`/`ROLE_FISCAL` in `josemmo/Facturae-PHP`'s `FacturaeCentre.php`; the vendored XSD's own `RoleTypeCodeType` documents \"01\" = Fiscal). See `dir3OrganoGestor`'s own `why` for the full sourcing.",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Ley 25/2013, de 27 de diciembre, de impulso de la factura electrónica y creación del registro contable de facturas en el Sector Público. Artículo 4 (Obligación de facturación electrónica): «Todos los proveedores que hayan entregado bienes o prestado servicios a la Administración Pública podrán expedir y remitir factura electrónica. En todo caso, estarán obligadas al uso de la factura electrónica y a su presentación a través del punto general de entrada que corresponda las sociedades anónimas; las sociedades de responsabilidad limitada; [...] las agrupaciones de interés económico [...]; las agrupaciones europeas de interés económico; los establecimientos permanentes y sucursales de entidades no residentes en territorio español [...]; las uniones temporales de empresas; [...]». Artículo 6 (Punto general de entrada de facturas electrónicas): «El Estado, las Comunidades Autónomas y las Entidades Locales dispondrán de un punto general de entrada de facturas electrónicas a través del cual se recibirá la totalidad de las facturas electrónicas que correspondan a entidades, entes y organismos vinculados o dependientes de aquellas.»",
+      "sourceCheckedAt": "2026-09-02"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-02 sur boe.es (https://www.boe.es/eli/es/l/2013/12/27/25 puis https://www.boe.es/buscar/act.php?id=BOE-A-2013-13722, texte consolidé officiel du BOE — citations ci-dessus extraites du texte espagnol lui-même, jamais paraphrasées ; deux requêtes concordantes, contrairement à fr.json/de.json qui ont dû se rabattre sur un PDF faute d'accès direct — boe.es a répondu ici). SOCLE EUROPÉEN commun à cette vague B2G (voir fr.json's own note pour la citation complète) : directive 2014/55/UE, art. 7. `transportId: \"face\"` et `formatSyntax: \"facturae\"` sont TOUS DEUX implémentés dans ce dépôt par CETTE MÊME tâche (`transports/face-transport.ts`, `formats/national/facturae-provider.ts\") — contrairement à fr.json/de.json (canaux délibérément absents du registre) mais comme it.json, une facture espagnole vers un client GOVERNMENT peut donc réellement partir une fois le canal FACe connecté par la société. ⚖ CE QUI N'EST PAS VÉRIFIÉ, NOMMÉ ICI PLUTÔT QUE TU : (1) la signature WS-Security que le service SOAP SSPP exige réellement (voir `transports/face/face-client.ts`'s own header — reprise du repère, jamais vérifiée en direct par ce dépôt ni par celui-ci) ; (2) la table des codes d'état `estado` (Gipuzkoa PGEFe v1.0.3) — reprise du repère, non re-lue par cette tâche ; (3) le mapping RoleTypeCode ↔ rôle DIR3 (`AdministrativeCentres`) — NOUVELLEMENT sourcé cette tâche depuis `josemmo/Facturae-PHP` (source déjà citée par le repère lui-même comme fiable), croisé avec le XSD vendoré de CE dépôt, mais jamais observé sur un dépôt FACe réel. CONSTATÉ le 2026-09-02, hors du périmètre légal de cette règle mais utile à savoir : le portail humain face.gob.es affiche désormais « en este portal solo se pueden consultar facturas remitidas hasta el 27/02/2026 » et redirige vers proveedores.face.gob.es — une migration du portail de CONSULTATION humaine, sans qu'aucune source lue aujourd'hui n'indique que les points d'entrée SOAP SSPP machine-à-machine (`webservice.face.gob.es`/`se-face-webservice.redsara.es`) aient eux-mêmes changé ; absence de preuve de changement n'est pas preuve d'absence de changement, voir `CREDENTIALS_GUIDE.md` §20. DISTINCTION DÉLIBÉRÉE, DOCUMENTÉE UNE SEULE FOIS ICI : `face` n'apparaît dans AUCUN fichier `channel-policy/data/*.json` ni dans aucune suggestion B2B générale — FACe est un canal B2G PUR (le texte lu ci-dessus ne s'adresse qu'aux \"Administración Pública\"/\"Entidades Locales\", jamais à un acheteur privé), il n'a donc sa place que dans CETTE règle de routage B2G, jamais dans le mécanisme de suggestion de canal générique qu'un vendeur espagnol verrait pour un client PRIVÉ — le premier transport de ce dépôt qui soit B2G-only par construction plutôt que B2G-eligible-parmi-d'autres (Chorus Pro/SdI/ANAF peuvent tous aussi être choisis comme transport B2B libre par une société ; FACe n'a structurellement aucun sens hors B2G, puisque son SEUL destinataire possible est une administration)."
+  }
+}

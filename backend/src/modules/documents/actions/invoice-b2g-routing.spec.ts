@@ -46,6 +46,27 @@ const IT_RULE_READY = {
   provenanceDescription: '"Specifiche tecniche..." (checked 2026-09-01)',
 };
 
+// ES/FACe — the SAME "IMPLEMENTED AND CONNECTED, overrides the company's own free choice" shape as
+// IT_RULE_READY above, this task's own service-level proof: a GOVERNMENT client of Spain routes to
+// "face" (`b2g-routing/data/es.json`), never the company's own configured transport.
+const ES_RULE_READY = {
+  countryCode: 'ES',
+  transportId: 'face',
+  formatSyntax: 'facturae',
+  requiredClientIdentifiers: [{ scheme: 'VAT', label: 'NIF', why: 'Facturae TaxIdentificationType.' }],
+  requiredDocumentFields: [
+    { field: 'dir3OrganoGestor', label: 'Órgano Gestor (DIR3)', why: 'FACe routing.', required: true },
+    {
+      field: 'dir3UnidadTramitadora',
+      label: 'Unidad Tramitadora (DIR3)',
+      why: 'FACe routing.',
+      required: true,
+    },
+    { field: 'dir3OficinaContable', label: 'Oficina Contable (DIR3)', why: 'FACe routing.', required: true },
+  ],
+  provenanceDescription: '"Ley 25/2013, arts. 4 y 6..." (checked 2026-09-02)',
+};
+
 const DE_RULE_UNIMPLEMENTED = {
   countryCode: 'DE',
   transportId: 'zre-ozgre',
@@ -375,6 +396,45 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     await expect(action).rejects.toThrow(/"sdi" channel/);
     await expect(action).rejects.toThrow(/Specifiche tecniche/);
     await expect(action).rejects.toThrow(/SdI credentials are not connected\./);
+  });
+
+  // ES/FACe — this task's own service-level proof: a GOVERNMENT client whose country is Spain, with
+  // the DIR3 triad already on the invoice and the "face" channel CONNECTED, routes to "face" and the
+  // worker actually calls its `send()`/`preflight()` — the client stub standing in for the real
+  // `FaceClient` (proven separately, offline, by `face-transport.spec.ts`/`facturae-provider.spec.ts`).
+  it('ES: a channel the B2G rule names ("face") but is IMPLEMENTED and CONNECTED overrides the company\'s own DIFFERENT free choice — the worker calls the client stub', async () => {
+    mockB2g({ applies: true, countryCode: 'ES', rule: ES_RULE_READY, missingIdentifierSchemes: [] });
+    // The company itself chose "email" — B2G still forces "face".
+    (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+    const dataWithDir3 = {
+      ...documentData,
+      dir3OrganoGestor: 'L01280796',
+      dir3UnidadTramitadora: 'L01280796',
+      dir3OficinaContable: 'L01280796',
+    };
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument(dataWithDir3));
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument(dataWithDir3));
+
+    const transportRegistry = new TransportRegistry();
+    transportRegistry.register('email', 'Email', { send: jest.fn() });
+    const faceSend = jest
+      .fn()
+      .mockResolvedValue({ message: 'ok', reference: '2026/000001', providerId: 'face' });
+    const facePreflight = jest.fn().mockResolvedValue(undefined);
+    transportRegistry.register('face', 'FACe (Spain, B2G)', { send: faceSend, preflight: facePreflight });
+    const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
+
+    const result = await handler!({
+      companyId: 'company-1',
+      typeId: 'invoice',
+      documentId: 'doc-1',
+      data: dataWithDir3,
+      params: {},
+    });
+
+    expect(facePreflight).toHaveBeenCalledWith('company-1');
+    expect(result.changed).toBe(true);
+    expect(result.document).toMatchObject({ status: 'sending' });
   });
 
   it("deliver() (the worker's replay, phase 2) ALSO respects B2G routing — never trusts a value cached from the preflight", async () => {

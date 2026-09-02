@@ -10,7 +10,7 @@
  * the API, or intercept the real network request the click triggers — never the screen alone as
  * proof of what was decided or sent.
  *
- * Three countries, three shipped rules, three different shapes of proof:
+ * Four countries, four shipped rules, four different shapes of proof:
  *  - FR (Chorus Pro): **RENFORCÉ** — `transportId: "chorus-pro"` used to name a channel absent from
  *    `transport-registry.ts` (the thesis of this whole model: a rule may legitimately name a channel
  *    not implemented yet), so sending BLOCKED, synchronously, at the preflight, before this task. The
@@ -48,6 +48,21 @@
  *    deliberately set to "email" (a channel that WOULD succeed) to prove precedence for real: the
  *    invoice still fails via SdI (a fake, unreachable endpoint — same fixture as 31's own SdI wave),
  *    never silently through email.
+ *  - ES (FACe): a SECOND rule whose channel is ALREADY implemented (added by a later task, root TODO
+ *    item 13's own XAdES wiring + Ley 25/2013) — same "email" precedence proof as IT/FR, but a
+ *    DIFFERENT shape of failure, found while writing this test: FACe additionally requires a
+ *    Facturae SIGNED with XAdES (item 13), and this suite never configures a signing certificate —
+ *    so the send fails at that LOCAL signature gate (`FacturaeSigningRequiredError`), before any
+ *    network attempt, never against the real `se-face-webservice.redsara.es` sandbox (that live
+ *    rejection is proven separately, credential-free, by `31`'s own header pointer to
+ *    `face/face.live.spec.ts`). This is still a REAL, meaningful proof — arguably the more relevant
+ *    one for root TODO item 13's own thesis: the first real consumer of the XAdES provider is wired
+ *    end-to-end, through the actual screen, all the way to a company that never set up a certificate
+ *    correctly being refused rather than silently sent unsigned. ES is also the FIRST rule in this
+ *    file whose `requiredDocumentFields` names THREE fields at once (the DIR3 triad: órgano gestor/
+ *    unidad tramitadora/oficina contable) rather than DE's single Leitweg-ID — a SEPARATE test below
+ *    proves the reactive on-screen field mechanism scales to three without any code change
+ *    (`applyB2gDocumentFieldHints`'s own generic `requiredDocumentFields.map(...)` bridge).
  *
  * `cy.resetAndSeed()` seeds a FRENCH company (Acme Corp, SIRET/VAT already on file) — this file adds
  * an IBAN to it via the API before the DE case (BR-DE-1/23-a/23-b's own requirement, see
@@ -72,6 +87,20 @@ const FAKE_CHORUS_PRO = {
 	clientSecret: "e2e-fake-piste-client-secret",
 	technicalAccountLogin: "TECH_1_e2e-fake@cpro.fr",
 	technicalAccountPassword: "e2e-fake-tech-password",
+};
+
+/** FACe (ES) — same discipline as FAKE_CHORUS_PRO above: the SSPP host is FIXED by environment
+ *  (`face-transport.ts`'s own `FACE_ENDPOINTS`), never a user-editable field, so these fictitious
+ *  credentials WOULD reach the REAL public sandbox (`se-face-webservice.redsara.es`) and be
+ *  rejected for real — a genuine SOAP Fault ("La petición no esta firmada"), independently
+ *  re-verified by `face/face.live.spec.ts`'s own gated block — but the test below never actually
+ *  gets that far: FACe also requires a Facturae signed with XAdES (root TODO item 13), and no
+ *  signing certificate is configured anywhere in this file, so the send fails at that LOCAL gate
+ *  FIRST — see that test's own header. */
+const FAKE_FACE = {
+	certificate: btoa("e2e-fake-pfx-bytes"),
+	certificatePassword: "e2e-fake-cert-password",
+	notificationEmail: "facturacion@e2e-testville.example",
 };
 
 function setInvoiceTransport(transportId: string) {
@@ -627,6 +656,250 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			"contain.text",
 			"Not connected",
 		);
+	});
+
+	it("ES — un client GOVERNMENT affiche l'aide FACe (exige le NIF et la triade DIR3), puis l'envoi force le canal face même si la société a choisi email, et échoue réellement au GATE DE SIGNATURE XAdES (aucun certificat configuré ici), jamais un envoi silencieux par email", () => {
+		// Même motif que FR/IT ci-dessus : le canal EXISTE (`transports/face-transport.ts`) — on le
+		// connecte par l'écran, AVANT de créer le client/la facture, avec des identifiants fictifs
+		// (voir FAKE_FACE's own header : le canal une fois connecté pointe réellement vers
+		// `se-face-webservice.redsara.es`). Cette suite ne configure toutefois jamais de certificat de
+		// signature (aucun écran "Signing certificates" piloté ici), donc l'envoi ci-dessous échoue
+		// AVANT tout appel réseau, au gate XAdES local (`FacturaeSigningRequiredError`, root TODO item
+		// 13) — voir ce fichier's own header pour la preuve, séparée et credential-free, du rejet
+		// réseau réel.
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-face"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-face-certificate-input"]')
+			.clear()
+			.type(FAKE_FACE.certificate);
+		cy.get('[data-cy="channel-face-certificatepassword-input"]')
+			.clear()
+			.type(FAKE_FACE.certificatePassword);
+		cy.get('[data-cy="channel-face-notificationemail-input"]')
+			.clear()
+			.type(FAKE_FACE.notificationEmail);
+		cy.get('[data-cy="channel-face-connect-button"]').click();
+		cy.get('[data-cy="channel-face-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
+
+		// La société choisit "email" (un canal qui MARCHERAIT réellement, Mailpit) — la préséance B2G
+		// doit l'ignorer complètement, exactement le même motif que FR/IT.
+		setInvoiceTransport("email");
+
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Ayuntamiento de Testville");
+		cy.selectCountry("client-country-select", "Spain");
+
+		cy.get('[data-cy="client-kind-select"]').click();
+		cy.get('[data-cy="client-kind-government"]').click();
+
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="client-b2g-hint-channel"]')
+			.should("contain.text", "face")
+			.and("contain.text", "facturae");
+		cy.get('[data-cy="client-b2g-hint"]').should(
+			"contain.text",
+			"Ley 25/2013",
+		);
+		// La triade DIR3 est annoncée ICI, sur l'AIDE du client, en plus d'apparaître comme des champs
+		// FACTURE réactifs (voir le test dédié juste après celui-ci).
+		cy.get('[data-cy="client-b2g-hint"]')
+			.should("contain.text", "Órgano Gestor")
+			.and("contain.text", "Unidad Tramitadora")
+			.and("contain.text", "Oficina Contable");
+
+		// Le NIF — country-identifiers ES n'existe pas encore pour "tout client espagnol" (voir
+		// es.json's own note), donc c'est bien la règle B2G elle-même qui l'exige ici : le champ
+		// identifiant générique "VAT" apparaît, ajouté par le MÊME mécanisme que le SIRET français.
+		cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 })
+			.clear()
+			.type("ESQ2817001J");
+
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("contratacion@testville.example");
+		cy.get('[name="address"]').clear().type("1 Plaza Mayor");
+		cy.get('[name="postalCode"]').clear().type("28001");
+		cy.get('[name="city"]').clear().type("Testville");
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Ayuntamiento de Testville", { timeout: 10000 });
+
+		findClientIdByName("Ayuntamiento de Testville").then((clientId) => {
+			// La triade DIR3 est déjà fournie ici (par API) — le test RÉACTIF juste après celui-ci
+			// prouve séparément qu'elle apparaît bien à l'écran ; celui-ci prouve le RÉSEAU réel.
+			createInvoiceDraft(clientId, {
+				dir3OrganoGestor: "L01280796",
+				dir3UnidadTramitadora: "L01280796",
+				dir3OficinaContable: "L01280796",
+			}).then((invoiceId) => {
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+					.find('[data-cy="document-status-badge"]')
+					.should("contain.text", "Draft");
+
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+
+				// Même budget que les cas FR/IT ci-dessus. Le refus de signature est LOCAL (jamais un
+				// aller-retour réseau), donc en pratique quasi immédiat ; ce budget reste large, pas
+				// juste suffisant.
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+					.should("contain.text", "Send failed");
+				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`)
+					.should("contain.text", "FACe")
+					.and("contain.text", "XAdES");
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							'la facture échoue réellement (gate de signature), jamais "sent" par email',
+						).to.eq("send_failed");
+						expect(
+							doc.lastActionError,
+							"l'erreur nomme FACe ET la vraie cause (XAdES), jamais email",
+						)
+							.to.match(/FACe/i)
+							.and.match(/XAdES/);
+					});
+			});
+		});
+
+		// Nettoyage — laisse le canal déconnecté pour ne pas polluer une autre spec qui relirait
+		// company/channels après celui-ci (même discipline que le test FR/IT ci-dessus).
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-face-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
+		cy.get('[data-cy="channel-face-disconnect-button"]').click();
+		cy.get('[data-cy="channel-face-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
+	});
+
+	it("ES — les TROIS champs DIR3 (órgano gestor / unidad tramitadora / oficina contable) apparaissent RÉACTIVEMENT à l'écran dès qu'un client GOVERNMENT espagnol est choisi dans le formulaire (jamais avant, jamais pour un client BUSINESS), avec leur aide sourcée — le même mécanisme que le Leitweg-ID allemand (un seul champ), prouvé ici pour trois à la fois", () => {
+		setInvoiceTransport("email");
+
+		createBusinessClient("Client Ordinaire SL").then((businessClientId) => {
+			createInvoiceDraft(businessClientId).then((invoiceId) => {
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should(
+					"be.visible",
+				);
+
+				// AVANT tout changement : le client chargé est BUSINESS — aucun champ DIR3 à l'écran.
+				cy.get('[data-cy="document-field-dir3OrganoGestor"]').should(
+					"not.exist",
+				);
+				cy.get('[data-cy="document-field-dir3UnidadTramitadora"]').should(
+					"not.exist",
+				);
+				cy.get('[data-cy="document-field-dir3OficinaContable"]').should(
+					"not.exist",
+				);
+
+				// Change le client, À L'ÉCRAN, vers "Ayuntamiento de Testville" — le client GOVERNMENT
+				// espagnol créé par le test ES précédent (même describe, même `before`, données
+				// conservées).
+				cy.get('[data-cy="document-field-client-input"] button')
+					.first()
+					.click({ force: true });
+				cy.get('[data-cy="document-field-client-input-options"]', {
+					timeout: 10000,
+				}).should("be.visible");
+				cy.get('[data-cy="document-field-client-input"] input').type(
+					"Ayuntamiento de Testville",
+				);
+				cy.contains(
+					'[data-cy="document-field-client-input-options"] button',
+					"Ayuntamiento de Testville",
+					{ timeout: 10000 },
+				).click();
+
+				// RÉACTIF, sans rechargement de page : les TROIS champs apparaissent, chacun avec son
+				// `why` (le texte sourcé de la règle) en aide — jamais juste un label nu.
+				cy.get('[data-cy="document-field-dir3OrganoGestor"]', {
+					timeout: 10000,
+				})
+					.scrollIntoView()
+					.should("be.visible");
+				cy.get('[data-cy="document-field-dir3UnidadTramitadora"]').should(
+					"be.visible",
+				);
+				cy.get('[data-cy="document-field-dir3OficinaContable"]').should(
+					"be.visible",
+				);
+				cy.get('[data-cy="document-field-dir3OrganoGestor"]').should(
+					"contain.text",
+					"FACe",
+				);
+
+				cy.get('[data-cy="document-field-dir3OrganoGestor-input"]')
+					.scrollIntoView()
+					.clear()
+					.type("L01280796");
+				cy.get('[data-cy="document-field-dir3UnidadTramitadora-input"]')
+					.scrollIntoView()
+					.clear()
+					.type("L01280796");
+				cy.get('[data-cy="document-field-dir3OficinaContable-input"]')
+					.scrollIntoView()
+					.clear()
+					.type("L01280796");
+
+				cy.intercept(
+					"POST",
+					`${api}/api/documents/types/invoice/actions/save-draft`,
+				).as("saveDraft");
+				cy.get('[data-cy="document-action-save-draft"]')
+					.scrollIntoView()
+					.click();
+				cy.wait("@saveDraft")
+					.its("response.statusCode")
+					.should("be.oneOf", [200, 201]);
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							'jamais persisté au-delà de "draft" ici — cette spec ne teste QUE la réactivité du champ',
+						).to.eq("draft");
+						expect(
+							doc.data?.client,
+							"le nouveau client est bien celui enregistré",
+						).to.not.eq(businessClientId);
+						// Les TROIS valeurs tapées à l'écran sont bien celles sauvegardées — pas
+						// seulement affichées le temps d'un rendu.
+						expect(doc.data?.dir3OrganoGestor).to.eq("L01280796");
+						expect(doc.data?.dir3UnidadTramitadora).to.eq("L01280796");
+						expect(doc.data?.dir3OficinaContable).to.eq("L01280796");
+					});
+			});
+		});
 	});
 
 	it('un pays GOVERNMENT sans règle B2G déclarée refuse honnêtement — jamais un envoi B2B silencieux (mutation guard #2, à l\'échelle "écran")', () => {
