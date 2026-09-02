@@ -574,4 +574,186 @@ describe('runAsyncSendAction', () => {
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
   });
+
+  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge (`queue/document-events-publisher.ts`).
+  // `events` is OPTIONAL (see `RunAsyncSendInput.events`'s own header) — every test ABOVE this block
+  // omits it and must keep passing unchanged; these are the DEDICATED tests for the publish behavior
+  // itself: publish only once the fact is genuinely ACQUIRED in Postgres, never before, never on a
+  // failed write.
+  describe('events — TODO_PRODUIT.md T1 / PLAN-V2 R8 (the SSE status nudge)', () => {
+    it('phase 1: publishes "sending" AFTER upsertDocument persists it, with the record\'s own id', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+      const events = { publish: jest.fn().mockResolvedValue(undefined) };
+      const callOrder: string[] = [];
+      (persistence.upsertDocument as jest.Mock).mockImplementation(async () => {
+        callOrder.push('upsertDocument');
+        return {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      });
+      events.publish.mockImplementation(async () => {
+        callOrder.push('publish');
+      });
+
+      await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn(), events });
+
+      expect(events.publish).toHaveBeenCalledWith('company-1', {
+        documentId: 'doc-1',
+        typeId: 'quote',
+        kind: 'sending',
+      });
+      expect(callOrder).toEqual(['upsertDocument', 'publish']);
+    });
+
+    it('phase 1: never publishes at all when upsertDocument itself throws — an unacquired fact is never announced', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockRejectedValue(new Error('DB unreachable'));
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const events = { publish: jest.fn() };
+
+      await expect(
+        runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn(), events }),
+      ).rejects.toThrow('DB unreachable');
+
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it('phase 1: never publishes when a preflight rejects — nothing was ever acquired', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const events = { publish: jest.fn() };
+      const preflight = jest.fn().mockRejectedValue(new Error('no transport configured'));
+
+      await expect(
+        runAsyncSendAction({
+          ...baseInput,
+          typeId: 'invoice',
+          queueDispatcher,
+          deliver: jest.fn(),
+          preflight,
+          events,
+        }),
+      ).rejects.toThrow(/no transport configured/);
+
+      expect(events.publish).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('phase 2: publishes "sent" AFTER updateDocumentStatus persists it, BEFORE archiving', async () => {
+      const callOrder: string[] = [];
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+        callOrder.push('updateDocumentStatus');
+        return { id: 'doc-1', typeId: 'quote', status: 'sent' };
+      });
+      (archiveOnSend.archiveDeliveredArtifactsIfAny as jest.Mock).mockImplementation(async () => {
+        callOrder.push('archiveDeliveredArtifactsIfAny');
+      });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const events = {
+        publish: jest.fn().mockImplementation(async () => {
+          callOrder.push('publish');
+        }),
+      };
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver, events });
+
+      expect(events.publish).toHaveBeenCalledWith('company-1', {
+        documentId: 'doc-1',
+        typeId: 'quote',
+        kind: 'sent',
+      });
+      expect(callOrder).toEqual(['updateDocumentStatus', 'publish', 'archiveDeliveredArtifactsIfAny']);
+    });
+
+    it('phase 2: never publishes when deliver() throws — an unacquired "sent" is never announced', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const events = { publish: jest.fn() };
+      const deliver = jest.fn().mockRejectedValue(new Error('SMTP connection refused'));
+
+      await expect(runAsyncSendAction({ ...baseInput, queueDispatcher, deliver, events })).rejects.toThrow(
+        'SMTP connection refused',
+      );
+
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+
+      // No `events` field at all — this must not throw (optional chaining, never a hard dependency).
+      await expect(
+        runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn() }),
+      ).resolves.toEqual(
+        expect.objectContaining({ document: expect.objectContaining({ status: 'sending' }) }),
+      );
+    });
+  });
 });

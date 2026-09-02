@@ -104,10 +104,14 @@ export async function listAuthorityEvents(
 export async function findDocumentByTransportRef(
   channelProviderId: string,
   transportRef: string,
-): Promise<{ id: string; companyId: string } | null> {
+): Promise<{ id: string; companyId: string; typeId: string } | null> {
   const row = await prisma.documentInstance.findFirst({
     where: { channelProviderId, transportRef },
-    select: { id: true, companyId: true },
+    // `typeId` (added for TODO_PRODUIT.md T1 / PLAN-V2 R8) is what lets
+    // `sdi-notifiche.service.ts` publish a `{documentId, typeId, kind: 'authority-event'}` SSE nudge
+    // — the frontend's own query keys (`["documents", typeId, id, "authority-events"]`) need BOTH to
+    // invalidate the right cache entry, never `documentId` alone.
+    select: { id: true, companyId: true, typeId: true },
   });
   return row;
 }
@@ -115,6 +119,7 @@ export async function findDocumentByTransportRef(
 export interface ConformitySweepCandidateRow {
   id: string;
   companyId: string;
+  typeId: string;
   transportRef: string;
   channelProviderId: string;
   updatedAt: Date;
@@ -148,6 +153,7 @@ export async function findConformitySweepCandidates(
   return rows.map((row) => ({
     id: row.id,
     companyId: row.companyId,
+    typeId: row.typeId,
     // Never actually null here (filtered by the WHERE clause above) — TypeScript just can't see that
     // through Prisma's own generated types, so this narrows explicitly rather than asserting blind.
     transportRef: row.transportRef ?? '',

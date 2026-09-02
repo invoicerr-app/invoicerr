@@ -36,6 +36,11 @@
 
 ## T1 — SSE : le statut bouge à l'écran sans rechargement (R8)
 
+> ✅ **FAIT** (2026-09-02) — six points de publication (sending/sent/send_failed + autorité
+> via sweep/reporting/SdI), pont Redis pub/sub, endpoint `@Sse('events')`, hook front monté dans
+> le layout, polling rétrogradé en repli 60s. Validé : jest 1876, vitest 46/46, pont Redis réel
+> 3/3, 3 mutations mordantes, batterie 232 verts.
+
 Un flux SSE authentifié (cookie better-auth, scoping `@ActiveCompany` — un tenant ne voit JAMAIS
 les événements d'un autre), alimenté depuis le journal/projection existants via un pont
 worker→API (Redis pub/sub), consommé par le `useSse` existant ; à réception, invalider les

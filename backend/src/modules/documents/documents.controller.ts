@@ -1,14 +1,31 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import { Observable } from 'rxjs';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 
 import { DocumentsService } from './documents.service';
 import { RunActionDto } from './dto/documents.dto';
+import { DocumentEventMessage } from './queue/document-events';
+import { DocumentEventsBridge } from './queue/document-events-bridge';
 import { CreateDocumentScheduleDto, UpdateDocumentScheduleDto } from './schedules/schedule.dto';
 import { DocumentSchedulesService } from './schedules/schedules.service';
 import { ShareLinksService } from './share-links/share-links.service';
+
+/** Well under common proxy/load-balancer idle timeouts (nginx's own default `proxy_read_timeout` is
+ *  60s; many managed load balancers sit at 30-60s too) — see `streamEvents`'s own header for why a
+ *  live byte still has to cross the wire periodically even though headers alone disable buffering. */
+const DOCUMENT_EVENTS_HEARTBEAT_MS = 20_000;
+
+/** The one shape `streamEvents` below ever emits — either a real nudge (`data` is a
+ *  `DocumentEventMessage`, default "message" event type) or a heartbeat (`data: {}`, `type:
+ *  "heartbeat"`) — mirrors `logger.controller.ts`'s own local `MessageEvent` (this codebase's chosen
+ *  pattern for an `@Sse()` handler, deliberately copied rather than re-derived). */
+interface MessageEvent {
+  data: unknown;
+  type?: string;
+}
 
 @ApiTags('documents')
 @Controller('documents')
@@ -17,6 +34,7 @@ export class DocumentsController {
     private readonly documentsService: DocumentsService,
     private readonly schedulesService: DocumentSchedulesService,
     private readonly shareLinksService: ShareLinksService,
+    private readonly eventsBridge: DocumentEventsBridge,
   ) {}
 
   // Static segments ('types', 'transports', 'references/:entity/search', 'schedules') are declared
@@ -218,6 +236,70 @@ export class DocumentsController {
   @ApiResponse({ status: 200, description: 'Transports retrieved' })
   listTransports() {
     return this.documentsService.listTransports();
+  }
+
+  /**
+   * Live document status/conformity nudges — TODO_PRODUIT.md T1 / PLAN-V2 R8: the screen used to keep
+   * an async "send"'s OLD status until a manual reload, because nothing pushed the change to the
+   * browser once the worker (a separate PROCESS once `WORKER_INLINE=false`) persisted it. See
+   * `queue/document-events-publisher.ts`'s own header for the worker→API bridge (Redis pub/sub —
+   * never an in-process EventEmitter, which `WORKER_INLINE=false` would silently break) this stream
+   * is fed from.
+   *
+   * Every message is `{documentId, typeId, kind}` ONLY (`queue/document-events.ts`) — a NUDGE, never
+   * a second source of truth: the frontend's `useSse` consumer invalidates the matching TanStack
+   * queries on receipt and lets the ordinary REST GET (already tenant-scoped, already authoritative)
+   * supply the actual state.
+   *
+   * Scoped by `@ActiveCompany()` exactly like every other route on this controller — a tenant NEVER
+   * receives another tenant's events: `DocumentEventsBridge.subscribeCompany` dispatches strictly on
+   * this exact companyId (see that method's own header for why that is structurally impossible to
+   * get wrong, not merely a filter that could be forgotten).
+   *
+   * Nest's own `SseStream` already forces `X-Accel-Buffering: no` on every `@Sse()` response
+   * (`@nestjs/core/router/sse-stream.js`, `commitHeaders()`) — nginx sits in front of this API in
+   * production (`entrypoint.sh`) and buffers a response by default without it, which would turn this
+   * stream into one big, delayed batch instead of a live one. Nothing to add here for that; documented
+   * so a future refactor off `@Sse()` doesn't silently lose it.
+   *
+   * The periodic `heartbeat`-typed message below exists purely to keep an otherwise-idle connection
+   * alive through a proxy that drops silent sockets (see `DOCUMENT_EVENTS_HEARTBEAT_MS`'s own
+   * comment) — it is deliberately never the DEFAULT SSE "message" type, so the frontend's `useSse`
+   * (`EventSource.onmessage` only fires for the unnamed default event type) never mistakes a
+   * heartbeat for a real document event and never invalidates a query over one.
+   */
+  @Sse('events')
+  @ApiOperation({
+    summary: 'Live document status/conformity events (SSE)',
+    description:
+      'One message per persisted transition (sending/sent/send_failed) or newly-journaled ' +
+      'authority-event batch, scoped to the active company — {documentId, typeId, kind} only, never ' +
+      'the resulting state. See queue/document-events-publisher.ts for the worker→API Redis pub/sub ' +
+      'bridge this is fed from.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'text/event-stream — JSON document events plus periodic "heartbeat"-typed keep-alives',
+  })
+  streamEvents(@ActiveCompany() companyId: string): Observable<MessageEvent> {
+    return new Observable<MessageEvent>((subscriber) => {
+      const unsubscribe = this.eventsBridge.subscribeCompany(companyId, (message: DocumentEventMessage) => {
+        subscriber.next({ data: message });
+      });
+      const heartbeat = setInterval(() => {
+        subscriber.next({ data: {}, type: 'heartbeat' });
+      }, DOCUMENT_EVENTS_HEARTBEAT_MS);
+
+      // Runs when the client disconnects (browser tab closed, network drop) — the request's own
+      // `close` event, handled by `@nestjs/core`'s own SSE plumbing (`router-response-controller.js`)
+      // unsubscribing this Observable. Both the interval and this tenant's own listener registration
+      // must be torn down here, or a churn of short-lived SSE connections would leak both a live
+      // interval and an EventEmitter listener per connection, forever, on the ONE bridge instance.
+      return () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+      };
+    });
   }
 
   @Get('references/:entity/search')

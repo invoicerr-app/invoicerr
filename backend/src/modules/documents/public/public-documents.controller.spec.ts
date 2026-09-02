@@ -103,11 +103,16 @@ function buildControllers() {
   );
   const shareLinksService = new ShareLinksService(documentsService);
   const schedulesService = { list: jest.fn() };
+  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — this suite proves the PDF download path, entirely unrelated to
+  // the SSE `events` route; a bare stub is enough, the same "unrelated dependency, minimal stub"
+  // choice `schedulesService` above already makes.
+  const eventsBridge = { subscribeCompany: jest.fn() };
 
   const documentsController = new DocumentsController(
     documentsService,
     schedulesService as never,
     shareLinksService,
+    eventsBridge as never,
   );
   const publicController = new PublicDocumentsController(shareLinksService, documentsService);
 

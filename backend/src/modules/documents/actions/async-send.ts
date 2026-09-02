@@ -43,6 +43,7 @@ import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
+import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnSendIfObligated } from '../reporting/report-on-send';
 
@@ -101,6 +102,19 @@ export interface RunAsyncSendInput {
    */
   preflight?: () => Promise<Record<string, unknown> | undefined>;
   /**
+   * TODO_PRODUIT.md T1 / PLAN-V2 R8 — publishes a `{documentId, typeId, kind}` nudge (never the
+   * resulting state, see `queue/document-events.ts`'s own header) for the SSE stream
+   * (`documents.controller.ts`'s `events` route) to relay to a browser, at each of the two points
+   * below where a status transition is genuinely ACQUIRED in Postgres — never before, and never for a
+   * call that throws before reaching that point (see each call site's own comment). OPTIONAL,
+   * deliberately: every EXISTING caller/spec of this function predates this field and must keep
+   * type-checking and passing unchanged (the same "capability absent, no effect" posture
+   * `DocumentActionQueueDispatcher.enqueueReport`'s own optional method already holds just above) —
+   * `events?.publish(...)` below is a no-op when absent. Production wiring
+   * (`documents-core.module.ts`'s `buildActionRegistry`) always threads through a real one.
+   */
+  events?: DocumentEventPublisher;
+  /**
    * Whether THIS type declares `numbering: { onEnterStatus: 'sending' }` (quote/invoice: true;
    * credit-note: false — see credit-note.descriptor.ts's own comment on why it declares no numbering
    * at all). `runAsyncSendAction` cannot infer this itself — it never sees a descriptor, only a typeId
@@ -115,8 +129,17 @@ export interface RunAsyncSendInput {
 }
 
 export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<ActionResult> {
-  const { companyId, typeId, documentId, params, queueDispatcher, deliver, preflight, numberOnEnqueue } =
-    input;
+  const {
+    companyId,
+    typeId,
+    documentId,
+    params,
+    queueDispatcher,
+    deliver,
+    preflight,
+    numberOnEnqueue,
+    events,
+  } = input;
   // Reassigned below, ONLY on the phase-1 path, when `preflight` hands back a resolved replacement —
   // see `RunAsyncSendInput.preflight`'s own header. Untouched (still exactly `input.data`) for the
   // phase-2 branch just below, and for any type whose preflight is absent or returns nothing.
@@ -151,6 +174,13 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       providerId,
     );
 
+    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the fact is ACQUIRED right above (Postgres already holds
+    // "sent"); publishing right after, before archive/reporting, is what lets a browser's own SSE
+    // connection move a screen straight from "sending" to "sent" without a manual reload. Never
+    // reached if `deliver()` or `updateDocumentStatus` above threw — see `RunAsyncSendInput.events`'s
+    // own header for why a failed write must never publish.
+    await events?.publish(companyId, { documentId, typeId, kind: 'sent' });
+
     // Root TODO item 14 ("archivage légal") — archived ONLY once delivery has genuinely succeeded
     // (this line runs after `sent` is already persisted, never before): archiving a delivery that
     // could still fail would be a lie about what was actually conserved. `archiveDeliveredArtifactsIfAny`
@@ -179,6 +209,13 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   }
 
   let sending = await upsertDocument(companyId, typeId, documentId, 'sending', data);
+
+  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the fact is ACQUIRED right above (Postgres already holds
+  // "sending"); publishing here, BEFORE numbering/enqueueing, means a browser's own SSE connection
+  // sees the record leave "draft"/"send_failed" the moment it genuinely does, not once the (possibly
+  // slower) job has even been queued. Never reached if `upsertDocument` above threw or if a preflight
+  // rejected earlier — see `RunAsyncSendInput.events`'s own header.
+  await events?.publish(companyId, { documentId: sending.id, typeId, kind: 'sending' });
 
   // THE FIX for the race this file's own header describes: the number must exist BEFORE the job is
   // enqueued, never after — a worker could otherwise pick the job up and render the PDF/email before

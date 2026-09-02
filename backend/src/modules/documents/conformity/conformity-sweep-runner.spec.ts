@@ -19,6 +19,7 @@ import {
 } from './authority-status-poller';
 import { BLOCKED_STATUS_CODE, GAVE_UP_STATUS_CODE } from './conformity-sweep';
 import { ConformitySweepRunner } from './conformity-sweep-runner';
+import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
 
 jest.mock('./authority-events.persistence');
@@ -249,5 +250,224 @@ describe('ConformitySweepRunner.runPoll', () => {
     await expect(
       runner.runPoll({ companyId: 'company-1', documentId: 'doc-1', providerId: 'pdp', transportRef: 'x' }),
     ).resolves.toEqual({ journaled: 0 });
+  });
+});
+
+// TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge. `eventsPublisher` is OPTIONAL (see
+// `ConformitySweepRunner`'s own constructor header) — every test ABOVE this block constructs the
+// runner with two args and must keep passing unchanged; these are the DEDICATED tests for the publish
+// behavior: publish only on a GENUINELY NEW journal row, never on a dedup no-op, and only when the job
+// data actually carries a typeId.
+describe('ConformitySweepRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', () => {
+  let dispatcher: DocumentQueueDispatcher;
+  let registry: AuthorityStatusPollerRegistry;
+  let events: { publish: jest.Mock };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    dispatcher = {
+      enqueueConformityPoll: jest.fn().mockResolvedValue(true),
+    } as unknown as DocumentQueueDispatcher;
+    // NO default poller registered here, deliberately: the `runPoll` tests below each register their
+    // OWN poller (a specific `poll` mock per scenario) — registering one here too would collide with
+    // `AuthorityStatusPollerRegistry.register`'s own "already registered" guard the moment they do.
+    // The `runSweep` tests register the plain `buildPdpPoller()` themselves, right where they need it.
+    registry = new AuthorityStatusPollerRegistry();
+    events = { publish: jest.fn().mockResolvedValue(undefined) };
+  });
+
+  it('runSweep: publishes an authority-event nudge when a candidate genuinely gives up', async () => {
+    registry.register(buildPdpPoller());
+    process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000);
+    mockedFindCandidates.mockResolvedValue([
+      {
+        id: 'doc-1',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        transportRef: '123456',
+        channelProviderId: 'pdp',
+        updatedAt: new Date('2026-08-01T00:00:00Z'),
+        existingStatusCodes: [],
+      },
+    ]);
+    mockedJournalSynthetic.mockResolvedValue(1);
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runSweep(new Date('2026-08-10T00:00:00Z'));
+
+    expect(events.publish).toHaveBeenCalledWith('company-1', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      kind: 'authority-event',
+    });
+    delete process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS;
+  });
+
+  it('runSweep: never publishes when giving up was a dedup no-op (already journaled by another pass)', async () => {
+    registry.register(buildPdpPoller());
+    process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000);
+    mockedFindCandidates.mockResolvedValue([
+      {
+        id: 'doc-1',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        transportRef: '123456',
+        channelProviderId: 'pdp',
+        updatedAt: new Date('2026-08-01T00:00:00Z'),
+        existingStatusCodes: [],
+      },
+    ]);
+    mockedJournalSynthetic.mockResolvedValue(0);
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runSweep(new Date('2026-08-10T00:00:00Z'));
+
+    expect(events.publish).not.toHaveBeenCalled();
+    delete process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS;
+  });
+
+  it("runSweep: threads the candidate's own typeId into the enqueued poll job", async () => {
+    registry.register(buildPdpPoller());
+    mockedFindCandidates.mockResolvedValue([
+      {
+        id: 'doc-1',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        transportRef: '123456',
+        channelProviderId: 'pdp',
+        updatedAt: new Date('2026-08-29T10:00:00Z'),
+        existingStatusCodes: ['fr:200'],
+      },
+    ]);
+    const enqueueConformityPoll = jest.fn().mockResolvedValue(true);
+    dispatcher = { enqueueConformityPoll } as unknown as DocumentQueueDispatcher;
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runSweep(new Date('2026-08-29T10:05:00Z'));
+
+    const [, jobData] = enqueueConformityPoll.mock.calls[0];
+    expect(jobData).toEqual({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: '123456',
+      typeId: 'invoice',
+    });
+  });
+
+  it('runPoll: publishes an authority-event nudge when new events are genuinely journaled', async () => {
+    const pollEvents = [{ statusCode: 'fr:200', observedAt: new Date() }];
+    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(pollEvents) }));
+    mockedCreateEvents.mockResolvedValue(1);
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: '123456',
+      typeId: 'invoice',
+    });
+
+    expect(events.publish).toHaveBeenCalledWith('company-1', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      kind: 'authority-event',
+    });
+  });
+
+  it('runPoll: never publishes when nothing new was journaled (a re-poll rediscovering known events)', async () => {
+    registry.register(
+      buildPdpPoller({
+        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+      }),
+    );
+    mockedCreateEvents.mockResolvedValue(0);
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: '123456',
+      typeId: 'invoice',
+    });
+
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('runPoll: never publishes when the job data carries no typeId (nothing to invalidate a query for)', async () => {
+    registry.register(
+      buildPdpPoller({
+        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+      }),
+    );
+    mockedCreateEvents.mockResolvedValue(1);
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: '123456',
+    });
+
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('runPoll: publishes on a NEWLY-journaled poll:blocked verdict too', async () => {
+    registry.register(
+      buildPdpPoller({ poll: jest.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
+    );
+    mockedJournalSynthetic.mockResolvedValue(1);
+
+    const runner = new ConformitySweepRunner(
+      registry,
+      dispatcher,
+      events as unknown as DocumentEventsPublisher,
+    );
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: 'x',
+      typeId: 'invoice',
+    });
+
+    expect(events.publish).toHaveBeenCalledWith('company-1', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      kind: 'authority-event',
+    });
+  });
+
+  it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
+    mockedFindCandidates.mockResolvedValue([]);
+    const runner = new ConformitySweepRunner(registry, dispatcher); // no eventsPublisher
+    await expect(runner.runSweep(new Date())).resolves.toEqual({ candidates: 0, polled: 0, gaveUp: 0 });
   });
 });

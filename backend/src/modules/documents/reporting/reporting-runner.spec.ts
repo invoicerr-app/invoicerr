@@ -15,6 +15,7 @@ import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DeclarationProvider, DeclarationResult } from './declaration-provider';
 import { DeclarationProviderRegistry } from './declaration-provider';
+import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
 import { InvalidDeclarationResultError, ReportingRunner } from './reporting-runner';
 
@@ -91,10 +92,14 @@ function buildRegistry(provider?: DeclarationProvider): DeclarationProviderRegis
   return registry;
 }
 
-function buildRunner(provider?: DeclarationProvider): ReportingRunner {
+function buildRunner(provider?: DeclarationProvider, events?: { publish: jest.Mock }): ReportingRunner {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
-  return new ReportingRunner(buildRegistry(provider), typeRegistry);
+  return new ReportingRunner(
+    buildRegistry(provider),
+    typeRegistry,
+    events as unknown as DocumentEventsPublisher,
+  );
 }
 
 const SUCCESS_RESULT: DeclarationResult = {
@@ -234,5 +239,100 @@ describe('ReportingRunner.recordTerminalFailure', () => {
     const runner = buildRunner({ providerId: 'nav', declare: jest.fn() });
 
     await expect(runner.recordTerminalFailure(JOB_DATA, new Error('original'))).resolves.toBeUndefined();
+  });
+});
+
+// TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge. `events` is OPTIONAL (see
+// `ReportingRunner`'s own constructor header) — every test ABOVE this block builds the runner without
+// one and must keep passing unchanged; these are the DEDICATED tests for the publish behavior:
+// publish only on a GENUINELY NEW journal row, never on a dedup no-op.
+describe('ReportingRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
+    mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
+    mockedPrisma.client.findUniqueOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+  });
+
+  it('runReport: publishes an authority-event nudge on a genuine, newly-journaled success', async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    const events = { publish: jest.fn().mockResolvedValue(undefined) };
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }, events);
+
+    await runner.runReport(JOB_DATA);
+
+    expect(events.publish).toHaveBeenCalledWith('company-1', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      kind: 'authority-event',
+    });
+  });
+
+  it("runReport: never publishes when the persistence layer's own dedup journaled nothing new", async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(0);
+    const events = { publish: jest.fn() };
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }, events);
+
+    await runner.runReport(JOB_DATA);
+
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('runReport: publishes on a NEWLY-journaled report:blocked verdict too', async () => {
+    mockedJournalSynthetic.mockResolvedValue(1);
+    const events = { publish: jest.fn().mockResolvedValue(undefined) };
+    const declare = jest.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
+    const runner = buildRunner({ providerId: 'nav', declare }, events);
+
+    await runner.runReport(JOB_DATA);
+
+    expect(events.publish).toHaveBeenCalledWith('company-1', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      kind: 'authority-event',
+    });
+  });
+
+  it('runReport: never publishes when a genuine failure propagates — nothing was journaled', async () => {
+    const events = { publish: jest.fn() };
+    const declare = jest.fn().mockRejectedValue(new Error('NAV HTTP 500'));
+    const runner = buildRunner({ providerId: 'nav', declare }, events);
+
+    await expect(runner.runReport(JOB_DATA)).rejects.toThrow('NAV HTTP 500');
+
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('recordTerminalFailure: publishes when report:failed is genuinely newly journaled', async () => {
+    mockedJournalSynthetic.mockResolvedValue(1);
+    const events = { publish: jest.fn().mockResolvedValue(undefined) };
+    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() }, events);
+
+    await runner.recordTerminalFailure(JOB_DATA, new Error('every retry exhausted'));
+
+    expect(events.publish).toHaveBeenCalledWith('company-1', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      kind: 'authority-event',
+    });
+  });
+
+  it('recordTerminalFailure: never publishes when the journal write itself fails', async () => {
+    mockedJournalSynthetic.mockRejectedValue(new Error('DB unreachable'));
+    const events = { publish: jest.fn() };
+    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() }, events);
+
+    await runner.recordTerminalFailure(JOB_DATA, new Error('original'));
+
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }); // no events
+    await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
   });
 });

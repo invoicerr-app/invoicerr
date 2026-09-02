@@ -132,6 +132,16 @@ export interface ConformityPollJobData {
   documentId: string;
   providerId: string;
   transportRef: string;
+  /**
+   * TODO_PRODUIT.md T1 / PLAN-V2 R8 — carried through so `ConformitySweepRunner.runPoll` can publish
+   * a `{documentId, typeId, kind: 'authority-event'}` SSE nudge once a poll journals something new
+   * (see that method's own header); the frontend's own query keys need BOTH `typeId` and `documentId`
+   * to invalidate the right cache entry. OPTIONAL: several EXISTING specs construct this shape by hand
+   * without it, and the publish call itself simply no-ops without a typeId (see `runPoll`'s own
+   * header) — production (`ConformitySweepRunner.runSweep`, conformity-sweep-runner.ts) always sets
+   * it from the candidate row it just read.
+   */
+  typeId?: string;
 }
 
 /** What one raw event maps to for the journal's own dedup key — re-exported here purely so

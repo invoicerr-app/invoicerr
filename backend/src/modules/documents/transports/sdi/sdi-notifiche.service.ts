@@ -34,7 +34,7 @@
  * before this channel existed, a stale test notifica, a bug on SdI's own side — all indistinguishable
  * from here, and none of them warrant an infinite retry storm). Logged NAMED, nothing silent.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
@@ -43,6 +43,7 @@ import {
   findDocumentByTransportRef,
 } from '../../conformity/authority-events.persistence';
 import { RawAuthorityEvent } from '../../conformity/authority-status-poller';
+import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
 import { NOTIFICA_TYPE_LABELS, parseSdiNotifica, SdiNotificaType } from './sdi-notifiche';
 
 export const SDI_PROVIDER_ID = 'sdi';
@@ -58,6 +59,15 @@ export interface HandleNotificaResult {
 
 @Injectable()
 export class SdiNotificheService {
+  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` for the same "side channel, never load-bearing"
+  // reason `ConformitySweepRunner`/`ReportingRunner` hold theirs: every EXISTING spec constructs this
+  // service with zero args and must keep passing unchanged. `sdi-notifiche.module.ts` deliberately
+  // imports nothing from `DocumentsCoreModule` (see that module's own header) — this still resolves
+  // in production because `DocumentEventsPublisher` comes from the `@Global()` `DocumentQueueModule`,
+  // registered elsewhere in the app graph (`DocumentsModule`/`DocumentsCoreModule`), which Nest makes
+  // available everywhere once bootstrapped, with no explicit import needed here.
+  constructor(@Optional() private readonly eventsPublisher?: DocumentEventsPublisher) {}
+
   /**
    * Handles ONE incoming `TrasmissioneFatture` push. Never throws for a business-level reason
    * (malformed body, unknown reference) — the controller always answers 200 regardless (see this
@@ -116,6 +126,18 @@ export class SdiNotificheService {
       `SdI notifica ${parsed.notificaType} journaled for document ${document.id} (IdentificativoSdI ${parsed.identificativoSdI})`,
       { category: 'documents', details: { documentId: document.id, notificaType: parsed.notificaType } },
     );
+    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — only on a genuinely new row (count > 0, never for a
+    // re-delivered notifica the dedup already absorbed): this push receiver is itself a worker→API
+    // boundary of its own (SdI calls straight into this API process, no BullMQ job involved), but the
+    // SAME Redis pub/sub bridge still applies unchanged — every SSE consumer subscribes by companyId
+    // regardless of which code path inside this API process did the writing.
+    if (count > 0) {
+      await this.eventsPublisher?.publish(document.companyId, {
+        documentId: document.id,
+        typeId: document.typeId,
+        kind: 'authority-event',
+      });
+    }
     return {
       journaled: count > 0,
       notificaType: parsed.notificaType,

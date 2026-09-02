@@ -1,3 +1,4 @@
+import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
@@ -5,6 +6,8 @@ import { registerSaveDraftAction } from './generic-actions';
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
+  /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
+  events?: DocumentEventPublisher;
 }
 
 /**
@@ -37,6 +40,7 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       data,
       params,
       queueDispatcher: deps.queueDispatcher,
+      events: deps.events,
       // credit-note.descriptor.ts declares NO `numbering` at all — never number this type, ever.
       numberOnEnqueue: false,
       // Nothing to deliver — see this file's own header. The status transition itself IS the

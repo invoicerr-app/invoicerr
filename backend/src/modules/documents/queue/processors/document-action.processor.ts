@@ -50,6 +50,7 @@ import {
   SCHEDULE_SWEEP_JOB_NAME,
   ScheduleOccurrenceJobData,
 } from '../../schedules/schedule-sweep';
+import { DocumentEventsPublisher } from '../document-events-publisher';
 import { markSendFailed } from '../mark-send-failed';
 import { DocumentActionJobData, Q_DOCUMENT_ACTION } from '../queue.constants';
 
@@ -70,6 +71,16 @@ export class DocumentActionProcessor extends WorkerHost {
     // file constructs this processor without one and never sends a report-named job; production
     // wiring (documents-core.module.ts) always provides a real one.
     @Optional() private readonly reportingRunner?: ReportingRunner,
+    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — a DIFFERENT reason to be `@Optional()` than the three above:
+    // this is a SIDE CHANNEL (see `mark-send-failed.ts`'s own `MarkSendFailedInput.events` header), not
+    // a whole job kind this processor would otherwise be unable to handle. A missing publisher only
+    // means the "send_failed" SSE nudge doesn't fire — the WRITE itself (already correct, already
+    // tested above `onFailed`) is entirely unaffected, and the ~60s polling fallback still catches it.
+    // Every EXISTING spec in this file constructs the processor without one; production wiring
+    // (`documents-core.module.ts`, via the `@Global()` `DocumentQueueModule`) always provides a real
+    // one — this is the SAME concrete class `ACTION_REGISTRY`'s own factory injects for `async-send.ts`'s
+    // side of this mechanism, never a second implementation.
+    @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
   ) {
     super();
   }
@@ -251,6 +262,7 @@ export class DocumentActionProcessor extends WorkerHost {
         documentId,
         actionId,
         error,
+        events: this.eventsPublisher,
       });
     } catch (markError) {
       this.logger.error(

@@ -171,4 +171,151 @@ describe('markSendFailed', () => {
     expect(persistence.findOwnedDocument).not.toHaveBeenCalled();
     expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
   });
+
+  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge. `events` is OPTIONAL (see
+  // `MarkSendFailedInput.events`'s own header) — every test ABOVE this block omits it and must keep
+  // passing unchanged; these are the DEDICATED tests for the publish behavior: publish only once
+  // "send_failed" is genuinely ACQUIRED (write done, lifecycle check passed), never before, never for
+  // any of the early-return "nothing to mark" branches.
+  describe('events — TODO_PRODUIT.md T1 / PLAN-V2 R8 (the SSE status nudge)', () => {
+    it('publishes "send_failed" AFTER the write and the lifecycle check both succeed', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sending',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'send_failed',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const events = { publish: jest.fn().mockResolvedValue(undefined) };
+
+      await markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('SMTP connection refused'),
+        events,
+      });
+
+      expect(events.publish).toHaveBeenCalledTimes(1);
+      expect(events.publish).toHaveBeenCalledWith('company-1', {
+        documentId: 'doc-1',
+        typeId: 'widget',
+        kind: 'send_failed',
+      });
+    });
+
+    it('never publishes for the idempotent "already moved on" branch — nothing was acquired here', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sent',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const events = { publish: jest.fn() };
+
+      await markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('too late'),
+        events,
+      });
+
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it('never publishes when the write lands outside the declared lifecycle (the loud-bug branch throws first)', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sending',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'draft',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const events = { publish: jest.fn() };
+
+      await expect(
+        markSendFailed(resolveDescriptor, {
+          companyId: 'company-1',
+          typeId: 'widget',
+          documentId: 'doc-1',
+          actionId: 'send',
+          error: new Error('whatever'),
+          events,
+        }),
+      ).rejects.toThrow(/declared lifecycle requires one of/);
+
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it('never publishes when the document no longer exists', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockRejectedValue(
+        new NotFoundException('Document "doc-1" not found for type "widget".'),
+      );
+      const events = { publish: jest.fn() };
+
+      await markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('too late, the document is gone'),
+        events,
+      });
+
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sending',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'send_failed',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // No `events` field at all — this must not throw (optional chaining, never a hard dependency).
+      await expect(
+        markSendFailed(resolveDescriptor, {
+          companyId: 'company-1',
+          typeId: 'widget',
+          documentId: 'doc-1',
+          actionId: 'send',
+          error: new Error('SMTP connection refused'),
+        }),
+      ).resolves.toBeUndefined();
+    });
+  });
 });

@@ -102,8 +102,24 @@ export function useDocumentType(typeId: string | undefined, clientId?: string) {
  * Stops polling the moment nothing is "sending" anymore — never an unconditional background poll for
  * a list that has nothing in flight. Generic on purpose: reads the STATUS STRING this mechanism
  * itself introduces, never a document type.
+ *
+ * TODO_PRODUIT.md T1 / PLAN-V2 R8 — DECISION: SSE (`useDocumentEventsSse`, mounted once for the whole
+ * authenticated app — `(app)/_layout.tsx`) is now the PRIMARY signal for this exact transition; this
+ * `refetchInterval` is DELIBERATELY KEPT, not removed, but slowed way down to a SAFETY NET rather than
+ * the main mechanism. Two independent reasons, both load-bearing:
+ *  - SSE can fall silent without the write itself being at fault — a misbehaving corporate proxy that
+ *    buffers/kills long-lived connections, a browser tab that was asleep and hasn't finished its own
+ *    `EventSource` auto-reconnect yet, a Redis blip on the worker→API bridge
+ *    (`queue/document-events-publisher.ts`). None of those should ever mean "the screen just never
+ *    catches up" — a slow poll is the honest backstop for exactly that failure mode.
+ *  - It is what makes the SSE path PROVABLE at all, in Cypress AND for a human watching the screen: at
+ *    the OLD 1.5s value, ANY status change appearing within a few seconds could always be explained by
+ *    the poll alone, never by SSE — a passing "the badge updates live" test would be a false green, the
+ *    exact failure mode this codebase's own history (`documentation/…`, mocked-provider incidents)
+ *    keeps naming explicitly. At 60s, a change surfacing within ~10s (28-document-async-send.cy.ts's
+ *    own extended assertion) can ONLY be SSE.
  */
-const SENDING_POLL_INTERVAL_MS = 1500
+const SENDING_POLL_INTERVAL_MS = 60_000
 
 export function useDocumentInstances(typeId: string | undefined) {
   return useApiQuery<DocumentInstance[]>(["documents", typeId], `/api/documents?typeId=${typeId}`, {
@@ -165,15 +181,25 @@ export function useVerifyDocumentArchive() {
   )
 }
 
-/** Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) — every
- *  event the ISSUING PLATFORM itself reported for this document, most recent first. Empty (not an
- *  error) for a document sent by a channel with no poller ("email", "sdi") or a PDP/KSeF deposit the
- *  background sweep hasn't polled yet. Polls the API every 5s of its own, but ONLY once something is
- *  actually IN FLIGHT (at least one event already journaled, none of them terminal yet) — a document
- *  with zero events (nothing sent through a polled channel yet, or the very first sweep pass hasn't
- *  run) is not worth hot-polling for; one that already reached a verdict stops on its own the moment
- *  `computeConformityVerdict` sees it. Same "poll only while something could still change"
- *  discipline `useDocumentInstances`'s own `refetchInterval` already holds for the "sending" status. */
+/**
+ * Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) — every
+ * event the ISSUING PLATFORM itself reported for this document, most recent first. Empty (not an
+ * error) for a document sent by a channel with no poller ("email", "sdi") or a PDP/KSeF deposit the
+ * background sweep hasn't polled yet. ONLY once something is actually IN FLIGHT (at least one event
+ * already journaled, none of them terminal yet) — a document with zero events (nothing sent through a
+ * polled channel yet, or the very first sweep pass hasn't run) is not worth polling for at all; one
+ * that already reached a verdict stops on its own the moment `computeConformityVerdict` sees it. Same
+ * "poll only while something could still change" discipline `useDocumentInstances`'s own
+ * `refetchInterval` already holds for the "sending" status.
+ *
+ * TODO_PRODUIT.md T1 / PLAN-V2 R8 — SAME decision as `useDocumentInstances`'s own
+ * `SENDING_POLL_INTERVAL_MS` (see that constant's own comment for the full "why kept, why slowed, why
+ * this is what makes SSE provable at all" reasoning): `useDocumentEventsSse` is now the PRIMARY signal
+ * for a newly-journaled authority event (a poller sweep result, a declarative-report verdict, an SdI
+ * push notifica), this interval is the SLOW safety net, not the main mechanism. Was 5s; the interval
+ * constant is shared with `SENDING_POLL_INTERVAL_MS` rather than a second one of its own — one number
+ * to keep this decision consistent across both call sites.
+ */
 export function useDocumentAuthorityEvents(typeId: string | undefined, id: string | undefined) {
   return useApiQuery<DocumentAuthorityEvent[]>(
     ["documents", typeId, id, "authority-events"],
@@ -183,7 +209,7 @@ export function useDocumentAuthorityEvents(typeId: string | undefined, id: strin
       refetchInterval: (query) => {
         const events = query.state.data as DocumentAuthorityEvent[] | undefined
         if (!events || events.length === 0) return false
-        return computeConformityVerdict(events) === "pending" ? 5000 : false
+        return computeConformityVerdict(events) === "pending" ? SENDING_POLL_INTERVAL_MS : false
       },
     },
   )

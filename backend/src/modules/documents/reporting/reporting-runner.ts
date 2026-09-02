@@ -13,7 +13,7 @@
  * Consumed by `queue/processors/document-action.processor.ts`, exactly one more `job.name` branch on
  * the SAME `Q_DOCUMENT_ACTION` queue (`report-job.ts`'s own header).
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
@@ -24,6 +24,7 @@ import { buildDeclaredInvoice } from './build-declared-invoice';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { findOwnedDocument } from '../persistence';
+import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
 
 export class InvalidDeclarationResultError extends Error {}
@@ -57,6 +58,12 @@ export class ReportingRunner {
   constructor(
     private readonly providerRegistry: DeclarationProviderRegistry,
     private readonly typeRegistry: DocumentTypeRegistry,
+    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` for the same reason
+    // `ConformitySweepRunner`'s own `eventsPublisher` is: a SIDE CHANNEL, never load-bearing for a
+    // declaration's own correctness, so every EXISTING spec constructing this runner with two args
+    // keeps passing unchanged. Production wiring resolves this automatically (`@Global()`
+    // `DocumentQueueModule`) — no factory change needed in `documents-core.module.ts`.
+    @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
   ) {}
 
   /**
@@ -136,6 +143,15 @@ export class ReportingRunner {
           REPORT_BLOCKED_STATUS_CODE,
           message,
         );
+        // TODO_PRODUIT.md T1 / PLAN-V2 R8 — only on a genuinely new row (journaled > 0): a
+        // 'report:blocked' verdict is exactly as conformity-panel-worthy as a real declaration.
+        if (journaled > 0) {
+          await this.eventsPublisher?.publish(data.companyId, {
+            documentId: data.documentId,
+            typeId: data.typeId,
+            kind: 'authority-event',
+          });
+        }
         return { journaled };
       }
       // Any other failure propagates — see this method's own header.
@@ -149,6 +165,14 @@ export class ReportingRunner {
       `Declaration for document ${data.documentId} ("${data.providerId}") journaled: ` +
         `statusCode="${result.statusCode}", authorityId="${result.authorityId}".`,
     );
+    // Same "only on a genuinely new row" rule as the "blocked" branch above.
+    if (journaled > 0) {
+      await this.eventsPublisher?.publish(data.companyId, {
+        documentId: data.documentId,
+        typeId: data.typeId,
+        kind: 'authority-event',
+      });
+    }
     return { journaled };
   }
 
@@ -164,13 +188,22 @@ export class ReportingRunner {
    */
   async recordTerminalFailure(data: ReportJobData, error: Error): Promise<void> {
     try {
-      await journalSyntheticEvent(
+      const journaled = await journalSyntheticEvent(
         data.companyId,
         data.documentId,
         data.providerId,
         REPORT_FAILED_STATUS_CODE,
         error.message,
       );
+      // TODO_PRODUIT.md T1 / PLAN-V2 R8 — same "only on a genuinely new row" rule as `runReport`'s own
+      // two publish points above: 'report:failed' is a terminal conformity-panel-worthy verdict too.
+      if (journaled > 0) {
+        await this.eventsPublisher?.publish(data.companyId, {
+          documentId: data.documentId,
+          typeId: data.typeId,
+          kind: 'authority-event',
+        });
+      }
       this.logger.error(
         `Declaration for document ${data.documentId} ("${data.providerId}") failed permanently after ` +
           `every retry: ${error.message}`,

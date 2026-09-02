@@ -25,6 +25,7 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { checkTransitionResult } from '../descriptors/lifecycle';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
+import { DocumentEventPublisher } from './document-events';
 
 export interface MarkSendFailedInput {
   companyId: string;
@@ -32,6 +33,15 @@ export interface MarkSendFailedInput {
   documentId: string;
   actionId: string;
   error: Error;
+  /**
+   * TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `actions/async-send.ts`'s own `RunAsyncSendInput.events`
+   * header for the full "why optional, why a nudge never the state" reasoning; this is the SAME
+   * mechanism's third publish point (a "send_failed" terminal write is exactly as SSE-worthy as
+   * "sending"/"sent" — the badge and the Retry button both key off this status). OPTIONAL for the
+   * identical reason: every EXISTING spec of this function predates the field and must keep passing
+   * unchanged. Production wiring (`document-action.processor.ts`) always threads one through.
+   */
+  events?: DocumentEventPublisher;
 }
 
 /**
@@ -45,7 +55,7 @@ export async function markSendFailed(
   resolveDescriptor: (typeId: string) => DocumentTypeDescriptor,
   input: MarkSendFailedInput,
 ): Promise<void> {
-  const { companyId, typeId, documentId, actionId, error } = input;
+  const { companyId, typeId, documentId, actionId, error, events } = input;
   const descriptor = resolveDescriptor(typeId);
   const action = descriptor.actions.find((candidate) => candidate.id === actionId);
   if (!action) {
@@ -110,6 +120,12 @@ export async function markSendFailed(
         `"${violation.expectedStatuses.join('", "')}" here.`,
     );
   }
+
+  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the fact is ACQUIRED right above (Postgres already holds
+  // "send_failed", checked against the declared lifecycle): publishing here, never earlier, is what
+  // lets a browser's own SSE connection move a screen from "sending" straight to "échec" — and shows
+  // the Retry button, which the frontend derives from this exact status — without a manual reload.
+  await events?.publish(companyId, { documentId, typeId, kind: 'send_failed' });
 
   logger.warn('Document action failed after every retry — marked "send_failed"', {
     category: 'documents',

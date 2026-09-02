@@ -48,6 +48,7 @@ import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { buildReceivedInvoiceDescriptor } from './descriptors/received-invoice.descriptor';
+import { DocumentEventsPublisher } from './queue/document-events-publisher';
 import { DocumentQueueDispatcher } from './queue/document-queue.dispatcher';
 import { DocumentQueueModule } from './queue/document-queue.module';
 import { DocumentScheduleSweepRunner } from './schedules/schedule-sweep-runner';
@@ -404,6 +405,11 @@ function buildDeclarationProviderRegistry(
  * `signingCertificates` (root TODO item 13) is threaded into the quote's own "send" only — see
  * `QuoteActionDeps.signingCertificates`'s own header; the invoice's "send" goes through
  * `TRANSPORT_REGISTRY` instead (see `buildTransportRegistry` above), never through this function.
+ *
+ * `eventsPublisher` (TODO_PRODUIT.md T1 / PLAN-V2 R8) is threaded into every type declaring a "send"
+ * — the SSE status bridge, see `async-send.ts`'s own `RunAsyncSendInput.events` header. Same
+ * `@Global()` `DocumentQueueModule` origin as `queueDispatcher` just above, so it resolves the same
+ * way regardless of process (API or worker).
  */
 function buildActionRegistry(
   clientsService: ClientsService,
@@ -413,6 +419,7 @@ function buildActionRegistry(
   referenceRegistry: EntityReferenceRegistry,
   queueDispatcher: DocumentQueueDispatcher,
   signingCertificates: SigningCertificatesService,
+  eventsPublisher: DocumentEventsPublisher,
 ): ActionRegistry {
   const registry = new ActionRegistry();
   registerQuoteActions(registry, {
@@ -422,11 +429,12 @@ function buildActionRegistry(
     referenceRegistry,
     queueDispatcher,
     signingCertificates,
+    events: eventsPublisher,
   });
   registerConvertToInvoiceAction(registry);
   registerRequestDepositAction(registry);
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher });
-  registerCreditNoteActions(registry, { queueDispatcher });
+  registerInvoiceActions(registry, { transportRegistry, queueDispatcher, events: eventsPublisher });
+  registerCreditNoteActions(registry, { queueDispatcher, events: eventsPublisher });
   registerExpenseActions(registry);
   registerReceivedInvoiceActions(registry);
   // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
@@ -571,6 +579,7 @@ function buildEntityReferenceRegistry(
         ENTITY_REFERENCE_REGISTRY,
         DocumentQueueDispatcher,
         SigningCertificatesService,
+        DocumentEventsPublisher,
       ],
     },
     {

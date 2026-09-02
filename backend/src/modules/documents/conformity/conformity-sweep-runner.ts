@@ -11,7 +11,7 @@
  * distinguished by `job.name`, the identical reasoning that file's own header already documents for
  * the recurrence sweep's own two job names.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import {
   createAuthorityEvents,
@@ -29,6 +29,7 @@ import {
   readConformitySweepIntervalMs,
   readMaxPollAgeMs,
 } from './conformity-sweep';
+import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
 
 export interface RunConformitySweepResult {
@@ -50,6 +51,12 @@ export class ConformitySweepRunner {
   constructor(
     private readonly pollerRegistry: AuthorityStatusPollerRegistry,
     private readonly queueDispatcher: DocumentQueueDispatcher,
+    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` because this is a SIDE CHANNEL (a missing
+    // publisher only means the conformity panel's own SSE nudge doesn't fire; every EXISTING spec in
+    // this file constructs the runner with two args and must keep passing unchanged). Production
+    // wiring resolves this automatically (`@Global()` `DocumentQueueModule`) — no factory change
+    // needed in `documents-core.module.ts`.
+    @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
   ) {}
 
   /**
@@ -113,7 +120,17 @@ export class ConformitySweepRunner {
           `No terminal conformity verdict after ${Math.round(maxPollAgeMs / (24 * 60 * 60 * 1000))} day(s) — giving up.`,
           now,
         );
-        if (created > 0) gaveUp++;
+        if (created > 0) {
+          gaveUp++;
+          // TODO_PRODUIT.md T1 / PLAN-V2 R8 — journaled just above (Postgres already holds
+          // 'poll:gave-up', a genuinely new row): publishing lets the conformity panel refresh
+          // without a reload the moment this pass decides to stop waiting.
+          await this.eventsPublisher?.publish(candidate.companyId, {
+            documentId: candidate.id,
+            typeId: candidate.typeId,
+            kind: 'authority-event',
+          });
+        }
         continue;
       }
 
@@ -124,6 +141,7 @@ export class ConformitySweepRunner {
         documentId: candidate.id,
         providerId: candidate.channelProviderId,
         transportRef: candidate.transportRef,
+        typeId: candidate.typeId,
       };
       if (await this.queueDispatcher.enqueueConformityPoll(jobId, jobData)) polled++;
     }
@@ -157,6 +175,18 @@ export class ConformitySweepRunner {
         `Conformity poll for document ${data.documentId} ("${data.providerId}"): ` +
           `${events.length} event(s) observed, ${journaled} newly journaled.`,
       );
+      // TODO_PRODUIT.md T1 / PLAN-V2 R8 — only when something was GENUINELY new (journaled > 0, never
+      // for a re-poll that only rediscovered events already known) and only when this job data
+      // actually carries a typeId (see `ConformityPollJobData.typeId`'s own header — several EXISTING
+      // specs construct this shape without one, and there is nothing to invalidate a query FOR
+      // without it).
+      if (journaled > 0 && data.typeId) {
+        await this.eventsPublisher?.publish(data.companyId, {
+          documentId: data.documentId,
+          typeId: data.typeId,
+          kind: 'authority-event',
+        });
+      }
       return { journaled };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -180,6 +210,15 @@ export class ConformitySweepRunner {
           BLOCKED_STATUS_CODE,
           message,
         );
+        // Same "only on a genuinely new row, only with a typeId to invalidate" rule as the success
+        // path above — a 'poll:blocked' verdict is exactly as conformity-panel-worthy as a real one.
+        if (journaled > 0 && data.typeId) {
+          await this.eventsPublisher?.publish(data.companyId, {
+            documentId: data.documentId,
+            typeId: data.typeId,
+            kind: 'authority-event',
+          });
+        }
         return { journaled };
       } catch (journalError) {
         this.logger.error(

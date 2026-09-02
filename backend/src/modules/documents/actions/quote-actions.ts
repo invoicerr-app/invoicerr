@@ -2,6 +2,7 @@ import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
+import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { SigningCredentialsPort } from '../signing/signing-credentials-port';
@@ -21,6 +22,8 @@ export interface QuoteActionDeps {
    *  unconditionally by email (see this file's own header), so a company with an active certificate
    *  gets a signed quote PDF exactly the way it gets a signed invoice one. */
   signingCertificates?: SigningCredentialsPort;
+  /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
+  events?: DocumentEventPublisher;
 }
 
 /**
@@ -52,6 +55,7 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
       data,
       params,
       queueDispatcher: deps.queueDispatcher,
+      events: deps.events,
       numberOnEnqueue: true, // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
       deliver: async ({ companyId: c, document }) => {
         // `params.recipient` is already validated (required, non-empty text) by

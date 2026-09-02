@@ -14,6 +14,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 
+import { DocumentEventsPublisher } from './document-events-publisher';
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { Q_DOCUMENT_ACTION } from './queue.constants';
 import { redisConnection } from './redis.config';
@@ -25,7 +26,11 @@ import { DocumentQueueRedisRequiredGuard } from './redis-required.guard';
     BullModule.forRoot({ connection: redisConnection() }),
     BullModule.registerQueue({ name: Q_DOCUMENT_ACTION }),
   ],
-  providers: [DocumentQueueDispatcher, DocumentQueueRedisRequiredGuard],
-  exports: [BullModule, DocumentQueueDispatcher],
+  // `DocumentEventsPublisher` (T1/R8 — the worker→API status bridge, see its own header) lives here,
+  // not in `DocumentsCoreModule`: EVERY process that boots the documents system (API or a scaled
+  // worker) needs to PUBLISH — the write side never needs the SSE-side `DocumentEventsBridge`
+  // (`documents.module.ts`, API-process-only), so it stays out of this Global module entirely.
+  providers: [DocumentQueueDispatcher, DocumentQueueRedisRequiredGuard, DocumentEventsPublisher],
+  exports: [BullModule, DocumentQueueDispatcher, DocumentEventsPublisher],
 })
 export class DocumentQueueModule {}

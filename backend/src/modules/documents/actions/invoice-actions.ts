@@ -11,6 +11,7 @@ import {
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
+import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
@@ -32,6 +33,8 @@ import { registerSaveDraftAction } from './generic-actions';
 export interface InvoiceActionDeps {
   transportRegistry: TransportRegistry;
   queueDispatcher: DocumentActionQueueDispatcher;
+  /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
+  events?: DocumentEventPublisher;
 }
 
 /**
@@ -511,6 +514,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       data,
       params,
       queueDispatcher: deps.queueDispatcher,
+      events: deps.events,
       numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
       // Root TODO item 11: the country-mandate check runs as part of THIS preflight — see
       // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at

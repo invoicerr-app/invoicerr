@@ -179,7 +179,22 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 					// coup, une fois le document déjà "send_failed", pour que son propre instantané porte
 					// réellement l'erreur figée que le correctif doit savoir effacer. Un vrai clic — jamais
 					// un appel direct à l'action, qui contournerait l'écran.
-					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+					//
+					// TODO_PRODUIT.md T1 / PLAN-V2 R8 — l'horodatage capturé ici sert la preuve SSE plus
+					// bas : AUCUN cy.reload() n'apparaît nulle part dans ce fichier (grep-le), et le
+					// repli de polling de la liste vient d'être ralenti à 60 s
+					// (frontend/src/hooks/queries/use-document-types.ts's own SENDING_POLL_INTERVAL_MS) —
+					// délibérément, pour qu'une mise à jour visible bien avant cette fenêtre ne puisse
+					// s'expliquer QUE par le flux SSE (documents.controller.ts's `events` route), jamais
+					// par le prochain tick de polling qui, lui, ne peut pas arriver avant ~60 s après ce
+					// clic (le `refetchInterval` est ré-évalué — et sa fenêtre de 60 s relancée — juste
+					// après le clic, via l'invalidation que `useRunDocumentAction` déclenche déjà).
+					let sendClickedAt = 0;
+					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 })
+						.click()
+						.then(() => {
+							sendClickedAt = Date.now();
+						});
 
 					// Budget large, volontairement documenté : DOCUMENT_ACTION_QUEUE_ATTEMPTS=3 par
 					// défaut (document-queue.dispatcher.ts) avec un backoff exponentiel de base 2000 ms
@@ -187,20 +202,45 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 					// file avant l'échec définitif, plus la marge d'une CI chargée. On ne peut pas
 					// réduire ATTEMPTS ici : c'est une variable d'env du serveur déjà démarré, figée à
 					// son propre boot — ce test absorbe le budget plutôt que de risquer un flake. Lu à
-					// l'écran (le polling du front, comme le reste de ce fichier), pas via l'API : on veut
-					// que la CACHE de requête que le dialogue suivra plus bas soit déjà à jour.
+					// l'écran (le SSE primaire, le polling en repli lent — voir le commentaire ci-dessus),
+					// pas via l'API : on veut que la CACHE de requête que le dialogue suivra plus bas soit
+					// déjà à jour.
 					// `timeout` sur le `.find()`, pas seulement sur le `cy.get()` qui le précède : une
 					// assertion chaînée après un `.find()` retente selon le timeout de LA DERNIÈRE
 					// commande de requête avant elle, pas celui du tout premier `cy.get()` de la chaîne
 					// (piège connu de Cypress) — sans ça, ce `.should()` retombe sur les 4000 ms par
-					// défaut, bien trop court pour un échec réel après 3 tentatives.
+					// défaut, bien trop court pour un échec réel après 3 tentatives. Ce timeout Cypress
+					// (40 s) reste le filet de sécurité contre une CI lente ; la preuve de VITESSE — que
+					// c'est bien le SSE, jamais le repli à 60 s, qui a fait bouger le badge — est
+					// l'assertion sur l'écart mesuré juste après, avec son propre budget bien plus serré.
 					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
 						.find('[data-cy="document-status-badge"]', { timeout: 40000 })
-						.should("contain.text", "Send failed");
+						.should("contain.text", "Send failed")
+						.then(() => {
+							const elapsedMs = Date.now() - sendClickedAt;
+							// ~6-8 s sont déjà consommés par les tentatives BullMQ elles-mêmes (voir le
+							// commentaire ci-dessus) — 10 s laisse une marge additionnelle pour le
+							// publish Redis -> EventSource -> invalidation -> refetch -> rendu, tout en
+							// restant à un ordre de grandeur SANS COMMUNE MESURE avec les 60 s qu'exigerait
+							// le repli de polling seul : à cette vitesse, ce ne peut être que le SSE.
+							expect(
+								elapsedMs,
+								"le badge \"Send failed\" est apparu par le SSE, pas par le repli de polling à 60 s",
+							).to.be.lessThan(10000);
+						});
 					cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
 						"contain.text",
 						"no contact email on file",
 					);
+
+					// PLAN-V2 R8 (verbatim) : "le bouton Retry apparaît de lui-même". Ce dépôt n'a pas de
+					// bouton étiqueté "Retry" à part — c'est la MÊME action "send" qui redevient
+					// disponible depuis "send_failed" (invoice.descriptor.ts's SEND_TRANSITIONS), cachée
+					// pendant "sending" (document-list.tsx's own isProcessing check) puis réaffichée SANS
+					// rechargement dès que le statut live redevient "send_failed" — exactement le
+					// mécanisme "Retry" que ce critère décrit. Preuve directe sur la LIGNE de la liste,
+					// pas seulement dans le dialogue (que le reste de ce test ouvre après coup).
+					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`).should("be.visible");
 
 					// L'assertion qui compte lit l'API, jamais l'écran comme preuve de ce qui est en
 					// base — même discipline que le reste de ce fichier et de 24.
