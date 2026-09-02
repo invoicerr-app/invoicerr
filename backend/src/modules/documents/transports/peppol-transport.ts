@@ -2,8 +2,9 @@
  * The "peppol" transport — root TODO item 10 remainder / item 26 wave, the highest-leverage channel
  * left unwired at this task's own start: DE/BE/NL/the Nordics run B2B e-invoicing over the Peppol
  * network, and several EU B2G routes name it too (see `b2g-routing/data/de.json`'s own header for
- * the German federal portal case this file does NOT resolve — read, but not wired here, see that
- * file's own updated note for why). Same `DocumentTransport` interface `pdp-transport.ts`/
+ * the German federal portal case — "le trou allemand du B2G", now CLOSED via the format override
+ * this file's own header, "THE FORMAT OVERRIDE", documents below; see that JSON file's own ADDENDUM
+ * for the full, sourced resolution). Same `DocumentTransport` interface `pdp-transport.ts`/
  * `ksef-transport.ts` implement, registered the same way (`TransportRegistry.register`).
  *
  * The GENERIC Access Point adapter (`peppol/peppol-client.ts`) is REPRISED and adapted from git tag
@@ -17,13 +18,45 @@
  * `apProvider` selector the way the repère's own `ap-adapters.ts` did — a company connects ONE real
  * AP vendor's own REST endpoint, whatever it is, behind that same common-denominator shape.
  *
- * The payload is `peppol-bis` (`formats/peppol-bis-provider.ts`) — the ONLY format this transport
- * ever sends, gated by the REAL vendored base EN 16931 Schematron PLUS the Peppol BIS delta before
- * this file ever sees the bytes. An artifact that fails EITHER gate is NEVER transmitted — see that
- * provider's own header for its OWN known, documented limitation (PEPPOL-EN16931-R002: a French
- * seller's three mandatory C. com. mentions trip the "no more than one Note" rule against a
- * non-German buyer) — `peppol-transport.spec.ts`'s own test proves what sending REALLY does for that
- * exact seller: refused, named, never transmitted, never a partial/garbled artifact sent instead.
+ * The payload is `peppol-bis` (`formats/peppol-bis-provider.ts`) BY DEFAULT — gated by the REAL
+ * vendored base EN 16931 Schematron PLUS the Peppol BIS delta before this file ever sees the bytes. An
+ * artifact that fails EITHER gate is NEVER transmitted — see that provider's own header for its OWN
+ * known, documented limitation (PEPPOL-EN16931-R002: a French seller's three mandatory C. com.
+ * mentions trip the "no more than one Note" rule against a non-German buyer) — `peppol-transport.spec.
+ * ts`'s own test proves what sending REALLY does for that exact seller: refused, named, never
+ * transmitted, never a partial/garbled artifact sent instead.
+ *
+ * ## THE FORMAT OVERRIDE — root TODO item 10/26's own remainder, "le trou allemand du B2G"
+ *
+ * The Peppol NETWORK is content-agnostic — it is the same four-corner transport whether the envelope
+ * carries a generic Peppol BIS invoice or a national CIUS built on the same UBL syntax. Germany's own
+ * federal e-invoicing portal exploits exactly that: `b2g-routing/data/de.json`'s own addendum reads
+ * (verbatim, e-rechnung-bund.de/faq/) that the merged ZRE/OZG-RE platform accepts Peppol as an INPUT
+ * CHANNEL, while § 4 Abs. 1 ERechV — read at gesetze-im-internet.de, same file — still mandates
+ * XRechnung as the invoice's own CONTENT regardless of which channel carried it. Sending generic
+ * Peppol BIS over the (now accepted) Peppol channel would satisfy the CHANNEL half of that law while
+ * silently failing the CONTENT half — exactly the "artefact qui A L'AIR conforme sans l'être" this
+ * codebase refuses everywhere else (`format-registry.ts`, `structural-check.ts`).
+ *
+ * `DocumentTransportContext.formatOverride` (`transport-registry.ts`'s own header) is the fix: a B2G
+ * rule that selects this transport (`actions/invoice-actions.ts#resolveB2gInvoiceTransport`) also
+ * carries its OWN `formatSyntax` — forwarded verbatim as `ctx.formatOverride`. `resolveFormatForSend`
+ * below is the ONLY place that reads it: absent (every ordinary B2B send, and every B2G rule that
+ * routes to peppol with NO override recorded, which is every rule except DE today) means the ORIGINAL,
+ * unchanged behavior — `peppolBisFormatProvider`, exactly as before this task, proven unchanged by
+ * every pre-existing test in `peppol-transport.spec.ts`. Present but UNKNOWN to `deps.formatOverrides`
+ * is a NAMED refusal, never a silent fall-back to Peppol BIS — the whole point of this mechanism is
+ * that a government recipient gets EXACTLY the format the law names, or an honest block, never a
+ * best-effort substitute. `documents-core.module.ts#buildTransportRegistry` wires the ONE override
+ * shipped today: `{ xrechnung: { provider: xrechnungFormatProvider, documentTypeId: PEPPOL_DOC_TYPES.
+ * INVOICE_XRECHNUNG_UBL } }`.
+ *
+ * Every OTHER transport in this directory has a FIXED format (pdp/chorus-pro → Factur-X, ksef → FA(3),
+ * sdi → FatturaPA, face → Facturae signed, anaf → UBL, email → a rendered PDF) and simply never reads
+ * `ctx.formatOverride` at all — setting it on their context (which `resolveB2gInvoiceTransport` does
+ * unconditionally whenever a B2G rule applies, regardless of which transport it names) is harmless,
+ * inert, and asserted so by this task's own tests: a fixed-format transport's own behavior is
+ * UNCHANGED by a field it never looks at.
  *
  * The RECEIVER is the client's own Peppol endpoint — the EXISTING `PEPPOL_ENDPOINT` party identifier
  * mechanism (already collected on both `Company` and `Client` — `company.settings.tsx`/
@@ -67,12 +100,32 @@ import { clientToFormatParty, companyToFormatParty } from '../formats/party-snap
 import { PEPPOL_BILLING_PROCESS_ID, PEPPOL_DOC_TYPES, PeppolApHttpClient } from './peppol/peppol-client';
 import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
 
+/**
+ * One format this transport can build INSTEAD OF Peppol BIS, when `ctx.formatOverride` names it — see
+ * this file's own header, "THE FORMAT OVERRIDE". `documentTypeId` is co-located with `provider` (never
+ * a second, separately-keyed map) so the two can never drift apart: the URN announced to the Access
+ * Point and the format actually built are, by construction, one fact, not two synchronized ones.
+ */
+export interface PeppolFormatOverride {
+  provider: DocumentFormatProvider;
+  documentTypeId: string;
+}
+
 export interface PeppolTransportDeps {
   channelCredentials: ChannelCredentialsService;
-  /** The Peppol BIS Billing 3.0 provider (`formats/peppol-bis-provider.ts`) — the ONLY payload this
-   *  transport ever sends, gated by the REAL vendored base EN 16931 Schematron PLUS the Peppol BIS
-   *  delta (see that provider's own header). */
+  /** The Peppol BIS Billing 3.0 provider (`formats/peppol-bis-provider.ts`) — the DEFAULT payload this
+   *  transport sends whenever `ctx.formatOverride` is absent (still the ONLY payload for every B2B
+   *  send, and for a B2G rule that names peppol with no override), gated by the REAL vendored base EN
+   *  16931 Schematron PLUS the Peppol BIS delta (see that provider's own header). */
   peppolBisFormatProvider: DocumentFormatProvider;
+  /**
+   * OPTIONAL — format providers this transport is able to build when `ctx.formatOverride` names one,
+   * keyed by the SAME `formats/format-registry.ts` id. Absent, or a requested override with no entry
+   * here, is a NAMED refusal in `send()` (`resolveFormatForSend`) — never a silent fall-back to Peppol
+   * BIS. `documents-core.module.ts#buildTransportRegistry` wires the ONE entry shipped today:
+   * `xrechnung` (Germany's ERechV, `b2g-routing/data/de.json`).
+   */
+  formatOverrides?: Record<string, PeppolFormatOverride>;
 }
 
 export const PEPPOL_PROVIDER_ID = 'peppol';
@@ -125,6 +178,32 @@ async function requireConnectedPeppol(
   return credentials;
 }
 
+/**
+ * Picks WHICH format this send actually builds — see this file's own header, "THE FORMAT OVERRIDE".
+ * No override requested → the unchanged default, `peppolBisFormatProvider` under `PEPPOL_DOC_TYPES.
+ * INVOICE_UBL` (every pre-existing test, and every B2B send, takes this branch, unmodified). An
+ * override requested but not wired here → a NAMED refusal, never a silent fall-back to the default:
+ * the whole reason a B2G rule names a format at all is that the wrong one is not an acceptable
+ * substitute, only an honest block is.
+ */
+function resolveFormatForSend(
+  deps: PeppolTransportDeps,
+  formatOverride: string | undefined,
+): { provider: DocumentFormatProvider; documentTypeId: string } {
+  if (!formatOverride) {
+    return { provider: deps.peppolBisFormatProvider, documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL };
+  }
+  const override = deps.formatOverrides?.[formatOverride];
+  if (!override) {
+    throw new BadRequestException(
+      `Cannot send via Peppol: this invoice's own routing rule requires the "${formatOverride}" ` +
+        'format, but this deployment has no Peppol format override wired for it — a named gap, never ' +
+        'a silent fall back to the default Peppol BIS Billing 3.0 payload.',
+    );
+  }
+  return override;
+}
+
 export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTransport {
   return {
     async preflight(companyId: string): Promise<void> {
@@ -166,7 +245,11 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
         );
       }
 
-      const buildResult = await deps.peppolBisFormatProvider.build(
+      // THE FORMAT OVERRIDE — see this file's own header. `formatProvider`/`documentTypeId` replace
+      // every direct `deps.peppolBisFormatProvider`/`PEPPOL_DOC_TYPES.INVOICE_UBL` reference below.
+      const { provider: formatProvider, documentTypeId } = resolveFormatForSend(deps, ctx.formatOverride);
+
+      const buildResult = await formatProvider.build(
         INVOICE_DESCRIPTOR,
         ctx.document,
         companyToFormatParty(company),
@@ -174,11 +257,12 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
       );
       if (!buildResult.validation.valid) {
         // Same gate `pdp-transport.ts`/`ksef-transport.ts` enforce for their own builds — an artifact
-        // that fails the base EN 16931 Schematron OR the Peppol BIS delta (`peppol-bis-provider.ts`'s
-        // own R002 limitation for a French seller against a non-German buyer, among others) is NEVER
-        // transmitted, only refused, named.
+        // that fails the base EN 16931 Schematron OR its own delta (`peppol-bis-provider.ts`'s own
+        // R002 limitation for a French seller against a non-German buyer; `xrechnung-provider.ts`'s
+        // own BR-DE-1 for a seller with no IBAN on file, among others) is NEVER transmitted, only
+        // refused, named — regardless of which format this particular send actually built.
         throw new BadRequestException({
-          message: 'Cannot send via Peppol: the generated Peppol BIS Billing 3.0 document failed validation.',
+          message: `Cannot send via Peppol: the generated ${formatProvider.syntax} document failed validation.`,
           errors: buildResult.validation.errors,
         });
       }
@@ -194,7 +278,7 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
         const result = await apClient.send({
           senderParticipantId: credentials.participantId,
           receiverParticipantId,
-          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL,
+          documentTypeId,
           processId: PEPPOL_BILLING_PROCESS_ID,
           documentBytes: buildResult.bytes,
           idempotencyKey: ctx.document.displayNumber ?? ctx.document.id,
@@ -232,12 +316,12 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
         reference: messageId,
         providerId: PEPPOL_PROVIDER_ID,
         // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
-        // the Peppol BIS document actually sent (already gated valid above), same reasoning as every
-        // sibling transport's own `artifacts`.
+        // the document ACTUALLY sent (Peppol BIS by default, or the format override — already gated
+        // valid above), same reasoning as every sibling transport's own `artifacts`.
         artifacts: [
           {
-            role: deps.peppolBisFormatProvider.id,
-            mime: deps.peppolBisFormatProvider.mime,
+            role: formatProvider.id,
+            mime: formatProvider.mime,
             bytes: buildResult.bytes,
           },
         ],

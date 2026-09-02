@@ -14,6 +14,15 @@
  * that skipped the delta gate) — see the "peppol-bis-provider — R002" describe block below, which
  * runs the REAL format provider (not mocked) against a French seller to prove that a document the
  * Peppol BIS delta refuses is NEVER handed to the Access Point.
+ *
+ * "THE FORMAT OVERRIDE" describe block below is root TODO "le trou allemand du B2G" — see
+ * `peppol-transport.ts`'s own header for the full contract: `ctx.formatOverride` absent (every test
+ * ABOVE that block) is unmodified, unchanged behavior — the REAL proof this new mechanism does not
+ * regress a single pre-existing case; present-but-unwired is a NAMED refusal, never a silent
+ * Peppol-BIS substitute; present-and-wired (`xrechnung`) runs the REAL `xrechnungFormatProvider`
+ * (never mocked) against a complete German government-buyer fixture and asserts the CustomizationID
+ * actually reaching the Access Point is XRechnung's, never Peppol BIS's — the exact "mutation #1"
+ * target this task's own brief names.
  */
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -25,8 +34,9 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { peppolBisFormatProvider } from '../formats/peppol-bis-provider';
-import { PeppolApHttpClient } from './peppol/peppol-client';
-import { buildPeppolTransport } from './peppol-transport';
+import { xrechnungFormatProvider } from '../formats/xrechnung-provider';
+import { PeppolApHttpClient, PEPPOL_DOC_TYPES } from './peppol/peppol-client';
+import { buildPeppolTransport, PeppolFormatOverride } from './peppol-transport';
 import { DocumentTransportContext } from './transport-registry';
 
 jest.mock('@/prisma/prisma.service', () => ({
@@ -54,6 +64,7 @@ function buildDeps(overrides?: {
   resolveActive?: jest.Mock;
   build?: jest.Mock;
   formatProvider?: DocumentFormatProvider;
+  formatOverrides?: Record<string, PeppolFormatOverride>;
 }) {
   const channelCredentials = {
     resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
@@ -66,7 +77,11 @@ function buildDeps(overrides?: {
       overrides?.build ??
       jest.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
   };
-  return { channelCredentials, peppolBisFormatProvider: overrides?.formatProvider ?? fallbackFormatProvider };
+  return {
+    channelCredentials,
+    peppolBisFormatProvider: overrides?.formatProvider ?? fallbackFormatProvider,
+    formatOverrides: overrides?.formatOverrides,
+  };
 }
 
 const GERMAN_SELLER = {
@@ -92,6 +107,29 @@ const FRENCH_BUYER_WITH_ENDPOINT = {
     { scheme: 'VAT', value: 'FR12345678901' },
     { scheme: 'PEPPOL_ENDPOINT', value: '9957:FR12345678901' },
   ],
+};
+
+/** ISO 13616's own published example IBAN (Deutsche Bundesbank) — checksum-valid, never a real
+ *  account — the SAME fixture value `xrechnung-provider.spec.ts`'s own master proof already uses.
+ *  Required for the FORMAT OVERRIDE tests below: `xrechnungFormatProvider`'s own BR-DE-1. */
+const TEST_IBAN = 'DE89370400440532013000';
+
+/** A COMPLETE German seller — contact (phone/email) AND an IBAN on file, everything
+ *  `xrechnungFormatProvider` needs to accept the document (`xrechnung-provider.ts`'s own BR-DE-*). */
+const GERMAN_SELLER_WITH_IBAN = { ...GERMAN_SELLER, iban: TEST_IBAN };
+
+/** A German PUBLIC-SECTOR buyer, addressed on the Peppol network under EAS `0204` ("Peppol-Leitweg-ID"
+ *  — see `b2g-routing/data/de.json`'s own ADDENDUM for the sourced citation) — the SAME generic
+ *  `PEPPOL_ENDPOINT` mechanism `FRENCH_BUYER_WITH_ENDPOINT` above already uses, never a DE-specific
+ *  code path. */
+const GERMAN_GOV_BUYER_WITH_ENDPOINT = {
+  id: 'client-2',
+  name: 'Stadt Testhausen',
+  address: 'Rathausplatz 1',
+  city: 'Testhausen',
+  postalCode: '10117',
+  country: 'Germany',
+  partyIdentifiers: [{ scheme: 'PEPPOL_ENDPOINT', value: '0204:04011000-1234512345-06' }],
 };
 
 const CTX: DocumentTransportContext = {
@@ -346,5 +384,153 @@ describe('buildPeppolTransport', () => {
         await closeServer(server);
       }
     });
+  });
+
+  // Root TODO "le trou allemand du B2G" — see `peppol-transport.ts`'s own header, "THE FORMAT
+  // OVERRIDE". `CTX_DE_GOV` mirrors `CTX` exactly (same document shape, same `buyerReference`) but
+  // names the German government buyer instead — so a test in this block differs from one above it by
+  // EXACTLY one variable: whether `ctx.formatOverride`/`deps.formatOverrides` are involved at all.
+  describe('send() — THE FORMAT OVERRIDE (a B2G rule imposing a different CONTENT over the same Peppol channel)', () => {
+    const CTX_DE_GOV: DocumentTransportContext = {
+      ...CTX,
+      document: {
+        ...CTX.document,
+        data: { ...(CTX.document.data as Record<string, unknown>), client: 'client-2' },
+      },
+    };
+
+    beforeEach(() => {
+      mockedPrisma.company.findUnique.mockResolvedValue(GERMAN_SELLER_WITH_IBAN);
+      mockedPrisma.client.findUnique.mockResolvedValue(GERMAN_GOV_BUYER_WITH_ENDPOINT);
+    });
+
+    it('no `ctx.formatOverride` — REGRESSION: unaffected by `deps.formatOverrides` merely being wired, still sends peppol-bis exactly as every test above', async () => {
+      // A REAL local stub server (never a `jest.spyOn(PeppolApHttpClient.prototype, 'send')` left
+      // mocked) — spying on a SHARED prototype method here would leak into whichever test in this
+      // file runs next (`jest.clearAllMocks()` in `beforeEach` clears call history, never a spy's own
+      // mocked implementation), exactly the kind of cross-test pollution this suite's own "REAL local
+      // stub" convention (this file's own header) already avoids everywhere else.
+      const { server, url } = await startStubServer((_req, res) => {
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ messageId: 'msg-x', status: 'SENT' }));
+      });
+
+      try {
+        const build = jest
+          .fn()
+          .mockResolvedValue({ bytes: new Uint8Array([9]), validation: { valid: true, errors: [] } });
+        const deps = buildDeps({
+          build,
+          resolveActive: jest.fn().mockResolvedValue({
+            ...CONNECTED_CONFIG,
+            config: { ...CONNECTED_CONFIG.config, accessPointUrl: url },
+          }),
+          formatOverrides: { xrechnung: { provider: xrechnungFormatProvider, documentTypeId: 'unused' } },
+        });
+        const transport = buildPeppolTransport(deps);
+
+        const result = await transport.send({ ...CTX_DE_GOV, formatOverride: undefined });
+
+        expect(build).toHaveBeenCalledTimes(1); // the DEFAULT (mocked peppol-bis) provider, never xrechnung
+        expect(result.artifacts).toEqual([
+          { role: 'peppol-bis', mime: 'application/xml', bytes: new Uint8Array([9]) },
+        ]);
+      } finally {
+        await closeServer(server);
+      }
+    });
+
+    it('`ctx.formatOverride` names a format this transport has NO override wired for — refuses, NAMED, and the Access Point is NEVER called (never a silent fall back to Peppol BIS)', async () => {
+      const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
+      const deps = buildDeps(); // no `formatOverrides` at all
+      const transport = buildPeppolTransport(deps);
+
+      const action = transport.send({ ...CTX_DE_GOV, formatOverride: 'some-other-format' });
+      await expect(action).rejects.toThrow(BadRequestException);
+      await expect(action).rejects.toThrow(/"some-other-format"/);
+      await expect(action).rejects.toThrow(/no Peppol format override wired/);
+      expect(sendSpy).not.toHaveBeenCalled();
+    });
+
+    // MUTATION TARGET #1 (this task's own brief): if `send()` ever stopped reading `ctx.formatOverride`
+    // (or read it but kept calling `deps.peppolBisFormatProvider.build` regardless), this test is what
+    // would catch it — the REAL `xrechnungFormatProvider` (never mocked) is run, and the assertion is
+    // on the actual CustomizationID inside the bytes the (real local stub) Access Point receives.
+    describe('the REAL xrechnung-provider, wired as the override — the CustomizationID proof', () => {
+      it('sends XRechnung — never Peppol BIS — when `ctx.formatOverride` is "xrechnung": CustomizationID, documentTypeId, and artifact role all agree', async () => {
+        let receivedBody = '';
+        const { server, url } = await startStubServer((req, res) => {
+          const chunks: Buffer[] = [];
+          req.on('data', (c) => chunks.push(c));
+          req.on('end', () => {
+            receivedBody = Buffer.concat(chunks).toString('utf-8');
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ messageId: 'msg-xrechnung-001', status: 'SENT' }));
+          });
+        });
+
+        try {
+          const deps = buildDeps({
+            resolveActive: jest.fn().mockResolvedValue({
+              ...CONNECTED_CONFIG,
+              config: { ...CONNECTED_CONFIG.config, accessPointUrl: url },
+            }),
+            formatOverrides: {
+              xrechnung: {
+                provider: xrechnungFormatProvider,
+                documentTypeId: PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL,
+              },
+            },
+          });
+          const transport = buildPeppolTransport(deps);
+
+          const result = await transport.send({ ...CTX_DE_GOV, formatOverride: 'xrechnung' });
+
+          expect(result.artifacts?.[0]?.role).toBe('xrechnung');
+          expect(result.artifacts?.[0]?.mime).toBe('application/xml');
+
+          const body = JSON.parse(receivedBody) as { document: string; documentTypeId: string };
+          expect(body.documentTypeId).toBe(PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL);
+          const xml = Buffer.from(body.document, 'base64').toString('utf-8');
+          // THE ASSERTION — XRechnung's own CustomizationID reached the Access Point, Peppol BIS's
+          // never did.
+          expect(xml).toContain('urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0');
+          expect(xml).not.toContain('urn:fdc:peppol.eu:2017:poacc:billing:3.0');
+          // The RECEIVER GATE read the SAME generic `PEPPOL_ENDPOINT` mechanism, addressed under EAS
+          // `0204` — `b2g-routing/data/de.json`'s own ADDENDUM.
+          const parsedBody = JSON.parse(receivedBody) as { receiver: string };
+          expect(parsedBody.receiver).toBe('0204:04011000-1234512345-06');
+        } finally {
+          await closeServer(server);
+        }
+      });
+
+      it('the FORMAT GATE still applies under the override — a German seller with NO IBAN refuses, named (BR-DE-1), before the Access Point is ever called', async () => {
+        mockedPrisma.company.findUnique.mockResolvedValue(GERMAN_SELLER); // no `iban` — the ONE fact missing
+        const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
+        const deps = buildDeps({
+          formatOverrides: {
+            xrechnung: {
+              provider: xrechnungFormatProvider,
+              documentTypeId: PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL,
+            },
+          },
+        });
+        const transport = buildPeppolTransport(deps);
+
+        const action = transport.send({ ...CTX_DE_GOV, formatOverride: 'xrechnung' });
+        await expect(action).rejects.toThrow(BadRequestException);
+        await expect(action).rejects.toThrow(/failed validation/);
+        const error = await action.catch((e) => e);
+        expect(error.response.errors.join(' ')).toContain('BR-DE-1');
+        expect(sendSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    // A fixed-format transport (email/pdp/ksef/sdi/chorus-pro/face/anaf — every OTHER transport in
+    // this directory) simply never reads `ctx.formatOverride` at all — nothing to prove HERE beyond
+    // what each of THOSE transports' own specs already prove (their own `send()` never even accepts
+    // this field). The contract itself (`transport-registry.ts`'s own header) is documentation, not a
+    // shared runtime code path this suite would exercise a second time.
   });
 });

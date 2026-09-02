@@ -24,6 +24,7 @@ Hard-success contract (enforced per-spec):
 | Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `FR` reste cassé (`invalid_country`), mais `BE` (+ `peppol_id` explicite) marche : `doc_…` → `DELIVERED` en ~10 s, reproduit deux fois (voir ci-dessous) |
+| Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` en ~10 s ; voir l'encadré ci-dessous pour la LIMITE HONNÊTE de ce que ça prouve (peppol.sh n'accepte jamais de bytes UBL bruts — voir ce spec's own header) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (connected AP required) |
 | Peppol via Storecove | _(mocked only)_ | `apProvider=storecove` config: `apiKey`, `legalEntityId` | `peppol/storecove-client.spec.ts` | 🔴 Deferred (30-day manual trial, no self-serve signup) |
 | National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
@@ -158,6 +159,43 @@ Hard-success contract (enforced per-spec):
 > header pour le détail et le knob `PEPPOL_SH_FALLBACK_COUNTRY` qui automatise ce contournement pour
 > une future ré-exécution.
 
+> ### ✅ Peppol via peppol.sh — XRechnung (le trou allemand du B2G), tenté et RÉUSSI le 2026-09-02
+>
+> Root TODO "le trou allemand du B2G" : `b2g-routing/data/de.json` route désormais vers
+> `transportId: "peppol"` avec `formatSyntax: "xrechnung"` (voir `peppol-transport.ts`'s own header,
+> "THE FORMAT OVERRIDE") — la question live posée par cette tâche était "la sandbox peppol.sh
+> accepte-t-elle un envoi construit avec `formats/xrechnung-provider.ts` (au lieu de
+> `peppol-bis-provider.ts`) vers son propre receiver de test ?". Même motif EXACT que le round-trip
+> ci-dessus (société BE + `peppol_id` explicite, vendeur allemand, receveur `sandbox.peppol.sh`) —
+> voir `peppol/peppol-sh-xrechnung-live.spec.ts`.
+>
+> **Résultat brut, un seul run, non deviné** :
+> 1. Signup : `acc_qz9uV6XuSnda0fpFOIa1s`.
+> 2. `country: 'FR'` : rejeté, `invalid_country` — même panne que le round-trip Peppol BIS. Fallback
+>    `country: 'BE'` (+ `peppol_id: '9925:BE999999999'`) : `com_h0t5I7orCSKUrK48C2770`.
+> 3. `xrechnungFormatProvider.build()` (vendeur allemand AVEC IBAN — `formats/xrechnung-provider.ts`'s
+>    own BR-DE-1) : `validation.valid: true`, 0 erreur, UBL de 4012 octets. Vérifié LOCALEMENT, avant
+>    tout envoi : `urn:xeinkauf.de:kosit:xrechnung_3.0` présent dans le XML, `urn:fdc:peppol.eu:2017:
+>    poacc:billing:3.0` ABSENT — c'est bien un XRechnung, jamais un Peppol BIS, qui part sur le réseau.
+> 4. `PeppolShApClient.send()` : `{"messageId":"doc_v37PTxYOQGn78bPAnMiI0","status":"QUEUED"}`.
+> 5. Poll 1/24 : `QUEUED`. Poll 2/24 : `DELIVERED` (~10 s, un seul palier d'attente — identique au
+>    timing du round-trip Peppol BIS).
+>
+> **Conclusion, honnête, avec sa propre limite nommée** : le canal ACCEPTE et LIVRE un document
+> construit par `xrechnung-provider.ts` exactement comme il accepte et livre un document construit
+> par `peppol-bis-provider.ts` — aucune régression, aucun comportement différent côté transport. Mais
+> lire `peppol-sh-xrechnung-live.spec.ts`'s own header avant de sur-interpréter ce vert :
+> `PeppolShApClient#send()` (`peppol-sh-client.ts#ublToPeppolShDocument`) n'accepte JAMAIS de bytes
+> UBL bruts — il EXTRAIT une poignée de champs génériques EN 16931 (nom de partie, VAT, devise, dates,
+> lignes) et peppol.sh RE-SÉRIALISE son propre document côté serveur pour la livraison réelle ; cette
+> extraction ne lit ni `cbc:CustomizationID` ni aucun élément spécifique à XRechnung
+> (BuyerReference/Contact/PaymentMeans). Un `DELIVERED` ici prouve donc que l'artefact XRechnung de ce
+> dépôt (déjà jugé valide par le VRAI Schematron KoSIT vendored, base + delta, avant même l'envoi) est
+> structurellement compatible avec le MÊME chemin d'extraction UBL générique que Peppol BIS — pas que
+> peppol.sh transmet, juge ou conserve le contenu comme étant spécifiquement du XRechnung. La preuve
+> proprement XRechnung — le CustomizationID réellement dans les octets envoyés — est celle jugée
+> LOCALEMENT au point 3 ci-dessus, avant le réseau, jamais celle du réseau lui-même.
+
 ## Running a single live spec
 
 ```bash
@@ -186,6 +224,10 @@ PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
   npx jest peppol-sh-live --no-coverage --runInBand
 # Optional: reuse an existing sandbox account instead of self-signup
 #   PEPPOL_SH_API_KEY=ps_test_… PEPPOL_SH_COMPANY_ID=com_… [PEPPOL_RECEIVER_ID=<scheme:id>]
+
+# Peppol via peppol.sh — XRechnung content (DE B2G format override) — same zero-secret sandbox
+PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
+  npx jest peppol-sh-xrechnung-live --no-coverage --runInBand
 
 # Peppol generic AP — requires a connected Access Point
 PEPPOL_LIVE=1 PEPPOL_PARTICIPANT_ID=0009:12345678900011 PEPPOL_AP_URL=https://ap.example.com \

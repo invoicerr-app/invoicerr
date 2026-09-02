@@ -67,6 +67,15 @@ const ES_RULE_READY = {
   provenanceDescription: '"Ley 25/2013, arts. 4 y 6..." (checked 2026-09-02)',
 };
 
+// A FICTITIOUS still-unimplemented-transport fixture — NOT the real, shipped DE rule any more (that
+// one now routes to the IMPLEMENTED "peppol" channel, `formatSyntax: "xrechnung"`, via that
+// transport's own format override — see `b2g-routing/data/de.json`'s own ADDENDUM and
+// `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE"; `b2g-routing/data/all.spec.ts` is the
+// test that reads the REAL file). This fixture is kept, unchanged, as a generic "a rule may
+// legitimately name a channel not implemented yet" exercise — `resolveB2gInvoiceTransport`'s own
+// "channel not available" branch below needs SOME transportId no `TransportRegistry` in this file
+// ever registers, and "zre-ozgre" (this dépôt's own real historical placeholder for a still-unwired
+// federal portal channel) reads more honestly than inventing an arbitrary new string.
 const DE_RULE_UNIMPLEMENTED = {
   countryCode: 'DE',
   transportId: 'zre-ozgre',

@@ -25,25 +25,38 @@
  *    shape `chorus-pro-transport.spec.ts`'s own preflight tests already cover exhaustively (jest), and
  *    the identical wiring `invoice-b2g-routing.spec.ts`'s own "channel IS chosen but its OWN preflight
  *    refuses" test already proves for the (structurally identical) IT/sdi case.
- *  - DE (the federal e-invoicing portal, ZRE/OZG-RE): SAME shape — `transportId: "zre-ozgre"`
- *    doesn't exist either (§4 Abs. 3 ERechV requires a PORTAL deposit, not email — see
- *    `b2g-routing/data/de.json`'s own header for why email was deliberately NOT chosen as a
- *    stand-in). GENUINE STRUCTURAL LIMIT FOUND WHILE WRITING THIS SPEC, worth recording rather than
- *    routing around: `download-xml` is only `availableWhen: ['sending', 'sent', 'send_failed']`
- *    (`invoice.descriptor.ts`'s own numbering paragraph — a "draft" has no invoice NUMBER yet, and
- *    BT-1 needs one) — and a B2G-blocked country's invoice NEVER reaches any of those three statuses
- *    (the whole point of blocking at the PREFLIGHT, before anything is persisted). So there is no
- *    screen path to ever download an XRechnung for a government invoice whose channel is not
- *    implemented — proving the Leitweg-ID/BR-DE-15 mechanism end-to-end stays a JEST-level guarantee
- *    (`formats/xrechnung-provider.spec.ts`, `documents.service.country-fields.spec.ts`'s own new B2G
- *    describe block for the field-hint bridge), not an E2E artifact. This spec proves what IS
- *    reachable on screen for DE: the client-side help panel, and the named channel block. A SEPARATE
- *    test below ("le champ Leitweg-ID … apparaît RÉACTIVEMENT") closes the OTHER named gap
- *    (`document-form.tsx`'s own screen wiring, `use-document-types.ts`'s `clientId`-aware descriptor
- *    fetch): the field ITSELF, appearing and disappearing on the invoice FORM as the user picks a
- *    client, never just at the service level. The structural limit above still holds for it too — it
- *    proves the field on screen and the SAME named block, never a downloaded XRechnung (still a
- *    JEST-only guarantee, same citation).
+ *  - DE (the federal e-invoicing portal, ZRE/OZG-RE): "le trou allemand du B2G" — **RENFORCÉ**, same
+ *    progression as FR/chorus-pro above. `transportId` used to be `"zre-ozgre"`, a channel absent from
+ *    `transport-registry.ts` (the thesis of this whole model: a rule may legitimately name a channel
+ *    not implemented yet — §4 Abs. 3 ERechV requires a PORTAL deposit, not email, so sending BLOCKED,
+ *    synchronously, at the preflight, naming exactly that missing channel). It now routes to
+ *    `transportId: "peppol"` — an ALREADY IMPLEMENTED channel — carrying `formatSyntax: "xrechnung"`
+ *    via that transport's OWN format override (`transports/peppol-transport.ts`'s own header, "THE
+ *    FORMAT OVERRIDE"; `b2g-routing/data/de.json`'s own ADDENDUM for the full, sourced resolution: the
+ *    federal portal accepts Peppol as a CHANNEL, but XRechnung remains the CONTENT the law names,
+ *    regardless of channel). This suite never connects a Peppol channel for Acme Corp, so the block
+ *    persists — but its SHAPE changed, and this is the mechanism PROGRESSING, not weakening, EXACTLY
+ *    like FR/chorus-pro: the refusal moved from "this channel does not exist at all" (a static,
+ *    load-time block) to "this channel EXISTS but is not connected for this company" (the SAME
+ *    `NotImplementedException` shape `peppol-transport.spec.ts`'s own preflight tests already cover
+ *    exhaustively, jest) — a STRICTER, more honest proof, never a silent fall-back to email or to
+ *    Peppol BIS. GENUINE STRUCTURAL LIMIT still holds, UNCHANGED by this task: `download-xml` is only
+ *    `availableWhen: ['sending', 'sent', 'send_failed']` (`invoice.descriptor.ts`'s own numbering
+ *    paragraph — a "draft" has no invoice NUMBER yet, and BT-1 needs one) — and a B2G-blocked
+ *    country's invoice NEVER reaches any of those three statuses (the whole point of blocking at the
+ *    PREFLIGHT, before anything is persisted). So there is no screen path to ever download an
+ *    XRechnung for a government invoice whose channel is connected-but-not-configured — proving the
+ *    Leitweg-ID/BR-DE-15 mechanism AND the format-override/CustomizationID mechanism end-to-end stay
+ *    JEST-level guarantees (`formats/xrechnung-provider.spec.ts`, `transports/peppol-transport.spec.
+ *    ts`'s own "THE FORMAT OVERRIDE" block, `actions/invoice-b2g-de-peppol-send.spec.ts`'s own
+ *    service-level proof, `documents.service.country-fields.spec.ts`'s own B2G field-hint block), not
+ *    an E2E artifact. This spec proves what IS reachable on screen for DE: the client-side help panel,
+ *    and the named channel block. A SEPARATE test below ("le champ Leitweg-ID … apparaît
+ *    RÉACTIVEMENT") closes the OTHER named gap (`document-form.tsx`'s own screen wiring, `use-document-
+ *    types.ts`'s `clientId`-aware descriptor fetch): the field ITSELF, appearing and disappearing on
+ *    the invoice FORM as the user picks a client, never just at the service level. The structural
+ *    limit above still holds for it too — it proves the field on screen and the SAME named block,
+ *    never a downloaded XRechnung (still a JEST-only guarantee, same citation).
  *  - IT (SdI): the ONE rule whose channel is ALREADY implemented. The company's own free choice is
  *    deliberately set to "email" (a channel that WOULD succeed) to prove precedence for real: the
  *    invoice still fails via SdI (a fake, unreachable endpoint — same fixture as 31's own SdI wave),
@@ -348,7 +361,11 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		);
 	});
 
-	it("DE — un client GOVERNMENT affiche l'aide du portail fédéral, puis l'envoi bloque nommément (le portail ZRE/OZG-RE n'est pas encore connecté), jamais un envoi silencieux par email", () => {
+	// RENFORCÉ (voir ce fichier's own header) : le canal "peppol" EXISTE désormais dans ce déploiement
+	// — la société de ce test ne le connecte jamais, donc l'envoi bloque toujours, mais le message ne
+	// nomme plus un canal absent ("zre-ozgre") : il nomme "peppol", non connecté — le MÊME
+	// `NotImplementedException` que chorus-pro/IT/ES touchent déjà avant leur propre connexion.
+	it("DE — un client GOVERNMENT affiche l'aide du portail fédéral, puis l'envoi bloque nommément (le canal peppol existe mais n'est pas connecté pour cette société), jamais un envoi silencieux par email", () => {
 		setInvoiceTransport("email");
 
 		cy.visit("/clients");
@@ -365,7 +382,7 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			"be.visible",
 		);
 		cy.get('[data-cy="client-b2g-hint-channel"]')
-			.should("contain.text", "zre-ozgre")
+			.should("contain.text", "peppol")
 			.and("contain.text", "xrechnung");
 		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "ERechV");
 		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "Leitweg");
@@ -410,8 +427,11 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
 					timeout: 15000,
 				}).click();
+				// RENFORCÉ : le toast ne nomme plus "zre-ozgre" (un canal absent) mais "peppol" (un
+				// canal EXISTANT, simplement pas connecté pour cette société) — voir ce fichier's own
+				// header.
 				cy.get("[data-sonner-toast]", { timeout: 10000 })
-					.should("contain.text", "zre-ozgre")
+					.should("contain.text", "peppol")
 					.and("contain.text", "ERechV");
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
@@ -441,7 +461,7 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 	// fichier ("GENUINE STRUCTURAL LIMIT") : un B2G bloqué au préflight ne numérote jamais, et
 	// "download-xml" exige un numéro ; la preuve que ce Leitweg-ID atterrit bien en BT-10 reste donc
 	// au niveau Jest (`xrechnung-provider.spec.ts`, même valeur "04011000-1234512345-06").
-	it("DE — le champ Leitweg-ID (buyerReference) apparaît RÉACTIVEMENT à l'écran dès qu'un client GOVERNMENT allemand est choisi dans le formulaire (jamais avant, jamais pour un client BUSINESS), avec son aide sourcée ; l'envoi bloque toujours nommément sur zre-ozgre", () => {
+	it("DE — le champ Leitweg-ID (buyerReference) apparaît RÉACTIVEMENT à l'écran dès qu'un client GOVERNMENT allemand est choisi dans le formulaire (jamais avant, jamais pour un client BUSINESS), avec son aide sourcée ; l'envoi bloque toujours nommément — désormais sur peppol, non connecté", () => {
 		setInvoiceTransport("email");
 
 		createBusinessClient("Client Ordinaire SARL").then((businessClientId) => {
@@ -506,14 +526,16 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.its("response.statusCode")
 					.should("be.oneOf", [200, 201]);
 
-				// L'envoi bloque toujours, nommément, sur zre-ozgre — CE détour par l'écran ne change
-				// rien à la préséance B2G ; jamais un envoi silencieux par email.
+				// L'envoi bloque toujours, nommément — RENFORCÉ (ce fichier's own header) : désormais
+				// sur "peppol" (un canal EXISTANT, simplement pas connecté pour cette société), plus
+				// "zre-ozgre" (un canal absent) — CE détour par l'écran ne change rien à la préséance
+				// B2G ; jamais un envoi silencieux par email.
 				cy.visit("/documents/invoice");
 				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
 					timeout: 15000,
 				}).click();
 				cy.get("[data-sonner-toast]", { timeout: 10000 })
-					.should("contain.text", "zre-ozgre")
+					.should("contain.text", "peppol")
 					.and("contain.text", "ERechV");
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })

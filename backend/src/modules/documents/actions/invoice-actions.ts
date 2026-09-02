@@ -174,11 +174,24 @@ function hasValue(value: unknown): boolean {
  * `data` is the invoice's OWN submitted fields (needed only to check `requiredDocumentFields`) — may
  * be `undefined` at call sites that have no document data on hand yet (none today, but never assumed).
  */
+/**
+ * What `resolveInvoiceTransport` hands back — the transport to use, PLUS an optional `formatOverride`
+ * forwarded verbatim onto `DocumentTransportContext` at the `deliver()` call site
+ * (`transport-registry.ts`'s own header for the full contract). Only `resolveB2gInvoiceTransport`
+ * below ever sets `formatOverride` (to `rule.formatSyntax`) — the seller-country mandate and the
+ * company's own free-choice paths never do, since neither carries a per-invoice format decision of
+ * its own the way a B2G rule does.
+ */
+interface ResolvedInvoiceTransport {
+  transport: DocumentTransport;
+  formatOverride?: string;
+}
+
 function resolveB2gInvoiceTransport(
   transportRegistry: TransportRegistry,
   decision: B2gClientRoutingDecision,
   data: Record<string, unknown> | undefined,
-): DocumentTransport {
+): ResolvedInvoiceTransport {
   if (!decision.rule) {
     logger.warn('Invoice "send" blocked: B2G client with no usable routing rule', {
       category: 'documents',
@@ -206,7 +219,13 @@ function resolveB2gInvoiceTransport(
   }
 
   try {
-    return transportRegistry.resolve(rule.transportId);
+    // `formatOverride: rule.formatSyntax` — ALWAYS set here, regardless of which transport the rule
+    // names: a fixed-format transport (chorus-pro/facturx, sdi/fatturapa, face/facturae, anaf/ubl)
+    // never reads it at all, so setting it is inert for those (see `transport-registry.ts`'s own
+    // header); "peppol" is the one transport today that DOES honor it, for Germany's own rule
+    // (`b2g-routing/data/de.json`, `formatSyntax: "xrechnung"`) — see `peppol-transport.ts`'s own
+    // header, "THE FORMAT OVERRIDE".
+    return { transport: transportRegistry.resolve(rule.transportId), formatOverride: rule.formatSyntax };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
       logger.warn('Invoice "send" blocked: B2G channel not implemented in this deployment', {
@@ -282,7 +301,7 @@ async function resolveInvoiceTransport(
   issueDate: string | undefined,
   clientId: string | undefined,
   data: Record<string, unknown> | undefined,
-): Promise<DocumentTransport> {
+): Promise<ResolvedInvoiceTransport> {
   const b2g = await resolveClientB2gRouting(companyId, clientId);
   if (b2g.applies) {
     return resolveB2gInvoiceTransport(transportRegistry, b2g, data);
@@ -318,7 +337,10 @@ async function resolveInvoiceTransport(
   }
 
   try {
-    return transportRegistry.resolve(transportId);
+    // No `formatOverride` on this path — neither the seller-country mandate nor the company's own
+    // free choice carries a per-invoice format decision the way a B2G rule does (see
+    // `ResolvedInvoiceTransport`'s own header).
+    return { transport: transportRegistry.resolve(transportId) };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
       throw new NotImplementedException(
@@ -348,7 +370,13 @@ async function runInvoiceSendPreflight(
   clientId: string | undefined,
   data: Record<string, unknown> | undefined,
 ): Promise<void> {
-  const transport = await resolveInvoiceTransport(transportRegistry, companyId, issueDate, clientId, data);
+  const { transport } = await resolveInvoiceTransport(
+    transportRegistry,
+    companyId,
+    issueDate,
+    clientId,
+    data,
+  );
   try {
     await transport.preflight?.(companyId);
   } catch (error) {
@@ -515,7 +543,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       deliver: async ({ companyId: c, document, data: deliverData }) => {
         const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
         const clientId = typeof deliverData.client === 'string' ? deliverData.client : undefined;
-        const transport = await resolveInvoiceTransport(
+        const { transport, formatOverride } = await resolveInvoiceTransport(
           deps.transportRegistry,
           c,
           issueDate,
@@ -542,7 +570,15 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
         }
         const documentForDelivery =
           resolvedData === deliverData ? document : { ...document, data: resolvedData };
-        return transport.send({ companyId: c, document: documentForDelivery, label: 'Invoice' });
+        // `formatOverride` — see `ResolvedInvoiceTransport`'s own header and `transport-registry.ts`'s
+        // own header: forwarded VERBATIM, exactly as the B2G rule (if any) named it, never invented or
+        // adjusted here. Every transport except "peppol" ignores it entirely.
+        return transport.send({
+          companyId: c,
+          document: documentForDelivery,
+          label: 'Invoice',
+          formatOverride,
+        });
       },
     }),
   );

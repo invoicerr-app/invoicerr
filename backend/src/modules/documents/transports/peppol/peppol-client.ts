@@ -47,9 +47,10 @@ export interface PeppolSendRequest {
   documentTypeId: string;
   /** Peppol process identifier (default: `PEPPOL_BILLING_PROCESS_ID`). */
   processId: string;
-  /** The Peppol BIS UBL document bytes (`formats/peppol-bis-provider.ts`'s own build result — ALREADY
-   *  gated valid by that provider's base EN 16931 + Peppol BIS Schematron before this client ever
-   *  sees them). */
+  /** The UBL document bytes — Peppol BIS by default (`formats/peppol-bis-provider.ts`), or XRechnung
+   *  when a B2G rule imposes it (`formats/xrechnung-provider.ts`, `../peppol-transport.ts`'s own
+   *  format override) — ALREADY gated valid by that provider's own base EN 16931 + delta Schematron
+   *  before this client ever sees them. */
   documentBytes: Uint8Array;
   /** Optional idempotency key — this transport passes the document's own display number. */
   idempotencyKey?: string;
@@ -91,12 +92,40 @@ export interface PeppolApPort {
 /** Default Peppol BIS Billing 3 process ID. */
 export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
 
-/** Peppol BIS Billing 3 document type — the ONE this transport ever sends (an invoice; this codebase
- *  has no credit-note transport wiring today, see `../transport-registry.ts`'s own header: "See
- *  invoice-actions.ts's 'send' for the one caller today"). */
+/**
+ * Peppol document type identifiers — the BUSDOX URN shape is
+ * `<rootNS>::<LocalName>##<CustomizationID>::<VersionID>`, and the `<CustomizationID>` segment is, BY
+ * PEPPOL ARCHITECTURE, the SAME value the document itself carries as its own `cbc:CustomizationID` —
+ * the network's own addressing of "which profile is this" is never an independent guess, it MIRRORS
+ * what is actually inside the envelope.
+ *
+ * `INVOICE_UBL` is Peppol BIS Billing 3 — the ONE type this transport sent before root TODO item 26's
+ * "Peppol/Allemagne" wave (an invoice; this codebase has no credit-note transport wiring today, see
+ * `../transport-registry.ts`'s own header: "See invoice-actions.ts's 'send' for the one caller
+ * today"). `INVOICE_XRECHNUNG_UBL` is the SECOND, added for `../peppol-transport.ts`'s own format
+ * override (`documents-core.module.ts#buildTransportRegistry`'s "peppol" wiring): its
+ * `<CustomizationID>` segment is COPIED VERBATIM from `../../formats/xrechnung-provider.ts`'s own
+ * `XRECHNUNG_CUSTOMIZATION_ID` constant (`urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:
+ * xrechnung_3.0`) — the identical mirroring discipline `INVOICE_UBL` already holds against
+ * `peppol-bis-provider.ts`'s own customization id.
+ *
+ * HONEST LIMIT: this mirrors the STANDARD Peppol URN construction rule, which is architecture, not a
+ * guess — but this task did NOT independently verify this EXACT identifier against a real SMP
+ * registration for the German federal portal (OZG-RE) itself; only two narrower facts were read and
+ * are cited at their own call sites: (1) OZG-RE accepts Peppol as an input CHANNEL at all
+ * (`b2g-routing/data/de.json`'s own addendum, e-rechnung-bund.de/faq/), and (2) a German public body's
+ * OWN Peppol participant id is addressed under EAS `0204` + its Leitweg-ID (same source, plus the
+ * official Peppol Participant Identifier Schemes codelist v9.7, `docs.peppol.eu`, code `0204` =
+ * `DE:LWID` / "Peppol-Leitweg-ID", issuing agency KoSIT). Whether OZG-RE's own onboarding additionally
+ * expects this PRECISE `documentTypeId` string (as opposed to deriving it purely from the envelope's
+ * own CustomizationID, which is all this client actually sends) was not read anywhere and is not
+ * claimed here — a genuine, named remainder for whoever connects a REAL OZG-RE-facing AP account.
+ */
 export const PEPPOL_DOC_TYPES = {
   INVOICE_UBL:
     'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
+  INVOICE_XRECHNUNG_UBL:
+    'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0::2.1',
 };
 
 // ---------------------------------------------------------------------------

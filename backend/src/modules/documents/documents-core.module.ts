@@ -64,6 +64,7 @@ import { buildFaceTransport } from './transports/face-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
 import { buildPeppolTransport } from './transports/peppol-transport';
+import { PEPPOL_DOC_TYPES } from './transports/peppol/peppol-client';
 import { buildSdiTransport } from './transports/sdi-transport';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
@@ -194,6 +195,13 @@ function buildFormatProviderRegistry(
  * object `buildFormatProviderRegistry` already registers under "peppol-bis" for `download-xml` — a
  * second reference to the identical object, not a second instance (there is nothing to construct: the
  * provider takes no dependency at all, unlike `facturx`'s own `referenceRegistry`-bound factory).
+ * `formatOverrides.xrechnung` closes "le trou allemand du B2G": Germany's own B2G routing rule
+ * (`b2g-routing/data/de.json`) names `transportId: "peppol"` with `formatSyntax: "xrechnung"` — see
+ * `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE", for the full mechanism. Its
+ * `documentTypeId` is `PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL` (`transports/peppol/peppol-client.ts`),
+ * and its `xrechnungFormatProvider` is, again, the SAME stateless plain object registered above under
+ * "xrechnung" for `download-xml` — a third reference to an already-shared object, never a new
+ * instance.
  *
  * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`, root
  * TODO item 13) is threaded into "email" only — the one transport that hands a human-readable PDF to
@@ -249,7 +257,20 @@ function buildTransportRegistry(
   registry.register(
     'peppol',
     'Peppol',
-    buildPeppolTransport({ channelCredentials, peppolBisFormatProvider }),
+    buildPeppolTransport({
+      channelCredentials,
+      peppolBisFormatProvider,
+      // Germany's B2G rule (`b2g-routing/data/de.json`) imposes XRechnung CONTENT over this SAME
+      // Peppol channel — see `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE". Every OTHER
+      // send through "peppol" (no `ctx.formatOverride`, or one this map has no entry for) is entirely
+      // unaffected by this line's mere presence.
+      formatOverrides: {
+        xrechnung: {
+          provider: xrechnungFormatProvider,
+          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL,
+        },
+      },
+    }),
   );
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
