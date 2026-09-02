@@ -116,6 +116,21 @@ const FAKE_FACE = {
 	notificationEmail: "facturacion@e2e-testville.example",
 };
 
+/** Peppol (BE, B2G — the 2026-09-02 B2G audit wave, `b2g-routing/data/be.json`) — same discipline as
+ *  `31-national-channels.cy.ts`'s own `FAKE_PEPPOL`: `accessPointUrl` points at a closed local port,
+ *  never a real Access Point, so a send that reaches the network fails for real (connection refused),
+ *  never a silent success. Unlike that file's own Peppol test (whose default seeded client carries NO
+ *  `PEPPOL_ENDPOINT` at all, so the refusal happens BEFORE the network), the government client created
+ *  below DOES get one filled in on screen (`client-peppol-endpoint-input`) — this test's own point is
+ *  to prove the B2G rule forces the "peppol" channel over the company's free "email" choice AND that
+ *  the send genuinely reaches (and fails against) the network, the same "real send_failed" shape as
+ *  the FR/IT/ES cases above, never just a preflight block the way the DE case above stays. */
+const FAKE_PEPPOL = {
+	accessPointUrl: "http://127.0.0.1:1",
+	apiKey: "e2e-fake-peppol-api-key",
+	participantId: "0009:12345678900011",
+};
+
 function setInvoiceTransport(transportId: string) {
 	return cy
 		.request({
@@ -557,6 +572,134 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					});
 			});
 		});
+	});
+
+	// NOUVEAU (2026-09-02, l'audit "il manque du B2G pour des pays") — BE est le premier pays couvert
+	// par cette vague à être prouvé PAR L'ÉCRAN : `b2g-routing/data/be.json` route vers le canal
+	// "peppol" DÉJÀ implémenté, avec le format "peppol-bis" GÉNÉRIQUE (aucun CIUS belge, lu sur la
+	// fiche eInvoicing de la Commission européenne — voir ce fichier's own header). Représentatif du
+	// reste de la vague (CY/EE/GR/LT/LU/LV/MT/SE partagent la même forme "peppol" + "peppol-bis", voir
+	// `B2G_COVERAGE.md` à la racine) — un seul suffit à prouver le mécanisme À L'ÉCRAN, les autres
+	// restent des preuves JEST (`b2g-routing/data/all.spec.ts`'s own pinned loop).
+	it('BE — un client GOVERNMENT affiche l\'aide Peppol (peppol-bis), puis l\'envoi force le canal peppol connecté (identifiants fictifs, port fermé) même si la société a choisi email, et échoue réellement, jamais par email', () => {
+		// Le canal Peppol, connecté par l'écran, identifiants fictifs (port fermé — même fixture que
+		// 31's own Peppol wave).
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-peppol"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-peppol-accesspointurl-input"]')
+			.clear()
+			.type(FAKE_PEPPOL.accessPointUrl);
+		cy.get('[data-cy="channel-peppol-apikey-input"]')
+			.clear()
+			.type(FAKE_PEPPOL.apiKey);
+		cy.get('[data-cy="channel-peppol-participantid-input"]')
+			.clear()
+			.type(FAKE_PEPPOL.participantId);
+		cy.get('[data-cy="channel-peppol-connect-button"]').click();
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
+
+		// La société choisit "email" — un canal qui MARCHERAIT réellement (Mailpit). La préséance B2G
+		// doit l'ignorer complètement, même motif que FR/IT/ES ci-dessus.
+		setInvoiceTransport("email");
+
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Gemeente Testdorp");
+		cy.selectCountry("client-country-select", "Belgium");
+
+		cy.get('[data-cy="client-kind-select"]').click();
+		cy.get('[data-cy="client-kind-government"]').click();
+
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="client-b2g-hint-channel"]')
+			.should("contain.text", "peppol")
+			.and("contain.text", "peppol-bis");
+		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "Mercurius");
+
+		// Le PEPPOL_ENDPOINT du client — sa PROPRE section dédiée ("Peppol / Electronic routing"),
+		// jamais dans la liste générique des identifiants pays (voir be.json's own note : aucun
+		// `requiredClientIdentifiers` n'est ajouté pour ce fait, exactement comme pour le Leitweg-ID
+		// allemand). Le schéma par défaut de l'écran (0088 — GLN) est laissé tel quel : le point de CE
+		// test est la préséance du canal peppol et l'échec réseau réel, jamais l'EAS belge lui-même
+		// (0208, déjà épinglé au niveau jest par `b2g-routing/data/all.spec.ts`'s own pinned loop).
+		cy.get('[data-cy="client-peppol-endpoint-input"]')
+			.scrollIntoView()
+			.clear()
+			.type("0666777888");
+
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("facturatie@testdorp.example");
+		cy.get('[name="address"]').clear().type("Grote Markt 1");
+		cy.get('[name="postalCode"]').clear().type("1000");
+		cy.get('[name="city"]').clear().type("Testdorp");
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Gemeente Testdorp", { timeout: 10000 });
+
+		findClientIdByName("Gemeente Testdorp").then((clientId) => {
+			createInvoiceDraft(clientId).then((invoiceId) => {
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+					.find('[data-cy="document-status-badge"]')
+					.should("contain.text", "Draft");
+
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+
+				// Le canal B2G (peppol) EST implémenté ET connecté : la file échoue RÉELLEMENT contre le
+				// port fermé — jamais un succès silencieux via email.
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+					.should("contain.text", "Send failed");
+				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
+					"contain.text",
+					"Peppol",
+				);
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							'la facture échoue réellement via Peppol, jamais "sent" par email',
+						).to.eq("send_failed");
+						expect(
+							doc.lastActionError,
+							"l'erreur nomme Peppol, jamais email",
+						).to.match(/Peppol/);
+					});
+			});
+		});
+
+		// Nettoyage — laisse le canal déconnecté pour ne pas polluer une autre spec qui relirait
+		// company/channels après celui-ci (même discipline que le dernier test de la 31 et les tests
+		// FR/IT/ES ci-dessus).
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
+		cy.get('[data-cy="channel-peppol-disconnect-button"]').click();
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
 	});
 
 	it("IT — un client GOVERNMENT exige le Codice Univoco Ufficio (IPA) ; l'envoi force SdI même si la société a choisi email, et échoue réellement (port fermé), jamais par email", () => {

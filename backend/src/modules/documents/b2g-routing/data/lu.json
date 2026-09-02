@@ -1,0 +1,14 @@
+{
+  "countryCode": "LU",
+  "rule": {
+    "countryCode": "LU",
+    "transportId": "peppol",
+    "formatSyntax": "peppol-bis",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "eInvoicing Country Factsheet — Luxembourg (European Commission, Digital Building Blocks, eInvoicing space, page last updated 14 Aug 2025): \"Law of 16 May 2019 on e-Invoicing in Public Procurement and Concession Contracts\" transposes Directive 2014/55/EU, with amendments from 13 December 2021 setting compliance deadlines by business size, the final one being \"18 March 2023\" for small or newly established businesses. On the channel: \"All public sector bodies are required to receive e-Invoices via the Peppol network.\" On the format: \"Luxembourg has not developed a specific national CIUS\"; eInvoices \"must conform to either XML UBL or XML UN/CEFACT CII formats, delivered via Peppol BIS Billing 3.0.\"",
+      "sourceCheckedAt": "2026-09-02"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-02 sur ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108893/eInvoicing+in+Luxembourg — la fiche pays officielle de la Commission européenne. Avec la Suède (voir se.json), c'est la lecture la plus catégorique de cette vague : \"ALL public sector bodies are required to receive e-Invoices via the Peppol network\" — aucune plateforme intermédiaire nommée (contrairement à Mercurius/BE, SABIS/LT, KE.D/GR), le réseau Peppol EST le canal lui-même. `transportId: \"peppol\"` et `formatSyntax: \"peppol-bis\"` sont livrables tels quels, via le même mécanisme `formatOverrides['peppol-bis']` que be.json documente. ADRESSAGE PEPPOL (⚖, LU dans la codeliste v9.7) : le code ISO 6523 `0240` (« Register of legal persons », actif) est le schéma national luxembourgeois dans la codeliste Peppol « Participant Identifier Schemes » v9.7 (https://docs.peppol.eu/edelivery/codelists/, consultée 2026-09-02) — préféré au schéma TVA générique `9938` (« Luxemburg VAT number », actif également). Comme pour les autres règles peppol-bis de cette vague, AUCUN `requiredClientIdentifiers` n'est ajouté (fait déjà porté par la section dédiée \"Peppol / Electronic routing\" du client, `PEPPOL_ENDPOINT` — voir de.json's own note). Ce dépôt ne propose PAS `0240` dans le sélecteur d'écran actuel (`client-upsert.tsx`) — `9925` (EU VAT) y reste un repli valide, trou d'écran constaté, pas corrigé (hors périmètre)."
+  }
+}

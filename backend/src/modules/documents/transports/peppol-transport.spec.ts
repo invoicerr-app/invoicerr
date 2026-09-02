@@ -440,6 +440,64 @@ describe('buildPeppolTransport', () => {
       }
     });
 
+    // "peppol-bis" NAMES ITSELF — the landmine `documents-core.module.ts`'s own header now documents
+    // (found while wiring the B2G audit wave, BE/CY/EE/GR/LT/LU/LV/MT/SE): `resolveB2gInvoiceTransport`
+    // ALWAYS sets `ctx.formatOverride` for EVERY B2G rule, including one naming the plain, no-CIUS
+    // "peppol-bis" syntax — so THIS transport must resolve that override to the exact same
+    // provider/documentTypeId the no-override branch already uses, never a spurious "no override
+    // wired" refusal for a format it already sends by default. Proven against a REAL local stub
+    // server (captures the actual request body), never a mocked `PeppolApHttpClient`.
+    it('`ctx.formatOverride` is "peppol-bis" itself, WIRED as its own override — IDENTICAL to no override at all: same provider, same documentTypeId reaching the Access Point', async () => {
+      const { server, url } = await startStubServer((req, res) => {
+        let raw = '';
+        req.on('data', (chunk) => (raw += chunk));
+        req.on('end', () => {
+          receivedBody = raw;
+          res.writeHead(202, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ messageId: 'msg-self-override', status: 'SENT' }));
+        });
+      });
+      let receivedBody = '';
+
+      try {
+        const build = jest
+          .fn()
+          .mockResolvedValue({ bytes: new Uint8Array([7]), validation: { valid: true, errors: [] } });
+        // The SAME object reference used both as `deps.peppolBisFormatProvider` (the no-override
+        // default) and as the "peppol-bis" override's own `provider` — mirroring EXACTLY how
+        // `documents-core.module.ts#buildTransportRegistry` wires it in production (a single
+        // `peppolBisFormatProvider` constant, referenced twice), never two independent instances.
+        const sharedProvider: DocumentFormatProvider = {
+          id: 'peppol-bis',
+          syntax: 'PEPPOL_BIS_BILLING_3',
+          mime: 'application/xml',
+          build,
+        };
+        const deps = buildDeps({
+          build,
+          formatProvider: sharedProvider,
+          resolveActive: jest.fn().mockResolvedValue({
+            ...CONNECTED_CONFIG,
+            config: { ...CONNECTED_CONFIG.config, accessPointUrl: url },
+          }),
+          formatOverrides: {
+            'peppol-bis': { provider: sharedProvider, documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL },
+          },
+        });
+        const transport = buildPeppolTransport(deps);
+
+        const result = await transport.send({ ...CTX_DE_GOV, formatOverride: 'peppol-bis' });
+
+        expect(build).toHaveBeenCalledTimes(1);
+        expect(result.artifacts).toEqual([
+          { role: 'peppol-bis', mime: 'application/xml', bytes: new Uint8Array([7]) },
+        ]);
+        expect(JSON.parse(receivedBody).documentTypeId).toBe(PEPPOL_DOC_TYPES.INVOICE_UBL);
+      } finally {
+        await closeServer(server);
+      }
+    });
+
     it('`ctx.formatOverride` names a format this transport has NO override wired for — refuses, NAMED, and the Access Point is NEVER called (never a silent fall back to Peppol BIS)', async () => {
       const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
       const deps = buildDeps(); // no `formatOverrides` at all

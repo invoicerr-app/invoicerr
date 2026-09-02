@@ -44,9 +44,150 @@ try {
     (_ctx: unknown, exp: unknown, val: unknown, slack: unknown): boolean =>
       Number(exp) + Number(slack) >= Number(val) && Number(exp) - Number(slack) <= Number(val),
   );
+
+  /**
+   * The SIX identifier-checksum functions below (2026-09-02, the B2G audit wave, `B2G_COVERAGE.md`
+   * at the repo root) — found MISSING while proving `b2g-routing/data/be.json` end-to-end in Cypress:
+   * `PEPPOL-EN16931-UBL.sch` declares u:gln/u:mod11/u:mod97-0208/u:abn/u:TinVerification/
+   * u:checkSEOrgnr as `xsl:function`s (same mechanism as `u:slack` above), but — unlike `u:slack` —
+   * NONE of them had ever been registered here. fontoxpath does not read `xsl:function` declarations
+   * out of the .sch automatically (see this file's own header on `u:slack`); an unregistered one is
+   * not a clean Schematron failure, it is a THROWN `XPST0017` ("Function ... not registered") the
+   * moment a rule referencing it is even evaluated — surfaced through `peppol-transport.ts#send()` as
+   * a raw, unnamed error instead of "Cannot send via Peppol: the generated document failed
+   * validation" (`peppol-transport.spec.ts`'s own format-gate tests never exercised this: they mock
+   * `build()` entirely, or use fixture identifiers under schemes with NO checksum rule at all — e.g.
+   * `0009:11112222`). This is exactly the crash a real BE government client (`PEPPOL_ENDPOINT`
+   * scheme `0208`, the CBE/KBO number this catalog documents as BE's own EAS) hit in
+   * `40-b2g-routing.cy.ts` while writing that test — and, read further, the SAME gap also breaks a
+   * Swedish org-number endpoint (`0007`, `u:checkSEOrgnr`) and a Greek TIN endpoint/VAT number
+   * (`9933`, `u:TinVerification`, `GR-R-009`/`GR-R-010`) — THREE of the ten EAS this same audit wave
+   * documents (be.json/se.json/gr.json). Each body below is a byte-for-byte port of the .sch's own
+   * `xsl:function` (comment cites the exact source lines) — never a re-derived or "improved" version
+   * of the checksum algorithm, for the identical reason `u:slack` above is a verbatim port and not a
+   * rewrite. `u:gln`/`u:mod11`/`u:abn` are ALSO fixed here even though no rule in THIS wave's ten
+   * countries exercises them directly: they gate the very same `cbc:EndpointID`/`cac:PartyIdentification/
+   * cbc:ID`/`cbc:CompanyID` family (schemes 0088/0192/0151 — GLN, Norwegian org number, Australian
+   * ABN), already offered TODAY by the client's own Peppol scheme selector
+   * (`client-upsert.tsx`'s own `peppolSchemeId`, including 0088 as its DEFAULT value) for every
+   * ordinary B2B Peppol send this repo already claims to support, not only for B2G — leaving them
+   * broken while fixing only the three THIS wave happens to need would leave that existing, unrelated
+   * claim just as false. The remaining SIX functions this same .sch declares
+   * (u:checkCodiceIPA/u:checkCF/u:checkCF16/u:checkPIVAseIT/u:checkPIVA/u:addPIVA — all Italian
+   * Codice Fiscale/Partita IVA/Codice IPA checks on PARTY fields, never on the Peppol electronic
+   * address itself) are DELIBERATELY NOT fixed here — out of this wave's own scope (Italy already has
+   * its own dedicated, real SdI/FatturaPA B2G channel in this repo, `b2g-routing/data/it.json`, not
+   * Peppol BIS) — named honestly in `B2G_COVERAGE.md` as a known, separate remaining gap.
+   */
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch, u:gln — GS1 GLN (scheme 0088) mod-10 check digit.
+    { localName: 'gln', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const raw = String(val);
+      const length = raw.length - 1;
+      const digits = raw.slice(0, length).split('').map(Number).reverse();
+      let weightedSum = 0;
+      for (let i = 0; i < length; i++) {
+        weightedSum += digits[i] * (1 + ((i + 1) % 2) * 2);
+      }
+      const checkDigit = (10 - (weightedSum % 10)) % 10;
+      return checkDigit === Number(raw.slice(length, length + 1));
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch, u:mod11 — Norwegian organization number (scheme 0192) MOD11.
+    { localName: 'mod11', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const raw = String(val);
+      const length = raw.length - 1;
+      const digits = raw.slice(0, length).split('').map(Number).reverse();
+      let weightedSum = 0;
+      for (let i = 0; i < length; i++) {
+        weightedSum += digits[i] * ((i % 6) + 2);
+      }
+      const checkDigit = (11 - (weightedSum % 11)) % 11;
+      return Number(raw) > 0 && checkDigit === Number(raw.slice(length, length + 1));
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch, u:mod97-0208 — Belgian enterprise number (scheme 0208) MOD97.
+    { localName: 'mod97-0208', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const raw = String(val);
+      const checkDigits = raw.slice(8, 10);
+      const base = Number(raw.slice(0, 8));
+      const calculated = 97 - (base % 97);
+      return Number(checkDigits) === calculated;
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch, u:abn — Australian Business Number (scheme 0151) weighted MOD89.
+    { localName: 'abn', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const raw = String(val);
+      const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+      let sum = (raw.charCodeAt(0) - 49) * weights[0];
+      for (let i = 1; i < 11; i++) {
+        sum += (raw.charCodeAt(i) - 48) * weights[i];
+      }
+      return sum % 89 === 0;
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch, u:TinVerification — Greek TIN/AFM (scheme 9933, GR-R-009/GR-R-010).
+    { localName: 'TinVerification', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const digits = String(val).split('').map(Number);
+      const checksum =
+        digits[7] * 2 +
+        digits[6] * 4 +
+        digits[5] * 8 +
+        digits[4] * 16 +
+        digits[3] * 32 +
+        digits[2] * 64 +
+        digits[1] * 128 +
+        digits[0] * 256;
+      return (checksum % 11) % 10 === digits[8];
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch, u:checkSEOrgnr — Swedish organisationsnummer (scheme 0007), Luhn.
+    { localName: 'checkSEOrgnr', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const raw = String(val);
+      if (!/^\d+$/.test(raw)) return false;
+      const mainPart = raw.slice(0, 9);
+      const checkDigit = Number(raw.slice(9, 10));
+      const len = mainPart.length;
+      let sum = 0;
+      for (let pos = 1; pos <= len; pos++) {
+        const digit = Number(mainPart[len - pos]);
+        if (pos % 2 === 1) {
+          const doubled = digit * 2;
+          sum += (doubled % 10) + Math.floor(doubled / 10);
+        } else {
+          sum += digit;
+        }
+      }
+      const calculated = (10 - (sum % 10)) % 10;
+      return calculated === checkDigit;
+    },
+  );
 } catch {
-  // fontoxpath absent — sans conséquence tant que Peppol BIS (seul ruleset à utiliser u:slack) n'est
-  // pas branché ; voir le commentaire ci-dessus.
+  // fontoxpath absent — sans conséquence tant que Peppol BIS (seul ruleset à utiliser ces fonctions)
+  // n'est pas branché ; voir le commentaire ci-dessus.
 }
 
 // Schema.fromString est coûteux — mis en cache par chemin, comme au repère.

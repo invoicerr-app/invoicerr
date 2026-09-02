@@ -1,0 +1,14 @@
+{
+  "countryCode": "SE",
+  "rule": {
+    "countryCode": "SE",
+    "transportId": "peppol",
+    "formatSyntax": "peppol-bis",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "eInvoicing Country Factsheet — Sweden (European Commission, Digital Building Blocks, eInvoicing space, page last updated 14 Aug 2025): the \"Act on electronic invoicing in public procurement (2018:1277)\" transposes Directive 2014/55/EU, mandating that \"all public sector entities are required to receive and process structured eInvoices compliant with the European standard (EN 16931)\" since \"November 1, 2019\", for \"formal procurement contracts above the thresholds provided in the Public Procurement Directives.\" On the format: \"The Peppol specification is used as-is without any national blends\"; Sweden uses \"Peppol BIS Billing 3.0 as the Core Invoice Usage Specification (CIUS)\" with \"No national-specific adaptations\", and \"plays an active role in OpenPeppol.\" On the channel: \"Solution providers, on behalf of public sector organisations, operate the access point to receive eInvoices.\"",
+      "sourceCheckedAt": "2026-09-02"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-02 sur ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108902/eInvoicing+in+Sweden — la fiche pays officielle de la Commission européenne. C'est la lecture la plus catégorique de cette vague sur le format : \"used as-is without any national blends\" — la Suède, un des pays fondateurs du réseau Peppol/OpenPeppol, n'a délibérément AUCUNE adaptation nationale. `transportId: \"peppol\"` et `formatSyntax: \"peppol-bis\"` sont donc livrables tels quels, via le même mécanisme `formatOverrides['peppol-bis']` que be.json documente. ADRESSAGE PEPPOL (⚖, LU dans la codeliste v9.7) : le code ISO 6523 `0007` (« Organisationsnummer », actif) est le schéma national suédois dans la codeliste Peppol « Participant Identifier Schemes » v9.7 (https://docs.peppol.eu/edelivery/codelists/, consultée 2026-09-02) — le SEUL schéma actif pour la Suède dans cette codeliste (`9955`, « Swedish VAT number », y est marqué \"Removed\", donc délibérément écarté ici : jamais un schéma retiré cité comme une option valide). `0007` est DÉJÀ proposé par le sélecteur d'écran de ce dépôt (`client-upsert.tsx`, `SelectItem value=\"0007\">0007 — SE org.nr`) — comme pour be.json (0208), AUCUN `requiredClientIdentifiers` n'est ajouté : ce fait reste porté par la section dédiée \"Peppol / Electronic routing\" du client (`PEPPOL_ENDPOINT`), jamais dupliqué dans la liste générique des identifiants pays (voir de.json's own note)."
+  }
+}

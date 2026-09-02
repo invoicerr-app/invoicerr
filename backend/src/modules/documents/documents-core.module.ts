@@ -203,6 +203,23 @@ function buildFormatProviderRegistry(
  * "xrechnung" for `download-xml` — a third reference to an already-shared object, never a new
  * instance.
  *
+ * `formatOverrides['peppol-bis']` — a REAL LANDMINE found while wiring the B2G audit wave (BE/CY/EE/
+ * GR/LT/LU/LV/MT/SE, `b2g-routing/data/*.json`, EC eInvoicing Country Factsheets, checked 2026-09-02):
+ * `resolveB2gInvoiceTransport` (`actions/invoice-actions.ts`) ALWAYS forwards `formatOverride: rule.
+ * formatSyntax` for EVERY B2G rule, unconditionally, regardless of which format it names — and
+ * `peppol-transport.ts#resolveFormatForSend` treats ANY truthy `ctx.formatOverride` as an OVERRIDE
+ * REQUEST, never as "this is just the default, carry on": a B2G rule naming `formatSyntax: "peppol-
+ * bis"` (the generic, no-CIUS case every one of the nine countries above actually reads to) would
+ * otherwise hit the exact same NAMED refusal DE's own rule hit before `xrechnung` was wired here — "no
+ * Peppol format override wired for it" — for a format this transport already sends BY DEFAULT. This
+ * entry closes that gap the ONLY way that keeps the "never a silent fallback" contract intact: not by
+ * special-casing `peppol-bis` inside `resolveFormatForSend` (which would re-introduce exactly the kind
+ * of "absent override reads as ok" ambiguity `xrechnung`'s own wiring was built to avoid), but by
+ * WIRING peppol-bis AS ITS OWN override, pointing at the identical `peppolBisFormatProvider`/
+ * `PEPPOL_DOC_TYPES.INVOICE_UBL` pair the no-override branch already uses — so a "peppol-bis" B2G rule
+ * behaves BYTE-FOR-BYTE like an ordinary B2B Peppol send, proven by
+ * `peppol-transport.spec.ts`'s own "THE FORMAT OVERRIDE" block ("`peppol-bis` names ITSELF").
+ *
  * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`, root
  * TODO item 13) is threaded into "email" (the one transport that hands a human-readable PDF to
  * someone — see `EmailTransportDeps.signingCertificates`'s own header) AND, as of a 2026-09-02 task,
@@ -272,6 +289,14 @@ function buildTransportRegistry(
         xrechnung: {
           provider: xrechnungFormatProvider,
           documentTypeId: PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL,
+        },
+        // See this function's own header, "formatOverrides['peppol-bis']" — a B2G rule naming the
+        // generic Peppol BIS syntax (BE/CY/EE/GR/LT/LU/LV/MT/SE) still sets `ctx.formatOverride`
+        // unconditionally, so it must resolve to something; this makes it resolve to EXACTLY the
+        // same provider/documentTypeId the no-override branch already uses.
+        'peppol-bis': {
+          provider: peppolBisFormatProvider,
+          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL,
         },
       },
     }),

@@ -1,0 +1,14 @@
+{
+  "countryCode": "LT",
+  "rule": {
+    "countryCode": "LT",
+    "transportId": "peppol",
+    "formatSyntax": "peppol-bis",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "eInvoicing Country Factsheet — Lithuania (European Commission, Digital Building Blocks, eInvoicing space, page last updated 14 Aug 2025): the B2G mandate is established in the \"Law on Public Procurement\", mandatory \"since 1 July 2017\", transposing \"Directive 2014/55/EU\" — all invoices must comply with \"the European eInvoicing standard EN 16931\". On the channel: \"SABIS (Sąskaitų administravimo bendroji informacinė sistema)\", which \"replaced the previous system, eSąskaita, in September 2024\", is \"connected to the Peppol network.\" On the format: \"There is no national CIUS or additional extensions\"; SABIS \"supports standard formats like Peppol BIS Billing 3.0 and CII.\"",
+      "sourceCheckedAt": "2026-09-02"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-02 sur ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108892/eInvoicing+in+Lithuania — la fiche pays officielle de la Commission européenne. C'est l'une des lectures les PLUS NETTES de cette vague : plateforme nationale UNIQUE (SABIS), EXPLICITEMENT \"connected to the Peppol network\", et absence explicite de CIUS national — les trois faits nécessaires à cette règle sont réunis sur une seule fiche, sans ambiguïté résiduelle contrairement à EE (modèle décentralisé) ou LV (Peppol cité comme UNE option parmi d'autres, voir lv.json's own note). `transportId: \"peppol\"` et `formatSyntax: \"peppol-bis\"` sont livrables tels quels, via le même mécanisme `formatOverrides['peppol-bis']` que be.json documente. ADRESSAGE PEPPOL (⚖, LU dans la codeliste v9.7) : le code ISO 6523 `0200` (« Legal entity code », actif) est le schéma national lituanien dans la codeliste Peppol « Participant Identifier Schemes » v9.7 (https://docs.peppol.eu/edelivery/codelists/, consultée 2026-09-02) — préféré au schéma TVA générique `9937` (« Lithuania VAT number », actif également). Comme pour les autres règles peppol-bis de cette vague, AUCUN `requiredClientIdentifiers` n'est ajouté : ce fait reste porté par la section dédiée \"Peppol / Electronic routing\" du client (`PEPPOL_ENDPOINT`), jamais dupliqué dans la liste générique des identifiants pays (voir de.json's own note pour le raisonnement complet). Ce dépôt ne propose PAS `0200` dans le sélecteur d'écran actuel (`client-upsert.tsx`) — `9925` (EU VAT) y reste un repli valide, un trou d'écran constaté, pas corrigé (hors périmètre de cette tâche)."
+  }
+}

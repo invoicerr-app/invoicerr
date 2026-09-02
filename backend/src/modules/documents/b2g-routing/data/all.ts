@@ -12,13 +12,46 @@
  * `b2g-routing.ts`'s own read side (which reads the DATABASE, not this file — see that module's own
  * header) surfaces that as an HONEST refusal ("no B2G rule declared for XX"), never a silent B2B
  * fallback — the entire point of this mechanism.
+ *
+ * A LATER audit task (2026-09-02, "il manque du B2G pour des pays") went through the remaining 23 EU
+ * member states one by one, reading the European Commission's own eInvoicing Country Factsheets
+ * (ec.europa.eu/digital-building-blocks) plus, for pl, the Polish Ministry of Finance's own KSeF
+ * portal — see `B2G_COVERAGE.md` at the repo root for the full 27-row audit table (read/covered,
+ * read-but-not-deliverable and why, unreadable and what was attempted). TEN countries came back
+ * genuinely deliverable with this repo's OWN existing bricks and were added: be/cy/ee/gr/lt/lu/lv/mt/
+ * se (all `transportId: "peppol"`, `formatSyntax: "peppol-bis"` — the generic, no-national-CIUS case;
+ * see each file's own header for its own citation) and pl (`transportId: "ksef"`, `formatSyntax:
+ * "fa3"` — Poland's OWN national channel/format, already implemented and already proven live,
+ * deliberately chosen over the Peppol-based PEF platform whose Polish-specific extension this repo
+ * does not vendor; see `data/pl.json`'s own header for why). THIRTEEN more were read and are
+ * DELIBERATELY NOT shipped here — a required national CIUS this repo does not vendor (at/hr/dk/fi/ie/
+ * nl/pt/ro/si/sk) or no confirmed Peppol-network reachability for the country's own closed platform
+ * (bg/cz/hu) — see `B2G_COVERAGE.md` for the citation behind each one; adding a rule for any of them
+ * today would mean either claiming a format this repo cannot actually build, or a channel with no
+ * evidence it is reachable at all — precisely the "artefact qui a l'air conforme sans l'être" this
+ * whole mechanism exists to refuse.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { assertValidB2gRoutingFact, B2gRoutingRuleFact } from '../schema';
 
-const COUNTRY_FILES = ['fr', 'de', 'it', 'es'] as const;
+const COUNTRY_FILES = [
+  'fr',
+  'de',
+  'it',
+  'es',
+  'be',
+  'cy',
+  'ee',
+  'gr',
+  'lt',
+  'lu',
+  'lv',
+  'mt',
+  'pl',
+  'se',
+] as const;
 
 interface RawB2gRoutingFile {
   countryCode: string;

@@ -1,0 +1,14 @@
+{
+  "countryCode": "MT",
+  "rule": {
+    "countryCode": "MT",
+    "transportId": "peppol",
+    "formatSyntax": "peppol-bis",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "eInvoicing Country Factsheet — Malta (European Commission, Digital Building Blocks, eInvoicing space, page last updated 14 Aug 2025): \"Legal Notice 403 of 2018\" and \"Legal Notice 404 of 2018\" (30 November 2018) transpose the eInvoicing Directive, establishing that \"all Central Contracting Authorities must be able to receive and process electronic invoices throughout the EU, for procurement above the EU procurement thresholds.\" On the channel: \"Malta chose to rely its eInvoicing system on the Peppol delivery network to ensure interoperability and standardisation across public sector entities.\" On the format: \"Malta has chosen to use the Peppol BIS Billing 3.0 and its Core Invoice Usage Specification (CIUS) at the national level and does not foresee any separate national CIUS or additional extensions.\"",
+      "sourceCheckedAt": "2026-09-02"
+    },
+    "notes": "LU DIRECTEMENT le 2026-09-02 sur ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108894/eInvoicing+in+Malta — la fiche pays officielle de la Commission européenne. `transportId: \"peppol\"` et `formatSyntax: \"peppol-bis\"` sont livrables tels quels, sans CIUS maltais, via le même mécanisme `formatOverrides['peppol-bis']` que be.json documente. NUANCE LUE, HONNÊTEMENT REPORTÉE (même motif que cy.json) : la même fiche précise \"No mandatory B2G eInvoicing requirement exists\" — l'émission électronique reste VOLONTAIRE côté fournisseur maltais, seule la réception par l'administration (au-dessus des seuils de marchés publics UE) est obligatoire ; cela ne change rien à ce que cette règle encode (le canal/format qu'une administration maltaise accepte QUAND ce dépôt lui envoie une facture électronique), voir cy.json's own note pour le raisonnement complet sur ce point. ADRESSAGE PEPPOL (⚖, LU dans la codeliste v9.7) : Malte ne possède, dans la codeliste Peppol « Participant Identifier Schemes » v9.7 (https://docs.peppol.eu/edelivery/codelists/, consultée 2026-09-02), AUCUN schéma national de registre dédié — seul `9943` (« Malta VAT number », actif) existe, le schéma TVA générique. AUCUN `requiredClientIdentifiers` n'est ajouté pour cette raison (même raisonnement que cy.json/gr.json) ; `9943` n'est pas nommément proposé au sélecteur d'écran de ce dépôt (`client-upsert.tsx`) — `9925` (EU VAT) y reste un repli valide."
+  }
+}

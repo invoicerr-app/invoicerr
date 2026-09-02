@@ -2,17 +2,45 @@
  * Loads every shipped B2G routing file the same way `documents-core.module.ts` does at boot (via
  * `data/all.ts`) — proves each one is well-formed AND that the countries this wave actually shipped
  * (fr, de, it — see this task's own explicit scope) are exactly what's there, no more, no less.
+ *
+ * A LATER audit task (2026-09-02) added TEN more countries after reading all 23 remaining EU member
+ * states — see `data/all.ts`'s own header and `B2G_COVERAGE.md` at the repo root for the full audit.
+ * Nine (be/cy/ee/gr/lt/lu/lv/mt/se) share the exact same shape — `transportId: "peppol"`,
+ * `formatSyntax: "peppol-bis"`, no country-specific required identifiers/fields — so they get ONE
+ * pinned, looped test rather than nine near-duplicate ones; pl is structurally different (its own
+ * national channel/format) and gets its own dedicated test, same treatment as fr/de/it/es above.
  */
+import { peppolBisFormatProvider } from '../../formats/peppol-bis-provider';
+import { fa3FormatProvider } from '../../formats/national/fa3-provider';
 import { ALL_B2G_ROUTING_FILES } from './all';
+
+/** The nine countries read as "generic Peppol BIS, no national CIUS" — see each file's own header
+ *  for its own citation (EC eInvoicing Country Factsheet, checked 2026-09-02). */
+const PEPPOL_BIS_COUNTRIES = ['BE', 'CY', 'EE', 'GR', 'LT', 'LU', 'LV', 'MT', 'SE'];
 
 describe('b2g-routing/data/all.ts', () => {
   it('loads every shipped file without throwing', () => {
     expect(ALL_B2G_ROUTING_FILES.length).toBeGreaterThan(0);
   });
 
-  it('ships exactly FR, DE, IT, ES — the original three-country wave plus the ES/FACe follow-up', () => {
+  it("ships exactly 14 countries: the original FR/DE/IT/ES wave plus the 2026-09-02 B2G audit's ten", () => {
     const countries = ALL_B2G_ROUTING_FILES.map((f) => f.countryCode).sort();
-    expect(countries).toEqual(['DE', 'ES', 'FR', 'IT']);
+    expect(countries).toEqual([
+      'BE',
+      'CY',
+      'DE',
+      'EE',
+      'ES',
+      'FR',
+      'GR',
+      'IT',
+      'LT',
+      'LU',
+      'LV',
+      'MT',
+      'PL',
+      'SE',
+    ]);
   });
 
   it('every shipped rule carries LEGAL provenance with a real citation', () => {
@@ -62,5 +90,47 @@ describe('b2g-routing/data/all.ts', () => {
       expect(entry).toBeDefined();
       expect(entry?.required).toBe(true);
     }
+  });
+
+  // The 2026-09-02 B2G audit wave — see this file's own header. All nine read as "generic Peppol
+  // BIS, no national CIUS" (EC eInvoicing Country Factsheets) — pinned together, plus each one's own
+  // EAS (Peppol codelist v9.7) named in its own `notes`, so a citation drifting silently to the wrong
+  // scheme would still show up as a content change here.
+  it.each([
+    ['BE', '0208'],
+    ['CY', '9928'],
+    ['EE', '0191'],
+    ['GR', '9933'],
+    ['LT', '0200'],
+    ['LU', '0240'],
+    ['LV', '0218'],
+    ['MT', '9943'],
+    ['SE', '0007'],
+  ])('%s routes to the ALREADY IMPLEMENTED "peppol" channel with generic "peppol-bis" (no CIUS), EAS %s named in its own notes, and adds NO country-specific required identifier/field', (countryCode, eas) => {
+    const rule = ALL_B2G_ROUTING_FILES.find((f) => f.countryCode === countryCode)!;
+    expect(rule).toBeDefined();
+    expect(rule.transportId).toBe('peppol');
+    expect(rule.formatSyntax).toBe('peppol-bis');
+    // `formatSyntax` really is the registered Peppol BIS provider's own id — never a typo that
+    // would only surface later as a runtime `UnknownFormatError` at send time.
+    expect(rule.formatSyntax).toBe(peppolBisFormatProvider.id);
+    expect(rule.requiredClientIdentifiers ?? []).toEqual([]);
+    expect(rule.requiredDocumentFields ?? []).toEqual([]);
+    expect(rule.notes).toContain(eas);
+  });
+
+  it('every peppol-bis rule in this wave is covered by PEPPOL_BIS_COUNTRIES — the loop above is exhaustive, never a silent extra', () => {
+    const actualPeppolBis = ALL_B2G_ROUTING_FILES.filter((f) => f.formatSyntax === 'peppol-bis')
+      .map((f) => f.countryCode)
+      .sort();
+    expect(actualPeppolBis).toEqual([...PEPPOL_BIS_COUNTRIES].sort());
+  });
+
+  it('PL routes to the ALREADY IMPLEMENTED "ksef" channel with its OWN national "fa3" format (never a generic Peppol BIS substitute for PEF), and requires the NIP', () => {
+    const pl = ALL_B2G_ROUTING_FILES.find((f) => f.countryCode === 'PL')!;
+    expect(pl.transportId).toBe('ksef');
+    expect(pl.formatSyntax).toBe('fa3');
+    expect(pl.formatSyntax).toBe(fa3FormatProvider.id);
+    expect(pl.requiredClientIdentifiers?.some((i) => i.scheme === 'VAT')).toBe(true);
   });
 });

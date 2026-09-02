@@ -551,3 +551,41 @@
   digits) is accepted and emits the identical SIREN as a SIRET") — un SIREN à 9 chiffres et un SIRET à
   14 chiffres produisent le MÊME XML CII/UBL, jugé par le vrai Schematron vendoré. Specs e2e (02, 05,
   18) inchangées et vertes telles quelles (elles tapent des 14 chiffres, toujours acceptés).
+
+- **Audit B2G des 27 (2026-09-02) — 13 pays lus mais délibérément NON livrés, et les 6 fonctions
+  Schematron italiennes toujours non enregistrées** : l'audit demandé (« vérifier qu'il manque pas
+  du B2G pour des pays ») a lu les 23 États membres restants sur les eInvoicing Country Factsheets
+  de la Commission (toutes les fiches se sont chargées — aucun pays illisible) et livré 10 règles
+  (`b2g-routing/data/{be,cy,ee,gr,lt,lu,lv,mt,se,pl}.json` — 9 en peppol/peppol-bis, PL en ksef/fa3).
+  Le tableau complet, sourcé pays par pays, est dans `B2G_COVERAGE.md` à la racine. Les 13 restants
+  sont consignés là-bas, chacun avec sa raison LUE : un CIUS national non vendoré (AT ebInterface,
+  DK OIOUBL, FI, HR, IE — trois CIUS distincts !, NL NLCIUS, PT CIUS-PT, RO RO_CIUS, SI e-SLOG, SK
+  jusqu'en 2027) ou un canal fermé sans joignabilité Peppol confirmée (BG CAIS EPP, CZ NEN, HU NAV).
+  Livrer du Peppol BIS générique à une administration qui exige son CIUS contredirait la règle lue —
+  le refus nommé existant (« aucune règle B2G déclarée ») reste le comportement voulu pour ces 13.
+  Ce qui débloquerait chacun : vendorer le CIUS correspondant (règles Schematron/XSLT officielles)
+  puis ajouter la règle. RESTE AUSSI : les 6 fonctions XPath italiennes de `PEPPOL-EN16931-UBL.sch`
+  (`u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/`u:checkPIVAseIT`/`u:checkPIVA`/`u:addPIVA`) sont
+  toujours non enregistrées dans `validate-schematron.ts` — même classe de bug (XPST0017 jeté, pas
+  un échec propre) que les 6 corrigées par cette vague, mais elles ne gatent que des champs de
+  PARTIE italiens sur du Peppol BIS (l'Italie B2G passe par SdI/FatturaPA, jamais par BIS) ; hors
+  périmètre ici, nommé dans `validate-schematron.ts`'s own header.
+
+- **Écran client — le sélecteur de schéma Peppol n'offre pas les EAS des pays nouvellement couverts,
+  et une option préexistante est mal étiquetée** (2026-09-02, découvert par l'audit B2G) : les EAS
+  documentés par les nouvelles règles (0191 EE, 0200 LT, 0218 LV, 0240 LU, 9928 CY, 9933 GR, 9943
+  MT) ne figurent pas dans les options de `client-upsert.tsx` (`peppolSchemeId`) — 0208 BE et 0007
+  SE y sont déjà. L'utilisateur peut toujours saisir la valeur : le champ `PEPPOL_ENDPOINT` reste
+  libre — c'est un trou d'ERGONOMIE, pas de routage (le routage B2G ne lit pas ce sélecteur). Par
+  ailleurs, PRÉEXISTANT et non corrigé ici (trouvé en lisant la codeliste v9.7, pas introduit) :
+  l'option `"0106 — DK CVR"` est mal étiquetée — 0106 est le KVK néerlandais dans la codeliste,
+  le CVR danois est 0184. Corriger l'étiquette est trivial mais touche un écran utilisé par les
+  specs e2e existantes : fait exprès de le consigner plutôt que de le glisser dans cette vague.
+
+- **Audit B2G — profondeur de lecture : la fiche Commission, pas la loi nationale primaire**
+  (2026-09-02) : pour 21 des 23 pays lus (tous sauf BE, recoupé avec la lecture efactuur.belgium.be
+  déjà faite côté channel-policy, et PL, recoupé avec ksef.podatki.gov.pl), la SEULE source lue est
+  la fiche eInvoicing de la Commission (DG CNECT — officielle, mais un rapport, pas le texte de
+  loi). Les 9 règles peppol-bis portent ce fait dans leurs `notes`. Ce qui consoliderait : rouvrir
+  le texte de transposition national de chaque pays couvert (Moniteur belge, JO luxembourgeois,
+  etc.) — même chantier de provenance que le SIREN/SIRET français plus haut.
