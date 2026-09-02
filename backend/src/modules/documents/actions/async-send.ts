@@ -47,7 +47,7 @@ import { logger } from '@/logger/logger.service';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
-import { DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnSendIfObligated } from '../reporting/report-on-send';
 
@@ -119,32 +119,23 @@ export interface RunAsyncSendInput {
    */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the fix for the OTHER half of what R1 (085919bf) closed: R1
-   * stopped a webhook firing for a transmission that was never attempted; this is what makes it fire
-   * again once a transmission genuinely SUCCEEDS. Fires from the SAME acquisition point `events`
-   * publishes "sent" from, right below — never earlier (an enqueue is not a send), never on a
-   * `deliver()` failure (an uncaught throw skips this line entirely, the same "unacquired fact, never
-   * announced" discipline `events` already holds).
+   * TODO_PRODUIT.md T2bis — replaces T2 / PLAN-V2 R9's own bundled `{ emitter, event }` field: the
+   * event is no longer PER-TYPE (`invoice-actions.ts` used to pass `WebhookEvent.INVOICE_SENT`,
+   * `quote-actions.ts` `WebhookEvent.QUOTE_SENT`, `credit-note-actions.ts` nothing at all, because the
+   * schema had no `CREDIT_NOTE_SENT`) — it is now the ONE constant `WebhookEvent.DOCUMENT_SENT` every
+   * type shares, dispatched right below. That collapses the field to just the emitter: an emitter
+   * with nothing to dispatch through was already the only way this fired nothing, so naming the event
+   * per call site bought nothing once it is always the same value — and it is exactly what hands
+   * `credit-note-actions.ts` a webhook for free (see that file's own header): the type that used to be
+   * the one deliberate exception now passes the identical `deps.webhooks` invoice/quote already do.
    *
-   * OPTIONAL and a SINGLE bundled field, deliberately — like `events` above, every EXISTING
-   * caller/spec of this function predates it and must keep passing unchanged. Bundled (`emitter` +
-   * `event`) rather than two independent optional fields because neither means anything alone: an
-   * emitter with no event to name would fire nothing, and an event with no emitter has nothing to
-   * dispatch through — one field, one "is this type wired for a sent-webhook at all" question.
-   *
-   * `event` is WHICH `WebhookEvent` (prisma schema) this type's own "sent" transition announces —
-   * carried by the TYPE's own deps, exactly like `numberOnEnqueue` below, never branched on `typeId`
-   * here: `invoice-actions.ts` passes `WebhookEvent.INVOICE_SENT`, `quote-actions.ts` passes
-   * `WebhookEvent.QUOTE_SENT` (both already exist in the schema — `event-formatters.ts` already has
-   * formatters for both). `credit-note-actions.ts` passes nothing at all: the schema has NO
-   * `CREDIT_NOTE_SENT` event, and inventing one is explicitly out of this task's scope (see that
-   * file's own comment) — "no event declared" reads as "no webhook for this type", never a crash.
-   *
-   * `emitter` depends on the narrow `DocumentWebhookEmitter` interface (queue/document-webhooks.ts),
-   * never the concrete `WebhookDispatcherService` — same "interface, not class" discipline `events`
-   * already holds, for the identical testability reason.
+   * OPTIONAL, deliberately — like `events` above, every EXISTING caller/spec of this function predates
+   * it and must keep passing unchanged: "no emitter wired" reads as "no webhook for this type/
+   * deployment", never a crash. Depends on the narrow `DocumentWebhookEmitter` interface
+   * (queue/document-webhooks.ts), never the concrete `WebhookDispatcherService` — same
+   * "interface, not class" discipline `events` already holds, for the identical testability reason.
    */
-  webhook?: { emitter: DocumentWebhookEmitter; event: WebhookEvent };
+  webhooks?: DocumentWebhookEmitter;
   /**
    * Whether THIS type declares `numbering: { onEnterStatus: 'sending' }` (quote/invoice: true;
    * credit-note: false — see credit-note.descriptor.ts's own comment on why it declares no numbering
@@ -170,7 +161,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     preflight,
     numberOnEnqueue,
     events,
-    webhook,
+    webhooks,
   } = input;
   // Reassigned below, ONLY on the phase-1 path, when `preflight` hands back a resolved replacement —
   // see `RunAsyncSendInput.preflight`'s own header. Untouched (still exactly `input.data`) for the
@@ -213,44 +204,40 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // own header for why a failed write must never publish.
     await events?.publish(companyId, { documentId, typeId, kind: 'sent' });
 
-    // TODO_PRODUIT.md T2 / PLAN-V2 R9 — the fix for what R1 (085919bf) left undone: THIS is the one
-    // place a "sent" webhook is allowed to fire from, right after the SAME acquired fact `events`
-    // just announced, and for the identical reason — never earlier, never for a call that threw
-    // before reaching here. Absent for a type with no `webhook` configured (credit-note today) — "no
-    // capability, no effect", the same posture `events` already holds.
+    // TODO_PRODUIT.md T2bis — the fix for what R1 (085919bf) left undone, now GENERIC rather than
+    // per-type (T2's own `INVOICE_SENT`/`QUOTE_SENT`): fires `DOCUMENT_SENT`, the one event every
+    // document type shares, right after the SAME acquired fact `events` just announced, and for the
+    // identical reason — never earlier, never for a call that threw before reaching here. Absent for
+    // a deployment with no `webhooks` wired at all (every EXISTING spec of this function) — "no
+    // capability, no effect", the same posture `events` already holds. Every type opting into "send"
+    // gets this for free the moment `deps.webhooks` is threaded through (see e.g.
+    // `credit-note-actions.ts`'s own header on why THIS is the change that finally hands it one).
     //
     // Wrapped here, never left to propagate: `WebhookDispatcherService.dispatch` (the production
-    // `emitter`) already logs-then-RETHROWS on failure (every existing caller — `company.service.ts`,
+    // `webhooks`) already logs-then-RETHROWS on failure (every existing caller — `company.service.ts`,
     // `clients.service.ts` — wraps it in its own try/catch for the exact same reason), and this is the
     // one call site where "the send genuinely succeeded" must never be undone by a THIRD PARTY's
     // webhook endpoint being down. A named, loud log — never silent — is what "jamais silencieux"
     // (this task's own instruction, echoing `report-on-send.ts`'s header) means here.
-    if (webhook) {
+    if (webhooks) {
       try {
-        await webhook.emitter.dispatch(webhook.event, {
-          documentId: sent.id,
-          typeId,
-          companyId,
-          // Generic by construction: `typeId` is a STRING KEY here, never a branch — `{ invoice:
-          // sent }` for the invoice, `{ quote: sent }` for the quote, whatever a future type's own
-          // `webhook.event` names. `event-formatters.ts`'s own INVOICE_SENT/QUOTE_SENT formatters
-          // read exactly this shape (`p.invoice?.number`/`p.quote?.number`, falling back to
-          // `p.invoiceId`/`p.quoteId` below).
-          [typeId]: sent,
-          [`${typeId}Id`]: sent.id,
-          sentAt: new Date().toISOString(),
-        });
+        await webhooks.dispatch(
+          WebhookEvent.DOCUMENT_SENT,
+          buildDocumentWebhookPayload(companyId, typeId, sent),
+        );
       } catch (error) {
-        logger.error('Failed to dispatch a "sent" webhook — the document was still sent successfully', {
-          category: 'documents',
-          details: {
-            companyId,
-            typeId,
-            documentId,
-            event: webhook.event,
-            message: error instanceof Error ? error.message : String(error),
+        logger.error(
+          'Failed to dispatch a DOCUMENT_SENT webhook — the document was still sent successfully',
+          {
+            category: 'documents',
+            details: {
+              companyId,
+              typeId,
+              documentId,
+              message: error instanceof Error ? error.message : String(error),
+            },
           },
-        });
+        );
       }
     }
 

@@ -13,9 +13,15 @@
  *     makes that mutation bite).
  */
 import * as persistence from '../../conformity/authority-events.persistence';
+import * as documentPersistence from '../../persistence';
 import { SDI_PROVIDER_ID, SdiNotificheService } from './sdi-notifiche.service';
 
 jest.mock('../../conformity/authority-events.persistence');
+// TODO_PRODUIT.md T2bis — needed ONLY for the "webhooks" describe block below:
+// `dispatchDocumentAuthorityEventWebhook` (`queue/document-authority-webhook.ts`) re-fetches the row
+// via `findOwnedDocument` before dispatching `DOCUMENT_AUTHORITY_EVENT` — every test ABOVE that block
+// never configures a `webhookDispatcher`, so that fetch never runs for them.
+jest.mock('../../persistence');
 
 const mockedFindDocument = persistence.findDocumentByTransportRef as jest.Mock;
 const mockedCreateEvents = persistence.createAuthorityEvents as jest.Mock;
@@ -71,5 +77,60 @@ describe('SdiNotificheService.handleNotifica', () => {
     expect(result).toEqual({ journaled: false });
     expect(mockedFindDocument).not.toHaveBeenCalled();
     expect(mockedCreateEvents).not.toHaveBeenCalled();
+  });
+});
+
+// TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
+// at the SAME "genuinely new row" gate (`count > 0`) the existing SSE nudge already uses.
+// `webhookDispatcher` is this service's 2nd constructor arg — every test ABOVE this block constructs
+// the service with zero/one arg and must keep passing unchanged.
+describe('SdiNotificheService — webhooks (TODO_PRODUIT.md T2bis)', () => {
+  const mockedFindOwnedDocument = documentPersistence.findOwnedDocument as jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedFindOwnedDocument.mockResolvedValue({ id: 'doc-42', typeId: 'invoice', status: 'sent' });
+  });
+
+  it('dispatches DOCUMENT_AUTHORITY_EVENT for a genuinely journaled RC notifica', async () => {
+    mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+    mockedCreateEvents.mockResolvedValue(1);
+    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+
+    const service = new SdiNotificheService(undefined, webhooks);
+    await service.handleNotifica(RC_XML('123456789012'));
+
+    expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    expect(webhooks.dispatch).toHaveBeenCalledWith('DOCUMENT_AUTHORITY_EVENT', {
+      documentId: 'doc-42',
+      typeId: 'invoice',
+      companyId: 'company-42',
+      occurredAt: expect.any(String),
+      document: { id: 'doc-42', typeId: 'invoice', status: 'sent' },
+      providerId: SDI_PROVIDER_ID,
+      statusCode: 'it:RC',
+    });
+  });
+
+  it('never dispatches for an unknown IdentificativoSdI — nothing was journaled', async () => {
+    mockedFindDocument.mockResolvedValue(null);
+    const webhooks = { dispatch: jest.fn() };
+
+    const service = new SdiNotificheService(undefined, webhooks);
+    await service.handleNotifica(RC_XML('999999999999'));
+
+    expect(webhooks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('never touches webhookDispatcher at all when absent — every pre-existing caller keeps working unchanged', async () => {
+    mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+    mockedCreateEvents.mockResolvedValue(1);
+
+    const service = new SdiNotificheService(); // no webhookDispatcher
+    await expect(service.handleNotifica(RC_XML('123456789012'))).resolves.toEqual({
+      journaled: true,
+      notificaType: 'RC',
+      identificativoSdI: '123456789012',
+    });
   });
 });

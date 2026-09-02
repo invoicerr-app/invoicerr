@@ -11,7 +11,7 @@
  * distinguished by `job.name`, the identical reasoning that file's own header already documents for
  * the recurrence sweep's own two job names.
  */
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import {
   createAuthorityEvents,
@@ -29,6 +29,8 @@ import {
   readConformitySweepIntervalMs,
   readMaxPollAgeMs,
 } from './conformity-sweep';
+import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
 
@@ -57,6 +59,19 @@ export class ConformitySweepRunner {
     // wiring resolves this automatically (`@Global()` `DocumentQueueModule`) — no factory change
     // needed in `documents-core.module.ts`.
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
+    // TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`'s own emitter, the SAME "side channel,
+    // `@Optional()`, every EXISTING spec constructs this runner without one" posture `eventsPublisher`
+    // already holds. Injected by the `DOCUMENT_WEBHOOK_EMITTER` TOKEN, never the concrete
+    // `WebhookDispatcherService` class directly — see that token's own header
+    // (`queue/document-webhooks.ts`) for why: typing this as the concrete class would drag
+    // `webhooks.service.ts` → `drivers/discord.driver.ts` → `@teever/ez-hook` into every file that
+    // imports this class, including this file's OWN spec and every OTHER spec that transitively
+    // imports it (`document-action.processor.spec.ts`'s own multi-runner wiring, the `queue/__tests__/
+    // *.redis.spec.ts` integration suite). `documents-core.module.ts` provides the token with
+    // `useExisting: WebhookDispatcherService` — this class is a plain provider OF `DocumentsCoreModule`
+    // (unlike `ReportingRunner`, see that class's own header on the manual-factory pitfall this
+    // sidesteps entirely), so Nest's ordinary reflection-based DI resolves it with no factory change.
+    @Optional() @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhookDispatcher?: DocumentWebhookEmitter,
   ) {}
 
   /**
@@ -130,6 +145,16 @@ export class ConformitySweepRunner {
             typeId: candidate.typeId,
             kind: 'authority-event',
           });
+          // TODO_PRODUIT.md T2bis — same "genuinely new row" gate, for the OTHER subscriber: a third
+          // party watching `DOCUMENT_AUTHORITY_EVENT`.
+          await dispatchDocumentAuthorityEventWebhook(
+            this.webhookDispatcher,
+            candidate.companyId,
+            candidate.typeId,
+            candidate.id,
+            candidate.channelProviderId,
+            GAVE_UP_STATUS_CODE,
+          );
         }
         continue;
       }
@@ -186,6 +211,17 @@ export class ConformitySweepRunner {
           typeId: data.typeId,
           kind: 'authority-event',
         });
+        // TODO_PRODUIT.md T2bis — `statusCode` is the LAST observed event: `events` can carry more
+        // than one newly-journaled status per poll (a platform reporting several steps at once), and
+        // "the most recent fact" is the honest single value for a payload that names only ONE.
+        await dispatchDocumentAuthorityEventWebhook(
+          this.webhookDispatcher,
+          data.companyId,
+          data.typeId,
+          data.documentId,
+          data.providerId,
+          events[events.length - 1].statusCode,
+        );
       }
       return { journaled };
     } catch (error) {
@@ -218,6 +254,14 @@ export class ConformitySweepRunner {
             typeId: data.typeId,
             kind: 'authority-event',
           });
+          await dispatchDocumentAuthorityEventWebhook(
+            this.webhookDispatcher,
+            data.companyId,
+            data.typeId,
+            data.documentId,
+            data.providerId,
+            BLOCKED_STATUS_CODE,
+          );
         }
         return { journaled };
       } catch (journalError) {

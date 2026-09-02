@@ -19,6 +19,8 @@
  */
 import { NotFoundException } from '@nestjs/common';
 
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+
 import { logger } from '@/logger/logger.service';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
@@ -26,6 +28,7 @@ import { checkTransitionResult } from '../descriptors/lifecycle';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { DocumentEventPublisher } from './document-events';
+import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from './document-webhooks';
 
 export interface MarkSendFailedInput {
   companyId: string;
@@ -42,6 +45,16 @@ export interface MarkSendFailedInput {
    * unchanged. Production wiring (`document-action.processor.ts`) always threads one through.
    */
   events?: DocumentEventPublisher;
+  /**
+   * TODO_PRODUIT.md T2bis — `DOCUMENT_SEND_FAILED`, the terminal-failure twin of `async-send.ts`'s own
+   * `DOCUMENT_SENT`: this is the ONE place a "send_failed" webhook is allowed to fire from, right
+   * after the SAME acquired fact `events` above announces (Postgres already holds "send_failed",
+   * checked against the type's own declared lifecycle) — never earlier, never for the idempotent
+   * "already moved on"/"document gone" branches below, which acquire nothing new. OPTIONAL, the
+   * identical "every EXISTING spec predates it, no capability, no effect" posture `events` already
+   * holds. Production wiring (`document-action.processor.ts`) always threads a real one through.
+   */
+  webhooks?: DocumentWebhookEmitter;
 }
 
 /**
@@ -55,7 +68,7 @@ export async function markSendFailed(
   resolveDescriptor: (typeId: string) => DocumentTypeDescriptor,
   input: MarkSendFailedInput,
 ): Promise<void> {
-  const { companyId, typeId, documentId, actionId, error, events } = input;
+  const { companyId, typeId, documentId, actionId, error, events, webhooks } = input;
   const descriptor = resolveDescriptor(typeId);
   const action = descriptor.actions.find((candidate) => candidate.id === actionId);
   if (!action) {
@@ -126,6 +139,30 @@ export async function markSendFailed(
   // lets a browser's own SSE connection move a screen from "sending" straight to "échec" — and shows
   // the Retry button, which the frontend derives from this exact status — without a manual reload.
   await events?.publish(companyId, { documentId, typeId, kind: 'send_failed' });
+
+  // TODO_PRODUIT.md T2bis — `DOCUMENT_SEND_FAILED`, from the SAME acquired fact `events` just
+  // announced, for the identical reason (never earlier — the idempotent/lookup-failure branches
+  // above all `return` before ever reaching here). Wrapped, never left to propagate: the identical
+  // "the write already genuinely happened, a dead webhook endpoint must never undo or even surface
+  // past it" discipline `async-send.ts`'s own `DOCUMENT_SENT` dispatch holds.
+  if (webhooks) {
+    try {
+      await webhooks.dispatch(
+        WebhookEvent.DOCUMENT_SEND_FAILED,
+        buildDocumentWebhookPayload(companyId, typeId, updated, { error: error.message }),
+      );
+    } catch (dispatchError) {
+      logger.error('Failed to dispatch a DOCUMENT_SEND_FAILED webhook — the failure was still recorded', {
+        category: 'documents',
+        details: {
+          companyId,
+          typeId,
+          documentId,
+          message: dispatchError instanceof Error ? dispatchError.message : String(dispatchError),
+        },
+      });
+    }
+  }
 
   logger.warn('Document action failed after every retry — marked "send_failed"', {
     category: 'documents',

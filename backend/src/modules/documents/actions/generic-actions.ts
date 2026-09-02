@@ -1,6 +1,10 @@
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+
 import { ClientsService } from '@/modules/clients/clients.service';
+import { logger } from '@/logger/logger.service';
 
 import { deleteDocument, upsertDocument } from '../persistence';
+import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { ActionRegistry } from './action-registry';
 
 /**
@@ -9,12 +13,42 @@ import { ActionRegistry } from './action-registry';
  * function covers every document type, whatever shape its fields have. Legitimately shared by every
  * document type this branch has (quote, invoice, credit note): persisting a draft's field values has
  * nothing to do with WHERE the document eventually travels, unlike "send" below.
+ *
+ * `webhooks` (TODO_PRODUIT.md T2bis) is OPTIONAL, the same "no capability, no effect" posture
+ * `async-send.ts`'s own `webhooks` field holds — fires `DOCUMENT_CREATED` exactly once per record,
+ * the FIRST time this runs for it (`documentId` absent on entry — `upsertDocument` branches on the
+ * exact same test to decide create vs. update, so this reuses that same signal rather than
+ * re-deriving "was this a create" from the result). Never on an ordinary re-save of an existing
+ * draft: a "save-draft" replayed for the same record is an UPDATE, not a new fact.
  */
-export function registerSaveDraftAction(registry: ActionRegistry, typeId: string): void {
-  registry.register(typeId, 'save-draft', async ({ companyId, documentId, data }) => ({
-    document: await upsertDocument(companyId, typeId, documentId, 'draft', data),
-    changed: true,
-  }));
+export function registerSaveDraftAction(
+  registry: ActionRegistry,
+  typeId: string,
+  webhooks?: DocumentWebhookEmitter,
+): void {
+  registry.register(typeId, 'save-draft', async ({ companyId, documentId, data }) => {
+    const creating = !documentId;
+    const document = await upsertDocument(companyId, typeId, documentId, 'draft', data);
+    if (creating && webhooks) {
+      try {
+        await webhooks.dispatch(
+          WebhookEvent.DOCUMENT_CREATED,
+          buildDocumentWebhookPayload(companyId, typeId, document),
+        );
+      } catch (error) {
+        logger.error('Failed to dispatch a DOCUMENT_CREATED webhook — the document was still created', {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId,
+            documentId: document.id,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+    return { document, changed: true };
+  });
 }
 
 /**
@@ -24,10 +58,19 @@ export function registerSaveDraftAction(registry: ActionRegistry, typeId: string
  * whether it may ever be deleted (as opposed to corrected, e.g. by a credit note) is plausibly a
  * question with its own jurisdiction-specific answer — exactly the kind of rule this branch is
  * careful not to invent by default (see invoice.descriptor.ts's own "deliberately NOT added"
- * section). "expense" (expense-actions.ts) is the first, deliberately narrow, use: a mis-entered
- * expense is bookkeeping housekeeping, not a document whose deletion raises that question.
+ * section). "expense" (expense-actions.ts) and "received-invoice" (received-invoice-actions.ts) are
+ * its two uses today.
+ *
+ * `webhooks` (TODO_PRODUIT.md T2bis) — same optional posture as `registerSaveDraftAction` above.
+ * `deleteDocument` (persistence.ts) returns the row AS IT WAS the instant before removal — the only
+ * possible value for `document` in a `DOCUMENT_DELETED` payload, since the row no longer exists to
+ * re-read afterward.
  */
-export function registerDeleteAction(registry: ActionRegistry, typeId: string): void {
+export function registerDeleteAction(
+  registry: ActionRegistry,
+  typeId: string,
+  webhooks?: DocumentWebhookEmitter,
+): void {
   registry.register(typeId, 'delete', async ({ companyId, documentId }) => {
     if (!documentId) {
       // Unreachable in practice — the descriptor's own `availableWhen` already refuses this before
@@ -36,7 +79,25 @@ export function registerDeleteAction(registry: ActionRegistry, typeId: string): 
       throw new Error(`Cannot delete a "${typeId}" document that has not been saved yet.`);
     }
 
-    await deleteDocument(companyId, typeId, documentId);
+    const document = await deleteDocument(companyId, typeId, documentId);
+    if (webhooks) {
+      try {
+        await webhooks.dispatch(
+          WebhookEvent.DOCUMENT_DELETED,
+          buildDocumentWebhookPayload(companyId, typeId, document),
+        );
+      } catch (error) {
+        logger.error('Failed to dispatch a DOCUMENT_DELETED webhook — the document was still deleted', {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId,
+            documentId,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
     return { changed: true, message: 'Deleted.' };
   });
 }

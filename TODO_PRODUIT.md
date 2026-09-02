@@ -82,6 +82,42 @@ consigner que la preuve reste jest).
 
 ## T2bis — Webhooks génériques `DOCUMENT_*` (décision mandant, 2026-09-03)
 
+> ✅ **FAIT** (2026-09-03) — 5 événements génériques (CREATED/SENT/SEND_FAILED/AUTHORITY_EVENT/
+> DELETED — CREATED/DELETED faits, le point CRUD était trivial), 51 valeurs mortes purgées avec
+> nettoyage des abonnements prouvé sur les DEUX bases, contrat de payload à clé `document` fixe,
+> l'avoir gagne le webhook. Bonus : bug T1 corrigé (eventsPublisher du ReportingRunner jamais câblé
+> en prod — factory manuelle). Validé : jest 1906, 3 mutations mordantes, batterie 233 verts.
+
+> ✅ **FAIT** (2026-09-03) — 51 valeurs purgées de `WebhookEvent` (QUOTE_* 12, INVOICE_* 12,
+> PAYMENT_* document 7, RECEIPT_* 7, PAYMENT_METHOD_*+PAYMENT_RECEIVED 6, SIGNATURE_* 7 —
+> AUCUNE n'avait d'émetteur réel, prouvé par grep valeur par valeur ; INVOICE_SENT/QUOTE_SENT
+> étaient les deux seules exceptions, purgées avec elles puisque leur unique émetteur devient
+> générique), 5 ajoutées (`DOCUMENT_CREATED`, `DOCUMENT_SENT`, `DOCUMENT_SEND_FAILED`,
+> `DOCUMENT_AUTHORITY_EVENT`, `DOCUMENT_DELETED`). Migration `20260903000000_generic_document_
+> webhook_events` testée avec un abonnement PRÉEXISTANT réel sur les DEUX bases (`invoicerr_dev`
+> via `migrate dev`, `invoicerr_db` via `migrate deploy`) : les valeurs purgées disparaissent du
+> tableau `events`, les valeurs gardées restent. Émissions câblées : `async-send.ts`
+> (`DOCUMENT_SENT`), `mark-send-failed.ts` (`DOCUMENT_SEND_FAILED`), `conformity-sweep-runner.ts`/
+> `reporting-runner.ts`/`sdi-notifiche.service.ts` (`DOCUMENT_AUTHORITY_EVENT`, providerId +
+> statusCode), `generic-actions.ts` (`DOCUMENT_CREATED`/`DOCUMENT_DELETED`, gratuits pour
+> quote/invoice/credit-note/expense/received-invoice via `registerSaveDraftAction`/
+> `registerDeleteAction`) — l'avoir (crédit note) gagne `DOCUMENT_SENT`/`DOCUMENT_CREATED` au
+> passage, le seul type T2 avait délibérément laissé sans webhook. Bug trouvé en cours de route
+> (pas introduit ici) : `ReportingRunner`'s `eventsPublisher` n'était JAMAIS réellement câblé en
+> production — la factory manuelle de `documents-core.module.ts` construisait la classe avec
+> `new ReportingRunner(registry, typeRegistry)`, deux arguments seulement, ce que T1 n'avait
+> jamais remarqué faute d'un test qui boote le vrai graphe Nest ; corrigé au passage avec l'ajout
+> du webhook. Un token Nest dédié (`DOCUMENT_WEBHOOK_EMITTER`, `queue/document-webhooks.ts`)
+> évite que `WebhookDispatcherService` (import concret) ne traîne `@teever/ez-hook` (pure ESM,
+> inimportable sous ts-jest) dans les specs des trois nouveaux consommateurs. Preuves : jest 1906
+> verts (0 échec, 22 suites gated skip inchangé) ; biome 0 erreur ; builds réels des deux côtés ;
+> boot worker réel (`ROLE=worker`, health :3001) après le câblage final par token ; spec e2e 42
+> adaptée (DOCUMENT_SENT, clé `document` fixe) + 28 en régression, 3/3 verts en Firefox ; UNE
+> mutation rejouée par le mandataire et mordante (dispatch supprimé dans `async-send.ts` → la
+> spec 42 tombe avec `expected [] to have a length of 1 but got 0` ; watchers backend zombies de
+> sessions précédentes tués par PID explicite en cours de route — un seul `nest start --watch`
+> reste après nettoyage).
+>
 > Décision (AskUserQuestion) : « Générique seul, purger le par-type » — puis validation du
 > vocabulaire complet. Principe : un événement = un FAIT acquis en Postgres, jamais une
 > intention ; chaque événement pointe un point d'écriture qui EXISTE déjà.

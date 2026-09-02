@@ -31,7 +31,7 @@
  * wiring (documents-core.module.ts) always provides a real one.
  */
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger, Optional } from '@nestjs/common';
+import { Inject, Logger, Optional } from '@nestjs/common';
 import { Job } from 'bullmq';
 
 import { ActionResult } from '../../actions/action-registry';
@@ -51,6 +51,7 @@ import {
   ScheduleOccurrenceJobData,
 } from '../../schedules/schedule-sweep';
 import { DocumentEventsPublisher } from '../document-events-publisher';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../document-webhooks';
 import { markSendFailed } from '../mark-send-failed';
 import { DocumentActionJobData, Q_DOCUMENT_ACTION } from '../queue.constants';
 
@@ -81,6 +82,18 @@ export class DocumentActionProcessor extends WorkerHost {
     // one — this is the SAME concrete class `ACTION_REGISTRY`'s own factory injects for `async-send.ts`'s
     // side of this mechanism, never a second implementation.
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
+    // TODO_PRODUIT.md T2bis — the `DOCUMENT_SEND_FAILED` webhook's own emitter (see
+    // `mark-send-failed.ts`'s own `MarkSendFailedInput.webhooks` header). `@Optional()` for the same
+    // reason `eventsPublisher` above is: every EXISTING spec in this file constructs the processor
+    // without one. Injected by the `DOCUMENT_WEBHOOK_EMITTER` token (`documents-core.module.ts`
+    // provides it with `useExisting: WebhookDispatcherService`, visible here because
+    // `DocumentsCoreModule` exports it and `DocumentsQueueWorkerModule` — this processor's own
+    // providing module — imports `DocumentsCoreModule`), never the concrete `WebhookDispatcherService`
+    // class directly — see that token's own header (`queue/document-webhooks.ts`) for why: the
+    // concrete class drags `webhooks.service.ts` → `drivers/discord.driver.ts` → `@teever/ez-hook`
+    // into every file that imports it, breaking THIS class's own spec (and the four
+    // `queue/__tests__/*.redis.spec.ts` integration suites that import it) under ts-jest.
+    @Optional() @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhookDispatcher?: DocumentWebhookEmitter,
   ) {
     super();
   }
@@ -263,6 +276,7 @@ export class DocumentActionProcessor extends WorkerHost {
         actionId,
         error,
         events: this.eventsPublisher,
+        webhooks: this.webhookDispatcher,
       });
     } catch (markError) {
       this.logger.error(

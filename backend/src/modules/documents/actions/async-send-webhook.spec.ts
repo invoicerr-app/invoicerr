@@ -1,14 +1,14 @@
 /**
- * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the ONE end-to-end proof the task's own "Accepte si" demands: a
- * REAL local HTTP stub (`node:http`, never a mock of the HTTP client — same `startStubServer`/
- * `closeServer` pattern `transports/peppol-transport.spec.ts` already established for this exact
- * reason) receives EXACTLY ONE webhook on a successful send, ZERO on a failed one, ZERO at enqueue,
- * and the payload genuinely passes THROUGH the existing driver/formatter pipeline — never a shortcut
- * straight to `fetch`.
+ * TODO_PRODUIT.md T2 / PLAN-V2 R9, updated by T2bis for the generic `DOCUMENT_SENT` vocabulary — the
+ * ONE end-to-end proof the original task's own "Accepte si" demands: a REAL local HTTP stub
+ * (`node:http`, never a mock of the HTTP client — same `startStubServer`/`closeServer` pattern
+ * `transports/peppol-transport.spec.ts` already established for this exact reason) receives EXACTLY
+ * ONE webhook on a successful send, ZERO on a failed one, ZERO at enqueue, and the payload genuinely
+ * passes THROUGH the existing driver/formatter pipeline — never a shortcut straight to `fetch`.
  *
- * `async-send.spec.ts`'s own "webhook" describe block already proves the ORCHESTRATION (when
- * `runAsyncSendAction` calls `webhook.emitter.dispatch`, with a bare `jest.fn()`) — this file proves
- * the OTHER half: that a REAL driver (`SlackDriver`, `modules/webhooks/drivers/slack.driver.ts`,
+ * `async-send.spec.ts`'s own "webhooks" describe block already proves the ORCHESTRATION (when
+ * `runAsyncSendAction` calls `webhooks.dispatch`, with a bare `jest.fn()`) — this file proves the
+ * OTHER half: that a REAL driver (`SlackDriver`, `modules/webhooks/drivers/slack.driver.ts`,
  * UNMOCKED) actually reaches the network and genuinely calls `formatPayloadForEvent`.
  *
  * `SlackDriver` (never `WebhooksService`, and never `GenericDriver`) is imported DIRECTLY, on purpose:
@@ -31,7 +31,6 @@
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { SlackDriver } from '@/modules/webhooks/drivers/slack.driver';
 
 import * as archiveOnSend from '../archive/archive-on-send';
@@ -92,7 +91,7 @@ const sendingInvoice = {
 
 const sentInvoice = { ...sendingInvoice, status: 'sent' };
 
-describe('runAsyncSendAction — webhook, against a REAL local HTTP stub (TODO_PRODUIT.md T2 / PLAN-V2 R9)', () => {
+describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub (TODO_PRODUIT.md T2bis)', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('a successful send makes EXACTLY ONE POST reach the stub, carrying the formatted (not raw) payload', async () => {
@@ -126,7 +125,7 @@ describe('runAsyncSendAction — webhook, against a REAL local HTTP stub (TODO_P
         numberOnEnqueue: true,
         queueDispatcher,
         deliver,
-        webhook: { emitter: realEmitter(url), event: WebhookEvent.INVOICE_SENT },
+        webhooks: realEmitter(url),
       });
 
       // Real network round-trip: the stub's own HTTP server actually received a request — never a
@@ -136,14 +135,14 @@ describe('runAsyncSendAction — webhook, against a REAL local HTTP stub (TODO_P
       // "le payload passe par les formatters existants" — the Slack driver's own body shape
       // (`ChatWebhook.send`, drivers/chat-webhook.driver.ts) is `{ text, attachments: [...] }`, and
       // `attachments[0].text` is EXACTLY `formatPayloadForEvent`'s own return value
-      // (drivers/event-formatters.ts's `WebhookEvent.INVOICE_SENT` formatter: `**Invoice #${p.invoice
-      // ?.number || p.invoiceId}**\nClient: ...`). Asserting the invoice's OWN number (7) appears
-      // proves the formatter genuinely read `payload.invoice.number` — the exact generic shape
-      // async-send.ts's own webhook-dispatch call builds (`{ [typeId]: sent, ... }`) — never a raw
-      // JSON dump (event-formatters.ts's own fallback on a formatter exception).
+      // (drivers/event-formatters.ts's `DOCUMENT_SENT` formatter: `**${documentLabel(typeId)}
+      // #${documentNumber(p)}**\nSent`). Asserting the invoice's OWN displayNumber appears proves the
+      // formatter genuinely read `payload.document` — T2bis's own FIXED `document` key
+      // (`buildDocumentWebhookPayload`, `queue/document-webhooks.ts`) — never a raw JSON dump
+      // (event-formatters.ts's own fallback on a formatter exception).
       const body = JSON.parse(receivedBody) as { attachments: Array<{ title: string; text: string }> };
-      expect(body.attachments[0].title).toContain('Invoice Sent');
-      expect(body.attachments[0].text).toContain('Invoice #7');
+      expect(body.attachments[0].title).toContain('Document Sent');
+      expect(body.attachments[0].text).toContain('Invoice #INV-2026-0007');
     } finally {
       await closeServer(server);
     }
@@ -171,7 +170,7 @@ describe('runAsyncSendAction — webhook, against a REAL local HTTP stub (TODO_P
           numberOnEnqueue: true,
           queueDispatcher,
           deliver,
-          webhook: { emitter: realEmitter(url), event: WebhookEvent.INVOICE_SENT },
+          webhooks: realEmitter(url),
         }),
       ).rejects.toThrow('SMTP connection refused');
 
@@ -202,7 +201,7 @@ describe('runAsyncSendAction — webhook, against a REAL local HTTP stub (TODO_P
         numberOnEnqueue: true,
         queueDispatcher,
         deliver: jest.fn(),
-        webhook: { emitter: realEmitter(url), event: WebhookEvent.INVOICE_SENT },
+        webhooks: realEmitter(url),
       });
 
       expect(requestCount).toBe(0);

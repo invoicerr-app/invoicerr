@@ -1,5 +1,3 @@
-import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
-
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
@@ -28,11 +26,11 @@ export interface QuoteActionDeps {
   /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2 / PLAN-V2 R9 — see `async-send.ts`'s own `RunAsyncSendInput.webhook` header.
-   * `WebhookEvent.QUOTE_SENT` (prisma schema) already exists, with its own formatter
-   * (`webhooks/drivers/event-formatters.ts`) — never wired to anything before this task (grep the
-   * `avant-refonte-documents` tag: the one place it was ever dispatched from, `utils/plugins/
-   * signing.ts`, no longer exists) — wired here the same way `INVOICE_SENT` is in `invoice-actions.ts`.
+   * TODO_PRODUIT.md T2bis — see `async-send.ts`'s own `RunAsyncSendInput.webhooks` header:
+   * `DOCUMENT_SENT`/`DOCUMENT_CREATED` now, generic across every type — QUOTE_SENT (T2's own
+   * per-type event, never wired to anything before T2 either: grep the `avant-refonte-documents` tag,
+   * the one place it was ever dispatched from, `utils/plugins/signing.ts`, no longer exists) is
+   * purged from the schema by that same commit.
    */
   webhooks?: DocumentWebhookEmitter;
 }
@@ -55,7 +53,7 @@ export interface QuoteActionDeps {
  * invoice's own `deliver()`.
  */
 export function registerQuoteActions(registry: ActionRegistry, deps: QuoteActionDeps): void {
-  registerSaveDraftAction(registry, 'quote');
+  registerSaveDraftAction(registry, 'quote', deps.webhooks);
   registerEmailRecipientDefaultFromClient(registry, 'quote', deps.clientsService);
 
   registry.register('quote', 'send', async ({ companyId, documentId, data, params }) =>
@@ -67,8 +65,8 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
       params,
       queueDispatcher: deps.queueDispatcher,
       events: deps.events,
-      // TODO_PRODUIT.md T2 / PLAN-V2 R9 — see invoice-actions.ts's own identical comment.
-      webhook: deps.webhooks ? { emitter: deps.webhooks, event: WebhookEvent.QUOTE_SENT } : undefined,
+      // TODO_PRODUIT.md T2bis — see async-send.ts's own `RunAsyncSendInput.webhooks` header.
+      webhooks: deps.webhooks,
       numberOnEnqueue: true, // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
       deliver: async ({ companyId: c, document }) => {
         // `params.recipient` is already validated (required, non-empty text) by

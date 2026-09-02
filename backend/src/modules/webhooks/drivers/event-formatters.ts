@@ -1,19 +1,28 @@
 import { Company, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 /**
- * TODO_PRODUIT.md T2 / PLAN-V2 R9 — every bare `p.client.type` below became `p.client?.type`,
- * fixed for the FIRST real caller: no document-type webhook (`QUOTE_*`/`INVOICE_*`/`PAYMENT_*`/
- * `RECEIPT_*`/`RECURRING_INVOICE_*`) was ever dispatched anywhere in this codebase before this task
- * (`grep -rn WebhookDispatcherService`, only `clients.service.ts`/`company.service.ts` ever called
- * `dispatch` — always WITH a full `client` relation, which is why this was dormant). `async-send.ts`'s
- * own webhook payload is deliberately GENERIC (no type-specific "client" field — see its own header)
- * and so has no `client` at all; `formatPayloadForEvent`'s own try/catch below already turns an
- * unguarded `undefined.type` into a raw JSON dump rather than crashing the driver, but that dump is
- * the WORST possible message for a real Slack/Discord/Teams channel (`async-send-webhook.spec.ts`
- * caught this against a REAL driver, not a mock). Optional chaining here just lets the SAME formatter
- * degrade to "Client: N/A" instead — no behavior change for any EXISTING caller, which always supplies
- * a real `client`.
+ * TODO_PRODUIT.md T2bis — the per-type `QUOTE_*`/`INVOICE_*`/`PAYMENT_*`(document)/`RECEIPT_*`/
+ * `SIGNATURE_*`/`PAYMENT_METHOD_*`/`PAYMENT_RECEIVED` formatters this file used to carry are GONE —
+ * every one of those enum members was purged (see the migration's own header for the grep proof, one
+ * value at a time) because none had a real emitter, INVOICE_SENT/QUOTE_SENT included (T2's own two
+ * exceptions, whose sole emitter this same task replaces with the generic `DOCUMENT_*` formatters
+ * right below). `documentLabel`/`documentNumber` read the UNIFORM payload contract
+ * (`queue/document-webhooks.ts#buildDocumentWebhookPayload`) so ONE formatter per `DOCUMENT_*` event
+ * covers every document type, whatever `typeId` a future one adds.
  */
+function documentLabel(typeId: unknown): string {
+  if (typeof typeId !== 'string' || !typeId) return 'Document';
+  return typeId
+    .split('-')
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ');
+}
+
+function documentNumber(payload: any): string {
+  const document = payload?.document;
+  return document?.displayNumber || document?.number || payload?.documentId || 'N/A';
+}
+
 export interface EventStyle {
   color: string;
   emoji: string;
@@ -21,88 +30,12 @@ export interface EventStyle {
 }
 
 export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
-  // Quote events - Blue
-  [WebhookEvent.QUOTE_CREATED]: { color: '#3b82f6', emoji: '📝', title: 'Quote Created' },
-  [WebhookEvent.QUOTE_UPDATED]: { color: '#3b82f6', emoji: '✏️', title: 'Quote Updated' },
-  [WebhookEvent.QUOTE_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Quote Deleted' },
-  [WebhookEvent.QUOTE_SENT]: { color: '#10b981', emoji: '📤', title: 'Quote Sent' },
-  [WebhookEvent.QUOTE_SIGNED]: { color: '#10b981', emoji: '✅', title: 'Quote Signed' },
-  [WebhookEvent.QUOTE_EXPIRED]: { color: '#f59e0b', emoji: '⏰', title: 'Quote Expired' },
-  [WebhookEvent.QUOTE_REJECTED]: { color: '#ef4444', emoji: '❌', title: 'Quote Rejected' },
-  [WebhookEvent.QUOTE_VIEWED]: { color: '#8b5cf6', emoji: '👁️', title: 'Quote Viewed' },
-  [WebhookEvent.QUOTE_MARKED_AS_SIGNED]: { color: '#10b981', emoji: '✍️', title: 'Quote Marked as Signed' },
-  [WebhookEvent.QUOTE_PDF_GENERATED]: { color: '#6366f1', emoji: '📄', title: 'Quote PDF Generated' },
-  [WebhookEvent.QUOTE_SEARCHED]: { color: '#6b7280', emoji: '🔍', title: 'Quote Searched' },
-  [WebhookEvent.QUOTE_STATUS_CHANGED]: { color: '#3b82f6', emoji: '🔄', title: 'Quote Status Changed' },
-
-  // Invoice events - Green
-  [WebhookEvent.INVOICE_CREATED]: { color: '#10b981', emoji: '📋', title: 'Invoice Created' },
-  [WebhookEvent.INVOICE_UPDATED]: { color: '#10b981', emoji: '✏️', title: 'Invoice Updated' },
-  [WebhookEvent.INVOICE_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Invoice Deleted' },
-  [WebhookEvent.INVOICE_SENT]: { color: '#10b981', emoji: '📧', title: 'Invoice Sent' },
-  [WebhookEvent.INVOICE_PAID]: { color: '#10b981', emoji: '💰', title: 'Invoice Paid' },
-  [WebhookEvent.INVOICE_OVERDUE]: { color: '#ef4444', emoji: '⚠️', title: 'Invoice Overdue' },
-  [WebhookEvent.INVOICE_MARKED_AS_PAID]: { color: '#10b981', emoji: '✅', title: 'Invoice Marked as Paid' },
-  [WebhookEvent.INVOICE_PDF_GENERATED]: { color: '#6366f1', emoji: '📄', title: 'Invoice PDF Generated' },
-  [WebhookEvent.INVOICE_XML_DOWNLOADED]: { color: '#6366f1', emoji: '📥', title: 'Invoice XML Downloaded' },
-  [WebhookEvent.INVOICE_CREATED_FROM_QUOTE]: {
-    color: '#10b981',
-    emoji: '🔄',
-    title: 'Invoice Created from Quote',
-  },
-  [WebhookEvent.INVOICE_SEARCHED]: { color: '#6b7280', emoji: '🔍', title: 'Invoice Searched' },
-  [WebhookEvent.INVOICE_STATUS_CHANGED]: { color: '#10b981', emoji: '🔄', title: 'Invoice Status Changed' },
-
-  // Payment document events - Purple
-  [WebhookEvent.PAYMENT_CREATED]: { color: '#8b5cf6', emoji: '🧾', title: 'Payment Created' },
-  [WebhookEvent.PAYMENT_UPDATED]: { color: '#8b5cf6', emoji: '✏️', title: 'Payment Updated' },
-  [WebhookEvent.PAYMENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Payment Deleted' },
-  [WebhookEvent.PAYMENT_SENT]: { color: '#8b5cf6', emoji: '📧', title: 'Payment Sent' },
-  [WebhookEvent.PAYMENT_PDF_GENERATED]: { color: '#6366f1', emoji: '📄', title: 'Payment PDF Generated' },
-  [WebhookEvent.PAYMENT_CREATED_FROM_INVOICE]: {
-    color: '#8b5cf6',
-    emoji: '🔄',
-    title: 'Payment Created from Invoice',
-  },
-  [WebhookEvent.PAYMENT_SEARCHED]: { color: '#6b7280', emoji: '🔍', title: 'Payment Searched' },
-
-  // Receipt events - Purple (deprecated, use PAYMENT_* instead)
-  [WebhookEvent.RECEIPT_CREATED]: { color: '#8b5cf6', emoji: '🧾', title: 'Receipt Created' },
-  [WebhookEvent.RECEIPT_UPDATED]: { color: '#8b5cf6', emoji: '✏️', title: 'Receipt Updated' },
-  [WebhookEvent.RECEIPT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Receipt Deleted' },
-  [WebhookEvent.RECEIPT_SENT]: { color: '#8b5cf6', emoji: '📧', title: 'Receipt Sent' },
-  [WebhookEvent.RECEIPT_PDF_GENERATED]: { color: '#6366f1', emoji: '📄', title: 'Receipt PDF Generated' },
-  [WebhookEvent.RECEIPT_CREATED_FROM_INVOICE]: {
-    color: '#8b5cf6',
-    emoji: '🔄',
-    title: 'Receipt Created from Invoice',
-  },
-  [WebhookEvent.RECEIPT_SEARCHED]: { color: '#6b7280', emoji: '🔍', title: 'Receipt Searched' },
-
-  // Payment events - Yellow/Gold
-  [WebhookEvent.PAYMENT_RECEIVED]: { color: '#f59e0b', emoji: '💵', title: 'Payment Received' },
-  [WebhookEvent.PAYMENT_METHOD_CREATED]: { color: '#f59e0b', emoji: '➕', title: 'Payment Method Created' },
-  [WebhookEvent.PAYMENT_METHOD_UPDATED]: { color: '#f59e0b', emoji: '✏️', title: 'Payment Method Updated' },
-  [WebhookEvent.PAYMENT_METHOD_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Payment Method Deleted' },
-  [WebhookEvent.PAYMENT_METHOD_ACTIVATED]: {
-    color: '#10b981',
-    emoji: '✅',
-    title: 'Payment Method Activated',
-  },
-  [WebhookEvent.PAYMENT_METHOD_DEACTIVATED]: {
-    color: '#6b7280',
-    emoji: '⏸️',
-    title: 'Payment Method Deactivated',
-  },
-
-  // Signature events - Teal
-  [WebhookEvent.SIGNATURE_CREATED]: { color: '#14b8a6', emoji: '📝', title: 'Signature Created' },
-  [WebhookEvent.SIGNATURE_COMPLETED]: { color: '#10b981', emoji: '✅', title: 'Signature Completed' },
-  [WebhookEvent.SIGNATURE_EXPIRED]: { color: '#f59e0b', emoji: '⏰', title: 'Signature Expired' },
-  [WebhookEvent.SIGNATURE_OTP_GENERATED]: { color: '#14b8a6', emoji: '🔐', title: 'Signature OTP Generated' },
-  [WebhookEvent.SIGNATURE_OTP_SENT]: { color: '#14b8a6', emoji: '📧', title: 'Signature OTP Sent' },
-  [WebhookEvent.SIGNATURE_VIEWED]: { color: '#8b5cf6', emoji: '👁️', title: 'Signature Viewed' },
-  [WebhookEvent.SIGNATURE_EMAIL_SENT]: { color: '#14b8a6', emoji: '📧', title: 'Signature Email Sent' },
+  // Document events - Green (generic, TODO_PRODUIT.md T2bis)
+  [WebhookEvent.DOCUMENT_CREATED]: { color: '#10b981', emoji: '🆕', title: 'Document Created' },
+  [WebhookEvent.DOCUMENT_SENT]: { color: '#10b981', emoji: '📤', title: 'Document Sent' },
+  [WebhookEvent.DOCUMENT_SEND_FAILED]: { color: '#ef4444', emoji: '⚠️', title: 'Document Send Failed' },
+  [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: { color: '#6366f1', emoji: '🏛️', title: 'Authority Event' },
+  [WebhookEvent.DOCUMENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Document Deleted' },
 
   // Client events - Pink
   [WebhookEvent.CLIENT_CREATED]: { color: '#ec4899', emoji: '👤', title: 'Client Created' },
@@ -307,102 +240,16 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
 export function formatPayloadForEvent(event: WebhookEvent, payload: any): string {
   // Format specific data based on event type
   const formatters: Record<WebhookEvent, (p: any) => string | null> = {
-    // Quote events
-    [WebhookEvent.QUOTE_CREATED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nTotal Inc. Tax: ${p.quote?.totalTTC || 0}${p.quote?.currency || '€'}`,
-    [WebhookEvent.QUOTE_UPDATED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.QUOTE_DELETED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.QUOTE_SENT]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.QUOTE_SIGNED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.QUOTE_EXPIRED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nExpired on: ${p.quote?.expiresAt ? new Date(p.quote.expiresAt).toLocaleDateString('en-US') : 'N/A'}`,
-    [WebhookEvent.QUOTE_REJECTED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.QUOTE_VIEWED]: (_p) => null,
-    [WebhookEvent.QUOTE_MARKED_AS_SIGNED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nMarked as signed`,
-    [WebhookEvent.QUOTE_PDF_GENERATED]: (_p) => null,
-    [WebhookEvent.QUOTE_SEARCHED]: (_p) => null,
-    [WebhookEvent.QUOTE_STATUS_CHANGED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nNew status: ${p.newStatus || 'N/A'}`,
-
-    // Invoice events
-    [WebhookEvent.INVOICE_CREATED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nTotal Inc. Tax: ${p.invoice?.totalTTC || 0}${p.invoice?.currency || '€'}`,
-    [WebhookEvent.INVOICE_UPDATED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.INVOICE_DELETED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.INVOICE_SENT]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
-    [WebhookEvent.INVOICE_PAID]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nAmount: ${p.invoice?.totalTTC || 0}${p.invoice?.currency || '€'}\n💰 Paid on ${p.invoice?.paidAt ? new Date(p.invoice.paidAt).toLocaleDateString('en-US') : 'N/A'}`,
-    [WebhookEvent.INVOICE_OVERDUE]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\n⚠️ Due date passed: ${p.invoice?.dueDate ? new Date(p.invoice.dueDate).toLocaleDateString('en-US') : 'N/A'}`,
-    [WebhookEvent.INVOICE_MARKED_AS_PAID]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nMarked as paid`,
-    [WebhookEvent.INVOICE_PDF_GENERATED]: (_p) => null,
-    [WebhookEvent.INVOICE_XML_DOWNLOADED]: (_p) => null,
-    [WebhookEvent.INVOICE_CREATED_FROM_QUOTE]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nFrom Quote #${p.quote?.number || 'N/A'}`,
-    [WebhookEvent.INVOICE_SEARCHED]: (_p) => null,
-    [WebhookEvent.INVOICE_STATUS_CHANGED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nNew status: ${p.newStatus || 'N/A'}`,
-
-    // Payment document events
-    [WebhookEvent.PAYMENT_CREATED]: (p) =>
-      `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}\nAmount: ${p.payment?.totalPaid || 0}${p.invoice?.currency || '€'}`,
-    [WebhookEvent.PAYMENT_UPDATED]: (p) =>
-      `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.PAYMENT_DELETED]: (p) =>
-      `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.PAYMENT_SENT]: (p) =>
-      `**Payment #${p.payment?.number || p.paymentId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.PAYMENT_PDF_GENERATED]: (_p) => null,
-    [WebhookEvent.PAYMENT_CREATED_FROM_INVOICE]: (p) =>
-      `**Payment #${p.payment?.number || p.paymentId}**\nFrom Invoice #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.PAYMENT_SEARCHED]: (_p) => null,
-
-    // Receipt events (deprecated, use PAYMENT_* instead)
-    [WebhookEvent.RECEIPT_CREATED]: (p) =>
-      `**Receipt #${p.receipt?.number || p.receiptId}**\nInvoice: #${p.invoice?.number || 'N/A'}\nAmount: ${p.receipt?.totalPaid || 0}${p.invoice?.currency || '€'}`,
-    [WebhookEvent.RECEIPT_UPDATED]: (p) =>
-      `**Receipt #${p.receipt?.number || p.receiptId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.RECEIPT_DELETED]: (p) =>
-      `**Receipt #${p.receipt?.number || p.receiptId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.RECEIPT_SENT]: (p) =>
-      `**Receipt #${p.receipt?.number || p.receiptId}**\nInvoice: #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.RECEIPT_PDF_GENERATED]: (_p) => null,
-    [WebhookEvent.RECEIPT_CREATED_FROM_INVOICE]: (p) =>
-      `**Receipt #${p.receipt?.number || p.receiptId}**\nFrom Invoice #${p.invoice?.number || 'N/A'}`,
-    [WebhookEvent.RECEIPT_SEARCHED]: (_p) => null,
-
-    // Payment events
-    [WebhookEvent.PAYMENT_RECEIVED]: (p) =>
-      `Amount: ${p.amount || 0}${p.currency || '€'}\nMethod: ${p.paymentMethod || 'N/A'}`,
-    [WebhookEvent.PAYMENT_METHOD_CREATED]: (p) =>
-      `**${p.paymentMethod?.name || 'N/A'}**\nType: ${p.paymentMethod?.type || 'N/A'}`,
-    [WebhookEvent.PAYMENT_METHOD_UPDATED]: (p) =>
-      `**${p.paymentMethod?.name || 'N/A'}**\nType: ${p.paymentMethod?.type || 'N/A'}`,
-    [WebhookEvent.PAYMENT_METHOD_DELETED]: (p) => `**${p.paymentMethod?.name || 'N/A'}**`,
-    [WebhookEvent.PAYMENT_METHOD_ACTIVATED]: (p) => `**${p.paymentMethod?.name || 'N/A'}**`,
-    [WebhookEvent.PAYMENT_METHOD_DEACTIVATED]: (p) => `**${p.paymentMethod?.name || 'N/A'}**`,
-
-    // Signature events
-    [WebhookEvent.SIGNATURE_CREATED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nSignature request sent`,
-    [WebhookEvent.SIGNATURE_COMPLETED]: (p) => `**Quote #${p.quoteId || 'N/A'}**\n✅ Signature completed`,
-    [WebhookEvent.SIGNATURE_EXPIRED]: (p) => `**Quote #${p.quoteId || 'N/A'}**\nSignature expired`,
-    [WebhookEvent.SIGNATURE_OTP_GENERATED]: (p) =>
-      `OTP code generated for signature\nQuote: #${p.quoteId || 'N/A'}`,
-    [WebhookEvent.SIGNATURE_OTP_SENT]: (p) => `OTP sent for signature\nQuote: #${p.quoteId || 'N/A'}`,
-    [WebhookEvent.SIGNATURE_VIEWED]: (_p) => null,
-    [WebhookEvent.SIGNATURE_EMAIL_SENT]: (p) => `Signature email sent\nQuote: #${p.quoteId || 'N/A'}`,
-
+    // Document events (generic, TODO_PRODUIT.md T2bis) — `documentLabel`/`documentNumber` (this
+    // file's own header) read the uniform payload contract, so ONE formatter per event covers every
+    // document type.
+    [WebhookEvent.DOCUMENT_CREATED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nCreated`,
+    [WebhookEvent.DOCUMENT_SENT]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nSent`,
+    [WebhookEvent.DOCUMENT_SEND_FAILED]: (p) =>
+      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n⚠️ Send failed: ${p.error || 'N/A'}`,
+    [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: (p) =>
+      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🏛️ ${p.providerId || 'N/A'}: ${p.statusCode || 'N/A'}`,
+    [WebhookEvent.DOCUMENT_DELETED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nDeleted`,
     // Client events
     [WebhookEvent.CLIENT_CREATED]: (p) =>
       `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,

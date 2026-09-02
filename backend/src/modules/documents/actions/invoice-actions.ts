@@ -1,7 +1,5 @@
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
-import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
-
 import { logger } from '@/logger/logger.service';
 import { decimalsFor, toMinor } from '@/utils/financial';
 
@@ -39,10 +37,11 @@ export interface InvoiceActionDeps {
   /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2 / PLAN-V2 R9 — see `async-send.ts`'s own `RunAsyncSendInput.webhook` header.
-   * `WebhookEvent.INVOICE_SENT` (prisma schema) already exists, with its own formatter
-   * (`webhooks/drivers/event-formatters.ts`) — this is what makes it actually fire, from the ONE
-   * point a transmission is genuinely known to have succeeded, instead of never at all (R1).
+   * TODO_PRODUIT.md T2bis — see `async-send.ts`'s own `RunAsyncSendInput.webhooks` header:
+   * `DOCUMENT_SENT`/`DOCUMENT_CREATED` now, generic across every type (T2's own per-type
+   * `INVOICE_SENT` is purged from the schema by that same commit) — this is what makes it actually
+   * fire, from the ONE point a transmission is genuinely known to have succeeded, instead of never at
+   * all (R1).
    */
   webhooks?: DocumentWebhookEmitter;
 }
@@ -514,7 +513,7 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  * mechanism against.
  */
 export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceActionDeps): void {
-  registerSaveDraftAction(registry, 'invoice');
+  registerSaveDraftAction(registry, 'invoice', deps.webhooks);
 
   registry.register('invoice', 'send', async ({ companyId, documentId, data, params }) =>
     runAsyncSendAction({
@@ -528,7 +527,8 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       // TODO_PRODUIT.md T2 / PLAN-V2 R9 — absent (no webhook fires) for a company/deployment that
       // never wired `deps.webhooks` (every EXISTING spec of this function). Production wiring
       // (`documents-core.module.ts`) always provides one.
-      webhook: deps.webhooks ? { emitter: deps.webhooks, event: WebhookEvent.INVOICE_SENT } : undefined,
+      // TODO_PRODUIT.md T2bis — see async-send.ts's own `RunAsyncSendInput.webhooks` header.
+      webhooks: deps.webhooks,
       numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
       // Root TODO item 11: the country-mandate check runs as part of THIS preflight — see
       // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at

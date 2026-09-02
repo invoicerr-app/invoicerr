@@ -35,7 +35,14 @@ jest.mock('./country-policy/country-policy');
  * `sourceEntity: 'invoice'`, and resolving it needs that type's own descriptor to exist in the
  * registry, exactly the way it would in the real DocumentsModule wiring.
  */
-function buildService() {
+/**
+ * `webhooks` (TODO_PRODUIT.md T2bis) is OPTIONAL, defaulted to `undefined` — every pre-existing test
+ * in this file constructs `buildService()` with no opinion on webhooks and must keep meaning exactly
+ * what it always did. Only the dedicated "DOCUMENT_SENT" test below passes one — proving the type
+ * T2 deliberately left webhook-less (no `CREDIT_NOTE_SENT` ever existed) gets one for free the moment
+ * the vocabulary stops being per-type (credit-note-actions.ts's own header).
+ */
+function buildService(webhooks?: { dispatch: jest.Mock }) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildCreditNoteDescriptor());
   typeRegistry.register(buildInvoiceDescriptor());
@@ -49,7 +56,7 @@ function buildService() {
   const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
-  registerCreditNoteActions(actionRegistry, { queueDispatcher });
+  registerCreditNoteActions(actionRegistry, { queueDispatcher, webhooks });
 
   const service = new DocumentsService(
     typeRegistry,
@@ -193,6 +200,44 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       undefined,
     );
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
+  });
+
+  // TODO_PRODUIT.md T2bis — "l'avoir gagne le webhook au passage": T2 deliberately left this type
+  // with NO webhook at all (no `CREDIT_NOTE_SENT` ever existed in the schema); the generic
+  // `DOCUMENT_SENT` removes the need for a per-type event, so the credit note gets one for free the
+  // moment `deps.webhooks` is passed — the SAME wiring invoice/quote already have, no new mechanism.
+  it('"send" (phase 2) dispatches DOCUMENT_SENT — the type T2 left webhook-less gets one for free', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+      ...invoiceDocument('invoice-doc-1', ['line-1']),
+      status: 'sending',
+    });
+    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+      id: 'cn-1',
+      typeId: 'credit-note',
+      status: 'sent',
+      data: validCreditNoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const { service } = buildService(webhooks);
+    const result = await service.runAction('company-1', 'credit-note', 'send', {
+      documentId: 'cn-1',
+      data: validCreditNoteData,
+    });
+
+    expect(result.document).toMatchObject({ id: 'cn-1', status: 'sent' });
+    expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    expect(webhooks.dispatch).toHaveBeenCalledWith(
+      'DOCUMENT_SENT',
+      expect.objectContaining({
+        documentId: 'cn-1',
+        typeId: 'credit-note',
+        companyId: 'company-1',
+        document: expect.objectContaining({ id: 'cn-1', status: 'sent' }),
+      }),
+    );
   });
 
   it('"send" is not offered before the credit note has ever been saved — 409, like any other status-gated action', async () => {

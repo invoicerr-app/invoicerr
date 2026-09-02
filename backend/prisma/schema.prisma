@@ -563,68 +563,21 @@ model Plugin {
 }
 
 enum WebhookEvent {
-  // Quote events
-  QUOTE_CREATED
-  QUOTE_UPDATED
-  QUOTE_DELETED
-  QUOTE_SENT
-  QUOTE_SIGNED
-  QUOTE_EXPIRED
-  QUOTE_REJECTED
-  QUOTE_VIEWED
-  QUOTE_MARKED_AS_SIGNED
-  QUOTE_PDF_GENERATED
-  QUOTE_SEARCHED
-  QUOTE_STATUS_CHANGED
-
-  // Invoice events
-  INVOICE_CREATED
-  INVOICE_UPDATED
-  INVOICE_DELETED
-  INVOICE_SENT
-  INVOICE_PAID
-  INVOICE_OVERDUE
-  INVOICE_MARKED_AS_PAID
-  INVOICE_PDF_GENERATED
-  INVOICE_XML_DOWNLOADED
-  INVOICE_CREATED_FROM_QUOTE
-  INVOICE_SEARCHED
-  INVOICE_STATUS_CHANGED
-
-  // Payment document events
-  PAYMENT_CREATED
-  PAYMENT_UPDATED
-  PAYMENT_DELETED
-  PAYMENT_SENT
-  PAYMENT_PDF_GENERATED
-  PAYMENT_CREATED_FROM_INVOICE
-  PAYMENT_SEARCHED
-
-  // Receipt events (deprecated, use PAYMENT_* instead)
-  RECEIPT_CREATED
-  RECEIPT_UPDATED
-  RECEIPT_DELETED
-  RECEIPT_SENT
-  RECEIPT_PDF_GENERATED
-  RECEIPT_CREATED_FROM_INVOICE
-  RECEIPT_SEARCHED
-
-  // Payment method events
-  PAYMENT_RECEIVED
-  PAYMENT_METHOD_CREATED
-  PAYMENT_METHOD_UPDATED
-  PAYMENT_METHOD_DELETED
-  PAYMENT_METHOD_ACTIVATED
-  PAYMENT_METHOD_DEACTIVATED
-
-  // Signature events
-  SIGNATURE_CREATED
-  SIGNATURE_COMPLETED
-  SIGNATURE_EXPIRED
-  SIGNATURE_OTP_GENERATED
-  SIGNATURE_OTP_SENT
-  SIGNATURE_VIEWED
-  SIGNATURE_EMAIL_SENT
+  // Document events (generic, TODO_PRODUIT.md T2bis, 2026-09-03) — replaces the per-type
+  // QUOTE_*/INVOICE_*/PAYMENT_*(document)/RECEIPT_*/SIGNATURE_*/PAYMENT_METHOD_*/PAYMENT_RECEIVED
+  // families purged below: every one of those families was checked by grep against
+  // `WebhookDispatcherService.dispatch(WebhookEvent.X, ...)` call sites across backend/src and NONE
+  // had a real emitter — INVOICE_SENT/QUOTE_SENT were the only exceptions, and their one emitter
+  // (actions/async-send.ts) is exactly what this task replaces with DOCUMENT_SENT below. A future
+  // document type (or a future write inside DocumentsService) gets every one of these five for
+  // free — no migration, no per-type enum member ever again. CLIENT_*/COMPANY_* keep their own
+  // dedicated events (real emitters: clients.service.ts, company.service.ts) — genuinely different
+  // entities, not "documents", so they are deliberately NOT folded into this family.
+  DOCUMENT_CREATED
+  DOCUMENT_SENT
+  DOCUMENT_SEND_FAILED
+  DOCUMENT_AUTHORITY_EVENT
+  DOCUMENT_DELETED
 
   // Client events
   CLIENT_CREATED

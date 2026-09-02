@@ -92,13 +92,18 @@ function buildRegistry(provider?: DeclarationProvider): DeclarationProviderRegis
   return registry;
 }
 
-function buildRunner(provider?: DeclarationProvider, events?: { publish: jest.Mock }): ReportingRunner {
+function buildRunner(
+  provider?: DeclarationProvider,
+  events?: { publish: jest.Mock },
+  webhooks?: { dispatch: jest.Mock },
+): ReportingRunner {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
   return new ReportingRunner(
     buildRegistry(provider),
     typeRegistry,
     events as unknown as DocumentEventsPublisher,
+    webhooks,
   );
 }
 
@@ -333,6 +338,83 @@ describe('ReportingRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
     const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
     const runner = buildRunner({ providerId: 'nav', declare }); // no events
+    await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
+  });
+});
+
+// TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
+// (`queue/document-authority-webhook.ts`) at the SAME three "genuinely new row" gates `events` above
+// already proves. `webhooks` is the runner's 4th constructor arg (see `ReportingRunner`'s own header
+// on the manual-factory pitfall this task found and fixed) — every test ABOVE this block omits it and
+// must keep passing unchanged.
+describe('ReportingRunner — webhooks (TODO_PRODUIT.md T2bis)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
+    mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
+    mockedPrisma.client.findUniqueOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+  });
+
+  it('runReport: dispatches DOCUMENT_AUTHORITY_EVENT with providerId/statusCode on a genuine, newly-journaled success', async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }, undefined, webhooks);
+
+    await runner.runReport(JOB_DATA);
+
+    expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    expect(webhooks.dispatch).toHaveBeenCalledWith('DOCUMENT_AUTHORITY_EVENT', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      companyId: 'company-1',
+      occurredAt: expect.any(String),
+      document: FIXTURE_DOCUMENT,
+      providerId: 'nav',
+      statusCode: SUCCESS_RESULT.statusCode,
+    });
+  });
+
+  it("runReport: never dispatches when the persistence layer's own dedup journaled nothing new", async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(0);
+    const webhooks = { dispatch: jest.fn() };
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }, undefined, webhooks);
+
+    await runner.runReport(JOB_DATA);
+
+    expect(webhooks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('recordTerminalFailure: dispatches DOCUMENT_AUTHORITY_EVENT (REPORT_FAILED_STATUS_CODE) when genuinely newly journaled', async () => {
+    mockedJournalSynthetic.mockResolvedValue(1);
+    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    const runner = buildRunner({ providerId: 'nav', declare: jest.fn() }, undefined, webhooks);
+
+    await runner.recordTerminalFailure(JOB_DATA, new Error('every retry exhausted'));
+
+    expect(webhooks.dispatch).toHaveBeenCalledWith(
+      'DOCUMENT_AUTHORITY_EVENT',
+      expect.objectContaining({ providerId: 'nav', statusCode: REPORT_FAILED_STATUS_CODE }),
+    );
+  });
+
+  // THE MUTATION TARGET this task's own brief names: a dead webhook endpoint must never look like the
+  // declaration itself failed.
+  it('a dispatch failure NEVER propagates — runReport still resolves normally', async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }, undefined, webhooks);
+
+    await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
+    expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('never touches webhooks at all when absent — every pre-existing caller keeps working unchanged', async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    const declare = jest.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare }); // no webhooks
     await expect(runner.runReport(JOB_DATA)).resolves.toEqual({ journaled: 1 });
   });
 });

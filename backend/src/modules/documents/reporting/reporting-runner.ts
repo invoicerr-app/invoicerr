@@ -24,6 +24,8 @@ import { buildDeclaredInvoice } from './build-declared-invoice';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { findOwnedDocument } from '../persistence';
+import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
 
@@ -61,9 +63,23 @@ export class ReportingRunner {
     // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` for the same reason
     // `ConformitySweepRunner`'s own `eventsPublisher` is: a SIDE CHANNEL, never load-bearing for a
     // declaration's own correctness, so every EXISTING spec constructing this runner with two args
-    // keeps passing unchanged. Production wiring resolves this automatically (`@Global()`
-    // `DocumentQueueModule`) — no factory change needed in `documents-core.module.ts`.
+    // keeps passing unchanged. Production wiring is a MANUAL `useFactory` (`documents-core.module.ts`)
+    // rather than a plain class provider (unlike `ConformitySweepRunner`) — this constructor's own
+    // `@Optional()` decorators only take effect when NEST itself instantiates the class via
+    // reflection, never through a hand-written `new ReportingRunner(...)` call, so the factory MUST
+    // pass every argument explicitly; TODO_PRODUIT.md T2bis found this had silently never happened
+    // for this exact field (fixed there, alongside adding `webhookDispatcher` below).
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
+    // TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`'s own emitter, the identical "side channel,
+    // `@Optional()`" posture `eventsPublisher` holds — see that field's own comment just above for why
+    // the manual factory in `documents-core.module.ts` has to pass this explicitly too. Typed as the
+    // narrow `DocumentWebhookEmitter` interface, never the concrete `WebhookDispatcherService` class —
+    // see `queue/document-webhooks.ts`'s own `DOCUMENT_WEBHOOK_EMITTER` token header for why: the
+    // concrete class drags `webhooks.service.ts` → `drivers/discord.driver.ts` → `@teever/ez-hook`
+    // into every file that imports it, breaking this class's own spec (and every OTHER spec that
+    // transitively imports it) under ts-jest. The factory resolves the REAL instance via that token
+    // (`inject: [..., DOCUMENT_WEBHOOK_EMITTER]`) — this parameter only ever sees the interface.
+    @Optional() private readonly webhookDispatcher?: DocumentWebhookEmitter,
   ) {}
 
   /**
@@ -151,6 +167,14 @@ export class ReportingRunner {
             typeId: data.typeId,
             kind: 'authority-event',
           });
+          await dispatchDocumentAuthorityEventWebhook(
+            this.webhookDispatcher,
+            data.companyId,
+            data.typeId,
+            data.documentId,
+            data.providerId,
+            REPORT_BLOCKED_STATUS_CODE,
+          );
         }
         return { journaled };
       }
@@ -172,6 +196,14 @@ export class ReportingRunner {
         typeId: data.typeId,
         kind: 'authority-event',
       });
+      await dispatchDocumentAuthorityEventWebhook(
+        this.webhookDispatcher,
+        data.companyId,
+        data.typeId,
+        data.documentId,
+        data.providerId,
+        result.statusCode,
+      );
     }
     return { journaled };
   }
@@ -203,6 +235,14 @@ export class ReportingRunner {
           typeId: data.typeId,
           kind: 'authority-event',
         });
+        await dispatchDocumentAuthorityEventWebhook(
+          this.webhookDispatcher,
+          data.companyId,
+          data.typeId,
+          data.documentId,
+          data.providerId,
+          REPORT_FAILED_STATUS_CODE,
+        );
       }
       this.logger.error(
         `Declaration for document ${data.documentId} ("${data.providerId}") failed permanently after ` +

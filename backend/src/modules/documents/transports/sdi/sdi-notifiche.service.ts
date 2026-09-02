@@ -34,7 +34,7 @@
  * before this channel existed, a stale test notifica, a bug on SdI's own side — all indistinguishable
  * from here, and none of them warrant an infinite retry storm). Logged NAMED, nothing silent.
  */
-import { Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
@@ -43,6 +43,8 @@ import {
   findDocumentByTransportRef,
 } from '../../conformity/authority-events.persistence';
 import { RawAuthorityEvent } from '../../conformity/authority-status-poller';
+import { dispatchDocumentAuthorityEventWebhook } from '../../queue/document-authority-webhook';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
 import { NOTIFICA_TYPE_LABELS, parseSdiNotifica, SdiNotificaType } from './sdi-notifiche';
 
@@ -66,7 +68,20 @@ export class SdiNotificheService {
   // in production because `DocumentEventsPublisher` comes from the `@Global()` `DocumentQueueModule`,
   // registered elsewhere in the app graph (`DocumentsModule`/`DocumentsCoreModule`), which Nest makes
   // available everywhere once bootstrapped, with no explicit import needed here.
-  constructor(@Optional() private readonly eventsPublisher?: DocumentEventsPublisher) {}
+  constructor(
+    @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
+    // TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`'s own emitter. UNLIKE `eventsPublisher`,
+    // the `DOCUMENT_WEBHOOK_EMITTER` token's own provider (`WebhooksModule`) is NOT `@Global()` —
+    // `sdi-notifiche.module.ts` now imports `WebhooksModule` directly (a small, one-line addition;
+    // `WebhooksModule` only imports `PluginsModule`, which touches nothing this module graph already
+    // avoids — see that module's own header) specifically so this resolves. Injected by TOKEN, never
+    // the concrete `WebhookDispatcherService` class — see that token's own header
+    // (`queue/document-webhooks.ts`) for why: the concrete class drags `webhooks.service.ts` →
+    // `drivers/discord.driver.ts` → `@teever/ez-hook` into every file that imports it, breaking this
+    // class's own spec under ts-jest. Still `@Optional()`: every EXISTING spec constructs this service
+    // with zero/one arg and must keep passing unchanged.
+    @Optional() @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhookDispatcher?: DocumentWebhookEmitter,
+  ) {}
 
   /**
    * Handles ONE incoming `TrasmissioneFatture` push. Never throws for a business-level reason
@@ -137,6 +152,14 @@ export class SdiNotificheService {
         typeId: document.typeId,
         kind: 'authority-event',
       });
+      await dispatchDocumentAuthorityEventWebhook(
+        this.webhookDispatcher,
+        document.companyId,
+        document.typeId,
+        document.id,
+        SDI_PROVIDER_ID,
+        event.statusCode,
+      );
     }
     return {
       journaled: count > 0,

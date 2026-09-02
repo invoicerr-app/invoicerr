@@ -318,4 +318,138 @@ describe('markSendFailed', () => {
       ).resolves.toBeUndefined();
     });
   });
+
+  // TODO_PRODUIT.md T2bis — `DOCUMENT_SEND_FAILED`'s own orchestration, the SAME "publish only on a
+  // genuinely acquired fact" gate `events` above holds, proven the identical way with a bare
+  // `jest.fn()` (the REAL-driver, REAL-HTTP proof lives in `mark-send-failed-webhook.spec.ts`, mirroring
+  // `actions/async-send-webhook.spec.ts`'s own split for `DOCUMENT_SENT`).
+  describe('webhooks — TODO_PRODUIT.md T2bis (the DOCUMENT_SEND_FAILED webhook)', () => {
+    it('dispatches DOCUMENT_SEND_FAILED, carrying the error, AFTER the write and the lifecycle check both succeed', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sending',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'send_failed',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+
+      await markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('SMTP connection refused'),
+        webhooks,
+      });
+
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledWith('DOCUMENT_SEND_FAILED', {
+        documentId: 'doc-1',
+        typeId: 'widget',
+        companyId: 'company-1',
+        occurredAt: expect.any(String),
+        document: expect.objectContaining({ id: 'doc-1', status: 'send_failed' }),
+        error: 'SMTP connection refused',
+      });
+    });
+
+    it('never dispatches for the idempotent "already moved on" branch — nothing was acquired here', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sent',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const webhooks = { dispatch: jest.fn() };
+
+      await markSendFailed(resolveDescriptor, {
+        companyId: 'company-1',
+        typeId: 'widget',
+        documentId: 'doc-1',
+        actionId: 'send',
+        error: new Error('too late'),
+        webhooks,
+      });
+
+      expect(webhooks.dispatch).not.toHaveBeenCalled();
+    });
+
+    // THE MUTATION TARGET this task's own brief names: a dead webhook endpoint must never look like
+    // the write itself failed — the identical discipline `async-send.ts`'s own DOCUMENT_SENT dispatch
+    // already holds.
+    it('a dispatch failure NEVER propagates — markSendFailed still resolves', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sending',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'send_failed',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+
+      await expect(
+        markSendFailed(resolveDescriptor, {
+          companyId: 'company-1',
+          typeId: 'widget',
+          documentId: 'doc-1',
+          actionId: 'send',
+          error: new Error('SMTP connection refused'),
+          webhooks,
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('never touches webhooks at all when absent — every pre-existing caller keeps working unchanged', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'sending',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'widget',
+        status: 'send_failed',
+        data: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // No `webhooks` field at all — this must not throw (optional chaining, never a hard dependency).
+      await expect(
+        markSendFailed(resolveDescriptor, {
+          companyId: 'company-1',
+          typeId: 'widget',
+          documentId: 'doc-1',
+          actionId: 'send',
+          error: new Error('SMTP connection refused'),
+        }),
+      ).resolves.toBeUndefined();
+    });
+  });
 });

@@ -589,3 +589,32 @@
   loi). Les 9 règles peppol-bis portent ce fait dans leurs `notes`. Ce qui consoliderait : rouvrir
   le texte de transposition national de chaque pays couvert (Moniteur belge, JO luxembourgeois,
   etc.) — même chantier de provenance que le SIREN/SIRET français plus haut.
+
+- **T2bis (2026-09-03) — la purge `WebhookEvent` n'a couvert que le périmètre nommé, et le reste
+  de l'enum est, dans sa quasi-totalité, tout aussi mort** : la tâche T2bis (TODO_PRODUIT.md)
+  avait un périmètre explicite (QUOTE_*, INVOICE_*, PAYMENT_*-document, RECEIPT_*, PAYMENT_METHOD_*/
+  PAYMENT_RECEIVED, SIGNATURE_* — 51 valeurs purgées, prouvé par grep valeur par valeur). Le même
+  grep, étendu par curiosité à TOUT le reste de l'enum, montre que la quasi-totalité des membres
+  restants n'a AUCUN émetteur réel non plus : les familles Item (`QUOTE_ITEM_*`, `INVOICE_ITEM_*`,
+  `PAYMENT_ITEM_*`, `RECEIPT_ITEM_*`, `RECURRING_INVOICE_ITEM_*`), Number-formatting
+  (`QUOTE_NUMBER_GENERATED`, `INVOICE_NUMBER_GENERATED`, `PAYMENT_NUMBER_GENERATED`,
+  `RECEIPT_NUMBER_GENERATED`), `WEBHOOK_TRIGGERED`/`WEBHOOK_FAILED`, `PLUGIN_*` (9 valeurs),
+  `USER_*` (7), `EMAIL_SENT`/`EMAIL_TEMPLATE_UPDATED`/`EMAIL_FAILED`, `DASHBOARD_*`/`STATS_*`,
+  `CURRENCY_RATE_UPDATED`, `APP_RESET`/`APP_ALL_DATA_RESET`, `OTP_*` (3), `SEARCH_PERFORMED`,
+  `PDF_GENERATED`/`XML_GENERATED`/`FILE_DOWNLOADED`, `RECURRING_INVOICE_*` (7, la famille
+  document elle-même, pas seulement ses Item), `COMPANY_PDF_CONFIG_UPDATED`,
+  `COMPANY_INFO_VIEWED`, `CLIENT_ACTIVATED`/`CLIENT_DEACTIVATED`, `PDF_CONFIG_*`,
+  `EMAIL_TEMPLATE_CREATED`, `CRON_JOB_*` (3), `CURRENCY_CONVERSION_REQUESTED`/
+  `CURRENCY_RATE_FETCHED`, `MAIL_TEMPLATE_*` (2), `SSE_*` (2), `DATA_VALIDATED`/
+  `CONFIGURATION_VALIDATED` — une soixantaine de valeurs supplémentaires, aucune émise nulle part
+  (`grep -rn "\bTOKEN\b" src --include="*.ts"` hors `event-formatters.ts`/`*.spec.ts`/
+  `prisma/generated` ne remonte rien). Seuls survivent, prouvés réels : `CLIENT_CREATED`/
+  `CLIENT_UPDATED`/`CLIENT_DELETED`/`CLIENT_SEARCHED` (clients.service.ts), `COMPANY_CREATED`/
+  `COMPANY_UPDATED`/`COMPANY_EMAIL_TEMPLATE_UPDATED` (company.service.ts), `WEBHOOK_CREATED`/
+  `WEBHOOK_UPDATED`/`WEBHOOK_DELETED` (webhooks.controller.ts), plus les 5 `DOCUMENT_*` que
+  T2bis vient d'ajouter — moins de 15 valeurs vivantes sur 94. DÉLIBÉRÉMENT NON TOUCHÉ ici : le
+  brief de T2bis bornait le périmètre à des familles nommées, et une purge de cette ampleur (une
+  seconde migration Prisma, un audit de CHAQUE écran/intégration qui pourrait s'être abonné à
+  l'une de ces valeurs en production) est une décision produit à part entière, pas un sous-effet
+  d'une tâche webhook. Ce qui déciderait : le mandant tranche s'il veut une seconde vague de purge
+  (même méthode : grep valeur par valeur, migration avec nettoyage des abonnements existants).

@@ -69,10 +69,10 @@ jest.mock('./b2g-routing/b2g-routing');
  * actions/send-divergence.spec.ts) — the transport is read from `Company.invoiceTransportId`
  * (transports/company-transport.ts), mocked here the same way persistence.ts already is.
  *
- * `webhooks` (TODO_PRODUIT.md T2 / PLAN-V2 R9) is OPTIONAL, defaulted to `undefined` — every
- * pre-existing test in this file constructs `buildService()` with no opinion on webhooks at all and
- * must keep meaning exactly what it always did (no `DocumentWebhookEmitter` ever wired, `INVOICE_SENT`
- * never fires). Only the dedicated "webhook" describe block below passes one.
+ * `webhooks` (TODO_PRODUIT.md T2bis, generic `DOCUMENT_*` vocabulary) is OPTIONAL, defaulted to
+ * `undefined` — every pre-existing test in this file constructs `buildService()` with no opinion on
+ * webhooks at all and must keep meaning exactly what it always did (no `DocumentWebhookEmitter` ever
+ * wired, `DOCUMENT_SENT` never fires). Only the dedicated "webhook" describe block below passes one.
  */
 function buildService(
   transportRegistry: TransportRegistry = new TransportRegistry(),
@@ -651,16 +651,17 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   });
 
   /**
-   * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the `INVOICE_SENT` webhook. `async-send.spec.ts`'s own
-   * "webhook" describe block already proves `runAsyncSendAction` in isolation (fires once, from
-   * "sent", never before, never on failure, a dispatch failure never propagates); THIS describe block
-   * proves the two things that only exist ABOVE that isolation boundary: that `invoice-actions.ts`
-   * actually wires `deps.webhooks` through to `WebhookEvent.INVOICE_SENT`, and — the idempotence
-   * guarantee T2 demands — that `DocumentsService.runAction`'s own status gate is what makes a
-   * REDELIVERED job structurally incapable of dispatching the webhook a second time.
+   * TODO_PRODUIT.md T2bis — the `DOCUMENT_SENT` webhook (T2's own per-type `INVOICE_SENT` no longer
+   * exists). `async-send.spec.ts`'s own "webhooks" describe block already proves `runAsyncSendAction`
+   * in isolation (fires once, from "sent", never before, never on failure, a dispatch failure never
+   * propagates); THIS describe block proves the two things that only exist ABOVE that isolation
+   * boundary: that `invoice-actions.ts` actually wires `deps.webhooks` through to
+   * `WebhookEvent.DOCUMENT_SENT`, and — the idempotence guarantee T2 (unchanged by T2bis) demands —
+   * that `DocumentsService.runAction`'s own status gate is what makes a REDELIVERED job structurally
+   * incapable of dispatching the webhook a second time.
    */
-  describe('"send" — TODO_PRODUIT.md T2 / PLAN-V2 R9 (the INVOICE_SENT webhook)', () => {
-    it('phase 2: dispatches INVOICE_SENT, generically keyed, once the transport genuinely delivers', async () => {
+  describe('"send" — TODO_PRODUIT.md T2bis (the DOCUMENT_SENT webhook)', () => {
+    it('phase 2: dispatches DOCUMENT_SENT, carrying the row under the FIXED "document" key, once the transport genuinely delivers', async () => {
       (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
       const fakeTransport = {
@@ -695,13 +696,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       expect(result.document).toMatchObject({ status: 'sent' });
       expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
       expect(webhooks.dispatch).toHaveBeenCalledWith(
-        'INVOICE_SENT',
+        'DOCUMENT_SENT',
         expect.objectContaining({
           documentId: 'doc-1',
           typeId: 'invoice',
           companyId: 'company-1',
-          invoice: expect.objectContaining({ id: 'doc-1', status: 'sent' }),
-          invoiceId: 'doc-1',
+          occurredAt: expect.any(String),
+          document: expect.objectContaining({ id: 'doc-1', status: 'sent' }),
         }),
       );
     });

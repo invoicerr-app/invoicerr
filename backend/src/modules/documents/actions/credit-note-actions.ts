@@ -1,4 +1,5 @@
 import { DocumentEventPublisher } from '../queue/document-events';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
@@ -8,6 +9,14 @@ export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
   /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
   events?: DocumentEventPublisher;
+  /**
+   * TODO_PRODUIT.md T2bis — see `async-send.ts`'s own `RunAsyncSendInput.webhooks` header. Under T2
+   * this type deliberately got NO webhook at all: the schema had no `CREDIT_NOTE_SENT` (nor any other
+   * `CREDIT_NOTE_*` entry) and inventing one was explicitly out of that task's scope. T2bis's own
+   * generic `DOCUMENT_SENT`/`DOCUMENT_CREATED` removes the need for a per-type event entirely — this
+   * type now passes the SAME `deps.webhooks` invoice/quote already do, and gets both for free.
+   */
+  webhooks?: DocumentWebhookEmitter;
 }
 
 /**
@@ -28,16 +37,9 @@ export interface CreditNoteActionDeps {
  * other type's "send" — see credit-note.descriptor.ts's own comment on why that is deliberate even
  * though this type's `deliver` has nothing to await: ONE mechanism for the action id "send", whatever
  * a given type's own delivery actually does.
- *
- * TODO_PRODUIT.md T2 / PLAN-V2 R9 — deliberately NO `webhook` passed to `runAsyncSendAction` below.
- * The prisma `WebhookEvent` enum has no `CREDIT_NOTE_SENT` at all (nor any other CREDIT_NOTE_* entry)
- * — inventing one was explicitly out of scope for that task ("n'invente rien" — the schema change,
- * the migration, and which of `event-formatters.ts`'s conventions it should follow are all decisions
- * for the mandant, not this task). `runAsyncSendAction`'s own `webhook` field is OPTIONAL exactly for
- * this case: absent reads as "no webhook for this type", never a crash — see that field's own header.
  */
 export function registerCreditNoteActions(registry: ActionRegistry, deps: CreditNoteActionDeps): void {
-  registerSaveDraftAction(registry, 'credit-note');
+  registerSaveDraftAction(registry, 'credit-note', deps.webhooks);
 
   registry.register('credit-note', 'send', async ({ companyId, documentId, data, params }) =>
     runAsyncSendAction({
@@ -48,6 +50,8 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       params,
       queueDispatcher: deps.queueDispatcher,
       events: deps.events,
+      // TODO_PRODUIT.md T2bis — see async-send.ts's own `RunAsyncSendInput.webhooks` header.
+      webhooks: deps.webhooks,
       // credit-note.descriptor.ts declares NO `numbering` at all — never number this type, ever.
       numberOnEnqueue: false,
       // Nothing to deliver — see this file's own header. The status transition itself IS the

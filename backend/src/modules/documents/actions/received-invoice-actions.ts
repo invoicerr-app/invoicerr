@@ -1,4 +1,5 @@
 import { updateDocumentStatus, upsertDocument } from '../persistence';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { ActionRegistry } from './action-registry';
 import { registerDeleteAction } from './generic-actions';
 
@@ -6,8 +7,17 @@ import { registerDeleteAction } from './generic-actions';
  * Registers the "received-invoice" type's action IMPLEMENTATIONS — root TODO item 18. Three bespoke
  * handlers plus one reused generic one, none of them touching a transport, a queue, or an email —
  * this type is never sent anywhere (see received-invoice.descriptor.ts's own header).
+ *
+ * `webhooks` (TODO_PRODUIT.md T2bis) only reaches the generic "delete" below — "receive" (this
+ * type's OWN create/edit action, not `registerSaveDraftAction`) deliberately does NOT dispatch
+ * `DOCUMENT_CREATED` here: `DOCUMENT_RECEIVED` (TODO_PRODUIT.md's own T5) is the honest event for an
+ * inbound deposit, and wiring `DOCUMENT_CREATED` here too, ahead of that decision, would give a
+ * receiver two different "this arrived" signals for the same fact.
  */
-export function registerReceivedInvoiceActions(registry: ActionRegistry): void {
+export function registerReceivedInvoiceActions(
+  registry: ActionRegistry,
+  webhooks?: DocumentWebhookEmitter,
+): void {
   /**
    * "receive": this type's create/edit action — the same role `registerSaveDraftAction`
    * (generic-actions.ts) plays for every other type, NOT reused verbatim because that helper
@@ -58,5 +68,5 @@ export function registerReceivedInvoiceActions(registry: ActionRegistry): void {
 
   // See the descriptor's own header on why this is restricted to "received" only — the same
   // mechanism `expense-actions.ts` already registers, applied to a narrower `availableWhen`.
-  registerDeleteAction(registry, 'received-invoice');
+  registerDeleteAction(registry, 'received-invoice', webhooks);
 }

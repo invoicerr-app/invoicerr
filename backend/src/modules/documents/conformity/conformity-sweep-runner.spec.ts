@@ -6,6 +6,11 @@
  * `queue/__tests__/document-conformity-queue.redis.spec.ts`'s job. `DocumentQueueDispatcher` is a
  * plain mocked object (`{ enqueueConformityPoll } as unknown as DocumentQueueDispatcher`), the exact
  * same pattern `schedule-sweep-runner.spec.ts` already uses for its own dispatcher dependency.
+ *
+ * `../persistence` (TODO_PRODUIT.md T2bis) is ALSO mocked wholesale, ONLY for the "webhooks" describe
+ * block below: `dispatchDocumentAuthorityEventWebhook` (`queue/document-authority-webhook.ts`) fetches
+ * the row via `findOwnedDocument` before dispatching `DOCUMENT_AUTHORITY_EVENT` — every test ABOVE
+ * that block never configures a `webhookDispatcher` at all, so that fetch never runs for them.
  */
 import {
   createAuthorityEvents,
@@ -19,10 +24,12 @@ import {
 } from './authority-status-poller';
 import { BLOCKED_STATUS_CODE, GAVE_UP_STATUS_CODE } from './conformity-sweep';
 import { ConformitySweepRunner } from './conformity-sweep-runner';
+import * as persistence from '../persistence';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
 
 jest.mock('./authority-events.persistence');
+jest.mock('../persistence');
 
 const mockedFindCandidates = findConformitySweepCandidates as jest.Mock;
 const mockedCreateEvents = createAuthorityEvents as jest.Mock;
@@ -468,6 +475,131 @@ describe('ConformitySweepRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', (
   it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
     mockedFindCandidates.mockResolvedValue([]);
     const runner = new ConformitySweepRunner(registry, dispatcher); // no eventsPublisher
+    await expect(runner.runSweep(new Date())).resolves.toEqual({ candidates: 0, polled: 0, gaveUp: 0 });
+  });
+});
+
+// TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
+// at the SAME "genuinely new row" gates the "events" describe block above already proves for the SSE
+// nudge. `webhookDispatcher` is this runner's 4th constructor arg (a PLAIN class provider — unlike
+// `ReportingRunner`, Nest's own reflection-based DI resolves this with no factory pitfall, see that
+// class's own header) — every test ABOVE this block omits it and must keep passing unchanged.
+describe('ConformitySweepRunner — webhooks (TODO_PRODUIT.md T2bis)', () => {
+  let dispatcher: DocumentQueueDispatcher;
+  let registry: AuthorityStatusPollerRegistry;
+  const mockedFindOwnedDocument = persistence.findOwnedDocument as jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    dispatcher = {
+      enqueueConformityPoll: jest.fn().mockResolvedValue(true),
+    } as unknown as DocumentQueueDispatcher;
+    registry = new AuthorityStatusPollerRegistry();
+    mockedFindOwnedDocument.mockResolvedValue({ id: 'doc-1', typeId: 'invoice', status: 'sent' });
+  });
+
+  it('runSweep: dispatches DOCUMENT_AUTHORITY_EVENT (GAVE_UP_STATUS_CODE) when a candidate genuinely gives up', async () => {
+    registry.register(buildPdpPoller());
+    process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000);
+    mockedFindCandidates.mockResolvedValue([
+      {
+        id: 'doc-1',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        transportRef: '123456',
+        channelProviderId: 'pdp',
+        updatedAt: new Date('2026-08-01T00:00:00Z'),
+        existingStatusCodes: [],
+      },
+    ]);
+    mockedJournalSynthetic.mockResolvedValue(1);
+    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+
+    const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
+    await runner.runSweep(new Date('2026-08-10T00:00:00Z'));
+
+    expect(webhooks.dispatch).toHaveBeenCalledWith('DOCUMENT_AUTHORITY_EVENT', {
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      companyId: 'company-1',
+      occurredAt: expect.any(String),
+      document: { id: 'doc-1', typeId: 'invoice', status: 'sent' },
+      providerId: 'pdp',
+      statusCode: GAVE_UP_STATUS_CODE,
+    });
+  });
+
+  it('runPoll: dispatches DOCUMENT_AUTHORITY_EVENT with the MOST RECENT observed statusCode', async () => {
+    const pollEvents = [
+      { statusCode: 'fr:200', observedAt: new Date('2026-08-10T00:00:00Z') },
+      { statusCode: 'fr:202', observedAt: new Date('2026-08-10T00:05:00Z') },
+    ];
+    registry.register(buildPdpPoller({ poll: jest.fn().mockResolvedValue(pollEvents) }));
+    mockedCreateEvents.mockResolvedValue(2);
+    const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+
+    const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: '123456',
+      typeId: 'invoice',
+    });
+
+    expect(webhooks.dispatch).toHaveBeenCalledWith(
+      'DOCUMENT_AUTHORITY_EVENT',
+      expect.objectContaining({ providerId: 'pdp', statusCode: 'fr:202' }),
+    );
+  });
+
+  it('runPoll: never dispatches when nothing new was journaled (a re-poll rediscovering known events)', async () => {
+    registry.register(
+      buildPdpPoller({
+        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+      }),
+    );
+    mockedCreateEvents.mockResolvedValue(0);
+    const webhooks = { dispatch: jest.fn() };
+
+    const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
+    await runner.runPoll({
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      providerId: 'pdp',
+      transportRef: '123456',
+      typeId: 'invoice',
+    });
+
+    expect(webhooks.dispatch).not.toHaveBeenCalled();
+  });
+
+  // THE MUTATION TARGET this task's own brief names: a dead webhook endpoint must never look like the
+  // poll itself failed.
+  it('a dispatch failure NEVER propagates — runPoll still returns normally', async () => {
+    registry.register(
+      buildPdpPoller({
+        poll: jest.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+      }),
+    );
+    mockedCreateEvents.mockResolvedValue(1);
+    const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+
+    const runner = new ConformitySweepRunner(registry, dispatcher, undefined, webhooks);
+    await expect(
+      runner.runPoll({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        providerId: 'pdp',
+        transportRef: '123456',
+        typeId: 'invoice',
+      }),
+    ).resolves.toEqual({ journaled: 1 });
+  });
+
+  it('never touches webhookDispatcher at all when absent — every pre-existing caller keeps working unchanged', async () => {
+    mockedFindCandidates.mockResolvedValue([]);
+    const runner = new ConformitySweepRunner(registry, dispatcher); // no webhookDispatcher
     await expect(runner.runSweep(new Date())).resolves.toEqual({ candidates: 0, polled: 0, gaveUp: 0 });
   });
 });

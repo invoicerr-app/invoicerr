@@ -50,6 +50,7 @@ import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { buildReceivedInvoiceDescriptor } from './descriptors/received-invoice.descriptor';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from './queue/document-webhooks';
 import { DocumentEventsPublisher } from './queue/document-events-publisher';
 import { DocumentQueueDispatcher } from './queue/document-queue.dispatcher';
 import { DocumentQueueModule } from './queue/document-queue.module';
@@ -453,9 +454,17 @@ function buildActionRegistry(
     events: eventsPublisher,
     webhooks: webhookDispatcher,
   });
-  registerCreditNoteActions(registry, { queueDispatcher, events: eventsPublisher });
-  registerExpenseActions(registry);
-  registerReceivedInvoiceActions(registry);
+  registerCreditNoteActions(registry, {
+    queueDispatcher,
+    events: eventsPublisher,
+    // TODO_PRODUIT.md T2bis — see credit-note-actions.ts's own header on why this type, deliberately
+    // webhook-less under T2 (no per-type `CREDIT_NOTE_SENT` ever existed), gets `DOCUMENT_SENT` for
+    // free the moment the vocabulary stops being per-type: the SAME `webhookDispatcher` instance
+    // invoice/quote already receive above, no new wiring concept needed.
+    webhooks: webhookDispatcher,
+  });
+  registerExpenseActions(registry, webhookDispatcher);
+  registerReceivedInvoiceActions(registry, webhookDispatcher);
   // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
   // "export-accounting" (invoice) is intentionally left unregistered here — see that file's header.
   return registry;
@@ -559,6 +568,14 @@ function buildEntityReferenceRegistry(
       // CompanyModule — no cycle (see TRANSPORT_REGISTRY's own inject comment).
       inject: [ChannelCredentialsService, SigningCertificatesService],
     },
+    // TODO_PRODUIT.md T2bis — the `DOCUMENT_WEBHOOK_EMITTER` token (`queue/document-webhooks.ts`)
+    // resolves to the SAME `WebhookDispatcherService` instance `buildActionRegistry` already injects
+    // directly below — `useExisting`, never a second instance. Declared here (not inside
+    // `WebhooksModule` itself) deliberately: `WebhooksModule` is a generic, document-agnostic module
+    // (it also backs `CLIENT_CREATED`/`COMPANY_CREATED`, etc.) and has no business knowing about a
+    // `documents/`-specific interface — this pairing belongs to the module that actually NEEDS the
+    // token, the same reasoning `sdi-notifiche.module.ts` repeats for its own (much smaller) graph.
+    { provide: DOCUMENT_WEBHOOK_EMITTER, useExisting: WebhookDispatcherService },
     ConformitySweepRunner,
     // Root TODO — declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/
     // `ConformitySweepRunner` just above — the registry (a provider registers itself under an id) and
@@ -572,9 +589,34 @@ function buildEntityReferenceRegistry(
     },
     {
       provide: ReportingRunner,
-      useFactory: (registry: DeclarationProviderRegistry, typeRegistry: DocumentTypeRegistry) =>
-        new ReportingRunner(registry, typeRegistry),
-      inject: [DeclarationProviderRegistry, DOCUMENT_TYPE_REGISTRY],
+      // TODO_PRODUIT.md T2bis — BUG FOUND WHILE WIRING `DOCUMENT_AUTHORITY_EVENT`: this factory
+      // manually calls `new ReportingRunner(...)`, which is PLAIN JavaScript construction, not Nest's
+      // own reflection-based DI — `@Optional()` constructor-param decorators on `ReportingRunner`
+      // itself (its own header claims "no factory change needed... resolves automatically") only ever
+      // take effect when NEST instantiates the class itself (a plain `providers: [ReportingRunner]`
+      // entry, exactly how `ConformitySweepRunner` right above IS registered). Concretely: T1's own
+      // `eventsPublisher` was NEVER actually threaded through here in production — every
+      // `reporting-runner.spec.ts` test passed because it constructs the class directly with an
+      // `events` mock, never through this factory, so the gap was invisible to jest. Fixed here by
+      // passing both existing-and-broken (`eventsPublisher`) and new (`webhookDispatcher`) explicitly.
+      useFactory: (
+        registry: DeclarationProviderRegistry,
+        typeRegistry: DocumentTypeRegistry,
+        eventsPublisher: DocumentEventsPublisher,
+        webhookDispatcher: DocumentWebhookEmitter,
+      ) => new ReportingRunner(registry, typeRegistry, eventsPublisher, webhookDispatcher),
+      // `DOCUMENT_WEBHOOK_EMITTER`, never the concrete `WebhookDispatcherService` class — see that
+      // token's own header (`queue/document-webhooks.ts`) for why `ReportingRunner`'s own constructor
+      // parameter is typed as the narrow interface: this factory still resolves the REAL instance
+      // (this module's own `{ provide: DOCUMENT_WEBHOOK_EMITTER, useExisting: WebhookDispatcherService }`
+      // provider, below) — only `ReportingRunner`'s OWN file (and every spec that imports it) is kept
+      // clear of the concrete class.
+      inject: [
+        DeclarationProviderRegistry,
+        DOCUMENT_TYPE_REGISTRY,
+        DocumentEventsPublisher,
+        DOCUMENT_WEBHOOK_EMITTER,
+      ],
     },
     { provide: DOCUMENT_TYPE_REGISTRY, useFactory: buildDocumentTypeRegistry },
     { provide: FIELD_KIND_REGISTRY, useFactory: buildFieldKindRegistry },
@@ -651,6 +693,18 @@ function buildEntityReferenceRegistry(
     COUNTRY_FIELD_OVERLAY_REGISTRY,
     VAT_RATE_CATALOG_REGISTRY,
     FORMAT_PROVIDER_REGISTRY,
+    // TODO_PRODUIT.md T2bis — `DOCUMENT_WEBHOOK_EMITTER` (the token, defined and provided just above,
+    // NEVER the concrete `WebhookDispatcherService` class itself — see that token's own header,
+    // `queue/document-webhooks.ts`, for why exporting the concrete class would poison every consumer
+    // under ts-jest) is exported so a DIRECT consumer of `DocumentsCoreModule` can inject it too:
+    // `DocumentActionProcessor` (`queue/processors/document-action.processor.ts`) needs it to
+    // dispatch `DOCUMENT_SEND_FAILED` from its own `onFailed` handler, and it is a provider of
+    // `DocumentsQueueWorkerModule`, which imports THIS module. Every OTHER `DOCUMENT_*` webhook
+    // emitter in this codebase (`ConformitySweepRunner`/`ReportingRunner`, both providers OF this
+    // very module) already resolved the token fine without needing it exported at all, because Nest
+    // resolves a PROVIDER's own constructor deps in the scope of the module that PROVIDES it, never
+    // the module that later imports/re-exports the provider itself.
+    DOCUMENT_WEBHOOK_EMITTER,
   ],
 })
 export class DocumentsCoreModule {}

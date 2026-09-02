@@ -759,13 +759,14 @@ describe('runAsyncSendAction', () => {
     });
   });
 
-  // TODO_PRODUIT.md T2 / PLAN-V2 R9 (the "sent" webhook — INVOICE_SENT/QUOTE_SENT). `webhook` is
-  // OPTIONAL (see `RunAsyncSendInput.webhook`'s own header) — every test ABOVE this block omits it and
-  // must keep passing unchanged; these are the DEDICATED tests for the dispatch itself: fire only once
-  // the fact is genuinely ACQUIRED in Postgres, never before, never on a failed delivery, and NEVER
-  // let a dispatch failure undo (or even surface past) an already-successful send.
-  describe('webhook — TODO_PRODUIT.md T2 / PLAN-V2 R9 (the "sent" webhook)', () => {
-    it('dispatches the configured event AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish, BEFORE archiving', async () => {
+  // TODO_PRODUIT.md T2bis (the generic "sent" webhook — DOCUMENT_SENT, replacing T2's own per-type
+  // INVOICE_SENT/QUOTE_SENT). `webhooks` is OPTIONAL (see `RunAsyncSendInput.webhooks`'s own header)
+  // — every test ABOVE this block omits it and must keep passing unchanged; these are the DEDICATED
+  // tests for the dispatch itself: fire only once the fact is genuinely ACQUIRED in Postgres, never
+  // before, never on a failed delivery, and NEVER let a dispatch failure undo (or even surface past)
+  // an already-successful send.
+  describe('webhooks — TODO_PRODUIT.md T2bis (the generic "sent" webhook)', () => {
+    it('dispatches DOCUMENT_SENT AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish, BEFORE archiving', async () => {
       const callOrder: string[] = [];
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
@@ -795,13 +796,10 @@ describe('runAsyncSendAction', () => {
           callOrder.push('publish');
         }),
       };
-      const webhook = {
-        emitter: {
-          dispatch: jest.fn().mockImplementation(async () => {
-            callOrder.push('webhook.dispatch');
-          }),
-        },
-        event: WebhookEvent.INVOICE_SENT,
+      const webhooks = {
+        dispatch: jest.fn().mockImplementation(async () => {
+          callOrder.push('webhooks.dispatch');
+        }),
       };
       const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
       const queueDispatcher = { enqueueAction: jest.fn() };
@@ -812,26 +810,24 @@ describe('runAsyncSendAction', () => {
         queueDispatcher,
         deliver,
         events,
-        webhook,
+        webhooks,
       });
 
       expect(callOrder).toEqual([
         'updateDocumentStatus',
         'publish',
-        'webhook.dispatch',
+        'webhooks.dispatch',
         'archiveDeliveredArtifactsIfAny',
       ]);
-      expect(webhook.emitter.dispatch).toHaveBeenCalledTimes(1);
-      // Generic by construction: the key is `typeId` itself (`invoice`), never a hardcoded branch —
-      // `event-formatters.ts`'s own INVOICE_SENT formatter reads exactly this shape
-      // (`p.invoice?.number`, falling back to `p.invoiceId`).
-      expect(webhook.emitter.dispatch).toHaveBeenCalledWith(WebhookEvent.INVOICE_SENT, {
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+      // Generic by construction: `document` is a FIXED key (never `{ invoice: sent }`) — T2bis's own
+      // contract, decided so a receiver never needs a per-type branch to find the row.
+      expect(webhooks.dispatch).toHaveBeenCalledWith(WebhookEvent.DOCUMENT_SENT, {
         documentId: 'doc-1',
         typeId: 'invoice',
         companyId: 'company-1',
-        invoice: expect.objectContaining({ id: 'doc-1', status: 'sent', number: 7 }),
-        invoiceId: 'doc-1',
-        sentAt: expect.any(String),
+        occurredAt: expect.any(String),
+        document: expect.objectContaining({ id: 'doc-1', status: 'sent', number: 7 }),
       });
     });
 
@@ -845,14 +841,14 @@ describe('runAsyncSendAction', () => {
         updatedAt: new Date(),
       });
       const queueDispatcher = { enqueueAction: jest.fn() };
-      const webhook = { emitter: { dispatch: jest.fn() }, event: WebhookEvent.INVOICE_SENT };
+      const webhooks = { dispatch: jest.fn() };
       const deliver = jest.fn().mockRejectedValue(new Error('SMTP connection refused'));
 
       await expect(
-        runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver, webhook }),
+        runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver, webhooks }),
       ).rejects.toThrow('SMTP connection refused');
 
-      expect(webhook.emitter.dispatch).not.toHaveBeenCalled();
+      expect(webhooks.dispatch).not.toHaveBeenCalled();
     });
 
     it('never dispatches at phase 1 (enqueue) — only "sent" (phase 2) fires it', async () => {
@@ -873,21 +869,21 @@ describe('runAsyncSendAction', () => {
         updatedAt: new Date(),
       });
       const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
-      const webhook = { emitter: { dispatch: jest.fn() }, event: WebhookEvent.INVOICE_SENT };
+      const webhooks = { dispatch: jest.fn() };
 
       await runAsyncSendAction({
         ...baseInput,
         typeId: 'invoice',
         queueDispatcher,
         deliver: jest.fn(),
-        webhook,
+        webhooks,
       });
 
-      expect(webhook.emitter.dispatch).not.toHaveBeenCalled();
+      expect(webhooks.dispatch).not.toHaveBeenCalled();
     });
 
     // THE MUTATION TARGET this task's own brief names: a webhook ENDPOINT being down must never look
-    // like the send itself failed — `WebhookDispatcherService.dispatch` (the production `emitter`)
+    // like the send itself failed — `WebhookDispatcherService.dispatch` (the production `webhooks`)
     // logs then RETHROWS (see that file's own header) exactly like every one of its EXISTING callers
     // (`company.service.ts`, `clients.service.ts`) expects to catch; this proves `runAsyncSendAction`
     // is that catcher for ITS OWN call, never letting the rejection reach BullMQ (which would
@@ -907,10 +903,7 @@ describe('runAsyncSendAction', () => {
         status: 'sent',
       });
       const queueDispatcher = { enqueueAction: jest.fn() };
-      const webhook = {
-        emitter: { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) },
-        event: WebhookEvent.INVOICE_SENT,
-      };
+      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
       const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
 
       const result = await runAsyncSendAction({
@@ -918,7 +911,7 @@ describe('runAsyncSendAction', () => {
         typeId: 'invoice',
         queueDispatcher,
         deliver,
-        webhook,
+        webhooks,
       });
 
       expect(result).toEqual({
@@ -926,7 +919,7 @@ describe('runAsyncSendAction', () => {
         changed: true,
         message: 'Sent.',
       });
-      expect(webhook.emitter.dispatch).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
     });
 
     it('never touches the webhook emitter at all when absent — every pre-existing caller keeps working unchanged', async () => {
@@ -942,7 +935,7 @@ describe('runAsyncSendAction', () => {
       const queueDispatcher = { enqueueAction: jest.fn() };
       const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
 
-      // No `webhook` field at all — this must not throw (optional chaining, never a hard dependency).
+      // No `webhooks` field at all — this must not throw (optional chaining, never a hard dependency).
       await expect(runAsyncSendAction({ ...baseInput, queueDispatcher, deliver })).resolves.toEqual(
         expect.objectContaining({ document: expect.objectContaining({ status: 'sent' }) }),
       );
