@@ -22,6 +22,7 @@ import { registerReceivedInvoiceActions } from './actions/received-invoice-actio
 import { B2gRoutingBootUpsertService } from './b2g-routing/boot-upsert.service';
 import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
+import { buildAnafStatusPoller } from './conformity/pollers/anaf-status-poller';
 import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
@@ -51,6 +52,7 @@ import { buildArticleReferenceProvider } from './references/article-reference.pr
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import { buildAnafTransport } from './transports/anaf-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
@@ -187,6 +189,15 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * own thesis: "a rule may legitimately name a channel not implemented yet" — see this file's own
  * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
  * same "stateless, no reason to couple two registries" argument.
+ *
+ * "anaf" (`transports/anaf-transport.ts`) is the SEVENTH — Romania's e-Factura, the wave `channel-
+ * policy/data/ro.json` names (a REAL, sourced B2B mandate, see that file's own citation). Its own
+ * payload is `ublFormatProvider` — the SAME stateless plain object `buildFormatProviderRegistry`
+ * already registers under "ubl" for `download-xml` (a second reference, not a second instance, the
+ * identical reasoning "peppol"'s own `peppolBisFormatProvider` reference already holds above) — see
+ * that transport's own header, "THE PAYLOAD, HONESTLY", for what the base EN 16931 Schematron gate
+ * does NOT additionally cover (Romania's own CIUS-RO extension, not vendored anywhere in this
+ * checkout).
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -235,6 +246,14 @@ function buildTransportRegistry(
       facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
     }),
   );
+  // "anaf" (Romania, e-Factura) — the seventh transport. Own reference to the SAME stateless
+  // `ublFormatProvider` plain object `buildFormatProviderRegistry` already registers — see this
+  // function's own header.
+  registry.register(
+    'anaf',
+    'ANAF e-Factura (Romania)',
+    buildAnafTransport({ channelCredentials, ublFormatProvider }),
+  );
   return registry;
 }
 
@@ -242,8 +261,9 @@ function buildTransportRegistry(
  * Root TODO item 10's own named remainder — post-deposit conformity tracking (`conformity/`). Same
  * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
  * registry's own read-side twin: "pdp", "ksef", "peppol" (generic AP `getStatus()` —
- * `conformity/pollers/peppol-status-poller.ts`), and "chorus-pro" (`consulterCr` —
- * `conformity/pollers/chorus-pro-status-poller.ts`) all register a poller; "sdi" does not (push-only
+ * `conformity/pollers/peppol-status-poller.ts`), "chorus-pro" (`consulterCr` —
+ * `conformity/pollers/chorus-pro-status-poller.ts`), and "anaf" (`stareMesaj` —
+ * `conformity/pollers/anaf-status-poller.ts`) all register a poller; "sdi" does not (push-only
  * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
  * permanent, not a gap to fill later).
  */
@@ -258,6 +278,10 @@ function buildAuthorityStatusPollerRegistry(
   // carried (`chorus-pro/choruspro-client.ts`) — see `conformity/pollers/chorus-pro-status-poller.ts`'s
   // own header for what is, and is not, live-verified.
   registry.register(buildChorusProStatusPoller({ channelCredentials }));
+  // "anaf" — `stareMesaj`, the repère's own status-consultation endpoint
+  // (`anaf/anaf-client.ts`) — see `conformity/pollers/anaf-status-poller.ts`'s own header for what is,
+  // and is not, live-verified.
+  registry.register(buildAnafStatusPoller({ channelCredentials }));
   return registry;
 }
 

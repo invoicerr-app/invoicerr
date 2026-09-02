@@ -54,6 +54,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   sdi: "SdI",
   peppol: "Peppol",
   "chorus-pro": "Chorus Pro",
+  anaf: "ANAF e-Factura",
 }
 
 /**
@@ -217,6 +218,42 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       key: "technicalAccountPassword",
       labelKey: "settings.channels.fields.chorusProTechnicalAccountPassword",
       labelDefault: "Chorus Pro technical account password",
+      type: "password",
+    },
+  ],
+  // ANAF e-Factura (RO) — Romania's national clearance channel (`channel-policy/data/ro.json`'s own
+  // sourced B2B mandate). Exactly the four fields `anaf-transport.ts#extractAnafCredentials` reads.
+  // `refreshToken`/`clientId`/`clientSecret` are the ONLY credential a company can actually paste here
+  // — the ANAF OAuth flow itself needs a qualified Romanian certificate presented interactively in a
+  // browser (see `anaf/anaf-client.ts`'s own header and CREDENTIALS_GUIDE.md §5), never something this
+  // screen could drive itself; a company obtains the refresh token once, elsewhere, then connects it
+  // here. The environment selector below (generic, already rendered for every provider) picks
+  // sandbox vs prod — `anaf-transport.ts`'s own `ANAF_URLS` targets the real, independently verified
+  // ANAF host for either.
+  anaf: [
+    {
+      key: "cif",
+      labelKey: "settings.channels.fields.anafCif",
+      labelDefault: 'CUI/CIF (Romanian tax ID, digits only — no "RO" prefix)',
+      type: "text",
+      placeholder: "12345678",
+    },
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.anafClientId",
+      labelDefault: "OAuth2 client ID (ANAF SPV application)",
+      type: "text",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.anafClientSecret",
+      labelDefault: "OAuth2 client secret",
+      type: "password",
+    },
+    {
+      key: "refreshToken",
+      labelKey: "settings.channels.fields.anafRefreshToken",
+      labelDefault: "Refresh token (obtained once via the qualified-certificate flow)",
       type: "password",
     },
   ],

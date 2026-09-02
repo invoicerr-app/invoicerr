@@ -2210,6 +2210,10 @@
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
       "emptyState": "No national channel available yet",
       "fields": {
+        "anafCif": "CUI/CIF (Romanian tax ID, digits only — no \"RO\" prefix)",
+        "anafClientId": "OAuth2 client ID (ANAF SPV application)",
+        "anafClientSecret": "OAuth2 client secret",
+        "anafRefreshToken": "Refresh token (obtained once via the qualified-certificate flow)",
         "baseUrl": "API base URL",
         "chorusProClientId": "PISTE client ID",
         "chorusProClientSecret": "PISTE client secret",

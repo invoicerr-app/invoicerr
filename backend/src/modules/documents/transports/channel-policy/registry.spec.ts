@@ -54,6 +54,21 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ]);
   });
 
+  // Root TODO item 10, ANAF/RO wave — the EU mandate wave RO opens: unlike BE's own conditional
+  // ("tenzij") mandate above, the primary source actually read here (a Council Implementing Decision,
+  // not a phased/conditional national scheme) authorizes an UNCONDITIONAL domestic-B2B rule, the same
+  // shape FR's own mandate already has — see `data/ro.json`'s own citation and note.
+  it('RO mandates the "anaf" provider from 2024-01-01 — a fact read from data/ro.json, not a branch in code', () => {
+    expect(defaultChannelPolicyCatalog.factsFor('RO')).toEqual([
+      expect.objectContaining({
+        providerId: 'anaf',
+        requirement: 'mandated',
+        mandatedFrom: '2024-01-01',
+        provenance: expect.objectContaining({ kind: 'legal', sourceCheckedAt: '2026-09-02' }),
+      }),
+    ]);
+  });
+
   it('lower-cased or absent country codes never crash — no fact, not a throw', () => {
     expect(defaultChannelPolicyCatalog.factsFor('fr')).toEqual(defaultChannelPolicyCatalog.factsFor('FR'));
     expect(defaultChannelPolicyCatalog.factsFor('')).toEqual([]);

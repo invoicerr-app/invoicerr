@@ -1,0 +1,16 @@
+{
+  "countryCode": "RO",
+  "facts": [
+    {
+      "providerId": "anaf",
+      "requirement": "mandated",
+      "mandatedFrom": "2024-01-01",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Council Implementing Decision (EU) 2023/1553 of 25 July 2023, authorising Romania to introduce a special measure derogating from Articles 218 and 232 of Directive 2006/112/EC on the common system of value added tax (OJ L 188, 27.7.2023, p. 48) — Article 1: Romania is authorised to 'only accept invoices which have been issued by taxable persons established in the territory of Romania in the form of documents or messages in electronic format'; Article 2 dispenses with the recipient's own acceptance of that electronic invoice. Applies to B2B transactions between taxable persons established in Romania, from 1 January 2024 until 31 December 2026 (or earlier, if the EU's own harmonized e-invoicing rules — the VAT in the Digital Age package — are adopted first). (eur-lex.europa.eu, CELEX:32023D1553, consulted 2026-09-02)",
+        "sourceCheckedAt": "2026-09-02"
+      },
+      "notes": "Cette entrée cite l'acte EU qui AUTORISE la Roumanie à imposer la facture électronique B2B (la dérogation aux art. 218/232 de la directive TVA 2006/112/CE) — ce texte dit noir sur blanc ce que la Roumanie a le droit d'exiger (accepter UNIQUEMENT des factures électroniques entre assujettis roumains, sans consentement du destinataire), avec une date d'entrée en vigueur explicite (1er janvier 2024). C'est une source primaire authentique, directement sur le sujet, lue via WebFetch le 2026-09-02 (eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023D1553) — jamais une supposition. La loi ROUMAINE elle-même qui met en oeuvre cette dérogation (Legea nr. 296/2023, qui modifie l'OUG nr. 120/2021 sur le RO e-Factura) n'a PAS pu être lue directement cette session : legislatie.just.ro a systématiquement refusé la connexion TLS depuis cet environnement (RST immédiat sur HTTPS, testé plusieurs fois avec curl et WebFetch) — un blocage réseau propre à cet environnement, pas une absence de la loi elle-même, qui reste largement documentée par ailleurs (portail ANAF, mfinante.gov.ro) sans que son TEXTE ait pu être ouvert et cité mot pour mot ici. Portée : comme pour fr.json (voir channel-policy/schema.ts's own header, \"scope... deliberately UNUSED\"), ce mécanisme applique le mandat à TOUTE facture émise par une société roumaine dès que la date est atteinte, alors que la dérogation elle-même ne couvre que les transactions B2B entre assujettis établis en Roumanie — la même simplification déjà documentée pour la France, non nouvelle à ce fichier."
+    }
+  ]
+}

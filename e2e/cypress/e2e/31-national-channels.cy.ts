@@ -41,6 +41,16 @@
  * transport LIBRE de la société pour un client BUSINESS ordinaire, jamais via le routage B2G (voir
  * `40-b2g-routing.cy.ts` pour LE chemin B2G FR lui-même, avec un client GOVERNMENT).
  *
+ * Vague 4 (ANAF/RO, e-Factura) — même motif que KSeF/Chorus Pro (hôte OAuth ANAF FIXE par
+ * environnement, `anaf-transport.ts`'s own `ANAF_TOKEN_URL`, jamais un champ de configuration) : des
+ * identifiants fictifs sont envoyés au VRAI `logincert.anaf.ro`, qui les rejette réellement (`HTTP 400
+ * invalid_client`) — vérifié à la main avant d'écrire ce test (`curl` direct, ~250ms, jamais un blocage
+ * réseau — voir `anaf/anaf-client.ts`'s own header pour la même vérification, faite le même jour).
+ * Différence propre à cette vague : `channel-policy/data/ro.json` déclare ce canal "mandated" (mandat
+ * B2B roumain réel, sourcé — Council Implementing Decision (EU) 2023/1553), pas seulement "suggested"
+ * comme KSeF/SdI/Peppol — le test RO vérifie donc EN PLUS le badge "Mandatory from…", jamais testé pour
+ * les vagues précédentes.
+ *
  * L'ACTION passe par un vrai clic sur l'écran (connecter, choisir le transport, envoyer,
  * déconnecter) ; les ASSERTIONS qui comptent relisent l'enregistrement via l'API — même discipline
  * que 28 (l'envoi asynchrone) et le reste de cette suite.
@@ -103,6 +113,22 @@ const FAKE_CHORUS_PRO = {
 	clientSecret: "e2e-fake-piste-client-secret",
 	technicalAccountLogin: "TECH_1_e2e-fake@cpro.fr",
 	technicalAccountPassword: "e2e-fake-tech-password",
+};
+
+/** ANAF e-Factura (RO) — see this file's own header, "Vague 4": the SAME assumed difference as KSeF/
+ *  Chorus Pro above — ANAF's own OAuth host is FIXED by environment (`anaf-transport.ts`'s own
+ *  `ANAF_TOKEN_URL`), never a user-editable field, so the garbage client id/secret/refresh token below
+ *  are sent to the REAL public `logincert.anaf.ro`, which rejects them for real (`HTTP 400
+ *  invalid_client`) — verified by hand before writing this test (`curl` direct: `HTTP 400
+ *  {"error":"invalid_client","error_description":"Invalid client_id …"}` in ~250ms, never a network
+ *  block — see `anaf/anaf-client.ts`'s own header for the same verification, done the same day). `cif`'s
+ *  own content is irrelevant (never reached — the OAuth exchange fails first); only its PRESENCE
+ *  matters, exactly like `FAKE_SDI`'s own certificate fields above. */
+const FAKE_ANAF = {
+	cif: "12345678",
+	clientId: "e2e-fake-anaf-client-id",
+	clientSecret: "e2e-fake-anaf-client-secret",
+	refreshToken: "e2e-fake-anaf-refresh-token",
 };
 
 /** Bascule le pays de la société seedée — voir ce fichier's own header, point 1, pour pourquoi ce
@@ -958,5 +984,194 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 			"contain.text",
 			"Not connected",
 		);
+	});
+
+	// ── Vague 4 : ANAF e-Factura (Roumanie) — même motif que KSeF/Chorus Pro (voir FAKE_ANAF's own
+	// header) : hôte OAuth ANAF FIXE, jamais un champ de configuration → identifiants fictifs envoyés au
+	// VRAI `logincert.anaf.ro`, qui les rejette réellement. Différence propre à cette vague : la donnée
+	// pays (`channel-policy/data/ro.json`) est cette fois "mandated" (mandat B2B roumain réel, sourcé —
+	// voir ce fichier's own header, "⚖"), donc le badge "Mandatory from…" est vérifié en plus du badge
+	// "Suggested", jamais testé pour KSeF/SdI/Peppol ci-dessus (dont les données pays restent
+	// "suggested") ──
+
+	it("une société ROUMAINE voit la suggestion ET le mandat ANAF sur l'écran des canaux — la donnée vient de data/ro.json, jamais d'un `if`", () => {
+		setCompanyCountry("Romania", "RO");
+		cy.visit("/settings/channels");
+
+		cy.get('[data-cy="channel-anaf"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-anaf-suggested"]').should("exist");
+		// Root TODO item 11 — data/ro.json déclare ce canal "mandated" (mandat B2B réel, sourcé), pas
+		// seulement "suggested" — voir ce fichier's own header et data/ro.json's own citation.
+		cy.get('[data-cy="channel-anaf-mandated"]').should("contain.text", "2024-01-01");
+		// PDP n'est plus suggéré à une société roumaine — la suggestion suit le pays, jamais un canal
+		// par défaut figé.
+		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
+
+		// Remise en France pour la suite de cette spec — voir ce fichier's own header, point 1.
+		setCompanyCountry("France", "FR");
+	});
+
+	it('connecte le canal ANAF par l\'écran avec des identifiants fictifs — statut "Connected"', () => {
+		cy.visit("/settings/channels");
+
+		cy.get('[data-cy="channel-anaf"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-anaf-status"]').should("contain.text", "Not connected");
+
+		cy.get('[data-cy="channel-anaf-cif-input"]').clear().type(FAKE_ANAF.cif);
+		cy.get('[data-cy="channel-anaf-clientid-input"]')
+			.clear()
+			.type(FAKE_ANAF.clientId);
+		cy.get('[data-cy="channel-anaf-clientsecret-input"]')
+			.clear()
+			.type(FAKE_ANAF.clientSecret);
+		cy.get('[data-cy="channel-anaf-refreshtoken-input"]')
+			.clear()
+			.type(FAKE_ANAF.refreshToken);
+		// Environnement laissé sur "Test (sandbox)" — c'est justement ce qui pointe vers le VRAI
+		// logincert.anaf.ro (voir ce fichier's own header, Vague 4).
+		cy.get('[data-cy="channel-anaf-connect-button"]').click();
+
+		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+			"contain.text",
+			"Channel connected",
+		);
+		cy.get('[data-cy="channel-anaf-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
+
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then(
+				(body: {
+					configured: {
+						providerId: string;
+						isActive: boolean;
+						environment: string;
+					}[];
+				}) => {
+					const anaf = body.configured.find((c) => c.providerId === "anaf");
+					expect(anaf, "le canal anaf est bien en base, actif").to.include({
+						isActive: true,
+						environment: "TEST",
+					});
+				},
+			);
+	});
+
+	it("choisit anaf comme transport de facturation, sur l'écran des réglages société", () => {
+		cy.visit("/settings/company");
+		cy.get('[data-cy="company-invoice-transport-select"]', {
+			timeout: 15000,
+		}).click();
+		cy.get('[data-cy="company-invoice-transport-options"]', {
+			timeout: 10000,
+		}).should("be.visible");
+		cy.get('[data-cy="company-invoice-transport-option-anaf"]').click();
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait(2000);
+
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body")
+			.then((company: { invoiceTransportId: string }) => {
+				expect(
+					company.invoiceTransportId,
+					"le transport choisi est bien enregistré",
+				).to.eq("anaf");
+			});
+	});
+
+	it('envoie une facture via ANAF → la file échoue réellement (identifiants fictifs rejetés par le vrai logincert.anaf.ro) et "send_failed" nomme le canal', () => {
+		createInvoiceDraft().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+				.find('[data-cy="document-status-badge"]')
+				.should("contain.text", "Draft");
+
+			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+				timeout: 15000,
+			}).click();
+
+			// Même budget que les tests PDP/KSeF/SdI/Peppol/Chorus Pro ci-dessus — voir leur commentaire.
+			// Le rejet OAuth réel d'ANAF est en pratique quasi immédiat (probé à la main : ~250ms), donc
+			// ce budget est large, pas juste suffisant.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+				.should("contain.text", "Send failed");
+
+			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
+				"contain.text",
+				"ANAF",
+			);
+
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'la facture est réellement "send_failed" en base',
+					).to.eq("send_failed");
+					expect(
+						doc.lastActionError,
+						"l'erreur enregistrée nomme le canal ANAF",
+					).to.match(/ANAF/);
+					// Jamais un succès à référence vide : voir la mutation #1 du sujet.
+					expect(
+						doc.transportRef,
+						"aucun index_incarcare sans upload accepté",
+					).to.not.be.a("string");
+				});
+		});
+	});
+
+	it("déconnecte le canal ANAF par l'écran → un nouvel envoi bloque au PREFLIGHT, en le disant", () => {
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-anaf-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
+		cy.get('[data-cy="channel-anaf-disconnect-button"]').click();
+
+		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+			"contain.text",
+			"Channel disconnected",
+		);
+		cy.get('[data-cy="channel-anaf-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
+
+		cy.request({ url: `${api}/api/company/channels` })
+			.its("body")
+			.then((body: { configured: { providerId: string }[] }) => {
+				expect(
+					body.configured.find((c) => c.providerId === "anaf"),
+					"plus aucune ligne anaf en base — un disconnect complet, pas juste isActive:false",
+				).to.be.undefined;
+			});
+
+		createInvoiceDraft().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+				timeout: 15000,
+			}).click();
+
+			// Le PREFLIGHT bloque AVANT toute persistance — même le passage à "sending" n'a jamais lieu
+			// (voir async-send.ts / anaf-transport.ts's own header) : un toast visible le dit tout de
+			// suite, pas d'attente de file.
+			cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+				"contain.text",
+				"ANAF channel is not connected",
+			);
+
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'jamais persisté au-delà de "draft" — bloqué avant toute écriture',
+					).to.eq("draft");
+				});
+		});
 	});
 });

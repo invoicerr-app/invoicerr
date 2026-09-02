@@ -232,7 +232,7 @@ export default function CompanySettings() {
       const colonIdx = peppolRaw.indexOf(":")
       const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : "0088"
       const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : ""
-      form.reset({
+      const nextValues = {
         ...data,
         countryCode: data.countryCode ?? undefined,
         description: data.description ?? "",
@@ -251,7 +251,27 @@ export default function CompanySettings() {
           })),
         peppolSchemeId: parsedPeppolSchemeId,
         peppolEndpointId: parsedPeppolEndpointId,
-      })
+      }
+
+      // This snapshot can resolve AFTER the user has already touched the form — `/api/company/info`
+      // (this effect's own trigger) and a field's OWN options (e.g. invoiceTransportId's
+      // useDocumentTransports list) are two independent fetches, and nothing orders them: under load
+      // the snapshot can easily lose the race to a user who opened a <Select> the instant its own
+      // list became ready and picked an option. A blind `form.reset` here would then silently throw
+      // away that pick and replace it with what THIS snapshot still says. Any field react-hook-form
+      // already tracks as dirty is one the user acted on first, so it keeps its live value — for
+      // every field this form has, not only invoiceTransportId (see e8b30e10 for the sibling bug
+      // this generalizes: a spurious onValueChange("") from that same select's async list).
+      const dirtyFields = form.formState.dirtyFields as Partial<Record<keyof typeof nextValues, unknown>>
+      const currentValues = form.getValues() as Record<string, unknown>
+      const merged: Record<string, unknown> = { ...nextValues }
+      for (const key of Object.keys(dirtyFields)) {
+        if (dirtyFields[key as keyof typeof nextValues]) {
+          merged[key] = currentValues[key]
+        }
+      }
+
+      form.reset(merged as typeof nextValues)
     }
   }, [data, form])
 
