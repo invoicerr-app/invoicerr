@@ -269,6 +269,40 @@ describe('ChannelCredentialsService', () => {
     });
   });
 
+  // Root TODO ("déclaration") — a NEW, categorically different concept from `suggestedChannels`
+  // above: never a transport hint, always "declare this invoice's data to this authority". Reads
+  // `documents/reporting/data/*.json`, the real, shipped files, not a fixture.
+  describe('reportingObligations() — reads the country file, never a hard-coded country check', () => {
+    it("a Hungarian company's reporting obligation is nav, with legal provenance", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Hungary', countryCode: 'HU' });
+      const facts = await service.reportingObligations('company-1');
+      expect(facts).toEqual([
+        expect.objectContaining({
+          providerId: 'nav',
+          appliesTo: 'invoice',
+          provenance: expect.objectContaining({ kind: 'legal' }),
+        }),
+      ]);
+    });
+
+    it("a Greek company's reporting obligation is mydata, honestly unverified", async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Greece', countryCode: 'GR' });
+      const facts = await service.reportingObligations('company-1');
+      expect(facts).toEqual([
+        expect.objectContaining({
+          providerId: 'mydata',
+          appliesTo: 'invoice',
+          provenance: expect.objectContaining({ kind: 'unverified' }),
+        }),
+      ]);
+    });
+
+    it('a French company has no reporting obligation at all — not a guess', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      await expect(service.reportingObligations('company-1')).resolves.toEqual([]);
+    });
+  });
+
   describe('deleteChannelConfig() — disconnect', () => {
     it('reports deleted:true when a row actually existed', async () => {
       mockedPrisma.companyChannelConfig.deleteMany.mockResolvedValue({ count: 1 });

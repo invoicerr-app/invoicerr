@@ -22,6 +22,7 @@ import {
   ConformityPollJobData,
   readConformitySweepIntervalMs,
 } from '../conformity/conformity-sweep';
+import { buildReportJobId, DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../reporting/report-job';
 import {
   readSweepIntervalMs,
   SCHEDULE_OCCURRENCE_JOB_NAME,
@@ -192,6 +193,53 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       removeOnFail: { count: 50 },
     });
     this.logger.log(`Conformity poll ${jobId} enqueued (document="${data.documentId}").`);
+    return true;
+  }
+
+  /**
+   * Enqueues ONE declarative-report job under its deterministic `report-<providerId>-<documentId>`
+   * id (`reporting/report-job.ts#buildReportJobId`) — implements the OPTIONAL `enqueueReport` on
+   * `DocumentActionQueueDispatcher` (queue.constants.ts), which is why `reporting/report-on-send.ts`
+   * can depend on that narrow interface alone rather than this concrete class.
+   *
+   * A job already existing under this id is skipped UNCONDITIONALLY, whatever its state — the SAME
+   * discipline `enqueueScheduleOccurrence`/`enqueueConformityPoll` above already hold, for the
+   * identical reason: `report-<providerId>-<documentId>` names ONE declaration, ever, for this
+   * document — re-enqueuing it (a duplicate trigger, a retried "sent" write that never actually
+   * doubles up in practice) must never risk a SECOND real submission to a tax authority, unlike an
+   * ordinary "send" action job (`enqueueAction`, above), whose retry-by-resend is a deliberate,
+   * user-visible feature. Genuine retries of a FAILED declaration attempt already happen at the
+   * BullMQ `attempts`/backoff level, inside this SAME job — see `reporting-runner.ts`'s own header.
+   *
+   * `removeOnComplete: { count: 50 }`, deliberately NOT `true` — found the hard way
+   * (`queue/__tests__/document-report-queue.redis.spec.ts`'s own dedup test): a completed report job
+   * this fast (a stubbed HTTP round trip finishes in milliseconds) can complete and be REMOVED by
+   * BullMQ before a near-simultaneous second `enqueueReport` call ever runs its own `getJob` check,
+   * which would otherwise see "nothing exists" and add a genuine SECOND job — a real duplicate
+   * declaration to a tax authority. Keeping a capped history of completed report jobs (the same
+   * `{ count: 50 }` shape `removeOnFail` already uses) is what makes the "skip unconditionally"
+   * guarantee this method's own header describes actually hold once a job has finished, not only
+   * while it is still in flight.
+   */
+  async enqueueReport(data: ReportJobData): Promise<boolean> {
+    const jobId = buildReportJobId(data.providerId, data.documentId);
+    const existing = await this.queue.getJob(jobId);
+    if (existing) {
+      this.logger.log(`Report ${jobId} already dispatched — not enqueuing a duplicate.`);
+      return false;
+    }
+
+    const attempts = parseInt(process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS ?? '3', 10);
+    await this.queue.add(DOCUMENT_REPORT_JOB_NAME, data as unknown as DocumentActionJobData, {
+      jobId,
+      attempts,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: { count: 50 },
+      removeOnFail: { count: 50 },
+    });
+    this.logger.log(
+      `Report ${jobId} enqueued (provider="${data.providerId}", document="${data.documentId}").`,
+    );
     return true;
   }
 }

@@ -2229,6 +2229,15 @@
         "faceNotificationEmail": "Notification email (correo)",
         "ksefNip": "NIP",
         "ksefToken": "KSeF token",
+        "mydataBaseUrl": "API base URL (override — leave blank for AADE's own host)",
+        "mydataSubscriptionKey": "Subscription key (Ocp-Apim-Subscription-Key)",
+        "mydataUserId": "AADE user ID (aade-user-id)",
+        "navBaseUrl": "API base URL (override — leave blank for NAV's own host)",
+        "navExchangeKey": "Exchange key (replacement key)",
+        "navLogin": "Technical user login",
+        "navPassword": "Technical user password",
+        "navSigningKey": "Signing key",
+        "navTaxNumber": "Tax number (first 8 digits)",
         "peppolAccessPointUrl": "Access Point URL",
         "peppolApiKey": "API key",
         "peppolParticipantId": "Peppol participant ID (yours)",
@@ -2258,6 +2267,7 @@
       },
       "status": {
         "connected": "Connected ({{environment}})",
+        "declarative": "Declaration (not a delivery channel)",
         "mandated": "Mandatory from {{date}}",
         "notConnected": "Not connected",
         "suggested": "Suggested for your country"
@@ -3505,7 +3515,8 @@
         "accepted": "Validated by the platform",
         "rejected": "Rejected",
         "pending": "Awaiting verdict",
-        "gaveUp": "Abandoned"
+        "gaveUp": "Abandoned",
+        "declarationIssue": "Declaration issue"
       },
       "timeline": {
         "reason": "Reason: {{reason}}"

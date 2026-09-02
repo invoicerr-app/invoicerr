@@ -44,6 +44,7 @@ import { ArchivedArtifactInput } from '../archive/hashing';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
+import { reportOnSendIfObligated } from '../reporting/report-on-send';
 
 export interface AsyncSendDeliverContext {
   companyId: string;
@@ -157,6 +158,13 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // already happened (the email already left, the deposit was already accepted); it is instead
     // recorded on the document itself (`lastArchiveError`) and logged loudly, never silently.
     await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts });
+
+    // A NEW concept (root TODO — "déclaration"), never a transport: Hungary/NAV and Greece/myDATA
+    // require the SELLER to declare the invoice's data to its tax authority AFTER issuance,
+    // regardless of the channel that just delivered it — see `reporting/report-on-send.ts`'s own
+    // header. Runs generically, for every type/transport, exactly like the archive call just above;
+    // NEVER throws, and enqueues nothing for a seller whose country has no such obligation.
+    await reportOnSendIfObligated({ companyId, typeId, documentId, queueDispatcher });
 
     return { document: sent, changed: true, message };
   }

@@ -29,6 +29,10 @@ import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
 import { buildPeppolStatusPoller } from './conformity/pollers/peppol-status-poller';
 import { ContributionRegistry } from './contributions/contribution-registry';
+import { DeclarationProviderRegistry } from './reporting/declaration-provider';
+import { buildNavDeclarationProvider } from './reporting/providers/nav-declaration-provider';
+import { buildMyDataDeclarationProvider } from './reporting/providers/mydata-declaration-provider';
+import { ReportingRunner } from './reporting/reporting-runner';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
 import { registerInvoiceContributions } from './contributions/invoice-contributions';
@@ -316,6 +320,24 @@ function buildAuthorityStatusPollerRegistry(
 }
 
 /**
+ * Root TODO — declarative reporting (`reporting/`): a NEW concept, never a transport (see
+ * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
+ * as `buildAuthorityStatusPollerRegistry` just above — "nav" (Hungary, NAV Online Számla 3.0) and
+ * "mydata" (Greece, AADE myDATA) are the two shipped providers, both gated by the exact same
+ * `ChannelCredentialsService` every transport/poller already shares (credentials are generic,
+ * per-`providerId`, reusable for a declarative channel with zero changes — see
+ * `modules/company/channels/channels.service.ts`'s own header).
+ */
+function buildDeclarationProviderRegistry(
+  channelCredentials: ChannelCredentialsService,
+): DeclarationProviderRegistry {
+  const registry = new DeclarationProviderRegistry();
+  registry.register(buildNavDeclarationProvider({ channelCredentials }));
+  registry.register(buildMyDataDeclarationProvider({ channelCredentials }));
+  return registry;
+}
+
+/**
  * `queueDispatcher` (DocumentQueueDispatcher, queue/document-queue.dispatcher.ts) is what turns
  * "send" asynchronous for every type that has one (TODO.md item 22) — see actions/async-send.ts for
  * the shared two-phase engine every one of these registrations now goes through. Injecting the
@@ -445,6 +467,22 @@ function buildEntityReferenceRegistry(
       inject: [ChannelCredentialsService],
     },
     ConformitySweepRunner,
+    // Root TODO — declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/
+    // `ConformitySweepRunner` just above — the registry (a provider registers itself under an id) and
+    // the runtime half the queue's own processor calls (`queue/processors/document-action.processor.ts`).
+    // `ReportingRunner` additionally needs `DOCUMENT_TYPE_REGISTRY` (to rebuild a `DeclaredInvoice` from
+    // the document's own descriptor — see `reporting/reporting-runner.ts`'s own header).
+    {
+      provide: DeclarationProviderRegistry,
+      useFactory: buildDeclarationProviderRegistry,
+      inject: [ChannelCredentialsService],
+    },
+    {
+      provide: ReportingRunner,
+      useFactory: (registry: DeclarationProviderRegistry, typeRegistry: DocumentTypeRegistry) =>
+        new ReportingRunner(registry, typeRegistry),
+      inject: [DeclarationProviderRegistry, DOCUMENT_TYPE_REGISTRY],
+    },
     { provide: DOCUMENT_TYPE_REGISTRY, useFactory: buildDocumentTypeRegistry },
     { provide: FIELD_KIND_REGISTRY, useFactory: buildFieldKindRegistry },
     {
@@ -506,6 +544,8 @@ function buildEntityReferenceRegistry(
     ShareLinksService,
     AuthorityStatusPollerRegistry,
     ConformitySweepRunner,
+    DeclarationProviderRegistry,
+    ReportingRunner,
     DOCUMENT_TYPE_REGISTRY,
     FIELD_KIND_REGISTRY,
     TRANSPORT_REGISTRY,

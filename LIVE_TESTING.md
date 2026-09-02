@@ -31,6 +31,8 @@ Hard-success contract (enforced per-spec):
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | ApplySignalService atomic transitions | `COMPLIANCE_LIVE_DB_TESTS=1` | `DATABASE_URL` only — **no external cred, no `CREDENTIALS_ENCRYPTION_KEY`** | `nest/apply-signal.live.spec.ts` | ✅ Proven creds-free — runs against the CI job's disposable Postgres |
+| NAV Online Számla (HU) ⚖ *déclaration, not a channel* | `NAV_LIVE=1` | `NAV_TAX_NUMBER`, `NAV_LOGIN`, `NAV_PASSWORD`, `NAV_SIGNING_KEY`, `NAV_EXCHANGE_KEY` | `documents/reporting/providers/nav.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-02** (`api-test.onlineszamla.nav.gov.hu` real `funcCode`/`errorCode`) — full round-trip 🔴 deferred, no Hungarian taxpayer identity to register a technical user with (see `CREDENTIALS_GUIDE.md` §21) |
+| AADE myDATA (GR) ⚖ *déclaration, not a channel* | `MYDATA_LIVE=1` | `MYDATA_USER_ID`, `MYDATA_SUBSCRIPTION_KEY` | `documents/reporting/providers/mydata.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-02** (`mydataapidev.aade.gr` real Azure APIM 401) — full round-trip 🔴 deferred, no Greek AADE/TaxisNet identity, aade.gr itself 403s to this task (see `CREDENTIALS_GUIDE.md` §22) |
 
 ---
 

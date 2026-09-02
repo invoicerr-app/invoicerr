@@ -1,6 +1,7 @@
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { DocumentActionJobData } from './queue.constants';
 import { ScheduleOccurrenceJobData } from '../schedules/schedule-sweep';
+import { ReportJobData } from '../reporting/report-job';
 
 /**
  * `DocumentQueueDispatcher` against a FAKE `Queue` (no BullMQ, no Redis) — proves the idempotent
@@ -117,6 +118,56 @@ describe('DocumentQueueDispatcher.enqueueScheduleOccurrence', () => {
     const dispatcher = new DocumentQueueDispatcher(queue as never);
 
     const enqueued = await dispatcher.enqueueScheduleOccurrence('schedule-sched-1-1234', OCCURRENCE_DATA);
+
+    expect(enqueued).toBe(false);
+    expect(existing.remove).not.toHaveBeenCalled();
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+});
+
+const REPORT_DATA: ReportJobData = {
+  companyId: 'company-1',
+  documentId: 'doc-1',
+  typeId: 'invoice',
+  providerId: 'nav',
+};
+
+describe('DocumentQueueDispatcher.enqueueReport', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it('enqueues under the deterministic "report-<providerId>-<documentId>" jobId when nothing exists yet', async () => {
+    const queue = fakeQueue();
+    queue.getJob.mockResolvedValue(undefined);
+    const dispatcher = new DocumentQueueDispatcher(queue as never);
+
+    const enqueued = await dispatcher.enqueueReport(REPORT_DATA);
+
+    expect(enqueued).toBe(true);
+    expect(queue.add).toHaveBeenCalledWith(
+      'document-report',
+      REPORT_DATA,
+      expect.objectContaining({ jobId: 'report-nav-doc-1', attempts: expect.any(Number) }),
+    );
+  });
+
+  // Dédup — THE MUTATION TARGET this task's own brief names: a re-job for the SAME (provider,
+  // document) pair must never enqueue a second, independent job — unlike `enqueueAction`, this skip
+  // is UNCONDITIONAL, whatever the existing job's state (never "clear a terminal one and retry" —
+  // see this method's own header for why a declaration's own retry happens INSIDE the one job, via
+  // BullMQ's own attempts, never by re-enqueuing a second job).
+  it.each([
+    'completed',
+    'failed',
+    'waiting',
+    'active',
+    'delayed',
+  ])('a job already existing under this id (%s) is left alone — never a duplicate declaration', async (state) => {
+    const queue = fakeQueue();
+    const existing = { getState: jest.fn().mockResolvedValue(state), remove: jest.fn() };
+    queue.getJob.mockResolvedValue(existing);
+    const dispatcher = new DocumentQueueDispatcher(queue as never);
+
+    const enqueued = await dispatcher.enqueueReport(REPORT_DATA);
 
     expect(enqueued).toBe(false);
     expect(existing.remove).not.toHaveBeenCalled();

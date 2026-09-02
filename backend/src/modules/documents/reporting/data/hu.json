@@ -1,0 +1,15 @@
+{
+  "countryCode": "HU",
+  "facts": [
+    {
+      "providerId": "nav",
+      "appliesTo": "invoice",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Items No. 1 & 6 of Schedule 10 of Act CXXVII of 2007 on value added tax (entering into effect on 4 January 2021): \"1. The taxpayer is obliged to provide the tax and customs authority with data on invoices and invoice-equivalent documents issued for the provision of goods and services performed by the taxpayer and subject to the provisions of this Act pursuant to Section 158/A., excepting the provision of services performed in another Member State of the Community with respect to which the taxpayer satisfies its tax obligation under the special rules of the Act on the Rules of Taxation for taxpayers providing services remotely. [...] 6. The provision of data pursuant to Items 1-5 shall be performed via an electronic platform provided for this purpose by the National Tax and Customs Authority. The electronic platform may be used after requesting data uniquely identifying the taxpayer.\"",
+        "sourceCheckedAt": "2026-09-02"
+      },
+      "notes": "LU DIRECTEMENT dans la spécification officielle NAV elle-même (« Online Invoice System 3.0 Interface Specification », section INTRODUCTION) — PDF récupéré depuis le dépôt GitHub OFFICIEL de la NAV (nav-gov-hu/Online-Invoice, docs/API docs/en/, fichier « Online Szamla_Interfesz specifikacio_EN_v3.0.pdf »), texte extrait avec pdftotext le 2026-09-02 (aade.gr et onlineszamla.nav.gov.hu eux-mêmes ne rendent que des coquilles JavaScript vides à une requête simple — le PDF officiel, lui, est un fichier statique directement lisible). Citation VERBATIM de l'Annexe 10 (Schedule 10) de la loi CXXVII de 2007 sur la TVA, entrée en vigueur le 4 janvier 2021 : le texte ne distingue PAS B2B/B2C — seule une exception vise les prestations de services transfrontalières relevant du régime spécial (OSS/guichet unique), hors périmètre de ce mécanisme (ce sont des factures que ce produit route déjà différemment via tax/resolve-invoice-tax.ts). L'ancien seuil B2B-only (juillet 2018) et l'extension B2C (juillet 2020 puis janvier 2021, déjà évoquée par les avis publics antérieurs) n'ont pas été relus à leur propre source primaire par cette tâche : seule la version FINALE, déjà consolidée et datée du 4 janvier 2021, l'a été, ce qui suffit à couvrir « toute facture domestique émise aujourd'hui » sans avoir besoin de retracer chaque étape intermédiaire. Le flux technique (tokenExchange -> manageInvoice -> queryTransactionStatus, le calcul de requestSignature) est vérifié séparément dans providers/nav-declaration-provider.ts's own header, avec un vecteur de test tiré de la même source."
+    }
+  ]
+}

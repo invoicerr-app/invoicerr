@@ -55,6 +55,21 @@ describe("computeConformityVerdict — pure", () => {
     expect(computeConformityVerdict([event({ statusCode: "pl:200" })])).toBe("accepted")
     expect(computeConformityVerdict([event({ statusCode: "pl:415" })])).toBe("rejected")
   })
+
+  // Root TODO ("déclaration") — a report:blocked/report:failed event is its OWN verdict, deliberately
+  // never "rejected": the INVOICE was never refused, only its post-issuance data report has a
+  // problem — see DECLARATION_ISSUE_CODES's own header.
+  it("declarationIssue once report:blocked is present — never conflated with a real rejection", () => {
+    expect(computeConformityVerdict([event({ providerId: "nav", statusCode: "report:blocked" })])).toBe(
+      "declarationIssue",
+    )
+  })
+
+  it("declarationIssue once report:failed is present", () => {
+    expect(computeConformityVerdict([event({ providerId: "mydata", statusCode: "report:failed" })])).toBe(
+      "declarationIssue",
+    )
+  })
 })
 
 describe("latestConformityReason — pure", () => {
@@ -65,6 +80,13 @@ describe("latestConformityReason — pure", () => {
 
   it("is undefined when nothing was rejected", () => {
     expect(latestConformityReason([event({ statusCode: "fr:202" })])).toBeUndefined()
+  })
+
+  it("surfaces a declaration issue's own reason, ahead of any co-occurring rejection", () => {
+    const events = [
+      event({ id: "1", providerId: "nav", statusCode: "report:blocked", reason: "not connected" }),
+    ]
+    expect(latestConformityReason(events)).toBe("not connected")
   })
 })
 

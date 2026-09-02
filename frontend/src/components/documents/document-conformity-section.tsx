@@ -23,7 +23,7 @@ import type { DocumentAuthorityEvent } from "./types"
  * reused by `use-document-types.ts#useDocumentAuthorityEvents` to decide whether to keep polling.
  */
 
-export type ConformityVerdict = "accepted" | "rejected" | "gaveUp" | "pending"
+export type ConformityVerdict = "accepted" | "rejected" | "gaveUp" | "pending" | "declarationIssue"
 
 /** The two REAL PDP codes this session proved live (`pdp-conformity.live.spec.ts`, 2026-09-01):
  *  fr:202 ("Reçue par la plateforme") is the platform's own final ACCEPTANCE; fr:213 ("Rejetée") is
@@ -34,6 +34,15 @@ export type ConformityVerdict = "accepted" | "rejected" | "gaveUp" | "pending"
 const ACCEPTED_CODES = new Set(["fr:202"])
 const REJECTED_CODES = new Set(["fr:213"])
 const KSEF_CODE = /^pl:(\d+)$/
+
+/** Root TODO ("déclaration") — `reporting/report-job.ts`'s own two synthetic codes. DELIBERATELY a
+ *  verdict of its OWN, never folded into `rejected`: a declaration failure/block says NOTHING about
+ *  the invoice itself (it already left — see `reporting/report-on-send.ts`'s own header) — labeling
+ *  it "Rejected" would falsely imply the INVOICE was refused, when only its post-issuance DATA
+ *  REPORT to a tax authority has a problem. Still shown on the document LIST (same as a real
+ *  rejection — see `DocumentConformityListIndicator` below) because it is exactly the kind of thing
+ *  a company needs to notice and act on, same "jamais silencieux" principle as a rejection. */
+const DECLARATION_ISSUE_CODES = new Set(["report:blocked", "report:failed"])
 
 function isAccepted(code: string): boolean {
   if (ACCEPTED_CODES.has(code)) return true
@@ -47,24 +56,32 @@ function isRejected(code: string): boolean {
   return ksef ? Number(ksef[1]) >= 400 : false
 }
 
+function isDeclarationIssue(code: string): boolean {
+  return DECLARATION_ISSUE_CODES.has(code)
+}
+
 /**
- * Pure — no events at all is deliberately NOT one of these four outcomes (the caller, this section
+ * Pure — no events at all is deliberately NOT one of these five outcomes (the caller, this section
  * itself, renders nothing at all for an empty list, the same "no permanently-empty block" choice
- * `document-archive-section.tsx` already makes). Order matters: `gaveUp`/`rejected` are checked
- * before `accepted` so a document that somehow carries both a stale intermediate code and a later
- * terminal one always reads by its OWN terminal fact, never an earlier, superseded one.
+ * `document-archive-section.tsx` already makes). Order matters: `gaveUp`/`declarationIssue`/`rejected`
+ * are checked before `accepted` so a document that somehow carries both a stale intermediate code and
+ * a later terminal one always reads by its OWN terminal fact, never an earlier, superseded one.
  */
 export function computeConformityVerdict(events: DocumentAuthorityEvent[]): ConformityVerdict {
   if (events.some((e) => e.statusCode === "poll:gave-up")) return "gaveUp"
+  if (events.some((e) => isDeclarationIssue(e.statusCode))) return "declarationIssue"
   if (events.some((e) => isRejected(e.statusCode))) return "rejected"
   if (events.some((e) => isAccepted(e.statusCode))) return "accepted"
   return "pending"
 }
 
 /** The reason attached to the event that actually decided the verdict above — undefined unless that
- *  verdict is "rejected" (an accepted/pending event carries no "reason" in the first place; see the
- *  backend's own `DocumentAuthorityEvent.reason` schema comment). */
+ *  verdict is "rejected"/"declarationIssue" (an accepted/pending event carries no "reason" in the
+ *  first place; see the backend's own `DocumentAuthorityEvent.reason` schema comment). Declaration
+ *  issues checked FIRST, mirroring `computeConformityVerdict`'s own precedence just above. */
 export function latestConformityReason(events: DocumentAuthorityEvent[]): string | undefined {
+  const declarationIssue = events.find((e) => isDeclarationIssue(e.statusCode))
+  if (declarationIssue) return declarationIssue.reason ?? undefined
   const rejection = events.find((e) => isRejected(e.statusCode))
   return rejection?.reason ?? undefined
 }
@@ -74,6 +91,7 @@ const VERDICT_TONE: Record<ConformityVerdict, string> = {
   rejected: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
   gaveUp: "bg-secondary text-secondary-foreground",
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+  declarationIssue: "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300",
 }
 
 const VERDICT_LABEL_KEY: Record<ConformityVerdict, string> = {
@@ -81,6 +99,7 @@ const VERDICT_LABEL_KEY: Record<ConformityVerdict, string> = {
   rejected: "documents.conformity.badge.rejected",
   gaveUp: "documents.conformity.badge.gaveUp",
   pending: "documents.conformity.badge.pending",
+  declarationIssue: "documents.conformity.badge.declarationIssue",
 }
 
 interface ConformityBadgeProps {
@@ -108,10 +127,12 @@ export function ConformityBadge({ events, className, dataCySuffix }: ConformityB
   )
 }
 
-/** Shown on the document LIST — deliberately ONLY for "rejected" (this task's own brief: "un
- *  indicateur discret pour rejeté (c'est l'info qui compte)"). An accepted or still-pending deposit
- *  shows nothing on the list row at all; the full timeline (all four states) lives in the section
- *  below, inside the edit dialog. */
+/** Shown on the document LIST — deliberately ONLY for "rejected" or "declarationIssue" (this task's
+ *  own brief: "un indicateur discret pour rejeté (c'est l'info qui compte)", extended by root TODO
+ *  "déclaration" to the SAME discipline for a declarative-reporting failure — see
+ *  `DECLARATION_ISSUE_CODES`'s own header on why that is its own verdict, never folded into
+ *  "rejected"). An accepted or still-pending deposit shows nothing on the list row at all; the full
+ *  timeline (all five states) lives in the section below, inside the edit dialog. */
 export function DocumentConformityListIndicator({
   typeId,
   documentId,
@@ -120,7 +141,9 @@ export function DocumentConformityListIndicator({
   documentId: string
 }) {
   const { data: events } = useDocumentAuthorityEvents(typeId, documentId)
-  if (!events || computeConformityVerdict(events) !== "rejected") return null
+  if (!events) return null
+  const verdict = computeConformityVerdict(events)
+  if (verdict !== "rejected" && verdict !== "declarationIssue") return null
   return <ConformityBadge events={events} dataCySuffix={documentId} />
 }
 

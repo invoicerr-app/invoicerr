@@ -40,9 +40,19 @@ interface SuggestedChannel {
   mandatedFrom?: string
   provenance: ChannelProvenance
 }
+// Root TODO ("déclaration") — a NEW concept, never a transport: NAV/myDATA never carry an invoice to
+// its buyer, they require the SELLER to declare its data to a tax authority AFTER issuance. Kept as
+// its OWN array (`reportingObligations`), never folded into `suggested` above — see
+// `channels.service.ts#reportingObligations`'s own header for why that would misrepresent the fact.
+interface ReportingObligation {
+  providerId: string
+  appliesTo: "invoice" | "credit-note"
+  provenance: ChannelProvenance
+}
 interface ChannelsResponse {
   configured: ConfiguredChannel[]
   suggested: SuggestedChannel[]
+  reportingObligations: ReportingObligation[]
 }
 
 /** Friendly display names for known providers — `TransportRegistry.list()`'s own label ("PDP
@@ -56,7 +66,16 @@ const PROVIDER_LABELS: Record<string, string> = {
   "chorus-pro": "Chorus Pro",
   anaf: "ANAF e-Factura",
   face: "FACe",
+  nav: "NAV Online Számla",
+  mydata: "AADE myDATA",
 }
+
+/** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
+ *  distinction root TODO's own brief asks for, unconditional on the badge (never dependent on
+ *  whether `reportingObligations` actually named it for THIS company's country: a company that
+ *  already connected one of these before moving its registered country elsewhere still sees it
+ *  correctly labeled, never silently relabeled as an ordinary channel). */
+const REPORTING_PROVIDER_IDS = new Set(["nav", "mydata"])
 
 /**
  * One provider's config field — the settings-screen half of what wave 1 (PDP) had hard-coded
@@ -75,6 +94,12 @@ interface ChannelFieldSpec {
   labelDefault: string
   type: "text" | "password"
   placeholder?: string
+  /** Root TODO ("déclaration") — NAV/myDATA's own `baseUrl` override is the first field genuinely
+   *  optional at the BACKEND (`NavCredentials.baseUrl`/`MyDataCredentials.baseUrl`'s own header: left
+   *  blank, the provider falls back to the fixed per-environment host). Every OTHER field on every
+   *  OTHER provider leaves this unset — `handleConnect`'s own "every field required" check below
+   *  therefore keeps its exact pre-existing behavior for them. */
+  optional?: boolean
 }
 
 /** One entry per provider `TransportRegistry` can hand a company — see `ChannelFieldSpec`'s own
@@ -289,6 +314,82 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       placeholder: "facturacion@empresa.es",
     },
   ],
+  // NAV Online Számla 3.0 (HU) — root TODO, "déclaration": a DECLARATIVE channel, never a delivery
+  // one (see `REPORTING_PROVIDER_IDS` above). Exactly the five fields
+  // `nav-declaration-provider.ts#extractNavCredentials` reads: `login`/`password`/`taxNumber` are the
+  // technical user's own authentication triad (spec §3, "Structure of the UserHeaderType element"),
+  // `signingKey`/`exchangeKey` are the two keys generated ALONGSIDE that technical user on the Online
+  // Invoice System's own web interface (spec's own "Conditions of use for taxpayers", point 3) — see
+  // `nav-client.ts`'s own header for what each one is used for (requestSignature vs the exchange
+  // token's AES-128 decode). `baseUrl` is OPTIONAL — see `NavCredentials.baseUrl`'s own header: leave
+  // it blank to use NAV's own fixed host for the environment selected below.
+  nav: [
+    {
+      key: "taxNumber",
+      labelKey: "settings.channels.fields.navTaxNumber",
+      labelDefault: "Tax number (first 8 digits)",
+      type: "text",
+      placeholder: "12345678",
+    },
+    {
+      key: "login",
+      labelKey: "settings.channels.fields.navLogin",
+      labelDefault: "Technical user login",
+      type: "text",
+    },
+    {
+      key: "password",
+      labelKey: "settings.channels.fields.navPassword",
+      labelDefault: "Technical user password",
+      type: "password",
+    },
+    {
+      key: "signingKey",
+      labelKey: "settings.channels.fields.navSigningKey",
+      labelDefault: "Signing key",
+      type: "password",
+    },
+    {
+      key: "exchangeKey",
+      labelKey: "settings.channels.fields.navExchangeKey",
+      labelDefault: "Exchange key (replacement key)",
+      type: "password",
+    },
+    {
+      key: "baseUrl",
+      labelKey: "settings.channels.fields.navBaseUrl",
+      labelDefault: "API base URL (override — leave blank for NAV's own host)",
+      type: "text",
+      placeholder: "https://api-test.onlineszamla.nav.gov.hu",
+      optional: true,
+    },
+  ],
+  // AADE myDATA (GR) — root TODO, "déclaration": likewise DECLARATIVE, never a delivery channel.
+  // Exactly the two fields `mydata-declaration-provider.ts#extractMyDataCredentials` reads —
+  // AADE's own Azure APIM subscription pair (`aade-user-id` / `Ocp-Apim-Subscription-Key`, see
+  // `mydata-client.ts`'s own header). `baseUrl` is the same OPTIONAL override `nav` offers above.
+  mydata: [
+    {
+      key: "userId",
+      labelKey: "settings.channels.fields.mydataUserId",
+      labelDefault: "AADE user ID (aade-user-id)",
+      type: "text",
+    },
+    {
+      key: "subscriptionKey",
+      labelKey: "settings.channels.fields.mydataSubscriptionKey",
+      labelDefault: "Subscription key (Ocp-Apim-Subscription-Key)",
+      type: "password",
+    },
+    {
+      key: "baseUrl",
+      labelKey: "settings.channels.fields.mydataBaseUrl",
+      labelDefault: "API base URL (override — leave blank for AADE's own host)",
+      type: "text",
+      placeholder: "https://mydataapidev.aade.gr/",
+      optional: true,
+    },
+  ],
 }
 
 /**
@@ -304,11 +405,13 @@ function ChannelRow({
   providerId,
   configured,
   suggested,
+  reportingObligation,
   onChanged,
 }: {
   providerId: string
   configured?: ConfiguredChannel
   suggested?: SuggestedChannel
+  reportingObligation?: ReportingObligation
   onChanged: () => void
 }) {
   const { t } = useTranslation()
@@ -320,6 +423,7 @@ function ChannelRow({
   const [editing, setEditing] = useState(!configured?.isActive)
 
   const isConnected = !!configured?.isActive
+  const isReporting = REPORTING_PROVIDER_IDS.has(providerId)
 
   const { trigger: upsert, loading: connecting } = useMutationWithToast(
     usePut(`/api/company/channels/${providerId}`),
@@ -331,7 +435,7 @@ function ChannelRow({
   )
 
   const handleConnect = async () => {
-    const missing = fields.filter((f) => !config[f.key]?.trim())
+    const missing = fields.filter((f) => !f.optional && !config[f.key]?.trim())
     if (missing.length > 0) {
       toast.error(
         t("settings.channels.messages.fieldsRequired", "{{fields}} are all required", {
@@ -376,6 +480,17 @@ function ChannelRow({
                   })
                 : t("settings.channels.status.notConnected", "Not connected")}
             </Badge>
+            {/* Root TODO ("déclaration") — the concept-distinguishing badge this task's own brief
+                asks for: NEVER a delivery channel, whatever its own connected/not-connected status
+                reads above. Shown unconditionally for a provider this screen classifies as
+                declarative (`REPORTING_PROVIDER_IDS`), independent of `reportingObligations` (a
+                company that already connected one before moving its own registered country
+                elsewhere still sees it correctly labeled). */}
+            {isReporting && (
+              <Badge variant="outline" data-cy={`channel-${providerId}-declarative`}>
+                {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
+              </Badge>
+            )}
             {suggested && (
               <Badge variant="outline" data-cy={`channel-${providerId}-suggested`}>
                 {t("settings.channels.status.suggested", "Suggested for your country")}
@@ -429,6 +544,13 @@ function ChannelRow({
             {suggested.provenance.kind === "unverified"
               ? suggested.provenance.resolutionNote
               : suggested.provenance.sourceText}
+          </CardDescription>
+        )}
+        {reportingObligation && (
+          <CardDescription data-cy={`channel-${providerId}-obligation-description`}>
+            {reportingObligation.provenance.kind === "unverified"
+              ? reportingObligation.provenance.resolutionNote
+              : reportingObligation.provenance.sourceText}
           </CardDescription>
         )}
       </CardHeader>
@@ -532,8 +654,14 @@ export default function ChannelsSettings() {
   const knownProviderIds = (transports ?? []).map((tr) => tr.id).filter((id) => id !== "email")
   const configuredMap = new Map((channels?.configured ?? []).map((c) => [c.providerId, c] as const))
   const suggestedMap = new Map((channels?.suggested ?? []).map((s) => [s.providerId, s] as const))
+  // Root TODO ("déclaration") — a reporting provider is offered ONLY when this company's own country
+  // actually carries the obligation (unlike `knownProviderIds` above, listed for every company
+  // regardless of country): unlike a delivery channel, connecting one for a country with no such
+  // obligation would be pure noise, never a genuine option. `configuredMap` still keeps a PREVIOUSLY
+  // connected one visible even if the company's registered country later changed.
+  const reportingMap = new Map((channels?.reportingObligations ?? []).map((r) => [r.providerId, r] as const))
   const providerIds = Array.from(
-    new Set([...knownProviderIds, ...configuredMap.keys(), ...suggestedMap.keys()]),
+    new Set([...knownProviderIds, ...configuredMap.keys(), ...suggestedMap.keys(), ...reportingMap.keys()]),
   )
 
   return (
@@ -555,6 +683,7 @@ export default function ChannelsSettings() {
             providerId={id}
             configured={configuredMap.get(id)}
             suggested={suggestedMap.get(id)}
+            reportingObligation={reportingMap.get(id)}
             onChanged={mutate}
           />
         ))}

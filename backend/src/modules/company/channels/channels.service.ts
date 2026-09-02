@@ -6,6 +6,8 @@ import { PolicyProvenance } from '@/modules/documents/country-policy/schema';
 import { activeChannelMandateFor } from '@/modules/documents/transports/channel-policy/mandate';
 import { defaultChannelPolicyCatalog } from '@/modules/documents/transports/channel-policy/registry';
 import { ChannelRequirement } from '@/modules/documents/transports/channel-policy/schema';
+import { defaultReportingObligationCatalog } from '@/modules/documents/reporting/registry';
+import { ReportableDocumentType } from '@/modules/documents/reporting/schema';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanyChannelConfig } from '../../../../prisma/generated/prisma/client';
@@ -63,6 +65,22 @@ export interface ChannelPolicyStatus {
    * date is still ahead, never the authority on what a given invoice will actually be allowed to do.
    */
   effectiveNow?: boolean;
+  provenance: PolicyProvenance;
+}
+
+/**
+ * What `GET /api/company/channels`'s own `reportingObligations` array returns — a NEW concept
+ * (root TODO, "déclaration"), never a widened `ChannelPolicyStatus`: a declarative-reporting
+ * obligation (NAV/myDATA) is not "this country's stance on a DELIVERY channel", it says nothing at
+ * all about how an invoice reaches the buyer — see `documents/reporting/report-on-send.ts`'s own
+ * header for the full "a country is data, a declaration is not a transport" reasoning. Kept as its
+ * own, separate array (rather than folded into `suggested` with a widened `requirement` enum) so the
+ * settings screen can render it with its own, visually distinct "Déclaration" badge without having to
+ * first decide "is this ACTUALLY a channel policy fact in disguise" — it categorically is not one.
+ */
+export interface ReportingObligationStatus {
+  providerId: string;
+  appliesTo: ReportableDocumentType;
   provenance: PolicyProvenance;
 }
 
@@ -314,6 +332,25 @@ export class ChannelCredentialsService {
       requirement: fact.requirement,
       mandatedFrom: fact.mandatedFrom,
       effectiveNow: fact.requirement === 'mandated' ? activeToday?.providerId === fact.providerId : undefined,
+      provenance: fact.provenance,
+    }));
+  }
+
+  /**
+   * This company's own country's DECLARATIVE-REPORTING obligations (root TODO, "déclaration") —
+   * `documents/reporting/data/*.json`, read the same way `suggestedChannels` reads
+   * `channel-policy/data/*.json` just above, but a categorically different fact: NEVER a hint about
+   * which TRANSPORT to use, always "declare this invoice's data to this authority, regardless of how
+   * it was delivered". Empty for every country with no reporting-obligation file (the overwhelming
+   * majority) — see `ReportingObligationCatalog.factsFor`'s own header.
+   */
+  async reportingObligations(companyId: string): Promise<ReportingObligationStatus[]> {
+    const countryCode = await resolveCompanyCountryCode(companyId);
+    if (!countryCode) return [];
+
+    return defaultReportingObligationCatalog.factsFor(countryCode).map((fact) => ({
+      providerId: fact.providerId,
+      appliesTo: fact.appliesTo,
       provenance: fact.provenance,
     }));
   }

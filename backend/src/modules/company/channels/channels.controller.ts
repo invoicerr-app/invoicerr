@@ -31,16 +31,21 @@ export class ChannelsController {
   @ApiOperation({
     summary: 'List channel connections',
     description:
-      "Returns this company's connected channels (status only — never a credential value) and " +
-      "this company's own country channel policy (suggested and/or mandated, item 11).",
+      "Returns this company's connected channels (status only — never a credential value), " +
+      "this company's own country channel policy (suggested and/or mandated, item 11), and this " +
+      "company's own country DECLARATIVE-REPORTING obligations (nav/mydata — never a transport hint).",
   })
   @ApiResponse({ status: 200, description: 'Channel status retrieved' })
   async list(@ActiveCompany() companyId: string) {
-    const [configured, suggested] = await Promise.all([
+    const [configured, suggested, reportingObligations] = await Promise.all([
       this.channels.listCompanyChannels(companyId),
       this.channels.suggestedChannels(companyId),
+      // Root TODO ("déclaration") — a categorically different fact from `suggested` above: never a
+      // transport hint, always "declare this invoice's data to this authority" — see
+      // `channels.service.ts#reportingObligations`'s own header.
+      this.channels.reportingObligations(companyId),
     ]);
-    return { configured, suggested };
+    return { configured, suggested, reportingObligations };
   }
 
   /**

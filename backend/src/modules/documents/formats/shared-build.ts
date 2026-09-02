@@ -94,7 +94,12 @@ function extractCrossBorderCategory(value: unknown): SemanticLineInput['vatCateg
     : undefined;
 }
 
-function extractLines(data: Record<string, unknown>): SemanticLineInput[] {
+/** Exported (root TODO — `reporting/build-declared-invoice.ts`) so a declarative-reporting provider's
+ *  own line mapping reuses the EXACT SAME "which array is the line array, what does each descriptive
+ *  field default to" logic the CII/UBL bridge already relies on, rather than a second, parallel
+ *  extraction that could silently drift from it. Every OTHER caller (`buildEuInvoiceForDocument`
+ *  below) is untouched — this is purely a visibility change. */
+export function extractLines(data: Record<string, unknown>): SemanticLineInput[] {
   const rows = Array.isArray(data.lines) ? (data.lines as Record<string, unknown>[]) : [];
   return rows.map((row) => ({
     description: typeof row.description === 'string' ? row.description : '',

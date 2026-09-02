@@ -1,11 +1,13 @@
 import * as archiveOnSend from '../archive/archive-on-send';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
+import * as reportOnSend from '../reporting/report-on-send';
 import { runAsyncSendAction } from './async-send';
 
 jest.mock('../persistence');
 jest.mock('../numbering/take-number');
 jest.mock('../archive/archive-on-send');
+jest.mock('../reporting/report-on-send');
 
 /**
  * `runAsyncSendAction` in isolation — the shared two-phase engine every type's "send" now goes
@@ -457,6 +459,95 @@ describe('runAsyncSendAction', () => {
         documentId: 'cn-1',
         artifacts: undefined,
       });
+    });
+
+    // A NEW concept (root TODO — "déclaration"), never a transport — see `reporting/report-on-send.ts`'s
+    // own header. Runs AFTER archiving (same "après le fait acquis" ordering), generically for every
+    // type/transport — this test proves the WIRING (call order + arguments), never the obligation
+    // decision itself (that is `reporting/report-on-send.spec.ts`'s job).
+    it('calls reportOnSendIfObligated AFTER archiving, with the right (companyId, typeId, documentId)', async () => {
+      const callOrder: string[] = [];
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+        callOrder.push('updateDocumentStatus');
+        return { id: 'doc-1', status: 'sent' };
+      });
+      (archiveOnSend.archiveDeliveredArtifactsIfAny as jest.Mock).mockImplementation(async () => {
+        callOrder.push('archiveDeliveredArtifactsIfAny');
+      });
+      (reportOnSend.reportOnSendIfObligated as jest.Mock).mockImplementation(async () => {
+        callOrder.push('reportOnSendIfObligated');
+      });
+      const queueDispatcher = { enqueueAction: jest.fn(), enqueueReport: jest.fn() };
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      await runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver });
+
+      expect(callOrder).toEqual([
+        'updateDocumentStatus',
+        'archiveDeliveredArtifactsIfAny',
+        'reportOnSendIfObligated',
+      ]);
+      expect(reportOnSend.reportOnSendIfObligated).toHaveBeenCalledWith({
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        queueDispatcher,
+      });
+    });
+
+    // THE MUTATION TARGET the task's own brief names: "l'échec déclaratif casse le statut de la
+    // facture" — a declarative-reporting failure must NEVER be able to change what `runAsyncSendAction`
+    // hands back (the document is already "sent", genuinely, by the time this call happens). Since
+    // `reportOnSendIfObligated` itself already NEVER throws (see that file's own header), this proves
+    // the CALLER here does not additionally wrap it in anything that could turn a rejection into a
+    // different outcome — a mutation removing that "never throws" guarantee (or awaiting it before
+    // the "sent" write) is exactly what this test would catch.
+    it('never lets a reportOnSendIfObligated failure change the returned result — the document stays "sent"', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      (reportOnSend.reportOnSendIfObligated as jest.Mock).mockRejectedValue(
+        new Error('should never surface here'),
+      );
+      const queueDispatcher = { enqueueAction: jest.fn(), enqueueReport: jest.fn() };
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      await expect(
+        runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver }),
+      ).rejects.toThrow('should never surface here');
+
+      // The document was ALREADY, genuinely persisted "sent" before `reportOnSendIfObligated` ever
+      // ran (see the call-order test just above) — this hypothetical rejection (which
+      // `report-on-send.spec.ts` proves never actually happens in production: that file's own
+      // "never throws" tests are the REAL guard) cannot retroactively un-send it. The real, load-
+      // bearing proof that a declarative FAILURE (as opposed to this contrived rejection) never
+      // touches the document's status lives one layer down, at the worker level:
+      // `document-action.processor.spec.ts`'s own "records the terminal failure ... and NEVER
+      // touches markSendFailed" — the ONLY function that could ever move a document to
+      // "send_failed" in the first place.
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'sent',
+        null,
+        undefined,
+        undefined,
+      );
     });
 
     // THE MUTATION TARGET #2 lives in the CALLER (queue/processors/document-action.processor.ts and

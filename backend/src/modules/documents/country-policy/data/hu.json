@@ -1,0 +1,25 @@
+{
+  "countryCode": "HU",
+  "documentTypes": ["invoice"],
+  "rules": [
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "An invoice draft is not yet an issued invoice — no Hungarian text was read specifically governing this internal, pre-issuance step (the same category `fr.json`/`us.json` already treat as a product operation, not a legal act, for their own `invoice.save-draft`). Revisit if this product ever gives a draft status some legal effect of its own."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Hungary, as an EU member state, is widely understood to follow the EU VAT Directive's own equal-treatment rule for electronic invoices (2006/112/EC as amended by 2010/45/EU, buyer-acceptance-conditioned parity between paper and electronic invoices) — this fact was NOT independently re-read at its own primary source by this task (root TODO's own \"déclaration\" wave: the effort went into the NAV Online Számla reporting protocol itself — see `reporting/providers/nav-client.ts`'s own header — not into re-sourcing this country's general e-invoicing legality, already covered EU-wide for other member states in this same catalog, e.g. this file's own French/German siblings). Marked unverified rather than asserted as a sourced fact — the same honest gap this catalog already tolerates for an undeclared action (see `us.json`'s own `notes` on `quote.duplicate`), never a silent guess dressed up as a citation."
+      }
+    }
+  ],
+  "notes": "DELIBERATELY PARTIAL — this file exists to unblock the HU declarative-reporting scenario (root TODO, `reporting/` — NAV Online Számla, `reporting/data/hu.json`) end-to-end (a Hungarian company otherwise has EVERY document action blocked by this module's own DECISION 1, see `country-policy.ts`'s own header, which would make the reporting trigger itself unreachable through a real \"send\"). Only `invoice.save-draft`/`invoice.send` are declared — every OTHER type/action for HU is intentionally left UNDECLARED (refused as \"not yet declared for this country\", never guessed permitted), the same discipline `us.json`'s own notes already document for `quote.duplicate`. A genuine HU rollout needs a real, sourced pass over this file the same depth `fr.json`/`us.json` already have — this is a minimal, honest starting point, not a claim of completeness."
+}

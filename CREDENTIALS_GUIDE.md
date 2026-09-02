@@ -90,6 +90,8 @@ Legend — **Repo:** ✅ set · 🟡 partial · 🔴 missing &nbsp;|&nbsp; **Mar
 | 18 | MyInvois | 🇲🇾 Malaysia | 🔴 | ▫️ | client_id/secret free & instant; signing cert is paid (RM1.5k–15k, 3–5 d) |
 | 19 | Coretax / e-Faktur | 🇮🇩 Indonesia | 🔴 | ▫️ | No public sandbox; PJAP appointment or reseller middleman |
 | 20 | FACe (SSPP) | 🇪🇸 Spain | 🔴 | ▫️ | FNMT cert = human ID check; WS-Security signing itself not yet implemented |
+| 21 | NAV Online Számla ⚖ *déclaration, not a channel* | 🇭🇺 Hungary | 🔴 | ▫️ | Real Hungarian taxpayer registration + Primary User to create the technical user/keys |
+| 22 | AADE myDATA ⚖ *déclaration, not a channel* | 🇬🇷 Greece | 🔴 | ▫️ | Real Greek AADE/TaxisNet identity; aade.gr itself 403s to this task, unverified law citation |
 
 ### ⚠️ The secret list is a superset — some secrets are placeholders
 `compliance-live.yml` declares a uniform `CLIENT_ID / CLIENT_SECRET / API_KEY / CERTIFICATE`
@@ -1208,4 +1210,74 @@ Sandbox and production credentials are **not interchangeable** — each environm
 
 ---
 
-_Guide généré via recherche par plateforme (sources officielles citées par section). Statuts secrets vérifiés le 2026-07-12 ; section 20 (FACe) ajoutée et vérifiée le 2026-09-02._
+## 21. NAV Online Számla — Hungary (real-time invoice DATA REPORTING — never a delivery channel)
+
+> **Config (per-company, `company/channels`, provider id `nav`):** `taxNumber`, `login`, `password`, `signingKey`, `exchangeKey`, optional `baseUrl` override &nbsp;•&nbsp; **Live flag:** `NAV_LIVE=1` (+ `NAV_TAX_NUMBER`, `NAV_LOGIN`, `NAV_PASSWORD`, `NAV_SIGNING_KEY`, `NAV_EXCHANGE_KEY`) &nbsp;•&nbsp; **Sandbox:** yes, REACHABLE without any credential (see below) &nbsp;•&nbsp; **Repo status:** 🔴 missing
+
+**A different CONCEPT from every channel above — read this first.** NAV Online Számla is not how an invoice reaches its buyer; a Hungarian seller emails/Peppols/whatever-else the invoice exactly as it would anywhere else, and SEPARATELY must report that invoice's DATA to NAV in near-real-time. This is why it lives in its own mechanism (`documents/reporting/`, not `documents/transports/`) — see that module's own header, `report-on-send.ts`, for the full "a country is data, a declaration is not a transport" reasoning this branch adds.
+
+**What each config field is / where it comes from** (`reporting/providers/nav-declaration-provider.ts#extractNavCredentials`)
+- `taxNumber` — the taxpayer's own Hungarian tax number, first 8 digits (`TaxpayerIdType`, pattern `[0-9]{8}` — the interface spec's own `UserHeaderType`).
+- `login` / `password` — a **technical user**'s own login name and password, created for the invoice-reporting interface specifically (never a human's own Online Invoice System login) — see "Prerequisites" below.
+- `signingKey` / `exchangeKey` — two keys generated ALONGSIDE that technical user, on the Online Invoice System's own web interface, by its PRIMARY USER. `signingKey` feeds `requestSignature` (SHA3-512 — see `nav-client.ts`'s own header for the exact, spec-verified algorithm); `exchangeKey` is the AES-128 key a `/tokenExchange` response's own token is decoded with.
+- `baseUrl` — OPTIONAL; leave blank to use NAV's own fixed host for the environment chosen (TEST → `api-test.onlineszamla.nav.gov.hu`, PROD → `api.onlineszamla.nav.gov.hu`).
+
+**Prerequisites — and why this task did NOT attempt registration**
+1. "A valid registration in the Online Invoice System", launched "on the Online Invoice System web interface" (`onlineszamla-test.nav.gov.hu` for the test system) — quoted verbatim from the official interface specification's own "Conditions of use for taxpayers" (read directly, see `nav-client.ts`'s own header for the source).
+2. A **technical user**, created by that registration's own PRIMARY USER — "the Taxpayer's statutory or permanent representative". The invoice-reporting interface is explicitly NOT available to ordinary (primary or secondary) web users.
+3. A **signing key** and a **replacement (exchange) key**, generated for that technical user, again only "by the primary user on the Online Invoice System web interface" — no API exists for either of the first three steps.
+4. `taxNumber`'s own pattern is an 8-digit HUNGARIAN tax number — the entire chain above binds to a real Hungarian taxpayer identity from step 1 onward. This task found **no separate, identity-free "developer sandbox signup"** distinct from the real taxpayer registration flow (unlike, say, KSeF's own test token issuance, §1 above) — every step names "the Taxpayer" and "the Primary User", never a generic developer account. **This task therefore did NOT attempt registration** — there is no Hungarian tax number to register with, and no headless/identity-free path was found anywhere in the official repo, the interface specification, or a direct reachability probe of the test-system host.
+
+**What IS independently, live-verified without any credential at all (this task, 2026-09-02)** — see `reporting/providers/nav-client.ts`'s own "LIVE-VERIFIED" header and `nav.live.spec.ts`'s own credential-free reachability block: a real, unauthenticated `curl POST` against `https://api-test.onlineszamla.nav.gov.hu/invoiceService/v3/tokenExchange` answers, in ~250ms, HTTP 400 with a genuine `<GeneralExceptionResponse><funcCode>ERROR</funcCode><errorCode>INVALID_REQUEST</errorCode><message>Érvénytelen kérés!</message>...` — confirming the host, the `/tokenExchange` path, and the response vocabulary live. This ALSO surfaced a real gap the specification's own tables alone did not make obvious: a schema-invalid request's `funcCode` rides BARE (no `<result>` wrapper) inside this different root element — `nav-client.ts#parseNavFunctionResult` was fixed to read it from anywhere in the document for exactly this reason, and the REAL captured response above is now a jest fixture (`nav-client.spec.ts`).
+
+**The requestSignature algorithm itself is PROVEN, not merely read** — the official interface specification's own worked example (requestId `TSTKFT1222564`, a fixed timestamp, a fixed signing key, two invoice operations) is reproduced BYTE-FOR-BYTE by `nav-client.spec.ts`, including NAV's own published intermediate SHA3-512 hash values and final `requestSignature`. `node:crypto`'s `'sha3-512'` digest was confirmed, empirically, to both exist in this Node runtime and match NAV's own FIPS-202 numbers.
+
+**What is NOT verified** — see `nav-client.ts`'s own header, "EXTRAPOLATED", for the full list: the exact byte-encoding of a (longer) generated exchange key into a 16-byte AES-128 key (this client uses the first 16 UTF-8 bytes — a convention several independent community NAV clients follow, never confirmed against an official source or a real NAV-issued key); `invoiceData.xsd`'s own full business-content schema (only its top-level structure was read; `nav-declaration-provider.ts#buildNavInvoiceXml` builds a deliberately minimal subset); and whether `header`/`user`/`software` need to be namespace-qualified on the wire.
+
+**Cost, lead time & blockers**
+- No published fee for the technical-user/key-generation steps themselves — the actual blocker is entirely identity: a real Hungarian taxpayer registration (and its own Primary User) must exist first, for either the TEST or the PROD system, before ANY of the three steps above can even start.
+- The single biggest unknown left by this task: whether `onlineszamla-test.nav.gov.hu`'s own registration flow could, in principle, register a non-Hungarian entity's own foreign tax presence in Hungary — this was NOT determinable from the interface specification or the official GitHub repo alone (both describe the TECHNICAL interface, not the underlying tax-registration eligibility rules) and would need a human fluent in the actual Hungarian tax-registration process to resolve.
+
+**Official sources**
+- https://github.com/nav-gov-hu/Online-Invoice (official NAV GitHub — the interface specification PDF, `invoiceApi.xsd`/`invoiceData.xsd`/`serviceMetrics.xsd`)
+- https://github.com/nav-gov-hu/Common (official NAV GitHub — `common.xsd`, `UserHeaderType`/`BasicHeaderType`/`CryptoType`)
+- `onlineszamla-test.nav.gov.hu` (test-system web interface — reachable but renders an empty JavaScript shell to a plain fetch; a human registration flow, not exercised by this task)
+- Act CXXVII of 2007 on value added tax, Schedule 10, Items 1 & 6 (quoted verbatim in `reporting/data/hu.json`'s own provenance, sourced from the interface specification's own INTRODUCTION section)
+
+---
+
+## 22. AADE myDATA — Greece (real-time invoice DATA REPORTING — never a delivery channel)
+
+> **Config (per-company, `company/channels`, provider id `mydata`):** `userId`, `subscriptionKey`, optional `baseUrl` override &nbsp;•&nbsp; **Live flag:** `MYDATA_LIVE=1` (+ `MYDATA_USER_ID`, `MYDATA_SUBSCRIPTION_KEY`) &nbsp;•&nbsp; **Sandbox:** yes, REACHABLE without any credential (see below) &nbsp;•&nbsp; **Repo status:** 🔴 missing
+
+**The same NEW concept §21 introduces** — myDATA is Greece's own real-time invoice-DATA-reporting obligation, entirely orthogonal to how the invoice is actually delivered. See `documents/reporting/report-on-send.ts`'s own header.
+
+**What each config field is / where it comes from** (`reporting/providers/mydata-declaration-provider.ts#extractMyDataCredentials`)
+- `userId` — sent as the `aade-user-id` HTTP header on every call.
+- `subscriptionKey` — sent as `ocp-apim-subscription-key` — an Azure API Management subscription key, AADE's own gateway technology in front of myDATA.
+- `baseUrl` — OPTIONAL; leave blank to use AADE's own fixed host for the environment chosen (TEST → `mydataapidev.aade.gr`, PROD → `mydatapi.aade.gr/myDATA`).
+
+**⚠️ Weaker provenance than every other section in this guide, and said so plainly.** `aade.gr` itself — the myDATA home page, its own "τεχνικές προδιαγραφές" (technical specifications) documentation page, and every direct file path tried under `/sites/default/files/...` for a vendored XSD/PDF — returned **HTTP 403 for every single request** attempted from this environment, with or without a browser User-Agent: a whole-domain wall, the same kind this repository already documents for other government sites (`b2g-routing/data/fr.json`'s own note on légifrance/chorus-pro.gouv.fr). This task could not read AADE's own registration procedure, technical documentation, or the underlying Greek law (Law 4308/2014 art. 15A and its own implementing decisions, as widely cited by third-party doctrine but never independently confirmed here) directly at their primary source. `reporting/data/gr.json`'s own provenance is therefore honestly marked `unverified`, not `legal` — see that file for the full resolution note.
+
+**What WAS corroborated** — every fact this codebase actually relies on (base URLs, header names, the `InvoicesDoc`/`ResponseDoc` XML shapes) is independently, repeatedly confirmed across MULTIPLE, separately-maintained open-source myDATA client projects (`attheodo/mydatanaut`'s own vendored, AADE-named XSD files; `firebed/aade-mydata`'s own HTTP client source) — never a single unverified source. See `reporting/providers/mydata-client.ts`'s own header for the full list.
+
+**What IS independently, live-verified without any credential at all (this task, 2026-09-02)** — see `mydata-client.ts`'s own header and `mydata.live.spec.ts`'s own credential-free reachability block: a real, unauthenticated `curl POST` against `https://mydataapidev.aade.gr/SendInvoices` answers, in well under 200ms, HTTP 401 with `{"statusCode":401,"message":"Access denied due to missing subscription key. Make sure to include subscription key when making requests to an API."}` — Azure APIM's own standard rejection message, confirming the host, the `/SendInvoices` path, and (indirectly) that `ocp-apim-subscription-key` really is the header this gateway enforces, live, not merely from third-party client source code.
+
+**Prerequisites — and why this task did NOT attempt registration**
+- Registering for the myDATA dev environment (`mydata-dev`, an Azure APIM developer portal, per every third-party client's own documentation) requires a genuine Greek AADE / TaxisNet business identity — myDATA is a Greek tax-authority reporting obligation for real Greek taxpayers, not a vendor-neutral, identity-free developer program the way e.g. Peppol's own `peppol.sh` test network is. No self-service, identity-free signup path was found anywhere reachable from this environment (and aade.gr's own 403 wall means this could not be independently re-confirmed at the primary source either). **This task therefore did NOT attempt registration.**
+
+**What is NOT verified** — the exact rate→`vatCategory` code mapping (only the two most widely-cited codes — standard rate and "no VAT" — are asserted, see `mydata-declaration-provider.ts`'s own header); the `invoiceType` code for anything other than an ordinary sales invoice; the underlying Greek legal citation itself (see the provenance note above).
+
+**Cost, lead time & blockers**
+- Unknown — this task could not reach AADE's own documentation on the registration process, cost, or lead time for either the dev sandbox or production. A human with a real Greek AADE/TaxisNet account is needed to determine this.
+
+**Official sources (all 403 to this task — listed for a human operator with a non-blocked connection)**
+- https://www.aade.gr/en/mydata (myDATA platform home)
+- https://www.aade.gr/epiheiriseis/mydata-ilektronika-biblia-aade/mydata/tehnikes-prodiagrafes-ekdoseis-mydata (technical specifications, versioned PDFs)
+- https://www.aade.gr/epiheirisies/mydata-ilektronika-biblia-aade/mydata/dokimastiko-periballon (dev/test environment registration)
+- https://github.com/attheodo/mydatanaut (vendors the official, AADE-named `InvoicesDoc`/`response` XSD files verbatim, under `xsd/`)
+- https://github.com/firebed/aade-mydata (widely-used PHP client — base URLs and header names read from its own HTTP client source)
+
+---
+
+_Guide généré via recherche par plateforme (sources officielles citées par section). Statuts secrets vérifiés le 2026-07-12 ; section 20 (FACe) ajoutée et vérifiée le 2026-09-02 ; sections 21-22 (NAV, myDATA — root TODO "déclaration") ajoutées et vérifiées le 2026-09-02._

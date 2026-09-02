@@ -3,6 +3,7 @@
  * (document-queue.module.ts) for the full split (Core providers / worker processors / WORKER_INLINE)
  * this module is part of, and TODO.md item 22 for the task this was built for.
  */
+import { ReportJobData } from '../reporting/report-job';
 
 /** The ONE queue this whole mechanism needs — see document-action-job.ts's own header for why the
  *  job form is generic (companyId/typeId/documentId/actionId/payload) rather than one queue per
@@ -41,7 +42,16 @@ export interface DocumentActionJobData {
  * a bare `{ enqueueAction: jest.fn() }` with no Nest module, no Redis, and no BullMQ involved at all —
  * the same "depend on the narrow shape, not the concrete class" discipline `TransportRegistry`'s own
  * `DocumentTransport` interface already holds for a transport's `send()`.
+ *
+ * `enqueueReport` (declarative reporting — `reporting/report-on-send.ts`) is OPTIONAL, deliberately:
+ * every EXISTING spec across quote/invoice/credit-note actions constructs a bare
+ * `{ enqueueAction: jest.fn() }` and must keep type-checking unchanged — `report-on-send.ts` itself
+ * treats an absent `enqueueReport` as "this dispatcher cannot report, so don't" (the same "no
+ * capability, no effect" posture the rest of this codebase already holds, e.g. `sweepRunner`'s own
+ * `@Optional()` in `document-action.processor.ts`), never a crash. Production wiring
+ * (`DocumentQueueDispatcher`) always implements it.
  */
 export interface DocumentActionQueueDispatcher {
   enqueueAction(input: DocumentActionJobData): Promise<void>;
+  enqueueReport?(input: ReportJobData): Promise<boolean>;
 }

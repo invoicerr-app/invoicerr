@@ -1,6 +1,8 @@
 import { ForbiddenException, Logger } from '@nestjs/common';
 
 import { DocumentsService } from '../../documents.service';
+import { DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../../reporting/report-job';
+import { ReportingRunner } from '../../reporting/reporting-runner';
 import { DocumentScheduleSweepRunner } from '../../schedules/schedule-sweep-runner';
 import { SCHEDULE_OCCURRENCE_JOB_NAME, SCHEDULE_SWEEP_JOB_NAME } from '../../schedules/schedule-sweep';
 import * as markSendFailedModule from '../mark-send-failed';
@@ -132,6 +134,60 @@ describe('DocumentActionProcessor', () => {
     });
   });
 
+  describe('process() — declarative report job name (root TODO, reporting/)', () => {
+    const REPORT_DATA: ReportJobData = {
+      companyId: 'company-1',
+      documentId: 'doc-1',
+      typeId: 'invoice',
+      providerId: 'nav',
+    };
+
+    it('a job named after a report runs ReportingRunner.runReport, never runAction', async () => {
+      const runAction = jest.fn();
+      const documentsService = { runAction } as unknown as DocumentsService;
+      const runReport = jest.fn().mockResolvedValue({ journaled: 1 });
+      const reportingRunner = { runReport, recordTerminalFailure: jest.fn() } as unknown as ReportingRunner;
+      const processor = new DocumentActionProcessor(documentsService, undefined, undefined, reportingRunner);
+      const job = {
+        id: 'report-1',
+        name: DOCUMENT_REPORT_JOB_NAME,
+        data: REPORT_DATA,
+      } as unknown as import('bullmq').Job;
+
+      const result = await processor.process(job);
+
+      expect(result).toEqual({ journaled: 1 });
+      expect(runReport).toHaveBeenCalledWith(REPORT_DATA);
+      expect(runAction).not.toHaveBeenCalled();
+    });
+
+    it('a genuine declaration failure PROPAGATES out of process() — BullMQ must see this attempt as failed', async () => {
+      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+      const runReport = jest.fn().mockRejectedValue(new Error('NAV HTTP 500'));
+      const reportingRunner = { runReport, recordTerminalFailure: jest.fn() } as unknown as ReportingRunner;
+      const processor = new DocumentActionProcessor(documentsService, undefined, undefined, reportingRunner);
+      const job = {
+        id: 'report-1',
+        name: DOCUMENT_REPORT_JOB_NAME,
+        data: REPORT_DATA,
+      } as unknown as import('bullmq').Job;
+
+      await expect(processor.process(job)).rejects.toThrow('NAV HTTP 500');
+    });
+
+    it('throws a named error for a report job when no reportingRunner was wired — never silently no-ops', async () => {
+      const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+      const processor = new DocumentActionProcessor(documentsService); // no reportingRunner, like every pre-existing spec here
+      const job = {
+        id: 'report-1',
+        name: DOCUMENT_REPORT_JOB_NAME,
+        data: REPORT_DATA,
+      } as unknown as import('bullmq').Job;
+
+      await expect(processor.process(job)).rejects.toThrow(/ReportingRunner/);
+    });
+  });
+
   describe('onFailed()', () => {
     it('does NOT mark "send_failed" while more retries remain (attemptsMade < attempts)', async () => {
       const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
@@ -220,6 +276,102 @@ describe('DocumentActionProcessor', () => {
       await processor.onFailed(job, new Error('boom'));
 
       expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
+    });
+
+    describe('a declarative report job', () => {
+      const REPORT_DATA: ReportJobData = {
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        typeId: 'invoice',
+        providerId: 'nav',
+      };
+
+      function reportJob(overrides: { attemptsMade?: number; attempts?: number } = {}) {
+        return {
+          id: 'report-1',
+          name: DOCUMENT_REPORT_JOB_NAME,
+          data: REPORT_DATA,
+          attemptsMade: overrides.attemptsMade ?? 1,
+          opts: { attempts: overrides.attempts ?? 3 },
+        } as unknown as import('bullmq').Job<DocumentActionJobData>;
+      }
+
+      it('never calls markSendFailed — a report job has no "send" action vocabulary at all', async () => {
+        const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = jest.fn();
+        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const processor = new DocumentActionProcessor(
+          documentsService,
+          undefined,
+          undefined,
+          reportingRunner,
+        );
+
+        await processor.onFailed(reportJob({ attemptsMade: 3, attempts: 3 }), new Error('boom'));
+
+        expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
+      });
+
+      it('does NOT record a terminal failure while more retries remain', async () => {
+        const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = jest.fn();
+        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const processor = new DocumentActionProcessor(
+          documentsService,
+          undefined,
+          undefined,
+          reportingRunner,
+        );
+
+        await processor.onFailed(reportJob({ attemptsMade: 1, attempts: 3 }), new Error('transient'));
+
+        expect(recordTerminalFailure).not.toHaveBeenCalled();
+      });
+
+      // THE MUTATION TARGET this task's own brief names: "l'échec déclaratif casse le statut de la
+      // facture" — this proves the ONLY thing a terminal report failure ever touches is
+      // `ReportingRunner.recordTerminalFailure` (which journals `report:failed`, see
+      // `reporting-runner.spec.ts`), never `markSendFailed`/the document's own status.
+      it('records the terminal failure once every retry is exhausted, and NEVER touches markSendFailed', async () => {
+        const documentsService = { runAction: jest.fn(), getType: jest.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = jest.fn().mockResolvedValue(undefined);
+        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const processor = new DocumentActionProcessor(
+          documentsService,
+          undefined,
+          undefined,
+          reportingRunner,
+        );
+        const error = new Error('NAV HTTP 500, every retry exhausted');
+
+        await processor.onFailed(reportJob({ attemptsMade: 3, attempts: 3 }), error);
+
+        expect(recordTerminalFailure).toHaveBeenCalledWith(REPORT_DATA, error);
+        expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
+      });
+
+      it('never rejects even if recordTerminalFailure itself throws (belt and suspenders)', async () => {
+        const documentsService = { runAction: jest.fn() } as unknown as DocumentsService;
+        const recordTerminalFailure = jest.fn().mockRejectedValue(new Error('journal write blew up'));
+        const reportingRunner = { runReport: jest.fn(), recordTerminalFailure } as unknown as ReportingRunner;
+        const processor = new DocumentActionProcessor(
+          documentsService,
+          undefined,
+          undefined,
+          reportingRunner,
+        );
+        const loggerErrorSpy = jest
+          .spyOn((processor as unknown as { logger: Logger }).logger, 'error')
+          .mockImplementation(() => undefined);
+
+        await expect(
+          processor.onFailed(reportJob({ attemptsMade: 3, attempts: 3 }), new Error('original failure')),
+        ).resolves.toBeUndefined();
+
+        expect(loggerErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('recordTerminalFailure itself failed'),
+        );
+      });
     });
   });
 });

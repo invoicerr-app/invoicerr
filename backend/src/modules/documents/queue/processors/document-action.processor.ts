@@ -42,6 +42,8 @@ import {
 } from '../../conformity/conformity-sweep';
 import { ConformitySweepRunner, RunConformitySweepResult } from '../../conformity/conformity-sweep-runner';
 import { DocumentsService } from '../../documents.service';
+import { DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../../reporting/report-job';
+import { ReportingRunner } from '../../reporting/reporting-runner';
 import { DocumentScheduleSweepRunner, RunSweepResult } from '../../schedules/schedule-sweep-runner';
 import {
   SCHEDULE_OCCURRENCE_JOB_NAME,
@@ -63,6 +65,11 @@ export class DocumentActionProcessor extends WorkerHost {
     // never sends a conformity-named job; production wiring (documents-core.module.ts) always
     // provides a real one.
     @Optional() private readonly conformitySweepRunner?: ConformitySweepRunner,
+    // Same `@Optional()` reasoning again — declarative reporting (root TODO, `reporting/`) is a
+    // ONE-SHOT job, not a repeatable sweep, but the shape is identical: every EXISTING spec in this
+    // file constructs this processor without one and never sends a report-named job; production
+    // wiring (documents-core.module.ts) always provides a real one.
+    @Optional() private readonly reportingRunner?: ReportingRunner,
   ) {
     super();
   }
@@ -95,6 +102,19 @@ export class DocumentActionProcessor extends WorkerHost {
         `Running conformity poll for document ${poll.documentId} ("${poll.providerId}", job ${job.id})`,
       );
       return this.requireConformitySweepRunner().runPoll(poll);
+    }
+
+    if (job.name === DOCUMENT_REPORT_JOB_NAME) {
+      const report = job.data as unknown as ReportJobData;
+      this.logger.log(
+        `Running declarative report for document ${report.documentId} ("${report.providerId}", job ${job.id})`,
+      );
+      // No try/catch here, deliberately — see `reporting-runner.ts#runReport`'s own header: it
+      // handles `ChannelNotConnectedError` inline (journals `report:blocked`, never retried) but
+      // lets any OTHER failure propagate, exactly like the ordinary "run" branch below, so BullMQ's
+      // own `attempts`/backoff (`DocumentQueueDispatcher.enqueueReport`) gets to run. Only once every
+      // retry is exhausted does `onFailed` below journal `report:failed`.
+      return this.requireReportingRunner().runReport(report);
     }
 
     const { companyId, typeId, documentId, actionId, payload } = job.data;
@@ -132,6 +152,15 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.conformitySweepRunner;
   }
 
+  private requireReportingRunner(): ReportingRunner {
+    if (!this.reportingRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a report job but has no ReportingRunner.');
+    }
+    return this.reportingRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -150,6 +179,39 @@ export class DocumentActionProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   async onFailed(job: Job<DocumentActionJobData> | undefined, error: Error): Promise<void> {
     if (!job) return;
+
+    // A report job's own vocabulary is neither a "send" action's (no `actionId` at all — see
+    // `ReportJobData`) nor a schedule/conformity job's (which, unlike a report, is either skipped
+    // entirely below or never reaches `onFailed` in the first place): a dedicated branch, run BEFORE
+    // the generic skip-list, terminal-only (an earlier, still-retryable attempt is exactly what
+    // BullMQ's own backoff is for — the SAME "attemptsMade < attempts, log and return" gate every
+    // other branch here already applies). `recordTerminalFailure` never throws on its own (see its
+    // own header) — this try/catch is the second, unconditional belt, the identical discipline this
+    // method's own header already documents for `markSendFailed` below (a listener that throws kills
+    // the whole worker process).
+    if (job.name === DOCUMENT_REPORT_JOB_NAME) {
+      const attempts = job.opts?.attempts ?? 1;
+      if (job.attemptsMade < attempts) {
+        this.logger.warn(
+          `Report job ${job.id} failed (attempt ${job.attemptsMade}/${attempts}) — BullMQ will retry: ${error.message}`,
+        );
+        return;
+      }
+      try {
+        await this.requireReportingRunner().recordTerminalFailure(
+          job.data as unknown as ReportJobData,
+          error,
+        );
+      } catch (recordError) {
+        this.logger.error(
+          `recordTerminalFailure itself failed for report job ${job.id} — original failure: ` +
+            `${error.message}; recording failure: ` +
+            `${recordError instanceof Error ? recordError.message : String(recordError)}`,
+        );
+      }
+      return;
+    }
+
     if (
       job.name === SCHEDULE_SWEEP_JOB_NAME ||
       job.name === SCHEDULE_OCCURRENCE_JOB_NAME ||

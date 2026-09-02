@@ -1,0 +1,14 @@
+{
+  "countryCode": "GR",
+  "facts": [
+    {
+      "providerId": "mydata",
+      "appliesTo": "invoice",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "aade.gr (le portail officiel de l'AADE) a renvoyé 403 Forbidden pour CHAQUE chemin tenté depuis cet environnement le 2026-09-02 — la page d'accueil myDATA, la page des « τεχνικές προδιαγραφές » (spécifications techniques), et plusieurs URLs directes de fichiers XSD/PDF sous /sites/default/files/..., avec et sans en-tête User-Agent de navigateur : un mur identique à celui déjà documenté ailleurs dans ce dépôt pour d'autres sites gouvernementaux (voir b2g-routing/data/fr.json's own note sur légifrance/chorus-pro.gouv.fr). Une tentative de lecture de la décision d'exécution du Conseil UE 2023/1553 (qui autorise la Grèce à généraliser la facturation électronique obligatoire via myDATA, et qui aurait dû citer la loi grecque sous-jacente) via eur-lex.europa.eu n'a pas non plus rendu de texte exploitable depuis cet environnement. Le caractère obligatoire de la déclaration myDATA en tant que telle (indépendamment de la facturation électronique) est un fait largement corroboré par des dizaines de bibliothèques clientes tierces indépendantes (voir providers/mydata-declaration-provider.ts's own header — la doctrine cite generalement la Loi 4308/2014 art. 15A et la décision ΠΟΛ.1258/2020 de l'AADE), mais AUCUN texte de loi grec n'a été lu directement à sa source primaire par cette tâche. Réglerait ce point : un accès direct à aade.gr (ou une IP non bloquée par son WAF), ou au ΦΕΚ (Journal officiel grec, et.gr) publiant le texte de la Loi 4308/2014 art. 15A et ses décisions d'application."
+      },
+      "notes": "providerId « mydata » référence `reporting/providers/mydata-declaration-provider.ts`. `appliesTo: 'invoice'` reflète la seule donnée que ce mécanisme déclare aujourd'hui — ce n'est PAS une affirmation que la Grèce n'exigerait que cela (myDATA couvre aussi les notes de crédit, hors périmètre de cette tâche)."
+    }
+  ]
+}
