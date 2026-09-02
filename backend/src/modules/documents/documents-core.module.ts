@@ -22,6 +22,7 @@ import { registerReceivedInvoiceActions } from './actions/received-invoice-actio
 import { B2gRoutingBootUpsertService } from './b2g-routing/boot-upsert.service';
 import { AuthorityStatusPollerRegistry } from './conformity/authority-status-poller';
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
+import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
 import { buildPeppolStatusPoller } from './conformity/pollers/peppol-status-poller';
@@ -50,6 +51,7 @@ import { buildArticleReferenceProvider } from './references/article-reference.pr
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
@@ -179,6 +181,12 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * someone (see `EmailTransportDeps.signingCertificates`'s own header); "pdp"/"ksef"/"sdi"/"peppol"
  * transmit XML/Factur-X formats built by `formats/*-provider.ts`, which this task deliberately does
  * NOT sign (see `sign-instance-pdf.ts`'s own header on why Factur-X's raw-PDF material is exempt).
+ *
+ * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the SIXTH — this makes the channel the B2G
+ * FR routing rule (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST (that commit's
+ * own thesis: "a rule may legitimately name a channel not implemented yet" — see this file's own
+ * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
+ * same "stateless, no reason to couple two registries" argument.
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -215,14 +223,27 @@ function buildTransportRegistry(
     'Peppol',
     buildPeppolTransport({ channelCredentials, peppolBisFormatProvider }),
   );
+  // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
+  // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
+  // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
+  // "stateless, no reason to couple two registries" reasoning "pdp" above already holds.
+  registry.register(
+    'chorus-pro',
+    'Chorus Pro (France)',
+    buildChorusProTransport({
+      channelCredentials,
+      facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
+    }),
+  );
   return registry;
 }
 
 /**
  * Root TODO item 10's own named remainder — post-deposit conformity tracking (`conformity/`). Same
  * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
- * registry's own read-side twin: "pdp", "ksef", and "peppol" (generic AP `getStatus()` —
- * `conformity/pollers/peppol-status-poller.ts`) all register a poller; "sdi" does not (push-only
+ * registry's own read-side twin: "pdp", "ksef", "peppol" (generic AP `getStatus()` —
+ * `conformity/pollers/peppol-status-poller.ts`), and "chorus-pro" (`consulterCr` —
+ * `conformity/pollers/chorus-pro-status-poller.ts`) all register a poller; "sdi" does not (push-only
  * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
  * permanent, not a gap to fill later).
  */
@@ -233,6 +254,10 @@ function buildAuthorityStatusPollerRegistry(
   registry.register(buildPdpStatusPoller({ channelCredentials }));
   registry.register(buildKsefStatusPoller({ channelCredentials }));
   registry.register(buildPeppolStatusPoller({ channelCredentials }));
+  // "chorus-pro" — `consulterCr`, the ONE status-consultation endpoint the repère's own client
+  // carried (`chorus-pro/choruspro-client.ts`) — see `conformity/pollers/chorus-pro-status-poller.ts`'s
+  // own header for what is, and is not, live-verified.
+  registry.register(buildChorusProStatusPoller({ channelCredentials }));
   return registry;
 }
 

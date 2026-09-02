@@ -2211,6 +2211,10 @@
       "emptyState": "No national channel available yet",
       "fields": {
         "baseUrl": "API base URL",
+        "chorusProClientId": "PISTE client ID",
+        "chorusProClientSecret": "PISTE client secret",
+        "chorusProTechnicalAccountLogin": "Chorus Pro technical account login (compte technique)",
+        "chorusProTechnicalAccountPassword": "Chorus Pro technical account password",
         "clientId": "Client ID",
         "clientSecret": "Client secret",
         "environment": "Environment",

@@ -11,9 +11,20 @@
  * proof of what was decided or sent.
  *
  * Three countries, three shipped rules, three different shapes of proof:
- *  - FR (Chorus Pro): `transportId: "chorus-pro"` does not exist in `transport-registry.ts` — the
- *    thesis of this whole model (a rule may legitimately name a channel not implemented yet).
- *    Sending BLOCKS, synchronously, at the preflight — never persisted past "draft".
+ *  - FR (Chorus Pro): **RENFORCÉ** — `transportId: "chorus-pro"` used to name a channel absent from
+ *    `transport-registry.ts` (the thesis of this whole model: a rule may legitimately name a channel
+ *    not implemented yet), so sending BLOCKED, synchronously, at the preflight, before this task. The
+ *    channel now EXISTS (`transports/chorus-pro-transport.ts`) — this is the mechanism PROGRESSING,
+ *    not weakening: a company that connects chorus-pro (fictitious PISTE credentials, same discipline
+ *    31's own wave 3 already established) gets a REAL asynchronous send attempt, exactly the IT/SdI
+ *    shape below, which genuinely fails against the real PISTE sandbox (never a silent success, never
+ *    a silent email fallback) — the refusal moved from "this channel does not exist" to "this channel
+ *    exists, is connected, and a real network attempt through it failed", a STRICTER proof than a
+ *    static block ever was. The ORIGINAL "not connected" shape (chorus-pro registered but no channel
+ *    connected) is NOT re-proven here at the screen level — it is the exact same `NotImplementedException`
+ *    shape `chorus-pro-transport.spec.ts`'s own preflight tests already cover exhaustively (jest), and
+ *    the identical wiring `invoice-b2g-routing.spec.ts`'s own "channel IS chosen but its OWN preflight
+ *    refuses" test already proves for the (structurally identical) IT/sdi case.
  *  - DE (the federal e-invoicing portal, ZRE/OZG-RE): SAME shape — `transportId: "zre-ozgre"`
  *    doesn't exist either (§4 Abs. 3 ERechV requires a PORTAL deposit, not email — see
  *    `b2g-routing/data/de.json`'s own header for why email was deliberately NOT chosen as a
@@ -52,9 +63,24 @@ const FAKE_SDI = {
 	certificatePassword: "e2e-fake-cert-password",
 };
 
+/** Chorus Pro (FR) — same discipline as `31-national-channels.cy.ts`'s own "Vague 3": PISTE's OAuth
+ *  hosts are fixed by environment, never a user-editable field, so these fictitious credentials reach
+ *  the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`) and are rejected for real (`HTTP 400
+ *  invalid_client`) — never a closed port. See that file's own header for the manual verification. */
+const FAKE_CHORUS_PRO = {
+	clientId: "e2e-fake-piste-client-id",
+	clientSecret: "e2e-fake-piste-client-secret",
+	technicalAccountLogin: "TECH_1_e2e-fake@cpro.fr",
+	technicalAccountPassword: "e2e-fake-tech-password",
+};
+
 function setInvoiceTransport(transportId: string) {
 	return cy
-		.request({ method: "POST", url: `${api}/api/company/info`, body: { invoiceTransportId: transportId } })
+		.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { invoiceTransportId: transportId },
+		})
 		.then((res) => {
 			expect(res.status, "transport configured").to.be.oneOf([200, 201]);
 		});
@@ -80,7 +106,9 @@ function createBusinessClient(name: string) {
 			},
 		})
 		.then((res) => {
-			expect(res.status, "client BUSINESS créé par API").to.be.oneOf([200, 201]);
+			expect(res.status, "client BUSINESS créé par API").to.be.oneOf([
+				200, 201,
+			]);
 			const id = res.body?.id as string;
 			expect(id, "le client créé a un identifiant").to.be.a("string");
 			return id;
@@ -89,16 +117,24 @@ function createBusinessClient(name: string) {
 
 function findClientIdByName(name: string) {
 	return cy
-		.request({ url: `${api}/api/documents/references/client/search?q=${encodeURIComponent(name)}` })
+		.request({
+			url: `${api}/api/documents/references/client/search?q=${encodeURIComponent(name)}`,
+		})
 		.its("body")
 		.then((clients: { id: string; label: string }[]) => {
 			const client = clients.find((c) => c.label.includes(name));
-			expect(client, `le client "${name}" créé ci-dessus se retrouve par la recherche`).to.exist;
+			expect(
+				client,
+				`le client "${name}" créé ci-dessus se retrouve par la recherche`,
+			).to.exist;
 			return client!.id;
 		});
 }
 
-function createInvoiceDraft(clientId: string, extraData: Record<string, unknown> = {}) {
+function createInvoiceDraft(
+	clientId: string,
+	extraData: Record<string, unknown> = {},
+) {
 	return cy
 		.request({
 			method: "POST",
@@ -110,7 +146,13 @@ function createInvoiceDraft(clientId: string, extraData: Record<string, unknown>
 					dueDate: "2026-10-15",
 					currency: "EUR",
 					lines: [
-						{ description: "Conseil", quantity: 1, unit: "day", unitPrice: 1000, vatRate: "20" },
+						{
+							description: "Conseil",
+							quantity: 1,
+							unit: "day",
+							unitPrice: 1000,
+							vatRate: "20",
+						},
 					],
 					...extraData,
 				},
@@ -145,7 +187,34 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get("body").type("{esc}");
 	});
 
-	it('FR — un client GOVERNMENT affiche l\'aide Chorus Pro, puis l\'envoi bloque nommément ("chorus-pro" pas encore disponible)', () => {
+	it("FR — un client GOVERNMENT affiche l'aide Chorus Pro, puis l'envoi force le canal chorus-pro (connecté, identifiants PISTE fictifs) et échoue réellement, jamais un envoi silencieux par email", () => {
+		// RENFORCEMENT (voir ce fichier's own header) : chorus-pro EXISTE désormais
+		// (`transports/chorus-pro-transport.ts`) — on le connecte par l'écran, comme la 31's own
+		// "Vague 3" le fait déjà, AVANT de créer le client/la facture. La société choisit "email" (un
+		// canal qui MARCHERAIT réellement, Mailpit) — la préséance B2G doit l'ignorer complètement,
+		// exactement le même motif que le cas IT/SdI plus bas dans ce fichier.
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-chorus-pro"]', { timeout: 15000 }).should(
+			"exist",
+		);
+		cy.get('[data-cy="channel-chorus-pro-clientid-input"]')
+			.clear()
+			.type(FAKE_CHORUS_PRO.clientId);
+		cy.get('[data-cy="channel-chorus-pro-clientsecret-input"]')
+			.clear()
+			.type(FAKE_CHORUS_PRO.clientSecret);
+		cy.get('[data-cy="channel-chorus-pro-technicalaccountlogin-input"]')
+			.clear()
+			.type(FAKE_CHORUS_PRO.technicalAccountLogin);
+		cy.get('[data-cy="channel-chorus-pro-technicalaccountpassword-input"]')
+			.clear()
+			.type(FAKE_CHORUS_PRO.technicalAccountPassword);
+		cy.get('[data-cy="channel-chorus-pro-connect-button"]').click();
+		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
+
 		setInvoiceTransport("email");
 
 		cy.visit("/clients");
@@ -160,22 +229,33 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 
 		// L'aide B2G — jamais un mur : le client se crée normalement, l'aide dit juste ce qui
 		// attend l'envoi d'une facture à ce client.
-		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
 		cy.get('[data-cy="client-b2g-hint-channel"]')
 			.should("contain.text", "chorus-pro")
 			.and("contain.text", "facturx");
-		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "Code de la commande publique");
+		cy.get('[data-cy="client-b2g-hint"]').should(
+			"contain.text",
+			"Code de la commande publique",
+		);
 
 		// Le SIRET — déjà exigé par le catalogue country-identifiers pour TOUT client français
 		// (LEGAL_ID, appliesTo BOTH) : la règle B2G française le référence, elle n'a rien à ajouter
 		// de nouveau à l'écran pour ce champ précis.
-		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("21750001600017");
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+			.clear()
+			.type("21750001600017");
 
-		cy.get('[name="contactEmail"]').clear().type("marches-publics@testville.example");
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("marches-publics@testville.example");
 		cy.get('[name="address"]').clear().type("1 Place de la Mairie");
 		cy.get('[name="postalCode"]').clear().type("75001");
 		cy.get('[name="city"]').clear().type("Testville");
-		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
@@ -191,24 +271,52 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
 
-				// Bloqué SYNCHRONE, au préflight — jamais persisté au-delà de "draft", même si la
-				// société a "email" comme transport (préséance B2G > choix libre de la société).
-				cy.get('[data-sonner-toast]', { timeout: 10000 })
-					.should("contain.text", "chorus-pro")
-					.and("contain.text", "Code de la commande publique");
+				// RENFORCEMENT (voir ce fichier's own header) : le préflight PASSE désormais (chorus-pro
+				// est enregistré ET connecté) — la préséance B2G force quand même chorus-pro plutôt que
+				// "email" (le choix libre de la société), exactement comme le cas IT/SdI plus bas. La
+				// file échoue ensuite RÉELLEMENT, contre le vrai bac à sable PISTE (identifiants
+				// fictifs, HTTP 400 invalid_client) — jamais un succès silencieux, jamais un envoi par
+				// email. Même budget que 31's own chorus-pro/PDP/KSeF/SdI/Peppol tests.
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+					.should("contain.text", "Send failed");
+				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
+					"contain.text",
+					"Chorus Pro",
+				);
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 					.its("body")
 					.then((doc) => {
 						expect(
 							doc.status,
-							'jamais persisté au-delà de "draft" — Chorus Pro bloque avant toute écriture',
-						).to.eq("draft");
+							'la facture échoue réellement via Chorus Pro, jamais "sent" par email',
+						).to.eq("send_failed");
+						expect(
+							doc.lastActionError,
+							"l'erreur nomme Chorus Pro, jamais email",
+						).to.match(/Chorus Pro/);
 					});
 			});
 		});
+
+		// Nettoyage — laisse le canal déconnecté pour ne pas polluer une autre spec qui relirait
+		// company/channels après celui-ci (même discipline que le dernier test de la 31 et le test IT
+		// plus bas dans ce même fichier).
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
+		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').click();
+		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
 	});
 
 	it("DE — un client GOVERNMENT affiche l'aide du portail fédéral, puis l'envoi bloque nommément (le portail ZRE/OZG-RE n'est pas encore connecté), jamais un envoi silencieux par email", () => {
@@ -224,18 +332,24 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
 
-		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
 		cy.get('[data-cy="client-b2g-hint-channel"]')
 			.should("contain.text", "zre-ozgre")
 			.and("contain.text", "xrechnung");
 		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "ERechV");
 		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "Leitweg");
 
-		cy.get('[name="contactEmail"]').clear().type("rechnungen@testhausen.example");
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("rechnungen@testhausen.example");
 		cy.get('[name="address"]').clear().type("Rathausplatz 1");
 		cy.get('[name="postalCode"]').clear().type("10117");
 		cy.get('[name="city"]').clear().type("Testhausen");
-		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
@@ -252,7 +366,9 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			// `documents.service.country-fields.spec.ts`) — mais l'écran de création de facture ne
 			// branche pas encore l'id du client choisi vers cette récupération pour l'offrir
 			// INTERACTIVEMENT ; posé ici via l'API, comme le ferait ce champ une fois câblé.
-			createInvoiceDraft(clientId, { buyerReference: "04011000-1234512345-06" }).then((invoiceId) => {
+			createInvoiceDraft(clientId, {
+				buyerReference: "04011000-1234512345-06",
+			}).then((invoiceId) => {
 				cy.visit("/documents/invoice");
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
 					.find('[data-cy="document-status-badge"]')
@@ -262,15 +378,19 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 				// "draft" (donc jamais numéroté — voir ce fichier's own header : c'est exactement ce
 				// qui rend un téléchargement XRechnung inatteignable par l'écran pour CE document).
 				// Jamais un envoi silencieux par email, quel que soit le transport choisi par la société.
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
-				cy.get('[data-sonner-toast]', { timeout: 10000 })
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+				cy.get("[data-sonner-toast]", { timeout: 10000 })
 					.should("contain.text", "zre-ozgre")
 					.and("contain.text", "ERechV");
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 					.its("body")
 					.then((doc) => {
-						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq("draft");
+						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq(
+							"draft",
+						);
 					});
 			});
 		});
@@ -298,19 +418,27 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		createBusinessClient("Client Ordinaire SARL").then((businessClientId) => {
 			createInvoiceDraft(businessClientId).then((invoiceId) => {
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should(
+					"be.visible",
+				);
 
 				// AVANT tout changement : le client chargé est BUSINESS — aucun champ Leitweg à l'écran.
 				cy.get('[data-cy="document-field-buyerReference"]').should("not.exist");
 
 				// Change le client, À L'ÉCRAN, vers "Stadt Testhausen" — le client GOVERNMENT allemand
 				// créé par le test DE précédent (même describe, même `before`, données conservées).
-				cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
-				cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should(
-					"be.visible",
+				cy.get('[data-cy="document-field-client-input"] button')
+					.first()
+					.click({ force: true });
+				cy.get('[data-cy="document-field-client-input-options"]', {
+					timeout: 10000,
+				}).should("be.visible");
+				cy.get('[data-cy="document-field-client-input"] input').type(
+					"Stadt Testhausen",
 				);
-				cy.get('[data-cy="document-field-client-input"] input').type("Stadt Testhausen");
 				cy.contains(
 					'[data-cy="document-field-client-input-options"] button',
 					"Stadt Testhausen",
@@ -325,34 +453,52 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 				cy.get('[data-cy="document-field-buyerReference"]', { timeout: 10000 })
 					.scrollIntoView()
 					.should("be.visible");
-				cy.get('[data-cy="document-field-buyerReference"]').should("contain.text", "ERechV");
+				cy.get('[data-cy="document-field-buyerReference"]').should(
+					"contain.text",
+					"ERechV",
+				);
 
-				cy.get('[data-cy="document-field-buyerReference-input"]').scrollIntoView().clear().type("04011000-1234512345-06");
+				cy.get('[data-cy="document-field-buyerReference-input"]')
+					.scrollIntoView()
+					.clear()
+					.type("04011000-1234512345-06");
 
 				// Attend la VRAIE requête réseau plutôt que la visibilité du formulaire après coup (le
 				// défilement provoqué par scrollIntoView ci-dessus rend cette dernière fragile) — même
 				// motif que 20-document-totals.cy.ts's own discount test.
-				cy.intercept("POST", `${api}/api/documents/types/invoice/actions/save-draft`).as("saveDraft");
-				cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
-				cy.wait("@saveDraft").its("response.statusCode").should("be.oneOf", [200, 201]);
+				cy.intercept(
+					"POST",
+					`${api}/api/documents/types/invoice/actions/save-draft`,
+				).as("saveDraft");
+				cy.get('[data-cy="document-action-save-draft"]')
+					.scrollIntoView()
+					.click();
+				cy.wait("@saveDraft")
+					.its("response.statusCode")
+					.should("be.oneOf", [200, 201]);
 
 				// L'envoi bloque toujours, nommément, sur zre-ozgre — CE détour par l'écran ne change
 				// rien à la préséance B2G ; jamais un envoi silencieux par email.
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
-				cy.get('[data-sonner-toast]', { timeout: 10000 })
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+				cy.get("[data-sonner-toast]", { timeout: 10000 })
 					.should("contain.text", "zre-ozgre")
 					.and("contain.text", "ERechV");
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 					.its("body")
 					.then((doc) => {
-						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq("draft");
+						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq(
+							"draft",
+						);
 						// Le client ET le Leitweg tapés à l'écran sont bien ceux qui ont été enregistrés
 						// — pas seulement affichés le temps d'un rendu.
-						expect(doc.data?.client, "le nouveau client est bien celui enregistré").to.not.eq(
-							businessClientId,
-						);
+						expect(
+							doc.data?.client,
+							"le nouveau client est bien celui enregistré",
+						).to.not.eq(businessClientId);
 						expect(
 							doc.data?.buyerReference,
 							"le Leitweg-ID tapé à l'écran est bien sauvegardé",
@@ -366,12 +512,23 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		// Le canal SdI, connecté par l'écran, identifiants fictifs (port fermé — même fixture que 31).
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]').clear().type(FAKE_SDI.idTrasmittente);
-		cy.get('[data-cy="channel-sdi-endpoint-input"]').clear().type(FAKE_SDI.endpoint);
-		cy.get('[data-cy="channel-sdi-certificate-input"]').clear().type(FAKE_SDI.certificate);
-		cy.get('[data-cy="channel-sdi-certificatepassword-input"]').clear().type(FAKE_SDI.certificatePassword);
+		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]')
+			.clear()
+			.type(FAKE_SDI.idTrasmittente);
+		cy.get('[data-cy="channel-sdi-endpoint-input"]')
+			.clear()
+			.type(FAKE_SDI.endpoint);
+		cy.get('[data-cy="channel-sdi-certificate-input"]')
+			.clear()
+			.type(FAKE_SDI.certificate);
+		cy.get('[data-cy="channel-sdi-certificatepassword-input"]')
+			.clear()
+			.type(FAKE_SDI.certificatePassword);
 		cy.get('[data-cy="channel-sdi-connect-button"]').click();
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should("contain.text", "Connected");
+		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
 
 		// La société choisit "email" — un canal qui MARCHERAIT réellement (Mailpit). La préséance B2G
 		// doit l'ignorer complètement.
@@ -387,9 +544,16 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
 
-		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="client-b2g-hint-channel"]').should("contain.text", "sdi").and("contain.text", "fatturapa");
-		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "Specifiche tecniche");
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="client-b2g-hint-channel"]')
+			.should("contain.text", "sdi")
+			.and("contain.text", "fatturapa");
+		cy.get('[data-cy="client-b2g-hint"]').should(
+			"contain.text",
+			"Specifiche tecniche",
+		);
 
 		// Le Codice Univoco Ufficio (IPA) — un champ NOUVEAU, offert UNIQUEMENT parce que ce client
 		// est GOVERNMENT (jamais pour un client italien ordinaire — voir b2g-routing/data/it.json).
@@ -398,11 +562,15 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			.clear()
 			.type("UFE0A1");
 
-		cy.get('[name="contactEmail"]').clear().type("fatturazione@testopoli.example");
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("fatturazione@testopoli.example");
 		cy.get('[name="address"]').clear().type("Via Roma 1");
 		cy.get('[name="postalCode"]').clear().type("00100");
 		cy.get('[name="city"]').clear().type("Testopoli");
-		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
@@ -418,22 +586,31 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
 
 				// Asynchrone (le canal B2G, sdi, EST implémenté et connecté) : la file échoue
 				// réellement contre le port fermé — jamais un succès silencieux via email.
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
 					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
 					.should("contain.text", "Send failed");
-				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should("contain.text", "SdI");
+				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
+					"contain.text",
+					"SdI",
+				);
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 					.its("body")
 					.then((doc) => {
-						expect(doc.status, 'la facture échoue réellement via SdI, jamais "sent" par email').to.eq(
-							"send_failed",
-						);
-						expect(doc.lastActionError, "l'erreur nomme SdI, jamais email").to.match(/SdI/);
+						expect(
+							doc.status,
+							'la facture échoue réellement via SdI, jamais "sent" par email',
+						).to.eq("send_failed");
+						expect(
+							doc.lastActionError,
+							"l'erreur nomme SdI, jamais email",
+						).to.match(/SdI/);
 					});
 			});
 		});
@@ -441,9 +618,15 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		// Nettoyage — laisse le canal déconnecté pour ne pas polluer un autre spec qui relirait
 		// company/channels après celui-ci (même discipline que 31's own dernier test).
 		cy.visit("/settings/channels");
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 15000 }).should("contain.text", "Connected");
+		cy.get('[data-cy="channel-sdi-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
 		cy.get('[data-cy="channel-sdi-disconnect-button"]').click();
-		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should("contain.text", "Not connected");
+		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
 	});
 
 	it('un pays GOVERNMENT sans règle B2G déclarée refuse honnêtement — jamais un envoi B2B silencieux (mutation guard #2, à l\'échelle "écran")', () => {
@@ -460,17 +643,25 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get('[data-cy="client-kind-government"]').click();
 
 		// Aucune règle B2G pour US dans cette vague (fr/de/it seuls) — l'aide le dit honnêtement.
-		cy.get('[data-cy="client-b2g-hint-no-rule"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="client-b2g-hint-no-rule"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
 
-		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("12-3456789");
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+			.clear()
+			.type("12-3456789");
 		cy.get('[name="contactEmail"]').clear().type("procurement@nowhere.example");
 		cy.get('[name="address"]').clear().type("1 Federal Plaza");
 		cy.get('[name="postalCode"]').clear().type("10001");
 		cy.get('[name="city"]').clear().type("Nowhere City");
-		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Dollar");
-		cy.get('[data-cy="client-currency-select-option-united-states-dollar-($)"]').click();
+		cy.get(
+			'[data-cy="client-currency-select-option-united-states-dollar-($)"]',
+		).click();
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -483,17 +674,22 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
 
-				cy.get('[data-sonner-toast]', { timeout: 10000 })
-					.should("contain.text", "No B2G routing rule is declared for \"US\"");
+				cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+					"contain.text",
+					'No B2G routing rule is declared for "US"',
+				);
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 					.its("body")
 					.then((doc) => {
-						expect(doc.status, "jamais un envoi B2B silencieux pour un pays non couvert").to.eq(
-							"draft",
-						);
+						expect(
+							doc.status,
+							"jamais un envoi B2B silencieux pour un pays non couvert",
+						).to.eq("draft");
 					});
 			});
 		});

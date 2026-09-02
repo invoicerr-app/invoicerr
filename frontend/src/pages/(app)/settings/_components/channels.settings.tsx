@@ -48,7 +48,13 @@ interface ChannelsResponse {
 /** Friendly display names for known providers — `TransportRegistry.list()`'s own label ("PDP
  *  (France)") is written for the invoice-transport PICKER, not this settings screen; falls back to
  *  the bare id (uppercased) for a provider this screen has no opinion about yet. */
-const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI", peppol: "Peppol" }
+const PROVIDER_LABELS: Record<string, string> = {
+  pdp: "PDP",
+  ksef: "KSeF",
+  sdi: "SdI",
+  peppol: "Peppol",
+  "chorus-pro": "Chorus Pro",
+}
 
 /**
  * One provider's config field — the settings-screen half of what wave 1 (PDP) had hard-coded
@@ -174,6 +180,44 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelDefault: "Peppol participant ID (yours)",
       type: "text",
       placeholder: "0009:12345678900011",
+    },
+  ],
+  // Chorus Pro (FR, B2G) — makes the channel the B2G FR routing rule (`b2g-routing/data/fr.json`)
+  // has named since 3cb39f91 actually connectable. Exactly the four fields
+  // `chorus-pro-transport.ts#extractChorusProCredentials` reads: TWO independent credential layers
+  // (see CREDENTIALS_GUIDE.md §3) — a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
+  // Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`), both required
+  // to be "connected". The environment selector below (generic, already rendered for every provider)
+  // picks sandbox vs prod — `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS` targets the PISTE
+  // sandbox this task independently verified reachable (TEST) or the production PISTE host (PROD);
+  // there is no separate URL field here, unlike PDP/SdI, since Chorus Pro's own OAuth/API hosts are a
+  // fixed platform fact, never a user-editable endpoint.
+  "chorus-pro": [
+    {
+      key: "clientId",
+      labelKey: "settings.channels.fields.chorusProClientId",
+      labelDefault: "PISTE client ID",
+      type: "text",
+      placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    },
+    {
+      key: "clientSecret",
+      labelKey: "settings.channels.fields.chorusProClientSecret",
+      labelDefault: "PISTE client secret",
+      type: "password",
+    },
+    {
+      key: "technicalAccountLogin",
+      labelKey: "settings.channels.fields.chorusProTechnicalAccountLogin",
+      labelDefault: "Chorus Pro technical account login (compte technique)",
+      type: "text",
+      placeholder: "TECH_1_xxxxxx@cpro.fr",
+    },
+    {
+      key: "technicalAccountPassword",
+      labelKey: "settings.channels.fields.chorusProTechnicalAccountPassword",
+      labelDefault: "Chorus Pro technical account password",
+      type: "password",
     },
   ],
 }
