@@ -68,8 +68,16 @@ jest.mock('./b2g-routing/b2g-routing');
  * The invoice's "send" is deliberately NOT the quote's mechanism (see actions/invoice-actions.ts and
  * actions/send-divergence.spec.ts) — the transport is read from `Company.invoiceTransportId`
  * (transports/company-transport.ts), mocked here the same way persistence.ts already is.
+ *
+ * `webhooks` (TODO_PRODUIT.md T2 / PLAN-V2 R9) is OPTIONAL, defaulted to `undefined` — every
+ * pre-existing test in this file constructs `buildService()` with no opinion on webhooks at all and
+ * must keep meaning exactly what it always did (no `DocumentWebhookEmitter` ever wired, `INVOICE_SENT`
+ * never fires). Only the dedicated "webhook" describe block below passes one.
  */
-function buildService(transportRegistry: TransportRegistry = new TransportRegistry()) {
+function buildService(
+  transportRegistry: TransportRegistry = new TransportRegistry(),
+  webhooks?: { dispatch: jest.Mock },
+) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildInvoiceDescriptor());
 
@@ -81,7 +89,7 @@ function buildService(transportRegistry: TransportRegistry = new TransportRegist
   const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
 
   const actionRegistry = new ActionRegistry();
-  registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher });
+  registerInvoiceActions(actionRegistry, { transportRegistry, queueDispatcher, webhooks });
   // "record-payment" IS registered (invoice-actions.ts) — its own describe block below. "export-
   // accounting" is NOT, on purpose — see invoice.descriptor.ts.
 
@@ -639,6 +647,164 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       const descriptor = buildService().service.getType('invoice');
       const sendAction = descriptor.actions.find((a) => a.id === 'send');
       expect(sendAction?.params ?? []).toEqual([]);
+    });
+  });
+
+  /**
+   * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the `INVOICE_SENT` webhook. `async-send.spec.ts`'s own
+   * "webhook" describe block already proves `runAsyncSendAction` in isolation (fires once, from
+   * "sent", never before, never on failure, a dispatch failure never propagates); THIS describe block
+   * proves the two things that only exist ABOVE that isolation boundary: that `invoice-actions.ts`
+   * actually wires `deps.webhooks` through to `WebhookEvent.INVOICE_SENT`, and — the idempotence
+   * guarantee T2 demands — that `DocumentsService.runAction`'s own status gate is what makes a
+   * REDELIVERED job structurally incapable of dispatching the webhook a second time.
+   */
+  describe('"send" — TODO_PRODUIT.md T2 / PLAN-V2 R9 (the INVOICE_SENT webhook)', () => {
+    it('phase 2: dispatches INVOICE_SENT, generically keyed, once the transport genuinely delivers', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(transportRegistry, webhooks);
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.document).toMatchObject({ status: 'sent' });
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledWith(
+        'INVOICE_SENT',
+        expect.objectContaining({
+          documentId: 'doc-1',
+          typeId: 'invoice',
+          companyId: 'company-1',
+          invoice: expect.objectContaining({ id: 'doc-1', status: 'sent' }),
+          invoiceId: 'doc-1',
+        }),
+      );
+    });
+
+    // THE IDEMPOTENCE PROOF TODO_PRODUIT.md T2 demands: "exactement une émission par document même à
+    // travers les retries BullMQ". The guarantee is STRUCTURAL, not a new lock/table — it lives
+    // entirely in `DocumentsService.runAction`'s own status gate (`isActionAvailable`,
+    // `documents.service.spec.ts` proves that gate in isolation): "send"'s `availableWhen` (derived
+    // from `SEND_TRANSITIONS`, invoice.descriptor.ts) does NOT include "sent" — only
+    // 'draft'/'send_failed'/'sending'. A REDELIVERED/stalled BullMQ job replaying the exact same
+    // `(companyId, typeId, documentId, 'send')` job is the only way `runAction('send')` could ever be
+    // invoked again once "sent" was genuinely persisted — nothing between that write and the job's
+    // normal completion can throw (`events.publish`/`archiveDeliveredArtifactsIfAny`/
+    // `reportOnSendIfObligated`/this task's own webhook dispatch are ALL "never throws" by contract,
+    // see async-send.ts's own header), so BullMQ never naturally retries a "sent" job — a redelivery
+    // is the only remaining path back to `runAction`. That redelivered call hits a `ConflictException`
+    // (409) from `runAction`'s OWN gate BEFORE ever reaching `invoice-actions.ts`'s handler — the
+    // webhook dispatch inside `runAsyncSendAction` never runs a second time.
+    it('a redelivered job (status now "sent") is refused with a 409 BEFORE reaching the handler — the webhook never fires twice', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      const sendingDocument = {
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const sentDocument = { ...sendingDocument, status: 'sent' };
+      (persistence.findOwnedDocument as jest.Mock)
+        // 1st `runAction` invocation (the job's FIRST delivery): `runAction`'s own gate reads
+        // "sending" (call #1), then `runAsyncSendAction` re-reads it (call #2, async-send.ts's own
+        // header explains why it re-reads rather than trusting the gate's copy).
+        .mockResolvedValueOnce(sendingDocument)
+        .mockResolvedValueOnce(sendingDocument)
+        // 2nd `runAction` invocation (a REDELIVERY of the SAME job) — the record now genuinely
+        // reflects what the FIRST invocation already committed: "sent". Only ONE call happens this
+        // time: `runAction`'s own gate throws before the handler (and its own second read) ever runs.
+        .mockResolvedValueOnce(sentDocument);
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentDocument);
+
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(transportRegistry, webhooks);
+
+      const first = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+      expect(first.document).toMatchObject({ status: 'sent' });
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+
+      const second = service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      await expect(second).rejects.toBeInstanceOf(ConflictException);
+      // The handler — and therefore the webhook dispatch nested inside it — never ran a second time.
+      expect(fakeTransport.send).toHaveBeenCalledTimes(1);
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('a webhook dispatch failure never turns "send" into a failure — the invoice stays "sent"', async () => {
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
+      const transportRegistry = new TransportRegistry();
+      const fakeTransport = {
+        send: jest.fn().mockResolvedValue({ message: 'Invoice sent to client-1@example.com.' }),
+      };
+      transportRegistry.register('email', 'Email', fakeTransport);
+
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: validInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const webhooks = { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) };
+      const { service } = buildService(transportRegistry, webhooks);
+
+      const result = await service.runAction('company-1', 'invoice', 'send', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+      });
+
+      expect(result.document).toMatchObject({ status: 'sent' });
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
     });
   });
 

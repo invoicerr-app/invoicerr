@@ -1,5 +1,50 @@
+import * as http from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { defineConfig } from "cypress";
 import { Client } from "pg";
+
+/**
+ * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the "receiver" side for `42-webhooks.cy.ts`. A vanilla
+ * `node:http` server, started ONCE for the whole run (module-level state in this Node plugin
+ * process — the same process every `on("task", ...)` handler already runs in, see the file's other
+ * tasks above), because the backend under test needs a REAL, network-reachable URL to POST to: a
+ * `cy.intercept` only ever sees traffic the BROWSER makes, never a server-to-server POST the backend
+ * issues on its own (`WebhookDispatcherService` → `GenericDriver` → `fetch`). Same host, same
+ * "localhost" reachability every other e2e port already relies on (Postgres :5433, Redis :6399,
+ * Mailpit :1025/:8025) — the backend and Cypress run on the SAME machine in this harness, never
+ * across a container boundary that would make "localhost" mean something different to each side.
+ */
+let webhookReceiverUrl: string | null = null;
+const receivedWebhookRequests: unknown[] = [];
+
+function startWebhookReceiver(): Promise<string> {
+  if (webhookReceiverUrl) return Promise.resolve(webhookReceiverUrl);
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk) => chunks.push(chunk));
+      req.on("end", () => {
+        const raw = Buffer.concat(chunks).toString("utf-8");
+        let body: unknown = raw;
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          // GenericDriver always sends JSON — an unparsable body would itself be a finding, kept
+          // as the raw string rather than swallowed.
+        }
+        receivedWebhookRequests.push(body);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo;
+      webhookReceiverUrl = `http://127.0.0.1:${address.port}`;
+      resolve(webhookReceiverUrl);
+    });
+  });
+}
 
 export default defineConfig({
   // The suite runs 15 specs back to back in one CI job with video capture on, which
@@ -209,6 +254,19 @@ export default defineConfig({
           } finally {
             await client.end();
           }
+        },
+
+        // TODO_PRODUIT.md T2 / PLAN-V2 R9 — see this file's own header just above for why a real
+        // `node:http` server, not a `cy.intercept`, is what a server-to-server webhook needs.
+        startWebhookReceiver() {
+          return startWebhookReceiver();
+        },
+        getWebhookRequests() {
+          return [...receivedWebhookRequests];
+        },
+        clearWebhookRequests() {
+          receivedWebhookRequests.length = 0;
+          return null;
         },
       });
     },

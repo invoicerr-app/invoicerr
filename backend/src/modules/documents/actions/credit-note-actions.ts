@@ -28,6 +28,13 @@ export interface CreditNoteActionDeps {
  * other type's "send" — see credit-note.descriptor.ts's own comment on why that is deliberate even
  * though this type's `deliver` has nothing to await: ONE mechanism for the action id "send", whatever
  * a given type's own delivery actually does.
+ *
+ * TODO_PRODUIT.md T2 / PLAN-V2 R9 — deliberately NO `webhook` passed to `runAsyncSendAction` below.
+ * The prisma `WebhookEvent` enum has no `CREDIT_NOTE_SENT` at all (nor any other CREDIT_NOTE_* entry)
+ * — inventing one was explicitly out of scope for that task ("n'invente rien" — the schema change,
+ * the migration, and which of `event-formatters.ts`'s conventions it should follow are all decisions
+ * for the mandant, not this task). `runAsyncSendAction`'s own `webhook` field is OPTIONAL exactly for
+ * this case: absent reads as "no webhook for this type", never a crash — see that field's own header.
  */
 export function registerCreditNoteActions(registry: ActionRegistry, deps: CreditNoteActionDeps): void {
   registerSaveDraftAction(registry, 'credit-note');

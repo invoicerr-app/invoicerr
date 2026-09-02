@@ -1,5 +1,19 @@
 import { Company, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
+/**
+ * TODO_PRODUIT.md T2 / PLAN-V2 R9 — every bare `p.client.type` below became `p.client?.type`,
+ * fixed for the FIRST real caller: no document-type webhook (`QUOTE_*`/`INVOICE_*`/`PAYMENT_*`/
+ * `RECEIPT_*`/`RECURRING_INVOICE_*`) was ever dispatched anywhere in this codebase before this task
+ * (`grep -rn WebhookDispatcherService`, only `clients.service.ts`/`company.service.ts` ever called
+ * `dispatch` — always WITH a full `client` relation, which is why this was dormant). `async-send.ts`'s
+ * own webhook payload is deliberately GENERIC (no type-specific "client" field — see its own header)
+ * and so has no `client` at all; `formatPayloadForEvent`'s own try/catch below already turns an
+ * unguarded `undefined.type` into a raw JSON dump rather than crashing the driver, but that dump is
+ * the WORST possible message for a real Slack/Discord/Teams channel (`async-send-webhook.spec.ts`
+ * caught this against a REAL driver, not a mock). Optional chaining here just lets the SAME formatter
+ * degrade to "Client: N/A" instead — no behavior change for any EXISTING caller, which always supplies
+ * a real `client`.
+ */
 export interface EventStyle {
   color: string;
   emoji: string;
@@ -295,19 +309,19 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
   const formatters: Record<WebhookEvent, (p: any) => string | null> = {
     // Quote events
     [WebhookEvent.QUOTE_CREATED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nTotal Inc. Tax: ${p.quote?.totalTTC || 0}${p.quote?.currency || '€'}`,
+      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nTotal Inc. Tax: ${p.quote?.totalTTC || 0}${p.quote?.currency || '€'}`,
     [WebhookEvent.QUOTE_UPDATED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.QUOTE_DELETED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.QUOTE_SENT]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.QUOTE_SIGNED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.QUOTE_EXPIRED]: (p) =>
       `**Quote #${p.quote?.number || p.quoteId}**\nExpired on: ${p.quote?.expiresAt ? new Date(p.quote.expiresAt).toLocaleDateString('en-US') : 'N/A'}`,
     [WebhookEvent.QUOTE_REJECTED]: (p) =>
-      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Quote #${p.quote?.number || p.quoteId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.QUOTE_VIEWED]: (_p) => null,
     [WebhookEvent.QUOTE_MARKED_AS_SIGNED]: (p) =>
       `**Quote #${p.quote?.number || p.quoteId}**\nMarked as signed`,
@@ -318,13 +332,13 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
 
     // Invoice events
     [WebhookEvent.INVOICE_CREATED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nTotal Inc. Tax: ${p.invoice?.totalTTC || 0}${p.invoice?.currency || '€'}`,
+      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nTotal Inc. Tax: ${p.invoice?.totalTTC || 0}${p.invoice?.currency || '€'}`,
     [WebhookEvent.INVOICE_UPDATED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.INVOICE_DELETED]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.INVOICE_SENT]: (p) =>
-      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `**Invoice #${p.invoice?.number || p.invoiceId}**\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.INVOICE_PAID]: (p) =>
       `**Invoice #${p.invoice?.number || p.invoiceId}**\nAmount: ${p.invoice?.totalTTC || 0}${p.invoice?.currency || '€'}\n💰 Paid on ${p.invoice?.paidAt ? new Date(p.invoice.paidAt).toLocaleDateString('en-US') : 'N/A'}`,
     [WebhookEvent.INVOICE_OVERDUE]: (p) =>
@@ -391,15 +405,15 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
 
     // Client events
     [WebhookEvent.CLIENT_CREATED]: (p) =>
-      `**${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
     [WebhookEvent.CLIENT_UPDATED]: (p) =>
-      `**${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}`,
     [WebhookEvent.CLIENT_DELETED]: (p) =>
-      `**${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
     [WebhookEvent.CLIENT_ACTIVATED]: (p) =>
-      `**${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
     [WebhookEvent.CLIENT_DEACTIVATED]: (p) =>
-      `**${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
     [WebhookEvent.CLIENT_SEARCHED]: (_p) => null,
 
     // Company events
@@ -414,17 +428,17 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
 
     // Recurring Invoice events
     [WebhookEvent.RECURRING_INVOICE_CREATED]: (p) =>
-      `Client: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nFrequency: ${p.recurringInvoice?.frequency || 'N/A'}\nAmount: ${p.recurringInvoice?.totalTTC || 0}${p.recurringInvoice?.currency || '€'}`,
+      `Client: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nFrequency: ${p.recurringInvoice?.frequency || 'N/A'}\nAmount: ${p.recurringInvoice?.totalTTC || 0}${p.recurringInvoice?.currency || '€'}`,
     [WebhookEvent.RECURRING_INVOICE_UPDATED]: (p) =>
-      `Client: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nFrequency: ${p.recurringInvoice?.frequency || 'N/A'}`,
+      `Client: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}\nFrequency: ${p.recurringInvoice?.frequency || 'N/A'}`,
     [WebhookEvent.RECURRING_INVOICE_DELETED]: (p) =>
-      `Client: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `Client: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.RECURRING_INVOICE_GENERATED]: (p) =>
-      `Recurring invoice generated\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `Recurring invoice generated\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.RECURRING_INVOICE_AUTO_SENT]: (p) =>
-      `Recurring invoice auto-sent\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `Recurring invoice auto-sent\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.RECURRING_INVOICE_PROCESSED]: (p) =>
-      `Recurring invoice processed\nClient: ${(p.client.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
+      `Recurring invoice processed\nClient: ${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}`,
     [WebhookEvent.RECURRING_INVOICE_NEXT_DATE_CALCULATED]: (p) =>
       `Next date: ${p.nextDate ? new Date(p.nextDate).toLocaleDateString('en-US') : 'N/A'}`,
 

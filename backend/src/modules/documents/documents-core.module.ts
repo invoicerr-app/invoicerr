@@ -8,6 +8,8 @@ import { CompanyModule } from '@/modules/company/company.module';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
 import { MailService } from '@/mail/mail.service';
+import { WebhookDispatcherService } from '@/modules/webhooks/webhook-dispatcher.service';
+import { WebhooksModule } from '@/modules/webhooks/webhooks.module';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
@@ -410,6 +412,16 @@ function buildDeclarationProviderRegistry(
  * — the SSE status bridge, see `async-send.ts`'s own `RunAsyncSendInput.events` header. Same
  * `@Global()` `DocumentQueueModule` origin as `queueDispatcher` just above, so it resolves the same
  * way regardless of process (API or worker).
+ *
+ * `webhookDispatcher` (TODO_PRODUIT.md T2 / PLAN-V2 R9) is threaded into the quote and the invoice —
+ * the two types whose "sent" transition has a dedicated `WebhookEvent` today (`QUOTE_SENT`,
+ * `INVOICE_SENT` — see each type's own `deps.webhooks` comment); the credit note gets none, on
+ * purpose (its own file's header). Unlike `eventsPublisher`, this does NOT come from the `@Global()`
+ * `DocumentQueueModule` — it comes from `WebhooksModule`, imported below specifically so this resolves
+ * identically in a scaled ("giga") deployment's dedicated worker process too (TODO_PRODUIT.md T2's own
+ * "WORKER_INLINE=false" requirement): `DocumentsQueueWorkerModule` imports THIS Core module, never
+ * `WebhooksModule` directly, so without this import a worker-only process could never actually
+ * dispatch the webhook it just decided to fire.
  */
 function buildActionRegistry(
   clientsService: ClientsService,
@@ -420,6 +432,7 @@ function buildActionRegistry(
   queueDispatcher: DocumentQueueDispatcher,
   signingCertificates: SigningCertificatesService,
   eventsPublisher: DocumentEventsPublisher,
+  webhookDispatcher: WebhookDispatcherService,
 ): ActionRegistry {
   const registry = new ActionRegistry();
   registerQuoteActions(registry, {
@@ -430,10 +443,16 @@ function buildActionRegistry(
     queueDispatcher,
     signingCertificates,
     events: eventsPublisher,
+    webhooks: webhookDispatcher,
   });
   registerConvertToInvoiceAction(registry);
   registerRequestDepositAction(registry);
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher, events: eventsPublisher });
+  registerInvoiceActions(registry, {
+    transportRegistry,
+    queueDispatcher,
+    events: eventsPublisher,
+    webhooks: webhookDispatcher,
+  });
   registerCreditNoteActions(registry, { queueDispatcher, events: eventsPublisher });
   registerExpenseActions(registry);
   registerReceivedInvoiceActions(registry);
@@ -496,9 +515,16 @@ function buildEntityReferenceRegistry(
  * importantly, so `DocumentQueueRedisRequiredGuard` (that module's own provider) runs its boot-time
  * Redis check in EVERY process that imports this Core module, API or worker alike: there is no way to
  * boot the documents system at all without also proving Redis is reachable.
+ *
+ * `WebhooksModule` (TODO_PRODUIT.md T2 / PLAN-V2 R9) is imported for the identical "every process that
+ * imports this Core module gets it" reason — `WebhookDispatcherService` needs to resolve in a
+ * dedicated worker process (`WORKER_INLINE=false`) exactly as much as in the API, since that is where
+ * the "sent" write (and therefore the webhook it announces) actually happens under that topology.
+ * `PluginsModule` (its only own import — `WebhooksModule`'s header) touches neither Clients/Articles/
+ * Company/Documents, so this adds no cycle.
  */
 @Module({
-  imports: [ClientsModule, ArticlesModule, DocumentQueueModule, CompanyModule],
+  imports: [ClientsModule, ArticlesModule, DocumentQueueModule, CompanyModule, WebhooksModule],
   providers: [
     DocumentsService,
     MailService,
@@ -580,6 +606,7 @@ function buildEntityReferenceRegistry(
         DocumentQueueDispatcher,
         SigningCertificatesService,
         DocumentEventsPublisher,
+        WebhookDispatcherService,
       ],
     },
     {

@@ -38,12 +38,16 @@
  * (credit-note-actions.ts) nothing at all — a plain status transition with no transport, no email,
  * exactly as before this task, just reached one hop later.
  */
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+
 import { DocumentInstanceResult, ActionResult } from './action-registry';
 import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
 import { ArchivedArtifactInput } from '../archive/hashing';
+import { logger } from '@/logger/logger.service';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnSendIfObligated } from '../reporting/report-on-send';
 
@@ -115,6 +119,33 @@ export interface RunAsyncSendInput {
    */
   events?: DocumentEventPublisher;
   /**
+   * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the fix for the OTHER half of what R1 (085919bf) closed: R1
+   * stopped a webhook firing for a transmission that was never attempted; this is what makes it fire
+   * again once a transmission genuinely SUCCEEDS. Fires from the SAME acquisition point `events`
+   * publishes "sent" from, right below — never earlier (an enqueue is not a send), never on a
+   * `deliver()` failure (an uncaught throw skips this line entirely, the same "unacquired fact, never
+   * announced" discipline `events` already holds).
+   *
+   * OPTIONAL and a SINGLE bundled field, deliberately — like `events` above, every EXISTING
+   * caller/spec of this function predates it and must keep passing unchanged. Bundled (`emitter` +
+   * `event`) rather than two independent optional fields because neither means anything alone: an
+   * emitter with no event to name would fire nothing, and an event with no emitter has nothing to
+   * dispatch through — one field, one "is this type wired for a sent-webhook at all" question.
+   *
+   * `event` is WHICH `WebhookEvent` (prisma schema) this type's own "sent" transition announces —
+   * carried by the TYPE's own deps, exactly like `numberOnEnqueue` below, never branched on `typeId`
+   * here: `invoice-actions.ts` passes `WebhookEvent.INVOICE_SENT`, `quote-actions.ts` passes
+   * `WebhookEvent.QUOTE_SENT` (both already exist in the schema — `event-formatters.ts` already has
+   * formatters for both). `credit-note-actions.ts` passes nothing at all: the schema has NO
+   * `CREDIT_NOTE_SENT` event, and inventing one is explicitly out of this task's scope (see that
+   * file's own comment) — "no event declared" reads as "no webhook for this type", never a crash.
+   *
+   * `emitter` depends on the narrow `DocumentWebhookEmitter` interface (queue/document-webhooks.ts),
+   * never the concrete `WebhookDispatcherService` — same "interface, not class" discipline `events`
+   * already holds, for the identical testability reason.
+   */
+  webhook?: { emitter: DocumentWebhookEmitter; event: WebhookEvent };
+  /**
    * Whether THIS type declares `numbering: { onEnterStatus: 'sending' }` (quote/invoice: true;
    * credit-note: false — see credit-note.descriptor.ts's own comment on why it declares no numbering
    * at all). `runAsyncSendAction` cannot infer this itself — it never sees a descriptor, only a typeId
@@ -139,6 +170,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     preflight,
     numberOnEnqueue,
     events,
+    webhook,
   } = input;
   // Reassigned below, ONLY on the phase-1 path, when `preflight` hands back a resolved replacement —
   // see `RunAsyncSendInput.preflight`'s own header. Untouched (still exactly `input.data`) for the
@@ -180,6 +212,47 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // reached if `deliver()` or `updateDocumentStatus` above threw — see `RunAsyncSendInput.events`'s
     // own header for why a failed write must never publish.
     await events?.publish(companyId, { documentId, typeId, kind: 'sent' });
+
+    // TODO_PRODUIT.md T2 / PLAN-V2 R9 — the fix for what R1 (085919bf) left undone: THIS is the one
+    // place a "sent" webhook is allowed to fire from, right after the SAME acquired fact `events`
+    // just announced, and for the identical reason — never earlier, never for a call that threw
+    // before reaching here. Absent for a type with no `webhook` configured (credit-note today) — "no
+    // capability, no effect", the same posture `events` already holds.
+    //
+    // Wrapped here, never left to propagate: `WebhookDispatcherService.dispatch` (the production
+    // `emitter`) already logs-then-RETHROWS on failure (every existing caller — `company.service.ts`,
+    // `clients.service.ts` — wraps it in its own try/catch for the exact same reason), and this is the
+    // one call site where "the send genuinely succeeded" must never be undone by a THIRD PARTY's
+    // webhook endpoint being down. A named, loud log — never silent — is what "jamais silencieux"
+    // (this task's own instruction, echoing `report-on-send.ts`'s header) means here.
+    if (webhook) {
+      try {
+        await webhook.emitter.dispatch(webhook.event, {
+          documentId: sent.id,
+          typeId,
+          companyId,
+          // Generic by construction: `typeId` is a STRING KEY here, never a branch — `{ invoice:
+          // sent }` for the invoice, `{ quote: sent }` for the quote, whatever a future type's own
+          // `webhook.event` names. `event-formatters.ts`'s own INVOICE_SENT/QUOTE_SENT formatters
+          // read exactly this shape (`p.invoice?.number`/`p.quote?.number`, falling back to
+          // `p.invoiceId`/`p.quoteId` below).
+          [typeId]: sent,
+          [`${typeId}Id`]: sent.id,
+          sentAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        logger.error('Failed to dispatch a "sent" webhook — the document was still sent successfully', {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId,
+            documentId,
+            event: webhook.event,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
 
     // Root TODO item 14 ("archivage légal") — archived ONLY once delivery has genuinely succeeded
     // (this line runs after `sent` is already persisted, never before): archiving a delivery that

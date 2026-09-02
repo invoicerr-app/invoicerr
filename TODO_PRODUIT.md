@@ -60,6 +60,13 @@ c'est précisément pour ça que le pont passe par Redis, jamais par l'in-proces
 
 ## T2 — Webhook `INVOICE_SENT` émis quand la transmission ABOUTIT (R9)
 
+> ✅ **FAIT** (2026-09-03) — émission à l'écriture « sent » acquise (INVOICE_SENT + QUOTE_SENT
+> jamais câblé avant), idempotence structurelle prouvée (409 sur rejeu), WebhooksModule résoluble
+> dans le worker (boot réel ROLE=worker), correctif défensif formatters (client optionnel), spec
+> e2e 42 par l'écran avec receveur HTTP réel. Validé : jest 1887, 3 mutations mordantes, batterie
+> 233 verts. SUPPLANTÉ PARTIELLEMENT par T2bis (générique seul) — l'émission par-type vit jusqu'au
+> commit T2bis.
+
 Émis depuis l'écriture « sent » réelle (le même point d'accroche que l'archive et le reporting —
 lire `actions/async-send.ts` et `reporting/report-on-send.ts`'s own header : « après le fait
 acquis, jamais avant »), JAMAIS à l'enqueue, JAMAIS sur un échec. Exactement une émission par
@@ -72,6 +79,47 @@ webhook sur un envoi réussi ; zéro sur un échec ; zéro à l'enqueue ; le pay
 formatters existants.
 **Tests** : jest sur le point d'émission + idempotence ; e2e si un écran webhook existe (sinon
 consigner que la preuve reste jest).
+
+## T2bis — Webhooks génériques `DOCUMENT_*` (décision mandant, 2026-09-03)
+
+> Décision (AskUserQuestion) : « Générique seul, purger le par-type » — puis validation du
+> vocabulaire complet. Principe : un événement = un FAIT acquis en Postgres, jamais une
+> intention ; chaque événement pointe un point d'écriture qui EXISTE déjà.
+
+**Le trio livré par cette tâche** (points d'écriture déjà construits par T1/T2) :
+- `DOCUMENT_SENT` — la transmission a abouti (`async-send.ts` phase 2, remplace l'émission
+  INVOICE_SENT/QUOTE_SENT câblée par T2) ;
+- `DOCUMENT_SEND_FAILED` — échec terminal après retries (`mark-send-failed.ts`, le point T1) ;
+- `DOCUMENT_AUTHORITY_EVENT` — l'autorité a parlé (les points `journaled > 0` de T1 :
+  conformity-sweep-runner, reporting-runner, sdi-notifiche ; payload : providerId, statusCode).
+Plus `DOCUMENT_CREATED`/`DOCUMENT_DELETED` SI le point d'écriture CRUD est unique et trivial
+dans `DocumentsService` — sinon consigner, jamais forcer.
+
+**Contrat de payload uniforme** : `{ event, typeId, documentId, companyId, occurredAt,
+document: {…la ligne…}, …faits propres }` — clé `document` FIXE (plus la clé calculée
+`[typeId]` de T2), `typeId` en donnée de filtrage. Un futur type obtient tous les événements
+sans migration.
+
+**La purge** : les familles document jamais émises (QUOTE_*, INVOICE_*, PAYMENT_*-document,
+RECEIPT_*) sortent de l'enum `WebhookEvent` (migration Prisma) avec nettoyage des lignes
+d'abonnement existantes qui les référencent — l'écran cesse d'offrir des options mortes.
+CLIENT_*/COMPANY_* restent (émetteurs réels : clients.service, company.service).
+SIGNATURE_*/PAYMENT_METHOD_*/INVOICE_PAID etc. : tranché PAR GREP — on ne purge que ce qui
+n'a prouvablement AUCUN émetteur ; ce qui en a un reste, consigné.
+
+**Écarté, avec le pourquoi (ne pas rouvrir sans décision)** : DOCUMENT_SENDING (bruit — le SSE
+couvre l'UI) ; DOCUMENT_STATUS_CHANGED fourre-tout (pousse à parser des statuts au lieu de
+faits) ; *_SEARCHED/*_PDF_GENERATED (télémétrie, jamais émis).
+
+**Différé, porté par les tâches où vit leur point d'écriture** : `DOCUMENT_SETTLED` → T3
+(compute-settlement au moment où un paiement s'applique) ; `DOCUMENT_RECEIVED` → T5
+(reception/) ; `DOCUMENT_SIGNED` → consigné TODO_ISSUES (module signature, plus tard).
+
+**Accepte si** : le stub HTTP réel (le harnais de T2, `async-send-webhook.spec.ts` + spec e2e
+42 adaptés) reçoit DOCUMENT_SENT une seule fois sur succès, DOCUMENT_SEND_FAILED une seule
+fois sur échec terminal, DOCUMENT_AUTHORITY_EVENT sur un événement d'autorité journalisé ;
+zéro à l'enqueue ; l'écran n'offre plus une seule option morte ; la migration passe sur les
+DEUX bases (dev + test) avec des abonnements préexistants référençant un événement purgé.
 
 ## T3 — Paiements et avoirs convertissent les devises
 
@@ -86,6 +134,8 @@ restent justes ; un avoir suit la même règle que sa facture.
 locaux) — les tests de conversion se PINNENT sur des dates limites.
 **Tests** : jest (conversion, taux daté, arrondi), e2e (parcours paiement multi-devise par
 l'écran, assertions par l'API — spec 24/25/27 étendues).
+**T2bis différé** : émettre `DOCUMENT_SETTLED` (contrat de payload de T2bis) au moment où le
+règlement atteint « soldé » — le point d'écriture est exactement le code que cette tâche touche.
 
 ## T4 — Les trous d'écran consignés
 
@@ -120,6 +170,8 @@ Si la réponse est « plus tard », consigner dans TODO_ISSUES.md et clore.
 **Accepte si** : (a) un XML CII/UBL déposé montre ses lignes sans ressaisie, épinglées par un
 test sur un fichier réel ; (b) deux dépôts du même fournisseur se rapprochent tout seuls ;
 chaque sous-chantier a son e2e piloté par l'écran.
+**T2bis différé** : émettre `DOCUMENT_RECEIVED` (contrat de payload de T2bis) au dépôt d'une
+facture entrante — le point d'écriture est exactement le code que cette tâche touche.
 
 ## T6 — Parcours frontend testés (P4-T02)
 

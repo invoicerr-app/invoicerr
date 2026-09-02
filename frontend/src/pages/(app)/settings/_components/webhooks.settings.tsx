@@ -131,7 +131,7 @@ export default function WebhooksSettings() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4 pr-2 overflow-hidden">
           {webhooks?.map((wh) => (
-            <Card key={wh.id} className="w-full">
+            <Card key={wh.id} className="w-full" data-cy={`webhook-row-${wh.id}`}>
               <CardHeader className="w-full">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <span className="font-medium">{wh.type}</span>
@@ -191,7 +191,7 @@ export default function WebhooksSettings() {
                       <FormItem>
                         <FormLabel>{t("settings.webhooks.create.url")}</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input data-cy="webhook-url-input" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -231,6 +231,7 @@ export default function WebhooksSettings() {
                         <FormLabel>{t("settings.webhooks.create.events")}</FormLabel>
                         <FormControl>
                           <MultiSelect
+                            data-cy="webhook-events-select"
                             key={multiResetKey}
                             defaultValue={field.value || []}
                             options={(options?.events || []).map((event) => ({ label: event, value: event }))}
@@ -243,7 +244,7 @@ export default function WebhooksSettings() {
                   />
 
                   <div className="flex justify-end">
-                    <Button type="submit" loading={creating}>
+                    <Button data-cy="webhook-create-submit" type="submit" loading={creating}>
                       {t("settings.webhooks.create.button")}
                     </Button>
                   </div>

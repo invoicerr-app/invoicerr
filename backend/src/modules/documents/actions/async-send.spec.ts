@@ -1,3 +1,5 @@
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+
 import * as archiveOnSend from '../archive/archive-on-send';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
@@ -753,6 +755,196 @@ describe('runAsyncSendAction', () => {
         runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn() }),
       ).resolves.toEqual(
         expect.objectContaining({ document: expect.objectContaining({ status: 'sending' }) }),
+      );
+    });
+  });
+
+  // TODO_PRODUIT.md T2 / PLAN-V2 R9 (the "sent" webhook — INVOICE_SENT/QUOTE_SENT). `webhook` is
+  // OPTIONAL (see `RunAsyncSendInput.webhook`'s own header) — every test ABOVE this block omits it and
+  // must keep passing unchanged; these are the DEDICATED tests for the dispatch itself: fire only once
+  // the fact is genuinely ACQUIRED in Postgres, never before, never on a failed delivery, and NEVER
+  // let a dispatch failure undo (or even surface past) an already-successful send.
+  describe('webhook — TODO_PRODUIT.md T2 / PLAN-V2 R9 (the "sent" webhook)', () => {
+    it('dispatches the configured event AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish, BEFORE archiving', async () => {
+      const callOrder: string[] = [];
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 7,
+        displayNumber: 'INV-2026-0007',
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+        callOrder.push('updateDocumentStatus');
+        return {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sent',
+          number: 7,
+          displayNumber: 'INV-2026-0007',
+        };
+      });
+      (archiveOnSend.archiveDeliveredArtifactsIfAny as jest.Mock).mockImplementation(async () => {
+        callOrder.push('archiveDeliveredArtifactsIfAny');
+      });
+      const events = {
+        publish: jest.fn().mockImplementation(async () => {
+          callOrder.push('publish');
+        }),
+      };
+      const webhook = {
+        emitter: {
+          dispatch: jest.fn().mockImplementation(async () => {
+            callOrder.push('webhook.dispatch');
+          }),
+        },
+        event: WebhookEvent.INVOICE_SENT,
+      };
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher,
+        deliver,
+        events,
+        webhook,
+      });
+
+      expect(callOrder).toEqual([
+        'updateDocumentStatus',
+        'publish',
+        'webhook.dispatch',
+        'archiveDeliveredArtifactsIfAny',
+      ]);
+      expect(webhook.emitter.dispatch).toHaveBeenCalledTimes(1);
+      // Generic by construction: the key is `typeId` itself (`invoice`), never a hardcoded branch —
+      // `event-formatters.ts`'s own INVOICE_SENT formatter reads exactly this shape
+      // (`p.invoice?.number`, falling back to `p.invoiceId`).
+      expect(webhook.emitter.dispatch).toHaveBeenCalledWith(WebhookEvent.INVOICE_SENT, {
+        documentId: 'doc-1',
+        typeId: 'invoice',
+        companyId: 'company-1',
+        invoice: expect.objectContaining({ id: 'doc-1', status: 'sent', number: 7 }),
+        invoiceId: 'doc-1',
+        sentAt: expect.any(String),
+      });
+    });
+
+    it('never dispatches when deliver() throws — an unacquired "sent" is never announced', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const webhook = { emitter: { dispatch: jest.fn() }, event: WebhookEvent.INVOICE_SENT };
+      const deliver = jest.fn().mockRejectedValue(new Error('SMTP connection refused'));
+
+      await expect(
+        runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver, webhook }),
+      ).rejects.toThrow('SMTP connection refused');
+
+      expect(webhook.emitter.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('never dispatches at phase 1 (enqueue) — only "sent" (phase 2) fires it', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+      const webhook = { emitter: { dispatch: jest.fn() }, event: WebhookEvent.INVOICE_SENT };
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher,
+        deliver: jest.fn(),
+        webhook,
+      });
+
+      expect(webhook.emitter.dispatch).not.toHaveBeenCalled();
+    });
+
+    // THE MUTATION TARGET this task's own brief names: a webhook ENDPOINT being down must never look
+    // like the send itself failed — `WebhookDispatcherService.dispatch` (the production `emitter`)
+    // logs then RETHROWS (see that file's own header) exactly like every one of its EXISTING callers
+    // (`company.service.ts`, `clients.service.ts`) expects to catch; this proves `runAsyncSendAction`
+    // is that catcher for ITS OWN call, never letting the rejection reach BullMQ (which would
+    // otherwise retry a job whose document was already, genuinely sent).
+    it('a dispatch failure NEVER propagates — the document stays "sent", the result is unaffected', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+      });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const webhook = {
+        emitter: { dispatch: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) },
+        event: WebhookEvent.INVOICE_SENT,
+      };
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      const result = await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        queueDispatcher,
+        deliver,
+        webhook,
+      });
+
+      expect(result).toEqual({
+        document: expect.objectContaining({ id: 'doc-1', status: 'sent' }),
+        changed: true,
+        message: 'Sent.',
+      });
+      expect(webhook.emitter.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('never touches the webhook emitter at all when absent — every pre-existing caller keeps working unchanged', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue({ id: 'doc-1', status: 'sent' });
+      const queueDispatcher = { enqueueAction: jest.fn() };
+      const deliver = jest.fn().mockResolvedValue({ message: 'Sent.' });
+
+      // No `webhook` field at all — this must not throw (optional chaining, never a hard dependency).
+      await expect(runAsyncSendAction({ ...baseInput, queueDispatcher, deliver })).resolves.toEqual(
+        expect.objectContaining({ document: expect.objectContaining({ status: 'sent' }) }),
       );
     });
   });
