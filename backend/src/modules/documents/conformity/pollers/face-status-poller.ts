@@ -17,17 +17,28 @@
  * checkout holds no FACe-registered certificate (`CREDENTIALS_GUIDE.md` §20, "Repo status: 🔴
  * missing"), so `consultarFactura`'s own response shape has NEVER been observed live — the estado
  * code table comes from the repère's own client, which itself cites the Diputación Foral de
- * Gipuzkoa PGEFe manual rather than a live capture (see `face-client.ts`'s own header). Beyond that:
- * `enviarFactura`/`consultarFactura` are sent WITHOUT the WS-Security signature a real FACe server
- * requires (`transports/face-transport.ts`'s own header, "THE SOAP TRANSPORT ITSELF") — so even a
- * live call through THIS poller is expected to fail at authentication today, not merely "untested".
+ * Gipuzkoa PGEFe manual rather than a live capture (see `face-client.ts`'s own header).
+ *
+ * `consultarFactura` IS NOW WS-Security-signed when a company has an active `"{companyId}:XAdES"`
+ * signing certificate (`transports/face-transport.ts#certRefFor`/`wsse-sign.ts`, 2026-09-02 task) —
+ * resolved here the SAME way `face-transport.ts#send()` does. UNLIKE that write-side gate, THIS
+ * poller does NOT hard-refuse when no cert resolves: it falls back to the pre-task unsigned call
+ * instead. Deliberately asymmetric — a failed POLL just means conformity status stays PENDING until
+ * the next sweep (`ConformitySweepRunner`'s own retry/backoff), a low-stakes, recoverable outcome,
+ * unlike a WRITE that would otherwise look like a real deposit attempt. So even a live call through
+ * this poller for a company with NO signing certificate configured is still expected to fail at
+ * authentication today, not merely "untested" — see `transports/face/wsse-sign.ts`'s own header for
+ * what IS now real (a company that DOES have one gets a genuinely signed poll).
  */
 import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 
+import { certRefFor } from '../../formats/national/facturae-provider';
+import { SigningCredentialsPort } from '../../signing/signing-credentials-port';
 import { mapFaceEstado } from '../../transports/face/face-client';
+import { WsseCertificate } from '../../transports/face/wsse-sign';
 import {
   buildFaceClient,
   extractFaceCredentials,
@@ -52,6 +63,10 @@ function isTerminalFaceStatus(statusCode: string): boolean {
 
 export interface FaceStatusPollerDeps {
   channelCredentials: ChannelCredentialsService;
+  /** Root TODO item 13's own port — see this file's own header for why `poll()` resolves the SAME
+   *  `"{companyId}:XAdES"` cert `face-transport.ts#send()` does, and why (unlike that write-side
+   *  gate) a missing cert here falls back to an unsigned call instead of refusing outright. */
+  signingCredentials: SigningCredentialsPort;
 }
 
 async function resolveFaceConfig(
@@ -73,7 +88,14 @@ export function buildFaceStatusPoller(deps: FaceStatusPollerDeps): AuthorityStat
 
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
       const { resolved, credentials } = await resolveFaceConfig(deps.channelCredentials, companyId);
-      const client = buildFaceClient(credentials, resolved.environment);
+      // See this file's own header: SOFT resolution — no cert configured falls back to the pre-task
+      // unsigned call rather than refusing the poll outright (a low-stakes, retried-later operation,
+      // unlike `face-transport.ts#send()`'s own hard gate for the SAME certRef).
+      const signingMaterial = await deps.signingCredentials.resolve(certRefFor(companyId));
+      const wsseCertificate: WsseCertificate | undefined = signingMaterial
+        ? { certDer: signingMaterial.certDer, privateKeyPem: signingMaterial.privateKeyPem }
+        : undefined;
+      const client = buildFaceClient(credentials, resolved.environment, wsseCertificate);
 
       const result = await client.consultarFactura(transportRef);
       const mapped = mapFaceEstado(result.tramitacion?.codigo);

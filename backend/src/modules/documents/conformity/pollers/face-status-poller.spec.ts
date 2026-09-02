@@ -7,6 +7,7 @@
  */
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
+import { SigningCredentialsPort } from '../../signing/signing-credentials-port';
 import { ChannelNotConnectedError } from '../authority-status-poller';
 import { buildFaceStatusPoller } from './face-status-poller';
 
@@ -36,12 +37,20 @@ function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CON
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
+/** Defaults to "no WS-Security cert configured" — see this poller's own header: unlike
+ *  `face-transport.ts#send()`, that is NOT a hard refusal here, so every EXISTING test below (written
+ *  before WS-Security signing existed) keeps passing unmodified with this default. */
+function buildSigningCredentials(resolve: jest.Mock = jest.fn().mockResolvedValue(null)) {
+  return { resolve } as unknown as SigningCredentialsPort;
+}
+
 describe('buildFaceStatusPoller', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('throws ChannelNotConnectedError when no FACe channel is connected', async () => {
     const poller = buildFaceStatusPoller({
       channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),
+      signingCredentials: buildSigningCredentials(),
     });
     await expect(poller.poll('company-1', '2026/000001')).rejects.toBeInstanceOf(ChannelNotConnectedError);
     expect(mockConsultarFactura).not.toHaveBeenCalled();
@@ -55,7 +64,10 @@ describe('buildFaceStatusPoller', () => {
       tramitacion: { codigo: '1200', descripcion: 'Registrada' },
       anulacion: { codigo: '4100', descripcion: 'No solicita anulación' },
     });
-    const poller = buildFaceStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildFaceStatusPoller({
+      channelCredentials: buildChannelCredentials(),
+      signingCredentials: buildSigningCredentials(),
+    });
 
     const events = await poller.poll('company-1', '2026/000001');
 
@@ -72,7 +84,10 @@ describe('buildFaceStatusPoller', () => {
       numeroRegistro: '2026/000001',
       tramitacion: { codigo: '2400', descripcion: 'Contabilizada' },
     });
-    const poller = buildFaceStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildFaceStatusPoller({
+      channelCredentials: buildChannelCredentials(),
+      signingCredentials: buildSigningCredentials(),
+    });
 
     const events = await poller.poll('company-1', '2026/000001');
 
@@ -87,7 +102,10 @@ describe('buildFaceStatusPoller', () => {
       numeroRegistro: '2026/000001',
       tramitacion: { codigo: '2600', descripcion: 'Rechazada' },
     });
-    const poller = buildFaceStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildFaceStatusPoller({
+      channelCredentials: buildChannelCredentials(),
+      signingCredentials: buildSigningCredentials(),
+    });
 
     const events = await poller.poll('company-1', '2026/000001');
 
@@ -103,10 +121,47 @@ describe('buildFaceStatusPoller', () => {
       tramitacion: { codigo: '1300', descripcion: 'Registrada en RCF' },
     };
     mockConsultarFactura.mockResolvedValue(raw);
-    const poller = buildFaceStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildFaceStatusPoller({
+      channelCredentials: buildChannelCredentials(),
+      signingCredentials: buildSigningCredentials(),
+    });
 
     const events = await poller.poll('company-1', '2026/000001');
 
     expect(events[0].rawPayload).toEqual(raw);
+  });
+
+  // WS-Security wiring (2026-09-02 task) — see this poller's own header: SOFT resolution, the SAME
+  // certRef `face-transport.ts#send()` uses, reused here rather than a second convention.
+  describe('WS-Security certificate resolution', () => {
+    it('resolves the SAME certRef convention "{companyId}:XAdES" face-transport.ts#send() uses', async () => {
+      mockConsultarFactura.mockResolvedValue({ codigo: '0', numeroRegistro: '2026/000001' });
+      const resolve = jest.fn().mockResolvedValue(null);
+      const poller = buildFaceStatusPoller({
+        channelCredentials: buildChannelCredentials(),
+        signingCredentials: buildSigningCredentials(resolve),
+      });
+
+      await poller.poll('company-42', '2026/000001');
+
+      expect(resolve).toHaveBeenCalledWith('company-42:XAdES');
+    });
+
+    it('still completes the poll (no hard refusal) when a WS-Security cert IS resolved', async () => {
+      mockConsultarFactura.mockResolvedValue({
+        codigo: '0',
+        numeroRegistro: '2026/000001',
+        tramitacion: { codigo: '1200', descripcion: 'Registrada' },
+      });
+      const material = { certDer: Buffer.from('fake-cert-der'), privateKeyPem: 'fake-pem' };
+      const poller = buildFaceStatusPoller({
+        channelCredentials: buildChannelCredentials(),
+        signingCredentials: buildSigningCredentials(jest.fn().mockResolvedValue(material)),
+      });
+
+      const events = await poller.poll('company-1', '2026/000001');
+
+      expect(events[0].statusCode).toBe('1200');
+    });
   });
 });

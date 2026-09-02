@@ -99,8 +99,15 @@ const FACTURAE_XSD = 'es/Facturaev3_2_2.xsd';
 /** Same certRef convention `sign-instance-pdf.ts#certRefFor` established for PAdES — algo-specific
  *  first, falling back to a company-wide "*" cert (`SigningCertificatesService.resolve`'s own
  *  header). A DIFFERENT algo suffix ("XAdES" vs "PAdES") so a company that scoped a cert to ONE of
- *  the two is never handed to the other by mistake — same reasoning that file's own header gives. */
-function certRefFor(companyId: string): string {
+ *  the two is never handed to the other by mistake — same reasoning that file's own header gives.
+ *
+ * Exported so `transports/face-transport.ts` (WS-Security SOAP envelope signing, 2026-09-02 task) can
+ * resolve the EXACT SAME company certificate a second time for the transport layer — DELIBERATE reuse,
+ * not a coincidence: in reality a company presents ONE FNMT certificate for BOTH the Facturae
+ * document's OWN XAdES signature and the SOAP transport's WS-Security signature (see that file's own
+ * header, "THE WS-SECURITY CERTIFICATE", for the full reasoning and the gap this creates against the
+ * FACe CHANNEL's separately-configured PKCS12/mTLS certificate). */
+export function certRefFor(companyId: string): string {
   return `${companyId}:XAdES`;
 }
 

@@ -43,20 +43,26 @@
  *    Receptor, 03 Pagador) — two independent sources agreeing, the same corroboration discipline the
  *    repère's own header used. See that provider's own header for the citation, not repeated here.
  *
- * WHY THIS FILE STILL STOPS SHORT OF SIGNING THE SOAP MESSAGE ITSELF (unchanged from the repère):
- * every SSPP request/response is authenticated by WS-Security X.509 Token Profile 1.0 — a
- * `<wsse:BinarySecurityToken>` plus a `<ds:Signature>` over the `<wsu:Timestamp>` and
- * `<soapenv:Body>` digests, NOT a plain bearer token and NOT (as far as either the repère or this
- * task could establish) mutual TLS. Computing a WS-Security XML-DSig signature that a live SSPP
- * server will actually ACCEPT requires validating the exact canonicalization + digest bytes against
- * that live server — undoable offline. This is a DIFFERENT signature from the one root TODO item 13
- * wires this task (the XAdES-BES signature on the FACTURAE DOCUMENT ITSELF, business-level, applied
- * by `formats/national/facturae-provider.ts` before this client ever sees the bytes) — SSPP's own
- * WS-Security transport signature remains exactly as deferred as it was at the repère, pushed into
- * {@link FaceHttpPort}, which a real deployment implements once a FACe-registered certificate exists.
- * mTLS is mentioned in `face-transport.ts`'s own header as a POSSIBLE additional requirement — this
- * client makes no assumption about it either way; it is `FaceHttpPort`'s own concern, same as SdI's
- * mTLS is `SdiHttpPort`'s (see `sdi-client.ts`).
+ * THE SOAP MESSAGE'S OWN WS-Security SIGNATURE — CLOSED, 2026-09-02 TASK (previously deferred,
+ * unchanged from the repère until now): every SSPP request/response is authenticated by WS-Security
+ * X.509 Token Profile 1.0/1.1 — a `<wsse:BinarySecurityToken>` plus a `<ds:Signature>` over (at
+ * least) the `<soapenv:Body>` digest, NOT a plain bearer token and NOT (as far as either the repère or
+ * this task could establish) mutual TLS. This client (`FaceHttpPort`'s own contract) still hands
+ * `FaceSoapHttpPort`/`wsse-sign.ts` the RAW, unsigned operation fragment — the signing itself happens
+ * one layer up, in `face-transport.ts`'s `FaceSoapHttpPort.post()`, the exact seam this interface's own
+ * doc comment always described. What changed is that seam is now FILLED: `wsse-sign.ts` builds a real
+ * WS-Security-signed envelope via `xmldsigjs` (OASIS X.509 Certificate Token Profile form — see that
+ * file's own header for the citation), and this task LIVE-VERIFIED (2026-09-02, `se-face-webservice
+ * .redsara.es`, a throwaway self-signed test certificate — no FACe-registered credential needed) that
+ * doing so makes the sandbox's own SOAP Fault CHANGE NATURE: from `<faultstring>La petición no esta
+ * firmada</faultstring>` (unsigned) to `<faultstring>Error al validar el certificado</faultstring>`
+ * (signed, but with a certificate FACe does not recognize — see `face.live.spec.ts`'s own header for
+ * the raw evidence both ways, and `wsse-sign.ts`'s own header for what is cited vs. extrapolated in
+ * the signature's exact shape). Genuinely ACCEPTING a deposit still needs a real FNMT-issued,
+ * FACe-registered certificate this checkout does not have (`CREDENTIALS_GUIDE.md` §20) — that gap is
+ * real and named, but it is now the ONLY remaining one, not "nothing here signs anything at all". mTLS
+ * remains `FaceSoapHttpPort`'s own separate, still-defensive-only concern (see that file's own
+ * header), same as SdI's mTLS is `SdiHttpPort`'s (see `sdi-client.ts`).
  */
 import { create } from 'xmlbuilder2';
 import { DOMParser } from '@xmldom/xmldom';

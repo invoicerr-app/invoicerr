@@ -204,10 +204,14 @@ function buildFormatProviderRegistry(
  * instance.
  *
  * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`, root
- * TODO item 13) is threaded into "email" only — the one transport that hands a human-readable PDF to
- * someone (see `EmailTransportDeps.signingCertificates`'s own header); "pdp"/"ksef"/"sdi"/"peppol"
- * transmit XML/Factur-X formats built by `formats/*-provider.ts`, which this task deliberately does
- * NOT sign (see `sign-instance-pdf.ts`'s own header on why Factur-X's raw-PDF material is exempt).
+ * TODO item 13) is threaded into "email" (the one transport that hands a human-readable PDF to
+ * someone — see `EmailTransportDeps.signingCertificates`'s own header) AND, as of a 2026-09-02 task,
+ * "face" (its own `buildFacturaeFormatProvider` call's XAdES cert AND, SEPARATELY, its
+ * `signingCredentials` field for WS-Security SOAP-envelope signing — see `face-transport.ts`'s own
+ * header, "THE WS-SECURITY CERTIFICATE", for why these are the SAME cert resolved twice, not two
+ * different certs). "pdp"/"ksef"/"sdi"/"peppol" transmit XML/Factur-X formats built by
+ * `formats/*-provider.ts`, which this task deliberately does NOT sign (see `sign-instance-pdf.ts`'s
+ * own header on why Factur-X's raw-PDF material is exempt).
  *
  * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the SIXTH — this makes the channel the B2G
  * FR routing rule (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST (that commit's
@@ -303,6 +307,10 @@ function buildTransportRegistry(
     buildFaceTransport({
       channelCredentials,
       facturaeFormatProvider: buildFacturaeFormatProvider({ signingCredentials: signingCertificates }),
+      // WS-Security SOAP-envelope signing (2026-09-02 task) — see `face-transport.ts`'s own header,
+      // "THE WS-SECURITY CERTIFICATE", for why this is the SAME `signingCertificates` port/instance
+      // `facturaeFormatProvider` above already uses, not a second credential store.
+      signingCredentials: signingCertificates,
     }),
   );
   return registry;
@@ -320,6 +328,7 @@ function buildTransportRegistry(
  */
 function buildAuthorityStatusPollerRegistry(
   channelCredentials: ChannelCredentialsService,
+  signingCertificates: SigningCertificatesService,
 ): AuthorityStatusPollerRegistry {
   const registry = new AuthorityStatusPollerRegistry();
   registry.register(buildPdpStatusPoller({ channelCredentials }));
@@ -335,8 +344,9 @@ function buildAuthorityStatusPollerRegistry(
   registry.register(buildAnafStatusPoller({ channelCredentials }));
   // "face" — `consultarFactura`, the repère's own status-consultation endpoint
   // (`face/face-client.ts`) — see `conformity/pollers/face-status-poller.ts`'s own header for what is,
-  // and is not, live-verified.
-  registry.register(buildFaceStatusPoller({ channelCredentials }));
+  // and is not, live-verified. `signingCertificates` — WS-Security signing (2026-09-02 task), the
+  // SAME port `buildTransportRegistry`'s own "face" registration above uses.
+  registry.register(buildFaceStatusPoller({ channelCredentials, signingCredentials: signingCertificates }));
   return registry;
 }
 
@@ -485,7 +495,10 @@ function buildEntityReferenceRegistry(
     {
       provide: AuthorityStatusPollerRegistry,
       useFactory: buildAuthorityStatusPollerRegistry,
-      inject: [ChannelCredentialsService],
+      // SigningCertificatesService — WS-Security signing for "face"'s own poller (2026-09-02 task),
+      // the SAME instance TRANSPORT_REGISTRY's own factory below already injects. Both come from
+      // CompanyModule — no cycle (see TRANSPORT_REGISTRY's own inject comment).
+      inject: [ChannelCredentialsService, SigningCertificatesService],
     },
     ConformitySweepRunner,
     // Root TODO — declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/

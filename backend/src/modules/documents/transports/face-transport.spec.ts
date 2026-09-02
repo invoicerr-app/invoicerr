@@ -2,11 +2,15 @@
  * The "face" transport in isolation — makes the B2G ES routing rule's own `transportId: "face"`
  * (`b2g-routing/data/es.json`) actually resolve to something real. `FaceClient` and
  * `@/prisma/prisma.service` are mocked wholesale (a real FACe round-trip needs a FACe-registered
- * certificate this checkout does not have, and a WS-Security signature this codebase does not
- * implement — see `face/face-client.ts`'s own header); this proves the ORCHESTRATION, mirroring
- * `chorus-pro-transport.spec.ts`'s own structure exactly: the preflight gate, the DIR3 gate, the
- * payload build/signature gate, and — this task's own two named mutations — that an empty
- * `numeroRegistro` is NEVER a success and that an unsigned Facturae artifact is NEVER deposited.
+ * certificate this checkout does not have — see `face/face-client.ts`'s own header); this proves the
+ * ORCHESTRATION, mirroring `chorus-pro-transport.spec.ts`'s own structure exactly: the preflight
+ * gate, the DIR3 gate, the payload build/signature gate, and the hard-success/hard-signature
+ * contract — an empty `numeroRegistro` is NEVER a success, an unsigned Facturae artifact is NEVER
+ * deposited, and (2026-09-02 task, this file's own "WS-Security gate" describe block) the SOAP
+ * TRANSPORT ITSELF is never sent without its own WS-Security signature either. Because `FaceClient`
+ * is mocked wholesale here, the actual SIGNED-ENVELOPE BYTES are proven in
+ * `face/face-soap-http-port.spec.ts` instead (a real local HTTPS server, no mocks) — this file only
+ * proves the ORCHESTRATION resolves the right certificate and refuses when it can't.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
@@ -16,6 +20,7 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 import { buildFaceTransport } from './face-transport';
 import { FacturaeSigningRequiredError } from '../formats/national/facturae-provider';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { DocumentTransportContext } from './transport-registry';
 
 jest.mock('@/prisma/prisma.service', () => ({
@@ -55,7 +60,13 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock }) {
+/** A fake `SigningCredentialsMaterial` — never a real certificate (this codebase's own security
+ *  rule); ONLY `certDer`/`privateKeyPem` matter to this file since `FaceClient` (hence
+ *  `FaceSoapHttpPort`) is mocked wholesale here — see `face/face-soap-http-port.spec.ts` for where
+ *  these bytes would actually get used to sign something. */
+const FAKE_XADES_MATERIAL = { certDer: Buffer.from('fake-cert-der'), privateKeyPem: 'fake-pem' };
+
+function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock; signingResolve?: jest.Mock }) {
   const channelCredentials = {
     resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
@@ -67,7 +78,12 @@ function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock })
       overrides?.build ??
       jest.fn().mockResolvedValue({ bytes: new Uint8Array([1]), validation: { valid: true, errors: [] } }),
   };
-  return { channelCredentials, facturaeFormatProvider };
+  // Defaults to a RESOLVED cert (the happy path every pre-existing test below expects) — see this
+  // file's own "WS-Security gate" describe block for the tests that override this to `null`.
+  const signingCredentials = {
+    resolve: overrides?.signingResolve ?? jest.fn().mockResolvedValue(FAKE_XADES_MATERIAL),
+  } as unknown as SigningCredentialsPort;
+  return { channelCredentials, facturaeFormatProvider, signingCredentials };
 }
 
 const DIR3_DATA = {
@@ -280,6 +296,58 @@ describe('buildFaceTransport', () => {
       const transport = buildFaceTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(/FACe enviarFactura failed: FACe SOAP fault/);
+    });
+  });
+
+  // WS-Security gate (2026-09-02 task) — see `face-transport.ts`'s own header, "THE WS-SECURITY
+  // CERTIFICATE". `FaceClient` is mocked wholesale in this file, so these tests prove the
+  // ORCHESTRATION (certRef reuse, gate ordering, refusal) — the actual signed-envelope BYTES are
+  // proven in `face/face-soap-http-port.spec.ts` (a real local HTTPS server, no mocks).
+  describe('send() — the WS-Security gate', () => {
+    it('resolves the SAME certRef "{companyId}:XAdES" facturae-provider.ts already resolved for the document signature', async () => {
+      mockEnviarFactura.mockResolvedValue({ codigo: '0', descripcion: 'Correcto', numeroRegistro: '2026/1' });
+      const signingResolve = jest.fn().mockResolvedValue(FAKE_XADES_MATERIAL);
+      const deps = buildDeps({ signingResolve });
+      const transport = buildFaceTransport(deps);
+
+      await transport.send(CTX);
+
+      expect(signingResolve).toHaveBeenCalledWith('company-1:XAdES');
+    });
+
+    // MUTATION GUARD #3 (this task's own) — "l'enveloppe part non signée malgré un certificat
+    // présent" would mean this resolve's result is silently DISCARDED; this test cannot see the
+    // envelope itself (FaceClient is mocked), but it DOES prove the material is actually threaded to
+    // `buildFaceClient` by asserting the deposit still succeeds ONLY when this resolve is honoured —
+    // see the gate-refusal test right below for the other half (no material → no deposit attempted).
+    it('proceeds with the deposit once a WS-Security cert resolves, after the Facturae was already signed', async () => {
+      mockEnviarFactura.mockResolvedValue({ codigo: '0', descripcion: 'Correcto', numeroRegistro: '2026/1' });
+      const deps = buildDeps();
+      const transport = buildFaceTransport(deps);
+
+      const result = await transport.send(CTX);
+
+      expect(result.reference).toBe('2026/1');
+    });
+
+    it('MUTATION GUARD #3 — refuses OUTRIGHT, never sends an unsigned envelope, when no WS-Security cert resolves', async () => {
+      const deps = buildDeps({ signingResolve: jest.fn().mockResolvedValue(null) });
+      const transport = buildFaceTransport(deps);
+
+      await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
+      await expect(transport.send(CTX)).rejects.toThrow(/no active XAdES-applicable signing certificate/);
+      expect(mockEnviarFactura).not.toHaveBeenCalled();
+    });
+
+    it('never even attempts the WS-Security resolve when the Facturae build itself already refused (gate order)', async () => {
+      const build = jest.fn().mockRejectedValue(new FacturaeSigningRequiredError('no active XAdES cert'));
+      const signingResolve = jest.fn().mockResolvedValue(FAKE_XADES_MATERIAL);
+      const deps = buildDeps({ build, signingResolve });
+      const transport = buildFaceTransport(deps);
+
+      await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
+      expect(signingResolve).not.toHaveBeenCalled();
+      expect(mockEnviarFactura).not.toHaveBeenCalled();
     });
   });
 });
