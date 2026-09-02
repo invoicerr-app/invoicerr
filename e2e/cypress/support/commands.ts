@@ -41,6 +41,13 @@ Cypress.Commands.add('resetDatabase', () => {
 Cypress.Commands.add('login', () => {
     cy.session('user-session', () => {
         cy.visit('/auth/sign-in');
+        cy.get('[data-cy="auth-submit-btn"]').should('be.visible');
+        cy.get('[data-cy="auth-submit-btn"]').then(($btn) => {
+            if ($btn.prop('disabled')) {
+                cy.reload();
+            }
+        });
+        cy.get('[data-cy="auth-submit-btn"]').should('not.be.disabled');
         cy.get('[data-cy="auth-email-input"]').type('john.doe@acme.org');
         cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
         cy.get('[data-cy="auth-submit-btn"]').click();

@@ -1,4 +1,4 @@
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { Popover, PopoverContent, PopoverPortal, PopoverTrigger } from "@radix-ui/react-popover";
 
 import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
@@ -22,19 +22,22 @@ interface DatePickerProps {
 
 const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
   const { i18n } = useTranslation()
+  const [open, setOpen] = React.useState(false)
   const { startMonth, endMonth } = React.useMemo(() => getDatePickerMonthBounds(), [])
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <FormControl className="w-full">
           <Button
+            type="button"
             variant={"outline"}
             className={cn(
               "w-[240px] pl-3 text-left font-normal",
               !field.value && "text-muted-foreground",
               field.className
             )}
+            data-cy={field['data-cy']}
             dataCy={field['data-cy']}
           >
             {field.value ? (
@@ -48,18 +51,23 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
           </Button>
         </FormControl>
       </PopoverTrigger>
-      <PopoverContent className="z-500 w-full p-0 mt-2 rounded-lg outline-1" align="start">
-        <Calendar
-          required
-          mode="single"
-          selected={field.value || undefined}
-          onSelect={field.onChange}
-          captionLayout="dropdown"
-          startMonth={startMonth}
-          endMonth={endMonth}
-          showOutsideDays={field.showOutsideDays || true}
-        />
-      </PopoverContent>
+      <PopoverPortal>
+        <PopoverContent className="z-500 w-full p-0 mt-2 rounded-lg outline-1" align="start" onOpenAutoFocus={(event) => event.preventDefault()}>
+          <Calendar
+            required
+            mode="single"
+            selected={field.value || undefined}
+            onSelect={(date) => {
+              field.onChange(date ?? null)
+              setOpen(false)
+            }}
+            captionLayout="dropdown"
+            startMonth={startMonth}
+            endMonth={endMonth}
+            showOutsideDays={field.showOutsideDays || true}
+          />
+        </PopoverContent>
+      </PopoverPortal>
     </Popover>
   );
 };

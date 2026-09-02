@@ -407,7 +407,7 @@ describe('Invoices E2E', () => {
             cy.wait(500);
             cy.get('[data-cy="invoice-dialog"]', { timeout: 5000 }).should('be.visible');
 
-            cy.get('[data-cy="invoice-due-date"]').scrollIntoView().click();
+            cy.get('[data-cy="invoice-due-date"]').scrollIntoView().should('be.visible').click({ force: true });
             cy.get('[data-slot="calendar"]', { timeout: 5000 }).should('be.visible');
             cy.get('[data-slot="calendar"] select').should('have.length.at.least', 1);
 
@@ -424,6 +424,9 @@ describe('Invoices E2E', () => {
                 expect(years).to.include(String(futureYear));
                 expect(years).to.include('2027');
             });
+
+            cy.get('body').type('{esc}');
+            cy.get('[data-slot="calendar"]').should('not.exist');
         });
     });
 });
