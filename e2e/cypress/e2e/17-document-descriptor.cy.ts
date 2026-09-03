@@ -353,7 +353,12 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
-			body: { country: "Germany", countryCode: "DE" },
+			// P1 (TODO_SUITE, 2026-09-03) a donné une policy à l'Allemagne — l'ancien exemple de « pays
+			// sans règle » de ce test est devenu un pays COUVERT (201 au lieu de 403, la batterie P1 l'a
+			// attrapé). Le Japon reprend le rôle : aucun fichier country-policy/data/jp.json n'existe,
+			// et l'intention du test (un client scripté ne contourne pas l'écran pour un pays non
+			// couvert) est inchangée, assertion pour assertion.
+			body: { country: "Japan", countryCode: "JP" },
 			failOnStatusCode: false,
 		}).then((changed) => {
 			expect(
@@ -390,7 +395,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 				expect(
 					String(res.body?.message ?? ""),
 					"le message nomme le pays et dit comment débloquer, jamais un refus muet",
-				).to.match(/"DE"/);
+				).to.match(/"JP"/);
 			});
 		});
 

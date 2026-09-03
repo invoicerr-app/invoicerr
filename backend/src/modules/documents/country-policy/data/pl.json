@@ -1,0 +1,215 @@
+{
+  "countryCode": "PL",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/us.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit polonais. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — MÊME citation, lue en direct le 2026-09-03 sur eur-lex.europa.eu, que de.json/it.json/es.json's own quote.send : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour la Pologne. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal polonais et au régime KSeF) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit polonais (la seule contrainte légale porterait sur la facture qui en résulte). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit polonais. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit polonais. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia błędu… jest wystawienie faktury korygującej w KSeF.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/pl.json (route INTERNAL_CREDIT_NOTE, forbidden) — Podręcznik KSeF 2.0 cz. II, § 1.6.2, consultée le 2026-08-29 (date préservée telle quelle : reprise, pas revérifiée par cette tâche). Traduction littérale du polonais : « Une fois le fichier de la facture transmis à KSeF, il n'est plus possible de la modifier… La SEULE façon de corriger une erreur… est d'émettre une facture corrective dans KSeF. » C'est LA citation la plus explicite des cinq nouveaux pays sur exactement ce fait : une facture polonaise transmise à KSeF est LITTÉRALEMENT non éditable — la correction passe obligatoirement par une facture corrective distincte (faktura korygująca, art. 106j ust. 1 ustawy o VAT), jamais par un nouvel enregistrement de brouillon sur le même document. Le champ `statuses: [\"draft\"]` applique ce principe en refusant de ré-enregistrer en brouillon une facture déjà 'sent'."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Krajowy System e-Faktur zapewnia autentyczność pochodzenia, integralność treści oraz czytelność faktury ustrukturyzowanej. [...] Fakturę ustrukturyzowaną uznaje się za wystawioną w dniu jej przesłania do Krajowego Systemu e-Faktur.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Art. 106m ust. 1 et art. 106na ust. 1 de l'ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. 2004 Nr 54 poz. 535). Lu en direct le 2026-09-03 sur isap.sejm.gov.pl (le portail officiel de la Chancellerie du Sejm, texte unifié — 'Opracowano na podstawie: t.j. Dz. U. z 2025 r. poz. 775 [...], z 2026 r. poz. 507, 846', état du droit affiché au 2026-07-20) — la même autorité que le Podręcznik KSeF déjà cité par correction-routes. Ce texte est le plus FAVORABLE des cinq nouveaux pays sur ce fait précis : la facture structurée (via KSeF) est légalement RÉPUTÉE ÉMISE dès sa transmission au système, et le système lui-même GARANTIT son authenticité et son intégrité — pas de condition de consentement du destinataire à vérifier ici, contrairement à l'Allemagne/l'Italie/l'Espagne (l'ancien art. 106n polonais, qui posait une condition d'acceptation du destinataire pour la facture électronique NON structurée, a lui-même été ABROGÉ — '(uchylony)' dans le texte lu — par la bascule vers le régime KSeF obligatoire). NUANCE NON MODÉLISÉE ICI : le calendrier d'entrée en vigueur du caractère OBLIGATOIRE de KSeF lui-même (grands contribuables 2026-03-31, autres 2026-12-31) reste 'suggested'/unverified dans transports/channel-policy/data/pl.json faute de citation propre à sa propre date de consultation — sujet DISTINCT (le canal/mandat), hors du périmètre de cette règle qui ne porte que sur l'admissibilité de l'envoi structuré lui-même, déjà bien établie aujourd'hui."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit polonais. La question fiscale (ustawa o VAT) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale polonaise pour CETTE entreprise de la produire. Le format national réellement mandaté en Pologne est FA(3), transmis via KSeF (sujet DISTINCT, canal/format imposé — voir transports/channel-policy/data/pl.json, resté 'suggested'/unverified faute de citation propre à sa propre date de consultation sur le caractère OBLIGATOIRE et son calendrier), hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal de la correction polonaise (voir credit-note.send ci-dessous) concerne le CONTENU et le statut fiscal du document, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/de.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance. Il n'existe pas d'instrument séparé : l'art. 106j ust. 1 donne UN instrument pour les deux sens, et l'énumération FA(3) RodzajFaktury est fermée — {VAT, KOR, ZAL, ROZ, UPR, KOR_ZAL, KOR_ROZ} — sans type « avoir ».",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/pl.json (route CREDIT_NOTE, forbidden EN TANT QUE DOCUMENT DISTINCT) — art. 106j ust. 1 ustawy o VAT ; broszura FA(3), Ministerstwo Finansów, consultée le 2026-08-29 (date préservée : reprise, pas revérifiée par cette tâche). NUANCE PROPRE À LA POLOGNE, à ne pas manquer : contrairement aux quatre autres nouveaux pays, la Pologne n'a PAS d'instrument légal distinct nommé « nota kredytowa » — toute réduction de montant passe par le MÊME instrument que la hausse, la faktura korygująca (art. 106j, route CORRECTIVE_INVOICE de correction-routes, 'required'). Le SEND du document 'credit-note' de cet outil, pour une société polonaise, doit donc être compris comme représentant fonctionnellement une faktura korygująca de sens négatif, jamais un document polonais séparé de type 'avoir' — allowed:true reste juste parce que RÉDUIRE le montant d'une facture par un document référencé est légalement ouvert (en fait obligatoire dans les 5 cas de l'art. 106j ust. 1) en Pologne, seule la TERMINOLOGIE/le TYPE d'instrument diffère de ce que le nom du document laisse entendre. Ce qui trancherait un éventuel écart de CONTENU entre le document produit par cet outil et une véritable faktura korygująca conforme (mentions obligatoires, numéro KSeF de la facture corrigée — art. 106j ust. 2 pkt 2a) : une revue dédiée du format de sortie polonais, hors périmètre de cette règle qui ne porte que sur l'ACTION."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables polonaises portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : la Pologne recevra ses factures domestiques via KSeF, un canal agréé (sujet distinct, hors périmètre de ce workflow interne d'approbation)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Pologne — root TODO P1 (2026-09-03). C'EST LE DÉBLOCAGE VISÉ PAR CETTE TÂCHE : avant ce fichier, une société polonaise avait TOUTE action document bloquée (DECISION 1 de country-policy.ts) — aucun fichier pl.json n'existait. Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/us.json pour les mêmes actions. Le lourd légal repose sur deux sources : (1) une lecture FRAÎCHE, DIRECTE, du 2026-09-03 sur isap.sejm.gov.pl (le texte unifié officiel de la Chancellerie du Sejm, état du droit au 2026-07-20) pour les art. 106m/106na de l'ustawa o VAT (invoice.send) et sur eur-lex.europa.eu pour le règlement eIDAS (quote.send) ; (2) la RÉUTILISATION, datée et non re-vérifiée, des citations déjà lues le 2026-08-29 par correction-routes/data/pl.json pour l'immutabilité de la facture émise (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden — la citation la plus explicite des cinq nouveaux pays : « nie jest możliwe jej edytowanie ») et pour l'avoir (credit-note.send, CREDIT_NOTE forbidden EN TANT QUE DOCUMENT DISTINCT, seule nuance polonaise notable : pas d'instrument 'nota kredytowa' séparé) — chacune ne vaut que pour le fait exact qu'elle tranche ici, jamais étirée au-delà."
+}

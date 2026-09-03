@@ -14,9 +14,12 @@
  * quatre gates composés par `documents.service.ts#getCorrectionRoutes`, contre le vrai serveur.
  *
  * Le describe « Annulation (TODO_CORRECTION.md C3) », tout en bas, EST l'exception : il bascule le
- * pays vendeur vers PL une fois — voir son propre en-tête pour pourquoi (aucun fichier
- * country-policy/ pour PL aujourd'hui, un gap connu et documenté, hors périmètre de C3, qui rend
- * impossible d'émettre une facture SOUS PL directement dans ce dossier). Dernier describe du dernier
+ * pays vendeur vers PL une fois — voir son propre en-tête pour pourquoi (à l'écriture de C3, aucun
+ * fichier country-policy/ n'existait pour PL, ce qui rendait impossible d'émettre une facture SOUS PL
+ * directement ; root TODO P1 a depuis ajouté `country-policy/data/pl.json`, PROUVÉ par
+ * `44-country-policy.cy.ts`'s own "LE DÉBLOCAGE" — la bascule après coup reste ici par choix, pas par
+ * nécessité : elle isole le gate CANCEL, sans rapport avec country-policy/, sans avoir à dupliquer une
+ * émission PL complète que 44 couvre déjà). Dernier describe du dernier
  * fichier numéroté de la suite : la bascule ne contamine aucune autre spec.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
@@ -553,12 +556,15 @@ describe("Annulation (TODO_CORRECTION.md C3) — un pays qui fonde, un pays qui 
 			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
 				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
 					// Bascule le pays VENDEUR après l'émission — cette même facture, relue sous le
-					// prisme d'un pays qui ne fonde PAS d'annulation locale. Voir cet en-tête de
-					// fichier : PL n'a aujourd'hui aucun fichier country-policy/, donc
-					// save-draft/send y sont déjà bloqués (403) par un mécanisme SANS RAPPORT avec
-					// C3 (country-policy/, jamais lu par le gate "cancel" — cancel-policy.ts) —
-					// émettre une facture SOUS PL directement est donc impossible ici ; cette spec
-					// relit une facture déjà émise sous FR à travers le prisme PL à la place.
+					// prisme d'un pays qui ne fonde PAS d'annulation locale. Root TODO P1 a depuis
+					// donné à PL un vrai fichier country-policy/ (data/pl.json, save-draft/send y sont
+					// `allowed: true` — émettre une facture SOUS PL directement est donc possible
+					// aujourd'hui, voir 44-country-policy.cy.ts's own "LE DÉBLOCAGE") ; cette spec
+					// garde néanmoins la bascule après coup PAR CHOIX, pas par nécessité — le gate testé
+					// ici est "cancel" (cancel-policy.ts), SANS RAPPORT avec country-policy/ (voir cet
+					// en-tête de fichier), donc relire une facture déjà émise sous FR à travers le
+					// prisme PL isole exactement ce gate sans dupliquer l'émission PL complète que 44
+					// couvre déjà.
 					//
 					// La bascule tombe PENDANT la livraison asynchrone (phase 2, la file BullMQ —
 					// voir sendInvoice's own header : phase 1 est déjà passée, "sending") : le sort

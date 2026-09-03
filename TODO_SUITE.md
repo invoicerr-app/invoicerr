@@ -7,6 +7,12 @@
 
 ## P1 — country-policy : les 5 fichiers sourcés (DE, IT, PL, ES, MX)
 
+> ✅ **FAIT** (2026-09-03, commit 1d825186) — 110 règles, immutabilité légale restreinte à
+> draft dans les 5, send sourcé sauf MX (unverified honnête, sources injoignables documentées),
+> seed prouvé deux bases, spec 44 (une société PL ÉMET + 409 immutabilité), spec 17 ré-ancrée
+> sur JP (sa prémisse « DE sans règle » rendue fausse par le chantier — attrapée par la
+> batterie). jest 2125, 3 mutations mordantes, batterie 257 verts.
+
 État vérifié : `country-policy/data/` n'a que fr/hu/us (fr.json ≈ 19k chars : une règle par
 (typeId, actionId) × 5 types, `allowed` + provenance légale citée OU unverified honnête — les
 actes internes au produit, comme enregistrer un brouillon de devis, sont unverified

@@ -1,0 +1,211 @@
+{
+  "countryCode": "MX",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/us.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit mexicain. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Un devis n'est pas un CFDI (voir invoice.send ci-dessous) — la question pertinente est la reconnaissance générale, en droit mexicain, de la valeur probante d'un « mensaje de datos » électronique, portée par le Código de Comercio (art. 89 à 94, régime introduit par le décret du 29/08/2003 transposant pour l'essentiel la loi-type CNUDCI sur le commerce électronique) et par la Ley de Firma Electrónica Avanzada pour les échanges avec l'administration. TENTATIVES D'ACCÈS ÉCHOUÉES pour cette tâche (2026-09-03) : diputados.gob.mx (hôte officiel du Congrès, texte du Código de Comercio et du CFF) a refusé la connexion (ECONNREFUSED) sur PLUSIEURS chemins et PLUSIEURS protocoles distincts, de façon répétée — pas un simple 403 WAF mais une inaccessibilité réseau totale depuis cet environnement ; www.gob.mx (mirroir gouvernemental générique) a répondu 404 sur les chemins tentés ; sat.gob.mx a répondu tantôt 403 tantôt 504 (timeout) ; te.gob.mx a répondu 404 ; dof.gob.mx a répondu avec un contenu sans rapport ; mexico.justia.com (miroir tiers, dernier recours tenté par analogie avec codes.droit.org pour la France) a répondu 403. CE QUI TRANCHERAIT : lire l'art. 89 du Código de Comercio (« no podrán negarse efectos jurídicos, validez o fuerza obligatoria a todo tipo de información por la sola razón de que esté contenida en un mensaje de datos ») à sa source primaire officielle, avec sa propre date de consultation — non fait ici faute d'accès."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit mexicain (la seule contrainte légale porterait sur le CFDI qui en résulte). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit mexicain. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit mexicain. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un CFDI. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Absence de mécanisme : un CFDI timbré est immuable — aucune voie d'amendement par référence.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/mx.json (route CORRECTIVE_INVOICE, forbidden) — par différence, CFF art. 29-A ¶4-6 ; Anexo 20, consultée le 2026-08-29 (date préservée telle quelle : reprise, pas revérifiée par cette tâche). C'est le fait le plus radical des cinq nouveaux pays sur exactement cette question : un CFDI (comprobante fiscal digital) mexicain, une fois TIMBRADO (validé et scellé par un Proveedor Autorizado de Certificación, PAC, puis par le SAT), n'a AUCUNE voie de correction par référence — aucun mécanisme n'existe pour amender le document lui-même. Le champ `statuses: [\"draft\"]` applique ce principe en refusant de ré-enregistrer en brouillon une facture déjà 'sent' — même mécanique que fr.json/de.json/it.json/pl.json/es.json ci-dessus, chacun sourcé sur son propre texte national pour le MÊME fait. Cohérent avec correction-routes' own AUTHORITY_ANNULMENT (required) et CANCEL_AND_REPLACE (required) : le Mexique répare une facture erronée en l'ANNULANT PUIS en en émettant une nouvelle, jamais en réécrivant l'originale — un sujet DISTINCT (l'annulation, hors de ce mécanisme fichier, gérée par cancel-policy.ts's own whitelist, qui exclut d'ailleurs le Mexique de son cancel LOCAL faute de canal SAT/PAC câblé)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le CFDI (comprobante fiscal digital por Internet) est, de notoriété et par la structure même du régime mexicain déjà documentée par correction-routes/data/mx.json (NO_DOCUMENT_BY_LAW forbidden : « tout passe par un CFDI timbré [...] aucune voie hors CFDI n'existe », CFF art. 29-A ¶4-6, 'par différence'), la forme EXCLUSIVEMENT électronique de toute facture mexicaine — il n'existe pas de facture papier en droit fiscal mexicain depuis la généralisation du CFDI. Cette règle reste néanmoins 'unverified', PAS 'legal', par discipline : la citation correction-routes tranche 'quelle voie de CORRECTION s'applique' (par différence, en l'absence d'alternative), pas directement 'l'admissibilité de l'ENVOI électronique lui-même' (l'obligation d'émettre, art. 29 CFF, et les modalités de validation par un PAC) — l'étirer jusqu'ici serait outrepasser ce qu'elle règle exactement (voir ce module's own discipline sur les citations réutilisées). TENTATIVES D'ACCÈS ÉCHOUÉES pour cette tâche (2026-09-03), pour lire l'art. 29 CFF lui-même à sa source primaire : diputados.gob.mx (hôte officiel, PDF ou HTML) a refusé la connexion (ECONNREFUSED) de façon répétée sur plusieurs chemins ; sat.gob.mx a répondu 403 puis 504 ; www.gob.mx a répondu 404 ; mexico.justia.com (miroir tiers) a répondu 403. CE QUI TRANCHERAIT : lire l'art. 29 CFF (l'obligation d'expédition du CFDI) directement, avec sa propre date de consultation — non fait ici faute d'accès."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit mexicain. La question fiscale (CFF, Anexo 20) porte sur LE CFDI TIMBRÉ qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil (à distinguer du CFDI de tipo P, « Pago », un document fiscal mexicain à part entière que ce mécanisme ne prétend pas produire). Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — sans rapport avec le format mexicain réellement mandaté (le XML du CFDI, Anexo 20, timbré par un PAC), un sujet DISTINCT hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931 (même distinction que fr.json/us.json pour la même action). Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il tiendrait lieu de CFDI ni qu'il serait légalement requis au Mexique."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime — le CFDI timbré lui-même (et son XML) reste ce que l'administration mexicaine reconnaît, ce lien n'en est qu'une commodité de consultation. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal du CFDI de tipo E mexicain (voir credit-note.send ci-dessous) concerne le CONTENU et le statut fiscal du document, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/de.json/it.json/pl.json/es.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Amparan devoluciones, descuentos y bonificaciones para efectos de deducibilidad y también puede utilizarse para corregir o restar un comprobante de ingresos EN CUANTO A LOS MONTOS QUE DOCUMENTA.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/mx.json (route CREDIT_NOTE, allowed) — Guía de llenado Anexo 20 v4.0, Apéndice 2 ; catalogue c_TipoRelacion, consultée le 2026-08-29 (date préservée : reprise, pas revérifiée par cette tâche). Le fait précis dont ce SEND a besoin — émettre un document réduisant le montant d'une facture mexicaine est-il légalement ouvert — est exactement celui que cette citation tranche : le CFDI de tipo E (Egreso, TipoRelacion 01) est l'instrument mexicain reconnu pour les remboursements, remises et corrections à la baisse, OUVERT en droit (et, à la différence de l'annulation d'un CFDI, PAS borné à l'exercice fiscal en cours — correction-routes/data/mx.json's own notes sur cette même route)."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables mexicaines (et la déductibilité fiscale, conditionnée à la possession d'un CFDI émis par le fournisseur) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à exiger la présence d'un CFDI valide pour chaque dépense enregistrée."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : la validation d'un CFDI reçu (vérification du timbre fiscal digital auprès du SAT) est un sujet DISTINCT, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte — à distinguer du refus/acceptation d'ANNULATION d'un CFDI (COUNTERPARTY_OBJECTION de correction-routes/data/mx.json), un mécanisme SAT distinct que cet écran ne pilote pas."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Mexique — root TODO P1 (2026-09-03). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/us.json pour les mêmes actions. Le lourd légal est PARTIEL, honnêtement : (1) la RÉUTILISATION, datée et non re-vérifiée, des citations déjà lues le 2026-08-29 par correction-routes/data/mx.json a permis de sourcer 'legal' l'immutabilité de la facture émise (invoice.save-draft, CORRECTIVE_INVOICE forbidden — le fait le plus radical des cinq nouveaux pays : « un CFDI timbré est immuable ») et l'avoir (credit-note.send, CREDIT_NOTE allowed, CFDI tipo E) ; (2) EN REVANCHE, quote.send et invoice.send restent 'unverified' — TOUTES les sources officielles mexicaines tentées le 2026-09-03 (diputados.gob.mx, sat.gob.mx, www.gob.mx, te.gob.mx, dof.gob.mx) et un miroir tiers (mexico.justia.com) se sont révélées inaccessibles depuis cet environnement (ECONNREFUSED répété pour diputados.gob.mx en particulier, pas un simple 403), documenté dans chaque resolutionNote avec ce qui trancherait (Código de Comercio art. 89 pour quote.send, CFF art. 29 pour invoice.send) — un unverified n'est jamais promu par raisonnement, seulement par une lecture qui n'a pas pu avoir lieu ici."
+}

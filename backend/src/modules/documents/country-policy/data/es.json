@@ -1,0 +1,215 @@
+{
+  "countryCode": "ES",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/us.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit espagnol. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — MÊME citation, lue en direct le 2026-09-03 sur eur-lex.europa.eu, que de.json/it.json/pl.json's own quote.send : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour l'Espagne. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal espagnol) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit espagnol (la seule contrainte légale porterait sur la facture qui en résulte). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit espagnol. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit espagnol. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La rectificación SE REALIZARÁ MEDIANTE LA EMISIÓN DE UNA NUEVA FACTURA.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/es.json (headline du fichier, fondement de CANCEL_AND_REPLACE/INTERNAL_CREDIT_NOTE forbidden) — Art. 15.4 RD 1619/2012, consultée le 2026-08-29 (date préservée telle quelle : reprise, pas revérifiée par cette tâche). Le fichier source souligne lui-même que ce n'est pas une interdiction mais « une prescription positive et EXCLUSIVE de forme » : la correction d'une facture espagnole émise passe TOUJOURS par l'ÉMISSION d'une facture NOUVELLE (la rectificativa, art. 15 RD 1619/2012), jamais par la réécriture du document original. Le champ `statuses: [\"draft\"]` applique ce principe en refusant de ré-enregistrer en brouillon une facture déjà 'sent' — même mécanique que fr.json/de.json/it.json/pl.json ci-dessus, chacun sourcé sur son propre texte national pour le MÊME fait."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Se entenderá por factura electrónica aquella factura que se ajuste a lo establecido en este Reglamento y que haya sido expedida, transmitida y recibida en formato electrónico. [...] La expedición, transmisión y recepción de la factura electrónica estará condicionada a que su destinatario haya dado su consentimiento, excepto en los supuestos de factura electrónica obligatoria establecidos en el artículo 8 bis.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Art. 9, apartados 1 et 2, RD 1619/2012 (reglamento por el que se regulan las obligaciones de facturación). Lu en direct le 2026-09-03 sur boe.es (Boletín Oficial del Estado, le portail officiel espagnol des textes consolidés — l'équivalent espagnol de Légifrance/gesetze-im-internet.de/normattiva.it/isap.sejm.gov.pl). Ce texte reconnaît explicitement la validité de la facture ÉLECTRONIQUE espagnole. NUANCE NON MODÉLISÉE ICI (même limite que fr.json/de.json/it.json's own invoice.send) : l'apartado 2 conditionne l'usage de la facture électronique au CONSENTEMENT DU DESTINATAIRE — SAUF dans les cas de facturation électronique OBLIGATOIRE de l'art. 8 bis (le mandat Veri*Factu/facturae B2B espagnol, en déploiement depuis le 2027-01-01 selon correction-routes/data/es.json's own headline). Cette règle ne vérifie ni ce consentement ni l'applicabilité du mandat futur, elle n'autorise que l'ACTE d'envoi dans l'outil."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit espagnol. La question fiscale (LIVA, RD 1619/2012) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale espagnole pour CETTE entreprise de la produire. Le format national réellement mandaté en Espagne est Facturae (B2G) et, à terme, le régime Veri*Factu/facturación electrónica B2B (art. 8 bis RD 1619/2012, sujet DISTINCT — canal/format imposé, non recherché par cette tâche), hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal de la rectificativa espagnole (voir credit-note.send ci-dessous) concerne le CONTENU et le statut fiscal du document, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/de.json/it.json/pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La disminución de la base imponible [...] estarán CONDICIONADAS A LA EXPEDICIÓN Y REMISIÓN de la factura que rectifique.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/es.json (route CREDIT_NOTE, required) — Art. 15.2 RD 1619/2012 ; art. 80 LIVA ; art. 24.1 RD 1624/1992, consultée le 2026-08-29 (date préservée : reprise, pas revérifiée par cette tâche). C'est la citation la plus FORTE des cinq nouveaux pays sur ce fait précis : en Espagne, émettre une facture rectificative de signe négatif (l'équivalent de l'avoir/credit-note de cet outil) n'est pas seulement OUVERT — c'est la CONDITION même de l'effet TVA (réduction de la base imposable) recherché ; sans expédition ET remise de cette rectificativa au destinataire, aucune réduction n'a lieu. allowed:true est donc sourcé au niveau le plus haut des cinq pays de cette tâche pour cette action précise."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire — sans préjudice de l'exigence de REMISE au destinataire elle-même, déjà sourcée par credit-note.send ci-dessus (une remise par lien resterait à qualifier au regard de cette exigence, hors périmètre de CETTE règle qui ne porte que sur le partage additionnel)."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables espagnoles portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : le futur mandat Veri*Factu/facturación electrónica B2B espagnol (art. 8 bis RD 1619/2012) porte sur le canal/format de réception, pas sur ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Espagne — root TODO P1 (2026-09-03). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/us.json pour les mêmes actions. Le lourd légal repose sur deux sources : (1) une lecture FRAÎCHE, DIRECTE, du 2026-09-03 sur boe.es (le Boletín Oficial del Estado, portail officiel espagnol des textes consolidés) pour l'art. 9 RD 1619/2012 (invoice.send) et sur eur-lex.europa.eu pour le règlement eIDAS (quote.send) ; (2) la RÉUTILISATION, datée et non re-vérifiée, des citations déjà lues le 2026-08-29 par correction-routes/data/es.json pour l'immutabilité de la facture émise (invoice.save-draft, art. 15.4 RD 1619/2012 — le headline même de ce fichier) et pour l'avoir (credit-note.send, CREDIT_NOTE required — la citation la plus contraignante des cinq nouveaux pays) — chacune ne vaut que pour le fait exact qu'elle tranche ici, jamais étirée au-delà."
+}

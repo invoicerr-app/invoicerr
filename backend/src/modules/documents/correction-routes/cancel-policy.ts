@@ -9,11 +9,15 @@
  * own `evaluateCountryPolicy` does (`CountryPolicyDecision`) so `documents.service.ts` can compose it
  * through the IDENTICAL 403/409 machinery `runAction` already holds for every other action — see that
  * file's own `resolveActionPolicy`. What differs is the SOURCE: `country-policy/` is a DB-mirrored
- * table covering three countries today (FR/US/HU — data/all.ts), a coverage gap orthogonal to this
- * one and out of this task's scope to close; `correction-routes/` covers all SEVEN pivots with the
- * exact legal citation this action needs, which is why "cancel" reads THIS catalog instead, never the
- * country-policy/ table (see documents.service.ts's own comment on why the two are deliberately kept
- * apart rather than merged).
+ * table covering eight countries today (FR/US/HU/DE/IT/PL/ES/MX — data/all.ts, root TODO P1 added the
+ * last five), but even full overlap with correction-routes' own seven pivots would not make the two
+ * interchangeable for THIS action: `country-policy/` can only say allowed/forbidden for the WHOLE
+ * action, never "the route exists but only from one post-issuance status" (Italy) or "the route is
+ * `required` in law but this repo wires no authority channel to REALIZE it" (Poland, Mexico — see this
+ * file's own section below). `correction-routes/` covers all SEVEN pivots with the exact legal
+ * citation AND the finer-grained status/implementability nuance this one action needs, which is why
+ * "cancel" reads THIS catalog instead, never the country-policy/ table (see documents.service.ts's own
+ * comment on why the two are deliberately kept apart rather than merged).
  *
  * ## Why this can't be a generic "status is required/allowed -> implementable" rule
  *

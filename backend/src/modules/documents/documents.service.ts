@@ -393,15 +393,19 @@ export class DocumentsService implements OnModuleInit {
    *
    * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
    * instead of the ordinary `country-policy/` DB table. The two coverage sets are DIFFERENT ON
-   * PURPOSE — `country-policy/` mirrors three country FILES today (FR/US/HU, data/all.ts), a coverage
-   * gap this task does not close; `correction-routes/` (TODO_CORRECTION.md C1) covers all SEVEN
-   * pivots, each with the exact CANCEL_AND_REPLACE citation this one action needs. Routing "cancel"
-   * through the ordinary `evaluateCountryPolicy` would therefore either 403 it for every country that
-   * has no country-policy/ file at all (Germany, Italy — both genuinely FOUND a local cancel per
-   * cancel-policy.ts, wrongly refused for an unrelated coverage gap) or require inventing a whole new
-   * country-policy/ file for them, which would ALSO silently unblock every OTHER declared action for
-   * that country policy has an opinion on — a much bigger, unintended footprint than this one action.
-   * See `cancel-policy.ts`'s own header for the full per-country reasoning.
+   * PURPOSE — `country-policy/` mirrors eight country FILES today (FR/US/HU/DE/IT/PL/ES/MX,
+   * data/all.ts, root TODO P1 added the last five); `correction-routes/` (TODO_CORRECTION.md C1)
+   * covers all SEVEN pivots, each with the exact CANCEL_AND_REPLACE citation this one action needs —
+   * a NARROWER, action-specific fact that `evaluateCountryPolicy`'s generic allowed/forbidden shape
+   * cannot express. Routing "cancel" through the ordinary `evaluateCountryPolicy` would give the
+   * WRONG answer even for a country that now HAS a country-policy/ file: Poland and Mexico both
+   * declare CANCEL_AND_REPLACE `required` in their own correction-routes data yet have NO real local
+   * cancellation mechanism behind it (cancel-policy.ts's own header — the route exists, the SAT/KSeF
+   * authority operation it needs does not), and Italy's own local cancel is narrower than its country-
+   * policy file would suggest (`restrictedToStatuses: ['send_failed']`, not every post-issuance
+   * status). A generic `allowed`/`forbidden` row cannot carry either nuance — only cancel-policy.ts's
+   * own per-country whitelist, cross-checked against the loaded route's own status, can. See
+   * `cancel-policy.ts`'s own header for the full per-country reasoning.
    */
   private async resolveActionPolicy(
     companyId: string,
