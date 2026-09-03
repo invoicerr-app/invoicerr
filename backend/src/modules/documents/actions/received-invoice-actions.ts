@@ -1,5 +1,6 @@
 import { updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { checkReceivedInvoiceLineTotals } from '../received-invoices/line-totals-check';
 import { ActionRegistry } from './action-registry';
 import { registerDeleteAction } from './generic-actions';
 
@@ -28,11 +29,24 @@ export function registerReceivedInvoiceActions(
    * it — those three keys are not declared `DocumentFieldDescriptor`s (see the descriptor's own
    * header on why), so `validateAgainstDescriptor` never touches them, but `upsertDocument` persists
    * `data` whole, exactly the same way it already does for every other type's own declared fields.
+   *
+   * TODO_PRODUIT.md T5(a) — also computes `lineTotalWarnings` (received-invoices/line-totals-check.ts)
+   * and writes it into `data` under that same reserved-key convention: an array, possibly empty, of
+   * NAMED warnings when the lines' own sum disagrees with the flat `netAmount`/`vatAmount`/
+   * `grossAmount` beyond rounding tolerance. Recomputed on EVERY save (this action is the type's only
+   * create/edit path), so editing a line — or the stated totals — always leaves the persisted warning
+   * in sync with what was just saved; STORED, not recomputed on every read, which is what makes the
+   * warning "porté par le document" (visible again on a later GET, the list, the detail screen)
+   * without a second generic mechanism reading `lines` on every fetch.
    */
-  registry.register('received-invoice', 'receive', async ({ companyId, documentId, data }) => ({
-    document: await upsertDocument(companyId, 'received-invoice', documentId, 'received', data),
-    changed: true,
-  }));
+  registry.register('received-invoice', 'receive', async ({ companyId, documentId, data }) => {
+    const lineTotalWarnings = checkReceivedInvoiceLineTotals(data);
+    const dataWithWarnings = { ...data, lineTotalWarnings };
+    return {
+      document: await upsertDocument(companyId, 'received-invoice', documentId, 'received', dataWithWarnings),
+      changed: true,
+    };
+  });
 
   /**
    * "approve"/"reject": plain, terminal status transitions — no data effect, mirroring

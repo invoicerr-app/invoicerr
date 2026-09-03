@@ -38,7 +38,7 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     }
   });
 
-  it('declares the eight expected business fields, no fewer, no more', () => {
+  it('declares the nine expected business fields, no fewer, no more — TODO_PRODUIT.md T5(a) added "lines"', () => {
     const descriptor = buildReceivedInvoiceDescriptor();
     expect(descriptor.fields.map((f) => f.key).sort()).toEqual(
       [
@@ -50,8 +50,30 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
         'netAmount',
         'vatAmount',
         'grossAmount',
+        'lines',
       ].sort(),
     );
+  });
+
+  it('"lines" reuses the array field kind, four subfields, no min — an enrichment, never a new requirement', () => {
+    const descriptor = buildReceivedInvoiceDescriptor();
+    const lines = descriptor.fields.find((f) => f.key === 'lines');
+    expect(lines?.kind).toBe('array');
+    expect(lines?.required).toBe(false);
+    expect(lines?.min).toBeUndefined();
+    expect(lines?.fields?.map((f) => f.key).sort()).toEqual(
+      ['description', 'quantity', 'unitPrice', 'vatRate'].sort(),
+    );
+  });
+
+  it('"lines[].vatRate" never uses this company\'s own VAT-rate catalog — the supplier\'s rate may be foreign', () => {
+    const descriptor = buildReceivedInvoiceDescriptor();
+    const lines = descriptor.fields.find((f) => f.key === 'lines');
+    const vatRate = lines?.fields?.find((f) => f.key === 'vatRate');
+    expect(vatRate?.kind).toBe('select');
+    expect(vatRate?.usesVatRateCatalog).toBeUndefined();
+    expect(vatRate?.allowCustomValue).toBe(true);
+    expect(vatRate?.options).toEqual([]);
   });
 
   it('never declares fileRef/fileName/fileMime as fields — they are system data, not user-typed', () => {

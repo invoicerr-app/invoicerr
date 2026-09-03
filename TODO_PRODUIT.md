@@ -204,6 +204,16 @@ un test e2e prouve (c) par l'écran (éditer → pays inconnu → refus nommé).
 
 ## T5 — Réception enrichie (factures fournisseurs)
 
+> (a) ✅ **FAIT** (2026-09-03) — lignes BG-25 extraites du CII (IncludedSupplyChainTradeLineItem)
+> et de l'UBL (InvoiceLine) par le lecteur existant étendu, chemins vérifiés contre du XML généré
+> par nos propres providers ; machinerie de champ `array` des types sortants réutilisée (stockage
+> JSON, zéro migration) ; taux fournisseur hors catalogue société (déviation documentée) ;
+> total-vs-somme : avertissement nommé persisté (data.lineTotalWarnings), tolérance max(1, n)
+> centimes, jamais bloquant. jest 1960, mutations mordantes (ancre CII, persistance, tolérance).
+> (b) rapprochement : DÉCISION PRISE — Client + rôle supplier. (c) OCR : DÉCISION PRISE — service
+> cloud VIA LE SYSTÈME DE PLUGINS (le point d'extension au cœur, le provider en plugin) ; choix du
+> provider cloud à poser au lancement de (c).
+
 Trois sous-chantiers, DANS CET ORDRE, chacun sa tâche :
 (a) **Lignes détaillées** : le document reçu porte ses lignes (désignation, quantité, HT, taux,
 TTC), saisies à l'écran ET extraites automatiquement quand le dépôt est un format structuré

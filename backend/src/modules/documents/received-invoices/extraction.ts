@@ -21,10 +21,58 @@
  * this branch's OWN providers (`cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts`) produce —
  * never a hand-written XML fixture — so a real drift in what our own outbound builders emit fails
  * this module's own test, not just a live round-trip with a third party.
+ *
+ * ## Line extraction — TODO_PRODUIT.md T5(a)
+ *
+ * BG-25 (invoice line) is repeated per line in both syntaxes — `ram:IncludedSupplyChainTradeLineItem`
+ * (CII) / `cac:InvoiceLine` (UBL), verified by dumping this branch's OWN `cii-provider.ts`/
+ * `ubl-provider.ts` output for a real two-line fixture (see `extraction.spec.ts`) rather than assumed
+ * from the standard's own name tables. `extractAllBlocks` below is the same non-greedy,
+ * namespace-agnostic technique as `extractBlock`, only repeated (global flag) to pick up every
+ * sibling occurrence instead of the first — every per-line lookup below then re-scopes `extractText`/
+ * `extractBlock` to ONE already-isolated line block, the same way the header-level fields above scope
+ * to `SellerTradeParty`/`AccountingSupplierParty`, so a same-named element on a DIFFERENT line (or in
+ * the header) is never mistaken for this one's.
+ *
+ * Four facts per line, read from BT-153/BT-129/BT-146/BT-152 (never BT-131, the line's OWN net total):
+ *  - `description`  — CII `SpecifiedTradeProduct/Name`      · UBL `Item/Name`
+ *  - `quantity`     — CII `SpecifiedLineTradeDelivery/BilledQuantity` · UBL `InvoicedQuantity`
+ *  - `unitPrice`    — CII `SpecifiedLineTradeAgreement/NetPriceProductTradePrice/ChargeAmount`
+ *                      · UBL `Price/PriceAmount`
+ *  - `vatRate`      — CII `SpecifiedLineTradeSettlement/ApplicableTradeTax/RateApplicablePercent`
+ *                      · UBL `Item/ClassifiedTaxCategory/Percent`
+ *
+ * `unitPrice`+`quantity`, never the line's own net/gross total: this is what lets
+ * `received-invoice.descriptor.ts`'s own `lines` field reuse `totals/compute-totals.ts` UNCHANGED
+ * (the exact same "money subfield × number subfield" convention `invoice.descriptor.ts`'s own lines
+ * already use) — reading BT-131 directly instead would hand that engine an already-multiplied amount
+ * it would multiply AGAIN by quantity, silently wrong the moment quantity isn't 1. A THIRD PARTY's
+ * line-level allowance/charge (which this extraction does not read at all) can still make
+ * quantity×unitPrice diverge from that supplier's own stated line net — exactly the kind of honest
+ * divergence `received-invoices/line-totals-check.ts`'s own warning exists to surface, never hide.
+ *
+ * `vatRate` is kept as the RAW TEXT (e.g. "20"), not re-parsed to a number and back: it lands in
+ * `data.lines[i].vatRate`, a 'select' field kind (field-kinds.ts) that requires a STRING value — the
+ * exact same convention `invoice.descriptor.ts`'s own line fixture already uses (`vatRate: '20'`).
+ * An unparseable rate is passed through as-is rather than dropped: `compute-totals.ts`'s own
+ * `extractVatRate` already turns a non-numeric 'select' value into its existing "no usable VAT rate —
+ * counted in net only" warning — reused, not re-implemented, here.
  */
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { decodePDFRawStream } = require('pdf-lib/cjs/core');
+
+/** One BG-25 line, as read off a structured deposit — see this file's own header, "Line extraction",
+ *  for the exact CII/UBL path behind each key. Every key optional, same discipline as
+ *  `ExtractedInvoiceFields` itself: a line missing one fact (e.g. no VAT rate at all) is still a real
+ *  line, not a reason to drop it. */
+export interface ExtractedInvoiceLine {
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  /** RAW text (e.g. "20"), not a parsed number — see this file's own header for why. */
+  vatRate?: string;
+}
 
 export interface ExtractedInvoiceFields {
   supplierNumber?: string;
@@ -34,6 +82,9 @@ export interface ExtractedInvoiceFields {
   netAmount?: number;
   vatAmount?: number;
   grossAmount?: number;
+  /** Absent (never `[]`) when no BG-25 line block was found at all — same "omit, don't emit an empty
+   *  collection" convention every other optional key here already follows. */
+  lines?: ExtractedInvoiceLine[];
 }
 
 export type RecognizedSyntax = 'CII' | 'UBL' | 'FACTURX_CII' | null;
@@ -83,6 +134,19 @@ function extractBlock(xml: string, tagName: string): string | undefined {
   return m ? m[0] : undefined;
 }
 
+/** Every occurrence of a tag (any namespace prefix), each returned as its own full block (opening
+ *  tag through closing tag) — the plural, GLOBAL sibling of `extractBlock` above, for a repeated
+ *  element (BG-25's own line) rather than a unique one. Same non-greedy technique, so a line block
+ *  never swallows into the next sibling's own content. */
+function extractAllBlocks(xml: string, tagName: string): string[] {
+  const esc = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(
+    `<(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}(?:\\s[^>]*)?>[\\s\\S]*?<\\/(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}>`,
+    'gi',
+  );
+  return xml.match(re) ?? [];
+}
+
 function toFloat(s: string | undefined): number | undefined {
   if (s === undefined) return undefined;
   const n = parseFloat(s.replace(',', '.'));
@@ -124,8 +188,36 @@ function parseCii(xml: string): ExtractedInvoiceFields {
   );
   const vatAmount = toFloat(summBlock ? extractText(summBlock, 'TaxTotalAmount') : undefined);
   const grossAmount = toFloat(summBlock ? extractText(summBlock, 'GrandTotalAmount') : undefined);
+  const lines = parseCiiLines(xml);
 
-  return { supplierNumber, issueDate, supplier, currency, netAmount, vatAmount, grossAmount };
+  return {
+    supplierNumber,
+    issueDate,
+    supplier,
+    currency,
+    netAmount,
+    vatAmount,
+    grossAmount,
+    ...(lines.length > 0 ? { lines } : {}),
+  };
+}
+
+/** BG-25, CII side — see this file's own header, "Line extraction", for the exact element map. */
+function parseCiiLines(xml: string): ExtractedInvoiceLine[] {
+  return extractAllBlocks(xml, 'IncludedSupplyChainTradeLineItem').map((block) => {
+    const productBlock = extractBlock(block, 'SpecifiedTradeProduct');
+    const description = productBlock ? extractText(productBlock, 'Name') : undefined;
+
+    const quantity = toFloat(extractText(block, 'BilledQuantity'));
+
+    const priceBlock = extractBlock(block, 'NetPriceProductTradePrice');
+    const unitPrice = toFloat(priceBlock ? extractText(priceBlock, 'ChargeAmount') : undefined);
+
+    const taxBlock = extractBlock(block, 'ApplicableTradeTax');
+    const vatRate = taxBlock ? extractText(taxBlock, 'RateApplicablePercent') : undefined;
+
+    return { description, quantity, unitPrice, vatRate };
+  });
 }
 
 /**
@@ -156,8 +248,36 @@ function parseUbl(xml: string): ExtractedInvoiceFields {
 
   const taxBlock = extractBlock(xml, 'TaxTotal');
   const vatAmount = toFloat(taxBlock ? extractText(taxBlock, 'TaxAmount') : undefined);
+  const lines = parseUblLines(xml);
 
-  return { supplierNumber, issueDate, supplier, currency, netAmount, vatAmount, grossAmount };
+  return {
+    supplierNumber,
+    issueDate,
+    supplier,
+    currency,
+    netAmount,
+    vatAmount,
+    grossAmount,
+    ...(lines.length > 0 ? { lines } : {}),
+  };
+}
+
+/** BG-25, UBL side — see this file's own header, "Line extraction", for the exact element map. */
+function parseUblLines(xml: string): ExtractedInvoiceLine[] {
+  return extractAllBlocks(xml, 'InvoiceLine').map((block) => {
+    const itemBlock = extractBlock(block, 'Item');
+    const description = itemBlock ? extractText(itemBlock, 'Name') : undefined;
+
+    const quantity = toFloat(extractText(block, 'InvoicedQuantity'));
+
+    const priceBlock = extractBlock(block, 'Price');
+    const unitPrice = toFloat(priceBlock ? extractText(priceBlock, 'PriceAmount') : undefined);
+
+    const taxCategoryBlock = itemBlock ? extractBlock(itemBlock, 'ClassifiedTaxCategory') : undefined;
+    const vatRate = taxCategoryBlock ? extractText(taxCategoryBlock, 'Percent') : undefined;
+
+    return { description, quantity, unitPrice, vatRate };
+  });
 }
 
 /** Best-effort syntax sniff — same signatures the repère's own `detectSyntax` used for these two

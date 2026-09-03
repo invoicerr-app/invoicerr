@@ -26,14 +26,43 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    `formats/semantic/build-semantic-invoice.ts`'s own header: "OMITTED, no `dueDate` is threaded
  *    through"), so a real received invoice from another EN 16931 sender may carry no due date at
  *    all in its structured data even when extraction otherwise succeeds.
- *  - `currency`, `netAmount`, `vatAmount`, `grossAmount`: FLAT money fields, deliberately NOT an
- *    'array' of detailed lines the way the invoice's own `lines` field is. A received invoice is
- *    being RECORDED, not re-priced or re-computed by this company — the totals are whatever the
- *    supplier's own document says, taken (extracted or typed) as-is. Line-by-line detail would add a
- *    whole re-entry burden for a bookkeeping fact this task does not ask this core to reconstruct;
- *    consigned explicitly as future scope, not silently dropped (see this file's own tail comment).
+ *  - `currency`, `netAmount`, `vatAmount`, `grossAmount`: FLAT money fields — the totals are whatever
+ *    the supplier's own document says, taken (extracted or typed) as-is, never re-priced or
+ *    re-computed by this company.
+ *  - `lines` (TODO_PRODUIT.md T5(a), superseding this file's own former "deliberately NOT an array"
+ *    stance — see the superseded reasoning preserved at this file's own tail comment): désignation,
+ *    quantité, prix unitaire HT, taux de TVA, the SAME `kind: 'array'` mechanism
+ *    `invoice.descriptor.ts`'s own `lines` field already uses (field-kinds.ts's 'array', validate.ts's
+ *    recursion, `totals/compute-totals.ts`'s generic money+number line detection, the frontend's
+ *    generic `field-renderers/array-field.tsx`) — reused verbatim, not a second line shape invented
+ *    for this type. `required: false`, no `min` — see this field's own declaration below for why:
+ *    lines are an ENRICHMENT of a received invoice, never a new requirement on top of the "a plain
+ *    scanned PDF with nothing extractable is still a valid record" rule the rest of this descriptor
+ *    already holds.
  *
- * Every one of the eight fields above is `required: false` — DELIBERATELY, unlike every outbound
+ *    Two real deltas from the invoice's own line shape, both deliberate:
+ *     - No `unit`/`discountPercent` subfields: this type does not need EN 16931's BT-130 (this
+ *       company never TRANSMITS a received invoice, so no format ever reads a unit code off it) nor a
+ *       discount breakout (the supplier's own line net is taken as `unitPrice × quantity`, not
+ *       re-derived from a sticker price this company never priced).
+ *     - `vatRate` carries NO `usesVatRateCatalog` — the one field this descriptor's line shape
+ *       DELIBERATELY does not copy from `invoice.descriptor.ts`. That hint fills `options` from THIS
+ *       company's OWN VAT-rate catalog (`descriptors/company-view.ts`, keyed by the ACTIVE company's
+ *       resolved country) — appropriate for a rate this company CHARGES, meaningless (and actively
+ *       harmful) for a rate a SUPPLIER charged: a German supplier's 19% would be silently REJECTED by
+ *       the 'select' validator (field-kinds.ts) the moment a French company's own catalog is
+ *       non-empty, since `allowCustomValue` only bypasses a KNOWN, non-empty list when the field asks
+ *       to use one — it does not relax a real catalog once filled. Leaving `usesVatRateCatalog` unset
+ *       keeps `options` permanently `[]`, so `allowCustomValue` always opens and ANY rate the supplier
+ *       actually charged, domestic or foreign, is accepted as typed or extracted.
+ *
+ *    `unitPrice`/`quantity`, never the line's own net/gross total directly: this is what lets
+ *    `totals/compute-totals.ts` compute this type's totals FROM its lines with ZERO new arithmetic —
+ *    see `received-invoices/line-totals-check.ts`'s own header for how that computed sum is then
+ *    compared against these three FLAT fields (never the other way around: this type's stated totals
+ *    are never overwritten by what the lines add up to — see that file's header for why).
+ *
+ * Every one of the nine fields above is `required: false` — DELIBERATELY, unlike every outbound
  * type here (an invoice needs a client, a credit note needs the invoice it corrects). The task this
  * type exists for is explicit: "recevoir un PDF papier scanné est le cas de base d'un artisan" — a
  * plain scanned PDF carries NO machine-extractable field at all, and the whole point of this type is
@@ -182,6 +211,52 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
         required: false,
         min: 0,
         currencyField: 'currency',
+      },
+      {
+        key: 'lines',
+        kind: 'array',
+        label: 'Lines',
+        required: false,
+        // No `min` — unlike the invoice's own `lines` (min: 1), a received invoice with NO readable
+        // lines (a plain scanned PDF, or a structured deposit this best-effort extraction could not
+        // parse a single BG-25 line out of) is still a completely valid record — see this file's own
+        // header, "Fields — why these, and why so little is required".
+        fields: [
+          {
+            key: 'description',
+            kind: 'text',
+            label: 'Designation',
+            required: false,
+          },
+          {
+            key: 'quantity',
+            kind: 'number',
+            label: 'Quantity',
+            required: false,
+            min: 0,
+          },
+          {
+            key: 'unitPrice',
+            kind: 'money',
+            label: 'Unit price (excl. VAT)',
+            required: false,
+            min: 0,
+            currencyField: 'currency',
+            helpText: "The line's own HT unit price, as printed on the supplier's document.",
+          },
+          {
+            // Deliberately NO `usesVatRateCatalog` — see this file's own header for why: this rate is
+            // the SUPPLIER's, not this company's own, and may legitimately be foreign.
+            key: 'vatRate',
+            kind: 'select',
+            label: 'VAT rate',
+            required: false,
+            options: [],
+            allowCustomValue: true,
+            helpText:
+              "The VAT rate the supplier applied to this line — any value, not this company's own catalog.",
+          },
+        ],
       },
     ],
     actions: [

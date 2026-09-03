@@ -17,6 +17,20 @@ import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
 import { useDocumentType } from "@/hooks/queries"
 
+/**
+ * `data.lineTotalWarnings` — a RESERVED key (never a declared `DocumentFieldDescriptor`), the same
+ * convention `received-invoice.descriptor.ts`'s own `fileRef`/`fileName`/`fileMime` already use for
+ * bookkeeping the generic field-render never touches. Read here GENERICALLY, by key name only —
+ * nothing below names "received-invoice" (TODO_PRODUIT.md T5(a)'s own `received-invoices/
+ * line-totals-check.ts`, backend, is the only writer today; any future type could reuse the same key
+ * and get this same rendering for free, exactly the "a country/type is data" discipline the rest of
+ * this module already holds).
+ */
+function extractLineTotalWarnings(data: Record<string, unknown> | undefined): string[] {
+  const warnings = data?.lineTotalWarnings
+  return Array.isArray(warnings) ? warnings.filter((w): w is string => typeof w === "string") : []
+}
+
 interface DocumentFormProps {
   descriptor: DocumentTypeDescriptor
   documentId?: string
@@ -65,6 +79,12 @@ export function DocumentForm({
   const [currentDocumentId, setCurrentDocumentId] = useState(documentId)
   const [currentStatus, setCurrentStatus] = useState(status)
   const [currentDisplayNumber, setCurrentDisplayNumber] = useState(displayNumber ?? null)
+  // TODO_PRODUIT.md T5(a) — see extractLineTotalWarnings's own header. Seeded from whatever this
+  // instance already carried (a reopened, already-saved record); re-derived below both when
+  // `initialData` itself changes AND the moment "receive" runs again (a save recomputes it — see
+  // received-invoice-actions.ts's own header), so editing a line and saving reacts immediately,
+  // without waiting on a page reload or a second fetch.
+  const [lineTotalWarnings, setLineTotalWarnings] = useState(() => extractLineTotalWarnings(initialData))
 
   // The B2G document-field bridge's OWN screen gap (root TODO's "the Leitweg field is proven only at
   // the service level, not interactive"): `descriptor` (this component's own prop) was fetched by the
@@ -139,6 +159,9 @@ export function DocumentForm({
     if (displayNumber !== undefined) {
       setCurrentDisplayNumber(displayNumber ?? null)
     }
+    if (initialData !== undefined) {
+      setLineTotalWarnings(extractLineTotalWarnings(initialData))
+    }
   }, [initialData, status, displayNumber, form])
 
   const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
@@ -147,7 +170,13 @@ export function DocumentForm({
       documentId: currentDocumentId,
       getData: () => form.getValues(),
       validate: () => form.trigger(),
-      onActionSuccess,
+      onActionSuccess: (result, actionId) => {
+        // See extractLineTotalWarnings's own header — this is why the SAVE round-trip alone (never a
+        // client-side recomputation) already reacts: `result.data` is this exact record's own,
+        // freshly-persisted `data`, straight off the action's own response.
+        setLineTotalWarnings(extractLineTotalWarnings(result.data))
+        onActionSuccess?.(result, actionId)
+      },
       onDocumentUpdate: (id, nextStatus, _nextNumber, nextDisplayNumber) => {
         setCurrentDocumentId(id)
         setCurrentStatus(nextStatus)
@@ -195,6 +224,23 @@ export function DocumentForm({
         </div>
 
         <DocumentTotals descriptor={descriptor} />
+
+        {/* TODO_PRODUIT.md T5(a) — see extractLineTotalWarnings's own header: a NAMED, never-blocking
+            warning when this record's own lines don't sum to its stated totals (rounding tolerance
+            aside). Rendered verbatim, untranslated, exactly like DocumentTotals's own `warnings`
+            block just above (both are backend-composed sentences, not i18n keys). */}
+        {lineTotalWarnings.length > 0 && (
+          <div
+            className="space-y-1 rounded-md border border-yellow-300 bg-yellow-50 p-3"
+            data-cy="document-line-total-warnings"
+          >
+            {lineTotalWarnings.map((warning) => (
+              <p key={warning} className="text-xs text-yellow-800">
+                {warning}
+              </p>
+            ))}
+          </div>
+        )}
 
         {showSettlement && currentDocumentId && (
           <DocumentSettlementSection typeId={descriptor.id} documentId={currentDocumentId} />

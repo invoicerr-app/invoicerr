@@ -73,6 +73,17 @@ const DOCUMENT = {
   createdAt: new Date('2026-08-30'),
 };
 
+/** BG-25, both syntaxes — read off `DOCUMENT_DATA.lines` above via BT-153/BT-129/BT-146/BT-152 (never
+ *  BT-131 — see extraction.ts's own header on why `unitPrice`, not the line's own net total, is what
+ *  round-trips exactly through `compute-totals.ts`'s existing quantity×unitPrice engine here: no
+ *  discount on either line, so this fixture's own `LineExtensionAmount`/`LineTotalAmount` (12000.00,
+ *  1600.00) already equal quantity×unitPrice exactly). `vatRate` is the RAW TEXT the generator wrote
+ *  ("20"), matching the 'select' field kind's own string convention. */
+const EXPECTED_LINES = [
+  { description: 'Conseil stratégique', quantity: 10, unitPrice: 1200, vatRate: '20' },
+  { description: 'Formation équipe', quantity: 2, unitPrice: 800, vatRate: '20' },
+];
+
 describe('received-invoices/extraction — proven against OUR OWN outbound artifacts', () => {
   it('CII: every field extracted matches the hand-computed fixture exactly', async () => {
     const built = await ciiFormatProvider.build(descriptor, DOCUMENT, SELLER, BUYER);
@@ -94,6 +105,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       netAmount: 13600,
       vatAmount: 2720,
       grossAmount: 16320,
+      lines: EXPECTED_LINES,
     });
   });
 
@@ -117,6 +129,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       netAmount: 13600,
       vatAmount: 2720,
       grossAmount: 16320,
+      lines: EXPECTED_LINES,
     });
   });
 
@@ -183,6 +196,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
         netAmount: 13600,
         vatAmount: 2720,
         grossAmount: 16320,
+        lines: EXPECTED_LINES,
       });
     }, 20000);
   });

@@ -99,7 +99,16 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
       'received-invoice',
       undefined,
       'received',
-      { supplier: 'Acme Supplies', fileRef: 'abc123', fileName: 'invoice.pdf', fileMime: 'application/pdf' },
+      {
+        supplier: 'Acme Supplies',
+        fileRef: 'abc123',
+        fileName: 'invoice.pdf',
+        fileMime: 'application/pdf',
+        // TODO_PRODUIT.md T5(a) — always written, even empty: see received-invoice-actions.ts's own
+        // header on "receive" for why this is computed and stored on every save, not just when there
+        // is something to warn about.
+        lineTotalWarnings: [],
+      },
     );
   });
 
@@ -115,7 +124,47 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     });
 
     const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4];
-    expect(persistedData).toEqual({ fileRef: 'deadbeef', fileName: 'scan.pdf', fileMime: 'application/pdf' });
+    expect(persistedData).toEqual({
+      fileRef: 'deadbeef',
+      fileName: 'scan.pdf',
+      fileMime: 'application/pdf',
+      lineTotalWarnings: [],
+    });
+  });
+
+  it('"receive" persists a non-empty `lineTotalWarnings` when the lines disagree with the stated totals — T5(a)', async () => {
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue(fakeRecord());
+    const { service } = buildService();
+
+    await service.runAction('company-1', 'received-invoice', 'receive', {
+      data: {
+        currency: 'EUR',
+        netAmount: 500, // wrong on purpose: the one line below sums to 1000
+        lines: [{ description: 'Consulting', quantity: 10, unitPrice: 100, vatRate: '20' }],
+      },
+    });
+
+    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4];
+    expect(persistedData.lineTotalWarnings).toHaveLength(1);
+    expect(persistedData.lineTotalWarnings[0]).toMatch(/Line total mismatch \(net \/ HT\)/);
+  });
+
+  it('"receive" persists an EMPTY `lineTotalWarnings` when the lines agree with the stated totals', async () => {
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue(fakeRecord());
+    const { service } = buildService();
+
+    await service.runAction('company-1', 'received-invoice', 'receive', {
+      data: {
+        currency: 'EUR',
+        netAmount: 1000,
+        vatAmount: 200,
+        grossAmount: 1200,
+        lines: [{ description: 'Consulting', quantity: 10, unitPrice: 100, vatRate: '20' }],
+      },
+    });
+
+    const persistedData = (persistence.upsertDocument as jest.Mock).mock.calls[0][4];
+    expect(persistedData.lineTotalWarnings).toEqual([]);
   });
 
   it('"receive" is also available to re-edit an EXISTING "received" record', async () => {
