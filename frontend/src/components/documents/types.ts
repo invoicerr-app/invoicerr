@@ -417,3 +417,29 @@ export interface DocumentSchedule {
   params: Record<string, unknown> | null
   createdAt: string
 }
+
+/** One of the eleven canonical correction routes, as `GET .../correction-routes` hands it back for
+ *  ONE document's own seller country — mirrors the backend's `CorrectionRouteView`
+ *  (correction-routes/correction-routes.ts, TODO_CORRECTION.md C1). `status` is the closed
+ *  `required`/`allowed`/`forbidden`/`unverified` vocabulary that file's own schema.ts enforces.
+ *  `label` is the legal citation (or, for `unverified`, the honest resolution note) VERBATIM off the
+ *  country file's own provenance — rendered as-is by the screen (C2), NEVER re-summarized: the same
+ *  "backend's own words, not this app's paraphrase" convention `DocumentAuthorityEvent.statusText`/
+ *  `ActionResult.message` already hold. `implemented` is which of the eleven this repo actually WIRES
+ *  to a real mechanism today — only `INTERNAL_CREDIT_NOTE`, see that file's own header. */
+export interface CorrectionRouteView {
+  routeId: string
+  status: "required" | "allowed" | "forbidden" | "unverified"
+  label: string
+  implemented: boolean
+}
+
+/** What `GET /documents/:id/correction-routes` returns — mirrors the backend's
+ *  `CorrectionRoutesDecision`. `limitation` is always present, plain text (never an i18n key): the
+ *  P3-U02 seller-only scope this read never pretends to answer for the buyer's side — see the
+ *  backend's own `LIMITATION_TEXT` for the exact wording this always carries verbatim. */
+export interface CorrectionRoutesDecision {
+  countryCode: string
+  routes: CorrectionRouteView[]
+  limitation: string
+}

@@ -62,6 +62,17 @@ charger ; l'API rend l'inversion FR vs PL ; jest + un e2e API minimal.
 
 ## C2 — L'écran de correction
 
+> ✅ **FAIT** (2026-09-03) — bouton « Corriger » (Scale) sur les lignes de factures ÉMISES
+> seulement ; dialogue piloté par l'API C1 : required mis en avant avec citation verbatim,
+> forbidden visibles-désactivées avec leur raison légale, unverified ≠ permis, non-implémentée =
+> panneau 501 honnête sans bouton qui fait semblant, 404 pays rendu tel quel, limitation P3-U02
+> affichée ; INTERNAL_CREDIT_NOTE → création d'avoir pré-liée par navigation state (nettoyage
+> d'historique), devise verrouillée par le lockedFromReference T4-d existant. BONUS : le registre
+> custom-slots écrasait silencieusement le 2e composant d'un slot — corrigé en liste. Validation
+> mandataire : 2 mutations non-mordantes → 2 tripwires (coexistence des 2 boutons, absence sur
+> brouillon — révélant au passage que les descripteurs factices sans id éteignaient les slots) ;
+> vitest 57/57, jest 2088, batterie 253 verts.
+
 Sur une facture émise (sent/send_failed) : un bouton « Corriger » ouvre le dialogue des voies
 de SON pays — chaque voie avec son statut et sa base légale (les mots de la provenance, pas un
 résumé inventé) ; les interdites visibles mais désactivées AVEC leur raison (le patron

@@ -9,6 +9,7 @@ import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@
 import type {
   ActionResult,
   ArchiveVerificationResult,
+  CorrectionRoutesDecision,
   DocumentArchive,
   DocumentAuthorityEvent,
   DocumentInstance,
@@ -163,6 +164,29 @@ export function useDocumentArchives(typeId: string | undefined, id: string | und
     ["documents", typeId, id, "archives"],
     `/api/documents/${id}/archives?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * TODO_CORRECTION.md C2 — which correction routes THIS document's own seller country declares (see
+ * the backend's `DocumentsService.getCorrectionRoutes`, correction-routes/correction-routes.ts's own
+ * header for the four gates it composes). `retry: false`, unlike most queries here (the default
+ * client-wide policy retries up to twice — lib/query-client.ts): a 404 (no file for this country, or
+ * the document itself gone), a 409 (still "draft"), or a 501 (a typeId this endpoint doesn't cover)
+ * are all STRUCTURAL refusals, never a transient failure retrying would fix — the screen (C2) reads
+ * `error` (an `ApiError`, see use-api-query.ts) to show the backend's own named refusal VERBATIM the
+ * instant it arrives, rather than spinning through two pointless retries first. `enabled` composes
+ * the caller's own gate (only offered at all for an ISSUED invoice) with the usual id/typeId guard.
+ */
+export function useCorrectionRoutes(
+  typeId: string | undefined,
+  id: string | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useApiQuery<CorrectionRoutesDecision>(
+    ["documents", typeId, id, "correction-routes"],
+    `/api/documents/${id}/correction-routes?typeId=${typeId}`,
+    { enabled: !!typeId && !!id && (options?.enabled ?? true), retry: false },
   )
 }
 

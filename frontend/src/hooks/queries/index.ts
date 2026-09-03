@@ -11,6 +11,7 @@ export {
   useDocumentSettlement,
   useDocumentArchives,
   useVerifyDocumentArchive,
+  useCorrectionRoutes,
   useDocumentAuthorityEvents,
   useRunDocumentAction,
   useResolveActionParamsDefaults,

@@ -188,6 +188,83 @@ describe("Émission — brouillon envoyé, l'écran suit sans reload (T1's SSE m
   // key the mounted list never reads). Reverted; suite green again.
 })
 
+describe("Slots personnalisés — les DEUX composants list-row-extra coexistent (tripwire du registre à liste)", () => {
+  /** Ajouté par la VALIDATION C2 (2026-09-03) : la mutation « seul le DERNIER composant enregistré
+   *  survit » (l'ancien comportement Map-écrase du registre custom-slots, exactement le bug que C2
+   *  a trouvé et corrigé) laissait les 55 tests verts — rien ne prouvait que le bouton de preview
+   *  ET le bouton de correction coexistent sur une même ligne de facture émise. Ce test est ce
+   *  tripwire : les deux déclencheurs présents, sur la même ligne. */
+  it("une facture émise porte À LA FOIS le bouton preview et le bouton correction", async () => {
+    const descriptor = {
+      id: "invoice", // document-list resolves the slot by descriptor.id — the tripwire NEEDS it
+      typeId: "invoice",
+      label: "Invoice",
+      statuses: [
+        { id: "draft", label: "Draft" },
+        { id: "sent", label: "Sent" },
+      ],
+      numbering: { onEnterStatus: "sent" },
+      fields: [{ key: "issueDate", kind: "date", label: "Date", required: true }],
+      actions: [],
+    }
+    const instance: DocumentInstance = {
+      id: "inv-slots",
+      typeId: "invoice",
+      status: "sent",
+      data: { issueDate: "2026-08-29T00:00:00.000Z" },
+      createdAt: "2026-08-29T00:00:00.000Z",
+      updatedAt: "2026-08-29T10:00:05.000Z",
+      displayNumber: "INV-2026-0099",
+      lastActionError: null,
+    }
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => descriptor,
+      "GET /api/documents": () => [instance],
+      "GET /api/documents/inv-slots/authority-events": () => [],
+    })
+    renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-inv-slots")
+    expect(screen.getByTestId("document-custom-invoice-preview-button")).toBeInTheDocument()
+    expect(screen.getByTestId("document-correction-button-inv-slots")).toBeInTheDocument()
+  })
+
+  /** Même passe de validation : le gating de statut (« on ne corrige qu'un document ÉMIS ») muté en
+   *  `true` laissait aussi la suite verte — épinglé ici : un brouillon n'a PAS de bouton Corriger. */
+  it("un BROUILLON ne porte pas le bouton correction (le preview, lui, reste)", async () => {
+    const descriptor = {
+      id: "invoice",
+      typeId: "invoice",
+      label: "Invoice",
+      statuses: [
+        { id: "draft", label: "Draft" },
+        { id: "sent", label: "Sent" },
+      ],
+      numbering: { onEnterStatus: "sent" },
+      fields: [{ key: "issueDate", kind: "date", label: "Date", required: true }],
+      actions: [],
+    }
+    const instance: DocumentInstance = {
+      id: "inv-draft-slots",
+      typeId: "invoice",
+      status: "draft",
+      data: { issueDate: "2026-08-29T00:00:00.000Z" },
+      createdAt: "2026-08-29T00:00:00.000Z",
+      updatedAt: "2026-08-29T10:00:05.000Z",
+      displayNumber: null,
+      lastActionError: null,
+    }
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => descriptor,
+      "GET /api/documents": () => [instance],
+      "GET /api/documents/inv-draft-slots/authority-events": () => [],
+    })
+    renderDocumentTypeScreen("invoice")
+    await screen.findByTestId("document-list-row-inv-draft-slots")
+    expect(screen.getByTestId("document-custom-invoice-preview-button")).toBeInTheDocument()
+    expect(screen.queryByTestId("document-correction-button-inv-draft-slots")).not.toBeInTheDocument()
+  })
+})
+
 describe("Rejet — un verdict d'autorité négatif journalisé apparaît sur le panneau de conformité", () => {
   it("shows the Rejected badge on the list row and the reason in the edit dialog's timeline", async () => {
     const descriptor: DocumentTypeDescriptor = {
@@ -572,4 +649,243 @@ describe("Annulation — le parcours tel qu'il existe (ÉCART consigné : aucun 
   // ("document-row-action-cancel-inv-5") and the edit dialog ("document-action-cancel") — exactly
   // the failure mode that would silently expose a future cancel action on a document it was never
   // scoped for. Reverted; suite green again.
+})
+
+/**
+ * TODO_CORRECTION.md C2 — the "Corriger" screen: a country-is-data dialog rendered off C1's own
+ * `GET .../correction-routes`, on the REAL screen (custom/invoice-correction-routes-button.tsx,
+ * registered the same way invoice-preview-button.tsx already is), never a re-implementation of the
+ * status/label vocabulary. Four journeys, matching the task's own brief: FR sees the internal credit
+ * note IMPOSED and reaches the real, pre-linked credit-note screen; PL sees the SAME routeId
+ * FORBIDDEN, disabled, with its own reason; a declared-but-unwired route shows the honest
+ * "not implemented" panel, never a stub; an unresolved seller country shows the backend's own NAMED
+ * 404, verbatim.
+ */
+describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays vendeur", () => {
+  const invoiceDescriptor: DocumentTypeDescriptor = {
+    id: "invoice",
+    label: "Invoice",
+    statuses: [
+      { id: "draft", label: "Draft" },
+      { id: "sent", label: "Sent" },
+    ],
+    initialStatus: "draft",
+    numbering: { onEnterStatus: "sent" },
+    fields: [{ key: "issueDate", kind: "date", label: "Date", required: true }],
+    actions: [],
+  }
+
+  function issuedInvoice(id: string): DocumentInstance {
+    return {
+      id,
+      typeId: "invoice",
+      status: "sent",
+      data: { issueDate: "2026-08-20T00:00:00.000Z" },
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+      displayNumber: `INV-${id}`,
+      lastActionError: null,
+    }
+  }
+
+  const frCitation =
+    'Dans les cas des statuts "Refusée" ou "Rejetée", le fournisseur doit procéder à une annulation ' +
+    "comptable (avoir interne). Cette opération ne doit pas générer de flux de données réglementaires " +
+    "(F1) au PPF."
+  const plCitation =
+    "Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia " +
+    "błędu… jest wystawienie faktury korygującej w KSeF."
+  const creditNoteAllowedCitation =
+    "la rectification des factures s'entend [...] de l'envoi d'une note d'avoir."
+  const limitationText =
+    "This reads the document's SELLER country only — never the buyer's. See the seller×buyer " +
+    "composition limitation."
+
+  it("vendeur FR : l'avoir interne (INTERNAL_CREDIT_NOTE) est affiché IMPOSÉ avec sa base légale, cliquable, et mène à l'avoir RÉEL pré-lié (référence remplie, devise verrouillée)", async () => {
+    const invoice = issuedInvoice("inv-fr")
+    const creditNoteDescriptor: DocumentTypeDescriptor = {
+      id: "credit-note",
+      label: "Credit note",
+      statuses: [{ id: "draft", label: "Draft" }],
+      initialStatus: "draft",
+      fields: [
+        { key: "invoice", kind: "reference", label: "Invoice", required: true, entity: "invoice" },
+        {
+          key: "currency",
+          kind: "select",
+          label: "Currency",
+          required: true,
+          options: [{ value: "EUR", label: "EUR" }],
+          lockedFromReference: { field: "invoice", entity: "invoice", sourceKey: "currency" },
+        },
+      ],
+      actions: [],
+    }
+
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents/types/credit-note": () => creditNoteDescriptor,
+      "GET /api/documents": (url) => (url.searchParams.get("typeId") === "credit-note" ? [] : [invoice]),
+      "GET /api/documents/inv-fr/authority-events": () => [],
+      "GET /api/documents/inv-fr/correction-routes": () => ({
+        countryCode: "FR",
+        routes: [
+          { routeId: "INTERNAL_CREDIT_NOTE", status: "required", label: frCitation, implemented: true },
+          {
+            routeId: "CREDIT_NOTE",
+            status: "allowed",
+            label: creditNoteAllowedCitation,
+            implemented: false,
+          },
+        ],
+        limitation: limitationText,
+      }),
+      "GET /api/documents/references/invoice/search": () => [{ id: "inv-fr", label: "INV-inv-fr" }],
+      "GET /api/documents/references/invoice/inv-fr": () => ({ id: "inv-fr", label: "INV-inv-fr" }),
+      "GET /api/documents/references/invoice/inv-fr/fields": () => ({ currency: "EUR" }),
+    })
+
+    renderDocumentTypeScreen("invoice")
+
+    fireEvent.click(await screen.findByTestId("document-correction-button-inv-fr"))
+    await screen.findByTestId("document-correction-dialog")
+
+    const requiredRow = await screen.findByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")
+    expect(
+      within(requiredRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-status"),
+    ).toHaveTextContent("Required by law")
+    expect(
+      within(requiredRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-label"),
+    ).toHaveTextContent(frCitation)
+    const chooseButton = within(requiredRow).getByTestId(
+      "document-correction-route-INTERNAL_CREDIT_NOTE-button",
+    )
+    expect(chooseButton).not.toBeDisabled()
+
+    fireEvent.click(chooseButton)
+
+    // THE REAL mechanism — a fresh mount of the credit-note create screen, pre-linked: the invoice
+    // reference already resolved, T4-d's own lock already engaged, no manual search needed.
+    await screen.findByTestId("document-create-dialog")
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("document-field-currency-input")).getByRole("button"),
+      ).toHaveTextContent("EUR"),
+    )
+    expect(within(screen.getByTestId("document-field-currency-input")).getByRole("button")).toBeDisabled()
+    expect(within(screen.getByTestId("document-field-invoice-input")).getByRole("button")).toHaveTextContent(
+      "INV-inv-fr",
+    )
+  })
+  // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
+  // `route.status === "required" || route.status === "allowed"` -> `true` (see the dedicated
+  // red→green mutation test below, which targets this exact function against the PL fixture instead
+  // of repeating the same fixture here).
+
+  it("vendeur PL : le MÊME routeId (INTERNAL_CREDIT_NOTE) est affiché INTERDIT, désactivé, avec sa propre raison — jamais la voie française", async () => {
+    const invoice = issuedInvoice("inv-pl")
+
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": () => [invoice],
+      "GET /api/documents/inv-pl/authority-events": () => [],
+      "GET /api/documents/inv-pl/correction-routes": () => ({
+        countryCode: "PL",
+        routes: [
+          { routeId: "INTERNAL_CREDIT_NOTE", status: "forbidden", label: plCitation, implemented: true },
+        ],
+        limitation: limitationText,
+      }),
+    })
+
+    renderDocumentTypeScreen("invoice")
+
+    fireEvent.click(await screen.findByTestId("document-correction-button-inv-pl"))
+    const forbiddenRow = await screen.findByTestId("document-correction-route-INTERNAL_CREDIT_NOTE")
+
+    expect(
+      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-status"),
+    ).toHaveTextContent("Forbidden")
+    const button = within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-button")
+    expect(button).toBeDisabled()
+    // The reason is the country's OWN citation, wrapped in the same policyBlockedReason phrasing the
+    // rest of this screen already uses — never hidden, never a generic "blocked" with no reason.
+    expect(
+      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-reason"),
+    ).toHaveTextContent(plCitation)
+    expect(
+      within(forbiddenRow).getByTestId("document-correction-route-INTERNAL_CREDIT_NOTE-reason"),
+    ).toHaveTextContent("Not available:")
+
+    // Never even reaches the credit-note screen — a forbidden route has no click to fire in the
+    // first place, whatever `implemented` claims (this fixture deliberately sets it `true`, exactly
+    // the case a naive "implemented alone decides clickability" bug would get wrong).
+    expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
+  })
+
+  it("une voie DÉCLARÉE mais NON IMPLÉMENTÉE (CREDIT_NOTE, permise en France) : l'état 501 honnête, jamais un stub qui fait semblant", async () => {
+    const invoice = issuedInvoice("inv-notimpl")
+
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": () => [invoice],
+      "GET /api/documents/inv-notimpl/authority-events": () => [],
+      "GET /api/documents/inv-notimpl/correction-routes": () => ({
+        countryCode: "FR",
+        routes: [
+          {
+            routeId: "CREDIT_NOTE",
+            status: "allowed",
+            label: creditNoteAllowedCitation,
+            implemented: false,
+          },
+        ],
+        limitation: limitationText,
+      }),
+    })
+
+    renderDocumentTypeScreen("invoice")
+
+    fireEvent.click(await screen.findByTestId("document-correction-button-inv-notimpl"))
+    const allowedRow = await screen.findByTestId("document-correction-route-CREDIT_NOTE")
+    const button = within(allowedRow).getByTestId("document-correction-route-CREDIT_NOTE-button")
+    expect(button, "permise par la loi française, donc cliquable").not.toBeDisabled()
+
+    fireEvent.click(button)
+
+    const panel = await screen.findByTestId("document-correction-not-implemented")
+    expect(panel).toHaveTextContent("Credit note")
+    expect(panel).toHaveTextContent("FR")
+    expect(panel).toHaveTextContent("not implement")
+    // Never a stub pretending to work: no create dialog for any type ever opens.
+    expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
+  })
+
+  it("pays vendeur SANS FICHIER : le 404 NOMMÉ de l'API, verbatim — jamais un dialogue vide", async () => {
+    const invoice = issuedInvoice("inv-be")
+    const namedMessage =
+      'Aucune règle de correction déclarée pour BE — no correction-routes rule is declared for "BE" yet.'
+
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": () => [invoice],
+      "GET /api/documents/inv-be/authority-events": () => [],
+      "GET /api/documents/inv-be/correction-routes": () => ({
+        status: 404,
+        body: { message: namedMessage },
+      }),
+    })
+
+    renderDocumentTypeScreen("invoice")
+
+    fireEvent.click(await screen.findByTestId("document-correction-button-inv-be"))
+    const errorMessage = await screen.findByTestId("document-correction-error-message")
+    expect(errorMessage).toHaveTextContent(namedMessage)
+  })
+  // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
+  // `route.status === "required" || route.status === "allowed"` -> `true` unconditionally. RED: the
+  // PL test above ("le MÊME routeId ... est affiché INTERDIT, désactivé") fails —
+  // "document-correction-route-INTERNAL_CREDIT_NOTE-button" is no longer disabled even though its own
+  // status is still "forbidden", and clicking it would silently navigate to the credit-note screen
+  // for a route the seller's own country refuses outright. Reverted; suite green again.
 })

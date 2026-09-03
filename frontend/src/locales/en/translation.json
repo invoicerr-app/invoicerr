@@ -3541,6 +3541,38 @@
       "timeline": {
         "reason": "Reason: {{reason}}"
       }
+    },
+    "correction": {
+      "button": "Correct",
+      "dialogTitle": "Correction routes — {{number}}",
+      "errorTitle": "Could not load correction routes",
+      "genericError": "Something went wrong loading correction routes.",
+      "chooseRoute": "Choose this route",
+      "unverifiedReason": "Not established for this country: {{note}}",
+      "notImplemented": {
+        "title": "Not implemented yet",
+        "body": "\"{{route}}\" is declared by {{countryCode}}'s own law, but this application does not implement it yet — no mechanism runs it here today.",
+        "back": "Back to routes"
+      },
+      "status": {
+        "required": "Required by law",
+        "allowed": "Allowed",
+        "forbidden": "Forbidden",
+        "unverified": "Not established"
+      },
+      "routes": {
+        "CREDIT_NOTE": "Credit note",
+        "DEBIT_NOTE": "Debit note",
+        "CORRECTIVE_INVOICE": "Corrective invoice",
+        "CANCEL_AND_REPLACE": "Cancel and replace",
+        "INTERNAL_CREDIT_NOTE": "Internal credit note",
+        "AUTHORITY_ANNULMENT": "Authority annulment",
+        "RESUBMIT_SAME_IDENTITY": "Resubmit under the same identity",
+        "ANNOTATED_DUPLICATE": "Annotated duplicate",
+        "LEDGER_ANNOTATION": "Ledger annotation",
+        "NO_DOCUMENT_BY_LAW": "No document required by law",
+        "COUNTERPARTY_OBJECTION": "Counterparty objection"
+      }
     }
   }
 }

@@ -30,8 +30,10 @@ export type DocumentCustomComponent = ComponentType<DocumentCustomSlotProps>
  *
  * Slots currently consulted by the generic renderer:
  *  - "list-row-extra": rendered in the document list's per-row action area, after every action the
- *    descriptor itself declares (see document-list.tsx). Registered for "invoice"
- *    (custom/invoice-preview-button.tsx) and for "received-invoice"
+ *    descriptor itself declares (see document-list.tsx). Registered for "invoice" — TWICE, as of
+ *    TODO_CORRECTION.md C2 (custom/invoice-preview-button.tsx AND
+ *    custom/invoice-correction-routes-button.tsx, two unrelated concerns that both happen to want a
+ *    per-row icon button, neither aware the other exists) — and for "received-invoice"
  *    (custom/received-invoice-download-button.tsx, root TODO item 18).
  *  - "list-header-extra": rendered in the document list's HEADER, next to the generic "New <type>"
  *    button (document-list.tsx) — additive, never a replacement for it. The one real user is
@@ -41,8 +43,15 @@ export type DocumentCustomComponent = ComponentType<DocumentCustomSlotProps>
  *
  * A future slot (e.g. inside the create/edit modal) is added the same way: pick a new slot name,
  * consult it from wherever it renders, and it stays unused everywhere nothing is registered for it.
+ *
+ * ONE (typeId, slot) key maps to a LIST of components, not a single one — see TODO_CORRECTION.md C2's
+ * own discovery: a second `registerDocumentCustomComponent("invoice", "list-row-extra", ...)` call
+ * used to silently OVERWRITE the first (a plain `Map.set`), which would have made the correction-
+ * routes button quietly delete the preview button the moment custom-registrations.ts imported both.
+ * Appending instead of replacing is what makes this genuinely "additive" for more than one extension
+ * at a time, the property this whole module's header already claimed.
  */
-const registry = new Map<string, DocumentCustomComponent>()
+const registry = new Map<string, DocumentCustomComponent[]>()
 
 function slotKey(typeId: string, slot: string): string {
   return `${typeId}::${slot}`
@@ -53,12 +62,18 @@ export function registerDocumentCustomComponent(
   slot: string,
   component: DocumentCustomComponent,
 ): void {
-  registry.set(slotKey(typeId, slot), component)
+  const key = slotKey(typeId, slot)
+  const existing = registry.get(key)
+  if (existing) {
+    existing.push(component)
+  } else {
+    registry.set(key, [component])
+  }
 }
 
-export function getDocumentCustomComponent(
-  typeId: string,
-  slot: string,
-): DocumentCustomComponent | undefined {
-  return registry.get(slotKey(typeId, slot))
+/** Every component registered for (typeId, slot), in REGISTRATION order (the order
+ *  custom-registrations.ts imports them in) — empty, never undefined, when nothing is registered, so
+ *  a caller can always `.map()` it directly. */
+export function getDocumentCustomComponents(typeId: string, slot: string): DocumentCustomComponent[] {
+  return registry.get(slotKey(typeId, slot)) ?? []
 }

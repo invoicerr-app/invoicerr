@@ -1,6 +1,6 @@
 /**
  * Registers every per-document-type UI extension in this app (see custom-slots.ts for the
- * mechanism this feeds, and custom/invoice-preview-button.tsx for the one real extension today).
+ * mechanism this feeds, and custom/invoice-preview-button.tsx for the first real extension).
  *
  * This file — and, transitively, whatever it imports for a registration side effect — is the ONLY
  * place in the frontend allowed to name a specific document type by id. Everything that CONSULTS
@@ -14,5 +14,6 @@
  * dependency of the core" property the whole mechanism exists to guarantee.
  */
 import "./custom/invoice-preview-button"
+import "./custom/invoice-correction-routes-button"
 import "./custom/received-invoice-upload-button"
 import "./custom/received-invoice-download-button"

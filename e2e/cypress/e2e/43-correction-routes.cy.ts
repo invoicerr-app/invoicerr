@@ -260,3 +260,165 @@ describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/c
 		});
 	});
 });
+
+/**
+ * TODO_CORRECTION.md C2 — l'ÉCRAN : le bouton « Corriger » (document-list.tsx's own per-row custom
+ * slot, custom/invoice-correction-routes-button.tsx), le dialogue des voies, et le mécanisme RÉEL
+ * pour la seule voie branchée (INTERNAL_CREDIT_NOTE) — la création d'avoir PRÉ-LIÉE. Même discipline
+ * que 25-document-settlement.cy.ts's own T4-d test : la fixture (client, facture émise) est préparée
+ * par API — rien de nouveau à prouver par un clic pour ÇA — mais tout ce que cette tâche ajoute
+ * (ouvrir le dialogue, lire la voie imposée, cliquer, atterrir sur l'écran d'avoir déjà pré-rempli,
+ * sauvegarder) passe par un VRAI clic, et la preuve qui compte est relue par l'API.
+ */
+describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it("société FR sur une facture ÉMISE : la voie imposée (avoir interne) porte sa base légale et mène, au clic, à l'écran d'avoir RÉEL PRÉ-LIÉ (référence remplie, devise verrouillée) — sauvegarder crée l'avoir lié à la facture", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
+		const clientName = "Client Corriger SARL";
+
+		createClient(clientName).then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					cy.visit("/documents/invoice");
+
+					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
+						timeout: 15000,
+					}).click({ force: true });
+					cy.get('[data-cy="document-correction-dialog"]', {
+						timeout: 5000,
+					}).should("be.visible");
+
+					// La voie imposée : statut ET base légale — les MOTS de l'API (l'extrait du
+					// dossier de spécifications DGFiP/AIFE), jamais un résumé réécrit côté front.
+					cy.get(
+						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-status"]',
+					).should("contain.text", "Required by law");
+					cy.get(
+						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-label"]',
+					).should("contain.text", "annulation comptable");
+
+					cy.get(
+						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
+					)
+						.should("not.be.disabled")
+						.click();
+
+					// LE VRAI mécanisme, PRÉ-LIÉ — jamais un stub : navigation vers l'écran d'avoir,
+					// le dialogue de création s'ouvre déjà, la référence facture est déjà résolue
+					// (le label backend combine client + date d'émission — jamais un champ vide) et
+					// T4-d verrouille déjà la devise, sans aucune recherche manuelle.
+					cy.location("pathname", { timeout: 10000 }).should(
+						"eq",
+						"/documents/credit-note",
+					);
+					cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
+						"be.visible",
+					);
+					cy.get('[data-cy="document-field-invoice-input"] button', {
+						timeout: 10000,
+					}).should("contain.text", clientName);
+					cy.get('[data-cy="document-field-currency-input"] button', {
+						timeout: 10000,
+					})
+						.should("be.disabled")
+						.and("contain.text", "EUR");
+
+					// Ce que le descripteur exige encore : la date d'émission de l'avoir et la ligne
+					// corrigée (issue de la facture liée — même patron que 25's own T4-d test).
+					cy.get('[data-cy="document-field-issueDate-input"]').click();
+					const today = new Date().toLocaleDateString();
+					cy.get(`[data-day="${today}"]`).click();
+
+					cy.get(
+						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]',
+						{ timeout: 10000 },
+					)
+						.first()
+						.check({ force: true });
+
+					cy.intercept(
+						"POST",
+						`${api}/api/documents/types/credit-note/actions/save-draft`,
+					).as("saveCreditNoteDraft");
+					cy.get('[data-cy="document-action-save-draft"]')
+						.scrollIntoView()
+						.click();
+					cy.wait("@saveCreditNoteDraft").then((interception) => {
+						expect(
+							interception.response?.statusCode,
+							"l'avoir se crée sans le blocage T4-d",
+						).to.be.oneOf([200, 201]);
+						const creditNoteId = interception.response?.body?.document
+							?.id as string;
+						expect(creditNoteId, "l'avoir créé a un identifiant").to.be.a(
+							"string",
+						);
+
+						// La preuve qui compte, relue par l'API : l'avoir existe et est LIÉ à la
+						// facture corrigée — jamais seulement l'écran comme preuve.
+						cy.request({
+							url: `${api}/api/documents/${creditNoteId}?typeId=credit-note`,
+						})
+							.its("body")
+							.then((doc) => {
+								expect(
+									doc.data?.invoice,
+									"l'avoir est pré-lié à LA bonne facture",
+								).to.eq(invoiceId);
+								expect(
+									doc.data?.currency,
+									"la devise verrouillée (T4-d) est bien celle de la facture",
+								).to.eq("EUR");
+							});
+					});
+				});
+			});
+		});
+	});
+
+	it("une voie déclarée par la loi française mais non implémentée ici (CREDIT_NOTE) : l'état honnête à l'écran, jamais un stub qui fait semblant", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-11", dueDate: "2026-09-11" };
+
+		createClient("Client Non Implémenté SARL").then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					cy.visit("/documents/invoice");
+
+					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
+						timeout: 15000,
+					}).click({ force: true });
+					cy.get('[data-cy="document-correction-dialog"]', {
+						timeout: 5000,
+					}).should("be.visible");
+
+					// CREDIT_NOTE est "allowed" en France (le YAML) mais n'est PAS l'une des voies
+					// branchées (seule INTERNAL_CREDIT_NOTE l'est) — le bouton reste cliquable (la
+					// loi le permet), mais le clic ne doit jamais atteindre un écran d'avoir.
+					cy.get('[data-cy="document-correction-route-CREDIT_NOTE-button"]', {
+						timeout: 5000,
+					})
+						.should("not.be.disabled")
+						.click();
+
+					cy.get('[data-cy="document-correction-not-implemented"]', {
+						timeout: 5000,
+					})
+						.should("be.visible")
+						.and("contain.text", "Credit note")
+						.and("contain.text", "FR");
+
+					cy.get('[data-cy="document-create-dialog"]').should("not.exist");
+				});
+			});
+		});
+	});
+});

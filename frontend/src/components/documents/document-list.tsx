@@ -13,7 +13,7 @@ import "@/components/documents/custom-registrations"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
-import { getDocumentCustomComponent } from "@/components/documents/custom-slots"
+import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { DocumentConformityListIndicator } from "@/components/documents/document-conformity-section"
@@ -276,7 +276,11 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           action.id !== "share-link" &&
           isActionAvailable(action, instance.status),
       )
-  const CustomExtra = getDocumentCustomComponent(descriptor.id, "list-row-extra")
+  // A LIST, not a single component — TODO_CORRECTION.md C2 added a second "invoice"/"list-row-extra"
+  // registration (the correction-routes button) alongside the pre-existing preview button; see
+  // custom-slots.ts's own header for why a single `Map.set` used to make the second silently replace
+  // the first.
+  const customRowExtras = getDocumentCustomComponents(descriptor.id, "list-row-extra")
   // A disabled <button> (Button's own `disabled:pointer-events-none`, see ui/button.tsx) never
   // receives a REAL hover at all — the `tooltip` prop below still opens it for a keyboard/
   // screen-reader user, but a mouse user hovering a grayed-out button here would see nothing move.
@@ -409,7 +413,14 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           </Button>
         )}
 
-        {CustomExtra && <CustomExtra descriptor={descriptor} instance={instance} />}
+        {/* Keyed by the component's own function name, not the array index — REGISTRATION order is
+            stable within a render, but the name is what stays stable ACROSS renders even if a future
+            registration is ever reordered (custom-registrations.ts's own import order). Every
+            registered component here is a named function declaration (see custom/*.tsx), so `.name`
+            is always non-empty. */}
+        {customRowExtras.map((CustomExtra) => (
+          <CustomExtra key={CustomExtra.name} descriptor={descriptor} instance={instance} />
+        ))}
 
         {isProcessing && (
           <span
@@ -622,7 +633,7 @@ export function DocumentList({
   // See custom-slots.ts's own comment on "list-header-extra" — additive, next to the generic "New"
   // button below, never in place of it. `instance` is deliberately omitted (this slot is per-LIST,
   // not per-record).
-  const HeaderExtra = getDocumentCustomComponent(descriptor.id, "list-header-extra")
+  const headerExtras = getDocumentCustomComponents(descriptor.id, "list-header-extra")
 
   // Status categories are DERIVED from the loaded data, never a fixed enum — the same discipline
   // DocumentStatusBadge holds for color: a status this core has never seen still gets a filter chip.
@@ -691,7 +702,10 @@ export function DocumentList({
             </Badge>
           ))}
 
-          {HeaderExtra && <HeaderExtra descriptor={descriptor} />}
+          {/* See the "list-row-extra" map above for why this keys by function name, not index. */}
+          {headerExtras.map((HeaderExtra) => (
+            <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
+          ))}
 
           <Button onClick={onCreate} dataCy="document-create-button">
             <Plus className="h-4 w-4 mr-0 md:mr-2" />
