@@ -181,6 +181,15 @@ règlement atteint « soldé » — le point d'écriture est exactement le code 
 
 ## T4 — Les trous d'écran consignés
 
+> ✅ **FAIT** (2026-09-03) — (a) 7 EAS ajoutés + (b) 0106 corrigé NL KVK / 0184 DK CVR ajouté
+> (re-vérifiés en direct sur la codeliste v9.7, doublon du sélecteur dans company.settings corrigé
+> aussi) ; (c) le residual était réel : save-draft rétrogradait une facture sent sans re-résolution
+> (FR protégée par sa policy, US non) — le save-draft de l'invoice réutilise désormais le préflight
+> fiscal du send quand currentStatus ≠ draft ; (d) devise d'avoir verrouillée sur sa facture, aux
+> DEUX points (save-draft + preflight send — contournement scripté découvert et fermé), écran
+> pré-rempli/verrouillé via lockedFromReference. Validé : jest 1946, 3 mutations mordantes,
+> batterie au verdict.
+
 (a) Le sélecteur de schéma Peppol (`client-upsert.tsx`, `peppolSchemeId`) offre les EAS des pays
 couverts par l'audit B2G : 0191 EE, 0200 LT, 0218 LV, 0240 LU, 9928 CY, 9933 GR, 9943 MT —
 libellés LUS dans la codeliste Peppol v9.7 (comme 0204/0208 avant eux), jamais inventés.

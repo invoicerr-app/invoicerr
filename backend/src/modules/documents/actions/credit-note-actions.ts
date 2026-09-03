@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+
 import { logger } from '@/logger/logger.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -12,7 +14,7 @@ import { listPayments, toSettlementPaymentInputs } from '../settlement/payments'
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
-import { registerSaveDraftAction } from './generic-actions';
+import { performSaveDraft } from './generic-actions';
 
 /** Same direct-import model as actions/invoice-actions.ts's own `INVOICE_DESCRIPTOR` constant — used
  *  ONLY to feed `computeDocumentTotals` the invoice's own field shape when a credit note this task's
@@ -127,8 +129,88 @@ async function checkAndEmitInvoiceSettledFromCreditNote(
   }
 }
 
+/**
+ * TODO_PRODUIT.md T4-d — the currency a credit note declares has no business meaning independent of
+ * the invoice it corrects: T3 established that an avoir carries NO conversion of its own (settlement/
+ * credits.ts credits whatever it declares directly against the invoice's own, un-converted balance —
+ * see that file's own header and TODO_ISSUES.md's "avoirs : pas de conversion — structurellement en
+ * devise facture" constat) — so a credit note in a currency OTHER than its invoice's is not a second
+ * valid business case with its own rule, it is a data-entry mistake with no sensible reading at all,
+ * refused outright rather than silently miscounted forever against the wrong total.
+ *
+ * `data.invoice` is already GUARANTEED to resolve to a real, owned invoice by the time this handler
+ * ever runs: `correctedLines` (credit-note.descriptor.ts, kind: 'rowSelection', sourceField:
+ * 'invoice') is REQUIRED, so `validateRowSelections` (documents.service.ts#runAction, BEFORE any
+ * handler) has already fetched and confirmed this exact invoice exists — the SECOND
+ * `findOwnedDocument` call below is a deliberate, cheap re-read (that validation lives in a
+ * different module, with no shared cache), not a sign this function is otherwise unreachable.
+ *
+ * TWO call sites, deliberately — both write paths that can change what `data.currency` persists.
+ * `registerCreditNoteSaveDraftAction` below guards "save-draft" (creation AND every later re-edit,
+ * since that action ALWAYS persists whatever `data` it receives). `registerCreditNoteActions`'s own
+ * "send" registration guards the SECOND, easy-to-miss path: `async-send.ts`'s phase-1 `preflight`
+ * runs BEFORE its own `upsertDocument` persists the submitted `data` as "sending" — a scripted
+ * client could otherwise call "send" directly (skipping "save-draft" entirely) with a mismatched
+ * currency and have it persisted uncaught. Same guard, same function, never a second copy of the
+ * comparison.
+ *
+ * Screen-side, `credit-note.descriptor.ts`'s own `currency` field declares `lockedFromReference`
+ * (descriptors/types.ts) so the create/edit form never lets a user TYPE a mismatch in the first
+ * place — this is the hard backstop for whatever reaches the API directly, the same "the screen is
+ * never trusted alone" posture invoice-actions.ts's own buyer-country guard (TODO_PRODUIT.md T4-c)
+ * already holds.
+ */
+async function assertCreditNoteCurrencyMatchesInvoice(
+  companyId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const invoiceId = typeof data.invoice === 'string' ? data.invoice : undefined;
+  // Unreachable in practice — the descriptor's own required 'invoice' field, and the rowSelection
+  // validation this function's own header describes, already refuse an invoice-less credit note
+  // before this ever runs — but a guard never trusts that alone (duplicate-extension.ts's own
+  // discipline).
+  if (!invoiceId) return;
+
+  const invoice = await findOwnedDocument(companyId, 'invoice', invoiceId);
+  const invoiceData = (invoice.data ?? {}) as Record<string, unknown>;
+  const invoiceCurrency = invoiceData.currency;
+  // The invoice itself has no currency yet (a country-less-safe DRAFT, per invoice.descriptor.ts's
+  // own posture) — nothing sensible to compare against; this credit note's own currency stays the
+  // user's choice, unblocked, until the invoice it corrects actually has one.
+  if (typeof invoiceCurrency !== 'string') return;
+
+  if (data.currency !== invoiceCurrency) {
+    throw new BadRequestException(
+      `This credit note declares "${String(data.currency)}", but the invoice it corrects ` +
+        `(${invoice.displayNumber ?? invoiceId}) is in "${invoiceCurrency}" — a credit note has no ` +
+        'business existing in a currency other than the invoice it corrects: the amount it credits ' +
+        `is structurally denominated in that invoice's own currency, with no conversion of its own ` +
+        `(TODO_PRODUIT.md T3). Pick "${invoiceCurrency}".`,
+    );
+  }
+}
+
+/**
+ * "save-draft" for the credit note — NOT the plain generic mechanism (unlike before T4-d): wraps
+ * `performSaveDraft` (generic-actions.ts) with the currency guard above, the same "diverge from the
+ * shared mechanism for one documented, invoice-shaped reason" precedent invoice-actions.ts's own
+ * `registerInvoiceSaveDraftAction` already set (TODO_PRODUIT.md T4-c) — this is credit-note's
+ * analogous case, not a coincidence: both types need ONE extra check the generic mechanism has no
+ * business knowing about, and both reuse `performSaveDraft` for the actual persistence so the two
+ * never drift.
+ */
+function registerCreditNoteSaveDraftAction(
+  registry: ActionRegistry,
+  webhooks?: DocumentWebhookEmitter,
+): void {
+  registry.register('credit-note', 'save-draft', async (ctx) => {
+    await assertCreditNoteCurrencyMatchesInvoice(ctx.companyId, ctx.data);
+    return performSaveDraft(ctx.companyId, 'credit-note', ctx.documentId, ctx.data, webhooks);
+  });
+}
+
 export function registerCreditNoteActions(registry: ActionRegistry, deps: CreditNoteActionDeps): void {
-  registerSaveDraftAction(registry, 'credit-note', deps.webhooks);
+  registerCreditNoteSaveDraftAction(registry, deps.webhooks);
 
   registry.register('credit-note', 'send', async ({ companyId, documentId, data, params }) => {
     const result = await runAsyncSendAction({
@@ -143,6 +225,18 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       webhooks: deps.webhooks,
       // credit-note.descriptor.ts declares NO `numbering` at all — never number this type, ever.
       numberOnEnqueue: false,
+      // TODO_PRODUIT.md T4-d — "send" (unlike every OTHER action) persists whatever `data` THIS
+      // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`
+      // call, right after `preflight` runs) — a SEPARATE write path from "save-draft", which
+      // `assertCreditNoteCurrencyMatchesInvoice` above already guards. Without this, a scripted
+      // client could call "send" directly (skipping "save-draft" entirely) with a currency that
+      // mismatches the invoice and have it persisted uncaught — the exact bypass this preflight
+      // closes, no `data` replacement needed (returning `undefined` leaves `data` exactly as
+      // submitted; only a MISMATCH ever throws).
+      preflight: async () => {
+        await assertCreditNoteCurrencyMatchesInvoice(companyId, data);
+        return undefined;
+      },
       // Nothing to deliver — see this file's own header. The status transition itself IS the
       // action's entire effect.
       deliver: async () => ({ message: undefined }),

@@ -12,6 +12,17 @@ export interface ActionContext {
    * values, `params` is this one operation's arguments (e.g. "send"'s `recipient`).
    */
   params: Record<string, unknown>;
+  /**
+   * The record's status BEFORE this action runs — undefined for a never-saved record (no
+   * `documentId`), the same "absent means never saved" convention `documentId` itself already
+   * holds. `documents.service.ts#runAction` already reads this row to gate `availableWhen`/the
+   * country policy's own per-status narrowing; handed to the handler too rather than re-fetched a
+   * second time — TODO_PRODUIT.md T4-c's `invoice.save-draft` guard is the first handler that
+   * actually needs it (deciding whether THIS call is a genuine draft edit or a re-edit of an
+   * already-issued record, see invoice-actions.ts's own comment), every other handler is free to
+   * keep ignoring it exactly as before.
+   */
+  currentStatus?: string;
 }
 
 export interface DocumentInstanceResult {

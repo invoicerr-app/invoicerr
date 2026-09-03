@@ -395,4 +395,139 @@ describe("Root TODO item 16 — le transfrontalier, à travers l'écran", () => 
 				});
 			});
 	});
+
+	// TODO_PRODUIT.md T4-c — LE CRITÈRE DU BORD verbatim : « éditer → pays inconnu → refus nommé ».
+	// f6888eb2/d58caaa5 (l'ancien moteur, avant la refonte documents/) avaient bloqué le pays
+	// acheteur irrésolu à L'ÉMISSION ET à la ré-édition d'une facture déjà émise ; le même trou a
+	// resurgi dans le nouveau moteur — "save-draft" (invoice.descriptor.ts) peut TOUJOURS ré-écrire
+	// "draft" depuis N'IMPORTE QUEL statut (`from: 'always'`) — et invoice-actions.ts's own
+	// `registerInvoiceSaveDraftAction` (T4-c) le referme la même façon : réutilise le même chemin de
+	// résolution que "send" (`runInvoiceCrossBorderTaxPreflight`).
+	//
+	// RUNS LAST IN THIS FILE ON PURPOSE — même discipline que 30-document-xml-format.cy.ts's own
+	// dernier bloc : ce test bascule la société vendeuse en ÉTATS-UNIS, le seul pays (avec la
+	// France) à porter son propre `country-policy/data/*.json` — et le SEUL des deux dont la règle
+	// `invoice.save-draft` n'est PAS restreinte au statut "draft" (voir `us.json`'s own
+	// resolutionNote, contre `fr.json`'s own `statuses: ["draft"]`, CGI art. 289 I.5) : c'est
+	// justement pour ça qu'une facture française déjà "sent" ne peut PAS servir à exercer CE
+	// garde-fou précis — son "save-draft" est refusé (409) par la country-policy AVANT même
+	// d'atteindre le handler que ce test vise. Les deux tests précédents de ce fichier restent
+	// intacts (aucun `beforeEach` ne réinitialise la société entre les `it` de CE fichier — voir
+	// resetAndSeed's own per-FILE `before()`), donc l'ordre importe : ce bloc doit rester le DERNIER.
+	it("éditer une facture US déjà envoyée, dont le client perd son pays, est refusé À L'ÉCRAN — jamais une démotion silencieuse en brouillon", () => {
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { country: "United States", countryCode: "US", invoiceTransportId: "email" },
+		}).then((res) => {
+			expect(res.status, "seller switched to a US company, email transport").to.be.oneOf([200, 201]);
+		});
+
+		cy.request({
+			method: "POST",
+			url: `${api}/api/clients`,
+			body: {
+				name: "Edit Guard LLC",
+				contactEmail: `edit-guard-${Date.now()}@example.com`,
+				address: "1 Main St",
+				postalCode: "10001",
+				city: "New York",
+				country: "United States",
+				countryCode: "US",
+				currency: "USD",
+				isActive: true,
+				type: "COMPANY",
+			},
+		}).then((createdClient) => {
+			expect(createdClient.status).to.be.oneOf([200, 201]);
+			const clientId = createdClient.body?.id as string;
+			expect(clientId).to.be.a("string");
+
+			// A DOMESTIC US-US invoice (never cross-border) — this test's own point is the buyer-
+			// country guard on a RE-EDIT, not the cross-border engine itself, already proven above.
+			const data = {
+				client: clientId,
+				issueDate: "2026-08-30",
+				dueDate: "2026-09-30",
+				currency: "USD",
+				lines: [{ description: "Consulting", quantity: 1, unit: "day", unitPrice: 1000, vatRate: "0" }],
+			};
+
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data },
+			}).then((saved) => {
+				const invoiceId = saved.body?.document?.id as string;
+				expect(invoiceId).to.be.a("string");
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/send`,
+					body: { documentId: invoiceId, data },
+				}).then((sent) => {
+					expect(sent.status, "phase 1 (sending) accepted").to.be.oneOf([200, 201]);
+				});
+
+				// Really "sent" (the worker's phase 2 actually delivered by email/Mailpit) BEFORE this
+				// test touches the buyer's own country — an edit attempted while still "sending" would
+				// race the worker, which is not what this test is about.
+				cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, ["sent"]);
+
+				// The buyer's country becomes UNRESOLVABLE — both the free-text `country` AND the
+				// explicit `countryCode` override, since `resolve-invoice-tax.ts`'s own
+				// `resolveCountryCode` prefers the explicit code first (a cleared `country` alone,
+				// with the OLD `countryCode` still "US", would still resolve).
+				cy.request({
+					method: "PATCH",
+					url: `${api}/api/clients/${clientId}`,
+					body: {
+						id: clientId,
+						name: "Edit Guard LLC",
+						contactEmail: `edit-guard-${Date.now()}@example.com`,
+						address: "1 Main St",
+						postalCode: "10001",
+						city: "New York",
+						country: "",
+						countryCode: null,
+						currency: "USD",
+						isActive: true,
+						type: "COMPANY",
+					},
+				}).then((res) => {
+					expect(res.status, "buyer's country cleared").to.be.oneOf([200, 201]);
+				});
+
+				// THE EDIT, through the actual screen: open the record, change nothing that matters
+				// (this guard fires on ANY re-save of an already-issued record, not on a specific
+				// field), and click "Save draft" — the exact same button, and the exact same generic
+				// mechanism, a legitimate edit would use.
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should("be.visible");
+
+				cy.get('[data-cy="document-edit-dialog"]')
+					.find('[data-cy="document-action-save-draft"]')
+					.click();
+
+				// Refus NOMMÉ à l'écran — le même message que le préflight de "send" (même fonction de
+				// résolution réutilisée, jamais une seconde logique) — jamais un toast générique.
+				cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+					"contain.text",
+					"buyer's country could not be determined",
+				);
+
+				// La preuve qui compte : le document reste "sent" — jamais démoté en "draft" en
+				// silence, exactement le trou que ce test ferme.
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							'bloqué avant toute écriture — jamais une démotion silencieuse en "draft"',
+						).to.eq("sent");
+					});
+			});
+		});
+	});
 });

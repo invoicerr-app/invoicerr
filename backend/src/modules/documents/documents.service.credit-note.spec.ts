@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
@@ -511,5 +511,125 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       expect.objectContaining({ key: 'correctedLines', message: expect.stringMatching(/no longer exists/) }),
     );
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  /**
+   * TODO_PRODUIT.md T4-d — credit-note-actions.ts's own `assertCreditNoteCurrencyMatchesInvoice`:
+   * a credit note's own `currency` must equal the invoice it corrects, at every save (creation AND
+   * a later re-edit) — never a silent mismatch. `validCreditNoteData`/`invoiceDocument()` (this
+   * file's own fixtures, used by every OTHER test above) already agree on "EUR" for both, which is
+   * exactly why none of those pre-existing tests needed to change for this guard to land.
+   */
+  describe('"save-draft" — TODO_PRODUIT.md T4-d: the credit note\'s own currency must match its invoice', () => {
+    beforeEach(() => {
+      (persistence.upsertDocument as jest.Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'cn-1',
+          typeId: 'credit-note',
+          status,
+          data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+    });
+
+    it("accepts a credit note whose currency is IDENTICAL to its invoice's own", async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        invoiceDocument('invoice-doc-1', ['line-1']),
+      );
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
+        data: validCreditNoteData, // "EUR", same as invoiceDocument()'s own
+      });
+
+      expect(result.document?.status).toBe('draft');
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'credit-note',
+        undefined,
+        'draft',
+        validCreditNoteData,
+      );
+    });
+
+    it("BLOCKS a credit note whose currency does NOT match its invoice's own — named 400, nothing persisted", async () => {
+      // invoiceDocument() is always "EUR" (this file's own fixture) — declaring "USD" here is the
+      // mismatch this guard exists to catch.
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        invoiceDocument('invoice-doc-1', ['line-1']),
+      );
+      const mismatchedData = { ...validCreditNoteData, currency: 'USD' };
+
+      let caught: unknown;
+      try {
+        await buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+          data: mismatchedData,
+        });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      expect((caught as BadRequestException).message).toMatch(/USD.*EUR|currency other than the invoice/i);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('is enforced on a RE-EDIT too, not just at creation — an existing draft cannot be saved into a mismatch', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        invoiceDocument('invoice-doc-1', ['line-1']),
+      );
+      const mismatchedData = { ...validCreditNoteData, currency: 'USD' };
+
+      await expect(
+        buildService().service.runAction('company-1', 'credit-note', 'save-draft', {
+          documentId: 'cn-1', // an EXISTING record — this is an edit, not a first save
+          data: mismatchedData,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('does not block when the invoice itself has no currency yet (a country-less-safe draft) — nothing to compare against', async () => {
+      const currencyLessInvoice = invoiceDocument('invoice-doc-1', ['line-1']);
+      delete (currencyLessInvoice.data as { currency?: string }).currency;
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(currencyLessInvoice);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'credit-note', 'save-draft', {
+        data: validCreditNoteData, // still declares "EUR" — nothing on the invoice side to disagree with
+      });
+
+      expect(result.document?.status).toBe('draft');
+      expect(persistence.upsertDocument).toHaveBeenCalled();
+    });
+
+    // THE BYPASS this guard would otherwise leave open: "send" (unlike every other action) persists
+    // whatever `data` IT is called with, at its own phase-1 preflight — a scripted client could
+    // skip "save-draft" entirely and call "send" directly with a mismatched currency. Proven through
+    // the REAL wired path (runAction -> credit-note-actions.ts's "send" registration), never just
+    // the pure guard function's own unit behavior.
+    it('"send" (phase 1) is ALSO guarded — a scripted client cannot bypass "save-draft" to sneak a mismatch straight to "send"', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+        invoiceDocument('invoice-doc-1', ['line-1']),
+      );
+      const mismatchedData = { ...validCreditNoteData, currency: 'USD' };
+
+      let caught: unknown;
+      try {
+        await buildService().service.runAction('company-1', 'credit-note', 'send', {
+          documentId: 'cn-1',
+          data: mismatchedData,
+        });
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(BadRequestException);
+      // Blocked BEFORE the "sending" write AND before anything is queued — the same "nothing
+      // persisted on a hard block" discipline every other named refusal in this codebase holds.
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
   });
 });

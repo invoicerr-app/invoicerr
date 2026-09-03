@@ -27,6 +27,16 @@ export interface DocumentFieldDescriptor {
   currency?: string
   /** 'money': the key of a top-level sibling field whose current value is the currency to show. */
   currencyField?: string
+  /** 'select' — TODO_PRODUIT.md T4-d: locks this field's value to a SIBLING 'reference' field's
+   *  resolved entity (e.g. a credit note's own `currency` following its `invoice`). `field` names
+   *  the sibling 'reference' field; `entity` is which EntityReferenceRegistry entry it resolves
+   *  against (duplicated rather than cross-read off `field`'s own descriptor, same self-containment
+   *  as `sourceField`/`sourceEntity` below); `sourceKey` is the key to copy off that entity's raw
+   *  `getFields()` result — see field-renderers/primitive-fields.tsx's 'select' renderer for the
+   *  mechanism (pre-fills, disables the control once resolved) and the backend's own
+   *  `DocumentFieldDescriptor.lockedFromReference` for the full "why", including the server-side
+   *  hard block this screen convenience is backed by, never a substitute for it. */
+  lockedFromReference?: { field: string; entity: string; sourceKey: string }
   /** 'reference', SINGLE target: which entity the generic search/resolve endpoints target (e.g.
    *  "client"). The stored value is a plain non-empty id string. */
   entity?: string

@@ -635,15 +635,80 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="0088">0088 — GLN</SelectItem>
-                              <SelectItem value="0192">0192 — NO org.nr</SelectItem>
-                              <SelectItem value="0009">0009 — FR SIRET</SelectItem>
-                              <SelectItem value="9925">9925 — EU VAT</SelectItem>
-                              <SelectItem value="0007">0007 — SE org.nr</SelectItem>
-                              <SelectItem value="0208">0208 — BE org.nr</SelectItem>
-                              <SelectItem value="0106">0106 — DK CVR</SelectItem>
-                              <SelectItem value="0151">0151 — AU ABN</SelectItem>
-                              <SelectItem value="0060">0060 — DUNS</SelectItem>
+                              <SelectItem value="0088" dataCy="client-peppol-scheme-option-0088">
+                                0088 — GLN
+                              </SelectItem>
+                              <SelectItem value="0192" dataCy="client-peppol-scheme-option-0192">
+                                0192 — NO org.nr
+                              </SelectItem>
+                              <SelectItem value="0009" dataCy="client-peppol-scheme-option-0009">
+                                0009 — FR SIRET
+                              </SelectItem>
+                              <SelectItem value="9925" dataCy="client-peppol-scheme-option-9925">
+                                9925 — EU VAT
+                              </SelectItem>
+                              <SelectItem value="0007" dataCy="client-peppol-scheme-option-0007">
+                                0007 — SE org.nr
+                              </SelectItem>
+                              <SelectItem value="0208" dataCy="client-peppol-scheme-option-0208">
+                                0208 — BE org.nr
+                              </SelectItem>
+                              {/*
+                                TODO_PRODUIT.md T4-b — was "0106 — DK CVR", WRONG: 0106 is the Dutch
+                                KVK ("Vereniging van Kamers van Koophandel en Fabrieken in Nederland",
+                                NL, active) in the Peppol v9.7 Participant Identifier Schemes codelist
+                                (docs.peppol.eu/edelivery/codelists/), not a Danish scheme at all —
+                                found by the 2026-09-02 B2G audit (TODO_ISSUES.md), re-verified live
+                                against the v9.7 codelist JSON on 2026-09-03. The real Danish CVR is
+                                0184 (Peppol scheme name: "The Danish Business Authority - CVR-number
+                                (DK:CVR)"), added just below.
+                              */}
+                              <SelectItem value="0106" dataCy="client-peppol-scheme-option-0106">
+                                0106 — NL KVK
+                              </SelectItem>
+                              <SelectItem value="0184" dataCy="client-peppol-scheme-option-0184">
+                                0184 — DK CVR
+                              </SelectItem>
+                              <SelectItem value="0151" dataCy="client-peppol-scheme-option-0151">
+                                0151 — AU ABN
+                              </SelectItem>
+                              <SelectItem value="0060" dataCy="client-peppol-scheme-option-0060">
+                                0060 — DUNS
+                              </SelectItem>
+                              {/*
+                                TODO_PRODUIT.md T4-a — the seven EAS the 2026-09-02 B2G audit added
+                                routing rules for (backend/src/modules/documents/b2g-routing/data/
+                                {ee,lt,lv,lu,cy,gr,mt}.json) but this selector never offered — each
+                                label below is the scheme name the audit itself already read from the
+                                Peppol v9.7 Participant Identifier Schemes codelist (that JSON's own
+                                `notes` field), re-verified live against docs.peppol.eu on 2026-09-03:
+                                0191 EE "Company code", 0200 LT "Legal entity code", 0218 LV "Unified
+                                registration number", 0240 LU "Register of legal persons" (each
+                                country has its own business-register scheme); Cyprus/Greece/Malta
+                                have NO dedicated register scheme in the codelist — only their VAT
+                                scheme (9928/9933/9943) exists, per those same three files' own notes.
+                              */}
+                              <SelectItem value="0191" dataCy="client-peppol-scheme-option-0191">
+                                0191 — EE Company code
+                              </SelectItem>
+                              <SelectItem value="0200" dataCy="client-peppol-scheme-option-0200">
+                                0200 — LT Legal entity code
+                              </SelectItem>
+                              <SelectItem value="0218" dataCy="client-peppol-scheme-option-0218">
+                                0218 — LV Unified registration number
+                              </SelectItem>
+                              <SelectItem value="0240" dataCy="client-peppol-scheme-option-0240">
+                                0240 — LU Register of legal persons
+                              </SelectItem>
+                              <SelectItem value="9928" dataCy="client-peppol-scheme-option-9928">
+                                9928 — CY VAT number
+                              </SelectItem>
+                              <SelectItem value="9933" dataCy="client-peppol-scheme-option-9933">
+                                9933 — GR VAT number
+                              </SelectItem>
+                              <SelectItem value="9943" dataCy="client-peppol-scheme-option-9943">
+                                9943 — MT VAT number
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </FormControl>

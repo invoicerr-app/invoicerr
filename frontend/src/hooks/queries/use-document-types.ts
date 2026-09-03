@@ -287,6 +287,23 @@ export async function fetchPrefillFields(
   return apiFetch<Record<string, unknown> | null>(`/api/documents/references/${entity}/${id}/fields`)
 }
 
+/**
+ * LIVE (React Query) variant of `fetchPrefillFields`, for a field that must track a SIBLING
+ * 'reference' field's resolved raw values REACTIVELY as the user changes that reference — see the
+ * backend's `DocumentFieldDescriptor.lockedFromReference` (descriptors/types.ts, TODO_PRODUIT.md
+ * T4-d: a credit note's own `currency` following its `invoice`). Unlike `fetchPrefillFields` above
+ * (fetched once, imperatively, on a button click), this one is meant to be called on every render
+ * with whatever id the sibling field CURRENTLY holds, the same "keep this live" posture
+ * `useReferenceResolve` already holds for a reference field's own label.
+ */
+export function useReferenceFields(entity: string | undefined, id: string | undefined) {
+  return useApiQuery<Record<string, unknown> | null>(
+    ["document-references", entity, id, "fields"],
+    `/api/documents/references/${entity}/${id}/fields`,
+    { enabled: !!entity && !!id },
+  )
+}
+
 /** One search result from a MULTI-target 'reference' field's fan-out search, tagged with which
  *  entity it came from — this is what lets the picker show "of which type" each result is. */
 export interface EntityReferenceSearchHit extends EntityReferenceOption {

@@ -241,3 +241,118 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 		cy.get('[data-cy="document-settlement-credited"]').should("contain.text", "72.00 EUR");
 	});
 });
+
+/**
+ * TODO_PRODUIT.md T4-d — this file's own header, above, used to say the credit note's CREATION
+ * form had "rien d'utile de plus à prouver par un clic" beyond a reference field and a checkbox:
+ * true before this task, no longer true now that `currency` (credit-note.descriptor.ts) declares
+ * `lockedFromReference` — THIS is the one screen behaviour that only shows up by actually creating
+ * an avoir through the dialog, never through the API-only fixture the rest of this file uses.
+ *
+ * A separate `describe` (its own invoice, its own credit note) rather than folding into the suite
+ * above — that suite's `invoiceId`/`creditNoteId` are shared, mutable `let`s threaded through an
+ * ORDERED sequence of `it`s (line A/line B, partial payment, settlement); this only needs one
+ * throwaway invoice, created fresh, with no bearing on that sequence.
+ */
+describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige (TODO_PRODUIT.md T4-d)", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it("le champ devise se pré-remplit et se verrouille sur celle de la facture choisie, jamais un second choix indépendant", () => {
+		// A USD invoice — deliberately DIFFERENT from the seeded company's own EUR default, so
+		// "the currency follows the invoice" is unambiguous (never a coincidence with some other
+		// default this test didn't control for).
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string; label: string }[]) => {
+				expect(clients, "le jeu d'essai contient un client").to.have.length.greaterThan(0);
+				const client = clients[0];
+
+				const data = {
+					client: client.id,
+					issueDate: "2026-03-01",
+					dueDate: "2026-03-31",
+					currency: "USD",
+					lines: [
+						{ description: "Consulting", quantity: 1, unit: "day", unitPrice: 500, vatRate: "0" },
+					],
+				};
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data },
+				}).then((saved) => {
+					const invoiceId = saved.body?.document?.id as string;
+					expect(invoiceId).to.be.a("string");
+
+					// THE SCREEN, from a blank "New credit note" — the exact flow a user follows.
+					cy.visit("/documents/credit-note");
+					cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+					cy.get('[data-cy="document-create-dialog"]', { timeout: 5000 }).should("be.visible");
+
+					// BEFORE picking an invoice: the currency select is a normal, EDITABLE, empty
+					// select — the lock only engages once there is something concrete to follow.
+					cy.get('[data-cy="document-field-currency-input"] button')
+						.should("not.be.disabled")
+						.and("contain.text", "Currency");
+
+					cy.get('[data-cy="document-field-invoice-input"] button').first().click({ force: true });
+					cy.get('[data-cy="document-field-invoice-input-options"]', { timeout: 10000 }).should(
+						"be.visible",
+					);
+					cy.get('[data-cy="document-field-invoice-input"] input').type(client.label || client.id);
+					cy.get('[data-cy="document-field-invoice-input-options"] button', { timeout: 10000 })
+						.first()
+						.click();
+
+					// THE PROOF: the currency field now reads "USD" — the invoice's own currency, never
+					// left blank or at some unrelated default — and is DISABLED, so the user cannot
+					// even attempt to type a mismatch.
+					cy.get('[data-cy="document-field-currency-input"] button', { timeout: 10000 })
+						.should("be.disabled")
+						.and("contain.text", "USD");
+
+					// Fill in what the descriptor still requires — issueDate (a real calendar click,
+					// "today") and one corrected line (the invoice's own single line, ROW_ID_KEY-
+					// stamped by save-draft above) — so the record actually persists.
+					cy.get('[data-cy="document-field-issueDate-input"]').click();
+					const today = new Date().toLocaleDateString();
+					cy.get(`[data-day="${today}"]`).click();
+
+					cy.get('[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]', {
+						timeout: 10000,
+					})
+						.first()
+						.check({ force: true });
+
+					cy.intercept("POST", `${api}/api/documents/types/credit-note/actions/save-draft`).as(
+						"saveCreditNoteDraft",
+					);
+					cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+					cy.wait("@saveCreditNoteDraft").then((interception) => {
+						expect(interception.response?.statusCode, "l'avoir se crée sans le blocage T4-d").to.be
+							.oneOf([200, 201]);
+						const creditNoteId = interception.response?.body?.document?.id as string;
+						expect(creditNoteId).to.be.a("string");
+
+						// La preuve qui compte : PERSISTÉ en USD, jamais silencieusement écrasé par un
+						// autre choix — même discipline "jamais l'écran seul comme preuve" que ce
+						// fichier's own header documente pour le reste de la suite.
+						cy.request({ url: `${api}/api/documents/${creditNoteId}?typeId=credit-note` })
+							.its("body")
+							.then((doc) => {
+								expect(doc.data?.currency, "l'avoir est bien en USD, comme sa facture").to.eq(
+									"USD",
+								);
+							});
+					});
+				});
+			});
+	});
+});

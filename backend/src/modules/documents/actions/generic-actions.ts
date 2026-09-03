@@ -8,11 +8,53 @@ import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/do
 import { ActionRegistry } from './action-registry';
 
 /**
+ * The actual "save-draft" WORK: persist `data` under status "draft", creating a new instance the
+ * first time this runs for a given record, and fire `DOCUMENT_CREATED` on that first time only.
+ * Extracted from `registerSaveDraftAction` below (TODO_PRODUIT.md T4-c) so `invoice-actions.ts` can
+ * reuse the exact same persistence + webhook mechanics from its OWN "save-draft" handler — one that
+ * needs to run one extra check first (see that file's own comment) — without duplicating this glue.
+ * Nothing here reads a single field of `data`, which is exactly why one function still covers every
+ * document type regardless of which caller invokes it.
+ */
+export async function performSaveDraft(
+  companyId: string,
+  typeId: string,
+  documentId: string | undefined,
+  data: Record<string, unknown>,
+  webhooks?: DocumentWebhookEmitter,
+) {
+  const creating = !documentId;
+  const document = await upsertDocument(companyId, typeId, documentId, 'draft', data);
+  if (creating && webhooks) {
+    try {
+      await webhooks.dispatch(
+        WebhookEvent.DOCUMENT_CREATED,
+        buildDocumentWebhookPayload(companyId, typeId, document),
+      );
+    } catch (error) {
+      logger.error('Failed to dispatch a DOCUMENT_CREATED webhook — the document was still created', {
+        category: 'documents',
+        details: {
+          companyId,
+          typeId,
+          documentId: document.id,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+  return { document, changed: true };
+}
+
+/**
  * "save-draft": persist `data` under status "draft", creating a new instance the first time this
- * runs for a given record. Nothing here reads a single field of `data` — which is exactly why one
- * function covers every document type, whatever shape its fields have. Legitimately shared by every
- * document type this branch has (quote, invoice, credit note): persisting a draft's field values has
- * nothing to do with WHERE the document eventually travels, unlike "send" below.
+ * runs for a given record. Legitimately shared by every document type this branch has (quote,
+ * credit note, expense, received-invoice): persisting a draft's field values has nothing to do with
+ * WHERE the document eventually travels, unlike "send" below. The INVOICE is the one exception —
+ * `invoice-actions.ts` registers its own "save-draft" handler instead of calling this (see that
+ * file's own comment, TODO_PRODUIT.md T4-c) because re-editing an already-issued invoice back into
+ * a draft needs one extra, invoice-specific check this generic function has no business knowing
+ * about; it still calls `performSaveDraft` above for the actual persistence, so the two never drift.
  *
  * `webhooks` (TODO_PRODUIT.md T2bis) is OPTIONAL, the same "no capability, no effect" posture
  * `async-send.ts`'s own `webhooks` field holds — fires `DOCUMENT_CREATED` exactly once per record,
@@ -26,29 +68,9 @@ export function registerSaveDraftAction(
   typeId: string,
   webhooks?: DocumentWebhookEmitter,
 ): void {
-  registry.register(typeId, 'save-draft', async ({ companyId, documentId, data }) => {
-    const creating = !documentId;
-    const document = await upsertDocument(companyId, typeId, documentId, 'draft', data);
-    if (creating && webhooks) {
-      try {
-        await webhooks.dispatch(
-          WebhookEvent.DOCUMENT_CREATED,
-          buildDocumentWebhookPayload(companyId, typeId, document),
-        );
-      } catch (error) {
-        logger.error('Failed to dispatch a DOCUMENT_CREATED webhook — the document was still created', {
-          category: 'documents',
-          details: {
-            companyId,
-            typeId,
-            documentId: document.id,
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    }
-    return { document, changed: true };
-  });
+  registry.register(typeId, 'save-draft', async ({ companyId, documentId, data }) =>
+    performSaveDraft(companyId, typeId, documentId, data, webhooks),
+  );
 }
 
 /**

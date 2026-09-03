@@ -721,6 +721,9 @@ export class DocumentsService implements OnModuleInit {
       documentId: payload.documentId,
       data,
       params: payload.params ?? {},
+      // Already computed above for the availableWhen/country-policy gates — see ActionContext's own
+      // comment on why this is handed through rather than re-fetched a second time.
+      currentStatus,
     });
 
     // See this method's own header comment on `checkTransitionResult` — a handler is no longer free

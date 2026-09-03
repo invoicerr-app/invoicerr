@@ -18,7 +18,7 @@ import { computeSettlement } from './settlement/compute-settlement';
 import * as settlementCredits from './settlement/credits';
 import * as settlementPayments from './settlement/payments';
 import * as taxLoadAndResolve from './tax/load-and-resolve';
-import { resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
+import { resolveInvoiceCrossBorderTax, UnresolvedBuyerCountryError } from './tax/resolve-invoice-tax';
 import { computeDocumentTotals } from './totals/compute-totals';
 import * as companyTransport from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
@@ -1373,6 +1373,177 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         'draft',
         frDeB2bInvoiceData, // still 20% — a draft is never rewritten
       );
+    });
+  });
+
+  /**
+   * TODO_PRODUIT.md T4-c — the residual `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`
+   * header documents in full: re-editing an ALREADY-ISSUED invoice (any status other than "draft")
+   * back into a draft — the ONLY transition "save-draft" declares (`{ from: 'always', to: 'draft' }`)
+   * — must re-resolve the buyer country and hard-block exactly like "send" already does, the same
+   * rule f6888eb2/d58caaa5 enforced for the pre-refonte engine's own `editInvoice()`. A brand-new or
+   * still-draft record must stay untouched (proven by the "NEVER resolves cross-border tax" test
+   * just above, and by this describe's own first test).
+   */
+  describe('"save-draft" — TODO_PRODUIT.md T4-c: re-editing an already-issued invoice re-resolves the buyer country', () => {
+    // Same FR seller / DE buyer / reverse-charge shape as the "send" describe's own
+    // `frDeB2bInvoiceData` above (out of THIS describe's scope) — kept local rather than hoisted,
+    // since this block's own fixtures also need a client-country CHANGE, which that shared const
+    // was never meant to carry.
+    const frDeB2bInvoiceData = {
+      client: 'client-1',
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      currency: 'EUR',
+      lines: [
+        {
+          description: 'Conseil stratégique',
+          quantity: 1,
+          unit: 'day',
+          unitPrice: 12000,
+          vatRate: '20', // the user's own draft-time entry — MUST NOT survive a re-edit unresolved
+          supplyType: 'SERVICES',
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      (persistence.upsertDocument as jest.Mock).mockImplementation(
+        async (_companyId, _typeId, _documentId, status, data) => ({
+          id: 'doc-1',
+          typeId: 'invoice',
+          status,
+          data,
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
+    });
+
+    it('re-saving an EXISTING DRAFT (never issued) as a draft still never resolves cross-border tax', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const { service } = buildService();
+      await service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).not.toHaveBeenCalled();
+      expect(persistence.upsertDocument).toHaveBeenCalledWith(
+        'company-1',
+        'invoice',
+        'doc-1',
+        'draft',
+        frDeB2bInvoiceData, // untouched — still a draft-to-draft save
+      );
+    });
+
+    it('re-editing a "sent" invoice back into a draft RE-RESOLVES the buyer country and persists the RESOLVED data', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
+        (_companyId: string, data: Record<string, unknown>) =>
+          Promise.resolve(
+            resolveInvoiceCrossBorderTax({
+              seller: { countryCode: 'FR' },
+              buyer: { countryCode: 'DE' },
+              buyerVat: { value: 'DE136695976', validationStatus: 'VALID' },
+              data,
+            }),
+          ),
+      );
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+        documentId: 'doc-1',
+        data: frDeB2bInvoiceData,
+      });
+
+      expect(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).toHaveBeenCalledWith(
+        'company-1',
+        frDeB2bInvoiceData,
+      );
+      expect(result.document?.status).toBe('draft');
+      // Same resolved rate "send" itself would have produced (0%, reverse charge) — never the
+      // stale/raw 20% the demoted draft would otherwise silently carry forward.
+      const persistedData = result.document?.data as {
+        lines: { vatRate: string; __crossBorderCategory?: string }[];
+      };
+      expect(persistedData.lines[0].vatRate).toBe('0');
+      expect(persistedData.lines[0].__crossBorderCategory).toBe('AE');
+    });
+
+    it('re-editing a "sent" invoice to a buyer whose country cannot be resolved is BLOCKED — named 400, nothing persisted', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockRejectedValue(
+        new UnresolvedBuyerCountryError('the buyer country could not be determined'),
+      );
+
+      const { service } = buildService();
+
+      await expect(
+        service.runAction('company-1', 'invoice', 'save-draft', {
+          documentId: 'doc-1',
+          data: frDeB2bInvoiceData,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      // Blocked BEFORE the demotion to "draft" is ever persisted — no silent loss of the invoice's
+      // already-resolved, already-sent state.
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    });
+
+    it('a "send_failed" invoice (already numbered, never delivered) gets the SAME re-edit guard as "sent"', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'send_failed',
+        data: frDeB2bInvoiceData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: 1,
+        displayNumber: 'INV-2026-0001',
+      });
+      (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockRejectedValue(
+        new UnresolvedBuyerCountryError('the buyer country could not be determined'),
+      );
+
+      const { service } = buildService();
+
+      await expect(
+        service.runAction('company-1', 'invoice', 'save-draft', {
+          documentId: 'doc-1',
+          data: frDeB2bInvoiceData,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
     });
   });
 });

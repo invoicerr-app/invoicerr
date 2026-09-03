@@ -403,6 +403,69 @@ describe('Clients E2E', () => {
         });
     });
 
+    // TODO_PRODUIT.md T4-a/T4-b — the Peppol scheme selector (`peppolSchemeId`,
+    // client-upsert.tsx). Every label asserted below is quoted VERBATIM from the Peppol v9.7
+    // Participant Identifier Schemes codelist (docs.peppol.eu/edelivery/codelists/) — see that
+    // component's own inline comments for the exact source citation on each entry.
+    describe('Peppol scheme selector (TODO_PRODUIT.md T4-a/b)', () => {
+        it('T4-a: offers the 7 EAS the 2026-09-02 B2G audit added routing rules for, but this selector never offered', () => {
+            cy.visit('/clients');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[data-cy="client-peppol-scheme-select"]').scrollIntoView().click();
+
+            // b2g-routing/data/{ee,lt,lv,lu,cy,gr,mt}.json each cite the exact same string.
+            cy.get('[data-cy="client-peppol-scheme-option-0191"]').should(
+                'contain.text',
+                '0191 — EE Company code',
+            );
+            cy.get('[data-cy="client-peppol-scheme-option-0200"]').should(
+                'contain.text',
+                '0200 — LT Legal entity code',
+            );
+            cy.get('[data-cy="client-peppol-scheme-option-0218"]').should(
+                'contain.text',
+                '0218 — LV Unified registration number',
+            );
+            cy.get('[data-cy="client-peppol-scheme-option-0240"]').should(
+                'contain.text',
+                '0240 — LU Register of legal persons',
+            );
+            // Cyprus/Greece/Malta have no dedicated business-register scheme in the codelist — only
+            // their VAT scheme exists (each file's own notes).
+            cy.get('[data-cy="client-peppol-scheme-option-9928"]').should(
+                'contain.text',
+                '9928 — CY VAT number',
+            );
+            cy.get('[data-cy="client-peppol-scheme-option-9933"]').should(
+                'contain.text',
+                '9933 — GR VAT number',
+            );
+            cy.get('[data-cy="client-peppol-scheme-option-9943"]').should(
+                'contain.text',
+                '9943 — MT VAT number',
+            );
+        });
+
+        it('T4-b: 0106 is labelled NL KVK (was wrongly "DK CVR"), and the real Danish CVR, 0184, is now offered', () => {
+            cy.visit('/clients');
+            cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+            cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+            cy.get('[data-cy="client-peppol-scheme-select"]').scrollIntoView().click();
+
+            // 0106 = "Vereniging van Kamers van Koophandel en Fabrieken in Nederland" (NL, the KVK)
+            // in the codelist — never Danish. Re-verified live against the v9.7 codelist on
+            // 2026-09-03 (see client-upsert.tsx's own comment for the full citation).
+            cy.get('[data-cy="client-peppol-scheme-option-0106"]')
+                .should('contain.text', '0106 — NL KVK')
+                .and('not.contain.text', 'DK');
+            // 0184 = "The Danish Business Authority - CVR-number (DK:CVR)" — the REAL Danish CVR.
+            cy.get('[data-cy="client-peppol-scheme-option-0184"]').should('contain.text', '0184 — DK CVR');
+        });
+    });
+
     describe('Search Clients', () => {
         it('searches for a client by name', () => {
             cy.visit('/clients');

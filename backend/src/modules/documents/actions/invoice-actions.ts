@@ -32,7 +32,7 @@ import {
 } from '../transports/transport-registry';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
-import { registerSaveDraftAction } from './generic-actions';
+import { performSaveDraft } from './generic-actions';
 
 export interface InvoiceActionDeps {
   transportRegistry: TransportRegistry;
@@ -472,9 +472,57 @@ async function runInvoiceCrossBorderTaxPreflight(
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /**
- * Registers the invoice type's action IMPLEMENTATIONS. "save-draft" is the exact same generic
- * mechanism the quote uses (generic-actions.ts) — persisting a draft's field values has nothing to do
- * with WHERE the document eventually travels, so sharing it is correct, unlike "send" below.
+ * TODO_PRODUIT.md T4-c — the residual the f6888eb2/d58caaa5 pair left open. Those two commits hard-
+ * blocked an UNRESOLVED BUYER COUNTRY at every ISSUED-producing path of the pre-refonte engine
+ * (`issueInvoice`, `correctInvoice`, …) and then, in a follow-up, closed the one path that could
+ * still slip past that guard: `editInvoice()` recomputing tax on an ALREADY-ISSUED invoice for an
+ * `immutableAfter: 'NEVER'` jurisdiction (US/FALLBACK) with no country check at all. That engine, and
+ * `editInvoice()` itself, no longer exist (this branch's documents/ rewrite) — but the SAME shape of
+ * hole exists again here, one layer down:
+ *
+ *  - `invoice.descriptor.ts`'s "save-draft" transition is `{ from: 'always', to: 'draft' }` — it can
+ *    demote an ALREADY-SENT invoice back to "draft" (`quote-contributions.ts`'s own comment documents
+ *    this as an accepted, real state: a sent record re-saved as a draft "keeps the number it already
+ *    earned"). `generic-actions.ts`'s `performSaveDraft` never touches tax at all — by design, so a
+ *    genuinely NEW or STILL-draft record stays country-less-safe (the exact posture
+ *    `resolve-invoice-tax.ts`'s own header, and `documents.service.invoice.spec.ts`'s own
+ *    "'save-draft' NEVER resolves cross-border tax" test, hold on purpose).
+ *  - For FRANCE, this demotion is already refused outright: `country-policy/data/fr.json`'s own
+ *    `invoice.save-draft` rule narrows `statuses` to `["draft"]` (CGI art. 289, I.5 — an issued
+ *    invoice is corrected by a DISTINCT document, never rewritten), so `documents.service.ts#runAction`
+ *    409s before this handler is ever called.
+ *  - `country-policy/data/us.json`'s own `invoice.save-draft` rule carries NO such `statuses`
+ *    narrowing — deliberately, per its own `resolutionNote` ("no US text identified" prohibiting it).
+ *    So for the US (and any other country whose policy file permits "save-draft" unconditionally),
+ *    the SAME under-charge shape as the old `editInvoice()` residual is reachable again: edit an
+ *    already-"sent" invoice's client to one whose country cannot be resolved (or simply to a
+ *    different country the resolved data no longer matches) and click Save — the record demotes to
+ *    "draft" carrying WHATEVER the form submitted, no re-resolution, no block.
+ *
+ * The fix reuses `runInvoiceCrossBorderTaxPreflight` VERBATIM — the exact same resolution path
+ * "send"'s own preflight/deliver already call — rather than inventing a second buyer-country check:
+ * only when `ctx.currentStatus` is a REAL, already-persisted, NON-DRAFT status (a genuine re-edit of
+ * an issued invoice, never a brand-new or still-draft record) does this run the same recompute +
+ * hard-block "send" already performs, BEFORE the demoted draft is ever persisted. A resolvable buyer
+ * country still saves fine — this is a backstop for the under-charge shape, not a ban on editing an
+ * issued invoice (that policy question belongs to country-policy, e.g. FR's own rule above, not here).
+ */
+function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: DocumentWebhookEmitter): void {
+  registry.register('invoice', 'save-draft', async (ctx) => {
+    const reEditingAnIssuedInvoice = !!ctx.documentId && !!ctx.currentStatus && ctx.currentStatus !== 'draft';
+    const data = reEditingAnIssuedInvoice
+      ? await runInvoiceCrossBorderTaxPreflight(ctx.companyId, ctx.data)
+      : ctx.data;
+    return performSaveDraft(ctx.companyId, 'invoice', ctx.documentId, data, webhooks);
+  });
+}
+
+/**
+ * Registers the invoice type's action IMPLEMENTATIONS. "save-draft" is ALMOST the exact same generic
+ * mechanism the quote uses (generic-actions.ts's `performSaveDraft`) — persisting a draft's field
+ * values has nothing to do with WHERE the document eventually travels — but not QUITE, since
+ * `registerInvoiceSaveDraftAction` below (TODO_PRODUIT.md T4-c) wraps it with one invoice-specific
+ * guard the generic mechanism has no business knowing about.
  *
  * "send" is DELIBERATELY NOT the quote's own send-by-email mechanism (quote-actions.ts) — an
  * invoice's transport is a fact about the ISSUING COMPANY, never about the invoice's country or the
@@ -516,7 +564,7 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  * mechanism against.
  */
 export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceActionDeps): void {
-  registerSaveDraftAction(registry, 'invoice', deps.webhooks);
+  registerInvoiceSaveDraftAction(registry, deps.webhooks);
 
   registry.register('invoice', 'send', async ({ companyId, documentId, data, params }) =>
     runAsyncSendAction({

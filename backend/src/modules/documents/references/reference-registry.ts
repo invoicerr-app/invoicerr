@@ -15,10 +15,12 @@ export interface EntityReferenceProvider {
    * exactly the field names `prefillFrom.map`'s values name. Distinct from `resolve()` on purpose:
    * `resolve` returns the small, universal `{id, label}` shape every 'reference' field needs to
    * DISPLAY an already-set value; this returns whatever a specific entity actually stores, which a
-   * generic field can never assume the shape of. A provider that backs no prefillable field (e.g.
-   * "client", "quote", "invoice" — nothing prefills a line FROM a client) simply never implements
-   * this; DocumentsService.getReferenceFields treats an absent implementation as "nothing to prefill
-   * from", never an error.
+   * generic field can never assume the shape of. A provider that backs no prefillable/lockable field
+   * (e.g. "client" — nothing prefills a line FROM a client, nor locks a field to one) simply never
+   * implements this; DocumentsService.getReferenceFields treats an absent implementation as "nothing
+   * to read from", never an error. "quote"/"invoice" (document-reference.provider.ts) DO implement
+   * it as of TODO_PRODUIT.md T4-d — the credit note's own `currency` field locks to its `invoice`
+   * field's resolved `currency` (see descriptors/types.ts's own `lockedFromReference`).
    */
   getFields?(companyId: string, id: string): Promise<Record<string, unknown> | null>;
 }

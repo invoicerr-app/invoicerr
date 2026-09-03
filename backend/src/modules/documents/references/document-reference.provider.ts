@@ -76,5 +76,22 @@ export function buildDocumentReferenceProvider(
         throw error;
       }
     },
+
+    // TODO_PRODUIT.md T4-d — the credit note's own `currency` field locks to whatever `data.currency`
+    // its `invoice` field resolves to (descriptors/types.ts's `lockedFromReference`,
+    // credit-note.descriptor.ts). Returns the referenced document's raw `data` VERBATIM (never a
+    // narrower, hand-picked subset) — the exact same "hand back whatever this entity actually
+    // stores" posture `article-reference.provider.ts`'s own `getFields` already holds for
+    // `prefillFrom`; a future `lockedFromReference`/`prefillFrom` naming a different `sourceKey` off
+    // a quote or an invoice (e.g. a field wanting to follow `issueDate`) needs no change here at all.
+    async getFields(companyId, id): Promise<Record<string, unknown> | null> {
+      try {
+        const document = await findOwnedDocument(companyId, typeId, id);
+        return (document.data ?? {}) as Record<string, unknown>;
+      } catch (error) {
+        if (error instanceof NotFoundException) return null;
+        throw error;
+      }
+    },
   };
 }

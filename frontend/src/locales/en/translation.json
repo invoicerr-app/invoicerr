@@ -3374,6 +3374,9 @@
         "prefillSearchPlaceholder": "Search catalog...",
         "prefillNoResults": "No matches"
       },
+      "select": {
+        "lockedFromReference": "Follows the linked record — cannot be edited directly."
+      },
       "rowSelection": {
         "selectSourceFirst": "Select the related document above first.",
         "loading": "Loading rows...",

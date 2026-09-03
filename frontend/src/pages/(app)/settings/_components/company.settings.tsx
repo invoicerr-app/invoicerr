@@ -594,15 +594,69 @@ export default function CompanySettings() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="0088">0088 — GLN</SelectItem>
-                              <SelectItem value="0192">0192 — NO org.nr</SelectItem>
-                              <SelectItem value="0009">0009 — FR SIRET</SelectItem>
-                              <SelectItem value="9925">9925 — EU VAT</SelectItem>
-                              <SelectItem value="0007">0007 — SE org.nr</SelectItem>
-                              <SelectItem value="0208">0208 — BE org.nr</SelectItem>
-                              <SelectItem value="0106">0106 — DK CVR</SelectItem>
-                              <SelectItem value="0151">0151 — AU ABN</SelectItem>
-                              <SelectItem value="0060">0060 — DUNS</SelectItem>
+                              <SelectItem value="0088" data-cy="company-peppol-scheme-option-0088">
+                                0088 — GLN
+                              </SelectItem>
+                              <SelectItem value="0192" data-cy="company-peppol-scheme-option-0192">
+                                0192 — NO org.nr
+                              </SelectItem>
+                              <SelectItem value="0009" data-cy="company-peppol-scheme-option-0009">
+                                0009 — FR SIRET
+                              </SelectItem>
+                              <SelectItem value="9925" data-cy="company-peppol-scheme-option-9925">
+                                9925 — EU VAT
+                              </SelectItem>
+                              <SelectItem value="0007" data-cy="company-peppol-scheme-option-0007">
+                                0007 — SE org.nr
+                              </SelectItem>
+                              <SelectItem value="0208" data-cy="company-peppol-scheme-option-0208">
+                                0208 — BE org.nr
+                              </SelectItem>
+                              {/*
+                                TODO_PRODUIT.md T4-b — same fix as clients/_components/client-
+                                upsert.tsx's own identical selector (see that file's own comment for
+                                the full citation): 0106 is the Dutch KVK in the Peppol v9.7
+                                codelist, not Danish. The real Danish CVR is 0184, added just below.
+                              */}
+                              <SelectItem value="0106" data-cy="company-peppol-scheme-option-0106">
+                                0106 — NL KVK
+                              </SelectItem>
+                              <SelectItem value="0184" data-cy="company-peppol-scheme-option-0184">
+                                0184 — DK CVR
+                              </SelectItem>
+                              <SelectItem value="0151" data-cy="company-peppol-scheme-option-0151">
+                                0151 — AU ABN
+                              </SelectItem>
+                              <SelectItem value="0060" data-cy="company-peppol-scheme-option-0060">
+                                0060 — DUNS
+                              </SelectItem>
+                              {/*
+                                TODO_PRODUIT.md T4-a — same seven EAS as clients/_components/client-
+                                upsert.tsx's own identical selector (see that file's own comment for
+                                the full citation, sourced from the 2026-09-02 B2G audit's
+                                b2g-routing/data/{ee,lt,lv,lu,cy,gr,mt}.json).
+                              */}
+                              <SelectItem value="0191" data-cy="company-peppol-scheme-option-0191">
+                                0191 — EE Company code
+                              </SelectItem>
+                              <SelectItem value="0200" data-cy="company-peppol-scheme-option-0200">
+                                0200 — LT Legal entity code
+                              </SelectItem>
+                              <SelectItem value="0218" data-cy="company-peppol-scheme-option-0218">
+                                0218 — LV Unified registration number
+                              </SelectItem>
+                              <SelectItem value="0240" data-cy="company-peppol-scheme-option-0240">
+                                0240 — LU Register of legal persons
+                              </SelectItem>
+                              <SelectItem value="9928" data-cy="company-peppol-scheme-option-9928">
+                                9928 — CY VAT number
+                              </SelectItem>
+                              <SelectItem value="9933" data-cy="company-peppol-scheme-option-9933">
+                                9933 — GR VAT number
+                              </SelectItem>
+                              <SelectItem value="9943" data-cy="company-peppol-scheme-option-9943">
+                                9943 — MT VAT number
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </FormControl>

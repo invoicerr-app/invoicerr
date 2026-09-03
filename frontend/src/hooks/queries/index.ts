@@ -17,6 +17,7 @@ export {
   useReferenceSearch,
   useReferenceResolve,
   fetchPrefillFields,
+  useReferenceFields,
   useMultiEntityReferenceSearch,
   useDocumentTransports,
   useSelectableRows,

@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useFormContext } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 
 import { BetterInput } from "@/components/better-input"
 import { DatePicker } from "@/components/date-picker"
@@ -14,15 +15,24 @@ import {
 import SearchSelect from "@/components/search-input"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { useReferenceFields } from "@/hooks/queries"
 
 import type { FieldRendererProps } from "./registry"
 
-function FieldChrome({ field, children }: Pick<FieldRendererProps, "field"> & { children: React.ReactNode }) {
+function FieldChrome({
+  field,
+  children,
+  note,
+}: Pick<FieldRendererProps, "field"> & { children: React.ReactNode; note?: string }) {
   return (
     <FormItem data-cy={`document-field-${field.key}`}>
       <FormLabel required={field.required}>{field.label}</FormLabel>
       <FormControl>{children}</FormControl>
       {field.helpText && <FormDescription>{field.helpText}</FormDescription>}
+      {/* TODO_PRODUIT.md T4-d — the ONLY caller today is SelectField's own `lockedFromReference`
+          note, kept generic (a plain optional prop, not a `field.lockedFromReference` check inside
+          FieldChrome itself) the same way `helpText` above is generic across every field kind. */}
+      {note && <FormDescription data-cy={`document-field-${field.key}-note`}>{note}</FormDescription>}
       <FormMessage />
     </FormItem>
   )
@@ -163,9 +173,31 @@ export function BooleanField({ field, name }: FieldRendererProps) {
 }
 
 export function SelectField({ field, name }: FieldRendererProps) {
-  const { control } = useFormContext()
+  const { t } = useTranslation()
+  const { control, watch, setValue } = useFormContext()
   const allOptions = field.options ?? []
   const [search, setSearch] = useState("")
+
+  // TODO_PRODUIT.md T4-d — `lockedFromReference` (types.ts): watch the named SIBLING 'reference'
+  // field (e.g. a credit note's own "invoice"), and once it resolves to a real id, copy
+  // `sourceKey` off that entity's raw fields (the SAME `getFields` mechanism `prefillFrom`,
+  // array-field.tsx, already calls) onto THIS field — kept in sync for as long as the reference
+  // stays set, disabled so the user never types a value that could silently disagree with it. No
+  // reference picked yet (a brand-new record) leaves this field a normal, editable select — the
+  // lock only ever engages once there is something concrete to follow.
+  const lockedFrom = field.lockedFromReference
+  const referenceValue = lockedFrom ? watch(lockedFrom.field) : undefined
+  const referenceId = lockedFrom && typeof referenceValue === "string" ? referenceValue : undefined
+  const { data: lockedFields } = useReferenceFields(lockedFrom?.entity, referenceId)
+  const lockedValue =
+    lockedFrom && referenceId && lockedFields && typeof lockedFields[lockedFrom.sourceKey] !== "undefined"
+      ? String(lockedFields[lockedFrom.sourceKey])
+      : undefined
+
+  useEffect(() => {
+    if (lockedValue === undefined) return
+    setValue(name, lockedValue, { shouldValidate: true, shouldDirty: true })
+  }, [lockedValue, name, setValue])
 
   // No known list AT ALL (e.g. no VAT rate catalog for this company's country — see the backend's
   // descriptors/company-view.ts, which is what would have filled `options` here) — a dropdown with
@@ -202,12 +234,17 @@ export function SelectField({ field, name }: FieldRendererProps) {
       )
     : allOptions
 
+  const isLocked = lockedValue !== undefined
+
   return (
     <FormField
       control={control}
       name={name}
       render={({ field: rhfField }) => (
-        <FieldChrome field={field}>
+        <FieldChrome
+          field={field}
+          note={isLocked ? t("documents.form.select.lockedFromReference") : undefined}
+        >
           <SearchSelect
             options={filtered}
             allOptions={allOptions}
@@ -215,6 +252,7 @@ export function SelectField({ field, name }: FieldRendererProps) {
             onValueChange={(value) => rhfField.onChange(value)}
             onSearchChange={setSearch}
             placeholder={field.label}
+            disabled={isLocked}
             data-cy={`document-field-${field.key}-input`}
           />
         </FieldChrome>

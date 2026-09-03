@@ -128,8 +128,14 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * numbering/sequence.ts's own mechanism never wastes a number, which reduces gap risk without
  * asserting the legal claim itself.
  *
- * Actions: "save-draft" is implemented, built on the exact same generic mechanism the quote uses
- * (actions/generic-actions.ts). "send" is implemented too, but DELIBERATELY NOT the quote's mechanism
+ * Actions: "save-draft" is implemented, built on the same generic mechanism the quote uses
+ * (actions/generic-actions.ts's `performSaveDraft`) for the actual persistence — but, since
+ * TODO_PRODUIT.md T4-c, wrapped by `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`,
+ * which reuses "send"'s own buyer-country resolution to hard-block the ONE case the generic
+ * mechanism cannot see coming: re-editing an ALREADY-issued invoice back into a draft with a buyer
+ * country that no longer resolves (see that function's own header for the full history — the same
+ * shape of hole f6888eb2/d58caaa5 already closed once in the pre-refonte engine). "send" is
+ * implemented too, but DELIBERATELY NOT the quote's mechanism
  * — see actions/invoice-actions.ts's own comment for why an invoice's transport is read from the
  * ISSUING COMPANY's own configuration (TransportRegistry) rather than always being email. That is
  * also why, unlike the quote's "send", this action declares NO `params`: there is no user-typed
@@ -170,9 +176,12 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * by item 22, on the exact same model as the quote's own (see quote.descriptor.ts's lifecycle
  * paragraph for the full design, actions/async-send.ts for the shared mechanism, and
  * TODO_ISSUES.md for the "sent before delivery actually succeeded" limit this replaces).
- * "save-draft" (generic-actions.ts's registerSaveDraftAction) always persists "draft", from ANY
- * current status (`from: 'always'`) — faithful to the handler's actual, literal behavior, not an
- * invented rule. "send" (invoice-actions.ts) now has the same two transition entries the quote's own
+ * "save-draft" (invoice-actions.ts's registerInvoiceSaveDraftAction, wrapping generic-actions.ts's
+ * performSaveDraft) always persists "draft", from ANY current status (`from: 'always'`) — faithful
+ * to the handler's actual, literal behavior, not an invented rule; what changed under T4-c is a
+ * BLOCK that can fire before that persist ever happens for a re-edited non-draft record, never the
+ * declared transition itself. "send" (invoice-actions.ts) now has the same two transition entries
+ * the quote's own
  * does: "draft"/"send_failed" -> "sending" (the API's synchronous call — a fresh send or a retry),
  * then "sending" -> "sent" OR "send_failed" (the worker's replay). `availableWhen` is DERIVED from
  * BOTH (lifecycle.ts's header), so it includes "sending" too — see quote.descriptor.ts's own comment

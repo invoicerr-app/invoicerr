@@ -202,6 +202,30 @@ export interface DocumentFieldDescriptor {
    */
   currencyField?: string;
   /**
+   * 'select' — TODO_PRODUIT.md T4-d: locks this field's value to a SIBLING 'reference' field's
+   * resolved entity, e.g. a credit note's own `currency` following the `invoice` it corrects
+   * (settlement/credits.ts credits a claim structurally denominated in the invoice's OWN currency —
+   * see that file's own header; a credit note declaring a DIFFERENT currency has no business
+   * meaning at all). `field` names the sibling 'reference' field elsewhere in this SAME document;
+   * `entity` is which EntityReferenceRegistry entry it resolves against — duplicated here rather
+   * than cross-read off `field`'s own descriptor, the SAME self-containment discipline
+   * `sourceField`/`sourceEntity` (the 'rowSelection' kind, below) already holds, for the identical
+   * reason (every kind here stays self-contained; a mismatch between the two is a misconfiguration
+   * a test can catch, never a runtime cross-read). `sourceKey` is the key to copy off that entity's
+   * raw `getFields()` result — the exact same OPTIONAL provider method `prefillFrom` above already
+   * calls, never a second mechanism.
+   *
+   * DELIBERATELY A UI-ONLY CONVENIENCE, never the actual rule: this hint only drives
+   * field-renderers/primitive-fields.tsx's 'select' renderer (pre-fills the value, disables the
+   * control once the reference resolves) — a scripted client posting a mismatched `currency`
+   * directly is refused independently, server-side, by whichever "save-draft" handler the
+   * document type registers (see actions/credit-note-actions.ts's own header for the credit note's
+   * own named validation). Screen and server enforce the SAME rule through two different paths on
+   * purpose (the screen for a good experience, the server because the screen is never trusted
+   * alone) — never make one a substitute for the other.
+   */
+  lockedFromReference?: { field: string; entity: string; sourceKey: string };
+  /**
    * 'reference', SINGLE target: which EntityReferenceRegistry entry resolves/searches values for
    * this field. The stored value is a plain non-empty id string (e.g. `data.client = "client-1"`) —
    * unchanged since before `entities` existed, and every existing single-target field (the "client"

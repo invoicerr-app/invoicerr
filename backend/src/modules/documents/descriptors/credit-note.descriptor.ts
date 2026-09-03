@@ -38,8 +38,13 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    built for this type alone; nothing here is specific to a credit note beyond the three hints below
  *    naming which sibling field, which entity, and which array they point at.
  *
- * Actions: "save-draft", the exact same generic mechanism every document type here shares
- * (actions/generic-actions.ts) — plus, as of item 8 of the root TODO ("le lettrage"), "send"
+ * Actions: "save-draft" was, until TODO_PRODUIT.md T4-d, the exact same generic mechanism every
+ * document type here shares (actions/generic-actions.ts's `performSaveDraft`) — it now goes through
+ * `credit-note-actions.ts`'s own `registerCreditNoteSaveDraftAction`, which wraps that same
+ * persistence with ONE guard: the currency declared here must equal the `invoice` field's own
+ * (see that function's own header for the full "why", and this file's own `currency` field for the
+ * SCREEN-side half of the same rule, `lockedFromReference`). Plus, as of item 8 of the root TODO
+ * ("le lettrage"), "send"
  * (actions/credit-note-actions.ts): a plain STATUS transition that reads and writes NOTHING beyond
  * that status — no transport, no email, no recipient. This is deliberately NOT the quote's
  * `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
@@ -63,8 +68,10 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *
  * Lifecycle: FOUR statuses now — "draft", "sending", "sent", "send_failed" — the same shape
  * quote.descriptor.ts's own lifecycle paragraph documents in full. "save-draft"
- * (generic-actions.ts's registerSaveDraftAction) always persists "draft", from ANY current status
- * (`from: 'always'`, faithful to what the handler actually does); "send" (credit-note-actions.ts) has
+ * (credit-note-actions.ts's registerCreditNoteSaveDraftAction, wrapping generic-actions.ts's
+ * performSaveDraft) always persists "draft", from ANY current status (`from: 'always'`, faithful to
+ * what the handler actually does — the currency guard T4-d added can only BLOCK that persist, never
+ * change the declared transition itself); "send" (credit-note-actions.ts) has
  * the same two transition entries as the quote's and the invoice's own: "draft"/"send_failed" ->
  * "sending", then "sending" -> "sent" OR "send_failed".
  *
@@ -139,6 +146,14 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         label: 'Currency',
         required: true,
         options: CURRENCY_OPTIONS,
+        // TODO_PRODUIT.md T4-d — a credit note has no business declaring a currency other than the
+        // invoice it corrects: the amount it credits is structurally denominated in that invoice's
+        // OWN currency (settlement/credits.ts's own header, and T3's own "no conversion for
+        // avoirs" constat). Locks this field's value to whatever `currency` the picked `invoice`
+        // resolves to — see types.ts's own `lockedFromReference` header for the full mechanism, and
+        // credit-note-actions.ts's own header for the SERVER-SIDE hard block this screen convenience
+        // is backed by (never a substitute for it).
+        lockedFromReference: { field: 'invoice', entity: 'invoice', sourceKey: 'currency' },
       },
       {
         key: 'notes',
