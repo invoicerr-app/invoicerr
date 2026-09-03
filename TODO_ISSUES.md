@@ -702,3 +702,14 @@
     mx}.json` par pays, recherche juridique dédiée (même patron que fr.json/us.json), décision
     produit sur `documentTypes` (quels types de documents chaque pays voit dans sa barre latérale)
     — hors périmètre de C3, à trancher par une tâche dédiée.
+
+- **Dérive migration-vs-schema sur les enums : aucun tripwire automatisé sur base fraîche**
+  (constat de la validation P3, 2026-09-03) : la mine d'ordre (réparée par 20260903170000) et la
+  purge P3 partagent la même classe de risque — une migration qui reconstruit un type enum fige
+  une LISTE, et rien d'automatisé ne compare le résultat d'un `migrate deploy` intégral depuis
+  zéro avec l'enum du schema.prisma. Le spec d'épinglage (webhook-event.spec.ts) couvre le côté
+  client généré ; la preuve base-fraîche est faite À LA MAIN à chaque chantier d'enum (P3 : 17
+  valeurs vérifiées psql, mutation de la liste _new attrapée à 16). Ce qui fermerait le trou : un
+  job CI (ou un spec gaté) qui déploie les migrations sur un Postgres vierge et compare pg_enum à
+  Object.values du client généré, pour chaque enum. À faire le jour où un nouveau chantier d'enum
+  s'annonce — ou avant le merge vers main.

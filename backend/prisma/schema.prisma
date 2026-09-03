@@ -618,141 +618,50 @@ enum WebhookEvent {
   // (the row still exists) or a bare re-fire of DOCUMENT_SENT.
   DOCUMENT_CANCELLED
 
-  // Client events
+  // Client events (TODO_SUITE.md P3, 2026-09-03) — of the six CLIENT_* members this enum used to
+  // carry, grep against `WebhookDispatcherService.dispatch(WebhookEvent.X, ...)` call sites found a
+  // real emitter in `clients.service.ts` for only these four. CLIENT_ACTIVATED/CLIENT_DEACTIVATED
+  // purged: the client "isActive" toggle dispatches through the ordinary CLIENT_UPDATED, there never
+  // was a dedicated activation/deactivation event to fire.
   CLIENT_CREATED
   CLIENT_UPDATED
   CLIENT_DELETED
-  CLIENT_ACTIVATED
-  CLIENT_DEACTIVATED
   CLIENT_SEARCHED
 
-  // Company events
+  // Company events (TODO_SUITE.md P3, 2026-09-03) — same method, `company.service.ts` is the only
+  // real emitter and dispatches exactly these three. COMPANY_PDF_CONFIG_UPDATED/COMPANY_INFO_VIEWED
+  // purged: the PDF config write and the "view company info" read never dispatched a webhook, despite
+  // the enum members existing since the very first webhook module.
   COMPANY_CREATED
   COMPANY_UPDATED
-  COMPANY_PDF_CONFIG_UPDATED
   COMPANY_EMAIL_TEMPLATE_UPDATED
-  COMPANY_INFO_VIEWED
 
-  // Recurring Invoice events
-  RECURRING_INVOICE_CREATED
-  RECURRING_INVOICE_UPDATED
-  RECURRING_INVOICE_DELETED
-  RECURRING_INVOICE_GENERATED
-  RECURRING_INVOICE_AUTO_SENT
-  RECURRING_INVOICE_PROCESSED
-  RECURRING_INVOICE_NEXT_DATE_CALCULATED
-
-  // Plugin events
-  PLUGIN_ACTIVATED
-  PLUGIN_DEACTIVATED
-  PLUGIN_CONFIGURED
-  PLUGIN_ADDED
-  PLUGIN_REMOVED
-  PLUGIN_VALIDATED
-  PLUGIN_PROVIDER_REQUESTED
-  PLUGIN_FORMAT_REQUESTED
-  PLUGIN_WEBHOOK_RECEIVED
-
-  // Authentication events
-  USER_CREATED
-  USER_UPDATED
-  USER_LOGGED_IN
-  USER_PASSWORD_CHANGED
-  USER_PROFILE_UPDATED
-  USER_OIDC_LOGIN
-  USER_OIDC_CALLBACK
-
-  // Email events
-  EMAIL_SENT
-  EMAIL_TEMPLATE_UPDATED
-  EMAIL_FAILED
-
-  // Dashboard events
-  DASHBOARD_VIEWED
-  DASHBOARD_STATS_CALCULATED
-  STATS_MONTHLY_REQUESTED
-  STATS_YEARLY_REQUESTED
-  CURRENCY_RATE_UPDATED
-
-  // System events
-  APP_RESET
-  APP_ALL_DATA_RESET
-  OTP_REQUESTED
-  OTP_VALIDATED
-  OTP_EXPIRED
-
-  // Search events
-  SEARCH_PERFORMED
-
-  // File events
-  PDF_GENERATED
-  XML_GENERATED
-  FILE_DOWNLOADED
-
-  // Webhook events
+  // Webhook events (TODO_SUITE.md P3, 2026-09-03) — `webhooks.controller.ts` dispatches these three
+  // lifecycle events on the subscription row itself (create/update/delete a `Webhook`).
+  // WEBHOOK_TRIGGERED/WEBHOOK_FAILED purged: a delivery attempt's outcome is logged
+  // (`webhooks.service.ts#send`), never turned into a self-referential webhook event — nothing ever
+  // dispatched either one.
   WEBHOOK_CREATED
   WEBHOOK_UPDATED
   WEBHOOK_DELETED
-  WEBHOOK_TRIGGERED
-  WEBHOOK_FAILED
 
-  // Quote Item events
-  QUOTE_ITEM_CREATED
-  QUOTE_ITEM_UPDATED
-  QUOTE_ITEM_DELETED
-
-  // Invoice Item events
-  INVOICE_ITEM_CREATED
-  INVOICE_ITEM_UPDATED
-  INVOICE_ITEM_DELETED
-
-  // Payment Item events
-  PAYMENT_ITEM_CREATED
-  PAYMENT_ITEM_UPDATED
-  PAYMENT_ITEM_DELETED
-
-  // Receipt Item events (deprecated, use PAYMENT_ITEM_* instead)
-  RECEIPT_ITEM_CREATED
-  RECEIPT_ITEM_UPDATED
-  RECEIPT_ITEM_DELETED
-
-  // Recurring Invoice Item events
-  RECURRING_INVOICE_ITEM_CREATED
-  RECURRING_INVOICE_ITEM_UPDATED
-  RECURRING_INVOICE_ITEM_DELETED
-
-  // Configuration events
-  PDF_CONFIG_CREATED
-  PDF_CONFIG_UPDATED
-  EMAIL_TEMPLATE_CREATED
-
-  // Number formatting events
-  QUOTE_NUMBER_GENERATED
-  INVOICE_NUMBER_GENERATED
-  PAYMENT_NUMBER_GENERATED
-  /// @deprecated use PAYMENT_NUMBER_GENERATED instead
-  RECEIPT_NUMBER_GENERATED
-
-  // Background process events
-  CRON_JOB_STARTED
-  CRON_JOB_COMPLETED
-  CRON_JOB_FAILED
-
-  // Currency events
-  CURRENCY_CONVERSION_REQUESTED
-  CURRENCY_RATE_FETCHED
-
-  // Mail template events
-  MAIL_TEMPLATE_CREATED
-  MAIL_TEMPLATE_UPDATED
-
-  // SSE events
-  SSE_CONNECTION_ESTABLISHED
-  SSE_DATA_STREAMED
-
-  // Validation events
-  DATA_VALIDATED
-  CONFIGURATION_VALIDATED
+  // TODO_SUITE.md P3 (2026-09-03) — purge of the remaining dead vocabulary flagged by T2bis's own
+  // TODO_ISSUES entry ("une soixantaine de valeurs supplémentaires tout aussi mortes"): the
+  // RECURRING_INVOICE_* family (7 + 3 item events — the feature itself has no `RecurringInvoice`
+  // Prisma model any more, superseded by the generic document `schedule/cadence.ts`), every PLUGIN_*
+  // member (9 — P2's own removal of the external plugin mechanism took the only thing that could
+  // ever have dispatched PLUGIN_WEBHOOK_RECEIVED with it; `plugins.controller.ts` exposes no inbound
+  // webhook route at all), USER_*/OTP_*/APP_*(7 + 3 + 2 — auth and OTP never dispatched through this
+  // module), EMAIL_*/MAIL_TEMPLATE_*(3 + 2), DASHBOARD_*/STATS_*/CURRENCY_*(5 + 2), SEARCH_PERFORMED,
+  // PDF_GENERATED/XML_GENERATED/FILE_DOWNLOADED, every *_ITEM_* member (12 — line items never
+  // dispatched their own webhook, only the parent document's DOCUMENT_* events do), PDF_CONFIG_*/
+  // EMAIL_TEMPLATE_CREATED(3), every *_NUMBER_GENERATED member (4 — numbering is an internal
+  // allocation, not an announced event), CRON_JOB_*(3), SSE_*(2), DATA_VALIDATED/
+  // CONFIGURATION_VALIDATED — 73 members total (plus the 2 CLIENT_*, 2 COMPANY_* and 2 WEBHOOK_*
+  // purged above, in their own family comments: 79 in all), every one checked individually by grep
+  // (dispatch call sites, literal AND dynamic) with zero hits outside `event-formatters.ts` (dead
+  // styles/formatters, removed alongside this) and generated/spec files. See the migration's own
+  // header for the full grep methodology.
 }
 
 enum WebhookType {

@@ -66,6 +66,14 @@ verts sans affaiblissement ; un test prouve que l'écran plugins in-app survit.
 
 ## P3 — Purge élargie de l'enum WebhookEvent (~60 valeurs mortes)
 
+> ✅ **FAIT** (2026-09-03) — 96 → 17 valeurs (79 purgées, chacune sans émetteur prouvé par
+> grep ; 17 gardées avec leur site de dispatch cité), migration 20260903200000 au motif T2bis
+> avec SETTLED/CANCELLED inclus (la leçon de la mine en sens inverse), base fraîche prouvée
+> depuis zéro (92 migrations, 17 exactement) + les deux vivantes avec abonnements piégés, spec
+> d'épinglage de la liste finale. Validation mandataire : re-preuve fraîche indépendante + la
+> mutation _new amputé attrapée à 16 ; trou structurel consigné (pas de tripwire automatisé
+> migration-vs-schema — à fermer avant le merge main). jest 2138, batterie 259 verts.
+
 La mécanique T2bis exactement : grep par valeur (émetteur réel = garde), migration qui
 NETTOIE les abonnements avant le rebuild du type (horodatage POSTÉRIEUR à 20260903180000 —
 la leçon de la mine), les DEUX bases + generate + preuve sur base fraîche jetable (le
@@ -75,4 +83,8 @@ suit tout seul (Object.values).
 
 ## Clôture
 
-Marquer ici, barrer les entrées TODO_ISSUES correspondantes, mémoire, appli + identifiants.
+> ✅ **BORD CLOS** (2026-09-03) — les trois décisions exécutées dans l'ordre décidé :
+> P1 d2fab703 (les 5 pays policy — les marchés primaires émettent), P2 755cd068 (le chargement
+> externe de plugins retiré), P3 (dernier commit — l'enum à 17 valeurs vraies). Restes
+> consignés TODO_ISSUES : simple-git dans package.json, tripwire migration-vs-schema,
+> traductions non-EN de la doc plugins (Weblate).
