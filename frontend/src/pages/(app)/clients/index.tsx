@@ -15,6 +15,10 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 type ActiveFilter = "active" | "inactive" | undefined
+// TODO_PRODUIT.md T5(b) — "l'écran clients peut filtrer par rôle": the ONE role this filter
+// recognizes today is "supplier" (Client.isSupplier) — a toggle, not a full role enum, since that is
+// the only role this task introduces; a future role would extend this the same way.
+type RoleFilter = "supplier" | undefined
 
 export default function Clients() {
   const { t } = useTranslation()
@@ -28,6 +32,7 @@ export default function Clients() {
 
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(undefined)
 
   const filteredClients =
     clients?.clients.filter(
@@ -38,12 +43,14 @@ export default function Clients() {
           client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())) &&
         (!activeFilter ||
           (activeFilter === "active" && client.isActive) ||
-          (activeFilter === "inactive" && !client.isActive)),
+          (activeFilter === "inactive" && !client.isActive)) &&
+        (!roleFilter || (roleFilter === "supplier" && client.isSupplier)),
     ) || []
 
   const activeCounts = {
     active: clients?.clients.filter((c) => c.isActive).length || 0,
     inactive: clients?.clients.filter((c) => !c.isActive).length || 0,
+    suppliers: clients?.clients.filter((c) => c.isSupplier).length || 0,
   }
 
   function handleAddClick() {
@@ -121,6 +128,19 @@ export default function Clients() {
               >
                 {t("clients.stats.inactive")} ({activeCounts.inactive})
               </Badge>
+              {/* TODO_PRODUIT.md T5(b) — filtre par rôle : le seul rôle introduit par cette tâche. */}
+              <Badge
+                onClick={() => setRoleFilter(roleFilter === "supplier" ? undefined : "supplier")}
+                variant="outline"
+                className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
+                  roleFilter === "supplier"
+                    ? "bg-purple-600 text-white font-semibold shadow-sm scale-105"
+                    : "bg-purple-50 text-purple-700/70 hover:bg-purple-100"
+                }`}
+                data-cy="clients-filter-supplier"
+              >
+                {t("clients.stats.suppliers")} ({activeCounts.suppliers})
+              </Badge>
             </div>
             <Button onClick={handleAddClick}>
               <Plus className="h-4 w-4 mr-0 md:mr-2" />
@@ -171,6 +191,15 @@ export default function Clients() {
                               ? t("clients.upsert.fields.type.individual")
                               : t("clients.upsert.fields.type.company")}
                           </span>
+                          {/* TODO_PRODUIT.md T5(b) — le rôle "fournisseur", visible sans ouvrir la fiche. */}
+                          {client.isSupplier && (
+                            <span
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit ml-2"
+                              data-cy={`client-role-supplier-${client.contactEmail}`}
+                            >
+                              {t("clients.list.role.supplier")}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-2 flex flex-col lg:flex-row flex-wrap gap-2 text-sm text-primary">
                           <div className="flex items-center space-x-1">

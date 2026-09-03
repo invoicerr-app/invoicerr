@@ -77,6 +77,18 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
       setUploadDialogOpen(false)
       resetUploadDialog()
       setPreview(result)
+
+      // TODO_PRODUIT.md T5(b) — "sinon... l'écran le dit": a MATCHED outcome is already visible
+      // through the pre-filled "Linked supplier" field itself (no toast needed); anything else, once
+      // the file WAS recognized (a plain scanned PDF with nothing to match has nothing to say here),
+      // gets a named message so an empty/ambiguous link is never mistaken for a missed one.
+      if (result.extraction.syntax && result.supplierMatch.outcome !== "matched") {
+        if (result.supplierMatch.outcome === "ambiguous") {
+          toast.info(t("documents.custom.receivedInvoiceUpload.supplierAmbiguous"))
+        } else {
+          toast.info(t("documents.custom.receivedInvoiceUpload.supplierNotMatched"))
+        }
+      }
     } catch (error) {
       // The backend's OWN message — it names the exact duplicate (SHA-256 + existing document id)
       // when that is the refusal, never a generic "upload failed" that would hide it.

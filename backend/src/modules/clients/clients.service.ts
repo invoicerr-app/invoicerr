@@ -61,10 +61,20 @@ export class ClientsService {
     return { pageCount: Math.ceil(totalClients / pageSize), clients };
   }
 
-  async searchClients(companyId: string, query: string) {
+  /**
+   * TODO_PRODUIT.md T5(b) — `options.excludeSuppliers` filters out `isSupplier: true` clients when
+   * set (the invoice's/quote's own "client" reference entity — see
+   * `references/client-reference.provider.ts`'s own header on why); every OTHER caller (the plain
+   * `/clients/search` combobox screens use directly, the MCP `list_clients` tool, the "supplier"
+   * reference entity) passes nothing and keeps today's behaviour — every client, unfiltered by role,
+   * exactly like `kind` (GOVERNMENT) already never filters here either.
+   */
+  async searchClients(companyId: string, query: string, options?: { excludeSuppliers?: boolean }) {
+    const supplierFilter = options?.excludeSuppliers ? { isSupplier: false } : {};
+
     if (!query) {
       return prisma.client.findMany({
-        where: { companyId, isActive: true },
+        where: { companyId, isActive: true, ...supplierFilter },
         take: 10,
         orderBy: {
           name: 'asc',
@@ -77,6 +87,7 @@ export class ClientsService {
       where: {
         companyId,
         isActive: true,
+        ...supplierFilter,
         OR: [
           { name: { contains: query } },
           { contactFirstname: { contains: query } },

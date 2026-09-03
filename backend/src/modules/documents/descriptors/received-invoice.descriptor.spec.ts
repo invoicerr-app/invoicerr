@@ -38,11 +38,12 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     }
   });
 
-  it('declares the nine expected business fields, no fewer, no more — TODO_PRODUIT.md T5(a) added "lines"', () => {
+  it('declares the ten expected business fields, no fewer, no more — TODO_PRODUIT.md T5(b) added "supplierClient"', () => {
     const descriptor = buildReceivedInvoiceDescriptor();
     expect(descriptor.fields.map((f) => f.key).sort()).toEqual(
       [
         'supplier',
+        'supplierClient',
         'supplierNumber',
         'issueDate',
         'dueDate',
@@ -53,6 +54,14 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
         'lines',
       ].sort(),
     );
+  });
+
+  it('"supplierClient" is a reference to the dedicated "supplier" entity, never "client" (the billable picker)', () => {
+    const descriptor = buildReceivedInvoiceDescriptor();
+    const supplierClient = descriptor.fields.find((f) => f.key === 'supplierClient');
+    expect(supplierClient?.kind).toBe('reference');
+    expect(supplierClient?.entity).toBe('supplier');
+    expect(supplierClient?.required).toBe(false);
   });
 
   it('"lines" reuses the array field kind, four subfields, no min — an enrichment, never a new requirement', () => {

@@ -4,7 +4,11 @@
  * (`actions/received-invoice-actions.ts`'s "receive" already covers that), it is a SEPARATE
  * operation — store bytes, hash them, refuse an exact repeat, best-effort extract — that has no
  * document instance to act on yet. Controller -> Service -> Prisma, same as everywhere else in this
- * module; Prisma is only ever reached through `persistence.ts`'s existing, tenant-scoped helpers.
+ * module; `DocumentInstance` reads/writes go through `persistence.ts`'s tenant-scoped helpers, as
+ * everywhere else in this module. TODO_PRODUIT.md T5(b) adds ONE further Prisma-touching step —
+ * `supplier-reconciliation.ts`'s own `reconcileSupplierClient`, reaching `Client`/`PartyIdentifier`
+ * directly (never through `ClientsService` — see that file's own header for why) — because matching a
+ * supplier is not a `DocumentInstance` concern `persistence.ts` has any business knowing about.
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -12,6 +16,7 @@ import { computeArtifactHash } from '../archive/hashing';
 import { findOwnedDocument, listDocuments } from '../persistence';
 import { extractReceivedInvoiceFields } from './extraction';
 import { persistInboundFile, readInboundFile } from './storage';
+import { reconcileSupplierClient, SupplierMatchResult } from './supplier-reconciliation';
 
 const TYPE_ID = 'received-invoice';
 
@@ -44,6 +49,17 @@ export interface UploadReceivedInvoicePreview {
     syntax: string | null;
     fields: Record<string, unknown>;
   };
+  /**
+   * TODO_PRODUIT.md T5(b) — the OUTCOME of auto-reconciliation "au dépôt", computed from whatever the
+   * `extraction` above just read (`supplierVatId`/`supplier`) — see `supplier-reconciliation.ts`'s own
+   * header for the exact rule (VAT first, exact name fallback, ambiguity never silently resolved,
+   * NEVER a created client). Surfaced separately from `extraction.fields` so the upload dialog can
+   * tell the user apart from a silent pre-fill: `outcome: 'matched'` means `extraction.fields` above
+   * ALSO carries a `supplierClient` id (the same generic pre-fill mechanism every other extracted
+   * field already uses — `custom/received-invoice-upload-button.tsx`'s own `buildInitialData`);
+   * anything else means it does not, and the screen says so.
+   */
+  supplierMatch: SupplierMatchResult;
 }
 
 @Injectable()
@@ -77,11 +93,25 @@ export class ReceivedInvoicesService {
 
     const extraction = await extractReceivedInvoiceFields(bytes, input.mime, input.fileName);
 
+    // TODO_PRODUIT.md T5(b) — "au dépôt": the ONLY point this runs. `data.supplierClient` (a
+    // 'reference' field, see received-invoice.descriptor.ts) is filled in HERE, exactly like every
+    // other extracted field, then simply flows through the ordinary create form — "receive" never
+    // re-runs this (see that action's own header on why).
+    const supplierMatch = await reconcileSupplierClient(companyId, {
+      vatId: extraction.fields.supplierVatId,
+      supplierName: extraction.fields.supplier,
+    });
+    const fields: Record<string, unknown> = { ...extraction.fields };
+    if (supplierMatch.outcome === 'matched') {
+      fields.supplierClient = supplierMatch.clientId;
+    }
+
     return {
       fileRef,
       fileName: input.fileName,
       mime: input.mime,
-      extraction: { syntax: extraction.syntax, fields: { ...extraction.fields } },
+      extraction: { syntax: extraction.syntax, fields },
+      supplierMatch,
     };
   }
 

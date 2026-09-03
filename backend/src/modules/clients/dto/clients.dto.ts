@@ -28,6 +28,14 @@ export class EditClientsDto {
   // (schema.prisma's own `@default(BUSINESS)`) — every existing caller that never sends this field
   // keeps today's behavior exactly.
   kind?: ClientKind;
+  // TODO_PRODUIT.md T5(b) — the received-invoice reconciliation's own "role", a PLAIN, INDEPENDENT
+  // boolean (never folded into `kind` above — see schema.prisma's own `Client.isSupplier` comment for
+  // the full "why"). Optional, defaults to `false` at the DB level: every existing caller that never
+  // sends this field keeps today's behaviour exactly. Normally set by
+  // `received-invoices/supplier-reconciliation.ts` (auto-match or a manual link), but also editable
+  // by hand here — nothing prevents a company from flagging a supplier before ever receiving an
+  // invoice from it.
+  isSupplier?: boolean;
   isActive: boolean;
   identifiers?: IdentifierEntry[];
 }

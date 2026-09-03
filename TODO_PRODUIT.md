@@ -210,9 +210,23 @@ un test e2e prouve (c) par l'écran (éditer → pays inconnu → refus nommé).
 > JSON, zéro migration) ; taux fournisseur hors catalogue société (déviation documentée) ;
 > total-vs-somme : avertissement nommé persisté (data.lineTotalWarnings), tolérance max(1, n)
 > centimes, jamais bloquant. jest 1960, mutations mordantes (ancre CII, persistance, tolérance).
-> (b) rapprochement : DÉCISION PRISE — Client + rôle supplier. (c) OCR : DÉCISION PRISE — service
-> cloud VIA LE SYSTÈME DE PLUGINS (le point d'extension au cœur, le provider en plugin) ; choix du
-> provider cloud à poser au lancement de (c).
+> (b) ✅ **FAIT** (2026-09-03) — Client + rôle supplier (décision mandant) réalisé comme un booléen
+> SÉPARÉ `isSupplier` (jamais une extension de `kind` : B2G routing et "est fournisseur" sont deux
+> faits orthogonaux — un gouvernement peut être fournisseur, un fournisseur peut aussi être facturé).
+> Extraction étendue : `supplierVatId` lu au même niveau que `supplier` (CII
+> `SpecifiedTaxRegistration/ID` schemeID="VA" · UBL `PartyTaxScheme/CompanyID`, scopé pour ne jamais
+> lire le SIRET voisin). Auto-rapprochement AU DÉPÔT (`supplier-reconciliation.ts`) : TVA d'abord
+> (normalisée espaces/casse), nom EXACT en repli si zéro match VAT, ambiguïté nommée et JAMAIS
+> résolue en silence (ni par repli sur le nom), aucune création de Client. Champ dédié
+> `supplierClient` (reference, entité "supplier" — distincte de "client", qui exclut désormais les
+> fournisseurs purs de son propre picker facturable). Rôle posé au lien (auto ou manuel) dans
+> l'action "receive", jamais défait. Migration `20260903120000_add_client_is_supplier` (additive,
+> défaut `false`) sur les DEUX bases. jest 1989 (+29 sur ce sous-chantier, dont 18 réels contre
+> Postgres pour le rapprochement), 1 mutation mordante rejouée (scoping companyId retiré →
+> `supplier-reconciliation.spec.ts` vire au rouge, un client d'une autre société se rapproche à
+> tort). Cypress 36 (11/11, dont 3 nouveaux) + 05 (29/29, dont 3 nouveaux), Firefox. (c) OCR :
+> DÉCISION PRISE — service cloud VIA LE SYSTÈME DE PLUGINS (le point d'extension au cœur, le
+> provider en plugin) ; choix du provider cloud à poser au lancement de (c).
 
 Trois sous-chantiers, DANS CET ORDRE, chacun sa tâche :
 (a) **Lignes détaillées** : le document reçu porte ses lignes (désignation, quantité, HT, taux,

@@ -4,6 +4,8 @@ import { join } from 'node:path';
 
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
+import prisma from '@/prisma/prisma.service';
+
 import { computeArtifactHash } from '../archive/hashing';
 import * as persistence from '../persistence';
 import { ReceivedInvoicesService } from './received-invoices.service';
@@ -35,6 +37,17 @@ const MINIMAL_CII_XML = `<?xml version="1.0" encoding="utf-8"?>
     </ram:ApplicableHeaderTradeSettlement>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;
+
+/** Same fixture, plus a seller VAT identifier (`SpecifiedTaxRegistration`) — TODO_PRODUIT.md T5(b)'s
+ *  own wiring test below needs the ONE extra fact `reconcileSupplierClient` reads. */
+function ciiXmlWithSellerVat(vatId: string): string {
+  return MINIMAL_CII_XML.replace(
+    '<ram:SellerTradeParty><ram:Name>Fournisseur Test SARL</ram:Name></ram:SellerTradeParty>',
+    `<ram:SellerTradeParty><ram:Name>Fournisseur Test SARL</ram:Name>` +
+      `<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${vatId}</ram:ID></ram:SpecifiedTaxRegistration>` +
+      `</ram:SellerTradeParty>`,
+  );
+}
 
 describe('ReceivedInvoicesService', () => {
   let dir: string;
@@ -142,6 +155,102 @@ describe('ReceivedInvoicesService', () => {
       await expect(
         service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', base64 }),
       ).resolves.toMatchObject({ extraction: { syntax: 'CII' } });
+    });
+  });
+
+  /**
+   * TODO_PRODUIT.md T5(b) — "au dépôt", proven end-to-end through the REAL `upload()` pipeline: real
+   * Prisma for the Client/PartyIdentifier side (this file's own `jest.mock('../persistence')` only
+   * ever touched `DocumentInstance` reads/writes, never this) — see `supplier-reconciliation.spec.ts`
+   * for the exhaustive matching-rule coverage (ambiguity, companyId scoping, name fallback); this
+   * describe only proves the WIRING: a real VAT in a real deposit reaches a real Client and comes back
+   * as `fields.supplierClient` + `supplierMatch`, exactly the shape the frontend's own
+   * `buildInitialData` (received-invoice-upload-button.tsx) already spreads verbatim.
+   */
+  describe('upload — supplier reconciliation (TODO_PRODUIT.md T5(b))', () => {
+    let companyId: string;
+    let clientId: string;
+    const KNOWN_VAT = 'FR40506070801';
+
+    beforeAll(async () => {
+      const company = await prisma.company.create({
+        data: {
+          name: 'Received Invoices Reconciliation Co',
+          foundedAt: new Date('2020-01-01'),
+          address: '1 Test Street',
+          postalCode: '00000',
+          city: 'Testville',
+          country: 'France',
+          countryCode: 'FR',
+          phone: '+33000000000',
+          email: `received-invoices-reconciliation-${Date.now()}@example.com`,
+        },
+      });
+      companyId = company.id;
+      const client = await prisma.client.create({
+        data: {
+          companyId,
+          name: 'Client Book Entry, Different Name On Purpose',
+          address: '2 Client Street',
+          postalCode: '11111',
+          city: 'Clientville',
+          country: 'France',
+          countryCode: 'FR',
+        },
+      });
+      clientId = client.id;
+      await prisma.partyIdentifier.create({
+        data: { clientId: client.id, scheme: 'VAT', value: KNOWN_VAT },
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
+    });
+
+    it('a deposit whose seller VAT matches an existing client links it automatically — visible in `fields.supplierClient`', async () => {
+      const base64 = Buffer.from(ciiXmlWithSellerVat(KNOWN_VAT), 'utf-8').toString('base64');
+
+      const preview = await service.upload(companyId, {
+        fileName: 'known-supplier.xml',
+        mime: 'application/xml',
+        base64,
+      });
+
+      expect(preview.supplierMatch).toEqual({ outcome: 'matched', clientId, matchedBy: 'vat' });
+      expect(preview.extraction.fields.supplierClient).toBe(clientId);
+      // The free-text `supplier` name is untouched — it stays whatever the seller's OWN document
+      // said, independent from the linked Client's own registered name (see the descriptor's header).
+      expect(preview.extraction.fields.supplier).toBe('Fournisseur Test SARL');
+    });
+
+    it('a deposit whose seller VAT matches NOTHING never links — no client created, field left empty', async () => {
+      const base64 = Buffer.from(ciiXmlWithSellerVat('FR99988877701'), 'utf-8').toString('base64');
+
+      const preview = await service.upload(companyId, {
+        fileName: 'unknown-supplier.xml',
+        mime: 'application/xml',
+        base64,
+      });
+
+      expect(preview.supplierMatch).toEqual({ outcome: 'unmatched', reason: 'not-found' });
+      expect(preview.extraction.fields.supplierClient).toBeUndefined();
+
+      // No client was silently created for the unmatched vendor.
+      const clientsAfter = await prisma.client.count({ where: { companyId } });
+      expect(clientsAfter).toBe(1);
+    });
+
+    it('a deposit with no VAT and no name match at all is reported "no-criteria" once extraction itself yields nothing', async () => {
+      const base64 = Buffer.from('just some scanned text').toString('base64');
+
+      const preview = await service.upload(companyId, {
+        fileName: 'scan.pdf',
+        mime: 'application/pdf',
+        base64,
+      });
+
+      expect(preview.supplierMatch).toEqual({ outcome: 'unmatched', reason: 'no-criteria' });
     });
   });
 

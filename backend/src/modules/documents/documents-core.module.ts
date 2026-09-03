@@ -496,7 +496,12 @@ function buildEntityReferenceRegistry(
   articlesService: ArticlesService,
 ): EntityReferenceRegistry {
   const registry = new EntityReferenceRegistry();
-  registry.register('client', buildClientReferenceProvider(clientsService));
+  // TODO_PRODUIT.md T5(b) — "client" (the invoice's/quote's own BILLABLE picker) excludes pure
+  // suppliers; "supplier" (received-invoice's own `supplierClient` field) reuses the SAME Client
+  // table with no such exclusion — see client-reference.provider.ts's own header for the full "why"
+  // (both entities, one search implementation, two different `options`).
+  registry.register('client', buildClientReferenceProvider(clientsService, { excludeSuppliers: true }));
+  registry.register('supplier', buildClientReferenceProvider(clientsService));
   // The catalog article picker (14-articles.cy.ts, quote/invoice line `prefillFrom`) — the only
   // provider that implements `getFields` today (see article-reference.provider.ts).
   registry.register('article', buildArticleReferenceProvider(articlesService));

@@ -1,6 +1,7 @@
 import { updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { checkReceivedInvoiceLineTotals } from '../received-invoices/line-totals-check';
+import { markClientAsSupplier } from '../received-invoices/supplier-reconciliation';
 import { ActionRegistry } from './action-registry';
 import { registerDeleteAction } from './generic-actions';
 
@@ -38,14 +39,33 @@ export function registerReceivedInvoiceActions(
    * in sync with what was just saved; STORED, not recomputed on every read, which is what makes the
    * warning "porté par le document" (visible again on a later GET, the list, the detail screen)
    * without a second generic mechanism reading `lines` on every fetch.
+   *
+   * TODO_PRODUIT.md T5(b) — also the ONLY point that turns a supplier LINK into a persisted role:
+   * when `data.supplierClient` (the 'reference' field, entity "supplier" — see the descriptor's own
+   * header) names a client, that Client is marked `isSupplier: true`
+   * (`received-invoices/supplier-reconciliation.ts#markClientAsSupplier`) — whether the link came from
+   * upload-time auto-reconciliation (`received-invoices.service.ts#upload`, pre-filling this very
+   * field) or from the user picking one by hand: both converge on this ONE handler, so both mark the
+   * role the same way. Never called when the field is empty — a received invoice with no linked
+   * supplier touches no Client at all.
    */
   registry.register('received-invoice', 'receive', async ({ companyId, documentId, data }) => {
     const lineTotalWarnings = checkReceivedInvoiceLineTotals(data);
     const dataWithWarnings = { ...data, lineTotalWarnings };
-    return {
-      document: await upsertDocument(companyId, 'received-invoice', documentId, 'received', dataWithWarnings),
-      changed: true,
-    };
+    const document = await upsertDocument(
+      companyId,
+      'received-invoice',
+      documentId,
+      'received',
+      dataWithWarnings,
+    );
+
+    const supplierClientId = typeof data.supplierClient === 'string' ? data.supplierClient : undefined;
+    if (supplierClientId) {
+      await markClientAsSupplier(companyId, supplierClientId);
+    }
+
+    return { document, changed: true };
   });
 
   /**

@@ -101,6 +101,9 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       supplierNumber: 'INV-2026-0001',
       issueDate: '2026-08-30',
       supplier: 'Dupont Consulting SARL',
+      // TODO_PRODUIT.md T5(b) — SELLER's own `partyIdentifiers` VAT entry, round-tripped through
+      // `SellerTradeParty/SpecifiedTaxRegistration/ID` (see extraction.ts's own header).
+      supplierVatId: 'FR12345678901',
       currency: 'EUR',
       netAmount: 13600,
       vatAmount: 2720,
@@ -125,6 +128,10 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       supplierNumber: 'INV-2026-0001',
       issueDate: '2026-08-30',
       supplier: 'Dupont Consulting SARL',
+      // TODO_PRODUIT.md T5(b) — same SELLER identifier, this time round-tripped through
+      // `AccountingSupplierParty/.../PartyTaxScheme/CompanyID` (see extraction.ts's own header on why
+      // this is scoped to THAT block, never `PartyLegalEntity`'s own, sibling `CompanyID`).
+      supplierVatId: 'FR12345678901',
       currency: 'EUR',
       netAmount: 13600,
       vatAmount: 2720,
@@ -192,6 +199,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
         supplierNumber: 'INV-2026-0001',
         issueDate: '2026-08-30',
         supplier: 'Dupont Consulting SARL',
+        supplierVatId: 'FR12345678901', // Factur-X is the SAME CII — see the CII test above.
         currency: 'EUR',
         netAmount: 13600,
         vatAmount: 2720,

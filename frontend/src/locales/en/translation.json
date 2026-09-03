@@ -14,7 +14,8 @@
     "stats": {
       "active": "Active",
       "inactive": "Inactive",
-      "total": "Total Clients"
+      "total": "Total Clients",
+      "suppliers": "Suppliers"
     },
     "emptyState": {
       "noClients": "No clients yet",
@@ -26,6 +27,9 @@
       "status": {
         "active": "Active",
         "inactive": "Inactive"
+      },
+      "role": {
+        "supplier": "Supplier"
       },
       "tooltips": {
         "view": "View client details",
@@ -102,6 +106,10 @@
           "label": "Client kind",
           "business": "Business",
           "government": "Government / public body"
+        },
+        "isSupplier": {
+          "label": "Supplier",
+          "description": "This company buys from this client too — set automatically when a received invoice is linked to it, but can also be set by hand."
         },
         "b2gHint": {
           "knownTitle": "This country requires a specific channel/format for public-sector invoices",
@@ -3273,6 +3281,9 @@
           "supplier": {
             "label": "Supplier"
           },
+          "supplierClient": {
+            "label": "Linked supplier"
+          },
           "supplierNumber": {
             "label": "Supplier's invoice number"
           },
@@ -3459,7 +3470,9 @@
         "title": "Upload a received invoice",
         "dropHint": "Drag and drop a PDF, or an XML/Factur-X invoice, here",
         "browse": "Browse files",
-        "error": "Upload failed"
+        "error": "Upload failed",
+        "supplierNotMatched": "No matching supplier found — choose an existing one or create it from the Clients screen.",
+        "supplierAmbiguous": "More than one client shares this supplier's VAT number or name — choose the right one by hand."
       },
       "receivedInvoiceDownload": {
         "button": "Download original file",

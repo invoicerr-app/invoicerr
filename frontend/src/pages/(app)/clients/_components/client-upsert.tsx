@@ -1,6 +1,15 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
@@ -51,6 +60,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
       // this client must use, per its own country (see the B2G hint panel further down this form).
       kind: z.enum(["BUSINESS", "GOVERNMENT"]),
+      // TODO_PRODUIT.md T5(b) — the received-invoice reconciliation's own role, a PLAIN boolean
+      // independent from "kind" above (see backend Client.isSupplier's own schema comment for why).
+      isSupplier: z.boolean().optional(),
       name: z.string().optional(),
       description: z.string().max(500, t("clients.upsert.validation.description.maxLength")).optional(),
       currency: z.string().nullable().optional(),
@@ -124,6 +136,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     defaultValues: {
       type: "COMPANY",
       kind: "BUSINESS",
+      isSupplier: false,
       name: "",
       description: "",
       currency: null,
@@ -159,6 +172,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       form.reset({
         type: client.type || "COMPANY",
         kind: client.kind || "BUSINESS",
+        isSupplier: client.isSupplier ?? false,
         name: client.name || "",
         description: client.description || "",
         currency: client.currency || null,
@@ -184,6 +198,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       form.reset({
         type: "COMPANY",
         kind: "BUSINESS",
+        isSupplier: false,
         name: "",
         description: "",
         currency: null,
@@ -434,6 +449,26 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                       </Select>
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isSupplier"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>{t("clients.upsert.fields.isSupplier.label")}</FormLabel>
+                      <FormDescription>{t("clients.upsert.fields.isSupplier.description")}</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={!!field.value}
+                        onCheckedChange={(value) => field.onChange(value)}
+                        data-cy="client-is-supplier-switch"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

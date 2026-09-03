@@ -48,7 +48,10 @@ describe('Clients E2E', () => {
             cy.get('[name="contactLastname"]').clear().type('Doe');
             cy.get('[name="description"]').clear().type('Freelance developer');
 
-            cy.get('[data-cy="client-currency-select"] button').click();
+            // TODO_PRODUIT.md T5(b) — the new "Supplier" switch (client-upsert.tsx) pushes the
+            // currency select further down the scrollable dialog, the same reason the company client
+            // test just above already scrolls its own currency select into view first.
+            cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
             cy.get('[data-cy="client-currency-select-options"]').should('be.visible');
             cy.get('[data-cy="client-currency-select"] input').type('Dollar');
             cy.get('[data-cy="client-currency-select-option-united-states-dollar-($)"]').click();
@@ -530,5 +533,95 @@ describe('Clients E2E', () => {
             cy.wait(2000);
             cy.get('[data-cy="client-status-inactive-contact@german.de"]').should('exist');
         });
+    });
+});
+
+/**
+ * TODO_PRODUIT.md T5(b) — the "Supplier" role, manual toggle on THIS screen (auto-set-at-link is
+ * covered end-to-end, by the screen, in 36-received-invoices.cy.ts). A SEPARATE top-level `describe`,
+ * deliberately placed LAST in this file and starting with its own `cy.resetAndSeed()`: the client
+ * list/filter this task adds (`clients/index.tsx`) is PAGE-SCOPED client-side filtering (10 clients
+ * per page, filtered from whatever page is currently loaded — a pre-existing product limit, out of
+ * this task's own scope to fix) — every OTHER describe above this one has, between them, created
+ * enough clients that which page holds any one of them is not something this task should have to
+ * predict. Resetting first (safe here ONLY because nothing else in this file runs afterwards) makes
+ * "at most two clients exist, both on page 1" simply true instead of assumed.
+ */
+describe('Supplier role (TODO_PRODUIT.md T5(b))', () => {
+    const api = Cypress.env('apiUrl') || 'http://localhost:4000';
+
+    before(() => {
+        cy.resetAndSeed();
+    });
+
+    beforeEach(() => {
+        cy.login();
+    });
+
+    it('toggling "Supplier" on at creation persists the role — visible on the list row without opening it', () => {
+        cy.visit('/clients');
+        cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+        cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+        cy.get('[name="name"]').clear().type('Fournisseur T5b SARL');
+        cy.selectCountry('client-country-select', 'United States');
+        cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('US55566677701');
+        cy.get('[data-cy="client-is-supplier-switch"]').scrollIntoView().click();
+        cy.get('[name="contactEmail"]').clear().type('fournisseur-t5b@example.com');
+        cy.get('[name="address"]').clear().type('1 Rue Fournisseur');
+        cy.get('[name="postalCode"]').clear().type('75000');
+        cy.get('[name="city"]').clear().type('Paris');
+
+        cy.get('[data-cy="client-submit"]').click();
+        cy.get('[data-cy="client-dialog"]').should('not.exist');
+
+        cy.get('[data-cy="client-role-supplier-fournisseur-t5b@example.com"]', {
+            timeout: 10000,
+        }).should('contain.text', 'Supplier');
+
+        cy.request<{ isSupplier?: boolean }[]>({
+            url: `${api}/api/clients/search?query=${encodeURIComponent('Fournisseur T5b SARL')}`,
+        })
+            .its('body')
+            .then((clients) => {
+                expect(clients[0].isSupplier, 'the role is really persisted, not just rendered').to.eq(true);
+            });
+    });
+
+    it('unchecked by default: a client created without touching the switch is NOT a supplier', () => {
+        cy.visit('/clients');
+        cy.contains('button', /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+        cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should('be.visible');
+
+        cy.get('[name="name"]').clear().type('Client Ordinaire T5b SARL');
+        cy.selectCountry('client-country-select', 'United States');
+        cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('US11223344551');
+        cy.get('[name="contactEmail"]').clear().type('client-ordinaire-t5b@example.com');
+        cy.get('[name="address"]').clear().type('2 Rue Ordinaire');
+        cy.get('[name="postalCode"]').clear().type('75000');
+        cy.get('[name="city"]').clear().type('Paris');
+
+        cy.get('[data-cy="client-submit"]').click();
+        cy.get('[data-cy="client-dialog"]').should('not.exist');
+
+        cy.get('[data-cy="client-role-supplier-client-ordinaire-t5b@example.com"]').should('not.exist');
+
+        cy.request<{ isSupplier?: boolean }[]>({
+            url: `${api}/api/clients/search?query=${encodeURIComponent('Client Ordinaire T5b SARL')}`,
+        })
+            .its('body')
+            .then((clients) => {
+                expect(clients[0].isSupplier, 'the backfill decision: never a supplier unless set').to.be.oneOf(
+                    [false, undefined],
+                );
+            });
+    });
+
+    it('the "Suppliers" filter on the list shows only clients flagged as suppliers', () => {
+        cy.visit('/clients');
+        cy.get('[data-cy="clients-filter-supplier"]').click();
+
+        cy.contains('Fournisseur T5b SARL', { timeout: 10000 });
+        cy.contains('Client Ordinaire T5b SARL').should('not.exist');
     });
 });

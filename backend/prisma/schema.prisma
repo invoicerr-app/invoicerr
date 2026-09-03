@@ -478,6 +478,19 @@ model Client {
   // client, and every client created without touching this field, keeps today's behavior exactly —
   // no transport/mandate precedence change unless a client is explicitly marked GOVERNMENT.
   kind             ClientKind        @default(BUSINESS)
+  // TODO_PRODUIT.md T5(b) — the received-invoice reconciliation's own "role", DELIBERATELY a separate
+  // boolean rather than folded into `kind` above: `kind` (BUSINESS/GOVERNMENT) is a B2G ROUTING fact
+  // (which channel/format an OUTBOUND invoice to this client must use), while "is this company's own
+  // SUPPLIER" is an orthogonal fact about the INBOUND direction — a government body can perfectly well
+  // be a supplier (buying office supplies from the town hall's own print shop is not fantasy), and a
+  // supplier this company also happens to invoice back stays possible too. `kind` cannot carry both
+  // without inventing composite values (BUSINESS_SUPPLIER, GOVERNMENT_SUPPLIER, …) for a fact that has
+  // nothing to do with what `kind` already means — a plain, independent flag is the honest shape.
+  // Default false: every EXISTING client, and every one created without touching this field, is not a
+  // supplier (the backfill decision this migration encodes) — set true ONLY by the received-invoice
+  // reconciliation flow (auto-match or a manual link, `received-invoices/supplier-reconciliation.ts`),
+  // NEVER unset automatically afterwards (see that file's own header for why "one-way" is correct).
+  isSupplier       Boolean           @default(false)
   salutation       String            @default("Mr") // Mr, Ms, Mrs (We need a default value for the invoice generation)
   sex              String            @default("other") // male, female, other (We need a default value for the invoice generation)
   title            String            @default("Doctor") // Doctor, Professor (We need a default value for the invoice generation)

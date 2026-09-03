@@ -17,6 +17,16 @@ export interface UploadReceivedInvoiceVariables {
   base64: string
 }
 
+/** TODO_PRODUIT.md T5(b) — mirrors the backend's `SupplierMatchResult`
+ *  (received-invoices/supplier-reconciliation.ts). `outcome: 'matched'` means `extraction.fields`
+ *  below ALSO carries a `supplierClient` id (the SAME generic pre-fill mechanism every other
+ *  extracted field already uses — see `buildInitialData` in
+ *  `custom/received-invoice-upload-button.tsx`); anything else, the screen says so (see that file). */
+export type SupplierMatchResult =
+  | { outcome: "matched"; clientId: string; matchedBy: "vat" | "name" }
+  | { outcome: "unmatched"; reason: "no-criteria" | "not-found" }
+  | { outcome: "ambiguous"; matchedBy: "vat" | "name"; candidateIds: string[] }
+
 /** Mirrors the backend's `UploadReceivedInvoicePreview` (received-invoices.service.ts). Never a
  *  persisted document — see that file's own header: this is a PREVIEW the upload dialog feeds
  *  straight into a pre-filled "create received-invoice" form. */
@@ -30,6 +40,7 @@ export interface UploadReceivedInvoicePreview {
     syntax: string | null
     fields: Record<string, unknown>
   }
+  supplierMatch: SupplierMatchResult
 }
 
 /** `POST /api/documents/received-invoices/upload` — refuses (a NAMED `ApiError`) only an exact

@@ -11,6 +11,7 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-k
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import * as supplierReconciliation from './received-invoices/supplier-reconciliation';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
@@ -19,6 +20,12 @@ jest.mock('./persistence');
 // default "allowed" is (re-)installed in beforeEach, since `afterEach(() => jest.resetAllMocks())`
 // would otherwise wipe it after the first test.
 jest.mock('./country-policy/country-policy');
+// TODO_PRODUIT.md T5(b) — mocked for the SAME reason as `./persistence` above: this file's own
+// concern is DocumentsService's WIRING ("receive" calls `markClientAsSupplier` with the right args
+// when a link is present, never otherwise"), not `markClientAsSupplier`'s own real Prisma behaviour
+// (companyId scoping, idempotence — proven for real in
+// `received-invoices/supplier-reconciliation.spec.ts`).
+jest.mock('./received-invoices/supplier-reconciliation');
 
 /**
  * Root TODO item 18 ("réception de factures") — the FIFTH document type written entirely as data.
@@ -180,6 +187,33 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     });
 
     expect(result.document).toMatchObject({ status: 'received' });
+  });
+
+  // TODO_PRODUIT.md T5(b) — "le rôle posé au moment du lien": both the auto-match (upload time) and a
+  // manual pick converge on THIS one handler, so both are proven by the same two tests.
+  it('"receive" marks the linked client as a supplier when `data.supplierClient` is set', async () => {
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue(
+      fakeRecord({ data: { supplierClient: 'client-9' } }),
+    );
+    const { service } = buildService();
+
+    await service.runAction('company-1', 'received-invoice', 'receive', {
+      data: { supplier: 'Acme Supplies', supplierClient: 'client-9' },
+    });
+
+    expect(supplierReconciliation.markClientAsSupplier).toHaveBeenCalledTimes(1);
+    expect(supplierReconciliation.markClientAsSupplier).toHaveBeenCalledWith('company-1', 'client-9');
+  });
+
+  it('"receive" never touches any client when no supplier is linked', async () => {
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue(fakeRecord());
+    const { service } = buildService();
+
+    await service.runAction('company-1', 'received-invoice', 'receive', {
+      data: { supplier: 'Acme Supplies' },
+    });
+
+    expect(supplierReconciliation.markClientAsSupplier).not.toHaveBeenCalled();
   });
 
   it('"approve": received -> approved', async () => {

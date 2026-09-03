@@ -14,10 +14,24 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *
  * ## Fields — why these, and why so little is `required`
  *
- *  - `supplier` (text, NOT a `reference` to the "client" entity): a supplier is not a client. This
- *    core's `client-reference.provider.ts` resolves entries in `Company`'s own client book, which
- *    has nothing to do with who sold something TO this company. A future "supplier" address book is
- *    plausible but is not asked for here — see this task's own item 18 scope note below.
+ *  - `supplier` (text, free-form): the seller's NAME as printed/extracted, kept even once
+ *    `supplierClient` below is linked — the two are independent: this one is what the SUPPLIER wrote
+ *    on their own document (may drift from the linked client's own registered name — a trading name,
+ *    a typo, a different legal entity in the same group), the other is THIS company's own bookkeeping
+ *    link. Neither ever overwrites the other.
+ *  - `supplierClient` (TODO_PRODUIT.md T5(b), `reference`, entity "supplier") — the persistent
+ *    fournisseur this invoice is linked to, reusing `Client` (mandant's decision: a role, not a
+ *    dedicated entity — see `Client.isSupplier`'s own schema comment for the full "why a separate
+ *    boolean, never `kind`"). Registered under its OWN entity id ("supplier",
+ *    `documents-core.module.ts`), NOT "client": the invoice's/quote's own `client` field is the
+ *    BILLABLE picker and deliberately EXCLUDES pure suppliers from its search
+ *    (`references/client-reference.provider.ts`) so linking suppliers here never clutters who this
+ *    company invoices — "supplier" searches the SAME `Client` table with NO such exclusion (any
+ *    client can become a supplier, and an already-flagged one must stay findable to link a SECOND
+ *    received invoice to it). Auto-filled at UPLOAD time when the deposit's own VAT/name resolves
+ *    unambiguously (`received-invoices/supplier-reconciliation.ts`); left EMPTY otherwise — never a
+ *    guessed link, never a silently created Client. `required: false`, same as everything else here:
+ *    a plain scanned PDF with nothing to match against is still a valid record.
  *  - `supplierNumber`: the invoice number is the SUPPLIER'S OWN — this type deliberately declares no
  *    `numbering` (see that field's own comment below): assigning OUR sequence to somebody else's
  *    invoice would be a fabricated identifier, not a recorded fact.
@@ -160,7 +174,20 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
         kind: 'text',
         label: 'Supplier',
         required: false,
-        helpText: "The supplier's name — free text, not a reference to this company's own client book.",
+        helpText:
+          "The supplier's name, as printed on their own document — free text, independent from " +
+          '"Linked supplier" below.',
+      },
+      {
+        key: 'supplierClient',
+        kind: 'reference',
+        label: 'Linked supplier',
+        required: false,
+        entity: 'supplier',
+        helpText:
+          "This company's own persistent record for the supplier — auto-matched by VAT number or " +
+          'exact name when the deposited file carries one; otherwise choose an existing one or create ' +
+          'it from the Clients screen.',
       },
       {
         key: 'supplierNumber',

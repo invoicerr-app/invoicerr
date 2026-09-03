@@ -48,6 +48,16 @@ const PLAIN_PDF_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-p
 // Never a hand-written fixture: see this file's own header and received-invoices/extraction.spec.ts.
 const MISMATCH_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-mismatch.xml";
 
+// TODO_PRODUIT.md T5(b) — rapprochement fournisseur. Same generation method as every fixture above
+// (`ciiFormatProvider`, real EN 16931 CII, never hand-written XML). `KNOWN_VAT_FIXTURE`'s own seller
+// carries the SAME VAT (FR12345678901) as the client `createClientByScreen` creates below but a
+// DIFFERENT name ("Fixture Fournisseur Reconnu SARL" vs "Fournisseur Confirmé SARL") — the auto-link
+// this file proves can therefore only be happening THROUGH THE VAT, never a name coincidence.
+// `UNKNOWN_VAT_FIXTURE` shares neither with any client this suite ever creates.
+const KNOWN_VAT_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-known-vat.xml";
+const UNKNOWN_VAT_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-unknown-vat.xml";
+const SUPPLIER_VAT = "FR12345678901";
+
 interface ReceivedInvoiceInstance {
 	id: string;
 	status: string;
@@ -79,6 +89,36 @@ function confirmReceive() {
 	cy.get('[data-cy="document-action-receive"]').click();
 	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 	cy.get('[data-cy="document-form"]').should("not.exist");
+}
+
+// TODO_PRODUIT.md T5(b) — creates a client PAR L'ÉCRAN (never seeded/via API): the whole point of
+// this task's own screen coverage. Same France + LEGAL_ID(+VAT) pattern already proven in
+// 05-clients.cy.ts's own "accepts valid EU VAT format" case.
+function createClientByScreen(name: string, opts?: { vat?: string }) {
+	cy.visit("/clients");
+	cy.contains("button", /add|new|créer|ajouter/i).click();
+	cy.get('[data-cy="client-dialog"]', { timeout: 10000 }).should("be.visible");
+	cy.get('[name="name"]').clear().type(name);
+	cy.selectCountry("client-country-select", "France");
+	cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
+	if (opts?.vat) {
+		cy.get('[data-cy="client-identifier-VAT"]').clear().type(opts.vat);
+	}
+	// ASCII-only slug — an accented character (e.g. "Confirmé") makes an otherwise-plausible email
+	// fail the form's own RFC-ish check ("Email format is invalid"), which this mutation hit for real.
+	const emailSlug = name
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-");
+	cy.get('[name="contactEmail"]')
+		.clear()
+		.type(`${emailSlug}@example.com`);
+	cy.get('[name="address"]').clear().type("1 Rue du Test");
+	cy.get('[name="postalCode"]').clear().type("75000");
+	cy.get('[name="city"]').clear().type("Paris");
+	cy.get('[data-cy="client-submit"]').click();
+	cy.get('[data-cy="client-dialog"]').should("not.exist");
 }
 
 describe("Réception de factures — root TODO item 18", () => {
@@ -294,6 +334,108 @@ describe("Réception de factures — root TODO item 18", () => {
 					expect(warnings.some((w) => w.includes("net / HT"))).to.eq(true);
 					expect(warnings.some((w) => w.includes("VAT"))).to.eq(true);
 					expect(warnings.some((w) => w.includes("gross / TTC"))).to.eq(true);
+				});
+		});
+	});
+
+	it("TODO_PRODUIT.md T5(b) — un client existant portant la TVA du vendeur, créé PAR L'ÉCRAN, se relie automatiquement au dépôt", () => {
+		createClientByScreen("Fournisseur Confirmé SARL", { vat: SUPPLIER_VAT });
+
+		cy.visit("/documents/received-invoice");
+		uploadAndOpenForm(KNOWN_VAT_FIXTURE);
+
+		// Visible AVANT même de confirmer : le champ référence affiche déjà le client résolu — le
+		// même pré-remplissage générique que tout autre champ extrait (buildInitialData).
+		cy.get('[data-cy="document-field-supplierClient-input"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Fournisseur Confirmé SARL",
+		);
+		// Le nom LIBRE (celui du vendeur sur SA propre facture) reste indépendant du lien.
+		cy.get('[data-cy="document-field-supplier-input"]').should(
+			"have.value",
+			"Fixture Fournisseur Reconnu SARL",
+		);
+
+		confirmReceive();
+
+		listReceivedInvoices().then((instances) => {
+			const created = instances.find((i) => i.data.supplier === "Fixture Fournisseur Reconnu SARL");
+			expect(created, "le document créé est bien retrouvé par l'API").to.exist;
+			expect(created?.data.supplierClient, "le lien auto est bien persisté").to.be.a("string");
+
+			cy.request<{ id: string; isSupplier?: boolean }[]>({
+				url: `${api}/api/clients/search?query=${encodeURIComponent("Fournisseur Confirmé SARL")}`,
+			}).then((res) => {
+				const client = res.body[0];
+				expect(client, "le client créé par l'écran est bien retrouvé par l'API").to.exist;
+				expect(client.id).to.eq(created?.data.supplierClient);
+				expect(client.isSupplier, "le rôle supplier est posé au moment du lien (auto)").to.eq(true);
+			});
+		});
+	});
+
+	it("TODO_PRODUIT.md T5(b) — un dépôt d'un vendeur INCONNU ne relie rien, et l'écran le dit", () => {
+		uploadAndOpenForm(UNKNOWN_VAT_FIXTURE);
+
+		// Le champ reste vide — jamais un lien deviné.
+		cy.get('[data-cy="document-field-supplierClient-input"]').should(
+			"not.contain.text",
+			"Fournisseur",
+		);
+		// … et l'écran le dit : un message NOMMÉ, pas un silence.
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "No matching supplier");
+
+		confirmReceive();
+
+		listReceivedInvoices().then((instances) => {
+			const created = instances.find((i) => i.data.supplier === "Fixture Fournisseur Inconnu SARL");
+			expect(created, "le document créé malgré l'absence de lien est bien retrouvé").to.exist;
+			expect(created?.data.supplierClient, "aucun lien deviné, jamais un fournisseur créé en douce").to.be
+				.oneOf([undefined, ""]);
+		});
+	});
+
+	it("TODO_PRODUIT.md T5(b) — lier un fournisseur À LA MAIN pose le rôle 'supplier', visible côté clients", () => {
+		createClientByScreen("Fournisseur Manuel SARL");
+
+		cy.visit("/documents/received-invoice");
+		listReceivedInvoices().then((instances) => {
+			const target = instances.find((i) => i.data.supplier === "Fixture Fournisseur Inconnu SARL");
+			expect(target, "le document 'vendeur inconnu' du test précédent existe toujours").to.exist;
+
+			cy.get(`[data-cy="document-list-row-${target!.id}"]`, { timeout: 10000 }).click();
+			cy.get('[data-cy="document-edit-dialog"]', { timeout: 10000 }).should("be.visible");
+
+			cy.get('[data-cy="document-field-supplierClient-input"] button').first().click({ force: true });
+			cy.get('[data-cy="document-field-supplierClient-input-options"]', { timeout: 10000 }).should(
+				"be.visible",
+			);
+			cy.get('[data-cy="document-field-supplierClient-input"] input').type("Fournisseur Manuel SARL");
+			cy.get(
+				'[data-cy="document-field-supplierClient-input-option-fournisseur-manuel-sarl"]',
+				{ timeout: 10000 },
+			).click();
+
+			cy.get('[data-cy="document-action-receive"]').click();
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+
+			cy.request<ReceivedInvoiceInstance>({
+				url: `${api}/api/documents/${target!.id}?typeId=received-invoice`,
+			})
+				.its("body")
+				.then((updated) => {
+					expect(updated.data.supplierClient, "le lien MANUEL est bien persisté").to.be.a("string");
+
+					cy.request<{ id: string; isSupplier?: boolean }[]>({
+						url: `${api}/api/clients/search?query=${encodeURIComponent("Fournisseur Manuel SARL")}`,
+					}).then((res) => {
+						const client = res.body[0];
+						expect(client.id).to.eq(updated.data.supplierClient);
+						expect(
+							client.isSupplier,
+							"visible côté clients : le rôle supplier est posé même pour un lien MANUEL",
+						).to.eq(true);
+					});
 				});
 		});
 	});

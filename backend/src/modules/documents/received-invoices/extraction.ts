@@ -57,6 +57,24 @@
  * An unparseable rate is passed through as-is rather than dropped: `compute-totals.ts`'s own
  * `extractVatRate` already turns a non-numeric 'select' value into its existing "no usable VAT rate —
  * counted in net only" warning — reused, not re-implemented, here.
+ *
+ * ## Supplier VAT extraction — TODO_PRODUIT.md T5(b)
+ *
+ * BT-31 (seller VAT identifier), read one level deeper than `supplier` (the name) already scopes:
+ *  - CII: `SellerTradeParty/SpecifiedTaxRegistration/ID` (`schemeID="VA"` — the attribute itself is
+ *    never checked, since `extractText` reads by tag name only, same discipline as every other field
+ *    here: a producer that always sets `schemeID="VA"` for THIS element, per the standard, is not a
+ *    fact worth re-verifying by attribute matching).
+ *  - UBL: `AccountingSupplierParty/.../PartyTaxScheme/CompanyID` — scoped to the `PartyTaxScheme`
+ *    block specifically, never a bare `extractText(supplierBlock, 'CompanyID')`: `PartyLegalEntity`
+ *    (sibling block, same party) ALSO carries its own `CompanyID` (the seller's registration/SIRET —
+ *    see `build-semantic-invoice.ts`), and reading unscoped would risk picking that one up instead the
+ *    moment a producer emits `PartyLegalEntity` before `PartyTaxScheme` (both extraction and dump both
+ *    verified against `cii-provider.ts`/`ubl-provider.ts`'s own real output, never assumed).
+ *
+ * Consumed by `received-invoices/supplier-reconciliation.ts` — never validated, formatted, or
+ * otherwise interpreted here: this module stays a pure structural reader, exactly like every other
+ * field it produces.
  */
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -78,6 +96,14 @@ export interface ExtractedInvoiceFields {
   supplierNumber?: string;
   issueDate?: string; // "YYYY-MM-DD"
   supplier?: string;
+  /** The supplier's OWN VAT identifier — TODO_PRODUIT.md T5(b), read from the exact same
+   *  `SellerTradeParty`/`AccountingSupplierParty` block `supplier` (the name) already scopes into, one
+   *  level deeper: CII `SpecifiedTaxRegistration/ID` (`schemeID="VA"`) · UBL `PartyTaxScheme/
+   *  CompanyID` — see this file's own header, "Supplier VAT extraction", for how these were verified
+   *  against our own outbound providers' real output. Consumed by `received-invoices/
+   *  supplier-reconciliation.ts` to auto-link a persistent Client — never used for anything else here
+   *  (this module stays a pure reader, it never queries a client book itself). */
+  supplierVatId?: string;
   currency?: string;
   netAmount?: number;
   vatAmount?: number;
@@ -177,6 +203,8 @@ function parseCii(xml: string): ExtractedInvoiceFields {
 
   const sellerBlock = extractBlock(xml, 'SellerTradeParty');
   const supplier = sellerBlock ? extractText(sellerBlock, 'Name') : undefined;
+  const sellerTaxRegBlock = sellerBlock ? extractBlock(sellerBlock, 'SpecifiedTaxRegistration') : undefined;
+  const supplierVatId = sellerTaxRegBlock ? extractText(sellerTaxRegBlock, 'ID') : undefined;
 
   const currency = extractText(xml, 'InvoiceCurrencyCode');
 
@@ -194,6 +222,7 @@ function parseCii(xml: string): ExtractedInvoiceFields {
     supplierNumber,
     issueDate,
     supplier,
+    supplierVatId,
     currency,
     netAmount,
     vatAmount,
@@ -237,6 +266,11 @@ function parseUbl(xml: string): ExtractedInvoiceFields {
   const supplier = supplierBlock
     ? (extractText(supplierBlock, 'Name') ?? extractText(supplierBlock, 'RegistrationName'))
     : undefined;
+  // Scoped to `PartyTaxScheme` specifically, never a bare lookup on `supplierBlock` — see this file's
+  // own header, "Supplier VAT extraction", on why `PartyLegalEntity`'s OWN `CompanyID` (a sibling
+  // block, the seller's registration number) would otherwise be a real risk of being picked up instead.
+  const supplierTaxSchemeBlock = supplierBlock ? extractBlock(supplierBlock, 'PartyTaxScheme') : undefined;
+  const supplierVatId = supplierTaxSchemeBlock ? extractText(supplierTaxSchemeBlock, 'CompanyID') : undefined;
 
   const legalBlock = extractBlock(xml, 'LegalMonetaryTotal');
   const netAmount = toFloat(legalBlock ? extractText(legalBlock, 'TaxExclusiveAmount') : undefined);
@@ -254,6 +288,7 @@ function parseUbl(xml: string): ExtractedInvoiceFields {
     supplierNumber,
     issueDate,
     supplier,
+    supplierVatId,
     currency,
     netAmount,
     vatAmount,
