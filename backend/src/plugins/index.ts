@@ -1,8 +1,11 @@
 import { IPluginForm } from './types';
 import { existsSync, readFileSync } from 'node:fs';
 
+import { FakeReceivedInvoiceOcrExtractor } from '@/modules/documents/received-invoices/ocr/fake-extractor';
+import { receivedDocumentExtractorRegistry } from '@/modules/documents/received-invoices/ocr/extractor';
 import { LocalStorageProvider } from './storage/providers/local/local';
 import { Logger } from '@nestjs/common';
+import { MistralOcrProvider } from './ocr/providers/mistral/mistral';
 import { PluginType } from '../../prisma/generated/prisma/client';
 import { S3StorageProvider } from './storage/providers/s3/s3';
 import { join } from 'node:path';
@@ -57,6 +60,29 @@ export class PluginRegistry {
     // Le plugin de signature servait à faire signer les DEVIS : parti avec eux.
     this.registerProvider(PluginType.STORAGE, new S3StorageProvider());
     this.registerProvider(PluginType.STORAGE, new LocalStorageProvider());
+    this.registerOcrExtractor();
+  }
+
+  /**
+   * TODO_PRODUIT.md T5(c) — deliberately NOT a `registerProvider(PluginType.OCR, ...)` call: this
+   * registers directly into `received-invoices/ocr/extractor.ts`'s OWN registry, a completely
+   * separate structure from `this.providersMap`/`Plugin` above — see `plugins/ocr/providers/mistral/
+   * mistral.ts`'s own header for why the `PluginType`/`PluginRegistry` machinery (instance-wide,
+   * Prisma-backed) does not fit this provider's final shape (a docker-compose SERVICE, credential
+   * held ONLY by that service's own container env, never by this backend or its database).
+   *
+   * Exactly ONE extractor registered per process: the real one, UNLESS `NODE_ENV=test`, where a
+   * deterministic, network-free FAKE takes its place — the SAME discipline `clients.module.ts`'s own
+   * `VAT_VALIDATION_FAKE` swap already establishes for VAT validation (see that file's own header) —
+   * so Cypress spec 36 can exercise "PDF -> pre-filled OCR proposal" through a real browser without a
+   * real `OCR_SERVICE_URL`/Mistral key anywhere in the test stack.
+   */
+  private registerOcrExtractor(): void {
+    if (process.env.NODE_ENV === 'test') {
+      receivedDocumentExtractorRegistry.register(new FakeReceivedInvoiceOcrExtractor());
+    } else {
+      receivedDocumentExtractorRegistry.register(new MistralOcrProvider());
+    }
   }
 
   private removeRemovedProviders() {

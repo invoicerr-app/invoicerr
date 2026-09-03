@@ -3472,7 +3472,10 @@
         "browse": "Browse files",
         "error": "Upload failed",
         "supplierNotMatched": "No matching supplier found — choose an existing one or create it from the Clients screen.",
-        "supplierAmbiguous": "More than one client shares this supplier's VAT number or name — choose the right one by hand."
+        "supplierAmbiguous": "More than one client shares this supplier's VAT number or name — choose the right one by hand.",
+        "ocrUnavailable": "No OCR extractor available for this document — enter the fields manually.",
+        "ocrExtracted": "Fields extracted via OCR — please review before saving.",
+        "ocrFailed": "OCR extraction failed: {{message}}"
       },
       "receivedInvoiceDownload": {
         "button": "Download original file",

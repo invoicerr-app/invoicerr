@@ -1,0 +1,8 @@
+Not a real PDF, deliberately — TODO_PRODUIT.md T5(c)'s own test-only OCR stub
+(backend/src/modules/documents/received-invoices/ocr/fake-extractor.ts) answers ANY byte stream
+carrying its exact marker, regardless of real PDF structure (it never parses PDF at all, only scans
+raw bytes) — a genuinely malformed "PDF" already degrades harmlessly through structural extraction
+(extraction.spec.ts's own coverage), which is exactly what lets this fixture exercise the OCR
+fallback path without needing a real, valid PDF binary.
+
+__INVOICERR_FAKE_OCR_MARKER__

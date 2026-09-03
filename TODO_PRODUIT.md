@@ -225,8 +225,24 @@ un test e2e prouve (c) par l'écran (éditer → pays inconnu → refus nommé).
 > Postgres pour le rapprochement), 1 mutation mordante rejouée (scoping companyId retiré →
 > `supplier-reconciliation.spec.ts` vire au rouge, un client d'une autre société se rapproche à
 > tort). Cypress 36 (11/11, dont 3 nouveaux) + 05 (29/29, dont 3 nouveaux), Firefox. (c) OCR :
-> DÉCISION PRISE — service cloud VIA LE SYSTÈME DE PLUGINS (le point d'extension au cœur, le
-> provider en plugin) ; choix du provider cloud à poser au lancement de (c).
+> DÉCISIONS PRISES — service cloud VIA LE SYSTÈME DE PLUGINS (le point d'extension au cœur, le
+> provider en plugin) ; provider de référence : Mistral Document AI ; ET (exigence mandant du
+> 2026-09-03, AMENDÉE le même jour, transmise à l'agent en cours de tâche) : l'OCR est un
+> SERVICE du docker-compose configuré par env — même image, troisième rôle (ROLE=ocr : petite API
+> HTTP /extract qui porte SEULE la MISTRAL_API_KEY dans son env) ; le backend ne connaît que
+> OCR_SERVICE_URL et son extracteur-plugin (qui valide l'architecture de plugins) est un client
+> HTTP de ce service. Mode SaaS : l'opérateur active le service avec sa clé, toute l'instance a
+> l'OCR sans rien configurer ; self-host : URL absente = absence honnête, full local. PAS de
+> config par société ni d'écran de clé (abandonné sur amendement) ; la clé ne transite jamais par
+> le backend ni sa base.
+> (c) ✅ **FAIT** (2026-09-03) — point d'extension ReceivedDocumentExtractor au cœur, plugin
+> Mistral (src/plugins/ocr/), service ROLE=ocr (3e rôle, seul porteur de la clé, boot prouvé +
+> 401 réel traversé), compose opt-in par profil, contrat Mistral cité de la doc (dont le piège
+> document_annotation = chaîne JSON), absence honnête sans OCR_SERVICE_URL prouvée inchangée.
+> Live round-trip gaté MISTRAL_OCR_LIVE=1 (clé = démarche mandant). jest 2038, 3 mutations
+> mordantes. BONUS validation : mine d'ordre de migrations trouvée et réparée (T3 horodatée avant
+> T2bis → base fraîche perdait DOCUMENT_SETTLED au rebuild d'enum ; prouvé sur base jetable,
+> réparé par 20260903170000 idempotente, re-prouvé).
 
 Trois sous-chantiers, DANS CET ORDRE, chacun sa tâche :
 (a) **Lignes détaillées** : le document reçu porte ses lignes (désignation, quantité, HT, taux,

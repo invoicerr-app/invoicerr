@@ -31,7 +31,13 @@ async function fileToBase64(file: File): Promise<string> {
  *  system fields (fileRef/fileName/fileMime) the descriptor deliberately never declares as
  *  `DocumentFieldDescriptor`s (see received-invoice.descriptor.ts's own header). `dueDate` is never
  *  present here — this core's own outbound CII/UBL builders never emit it either (see
- *  extraction.ts's own header) — left for the user to type in if they know it. */
+ *  extraction.ts's own header) — left for the user to type in if they know it.
+ *
+ *  TODO_PRODUIT.md T5(c) — an OCR-read field (`extraction.syntax === "OCR"`) lands in this SAME
+ *  `preview.extraction.fields` object, keyed identically (`ocr/extractor.ts`'s own
+ *  `ExtractedInvoiceProposal` is the EXACT `ExtractedInvoiceFields` shape) — this function needed NO
+ *  change at all to pick it up: a PRE-FILLED, still fully editable field either way, the human
+ *  reviews before confirming "receive" regardless of which reader produced it. */
 function buildInitialData(preview: UploadReceivedInvoicePreview): Record<string, unknown> {
   return {
     ...preview.extraction.fields,
@@ -88,6 +94,22 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
         } else {
           toast.info(t("documents.custom.receivedInvoiceUpload.supplierNotMatched"))
         }
+      }
+
+      // TODO_PRODUIT.md T5(c) — OCR of an unstructured PDF, ONE honest message per outcome:
+      // `not-attempted` says nothing (a structured deposit, or a non-PDF, has no OCR story to tell —
+      // the CURRENT, pre-T5(c) behaviour, proven UNCHANGED); `unavailable` covers BOTH "no OCR
+      // service deployed for this instance" and "a declining extractor" as the SAME honest absence
+      // (see `use-received-invoices.ts`'s own `OcrOutcome` header for why the two are never told
+      // apart on screen — self-host's default, always-present case); `extracted` flags the fields
+      // below as AI-read so the human reviews rather than trusting them blindly; `failed` NAMES the
+      // provider's own error — never swallowed, per this task's own root instruction.
+      if (result.ocr.outcome === "unavailable") {
+        toast.info(t("documents.custom.receivedInvoiceUpload.ocrUnavailable"))
+      } else if (result.ocr.outcome === "extracted") {
+        toast.info(t("documents.custom.receivedInvoiceUpload.ocrExtracted"))
+      } else if (result.ocr.outcome === "failed") {
+        toast.error(t("documents.custom.receivedInvoiceUpload.ocrFailed", { message: result.ocr.message }))
       }
     } catch (error) {
       // The backend's OWN message — it names the exact duplicate (SHA-256 + existing document id)

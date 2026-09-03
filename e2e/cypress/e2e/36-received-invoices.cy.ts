@@ -11,6 +11,12 @@
  * et la somme des lignes est un avertissement NOMMÉ, visible à l'écran et porté par le document,
  * jamais bloquant (`received-invoices/line-totals-check.ts`).
  *
+ * Étendu pour TODO_PRODUIT.md T5(c) ("OCR des PDF non structurés, en plugin") — un test ajouté au
+ * test "PDF pur" PRÉEXISTANT (une assertion de toast en PLUS, jamais retirée) prouvant l'absence
+ * honnête d'extracteur, et un NOUVEAU test prouvant le cas symétrique (un extracteur disponible via
+ * `OCR_SERVICE_URL` pré-remplit le formulaire, éditable) — les deux passent par un backend de test
+ * SANS aucun credential Mistral réel (`ocr/fake-extractor.ts`, voir ce fichier ou son propre header).
+ *
  * Fixtures (`cypress/fixtures/received-invoices/`) — toutes générées par NOS PROPRES providers
  * (`cii-provider.ts`/`facturx-provider.ts`), jamais du XML écrit à la main :
  *  - `supplier-invoice-cii.xml` : CII EN 16931 réel et valide. Fournisseur "Fixture Fournisseur
@@ -22,6 +28,12 @@
  *    100% réel et a été vérifié offline (extraction.spec.ts) avant d'être committé ici.
  *  - `supplier-invoice-plain.pdf` : un PDF réel sans aucun XML embarqué — le cas de l'artisan qui
  *    scanne une facture papier — donc AUCUNE ligne extraite, jamais un motif d'échec.
+ *  - `supplier-invoice-ocr-fake.pdf` (T5(c)) : PAS un vrai PDF, DÉLIBÉRÉMENT — un simple fichier
+ *    texte portant le marqueur exact du stub OCR de test (`ocr/fake-extractor.ts`, enregistré
+ *    automatiquement sous NODE_ENV=test, jamais en production) ; toute autre "fausse" extension .pdf
+ *    de cette suite (dont `supplier-invoice-plain.pdf` ci-dessus) N'A PAS ce marqueur et reçoit donc
+ *    l'issue « aucun extracteur disponible » — exactement le défaut de production (Mistral/
+ *    OCR_SERVICE_URL jamais configuré).
  *  - `supplier-invoice-mismatch.xml` (T5(a)) : même méthode — CII réel via `ciiFormatProvider` (une
  *    ligne, 5 x 100.00 @ 20% = net 500.00 / TVA 100.00 / TTC 600.00) — puis SEUL le TTC de l'en-tête
  *    (`GrandTotalAmount`/`DuePayableAmount`) est corrigé chirurgicalement à 650.00 après coup : le
@@ -41,6 +53,12 @@ const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const CII_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-cii.xml";
 const FACTURX_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-facturx.pdf";
 const PLAIN_PDF_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-plain.pdf";
+// TODO_PRODUIT.md T5(c) — OCR of unstructured PDFs. This backend's own test double
+// (`FakeReceivedInvoiceOcrExtractor`, registered automatically under NODE_ENV=test — see
+// `plugins/index.ts`'s own header) only ever answers a document that carries its exact marker
+// string in its raw bytes; every OTHER PDF (PLAIN_PDF_FIXTURE included) gets the SAME honest
+// "no OCR available" outcome production gets by default (Mistral/OCR_SERVICE_URL never configured).
+const OCR_FAKE_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-ocr-fake.pdf";
 // TODO_PRODUIT.md T5(a) — real CII from `ciiFormatProvider` (one line: 5 x 100.00 @ 20% = net 500.00
 // / VAT 100.00 / gross 600.00), with ONLY the HEADER's own GrandTotalAmount/DuePayableAmount
 // surgically bumped to 650.00 afterwards — the exact, mundane real-world case this task's own warning
@@ -222,6 +240,11 @@ describe("Réception de factures — root TODO item 18", () => {
 	it("un PDF pur (sans XML embarqué) : formulaire vide mais le fichier est quand même attaché, jamais un refus", () => {
 		uploadAndOpenForm(PLAIN_PDF_FIXTURE);
 
+		// TODO_PRODUIT.md T5(c) — l'écran DIT l'absence d'extracteur OCR, jamais un silence : le
+		// comportement d'AUJOURD'HUI (formulaire vide, saisie manuelle) reste inchangé, PROUVÉ
+		// préservé par les trois assertions de champs vides juste en dessous.
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "OCR");
+
 		cy.get('[data-cy="document-field-supplier-input"]').should("have.value", "");
 		cy.get('[data-cy="document-field-supplierNumber-input"]').should("have.value", "");
 		cy.get('[data-cy="document-field-netAmount-input"]').should("have.value", "");
@@ -252,6 +275,39 @@ describe("Réception de factures — root TODO item 18", () => {
 					expect(res.body).to.eq(original);
 				});
 			});
+		});
+	});
+
+	// TODO_PRODUIT.md T5(c) — le pendant "extracteur disponible" du test précédent : un PDF marqué
+	// pour le stub OCR de test arrive PRÉ-REMPLI, mais reste ÉDITABLE (une proposition, jamais une
+	// vérité — l'humain valide) ; le rapprochement fournisseur (T5b) et le contrôle de somme (T5a)
+	// tournent ensuite sur les MÊMES champs, exactement comme pour une extraction structurelle.
+	it("TODO_PRODUIT.md T5(c) — un PDF marqué pour le stub OCR de test arrive pré-rempli via OCR, et reste éditable", () => {
+		uploadAndOpenForm(OCR_FAKE_FIXTURE);
+
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "OCR");
+
+		cy.get('[data-cy="document-field-supplier-input"]').should("have.value", "OCR Fake Fournisseur SARL");
+		cy.get('[data-cy="document-field-supplierNumber-input"]').should("have.value", "OCR-FAKE-0001");
+		cy.get('[data-cy="document-field-netAmount-input"]').should("have.value", "500");
+		cy.get('[data-cy="document-field-vatAmount-input"]').should("have.value", "100");
+		cy.get('[data-cy="document-field-grossAmount-input"]').should("have.value", "600");
+		cy.get('input[name="lines.0.description"]').should("have.value", "OCR Fake Line");
+		cy.get('input[name="lines.0.quantity"]').should("have.value", "1");
+		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "500");
+
+		// ÉDITABLE — jamais figé : l'humain corrige le nom pré-rempli avant de confirmer.
+		cy.get('[data-cy="document-field-supplier-input"]')
+			.clear()
+			.type("Corrigé Par Humain SARL");
+
+		confirmReceive();
+
+		listReceivedInvoices().then((instances) => {
+			const created = instances.find((i) => i.data.supplier === "Corrigé Par Humain SARL");
+			expect(created, "l'édition humaine du champ pré-rempli par OCR est bien celle enregistrée").to
+				.exist;
+			expect(created?.status).to.eq("received");
 		});
 	});
 

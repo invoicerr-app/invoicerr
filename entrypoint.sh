@@ -14,6 +14,19 @@ if [ "${ROLE:-api}" = "worker" ]; then
   exec node worker.js
 fi
 
+# ROLE=ocr — TODO_PRODUIT.md T5(c). A THIRD, single-purpose role: a small HTTP service
+# (dist/src/ocr-server.js) that alone holds MISTRAL_API_KEY and does the actual OCR call for
+# unstructured received-invoice PDFs. Never nginx, never migrations, never the main backend's own
+# database — the main backend (api role) only ever knows OCR_SERVICE_URL (see docker-compose.yml's
+# own "ocr" service comment), and asks THIS process to do the extraction over plain HTTP
+# (POST /extract). This is what lets a SaaS operator turn OCR on for an entire instance by deploying
+# ONE service with their own key — self-hosters who never set OCR_SERVICE_URL never talk to this
+# role at all, the honest full-local-by-default outcome.
+if [ "${ROLE:-api}" = "ocr" ]; then
+  echo "Starting OCR service..."
+  exec node ocr-server.js
+fi
+
 echo "[DEBUG] - Listing files in /usr/share/nginx/backend"
 ls -la /usr/share/nginx/backend
 

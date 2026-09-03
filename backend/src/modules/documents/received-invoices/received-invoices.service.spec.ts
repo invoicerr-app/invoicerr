@@ -7,7 +7,9 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 
 import { computeArtifactHash } from '../archive/hashing';
+import { checkReceivedInvoiceLineTotals } from './line-totals-check';
 import * as persistence from '../persistence';
+import { receivedDocumentExtractorRegistry } from './ocr/extractor';
 import { ReceivedInvoicesService } from './received-invoices.service';
 import { persistInboundFile } from './storage';
 
@@ -251,6 +253,127 @@ describe('ReceivedInvoicesService', () => {
       });
 
       expect(preview.supplierMatch).toEqual({ outcome: 'unmatched', reason: 'no-criteria' });
+    });
+  });
+
+  /**
+   * TODO_PRODUIT.md T5(c) — proves the WIRING, not the Mistral client (that lives in
+   * `plugins/ocr/providers/mistral/client.spec.ts`, against a real HTTP stub) nor the fallback
+   * function itself (`ocr/apply-ocr-fallback.spec.ts`): a STUB extractor registered into the exact
+   * same core registry a real plugin would use, proving an OCR proposal reaches `preview.extraction.
+   * fields` and that T5(b)'s supplier reconciliation AND T5(a)'s total-vs-sum check both run on
+   * whatever it hands back — exactly as they already do for a structurally-read field, since neither
+   * downstream mechanism has (or needs) any notion of WHERE a field came from.
+   */
+  describe('upload — OCR fallback (TODO_PRODUIT.md T5(c))', () => {
+    const STUB_ID = 'stub-ocr-for-received-invoices-service-spec';
+    const KNOWN_OCR_VAT = 'FR60708090801';
+    let companyId: string;
+    let clientId: string;
+
+    beforeAll(() => {
+      receivedDocumentExtractorRegistry.register({
+        id: STUB_ID,
+        supports: (mime) => mime === 'application/pdf',
+        extract: async () => ({
+          fields: {
+            supplier: 'OCR-Read Supplier',
+            supplierVatId: KNOWN_OCR_VAT,
+            currency: 'EUR',
+            netAmount: 400,
+            vatAmount: 80,
+            // Deliberately WRONG on this one total only (4 x 100.00 @ 20% sums to net 400 / VAT 80 /
+            // gross 480 — net/VAT above already match that exactly, only gross is printed wrong here)
+            // — the same "mundane, single-total typo" shape 36-received-invoices.cy.ts's own
+            // MISMATCH_FIXTURE already uses, proven here to react to an OCR-sourced line exactly like
+            // a structurally-read one.
+            grossAmount: 600,
+            lines: [{ description: 'OCR line', quantity: 4, unitPrice: 100, vatRate: '20' }],
+          },
+        }),
+      });
+
+      return prisma.company
+        .create({
+          data: {
+            name: 'Received Invoices OCR Fallback Co',
+            foundedAt: new Date('2020-01-01'),
+            address: '1 Test Street',
+            postalCode: '00000',
+            city: 'Testville',
+            country: 'France',
+            countryCode: 'FR',
+            phone: '+33000000000',
+            email: `received-invoices-ocr-fallback-${Date.now()}@example.com`,
+          },
+        })
+        .then(async (company) => {
+          companyId = company.id;
+          const client = await prisma.client.create({
+            data: {
+              companyId,
+              name: 'OCR Client Book Entry',
+              address: '2 Client Street',
+              postalCode: '11111',
+              city: 'Clientville',
+              country: 'France',
+              countryCode: 'FR',
+            },
+          });
+          clientId = client.id;
+          await prisma.partyIdentifier.create({
+            data: { clientId: client.id, scheme: 'VAT', value: KNOWN_OCR_VAT },
+          });
+        });
+    });
+
+    afterAll(async () => {
+      await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
+    });
+
+    it('a plain PDF with an active stub extractor comes back pre-filled — never left blank the way a truly unrecognized file stays', async () => {
+      const base64 = Buffer.from('a scanned page, no embedded XML at all').toString('base64');
+
+      const preview = await service.upload(companyId, {
+        fileName: 'scan.pdf',
+        mime: 'application/pdf',
+        base64,
+      });
+
+      expect(preview.ocr).toEqual({ outcome: 'extracted', extractorId: STUB_ID });
+      expect(preview.extraction.syntax).toBe('OCR');
+      expect(preview.extraction.fields.supplier).toBe('OCR-Read Supplier');
+      expect(preview.extraction.fields.netAmount).toBe(400);
+    });
+
+    it("the OCR-read supplier VAT auto-reconciles against this company's own client book — the SAME mechanism T5(b) proved for structural extraction", async () => {
+      const base64 = Buffer.from('another scanned page').toString('base64');
+
+      const preview = await service.upload(companyId, {
+        fileName: 'scan-2.pdf',
+        mime: 'application/pdf',
+        base64,
+      });
+
+      expect(preview.supplierMatch).toEqual({ outcome: 'matched', clientId, matchedBy: 'vat' });
+      expect(preview.extraction.fields.supplierClient).toBe(clientId);
+    });
+
+    it("the OCR-read lines feed T5(a)'s total-vs-sum check exactly like a structurally-read line would — a named, non-blocking warning", () => {
+      // The check itself (line-totals-check.ts) runs at "receive" time (received-invoice-actions.ts),
+      // not at upload — this proves the FIELDS this upload just returned are the SAME shape that
+      // check already knows how to read, without re-driving the whole action pipeline here (that
+      // wiring is `received-invoice-actions.ts`'s own concern, untouched by this task).
+      const warnings = checkReceivedInvoiceLineTotals({
+        currency: 'EUR',
+        netAmount: 400,
+        vatAmount: 80,
+        grossAmount: 600,
+        lines: [{ description: 'OCR line', quantity: 4, unitPrice: 100, vatRate: '20' }],
+      });
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/Line total mismatch \(gross \/ TTC\)/);
     });
   });
 

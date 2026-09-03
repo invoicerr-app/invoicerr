@@ -51,6 +51,15 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - WORKER_INLINE=true
+
+      # TODO_PRODUIT.md T5(c) — OCR of unstructured received-invoice PDFs (Mistral Document AI).
+      # OPTIONAL: absent (the default) means this instance runs full-local, self-host — a plain
+      # scanned PDF stores with empty fields for a human to fill in, exactly as before this feature
+      # existed. Uncomment BOTH this line and the "ocr" service below (and start it with
+      # `docker compose --profile ocr up`) to enable OCR for every company on this instance — this
+      # backend NEVER sees a Mistral API key itself, only this URL; the key lives ONLY in the "ocr"
+      # service's own environment, below.
+      # - OCR_SERVICE_URL=http://ocr:3002
     depends_on:
       - invoicerr_db
       - redis
@@ -63,6 +72,24 @@ services:
       POSTGRES_DB: invoicerr_db
     volumes:
       - db_data:/var/lib/postgresql/data
+
+  # TODO_PRODUIT.md T5(c) — OPT-IN (Compose `profiles`: only starts with
+  # `docker compose --profile ocr up`, never with a plain `docker compose up`). The ONLY process in
+  # this whole deployment that ever holds a real Mistral API key — the main "invoicerr" service above
+  # only ever knows OCR_SERVICE_URL. Same image, third ROLE (see entrypoint.sh's own "one image, N
+  # roles" switch) — no new Dockerfile, no new dependency.
+  #
+  # SaaS mode: an operator enables this ONE service, ONCE, with THEIR OWN Mistral key — every company
+  # on the instance then gets OCR with nothing further to configure ("personne a besoin de le
+  # configurer" — the mandant's own wording). Self-host mode: leave this service (and
+  # OCR_SERVICE_URL above) commented out — full local, no data ever leaves the instance for OCR.
+  ocr:
+    image: ghcr.io/invoicerr-app/invoicerr:latest
+    profiles: ["ocr"]
+    environment:
+      - ROLE=ocr
+      - MISTRAL_API_KEY=your_mistral_api_key # https://console.mistral.ai — NEVER commit a real value
+    restart: unless-stopped
 
   redis:
     image: bitnami/redis:latest

@@ -561,6 +561,20 @@ enum PdfDocumentType {
 enum PluginType {
   SIGNING
   STORAGE
+  // TODO_PRODUIT.md T5(c) — added for an EARLY iteration of the OCR provider (Mistral Document AI):
+  // an in-app plugin wired through `PluginRegistry`/the Settings > Plugins screen. SUPERSEDED, later
+  // in the SAME task, once the mandant's own follow-up requirements settled on a different shape
+  // twice over — first a per-company credential (which `PluginRegistry`'s INSTANCE-WIDE "one active
+  // provider per type" rule cannot express), then the FINAL design: a dedicated docker-compose
+  // SERVICE (`ROLE=ocr`, `backend/src/ocr-server.ts`) that alone holds the Mistral API key, reached
+  // by the backend through `OCR_SERVICE_URL` alone — no `Plugin` row, no Settings screen, ever
+  // involved. LEFT IN PLACE, unused: Postgres cannot cheaply DROP a value from a live enum without
+  // rebuilding the whole type (see `20260903000000_generic_document_webhook_events`'s own migration,
+  // which had to do exactly that for `WebhookEvent`), and no `Plugin` row of this type was ever
+  // created, so leaving it costs nothing beyond one inert enum member. See
+  // `plugins/ocr/providers/mistral/mistral.ts`'s own header for the full account, including why
+  // `PDF_FORMAT`/`OIDC` (documented in developer-guide/plugin-system.md) were ALSO never added here.
+  OCR
 }
 
 model Plugin {

@@ -629,3 +629,24 @@
   l'une de ces valeurs en production) est une décision produit à part entière, pas un sous-effet
   d'une tâche webhook. Ce qui déciderait : le mandant tranche s'il veut une seconde vague de purge
   (même méthode : grep valeur par valeur, migration avec nettoyage des abonnements existants).
+
+- **Le système de plugins, vu par son premier vrai consommateur (T5c, 2026-09-03)** — le retour
+  d'architecture demandé par le mandant : DEUX mécanismes distincts répondent à « plugin ». Les
+  plugins IN-APP (PluginRegistry/PluginType) marchent (toggle, config validée) mais sont
+  INSTANCE-WIDE (un seul provider actif par type, global) et l'enum n'avait jamais grandi
+  (PDF_FORMAT/OIDC documentés, jamais ajoutés). Les plugins EXTERNES (git-clone, POST /api/plugins)
+  se chargent réellement mais N'ONT AUCUN POINT D'EXTENSION derrière eux : IPlugin = {id, name},
+  et les deux seuls consommateurs génériques (canGenerateXml/generateXml) sont des stubs (return
+  false / throw). Un plugin externe installé aujourd'hui ne peut RIEN faire. T5c a donc validé
+  l'architecture par la voie interface-étroite-au-cœur (ReceivedDocumentExtractor + registre,
+  le plugin Mistral dans src/plugins/ocr/) — pas par le chargement externe. Ce qui manquerait
+  pour que les plugins EXTERNES servent : rattacher IPlugin à de vrais points d'extension
+  (extracteurs, formats, transports ?) avec un contrat versionné. PluginType.OCR ajouté et laissé
+  inerte (documenté — Postgres ne retire pas une valeur d'enum sans reconstruire le type).
+  Décision produit à prendre avant tout chantier.
+
+- **OCR Mistral : le round-trip réel attend une clé** (T5c, 2026-09-03) : tout est prouvé jusqu'au
+  mur de credentials (boot ROLE=ocr, 401 réel de api.mistral.ai traversé de bout en bout) ; le
+  live spec mistral-client.live.spec.ts est gaté MISTRAL_OCR_LIVE=1 + MISTRAL_API_KEY
+  (LIVE_TESTING.md mis à jour). Démarche mandant : créer la clé sur console.mistral.ai, la poser
+  dans l'env du service ocr (jamais ailleurs), rejouer le live.

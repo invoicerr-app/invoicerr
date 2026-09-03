@@ -27,6 +27,22 @@ export type SupplierMatchResult =
   | { outcome: "unmatched"; reason: "no-criteria" | "not-found" }
   | { outcome: "ambiguous"; matchedBy: "vat" | "name"; candidateIds: string[] }
 
+/**
+ * TODO_PRODUIT.md T5(c) — mirrors the backend's `OcrOutcome`
+ * (`received-invoices/ocr/apply-ocr-fallback.ts`). OCR is tried ONLY for a PDF that carried nothing
+ * structural at all — every other deposit (XML, or a PDF that already had embedded CII) reports
+ * `not-attempted`. `unavailable` covers BOTH "no OCR service deployed for this instance"
+ * (`OCR_SERVICE_URL` unset — the self-host default) AND a registered-but-declining extractor: the
+ * screen only ever needs ONE honest "no OCR here, fill in by hand" message either way (see
+ * `custom/received-invoice-upload-button.tsx`'s own header for why the two are never distinguished
+ * on screen).
+ */
+export type OcrOutcome =
+  | { outcome: "not-attempted" }
+  | { outcome: "unavailable" }
+  | { outcome: "extracted"; extractorId: string }
+  | { outcome: "failed"; extractorId: string; message: string }
+
 /** Mirrors the backend's `UploadReceivedInvoicePreview` (received-invoices.service.ts). Never a
  *  persisted document — see that file's own header: this is a PREVIEW the upload dialog feeds
  *  straight into a pre-filled "create received-invoice" form. */
@@ -36,11 +52,13 @@ export interface UploadReceivedInvoicePreview {
   mime: string
   extraction: {
     /** null when nothing recognizable was found (a plain scanned PDF, an unknown XML dialect) —
-     *  never a refusal by itself, only an exact repeat (same SHA-256) is (see the mutation below). */
+     *  never a refusal by itself, only an exact repeat (same SHA-256) is (see the mutation below).
+     *  `"OCR"` once T5(c)'s own fallback filled `fields` from the OCR service instead. */
     syntax: string | null
     fields: Record<string, unknown>
   }
   supplierMatch: SupplierMatchResult
+  ocr: OcrOutcome
 }
 
 /** `POST /api/documents/received-invoices/upload` — refuses (a NAMED `ApiError`) only an exact

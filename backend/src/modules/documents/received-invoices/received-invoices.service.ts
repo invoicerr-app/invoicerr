@@ -9,12 +9,17 @@
  * `supplier-reconciliation.ts`'s own `reconcileSupplierClient`, reaching `Client`/`PartyIdentifier`
  * directly (never through `ClientsService` — see that file's own header for why) — because matching a
  * supplier is not a `DocumentInstance` concern `persistence.ts` has any business knowing about.
+ * TODO_PRODUIT.md T5(c) adds ONE further step, ONLY for a PDF structural extraction found nothing
+ * in: `ocr/apply-ocr-fallback.ts` — this service never imports a cloud provider, only that pure
+ * orchestration function and the fields it hands back (see `ocr/extractor.ts`'s own header for the
+ * full "core has no cloud dependency" reasoning).
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { computeArtifactHash } from '../archive/hashing';
 import { findOwnedDocument, listDocuments } from '../persistence';
 import { extractReceivedInvoiceFields } from './extraction';
+import { applyOcrFallback, OcrOutcome } from './ocr/apply-ocr-fallback';
 import { persistInboundFile, readInboundFile } from './storage';
 import { reconcileSupplierClient, SupplierMatchResult } from './supplier-reconciliation';
 
@@ -60,6 +65,15 @@ export interface UploadReceivedInvoicePreview {
    * anything else means it does not, and the screen says so.
    */
   supplierMatch: SupplierMatchResult;
+  /**
+   * TODO_PRODUIT.md T5(c) — the OCR fallback's own outcome (`ocr/apply-ocr-fallback.ts`), tried ONLY
+   * when this deposit was a PDF and structural extraction (above) found nothing at all. Surfaced
+   * separately from `extraction`/`supplierMatch` for the SAME reason `supplierMatch` already is
+   * (see that field's own comment): the upload dialog must be able to tell "OCR extracted this" or
+   * "no OCR available, fill in by hand" or "the OCR provider errored" apart from a merely-empty
+   * `extraction.fields` — never a silent, unexplained blank form.
+   */
+  ocr: OcrOutcome;
 }
 
 @Injectable()
@@ -91,17 +105,27 @@ export class ReceivedInvoicesService {
 
     persistInboundFile(companyId, fileRef, input.mime, bytes);
 
-    const extraction = await extractReceivedInvoiceFields(bytes, input.mime, input.fileName);
+    const structural = await extractReceivedInvoiceFields(bytes, input.mime, input.fileName);
+    // TODO_PRODUIT.md T5(c) — tried ONLY when `structural` found nothing at all AND this deposit is
+    // a PDF (see that function's own header): a working CII/UBL/Factur-X read is never
+    // second-guessed by OCR, and OCR is never attempted for anything but a PDF.
+    const {
+      syntax,
+      fields: extractedFields,
+      ocr,
+    } = await applyOcrFallback(structural, bytes, input.mime, input.fileName);
 
     // TODO_PRODUIT.md T5(b) — "au dépôt": the ONLY point this runs. `data.supplierClient` (a
     // 'reference' field, see received-invoice.descriptor.ts) is filled in HERE, exactly like every
     // other extracted field, then simply flows through the ordinary create form — "receive" never
-    // re-runs this (see that action's own header on why).
+    // re-runs this (see that action's own header on why). Reads `extractedFields`, NOT `structural.
+    // fields` — an OCR-read supplier VAT/name is exactly as eligible for auto-reconciliation as a
+    // structurally-read one (see `ocr/extractor.ts`'s own header: the proposal shape is IDENTICAL).
     const supplierMatch = await reconcileSupplierClient(companyId, {
-      vatId: extraction.fields.supplierVatId,
-      supplierName: extraction.fields.supplier,
+      vatId: extractedFields.supplierVatId,
+      supplierName: extractedFields.supplier,
     });
-    const fields: Record<string, unknown> = { ...extraction.fields };
+    const fields: Record<string, unknown> = { ...extractedFields };
     if (supplierMatch.outcome === 'matched') {
       fields.supplierClient = supplierMatch.clientId;
     }
@@ -110,8 +134,9 @@ export class ReceivedInvoicesService {
       fileRef,
       fileName: input.fileName,
       mime: input.mime,
-      extraction: { syntax: extraction.syntax, fields },
+      extraction: { syntax, fields },
       supplierMatch,
+      ocr,
     };
   }
 

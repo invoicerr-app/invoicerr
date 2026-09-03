@@ -325,6 +325,11 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
  *    one in automatically.
  *  - supplier reconciliation (matching a received invoice against this company's own purchase
  *    records) — no such records exist in this core today.
- *  - OCR of a scanned PDF — a pure PDF upload here always yields empty fields for the user to type,
- *    never a best-effort text recognition.
+ *  - OCR of a scanned PDF — SUPERSEDED by TODO_PRODUIT.md T5(c): a PDF that structural extraction
+ *    (`received-invoices/extraction.ts`) reads nothing from is now, opportunistically, handed to
+ *    `received-invoices/ocr/apply-ocr-fallback.ts`'s own extension point — never a hard dependency
+ *    (a self-hosted instance with no `OCR_SERVICE_URL` configured, or one running an older build
+ *    without this feature at all, gets EXACTLY the behaviour this bullet originally described: empty
+ *    fields, for the user to type). This descriptor itself needed NO change for this — an
+ *    OCR-sourced field lands in the SAME `data` JSON, through the SAME fields declared above.
  */
