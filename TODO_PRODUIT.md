@@ -266,6 +266,17 @@ facture entrante — le point d'écriture est exactement le code que cette tâch
 
 ## T6 — Parcours frontend testés (P4-T02)
 
+> ✅ **FAIT** (2026-09-03) — frontend/src/__tests__/document-journeys.spec.tsx : cinq parcours
+> nommés rendant le VRAI écran ([typeId].tsx, i18n réelle, fetch mocké), assertions sur ce que
+> l'humain voit. Émission suit le SSE injecté (T1) ; rejet visible liste ET panneau ; correction
+> et annulation : ÉCARTS consignés — aucun écran dédié n'existe, les tests verrouillent le réel
+> (save-draft bloqué par policy affiché ; le garde isActionAvailable ne fuiterait jamais un
+> cancel hypothétique) ; avoir : référence + devise verrouillée + crédit au règlement. CINQ
+> mutations de code de production rouge-puis-vert (règle P4-T01), dont 2 rejouées par le
+> mandataire ; une mutation non-mordante remplacée honnêtement. vitest 51/51, en CI sans
+> changement. Incident corrigé en route : le spec posé dans pages/ avait pollué le router
+> généré — déplacé, diff routeur vide vérifié.
+
 La couverture des PARCOURS de conformité au runner Vitest (pas la couverture de lignes) :
 émission, rejet (autorité), correction, avoir, annulation — un parcours par test NOMMÉ, chacun
 échoue si l'écran cesse de montrer l'état. S'appuie sur T1 (les écrans réagissent aux
@@ -278,6 +289,10 @@ production ; en CI dans le job existant.
 
 ## Clôture du bord
 
-Quand tout est fait (ou consigné) : marquer R8/R9 dans `docs/compliance/PLAN-V2.md` (le style
-du journal existant), barrer l'entrée devises de `TODO_ISSUES.md` (le style ~~…~~ — RÉSOLU),
-mettre à jour la mémoire projet, et livrer l'appli qui tourne avec les identifiants.
+> ✅ **BORD CLOS** (2026-09-03) — les 6 tâches (+T2bis) faites et commitées : T1 ba3285cb,
+> T2 31fe4ace, T2bis 55502d3a, T3 ab41b30c, T4 92f8c40f, T5a 163e0623, T5b 0fab1884,
+> T5c 8a3cb907, T6 (dernier commit). R8/R9 marqués dans PLAN-V2 ; entrées devises et Item 18
+> barrées dans TODO_ISSUES avec leur récit ; mémoire projet à jour. Restes honnêtes, tous
+> consignés TODO_ISSUES : clé Mistral (démarche mandant), plugins externes sans points
+> d'extension (décision produit), écrans correction/annulation inexistants (constat T6),
+> verrou anti-concurrence paiements, purge élargie de l'enum WebhookEvent (~60 valeurs).

@@ -369,7 +369,15 @@ dit.*
 | **R6** | **Trois statuts F-008 affichaient leur clé i18n brute** dans le détail. `i18n:check` ne peut pas les voir : la clé est construite dynamiquement | ✅ **fait — `5158aa31`** |
 | **R7** | **Toute facture américaine était devenue inémettable** — ma garde BR-O-10 refusait `O` sans motif, et trois des quatre branches `O` du moteur n'en posaient aucun | ✅ **fait — `6e55e835`** |
 
-### R8 — Le statut ne se met pas à jour tout seul *(à faire)*
+### R8 — Le statut ne se met pas à jour tout seul *(✅ fait — T1 du bord TODO_PRODUIT, commit ba3285cb, 2026-09-02)*
+
+> Réalisé exactement comme arbitré (après P4-T01) : SSE authentifié scopé société, pont Redis
+> pub/sub worker→API (WORKER_INLINE=false tenu), le polling rétrogradé en repli 60s — ce qui rend
+> la preuve possible : le spec 28 chronomètre le badge « Send failed » à <10s du clic sans aucun
+> cy.reload(), une vitesse que le repli ne peut pas expliquer. Le critère d'acceptation est tenu
+> mot à mot (le bouton Retry — l'action send réaffichée — apparaît d'elle-même). Correctif tardif
+> consigné : la factory manuelle du ReportingRunner ne câblait pas le publisher en prod (T2bis,
+> 55502d3a).
 
 - **Constat** : après un envoi, l'écran garde l'ancien statut jusqu'à un rechargement manuel. La
   transmission est asynchrone — file BullMQ, issue projetée plus tard — et rien ne pousse le
@@ -384,7 +392,13 @@ dit.*
 - **Dépendance non évidente** : sans runner de test frontend (P4-T01), rien ne pourra vérifier ce
   comportement autrement qu'à l'œil — ce qui est précisément l'ordre retenu.
 
-### R9 — Le webhook `INVOICE_SENT` n'est plus émis du tout sur le chemin asynchrone *(à faire)*
+### R9 — Le webhook `INVOICE_SENT` n'est plus émis du tout sur le chemin asynchrone *(✅ fait — T2 + T2bis du bord TODO_PRODUIT, commits 31fe4ace et 55502d3a, 2026-09-03)*
+
+> Émis depuis la projection, exactement comme ce constat le demandait : à l'écriture « sent »
+> acquise, jamais à l'enqueue, jamais sur un échec, idempotent sous retries (409 structurel
+> prouvé). Puis généralisé sur décision mandant en vocabulaire DOCUMENT_* (SENT / SEND_FAILED /
+> AUTHORITY_EVENT / CREATED / DELETED / SETTLED) — l'enum purgé de 51 valeurs qui n'avaient
+> jamais eu d'émetteur, migration avec nettoyage des abonnements prouvée sur base non vide.
 
 Conséquence assumée de R1 : il partait pour une transmission jamais tentée, il ne part plus. Mais il
 devrait partir **quand elle aboutit réellement**, depuis la projection. Ne rien émettre vaut mieux

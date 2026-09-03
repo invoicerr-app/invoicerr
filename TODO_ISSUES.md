@@ -465,17 +465,24 @@
   moyen, mais NE SATISFAIT PAS, à lui seul, l'obligation de réception via une plateforme agréée. Ce
   qui rouvrirait ceci : le poller de l'item 10 (inbound KSeF/PDP), qui alimenterait ce même type de
   document (`received-invoice`) automatiquement plutôt que par upload manuel.
-- **Item 18 — rapprochement fournisseur et OCR hors périmètre** (2026-09-01) : aucun carnet
+- ~~**Item 18 — rapprochement fournisseur et OCR hors périmètre** (2026-09-01) : aucun carnet
   fournisseurs n'existe (le champ `supplier` est un texte libre, jamais une référence), et un PDF
   scanné n'est jamais passé à une reconnaissance de texte — un PDF pur donne toujours des champs
-  vides à saisir à la main. Ce qui rouvrirait ceci : un module carnet fournisseurs (symétrique du
-  carnet clients) pour le premier ; un service OCR (aucun credential aujourd'hui) pour le second.
-- **Item 18 — pas de lignes détaillées, montants HT/TVA/TTC seuls** (2026-09-01) : contrairement à la
+  vides à saisir à la main.~~ — **RÉSOLU** (T5b + T5c, 2026-09-03) : le fournisseur est un Client
+  à rôle `isSupplier` (décision mandant — jamais un carnet dupliqué), référence `supplierClient`,
+  auto-rapprochement par TVA extraite puis nom exact, ambiguïté nommée, jamais de création
+  silencieuse ; l'OCR est un service Docker (ROLE=ocr, profil compose opt-in, clé Mistral portée
+  par lui seul) branché au cœur par le point d'extension ReceivedDocumentExtractor + plugin.
+  RESTE (entrée dédiée plus bas) : le round-trip Mistral réel attend une clé.
+- ~~**Item 18 — pas de lignes détaillées, montants HT/TVA/TTC seuls** (2026-09-01) : contrairement à la
   facture émise (`invoice.descriptor.ts`'s own `lines`), une facture reçue ne porte que trois
   montants plats (HT/TVA/TTC), saisis ou extraits — jamais une ventilation ligne par ligne. Choix
   délibéré (v1 documente le fait qu'une facture a été reçue et pour quel montant, pas une
   re-comptabilisation ligne à ligne du document du fournisseur) plutôt qu'un oubli : voir
-  `received-invoice.descriptor.ts`'s own header.
+  `received-invoice.descriptor.ts`'s own header.~~
+  — **RÉSOLU** (T5a, 2026-09-03) : les lignes BG-25 sont lues du CII/UBL par le lecteur étendu,
+  éditables à l'écran (machinerie `array` des types sortants réutilisée), contrôle total-vs-somme
+  en avertissement nommé persisté, jamais bloquant.
 
 ~~**Le pays VENDEUR irrésolu retombe silencieusement sur FR** (constaté à la relecture de l'item 16) :
   `tax/resolve-invoice-tax.ts` et `formats/semantic/build-semantic-invoice.ts` partagent la même
