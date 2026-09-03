@@ -172,10 +172,22 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * what they are worth for a given country, and that citation lives where the claim actually is: the
  * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
  *
- * Lifecycle: FOUR statuses — "draft", "sending", "sent", "send_failed" — grown from the original two
- * by item 22, on the exact same model as the quote's own (see quote.descriptor.ts's lifecycle
- * paragraph for the full design, actions/async-send.ts for the shared mechanism, and
- * TODO_ISSUES.md for the "sent before delivery actually succeeded" limit this replaces).
+ * Lifecycle: FIVE statuses — "draft", "sending", "sent", "send_failed", and "cancelled"
+ * (TODO_CORRECTION.md C3) — the first four grown from the original two by item 22, on the exact same
+ * model as the quote's own (see quote.descriptor.ts's lifecycle paragraph for the full design,
+ * actions/async-send.ts for the shared mechanism, and TODO_ISSUES.md for the "sent before delivery
+ * actually succeeded" limit this replaces).
+ *
+ * "cancelled" is TERMINAL — nothing transitions OUT of it, on purpose: nothing in the eleven-route
+ * correction-routes vocabulary (`docs/compliance/CORRECTION-ROUTES.yaml`) that grounds this action
+ * (CANCEL_AND_REPLACE) ever describes UN-cancelling, only cancel-THEN-issue-a-SEPARATE-new-document —
+ * see "cancel" itself, below, for why its own number is therefore never touched, let alone reused.
+ * `record-payment`/`download-xml`/`share-link`/`export-accounting` are DELIBERATELY left unchanged
+ * (not extended to include "cancelled" in their own `availableWhen`) — recording a payment against a
+ * void invoice makes no sense (the invoice this transitioned FROM already excludes it the moment
+ * status stops being "sent"), and this task draws no NEW conclusion about whether a cancelled
+ * invoice's XML/share-link should keep working, so it doesn't invent one; TODO_ISSUES.md is where
+ * that question belongs if a real need for it shows up.
  * "save-draft" (invoice-actions.ts's registerInvoiceSaveDraftAction, wrapping generic-actions.ts's
  * performSaveDraft) always persists "draft", from ANY current status (`from: 'always'`) — faithful
  * to the handler's actual, literal behavior, not an invented rule; what changed under T4-c is a
@@ -203,12 +215,29 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * reconciliation (credit notes, item 8 — lettrage) needs one, without this task inventing it first on
  * a guess. "export-accounting" likewise declares no `transitions`: unimplemented, so there is no
  * handler behavior yet to declare a status effect for.
+ *
+ * "cancel" (TODO_CORRECTION.md C3, actions/invoice-actions.ts) is the ONE correction route this
+ * repo can perform LOCALLY, no authority channel involved — see correction-routes/cancel-policy.ts's
+ * own header for the full per-country reasoning (CANCEL_AND_REPLACE, four of the seven pivots).
+ * `from: ['sent', 'send_failed']` — an invoice can only be cancelled once it genuinely left "draft"
+ * (nothing to cancel before that: "save-draft" already refuses a re-edit of anything past "draft",
+ * T4-c), `to: 'cancelled'`, ALWAYS — no honest second outcome the way "send"'s own worker replay has.
+ * Gated PER COUNTRY, not by this descriptor: `documents.service.ts`'s own `resolveActionPolicy`
+ * special-cases `invoice.cancel` to read `cancel-policy.ts` instead of the ordinary country-policy/
+ * DB table — a seller country whose own correction-routes data does not found a real local
+ * cancellation (Poland, Spain, Mexico — see that file's own header) gets a 403 the exact same shape
+ * every other country-policy refusal already has, and Italy gets its own `restrictedToStatuses:
+ * ['send_failed']` (a 409, composed the same way `country-policy/schema.ts`'s own per-status
+ * narrowing already is) — this descriptor's OWN `availableWhen` stays the union (`['sent',
+ * 'send_failed']`) precisely because it is country-BLIND, the same "the descriptor never names a
+ * country" discipline every other action here already holds.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
+const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_failed'], to: 'cancelled' }];
 
 /**
  * "record-payment"'s own params — the exact same field vocabulary the document's own `fields` use
@@ -282,6 +311,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
       { id: 'sending', label: 'Sending' },
       { id: 'sent', label: 'Sent' },
       { id: 'send_failed', label: 'Send failed' },
+      { id: 'cancelled', label: 'Cancelled' },
     ],
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sending' },
@@ -436,6 +466,15 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
         // No params — see this file's header comment: which transport runs, and what it needs to
         // address the delivery, is read from the company's own configuration, not typed here.
+      },
+      {
+        id: 'cancel',
+        label: 'Cancel',
+        transitions: CANCEL_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(CANCEL_TRANSITIONS),
+        // No params — this is a plain, irreversible status flip (TODO_CORRECTION.md C3); the
+        // screen's own confirmation ("this is irreversible") lives in the correction-routes dialog
+        // (custom/invoice-correction-routes-button.tsx), never a typed input here.
       },
       {
         id: 'record-payment',

@@ -87,6 +87,23 @@ aboutit au vrai mécanisme ; la non-implémentée dit 501 ; mutations sur le fil
 
 ## C3 — L'annulation
 
+> ✅ **FAIT** (2026-09-03) — la carte pays établie sur la donnée C1 réelle : AUTHORITY_ANNULMENT
+> non-implémentable pour AUCUN pays (aucun canal KSeF/SdI/PDP n'a d'opération d'annulation câblée
+> aujourd'hui) → jamais construit. CANCEL_AND_REPLACE fonde une annulation LOCALE implémentable
+> pour FR/DE/US (sans restriction) et IT (restreinte à `send_failed`, post-scarto uniquement) ;
+> PL et MX déclarent la voie `required` mais SANS mécanisme réel derrière (PL : exécutée par
+> facture corrective, jamais une annulation ; MX : liée à une annulation SAT, le même canal
+> manquant qu'AUTHORITY_ANNULMENT) — l'inversion statut-légal ≠ implémentable, le cœur de la
+> carte. Construit : statut `cancelled` (terminal, numéro jamais réutilisé), action `cancel`
+> (sent/send_failed → cancelled), gate pays dédié (`correction-routes/cancel-policy.ts`, jamais
+> le country-policy/ générique — sa propre couverture FR/US/HU aurait bloqué DE/IT à tort),
+> `implemented` de CANCEL_AND_REPLACE désormais pays-aware dans l'API C1, webhook
+> `DOCUMENT_CANCELLED` (migration additive), contributions tranchées (annulée exclue du pending,
+> gardée dans les statistiques), écran : l'entrée vit DANS le dialogue C2 (jamais un second
+> bouton), confirmation d'irréversibilité avant action. Pas de SSE dédié (action synchrone, même
+> posture que record-payment/approve/reject). jest 2114/2114, vitest 58/58, Cypress 43 (7/7,
+> Firefox), mutation pays (cancel-policy.ts) rejouée rouge→vert en jest ET Cypress.
+
 La voie d'annulation telle que la donnée la porte (AUTHORITY_ANNULMENT / NO_DOCUMENT_BY_LAW /
 CANCEL_AND_REPLACE selon pays) : établir par la donnée quels pays ont une annulation REELLE et
 implémentable aujourd'hui (sans canal autorité branché, l'annulation « par l'autorité » est
@@ -98,5 +115,10 @@ cas implémenté et un cas 501.
 
 ## Clôture du bord
 
-Marquer ici, consigner les restes dans TODO_ISSUES.md (dont : composition vendeur×acheteur
-P3-U02, pays non-pivots sans fichier), mémoire projet, appli qui tourne + identifiants.
+> ✅ **BORD CLOS** (2026-09-03) — C1, C2, C3 faits. Restes consignés dans TODO_ISSUES.md :
+> composition vendeur×acheteur P3-U02, pays non-pivots sans fichier correction-routes/, ET un
+> gap découvert pendant C3 (country-policy/ ne couvre que FR/US/HU — DE/IT/PL/ES/MX sont
+> bloqués sur TOUTE action document aujourd'hui, sans rapport avec C3 mais qui en a limité la
+> preuve e2e). Mémoire projet à mettre à jour par le mandataire. Appli : backend :4000
+> (start:test), frontend :6284 (start:test) — identifiants john.doe@acme.org /
+> Super_Secret_Password123!.

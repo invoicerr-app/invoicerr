@@ -1,0 +1,14 @@
+-- TODO_CORRECTION.md C3 (2026-09-03) — "cancel" (actions/invoice-actions.ts) dispatches this event the
+-- instant an invoice actually commits "cancelled" to Postgres. A plain ADDITIVE `ADD VALUE`, exactly
+-- like 20260903150000_add_ocr_plugin_type and 20260902234040_payment_conversion_and_document_settled's
+-- own DOCUMENT_SETTLED before it: Postgres supports adding one enum value directly, no CREATE TYPE /
+-- swap dance needed (that dance is reserved for REMOVING a value — see
+-- 20260903000000_generic_document_webhook_events's own header).
+--
+-- Timestamped AFTER 20260903170000_restore_document_settled_after_enum_rebuild on purpose — that
+-- migration's own header is the "mine d'ordre" this repo already got bitten by once: a migration
+-- timestamped BEFORE a type-rebuild migration that does not carry its own new value forward gets that
+-- value silently destroyed on a FRESH database (migrate deploy replays lexicographically, never by
+-- commit order). This migration adds a value to an enum nothing rebuilds again after this point, so
+-- there is no equivalent risk here — the ordering discipline is kept anyway, as the rule going forward.
+ALTER TYPE "WebhookEvent" ADD VALUE 'DOCUMENT_CANCELLED';

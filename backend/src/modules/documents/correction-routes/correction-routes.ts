@@ -26,6 +26,7 @@ import {
   LegalProvenance,
   UnverifiedProvenance,
 } from './schema';
+import { resolveCancelPolicyForCountry } from './cancel-policy';
 import { defaultCorrectionRoutesCatalog } from './registry';
 
 /** Where a human adds the missing file — spelled out in the block message itself, same convention as
@@ -33,18 +34,38 @@ import { defaultCorrectionRoutesCatalog } from './registry';
 export const CORRECTION_ROUTES_DATA_DIR_HINT = 'backend/src/modules/documents/correction-routes/data';
 
 /**
- * The only route this repo actually WIRES to a real mechanism today: the credit-note document type's
- * own creation (`actions/credit-note-actions.ts`), pre-linked to the invoice it corrects (mandatory
- * reference, currency locked — see TODO_PRODUIT.md T4-d/T3). Every other one of the eleven canonical
- * routes is DECLARED (a country may `require`/`allow`/`forbid` it) but has NO implementation behind it
- * — this set is the one place that honesty is decided, so a country file changing its mind about a
- * STATUS can never accidentally change what the API claims is IMPLEMENTED, and vice versa.
+ * Routes this repo wires to a real mechanism for EVERY country that declares them — the credit-note
+ * document type's own creation (`actions/credit-note-actions.ts`), pre-linked to the invoice it
+ * corrects (mandatory reference, currency locked — see TODO_PRODUIT.md T4-d/T3). Every other one of
+ * the eleven canonical routes is DECLARED (a country may `require`/`allow`/`forbid` it) but has NO
+ * implementation behind it — this set is one of the two places (`cancel-policy.ts`'s own
+ * `CANCEL_LOCAL_AVAILABILITY` is the other) that decide honesty, so a country file changing its mind
+ * about a STATUS can never accidentally change what the API claims is IMPLEMENTED, and vice versa.
  *
- * DELIBERATELY NOT `CANCEL_AND_REPLACE`, `AUTHORITY_ANNULMENT`, etc. even where a country requires
- * them (Mexico, Germany) — TODO_CORRECTION.md C1's own scope is the catalog and the read API; wiring a
- * second real mechanism is C2/C3's job, not this one's.
+ * DELIBERATELY NOT `AUTHORITY_ANNULMENT` — no channel this repo wires (KSeF/SdI/PDP) has an
+ * annulment OPERATION behind it today, for ANY country, `required` or not (TODO_CORRECTION.md C3's
+ * own finding) — nor `CANCEL_AND_REPLACE` as a BLANKET entry here: unlike INTERNAL_CREDIT_NOTE (the
+ * credit-note screen works identically for every country), whether a local cancel is genuinely
+ * implementable for CANCEL_AND_REPLACE differs PER COUNTRY (two of the seven pivots declare it
+ * `required` with no real mechanism behind it — see cancel-policy.ts's own header) — `isImplemented`
+ * below asks `cancel-policy.ts`'s own per-country decision for that ONE route id instead of trusting a
+ * flat, country-blind set the way this one still can for INTERNAL_CREDIT_NOTE.
  */
 const IMPLEMENTED_ROUTE_IDS: ReadonlySet<CorrectionRouteId> = new Set(['INTERNAL_CREDIT_NOTE']);
+
+/**
+ * `implemented`'s real computation — see `IMPLEMENTED_ROUTE_IDS`'s own header for why
+ * `CANCEL_AND_REPLACE` alone needs the country, not just the route id. Calls `cancel-policy.ts`'s own
+ * `resolveCancelPolicyForCountry` directly (never a locally-cached copy of its whitelist) so THIS read
+ * path gets the exact same data-drift cross-check `documents.service.ts#runAction`'s own "cancel" gate
+ * already gets — a country file edited without revisiting `cancel-policy.ts`'s whitelist fails loudly
+ * here too, the moment a caller so much as LISTS the routes, not only once someone actually tries to
+ * cancel.
+ */
+function isImplemented(routeId: CorrectionRouteId, countryCode: string): boolean {
+  if (routeId === 'CANCEL_AND_REPLACE') return resolveCancelPolicyForCountry(countryCode).allowed;
+  return IMPLEMENTED_ROUTE_IDS.has(routeId);
+}
 
 /** Same shared phrasing every "GET .../correction-routes" response carries — see this module's own
  *  header for the P3-U01/P3-U02 reasoning this text is a plain-language summary of. */
@@ -106,7 +127,7 @@ export function resolveCorrectionRoutesForCountry(
       routeId: route.routeId,
       status: route.status,
       label: describeLabel(route.provenance),
-      implemented: IMPLEMENTED_ROUTE_IDS.has(route.routeId),
+      implemented: isImplemented(route.routeId, resolved),
     };
   });
 

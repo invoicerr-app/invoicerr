@@ -96,6 +96,32 @@ describe('buildInvoiceDashboardWidgets', () => {
     expect(pending.items[1]).toMatchObject({ primary: '100.00 EUR', secondary: '2026-09-10' });
   });
 
+  it('excludes a "cancelled" invoice — TODO_CORRECTION.md C3, a void invoice owes nothing and is never pending', async () => {
+    listDocuments.mockResolvedValue([
+      invoice({
+        id: 'cancelled-1',
+        status: 'cancelled',
+        data: { currency: 'EUR', dueDate: '2026-09-01', lines: [{ quantity: 1, unitPrice: 500 }] },
+      }),
+      invoice({
+        id: 'sent-1',
+        status: 'sent',
+        data: { currency: 'EUR', dueDate: '2026-09-10', lines: [{ quantity: 1, unitPrice: 50 }] },
+      }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+    const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+    const totals = widgets.filter(
+      (w) => w.kind === 'metric' && w.id.startsWith('invoice:pending-total:'),
+    ) as { id: string; value: number }[];
+
+    // The cancelled invoice's own 500 EUR never shows up as pending, and never inflates the
+    // "pending invoices total (EUR)" metric either — only the genuinely "sent" one does.
+    expect(pending.items.map((i) => i.id)).toEqual(['sent-1']);
+    expect(totals.find((t) => t.id === 'invoice:pending-total:EUR')?.value).toBe(50);
+  });
+
   it('excludes a "sent" invoice that has been SETTLED — a paid invoice is no longer pending', async () => {
     listDocuments.mockResolvedValue([
       invoice({
@@ -233,16 +259,31 @@ describe('buildInvoiceStatisticsWidgets', () => {
         status: 'draft',
         data: { issueDate: '2026-02-01', dueDate: '2026-03-01', currency: 'USD', lines: [] },
       }),
+      // TODO_CORRECTION.md C3 — unlike the dashboard's own "pending" list (see the dedicated
+      // exclusion test above), the full audit table keeps a "cancelled" invoice, exactly like
+      // "draft"/"send_failed" already are — this is a record of every invoice ever issued, not a
+      // worklist of what is still owed.
+      invoice({
+        id: 'c',
+        status: 'cancelled',
+        data: {
+          issueDate: '2026-03-01',
+          dueDate: '2026-03-31',
+          currency: 'EUR',
+          lines: [{ quantity: 1, unitPrice: 500 }],
+        },
+      }),
     ]);
 
     const widgets = await buildInvoiceStatisticsWidgets({ companyId: 'c1' });
     const table = widgets.find((w) => w.kind === 'table') as TableWidget;
     const metric = widgets.find((w) => w.kind === 'metric');
 
-    expect(metric).toMatchObject({ value: 2 });
+    expect(metric).toMatchObject({ value: 3 });
     expect(table.rows).toEqual([
       { issueDate: '2026-01-01', dueDate: '2026-01-31', status: 'sent', currency: 'EUR', total: 20 },
       { issueDate: '2026-02-01', dueDate: '2026-03-01', status: 'draft', currency: 'USD', total: 0 },
+      { issueDate: '2026-03-01', dueDate: '2026-03-31', status: 'cancelled', currency: 'EUR', total: 500 },
     ]);
   });
 });

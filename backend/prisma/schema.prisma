@@ -611,6 +611,12 @@ enum WebhookEvent {
   // an ordinary read/recompute of an already-settled document. See settlement/document-settled.ts's
   // own header for the two write paths that check for this crossing today.
   DOCUMENT_SETTLED
+  // TODO_CORRECTION.md C3 (2026-09-03) — fires the instant an invoice's own "cancel" action
+  // (actions/invoice-actions.ts) actually commits "cancelled" to Postgres — a THIRD-PARTY
+  // integration that already saw DOCUMENT_SENT for this invoice needs to know it is now void. See
+  // that handler's own header for why this is a dedicated event, never folded into DOCUMENT_DELETED
+  // (the row still exists) or a bare re-fire of DOCUMENT_SENT.
+  DOCUMENT_CANCELLED
 
   // Client events
   CLIENT_CREATED

@@ -29,10 +29,12 @@ import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { Widget } from './contributions/widgets';
 import {
+  CountryPolicyDecision,
   evaluateCountryPolicy,
   resolveAvailableDocumentTypes,
   resolveCompanyCountryCode,
 } from './country-policy/country-policy';
+import { resolveCancelPolicyForCountry } from './correction-routes/cancel-policy';
 import {
   resolveRequiredIdentifiers,
   RequiredIdentifiersDecision,
@@ -383,6 +385,36 @@ export class DocumentsService implements OnModuleInit {
    * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs —
    * never hardcoded to Germany or to "buyerReference" specifically.
    */
+  /**
+   * TODO_CORRECTION.md C3 — the one composition point BOTH `describeTypeForCompany` (below) and
+   * `runAction` (further down) call instead of `evaluateCountryPolicy` directly, so the FRONTEND view
+   * and the ACTUAL execution gate can never drift apart (the same "the API refuses exactly what the
+   * screen would refuse" discipline this whole module already holds for country policy and status).
+   *
+   * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
+   * instead of the ordinary `country-policy/` DB table. The two coverage sets are DIFFERENT ON
+   * PURPOSE — `country-policy/` mirrors three country FILES today (FR/US/HU, data/all.ts), a coverage
+   * gap this task does not close; `correction-routes/` (TODO_CORRECTION.md C1) covers all SEVEN
+   * pivots, each with the exact CANCEL_AND_REPLACE citation this one action needs. Routing "cancel"
+   * through the ordinary `evaluateCountryPolicy` would therefore either 403 it for every country that
+   * has no country-policy/ file at all (Germany, Italy — both genuinely FOUND a local cancel per
+   * cancel-policy.ts, wrongly refused for an unrelated coverage gap) or require inventing a whole new
+   * country-policy/ file for them, which would ALSO silently unblock every OTHER declared action for
+   * that country policy has an opinion on — a much bigger, unintended footprint than this one action.
+   * See `cancel-policy.ts`'s own header for the full per-country reasoning.
+   */
+  private async resolveActionPolicy(
+    companyId: string,
+    typeId: string,
+    actionId: string,
+  ): Promise<CountryPolicyDecision> {
+    if (typeId === 'invoice' && actionId === 'cancel') {
+      const countryCode = await resolveCompanyCountryCode(companyId);
+      return resolveCancelPolicyForCountry(countryCode);
+    }
+    return evaluateCountryPolicy(companyId, typeId, actionId);
+  }
+
   async describeTypeForCompany(
     companyId: string,
     typeId: string,
@@ -390,7 +422,7 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<DocumentTypeDescriptorView> {
     const descriptor = this.mergedDescriptor(typeId);
     const [decisions, countryCode] = await Promise.all([
-      Promise.all(descriptor.actions.map((action) => evaluateCountryPolicy(companyId, typeId, action.id))),
+      Promise.all(descriptor.actions.map((action) => this.resolveActionPolicy(companyId, typeId, action.id))),
       resolveCompanyCountryCode(companyId),
     ]);
 
@@ -628,7 +660,7 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
 
-    const policyDecision = await evaluateCountryPolicy(companyId, typeId, actionId);
+    const policyDecision = await this.resolveActionPolicy(companyId, typeId, actionId);
     if (!policyDecision.allowed) {
       throw new ForbiddenException(policyDecision.reason);
     }

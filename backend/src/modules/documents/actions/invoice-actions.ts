@@ -1,5 +1,6 @@
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { decimalsFor, toMinor } from '@/utils/financial';
 
@@ -11,9 +12,9 @@ import {
 import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { findOwnedDocument } from '../persistence';
+import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
-import { DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
 import { resolvePaymentConversion } from '../settlement/convert-payment';
@@ -651,6 +652,68 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       },
     }),
   );
+
+  /**
+   * "cancel" (TODO_CORRECTION.md C3) — the ONE correction route this repo performs LOCALLY, no
+   * authority channel involved. By the time this handler runs, `documents.service.ts`'s own
+   * `resolveActionPolicy` has ALREADY confirmed (via `correction-routes/cancel-policy.ts`) that this
+   * company's seller country founds a real local cancellation and, where narrower (Italy), that the
+   * record's own current status is one this country's own data actually covers — this handler never
+   * re-checks either, the same "the gate ran before the handler, the handler trusts it ran" posture
+   * every other action in this registry already holds for `evaluateCountryPolicy`.
+   *
+   * A STATUS-ONLY write (`updateDocumentStatus`, never `upsertDocument`): cancelling never rewrites a
+   * single FIELD the invoice already carries — the document that was issued keeps existing, exactly
+   * as issued, only its own status changes. `number`/`displayNumber` are therefore NEVER touched here
+   * (`updateDocumentStatus` never writes either column) — the number stays taken FOREVER, the same
+   * "never reused, never renumbered" guarantee numbering/sequence.ts already holds for a "send_failed"
+   * retry, and exactly what CANCEL_AND_REPLACE itself requires in every founding country's own data
+   * (e.g. data/fr.json: cancelling must "porter référence exacte à la facture initiale" — a reference
+   * to a number that must go on existing, unique, and never reissued to anything else).
+   *
+   * `DOCUMENT_CANCELLED` (schema.prisma's WebhookEvent) — a NEW, dedicated event: a third-party
+   * integration that already saw this invoice `DOCUMENT_SENT` needs to know it is now void, the same
+   * reasoning `DOCUMENT_SETTLED` (T3) already got its own event for rather than riding a second time
+   * on an existing one. Best-effort, same try/catch-and-log posture as every other webhook dispatch in
+   * this module — a webhook failing to dispatch must never undo a cancellation already committed.
+   *
+   * NO SSE nudge (`DocumentEventPublisher`, `queue/document-events.ts`): unlike "send"
+   * (`runAsyncSendAction` above), this is a single synchronous request/response with no SECOND
+   * process (a BullMQ worker) that could change the outcome after the caller's own response already
+   * landed — the same reasoning "record-payment" below, and `received-invoice-actions.ts`'s own
+   * "approve"/"reject", already hold for firing no SSE event of their own.
+   */
+  registry.register('invoice', 'cancel', async ({ companyId, documentId }) => {
+    if (!documentId) {
+      // Unreachable in practice — `availableWhen: ['sent', 'send_failed']` already refuses this
+      // before the handler runs (a never-saved record has no status to match) — but a handler never
+      // trusts that alone, the same defensive posture "delete" (generic-actions.ts) already holds.
+      throw new Error('Cannot cancel an invoice that has not been saved yet.');
+    }
+
+    const document = await updateDocumentStatus(companyId, 'invoice', documentId, 'cancelled');
+
+    if (deps.webhooks) {
+      try {
+        await deps.webhooks.dispatch(
+          WebhookEvent.DOCUMENT_CANCELLED,
+          buildDocumentWebhookPayload(companyId, 'invoice', document),
+        );
+      } catch (error) {
+        logger.error('Failed to dispatch a DOCUMENT_CANCELLED webhook — the invoice was still cancelled', {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId: 'invoice',
+            documentId,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+
+    return { document, changed: true, message: 'Cancelled.' };
+  });
 
   // "recipient" defaults from the client (registerEmailRecipientDefaultFromClient, quote-actions.ts)
   // is the model for this: a best-effort pre-fill, read from the CURRENT record, never required for

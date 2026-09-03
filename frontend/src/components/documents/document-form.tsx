@@ -190,7 +190,13 @@ export function DocumentForm({
   // carry a `policyBlockedReason` (see types.ts), in which case it stays ON SCREEN — rendered
   // disabled with the reason spelled out — rather than disappearing. A vanished button looks like a
   // missing feature; a disabled one with a reason looks like a rule, which is what it is.
-  const availableActions = descriptor.actions.filter((action) => isActionAvailable(action, currentStatus))
+  // "cancel" (TODO_CORRECTION.md C3) is EXCLUDED here too, same reasoning as document-list.tsx's own
+  // row-level filter: its one entry point is the correction-routes dialog (custom/invoice-correction-
+  // routes-button.tsx, with its own irreversibility confirmation), never a second generic button in
+  // this edit dialog's own action row.
+  const availableActions = descriptor.actions.filter(
+    (action) => action.id !== "cancel" && isActionAvailable(action, currentStatus),
+  )
   const firstRunnableAction = availableActions.find((action) => !action.policyBlockedReason)
 
   // The settlement section (payments, credit notes, balance — document-settlement.tsx): shown for

@@ -3033,6 +3033,9 @@
           "send": {
             "label": "Send"
           },
+          "cancel": {
+            "label": "Cancel"
+          },
           "record-payment": {
             "label": "Record payment",
             "params": {
@@ -3087,7 +3090,8 @@
           "draft": "Draft",
           "sending": "Sending",
           "sent": "Sent",
-          "send_failed": "Send failed"
+          "send_failed": "Send failed",
+          "cancelled": "Cancelled"
         },
         "widgets": {
           "invoice:pending": {
@@ -3553,6 +3557,12 @@
         "title": "Not implemented yet",
         "body": "\"{{route}}\" is declared by {{countryCode}}'s own law, but this application does not implement it yet — no mechanism runs it here today.",
         "back": "Back to routes"
+      },
+      "confirmCancel": {
+        "title": "This cannot be undone",
+        "body": "Cancelling this invoice is irreversible: it will move to \"Cancelled\" and stay there — its number is never reused. If a replacement is needed, issue a new invoice separately.",
+        "back": "Back",
+        "confirm": "Yes, cancel this invoice"
       },
       "status": {
         "required": "Required by law",

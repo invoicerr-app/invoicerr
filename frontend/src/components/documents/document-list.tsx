@@ -268,12 +268,18 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   // see quote.descriptor.ts's own comment on why) from also being a button a human could click a
   // second time mid-flight and race the queue.
   const isProcessing = instance.status === "sending"
+  // "cancel" (TODO_CORRECTION.md C3) — same reasoning as "download-xml"/"share-link" right above:
+  // declared on the descriptor purely for the backend's own country-policy/status gates
+  // (cancel-policy.ts, invoice.descriptor.ts), but its ONE entry point is the correction-routes
+  // dialog (custom/invoice-correction-routes-button.tsx) — never a second, generic "Cancel" button
+  // sitting next to it. An irreversible action gets ONE clearly-labelled door, not two.
   const availableActions = isProcessing
     ? []
     : descriptor.actions.filter(
         (action) =>
           action.id !== "download-xml" &&
           action.id !== "share-link" &&
+          action.id !== "cancel" &&
           isActionAvailable(action, instance.status),
       )
   // A LIST, not a single component — TODO_CORRECTION.md C2 added a second "invoice"/"list-row-extra"

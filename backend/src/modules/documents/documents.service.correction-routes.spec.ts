@@ -147,10 +147,16 @@ describe("DocumentsService#getCorrectionRoutes — TODO_CORRECTION.md C1's four 
     expect(internalCreditNote.implemented).toBe(true);
     expect(decision.limitation).toMatch(/buyer/i);
 
-    // Every OTHER route stays honestly unimplemented, whatever its own status.
+    // Every OTHER route stays honestly unimplemented, whatever its own status — EXCEPT
+    // CANCEL_AND_REPLACE (TODO_CORRECTION.md C3): France is one of the four seller countries
+    // `correction-routes/cancel-policy.ts` founds a real local cancellation for — see that file's own
+    // header, and `correction-routes/correction-routes.spec.ts` for the full per-country pinning.
     for (const route of decision.routes) {
-      if (route.routeId !== 'INTERNAL_CREDIT_NOTE') expect(route.implemented).toBe(false);
+      if (route.routeId !== 'INTERNAL_CREDIT_NOTE' && route.routeId !== 'CANCEL_AND_REPLACE') {
+        expect(route.implemented).toBe(false);
+      }
     }
+    expect(decision.routes.find((r) => r.routeId === 'CANCEL_AND_REPLACE')!.implemented).toBe(true);
   });
 
   it('the happy path — PL seller: INTERNAL_CREDIT_NOTE is forbidden, the canonical FR/PL inversion, still surfaced (never hidden)', async () => {

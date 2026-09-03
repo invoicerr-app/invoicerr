@@ -104,6 +104,15 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // `computeSettlement` are reused verbatim (never reimplemented) for this — see this file's own
   // header. `listCreditNotes` is ONE extra query for every "sent" invoice at once (same "one query,
   // many callers" shape `sumPaidMinorByDocument` already gives payments), not one per invoice.
+  //
+  // TODO_CORRECTION.md C3 — a "cancelled" invoice (invoice.descriptor.ts) is EXCLUDED here too, for
+  // free: `status === 'sent'` was always a STRICT equality, never a "not draft" negation, so the new
+  // status simply never matches it — nothing to add. This is the settlement/contributions decision
+  // C3 asked to establish and pin: a void invoice must never count toward "pending" (nothing is
+  // owed on a document that no longer legally exists) — invoice-contributions.spec.ts's own
+  // "excludes a 'cancelled' invoice" test proves it. The STATISTICS table below (`buildInvoice
+  // StatisticsWidgets`) deliberately keeps counting it — that table is a full audit list of every
+  // invoice ever issued, "cancelled" included, exactly like "draft"/"send_failed" already are.
   const sentInvoices = invoices.filter((invoice) => invoice.status === 'sent');
   const paidMinorByDocument = await sumPaidMinorByDocument(
     companyId,

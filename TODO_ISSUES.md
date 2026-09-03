@@ -657,3 +657,35 @@
   live spec mistral-client.live.spec.ts est gaté MISTRAL_OCR_LIVE=1 + MISTRAL_API_KEY
   (LIVE_TESTING.md mis à jour). Démarche mandant : créer la clé sur console.mistral.ai, la poser
   dans l'env du service ocr (jamais ailleurs), rejouer le live.
+
+- **Restes consignés à la clôture de TODO_CORRECTION.md (C1/C2/C3, 2026-09-03)** :
+  - **Composition vendeur×acheteur (P3-U02)** — `docs/compliance/CORRECTION-JURISDICTION.yaml`
+    documente QUATRE rattachements transfrontaliers distincts ; `correction-routes/` (C1) et
+    `cancel-policy.ts` (C3) ne lisent QUE le pays vendeur (couche "A_invoicing_rules", art. 219
+    bis — la bonne couche pour "quel document mon pays impose"), jamais la couche
+    "B_substantive_vat" (rattachée au pays de TAXATION, potentiellement l'acheteur sous
+    reverse-charge). `LIMITATION_TEXT` (correction-routes.ts) le dit à chaque réponse API, jamais
+    tu. La composition des deux N'EST PAS écrite — resterait à faire si une correction
+    transfrontalière devait un jour distinguer "quel document" de "la base taxable réductible
+    comment et jusqu'à quand".
+  - **Pays non-pivots sans fichier correction-routes/** — seuls les 7 pivots (FR/IT/PL/DE/ES/MX/US)
+    ont un fichier `correction-routes/data/*.json` ; tout autre pays (ex. BE, testé dans
+    43-correction-routes.cy.ts) reçoit le refus honnête 404 nommé, jamais une voie inventée. Étendre
+    la couverture est un travail de RECHERCHE JURIDIQUE pays par pays (le patron `docs/compliance/
+    CORRECTION-ROUTES.yaml`), pas un mécanisme à construire.
+  - **`country-policy/` ne couvre QUE FR/US/HU aujourd'hui — DE/IT/PL/ES/MX sont TOTALEMENT
+    bloqués sur TOUTE action document, pas seulement l'annulation** (découvert et vérifié
+    empiriquement pendant C3 : `POST .../invoice/actions/save-draft` sous une société PL répond
+    403 "No document action policy is declared for PL", AVANT même d'atteindre le statut ou le
+    contenu — voir `country-policy/country-policy.ts#evaluateCountryPolicy`, "aucun fichier =
+    tout est bloqué, sans repli permissif"). C'est un gap PRÉEXISTANT, sans rapport avec C3 (qui
+    lit `correction-routes/` pour "cancel", jamais `country-policy/` — voir
+    `documents.service.ts#resolveActionPolicy`'s propre en-tête sur pourquoi les deux mécanismes
+    sont délibérément tenus séparés), mais qui a directement limité la preuve e2e de C3 : le test
+    Cypress "société PL (ne fonde pas)" ne peut PAS émettre une facture SOUS PL (save-draft/send y
+    sont déjà 403) — il relit une facture émise sous FR à travers le prisme PL après coup (bascule
+    de pays post-émission, documentée dans le test lui-même). Ce qui débloquerait DE/IT/PL/ES/MX
+    dans le PRODUIT (pas seulement pour ce test) : un fichier `country-policy/data/{de,it,pl,es,
+    mx}.json` par pays, recherche juridique dédiée (même patron que fr.json/us.json), décision
+    produit sur `documentTypes` (quels types de documents chaque pays voit dans sa barre latérale)
+    — hors périmètre de C3, à trancher par une tâche dédiée.

@@ -44,16 +44,35 @@ describe('resolveCorrectionRoutesForCountry', () => {
     expect(route.label).toMatch(/^unverified — /);
   });
 
-  it('every route across all seven shipped countries is implemented=false EXCEPT INTERNAL_CREDIT_NOTE — the hard, honest mapping', () => {
+  it('every route across all seven shipped countries is implemented=false EXCEPT INTERNAL_CREDIT_NOTE (always) and CANCEL_AND_REPLACE (TODO_CORRECTION.md C3, country-aware) — the hard, honest mapping', () => {
+    // FR/DE/US ground an unrestricted local cancel, IT a narrower one (see cancel-policy.ts's own
+    // header) — PL/ES/MX do NOT, despite two of them declaring CANCEL_AND_REPLACE `required` (the
+    // exact nuance cancel-policy.ts's whitelist exists to hold).
+    const localCancelCountries = new Set(['FR', 'DE', 'US', 'IT']);
     for (const countryCode of ['FR', 'IT', 'PL', 'DE', 'ES', 'MX', 'US']) {
       const decision = resolveCorrectionRoutesForCountry(countryCode)!;
       for (const route of decision.routes) {
         if (route.routeId === 'INTERNAL_CREDIT_NOTE') {
           expect(route.implemented).toBe(true);
+        } else if (route.routeId === 'CANCEL_AND_REPLACE') {
+          expect(route.implemented).toBe(localCancelCountries.has(countryCode));
         } else {
           expect(route.implemented).toBe(false);
         }
       }
+    }
+  });
+
+  it('TODO_CORRECTION.md C3 — CANCEL_AND_REPLACE is implemented for FR/DE/US/IT (a real local cancel), never for PL/ES/MX (declared, but no real mechanism founds it)', () => {
+    for (const countryCode of ['FR', 'DE', 'US', 'IT']) {
+      const decision = resolveCorrectionRoutesForCountry(countryCode)!;
+      const route = decision.routes.find((r) => r.routeId === 'CANCEL_AND_REPLACE')!;
+      expect(route.implemented).toBe(true);
+    }
+    for (const countryCode of ['PL', 'ES', 'MX']) {
+      const decision = resolveCorrectionRoutesForCountry(countryCode)!;
+      const route = decision.routes.find((r) => r.routeId === 'CANCEL_AND_REPLACE')!;
+      expect(route.implemented).toBe(false);
     }
   });
 

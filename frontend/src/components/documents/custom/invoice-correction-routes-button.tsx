@@ -2,6 +2,7 @@ import { Scale } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import {
   type DocumentCustomSlotProps,
@@ -13,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCorrectionRoutes } from "@/hooks/queries"
+import { useCorrectionRoutes, useRunDocumentAction } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
@@ -44,9 +45,22 @@ import { cn } from "@/lib/utils"
  * needed here. Choosing a choosable-but-NOT-implemented route (every other route, for every country,
  * today) never pretends to run anything — it shows the honest "declared by the law, not implemented
  * here" panel below, the NAMED refusal TODO_CORRECTION.md C2 requires instead of a stub that fakes it.
+ *
+ * TODO_CORRECTION.md C3 — CANCEL_AND_REPLACE is the SECOND routeId this dialogue actually wires to a
+ * real mechanism, alongside INTERNAL_CREDIT_NOTE: `implemented` for it is now COUNTRY-AWARE (see the
+ * backend's `correction-routes/cancel-policy.ts`) — true only for the seller countries that genuinely
+ * found a LOCAL cancellation (FR/DE/US unrestricted, IT narrowed to "send_failed" — the backend's own
+ * `restrictedToStatuses` 409 is what actually enforces that narrowing; this dialogue never re-derives
+ * it). Choosing a choosable AND implemented CANCEL_AND_REPLACE never cancels on the first click — an
+ * irreversible action gets its own CONFIRMATION step first (`{ kind: "confirm-cancel" }` below,
+ * spelling out "this cannot be undone" in as many words), unlike INTERNAL_CREDIT_NOTE's own
+ * one-click navigation to a DRAFT (a draft is never irreversible by itself). Confirming runs the
+ * REAL "cancel" action (`useRunDocumentAction`, the exact same mutation every generic action button
+ * elsewhere in this module already uses) — never a second, bespoke endpoint.
  */
 
 const INTERNAL_CREDIT_NOTE_ROUTE_ID = "INTERNAL_CREDIT_NOTE"
+const CANCEL_AND_REPLACE_ROUTE_ID = "CANCEL_AND_REPLACE"
 
 /** An invoice has something to correct once it has actually been ISSUED — "sent"/"send_failed" are
  *  the two post-issuance statuses this module's own descriptor uses (see invoice.descriptor.ts); a
@@ -148,7 +162,10 @@ function CorrectionRouteRow({ route, onChoose }: CorrectionRouteRowProps) {
   )
 }
 
-type DialogView = { kind: "routes" } | { kind: "not-implemented"; route: CorrectionRouteView }
+type DialogView =
+  | { kind: "routes" }
+  | { kind: "not-implemented"; route: CorrectionRouteView }
+  | { kind: "confirm-cancel"; route: CorrectionRouteView }
 
 interface CorrectionRoutesDialogBodyProps {
   instance: DocumentInstance
@@ -160,6 +177,11 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   const navigate = useNavigate()
   const { data, isLoading, error } = useCorrectionRoutes("invoice", instance.id)
   const [view, setView] = useState<DialogView>({ kind: "routes" })
+  // TODO_CORRECTION.md C3 — the SAME mutation every generic action button elsewhere in this module
+  // already uses (`useRunDocumentAction`, hooks/queries/use-document-types.ts); its own
+  // `invalidateKeys: [["documents"]]` is what makes the list's own "Cancelled" badge appear the
+  // instant this dialogue closes, with no bespoke refetch wired here.
+  const cancelAction = useRunDocumentAction()
 
   const handleChoose = (route: CorrectionRouteView) => {
     if (route.routeId === INTERNAL_CREDIT_NOTE_ROUTE_ID && route.implemented) {
@@ -174,10 +196,39 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       navigate("/documents/credit-note", { state: { initialData: { invoice: instance.id } } })
       return
     }
+    if (route.routeId === CANCEL_AND_REPLACE_ROUTE_ID && route.implemented) {
+      // Irreversible — one more click, spelling that out, before anything actually runs. See this
+      // file's own header on why this differs from INTERNAL_CREDIT_NOTE's own one-click navigation.
+      setView({ kind: "confirm-cancel", route })
+      return
+    }
     // Declared by the country's own law (required/allowed) but not one this repo wires to a real
     // mechanism today — the NAMED, honest refusal TODO_CORRECTION.md C2 requires, never a button that
     // quietly does nothing or pretends to create something.
     setView({ kind: "not-implemented", route })
+  }
+
+  const handleConfirmCancel = async () => {
+    try {
+      // `data: instance.data` — `runAction` validates the FULL document payload on every action,
+      // regardless of whether the action touches it (see documents.service.ts's own comment on that
+      // gate); "cancel" itself is a pure status flip and rewrites nothing (invoice-actions.ts's own
+      // header), so the invoice's OWN current data is exactly what a re-validated, unchanged record
+      // needs to pass that gate.
+      const result = await cancelAction.mutateAsync({
+        typeId: "invoice",
+        actionId: "cancel",
+        documentId: instance.id,
+        data: instance.data,
+      })
+      toast.success(result.message ?? t("documents.form.messages.actionSuccess"))
+      onClose()
+    } catch (err) {
+      // The backend's own named refusal (a 403 naming the country, or a 409 naming the restricted
+      // status — documents.service.ts's own `resolveActionPolicy`/`runAction`) shown verbatim, the
+      // same convention this dialogue's own error state already holds for `getCorrectionRoutes`.
+      toast.error(err instanceof ApiError ? err.message : t("documents.form.messages.actionError"))
+    }
   }
 
   if (isLoading) {
@@ -226,6 +277,43 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
         >
           {t("documents.correction.notImplemented.back")}
         </Button>
+      </div>
+    )
+  }
+
+  if (view.kind === "confirm-cancel") {
+    return (
+      <div className="space-y-4" data-cy="document-correction-confirm-cancel">
+        <Alert variant="destructive" data-cy="document-correction-confirm-cancel-alert">
+          <AlertTitle>{t("documents.correction.confirmCancel.title")}</AlertTitle>
+          <AlertDescription>{t("documents.correction.confirmCancel.body")}</AlertDescription>
+        </Alert>
+        {/* The route's own legal citation, once more, verbatim — the same "backend's own words"
+            discipline every OTHER label in this dialogue already holds, never re-summarized here
+            just because it's the confirmation screen. */}
+        <p className="text-xs text-muted-foreground" data-cy="document-correction-confirm-cancel-label">
+          {view.route.label}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={cancelAction.isPending}
+            onClick={() => setView({ kind: "routes" })}
+            dataCy="document-correction-confirm-cancel-back"
+          >
+            {t("documents.correction.confirmCancel.back")}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            loading={cancelAction.isPending}
+            onClick={handleConfirmCancel}
+            dataCy="document-correction-confirm-cancel-confirm"
+          >
+            {t("documents.correction.confirmCancel.confirm")}
+          </Button>
+        </div>
       </div>
     )
   }

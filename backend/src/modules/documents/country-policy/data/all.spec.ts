@@ -18,10 +18,19 @@ import { ALL_COUNTRY_POLICY_FILES } from './all';
 // for the recurring-documents mechanism), outside either type's own descriptor — listed here by
 // hand since this test deliberately stays independent of Nest wiring, the same way
 // documents.service.spec.ts's own `buildService()` re-lists it rather than booting the whole module.
+// TODO_CORRECTION.md C3 — `invoice.cancel` is the ONE native action deliberately EXCLUDED from this
+// coverage list, not an oversight this guard should catch: `documents.service.ts#resolveActionPolicy`
+// special-cases it to read `correction-routes/cancel-policy.ts` instead of this module's own DB table
+// (see that method's own header for the full reasoning — routing "cancel" through the ordinary FR/US/
+// HU-only country-policy/ would wrongly 403 Germany/Italy, both genuinely founded). Its own coverage
+// guard lives there instead: `correction-routes/cancel-policy.spec.ts` pins the per-country map,
+// `documents.service.cancel.spec.ts` proves DocumentsService actually reads it.
 const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   ...buildQuoteDescriptor().actions.map((a) => ({ typeId: 'quote', actionId: a.id })),
   { typeId: 'quote', actionId: 'duplicate' },
-  ...buildInvoiceDescriptor().actions.map((a) => ({ typeId: 'invoice', actionId: a.id })),
+  ...buildInvoiceDescriptor()
+    .actions.filter((a) => a.id !== 'cancel')
+    .map((a) => ({ typeId: 'invoice', actionId: a.id })),
   { typeId: 'invoice', actionId: 'duplicate' },
   ...buildCreditNoteDescriptor().actions.map((a) => ({ typeId: 'credit-note', actionId: a.id })),
   ...buildExpenseDescriptor().actions.map((a) => ({ typeId: 'expense', actionId: a.id })),

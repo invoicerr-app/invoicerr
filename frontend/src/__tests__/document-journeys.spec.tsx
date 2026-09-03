@@ -882,6 +882,64 @@ describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays
     const errorMessage = await screen.findByTestId("document-correction-error-message")
     expect(errorMessage).toHaveTextContent(namedMessage)
   })
+
+  it("TODO_CORRECTION.md C3 — vendeur FR : CANCEL_AND_REPLACE est IMPLÉMENTÉE ; le clic exige une confirmation d'irréversibilité avant d'annuler réellement", async () => {
+    const invoice = issuedInvoice("inv-cancel-fr")
+    const cancelCitation =
+      "Doit porter référence exacte à la facture initiale et la mention expresse de l'annulation de " +
+      "celle-ci."
+    let ranCancel = false
+
+    installFetchMock({
+      "GET /api/documents/types/invoice": () => invoiceDescriptor,
+      "GET /api/documents": () => [invoice],
+      "GET /api/documents/inv-cancel-fr/authority-events": () => [],
+      "GET /api/documents/inv-cancel-fr/correction-routes": () => ({
+        countryCode: "FR",
+        routes: [
+          {
+            routeId: "CANCEL_AND_REPLACE",
+            status: "allowed",
+            label: cancelCitation,
+            implemented: true,
+          },
+        ],
+        limitation: limitationText,
+      }),
+      "POST /api/documents/types/invoice/actions/cancel": () => {
+        ranCancel = true
+        return {
+          changed: true,
+          message: "Cancelled.",
+          document: { ...invoice, status: "cancelled" },
+        }
+      },
+    })
+
+    renderDocumentTypeScreen("invoice")
+
+    fireEvent.click(await screen.findByTestId("document-correction-button-inv-cancel-fr"))
+    const row = await screen.findByTestId("document-correction-route-CANCEL_AND_REPLACE")
+    const chooseButton = within(row).getByTestId("document-correction-route-CANCEL_AND_REPLACE-button")
+    expect(chooseButton).not.toBeDisabled()
+
+    fireEvent.click(chooseButton)
+
+    // The confirmation step this task requires — clicking "choose" never cancels on its own.
+    const confirmPanel = await screen.findByTestId("document-correction-confirm-cancel")
+    expect(confirmPanel).toHaveTextContent("cannot be undone")
+    expect(screen.getByTestId("document-correction-confirm-cancel-label")).toHaveTextContent(cancelCitation)
+    expect(ranCancel, "no cancel ran yet — only the confirmation panel opened").toBe(false)
+
+    fireEvent.click(screen.getByTestId("document-correction-confirm-cancel-confirm"))
+
+    await waitFor(() => expect(ranCancel).toBe(true))
+  })
+  // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — the CANCEL_AND_REPLACE branch
+  // in `handleChoose` disabled (`if (false && route.routeId === ...)`). RED: "document-correction-
+  // confirm-cancel" never appears — the choose click falls through to the generic "not-implemented"
+  // panel instead, exactly the silent regression that would let a click skip the irreversibility
+  // confirmation this task exists to enforce. Reverted; suite green again.
   // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
   // `route.status === "required" || route.status === "allowed"` -> `true` unconditionally. RED: the
   // PL test above ("le MÊME routeId ... est affiché INTERDIT, désactivé") fails —

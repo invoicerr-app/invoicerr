@@ -38,6 +38,8 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
   [WebhookEvent.DOCUMENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Document Deleted' },
   // TODO_PRODUIT.md T3 — see settlement/document-settled.ts's own header for when this fires.
   [WebhookEvent.DOCUMENT_SETTLED]: { color: '#10b981', emoji: '✅', title: 'Document Settled' },
+  // TODO_CORRECTION.md C3 — see actions/invoice-actions.ts's own "cancel" handler for when this fires.
+  [WebhookEvent.DOCUMENT_CANCELLED]: { color: '#ef4444', emoji: '🚫', title: 'Document Cancelled' },
 
   // Client events - Pink
   [WebhookEvent.CLIENT_CREATED]: { color: '#ec4899', emoji: '👤', title: 'Client Created' },
@@ -256,6 +258,9 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
     // this event (settlement/document-settled.ts's own `emitDocumentSettled`).
     [WebhookEvent.DOCUMENT_SETTLED]: (p) =>
       `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n✅ Settled (paid: ${p.settlement?.paidMinor ?? 'N/A'}, credited: ${p.settlement?.creditedMinor ?? 'N/A'})`,
+    // TODO_CORRECTION.md C3 — see actions/invoice-actions.ts's own "cancel" handler.
+    [WebhookEvent.DOCUMENT_CANCELLED]: (p) =>
+      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🚫 Cancelled`,
     // Client events
     [WebhookEvent.CLIENT_CREATED]: (p) =>
       `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,

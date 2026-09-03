@@ -6,11 +6,18 @@
  *
  * Le mandant par défaut (`cy.resetAndSeed()`) est déjà une société FRANÇAISE (SIRET/VAT sur le
  * dossier) — exactement le pays canonique dont l'avoir interne est `required` dans
- * `docs/compliance/CORRECTION-ROUTES.yaml`. Ce fichier ne bascule donc JAMAIS le pays de la société :
- * le contenu épinglé pays par pays (l'inversion FR/PL, l'échantillon par pays) est déjà prouvé en
- * jest (`correction-routes/data/all.spec.ts`) contre le VRAI fichier — pas la peine de le refaire ici
- * au prix d'un aller-retour navigateur par pays. Cette spec prouve le CÂBLAGE bout en bout : les
+ * `docs/compliance/CORRECTION-ROUTES.yaml`. Les describe C1/C2 ci-dessous ne basculent donc JAMAIS
+ * le pays de la société : le contenu épinglé pays par pays (l'inversion FR/PL, l'échantillon par
+ * pays) est déjà prouvé en jest (`correction-routes/data/all.spec.ts`,
+ * `correction-routes/cancel-policy.spec.ts`) contre le VRAI fichier — pas la peine de le refaire ici
+ * au prix d'un aller-retour navigateur par pays. Ces specs prouvent le CÂBLAGE bout en bout : les
  * quatre gates composés par `documents.service.ts#getCorrectionRoutes`, contre le vrai serveur.
+ *
+ * Le describe « Annulation (TODO_CORRECTION.md C3) », tout en bas, EST l'exception : il bascule le
+ * pays vendeur vers PL une fois — voir son propre en-tête pour pourquoi (aucun fichier
+ * country-policy/ pour PL aujourd'hui, un gap connu et documenté, hors périmètre de C3, qui rend
+ * impossible d'émettre une facture SOUS PL directement dans ce dossier). Dernier describe du dernier
+ * fichier numéroté de la suite : la bascule ne contamine aucune autre spec.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -205,11 +212,29 @@ describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/c
 							"annulation comptable",
 						);
 
+						// TODO_CORRECTION.md C3 — CANCEL_AND_REPLACE est la SECONDE voie réellement
+						// branchée, mais SEULEMENT pour les pays qui la fondent localement (FR en fait
+						// partie — voir correction-routes/cancel-policy.ts côté backend) : le mapping
+						// "implemented" ne suit toujours pas le statut légal SEUL (PL/MX déclarent
+						// aussi CANCEL_AND_REPLACE en "required" mais ne sont PAS branchés).
+						const cancelAndReplace = routes.find(
+							(r) => r.routeId === "CANCEL_AND_REPLACE",
+						);
+						expect(cancelAndReplace, "CANCEL_AND_REPLACE est présente").to
+							.exist;
+						expect(
+							cancelAndReplace!.implemented,
+							"FR fonde une annulation locale (TODO_CORRECTION.md C3)",
+						).to.eq(true);
+
 						// Chaque AUTRE voie reste honnêtement non implémentée, quel que soit son statut
 						// (required/allowed/forbidden/unverified) — le mapping "implemented" ne suit
-						// JAMAIS le statut légal.
+						// JAMAIS le statut légal seul.
 						for (const route of routes) {
-							if (route.routeId !== "INTERNAL_CREDIT_NOTE") {
+							if (
+								route.routeId !== "INTERNAL_CREDIT_NOTE" &&
+								route.routeId !== "CANCEL_AND_REPLACE"
+							) {
 								expect(
 									route.implemented,
 									`${route.routeId} n'est pas branché`,
@@ -417,6 +442,199 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
 						.and("contain.text", "FR");
 
 					cy.get('[data-cy="document-create-dialog"]').should("not.exist");
+				});
+			});
+		});
+	});
+});
+
+/**
+ * TODO_CORRECTION.md C3 — l'annulation LOCALE : l'entrée vit DANS le dialogue C2 (la ligne
+ * CANCEL_AND_REPLACE), jamais un second bouton générique à côté du bouton « Corriger ». Un pays QUI
+ * FONDE (FR — voir correction-routes/cancel-policy.ts côté backend) : choisir la voie ouvre une
+ * confirmation d'irréversibilité, confirmer annule RÉELLEMENT la facture — vérifié par API (statut
+ * ET numéro jamais réutilisé). Un pays QUI NE FONDE PAS (PL — CANCEL_AND_REPLACE y est `required`
+ * mais son propre mécanisme n'est qu'une facture corrective, jamais une annulation) : la MÊME voie
+ * reste honnêtement non implémentée à l'écran (le panneau 501), et l'API refuse un POST direct par
+ * 403 nommé.
+ */
+describe("Annulation (TODO_CORRECTION.md C3) — un pays qui fonde, un pays qui ne fonde pas", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it("société FR (fonde) : CANCEL_AND_REPLACE → confirmation d'irréversibilité → annulation réelle ; badge, statut ET numéro (jamais réutilisé) vérifiés par API", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-12", dueDate: "2026-09-12" };
+
+		createClient("Client Annulation FR SARL").then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					cy.request({
+						url: `${api}/api/documents/${invoiceId}?typeId=invoice`,
+					})
+						.its("body")
+						.then((before) => {
+							const numberBefore = before.displayNumber as string;
+							expect(numberBefore, "la facture a bien un numéro avant annulation").to.be.a(
+								"string",
+							);
+
+							cy.visit("/documents/invoice");
+
+							cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
+								timeout: 15000,
+							}).click({ force: true });
+							cy.get('[data-cy="document-correction-dialog"]', {
+								timeout: 5000,
+							}).should("be.visible");
+
+							cy.get(
+								'[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]',
+							).should("contain.text", "Allowed");
+
+							cy.get(
+								'[data-cy="document-correction-route-CANCEL_AND_REPLACE-button"]',
+							)
+								.should("not.be.disabled")
+								.click();
+
+							// La confirmation d'irréversibilité — jamais un clic direct qui annule.
+							cy.get('[data-cy="document-correction-confirm-cancel"]', {
+								timeout: 5000,
+							})
+								.should("be.visible")
+								.and("contain.text", "cannot be undone");
+
+							cy.get(
+								'[data-cy="document-correction-confirm-cancel-confirm"]',
+							).click();
+
+							// Le dialogue se ferme sur succès ; le badge « Cancelled » apparaît sur LA
+							// bonne ligne de la liste (jamais un data-cy partagé ambigu entre lignes).
+							cy.get('[data-cy="document-correction-dialog"]').should(
+								"not.exist",
+							);
+							cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
+								timeout: 10000,
+							})
+								.find('[data-cy="document-status-badge"]')
+								.should("contain.text", "Cancelled");
+
+							// La preuve qui compte, relue par l'API : statut ET numéro jamais réutilisé.
+							cy.request({
+								url: `${api}/api/documents/${invoiceId}?typeId=invoice`,
+							})
+								.its("body")
+								.then((after) => {
+									expect(after.status, "la facture est bien annulée").to.eq(
+										"cancelled",
+									);
+									expect(
+										after.displayNumber,
+										"le numéro n'est JAMAIS réutilisé ni renuméroté",
+									).to.eq(numberBefore);
+								});
+						});
+				});
+			});
+		});
+	});
+
+	it("société PL (ne fonde pas) : la MÊME voie (CANCEL_AND_REPLACE) reste honnêtement non implémentée — jamais un clic qui annule ; l'API refuse un POST direct par 403 nommé", () => {
+		setInvoiceTransport("email");
+		const preMandateDates = { issueDate: "2026-08-13", dueDate: "2026-09-13" };
+
+		createClient("Client Annulation PL SARL").then((clientId) => {
+			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
+				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
+					// Bascule le pays VENDEUR après l'émission — cette même facture, relue sous le
+					// prisme d'un pays qui ne fonde PAS d'annulation locale. Voir cet en-tête de
+					// fichier : PL n'a aujourd'hui aucun fichier country-policy/, donc
+					// save-draft/send y sont déjà bloqués (403) par un mécanisme SANS RAPPORT avec
+					// C3 (country-policy/, jamais lu par le gate "cancel" — cancel-policy.ts) —
+					// émettre une facture SOUS PL directement est donc impossible ici ; cette spec
+					// relit une facture déjà émise sous FR à travers le prisme PL à la place.
+					//
+					// La bascule tombe PENDANT la livraison asynchrone (phase 2, la file BullMQ —
+					// voir sendInvoice's own header : phase 1 est déjà passée, "sending") : le sort
+					// exact de cette livraison (sent ou send_failed) est donc IGNORÉ délibérément par
+					// tout ce test — seul compte que la facture ne soit JAMAIS "cancelled", jamais son
+					// statut de livraison précis (ni "Sent" ni un délai d'attente dessus).
+					cy.request({
+						method: "POST",
+						url: `${api}/api/company/info`,
+						body: { name: "Acme Corp", country: "Poland", countryCode: "PL" },
+					}).then((res) => {
+						expect(res.status, "pays vendeur basculé sur PL").to.be.oneOf([
+							200, 201,
+						]);
+					});
+
+					cy.visit("/documents/invoice");
+
+					// Délai généreux (patron de 28-document-async-send.cy.ts) : le bouton « Corriger »
+					// n'apparaît qu'une fois la facture "sent"/"send_failed" (isIssued, jamais
+					// "sending" — invoice-correction-routes-button.tsx), et la livraison est encore en
+					// cours au moment de ce visit.
+					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
+						timeout: 30000,
+					}).click({ force: true });
+					cy.get('[data-cy="document-correction-dialog"]', {
+						timeout: 5000,
+					}).should("be.visible");
+
+					// PL déclare CANCEL_AND_REPLACE `required` (donc choisissable), mais AUCUN
+					// mécanisme réel ne le fonde (exécuté par facture corrective, jamais une
+					// annulation — voir data/pl.json).
+					cy.get(
+						'[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]',
+					).should("contain.text", "Required by law");
+
+					cy.get(
+						'[data-cy="document-correction-route-CANCEL_AND_REPLACE-button"]',
+					)
+						.should("not.be.disabled")
+						.click();
+
+					// Jamais de confirmation d'annulation : le panneau 501 honnête, nommé.
+					cy.get('[data-cy="document-correction-not-implemented"]', {
+						timeout: 5000,
+					})
+						.should("be.visible")
+						.and("contain.text", "Cancel and replace")
+						.and("contain.text", "PL");
+					cy.get('[data-cy="document-correction-confirm-cancel"]').should(
+						"not.exist",
+					);
+
+					// L'API refuse un POST direct, nommé — jamais un simple silence pour qui
+					// contournerait l'écran.
+					cy.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/cancel`,
+						body: {
+							documentId: invoiceId,
+							data: invoiceData(clientId, preMandateDates),
+						},
+						failOnStatusCode: false,
+					}).then((res) => {
+						expect(res.status, "403 nommé, jamais un silence").to.eq(403);
+						expect(JSON.stringify(res.body)).to.match(/PL/);
+					});
+
+					// La facture n'est JAMAIS "cancelled" — son statut de LIVRAISON exact (sent ou
+					// send_failed) n'est pas ce que ce test prouve (voir le commentaire plus haut sur
+					// la bascule de pays tombant pendant la phase 2 asynchrone).
+					cy.request({
+						url: `${api}/api/documents/${invoiceId}?typeId=invoice`,
+					})
+						.its("body.status")
+						.should("be.oneOf", ["sent", "send_failed"]);
 				});
 			});
 		});
