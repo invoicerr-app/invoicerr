@@ -119,3 +119,22 @@ export async function getReferenceCurrency(companyId: string): Promise<string | 
 export function toCurrencyRateLikes(rates: readonly CurrencyRateResult[]): CurrencyRateLike[] {
   return rates.map((r) => ({ from: r.from, to: r.to, rate: r.rate, asOf: r.asOf, source: r.source }));
 }
+
+/**
+ * TODO_PRODUIT.md T3 — the SAME "any failure here degrades to nothing available, never a crash"
+ * posture `contributions/currency-consolidation.ts`'s own `loadCurrencyContext` already documents in
+ * full (see that function's header for why: the backend's offline jest CI job runs with NO Postgres
+ * reachable at all, and every one of those specs must collapse to "no rate resolvable" rather than
+ * throwing). Used by `actions/invoice-actions.ts`'s "record-payment" — a THIRD-PARTY webhook or a
+ * dashboard widget degrading silently is one thing; a payment write is not allowed to guess a rate
+ * either way, so this never PERMITS a conversion, it only ever prevents an unrelated failure here
+ * from turning into an unhandled 500 instead of "record-payment"'s own named refusal
+ * (`settlement/convert-payment.ts`'s `{ ok: false }`, surfaced as a clear `BadRequestException`).
+ */
+export async function loadRatesSafely(companyId: string): Promise<CurrencyRateLike[]> {
+  try {
+    return toCurrencyRateLikes(await listCurrencyRates(companyId));
+  } catch {
+    return [];
+  }
+}

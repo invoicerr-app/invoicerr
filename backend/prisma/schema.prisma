@@ -578,6 +578,12 @@ enum WebhookEvent {
   DOCUMENT_SEND_FAILED
   DOCUMENT_AUTHORITY_EVENT
   DOCUMENT_DELETED
+  // TODO_PRODUIT.md T3 (2026-09-03) — the "T2bis différé" that task's own header named: fires the
+  // instant a WRITE (a payment inserted, a credit note reaching "sent") makes a document's own
+  // settlement (settlement/compute-settlement.ts) CROSS from "not settled" to "settled" — never on
+  // an ordinary read/recompute of an already-settled document. See settlement/document-settled.ts's
+  // own header for the two write paths that check for this crossing today.
+  DOCUMENT_SETTLED
 
   // Client events
   CLIENT_CREATED
@@ -1080,11 +1086,44 @@ model DocumentPayment {
   document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId String
 
+  // The amount ACTUALLY received, in the payment's OWN currency (`currency` below) — exactly what
+  // was typed into the "record-payment" dialog, never adjusted. Kept verbatim even when it differs
+  // from the document's own currency (TODO_PRODUIT.md T3) — this is the audit trail of what the
+  // customer really paid; `documentAmountMinor` below is the DERIVED figure settlement math uses.
   amountMinor Int
-  // The payment's OWN currency — always checked against the document's own before being persisted
-  // (see the "record-payment" handler); stored here too so a read never needs to re-resolve the
-  // document's field data just to know what `amountMinor` is denominated in.
+  // The payment's OWN currency — no longer required to equal the document's own (T3: a mismatch is
+  // now CONVERTED at a dated rate instead of refused — see `settlement/convert-payment.ts`). Stored
+  // here so a read never needs to re-resolve the document's field data just to know what
+  // `amountMinor` is denominated in.
   currency    String
+
+  // T3's own resolution of the TODO_ISSUES.md entry this task closes ("les taux existent, mais...
+  // ne convertissent toujours pas"): that entry's recorded WHY demanded "un taux PAR OPÉRATION
+  // (saisi au moment du paiement, STOCKÉ SUR LUI), pas le taux ambiant de la société" — exactly
+  // these four fields. `documentAmountMinor` is `amountMinor` converted into the DOCUMENT's own
+  // currency at the rate dated to `paidAt` (settlement/convert-payment.ts's `resolvePaymentConversion`),
+  // resolved ONCE, at record time, and NEVER recomputed on a later read — `CurrencyRate` rows are
+  // themselves append-only (no PATCH/DELETE, see that model's own comment), but a NEW row entered
+  // LATER with an `asOf` that lands between two already-resolved dates would otherwise silently
+  // change which row a fresh lookup picks for this same `paidAt`, retroactively rewriting an
+  // already-reported balance (or un-firing a DOCUMENT_SETTLED webhook already sent). Pinning here is
+  // what makes settlement/compute-settlement.ts's own arithmetic — and the DOCUMENT_SETTLED crossing
+  // check (settlement/document-settled.ts) built on it — an EXACT WRITE, never a moving target.
+  // Equal to `amountMinor` (same figure, same currency) whenever `currency` already matches the
+  // document's own — the trivial, no-conversion case; `conversionRate`/`conversionRateAsOf`/
+  // `conversionSource` stay null then, mirroring `CurrencyAmount`'s own "nothing to convert, nothing
+  // to disclose" convention (contributions/currency-consolidation.ts).
+  documentAmountMinor Int
+  // The resolved `CurrencyRate.rate` (units of the document's currency per one unit of the
+  // payment's), null exactly when `documentAmountMinor === amountMinor` (no conversion applied).
+  conversionRate      Decimal?
+  // The dated `CurrencyRate.asOf` this rate was resolved from — DIFFERENT from `paidAt`: the rate
+  // is the most recent one on or before `paidAt` (convert.ts's `resolveLatestRate`), not necessarily
+  // dated to the exact same instant.
+  conversionRateAsOf  DateTime?
+  // Mirrors `CurrencyRate.source` ("manual" today) — carried through so a read never needs to
+  // re-join `CurrencyRate` just to say where the pinned rate came from.
+  conversionSource    String?
 
   // Plain product labels (bank_transfer / card / cash / other), never a legal classification — see
   // invoice.descriptor.ts's own comment on the "record-payment" action's `method` param.

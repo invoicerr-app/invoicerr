@@ -42,11 +42,26 @@ export interface DocumentCreditResult {
 
 export interface CreditsForDocument {
   credits: DocumentCreditResult[];
-  /** Plain English, same convention as `DocumentTotals.warnings` — a credit note in a currency other
-   *  than the corrected document's own is IGNORED from `credits` above (never converted, never
-   *  silently summed) and NAMED in one of these, so nothing about it disappears without a trace. A
-   *  draft credit note produces no warning at all: an unfinished document is an ordinary, expected
-   *  state, not a data problem worth flagging the way a currency mismatch is. */
+  /**
+   * Plain English, same convention as `DocumentTotals.warnings`.
+   *
+   * TODO_PRODUIT.md T3 ("un avoir suit la même règle que sa facture") — before this task, a credit
+   * note whose OWN `currency` field differed from the invoice's was EXCLUDED here entirely (never
+   * counted, never converted) on the theory that it needed the SAME dated-rate conversion a foreign
+   * payment does. It does not: `computeCreditedAmountMinor` below computes the credited GROSS amount
+   * FROM the corrected INVOICE's own priced lines (`invoiceData`, never `noteData`) — the number is
+   * therefore ALREADY, unavoidably, in the invoice's own currency, regardless of what currency the
+   * credit note document itself declares for its own `currency` field. Applying an exchange rate to
+   * it would not be "the same rule as its invoice", it would be a BUG: rescaling a number that was
+   * never denominated in the note's own currency to begin with (the note's `currency` field is
+   * cosmetic here — nothing on this type ever prices anything independently, unlike an invoice's own
+   * `lines`). "The same rule as its invoice" is satisfied more literally than a conversion ever could:
+   * the invoice's own currency governs, unconditionally — a mismatched note's own currency label is
+   * still named here (never silently hidden — a genuinely confusing data entry, worth a reader's
+   * attention), but no longer excludes the credit from the arithmetic. A draft credit note still
+   * produces no warning at all: an unfinished document is an ordinary, expected state, not a data
+   * problem worth flagging the way a currency-label mismatch is.
+   */
   warnings: string[];
 }
 
@@ -101,10 +116,12 @@ async function listCreditNotes(companyId: string): Promise<DocumentInstanceResul
  *  - a DRAFT is a document the user has not finished — see credit-note.descriptor.ts's own lifecycle
  *    comment, carried over verbatim from the removed `invoices/settlement.ts`'s identical rule: it
  *    settles nothing, silently (an unfinished draft is normal, not a data problem).
- *  - a credit note in a currency OTHER than the invoice's own is ignored from the arithmetic and
- *    NAMED in `warnings` — never converted, never silently summed (this file's header on
- *    `CreditsForDocument.warnings`).
- *  - otherwise, its credited amount comes from `computeCreditedAmountMinor` above.
+ *  - a credit note whose OWN `currency` field differs from the invoice's is still COUNTED, at the
+ *    exact same `computeCreditedAmountMinor` result every OTHER credit note gets (this file's own
+ *    header on `CreditsForDocument.warnings` explains why: that number is always, unavoidably, the
+ *    invoice's own currency already) — the mismatch is still NAMED in `warnings`, informationally,
+ *    never silently hidden, but it no longer excludes the credit.
+ *  - otherwise (matching currency), identical, unchanged behavior.
  */
 export function creditsForInvoiceFromNotes(
   creditNotes: readonly DocumentInstanceResult[],
@@ -126,10 +143,11 @@ export function creditsForInvoiceFromNotes(
     const noteCurrency = typeof noteData.currency === 'string' ? noteData.currency : undefined;
     if (!noteCurrency || noteCurrency !== invoiceCurrency) {
       warnings.push(
-        `Credit note "${label}" is in ${noteCurrency ?? 'an unrecorded currency'}, not this invoice's ` +
-          `own ${invoiceCurrency ?? 'unrecorded currency'} — ignored from the settlement, never converted.`,
+        `Credit note "${label}" declares its own currency as ${noteCurrency ?? 'unrecorded'}, ` +
+          `different from invoice's own ${invoiceCurrency ?? 'unrecorded currency'} — the credited ` +
+          `amount is always computed from, and expressed in, the invoice's own currency; counted as ` +
+          `${invoiceCurrency ?? 'unrecorded currency'}, never converted (there is nothing to convert).`,
       );
-      continue;
     }
 
     const correctedLines = Array.isArray(noteData.correctedLines)
@@ -141,7 +159,13 @@ export function creditsForInvoiceFromNotes(
       id: note.id,
       displayNumber: note.displayNumber ?? null,
       amountMinor,
-      currency: noteCurrency,
+      // ALWAYS the invoice's own currency — see this file's own header: the amount is computed FROM
+      // the invoice's own priced lines, never the note's, so labeling it with `noteCurrency` when the
+      // two differ would misrepresent what the number actually means (frontend's
+      // document-settlement.tsx formats this value using this field). Falls back to `noteCurrency`,
+      // then `''`, only for the data-anomaly case of an invoice with no recorded currency at all —
+      // never reachable for a properly-saved invoice (`currency` is a required field).
+      currency: invoiceCurrency ?? noteCurrency ?? '',
     });
   }
 

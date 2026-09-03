@@ -131,4 +131,128 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 			});
 		});
 	});
+
+	// TODO_PRODUIT.md T3 — "T2bis différé" : DOCUMENT_SETTLED part quand le RÈGLEMENT franchit le
+	// seuil "soldé", au moment où le paiement qui fait franchir ce seuil est PERSISTÉ — jamais sur un
+	// recalcul de lecture. "record-payment" est SYNCHRONE (pas de file BullMQ, contrairement à
+	// "send") : le webhook est déjà expédié avant même que le navigateur ne reçoive la réponse de la
+	// mutation, donc aucune attente supplémentaire n'est nécessaire au-delà de la fermeture du
+	// dialogue d'action.
+	it('un webhook configuré PAR L\'ÉCRAN reçoit "DOCUMENT_SETTLED" exactement une fois — au SECOND de deux paiements (partiel puis final), jamais au premier', () => {
+		cy.task("clearWebhookRequests");
+
+		cy.task("startWebhookReceiver").then((rawUrl) => {
+			const webhookUrl = rawUrl as string;
+
+			cy.visit("/settings/webhooks");
+			cy.get('[data-cy="webhook-url-input"]', { timeout: 10000 }).should("be.visible").clear().type(webhookUrl);
+
+			cy.get('[data-cy="webhook-events-select"]').click();
+			cy.get('[data-slot="command-input"]').type("DOCUMENT_SETTLED");
+			cy.get('[role="option"]').contains("DOCUMENT_SETTLED").click();
+			cy.get("body").type("{esc}");
+
+			cy.get('[data-cy="webhook-create-submit"]').click();
+			cy.get('[data-cy^="webhook-row-"]', { timeout: 10000 }).should("have.length.at.least", 1);
+
+			// La facture elle-même (brouillon + envoi) — déjà prouvée par 21/24, l'API suffit ici ; ce
+			// qui est SOUS TEST, c'est le paiement, par un vrai clic, plus bas.
+			cy.request({ url: `${api}/api/documents/references/client/search` })
+				.its("body")
+				.then((clients: { id: string }[]) => {
+					expect(clients, "le jeu d'essai contient un client").to.have.length.greaterThan(0);
+
+					cy.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/save-draft`,
+						body: {
+							data: {
+								client: clients[0].id,
+								issueDate: "2026-08-31",
+								dueDate: "2026-09-30",
+								currency: "EUR",
+								lines: [
+									{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 100, vatRate: "20" },
+								],
+							},
+						},
+						failOnStatusCode: false,
+					}).then((saved) => {
+						expect(saved.status, "brouillon de facture créé").to.be.oneOf([200, 201]);
+						const invoiceId = saved.body?.document?.id as string;
+						expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
+
+						cy.request({
+							method: "POST",
+							url: `${api}/api/documents/types/invoice/actions/send`,
+							body: { documentId: invoiceId, data: saved.body.document.data },
+							failOnStatusCode: false,
+						}).then((sent) => {
+							expect(sent.status, "facture envoyée").to.be.oneOf([200, 201]);
+
+							cy.visit("/documents/invoice");
+							cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
+							cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+
+							// Paiement PARTIEL : 60,00 € des 120,00 € dus (100 € net + 20 % de TVA).
+							cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+							cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
+								"be.visible",
+							);
+							cy.get('[data-cy="document-action-params-dialog"]')
+								.find('[data-cy="document-field-amount-input"]')
+								.clear({ force: true })
+								.type("60", { force: true });
+							cy.get('[data-cy="document-action-params-confirm"]').click();
+							cy.get('[data-cy="document-action-params-dialog"]').should("not.exist");
+							cy.get('[data-cy="document-settlement-badge"]', { timeout: 15000 }).should(
+								"contain.text",
+								"Partially paid",
+							);
+
+							cy.task("getWebhookRequests").then((requests) => {
+								const list = requests as Array<Record<string, unknown>>;
+								expect(
+									list.filter((r) => r.event === "DOCUMENT_SETTLED"),
+									"zéro DOCUMENT_SETTLED après un paiement qui laisse un reste",
+								).to.have.length(0);
+							});
+
+							// Paiement FINAL : les 60,00 € restants — la facture franchit le seuil "soldé".
+							cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+							cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
+								"be.visible",
+							);
+							cy.get('[data-cy="document-action-params-dialog"]')
+								.find('[data-cy="document-field-amount-input"]')
+								.clear({ force: true })
+								.type("60", { force: true });
+							cy.get('[data-cy="document-action-params-confirm"]').click();
+							cy.get('[data-cy="document-action-params-dialog"]').should("not.exist");
+							cy.get('[data-cy="document-settlement-badge"]', { timeout: 15000 }).should(
+								"contain.text",
+								"Settled",
+							);
+
+							cy.task("getWebhookRequests").then((requests) => {
+								const list = requests as Array<Record<string, unknown>>;
+								const settled = list.filter((r) => r.event === "DOCUMENT_SETTLED");
+								expect(
+									settled,
+									"exactement UN DOCUMENT_SETTLED reçu par le récepteur réel, au second paiement",
+								).to.have.length(1);
+								expect(settled[0].typeId).to.eq("invoice");
+								const documentPayload = settled[0].document as { id?: string } | undefined;
+								expect(documentPayload?.id, "porte la facture réellement soldée").to.eq(invoiceId);
+								const settlement = settled[0].settlement as
+									| { settled?: boolean; outstandingMinor?: number }
+									| undefined;
+								expect(settlement?.settled, "le fait porté par le webhook : soldée").to.eq(true);
+								expect(settlement?.outstandingMinor).to.eq(0);
+							});
+						});
+					});
+				});
+		});
+	});
 });

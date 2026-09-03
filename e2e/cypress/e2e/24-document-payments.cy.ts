@@ -282,4 +282,78 @@ describe("Les paiements d'une facture — un enregistrement, pas un type de docu
 			});
 		});
 	});
+
+	// TODO_PRODUIT.md T3 — "les taux existent, mais paiements et avoirs ne convertissent toujours
+	// pas" (TODO_ISSUES.md) est refermé : un paiement dans une devise différente n'est plus refusé
+	// d'office (voir le test précédent, qui reste vrai en l'ABSENCE de taux configuré) — une fois un
+	// taux DATÉ saisi pour la paire, il CONVERTIT, au lieu de refuser.
+	describe("un paiement dans une AUTRE devise, avec un taux daté configuré — il CONVERTIT au lieu de refuser (TODO_PRODUIT.md T3)", () => {
+		it("un paiement de 50 USD sur une facture de 120,00 € convertit au taux daté — reste-à-payer exact, vérifié par l'API", () => {
+			// Le taux — saisi par l'API (seul le PAIEMENT lui-même doit passer par l'écran ici ; la
+			// spec e2e 27 couvre déjà la saisie d'un taux PAR L'ÉCRAN). Daté AVANT le paiement plus
+			// bas, pour que resolveLatestRate le trouve exactement.
+			cy.request({
+				method: "POST",
+				url: `${api}/api/company/currency-rates`,
+				body: { from: "USD", to: "EUR", rate: 0.8, asOf: "2026-08-01T00:00:00.000Z" },
+				failOnStatusCode: false,
+			}).then((res) => {
+				expect(res.status, "taux USD→EUR enregistré").to.be.oneOf([200, 201]);
+			});
+
+			createDraftInvoice().then((id) => {
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-edit-button-${id}"]`, { timeout: 15000 }).click();
+				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+				cy.get('[data-cy="document-action-send"]', { timeout: 15000 }).click();
+				cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).should("exist");
+
+				cy.get('[data-cy="document-action-record-payment"]').click();
+				cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
+				const dialog = () => cy.get('[data-cy="document-action-params-dialog"]');
+
+				// 50,00 USD, un VRAI clic sur une VRAIE option de devise — exactement le geste que le
+				// test de refus (ci-dessus) prouve refusé SANS taux configuré ; ICI un taux existe.
+				dialog()
+					.find('[data-cy="document-field-amount-input"]')
+					.clear({ force: true })
+					.type("50", { force: true });
+				dialog().find('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+				cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
+				cy.get('[data-cy^="document-field-currency-input-option-usd"]').first().click();
+
+				cy.get('[data-cy="document-action-params-confirm"]').click();
+				cy.get('[data-cy="document-action-params-dialog"]').should("not.exist");
+
+				// 50 USD @ 0.8 = 40,00 € — reste-à-payer : 120,00 € - 40,00 € = 80,00 €. Affiché...
+				cy.get('[data-cy="document-settlement-badge"]', { timeout: 15000 }).should(
+					"contain.text",
+					"Partially paid",
+				);
+				cy.get('[data-cy="document-settlement-outstanding"]').should("contain.text", "80.00 EUR");
+
+				// ...et exact par l'API — le montant EXACT, jamais un intervalle (toBeCloseTo).
+				cy.request({ url: `${api}/api/documents/${id}/settlement?typeId=invoice` })
+					.its("body")
+					.then((body) => {
+						expect(body.settlement).to.deep.equal({
+							totalGrossMinor: GROSS_MINOR,
+							paidMinor: 4000, // 40,00 € — le montant CONVERTI, jamais 5000 (50 USD non converti).
+							creditedMinor: 0,
+							outstandingMinor: GROSS_MINOR - 4000,
+							excessMinor: 0,
+							settled: false,
+						});
+						expect(body.payments).to.have.length(1);
+						// L'audit trail garde le paiement RÉEL (50 USD) ; le champ converti porte l'EUR.
+						expect(body.payments[0]).to.include({
+							amountMinor: 5000,
+							currency: "USD",
+							documentAmountMinor: 4000,
+							conversionRate: 0.8,
+						});
+					});
+			});
+		});
+	});
 });

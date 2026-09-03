@@ -178,7 +178,32 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
                 data-cy={`document-settlement-payment-${payment.id}`}
               >
                 <span className="text-muted-foreground">{new Date(payment.paidAt).toLocaleDateString()}</span>
-                <span className="font-medium">{formatMinor(payment.amountMinor, payment.currency)}</span>
+                <span className="flex flex-col items-end">
+                  <span className="font-medium">{formatMinor(payment.amountMinor, payment.currency)}</span>
+                  {/* TODO_PRODUIT.md T3 — "jamais silencieux": a payment recorded in a currency other
+                      than the document's own is CONVERTED (never refused any more), and the pinned,
+                      dated rate that conversion used is shown here, verbatim — the same "never a
+                      converted amount without its proof" discipline the dashboard's own consolidated
+                      widgets already hold (contributions/currency-consolidation.ts). Absent whenever
+                      `conversionRate` is null — a same-currency payment was never converted, nothing
+                      to disclose. */}
+                  {payment.conversionRate != null && (
+                    <span
+                      className="text-xs text-muted-foreground"
+                      data-cy={`document-settlement-payment-${payment.id}-conversion`}
+                    >
+                      {t("documents.settlement.convertedNote", {
+                        converted: formatMinor(payment.documentAmountMinor, currency),
+                        from: payment.currency,
+                        to: currency,
+                        rate: payment.conversionRate,
+                        date: payment.conversionRateAsOf
+                          ? new Date(payment.conversionRateAsOf).toISOString().slice(0, 10)
+                          : "",
+                      })}
+                    </span>
+                  )}
+                </span>
                 {payment.method && <span className="text-muted-foreground">{payment.method}</span>}
               </li>
             ))}

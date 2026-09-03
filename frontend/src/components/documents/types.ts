@@ -202,12 +202,22 @@ export interface DocumentInstance {
  * A payment recorded against a document instance — mirrors the backend's `DocumentPaymentResult`
  * (settlement/payments.ts). NOT a document type of its own (see that file's header): no lifecycle, no
  * status, just a record hanging off an existing one.
+ *
+ * `amountMinor`/`currency` are the amount ACTUALLY received, in the payment's OWN currency —
+ * unchanged since always. `documentAmountMinor`/`conversionRate`/`conversionRateAsOf`/
+ * `conversionSource` are new (TODO_PRODUIT.md T3): the settlement-relevant figure, already converted
+ * into the document's own currency at a DATED rate, pinned at record time. `conversionRate` is null
+ * exactly when no conversion was applied (the payment already matched the document's own currency).
  */
 export interface DocumentPayment {
   id: string
   documentId: string
   amountMinor: number
   currency: string
+  documentAmountMinor: number
+  conversionRate: number | null
+  conversionRateAsOf: string | null
+  conversionSource: string | null
   method: string | null
   paidAt: string
   note: string | null

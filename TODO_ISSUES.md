@@ -32,14 +32,25 @@
   À automatiser un jour (seed au boot du backend de test, ou détection de dérive JSON↔base) ; en
   attendant, toute tâche qui touche `country-policy/data/*.json` doit re-semer les deux bases.
 
-- **Les taux existent, mais paiements et avoirs ne convertissent toujours pas** (choix consigné à la
+- ~~**Les taux existent, mais paiements et avoirs ne convertissent toujours pas** (choix consigné à la
   tâche 9) : `record-payment` refuse toujours une devise étrangère et le lettrage ignore toujours un
   avoir en devise étrangère (avec warning nommé). C'est délibéré, pas un oubli : la consolidation du
   dashboard est un AFFICHAGE approximatif qui porte son taux ; un lettrage est une écriture exacte —
   y appliquer un taux saisi à la main déciderait en silence du montant réellement soldé. Si un jour
   le lettrage multi-devises est voulu, il faudra un taux PAR opération (saisi au moment du paiement,
   stocké sur lui), pas le taux ambiant de la société. Les briques (table `CurrencyRate`,
-  `convertMinor`) sont prêtes pour ça.
+  `convertMinor`) sont prêtes pour ça.~~ — **RÉSOLU** (T3, 2026-09-03) exactement selon la voie que
+  ce POURQUOI prescrivait : le taux est PAR OPÉRATION — résolu daté à `paidAt` et ÉPINGLÉ sur la
+  ligne `DocumentPayment` (`documentAmountMinor`/`conversionRate`/`conversionRateAsOf`/
+  `conversionSource`, migration 20260902234040) ; le lettrage relit le figé, jamais une
+  re-résolution (un taux intercalé plus tard ne réécrit jamais un solde annoncé) ; pas de taux
+  résoluble = refus nommé, jamais un taux inventé. CONSTAT sur les avoirs, différent du titre :
+  `computeCreditedAmountMinor` calcule depuis les lignes de la FACTURE — le montant est
+  structurellement déjà dans sa devise ; convertir serait un bug de double-échelle. La devise
+  propre de l'avoir, si elle diffère, est nommée en avertissement et n'exclut plus le crédit.
+  RESTES : pas de verrou DB contre deux paiements réellement simultanés sur la même facture
+  (correct en séquentiel, ce que les critères demandaient) ; le blocage à la création d'un avoir
+  en devise ≠ facture relève de T4 (écrans).
 
 - **`ClientsModule` inimportable sous ts-jest** (découvert à la tâche 22, préexistant) : la chaîne
   `ClientsModule → WebhooksModule → drivers/discord.driver.ts → @teever/ez-hook` (paquet JSR pur

@@ -3476,6 +3476,7 @@
       "excess": "Excess",
       "empty": "No payments recorded yet.",
       "paymentsTitle": "Payments",
+      "convertedNote": "≈ {{converted}} ({{from}}→{{to}} @ {{rate}}, {{date}})",
       "creditsTitle": "Credit notes",
       "creditsEmpty": "No credit notes recorded yet.",
       "badge": {

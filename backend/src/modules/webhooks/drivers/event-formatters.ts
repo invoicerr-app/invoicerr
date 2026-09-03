@@ -36,6 +36,8 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
   [WebhookEvent.DOCUMENT_SEND_FAILED]: { color: '#ef4444', emoji: '⚠️', title: 'Document Send Failed' },
   [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: { color: '#6366f1', emoji: '🏛️', title: 'Authority Event' },
   [WebhookEvent.DOCUMENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Document Deleted' },
+  // TODO_PRODUIT.md T3 — see settlement/document-settled.ts's own header for when this fires.
+  [WebhookEvent.DOCUMENT_SETTLED]: { color: '#10b981', emoji: '✅', title: 'Document Settled' },
 
   // Client events - Pink
   [WebhookEvent.CLIENT_CREATED]: { color: '#ec4899', emoji: '👤', title: 'Client Created' },
@@ -250,6 +252,10 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
     [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: (p) =>
       `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🏛️ ${p.providerId || 'N/A'}: ${p.statusCode || 'N/A'}`,
     [WebhookEvent.DOCUMENT_DELETED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nDeleted`,
+    // TODO_PRODUIT.md T3 — `settlement` is the extra fact `buildDocumentWebhookPayload` carries for
+    // this event (settlement/document-settled.ts's own `emitDocumentSettled`).
+    [WebhookEvent.DOCUMENT_SETTLED]: (p) =>
+      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n✅ Settled (paid: ${p.settlement?.paidMinor ?? 'N/A'}, credited: ${p.settlement?.creditedMinor ?? 'N/A'})`,
     // Client events
     [WebhookEvent.CLIENT_CREATED]: (p) =>
       `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,

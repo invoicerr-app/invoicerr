@@ -8,6 +8,7 @@ import {
   B2gRoutingRuleView,
   resolveClientB2gRouting,
 } from '../b2g-routing/b2g-routing';
+import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocument } from '../persistence';
@@ -15,8 +16,10 @@ import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
+import { resolvePaymentConversion } from '../settlement/convert-payment';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
-import { listPayments, recordPayment } from '../settlement/payments';
+import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
+import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settlement/payments';
 import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { computeDocumentTotals } from '../totals/compute-totals';
@@ -621,17 +624,21 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
 
   /**
    * Records a payment against an ALREADY-SENT invoice (availableWhen: ['sent'] — see
-   * invoice.descriptor.ts) and hands back the invoice's up-to-date BALANCE. Three guards, in order:
+   * invoice.descriptor.ts) and hands back the invoice's up-to-date BALANCE. Guards, in order:
    *  - `amount` must be strictly positive — `min` is deliberately NOT set on the field descriptor
    *    (which would only ever enforce `>= 0`, letting a bare 0 through as "structurally valid"); this
    *    handler is the one place that enforces the actual business rule, with one clear message;
-   *  - `currency` must equal the invoice's own — no conversion (see this file's own header, and
-   *    compute-settlement.ts's header on why a payment never silently changes the claim's own
-   *    currency). Read off the PERSISTED document (`findOwnedDocument`), never the client-submitted
-   *    `data`: the params-defaults resolver above pre-fills the params dialog's `currency` from the
-   *    same source, but nothing stops a scripted client from posting a different one directly — the
-   *    same "the API refuses exactly what the screen would refuse" discipline documents.service.ts's
-   *    own `runAction` holds for country policy and status.
+   *  - `currency`, when it differs from the invoice's own, is CONVERTED at a dated rate rather than
+   *    refused (TODO_PRODUIT.md T3 — closes the TODO_ISSUES.md entry "les taux existent, mais...
+   *    ne convertissent toujours pas"; see that entry's own recorded WHY and
+   *    settlement/convert-payment.ts's header for the full reasoning) — but ONLY when the company has
+   *    actually entered a dated `CurrencyRate` for this exact pair, resolvable as of `paidAt`; absent
+   *    one, this still refuses exactly as before T3 (this module never invents a rate). Read off the
+   *    PERSISTED document (`findOwnedDocument`), never the client-submitted `data`: the
+   *    params-defaults resolver above pre-fills the params dialog's `currency` from the same source,
+   *    but nothing stops a scripted client from posting a different one directly — the same "the API
+   *    refuses exactly what the screen would refuse" discipline documents.service.ts's own `runAction`
+   *    holds for country policy and status.
    *  - implicitly, `documentId` must exist: unreachable in practice (a never-saved record has no
    *    status for `availableWhen: ['sent']` to match) but never trusted alone — the same defensive
    *    posture "delete" (generic-actions.ts) already holds for the same shape of guarantee.
@@ -641,6 +648,13 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
    * declared here) — `result.document` is the SAME, unchanged, freshly-read instance, which is also
    * exactly what `checkTransitionResult` (lifecycle.ts) expects for an action with no declared
    * transitions: whatever status it already was.
+   *
+   * TODO_PRODUIT.md T3's own "T2bis différé": this is ALSO one of the two write paths that can make
+   * an invoice cross into "settled" (the other is a credit note reaching "sent" —
+   * credit-note-actions.ts) — `DOCUMENT_SETTLED` fires here the instant THIS payment is the one that
+   * makes the crossing happen, computed by comparing settlement WITH vs. WITHOUT the row this call
+   * just inserted (settlement/document-settled.ts's own header explains why that needs no separate
+   * "before" query).
    */
   registry.register('invoice', 'record-payment', async ({ companyId, documentId, params }) => {
     if (!documentId) {
@@ -662,22 +676,48 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
     }
 
     const paymentCurrency = typeof params.currency === 'string' ? params.currency : documentCurrency;
-    if (paymentCurrency !== documentCurrency) {
+    // The date this resolves the rate against — see convert-payment.ts's own header: the rate that
+    // was true WHEN THE MONEY ARRIVED, never "now" (a payment entered late must not convert at
+    // today's rate). A date-only ISO string ("2026-08-30") parses as UTC MIDNIGHT per the JS spec —
+    // never local-timezone midnight — so this is already safe against the month-boundary bug that
+    // has bitten this codebase elsewhere (local getters vs. UTC-midnight dates); see
+    // settlement/convert-payment.spec.ts's own pinned boundary tests.
+    const paidAt = typeof params.paidAt === 'string' ? new Date(params.paidAt) : new Date();
+    const paymentAmountMinor = toMinor(amount, paymentCurrency);
+
+    // `loadRatesSafely` only actually queries Prisma when a conversion is genuinely needed — the
+    // overwhelming majority of payments still match the invoice's own currency, and
+    // `resolvePaymentConversion` never even looks at `rates` in that case (see its own header).
+    const rates = paymentCurrency === documentCurrency ? [] : await loadRatesSafely(companyId);
+    const conversion = resolvePaymentConversion(
+      documentCurrency,
+      paymentCurrency,
+      paymentAmountMinor,
+      rates,
+      paidAt,
+    );
+    if (!conversion.ok) {
       throw new BadRequestException(
         `The payment currency ("${paymentCurrency}") does not match this invoice's own currency ` +
-          `("${documentCurrency}") — recording a payment in a different currency isn't supported yet.`,
+          `("${documentCurrency}"), and no dated ${paymentCurrency}→${documentCurrency} exchange rate ` +
+          `is set as of ${paidAt.toISOString().slice(0, 10)} — recording this payment would silently ` +
+          `guess an exchange rate, so it is refused instead. Enter a dated rate first (Settings → ` +
+          `Currency rates), then record the payment again.`,
       );
     }
 
-    const paidAt = typeof params.paidAt === 'string' ? new Date(params.paidAt) : new Date();
     const method = typeof params.method === 'string' ? params.method : undefined;
     const note = typeof params.note === 'string' ? params.note : undefined;
 
-    await recordPayment({
+    const newPayment = await recordPayment({
       companyId,
       documentId,
-      amountMinor: toMinor(amount, documentCurrency),
-      currency: documentCurrency,
+      amountMinor: paymentAmountMinor,
+      currency: paymentCurrency,
+      documentAmountMinor: conversion.documentAmountMinor,
+      conversionRate: conversion.rate,
+      conversionRateAsOf: conversion.rateAsOf,
+      conversionSource: conversion.rateSource,
       method,
       paidAt,
       note,
@@ -697,19 +737,34 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       INVOICE_DESCRIPTOR,
       documentData,
     );
-    const settlement = computeSettlement(totals.grossMinor, payments, toSettlementCreditInputs(credits));
+    const creditInputs = toSettlementCreditInputs(credits);
+    const paymentInputsAfter = toSettlementPaymentInputs(payments);
+    // "Before": the exact same set of payments, minus the one THIS call just inserted — never a
+    // second query taken a moment earlier (which would open a race window between two reads); see
+    // settlement/document-settled.ts's own header.
+    const paymentInputsBefore = toSettlementPaymentInputs(
+      payments.filter((payment) => payment.id !== newPayment.id),
+    );
+    const settlementBefore = computeSettlement(totals.grossMinor, paymentInputsBefore, creditInputs);
+    const settlement = computeSettlement(totals.grossMinor, paymentInputsAfter, creditInputs);
 
     logger.info('Payment recorded against an invoice', {
       category: 'documents',
       details: {
         companyId,
         documentId,
-        amountMinor: toMinor(amount, documentCurrency),
-        currency: documentCurrency,
+        amountMinor: paymentAmountMinor,
+        currency: paymentCurrency,
+        documentAmountMinor: conversion.documentAmountMinor,
+        documentCurrency,
         decimals: decimalsFor(documentCurrency),
         settled: settlement.settled,
       },
     });
+
+    if (crossedIntoSettled(settlementBefore, settlement)) {
+      await emitDocumentSettled(deps.webhooks, companyId, 'invoice', document, settlement);
+    }
 
     return {
       document,

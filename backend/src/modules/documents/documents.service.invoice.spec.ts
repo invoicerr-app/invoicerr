@@ -4,6 +4,7 @@ import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { ContributionRegistry } from './contributions/contribution-registry';
+import * as currencyRatesStore from '../company/currency-rates/currency-rates.store';
 import * as countryPolicy from './country-policy/country-policy';
 import * as b2gRouting from './b2g-routing/b2g-routing';
 import { DocumentsService } from './documents.service';
@@ -56,6 +57,12 @@ jest.mock('./country-policy/country-policy');
 // BUSINESS by construction (a bare id string, no real row), so this concern is unrelated to what this
 // file tests; see `actions/invoice-b2g-routing.spec.ts` for the dedicated B2G suite.
 jest.mock('./b2g-routing/b2g-routing');
+// TODO_PRODUIT.md T3 — "record-payment" now resolves a dated exchange rate (`loadRatesSafely`,
+// currency-rates.store.ts) whenever the payment's own currency differs from the invoice's; that store
+// reaches Prisma directly too, same reason as every mock above. Defaulted to "no rates at all" in
+// `beforeEach` below (so the pre-existing "refuses a mismatched currency" test keeps meaning exactly
+// what it always did) — the dedicated currency-conversion describe block overrides it.
+jest.mock('../company/currency-rates/currency-rates.store');
 
 /**
  * Same wiring discipline as documents.service.spec.ts's quote coverage, applied to the invoice — the
@@ -134,6 +141,18 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     (settlementCredits.toSettlementCreditInputs as jest.Mock).mockImplementation((credits) =>
       credits.map((c: { id: string; amountMinor: number }) => ({ id: c.id, amountMinor: c.amountMinor })),
     );
+    // TODO_PRODUIT.md T3 — `./settlement/payments` is mocked whole (see this file's own top-of-file
+    // comment), so `toSettlementPaymentInputs` needs the SAME "mirror the real implementation" default
+    // `toSettlementCreditInputs` just above already gets — every `listPayments` fixture below now
+    // carries its own `documentAmountMinor` explicitly (see each one), same discipline as a real row.
+    (settlementPayments.toSettlementPaymentInputs as jest.Mock).mockImplementation(
+      (payments: { documentAmountMinor: number }[]) =>
+        payments.map((p) => ({ amountMinor: p.documentAmountMinor })),
+    );
+    // No dated rate configured by default — a currency mismatch still refuses exactly as it did
+    // before T3 (this module never invents a rate); the dedicated currency-conversion describe block
+    // below overrides this to prove a payment WITH a configured rate actually converts.
+    (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([]);
     (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
       (_companyId: string, data: Record<string, unknown>) =>
         Promise.resolve({ data, crossBorder: false, warnings: [] }),
@@ -386,6 +405,10 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         documentId: 'doc-1',
         amountMinor: 0,
         currency: 'EUR',
+        documentAmountMinor: 0,
+        conversionRate: null,
+        conversionRateAsOf: null,
+        conversionSource: null,
         method: null,
         paidAt: new Date('2026-08-30'),
         note: null,
@@ -402,7 +425,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
     it('records a partial payment, converts to minor units with the DOCUMENT currency, and states the new balance', async () => {
       (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
-        { id: 'payment-1', documentId: 'doc-1', amountMinor: 1000, currency: 'EUR' },
+        {
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: 1000,
+          currency: 'EUR',
+          documentAmountMinor: 1000,
+        },
       ]);
 
       const { service } = buildService();
@@ -471,7 +500,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
     it('an EXACT full payment settles the invoice — the result says so, never "outstanding"', async () => {
       (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
-        { id: 'payment-1', documentId: 'doc-1', amountMinor: GROSS_MINOR, currency: 'EUR' },
+        {
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR,
+        },
       ]);
 
       const { service } = buildService();
@@ -493,7 +528,13 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         warnings: [],
       });
       (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
-        { id: 'payment-1', documentId: 'doc-1', amountMinor: GROSS_MINOR - 2000, currency: 'EUR' },
+        {
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR - 2000,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR - 2000,
+        },
       ]);
 
       const { service } = buildService();
@@ -512,6 +553,286 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         expect.anything(),
         validInvoiceData,
       );
+    });
+
+    // ── TODO_PRODUIT.md T3 — currency conversion at a dated rate ────────────────────────────────────
+    describe("a payment in a currency other than the invoice's own — converted at a DATED rate, never refused when one is configured", () => {
+      it('converts at the exact resolved rate — PINNED to the exact minor-unit amount, never a loose toBeCloseTo', async () => {
+        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
+          { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
+        ]);
+        // 10.00 USD (minor 1000) @ 0.9 -> major 10 * 0.9 = 9.00 EUR -> minor round(900) = 900. Exact.
+        (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'USD',
+            documentAmountMinor: 900,
+          },
+        ]);
+
+        const { service } = buildService();
+        const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+        });
+
+        expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            companyId: 'company-1',
+            documentId: 'doc-1',
+            amountMinor: 1000, // the amount ACTUALLY received, in ITS OWN currency (USD) — untouched.
+            currency: 'USD',
+            documentAmountMinor: 900, // the PINNED, settlement-relevant figure, in EUR.
+            conversionRate: 0.9,
+            conversionRateAsOf: new Date('2026-08-01T00:00:00.000Z'),
+            conversionSource: 'manual',
+          }),
+        );
+        // The reste-à-payer the result STATES is EXACT: GROSS_MINOR (2376) - 900 = 1476 -> 14.76 EUR —
+        // the DOCUMENT's own currency, never the payment's own USD.
+        expect(result.message).toMatch(/14\.76 EUR/);
+        expect(result.message).toMatch(/outstanding/i);
+      });
+
+      it('refuses, exactly as before T3, when no dated rate is configured for the pair — no silent guess', async () => {
+        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([]);
+
+        const { service } = buildService();
+        const action = service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+        });
+
+        await expect(action).rejects.toBeInstanceOf(BadRequestException);
+        // Still contains the ORIGINAL wording (this is still, at heart, a currency mismatch) — the
+        // pre-existing e2e assertion (24-document-payments.cy.ts) and this file's own earlier test
+        // pin on this exact substring; T3 only adds detail about WHY it still blocks.
+        await expect(action).rejects.toThrow(/does not match this invoice's own currency/);
+        expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+      });
+
+      it('a rate for the WRONG pair (EUR→USD entered, USD→EUR needed) does not answer — still refused', async () => {
+        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
+          { from: 'EUR', to: 'USD', rate: 1.1, asOf: new Date('2026-08-01'), source: 'manual' },
+        ]);
+
+        const { service } = buildService();
+        await expect(
+          service.runAction('company-1', 'invoice', 'record-payment', {
+            documentId: 'doc-1',
+            data: validInvoiceData,
+            params: { amount: 10, currency: 'USD', paidAt: '2026-08-30' },
+          }),
+        ).rejects.toThrow(/does not match this invoice's own currency/);
+        expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+      });
+
+      // ── The "piège daté" — a UTC month-boundary payment, pinned exactly ───────────────────────────
+      it("resolves the rate dated to PAIDAT, at a UTC month-boundary — 23:30 UTC the last day of the month must NOT roll into next month's rate", async () => {
+        (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
+          { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
+          // Entered for the NEXT month, at UTC midnight exactly — not yet true 30 minutes earlier.
+          {
+            from: 'USD',
+            to: 'EUR',
+            rate: 0.95,
+            asOf: new Date('2026-09-01T00:00:00.000Z'),
+            source: 'manual',
+          },
+        ]);
+        (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'USD',
+            documentAmountMinor: 900,
+          },
+        ]);
+
+        const { service } = buildService();
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          // 23:30 UTC, the LAST day of August — still August, by 30 minutes.
+          params: { amount: 10, currency: 'USD', paidAt: '2026-08-31T23:30:00.000Z' },
+        });
+
+        expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            documentAmountMinor: 900, // 10 USD * 0.9, NEVER 0.95 — the August rate, pinned.
+            conversionRate: 0.9,
+            conversionRateAsOf: new Date('2026-08-01T00:00:00.000Z'),
+          }),
+        );
+      });
+    });
+
+    // ── TODO_PRODUIT.md T3's own "T2bis différé" — DOCUMENT_SETTLED, exactly once ────────────────────
+    describe('DOCUMENT_SETTLED — fires exactly once, at the write that makes the crossing happen', () => {
+      it('a SINGLE partial payment leaves a remainder — zero DOCUMENT_SETTLED emissions', async () => {
+        const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+        (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'EUR',
+            documentAmountMinor: 1000,
+          },
+        ]);
+
+        const { service } = buildService(new TransportRegistry(), webhooks);
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'EUR', paidAt: '2026-08-30' },
+        });
+
+        expect(webhooks.dispatch).not.toHaveBeenCalled();
+      });
+
+      it('TWO payments — partial then final — dispatch DOCUMENT_SETTLED exactly ONCE, at the SECOND, never the first', async () => {
+        const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+        const { service } = buildService(new TransportRegistry(), webhooks);
+
+        // Payment 1: 10.00 EUR of 23.76 EUR due — partial, must NOT cross into settled.
+        (settlementPayments.recordPayment as jest.Mock).mockResolvedValueOnce({
+          id: 'payment-1',
+          documentId: 'doc-1',
+          amountMinor: 1000,
+          currency: 'EUR',
+          documentAmountMinor: 1000,
+          conversionRate: null,
+          conversionRateAsOf: null,
+          conversionSource: null,
+          method: null,
+          paidAt: new Date('2026-08-30'),
+          note: null,
+          createdAt: new Date('2026-08-30'),
+        });
+        (settlementPayments.listPayments as jest.Mock).mockResolvedValueOnce([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'EUR',
+            documentAmountMinor: 1000,
+          },
+        ]);
+
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 10, currency: 'EUR', paidAt: '2026-08-30' },
+        });
+
+        expect(webhooks.dispatch).not.toHaveBeenCalled();
+
+        // Payment 2: the remaining 13.76 EUR — completes it, CROSSES into settled.
+        (settlementPayments.recordPayment as jest.Mock).mockResolvedValueOnce({
+          id: 'payment-2',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR - 1000,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR - 1000,
+          conversionRate: null,
+          conversionRateAsOf: null,
+          conversionSource: null,
+          method: null,
+          paidAt: new Date('2026-08-31'),
+          note: null,
+          createdAt: new Date('2026-08-31'),
+        });
+        (settlementPayments.listPayments as jest.Mock).mockResolvedValueOnce([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: 1000,
+            currency: 'EUR',
+            documentAmountMinor: 1000,
+          },
+          {
+            id: 'payment-2',
+            documentId: 'doc-1',
+            amountMinor: GROSS_MINOR - 1000,
+            currency: 'EUR',
+            documentAmountMinor: GROSS_MINOR - 1000,
+          },
+        ]);
+
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: (GROSS_MINOR - 1000) / 100, currency: 'EUR', paidAt: '2026-08-31' },
+        });
+
+        expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
+        expect(webhooks.dispatch).toHaveBeenCalledWith(
+          'DOCUMENT_SETTLED',
+          expect.objectContaining({
+            documentId: 'doc-1',
+            typeId: 'invoice',
+            companyId: 'company-1',
+            settlement: expect.objectContaining({ settled: true, outstandingMinor: 0 }),
+          }),
+        );
+      });
+
+      // Caught a real gap during this task's own mutation pass: `crossedIntoSettled(before, after)`
+      // mutated to `after.settled` alone (dropping the `!before.settled` half) still passed the
+      // "two payments" test above by COINCIDENCE (partial-then-final happens to agree with "after
+      // alone"). This is the test that actually needs the `before` half: an invoice ALREADY settled
+      // (an excess payment recorded on top of a complete one) must NOT re-fire.
+      it('a payment recorded on an ALREADY-settled invoice (an excess on top) does NOT re-fire DOCUMENT_SETTLED', async () => {
+        const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+        const { service } = buildService(new TransportRegistry(), webhooks);
+
+        (settlementPayments.recordPayment as jest.Mock).mockResolvedValueOnce({
+          id: 'payment-extra',
+          documentId: 'doc-1',
+          amountMinor: 500,
+          currency: 'EUR',
+          documentAmountMinor: 500,
+          conversionRate: null,
+          conversionRateAsOf: null,
+          conversionSource: null,
+          method: null,
+          paidAt: new Date('2026-09-01'),
+          note: null,
+          createdAt: new Date('2026-09-01'),
+        });
+        // ALREADY fully paid (GROSS_MINOR) BEFORE this extra payment — the crossing already
+        // happened at whichever earlier payment reached GROSS_MINOR; this one only adds an excess.
+        (settlementPayments.listPayments as jest.Mock).mockResolvedValueOnce([
+          {
+            id: 'payment-1',
+            documentId: 'doc-1',
+            amountMinor: GROSS_MINOR,
+            currency: 'EUR',
+            documentAmountMinor: GROSS_MINOR,
+          },
+          {
+            id: 'payment-extra',
+            documentId: 'doc-1',
+            amountMinor: 500,
+            currency: 'EUR',
+            documentAmountMinor: 500,
+          },
+        ]);
+
+        await service.runAction('company-1', 'invoice', 'record-payment', {
+          documentId: 'doc-1',
+          data: validInvoiceData,
+          params: { amount: 5, currency: 'EUR', paidAt: '2026-09-01' },
+        });
+
+        expect(webhooks.dispatch).not.toHaveBeenCalled();
+      });
     });
   });
 

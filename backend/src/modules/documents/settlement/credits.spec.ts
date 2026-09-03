@@ -101,7 +101,13 @@ describe('creditsForInvoiceFromNotes', () => {
     expect(warnings).toEqual([]);
   });
 
-  it("a credit note in a currency OTHER than the invoice's own is IGNORED from the arithmetic, and NAMED in a warning — never converted", () => {
+  // TODO_PRODUIT.md T3 ("un avoir suit la même règle que sa facture") — a credit note whose OWN
+  // `currency` field differs from the invoice's used to be EXCLUDED here entirely. It no longer is:
+  // `computeCreditedAmountMinor` computes the credited amount FROM the invoice's own priced lines
+  // (never the note's), so the number is ALREADY, unavoidably, the invoice's own currency — applying
+  // an exchange rate to it would corrupt an already-correct figure, not "convert" it. See this file's
+  // own header on `CreditsForDocument.warnings` for the full reasoning.
+  it("a credit note whose OWN currency differs from the invoice's is still COUNTED — the amount is always the invoice's own currency, informationally NAMED, never excluded", () => {
     const notes = [
       creditNote({
         id: 'cn-usd',
@@ -112,10 +118,14 @@ describe('creditsForInvoiceFromNotes', () => {
 
     const { credits, warnings } = creditsForInvoiceFromNotes(notes, 'inv-1', INVOICE_DESCRIPTOR, invoiceData);
 
-    expect(credits).toEqual([]);
+    // COUNTED, at the exact same amount a matching-currency note would credit — and labeled with the
+    // INVOICE's own currency (EUR), never the note's own mislabeled USD (the number was never USD).
+    expect(credits).toEqual([
+      { id: 'cn-usd', displayNumber: 'CN-2026-0001', amountMinor: 12000, currency: 'EUR' },
+    ]);
     expect(warnings).toHaveLength(1);
-    // The warning NAMES the credit note (by displayNumber when it has one) and both currencies —
-    // never silent, never a converted amount slipped into `credits` instead.
+    // The warning still NAMES the credit note (by displayNumber when it has one) and both currencies
+    // — never silent about the mismatch, even though it no longer blocks anything.
     expect(warnings[0]).toContain('CN-2026-0001');
     expect(warnings[0]).toContain('USD');
     expect(warnings[0]).toContain('EUR');
@@ -134,7 +144,7 @@ describe('creditsForInvoiceFromNotes', () => {
     expect(warnings[0]).toContain('cn-raw-id');
   });
 
-  it('a mix of matching, foreign-currency, draft, and unrelated credit notes resolves each independently', () => {
+  it('a mix of matching, foreign-currency-labeled, draft, and unrelated credit notes resolves each independently — the foreign-labeled one still counts', () => {
     const notes = [
       creditNote({ id: 'good', data: { invoice: 'inv-1', currency: 'EUR', correctedLines: ['line-1'] } }),
       creditNote({ id: 'foreign', data: { invoice: 'inv-1', currency: 'USD', correctedLines: ['line-2'] } }),
@@ -151,7 +161,11 @@ describe('creditsForInvoiceFromNotes', () => {
 
     const { credits, warnings } = creditsForInvoiceFromNotes(notes, 'inv-1', INVOICE_DESCRIPTOR, invoiceData);
 
-    expect(credits).toEqual([{ id: 'good', displayNumber: null, amountMinor: 12000, currency: 'EUR' }]);
+    expect(credits).toEqual([
+      { id: 'good', displayNumber: null, amountMinor: 12000, currency: 'EUR' },
+      // 'foreign' selects line-2 (6000 minor) — counted, labeled EUR (the invoice's own), not USD.
+      { id: 'foreign', displayNumber: null, amountMinor: 6000, currency: 'EUR' },
+    ]);
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain('foreign');
   });

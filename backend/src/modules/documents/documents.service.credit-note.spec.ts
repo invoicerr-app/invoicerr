@@ -13,6 +13,8 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { ROW_ID_KEY } from './row-selection/row-selection';
+import * as settlementCredits from './settlement/credits';
+import * as settlementPayments from './settlement/payments';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
@@ -21,6 +23,26 @@ jest.mock('./persistence');
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since
 // `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
 jest.mock('./country-policy/country-policy');
+// TODO_PRODUIT.md T3 — "send" (phase 2) now checks whether IT is the write that settles the invoice
+// it corrects (credit-note-actions.ts's `checkAndEmitInvoiceSettledFromCreditNote`), which reaches
+// Prisma directly through `listPayments`/`listCreditNotes` — same "mock what bypasses the mocked
+// ./persistence" discipline documents.service.invoice.spec.ts already holds for the identical
+// concern. PARTIAL mocks (`jest.requireActual` for everything else): `creditsForInvoiceFromNotes`/
+// `toSettlementCreditInputs`/`toSettlementPaymentInputs` are PURE, DB-free, and already proven by
+// their own spec files — re-mocking them here would mean hand-rolling a fake that has to agree with
+// the real arithmetic, which is exactly the kind of drift a partial mock avoids. Defaulted in
+// `beforeEach` below to "no payments, no OTHER credit notes" so every pre-existing test in this file
+// (none of which cares about settlement at all) keeps meaning exactly what it always did; the
+// dedicated "DOCUMENT_SETTLED" describe block overrides `listPayments`/`listCreditNotes` to prove the
+// crossing.
+jest.mock('./settlement/payments', () => ({
+  ...jest.requireActual('./settlement/payments'),
+  listPayments: jest.fn(),
+}));
+jest.mock('./settlement/credits', () => ({
+  ...jest.requireActual('./settlement/credits'),
+  listCreditNotes: jest.fn(),
+}));
 
 /**
  * The THIRD document type written entirely as a descriptor (credit-note.descriptor.ts) — this is
@@ -106,6 +128,10 @@ const validCreditNoteData = {
 describe('DocumentsService — the credit note type, the THIRD descriptor-only type', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    // TODO_PRODUIT.md T3 — see this file's own top-of-file comment on the two partial mocks: no
+    // payments, no OTHER credit notes, by default. A test that cares about settlement overrides these.
+    (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
+    (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([]);
   });
   afterEach(() => jest.resetAllMocks());
 
@@ -238,6 +264,146 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         document: expect.objectContaining({ id: 'cn-1', status: 'sent' }),
       }),
     );
+  });
+
+  // ── TODO_PRODUIT.md T3's own "T2bis différé" — a credit note reaching "sent" is the SECOND write
+  // path (besides invoice-actions.ts's "record-payment") that can cross an invoice into "settled".
+  describe('"send" (phase 2) — DOCUMENT_SETTLED, when THIS credit note is the one that settles the invoice it corrects', () => {
+    /** Two 100 EUR (0% VAT) lines — round numbers, so every settlement figure below is exact and
+     *  easy to hand-check: 200.00 EUR gross total, 100.00 EUR per corrected line. */
+    function settledInvoiceDocument() {
+      return {
+        id: 'invoice-doc-1',
+        typeId: 'invoice',
+        status: 'sent',
+        data: {
+          client: 'client-1',
+          issueDate: '2026-01-15',
+          dueDate: '2026-02-15',
+          currency: 'EUR',
+          lines: [
+            { [ROW_ID_KEY]: 'line-1', description: 'Widget', quantity: 1, unitPrice: 100, vatRate: '0' },
+            { [ROW_ID_KEY]: 'line-2', description: 'Gadget', quantity: 1, unitPrice: 100, vatRate: '0' },
+          ],
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+
+    const sentCreditNoteRow = {
+      id: 'cn-1',
+      typeId: 'credit-note',
+      status: 'sent',
+      data: {
+        invoice: 'invoice-doc-1',
+        issueDate: '2026-02-01',
+        currency: 'EUR',
+        correctedLines: ['line-1'],
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('the invoice was already 100.00 EUR paid — this credit note (100.00 EUR, the other line) COMPLETES it: DOCUMENT_SETTLED fires once', async () => {
+      // Phase 2's OWN re-read (async-send.ts) needs "sending"; the settlement check's re-fetch of the
+      // INVOICE (a DIFFERENT id, 'invoice-doc-1') needs the settled-friendly fixture above — the SAME
+      // shared mock serves both, exactly like this file's own header already documents for the "send"
+      // tests above (neither call site reads `.typeId`/`.id` off the fixture to pick a branch).
+      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_companyId, typeId, id) =>
+        Promise.resolve(
+          typeId === 'invoice' && id === 'invoice-doc-1'
+            ? settledInvoiceDocument()
+            : { ...settledInvoiceDocument(), id: 'cn-1', typeId: 'credit-note', status: 'sending' },
+        ),
+      );
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentCreditNoteRow);
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        { id: 'payment-1', documentId: 'invoice-doc-1', documentAmountMinor: 10000, currency: 'EUR' },
+      ]);
+      // The DB now shows this note "sent" — `listCreditNotes` reads CURRENT state (see
+      // credit-note-actions.ts's own header on why the crossing check excludes it for "before" rather
+      // than snapshotting a moment earlier).
+      (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([sentCreditNoteRow]);
+
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(webhooks);
+      const result = await service.runAction('company-1', 'credit-note', 'send', {
+        documentId: 'cn-1',
+        data: sentCreditNoteRow.data,
+      });
+
+      expect(result.document).toMatchObject({ id: 'cn-1', status: 'sent' });
+      // DOCUMENT_SENT (the credit note itself) AND DOCUMENT_SETTLED (the invoice it just completed)
+      // — exactly two dispatches, never more.
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(2);
+      expect(webhooks.dispatch).toHaveBeenCalledWith('DOCUMENT_SENT', expect.anything());
+      expect(webhooks.dispatch).toHaveBeenCalledWith(
+        'DOCUMENT_SETTLED',
+        expect.objectContaining({
+          documentId: 'invoice-doc-1',
+          typeId: 'invoice',
+          companyId: 'company-1',
+          settlement: expect.objectContaining({
+            settled: true,
+            totalGrossMinor: 20000,
+            paidMinor: 10000,
+            creditedMinor: 10000,
+            outstandingMinor: 0,
+          }),
+        }),
+      );
+    });
+
+    it('the invoice still owes money after this credit note (only a PARTIAL correction) — zero DOCUMENT_SETTLED emissions', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_companyId, typeId, id) =>
+        Promise.resolve(
+          typeId === 'invoice' && id === 'invoice-doc-1'
+            ? settledInvoiceDocument()
+            : { ...settledInvoiceDocument(), id: 'cn-1', typeId: 'credit-note', status: 'sending' },
+        ),
+      );
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentCreditNoteRow);
+      // NOTHING paid at all — correcting line-1 (100 EUR) still leaves line-2 (100 EUR) owed.
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
+      (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([sentCreditNoteRow]);
+
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(webhooks);
+      await service.runAction('company-1', 'credit-note', 'send', {
+        documentId: 'cn-1',
+        data: sentCreditNoteRow.data,
+      });
+
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1); // DOCUMENT_SENT only.
+      expect(webhooks.dispatch).not.toHaveBeenCalledWith('DOCUMENT_SETTLED', expect.anything());
+    });
+
+    it('the invoice was ALREADY settled before this credit note (an excess credit on top) — no NEW crossing, zero emissions', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockImplementation((_companyId, typeId, id) =>
+        Promise.resolve(
+          typeId === 'invoice' && id === 'invoice-doc-1'
+            ? settledInvoiceDocument()
+            : { ...settledInvoiceDocument(), id: 'cn-1', typeId: 'credit-note', status: 'sending' },
+        ),
+      );
+      (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(sentCreditNoteRow);
+      // Already fully paid BEFORE this credit note — the crossing already happened at that payment.
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([
+        { id: 'payment-1', documentId: 'invoice-doc-1', documentAmountMinor: 20000, currency: 'EUR' },
+      ]);
+      (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([sentCreditNoteRow]);
+
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const { service } = buildService(webhooks);
+      await service.runAction('company-1', 'credit-note', 'send', {
+        documentId: 'cn-1',
+        data: sentCreditNoteRow.data,
+      });
+
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1); // DOCUMENT_SENT only — never a re-fire.
+      expect(webhooks.dispatch).not.toHaveBeenCalledWith('DOCUMENT_SETTLED', expect.anything());
+    });
   });
 
   it('"send" is not offered before the credit note has ever been saved — 409, like any other status-gated action', async () => {

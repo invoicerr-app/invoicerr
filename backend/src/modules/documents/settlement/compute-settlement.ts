@@ -25,8 +25,15 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
  * reason: floats do not add up to zero.
  */
 
-/** The one fact `computeSettlement` needs about each payment — its amount. Deliberately narrower
- *  than the full `DocumentPayment` row (method/note/paidAt play no part in the arithmetic). */
+/** The one fact `computeSettlement` needs about each payment — its amount, ALWAYS already expressed
+ *  in the document's own currency. Deliberately narrower than the full `DocumentPayment` row
+ *  (method/note/paidAt play no part in the arithmetic) — and, since TODO_PRODUIT.md T3, deliberately
+ *  NOT the row's own `amountMinor` either when a conversion was applied: a payment in a foreign
+ *  currency is no longer refused (see actions/invoice-actions.ts's "record-payment"), it is CONVERTED
+ *  once, at record time, to a dated rate (`settlement/convert-payment.ts`) and the result is stored on
+ *  the row as `documentAmountMinor` — callers narrow to THAT field (`settlement/payments.ts`'s
+ *  `toSettlementPaymentInputs`), never `amountMinor` (the amount actually received, in the payment's
+ *  OWN currency), so this function never has to know a conversion happened at all. */
 export interface SettlementPaymentInput {
   amountMinor: number;
 }
@@ -80,11 +87,13 @@ export interface DocumentSettlement {
 }
 
 /**
- * Pure arithmetic: no Prisma, no currency conversion (a payment in a currency other than the
- * document's own is refused before it ever reaches here — see actions/invoice-actions.ts's
- * "record-payment" handler; a credit note in a foreign currency is IGNORED before it ever reaches
- * here — see settlement/credits.ts), no rounding rule invented on top of what `payments`/`credits`
- * already carry in minor units.
+ * Pure arithmetic: no Prisma, no currency conversion of its own — every amount handed in is ALREADY
+ * expressed in the document's own currency by the time it gets here (a payment in a foreign currency
+ * is converted once, at record time, to a dated rate — see actions/invoice-actions.ts's
+ * "record-payment" handler and settlement/convert-payment.ts; a credit note's credited amount is
+ * always computed FROM the corrected invoice's own priced lines, so it is inherently already the
+ * invoice's own currency — see settlement/credits.ts's own header on why that needs no conversion at
+ * all), no rounding rule invented on top of what `payments`/`credits` already carry in minor units.
  */
 export function computeSettlement(
   totalGrossMinor: number,

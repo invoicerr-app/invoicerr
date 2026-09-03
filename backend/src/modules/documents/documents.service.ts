@@ -73,7 +73,7 @@ import {
   resolveCreditsForDocument,
   toSettlementCreditInputs,
 } from './settlement/credits';
-import { DocumentPaymentResult, listPayments } from './settlement/payments';
+import { DocumentPaymentResult, listPayments, toSettlementPaymentInputs } from './settlement/payments';
 import {
   EntityReferenceOption,
   EntityReferenceRegistry,
@@ -828,7 +828,16 @@ export class DocumentsService implements OnModuleInit {
     const totals = computeDocumentTotals(descriptor, data);
     const payments = await listPayments(companyId, id);
     const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
-    const settlement = computeSettlement(totals.grossMinor, payments, toSettlementCreditInputs(credits));
+    // TODO_PRODUIT.md T3 — `toSettlementPaymentInputs`, never the raw `payments` array directly:
+    // since a payment can now be recorded in a currency other than the document's own (converted at
+    // record time — settlement/convert-payment.ts), `computeSettlement` must read each payment's
+    // `documentAmountMinor` (already in the document's own currency), not its own `amountMinor`
+    // (the amount actually received, possibly in a different currency's minor units).
+    const settlement = computeSettlement(
+      totals.grossMinor,
+      toSettlementPaymentInputs(payments),
+      toSettlementCreditInputs(credits),
+    );
     return { totals, payments, credits, warnings, settlement };
   }
 

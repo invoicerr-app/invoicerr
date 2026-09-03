@@ -159,6 +159,12 @@ DEUX bases (dev + test) avec des abonnements préexistants référençant un év
 
 ## T3 — Paiements et avoirs convertissent les devises
 
+> ✅ **FAIT** (2026-09-03) — taux PAR OPÉRATION daté à paidAt, épinglé sur la ligne (la voie
+> que le POURQUOI consigné prescrivait) ; refus nommé sans taux ; avoirs : pas de conversion —
+> structurellement en devise facture (constat consigné) ; DOCUMENT_SETTLED sur les 2 chemins de
+> franchissement. Validé : jest 1937, 3 mutations mordantes (2 trous de couverture colmatés en
+> validation : tripwire mapping + pin d'arrondi half-up), batterie au verdict.
+
 Les taux existent déjà (voir l'entrée consignée dans `TODO_ISSUES.md` : « Les taux existent,
 mais paiements et avoirs ne convertissent toujours pas » — lire son POURQUOI consigné avant de
 coder : le choix d'alors peut porter une contrainte). Un paiement dans une devise ≠ celle du
