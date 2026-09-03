@@ -26,7 +26,6 @@ RUN npm run build
 
 FROM ghcr.io/invoicerr-app/server-image:latest
 
-ENV PLUGIN_DIR=/usr/share/nginx/plugins
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
 

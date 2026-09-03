@@ -4,34 +4,76 @@ sidebar_position: 2
 
 # Plugin System
 
-Invoicerr supports two kinds of plugins, both managed by the `plugins` module (`backend/src/modules/plugins/`).
+Invoicerr has **one** plugin mechanism today: in-app plugins, managed by the `plugins` module
+(`backend/src/modules/plugins/`). A second mechanism — loading third-party code from a Git URL at
+runtime — existed and was removed (see [History](#history) below).
 
 ## In-app plugins
 
-Built-in plugins for a fixed set of types: `SIGNING`, `STORAGE`, `PDF_FORMAT`, `OIDC`. They are registered on startup by a `PluginRegistry` singleton (`backend/src/plugins/index.ts`) and stored in the database with an on/off toggle and an optional configuration form.
+Built-in plugins for a fixed set of types: `SIGNING`, `STORAGE` (`PDF_FORMAT`, `OIDC`, and `OCR`
+are declared in the `PluginType` enum but have no registered provider yet — see the Prisma schema
+comment on `PluginType` for why they're left in place unused). They are registered on startup by a
+`PluginRegistry` singleton (`backend/src/plugins/index.ts`) and stored in the database (the
+`Plugin` table) with an on/off toggle and an optional configuration form.
 
-- Only one active plugin per type, except `STORAGE` which supports multiple active instances.
-- Examples: a Documenso provider for signing, an S3 provider for storage.
+- Only one active plugin per type, except `STORAGE` which supports multiple active instances
+  (`PluginRegistry.multiInstancePluginTypes`).
+- Examples: an S3 provider and a local-disk provider for storage
+  (`backend/src/plugins/storage/providers/`).
+- Settings screen: `frontend/src/pages/(app)/settings/_components/plugins.settings.tsx`.
 
 ### Activation flow
 
 1. A user toggles an in-app plugin via `PUT /api/plugins/in-app/toggle`.
 2. If the plugin requires configuration, the API returns a form schema and defers activation.
 3. The user submits the config via `POST /api/plugins/in-app/configure`.
-4. The system validates the plugin, generates a webhook URL/secret if the plugin implements `handleWebhook()`, and persists it.
-
-## External plugins
-
-Git-based plugins that users install by URL:
-
-1. A user clones a plugin repo via `POST /api/plugins` with a Git URL.
-2. The system loads the plugin's JS entrypoint and instantiates its default export.
-3. The plugin is registered in memory with a UUID and name, with an optional init hook.
+4. The system validates the plugin, generates a webhook URL/secret if the plugin implements
+   `handleWebhook()`, and persists it.
 
 ## Plugin interface
 
-Defined in `backend/src/plugins/types.ts`. Every plugin implements `IPlugin` (`id`, `name`, optional `validatePlugin()`, optional `handleWebhook()`). Signing providers additionally implement signature/PDF generation hooks.
+Defined in `backend/src/plugins/types.ts`. Every plugin implements `IPlugin` (`id`, `name`,
+optional `validatePlugin()`, optional `handleWebhook()`).
 
 ## Inbound plugin webhooks
 
-External services (e.g. a signing provider completing a signature) call back via `POST /api/webhooks/:pluginId`, an anonymous endpoint. The system verifies the plugin exists and is active, then forwards the request to the plugin's `handleWebhook()` implementation.
+External services (e.g. a signing provider completing a signature) call back via
+`POST /api/webhooks/:pluginId`, an anonymous endpoint. The system verifies the plugin exists and is
+active, then forwards the request to the plugin's `handleWebhook()` implementation.
+
+## Extending the application: the narrow-interface-at-the-core pattern
+
+For a capability that isn't a good fit for `PluginRegistry` — a per-company credential rather than
+an instance-wide toggle, a background service with its own lifecycle, or simply a case where the
+"one active provider per type" rule doesn't apply — the pattern used elsewhere in this codebase is
+a **narrow interface at the core, with a registry the feature itself owns**, not the generic
+`PluginRegistry`/`Plugin` table machinery.
+
+The reference example is received-document OCR extraction (`ReceivedDocumentExtractor`,
+`backend/src/modules/documents/received-invoices/ocr/extractor.ts`) and its Mistral implementation
+(`backend/src/plugins/ocr/providers/mistral/mistral.ts`). Read that provider file's own header for
+the full account of why it does **not** go through `PluginRegistry`: the credential is held only by
+a dedicated docker-compose service (`ROLE=ocr`), reached by the backend through `OCR_SERVICE_URL`
+alone — never a `Plugin` row, never the Settings screen. A test double
+(`FakeReceivedInvoiceOcrExtractor`) is registered instead under `NODE_ENV=test`, the same swap
+discipline `clients.module.ts`'s `VAT_VALIDATION_FAKE` already establishes elsewhere in this
+codebase.
+
+Adding a new extension point means: define a narrow interface for exactly what callers need,
+give it its own small registry (a `Map`, like `receivedDocumentExtractorRegistry`), and register
+exactly one real implementation per process (swapped for a fake in tests) — not routing through
+`PluginRegistry` unless the capability is genuinely instance-wide, single-active-provider,
+company-agnostic, like signing or storage are.
+
+## History
+
+Earlier, a second mechanism let a user install a plugin from a Git URL at runtime
+(`POST /api/plugins` cloned the repository and dynamically `import()`ed its entrypoint). It was
+**removed** (TODO_SUITE.md P2): its `IPlugin` shape (`{__uuid, __filepath, name, description}`) had
+no real extension point behind it — the only two generic consumers a loaded plugin could reach
+(`canGenerateXml`/`generateXml`) were permanent stubs (`return false` / `throw`), so an externally
+installed plugin could not actually do anything. Keeping a code-loading endpoint alive with no
+capability behind it was pure attack surface (arbitrary Git URL → arbitrary code execution in the
+backend process) for zero product value. See `TODO_ISSUES.md`, "Le système de plugins, vu par son
+premier vrai consommateur" for the investigation that led to this decision, and the section above
+for the extensibility path that replaces it. Nothing about in-app plugins changed.

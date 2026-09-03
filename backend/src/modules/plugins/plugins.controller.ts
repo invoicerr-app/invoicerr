@@ -1,81 +1,17 @@
 import { PluginsService } from '@/modules/plugins/plugins.service';
-import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+// TODO_SUITE.md P2 (2026-09-03) — this controller used to ALSO expose the external, git-clone
+// plugin mechanism: `GET /plugins`, `GET /plugins/formats`, `POST /plugins` (clone a Git URL and
+// dynamically `import()` it), `DELETE /plugins` (uninstall). Removed — no route above answers
+// those paths any more. See `plugins.service.ts`'s own header and TODO_ISSUES.md ("Le système de
+// plugins, vu par son premier vrai consommateur", T5c) for why. Only the in-app plugins API
+// (`PluginRegistry`/`PluginType`, the Settings > Plugins screen) remains below.
 @ApiTags('plugins')
 @Controller('plugins')
 export class PluginsController {
   constructor(private readonly pluginsService: PluginsService) {}
-
-  @Get()
-  @ApiOperation({
-    summary: 'List installed plugins',
-    description: 'Returns all installed plugins with their UUID, name, and description.',
-  })
-  @ApiResponse({ status: 200, description: 'Plugins retrieved' })
-  async getPlugins() {
-    return this.pluginsService.getPlugins().map((plugin) => ({
-      uuid: plugin.__uuid,
-      name: plugin.name,
-      description: plugin.description,
-    }));
-  }
-
-  @Get('formats')
-  @ApiOperation({
-    summary: 'List available output formats',
-    description: 'Returns the list of output formats provided by installed plugins (e.g. PDF, XRechnung).',
-  })
-  @ApiResponse({ status: 200, description: 'Formats retrieved' })
-  async getFormats() {
-    return this.pluginsService.getFormats();
-  }
-
-  @Post()
-  @ApiOperation({
-    summary: 'Install a plugin from a Git URL',
-    description: 'Clones a Git repository and loads it as a plugin.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: { gitUrl: { type: 'string', description: 'Git repository URL to clone' } },
-      required: ['gitUrl'],
-    },
-  })
-  @ApiResponse({ status: 201, description: 'Plugin installed' })
-  async addPlugin(@Body() body: { gitUrl: string }) {
-    const { gitUrl } = body;
-    if (!gitUrl) {
-      throw new Error('Git URL is required');
-    }
-    const name =
-      gitUrl
-        .split('/')
-        .pop()
-        ?.replace(/\.git$/, '') || `unknown-plugin-${Date.now()}`;
-    const pluginPath = await this.pluginsService.cloneRepo(gitUrl, name);
-    const plugin = await this.pluginsService.loadPluginFromPath(pluginPath);
-    return {
-      uuid: plugin.__uuid,
-      name: plugin.name,
-      description: plugin.description,
-    };
-  }
-
-  @Delete()
-  @ApiOperation({ summary: 'Uninstall a plugin', description: 'Deletes a plugin by its UUID.' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: { uuid: { type: 'string', description: 'Plugin UUID' } },
-      required: ['uuid'],
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Plugin uninstalled' })
-  async deletePlugin(@Body() body: { uuid: string }) {
-    return { success: await this.pluginsService.deletePlugin(body.uuid) };
-  }
 
   @Get('in-app')
   @ApiOperation({

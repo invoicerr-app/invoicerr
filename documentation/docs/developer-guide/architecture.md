@@ -22,7 +22,7 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 | `invoices` | Core invoice CRUD, PDF/XML generation, payment tracking, line items. |
 | `logger` | Server-sent event stream of real-time logs, filterable by category/level/user. |
 | `payment-methods` | Stores and toggles payment methods, attached to invoices/quotes. |
-| `plugins` | Registry and loader for built-in and external plugins. See [Plugin system](./plugin-system.md). |
+| `plugins` | Registry for built-in (in-app) plugins — signing, storage. See [Plugin system](./plugin-system.md). |
 | `quotes` | Quote CRUD, PDF generation, signing workflow, expiry tracking. |
 | `receipts` | Receipt generation from invoices, PDFs, email dispatch. |
 | `recurring-invoices` | Scheduled invoice generation on a recurring basis. |

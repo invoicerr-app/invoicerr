@@ -1,141 +1,36 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { extname, join } from 'node:path';
 
 import { PluginRegistry } from '../../plugins';
 import { generateWebhookSecret } from '@/utils/webhook-security';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { randomUUID } from 'node:crypto';
-import { simpleGit } from 'simple-git';
 
-export interface PdfFormatInfo {
-  format_name: string;
-  format_key: string;
-}
-
-export interface IPlugin {
-  __uuid: string;
-  __filepath: string;
-  name: string;
-  description: string;
-  init?: () => void;
-  config?: any;
-  type?: string;
-  isActive?: boolean;
-}
-
-export interface InvoicePlugin extends IPlugin {
-  pdf_format_info: () => PdfFormatInfo;
-  pdf_format: (invoice: unknown) => Promise<string>;
-}
-
-const PLUGIN_DIR = process.env.PLUGIN_DIR || '/root/invoicerr-plugins';
-const PLUGIN_DIRS = [PLUGIN_DIR, join(process.cwd(), 'src', 'in-app-plugins')];
-
+// TODO_SUITE.md P2 (2026-09-03) — this service used to ALSO run a second, entirely separate
+// mechanism: git-clone-and-dynamic-`import()` "external" plugins (POST /api/plugins, an in-memory
+// `IPlugin[]` array, a `PLUGIN_DIR` on disk). It was removed: `IPlugin` there was `{__uuid,
+// __filepath, name, description}` with NO real extension point behind it — the two generic
+// consumers a caller could reach (`canGenerateXml`/`generateXml`) were permanent stubs (`return
+// false` / `throw`), so an external plugin, once loaded, could do nothing. See TODO_ISSUES.md,
+// "Le système de plugins, vu par son premier vrai consommateur" (T5c) for the full account and the
+// decision: extensibility is the narrow-interface-at-the-core pattern (this task's own OCR/Mistral
+// plugin, `plugins/ocr/providers/mistral/mistral.ts`), not third-party code loading. Everything
+// below is the OTHER mechanism, which this service always also ran: IN-APP plugins
+// (`PluginRegistry`/`PluginType`, the `Plugin` Postgres table, the Settings > Plugins screen) —
+// unaffected by the removal.
 @Injectable()
 export class PluginsService {
-  private readonly plugins: IPlugin[] = [];
   private pluginRegistry = PluginRegistry.getInstance();
   private static isInitialized = false;
 
   constructor() {
     if (!PluginsService.isInitialized) {
       logger.info('Loading plugins...', { category: 'plugin' });
-      this.loadExistingPlugins();
 
       this.pluginRegistry.initializeIfNeeded().catch((err) => {
         logger.error('Failed to initialize plugin registry', { category: 'plugin', details: { error: err } });
       });
       PluginsService.isInitialized = true;
     }
-  }
-
-  async cloneRepo(gitUrl: string, name: string): Promise<string> {
-    const pluginPath = join(PLUGIN_DIR, name);
-
-    if (!existsSync(pluginPath)) {
-      logger.info(`Cloning plugin "${name}" from ${gitUrl}...`, { category: 'plugin' });
-      await simpleGit().clone(gitUrl, pluginPath);
-    }
-
-    return pluginPath;
-  }
-
-  async loadExistingPlugins(): Promise<void> {
-    for (const pluginDir of PLUGIN_DIRS) {
-      logger.info(`Loading plugins from directory: ${pluginDir}`, { category: 'plugin' });
-      if (!existsSync(pluginDir)) {
-        logger.warn(`Plugin directory "${pluginDir}" does not exist.`, { category: 'plugin' });
-        return;
-      }
-
-      const dirs = readdirSync(pluginDir).filter((f) => statSync(join(pluginDir, f)).isDirectory());
-
-      for (const dir of dirs) {
-        try {
-          await this.loadPluginFromPath(join(pluginDir, dir));
-        } catch (err) {
-          logger.error(`Failed to load plugin "${dir}"`, {
-            category: 'plugin',
-            details: { error: err.message },
-          });
-        }
-      }
-    }
-  }
-
-  async loadPluginFromPath(pluginPath: string): Promise<IPlugin> {
-    if (pluginPath.startsWith('http')) {
-      pluginPath = await this.cloneRepo(
-        pluginPath,
-        pluginPath.split('/').pop() || `unknown-plugin-${Date.now()}`,
-      );
-    }
-    const files = readdirSync(pluginPath);
-    const jsFile = files.find((f) => extname(f) === '.js');
-    if (!jsFile) {
-      logger.error(`No .js file found in plugin directory: ${pluginPath}`, {
-        category: 'plugin',
-        details: { pluginPath },
-      });
-      throw new Error(`No .js file found in plugin directory: ${pluginPath}`);
-    }
-    const pluginFile = join(pluginPath, jsFile);
-    const pluginModule = await import(pluginFile);
-    const PluginClass = pluginModule.default;
-    const plugin: IPlugin = new PluginClass();
-    plugin.init?.();
-    let uuid = randomUUID();
-    while (this.plugins.some((p) => p.__uuid === uuid)) {
-      uuid = randomUUID();
-    }
-    plugin.__uuid = uuid;
-    plugin.__filepath = pluginFile;
-    this.plugins.push(plugin);
-    logger.info(`Plugin "${plugin.name}" loaded.`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name },
-    });
-    return plugin;
-  }
-
-  async loadAllPlugins(pluginConfigs: { git: string; name: string }[]) {
-    for (const config of pluginConfigs) {
-      try {
-        const path = await this.cloneRepo(config.git, config.name);
-        await this.loadPluginFromPath(path);
-      } catch (err) {
-        logger.error(`Failed to load plugin "${config.name}"`, {
-          category: 'plugin',
-          details: { error: err.message },
-        });
-      }
-    }
-  }
-
-  getPlugins(): IPlugin[] {
-    return this.plugins;
   }
 
   async getInAppPlugins(): Promise<
@@ -292,55 +187,12 @@ export class PluginsService {
     };
   }
 
-  async getActivePlugin(id: string): Promise<IPlugin | null> {
-    const dbProvider = await prisma.plugin.findFirst({
-      where: {
-        id,
-        isActive: true,
-      },
-    });
-
-    if (!dbProvider) {
-      return null;
-    }
-    const provider = await this.pluginRegistry.getProvider(id);
-
-    if (!provider) {
-      return null;
-    }
-
-    const pluginType = this.getPluginTypeEnum(dbProvider.type);
-    const activePlugin = await prisma.plugin.findFirst({
-      where: {
-        type: pluginType as any,
-        isActive: true,
-      },
-    });
-
-    if (!activePlugin) {
-      return null;
-    }
-
-    const inAppPlugin: IPlugin = {
-      __uuid: activePlugin.id,
-      __filepath: '',
-      name: activePlugin.name,
-      description: `Plugin ${activePlugin.name} de type ${activePlugin.type}`,
-      config: activePlugin.config,
-      type: activePlugin.type,
-      isActive: activePlugin.isActive,
-      ...provider,
-    };
-
-    return inAppPlugin;
-  }
-
   /**
    * Get the active provider for a given type
    * @param type The plugin type (signing, payment, etc.)
    * @returns The active provider or null
    */
-  async getProviderByType<T = IPlugin>(type: string): Promise<T | null> {
+  async getProviderByType<T>(type: string): Promise<T | null> {
     return await this.pluginRegistry.getProviderByType<T>(type);
   }
 
@@ -349,71 +201,8 @@ export class PluginsService {
    * @param type The plugin type (signing, payment, etc.)
    * @returns Array of active providers
    */
-  async getProvidersByType<T = IPlugin>(type: string): Promise<T[]> {
+  async getProvidersByType<T>(type: string): Promise<T[]> {
     return await this.pluginRegistry.getProvidersByType<T>(type);
-  }
-
-  private getPluginTypeEnum(type: string): string {
-    switch (type.toLowerCase()) {
-      case 'signing':
-        return 'SIGNING';
-      case 'pdf_format':
-        return 'PDF_FORMAT';
-      case 'payment':
-        return 'PAYMENT';
-      case 'oidc':
-        return 'OIDC';
-      default:
-        logger.error(`Unknown plugin type: ${type}`, { category: 'plugin', details: { type } });
-        throw new Error(`Unknown plugin type: ${type}`);
-    }
-  }
-
-  canGenerateXml(_format: string): boolean {
-    // Check if any plugin can generate the requested XML format
-    // For now, return false
-    return false;
-  }
-
-  async generateXml(format: string, _xmlInvoice: any): Promise<string> {
-    // Return XML using a plugin
-    // For now, throw an error as this feature is not yet implemented
-    logger.error(`XML generation for format "${format}" not implemented yet`, {
-      category: 'plugin',
-      details: { format },
-    });
-    throw new Error(`XML generation for format "${format}" not implemented yet`);
-  }
-
-  getFormats(): any[] {
-    // Return formats provided by plugins
-    // For now, return an empty array
-    return [];
-  }
-
-  async deletePlugin(uuid: string): Promise<boolean> {
-    const index = this.plugins.findIndex((p) => p.__uuid === uuid);
-    if (index === -1) {
-      logger.error(`Plugin with UUID "${uuid}" not found`, { category: 'plugin', details: { uuid } });
-      throw new Error(`Plugin with UUID "${uuid}" not found`);
-    }
-    const plugin = this.plugins[index];
-    this.plugins.splice(index, 1);
-    if (existsSync(plugin.__filepath)) {
-      let pluginDir = plugin.__filepath;
-      pluginDir = join(pluginDir, '..');
-      logger.info(`Deleting plugin files at ${pluginDir}`, {
-        category: 'plugin',
-        details: { pluginName: plugin.name },
-      });
-      rmSync(pluginDir, { recursive: true, force: true });
-    }
-    logger.info(`Plugin "${plugin.name}" deleted.`, {
-      category: 'plugin',
-      details: { pluginName: plugin.name },
-    });
-
-    return true;
   }
 
   /**

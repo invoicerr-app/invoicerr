@@ -641,16 +641,29 @@
   d'architecture demandé par le mandant : DEUX mécanismes distincts répondent à « plugin ». Les
   plugins IN-APP (PluginRegistry/PluginType) marchent (toggle, config validée) mais sont
   INSTANCE-WIDE (un seul provider actif par type, global) et l'enum n'avait jamais grandi
-  (PDF_FORMAT/OIDC documentés, jamais ajoutés). Les plugins EXTERNES (git-clone, POST /api/plugins)
-  se chargent réellement mais N'ONT AUCUN POINT D'EXTENSION derrière eux : IPlugin = {id, name},
-  et les deux seuls consommateurs génériques (canGenerateXml/generateXml) sont des stubs (return
-  false / throw). Un plugin externe installé aujourd'hui ne peut RIEN faire. T5c a donc validé
-  l'architecture par la voie interface-étroite-au-cœur (ReceivedDocumentExtractor + registre,
-  le plugin Mistral dans src/plugins/ocr/) — pas par le chargement externe. Ce qui manquerait
-  pour que les plugins EXTERNES servent : rattacher IPlugin à de vrais points d'extension
-  (extracteurs, formats, transports ?) avec un contrat versionné. PluginType.OCR ajouté et laissé
-  inerte (documenté — Postgres ne retire pas une valeur d'enum sans reconstruire le type).
-  Décision produit à prendre avant tout chantier.
+  (PDF_FORMAT/OIDC documentés, jamais ajoutés). ~~Les plugins EXTERNES (git-clone, POST
+  /api/plugins) se chargent réellement mais N'ONT AUCUN POINT D'EXTENSION derrière eux : IPlugin =
+  {id, name}, et les deux seuls consommateurs génériques (canGenerateXml/generateXml) sont des
+  stubs (return false / throw). Un plugin externe installé aujourd'hui ne peut RIEN faire.~~ T5c a
+  donc validé l'architecture par la voie interface-étroite-au-cœur (ReceivedDocumentExtractor +
+  registre, le plugin Mistral dans src/plugins/ocr/) — pas par le chargement externe. ~~Ce qui
+  manquerait pour que les plugins EXTERNES servent : rattacher IPlugin à de vrais points
+  d'extension (extracteurs, formats, transports ?) avec un contrat versionné.~~ — **DÉCISION PRISE
+  et EXÉCUTÉE (P2, TODO_SUITE.md, 2026-09-03)** : le mandant a tranché pour le retrait plutôt que
+  l'investissement — le chargement externe n'avait aucun consommateur réel, c'était de la surface
+  d'attaque (URL Git arbitraire → exécution de code arbitraire dans le process backend) sans valeur
+  produit en face. Retirés : `POST/GET/DELETE /api/plugins`, `GET /api/plugins/formats`, le
+  git-clone + `import()` dynamique (`PluginsService.cloneRepo`/`loadPluginFromPath`/
+  `loadExistingPlugins`/`loadAllPlugins`/`getPlugins`/`deletePlugin`), l'`IPlugin`/`InvoicePlugin`/
+  `PdfFormatInfo` propres à ce mécanisme, l'écran « Add Plugin » (URL Git) et la liste des plugins
+  installés côté front, la dépendance `simple-git` (import retiré, colis npm laissé en l'état —
+  hors périmètre), `ENV PLUGIN_DIR` du Dockerfile. AUCUNE table Prisma dédiée n'existait pour ces
+  plugins externes (jamais persistés qu'en mémoire + disque) : aucune migration de nettoyage de
+  base n'était donc nécessaire. Ce qui RESTE ouvert, inchangé par ce retrait : `PluginType.OCR`
+  ajouté puis laissé inerte (Postgres ne retire pas une valeur d'enum sans reconstruire le type) ;
+  `PDF_FORMAT`/`OIDC` toujours documentés, jamais un provider réel ; la voie d'extensibilité reste
+  exclusivement interface-étroite-au-cœur (l'exemple OCR/Mistral) ou `PluginRegistry` pour ce qui
+  est vraiment instance-wide/un-seul-actif — jamais plus de chargement de code tiers.
 
 - **OCR Mistral : le round-trip réel attend une clé** (T5c, 2026-09-03) : tout est prouvé jusqu'au
   mur de credentials (boot ROLE=ocr, 401 réel de api.mistral.ai traversé de bout en bout) ; le

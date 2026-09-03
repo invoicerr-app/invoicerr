@@ -30,6 +30,31 @@ PL peut ÉMETTRE (le déblocage), et la restriction lue la bloque là où la loi
 
 ## P2 — Retrait du chargement externe des plugins
 
+> ✅ **FAIT** (2026-09-03) — le git-clone (POST /api/plugins), le chargement dynamique, les
+> stubs canGenerateXml/generateXml, l'écran d'ajout par URL et les clés i18n mortes retirés
+> (grep-zéro vérifié) ; les plugins in-app, l'écran de config, le registre OCR T5c préservés et
+> prouvés (boots API+worker réels, routes fantômes 404) ; rien en base (les externes n'étaient
+> jamais persistés — aucune migration) ; doc plugin-system réécrite avec l'historique honnête.
+> Validation : la mutation « @Get retiré » ne mordait pas (routes non épinglées au niveau HTTP)
+> → tripwire par métadonnées de routage Nest, re-prouvé. jest 2135, batterie 259 verts. Reste
+> consigné : simple-git à retirer de package.json (hors périmètre, watcher vivant).
+
+> ✅ **FAIT** (2026-09-03) — retirés : `POST/GET/DELETE /api/plugins`, `GET /api/plugins/formats`,
+> `PluginsService.cloneRepo`/`loadPluginFromPath`/`loadExistingPlugins`/`loadAllPlugins`/
+> `getPlugins`/`deletePlugin`/`canGenerateXml`/`generateXml`/`getFormats`/`getActivePlugin` (mort,
+> zéro appelant), `IPlugin`/`InvoicePlugin`/`PdfFormatInfo` (le triplet propre au mécanisme
+> externe — DISTINCT de `IPlugin={id,name}` dans `plugins/types.ts`, qui RESTE), l'écran « Add
+> Plugin » (URL Git) + la liste des plugins installés côté front, `ENV PLUGIN_DIR` (Dockerfile).
+> AUCUNE table Prisma dédiée aux plugins externes (jamais persistés qu'en mémoire + disque) —
+> aucune migration nécessaire, confirmé par lecture du schéma (une seule table `Plugin`, entièrement
+> in-app). Préservé et testé : `PluginRegistry`/`PluginType`/l'écran de config in-app (toggle,
+> configure, validate, webhooks), le flux OCR T5c (82 tests, 9 suites, inchangés). jest 2131 (+6),
+> boot API et worker (ROLE=worker, health :3001) réussis avec grep live des 4 routes survivantes +
+> 4 routes fantômes confirmées 404, build backend et frontend réels verts, biome + i18n:check
+> verts, Cypress (09-settings.cy.ts, Firefox, trashAssetsBeforeRuns=false) 13/13 verts. Mutation
+> rejouée : ré-ajout d'un `getFormats` fantôme sur le contrôleur → le test « no ghost route » le
+> détecte et échoue comme attendu ; reverti, re-vert confirmé.
+
 Le endpoint git-clone (POST /api/plugins), son écran, IPlugin={id,name} et les consommateurs
 stubs (canGenerateXml/generateXml) partent — la voie d'extensibilité est l'interface au cœur
 (T5c). Établir par grep tout ce qui référence le mécanisme (backend, front, doc

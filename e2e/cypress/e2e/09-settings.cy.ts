@@ -95,6 +95,35 @@ describe('Settings E2E', () => {
         });
     });
 
+    describe('Plugins Settings', () => {
+        // TODO_SUITE.md P2 (2026-09-03) — the external, git-clone "Add Plugin" form and the
+        // installed-plugins list it fed were removed (no real extension point behind them, see
+        // TODO_ISSUES.md T5c). No spec touched `/settings/plugins` before this task (grep found
+        // none) — this is a fresh smoke of the screen that remains: in-app plugins only
+        // (PluginRegistry/PluginType — signing, storage), proving the removal didn't take the
+        // survivor down with it.
+        it('loads the plugins settings page', () => {
+            cy.visit('/settings/plugins');
+            cy.wait(1000);
+            cy.contains(/plugins/i, { timeout: 10000 });
+        });
+
+        it('shows only the in-app plugin surface — no external git-url install form survives', () => {
+            cy.visit('/settings/plugins');
+            cy.wait(1000);
+
+            cy.get('input#git-url').should('not.exist');
+            cy.contains(/add plugin/i).should('not.exist');
+
+            // The in-app toggles (signing/storage providers) are what's left of this screen.
+            cy.get('body').then($body => {
+                if ($body.find('button[role="switch"]').length > 0) {
+                    cy.get('button[role="switch"]').should('have.length.at.least', 1);
+                }
+            });
+        });
+    });
+
     describe('Settings Sidebar Navigation', () => {
         it('navigates between settings sections', () => {
             cy.visit('/settings');
