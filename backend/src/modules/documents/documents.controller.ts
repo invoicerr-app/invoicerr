@@ -454,6 +454,38 @@ export class DocumentsController {
     return this.documentsService.getSettlement(companyId, typeId, id);
   }
 
+  @Get(':id/correction-routes')
+  @ApiOperation({
+    summary: "A document's correction routes, for its SELLER country",
+    description:
+      'TODO_CORRECTION.md C1. Every correction route (CREDIT_NOTE, INTERNAL_CREDIT_NOTE, …) the ' +
+      "active company's own country declares for this document, each with its status " +
+      '(required/allowed/forbidden/unverified), its legal label VERBATIM (never a summary), and ' +
+      'whether this repo actually implements it today — only INTERNAL_CREDIT_NOTE does. `limitation` ' +
+      'always names the seller-only scope of this read (see ' +
+      "correction-routes/correction-routes.ts's own header on the unwritten seller×buyer " +
+      'composition, task P3-U02). V1 only answers for typeId="invoice".',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Correction routes retrieved' })
+  @ApiResponse({
+    status: 404,
+    description: 'Unknown document type, document not found, or no correction-routes rule for this country',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'The document is still a "draft" — nothing issued to correct yet',
+  })
+  @ApiResponse({ status: 501, description: 'typeId is not "invoice" — not supported by this endpoint yet' })
+  getCorrectionRoutes(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.getCorrectionRoutes(companyId, typeId, id);
+  }
+
   @Get(':id/pdf')
   @ApiOperation({
     summary: 'Get a document instance as PDF',

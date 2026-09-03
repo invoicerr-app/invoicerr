@@ -1,0 +1,113 @@
+{
+  "countryCode": "DE",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Nature : ouverte, jamais requise, pour la réduction de la base imposable (Skonti, Nachlässe, Rückgängigmachung). « Ein Belegaustausch ist NUR für die in § 17 Abs. 4 UStG bezeichneten Fälle vorgeschrieben. Ein Beleg… KANN, MUSS ABER NICHT als umsatzsteuerliche Rechnung ausgestellt werden. » Source : UStAE 14.11 Abs. 4 S. 1 ; UStAE 17.1 Abs. 3a S. 4-5.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Voir aussi la sous-règle CREDIT_NOTE_ALLOCATION du YAML (hors des 11 routes canoniques) : REQUISE quand la contrepartie est modifiée conjointement sur des opérations à des taux différents (Jahresboni), § 17 Abs. 4 UStG. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucune catégorie allemande distincte trouvée — la voie opérante est § 17 Abs. 1 S. 1 (neutre : « geändert ») plus une Rechnungsberichtigung (CORRECTIVE_INVOICE ci-dessous). settled_by proposé par le YAML : UStAE Abschnitt 17.1 dans son intégralité, ou un BMF-Schreiben sur les Entgelterhöhungen."
+      },
+      "notes": "À noter côté acheteur (hors du statut lui-même) : avec une taxe indiquée trop basse, il ne peut déduire la différence qu'une fois qu'il DÉTIENT une facture portant le montant correct (UStAE 15.2a Abs. 7 S. 16). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.DEBIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "C'EST la voie allemande. Applicable à une facture à laquelle manquent les mentions des § 14 Abs. 4 / § 14a, ou dont les mentions sont « unzutreffend ». Seuls les éléments manquants ou faux doivent être envoyés : « Die Berichtigung muss durch ein Dokument erfolgen, das SPEZIFISCH UND EINDEUTIG AUF DIE RECHNUNG BEZOGEN ist » et « EINE NEUE RECHNUNGSNUMMER FÜR DIESES DOKUMENT IST NICHT ERFORDERLICH ». Le renvoi de l'original n'est pas exigé ; seul l'émetteur peut corriger. Source : § 31 Abs. 5 UStDV ; UStAE 14.11 Abs. 1 S. 2, 4, 5, 11 et Abs. 2 S. 1.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "RÉTROACTIVITÉ OBLIGATOIRE (fait de cycle de vie, pas de forme) : « Sind diese Anforderungen erfüllt, entfaltet die Rechnungsberichtigung IMMER Rückwirkung » (UStAE 15.2a Abs. 7 S. 4/8, exceptions BFH 07/07/2022 V R 33/20 et BFH 17/07/2024 XI R 35/22) — mais § 14 Abs. 4 Satz 4 UStG dit l'INVERSE pour la PROCÉDURE fiscale : « Die Berichtigung einer Rechnung… ist KEIN RÜCKWIRKENDES EREIGNIS » au sens de la réouverture d'imposition et des intérêts. FORMAT LOCK : la correction d'une facture électronique doit être électronique, au même type de document (UStAE 14.11 Abs. 1 S. 7-9, BMF-Schreiben 15/10/2025) — symétrique du verrou polonais de l'art. 106j ust. 4. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.CORRECTIVE_INVOICE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Ouverte, et rétroactive : « Auch der Stornierung einer Rechnung nebst Neuausstellung einer sie ersetzenden Rechnung kann eine Rückwirkung beim Vorsteuerabzug zukommen » (BFH 22/01/2020 - XI R 10/17). LIMITE : plusieurs factures pour une même opération non marquées « Duplikat » ou « Kopie » entraînent la responsabilité § 14c sur CHACUNE. Source : UStAE 15.2a Abs. 7 S. 5 ; UStAE 14c.1 Abs. 4 S. 5.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.CANCEL_AND_REPLACE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable à la correction § 14c, lorsque la taxe a été mentionnée et la facture délivrée. La correction « erfolgt durch Berichtigungserklärung GEGENÜBER DEM LEISTUNGSEMPFÄNGER » et « Dem Leistungsempfänger muss eine hinreichend bestimmte, schriftliche Berichtigung TATSÄCHLICH ZUGEHEN » — une correction qui ne parvient pas au destinataire ne vaut rien. Source : UStAE 14c.1 Abs. 7 S. 1-2.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.INTERNAL_CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "LA SURPRISE ALLEMANDE — un cas étroit, mais une vraie autorisation préalable. Applicable au « Unberechtigter Steuerausweis » (§ 14c Abs. 1 S. 3), également § 1 Abs. 1a et révocation de l'option § 9. Le montant dû « kann berichtigt werden, soweit die GEFÄHRDUNG DES STEUERAUFKOMMENS BESEITIGT worden ist », et « Die Berichtigung… ist beim FINANZAMT GESONDERT SCHRIFTLICH ZU BEANTRAGEN UND NACH DESSEN ZUSTIMMUNG… vorzunehmen ». Elle annule la TAXE, pas la facture — mais c'est bien une autorisation d'autorité qui conditionne le cycle de correction. Source : § 14c Abs. 2 S. 3-5 UStG ; UStAE 14c.1 Abs. 11.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "L'Allemagne était le pays qu'on croyait sans autorité de correction — c'est faux pour ce cas précis. Open question du YAML : le § 14c Abs. 2 S. 5 pose l'exigence d'accord sans fixer de délai ni d'accord tacite (unverified, settled_by : UStAE Abschnitt 14c.2 Abs. 5 et suivants). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.AUTHORITY_ANNULMENT, consulté 2026-08-29."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Es ist unschädlich, wenn die Datei zu einer E-Rechnung MEHRFACH ÜBERSANDT wird, solange es sich um dieselbe Rechnung handelt und die Übermittlung nur als inhaltlich identisches Mehrstück erfolgt. » Source : UStAE 14c.1 Abs. 4 S. 7 ; S. 6 pour les Mehrstücke identiques.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.RESUBMIT_SAME_IDENTITY, consulté 2026-08-29."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "C'est la voie PAR DÉFAUT en Allemagne, pas un cas marginal — applicable aux remises, rabais, créances irrécouvrables, annulations (tout changement de base imposable). § 17 Abs. 1 UStG ajuste la taxe DE PLEIN DROIT, et l'UStAE dit expressément qu'aucune correction de facture n'est requise : rien n'est émis, rien n'est transmis, et la position TVA bouge quand même. Source : § 17 Abs. 1 UStG ; UStAE 14.11 Abs. 4 ; UStAE 17.1 Abs. 3a.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Trouvée hors de la liste initiale du plan (discovered_by: recherche DE, 2026-08-29). Modéliser cette voie en CREDIT_NOTE serait faux — c'est exactement le défaut de l'ANCIEN moteur démoli (hors périmètre de C1). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.NO_DOCUMENT_BY_LAW, consulté 2026-08-29."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable à la Gutschrift (auto-facturation) : le FOURNISSEUR peut détruire une facture auto-émise en s'y opposant, elle « verliert die Wirkung einer Rechnung ». Effet à réception par l'émetteur de la Gutschrift, ex nunc pour la déduction, et « grundsätzlich UNBEFRISTET möglich » — sans limite de temps. Source : § 14 Abs. 2 Satz 6 UStG ; UStAE 14.3 Abs. 4 S. 7, 8, 9.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Trouvée hors de la liste initiale du plan (discovered_by: recherche DE, 2026-08-29). Sans analogue dans le vocabulaire des autres pays : ce n'est pas l'émetteur qui corrige, c'est la contrepartie qui détruit unilatéralement. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.COUNTERPARTY_OBJECTION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Allemagne — mais NO_DOCUMENT_BY_LAW en couvre l'essentiel du besoin (docs/compliance/CORRECTION-ROUTES.yaml countries.DE.routes.LEDGER_ANNOTATION.settled_by, verbatim)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.DE.routes.LEDGER_ANNOTATION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.DE.routes du YAML (elle a été découverte pendant la recherche française, discovered_by: recherche FR, 2026-08-29) — aucune recherche menée côté Allemagne, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.DE.routes, consulté 2026-08-29."
+    }
+  ],
+  "notes": "Allemagne — docs/compliance/CORRECTION-ROUTES.yaml countries.DE : provenance sourced, consulted 2026-08-29. HEADLINE : le profil de l'ANCIEN moteur démoli (de.ts:57, hors périmètre de C1) déclarait CREDIT_NOTE, faux sur deux tableaux — la voie allemande est la Rechnungsberichtigung (CORRECTIVE_INVOICE, required) qui référence l'original sans même avoir besoin de son propre numéro, et pour un simple changement de base imposable AUCUN document n'est requis (NO_DOCUMENT_BY_LAW). Le « piège Gutschrift » du YAML (deux sens du mot, l'un fiscal l'un commercial) est porté dans COUNTERPARTY_OBJECTION ci-dessus, pas dans une route séparée."
+}

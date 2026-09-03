@@ -1,0 +1,113 @@
+{
+  "countryCode": "FR",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« la rectification des factures s'entend généralement SOIT de l'envoi d'une facture nouvelle annulant et remplaçant la précédente, SOIT [...] de l'envoi d'une note d'avoir » — applicable aux ventes résiliées ou annulées, rabais, remises, ristournes. Source : CGI art. 272, 1 ; CGI art. 289, I, 5 ; BOI-TVA-DED-40-10-20 § 60 et § 80.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Ouverte en général mais INTERDITE pour l'impayé pur : le YAML porte une sous-règle CREDIT_NOTE_ON_UNPAID à part (forbidden), BOI-TVA-DED-40-10-20 § 110, « ne saurait conduire [...] à notifier à son client défaillant un nouveau document mentionnant une somme différente de celle qui figure sur la facture initiale » et § 60 « le non-paiement d'une facture n'appelle [...] aucune rectification » — voir ANNOTATED_DUPLICATE ci-dessous, la voie imposée à sa place pour ce cas précis. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Pas d'instrument distinct en droit français : tout document qui augmente est une rectificative assimilée à une facture. » Source : CGI art. 289, I, 5 ; BOI-TVA-DECLA-30-20-20-20 § 180.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Caveat du YAML : ouverte comme mécanisme, mais son caractère OBLIGATOIRE reste unverified pour la France (open_question fr_debit_note_obligatoire — aucune disposition trouvée qui impose un rectificatif à la hausse, contrairement au comma 1 italien ; settled_by proposé : BOI-TVA-DECLA-30-20-10 dans son intégralité, ou CGI art. 283). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.DEBIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« tout document ou message qui modifie la facture initiale et qui y fait référence de façon spécifique et non équivoque est assimilé à une facture » — applicable à toute modification référencée de la facture initiale. Source : CGI art. 289, I, 5 ; mentions CGI ann. II art. 242 nonies A, I ; BOI-TVA-DECLA-30-20-20-20 § 180 et § 220.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.CORRECTIVE_INVOICE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Doit porter « référence exacte à la facture initiale et la mention expresse de l'annulation de celle-ci » — applicable aux ventes annulées ou résiliées, rabais. Source : BOI-TVA-DED-40-10-20 § 70 ; BOI-TVA-DECLA-30-20-20-20 § 240.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Le YAML signale (R-P3-01, un constat sur l'ANCIEN moteur démoli, sans effet sur ce mécanisme fichier) qu'aucun profil ne déclarait cette voie alors que la France l'autorise. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.CANCEL_AND_REPLACE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Dans les cas des statuts \"Refusée\" ou \"Rejetée\", le fournisseur doit procéder à une annulation comptable (avoir interne). Cette opération ne doit pas générer de flux de données réglementaires (F1) au PPF. » Source : Dossier de spécifications externes DGFiP/AIFE v3.2 du 30/04/2026, § 3.6.4 p. 60.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "TRANSMISSION INTERDITE au PPF (avoir purement comptable) — c'est la trouvaille canonique du YAML pour la France. Règle RÉCENTE : absente de la v3.0 (18/12/2024), apparue en v3.1 (30/10/2025). CAVEAT NON COMBLÉ, porté tel quel : la v3.2 prouve le non-envoi au PPF, PAS le non-envoi à l'ACHETEUR — ce volet n'est explicite qu'en annexe Chorus Pro v1.1 (B2G, « un avoir interne (à ne pas transmettre à l'acheteur) ») et dans des versions archivées v2.3/v2.4 ; pour le B2B pur, la source qui trancherait est AFNOR XP Z12-014, payante et non lue. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.INTERNAL_CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Inexistant : aucun flux « demande d'annulation ». « Le refus [...] est également transmis à l'administration fiscale, qui annule les données réglementaires. » Le statut AFNOR 220 « Annulée » est facultatif, hors socle obligatoire, et Chorus Pro ne le relaie pas : ce n'est PAS une voie de correction. Source : Spécifications externes v2.4 p. 56/59/61 ; annexe Chorus Pro v1.1 p. 46-47.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.AUTHORITY_ANNULMENT, consulté 2026-08-29."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« peut alors générer à nouveau le fichier [...] portant alors le même numéro de facture » — applicable (a) au rejet portant sur la constitution du F1 à partir d'une facture conforme ; (b) au refus pour erreur de routage seulement. Hors ces cas, NOUVEAU numéro imposé. Source : Spécifications externes v3.2 § 3.6.9 p. 62 ; v2.4 p. 58 (routage) ; v2.4 p. 56 et 59 (nouveau numéro sinon).",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Scope ÉTROIT — deux cas seulement, et seulement pour le NUMÉRO ; la DATE de la facture lors d'un renvoi après rejet n'est abordée par aucune version des spécifications (unverified, settled_by proposé par le YAML : XP Z12-014, ou une FAQ DGFiP/AIFE). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.RESUBMIT_SAME_IDENTITY, consulté 2026-08-29."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La rectification « consiste OBLIGATOIREMENT dans l'envoi d'un duplicata de la facture initiale [...] surchargées de la mention \"Facture demeurée impayée pour la somme de …… euros (prix net) et pour la somme de …… euros (TVA correspondante) qui ne peut faire l'objet d'une déduction (CGI, art. 272)\" ». Variante admise : un état récapitulatif des factures impayées par client — c'est la contrepartie du CREDIT_NOTE interdit ci-dessus pour l'impayé. Le débiteur doit reverser la taxe dès réception. Source : CGI art. 272, 1 et al. 3 ; BOI-TVA-DED-40-10-20 § 110.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Voie inexprimable dans ce dépôt aujourd'hui (le modèle de document suppose qu'une correction crée un NOUVEAU document distinct, jamais le même document réémis annoté) — constat porté, non résolu par C1. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.ANNOTATED_DUPLICATE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la France — docs/compliance/CORRECTION-ROUTES.yaml countries.FR.routes.LEDGER_ANNOTATION.settled_by le dit explicitement (« Non recherchée pour la France. »)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.FR.routes.LEDGER_ANNOTATION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.FR.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté France, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.FR.routes, consulté 2026-08-29."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.FR.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté France, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.FR.routes, consulté 2026-08-29."
+    }
+  ],
+  "notes": "France — docs/compliance/CORRECTION-ROUTES.yaml countries.FR : provenance sourced, consulted 2026-08-29. CAVEAT porté par le YAML lui-même : Legifrance renvoie 403 aux requêtes automatisées ; tout le CGI cité ici l'est via sa reproduction dans le BOFiP (doctrine opposable DGFiP), jamais de mémoire. HEADLINE : l'avoir interne français (INTERNAL_CREDIT_NOTE, required) est prouvé mot pour mot par le Dossier de spécifications externes DGFiP/AIFE v3.2 du 30/04/2026 § 3.6.4 p. 60 — règle RÉCENTE, absente de la v3.0 (18/12/2024), apparue en v3.1 (30/10/2025). Ce fichier ne porte AUCUNE temporalité (le mandat 2026-09-01/2027-09-01 de réception/émission Chorus Pro ne change pas le droit matériel de la correction — voir le YAML's own `temporal` block) : hors périmètre de C1, consigné dans TODO_ISSUES.md."
+}

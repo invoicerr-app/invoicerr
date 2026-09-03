@@ -39,6 +39,14 @@
 
 ## C1 — Le mécanisme pays `correction-routes/` + l'API des voies par document
 
+> ✅ **FAIT** (2026-09-03) — 7 pays × 11 voies transcrits du YAML (77/77 contre-vérifiés par
+> le mandataire, zéro dérive ; open→allowed documenté ; unverified jamais promu ; sous-nuances
+> consignées en notes, jamais une 12e voie), gate bidirectionnel (statut légal sans citation ET
+> citation sous unverified refusés), lecture fichier (choix documenté), API GET correction-routes
+> avec les 4 gates (404 type/document/pays nommé, 501 type ≠ invoice, 409 draft), implemented
+> honnête (seule INTERNAL_CREDIT_NOTE), limitation P3-U02 citée. jest 2088, 4 mutations
+> mordantes (3 mandataire + gate agent), batterie 251 verts (spec 43 nouvelle).
+
 `modules/documents/correction-routes/` sur le patron b2g-routing : un fichier par pays
 (`data/{fr,it,pl,de,es,mx,us}.json`) TRANSCRIT depuis CORRECTION-ROUTES.yaml en PORTANT sa
 provenance (citation verbatim + source + date de consultation du YAML — le YAML est lui-même

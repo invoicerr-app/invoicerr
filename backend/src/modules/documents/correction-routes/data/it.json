@@ -1,0 +1,113 @@
+{
+  "countryCode": "IT",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« ha diritto di portare in detrazione » (comma 2) ; commas 9 et 10 qualifient cette voie de « facoltà » — nature : faculté, jamais obligation. Applicable à la nullité, annulation, révocation, résolution, rescission « e simili » ; abbuoni et sconti contractuels ; impayé en procédure collective ou exécution infructueuse (comma 3-bis). Source : Art. 26 DPR 633/72, comma 2.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Délais (comma 3) : un an à compter de l'opération si l'événement résulte d'un « sopravvenuto accordo fra le parti » ou d'une rectification d'inexactitudes (art. 21 comma 7) ; aucune limite pour nullité/annulation/révocation/résolution/rescission NON conventionnelles, ni pour le comma 3-bis. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« Le disposizioni degli articoli 21 e seguenti DEVONO ESSERE OSSERVATE, in relazione al maggiore ammontare » — applicable à TOUTE hausse de la base ou de la taxe, « per qualsiasi motivo », y compris rectification d'inexactitudes. Source : Art. 26 DPR 633/72, comma 1.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "C'EST L'ASYMÉTRIE CANONIQUE ITALIENNE : la hausse est une OBLIGATION (comma 1) là où la baisse (CREDIT_NOTE ci-dessus) n'est qu'une faculté. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.DEBIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Inexistant : aucun instrument d'amendement par référence — le provvedimento ne cadre les variations que comme note di credito ou di debito ex art. 26. Source : Provv. 89757/2018, punto 6.1.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.CORRECTIVE_INVOICE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Après scarto UNIQUEMENT (inexistant après livraison au destinataire) : si la réémission sous identité d'origine est impossible, soit nouvelle facture avec nouveaux numéro et date liée à la facture scartata « stornata con variazione contabile interna », soit numérotation sectionnelle « 1/R », « 50/R ». Source : Circolare 13/E du 02/07/2018, § 1.6 p. 12.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.CANCEL_AND_REPLACE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« viene effettuata – se necessario – una variazione contabile valida ai soli fini interni SENZA LA TRASMISSIONE DI ALCUNA NOTA DI VARIAZIONE AL SdI » — applicable après scarto SdI, si la facture avait déjà été comptabilisée. Source : Provv. 89757/2018, punto 6.3 ; repris circolare 13/E § 1.6 p. 11.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "L'Italie a AUSSI son avoir interne, après scarto — le piège n'était pas franco-français. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.INTERNAL_CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Aucune procédure d'annulation dans le provvedimento — zéro occurrence de « annull- ». Punto 6.2 : « Le richieste del cessionario/committente [...] di variazioni [...] non sono gestite dal SdI ». Source : Provv. 89757/2018, punti 6.1 et 6.2.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Caveat du YAML : conclusion tirée par EXHAUSTIVITÉ du texte, pas par une phrase d'interdiction explicite — une risoluzione AdE la confirmerait. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.AUTHORITY_ANNULMENT, consulté 2026-08-29."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Nature RECOMMANDÉE, PAS requise : « la fattura [...] vada PREFERIBILMENTE emessa (ossia nuovamente inviata tramite SdI entro cinque giorni dalla notifica di scarto) con la data ed il numero del documento originario ». Applicable après scarto, dans les 5 jours de la notifica di scarto, sous les date et numéro d'origine. Source : Circolare 13/E § 1.6 ; specifiche tecniche allegato A v1.6.3 p. 150.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "« La fattura elettronica [...] di cui al file scartato dal SdI SI CONSIDERA NON EMESSA » (Provv. 89757/2018, punti 2.4 et 4.1) — rendu possible par le contrôle d'unicité (le doublon 00404/00409 n'est déclenché que si aucune ricevuta di scarto n'a été émise). Open question du YAML : les « 5 jours » sont-ils un délai de forclusion ou une recommandation — non tranché, aucune sanction rattachée trouvée. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.RESUBMIT_SAME_IDENTITY, consulté 2026-08-29."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« deve essere fatta mediante annotazione delle variazioni » (comma 7) ; « possono essere effettuate [...] anche mediante apposite annotazioni in rettifica [...] sui registri » (comma 8) — une correction SANS AUCUN DOCUMENT émis ni transmis, applicable aux erreurs matérielles ou de calcul dans les registres et liquidations, et aux variations des commas 2, 3, 3-bis et 5. Source : Art. 26 DPR 633/72, commas 7 et 8.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Trouvée hors de la liste initiale du plan (discovered_by: recherche IT, 2026-08-29) — distincte de INTERNAL_CREDIT_NOTE, qui suppose au moins un document interne ; ici il n'y a aucun document du tout. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.LEDGER_ANNOTATION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Italie — docs/compliance/CORRECTION-ROUTES.yaml countries.IT.routes.ANNOTATED_DUPLICATE.settled_by le dit explicitement (« Non recherchée pour l'Italie. »)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.IT.routes.ANNOTATED_DUPLICATE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.IT.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté Italie, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.IT.routes, consulté 2026-08-29."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.IT.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté Italie, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.IT.routes, consulté 2026-08-29."
+    }
+  ],
+  "notes": "Italie — docs/compliance/CORRECTION-ROUTES.yaml countries.IT : provenance sourced, consulted 2026-08-29. HEADLINE : l'ASYMÉTRIE hausse/baisse (DEBIT_NOTE required, CREDIT_NOTE allowed/faculté) est confirmée par l'art. 26 DPR 633/72 lui-même, commas 1 et 2. TEMPORAL, hors périmètre de C1 (pas de versionnage temporel dans ce mécanisme fichier v1) : au 2027-01-01, D.Lgs. 19/01/2026 n. 10 abroge l'art. 26 DPR 633/72, remplacé par l'art. 92 du Testo unico IVA au TEXTE IDENTIQUE — même asymétrie, nouvelle référence ; consigné dans TODO_ISSUES.md."
+}

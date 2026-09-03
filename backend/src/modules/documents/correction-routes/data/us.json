@@ -1,0 +1,112 @@
+{
+  "countryCode": "US",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable à tout ajustement d'une vente antérieure. Aucun instrument fédéral ni d'État trouvé qui l'impose ou le régisse — ouverte au sens où rien ne l'interdit, pas au sens où un texte l'organise. Fondement du négatif : 26 U.S.C. § 6001 impose des REGISTRES, pas un DOCUMENT ; l'IRS écrit que la loi n'exige aucun type de registre particulier. Source : IRS Pub 583 ; 26 U.S.C. § 6001 — négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Le credit memo américain est un usage commercial, sans identité fiscale, non déclaré à aucune autorité — un négatif ÉTABLI, pas une recherche qui a échoué. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable idem, à la hausse. Même négatif fédéral établi que CREDIT_NOTE ci-dessus. Source : 26 U.S.C. § 6001 ; IRS Pub 583 — négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.DEBIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Aucune forme prescrite, donc aucune forme interdite. Même négatif fédéral établi (26 U.S.C. § 6001 ; IRS Pub 583). Source : négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.CORRECTIVE_INVOICE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Rien à annuler auprès de personne : aucun document n'a été déposé auprès d'une autorité. Réémettre est un acte purement privé. Même négatif fédéral établi (26 U.S.C. § 6001 ; IRS Pub 583). Source : négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.CANCEL_AND_REPLACE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "C'est en réalité le cas NORMAL aux États-Unis : toute correction est interne, puisque rien n'est transmis à une autorité. Même négatif fédéral établi (26 U.S.C. § 6001 ; IRS Pub 583). Source : négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.INTERNAL_CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Sans objet, et c'est un `forbidden` STRUCTUREL, pas une interdiction : il n'existe aucune autorité destinataire à qui adresser une annulation. Source : absence de tout portail fiscal de facturation — négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.AUTHORITY_ANNULMENT, consulté 2026-08-29."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Sans objet — aucun rejet possible, aucun système ne reçoit la facture. Source : négatif.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.US.routes.RESUBMIT_SAME_IDENTITY, consulté 2026-08-29."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.US.routes du YAML (elle a été découverte pendant la recherche française, discovered_by: recherche FR, 2026-08-29) — aucune recherche menée côté États-Unis, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.US.routes, consulté 2026-08-29."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.US.routes du YAML (elle a été découverte pendant la recherche italienne, discovered_by: recherche IT, 2026-08-29) — aucune recherche menée côté États-Unis, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.US.routes, consulté 2026-08-29."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.US.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté États-Unis, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.US.routes, consulté 2026-08-29."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.US.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté États-Unis, jamais promue faute de statut déclaré."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29) — absence constatée dans countries.US.routes, consulté 2026-08-29."
+    }
+  ],
+  "notes": "États-Unis — docs/compliance/CORRECTION-ROUTES.yaml countries.US : provenance sourced, consulted 2026-08-29. HEADLINE : il n'existe AUCUNE voie de correction de droit aux États-Unis, parce qu'il n'existe aucune facture de droit — 26 U.S.C. § 6001 impose des REGISTRES, pas un DOCUMENT, et l'IRS écrit que la loi n'exige aucun type de registre particulier. C'est un négatif ÉTABLI, pas une recherche qui a échoué. CAVEAT du YAML, porté tel quel : le négatif FÉDÉRAL est solide ; le négatif INFRA-NATIONAL ne l'est pas — seuls New York, la Californie et le Texas ont été vérifiés, et les 47 autres États n'ont pas été examinés sur la correction de facture (hors périmètre de C1 et de P3-T01 eux-mêmes, pas seulement de cette transcription)."
+}

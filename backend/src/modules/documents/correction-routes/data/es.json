@@ -1,0 +1,113 @@
+{
+  "countryCode": "ES",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Pas d'instrument distinct — c'est la rectificativa de signe négatif, applicable à toute modification de la base à la baisse. Elle CONDITIONNE la réduction : « La disminución de la base imponible… estarán CONDICIONADAS A LA EXPEDICIÓN Y REMISIÓN de la factura que rectifique. » Art. 80.Uno et 80.Dos : modification automatique. Art. 80.Tres et 80.Cuatro : la réduction est FACULTATIVE (« podrá reducirse ») mais, exercée, la rectificativa devient obligatoire. Source : Art. 15.2 RD 1619/2012 ; art. 80 LIVA ; art. 24.1 RD 1624/1992.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "L'effet TVA est conditionné à la REMISE au destinataire, pas seulement à l'émission — voir INTERNAL_CREDIT_NOTE ci-dessous. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Pas d'instrument distinct — rectificativa de signe positif (15.5, « con independencia de su signo »), requise dans DEUX cas seulement : (a) clôture du concours par art. 176.1 1º/4º/5º — « DEBERÁ modificarla nuevamente al alza mediante la emisión… de una factura rectificativa » ; (b) désistement ou accord de recouvrement après créance irrécouvrable — « DEBERÁ modificar nuevamente la base imponible al alza… EN EL PLAZO DE UN MES ». Source : Art. 80.Tres ¶2 et 80.Cuatro.C ¶2 LIVA ; art. 15.5 RD 1619/2012.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.DEBIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable à une facture originale non conforme aux art. 6 ou 7 (15.1) ; cuotas mal déterminées ou survenance d'un cas de l'art. 80 LIVA — 15.2 dit « SERÁ OBLIGATORIA ». Délai : « tan pronto como… tenga constancia », 4 ans au plus depuis le devengo (15.3). Deux méthodes au choix LIBRE (15.5 ¶2) : por diferencias (le seul écart, signé) ou por sustitución (les valeurs finales corrigées, ET l'écart — l'écart reste obligatoire dans les deux méthodes). Source : Art. 15.1, 15.2, 15.3, 15.4, 15.5 RD 1619/2012.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "L'option ne porte que sur les champs f) base et h) cuota de l'art. 6.1 ; le g) taux exprime la rectification sans option. Aucune des deux méthodes n'est imposée par l'art. 15, y compris dans les cas 80.Tres et 80.Cuatro. Open question du YAML (unverified, hors du statut lui-même) : les spécifications techniques SII contraignent-elles le type S/I pour R2/R3 ? Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.CORRECTIVE_INVOICE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Par ABSENCE DE MÉCANISME, non par interdiction expresse : même le REJET par le destinataire n'annule pas, « tales desavenencias afectarán solo a las relaciones entre partes, SIN PERJUICIO DE LA OBLIGACIÓN DE EMITIR… las facturas rectificativas que procedan ». Source : Art. 15.4 et 15.6 RD 1619/2012 ; RD 238/2026, régime des estados.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "L'art. 15.4 n'est pas une interdiction : aucun texte espagnol ne dit qu'on ne peut pas annuler une facture, mais le résultat opérationnel est le même — il n'existe aucun mécanisme d'annulation, d'où forbidden par absence de mécanisme (fondement : l'exclusivité de la forme du 15.4 combinée au 15.6). Exception bornée (art. 15.6 ¶2) : les factures émises « en sustitución o canje » de factures SIMPLIFIÉES antérieures conformes à l'art. 7.1 « no tendrán la condición de rectificativas » — un vrai annuler-et-remplacer, hors du régime rectificatif général, non couvert par ce statut. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.CANCEL_AND_REPLACE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable pour l'effet TVA : la réduction est conditionnée à l'expédition ET À LA REMISE au destinataire ; dans les cas 80.Tres et 80.Cuatro l'assujetti « DEBERÁ ACREDITAR ASIMISMO DICHA REMISIÓN ». Une note non transmise ne produit aucun effet. Source : Art. 24.1 ¶2 RD 1624/1992.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Brèche étroite : l'AEAT peut habiliter à NE PAS REMETTRE les rectificativas au destinataire, mais elles restent émises en format électronique et déposées (RD 238/2026, art. sur les estados, ap. 6) — seule brèche vers un quasi-avoir interne, non un vrai INTERNAL_CREDIT_NOTE. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.INTERNAL_CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Absence de mécanisme : aucune procédure de demande adressée à l'AEAT. L'annulation Veri*Factu est AUTO-GÉNÉRÉE par le système de l'assujetti, pas sollicitée : « Procederá la generación de un registro de facturación de anulación cuando se haya emitido erróneamente una factura. » Source : Art. 11.1 RD 1007/2023, par différence.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Le registro de anulación Veri*Factu annule LE REGISTRE, pas la facture ni ses effets TVA — ceux-ci ne se corrigent que par rectificativa (CORRECTIVE_INVOICE ci-dessus) ; deux couches distinctes (art. 8.2.a) RD 1007/2023). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.AUTHORITY_ANNULMENT, consulté 2026-08-29."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Scope : couche registre Veri*Factu uniquement, applicable après rejet AEAT — le registre est renvoyé sous la même identité de facture. Champs Subsanacion (S/N) et RechazoPrevio (N/S/X) ; les combinaisons Subsanacion=N avec RechazoPrevio=S ou X « NO SE ADMITEN ». L'identité est bien la même : la huella se construit sur NIF émetteur + numéro et série de facture + date d'expédition. Source : Orden HAC/1177/2024, anexo, liste L17 ; art. 13.1.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.RESUBMIT_SAME_IDENTITY, consulté 2026-08-29."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable à l'erreur MATÉRIELLE dans les annotations registrales : « DEBERÁN RECTIFICARLAS TAN PRONTO TENGAN CONSTANCIA », par « una anotación o grupo de anotaciones » — aucun document émis. Délai SII : avant le 16 du mois suivant la période de prise de connaissance. Source : Art. 70.1 RD 1624/1992 ; art. 69 bis.1.a) ¶2 et 69 bis.3.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Cas explicite où AUCUNE rectificativa n'est due : régularisations REAV (agences de voyages) et REBU (biens d'occasion) après remises postérieures au devengo. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.LEDGER_ANNOTATION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Espagne — LEDGER_ANNOTATION en couvre une partie (docs/compliance/CORRECTION-ROUTES.yaml countries.ES.routes.NO_DOCUMENT_BY_LAW.settled_by, verbatim)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.NO_DOCUMENT_BY_LAW, consulté 2026-08-29."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Espagne (docs/compliance/CORRECTION-ROUTES.yaml countries.ES.routes.COUNTERPARTY_OBJECTION.settled_by, verbatim)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.COUNTERPARTY_OBJECTION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Espagne (docs/compliance/CORRECTION-ROUTES.yaml countries.ES.routes.ANNOTATED_DUPLICATE.settled_by, verbatim)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.ES.routes.ANNOTATED_DUPLICATE, consulté 2026-08-29."
+    }
+  ],
+  "notes": "Espagne — docs/compliance/CORRECTION-ROUTES.yaml countries.ES : provenance sourced, consulted 2026-08-29. HEADLINE : l'art. 15.4 n'est pas une interdiction mais une prescription positive et exclusive de forme (« La rectificación SE REALIZARÁ MEDIANTE LA EMISIÓN DE UNA NUEVA FACTURA ») — CANCEL_AND_REPLACE et INTERNAL_CREDIT_NOTE sont donc `forbidden` PAR ABSENCE DE MÉCANISME, jamais par un texte d'interdiction explicite, nuance portée dans chaque `notes`. TEMPORAL non modélisé (hors périmètre de C1) : Veri*Factu s'applique au 2027-01-01 (art. 3.1.a LIVA) puis 2027-07-01 (les autres) — dates VÉRIFIÉES à jour dans le YAML (les 2026-01-01/2026-07-01 souvent citées sont périmées)."
+}

@@ -1,0 +1,114 @@
+{
+  "countryCode": "MX",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Ouvert en droit, requis de fait pour la déductibilité : « Amparan devoluciones, descuentos y bonificaciones para efectos de deducibilidad y también puede utilizarse para corregir o restar un comprobante de ingresos EN CUANTO A LOS MONTOS QUE DOCUMENTA » (CFDI tipo E, TipoRelacion 01). Source : Guía de llenado Anexo 20 v4.0, Apéndice 2 ; catalogue c_TipoRelacion.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "À la différence de l'annulation (AUTHORITY_ANNULMENT ci-dessous), le CFDI tipo E n'est PAS borné à l'exercice — une fois l'exercice clos, c'est la seule route restante pour un ajustement de MONTANT. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "SANS TYPE DE DOCUMENT DÉDIÉ : il n'existe PAS de CFDI « nota de débito ». La hausse se fait par un NOUVEAU CFDI tipo I (Ingreso), relié par TipoRelacion 02 « Nota de débito de los documentos relacionados ». Source : Catalogue c_TipoRelacion 02 (catCFDI_V_4, 21/08/2026) ; Guía de llenado v4.0.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.DEBIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Absence de mécanisme : un CFDI timbré est immuable — aucune voie d'amendement par référence. Source : par différence, CFF art. 29-A ¶4-6 ; Anexo 20.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.CORRECTIVE_INVOICE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable quand le DOCUMENT lui-même est faux. Ordre imposé, confirmé mot pour mot : « SE DEBE ACTUAR EN ESTE ORDEN : 1. emitir el comprobante que contiene los datos correctos, registrando la clave \"04\" (Sustitución de los CFDI previos) relacionando el folio fiscal del comprobante que se sustituye. 2. Al registrar la solicitud de cancelación se debe seleccionar la opción \"01\"… e incluir el folio fiscal del comprobante emitido en el paso 1. 3. … se validará si se requiere la aceptación del receptor. » Source : Guía de llenado Anexo 20 v4.0 Q42 ; Preguntas frecuentes Q42 (fondement : CFF art. 29-A ¶6) ; RMF 2026 2.7.1.34 ¶5.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "C'EST LE PAYS QUI A LE PLUS BESOIN DE CETTE VOIE (le seul `required` de ce type parmi les 7 pivots pour un défaut de DOCUMENT, distinct de AUTHORITY_ANNULMENT ci-dessous qui couvre l'annulation elle-même) — le YAML signale que l'ANCIEN moteur démoli déclarait CREDIT_NOTE à sa place (hors périmètre de C1). ANNULATION EN CASCADE OBLIGATOIRE (hors vocabulaire des 11 routes, non modélisée ici) : « Cuando se cancele un CFDI que tiene relacionados otros CFDI, ESTOS DEBERÁN CANCELARSE PREVIAMENTE » (RMF 2026, 2.7.1.34 ¶5) — consigné, non implémentable par ce mécanisme fichier. Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.CANCEL_AND_REPLACE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Le seul document interne documenté par le SAT est un contrôle de remise FUTURE : « el contribuyente podrá, PARA EFECTOS DE CONTROL, emitir un documento interno que demuestre contablemente dicho descuento. » Il doit être suivi d'un CFDI E et ne corrige aucun CFDI émis — aucun effet fiscal propre. Source : Guía de llenado Anexo 20 v4.0, remise globale future.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.INTERNAL_CREDIT_NOTE, consulté 2026-08-29."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "LA voie mexicaine, et la seule `required` de ce type dans les sept pays pivots : « cuando el emisor de un CFDI requiera cancelarlo, podrá solicitar la cancelación A TRAVÉS DEL PORTAL DEL SAT ». Ne pas le faire est une INFRACTION (CFF art. 81 fr. XLVI). Bornée à l'exercice : « los CFDI SÓLO PODRÁN CANCELARSE EN EL EJERCICIO EN EL QUE SE EXPIDAN y siempre que la persona a favor de quien se expidan acepte su cancelación. » Obligation accessoire : « deberán JUSTIFICAR Y SOPORTAR DOCUMENTALMENTE EL MOTIVO de dicha cancelación, misma que podrá ser verificada por las autoridades fiscales. » Source : CFF art. 29-A ¶4, ¶5, ¶6 ; CFF art. 81 fr. XLVI ; RMF 2026 2.7.1.34.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "LE MEXIQUE EST LE SEUL PAYS OÙ NE PAS ANNULER EST UNE INFRACTION — ailleurs l'annulation est une faculté, ici une obligation. Acceptation acheteur : 3 jours, silence valant acceptation (RMF 2026 2.7.1.34 ¶2-3), sauf 12 cas sans acceptation (règle 2.7.1.35, dont la fenêtre libre du jour ouvrable suivant, fr. IX). FENÊTRE EN JOURS OUVRABLES, non modélisable dans ce mécanisme fichier (hors vocabulaire des 11 routes) : « dentro del día hábil siguiente a su expedición » (RMF 2026 2.7.1.35 fr. IX). Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.AUTHORITY_ANNULMENT, consulté 2026-08-29."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Un CFDI non timbré n'a pas d'existence fiscale et le folio est attribué par l'émetteur — la question se pose surtout au niveau du PAC (docs/compliance/CORRECTION-ROUTES.yaml countries.MX.routes.RESUBMIT_SAME_IDENTITY.what/settled_by, verbatim résumé : réglé par Anexo 20 section I.F et les règles de certification PAC, RMF 2.7.2, non lues à fond)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.RESUBMIT_SAME_IDENTITY, consulté 2026-08-29."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Applicable comme voie AUTONOME. Aucune correction purement registrale ne produit d'effet — le CFDI est le support fiscal ; l'appui documentaire interne existe, mais comme obligation ACCESSOIRE de l'annulation. Source : CFF art. 29-A ¶6.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.LEDGER_ANNOTATION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Sans objet — tout passe par un CFDI timbré, par le même fondement que CORRECTIVE_INVOICE ci-dessus (aucune voie hors CFDI n'existe). Source : par différence, CFF art. 29-A ¶4-6 ; Anexo 20.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.NO_DOCUMENT_BY_LAW, consulté 2026-08-29."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Le destinataire ne peut pas détruire le document, mais il peut REFUSER l'annulation, ce qui la bloque — une opposition de la contrepartie à la CORRECTION, pas au document (forme distincte de l'allemande). Source : RMF 2026 2.7.1.34 ¶2-3.",
+        "sourceCheckedAt": "2026-08-29"
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.COUNTERPARTY_OBJECTION, consulté 2026-08-29."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour le Mexique (docs/compliance/CORRECTION-ROUTES.yaml countries.MX.routes.ANNOTATED_DUPLICATE.settled_by, verbatim)."
+      },
+      "notes": "Transcrit depuis docs/compliance/CORRECTION-ROUTES.yaml (meta.updated 2026-08-29), countries.MX.routes.ANNOTATED_DUPLICATE, consulté 2026-08-29."
+    }
+  ],
+  "notes": "Mexique — docs/compliance/CORRECTION-ROUTES.yaml countries.MX : provenance sourced, consulted 2026-08-29. HEADLINE : le Mexique est le SEUL des 7 pivots où NE PAS annuler un CFDI erroné est une INFRACTION (CFF art. 81 fr. XLVI) — ailleurs l'annulation est une faculté. Non modélisé (hors vocabulaire des 11 routes, consigné dans TODO_ISSUES.md) : l'ordre de cascade obligatoire entre CFDI liés, et la fenêtre d'annulation en JOURS OUVRABLES."
+}

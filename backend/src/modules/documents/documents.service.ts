@@ -39,6 +39,11 @@ import {
 } from './country-identifiers/country-identifiers';
 import { PartyType } from './country-identifiers/schema';
 import { resolveB2gRoutingRule, resolveClientB2gRouting } from './b2g-routing/b2g-routing';
+import {
+  CorrectionRoutesDecision,
+  CORRECTION_ROUTES_DATA_DIR_HINT,
+  resolveCorrectionRoutesForCountry,
+} from './correction-routes/correction-routes';
 import { applyFieldOverlay } from './country-fields/apply-overlay';
 import { FieldOverlayOperation } from './country-fields/schema';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
@@ -842,6 +847,62 @@ export class DocumentsService implements OnModuleInit {
       toSettlementCreditInputs(credits),
     );
     return { totals, payments, credits, warnings, settlement };
+  }
+
+  /**
+   * TODO_CORRECTION.md C1 — which correction routes this document's own SELLER country declares, and
+   * which of them this repo actually implements. Four gates, each distinct and named, the same
+   * "un brouillon sans numéro refuse en le disant" discipline `downloadDocumentFormat` already holds:
+   *  - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
+   *  - typeId known but not "invoice"             -> 501 (docs/compliance/CORRECTION-ROUTES.yaml only
+   *    ever covers invoices; V1 of this mechanism does not generalize past that — see
+   *    correction-routes/correction-routes.spec.ts for the pinned message)
+   *  - the record is still a "draft"              -> 409 (a correction corrects an ISSUED document —
+   *    a draft has no number yet, nothing to correct)
+   *  - the seller's country has no correction-routes file at all (unresolved country included) -> 404,
+   *    NAMED, never a silent empty list (see `resolveCorrectionRoutesForCountry`'s own header)
+   *
+   * Ordered cheapest-and-most-structural first: the typeId shape of the request is checked before any
+   * database read, the record is then loaded once and its status checked before the (country-lookup)
+   * work that would otherwise be wasted on a draft.
+   */
+  async getCorrectionRoutes(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<CorrectionRoutesDecision> {
+    this.resolveType(typeId); // 404s for a typeId nobody registered at all.
+
+    if (typeId !== 'invoice') {
+      throw new NotImplementedException(
+        `Correction routes are declared for "invoice" only today — "${typeId}" is not supported yet ` +
+          '(docs/compliance/CORRECTION-ROUTES.yaml only covers invoices; TODO_CORRECTION.md C1).',
+      );
+    }
+
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    if (instance.status === 'draft') {
+      throw new ConflictException(
+        'Cannot resolve correction routes for a document with status "draft" — a correction corrects ' +
+          'an ISSUED document (no number assigned yet, nothing to correct).',
+      );
+    }
+
+    const countryCode = await resolveCompanyCountryCode(companyId);
+    const decision = resolveCorrectionRoutesForCountry(countryCode);
+    if (!decision) {
+      throw new NotFoundException(
+        countryCode
+          ? `Aucune règle de correction déclarée pour ${countryCode} — no correction-routes rule is ` +
+              `declared for "${countryCode}" yet. To add one, create ` +
+              `${CORRECTION_ROUTES_DATA_DIR_HINT}/${countryCode.toLowerCase()}.json (see fr.json in ` +
+              'that directory for the format) and list it in data/all.ts.'
+          : "Aucune règle de correction déclarée : this company's country does not resolve to a " +
+              'recognized ISO 3166-1 country code, so no correction-routes file can be found for it. ' +
+              'Set an explicit country code in company settings.',
+      );
+    }
+    return decision;
   }
 
   /**
