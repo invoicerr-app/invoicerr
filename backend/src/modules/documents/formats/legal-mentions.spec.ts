@@ -64,7 +64,7 @@ function documentFor(issueDate: string) {
 describe.each([
   ['CII', ciiFormatProvider] as const,
   ['UBL', ublFormatProvider] as const,
-])('legal mentions on a French invoice — %s, judged by the real vendored Schematron', (_label, provider) => {
+])('legal mentions on a French invoice — %s, judged by the real vendored Schematron', (label, provider) => {
   it('carries the three mentions (PMT/PMD/AAB) and still validates — BR-CL-08 accepts the subject codes', async () => {
     const document = documentFor('2026-08-30');
     const result = await provider.build(descriptor, document, FRENCH_SELLER, BUYER);
@@ -122,5 +122,29 @@ describe.each([
     const result = await provider.build(descriptor, documentFor('2026-08-30'), FRENCH_SELLER, BUYER);
     const xml = Buffer.from(result.bytes).toString('utf-8');
     expect(xml).toContain((totals.grossMinor / 100).toFixed(2));
+  });
+
+  // REGRESSION — Peppol BIS root TODO item L1 ("R002 : le vendeur français passe enfin la
+  // validation Peppol BIS"): `peppol-post-process.ts#mergePeppolNotesInObject` collapses the three
+  // mentions into ONE `cbc:Note`, but ONLY on the Peppol BIS bridge — see that file's own header,
+  // "CONFINED to this Peppol BIS bridge alone". CII and plain UBL (this describe.each's own two
+  // providers) never wire that postProcessor at all (`cii-provider.ts`/`ubl-provider.ts` call
+  // `service.generate` with no `postProcessor` option — see those files directly), so they must keep
+  // emitting the three mentions as three SEPARATE notes, exactly as before this fix existed.
+  it('THREE SEPARATE notes, still — this syntax never wires the Peppol BIS note-merge postProcessor', async () => {
+    const result = await provider.build(descriptor, documentFor('2026-08-30'), FRENCH_SELLER, BUYER);
+    expect(result.validation.valid).toBe(true);
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+
+    const noteElementCount =
+      label === 'CII'
+        ? [...xml.matchAll(/<ram:IncludedNote>/g)].length
+        : [...xml.matchAll(/<cbc:Note>/g)].length;
+    expect(noteElementCount).toBe(3);
+
+    // Each mention still stands on its own, complete and verbatim — never joined with another.
+    expect(xml).toContain('frais de recouvrement');
+    expect(xml).toContain("l'an");
+    expect(xml).toContain('Escompte pour paiement anticipé : néant');
   });
 });

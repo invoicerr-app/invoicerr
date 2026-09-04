@@ -12,8 +12,12 @@
  * This proves the ORCHESTRATION plus the two facts this task's own mutations target: an empty AP
  * message id is NEVER a success, and the transport SENDS THE PEPPOL-BIS PAYLOAD (never a plain UBL
  * that skipped the delta gate) — see the "peppol-bis-provider — R002" describe block below, which
- * runs the REAL format provider (not mocked) against a French seller to prove that a document the
- * Peppol BIS delta refuses is NEVER handed to the Access Point.
+ * runs the REAL format provider (not mocked) against a French seller. Root TODO item L1 ("R002 : le
+ * vendeur français passe enfin la validation Peppol BIS") FIXED the underlying gap
+ * (`formats/semantic/peppol-post-process.ts`): that describe block used to prove a French seller's
+ * three mandatory notes made the Peppol BIS delta refuse the document outright (the Access Point
+ * never even called); it now proves the OPPOSITE — the merged single note passes R002, and the real
+ * local stub Access Point actually receives it, carrying all three legal texts verbatim.
  *
  * "THE FORMAT OVERRIDE" describe block below is root TODO "le trou allemand du B2G" — see
  * `peppol-transport.ts`'s own header for the full contract: `ctx.formatOverride` absent (every test
@@ -265,7 +269,7 @@ describe('buildPeppolTransport', () => {
     });
   });
 
-  describe('send() — the REAL peppol-bis-provider — the vendor-FR/R002 case', () => {
+  describe('send() — the REAL peppol-bis-provider — the vendor-FR/R002 case, FIXED', () => {
     const FRENCH_SELLER = {
       id: 'company-1',
       name: 'Acme Consulting SARL',
@@ -281,23 +285,53 @@ describe('buildPeppolTransport', () => {
       ],
     };
 
-    it('a French seller (three mandatory C. com. mentions) against a non-German buyer: PEPPOL-EN16931-R002 refuses the format, named — and the Access Point is NEVER called', async () => {
+    // Root TODO item L1 — this test USED TO prove PEPPOL-EN16931-R002 refused this exact document
+    // (three separate `cbc:Note` elements, one per mandatory C. com. mention) and that the Access
+    // Point was never called. `formats/semantic/peppol-post-process.ts#mergePeppolNotesInObject`
+    // collapses them into ONE note before the Schematron ever runs, so this now proves the OPPOSITE:
+    // the REAL format provider builds a valid artifact, and the REAL local stub Access Point actually
+    // receives it — never a mock, exactly this file's own "REAL local HTTP stub" discipline.
+    it('R002 FIXED: a French seller (three mandatory C. com. mentions) against a non-German buyer now builds a VALID artifact — the Access Point IS called, receiving ONE merged note carrying all three legal texts verbatim', async () => {
       mockedPrisma.company.findUnique.mockResolvedValue(FRENCH_SELLER);
-      // FRENCH_BUYER_WITH_ENDPOINT already carries a PEPPOL_ENDPOINT — the receiver gate passes, so
-      // this test proves the FORMAT gate is what actually stops the send, not the endpoint check.
-      const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
-      const deps = buildDeps({ formatProvider: peppolBisFormatProvider }); // the REAL provider, not mocked
-      const transport = buildPeppolTransport(deps);
+      // FRENCH_BUYER_WITH_ENDPOINT (set in the outer `beforeEach`) already carries a PEPPOL_ENDPOINT.
 
-      const action = transport.send(CTX);
-      await expect(action).rejects.toThrow(BadRequestException);
-      await expect(action).rejects.toThrow(/failed validation/);
+      let receivedBody = '';
+      const { server, url } = await startStubServer((req, res) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (c) => chunks.push(c));
+        req.on('end', () => {
+          receivedBody = Buffer.concat(chunks).toString('utf-8');
+          res.writeHead(202, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ messageId: 'msg-fr-r002-fixed', status: 'SENT' }));
+        });
+      });
 
-      // The REAL, named Schematron rule — not a made-up error string. Same promise, re-awaited: jest
-      // caches a rejected promise's outcome, so this does not re-run the send a third time.
-      const error = await action.catch((e) => e);
-      expect(error.response.errors.join(' ')).toContain('PEPPOL-EN16931-R002');
-      expect(sendSpy).not.toHaveBeenCalled();
+      try {
+        const deps = buildDeps({
+          formatProvider: peppolBisFormatProvider, // the REAL provider, not mocked
+          resolveActive: jest.fn().mockResolvedValue({
+            ...CONNECTED_CONFIG,
+            config: { ...CONNECTED_CONFIG.config, accessPointUrl: url },
+          }),
+        });
+        const transport = buildPeppolTransport(deps);
+
+        const result = await transport.send(CTX);
+        expect(result.reference).toBe('msg-fr-r002-fixed');
+
+        const body = JSON.parse(receivedBody) as { document: string };
+        const xml = Buffer.from(body.document, 'base64').toString('utf-8');
+
+        // Exactly ONE document-level note reached the Access Point — the merge actually ran, not
+        // merely "R002 happened not to fire".
+        expect([...xml.matchAll(/<cbc:Note>/g)]).toHaveLength(1);
+        // All three C. com. mentions, verbatim, joined inside that single note — never truncated.
+        expect(xml).toContain('frais de recouvrement');
+        expect(xml).toContain("l'an");
+        expect(xml).toContain('Escompte pour paiement anticipé : néant');
+      } finally {
+        await closeServer(server);
+      }
     });
   });
 

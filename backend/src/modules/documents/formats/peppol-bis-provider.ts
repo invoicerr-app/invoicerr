@@ -26,16 +26,26 @@
  *    emitted by the base bridge's own `endpointFor` (item 10's own PEPPOL_ENDPOINT wiring), a
  *    fallback email/legal-id/VAT-EAS derivation good enough to never be empty.
  *  - PEPPOL-EN16931-R002: no more than one `cbc:Note` at document level UNLESS BOTH parties are
- *    German. A KNOWN, DOCUMENTED LIMITATION, not silently avoided: a French seller's THREE mandatory
- *    C. com. mentions (`mentions/data/fr.json`) already emit three separate `cbc:Note` elements for
- *    every other syntax, so a French-seller Peppol BIS export against a non-German buyer would fail
- *    this rule today. Fixing it would mean collapsing `build-semantic-invoice.ts`'s own note array
- *    into a single multi-line `cbc:Note` (and teaching `cii-post-process.ts` to split THAT shape
- *    too) — a cross-cutting change to a shared, already-proven mechanism, out of this ticket's scope
- *    (branching two NEW formats). The master proof below therefore uses a seller with NO country
- *    mentions file (any non-FR seller), which is not a dodge of the rule — it is every real seller
- *    this codebase has a mentions file for MINUS the one this specific interaction is not yet built
- *    for; see this file's own spec for the failing case demonstrated, not hidden.
+ *    German. FIXED (was a known, documented limitation — see git history for the original wording):
+ *    a French seller's THREE mandatory C. com. mentions (`mentions/data/fr.json`) already emit three
+ *    separate `cbc:Note` elements for every OTHER syntax, so a French-seller Peppol BIS export
+ *    against a non-German buyer used to fail this rule outright. `semantic/peppol-post-process.ts`'s
+ *    `mergePeppolNotesInObject` — wired below as `@e-invoice-eu/core`'s own `postProcessor` extension
+ *    point, the SAME channel `facturx-provider.ts` uses for its own note-shape fix — collapses
+ *    whatever `cbc:Note` array `build-semantic-invoice.ts`'s shared note mechanism produced into ONE
+ *    multi-line note, VERBATIM (a lossless `\n` join, never a truncation or a summary), CONFINED to
+ *    this Peppol BIS bridge alone: CII, plain UBL, Factur-X, FatturaPA, FA(3) and Facturae all still
+ *    emit their notes separately, unmodified (see `legal-mentions.spec.ts`'s own regression
+ *    assertions). The DE↔DE exception in R002's own test is deliberately never reproduced here —
+ *    merging down to exactly one note satisfies R002's left branch (`count(cbc:Note) <= 1`)
+ *    unconditionally, so the right branch (both parties German) never needs evaluating; see
+ *    `peppol-post-process.ts`'s own header for why this is the simpler, always-conformant choice,
+ *    not a shortcut. XRechnung's own vendored KoSIT delta
+ *    (`vendored/de/XRechnung-UBL-validation-preprocessed.sch`) was checked directly and carries NO
+ *    equivalent note-count rule at all — `xrechnung-provider.ts` is therefore untouched by this fix.
+ *    See this file's own spec for the master proof (a French seller × non-German buyer, now passing,
+ *    with all three legal texts present verbatim in the merged note) — the SAME test that used to
+ *    demonstrate the failure, returned, not weakened.
  *
  * `PEPPOL-EN16931-R008` ("Document MUST not contain empty elements") is why every optional field this
  * bridge threads through (`buyerReference`, `iban`, `addressLine2`, ...) is ALWAYS omitted rather than
@@ -44,6 +54,7 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
+import { mergePeppolNotesInObject } from './semantic/peppol-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_UBL_SCH, PEPPOL_BIS_UBL_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -64,7 +75,15 @@ async function build(
   });
 
   const service = newEuInvoiceService();
-  const xml = (await service.generate(euInvoice, { format: 'UBL', lang: 'en' })) as string;
+  // PEPPOL-EN16931-R002 — see this file's own header and `semantic/peppol-post-process.ts`'s own
+  // header for the full reasoning. `postProcessor` is `@e-invoice-eu/core`'s own public extension
+  // point, called on the intermediate UBL object right before XML rendering — the SAME channel
+  // `facturx-provider.ts` already uses for its own, different note-shape fix.
+  const xml = (await service.generate(euInvoice, {
+    format: 'UBL',
+    lang: 'en',
+    postProcessor: async (data) => mergePeppolNotesInObject(data as Record<string, unknown>),
+  })) as string;
 
   const structural = validateStructural(xml, 'ubl');
   if (!structural.valid) {

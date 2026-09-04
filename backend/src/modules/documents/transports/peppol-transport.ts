@@ -20,11 +20,14 @@
  *
  * The payload is `peppol-bis` (`formats/peppol-bis-provider.ts`) BY DEFAULT — gated by the REAL
  * vendored base EN 16931 Schematron PLUS the Peppol BIS delta before this file ever sees the bytes. An
- * artifact that fails EITHER gate is NEVER transmitted — see that provider's own header for its OWN
- * known, documented limitation (PEPPOL-EN16931-R002: a French seller's three mandatory C. com.
- * mentions trip the "no more than one Note" rule against a non-German buyer) — `peppol-transport.spec.
- * ts`'s own test proves what sending REALLY does for that exact seller: refused, named, never
- * transmitted, never a partial/garbled artifact sent instead.
+ * artifact that fails EITHER gate is NEVER transmitted, and NEVER a partial/garbled one sent instead —
+ * `peppol-transport.spec.ts`'s own "never sends an artifact that failed the format gate" test proves
+ * it generically. The rule that USED TO fire for every real French seller, PEPPOL-EN16931-R002 ("no
+ * more than one Note", tripped by a French seller's three mandatory C. com. mentions against a
+ * non-German buyer), is FIXED — see `formats/peppol-bis-provider.ts`'s own header and
+ * `formats/semantic/peppol-post-process.ts` — so that exact seller now builds and sends successfully;
+ * `peppol-transport.spec.ts`'s own "vendor-FR/R002 case, FIXED" test proves the Access Point actually
+ * receives it, merged into one note.
  *
  * ## THE FORMAT OVERRIDE — root TODO item 10/26's own remainder, "le trou allemand du B2G"
  *

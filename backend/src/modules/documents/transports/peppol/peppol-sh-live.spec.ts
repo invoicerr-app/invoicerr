@@ -20,11 +20,14 @@
  *      exercised (tax_id alone was enough back then). Once an explicit `peppol_id` is supplied
  *      (`createCompany`'s own new, optional field), BE creation SUCCEEDS (`com_…`).
  *   4. The invoice CONTENT below uses a German seller/French buyer (never a French seller) SPECIFICALLY
- *      so this retry tests peppol.sh's OWN sandbox, not this codebase's OWN already-documented
- *      PEPPOL-EN16931-R002 limitation (`peppol-bis-provider.ts`'s own header) — a first pass with the
- *      repère's own French-seller fixture tripped exactly that rule (R002 + R007, both from this
- *      codebase's own gate, BEFORE ever reaching the network) and would have masked whatever peppol.sh
- *      itself says.
+ *      so this retry tests peppol.sh's OWN sandbox, not this codebase's OWN gate — a first pass with
+ *      the repère's own French-seller fixture tripped R002 + R007, both from this codebase's own gate,
+ *      BEFORE ever reaching the network, and would have masked whatever peppol.sh itself says. Root
+ *      TODO item L1 has since FIXED the R002 half (`peppol-bis-provider.ts`'s own header,
+ *      `formats/semantic/peppol-post-process.ts`) — a French seller no longer trips that rule alone —
+ *      but this live spec was never re-run against real peppol.sh credentials to confirm R007 (and the
+ *      network round-trip itself) still hold for that seller, so the German/French pairing below is
+ *      left untouched rather than switched on an unverified assumption.
  * `PEPPOL_SH_SUPPLIER_COUNTRY` defaults to 'FR' (retries the historically-broken case first) and
  * FALLS BACK to 'BE' automatically on an `invalid_country` response — see the retry logic below — so
  * a future re-run needs no env change to re-discover both facts in one pass.
@@ -123,8 +126,9 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
     expect(apCompanyId).toMatch(/^com_/);
 
     // ── Generate a REAL Peppol BIS UBL invoice — pure, DB-free (same discipline as pdp.live.spec.ts).
-    // A GERMAN seller ON PURPOSE (never French) — see this file's own header, point 4: isolates
-    // peppol.sh's own behaviour from this codebase's own already-documented PEPPOL-EN16931-R002 gap.
+    // A GERMAN seller ON PURPOSE (never French) — see this file's own header, point 4: R002 itself is
+    // now fixed, but this live spec has not been re-run to confirm R007/the network round-trip still
+    // hold for a French seller, so the pairing stays as first proven.
     const { buildInvoiceDescriptor } = await import('../../descriptors/invoice.descriptor');
     const { peppolBisFormatProvider } = await import('../../formats/peppol-bis-provider');
 

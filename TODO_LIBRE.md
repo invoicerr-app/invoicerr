@@ -9,6 +9,15 @@
 
 ## L1 — R002 : le vendeur français passe enfin la validation Peppol BIS
 
+> ✅ **FAIT** (2026-09-04) — fusion inconditionnelle en une cbc:Note (le OU de la règle rend
+> une note toujours conforme, l'exception DE↔DE n'a jamais besoin d'être évaluée — documenté),
+> au postProcessor du provider BIS uniquement (le patron facturx), XRechnung établi non concerné
+> (grep KoSIT négatif) ; les 3 textes C. com. verbatim dans la note (taux S2-2026 12,40 % résolu),
+> codes sujet #PMT#/#PMD#/#AAB# préservés ; MUTATION TARGET permanent (le Schematron re-échoue
+> sans la fusion) ; régressions CII/UBL/FatturaPA (notes séparées inchangées). jest 2149,
+> mutations mordantes (fusion tronquée → 2 tests ; postProcessor débranché → R002 re-échoue),
+> batterie 259 verts. Limite documentée : un # littéral en tête de note libre (BR-CL-08).
+
 Le trou consigné le plus visible (peppol-bis-provider.ts:28, « A KNOWN, DOCUMENTED
 LIMITATION ») : les 3 mentions C. com. obligatoires du vendeur FR émettent 3 cbc:Note ; la
 règle PEPPOL-EN16931-R002 n'en tolère qu'une (sauf DE↔DE). Le correctif documenté par le code

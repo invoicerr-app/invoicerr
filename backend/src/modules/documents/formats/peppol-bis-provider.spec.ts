@@ -15,9 +15,11 @@ import { newEuInvoiceService, buildEuInvoiceForDocument } from './shared-build';
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
 /** A German seller with NO country mentions file (`mentions/data/all.ts` ships only 'fr' today) —
- *  deliberately NOT the French seller `providers.spec.ts` uses, for the documented reason this
- *  file's own last `describe` block demonstrates: a French seller's three mandatory C. com. mentions
- *  would trip PEPPOL-EN16931-R002 ("no more than one note...") against a non-German buyer. */
+ *  originally chosen instead of the French seller `providers.spec.ts` uses because a French seller's
+ *  three mandatory C. com. mentions used to trip PEPPOL-EN16931-R002 ("no more than one note...")
+ *  against a non-German buyer. R002 is FIXED now (see the "R002 FIXED" test further below, and
+ *  `semantic/peppol-post-process.ts`), so this is no longer a REQUIRED choice — kept anyway as the
+ *  "seller with nothing to merge" baseline the FIXED test's own last assertion relies on. */
 const SELLER: DocumentFormatParty = {
   name: 'Muster GmbH',
   address: 'Musterstraße 1',
@@ -109,24 +111,76 @@ describe('peppol-bis-provider — the master proof (fixture computed by hand)', 
     expect(result.validation.errors.join(' ')).toContain('PEPPOL-EN16931-R003');
   }, 30_000);
 
-  // A KNOWN, DOCUMENTED LIMITATION — see peppol-bis-provider.ts's own header, "PEPPOL-EN16931-R002".
-  // A French seller's THREE mandatory C. com. mentions (`mentions/data/fr.json`) already emit three
-  // separate `cbc:Note` elements for every OTHER syntax this codebase builds; Peppol BIS caps that at
-  // one (unless BOTH parties are German). Asserted here, failing on purpose, so a future change that
-  // silently "fixes" this without updating the delta's own contract does not go unnoticed either way.
-  it('a documented gap: a French seller (3 mandatory notes) trips PEPPOL-EN16931-R002 against a non-German buyer', async () => {
-    const frenchSeller: DocumentFormatParty = {
-      name: 'Dupont Consulting SARL',
-      address: '12 Rue de la Paix',
-      city: 'Paris',
-      postalCode: '75002',
-      country: 'France',
-      email: 'contact@dupont-consulting.example',
-      phone: '+33102030405',
-      partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
-    };
-    const result = await peppolBisFormatProvider.build(descriptor, DOCUMENT, frenchSeller, BUYER);
-    expect(result.validation.valid).toBe(false);
-    expect(result.validation.errors.join(' ')).toContain('PEPPOL-EN16931-R002');
+  // THE FIX for the gap this spec USED TO demonstrate here — see peppol-bis-provider.ts's own header,
+  // "PEPPOL-EN16931-R002". A French seller's THREE mandatory C. com. mentions (`mentions/data/fr.json`)
+  // used to emit three separate `cbc:Note` elements even on the Peppol BIS path, tripping R002 against
+  // any non-German buyer. `semantic/peppol-post-process.ts#mergePeppolNotesInObject` now collapses them
+  // into one multi-line note BEFORE the Schematron ever sees the document — judged here by the REAL
+  // vendored delta, never a mock, exactly the discipline this whole file already holds.
+  const FRENCH_SELLER: DocumentFormatParty = {
+    name: 'Dupont Consulting SARL',
+    address: '12 Rue de la Paix',
+    city: 'Paris',
+    postalCode: '75002',
+    country: 'France',
+    email: 'contact@dupont-consulting.example',
+    phone: '+33102030405',
+    partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
+  };
+
+  it('R002 FIXED: a French seller (3 mandatory notes) now passes PEPPOL-EN16931-R002 against a non-German buyer, all three legal texts preserved verbatim', async () => {
+    const result = await peppolBisFormatProvider.build(descriptor, DOCUMENT, FRENCH_SELLER, BUYER);
+
+    // The real gate, not a mock: 0 error means BOTH the base EN 16931 Schematron and the Peppol BIS
+    // delta (including R002) accepted the document.
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+    // Exactly one document-level `cbc:Note` — the merge actually happened, not merely "R002 didn't
+    // fire for some other reason". `(?:...)` avoids matching `cac:PaymentTerms/cbc:Note` or any
+    // line-level note, which this fixture has none of anyway.
+    const noteMatches = [...xml.matchAll(/<cbc:Note>/g)];
+    expect(noteMatches).toHaveLength(1);
+
+    // The three mandatory C. com. mentions — verbatim, from `mentions/data/fr.json`, none truncated
+    // or summarized. Interpolated placeholders resolved for this document's own issue date
+    // (2026-08-30): the recovery indemnity is frozen at 40 € since 2012, and the late-payment rate in
+    // force for the second half of 2026 is 12,40 % (see fr.json's own `noteValues.lateFeeRate`).
+    expect(xml).toContain(
+      'En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de 40 € est due (art. L441-10 et D441-5 du code de commerce).',
+    );
+    expect(xml).toContain(
+      "Tout retard de paiement entraîne des pénalités au taux de 12,40 % l'an, exigibles le jour suivant la date de règlement figurant sur la facture, sans qu'un rappel soit nécessaire (art. L441-10 du code de commerce).",
+    );
+    expect(xml).toContain('Escompte pour paiement anticipé : néant');
+
+    // The subject codes still ride along INSIDE the merged text (BR-CL-08 only checks the first one —
+    // see `peppol-post-process.ts`'s own header) — not lost by the merge.
+    expect(xml).toContain('#PMT#');
+    expect(xml).toContain('#PMD#');
+    expect(xml).toContain('#AAB#');
+  }, 30_000);
+
+  it('MUTATION TARGET 2 — with the merge disconnected, the SAME French-seller document trips R002 again (the returned failing case)', async () => {
+    // The exact same semantic input the fixed provider builds above, generated WITHOUT the
+    // postProcessor — proves the Schematron itself, not this test, is what used to fail, and would
+    // fail again the moment `mergePeppolNotesInObject` stops being wired into `peppol-bis-provider.ts`.
+    const euInvoice = buildEuInvoiceForDocument(descriptor, DOCUMENT, FRENCH_SELLER, BUYER, {
+      customizationId: 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
+    });
+    const xml = (await newEuInvoiceService().generate(euInvoice, { format: 'UBL', lang: 'en' })) as string;
+
+    const delta = validateSchematron(xml, PEPPOL_BIS_UBL_SCH);
+    expect(delta.valid).toBe(false);
+    expect(delta.errors.map((e) => e.id)).toContain('PEPPOL-EN16931-R002');
+  }, 30_000);
+
+  it('a seller with NO country mentions file (the pre-fix master proof at the top of this file) still emits at most one note — unaffected by the merge', async () => {
+    const result = await peppolBisFormatProvider.build(descriptor, DOCUMENT, SELLER, BUYER);
+    expect(result.validation.valid).toBe(true);
+    const xml = Buffer.from(result.bytes).toString('utf-8');
+    const noteMatches = [...xml.matchAll(/<cbc:Note>/g)];
+    expect(noteMatches.length).toBeLessThanOrEqual(1);
   }, 30_000);
 });

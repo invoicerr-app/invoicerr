@@ -203,4 +203,35 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(directResult.errors.length).toBeGreaterThan(0);
     expect(directResult.errors.join(' ')).toMatch(/Data/);
   });
+
+  // REGRESSION — root TODO item L1 ("R002 : le vendeur français passe enfin la validation Peppol
+  // BIS"): `peppol-post-process.ts#mergePeppolNotesInObject` is wired ONLY into
+  // `peppol-bis-provider.ts` (see that file's own header). This provider never calls
+  // `build-semantic-invoice.ts`/`shared-build.ts` at all — it has no `cbc:Note`/mentions concept
+  // whatsoever (`@digitalia/fatturapa`'s own FatturaPA XML has no equivalent field this codebase
+  // fills) — so a French seller carrying the three C. com. mentions (`mentions/data/fr.json`) that
+  // the Peppol fix exists for builds here EXACTLY as before: unaffected, because there was never
+  // anything for the fix to touch on this path.
+  it('a French seller (the same one Peppol BIS now merges notes for) still builds a valid FatturaPA document — untouched, this provider has no note mechanism at all', async () => {
+    const frenchSeller: DocumentFormatParty = {
+      name: 'Dupont Consulting SARL',
+      address: '12 Rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      email: 'contact@dupont-consulting.example',
+      partyIdentifiers: [
+        { scheme: 'VAT', value: 'FR12345678901' },
+        { scheme: 'LEGAL_ID', value: '12345678900017' },
+      ],
+    };
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), frenchSeller, BUYER);
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toEqual([]);
+
+    // No note/mention artifact of any kind leaked in — this format simply does not carry BG-1.
+    const xml = new TextDecoder().decode(result.bytes);
+    expect(xml).not.toContain('PMT');
+    expect(xml).not.toContain('frais de recouvrement');
+  });
 });
