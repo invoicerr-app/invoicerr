@@ -1,0 +1,215 @@
+{
+  "countryCode": "IE",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json pour cette même action : aucun texte irlandais identifié qui encadrerait spécifiquement cet acte (le Value-Added Tax Consolidation Act 2010 (VATCA 2010) et les Value-Added Tax Regulations 2010 (S.I. No. 639 of 2010), tous deux lus en primaire par cette tâche, ne s'appliquent qu'à la 'tax invoice' au sens de la section 66 — voir invoice.save-draft ci-dessous — jamais à un devis). À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "RÉUTILISE la citation déjà établie par ce dépôt (be.json/pl.json/de.json/it.json/es.json/lv.json/cy.json/mt.json/se.json…) pour cette même action — Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1, citation COPIÉE telle quelle depuis country-policy/data/se.json's own quote.send, jamais re-résumée depuis eur-lex : le fait est par nature invariant par pays (un règlement UE d'applicabilité directe, sans transposition nationale requise), donc identique pour l'Irlande comme pour tout autre État membre déjà porté par ce catalogue. Un devis n'est pas une 'tax invoice' au sens du VATCA 2010 s. 66 — voir invoice.send ci-dessous, propre au droit irlandais — c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit irlandais (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send et invoice.save-draft ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus. Un texte a bien été identifié pour le TRAITEMENT de l'acompte facturé, une fois émis : Value-Added Tax Regulations 2010 (S.I. No. 639 of 2010), reg. 23(g) (lue en primaire le 2026-09-04 sur irishstatutebook.ie) fixe le DÉLAI d'émission de la facture d'acompte à « within the 15 days following the end of the month during which THE PAYMENT WAS RECEIVED, in the case of an invoice required to be issued in accordance with section 70(2) of the Act in respect of a payment for a supply of goods or services before the supply is completed » — un point de départ explicitement déclenché par la réception d'un acompte — mais cette clause s'applique une fois la facture d'acompte ÉMISE, jamais à l'acte produit consistant à en préparer un brouillon depuis un devis, qui reste ce que cette règle-ci couvre. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit irlandais. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas une 'tax invoice' au sens du VATCA 2010. Aucun texte irlandais identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a sequential number, based on one or more series, which uniquely identifies the invoice",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value-Added Tax Regulations 2010 (S.I. No. 639 of 2010), regulation 20(2)(b) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur irishstatutebook.ie (https://www.irishstatutebook.ie/eli/2010/si/639/made/en/print, HTML/print servi en TEXTE COMPLET dès la première requête curl, sans aucun blocage JavaScript — l'anglais est une langue officielle de l'Irlande, aucune traduction à évaluer). Cette regulation 20(2) transcrit les particulars exigées « for purposes of section 66(1) of the Act » (VATCA 2010, Value-Added Tax Consolidation Act 2010, lu en primaire le même jour sur revisedacts.lawreform.ie, l'administrative consolidation de la Law Reform Commission — 'Updated to 1 January 2026'). COMPOSITION, même structure que se.json's own invoice.save-draft et mt.json's own invoice.save-draft : le texte cité exige un numéro « based on one or more series, which UNIQUELY IDENTIFIES the invoice » (numérotation UNIQUE), et une SECONDE clause, VATCA 2010 s. 66(2A)(a) (également lue en primaire le 2026-09-04), renforce cette lecture : « An accountable person who issues or receives an invoice or other document under this Chapter [...] shall apply business controls to each such invoice or other document to ensure— (i) the authenticity of the origin of that invoice or other document, (ii) the integrity of the content of that invoice or other document, and (iii) that there is a reliable audit trail for that invoice or other document [...] » — DEUX clauses composées, jamais une seule citation isolée. La conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro, voir invoice.descriptor.ts) est que ré-invoquer cette action une fois la facture 'sent' romprait à la fois l'unicité du numéro de séquence ET l'intégrité garantie du contenu depuis l'émission — une correction doit alors emprunter un DOCUMENT DISTINCT (voir correction-routes/data/ie.json, les voies CREDIT_NOTE/CORRECTIVE_INVOICE, toutes deux 'required' — la trouvaille la plus forte de ce lot). Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "each such invoice or other document is issued and received by prior agreement between the person who issues the invoice or other document and the person who is in receipt of that invoice or document",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value-Added Tax Consolidation Act 2010 (VATCA 2010), section 66(2)(a) — TEXTE PRIMAIRE, revisedacts.lawreform.ie, lu en direct le 2026-09-04. FORME PARTICULIÈRE à l'Irlande, à noter précisément : contrairement à CGI art. 289 VI (France), § 14 UStG (Allemagne), Wet OB 1968 art. 35b lid 1 (Pays-Bas), Mervärdesskattelag 17 kap. 20 § al. 1 (Suède) ou VAT Act (Chapter 406) Twelfth Schedule item 6(2) (Malte) — qui parlent tous d'une 'acceptance'/'consent' du destinataire — le texte irlandais parle d'un « PRIOR AGREEMENT between the person who issues [...] and the person who is in receipt » : un accord bilatéral PRÉALABLE entre les deux parties, formulé comme une CONDITION DÉFINITIONNELLE de ce qui compte comme 'issued' au sens de la loi (s. 66(2)) plutôt que comme une exigence de consentement du seul destinataire — mais fonctionnellement équivalente : sans cet accord préalable, la facture électronique n'est PAS réputée valablement émise au sens de la loi. Composé avec le second membre du même alinéa, non retranscrit ici pour éviter une citation composite : « the electronic system used to issue or receive any such invoice or other document conforms with such specifications as are required by regulations » (renvoi vers Value-Added Tax Regulations 2010 (S.I. No. 639 of 2010), regulation 21, lue en primaire le même jour, qui définit 'advanced electronic signature', 'electronic data interchange' et les garanties d'intégrité/traçabilité exigées du système utilisé). NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas l'existence de l'accord préalable (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que FR/DE/NL/SE/MT pour leur propre invoice.send. AUCUNE mention B2G trouvée dans ce texte à réconcilier : le canal B2G irlandais (réseau Peppol eDelivery, CIUS multiples — NSSO/ETB/Local Government — documenté par B2G_COVERAGE.md comme 'pas livrable', jamais un fichier b2g-routing/data/ie.json dans ce dépôt, hors périmètre de cet agent) est un sujet DISTINCT de cette règle fiscale générale, qui gouverne la facturation électronique domestique B2B/B2C ordinaire."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit irlandais. La question fiscale (VATCA 2010) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Value-Added Tax Regulations 2010 (S.I. No. 639 of 2010), regulation 10 (« Adjustments for bad debts [...] », lue en primaire le 2026-09-04) donne un droit à déduction de la taxe déjà comptabilisée pour une créance devenue irrécouvrable, SOUS CONDITION que le montant ait été « written off in the financial accounts [...] and the requirements of Regulation 27(1)(m) [...] have been fulfilled » — un fait DISTINCT, non modélisé par ce catalogue faute de correspondre à une action déclarée sur invoice.descriptor.ts, qui porte sur le régime de TVA d'une créance impayée, jamais sur ce mécanisme d'enregistrement de paiement lui-même (voir aussi correction-routes/data/ie.json's own LEDGER_ANNOTATION, qui documente cette même clause du côté des voies de correction — une trouvaille NETTE, plus précise que celle laissée ouverte par se.json/mt.json pour ce même sujet). Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale irlandaise pour CETTE entreprise de la produire pour une facture B2B/B2C domestique ordinaire. B2G_COVERAGE.md (déjà dans ce dépôt, lu pour cohérence, jamais réécrit par cet agent) documente que l'Irlande n'a PAS de canal B2G livrable dans ce dépôt : « CIUS IE multiples — NSSO (gouvernement central) + Dept. of Education/ETB + Local Government, chacun sa propre CIUS \"on top of PEPPOL BIS Billing 3.0\" » (fiche pays Commission européenne, page 467108889, lue 2026-09-02) — absence honnête, PAS de fichier b2g-routing/data/ie.json dans ce dépôt (hors périmètre de cet agent, décision déjà actée). Cette règle-ci autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE ni dans quel cas — même raisonnement que se.json/mt.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne du commentaire : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal irlandais d'un tel document (voir credit-note.send ci-dessous et correction-routes/data/ie.json) concerne le CONTENU et l'effet TVA du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "the person shall issue to that other person a document (in this Act referred to as a \"credit note\") containing particulars of the reduction or discount in such form and containing such other particulars as may be specified by regulations",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value-Added Tax Consolidation Act 2010 (VATCA 2010), section 67(1)(b)(i) — TEXTE PRIMAIRE, revisedacts.lawreform.ie, lu en direct le 2026-09-04. TROUVAILLE LA PLUS NETTE de tout ce lot : contrairement à la Suède (17 kap. 22-23 §§, une clause GÉNÉRALE d'assimilation renforcée par une obligation d'émission, sans jamais NOMMER l'instrument 'kreditfaktura') ou à Malte (Twelfth Schedule item 1(2), même clause générale, le terme 'credit note' n'apparaissant que dans l'Eleventh Schedule, une clause de CONSERVATION distincte), le droit irlandais NOMME ET DÉFINIT le 'credit note' DIRECTEMENT DANS LA CLAUSE QUI EN IMPOSE L'ÉMISSION : « the person SHALL ISSUE [...] a document (in this Act referred to as a \"credit note\") ». Verbe impératif (« shall »), déclenché par la loi elle-même dès que « the consideration as stated in that invoice is [...] reduced, or a discount is allowed » (s. 67(1), non retranscrit dans cette citation pour rester focalisé sur la clause d'émission elle-même). CONSÉQUENCE : ce fichier promeut credit-note.send au même niveau de force que se.json's own credit-note.send (MANDATORY, pas seulement reconnu), avec une base textuelle ENCORE PLUS FRONTALE (le terme est défini dans la clause d'obligation elle-même, pas déduit d'une clause générale d'assimilation). Voir correction-routes/data/ie.json pour le sourçage complet de la voie CREDIT_NOTE (statut 'required') et de son pendant symétrique pour la HAUSSE de prix, CORRECTIVE_INVOICE (également 'required', s. 67(1)(a) — PAS un 'debit note', voir cette voie pour la mise en garde complète sur ce faux-ami)."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte irlandais identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables irlandaises (Value-Added Tax Regulations 2010, regulation 27, tenue de comptes détaillés — non recherchée en détail pour ce point par cette tâche ; Companies Act 2014, non recherché pour ce point) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : B2G_COVERAGE.md documente l'absence de canal B2G livrable pour l'Irlande dans ce dépôt (CIUS multiples, aucun CIUS national unique vendorable) mais aucun mandat B2B de RÉCEPTION structurée équivalent au PPF français ou à KSeF n'a été identifié pour l'Irlande par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte irlandais identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte irlandais identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte irlandais identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Irlande — agent pays IE, lot 5 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE, en anglais (langue officielle de l'Irlande, aucune traduction à évaluer) : le Value-Added Tax Consolidation Act 2010 (VATCA 2010), lu via revisedacts.lawreform.ie (la Revised Acts CONSOLIDÉE de la Law Reform Commission — 'Updated to 1 January 2026', HTML COMPLET servi dès la première requête curl standard, 2 609 422 octets, AUCUN blocage JavaScript rencontré — le portail le plus directement accessible de tout ce catalogue avec riksdagen.se/SE et likumi.lv/LV), et les Value-Added Tax Regulations 2010 (S.I. No. 639 of 2010), lues via irishstatutebook.ie (l'electronic Irish Statute Book officiel, endpoint /made/en/print, également texte brut complet dès la première requête). DEUX RÉSULTATS notables, PLUS FORTS que le modèle SE/MT de ce catalogue : (1) invoice.save-draft s'appuie sur une COMPOSITION à DEUX clauses primaires (Reg. 20(2)(b) — numérotation unique, VATCA s. 66(2A)(a) — authenticité/intégrité/piste d'audit) ; (2) credit-note.send est promue 'legal' via une clause qui NOMME ET DÉFINIT le 'credit note' DANS SA CLAUSE D'OBLIGATION MÊME (VATCA s. 67(1)(b)(i), « the person shall issue [...] a document (in this Act referred to as a \"credit note\") ») — plus frontale que la clause générale d'assimilation suédoise ou la reconnaissance nommée mais séparée maltaise. MISE EN GARDE IMPORTANTE POUR UNE LECTURE FUTURE, propre à l'Irlande : le droit irlandais nomme AUSSI un « debit note » (VATCA s. 67(2)) — mais ce n'est PAS un document qui AUGMENTE le montant dû (le sens attendu de la voie DEBIT_NOTE de correction-routes/data/ie.json) : c'est un document que la PARTIE CRÉDITRICE (typiquement l'acheteur) peut émettre pour ANTICIPER un avoir avant que le vendeur ne l'émette lui-même, DEEMED équivalent à un avoir une fois accepté — un FAUX-AMI terminologique documenté en détail dans correction-routes/data/ie.json's own DEBIT_NOTE, à ne jamais confondre avec le mécanisme de HAUSSE de prix (VATCA s. 67(1)(a), « another invoice [...] in respect of the increase », classé CORRECTIVE_INVOICE, également 'required'). AUCUNE contradiction relevée avec country-identifiers/data/ie.json, vat-rates/data/ie.json et correction-routes/data/ie.json (livrés par ce même agent, ce même jour) ni avec tax/tax-systems/data/ie.json (TEDB, standardRate 23, lu 2026-09-01, agent P2-T02) ni avec B2G_COVERAGE.md (CIUS IE multiples, canal non livrable, lu pour cohérence, jamais réécrit par cet agent — pas de fichier b2g-routing/data/ie.json créé) : les quatre fichiers documentent des angles disjoints du MÊME socle légal irlandais sans se contredire."
+}

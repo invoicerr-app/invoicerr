@@ -1,0 +1,108 @@
+{
+  "countryCode": "DK",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Hvis varer bliver returneret efter fakturaens udstedelse, skal der udstedes kreditnota. Det samme gælder, hvis leverandøren efter fakturaens udstedelse giver afslag i prisen.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour le Danemark (docs/compliance/CORRECTION-ROUTES.yaml ne le couvre pas) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Momsloven (LBK nr 209 af 27/02/2024, https://www.retsinformation.dk/eli/lta/2024/209), § 52 a, stk. 5, 1.-2. pkt. — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur retsinformation.dk (endpoint /dan/xml, jamais un outil de fetch-résumé — voir country-policy/data/dk.json pour le détail de la méthode d'accès). « skal udstedes » (DOIT être émise) : une clause MANDATOIRE, pas une simple reconnaissance d'effet. RENFORCÉE par une SECONDE clause du même acte, § 27, stk. 4 (lue le même jour) : « I afgiftsgrundlaget kan fradrages rabatter, der er betinget af vilkår, som ikke er opfyldt ved leveringen, for så vidt rabatten senere bliver effektiv. Fradraget foretages, når rabatten bliver effektiv, og er betinget af, at der udstedes kreditnota over den ydede rabat med angivelse af afgiften. Tilsvarende gælder for andre prisafslag. » — la déduction fiscale d'une remise conditionnelle devenue effective est elle-même CONDITIONNÉE À l'émission d'une kreditnota. DEUX bases indépendantes convergent donc vers 'required', un statut PLUS FORT que correction-routes/data/lv.json's own CREDIT_NOTE ('allowed' seulement, faute de clause impérative lettone) et de même force que correction-routes/data/se.json's own CREDIT_NOTE (Mervärdesskattelag 17 kap. 23 §, 'ska utfärdas'). COMPOSÉ avec Momsbekendtgørelsen (BEK nr 1435 af 29/11/2023, https://www.retsinformation.dk/eli/lta/2023/1435) § 58, stk. 2 : « Ethvert dokument eller enhver meddelelse, der specifikt og utvetydigt ændrer eller henviser til den oprindelige faktura, sidestilles med en faktura. » — cette clause d'assimilation donne à la kreditnota le statut juridique d'une faktura (pertinent pour son émission électronique, soumise à la même condition de consentement du destinataire que le § 68, stk. 4, du même règlement — voir country-policy/data/dk.json's own credit-note.send). Terme administratif danois : la loi emploie DIRECTEMENT le terme dédié « kreditnota », à la différence de la Lettonie et de la Suède qui reposent sur une clause générale sans terme propre."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Hvis der sker efterbetaling, skal der udstedes faktura over efterbetalingen.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Momsloven (LBK nr 209 af 27/02/2024, https://www.retsinformation.dk/eli/lta/2024/209), § 52 a, stk. 5, 3. pkt. — TEXTE PRIMAIRE, lu en direct le 2026-09-04, MÊME phrase que CREDIT_NOTE ci-dessus (« si un complément de paiement intervient, une faktura DOIT être émise pour ce complément de paiement ») — « skal » (DOIT), même force impérative que la clause voisine sur les retours/réductions. DIFFÉRENCE avec CREDIT_NOTE, à NE PAS gommer : la loi danoise n'emploie ICI AUCUN terme dédié équivalent à « debitnota » — elle prescrit seulement « en faktura over efterbetalingen » (une facture ORDINAIRE portant sur le complément), pas un document nommément distinct. Le rattachement à DEBIT_NOTE (« Document séparé qui AUGMENTE le montant dû », docs/compliance/CORRECTION-ROUTES.yaml) repose donc sur la FONCTION du document (un document séparé, postérieur à la facture initiale, qui AUGMENTE le montant dû pour la même livraison), composée avec Momsbekendtgørelsen (BEK nr 1435 af 29/11/2023, https://www.retsinformation.dk/eli/lta/2023/1435) § 58, stk. 2 (« tout document qui modifie [...] ou se réfère à la facture initiale est assimilé à une facture ») pour la rattacher formellement au régime documentaire de la facture — MÊME absence de terme dédié, MÊME discipline de lecture FONCTIONNELLE plutôt que TERMINOLOGIQUE, que correction-routes/data/lv.json's own DEBIT_NOTE (Pievienotās vērtības nodokļa likums art. 125 al. 5, aucun terme dédié « debetrēķins » trouvé) et correction-routes/data/ee.json's own DEBIT_NOTE. Statut 'required' (pas 'allowed') retenu car la clause elle-même n'est pas une simple reconnaissance d'effet mais une INJONCTION D'ÉMISSION explicite pour ce cas précis — TROUVAILLE NOTABLE : docs/compliance/CORRECTION-ROUTES.yaml's own note pour DEBIT_NOTE signale « Si un pays le REQUIERT à la hausse — hypothèse à vérifier pour l'Italie — l'asymétrie hausse/baisse est inexprimable aujourd'hui » ; le Danemark EST un tel pays, au même titre que l'hypothèse italienne à vérifier — cette découverte confirme que le cas existe réellement en dehors de l'Italie."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Ethvert dokument eller enhver meddelelse, der specifikt og utvetydigt ændrer eller henviser til den oprindelige faktura, sidestilles med en faktura.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Momsbekendtgørelsen (BEK nr 1435 af 29/11/2023, https://www.retsinformation.dk/eli/lta/2023/1435) § 58, stk. 2 — MÊME citation primaire que CREDIT_NOTE/DEBIT_NOTE ci-dessus (voir ces notes pour le raisonnement de composition complet, non dupliqué ici). C'est la lecture LA PLUS DIRECTE de cet alinéa au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « ethvert dokument [...] der [...] ændrer eller henviser til den oprindelige faktura » — cette clause couvre aussi une correction NON MONÉTAIRE (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) dès lors qu'elle modifie ou se réfère à l'original « specifikt og utvetydigt » (spécifiquement et sans équivoque). Statut 'allowed', pas 'required' : rien dans cet alinéa n'affirme que ce document soit la SEULE forme possible pour une correction non monétaire — c'est une clause de RECONNAISSANCE (assimilation à une faktura), jamais un mandat exclusif, MÊME lecture que correction-routes/data/lv.json's own CORRECTIVE_INVOICE (Pievienotās vērtības nodokļa likums art. 125 al. 5) et correction-routes/data/se.json's own composition équivalente."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Cette voie suppose une AUTORITÉ qui reçoit/valide la facture elle-même avant qu'elle ne puisse être annulée auprès d'elle (KSeF polonais, SdI italien, CFDI mexicain) — aucun régime de clearance domestique B2B n'a été identifié pour le Danemark par cette tâche : le canal danois lu (NemHandel, appuyé sur Peppol BIS, CIUS national OIOUBL) est un canal B2G (marchés publics), pas une clearance B2B généralisée, et B2G_COVERAGE.md documente déjà cette même lecture (DK 'pas livrable', OIOUBL non vendoré). Ni la Momsloven ni la Momsbekendtgørelsen, lues en primaire pour ce fichier, ne décrivent de mécanisme d'« annullation »/« annullering » d'une facture déjà émise (recherche par mot-clé menée sur les deux textes intégraux extraits, aucune occurrence pertinente trouvée, à la différence de l'art. 129 al. 6 letton ou de la clause suédoise équivalente qui, elles, évoquent au moins une facture 'annulée' conservée en comptabilité). Ce qui trancherait : une doctrine de Skattestyrelsen (l'autorité fiscale danoise) confirmant l'absence de tout mécanisme d'annulation formelle, ou l'inverse — recherche non tentée cette session, budget de recherche web épuisé en cours de tâche."
+      },
+      "notes": "Non recherché au-delà du mot-clé sur les deux textes déjà lus — signalé comme probablement sans objet (pas de clearance B2B domestique identifiée), pas comme réglé."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que correction-routes/data/lv.json's own INTERNAL_CREDIT_NOTE et se.json's own équivalent : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires, qui n'existe PAS pour la facturation B2B domestique danoise (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — le canal B2G NemHandel/Peppol, lu pour cohérence via B2G_COVERAGE.md, ne couvre que les marchés publics). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que CANCEL_AND_REPLACE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture elle-même (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique danoise. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique danoise identifiée, ce scénario ne se pose pas de la même façon. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Recherche par mot-clé menée sur la Momsloven et la Momsbekendtgørelsen intégrales (« annoteret », « genudstedt », variantes de « duplikat ») sans trouver de mécanisme correspondant à la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Le MÊME document, réémis surchargé d'une mention »). À la différence de correction-routes/data/lv.json's own ANNOTATED_DUPLICATE (qui avait trouvé deux mécanismes ADJACENTS réels, sans qu'aucun ne corresponde précisément), cette tâche n'a identifié AUCUNE clause danoise, même adjacente, à rapprocher de cette voie — absence honnêtement signalée plutôt que forcée. Ce qui trancherait : une lecture plus large de la Momsbekendtgørelsen (chapitres non lus en détail par cette tâche, notamment le chapitre sur le contrôle et les sanctions) ou une doctrine de Skattestyrelsen."
+      },
+      "notes": "Non recherché au-delà du mot-clé sur les deux textes déjà lus."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et NO_DOCUMENT_BY_LAW ci-dessous — MÊME trouvaille pour les deux, la distinction entre elles n'a pas pu être établie par cette tâche. Momsloven (LBK nr 209 af 27/02/2024, https://www.retsinformation.dk/eli/lta/2024/209) § 27, stk. 6 (lu en primaire le 2026-09-04) dispose : « I afgiftsgrundlaget kan fradrages 80 pct. af konstaterede tab på uerholdelige fordringer vedrørende leverede varer og ydelser. Fradraget foretages, når tabet konstateres. » (la base d'imposition peut être réduite de 80 % des pertes constatées sur créances irrécouvrables ; la déduction est opérée lorsque la perte est constatée) — le texte ne précise NI qu'un document doive être émis, NI qu'une simple écriture dans les registres suffise, NI que l'effet soit de plein droit sans aucun acte formel : il est SILENCIEUX sur le VÉHICULE de cette déduction, exactement l'ambiguïté que correction-routes/data/lv.json's own LEDGER_ANNOTATION documente déjà pour l'art. 129 al. 6 letton (à ceci près que le texte letton, lui, nommait au moins une facture 'annulée' conservée — le texte danois ne nomme même pas de document). PARTICULARITÉ DANOISE À NOTER : le taux de déduction n'est que de 80 %, PAS 100 %, une singularité non recherchée plus avant par cette tâche (voir country-policy/data/dk.json's own invoice.record-payment). Ce qui trancherait : une doctrine de Skattestyrelsen ou une lecture des règles de déclaration de TVA (momsangivelse) décrivant concrètement l'acte requis pour signaler une créance irrécouvrable."
+      },
+      "notes": "Momsloven (LBK nr 209 af 27/02/2024, https://www.retsinformation.dk/eli/lta/2024/209) § 27, stk. 6, lu en primaire le 2026-09-04 — trouvaille réelle mais non départagée d'avec NO_DOCUMENT_BY_LAW, voir resolutionNote."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et LEDGER_ANNOTATION ci-dessus — voir la resolutionNote de LEDGER_ANNOTATION pour le détail complet de la trouvaille et de l'ambiguïté, non dupliqué ici pour éviter deux versions divergentes du même raisonnement. En bref : Momsloven (LBK nr 209 af 27/02/2024, https://www.retsinformation.dk/eli/lta/2024/209) § 27, stk. 6, autorise une réduction de 80 % de la base d'imposition pour créance irrécouvrable sans préciser si cet effet relève d'une écriture identifiable (LEDGER_ANNOTATION) ou d'un effet de plein droit sans aucun acte formel distinct (NO_DOCUMENT_BY_LAW, le régime allemand par défaut pour remises/rabais/créances irrécouvrables/annulations, découvert pour DE) — AVEC LA RÉSERVE, propre au Danemark, que la correction ORDINAIRE d'un prix (remise conditionnelle) suit de toute façon un régime à document OBLIGATOIRE (§ 52 a, stk. 5 + § 27, stk. 4, voir CREDIT_NOTE), ce qui rend un régime GÉNÉRAL 'sans document' moins probable ici que pour l'Allemagne — sans que cette tâche ait pu confirmer ou infirmer le cas spécifique de la créance irrécouvrable elle-même."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même trouvaille, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour le Danemark au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — les §§ 27, 52 a et 58 de la Momsloven/Momsbekendtgørelsen, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le contentieux fiscal ou une autre partie de ces textes non lue par cette tâche)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Danemark — agent pays DK, lot 5 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas le Danemark) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même (Momsloven (LBK nr 209 af 27/02/2024, https://www.retsinformation.dk/eli/lta/2024/209) et Momsbekendtgørelsen (BEK nr 1435 af 29/11/2023, https://www.retsinformation.dk/eli/lta/2023/1435)). MÉTHODE D'ACCÈS : retsinformation.dk est une SPA React dont le HTML servi par une requête curl directe est une coquille vide (~4-5 Ko) — le texte réel vit derrière deux endpoints de la MÊME API que la SPA appelle elle-même, découverts en désassemblant static/js/main.f17cbae8.js : `<eli-path>.rdfa` (métadonnées, dont `eli:consolidated_by` qui a permis de retrouver la version EN VIGUEUR de la Momsloven — LBK nr 209 af 27/02/2024 REMPLACE LBK nr 1021 af 26/09/2019 depuis le 2024-03-04, jamais citée ici) et `<eli-path>/dan/xml` (texte intégral, schéma LexDania), tous deux récupérés par curl DIRECT et dépouillés par un script Python local — jamais un outil de fetch-résumé, même discipline que celle imposée après la découverte, sur l'agent Chypre du lot précédent, qu'un tel outil avait fabriqué un article de loi inexistant. HEADLINE : DEUX voies sourcées 'legal' et 'required' (CREDIT_NOTE — § 52 a, stk. 5 + § 27, stk. 4, un terme DÉDIÉ « kreditnota » ET une double base impérative, PLUS FORT que le modèle LV de ce lot ['allowed' seulement] et de MÊME force que le modèle SE ; DEBIT_NOTE — § 52 a, stk. 5, 3. pkt., « skal udstedes faktura over efterbetalingen », SANS terme dédié mais avec la MÊME force impérative, une TROUVAILLE qui confirme l'hypothèse que docs/compliance/CORRECTION-ROUTES.yaml's own note pour DEBIT_NOTE formule pour l'Italie — le Danemark est un second pays réel où cette asymétrie hausse/baisse existe), UNE voie 'allowed' (CORRECTIVE_INVOICE — § 58, stk. 2 de la Momsbekendtgørelsen, une clause générale d'assimilation), et HUIT voies honnêtement 'unverified', dont DEUX (LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) portent une trouvaille RÉELLE mais NON DÉPARTAGÉE (§ 27, stk. 6 — réduction de 80 %, pas 100 %, pour créance irrécouvrable, sans que le texte précise le véhicule documentaire de cet effet). Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent — voir B2G_COVERAGE.md : DK 'pas livrable', canal NemHandel + Peppol BIS en support, mais CIUS national OIOUBL 3.0 non vendoré ; aucun b2g-routing/data/dk.json n'existe et cet agent n'en crée pas)."
+}

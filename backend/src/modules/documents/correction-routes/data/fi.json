@@ -1,0 +1,108 @@
+{
+  "countryCode": "FI",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "jos laskulla muutetaan aikaisemmin annettua laskua, yksiselitteinen viittaus tähän laskuun.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour la Finlande (docs/compliance/CORRECTION-ROUTES.yaml meta.covered = [FR, IT, PL, DE, ES, MX, US] ne couvre pas la Finlande) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Arvonlisäverolaki (1501/1993) 209 e § 1 momentti kohta 18 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur finlex.fi (https://www.finlex.fi/fi/laki/ajantasa/1993/19931501, HTML complet servi dès la première requête curl, aucun blocage JavaScript rencontré). Traduction de travail : « si la facture modifie une facture antérieurement émise, [elle doit porter] une référence non équivoque à cette facture. » COMPOSÉE avec 78 § kohta 1 (base d'imposition, lu le même jour) : « ostajalle annettu, verollista myyntiä koskeva vuosi- ja vaihtoalennus, osto- ja myyntihyvitys, ylijäämänpalautus sekä muu sellainen oikaisuerä » (remise annuelle/de quantité, ristourne d'achat/de vente, remboursement d'excédent et autre élément de correction similaire accordé à l'acheteur, relatif à une vente taxable — déductible de la base d'imposition). DIFFÉRENCE MAJEURE avec le modèle suédois/letton/luxembourgeois de ce lot : la Finlande N'A NI clause d'ASSIMILATION autonome (« tel document est réputé équivalent à une facture », comme le suédois 17 kap. 22 § ou le letton art. 125 al. 5), NI terme dédié (« hyvityslasku » n'apparaît NULLE PART dans le texte intégral de la loi, recherche par mot-clé effectuée sur environ 7,8 millions de caractères extraits) — le mécanisme repose UNIQUEMENT sur cette mention de contenu insérée dans la liste des mentions obligatoires D'UNE FACTURE (209 e §), qui présuppose que la facture modificative EST une facture par le jeu de 209 a § (« Laskutukseen sovelletaan 209 b–209 g §:ää » — les règles de facturation s'appliquent globalement, sans distinction facture initiale/modificative). STATUT 'allowed', PAS 'required' : AUCUNE clause de type Mervärdesskattelag 17 kap. 23 § (qui rend l'ÉMISSION obligatoire pour une baisse de prix) n'a été trouvée en droit finlandais — 78 § kohta 1/2 (lu le même jour) autorise SEULEMENT une DÉDUCTION de la base d'imposition pour les remises/résolutions de contrat, sans prescrire aucun document ni aucune émission obligatoire."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "jos laskulla muutetaan aikaisemmin annettua laskua, yksiselitteinen viittaus tähän laskuun.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME citation primaire que CREDIT_NOTE ci-dessus (Arvonlisäverolaki 209 e § 1 momentti kohta 18) — finlex.fi, lu le 2026-09-04, même méthode d'accès. Le texte n'emploie à aucun moment un terme dédié équivalent à « debetlasku » (note de débit) — cette voie est déduite du champ GÉNÉRAL de la clause (une facture qui modifie une facture antérieure, sans distinction hausse/baisse, doit y référer sans équivoque), pas d'une clause nommément dédiée à la hausse de prix. Statut 'allowed' (pas 'required') : rien ne mandate cette forme précise pour une hausse de prix — même raisonnement, même distinction 'allowed' vs 'required', que se.json's own DEBIT_NOTE (17 kap. 22 § suédois) et lv.json/lu.json's own DEBIT_NOTE appliquent à leurs propres clauses générales respectives."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "jos laskulla muutetaan aikaisemmin annettua laskua, yksiselitteinen viittaus tähän laskuun.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME citation primaire que CREDIT_NOTE/DEBIT_NOTE ci-dessus (209 e § 1 momentti kohta 18) — c'est la lecture LA PLUS DIRECTE de cet article au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « laskulla muutetaan aikaisemmin annettua laskua [...] yksiselitteinen viittaus tähän laskuun » (une facture modifie une facture antérieure [...] référence non équivoque à cette facture) — cette clause couvre aussi bien une correction NON MONÉTAIRE (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) dès lors qu'elle référence l'original de façon non équivoque. DIFFÉRENTIEL avec le modèle suédois/letton/luxembourgeois : la clause finlandaise vit à l'intérieur de la liste des MENTIONS D'UNE FACTURE (209 e §), pas comme une déclaration autonome d'assimilation — un principe structurellement PROCHE mais une FORME légistique différente. Statut 'allowed' : la loi RECONNAÎT l'effet d'un tel document (il doit respecter les mêmes exigences de contenu que 209 e § pour le reste, plus cette référence non équivoque) sans en rendre l'émission obligatoire pour une correction non monétaire donnée."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun régime de clearance domestique où une facture B2B finlandaise serait elle-même soumise à/validée par une autorité avant d'être annulable auprès d'elle n'a été identifié par cette tâche (à la différence du CFDI mexicain ou de KSeF/SdI). La loi 241/2019 (droit du destinataire à exiger une facture électronique EN 16931, voir country-policy/data/fi.json's own invoice.send) n'instaure aucun mécanisme de VALIDATION par une autorité — c'est un droit entre parties privées/entités adjudicatrices, jamais un canal de clearance. Ce qui trancherait : une doctrine de Verohallinto (l'administration fiscale finlandaise) décrivant un mécanisme d'annulation de facture — non recherché faute de temps."
+      },
+      "notes": "Non recherché en profondeur — même prudence que se.json/lv.json/lu.json's own CANCEL_AND_REPLACE (aucun régime de clearance domestique identifié)."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que se.json/lv.json/lu.json/ee.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique finlandaise (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — B2G_COVERAGE.md documente déjà la Finlande comme « pas livrable », CIUS FI non vendoré, hors périmètre de cet agent). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que CANCEL_AND_REPLACE et INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture ELLE-MÊME (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique finlandaise par cette tâche."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique finlandaise identifiée, ce scénario ne se pose pas de la même façon. Le mécanisme le plus proche identifié par cette tâche est le droit du destinataire à EXIGER une facture électronique (241/2019 § 4, voir country-policy/data/fi.json's own invoice.send), mais ceci porte sur une DEMANDE préalable du destinataire, pas sur le rejet TECHNIQUE d'une facture déjà transmise par une plateforme d'autorité — donc hors du périmètre exact de cette voie."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Cette voie (« le MÊME document, réémis surchargé d'une mention ») a été explicitement recherchée face à 209 e § kohta 18 : cette clause décrit une facture MODIFICATIVE DISTINCTE et NOUVELLE référençant l'originale (déjà classée sous CORRECTIVE_INVOICE/CREDIT_NOTE/DEBIT_NOTE ci-dessus), jamais la FACTURE INITIALE elle-même renvoyée, surchargée d'une mention et réémise sous son identité d'origine — même différentiel, dans son PRINCIPE, que celui que se.json's own ANNOTATED_DUPLICATE documente déjà pour le 17 kap. 28 § point 5 suédois et lv.json/lu.json's own ANNOTATED_DUPLICATE pour leurs propres clauses. Aucune autre clause finlandaise identifiée qui décrirait ce mécanisme précis (recherche menée sur 209 a-l §§, aucune occurrence)."
+      },
+      "notes": "Recherche négative documentée — aucune clause de duplicata-annoté distincte identifiée en droit finlandais par cette tâche."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et NO_DOCUMENT_BY_LAW ci-dessous — MÊME trouvaille pour les deux, la distinction entre elles n'a pas pu être établie par cette tâche. Arvonlisäverolaki 78 § kohta 3 (créance devenue irrécouvrable, lu en primaire le 2026-09-04) dispose que la base d'imposition peut être réduite d'une « verollisena ilmoitettua myyntiä koskeva luottotappio » (créance irrécouvrable relative à une vente déclarée taxée). Le texte ne prescrit AUCUN document ni AUCUNE écriture formalisée pour opérer cet ajustement — c'est un simple droit à réduction de la base d'imposition (78 § s'ouvre par « Veron perusteesta saadaan vähentää », la base d'imposition PEUT être réduite de..., un droit et non une obligation), sans mécanisme documentaire précisé au-delà de la réduction elle-même dans la déclaration de TVA. Ceci ressemble, dans son PRINCIPE, au régime allemand par défaut découvert pour DE (NO_DOCUMENT_BY_LAW) et à la « kundförlust » suédoise (Mervärdesskattelag 8 kap. 16 §, voir se.json's own LEDGER_ANNOTATION) — un ajustement de plein droit, sans document dédié explicitement requis — mais pourrait tout aussi bien impliquer une ÉCRITURE identifiable dans la comptabilité de l'assujetti (kirjanpitolaki, non recherchée par cette tâche) que cette tâche n'a pas les moyens de confirmer ou d'exclure sur la seule lecture de cet alinéa."
+      },
+      "notes": "Arvonlisäverolaki 78 § kohta 3, lu en primaire le 2026-09-04 — trouvaille réelle mais non départagée d'avec NO_DOCUMENT_BY_LAW, voir resolutionNote."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et LEDGER_ANNOTATION ci-dessus — voir sa resolutionNote pour le détail complet de la trouvaille et de l'ambiguïté, non dupliqué ici pour éviter deux versions divergentes du même raisonnement. En bref : 78 § kohta 3 accorde un droit à réduire la base d'imposition pour créance irrécouvrable, sans prescrire de document ni de procédure, plus proche dans son LIBELLÉ d'un régime 'sans document' que d'une écriture formalisée identifiable — mais cette tâche n'a pas trouvé de texte excluant EXPLICITEMENT toute formalité, ce qui laisse la question ouverte entre les deux voies. RÉSERVE, propre à la Finlande : la correction ORDINAIRE d'un prix (remise, ristourne, résolution de contrat) suit de toute façon un régime où une facture modificative référençant l'originale reste PERMISE (209 e § kohta 18, voir CREDIT_NOTE) sans être rendue obligatoire — un régime GÉNÉRAL 'sans document' n'est donc pertinent ici que pour le cas SPÉCIFIQUE de la créance devenue irrécouvrable après coup, jamais pour une correction de prix ordinaire au moment de la vente."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même trouvaille, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Finlande au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — les 209 a-l §§ et 78 § de l'Arvonlisäverolaki, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le droit commun finlandais des obligations, ou dans une doctrine Verohallinto sur le droit à déduction en cas de facture contestée)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Finlande — agent pays FI, lot 5 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas la Finlande) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même (Arvonlisäverolaki, 1501/1993, jamais refondue, très amendée article par article), pas seulement à une doctrine administrative. MÉTHODE D'ACCÈS : finlex.fi sert son texte en HTML COMPLET dès la première requête curl standard pour cette loi volumineuse/consolidée, SANS AUCUN blocage JavaScript ni squelette vide à contourner — le texte a été extrait par un script Python local (dé-échappement des séquences \\uXXXX/\\n/\\\" d'un flux React Server Components), jamais par un outil de fetch-résumé. TROIS voies sourcées 'legal' — CREDIT_NOTE, DEBIT_NOTE et CORRECTIVE_INVOICE — TOUTES rattachées à LA MÊME clause générale, 209 e § 1 momentti kohta 18, qui exige une référence non équivoque à la facture antérieure lorsqu'une facture la modifie. DIFFÉRENCE STRUCTURELLE MAJEURE avec le modèle suédois/letton/luxembourgeois de ce lot : la Finlande N'A NI clause d'ASSIMILATION autonome (Mervärdesskattelag 17 kap. 22 § / Pievienotās vērtības nodokļa likums art. 125 al. 5), NI terme dédié pour un avoir (« hyvityslasku » : recherche par mot-clé NÉGATIVE, aucune occurrence dans l'intégralité du texte extrait, environ 7,8 millions de caractères) — le mécanisme repose entièrement sur une MENTION DE CONTENU insérée dans la liste des mentions obligatoires D'UNE FACTURE. AUCUNE clause finlandaise trouvée qui rendrait l'émission d'un tel document OBLIGATOIRE (contrairement à la Suède, Mervärdesskattelag 17 kap. 23 § — CREDIT_NOTE reste donc 'allowed' pour la Finlande, jamais 'required'). Les huit autres voies restent honnêtement 'unverified', dont DEUX (LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) portent une trouvaille RÉELLE mais NON DÉPARTAGÉE (78 § kohta 3, la créance devenue irrécouvrable — réduction discrétionnaire de la base d'imposition, jamais davantage précisée par le texte quant à la forme), et UNE (ANNOTATED_DUPLICATE) porte une recherche négative documentée (209 e § kohta 18 ne correspond PAS à la définition exacte de cette voie). Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent — B2G_COVERAGE.md classe déjà la Finlande « pas livrable », CIUS FI non vendoré, jamais écrit par cet agent)."
+}

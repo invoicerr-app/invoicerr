@@ -1,0 +1,215 @@
+{
+  "countryCode": "FI",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/at.json/ee.json/lv.json/lu.json/se.json pour cette même action : aucun texte finlandais identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — citation COPIÉE telle quelle depuis country-policy/data/se.json's own quote.send (elle-même copiée de lv.json/nl.json/ee.json), même discipline que pour les autres pays de ce lot : un règlement européen d'applicabilité directe se recopie depuis le fichier qui la porte déjà dans ce dépôt, jamais ne se re-résume depuis eur-lex. Un règlement européen ne nécessite aucune transposition nationale, donc identique pour la Finlande comme pour la Suède/les Pays-Bas/l'Estonie/la Lettonie qui portent déjà la même citation. Un devis n'est pas une facture au sens de l'Arvonlisäverolaki (voir invoice.send ci-dessous, propre à la loi finlandaise sur la TVA) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte finlandais identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send/invoice.save-draft ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus. L'Arvonlisäverolaki (1501/1993) 209 e § 1 momentti kohta 7 (lu en primaire le 2026-09-04 sur finlex.fi) confirme que le paiement d'un acompte (« ennakkomaksun maksupäivä ») fait partie des mentions obligatoires d'une facture lorsqu'il en existe une — mais aucun texte identifié n'impose expressément l'ÉMISSION d'une facture pour un acompte reçu (à la différence de la clause suédoise Mervärdesskattelag 17 kap. 14 §, jamais retrouvée d'équivalent direct en droit finlandais par cette tâche), ni n'encadre le MÉCANISME PRODUIT consistant à faire naître cette facture d'acompte en brouillon depuis un devis. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte finlandais identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas une facture au sens de l'Arvonlisäverolaki. Aucun texte finlandais identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "yhteen tai useampaan sarjaan perustuva juokseva tunniste, jolla lasku voidaan yksilöidä;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Arvonlisäverolaki (1501/1993) 209 e § 1 momentti kohta 2 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur finlex.fi (https://www.finlex.fi/fi/laki/ajantasa/1993/19931501, page servie en HTML COMPLET — un flux React Server Components échappé une fois dans une balise <script>, jamais un squelette vide — dès la première requête curl standard, sans blocage JavaScript rencontré). Traduction de travail : « un numéro de séquence basé sur une ou plusieurs séries, permettant d'identifier la facture ». COMPOSITION, même structure que se.json's own invoice.save-draft (Mervärdesskattelag 17 kap. 24 § point 2 + 30 §) : ce point 2 tranche l'UNICITÉ/la traçabilité du numéro, et une SECONDE clause, 209 g § du même acte (également lue en primaire le même jour), renforce cette lecture : « Elinkeinonharjoittajan on varmistettava antamiensa ja vastaanottamiensa 209 b §:ssä tarkoitettujen laskujen alkuperän aitous sekä laskuissa mainittujen 209 e §:n 1 momentissa tarkoitettujen tietojen muuttumattomuus ja luettavuus laskun antamishetkestä laskun säilytysajan loppuun saakka. Tämä voidaan tehdä millä tahansa elinkeinonharjoittajan valitsemalla liiketoiminnan valvontakeinolla, joka luotettavasti todentaa laskun ja tavaroiden tai palvelujen myynnin välisen yhteyden. » (l'opérateur économique doit garantir l'authenticité de l'origine des factures qu'il émet et reçoit ainsi que l'intégrité et la lisibilité des informations visées au 209 e § 1 momentti, depuis l'émission de la facture jusqu'à la fin de la durée de conservation ; ceci peut être assuré par tout moyen de contrôle interne de son choix qui établit de façon fiable le lien entre la facture et la livraison du bien ou du service) — DEUX clauses composées, jamais une seule citation isolée. Conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro tant qu'il reste 'draft', voir invoice.descriptor.ts) : ré-invoquer cette action une fois la facture envoyée romprait à la fois la traçabilité du numéro de séquence ET l'intégrité du contenu déjà garanti — une correction doit alors emprunter un DOCUMENT DISTINCT référençant l'original (voir correction-routes/data/fi.json, 209 e § kohta 18). Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Hankintayksiköllä ja elinkeinonharjoittajalla on oikeus saada pyynnöstä lasku toiselta hankintayksiköltä tai elinkeinonharjoittajalta sähköisenä laskuna.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Laki hankintayksiköiden ja elinkeinonharjoittajien sähköisestä laskutuksesta (241/2019) 4 § — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur le PDF officiel du Suomen säädöskokoelma (https://www.finlex.fi/api/media/statute/696069/mainPdf/main.pdf, lien trouvé sur https://www.finlex.fi/fi/lainsaadanto/saadoskokoelma/2019/241 — CETTE loi, contrairement à l'Arvonlisäverolaki, n'a PAS de rendu HTML complet côté serveur sur ses pages /fi/laki/ajantasa/2019/20190241, /fi/lainsaadanto/2019/241 ni /fi/lainsaadanto/saadoskokoelma/2019/241 elles-mêmes — chacune ne sert que la table des matières et les métadonnées, jamais le corps des articles ; le PDF officiel du Journal officiel finlandais, lié depuis cette dernière page, EST le texte brut primaire de secours, au même titre qu'un texte HTML complet). Traduction de travail : « L'entité adjudicatrice et l'opérateur économique ont le droit d'obtenir, sur demande, une facture d'une autre entité adjudicatrice ou d'un autre opérateur économique sous forme de facture électronique. » TROUVAILLE ATTENDUE DE CE LOT : la Finlande NE conditionne PAS l'émission électronique d'une facture au consentement PRÉALABLE du destinataire (aucune clause de ce type identifiée dans l'Arvonlisäverolaki 209 a-g §§, à la différence du Mervärdesskattelag suédois 17 kap. 20 § al. 1, du § 14 UStG allemand, de l'art. 35b lid 1 néerlandais ou de l'art. 132 al. 1 letton) — elle fait l'INVERSE : le § 4 de la loi 241/2019 donne au DESTINATAIRE (une autre entité adjudicatrice OU un autre opérateur économique) le DROIT D'EXIGER une facture électronique du vendeur, sur simple demande. C'est un droit qui dépasse le seul B2G : le texte vise « toiselta hankintayksiköltä TAI elinkeinonharjoittajalta » (une autre entité adjudicatrice OU un opérateur économique), donc B2B autant que B2G — une singularité européenne, comme le signale le § 2 kohta 1 du même acte, qui définit la « sähköinen lasku » (facture électronique) comme celle qui « noudattaa sähköisen laskutuksen eurooppalaista standardia » (est conforme à la norme européenne de facturation électronique, i.e. EN 16931, par renvoi à l'art. 3 § 2 de la directive 2014/55/UE). PORTÉE : ce droit ne s'exerce qu'entre un « hankintayksikkö » (entité adjudicatrice au sens des lois sur les marchés publics 1397/2016, 1398/2016, 1531/2011, § 2 kohta 2) et un « elinkeinonharjoittaja » défini par le § 2 kohta 3 comme exerçant une activité commerciale/professionnelle dont le chiffre d'affaires annuel dépasse 10 000 euros — un opérateur sous ce seuil n'est donc pas couvert par cette obligation. ENTRÉE EN VIGUEUR : la loi elle-même entre en vigueur le 1er avril 2019 (§ 5 al. 1), mais SON PROPRE § 4 ne s'applique qu'à compter du 1er avril 2020 (§ 5 al. 2 : « Lain 4 §:ää sovelletaan kuitenkin vasta 1 päivästä huhtikuuta 2020. »), en vigueur depuis cette date. NUANCE NON MODÉLISÉE ICI : cette règle documente le droit du DESTINATAIRE à exiger l'électronique et l'absence d'un gate de consentement classique côté émetteur — elle ne vérifie ni l'un ni l'autre au moment de l'action 'send' dans cet outil, même réserve que les autres pays de ce catalogue pour leur propre invoice.send."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte finlandais identifié n'encadre l'acte de duplication lui-même. La question fiscale (Arvonlisäverolaki) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Arvonlisäverolaki 78 § kohta 3 (lu en primaire le 2026-09-04 sur finlex.fi) permet de déduire de la base d'imposition une « verollisena ilmoitettua myyntiä koskeva luottotappio » (créance devenue irrécouvrable relative à une vente déclarée taxée) — un fait DISTINCT, non modélisé par ce catalogue faute de correspondre à une action déclarée sur invoice.descriptor.ts, qui porte sur le régime de TVA d'une créance impayée, jamais sur ce mécanisme d'enregistrement de paiement lui-même (voir aussi correction-routes/data/fi.json's own LEDGER_ANNOTATION/NO_DOCUMENT_BY_LAW, qui documentent cette même clause du côté des voies de correction). Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale finlandaise pour CETTE entreprise de la produire pour une facture B2B/B2C domestique ordinaire. La loi 241/2019 (déjà citée pour invoice.send ci-dessus) DÉFINIT elle-même la « sähköinen lasku » par référence à cette même norme européenne (§ 2 kohta 1) et donne au destinataire un droit de l'EXIGER (§ 4, en vigueur depuis le 1er avril 2020) — mais ce droit ne s'exerce que SUR DEMANDE d'un destinataire couvert par cette loi (un autre hankintayksikkö ou un elinkeinonharjoittaja dont le CA dépasse 10 000 euros), jamais comme une obligation générale de PRODUIRE ce format pour toute facture domestique. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE pour une facture domestique ordinaire — même raisonnement que se.json/lv.json/lu.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne du commentaire : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte finlandais identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal finlandais d'un tel document (voir credit-note.send ci-dessous et correction-routes/data/fi.json) concerne le CONTENU du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json/lv.json/lu.json/se.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "jos laskulla muutetaan aikaisemmin annettua laskua, yksiselitteinen viittaus tähän laskuun.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Arvonlisäverolaki 209 e § 1 momentti kohta 18 — TEXTE PRIMAIRE, finlex.fi, lu en direct le 2026-09-04 (« si la facture modifie une facture antérieurement émise, [elle doit porter] une référence non équivoque à cette facture »). NUANCE IMPORTANTE, propre à la Finlande, à ne pas confondre avec le modèle suédois/letton/luxembourgeois : cette clause N'EST PAS une déclaration autonome d'ASSIMILATION (« tel document est réputé équivalent à une facture ») — c'est une MENTION DE CONTENU insérée directement dans la liste exhaustive des mentions obligatoires d'UNE FACTURE (209 e §), qui présuppose déjà, sans le dire séparément, qu'une facture modifiant une facture antérieure EST elle-même une facture au sens de 209 a-g §§ (l'article d'ouverture 209 a § dispose : « Laskutukseen sovelletaan 209 b–209 g §:ää, jos myynti tapahtuu... » — les règles de facturation 209 b à 209 g s'appliquent globalement, sans distinguer facture initiale et facture modificative). Recherche NÉGATIVE mais RÉELLE menée cette session : aucun terme dédié comme « hyvityslasku » (facture de crédit) ou « oikaisulasku » n'apparaît nulle part dans l'Arvonlisäverolaki (recherche par mot-clé sur le texte intégral extrait, environ 7,8 millions de caractères) — contrairement à ce qu'un rapprochement hâtif avec le suédois « kreditfaktura » aurait pu suggérer ; ni de clause d'ASSIMILATION générale du type suédois 17 kap. 22 § ou letton art. 125 al. 5. AUCUNE clause n'a non plus été trouvée qui rendrait l'ÉMISSION d'un tel document OBLIGATOIRE pour une réduction de prix (à la différence du Mervärdesskattelag suédois 17 kap. 23 §) : Arvonlisäverolaki 78 § kohta 1/2 (lu en primaire le même jour) autorise SEULEMENT une DÉDUCTION de la base d'imposition pour les remises, ristournes et résolutions de contrat, sans prescrire de document. Voir correction-routes/data/fi.json pour le sourçage complet de la voie CREDIT_NOTE (statut 'allowed', PAS 'required', faute d'une telle clause de mandat)."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte finlandais identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables finlandaises (kirjanpitolaki (1336/1997), la loi comptable générale, non recherchée en détail par cette tâche pour son propre volet dépenses) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte finlandais identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : la loi 241/2019 (citée pour invoice.send) impose aux entités adjudicatrices d'ACCEPTER et TRAITER les factures électroniques de marchés publics (§ 3), mais aucun mandat B2B de RÉCEPTION structurée équivalent au PPF français ou à KSeF n'a été identifié pour la Finlande par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte finlandais identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte finlandais identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte finlandais identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Finlande — agent pays FI, lot 5 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE de l'Arvonlisäverolaki (1501/1993) — la loi de 1993 reste EN VIGUEUR comme socle (contrairement à la Suède, dont la Mervärdesskattelag a été refondue en 2023 : la Finlande n'a PAS refondu sa loi TVA, seulement TRÈS amendée article par article, dernière modification substantielle du taux normal par la loi 462/2024). Portail : finlex.fi (page /fi/laki/ajantasa/AAAA/AAAANNNN), qui sert pour CETTE loi un HTML COMPLET dès la première requête curl standard, SANS AUCUN blocage JavaScript — mais TROUVAILLE D'ACCÈS PROPRE À CE LOT : ce rendu complet ne vaut QUE pour les lois volumineuses/consolidées comme l'Arvonlisäverolaki (~8 millions de caractères) ; pour une loi compacte comme la 241/2019 (5 §§) ou la yritys- ja yhteisötietolaki (244/2001, 22 §§), la MÊME URL ne sert que la table des matières et les métadonnées — le corps des articles n'est PAS embarqué côté serveur pour ces pages-là. Le SECOURS qui a fonctionné pour 241/2019 est le PDF officiel du Suomen säädöskokoelma, linké depuis /fi/lainsaadanto/saadoskokoelma/AAAA/NNN (api/media/statute/.../mainPdf/main.pdf) — texte brut primaire au même titre qu'un rendu HTML, jamais un fetch-résumé. CE SECOURS N'A PAS FONCTIONNÉ pour la yritys- ja yhteisötietolaki (244/2001) : aucun lien mainPdf trouvé sur ses trois pages Finlex testées (ajantasa→redirection vers lainsaadanto, lainsaadanto, saadoskokoelma) — accès resté bloqué malgré 3 tentatives distinctes, documenté honnêtement (voir country-identifiers/data/fi.json's own LEGAL_ID pour la conséquence : cette loi porte le § 15 « Kirjeissä ja lomakkeissa sekä Internet-verkkosivuilla mainittavat tiedot », dont seul le TITRE (table des matières, texte primaire) a pu être lu, jamais le corps). TROUVAILLE ATTENDUE ET CONFIRMÉE : invoice.send s'appuie sur la loi 241/2019 § 4, EN VIGUEUR depuis le 1er avril 2020, qui donne au DESTINATAIRE (une autre entité adjudicatrice ou un opérateur économique) le droit d'EXIGER une facture électronique conforme à l'EN 16931 — une singularité par rapport au modèle de CONSENTEMENT PRÉALABLE du vendeur que portent la Suède/l'Allemagne/les Pays-Bas/la Lettonie pour la même action ; AUCUNE clause de consentement préalable n'a été trouvée dans l'Arvonlisäverolaki elle-même pour l'émission électronique en général. DEUXIÈME TROUVAILLE, propre à ce lot : credit-note.send s'appuie sur 209 e § kohta 18, une MENTION DE CONTENU (pas une clause d'assimilation autonome comme en Suède/Lettonie/Luxembourg) — recherche négative RÉELLE mais documentée pour « hyvityslasku »/« oikaisulasku » (aucune occurrence dans le texte intégral de la loi). AUCUNE contradiction relevée avec tax/tax-systems/data/fi.json (déjà dans ce dépôt, TEDB, standardRate 25.5, situationOn 2026/07/01, lu 2026-09-01) ni avec vat-rates/data/fi.json, correction-routes/data/fi.json et country-identifiers/data/fi.json (livrés par ce même agent, ce même jour) : les quatre fichiers documentent des angles disjoints du MÊME socle légal finlandais sans se contredire. B2G_COVERAGE.md classe déjà la Finlande « pas livrable » (CIUS FI non vendoré) — ce fichier ne touche PAS à b2g-routing/data/fi.json, hors périmètre strict de cet agent."
+}

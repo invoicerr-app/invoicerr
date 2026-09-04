@@ -61,7 +61,10 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | LU | ✓ | ✓ | ✓ (3/11 legal — art. 63 §2 al.2, l'assimilation quasi-289 I 5°) | ✓ | ✓ (5 taux legal dont exemption 57bis) | Lot 3 ✅ |
 | MT | ✓ | ✓ | ✓ (3/11 legal — /getpdf caché + pdftotext) | ✓ (VAT required UNIVERSEL ; LEGAL_ID honnêtement unverified — la loi distingue business letters/invoices) | ✓ (4 taux legal, 3 paliers réduits) | Lot 4 ✅ |
 | SE | ✓ | ✓ | ✓ (3/11 — CREDIT_NOTE REQUIRED, 17 kap. 23§ « ska utfärdas ») | ✓ (organisationsnummer COMPANY-only, honnête) | ✓ (25/12/6 + EXEMPT ; pas de ZERO forcé) | Lot 4 ✅ |
-| BG CZ DK FI HR IE PT RO SI SK | — | — | — | — | — | lots suivants |
+| DK | ✓ | — (OIOUBL : licence floue, non vendorable — évalué) | ✓ (3/11 — kreditnota ET debit-note required) | ✓ (CVR unverified — CVR-loven non atteinte) | ✓ (25 % MONO-TAUX confirmé au texte) | Lot 5 ✅ |
+| FI | ✓ | — (CIUS FI) | ✓ (négatif net : pas d'assimilation — CREDIT_NOTE allowed) | ✓ (Y-tunnus unverified — 4 niveaux tentés) | ✓ (25,5/13,5/10 — le 14 % du brief déjà remplacé au 1/1/2026, TEDB live confirme) | Lot 5 ✅ |
+| IE | ✓ | — (CIUS IE multiples) | ✓ (5/11 legal — record : credit note ET corrective ET cancel-and-replace required, LEDGER_ANNOTATION 1re promotion du catalogue) | ✓ (CRO unverified — « invoice » absent des 5,7 M chars du Companies Act) | ✓ (5 taux dont le vrai zéro explicite et les décimales 13,5/4,8) | Lot 5 ✅ |
+| BG CZ HR PT RO SI SK | — | — | — | — | — | lots 6-7 |
 | AE + autres tax-only | — | — | — | — | — | à trier |
 
 ### DÉCISION MANDANT EN ATTENTE — NLCIUS vendorable !
@@ -116,6 +119,14 @@ domaine officiel, HTML brut) ; formats adószám/cégjegyzékszám non sourcés 
 egyéni vállalkozó non recherché. VALIDATION : la mutation « un mot altéré dans la citation
 §170 » ne mordait pas → tripwire verbatim ajouté (mord sur l'omission de mots — la classe
 de risque de feedback-legal-raw-text, désormais testée).
+**Lot 5 (2026-09-04)** — DK : retsinformation désassemblé (endpoints .rdfa et /dan/xml
+LexDania — précédent SPA de plus) ; CVR-loven jamais atteinte (l'API de recherche ignore son
+paramètre — 13 variantes testées) ; § 27 stk. 6 (créance 80 %) ne départage pas
+LEDGER/NO_DOCUMENT. FI : le § 15 de l'yritys- ja yhteisötietolaki localisé mais corps
+inaccessible (3 URL + pas de PDF) ; formats Y-tunnus/ALV empiriques (API PRH). IE : le
+« debit note » irlandais est un FAUX-AMI documenté (il anticipe un avoir, n'augmente rien) ;
+divergence temporelle du Revised Act sur le 9 % restauration (substitution en note
+prospective seulement) consignée sans forcer ; format CRO introuvable.
 **Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
 fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
 WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.
