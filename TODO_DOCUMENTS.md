@@ -10,6 +10,14 @@
 
 ## Vague A — la doc elle-même (le générateur refondu) — feedback mandant intégral
 
+> ✅ **FAIT** (2026-09-04) — émission EN + FR (i18n/fr/.../current/), table de chaînes à
+> garde-fou de forme, glossaire 12 termes au survol, taxes multi-taux depuis vat-rates/ (le bug
+> France corrigé : tax-systems/fr.json promu legal avec ses propres lectures), Identifiers en
+> colonne, Mentions hors matrice. Piège trouvé : les sourceText des correction-routes mêlent
+> analyse française et citations « … » — seul le contenu entre guillemets est extrait désormais
+> (la phrase litmus du mandant ne fuit plus : grep zéro côté EN). jest 2229, mutation FR mordante,
+> déterminisme deux runs.
+
 1. **Langue** : la doc suit sa locale — le générateur émet EN dans docs/ ET FR dans
    i18n/fr/.../current/ ; les libellés (oui/non/restreinte, en-têtes, phrases d'explication)
    viennent d'une table de chaînes par locale, JAMAIS du prose des fichiers de données.
@@ -42,12 +50,35 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 |---|---|---|---|---|---|---|
 | FR DE IT PL ES MX US | ✓ | ✓ | ✓ | partiel | FR seul | — (compléter identifiers/vat-rates en vague B fin) |
 | HU | ✓ | — | — | — | — | à venir |
-| BE | — | ✓ | — | — | — | **Lot 1** |
-| NL | — | — (NLCIUS à vendorer ?) | — | — | — | **Lot 1** |
-| AT | — | — (ebInterface/CIUS AT) | — | — | — | **Lot 1** |
+| BE | ✓ | ✓ | ✓ (4/11 legal) | ✓ | ✓ (4 taux legal) | Lot 1 ✅ |
+| NL | ✓ | — (NLCIUS : MIT, vendorable — DÉCISION ci-dessous) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
+| AT | ✓ | — (ebInterface sans LICENSE, CIUS introuvable) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
 | CY EE GR LT LU LV MT SE | — | ✓ | — | — | — | lots suivants |
 | BG CZ DK FI HR IE PT RO SI SK | — | — | — | — | — | lots suivants |
 | AE + autres tax-only | — | — | — | — | — | à trier |
 
-### Manques consignés par les agents (à remplir par eux)
-(vide — chaque agent pays ajoute ici ce qu'il n'a pas pu faire, avec ce qui le débloquerait)
+### DÉCISION MANDANT EN ATTENTE — NLCIUS vendorable !
+L'agent NL a établi que le NLCIUS est publiquement téléchargeable SOUS LICENCE MIT (dépôt
+officiel peppolautoriteit-nl/validation : si-ubl-2.0.sch incluant les règles NLCIUS, LICENSE.txt
+MIT © Stichting Simplerinvoicing) — ce qui ROUVRE le verdict « non livrable » de
+B2G_COVERAGE.md : NL pourrait passer couvert en B2G (peppol + Schematron NLCIUS vendoré).
+Chantier : vendorer, brancher un format nlcius (delta bloquant, le patron xrechnung),
+b2g-routing/nl.json. À valider par le mandant.
+
+### Manques consignés (lot 1, 2026-09-04)
+**BE** : l'AR n°1 (29/12/1992) introuvable en texte primaire sur ejustice (ELI → page d'aide) —
+l'art. 5 §1 (mentions) et l'art. 12 (rectificatif) connus via la reformulation officielle
+d'efacture.belgium.be seulement ; CSA art. 2:20 §1 : seule la table des matières atteinte
+(bloque la promotion legal du LEGAL_ID) ; format du n° TVA belge non sourcé au texte primaire ;
+7/11 voies de correction unverified (pistes : Code TVA art. 44/77/79).
+**NL** : 10/11 voies unverified — pas de clause générale néerlandaise d'assimilation (piste :
+Uitvoeringsbeschikking OB 1968, doctrine Belastingdienst) ; invoice.save-draft = composition de
+textes (art. 35a lid 1.b + doctrine), pas de clause frontale ; KOR (art. 25) non lue.
+**AT** : RIS (portail officiel) en 503 systématique — tout lu via le miroir jusline.at
+(recoupé) ; 20/22 policy et 10/11 voies unverified (UStR/findok inaccessibles — coquille JS) ;
+patterns UID/Firmenbuchnummer non confirmés au texte primaire ; taux Jungholz/Mittelberg et
+Kleinunternehmerregelung non modélisés (délibéré) ; ebInterface : AUCUNE LICENSE au dépôt
+AUSTRIAPRO, CIUS AT introuvable en téléchargement — b2g reste correctement non livré.
+**Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
+fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
+WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.

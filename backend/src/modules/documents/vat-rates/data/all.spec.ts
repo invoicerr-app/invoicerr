@@ -6,8 +6,8 @@
 import { ALL_VAT_RATE_FILES } from './all';
 
 describe('vat-rates/data — the shipped FR catalog', () => {
-  it('loads exactly France today — this task’s own scope', () => {
-    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode)).toEqual(['FR']);
+  it('loads exactly FR plus the lot-1 countries (BE/NL/AT — TODO_DOCUMENTS vague B, every rate with per-rate provenance)', () => {
+    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['AT', 'BE', 'FR', 'NL']);
   });
 
   it('every rate in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit)', () => {
@@ -60,5 +60,62 @@ describe('vat-rates/data — the shipped FR catalog', () => {
     expect(byId('fr-reduced')?.notes).toMatch(/278-0 bis/);
     expect(byId('fr-particular')?.notes).toMatch(/281 quater, 281 octies ET 298 septies/);
     expect(byId('fr-exempt-293b')?.notes).toMatch(/293 B/);
+  });
+});
+
+// BE — agent pays Belgique, lot 1 TODO_DOCUMENTS.md (vague B, 2026-09-04). vat-rates/data/be.json is
+// NOT YET registered in this file's own data/all.ts (COUNTRY_FILES, "only France today") —
+// registration is the mandataire's job at lot validation. This block therefore loads be.json DIRECTLY
+// (readFileSync + assertValidVatRateProvenance, the exact gate data/all.ts's own loadCountryFile
+// calls) rather than through ALL_VAT_RATE_FILES — via inline `require()` (not a top-level `import`) so
+// this addition can never collide with the NL/AT agents' own additions to this same file.
+describe('BE — vat-rates/data/be.json (agent pays Belgique, not yet registered in all.ts)', () => {
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  const { assertValidVatRateProvenance } = require('../schema');
+
+  function loadBe() {
+    return JSON.parse(readFileSync(join(__dirname, 'be.json'), 'utf-8'));
+  }
+
+  it('parses, declares countryCode BE, and every rate passes the load-time provenance gate', () => {
+    const be = loadBe();
+    expect(be.countryCode).toBe('BE');
+    expect(be.rates.length).toBeGreaterThan(0);
+    for (const rate of be.rates) {
+      expect(() => assertValidVatRateProvenance(rate, 'test')).not.toThrow();
+    }
+  });
+
+  it('declares the four Belgian rates (21/12/6/0), each "legal" and dated 2026-09-04, each with a distinct id', () => {
+    const be = loadBe();
+    const rates = be.rates.map((r) => r.rate).sort((a, b) => a - b);
+    expect(rates).toEqual([0, 6, 12, 21]);
+    const ids = be.rates.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const rate of be.rates) {
+      expect(rate.provenance.kind).toBe('legal');
+      expect(rate.provenance.sourceCheckedAt).toBe('2026-09-04');
+    }
+  });
+
+  it('pins the exact category and Royal Decree n° 20 table each rate cites', () => {
+    const be = loadBe();
+    const byId = (id) => be.rates.find((r) => r.id === id);
+    expect(byId('be-standard').category).toBe('STANDARD');
+    expect(byId('be-standard').provenance.sourceText).toMatch(/Royal Decree n° 20/);
+    expect(byId('be-parking').category).toBe('REDUCED');
+    expect(byId('be-parking').provenance.sourceText).toMatch(/Table B/);
+    expect(byId('be-reduced').category).toBe('SUPER_REDUCED');
+    expect(byId('be-reduced').provenance.sourceText).toMatch(/Table A/);
+    expect(byId('be-zero-press').category).toBe('ZERO');
+    expect(byId('be-zero-press').provenance.sourceText).toMatch(/Table C/);
+  });
+
+  it('the zero rate is a true "exemption with deduction right", not an ordinary exemption — distinguished from FR\'s own franchise-en-base entry', () => {
+    const be = loadBe();
+    const zero = be.rates.find((r) => r.id === 'be-zero-press');
+    expect(zero.provenance.sourceText).toMatch(/deduction right/);
+    expect(zero.category).not.toBe('EXEMPT');
   });
 });

@@ -1,0 +1,106 @@
+{
+  "countryCode": "AT",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte de l'UStG 1994 ne NOMME ni n'autorise/interdit expressément un document séparé réduisant le montant dû (l'équivalent de l'avoir français) : §16 UStG (Änderung der Bemessungsgrundlage, lu le 2026-09-04 sur jusline.at) traite l'EFFET fiscal générique de toute variation de la contrepartie (correction de la taxe due et de la déduction, à la date du changement), sans jamais distinguer PAR QUEL DOCUMENT cette variation est matérialisée. ATTENTION : « Gutschrift » (UStG §11 Abs. 8) est un FAUX AMI ici — ce terme désigne l'autofacturation (le preneur facture au nom du prestataire), jamais une note de crédit ; voir correction-routes/data/at.json's own routeId INTERNAL_CREDIT_NOTE et country-policy/data/at.json's own credit-note.* rules pour la même distinction. Ce qui trancherait : les Umsatzsteuerrichtlinien 2000 (doctrine BMF) sur la 'Rechnungskorrektur' commerciale, non lues cette session (findok.bmf.gv.at n'a rendu qu'une coquille JavaScript vide à l'outil de fetch)."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1) — l'Autriche N'EST PAS couverte par docs/compliance/CORRECTION-ROUTES.yaml (meta.covered: [FR, IT, PL, DE, ES, MX, US]), donc cette ligne n'est PAS transcrite depuis ce YAML (à la différence de fr.json/pl.json dans ce même répertoire) ; elle vient d'une lecture directe de l'UStG 1994 menée par l'agent pays AT le 2026-09-04, hors YAML, consignée pour une future intégration à ce document."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même constat que CREDIT_NOTE ci-dessus, en sens inverse (hausse du montant dû) : §16 UStG traite l'effet fiscal générique de toute variation de la contrepartie, à la hausse comme à la baisse, sans nommer ni imposer de document distinct. Aucun texte autrichien identifié cette session n'impose un instrument DÉDIÉ à la hausse (à la différence de l'Italie, où le YAML documente une nota di debito obligatoire pour ce cas précis)."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml (l'Autriche n'y figure pas) — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Hat der Unternehmer in einer Rechnung für eine Lieferung oder sonstige Leistung an einen Unternehmer einen Steuerbetrag gesondert ausgewiesen, den er nach diesem Bundesgesetz für den Umsatz nicht schuldet, so schuldet er diesen Betrag auf Grund der Rechnung, ausgenommen er berichtigt die Rechnung gegenüber dem Abnehmer der Lieferung oder dem Empfänger der sonstigen Leistung entsprechend.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "UStG 1994 §11 Abs. 12, lu le 2026-09-04 sur jusline.at (miroir non officiel — RIS/ris.bka.gv.at a retourné HTTP 503 à chaque tentative cette session, voir country-policy/data/at.json's own file-level note pour le détail des tentatives). Ce texte reconnaît explicitement 'die Rechnung berichtigen' (corriger la facture, en la référençant auprès du destinataire) comme le mécanisme qui dispense l'assujetti de devoir un montant de TVA indûment sur-facturé — c'est la voie CORRECTIVE_INVOICE, statuée 'allowed' plutôt que 'required' parce que ce texte ne couvre QUE le cas étroit d'un montant de taxe séparément indiqué mais non dû (sur-facturation de TVA) : il ne dit rien d'une obligation générale de corriger PAR CE MOYEN plutôt qu'un autre pour toute autre cause de correction (erreur de quantité, de prix, etc.). Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml (l'Autriche n'y figure pas encore) — à intégrer dans une future mise à jour de ce YAML."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte autrichien identifié cette session n'autorise ni n'impose spécifiquement l'annulation intégrale d'une facture suivie de l'émission d'une nouvelle — à la différence de la Pologne (KSeF, NIP erroné) ou de la France (BOI-TVA-DED-40-10-20). L'Autriche n'a pas de canal de clearance/déclaration en temps réel pour les factures B2B domestiques auprès duquel une telle annulation aurait un sens opérationnel (à la différence de KSeF/SdI). Ce qui trancherait : les Umsatzsteuerrichtlinien 2000, non lues cette session."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte autrichien identifié n'aborde une annulation purement comptable non transmise à l'acheteur ni à une autorité. Sujet d'autant moins tranchable que le canal B2G autrichien (e-Rechnung.gv.at) reste hors périmètre de cette tâche (CIUS AT/ebInterface non vendoré, voir B2G_COVERAGE.md) — cette voie a précisément pour terrain d'élection un canal à clearance obligatoire (comme le PPF français ou KSeF), qu'aucune facture B2B autrichienne domestique ne connaît aujourd'hui dans ce dépôt."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04. À NE PAS CONFONDRE avec 'Gutschrift' (UStG §11 Abs. 8) — ce dernier terme légal autrichien désigne l'autofacturation (le preneur émet la facture au nom du prestataire sous 4 conditions cumulatives : droit du prestataire à facturer avec TVA distincte, accord entre les parties, mentions de l'Abs. 1/1a, remise effective au prestataire), jamais une annulation comptable interne d'un montant déjà facturé. Consigné ici précisément parce que le nom local le plus proche ('Gutschrift') est un faux ami vis-à-vis du vocabulaire canonique de ce fichier — même faux ami que le vocabulaire allemand partage (voir correction-routes/data/de.json si une note équivalente y existe)."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'Autriche n'a pas de système de clearance/déclaration en temps réel des factures B2B domestiques (à la différence de KSeF en Pologne ou SdI en Italie) — il n'existe donc, sourcé ou non, aucune 'autorité' à laquelle une demande d'annulation de facture pourrait être adressée pour une facture B2B/B2C ordinaire. Cette ABSENCE D'INFRASTRUCTURE ne doit pas être promue en 'forbidden' par simple raisonnement (la règle absolue de cette tâche l'interdit) : reste 'unverified' faute d'un texte qui le dise expressément. Le seul canal à clearance identifié pour l'Autriche est B2G (e-Rechnung.gv.at), hors périmètre de ce fichier."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Autriche — aucun canal de dépôt/rejet identifié auprès duquel un renvoi sous la même identité (même numéro) aurait un sens pour une facture B2B domestique (voir AUTHORITY_ANNULMENT ci-dessus sur l'absence de clearance temps réel)."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Autriche — cette voie a été découverte pendant la recherche française (impayé, CGI art. 272), jamais recherchée côté autrichien cette session."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Autriche — même statut que pour la France et la Pologne dans ce même répertoire (fr.json/pl.json's own LEDGER_ANNOTATION entries, toutes deux 'Non recherchée')."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Autriche — cette voie a été découverte pendant la recherche allemande, jamais recherchée côté autrichien cette session."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Autriche — cette voie a été découverte pendant la recherche allemande, jamais recherchée côté autrichien cette session."
+      },
+      "notes": "Première lecture directe de l'UStG 1994 (niveau de preuve C1), hors docs/compliance/CORRECTION-ROUTES.yaml — lue par l'agent pays AT le 2026-09-04."
+    }
+  ],
+  "notes": "Autriche — agent pays AT, lot 1 (TODO_DOCUMENTS.md vague B), 2026-09-04. CE FICHIER N'EST PAS TRANSCRIT DEPUIS docs/compliance/CORRECTION-ROUTES.yaml : ce YAML (meta.covered: [FR, IT, PL, DE, ES, MX, US]) ne couvre pas encore l'Autriche — à la différence de fr.json/pl.json/de.json dans ce même répertoire, chaque ligne ci-dessus vient d'une lecture DIRECTE de l'UStG 1994 (niveau de preuve C1, 'première lecture', comme demandé par la tâche), consignée ici pour une future intégration au YAML par une tâche dédiée (hors périmètre de cet agent). Portail officiel RIS (ris.bka.gv.at) inaccessible cette session (HTTP 503 systématique, voir country-policy/data/at.json's own note pour le détail des tentatives) ; repli sur jusline.at, miroir non officiel du texte consolidé. UNE SEULE voie est sourcée en 'legal' à ce stade — CORRECTIVE_INVOICE, via UStG §11 Abs. 12, qui ne couvre que le cas étroit de la TVA sur-facturée. Les DIX autres restent 'unverified', chacune avec ce qui la trancherait. Piège terminologique 'Gutschrift' documenté explicitement sur CREDIT_NOTE et INTERNAL_CREDIT_NOTE : ce mot de l'UStG §11 Abs. 8 désigne l'autofacturation, jamais une note de crédit."
+}

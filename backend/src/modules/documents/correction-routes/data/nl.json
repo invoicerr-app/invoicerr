@@ -1,0 +1,106 @@
+{
+  "countryCode": "NL",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Op verzoek wordt teruggaaf verleend van de belasting ter zake van leveringen en diensten, voor zover de vergoeding: a. niet is en niet zal worden ontvangen; b. wordt terugbetaald omdat een vermindering van de vergoeding is verleend of omdat de goederen in ongebruikte staat zijn teruggenomen. — corroboré par la doctrine du fisc, qui emploie littéralement le terme « creditfactuur » : « Dan kunt u de door u betaalde btw (deels) terugvragen [...] Dit moet u doen binnen 3 maanden na het tijdvak waarin u de creditfactuur hebt ontvangen. »",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour les Pays-Bas — première lecture directe faite par cet agent, le 2026-09-04. Source légale : Wet op de omzetbelasting 1968 (BWBR0002629), art. 29, lid 1, lu sur wetten.overheid.nl (version « geldend van 2026-01-01 »). Source doctrinale, en recoupement : Belastingdienst, page « Btw aftrekken bij niet-betaalde facturen » (belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/btw/btw_aftrekken/welke_btw_is_aftrekbaar/bijzondere_situaties/niet_betaalde_facturen). C'EST LA VOIE CLASSIQUE, comme demandé — mais ATTENTION à la terminologie : le terme administratif employé aux Pays-Bas est « creditfactuur », JAMAIS « creditnota » (recherche plein texte le 2026-09-04 : zéro occurrence de « creditnota » dans le texte consolidé de la Wet OB 1968, et zéro résultat pour ce terme dans l'index de recherche public de belastingdienst.nl). Statut 'allowed', pas 'required' : l'art. 29 ouvre un DROIT à restitution de TVA (« op verzoek »), jamais un MANDAT de forme documentaire précise pour l'exercer — contrairement à l'Espagne (RD 1619/2012 art. 15.2, « SERÁ OBLIGATORIA ») ou implicitement à la Pologne (art. 106j ust. 1, seul instrument disponible). Toute creditfactuur émise reste, comme n'importe quelle facture, soumise aux mentions obligatoires de l'art. 35a (numéro, référence à l'original non explicitement exigée par le texte lu — nuance non tranchée)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Recherche plein texte de la Wet op de omzetbelasting 1968 (le 2026-09-04) : aucune occurrence de « debetfactuur » ni de « debetnota ». Rien n'interdit, en apparence, d'émettre une facture SUPPLÉMENTAIRE ordinaire pour couvrir une hausse de prix (l'art. 34 impose de facturer chaque livraison/prestation, sans limiter à une facture unique par relation commerciale, et l'art. 35, lid 1 admet même une facture PÉRIODIQUE couvrant plusieurs livraisons distinctes) — mais ceci resterait une INFÉRENCE, pas une citation qui tranche spécifiquement le cas d'une hausse RECTIFICATIVE référençant une facture antérieure erronée (à la différence de la France, CGI art. 289, I.5, qui assimile explicitement tout document modificatif référencé à une facture, hausse ou baisse confondues). Ce qui trancherait : une lecture de l'Uitvoeringsbeschikking omzetbelasting 1968 (non consultée par cette tâche) ou de la doctrine Belastingdienst sur la correction d'une facture sous-facturée."
+      },
+      "notes": "Non recherché au-delà de la recherche plein texte négative ci-dessus, le 2026-09-04, sur wetten.overheid.nl (BWBR0002629)."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. La Wet OB 1968 ne porte aucune clause générale équivalente à CGI art. 289, I.5 (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») ou à l'art. 106j polonais (une facture corrective couvrant TOUT type d'erreur, montant ou non). L'art. 29 (lu pour CREDIT_NOTE ci-dessus) ne couvre que les cas de BAISSE de contrepartie/impayé/retour de marchandise — pas les erreurs non-monétaires (mauvaise date, mauvais taux de TVA sans changement de montant, coordonnées erronées). Ce qui trancherait : un texte ou une doctrine Belastingdienst couvrant explicitement la correction d'une mention erronée d'une facture déjà émise, distincte de la creditfactuur (route CREDIT_NOTE)."
+      },
+      "notes": "Non recherché au-delà de la lecture négative de la Wet OB 1968 (art. 1 à 37b), le 2026-09-04."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun mécanisme d'annulation-remplacement identifié dans la Wet OB 1968 lue le 2026-09-04. Ce qui trancherait : une doctrine Belastingdienst ou une décision de jurisprudence traitant explicitement de l'annulation d'une facture déjà émise."
+      },
+      "notes": "Non recherché au-delà de la lecture négative de la Wet OB 1968, le 2026-09-04."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état : cette voie (un avoir purement comptable, jamais transmis à une autorité) répond à une distinction propre aux régimes de clearance/e-reporting obligatoires (le PPF français, KSeF polonais, SdI italien), qu'il n'existe PAS pour la facturation B2B domestique néerlandaise (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction. Ce qui trancherait : confirmer explicitement l'absence, aujourd'hui, de tout mandat néerlandais de clearance B2B domestique (sujet distinct, channel-policy)."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique néerlandaise. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique néerlandaise identifiée, ce scénario ne se pose pas de la même façon. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et un DIFFÉRENTIEL réel a été observé avec la France : l'art. 272, 1, al. 3 du CGI français IMPOSE, pour l'impayé, l'envoi d'un duplicata annoté (« Facture demeurée impayée pour la somme de [...] ») — l'art. 29 néerlandais (lu pour CREDIT_NOTE ci-dessus) ne porte, lui, AUCUNE exigence de document à adresser au débiteur pour que le FOURNISSEUR récupère sa TVA : c'est une correction unilatérale de sa propre déclaration. Symétriquement, le lid 2 du même article 29 oblige l'ACHETEUR à reverser la TVA déduite s'il ne paie pas dans le délai (confirmé par la doctrine Belastingdienst, page « Btw aftrekken bij niet-betaalde facturen », lue le 2026-09-04 : « moet u de afgetrokken btw terugbetalen »), également sans document formel identifié entre les parties pour cet effet. Aucune trace d'un mécanisme de duplicata annoté n'a donc été trouvée — mais l'absence n'a pas été confirmée par un texte l'énonçant EXPRESSÉMENT (à la différence de la France, où c'est explicitement OBLIGATOIRE, ou de l'Espagne où CANCEL_AND_REPLACE est forbidden par un raisonnement documenté sur l'absence de mécanisme). Ce qui trancherait : une doctrine Belastingdienst confirmant explicitement qu'aucun document n'est requis entre les parties pour ces ajustements réciproques."
+      },
+      "notes": "Lecture directe de l'art. 29 Wet OB 1968 et de la doctrine Belastingdienst associée, le 2026-09-04 — le différentiel avec la France est noté, pas encore élevé au rang de fait 'forbidden' faute de texte l'affirmant en propre."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour les Pays-Bas — aucune lecture ciblée sur une correction purement comptable sans document émis (l'équivalent néerlandais de l'art. 70.1 du RD 1624/1992 espagnol) n'a été menée par cette tâche."
+      },
+      "notes": "Non recherché."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour les Pays-Bas — cette voie, découverte pendant la recherche allemande pour d'autres pays, n'a fait l'objet d'aucune recherche ciblée ici."
+      },
+      "notes": "Non recherché."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour les Pays-Bas au sens strict de la voie (un droit formel du destinataire à faire objection à une facture reçue et déclencher une correction). Une page Belastingdienst adjacente a été repérée (« Uw klant accepteert de goederen niet ») mais elle traite du refus/retour d'une LIVRAISON DE BIENS, pas d'une objection à la facture elle-même — c'est un fait déjà couvert par l'art. 29, lid 1, onderdeel b (motif de restitution de TVA, voir CREDIT_NOTE), pas une voie de correction distincte pour la facture en tant que telle."
+      },
+      "notes": "Piste adjacente repérée (page Belastingdienst sur le refus de marchandise), non retenue comme réglant cette voie précise."
+    }
+  ],
+  "notes": "Pays-Bas — agent pays NL, lot 1 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas les Pays-Bas) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent. Sources : Wet op de omzetbelasting 1968 (BWBR0002629), art. 29 et art. 35/35a/35b, lues en direct le 2026-09-04 sur wetten.overheid.nl (version « geldend van 2026-01-01 ») ; Belastingdienst (belastingdienst.nl), pages « Btw aftrekken bij niet-betaalde facturen » et « Aan welke eisen moeten facturen voldoen voor uw btw-administratie? », lues le même jour, en recoupement systématique de chaque lecture statutaire. HEADLINE : seule la voie CREDIT_NOTE (la « creditfactuur », jamais « creditnota ») est sourcée 'allowed' ; les dix autres restent honnêtement 'unverified' — le droit néerlandais de la TVA ne porte, contrairement à la France (CGI art. 289, I.5) ou à la Pologne (art. 106j ustawy o VAT), AUCUNE clause générale d'assimilation d'un document modificatif à une facture, ce qui prive la plupart des autres voies canoniques d'un point d'ancrage textuel direct. Ce fichier ne modélise aucune B2G routing (décision hors périmètre de cet agent, voir B2G_COVERAGE.md — NLCIUS)."
+}

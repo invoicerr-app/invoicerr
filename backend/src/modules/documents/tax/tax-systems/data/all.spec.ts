@@ -145,10 +145,28 @@ describe('tax-systems/data — the 26 EU standard rates read from TEDB (item 16 
     expect(byCode(cc)?.standardRate).toBe(rate);
   });
 
-  it('FR is UNCHANGED by this task — still derived from vat-rates/, not one of the 26 hand-sourced files', () => {
+  it('FR still derives its rate from vat-rates/, not one of the 26 hand-sourced TEDB files', () => {
     const fr = byCode('FR');
     expect(fr?.standardRate).toBeUndefined(); // FR derives its rate from vat-rates/registry.ts, see schema.ts's own header
-    expect(fr?.provenance.kind).toBe('unverified'); // hasDomesticZeroRate keeps the whole fact unverified — item 21
+  });
+
+  it('FR is PROMOTED to `legal` (Vague A correction, TODO_DOCUMENTS.md) — the resolutionNote already documented a DIRECT reading of CGI art. 293 B, I confirming FRANCHISE_BASE verbatim, so the envelope is promoted with exactly that citation, never a fact the note did not already establish as read', () => {
+    const fr = byCode('FR');
+    expect(fr?.provenance.kind).toBe('legal');
+    if (fr?.provenance.kind === 'legal') {
+      // The exact CGI art. 293 B, I sentence, already cited as `legal` on vat-rates/data/fr.json's
+      // own 'fr-exempt-293b' entry — reused here verbatim, not a new, unverified citation.
+      expect(fr.provenance.sourceText).toContain(
+        "franchise qui les dispense du paiement de la taxe sur la valeur ajoutée",
+      );
+      expect(fr.provenance.sourceCheckedAt).toBe('2026-09-01');
+    }
+    // The promotion covers exactly what the note already established as READ (the `schemes`
+    // finding) — `hasDomesticZeroRate` is a documented ABSENCE finding, not a citation, and this
+    // schema carries one provenance per FILE, not per field, so the caveat must survive the
+    // promotion in `notes` rather than being silently dropped now that the envelope reads "legal".
+    expect(fr?.notes).toContain('hasDomesticZeroRate');
+    expect(fr?.notes).toContain('293 B');
   });
 
   it('none of the 26 new files invent a reducedRates table — the OSS branch this work unblocks reads only standardRate, and DocumentLine has no per-line product category to select a reduced rate against', () => {

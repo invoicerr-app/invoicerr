@@ -1,0 +1,211 @@
+{
+  "countryCode": "AT",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — aucun texte autrichien identifié qui l'encadrerait spécifiquement. Même raisonnement que country-policy/data/fr.json's own quote.save-draft entry. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Un devis n'est pas une Rechnung au sens de l'UStG 1994 (§11, voir invoice.send ci-dessous) — aucun texte autrichien spécifique à l'envoi d'un devis par voie électronique n'a été lu cette session (à la différence de fr.json, qui a pu s'appuyer sur l'art. 1366 du Code civil français pour la valeur probante générale de l'écrit électronique). Ce qui trancherait : le règlement eIDAS (UE) n° 910/2014, art. 46 (« un document électronique ne peut être privé d'effet juridique... au seul motif qu'il se présente sous une forme électronique »), directement applicable en Autriche mais non lu cette session (hors du périmètre 'immutabilité/send/avoir' explicitement demandé pour cette tâche) ; à défaut, la Signatur- und Vertrauensdienstegesetz (SVG) autrichienne."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte autrichien identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porterait sur la facture qui en résulte, pas sur l'acte de conversion). Même raisonnement que fr.json's own quote.convert-to-invoice."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis (brouillon de facture d'acompte) est une commodité produit — la seule contrainte légale porterait sur la facture d'acompte elle-même une fois émise (le taux de TVA applicable), pas sur l'acte de créer ce brouillon. Même raisonnement que fr.json's own quote.request-deposit."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte autrichien identifié ne l'encadre."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal au sens de l'UStG. Aucun texte autrichien identifié n'encadre spécifiquement le fait de PARTAGER un lien vers un document déjà transmis par ailleurs à son destinataire."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Hat sich die Bemessungsgrundlage für einen steuerpflichtigen Umsatz im Sinne des § 1 Abs. 1 Z 1 und 2 geändert, so haben der Unternehmer, der diesen Umsatz ausgeführt hat, den dafür geschuldeten Steuerbetrag, und der Unternehmer, an den dieser Umsatz ausgeführt worden ist, den dafür in Anspruch genommenen Vorsteuerabzug entsprechend zu berichtigen. Die Berichtigungen sind für den Veranlagungszeitraum vorzunehmen, in dem die Änderung des Entgeltes eingetreten ist.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "UStG 1994 §16 Abs. 1. Lu le 2026-09-04 sur jusline.at (miroir non officiel du texte consolidé de l'UStG 1994 — voir la note de tête de ce fichier sur le mur RIS). Ce texte ne dit pas explicitement qu'une facture déjà émise est intangible, mais il pose le principe TEMPOREL exact dont ce champ `statuses: [\"draft\"]` est le pendant produit : une correction de la base d'imposition (donc de la facture) prend effet à la date où le CHANGEMENT survient, jamais rétroactivement sur la période de la facture d'origine — ce qui suppose nécessairement que la facture d'origine elle-même n'est pas réécrite mais complétée par un événement daté distinct. C'est le même raisonnement que fr.json's own invoice.save-draft (CGI art. 289 I.5) applique à un texte français différent mais à la même conclusion produit : ne jamais ré-enregistrer en brouillon ('save-draft' réécrit toujours 'draft') une facture déjà 'sent'. §11 Abs. 12 UStG 1994 (voir credit-note ci-dessous et correction-routes/data/at.json) confirme par un autre angle que la correction d'une facture est un acte distinct (« er berichtigt die Rechnung »), jamais une réécriture silencieuse."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Als Rechnung gilt auch eine elektronische Rechnung, sofern der Empfänger dieser Art der Rechnungsausstellung zustimmt. Eine elektronische Rechnung ist eine Rechnung, die in einem elektronischen Format ausgestellt und empfangen wird. Sie gilt nur unter der Voraussetzung als Rechnung im Sinne des Abs. 1 und Abs. 1a, dass die Echtheit ihrer Herkunft, die Unversehrtheit ihres Inhalts und ihre Lesbarkeit gewährleistet sind.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "UStG 1994 §11 Abs. 2. Lu le 2026-09-04 sur jusline.at (miroir non officiel — RIS/ris.bka.gv.at a retourné HTTP 503 à CHAQUE tentative cette session, y compris via GeltendeFassung.wxe, NormDokument.wxe et l'ELI 'eli/bgbl/1994/663/P11' ; une tentative de secours via web.archive.org a été bloquée par l'outil de fetch lui-même, jamais par RIS — le même mur documenté pour Légifrance dans country-policy/data/fr.json). Ce texte reconnaît explicitement l'émission et la réception ÉLECTRONIQUES d'une facture — exactement l'équivalent autrichien de l'art. 289 VI du CGI français cité par fr.json's own invoice.send. NUANCE NON MODÉLISÉE ICI, à connaître (même caveat que fr.json's own note) : l'Abs. 2 soumet la reconnaissance de la facture électronique à L'ACCEPTATION DU DESTINATAIRE ('sofern der Empfänger... zustimmt') — cette règle ne vérifie pas ce consentement, elle autorise seulement l'ACTE d'envoi dans l'outil. Distinct de l'obligation de facturation électronique B2G via e-Rechnung.gv.at (Bundesgesetz über die elektronische Rechnungslegung, hors périmètre de ce fichier — voir B2G_COVERAGE.md, AT non livrable faute de CIUS AT/ebInterface vendoré)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon (recurrence) est une commodité produit pure — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal. Même raisonnement que fr.json's own invoice.duplicate."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte autrichien spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Même raisonnement que fr.json's own invoice.record-payment."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une norme technique, pas en soi une obligation légale autrichienne pour cette entreprise de la produire pour une facture B2B/B2C domestique. L'Autriche n'a pas de mandat général de facturation électronique structurée en B2B (seul le secteur B2G, via e-Rechnung.gv.at, l'impose — hors périmètre de ce fichier, voir B2G_COVERAGE.md : AT lu mais non livrable, CIUS AT/ebInterface non vendoré). Cette règle autorise donc le téléchargement VOLONTAIRE d'un export normalisé sans affirmer qu'il est légalement requis pour une facture domestique ordinaire. Même raisonnement que fr.json's own invoice.download-xml."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte autrichien spécifique identifié qui encadrerait le fait même de proposer cet export. Même raisonnement que fr.json's own invoice.export-accounting."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit ; aucun texte autrichien identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. Même raisonnement que fr.json's own invoice.share-link."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "ATTENTION TERMINOLOGIQUE (piège explicitement recherché cette session) : en droit autrichien, « Gutschrift » (UStG 1994 §11 Abs. 8, texte lu et cité verbatim dans ce même fichier's own notes ci-dessous et dans correction-routes/data/at.json) désigne l'AUTOFACTURATION — le PRENEUR de la prestation émet lui-même le document tenant lieu de facture au nom du PRESTATAIRE, sous 4 conditions cumulatives (droit du prestataire à facturer avec TVA distincte, accord entre les parties, mentions de l'Abs. 1/1a, remise effective au prestataire). Ce n'est PAS le document 'credit-note' de cet outil (l'équivalent français de l'avoir, qui RÉDUIT ou annule un montant déjà facturé). Aucun terme légal autrichien dédié n'a été identifié pour ce second concept dans l'UStG 1994 lui-même — la loi le traite uniquement par son EFFET fiscal générique (§16, Änderung der Bemessungsgrundlage, applicable à TOUTE variation de la contrepartie quel que soit le document qui la matérialise), jamais en nommant ni en imposant une forme de document précise. Enregistrer un brouillon de ce document est donc une opération interne au produit ; aucun texte identifié n'encadre spécifiquement cet acte. Ce qui trancherait : les Umsatzsteuerrichtlinien 2000 (UStR, doctrine administrative du BMF, non lues cette session — findok.bmf.gv.at n'a rendu qu'une coquille JavaScript vide à l'outil de fetch) sur la pratique de la 'Rechnungskorrektur'/note de crédit commerciale."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même distinction Gutschrift (autofacturation, §11 Abs. 8) vs avoir (réduction, non nommé par l'UStG) que credit-note.save-draft ci-dessus. Faire passer cet avoir de 'draft' à 'sent' dans l'outil est un mécanisme produit interne (aucune transmission à une autorité — l'Autriche n'a pas de canal de clearance/reporting temps réel pour les factures B2B domestiques, à la différence de la Pologne/KSeF ou de l'Italie/SdI) ; le régime fiscal de fond (§16 UStG, cité verbatim dans invoice.save-draft ci-dessus : correction de la base et de la déduction, à la date du changement) porte sur l'EFFET, pas sur ce changement de statut produit. Aucun texte identifié n'impose une forme ni un canal particulier pour ce document en B2B autrichien domestique."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir (et non à la Gutschrift/autofacturation — voir la distinction posée par credit-note.save-draft) : aucun texte autrichien identifié n'encadre spécifiquement le partage d'un lien public vers ce document déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables autrichiennes (Unternehmensgesetzbuch §§189 ss. sur la tenue des livres, Bundesabgabenordnung sur la conservation des pièces) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement — non lues en détail cette session (hors du périmètre 'immutabilité/send/avoir' demandé). Même raisonnement que fr.json's own expense.save-draft."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie est une commodité produit ; aucun texte autrichien identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul, même mécanique produit que invoice.save-draft ci-dessus (fixité d'une décision de revue déjà prise), sans base légale autrichienne propre identifiée. À la différence de la France (fr.json's own received-invoice.receive, qui documente une obligation de RÉCEPTION de factures électroniques par plateforme agréée depuis 2026-09-01), aucun mandat général de réception électronique B2B n'a été identifié pour l'Autriche cette session — seul le secteur B2G (e-Rechnung.gv.at) est mandaté, hors périmètre de ce fichier."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte autrichien identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte autrichien identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que expense.delete ci-dessus ; aucun texte autrichien identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul (received-invoice.descriptor.ts)."
+      }
+    }
+  ],
+  "notes": "Autriche — agent pays AT, lot 1 (TODO_DOCUMENTS.md vague B). Portail officiel RIS (ris.bka.gv.at) refusé à CHAQUE tentative cette session : HTTP 503 systématique sur GeltendeFassung.wxe, NormDokument.wxe et l'URL ELI 'eli/bgbl/1994/663/P11' (testé 2026-09-04, plusieurs fois, y compris après une tentative de secours via web.archive.org que l'outil de fetch a lui-même refusé de charger — jamais RIS qui l'a bloquée). Repli sur jusline.at, un miroir NON officiel du texte consolidé de l'UStG 1994/UGB (même statut que codes.droit.org pour la France dans fr.json — un miroir, pas la source elle-même), avec citations verbatim recoupées sur plusieurs lectures indépendantes de la même page pour les passages cités en 'legal' ci-dessus (§16 Abs.1, §11 Abs.2, §11 Abs.8, §11 Abs.12). Les 22 règles couvrent exactement le même ensemble typeId/actionId que fr.json — deux 'legal' (invoice.save-draft, invoice.send), vingt 'unverified' avec resolutionNote propre à chacune. Piège Gutschrift traité explicitement dans les trois règles credit-note.* : ce mot d'UStG §11 Abs. 8 désigne l'autofacturation, jamais l'avoir/note de crédit que ce type de document représente dans l'outil."
+}

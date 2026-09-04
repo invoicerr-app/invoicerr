@@ -132,7 +132,9 @@ describe('country-policy/data — the shipped FR and US files', () => {
   });
 
   it('no OTHER shipped rule declares a per-status narrowing — these two stay the only deliberate examples', () => {
-    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'ES', 'MX'];
+    // BE (AR n°1 art. 12 §1), NL (art. 35a lid 1.b composition — the file says so itself) and AT
+    // (UStG §16 Abs. 1) joined with lot 1 (TODO_DOCUMENTS vague B) — each narrowing SOURCED in its file.
+    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'ES', 'MX', 'BE', 'NL', 'AT'];
     const isKnownNarrowing = (countryCode: string, typeId: string, actionId: string) =>
       (typeId === 'invoice' &&
         actionId === 'save-draft' &&
@@ -216,9 +218,9 @@ describe('country-policy/data — FR rules promoted to "legal" by root TODO item
 // one honest `unverified` per country, so a future edit that quietly waters one of these down goes
 // red here first.
 describe('country-policy/data — DE/IT/PL/ES/MX added by root TODO P1 (2026-09-03)', () => {
-  it('the catalog now covers exactly 8 countries: FR, US, HU (pre-existing) plus DE, IT, PL, ES, MX', () => {
+  it('the catalog now covers exactly 11 countries: the 8 of P1 plus BE, NL, AT (lot 1, TODO_DOCUMENTS vague B)', () => {
     const codes = ALL_COUNTRY_POLICY_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'ES', 'FR', 'HU', 'IT', 'MX', 'PL', 'US']);
+    expect(codes).toEqual(['AT', 'BE', 'DE', 'ES', 'FR', 'HU', 'IT', 'MX', 'NL', 'PL', 'US']);
   });
 
   it('PL invoice.save-draft cites the Podręcznik KSeF verbatim: a file sent to KSeF cannot be edited, only corrected by a new faktura korygująca', () => {
@@ -324,6 +326,90 @@ describe('country-policy/data — DE/IT/PL/ES/MX added by root TODO P1 (2026-09-
         .rules.map((r) => `${r.typeId}::${r.actionId}`)
         .sort();
       expect(keys).toEqual(frKeys);
+    }
+  });
+});
+
+// BE — agent pays Belgique, lot 1 TODO_DOCUMENTS.md (vague B, 2026-09-04). country-policy/data/be.json
+// is NOT YET registered in this file's own data/all.ts (COUNTRY_FILES) — registration is the
+// mandataire's job at lot validation, done together with the NL/AT files this same lot also adds. This
+// block therefore loads be.json DIRECTLY (readFileSync + assertValidProvenance, the exact gate
+// data/all.ts's own loadCountryFile calls) rather than through ALL_COUNTRY_POLICY_FILES, so it is
+// green independently of that registration, using inline `require()` (not a top-level `import`)
+// specifically so this addition can never collide with the NL/AT agents' own additions to this same
+// file editing the same import block in parallel.
+describe('BE — country-policy/data/be.json (agent pays Belgique, not yet registered in all.ts)', () => {
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  const { assertValidProvenance } = require('../schema');
+
+  function loadBe() {
+    return JSON.parse(readFileSync(join(__dirname, 'be.json'), 'utf-8'));
+  }
+
+  it('parses, declares countryCode BE, and every rule passes the load-time provenance gate', () => {
+    const be = loadBe();
+    expect(be.countryCode).toBe('BE');
+    expect(be.rules.length).toBeGreaterThan(0);
+    for (const rule of be.rules) {
+      expect(() => assertValidProvenance(rule, 'test')).not.toThrow();
+    }
+  });
+
+  it('declares the same 22 (typeId, actionId) pairs as fr.json — no silent gap versus the reference jurisdiction', () => {
+    const be = loadBe();
+    const fr = JSON.parse(readFileSync(join(__dirname, 'fr.json'), 'utf-8'));
+    const frKeys = fr.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
+    const beKeys = be.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
+    expect(beKeys).toEqual(frKeys);
+  });
+
+  it('declares the same five document types as fr.json', () => {
+    const be = loadBe();
+    expect((be.documentTypes ?? []).slice().sort()).toEqual(
+      ['credit-note', 'expense', 'invoice', 'quote', 'received-invoice'].sort(),
+    );
+  });
+
+  it('invoice.save-draft is "legal", restricted to draft — the AR n°1 art. 12 §1 immutability fact (efacture.belgium.be, read 2026-09-04)', () => {
+    const be = loadBe();
+    const rule = be.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'save-draft');
+    expect(rule.provenance.kind).toBe('legal');
+    expect(rule.provenance.sourceText).toMatch(/document rectificatif/);
+    expect(rule.provenance.sourceCheckedAt).toBe('2026-09-04');
+    expect(rule.statuses).toEqual(['draft']);
+  });
+
+  it('invoice.send is "legal", citing the loi du 6 février 2024 (CTVA art. 53 §2bis, read directly on ejustice.just.fgov.be)', () => {
+    const be = loadBe();
+    const rule = be.rules.find((r) => r.typeId === 'invoice' && r.actionId === 'send');
+    expect(rule.allowed).toBe(true);
+    expect(rule.provenance.kind).toBe('legal');
+    expect(rule.provenance.sourceText).toMatch(/facture électronique structurée/);
+    expect(rule.notes).toMatch(/2024001635/);
+  });
+
+  it('quote.send reuses the eIDAS art. 25 §1 citation already verified by other files of this same lot (pl/de/it/es) — dated, not re-verified', () => {
+    const be = loadBe();
+    const rule = be.rules.find((r) => r.typeId === 'quote' && r.actionId === 'send');
+    expect(rule.provenance.kind).toBe('legal');
+    expect(rule.provenance.sourceText).toMatch(/shall not be denied legal effect/);
+    expect(rule.notes).toMatch(/RÉUTILISE/);
+  });
+
+  it('credit-note.send is "legal" — Belgium names BOTH "notes de crédit" and "notes de débit" explicitly, unlike Poland\'s single-instrument regime', () => {
+    const be = loadBe();
+    const rule = be.rules.find((r) => r.typeId === 'credit-note' && r.actionId === 'send');
+    expect(rule.provenance.kind).toBe('legal');
+    expect(rule.provenance.sourceText).toMatch(/notes de crédit et notes de débit/);
+  });
+
+  it('carries at least one honest, resolvable "unverified" entry — not a wall-to-wall "legal" claim', () => {
+    const be = loadBe();
+    const unverified = be.rules.filter((r) => r.provenance.kind === 'unverified');
+    expect(unverified.length).toBeGreaterThan(0);
+    for (const rule of unverified) {
+      expect(rule.provenance.resolutionNote.trim().length).toBeGreaterThan(0);
     }
   });
 });

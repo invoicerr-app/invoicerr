@@ -1,0 +1,109 @@
+{
+  "countryCode": "BE",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Les montants indûment facturés doivent faire l'objet d'un document rectificatif (art. 12, § 1er, de l'AR n°1) (en pratique : une note de crédit). La facturation électronique n'a rien changé à cette situation.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://efacture.belgium.be/fr/FAQ/questions-specifiques-sur-la-facturation-electronique (FOD BOSA / SPF Finances, le portail e-invoicing fédéral belge officiel — REPLI OFFICIEL assumé pour l'arrêté royal n° 1 lui-même, voir ce fichier's own `notes` de tête pour pourquoi ejustice.just.fgov.be n'a pas pu être atteint pour ce texte précis), question « J'ai envoyé une facture au mauvais destinataire ». Citant l'arrêté royal n° 1 du 29 décembre 1992 relatif aux mesures tendant à assurer le paiement de la taxe sur la valeur ajoutée (AR n°1), art. 12, § 1er. CE QUE CETTE CITATION TRANCHE : la note de crédit EST la forme PRATIQUE que prend le « document rectificatif » légalement exigé pour corriger un montant indûment facturé — donc une voie OUVERTE (allowed), au même titre que la France (fr.json's own CREDIT_NOTE). PAS DE PIVOT YAML pour la Belgique (docs/compliance/CORRECTION-ROUTES.yaml ne couvre que les sept pays pivots FR/IT/PL/DE/ES/MX/US) : cette lecture est une PREMIÈRE lecture directe, niveau de preuve C1, faite par cette tâche."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Oui. Tout document qui modifie la facture électronique structurée originale et qui y fait référence spécifiquement et sans ambiguïté est considéré comme une facture électronique structurée et est délivré dans le même format que la facture originale. Les notes de crédit et notes de débit doivent donc également être envoyées via Peppol.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://efacture.belgium.be/fr/FAQ/questions-specifiques-sur-la-facturation-electronique, question « Les notes de crédit doivent-elles également être envoyées via Peppol ? ». CONTRAIREMENT à la Pologne (pl.json's own DEBIT_NOTE, sans citation propre — le seul instrument polonais est la faktura korygująca dans les deux sens) et à la France (fr.json's own DEBIT_NOTE, 'allowed' mais son caractère obligatoire resté unverified faute de texte), la Belgique NOMME explicitement DEUX instruments distincts — « notes de crédit ET notes de débit » — dans la MÊME phrase officielle, tous deux traités comme des factures électroniques structurées à part entière. C'est la citation la plus explicite de ce fichier sur cette voie précise : la note de débit belge n'est pas déduite par analogie, elle est nommée mot pour mot par le texte lu."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Tout document qui modifie la facture électronique structurée originale et qui y fait référence spécifiquement et sans ambiguïté est considéré comme une facture électronique structurée et est délivré dans le même format que la facture originale.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME lecture, MÊME page, que CREDIT_NOTE et DEBIT_NOTE ci-dessus (efacture.belgium.be, questions-specifiques-sur-la-facturation-electronique, 2026-09-04) — cette phrase est le fait GÉNÉRIQUE (« tout document [...] qui y fait référence spécifiquement et sans ambiguïté ») dont CREDIT_NOTE et DEBIT_NOTE ne sont que deux formes NOMMÉES. Définition quasi mot pour mot identique à la France's own CGI art. 289, I, 5° (fr.json's own CORRECTIVE_INVOICE : « tout document ou message qui modifie la facture initiale et qui y fait référence de façon spécifique et non équivoque est assimilé à une facture »), preuve que ce fait n'est pas propre au droit belge mais dérive de la même logique européenne de facturation par référence (directive TVA 2006/112/CE, art. 219, transposée de façon quasi identique dans les deux droits nationaux — CETTE dérivation n'a toutefois pas été vérifiée à sa source par cette tâche, elle reste une observation, pas une citation supplémentaire)."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui nommerait un mécanisme belge distinct d'« annulation et remplacement » (une facture entièrement nouvelle annulant et remplaçant la précédente, plutôt qu'un document rectificatif qui la modifie par référence). Les trois lectures faites pour cette tâche (loi du 6 février 2024, AR n°1 art. 12 § 1er via efacture.belgium.be, et la définition générique du 'document qui modifie' — voir CORRECTIVE_INVOICE ci-dessus) ne tranchent que la correction PAR RÉFÉRENCE, jamais l'hypothèse d'un remplacement intégral. Ce qui trancherait : une lecture directe de l'AR n°1 dans son ensemble (non atteint par cette tâche — voir ce fichier's own `notes` de tête) ou du Commentaire TVA (cité par efacture.belgium.be, Livre III, mais jamais lu directement)."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui imposerait ou interdirait, pour la Belgique, un avoir PUREMENT COMPTABLE jamais transmis au réseau/à l'administration (le fait canonique que ce fichier existe pour distinguer, France/Italie 'required' contre Pologne/Espagne/Mexique 'forbidden'). Le modèle belge (Peppol 4-corner décentralisé, SANS plateforme gouvernementale intermédiaire pour le B2B — voir b2g-routing/data/be.json's own note, 'Le Gouvernement ne siège pas au milieu de la transaction') suggère structurellement qu'il n'existe PAS de guichet central auquel un avoir devrait ou ne devrait pas être transmis, contrairement à la France (PPF) ou l'Italie (SdI) — mais cette OBSERVATION architecturale n'est pas elle-même une règle juridique tranchant CETTE question précise, et rien de lu ne l'affirme explicitement pour le cas d'un avoir purement interne. Ce qui trancherait : une lecture directe du Code de la TVA sur la déduction/régularisation (art. 79 ou son commentaire) qui distinguerait explicitement un ajustement purement comptable d'un document devant circuler."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui organiserait (ou exclurait explicitement) une annulation, PAR L'ADMINISTRATION FISCALE BELGE elle-même, des données réglementaires d'une facture déjà transmise — le fait que ce fichier's own US entry tranche par 'forbidden' au motif structurel qu'il n'existe 'aucune autorité destinataire'. La Belgique, comme les États-Unis, n'a AUJOURD'HUI aucune plateforme gouvernementale interceptant les factures B2B (le modèle Peppol 4-corner est décentralisé — voir INTERNAL_CREDIT_NOTE ci-dessus pour la même observation) : ce FAIT ARCHITECTURAL, à lui seul, rendrait le même raisonnement 'forbidden' plausible pour la Belgique. Mais aucune lecture de cette tâche n'a établi ce fait AU NIVEAU DE PREUVE C1 requis pour une conclusion 'forbidden' (ni une confirmation explicite qu'aucun mécanisme d'annulation administrative n'existe par ailleurs, en dehors du canal Peppol — p. ex. côté administration fiscale directement, pour un motif de fraude). Reste donc honnêtement 'unverified', PAS promu par analogie avec les États-Unis. Ce qui trancherait : une confirmation explicite (SPF Finances) de l'absence de toute procédure d'annulation administrative d'une facture, OU la publication du futur mandat d'e-reporting belge (~2028, cité par documentation/compliance/BE-Belgium.md, non sourcé par cette tâche) qui pourrait introduire un tel mécanisme."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non résolue — DÉLIBÉRÉMENT PAS promue par analogie avec US malgré une architecture apparemment similaire (voir resolutionNote)."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui autoriserait (ou interdirait) explicitement de renvoyer, sous le MÊME numéro de facture, un document rejeté avant sa réception effective par le destinataire (p. ex. un rejet technique côté point d'accès Peppol, avant toute validation Schematron) — le cas étroit que fr.json's own RESUBMIT_SAME_IDENTITY documente pour la France (deux cas seulement : rejet de constitution du flux, ou erreur de routage). La lecture faite pour ce fichier (AR n°1 art. 12 § 1er, la définition générique du document qui modifie) porte sur la correction d'une facture DÉJÀ ÉMISE/reçue, jamais sur le sort d'un envoi rejeté AVANT réception. Ce qui trancherait : une lecture directe des spécifications techniques Peppol BIS Billing 3.0 belges (Business Expert Group, citée par efacture.belgium.be mais jamais lue directement par cette tâche) sur la gestion d'un rejet réseau (Invoice Response 'RE' — voir COUNTERPARTY_OBJECTION ci-dessous, qui documente le rejet PAR LE DESTINATAIRE, pas le rejet TECHNIQUE PRÉ-livraison)."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui imposerait, pour une créance impayée, l'équivalent belge du mécanisme français de l'art. 272, 1, al. 3 du CGI (renvoyer le MÊME document surchargé d'une mention légale, plutôt qu'émettre un nouveau document). Rien dans les textes lus pour cette tâche (AR n°1 art. 12 § 1er, la définition générique du document qui modifie) ne mentionne un renvoi ANNOTÉ du document original — au contraire, la logique lue partout ailleurs dans ce fichier (CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE) est celle d'un NOUVEAU document référençant l'original, jamais celle d'un même document réémis. Ce qui trancherait : une lecture directe du Code de la TVA sur la récupération de la taxe pour créance définitivement perdue (art. 77, § 1er, 7°, non lu par cette tâche) et de sa circulaire d'application, pour vérifier si la Belgique traite l'impayé par une note de crédit ORDINAIRE (l'hypothèse la plus probable, vu le reste de ce fichier) ou par un mécanisme distinct."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Belgique — aucune lecture de cette tâche n'a porté sur cette voie (une simple annotation dans le grand livre comptable, sans aucun document de correction émis)."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non recherchée, même statut que fr.json's own LEDGER_ANNOTATION."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Belgique — cette voie (une correction pour laquelle la loi elle-même n'exigerait AUCUN document, p. ex. par simple compensation) n'a été rencontrée dans aucune des lectures faites pour cette tâche."
+      },
+      "notes": "Pas de pivot YAML pour la Belgique — première lecture C1 par cette tâche, 2026-09-04. Non recherchée, même statut que fr.json's own NO_DOCUMENT_BY_LAW."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Si vous recevez une facture qui ne vous est pas destinée, celle-ci ne donne bien sûr pas droit à une déduction (voir notamment le point 25 Affaire C-712/17). Selon un avis de la Commission des normes comptables, cette facture ne doit pas non plus être enregistrée dans la comptabilité. Vous devez refuser la facture. [...] Vous pouvez refuser la facture via Peppol en envoyant une Invoice Response (IR) avec le code de statut « RE » (Rejected), comme prévu dans la Invoice Response de Peppol BIS.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://efacture.belgium.be/fr/FAQ/questions-specifiques-sur-la-facturation-electronique, question « J'ai reçu une facture qui ne m'est pas destinée [...] ». CE QUE CETTE CITATION TRANCHE : le DESTINATAIRE d'une facture structurée belge dispose d'une voie de REJET légalement organisée et outillée au niveau du réseau (le message Peppol BIS 'Invoice Response', code 'RE') — une objection de la contrepartie, distincte d'une annulation par une autorité (voir AUTHORITY_ANNULMENT ci-dessus, resté unverified) et distincte de la décision de revue interne à l'entreprise réceptrice documentée par country-policy/data/be.json's own received-invoice.reject (un choix produit non spécifiquement encadré, à ne pas confondre avec CE rejet réseau protocolaire)."
+    }
+  ],
+  "notes": "Belgique — lot 1 TODO_DOCUMENTS.md, agent pays BE (2026-09-04). PAS DE PIVOT dans docs/compliance/CORRECTION-ROUTES.yaml (qui ne couvre que FR/IT/PL/DE/ES/MX/US) : les onze statuts ci-dessus sont une PREMIÈRE lecture directe, niveau de preuve C1, faite entièrement par cette tâche — quatre routes SOURCÉES (CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE, COUNTERPARTY_OBJECTION, toutes quatre lues le même jour sur efacture.belgium.be), sept honnêtement 'unverified'. REPLI OFFICIEL ASSUMÉ pour l'arrêté royal n° 1 du 29 décembre 1992 lui-même : plusieurs tentatives d'accès direct à ejustice.just.fgov.be (le portail primaire belge, Moniteur belge / Justel) pour ce texte précis n'ont renvoyé que la page d'aide générique du système ELI, jamais le texte de l'arrêté — conformément à l'avertissement de cette tâche sur un portail potentiellement cassé (le précédent cité, legislatie.just.ro, était TLS-cassé ; ici le symptôme est différent — NUMAC introuvable par essais successifs plutôt qu'une erreur TLS — mais l'effet est le même : le texte primaire de l'AR n°1 reste hors d'atteinte pour cette tâche). ejustice.just.fgov.be A EN REVANCHE été atteint avec succès pour la loi du 6 février 2024 (voir country-policy/data/be.json's own invoice.send, même portail, même jour) : ce n'est donc pas tout le portail qui est cassé, seulement l'accès à CE texte précis par les URLs ELI essayées. Cohérent avec b2g-routing/data/be.json et transports/channel-policy/data/be.json (lus pour cohérence, non modifiés) : aucune contradiction relevée — ces deux fichiers portent sur le TRANSPORT (Peppol) et le CANAL (suggested/mandated), jamais sur la VOIE DE CORRECTION elle-même."
+}

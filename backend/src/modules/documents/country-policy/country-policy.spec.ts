@@ -35,18 +35,18 @@ describe('evaluateCountryPolicy', () => {
   // `{ allowed: true }` (the exact mutation this task asks to rehearse), this test goes red.
   // `findRules` is mocked straight to `[]` here — this proves the CODE PATH for "zero rows", not a
   // claim about which real country has none; Germany was this fixture's placeholder until root TODO
-  // P1 gave it a real, sourced policy file, so it moved to Belgium (still genuinely uncovered) rather
+  // P1 gave it a real, sourced policy file, so it moved to Belgium — which lot 1 (TODO_DOCUMENTS vague B) then covered too, so it moved AGAIN to Japan (genuinely uncovered) rather
   // than keep a now-misleading "Germany has no rows" framing.
   it('blocks EVERY action for a country with no policy rows at all, and NAMES the country', async () => {
-    findCompany.mockResolvedValue({ country: 'Belgium', countryCode: 'BE' });
+    findCompany.mockResolvedValue({ country: 'Japan', countryCode: 'JP' });
     findRules.mockResolvedValue([]);
 
     const decision = await evaluateCountryPolicy('company-1', 'invoice', 'save-draft');
 
     expect(decision.allowed).toBe(false);
-    expect(decision.reason).toMatch(/"BE"/);
+    expect(decision.reason).toMatch(/"JP"/);
     // Says what would unblock it — not just "no", the same discipline the transport 501 keeps.
-    expect(decision.reason).toMatch(/country-policy\/data\/be\.json/);
+    expect(decision.reason).toMatch(/country-policy\/data\/jp\.json/);
   });
 
   // Root TODO item 18 ("réception de factures") — the SAME mechanism, proven again against the new
@@ -54,14 +54,14 @@ describe('evaluateCountryPolicy', () => {
   // pays sans règle → 403 nommé" (the 403 itself is documents.service.received-invoice.spec.ts's own
   // wiring proof; THIS is the real, unmocked decision the service call above is proven to relay).
   it('blocks "received-invoice"/"approve" for a country with no policy rows at all, and NAMES the country', async () => {
-    findCompany.mockResolvedValue({ country: 'Belgium', countryCode: 'BE' });
+    findCompany.mockResolvedValue({ country: 'Japan', countryCode: 'JP' });
     findRules.mockResolvedValue([]);
 
     const decision = await evaluateCountryPolicy('company-1', 'received-invoice', 'approve');
 
     expect(decision.allowed).toBe(false);
-    expect(decision.reason).toMatch(/"BE"/);
-    expect(decision.reason).toMatch(/country-policy\/data\/be\.json/);
+    expect(decision.reason).toMatch(/"JP"/);
+    expect(decision.reason).toMatch(/country-policy\/data\/jp\.json/);
   });
 
   it('blocks an action never declared for a country that DOES have OTHER rules — an allow-list, not a deny-list', async () => {
@@ -250,7 +250,7 @@ describe('resolveAvailableDocumentTypes', () => {
     );
   });
 
-  // A country with NO policy file at all (e.g. Belgium — see the COUNTRY_FILES list in data/all.ts,
+  // A country with NO policy file at all (e.g. Japan — see the COUNTRY_FILES list in data/all.ts,
   // which as of root TODO P1 covers FR/US/HU/DE/IT/PL/ES/MX only) must say so BY NAME, never render a
   // silently empty group — this is the "un pays sans règles n'a aucun type, et son groupe Documents
   // doit le DIRE" requirement, proven against the real catalog rather than a mock of it. Germany used
@@ -258,12 +258,12 @@ describe('resolveAvailableDocumentTypes', () => {
   // file, so this fixture moved to Belgium (still genuinely absent from COUNTRY_FILES) rather than
   // weakening what this test proves.
   it('a country with no policy file at all has NO types, and says so by name — never a silent empty list', async () => {
-    findCompany.mockResolvedValue({ country: 'Belgium', countryCode: 'BE' });
+    findCompany.mockResolvedValue({ country: 'Japan', countryCode: 'JP' });
 
     const decision = await resolveAvailableDocumentTypes('company-1');
 
     expect(decision.typeIds).toEqual([]);
-    expect(decision.reason).toMatch(/"BE"/);
+    expect(decision.reason).toMatch(/"JP"/);
     expect(decision.reason).toMatch(/documentTypes/);
   });
 

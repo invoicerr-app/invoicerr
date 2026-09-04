@@ -115,14 +115,14 @@ describe("DocumentsService#getCorrectionRoutes — TODO_CORRECTION.md C1's four 
   });
 
   it('gate 5 (404, NAMED): the seller country has no correction-routes file at all', async () => {
-    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('BE');
+    (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('JP');
     mockDocument({});
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
       NotFoundException,
     );
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
-      /Aucune règle de correction déclarée pour BE/,
+      /Aucune règle de correction déclarée pour JP/,
     );
   });
 

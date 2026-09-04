@@ -1,0 +1,215 @@
+{
+  "countryCode": "BE",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit belge. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — RÉUTILISE la citation déjà lue en direct le 2026-09-03 sur eur-lex.europa.eu par country-policy/data/pl.json (et de.json/it.json/es.json's own quote.send) : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour la Belgique. NON RE-VÉRIFIÉE par cette tâche : une tentative de lecture directe d'eur-lex.europa.eu (CELEX:32014R0910) le 2026-09-04 a échoué — la page a été renvoyée VIDE au fetch (aucun texte entre les délimiteurs, cause non identifiée côté outil, à retenter). Le fait cité est par nature invariant par pays (un règlement UE, d'applicabilité directe) : la citation déjà vérifiée par un autre pays de ce même lot reste donc valide ici, exactement le raisonnement que pl.json applique déjà à ce même fait. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal belge et à l'obligation de facturation électronique structurée B2B) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit belge (la seule contrainte légale porte sur la facture qui en résulte). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit belge. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit belge. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Les montants indûment facturés doivent faire l'objet d'un document rectificatif (art. 12, § 1er, de l'AR n°1) (en pratique : une note de crédit). La facturation électronique n'a rien changé à cette situation.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://efacture.belgium.be/fr/FAQ/questions-specifiques-sur-la-facturation-electronique (FOD BOSA / SPF Finances — le portail e-invoicing fédéral belge officiel, question « J'ai envoyé une facture au mauvais destinataire »), citant l'arrêté royal n° 1 du 29 décembre 1992 relatif aux mesures tendant à assurer le paiement de la taxe sur la valeur ajoutée (AR n°1), art. 12, § 1er. REPLI OFFICIEL ASSUMÉ (voir la consigne de cette tâche) : une tentative directe sur ejustice.just.fgov.be pour retrouver le NUMAC exact de l'AR n°1 lui-même a échoué à plusieurs reprises le 2026-09-04 (plusieurs NUMAC candidats testés en ELI renvoient la page d'aide générique du système ELI, pas le texte) — efacture.belgium.be est donc utilisé comme source officielle de repli, exactement le cas que la consigne de cette tâche anticipe. CE QUE CETTE CITATION TRANCHE, précisément : une erreur sur une facture déjà émise (montant indûment facturé) ne se corrige JAMAIS en réécrivant le document original — elle « doit faire l'objet d'un document rectificatif », un texte DISTINCT référençant l'original (voir aussi correction-routes/data/be.json's own CREDIT_NOTE et CORRECTIVE_INVOICE, sourcées à la MÊME phrase). Le champ `statuses: [\"draft\"]` applique ce principe en refusant de ré-enregistrer en brouillon une facture déjà 'sent' — même mécanique que fr.json/pl.json/de.json/it.json/es.json/mx.json pour cette même règle."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "« § 2bis. Par dérogation au paragraphe 2, alinéas 1er et 4, l'assujetti établi en Belgique, à l'exclusion des assujettis auxquels le régime visé à l'article 56 s'applique et des assujettis faillis par rapport à l'activité pour laquelle ils ont été déclarés en faillite, émet une facture électronique structurée à son cocontractant ou fait émettre une telle facture en son nom et pour son compte, par son cocontractant ou par un tiers […] ». Art. 6, alinéa 1er : « La présente loi entre en vigueur le 1er janvier 2026. »",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur http://www.ejustice.just.fgov.be/eli/loi/2024/02/06/2024001635/justel — le Moniteur belge / la base Justel du SPF Justice, PORTAIL PRIMAIRE (contrairement à l'AR n°1 ci-dessus, celui-ci a bien été atteint), texte consolidé de la loi du 6 février 2024 modifiant le Code de la taxe sur la valeur ajoutée en ce qui concerne la facturation électronique structurée. Art. 3, 2° de cette loi insère le nouveau § 2bis dans l'art. 53 du Code de la TVA (CTVA), reproduit ci-dessus (le milieu du paragraphe, qui détaille les opérations et exceptions couvertes, est omis par « […] » — non nécessaire au fait tranché ici). Art. 6, alinéa 1er fixe l'entrée en vigueur au 1er janvier 2026 (les alinéas 2 et 3, relatifs à d'autres articles de la même loi sur la déduction fiscale, ne concernent pas cette règle). URL de la loi elle-même retrouvée via https://efacture.belgium.be/fr/faq (lien direct « Loi du 06.02.2024 modifiant le Code de la taxe sur la valeur ajoutée... »), confirmant que le portail officiel belge la désigne lui-même comme LE texte de référence. CE QUE CETTE CITATION TRANCHE : à compter du 1er janvier 2026, un assujetti établi en Belgique doit émettre une facture électronique STRUCTURÉE (au sens de l'art. 53, § 2bis, nouveau) à son cocontractant B2B — l'envoi d'une facture est donc un acte légalement organisé et exigé, pas seulement toléré. Confirmé en pratique par efacture.belgium.be/fr/FAQ/questions-generales-b2b, question 14, lue le même jour : « Any invoice falling within the scope of the e-invoicing obligation [...] issued or sent from January 1, 2026 must be presented as a structured electronic invoice (as referenced in article 53, § 2bis, new, of the VAT Code) » (résumé du portail, cohérent avec le texte primaire ci-dessus)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit belge. La question fiscale (Code de la TVA / AR n°1) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial. Note distincte de la question des doublons Peppol évoquée par efacture.belgium.be/fr/FAQ/questions-specifiques-sur-la-facturation-electronique (Q4 : Peppol ne distingue pas un doublon d'un original ; le point fiscal est d'éviter un double comptage) — cette FAQ porte sur la détection d'un doublon déjà ENVOYÉ, pas sur l'acte de dupliquer un brouillon avant tout envoi, donc hors du périmètre exact de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale belge pour CETTE entreprise de la produire sous cette forme précise. Le format réellement mandaté en Belgique pour le B2B (dès le 1er janvier 2026) est Peppol BIS Billing 3.0 (UBL 2.1), transmis via le réseau Peppol — voir b2g-routing/data/be.json et transports/channel-policy/data/be.json, déjà sourcés — pas un export EN 16931 générique téléchargé localement. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE, même raisonnement que pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal de la correction belge (voir credit-note.send ci-dessous) concerne le CONTENU et le statut fiscal du document, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Oui. Tout document qui modifie la facture électronique structurée originale et qui y fait référence spécifiquement et sans ambiguïté est considéré comme une facture électronique structurée et est délivré dans le même format que la facture originale. Les notes de crédit et notes de débit doivent donc également être envoyées via Peppol.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://efacture.belgium.be/fr/FAQ/questions-specifiques-sur-la-facturation-electronique (FOD BOSA / SPF Finances, question « Les notes de crédit doivent-elles également être envoyées via Peppol ? »). CONTRAIREMENT à la Pologne (pl.json's own nuance : pas d'instrument 'nota kredytowa' séparé), la Belgique reconnaît explicitement DEUX instruments distincts nommés — « notes de crédit » ET « notes de débit » — tous deux traités comme des factures électroniques structurées à part entière dès lors qu'ils modifient l'original en y faisant référence sans ambiguïté (même définition, presque mot pour mot, que la France's own CGI art. 289, I, 5° pour la 'facture rectificative'). RENFORCÉ par la citation déjà lue pour invoice.save-draft ci-dessus (AR n°1, art. 12, § 1er, efacture.belgium.be, même page, question « J'ai envoyé une facture au mauvais destinataire ») : « Les montants indûment facturés doivent faire l'objet d'un document rectificatif [...] (en pratique : une note de crédit). » La note de crédit belge est donc un mécanisme BIEN ENCADRÉ, contrairement à plusieurs des faits 'unverified' de ce même fichier — voir correction-routes/data/be.json's own CREDIT_NOTE et DEBIT_NOTE pour l'analyse complète des onze voies canoniques."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables belges portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : la Belgique recevra ses factures domestiques B2B via Peppol dès 2026, un canal agréé (sujet distinct, hors périmètre de ce workflow interne d'approbation) — voir toutefois credit-note.send/COUNTERPARTY_OBJECTION pour le cas du REJET d'une facture mal adressée, qui EST sourcé."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue INTERNE à l'entreprise, distincte du REJET RÉSEAU sourcé par correction-routes/data/be.json's own COUNTERPARTY_OBJECTION (efacture.belgium.be, Q28 : refuser via Peppol un Invoice Response code « RE ») — celui-ci porte sur le protocole d'échange Peppol lui-même (un message technique envoyé À L'ÉMETTEUR), pas sur ce statut d'ENREGISTREMENT interne de la décision dans cet outil, qui reste un choix produit non spécifiquement encadré."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Belgique — lot 1 TODO_DOCUMENTS.md, agent pays BE (2026-09-04). Le lourd légal repose sur DEUX lectures DIRECTES et FRAÎCHES : (1) ejustice.just.fgov.be (Moniteur belge / Justel, le portail primaire, ATTEINT avec succès — contrairement à l'AR n°1, voir plus bas) pour la loi du 6 février 2024 modifiant le Code de la TVA (invoice.send, art. 53 § 2bis nouveau + art. 6 entrée en vigueur au 1er janvier 2026) ; (2) efacture.belgium.be (FOD BOSA / SPF Finances, le REPLI OFFICIEL explicitement prévu par cette tâche) pour l'arrêté royal n° 1 du 29 décembre 1992 — LE PORTAIL PRIMAIRE POUR L'AR N°1 LUI-MÊME N'A PAS PU ÊTRE ATTEINT : plusieurs NUMAC candidats testés en ELI (ejustice.just.fgov.be/eli/arrete/1992/12/29/...) ne renvoient que la page d'aide générique du système ELI, jamais le texte de l'arrêté — conformément à l'avertissement de cette tâche sur un portail potentiellement cassé (comme legislatie.just.ro). efacture.belgium.be cite néanmoins l'AR n°1 par ARTICLE PRÉCIS (art. 12 § 1er pour le document rectificatif/note de crédit — invoice.save-draft et credit-note.send ; art. 3, art. 5 § 1er 9°, art. 13, art. 14 § 2, art. 20 § 3 pour d'autres mentions, non retranscrits ici faute d'usage direct par une règle de ce fichier), avec citation VERBATIM en français à chaque fois — jamais une paraphrase du portail elle-même prise pour une loi. La citation eIDAS (quote.send) est RÉUTILISÉE, non re-vérifiée (tentative d'accès direct à eur-lex.europa.eu le 2026-09-04 infructueuse — page vide renvoyée par l'outil) : le fait est par nature invariant par pays, la citation déjà vérifiée le 2026-09-03 par un autre pays de ce même lot (pl.json/de.json/it.json/es.json) reste donc valide. AUCUNE contradiction relevée avec b2g-routing/data/be.json (Peppol BIS, scheme 0208, lu 2026-09-02) ni transports/channel-policy/data/be.json (Peppol 'suggested' pas 'mandated', lu 2026-09-02) : ce fichier ne porte que sur les ACTIONS DOCUMENT, ces deux autres fichiers sur le TRANSPORT et le FORMAT — trois concerns disjoints, cohérents entre eux (les trois pointent vers le même socle légal, la loi du 6 février 2024 / CTVA art. 53 § 2bis, et le même réseau Peppol)."
+}

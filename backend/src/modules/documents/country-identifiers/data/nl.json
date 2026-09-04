@@ -1,0 +1,34 @@
+{
+  "countryCode": "NL",
+  "schemes": [
+    {
+      "scheme": "LEGAL_ID",
+      "appliesTo": "BOTH",
+      "label": "KVK-nummer",
+      "required": true,
+      "pattern": "^\\d{8}$",
+      "helpText": "8 chiffres, attribué par la Kamer van Koophandel (KVK) lors de l'inscription au Handelsregister.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "De volgende in het handelsregister ingeschreven ondernemingen of rechtspersonen zorgen ervoor dat op alle van die onderneming of die rechtspersoon uitgaande brieven, orders, facturen, offertes en andere aankondigingen, met uitzondering van reclames, is vermeld onder welk nummer deze in het handelsregister is ingeschreven [...] Het in het eerste lid bedoelde nummer is het nummer, bedoeld in artikel 9, onderdeel a, of in artikel 13, onderdeel a. — corroboré par la source technique : « kvkNummer — Dutch KVK number. Consists of 8 digits. »",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Handelsregisterwet 2007 (BWBR0021777), Hoofdstuk 4, Paragraaf 4.4, art. 27, lid 1 et lid 2, lus en direct le 2026-09-04 sur wetten.overheid.nl (version « geldend van 16-07-2025 »), https://wetten.overheid.nl/BWBR0021777/2025-07-16#Hoofdstuk4_Paragraaf4.4_Artikel27 — la loi néerlandaise sur le registre du commerce nomme EXPLICITEMENT « facturen » (factures) parmi les documents devant porter ce numéro, aux côtés des lettres, commandes et devis. Format (8 chiffres) sourcé sur developers.kvk.nl/documentation/basisprofiel-api (portail développeur officiel de la KVK elle-même), consulté le 2026-09-04 : « kvkNummer — Dutch KVK number. Consists of 8 digits. » Corroboration doctrinale, en recoupement : Rijksdienst voor Ondernemend Nederland (RVO), page « Regels voor bedrijfscorrespondentie » (ondernemersplein.overheid.nl/wetten-en-regels/regels-voor-bedrijfscorrespondentie/, consultée le 2026-09-04) — « U vermeldt altijd uw: handelsnaam [...] KVK-nummer » — et belastingdienst.nl, page « Aan welke eisen moeten facturen voldoen voor uw btw-administratie? » (consultée le même jour) — « als u bij de KVK bent ingeschreven: uw KVK-nummer ». `appliesTo: \"BOTH\"` : le Handelsregisterwet 2007 (art. 5) couvre l'« onderneming » au sens large, y compris l'entreprise individuelle (eenmanszaak) — un entrepreneur individuel néerlandais est astreint exactement comme une société, même raisonnement que de.json's own VAT scheme pour la distinction société/entrepreneur individuel. NUANCE NON MODÉLISÉE ICI, à connaître : l'art. 27, lid 1, onderdeel b exempte les personnes morales visées à l'art. 6, lid 1, onderdeel b « tenzij stukken uitgaan van een rechtspersoon waaraan geen onderneming toebehoort » (une personne morale à laquelle n'est rattachée aucune entreprise) — et le lid 3 autorise des dispenses ministérielles ponctuelles, non recensées par cette tâche ; `required: true` reste donc la règle GÉNÉRALE, avec des exceptions étroites non modélisées. AUTRE CROISEMENT, déjà vendoré dans ce dépôt : la règle Schematron Peppol NL-R-003 (formats/vendored/peppol/PEPPOL-EN16931-UBL.sch, ligne 882) exige déjà « the legal entity identifier MUST be either a KVK or OIN number (schemeID 0106 or 0190) » pour un fournisseur néerlandais — schemeID Peppol `0106` = KVK, déjà présent dans la liste `peppolSchemeId` du sélecteur frontend (client-upsert.tsx)."
+    },
+    {
+      "scheme": "VAT",
+      "appliesTo": "BOTH",
+      "label": "Btw-identificatienummer (btw-id)",
+      "required": false,
+      "pattern": "^NL\\d{9}B\\d{2}$",
+      "helpText": "NL + 9 chiffres + la lettre B + 2 chiffres (ex. NL000099998B57). Jamais le burgerservicenummer (BSN) depuis la réforme de 2020 — ni l'omzetbelastingnummer (ob-nummer), un second numéro réservé aux échanges avec le fisc, qui ne figure jamais sur une facture.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "het btw-identificatienummer waaronder de ondernemer de goederenleveringen of de diensten heeft verricht — corroboré, pour la FORME exacte du numéro : « Het btw-identificatienummer van een eenmanszaak bestaat uit NL + 9 cijfers + B + 2 cijfers en bij andere rechtsvormen uit: NL + RSIN nummer + B + 2 cijfers. »",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Wet op de omzetbelasting 1968 (BWBR0002629), art. 35a, lid 1, onderdeel c, lu en direct le 2026-09-04 sur wetten.overheid.nl (version « geldend van 2026-01-01 »), https://wetten.overheid.nl/BWBR0002629/2026-01-01#HoofdstukVI_Afdeling4_Artikel35a — mention obligatoire de facture, exactement comme pour d.json/fr.json's own VAT fact. Format sourcé sur ondernemersplein.overheid.nl (portail officiel du gouvernement néerlandais pour les entrepreneurs), page « Nummers voor de btw » (ondernemersplein.overheid.nl/geldzaken-en-belastingen/omzetbelasting-btw/nummers-voor-de-btw/, consultée le 2026-09-04) : « Het btw-identificatienummer van een eenmanszaak bestaat uit NL + 9 cijfers + B + 2 cijfers en bij andere rechtsvormen uit: NL + RSIN nummer + B + 2 cijfers. [...] Een voorbeeld van een btw-id: NL000099998B57. » Le RSIN (numéro d'identification des personnes morales et sociétés) est lui-même un nombre à 9 chiffres, donc le motif structurel `NL + 9 chiffres + B + 2 chiffres` couvre les deux cas (entreprise individuelle ou autre forme juridique) sans distinction de pattern. `required: false` : même raisonnement que fr.json (franchise en base) — la kleineondernemersregeling (KOR) néerlandaise dispense certains petits assujettis de la TVA (Wet OB 1968 art. 25, NON approfondi par cette tâche — hors périmètre, signalé pour une revue ultérieure), donc toute entreprise néerlandaise ne porte pas nécessairement de btw-id actif sur ses factures. NUANCE IMPORTANTE, sourcée et tranchée par cette tâche : il existe un SECOND numéro, l'omzetbelastingnummer (ob-nummer, souvent BSN + B + 2 chiffres pour une entreprise individuelle) — Belastingdienst est explicite (page « Nummers voor de btw », même source) qu'il sert UNIQUEMENT à la correspondance avec le fisc et ne doit JAMAIS figurer sur une facture (« U zet het btw-id [...] op uw [...] facturen », jamais mentionné pour l'ob-nummer) ; ce catalogue ne modélise donc QUE le btw-id, jamais l'ob-nummer — question ouverte par le mandat (« l'OB-nummer ? ») désormais RÉSOLUE : il est hors du périmètre de ce mécanisme, qui ne porte que sur ce qu'une facture doit afficher."
+    }
+  ],
+  "notes": "Pays-Bas — agent pays NL, lot 1 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Deux schémas seulement, comme demandé : KVK-nummer (LEGAL_ID, base légale Handelsregisterwet 2007) et btw-id (VAT, base légale Wet op de omzetbelasting 1968). L'omzetbelastingnummer (ob-nummer) a été délibérément exclu après lecture — il n'apparaît jamais sur une facture (voir la note du fait VAT ci-dessus). Toutes les lectures datent du 2026-09-04, sur wetten.overheid.nl, developers.kvk.nl et ondernemersplein.overheid.nl (portails officiels du gouvernement néerlandais)."
+}

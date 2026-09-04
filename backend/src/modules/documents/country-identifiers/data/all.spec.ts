@@ -226,3 +226,63 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
     expect(legalId.required).toBe(true);
   });
 });
+
+// BE — agent pays Belgique, lot 1 TODO_DOCUMENTS.md (vague B, 2026-09-04).
+// country-identifiers/data/be.json is NOT YET registered in this file's own data/all.ts
+// (COUNTRY_FILES) — registration is the mandataire's job at lot validation. This block therefore
+// loads be.json DIRECTLY (readFileSync + assertValidProvenance, the exact gate data/all.ts's own
+// loadCountryFile calls) rather than through ALL_COUNTRY_IDENTIFIER_FILES — via inline `require()`
+// (not a top-level `import`) so this addition can never collide with the NL/AT agents' own additions
+// to this same file editing the same import block in parallel.
+describe('BE — country-identifiers/data/be.json (agent pays Belgique, not yet registered in all.ts)', () => {
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  const { assertValidProvenance } = require('../schema');
+
+  function loadBe() {
+    return JSON.parse(readFileSync(join(__dirname, 'be.json'), 'utf-8'));
+  }
+
+  it('parses, declares countryCode BE, declares LEGAL_ID and VAT, and every fact passes the load-time gate', () => {
+    const be = loadBe();
+    expect(be.countryCode).toBe('BE');
+    const schemes = be.schemes.map((s) => s.scheme).sort();
+    expect(schemes).toEqual(['LEGAL_ID', 'VAT']);
+    for (const fact of be.schemes) {
+      expect(() => assertValidProvenance(fact, 'test')).not.toThrow();
+    }
+  });
+
+  it('LEGAL_ID (numéro d\'entreprise BCE/KBO) applies to COMPANY only and stays honestly "unverified" — the mandatory-mention text (CSA art. 2:20) could not be reached in full', () => {
+    const be = loadBe();
+    const legalId = be.schemes.find((s) => s.scheme === 'LEGAL_ID');
+    expect(legalId.appliesTo).toBe('COMPANY');
+    expect(legalId.required).toBe(false);
+    expect(legalId.provenance.kind).toBe('unverified');
+    expect(legalId.provenance.resolutionNote).toMatch(/2:20/);
+  });
+
+  it('VAT applies to BOTH party types and stays honestly "unverified" — the mandatory-mention text (AR n°1 art. 5 §1) could not be reached in full', () => {
+    const be = loadBe();
+    const vat = be.schemes.find((s) => s.scheme === 'VAT');
+    expect(vat.appliesTo).toBe('BOTH');
+    expect(vat.required).toBe(false);
+    expect(vat.provenance.kind).toBe('unverified');
+    expect(vat.provenance.resolutionNote).toMatch(/art\. 5/);
+  });
+
+  it('every scheme used is one of the two the frontend special-cases ("LEGAL_ID", "VAT") — no stale or invented scheme', () => {
+    const be = loadBe();
+    const known = new Set(['LEGAL_ID', 'VAT']);
+    for (const fact of be.schemes) {
+      expect(known.has(fact.scheme)).toBe(true);
+    }
+  });
+
+  it("neither BE scheme declares a `pattern` — no primary text reached settled either identifier's exact shape (see each fact's own resolutionNote), permissive rather than invented", () => {
+    const be = loadBe();
+    for (const fact of be.schemes) {
+      expect(fact.pattern).toBeUndefined();
+    }
+  });
+});

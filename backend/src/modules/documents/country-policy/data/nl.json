@@ -1,0 +1,213 @@
+{
+  "countryCode": "NL",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit néerlandais. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — MÊME citation, relue en direct le 2026-09-04 sur eur-lex.europa.eu (https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0910), que de.json/it.json/es.json/pl.json's own quote.send : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour les Pays-Bas. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal néerlandais — Wet OB 1968) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit néerlandais (la seule contrainte légale porterait sur la facture qui en résulte). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit néerlandais. Wet OB 1968 art. 35a, lid 1, onderdeel g (lu le 2026-09-04) mentionne bien la date d'un « vooruitbetaling » (acompte) parmi les mentions obligatoires QUAND la facture d'acompte existe déjà — ce qui règle le CONTENU d'une facture d'acompte une fois émise, jamais l'acte produit consistant à en préparer un brouillon depuis un devis, qui reste ce que cette règle couvre. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit néerlandais. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "«een opeenvolgend nummer, met één of meer reeksen, waardoor de factuur eenduidig wordt geïdentificeerd» (Wet op de omzetbelasting 1968, art. 35a, lid 1, onderdeel b) — corroboré en langage clair par la doctrine du fisc : «Gebruik opeenvolgende nummers voor uw facturen, met 1 of meer reeksen. Elk factuurnummer mag maar 1 keer voorkomen.» (Belastingdienst, page « Aan welke eisen moeten facturen voldoen voor uw btw-administratie? »).",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LE LOURD LU de cette tâche, et il faut être honnête sur ce qu'il tranche exactement. Wet OB 1968 art. 35a lu en direct le 2026-09-04 sur wetten.overheid.nl (BWBR0002629, version « geldend van 2026-01-01 »), et la page Belastingdienst lue le même jour sur belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/btw/administratie_bijhouden/facturen_maken/factuureisen/factuureisen. Contrairement à la France (CGI art. 289, I.5 : « tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») ou à la Pologne (Podręcznik KSeF : « nie jest możliwe jej edytowanie »), AUCUN texte néerlandais lu ne dit littéralement qu'une facture émise devient intangible ou qu'on ne peut la rééditer en place — c'est une COMPOSITION, pas une citation unique et frontale : le texte tranche seulement que le numéro de facture doit être unique et univoque ('eenduidig') et n'apparaître qu'une seule fois ; la conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro, voir invoice.descriptor.ts) est que ré-invoquer cette action une fois la facture 'sent' romprait cette unicité — une correction doit alors emprunter un DOCUMENT DISTINCT (la creditfactuur, voir credit-note.send et correction-routes/data/nl.json, sourcée sur Wet OB art. 29 et sur la doctrine Belastingdienst qui emploie littéralement le terme « creditfactuur »), jamais une réédition silencieuse. Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json, mais sur une base composée et non sur une clause unique d'intangibilité — nuance à connaître avant d'étirer cette citation au-delà de ce qu'elle dit vraiment."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Elektronische facturering wordt toegepast behoudens aanvaarding door de afnemer.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Wet op de omzetbelasting 1968, art. 35b, lid 1 — lu en direct le 2026-09-04 sur wetten.overheid.nl (BWBR0002629, version « geldend van 2026-01-01 »), https://wetten.overheid.nl/BWBR0002629/2026-01-01#HoofdstukVI_Afdeling4_Artikel35b. Traduction littérale : « La facturation électronique est appliquée sous réserve d'acceptation par le destinataire. » — même condition de consentement du destinataire que CGI art. 289 VI (France) ou § 14 UStG (Allemagne), et à l'INVERSE de la Pologne où cette même condition a été ABROGÉE par la bascule KSeF (voir pl.json's own note). Corroboré mot pour mot par la doctrine du fisc, lue le même jour sur belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/btw/administratie_bijhouden/facturen_maken/facturen_maken : « Een digitale factuur moet voldoen aan een extra voorwaarde: uw afnemer moet ermee akkoord gaan dat u digitaal factureert. » L'art. 35b, lid 4, onderdeel a cite EXPLICITEMENT le règlement eIDAS (UE) n° 910/2014, art. 3, onderdeel 12, comme l'une des technologies acceptées (non exclusive — les 'bedrijfscontroles' du lid 2 suffisent aussi) pour garantir l'authenticité/l'intégrité d'une facture électronique — c'est le point de jonction attendu entre le droit fiscal néerlandais et le socle eIDAS déjà cité par quote.send. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas le consentement du destinataire (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que FR/DE pour leur propre invoice.send."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit néerlandais. La question fiscale (Wet OB 1968) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Wet OB 1968 art. 29 (lu le 2026-09-04) donne un droit à restitution/ajustement de TVA lorsque la contrepartie n'est pas payée — un fait DISTINCT, sourcé pour credit-note.send ci-dessous, qui porte sur le régime de TVA d'une facture impayée, jamais sur ce mécanisme d'enregistrement de paiement lui-même. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale néerlandaise pour CETTE entreprise de la produire. Il existe un profil néerlandais de cette norme, la NLCIUS (implémentée par le format SI-UBL, publié par la Stichting Simplerinvoicing/Peppol Autoriteit NL, MIT — github.com/peppolautoriteit-nl/validation, vérifié le 2026-09-04), mais son caractère OBLIGATOIRE se limite au B2G néerlandais (marchés publics, transposition de la directive 2014/55/UE) — sujet DISTINCT, non recherché par cette tâche (items 11/15 du TODO racine), hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE ni dans quel cas."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal néerlandais d'une creditfactuur (voir credit-note.send ci-dessous) concerne le CONTENU et l'effet TVA du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email), pas en soi l'acte juridique néerlandais de correction — même distinction que fr.json pour la même action. Le TERME administratif néerlandais existe et a été trouvé : « creditfactuur », employé littéralement par le fisc (Belastingdienst, page « Btw aftrekken bij niet-betaalde facturen », lue le 2026-09-04 : « Dit moet u doen binnen 3 maanden na het tijdvak waarin u de creditfactuur hebt ontvangen. ») — PAS « creditnota », terme absent tant du texte de la Wet op de omzetbelasting 1968 (recherche plein texte, zéro occurrence, le 2026-09-04) que de l'index de recherche public de belastingdienst.nl (zéro résultat pour « creditnota » à la même date). Le fondement légal de fond est Wet OB 1968 art. 29, lid 1 (droit à restitution de TVA quand la contrepartie n'est pas ou plus intégralement payée, ou remboursée après réduction/reprise de marchandises) — un droit, pas un mandat de FORME documentaire précise pour l'exercer, à la différence de l'Espagne (RD 1619/2012 art. 15.2, « SERÁ OBLIGATORIA ») ou de la Pologne (art. 106j ust. 1, « WYSTAWIA »). Voir correction-routes/data/nl.json pour le sourçage complet de la voie CREDIT_NOTE elle-même ; cette règle-ci ne porte que sur le changement de statut interne à l'outil, qui reste un choix produit non sourcé en tant que tel."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables néerlandaises (Wet OB art. 34, tenue d'une administration ; art. 2:10 Burgerlijk Wetboek pour la comptabilité générale, non recherché par cette tâche) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : les Pays-Bas ne connaissent aujourd'hui aucun mandat B2B de réception structurée équivalent au PPF français ou à KSeF (sujet distinct, hors périmètre de ce workflow interne d'approbation)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Pays-Bas — agent pays NL, lot 1 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json pour les mêmes actions. Le lourd légal repose sur une lecture FRAÎCHE, DIRECTE, du 2026-09-04 : (1) wetten.overheid.nl (BWBR0002629, Wet op de omzetbelasting 1968, version « geldend van 2026-01-01 ») pour l'art. 35a (numérotation unique, base de invoice.save-draft), l'art. 35b (acceptation du destinataire pour la facturation électronique, base de invoice.send, qui cite lui-même le règlement eIDAS en son lid 4) et l'art. 29 (droit à restitution de TVA sur facture impayée/réduite, base de fond de credit-note.send) ; (2) eur-lex.europa.eu pour le règlement eIDAS (quote.send) ; (3) belastingdienst.nl, en recoupement systématique de chaque lecture statutaire — notamment la page « niet_betaalde_facturen » qui emploie littéralement le terme administratif « creditfactuur » (jamais « creditnota », absent des deux corpus). DIFFÉRENCE STRUCTURELLE avec la France et la Pologne, assumée et documentée dans invoice.save-draft : le droit néerlandais ne porte AUCUNE clause frontale d'intangibilité de la facture émise — la restriction `statuses: [\"draft\"]` y est donc fondée sur une COMPOSITION (unicité du numéro + pratique de la creditfactuur), pas sur une citation unique comme CGI art. 289 I.5 ou le Podręcznik KSeF."
+}

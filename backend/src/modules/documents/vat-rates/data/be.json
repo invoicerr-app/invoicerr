@@ -1,0 +1,54 @@
+{
+  "countryCode": "BE",
+  "rates": [
+    {
+      "id": "be-standard",
+      "rate": 21,
+      "label": "Taux normal",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "HTTP response body (JSON) from the European Commission's Taxes in Europe Database (TEDB) REST API, the \"result\" array entry for isoCode \"BE\" / type \"STANDARD\", quoted verbatim:\n{\n  \"countryName\": \"Belgium\",\n  \"isoCode\": \"BE\",\n  \"type\": \"STANDARD\",\n  \"rates\": [ { \"value\": 21.0, \"situationOn\": \"2026/07/01\", \"comments\": \"<p>Article 1, paragraph 1, of the Royal Decree n° 20 of 20 July 1970</p>\" } ]\n}",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Lu directement le 2026-09-04 via la MÊME requête publique que TEDB (DG TAXUD) émet lui-même : POST https://ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch avec {\"searchForm\":{\"selectedMemberStates\":[2],\"dateTo\":\"2026/09/04\", ...}} (member-state id 2 = isoCode \"BE\" dans la numérotation propre à TEDB) — HTTP 200, le JSON exact ci-dessus. CORROBORÉ le même jour par une source belge indépendante, finances.belgium.be (SPF Finances), page /fr/entreprises/tva/assujettissement-tva/taux-et-calcul/taux-tva, qui affiche : « Taux normal : 21 % (R03) » et renvoie lui-même à l'arrêté royal n° 20 pour le détail des taux applicables par catégorie de biens/services. Ce fichier reprend et re-vérifie, à une date FRAÎCHE et par une requête FAITE PAR CETTE TÂCHE (pas une reprise), le même fait déjà établi par tax/tax-systems/data/be.json's own standardRate (lu 2026-09-01, JSON identique) — cohérence vérifiée entre les deux catalogues, aucune contradiction. Ce catalogue ne modélise pas la temporalité (voir fr.json's own header) : `situationOn: \"2026/07/01\"` (renvoyé par TEDB lui-même comme la date d'entrée en vigueur du taux ACTUELLEMENT en vigueur, la recherche ayant été faite sans dateFrom et avec dateTo = aujourd'hui) n'est pas repris comme un champ structuré."
+    },
+    {
+      "id": "be-parking",
+      "rate": 12,
+      "label": "Taux de parking (« parking rate »)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "TEDB (DG TAXUD) rate record for Belgium, type REDUCED, value 12.0: category \"Restaurant and catering services, it being possible to exclude the supply of (alcoholic and/or non-alcoholic) beverages\", comments \"Royal Decree N° 20, Table B, category I excluded the provision of beverages\".",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Lu directement le 2026-09-04 via la même requête TEDB que be-standard ci-dessus (POST .../vatSearch, member-state id 2, dateTo 2026/09/04) — l'entrée REDUCED de type \"value\": 12.0 pour la Belgique compte 5 lignes distinctes (catégories AR n° 20 Table B, dont : catégorie I, restauration hors boissons ; catégorie IV ; catégorie VI, margarine ; catégories X/XI, logement social) ; celle citée ci-dessus (restauration/catering) est la plus documentée et la plus connue publiquement sous le nom « taux parking » belge. CORROBORÉ le même jour par finances.belgium.be, même page que be-standard : « Taux intermédiaire : 12 % (R02) », renvoyant au même arrêté royal n° 20. Catégorie de ce catalogue posée à REDUCED (le second taux, juste sous le taux normal) plutôt que SUPER_REDUCED, réservé au taux ENCORE inférieur (6 %, be-reduced ci-dessous) — même convention de classement relatif que vat-rates/data/fr.json's own header (« la ranking, pas le libellé officiel exact »)."
+    },
+    {
+      "id": "be-reduced",
+      "rate": 6,
+      "label": "Taux réduit",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "TEDB (DG TAXUD) rate record for Belgium, type REDUCED, value 6.0, comments: \"Newspapers, periodicals and books (digital and on paper) - Royal Decree N° 20, Table A, category XIX, excluding publications consisting exclusively or mainly of advertising material and publications consisting exclusively or mainly of video content or listenable music\".",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Lu directement le 2026-09-04 via la même requête TEDB que be-standard ci-dessus. L'entrée REDUCED de type \"value\": 6.0 pour la Belgique compte 67 lignes (chaque catégorie de l'arrêté royal n° 20, Table A — alimentation, produits pharmaceutiques/médicaux, agriculture, livres/presse/journaux, logement social, culture, transport de voyageurs, etc.) ; celle citée ci-dessus (presse/livres, catégorie XIX) est retenue car directement comparable à vat-rates/data/fr.json's own fr-reduced (le même type de bien, la presse, au taux réduit français). CORROBORÉ le même jour par finances.belgium.be, même page que be-standard : « Taux réduit : 6 % (R01) », renvoyant au même arrêté royal n° 20. Catégorie de ce catalogue posée à SUPER_REDUCED (le taux le plus bas de la Table A/B, sous be-parking) — voir be-parking's own note pour la convention de classement relatif."
+    },
+    {
+      "id": "be-zero-press",
+      "rate": 0,
+      "label": "Taux zéro — presse et publications périodiques (AR n° 20, Table C)",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Exemption with deduction right - Newspapers and some periodical publications under the conditions provided for in Royal Decree N° 20, Table C, category I (on paper and digital) and that do not fall under the mentioned exceptions.\nThe reduced rate only applies for those goods in 4902.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Lu directement le 2026-09-04 via la même requête TEDB que be-standard ci-dessus. CORROBORÉ le même jour par finances.belgium.be, même page que be-standard : « le taux zéro (R00) s'applique à certains biens et services », renvoyant à l'arrêté royal n° 20 pour le détail. DISTINCTION IMPORTANTE, préservée par la catégorie ZERO plutôt qu'EXEMPT retenue ici : le libellé TEDB dit explicitement « Exemption with deduction right » (« exonération AVEC droit à déduction ») — c'est un VRAI taux zéro belge (le fournisseur ne facture pas de TVA mais garde son droit à déduction en amont), PAS une exonération ordinaire au sens de vat-rates/data/fr.json's own fr-exempt-293b (la franchise en base française, un régime SANS droit à déduction). L'entrée REDUCED de type \"value\": 0.0 pour la Belgique compte 12 lignes ; la plupart citent l'art. 44 du Code de la TVA belge (exonérations ordinaires : lait maternel, organes/sang humains, transport de malades, activités culturelles/sportives à but non lucratif, etc. — SANS mention « with deduction right », donc de VRAIES exonérations, PAS des taux zéro, et donc HORS PÉRIMÈTRE de cette entrée) — SEULE la ligne « presse » porte la mention explicite « with deduction right », qui en fait le seul vrai candidat ZERO de ce catalogue. Les onze autres lignes (art. 44 CTVA) ne sont PAS modélisées ici faute d'être, chacune, un cas d'usage courant à l'émission d'une facture par les entreprises que cet outil sert — même choix éditorial que fr.json's own header pour l'inclusion sélective d'un régime particulier."
+    }
+  ],
+  "notes": "Belgique — lot 1 TODO_DOCUMENTS.md, agent pays BE (2026-09-04). Les quatre taux (21/12/6/0) sont établis par DEUX sources officielles CONVERGENTES, chacune lue directement le même jour : (1) l'API publique du TEDB (Taxes in Europe Database, DG TAXUD, Commission européenne) — la MÊME requête que documents/tax/tax-systems/data/be.json's own standardRate utilise déjà pour le taux normal (2026-09-01), ici REFAITE par cette tâche (2026-09-04) et ÉTENDUE aux trois autres taux, absents de ce catalogue-tax-systems (qui ne modélise délibérément QUE le taux normal — voir son header, « reducedRates are DELIBERATELY not modeled » — un choix propre à CE catalogue-ci, distinct, qui EXISTE précisément pour porter le choix utilisateur dans un menu déroulant, voir schema.ts's own header) ; (2) finances.belgium.be (SPF Finances), qui affiche lui-même les quatre taux sous leurs codes de déclaration officiels (R00/R01/R02/R03) et renvoie, pour chacun, au même arrêté royal n° 20 du 20 juillet 1970. AUCUNE contradiction entre les deux sources : les valeurs (21/12/6/0) et la référence légale (AR n° 20) concordent exactement. Ce catalogue ne modélise pas la temporalité (même choix que fr.json), et ne reprend PAS les onze exonérations de l'art. 44 du Code de la TVA belge que TEDB range également sous \"value\": 0.0 (voir be-zero-press's own note) — seul le vrai taux zéro AVEC droit à déduction (la presse) est repris ici, distingué explicitement d'une exonération ordinaire."
+}

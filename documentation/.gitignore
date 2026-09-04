@@ -11,8 +11,11 @@
 # Country compliance matrix — regenerated from backend/src/modules/documents/**/data/*.json by
 # scripts/generate-country-matrix.mjs (wired as prebuild/prestart, see package.json). Never
 # commit these: a checked-in copy is exactly the kind of doc that can silently drift from the
-# data it describes, which is the whole reason this mechanism exists.
+# data it describes, which is the whole reason this mechanism exists. Emitted in TWO trees since
+# the "Vague A" locale rewrite — English here, French under the i18n tree below — both generated,
+# both ignored, same reason.
 /docs/developer-guide/country-support
+/i18n/fr/docusaurus-plugin-content-docs/current/developer-guide/country-support
 
 # Misc
 .DS_Store

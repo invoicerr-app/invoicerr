@@ -1,0 +1,42 @@
+{
+  "countryCode": "AT",
+  "rates": [
+    {
+      "id": "at-standard",
+      "rate": 20,
+      "label": "Normalsteuersatz",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Die Steuer beträgt für jeden steuerpflichtigen Umsatz 20% der Bemessungsgrundlage.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "UStG 1994 §10 Abs. 1. Lu le 2026-09-04 sur jusline.at (miroir non officiel du texte consolidé — RIS/ris.bka.gv.at a retourné HTTP 503 à chaque tentative cette session, voir country-policy/data/at.json's own file-level note pour le détail des essais). Recoupé avec tax/tax-systems/data/at.json's own TEDB (Taxes in Europe Database, DG TAXUD) entry, consultée 2026-09-01, qui donne exactement 20% pour l'Autriche sous 'STANDARD' (situationOn 2026-07-01) — deux sources indépendantes (le texte de loi lui-même, et la base de données officielle de la Commission européenne) convergent sur le même chiffre. bmf.gv.at (le ministère des Finances autrichien) n'a livré cette session que des pages de navigation vides à l'outil de fetch (aucun contenu substantiel sur les taux) — non retenu comme source, seul TEDB sert de recoupement effectif ici."
+    },
+    {
+      "id": "at-reduced-13",
+      "rate": 13,
+      "label": "Ermäßigter Steuersatz (13%)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "ermäßigt sich die Steuer auf 13% für [...] 1. die Lieferungen und die Einfuhr der in der Anlage 2 Z 1 bis Z 9 genannten Gegenstände [...] 2. die Aufzucht, das Mästen und Halten von Tieren, die in der Anlage 2 Z 1 genannt sind [...].",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "UStG 1994 §10 Abs. 3. Lu le 2026-09-04 sur jusline.at (miroir non officiel — même mur RIS que ci-dessus). Couvre notamment (Anlage 2, liste des positions non retranscrite ici dans le détail — cette entrée ne porte que le taux, pas la liste des catégories) des produits agricoles vivants, les activités d'artiste, l'entrée dans les piscines, le théâtre/les représentations culturelles, les projections de films et les manifestations sportives, d'après le résumé de la page consultée. Catégorisé REDUCED (et non SUPER_REDUCED) car c'est le taux réduit le PLUS ÉLEVÉ de l'échelle autrichienne sous le taux normal — le taux à 10% ci-dessous, inférieur, prend donc SUPER_REDUCED par convention de rang (schema.ts's own header : 'places the ones below its ordinary reduced rate under SUPER_REDUCED'), même logique de classement que vat-rates/data/fr.json applique à son propre taux intermédiaire de 10%."
+    },
+    {
+      "id": "at-reduced-10",
+      "rate": 10,
+      "label": "Ermäßigter Steuersatz (10%)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "ermäßigt sich die Steuer auf 10% für [...] 1. die Lieferungen und die Einfuhr der in der Anlage 1 aufgezählten Gegenstände [...] 2. die Vermietung von in der Anlage 1 Z 33 aufgezählten Gegenständen [...] 3. die Vermietung (Nutzungsüberlassung) von Grundstücken für Wohnzwecke.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "UStG 1994 §10 Abs. 2. Lu le 2026-09-04 sur jusline.at (miroir non officiel — même mur RIS que ci-dessus). Couvre notamment (Anlage 1, liste non retranscrite ici) les denrées alimentaires et les livres, la location de logements à des fins d'habitation — d'après le résumé de la page consultée, qui mentionne aussi l'hébergement hôtelier, les transports de voyageurs, et les prestations d'organismes d'intérêt public parmi les autres points de l'Abs. 2 non cités verbatim ici. Catégorisé SUPER_REDUCED car c'est le taux réduit le plus BAS de l'échelle autrichienne, sous le 13% ci-dessus — voir la note de l'entrée 'at-reduced-13' pour la convention de rang appliquée."
+    }
+  ],
+  "notes": "Autriche — agent pays AT, lot 1 (TODO_DOCUMENTS.md vague B), 2026-09-04. Périmètre demandé par la tâche : 20% / 13% / 10% uniquement — recoupés respectivement contre tax/tax-systems/data/at.json's own TEDB entry (20%, consultée 2026-09-01) et jusline.at (les trois taux, consultée 2026-09-04 ; RIS/ris.bka.gv.at inaccessible cette session, HTTP 503 systématique). NON MODÉLISÉS ICI, délibérément, faute d'instruction et de lecture : le taux régional spécial de Jungholz/Mittelberg (deux enclaves alpines appliquant le taux allemand plutôt que le taux autrichien, UStG §10 Abs. 4 — lu de façon incohérente entre deux tentatives de cette session, jamais stabilisé, donc omis plutôt que risqué) et le régime d'exonération des petites entreprises (Kleinunternehmerregelung, §6 Abs. 1 Z 27 UStG, jamais lu cette session). Ce fichier ne modélise pas la temporalité des taux (pas de validFrom/validTo), même choix que vat-rates/data/fr.json pour la même raison : seuls les taux ACTUELLEMENT en vigueur sont listés."
+}

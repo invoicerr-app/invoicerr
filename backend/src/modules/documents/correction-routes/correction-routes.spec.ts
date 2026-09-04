@@ -9,7 +9,8 @@ describe('resolveCorrectionRoutesForCountry', () => {
   });
 
   it('returns undefined for a country with no shipped file — the honest-refusal case a caller turns into a NAMED 404', () => {
-    expect(resolveCorrectionRoutesForCountry('BE')).toBeUndefined();
+    // BE gained a correction-routes file in lot 1 — JP is the uncovered stand-in now.
+    expect(resolveCorrectionRoutesForCountry('JP')).toBeUndefined();
   });
 
   it('is case-insensitive on the country code, same convention as every other country-is-data catalog here', () => {

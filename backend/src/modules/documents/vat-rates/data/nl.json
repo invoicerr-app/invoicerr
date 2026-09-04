@@ -1,0 +1,42 @@
+{
+  "countryCode": "NL",
+  "rates": [
+    {
+      "id": "nl-standard",
+      "rate": 21,
+      "label": "Algemeen tarief",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "De belasting bedraagt 21 percent.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Wet op de omzetbelasting 1968 (BWBR0002629), art. 9, lid 1. Lu en direct le 2026-09-04 sur wetten.overheid.nl (version « geldend van 2026-01-01 »), https://wetten.overheid.nl/BWBR0002629/2026-01-01#HoofdstukII_Afdeling2_Artikel9. Cross-vérifié avec tax-systems/data/nl.json, qui cite déjà le même taux de 21% via la Taxes in Europe Database (TEDB, DG TAXUD, requête du 2026-09-01, situationOn 2026/07/01) — les deux sources convergent, l'une (Wet OB) portant le TEXTE DE LOI lui-même, l'autre (TEDB) un enregistrement officiel de la Commission européenne. Doctrine du fisc, en recoupement : belastingdienst.nl, page « Btw-tarieven: welke tarieven zijn er, en wanneer moet u ze toepassen? » (consultée le 2026-09-04) : « Het algemene btw-tarief van 21% geldt voor alle producten en diensten die niet zijn vrijgesteld, en die niet onder het 9%-tarief of het 0%-tarief vallen. »"
+    },
+    {
+      "id": "nl-reduced",
+      "rate": 9,
+      "label": "Verlaagd tarief",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "In afwijking van het eerste lid bedraagt de belasting: a. 9 percent voor leveringen van goederen en diensten, genoemd in de bij deze wet behorende tabel I;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Wet op de omzetbelasting 1968, art. 9, lid 2, onderdeel a. Lu en direct le 2026-09-04 sur wetten.overheid.nl (même page que ci-dessus). Le taux réduit s'applique à une liste FERMÉE (Tabel I annexée à la loi — denrées alimentaires, livres, eau, produits agricoles, etc., non transcrite ici : ce catalogue documente le TAUX, pas la liste des catégories qui y sont soumises) ; corroboré par la doctrine du fisc (page « Btw-tarieven », même source que nl-standard) : « 9% is het verlaagde btw-tarief. Het geldt onder meer voor etenswaren en sommige diensten. » Un seul taux réduit aux Pays-Bas, à la différence de la France (10% ET 5,5% ET 2,1%) — pas de palier SUPER_REDUCED distinct à modéliser ici."
+    },
+    {
+      "id": "nl-zero",
+      "rate": 0,
+      "label": "Nultarief",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "In afwijking van het eerste lid bedraagt de belasting: [...] b. nihil voor leveringen van goederen en diensten, genoemd in de bij deze wet behorende tabel II, mits is voldaan aan bij algemene maatregel van bestuur vast te stellen voorwaarden.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Wet op de omzetbelasting 1968, art. 9, lid 2, onderdeel b (« nihil », littéralement « néant » — c'est le nultarief, un taux à 0% avec droit à déduction de la TVA amont, DISTINCT d'une exonération sans droit à déduction). S'applique à une liste FERMÉE (Tabel II — exportations hors UE, livraisons intracommunautaires, avitaillement de navires/aéronefs, etc.), conditionnée par un arrêté d'application (algemene maatregel van bestuur) non recherché par cette tâche. Corroboré par la doctrine du fisc (page « Btw-tarieven », même source que nl-standard) : « Voor een aantal goederen en diensten geldt het 0%-tarief. U berekent dan geen btw, maar btw die u betaalt over uw uitgaven, kunt u wel aftrekken als voorbelasting. Het 0%-tarief kan gelden als u zakendoet met het buitenland. » Ce catalogue ne modélise ni la Tabel I ni la Tabel II elles-mêmes (les catégories précises), seulement les TAUX que ce dépôt propose dans un menu déroulant — même limite de périmètre que vat-rates/schema.ts's own header le documente pour la France."
+    }
+  ],
+  "notes": "Pays-Bas — agent pays NL, lot 1 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Trois taux, comme demandé (21% / 9% / 0%), tous 'legal' dès la première lecture : Wet op de omzetbelasting 1968 (BWBR0002629), art. 9, lu en direct le 2026-09-04 sur wetten.overheid.nl (version « geldend van 2026-01-01 »). Provenance PAR TAUX, chacun cité verbatim à son propre alinéa (lid 1 / lid 2.a / lid 2.b), jamais un taux unique générique. Double recoupement systématique pour chaque taux : (1) tax-systems/data/nl.json, qui documentait déjà le taux standard (21%) via la Taxes in Europe Database de la Commission européenne (requête du 2026-09-01) — convergence confirmée ; (2) belastingdienst.nl, page « Btw-tarieven: welke tarieven zijn er, en wanneer moet u ze toepassen? » (consultée le 2026-09-04), qui restate les trois taux dans les mêmes termes que la loi. Pas de régime d'exonération type franchise-en-base (art. 293 B français) modélisé ici : la kleineondernemersregeling (KOR) néerlandaise (Wet OB 1968 art. 25) n'a pas été approfondie par cette tâche — hors périmètre explicite du mandat (« chaque taux [...] 21% / 9% / 0% »), signalé dans country-identifiers/data/nl.json's own VAT fact et laissé pour une revue ultérieure plutôt qu'ajouté ici sans lecture propre."
+}
