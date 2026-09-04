@@ -1,0 +1,214 @@
+{
+  "countryCode": "LT",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/ee.json/gr.json pour cette même action : aucun texte lituanien identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — citation COPIÉE telle quelle depuis country-policy/data/ee.json's own quote.send (même discipline imposée par le mandataire : une citation déjà posée dans ce dépôt pour un règlement européen d'applicabilité directe se recopie depuis le fichier qui la porte, jamais ne se re-résume depuis eur-lex), jamais re-vérifiée par un nouvel appel à eur-lex.europa.eu cette session. Un règlement européen est d'applicabilité directe, sans transposition nationale requise, donc identique pour la Lituanie comme pour l'Estonie/la Grèce/les Pays-Bas qui portent déjà la même citation dans ce catalogue. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal lituanien — Pridėtinės vertės mokesčio įstatymas, PVMĮ) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte lituanien identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.save-draft/invoice.send ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte lituanien identifié n'encadre ce mécanisme précis. Le PVMĮ art. 79 § 4 (lu en primaire le 2026-09-04 sur e-tar.lt) règle un fait ADJACENT mais distinct : « Jeigu bet kuriuo iš šio straipsnio 1, 2 ir 3 dalyse nurodytų atvejų prieš prekių tiekimą (paslaugų teikimą) gaunamas avansas, dėl kurio gavimo pagal šio Įstatymo 14 straipsnio nuostatas atsiranda prievolė apskaičiuoti PVM, toks avanso gavimas turi būti įformintas PVM sąskaita faktūra » (si un acompte est reçu avant la livraison/prestation et fait naître une obligation de TVA, cette réception d'acompte DOIT être formalisée par une facture TVA) — ceci règle le fait qu'un acompte EFFECTIVEMENT REÇU doit être facturé, jamais l'acte produit consistant à préparer un brouillon de facture d'acompte DEPUIS un devis, qui reste ce que cette règle couvre. Même distinction que celle établie par country-policy/data/ee.json's own quote.request-deposit face au § 37(2) estonien. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte lituanien identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas une PVM sąskaita faktūra au sens du PVMĮ. Aucun texte lituanien identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2) PVM sąskaitos faktūros serija ir numeris, leidžiantys identifikuoti PVM sąskaitą faktūrą;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pridėtinės vertės mokesčio įstatymas (PVMĮ, Nr. IX-751), 80 straipsnio 1 dalies 2 punktas — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur e-tar.lt (méthode d'accès détaillée dans la note de fichier ci-dessous). Traduction littérale : « 2) la série et le numéro de la facture TVA, permettant d'identifier la facture TVA ; ». Le 1 punktas du même alinéa exige en outre « PVM sąskaitos faktūros išrašymo data » (la date d'émission de la facture TVA). COMPOSITION, comme pour ee.json's own invoice.save-draft, avec l'art. 83 (Kreditiniai ir debetiniai dokumentai, voir correction-routes/data/lt.json) : la loi ne pose pas de clause frontale d'intangibilité comme le CGI français art. 289 I.5, mais l'exigence d'une série/numéro UNIQUE identifiant CHAQUE facture, combinée au régime de correction séparé de l'art. 83 (kreditinis/debetinis dokumentas, jamais une réédition de la facture elle-même), aboutit à la même conséquence pratique que pour EE/PL/NL/FR : ré-invoquer 'save-draft' une fois la facture 'sent' romprait l'unicité de la série/numéro déjà attribuée. Le champ `statuses: [\"draft\"]` applique ce même principe défensif."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "11. PVM sąskaitos faktūros gali būti popierinės (išrašomos spausdintame blanke) ir elektroninės. Elektronine PVM sąskaita faktūra laikoma PVM sąskaita faktūra, kurioje nurodoma šio Įstatymo 80 straipsnyje nustatyta PVM sąskaitos faktūros informacija ir kuri yra išrašyta ir gauta elektroniniu formatu. Elektroninė PVM sąskaita faktūra gali būti naudojama tik tuo atveju, kai yra išankstinis pirkėjo sutikimas.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PVMĮ 79 straipsnio 11 dalis — TEXTE PRIMAIRE, e-tar.lt, lu en direct le 2026-09-04. Traduction littérale : « 11. Les factures TVA peuvent être sur papier (émises sur un formulaire imprimé) ou électroniques. Est considérée comme facture TVA électronique une facture TVA qui indique les informations de facture TVA établies à l'article 80 de la présente loi et qui est émise et reçue au format électronique. Une facture TVA électronique ne peut être utilisée QUE s'il y a un consentement préalable de l'acheteur. » MÊME condition de consentement préalable du destinataire que le Käibemaksuseadus estonien § 37(6), le CGI français art. 289 VI, le § 14 UStG allemand ou l'art. 35b lid 1 néerlandais — et à l'INVERSE de la Pologne (KSeF) ou de la Grèce (B2B domestique, art. 14 § 3 Ν.4308/2014) où cette même condition a été supprimée ou inversée. Le même alinéa 11 ajoute une exigence d'authenticité/intégrité (« autentiškumas, turinio vientisumas ir įskaitomumas » — authenticité de l'origine, intégrité du contenu, lisibilité), non citée ici car non nécessaire à trancher CETTE règle produit, mais qui renforce l'analyse de invoice.save-draft ci-dessus. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas le consentement réel du destinataire (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que EE/FR/DE/NL pour leur propre invoice.send."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte lituanien identifié n'encadre l'acte de duplication lui-même. La question fiscale (PVMĮ) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte lituanien spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le PVMĮ art. 78 (Apskaita ir dokumentų saugojimas, lu en primaire le 2026-09-04) impose une comptabilité TVA correcte mais ne porte pas sur ce mécanisme d'enregistrement de paiement précis. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale lituanienne pour CETTE entreprise de la produire. b2g-routing/data/lt.json (déjà dans ce dépôt, lu pour cohérence) documente que le format B2G lituanien est peppol-bis SANS CIUS national via la plateforme SABIS (« There is no national CIUS or additional extensions », fiche pays Commission européenne) — mais son caractère OBLIGATOIRE se limite au B2G (marchés publics), sujet DISTINCT non recherché par cette tâche, hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE ni dans quel cas."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne 473 : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte lituanien identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal lituanien du « kreditinis dokumentas » (voir credit-note.send ci-dessous et correction-routes/data/lt.json) concerne l'OBLIGATION d'émission et le CONTENU du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json/gr.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email n'est déclenché par cette action) — même distinction méthodique que gr.json/nl.json/be.json appliquent déjà à leur propre credit-note.send. Le FOND légal, lui, EST sourcé 'legal' et 'required' : PVMĮ art. 83 § 1 (voir correction-routes/data/lt.json's own CREDIT_NOTE, lu en primaire le 2026-09-04) impose que le « kreditinis dokumentas » (document créditeur) soit émis par le fournisseur/prestataire initial en cas de changement de la base imposable, remise, retour, refus ou tout autre motif de changement de la contrepartie due. MAIS, à la différence de l'Estonie (Käibemaksuseadus § 37(4), une clause GÉNÉRALE assimilant tout document modificatif référencé à une facture) et de la Grèce (Ν.4308/2014 art. 8 § 3, même mécanisme), l'art. 83 § 3 du PVMĮ (lu le même jour) exige seulement que le kreditinis/debetinis dokumentas REPRENNE les informations de l'art. 80 § 1 (contenu de facture) et RÉFÉRENCE la facture corrigée — il ne dit PAS que ce document EST RÉPUTÉ ÊTRE une PVM sąskaita faktūra au sens de l'art. 79 (forme, émission électronique subordonnée au consentement). Faute de cette clause d'assimilation FORMELLE (qui ferait basculer l'art. 79 § 11 sur le kreditinis dokumentas lui-même), ce mécanisme produit précis reste 'unverified' à CE niveau — même prudence que gr.json's own credit-note.send face à la même absence de clause générale d'assimilation FORMELLE, malgré une obligation de fond bien réelle."
+      },
+      "notes": "Voir correction-routes/data/lt.json's own CREDIT_NOTE pour la qualification légale complète (routeId CREDIT_NOTE, status 'required', provenance 'legal', PVMĮ art. 83 § 1) — cette règle-ci ne porte, comme toutes les règles country-policy de ce dépôt, que sur l'ACTION PRODUIT (le bouton 'send' de cet outil), jamais sur le régime légal du document en tant que tel."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte lituanien identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables lituaniennes (PVMĮ art. 78, tenue d'une comptabilité TVA ; la loi comptable générale, Lietuvos Respublikos buhalterinės apskaitos įstatymas, non recherchée par cette tâche) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte lituanien identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : b2g-routing/data/lt.json documente le format B2G sortant (peppol-bis via SABIS) mais aucun mandat B2B de RÉCEPTION structurée équivalent au PPF français ou à KSeF n'a été identifié pour la Lituanie par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte lituanien identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte lituanien identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte lituanien identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Lituanie — agent pays LT, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json/gr.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE (Pridėtinės vertės mokesčio įstatymas, PVMĮ, Nr. IX-751, redakcija galiojanti nuo 2026-07-01) — jamais sur la sortie résumée d'un outil de fetch. MÉTHODE D'ACCÈS, à connaître avant de réutiliser ce fichier pour un autre pays balte : le portail e-seimas.lrs.lt (Teisės aktų registras) sert une application JSF/PrimeFaces dont le champ de recherche par titre (widget 'hasKeypad', un clavier virtuel jQuery qui intercepte les événements clavier) s'est révélé structurellement NON FIABLE face à une saisie automatisée — la valeur tapée est aléatoirement effacée par un cycle ajax interne au widget avant la soumission, y compris avec des délais d'attente généreux entre chaque étape (constaté sur plus d'une dizaine de tentatives, avec et sans sélection du mode 'Tiksli frazė'). CONTOURNEMENT QUI A FONCTIONNÉ, documenté ici pour un futur agent LT/LV : le portail-frère e-tar.lt (même moteur JSF, Cloudflare passé par un navigateur réel) expose le MÊME champ ; y déposer la valeur par `Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set` (le setter natif, qui contourne le composant React/jQuery) puis déclencher manuellement les événements `input`/`change`, avant d'invoquer directement `PrimeFaces.ab({s:...})` via `.click()` sur le bouton — CE contournement a fonctionné du premier coup, de façon déterministe, à la différence de la saisie clavier simulée. Le texte de loi lui-même a ensuite été lu en clair via `document.body.innerText` sur l'iframe de rendu statique que la fiche de l'acte embarque (`https://www.e-tar.lt/rs/actualedition/{TAR-id}/{hash}/`, un fichier HTML statique servi par le même hébergeur, PAS un résumé d'outil de fetch). DEUX FAITS marquants trouvés, sourcés 'legal', qui MÉRITENT d'être signalés au mandataire pour TODO_DOCUMENTS (jamais modifié par cet agent) : (1) le taux réduit PVMĮ art. 19 § 3 est de 12 %, PAS 9 % comme l'hypothèse de départ de cette tâche le supposait — voir vat-rates/data/lt.json's own file-level note pour le détail complet ; (2) l'obligation de porter le code d'entité juridique (« juridinio asmens kodas ») sur les documents commerciaux, dont les factures, est fondée sur le Code civil (Civilinis kodeksas, art. 2.44 § 1 point 5, lu en primaire le 2026-09-04 — voir country-identifiers/data/lt.json), pas sur le PVMĮ, qui ne le mentionne à aucun moment. Sur les 22 règles, 3 sont 'legal' (quote.send — réutilisée, invoice.save-draft, invoice.send) ; credit-note.send reste 'unverified' au niveau de CETTE règle produit précise, malgré une obligation de fond bien réelle et sourcée 'legal'/'required' dans correction-routes/data/lt.json — même prudence méthodique que gr.json's own credit-note.send, faute d'une clause lituanienne d'assimilation FORMELLE (kreditinis dokumentas réputé être une PVM sąskaita faktūra au sens de l'art. 79) équivalente à celle trouvée pour l'Estonie ou la Grèce. Les 18 règles restantes sont honnêtement 'unverified' avec resolutionNote propre à chacune. AUCUNE contradiction relevée avec b2g-routing/data/lt.json (SABIS, Peppol BIS, sans CIUS national, lu 2026-09-02) : les deux fichiers documentent des angles disjoints (B2B domestique ici, B2G là-bas) du même socle légal sans se contredire."
+}

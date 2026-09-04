@@ -22,7 +22,7 @@ import { assertValidVatRateProvenance, CountryVatRatesFile } from '../schema';
 // Only France today — this task's own scope ("La France, et elle seule"). Adding a second country's
 // catalog is exactly one entry here plus its own data/xx.json, the same shape
 // country-policy/data/all.ts's own COUNTRY_FILES already has.
-const COUNTRY_FILES = ['fr', 'be', 'nl', 'at', 'ee', 'gr', 'cy'] as const;
+const COUNTRY_FILES = ['fr', 'be', 'nl', 'at', 'ee', 'gr', 'cy', 'lt', 'lv', 'lu'] as const;
 
 function loadCountryFile(code: string): CountryVatRatesFile {
   const path = join(__dirname, `${code}.json`);

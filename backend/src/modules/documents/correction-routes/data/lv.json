@@ -1,0 +1,108 @@
+{
+  "countryCode": "LV",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "When issuing a tax invoice that amends the initial invoice, the taxable value of a transaction shall be determined by taking into account the reduction in price (in the form of a discount) which the supplier of goods or service has granted to the recipient of goods or service on the basis of an early payment for the particular goods or service or any price discount that is granted to the recipient of goods or service after receipt of the particular goods or service.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour la Lettonie (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Lettonie) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Pievienotās vērtības nodokļa likums (Value Added Tax Law) art. 39 al. 2 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur likumi.lv (https://likumi.lv/ta/en/en/id/253451-value-added-tax-law — traduction anglaise officielle consolidée, HTML complet servi dès la première requête curl, aucun blocage JavaScript rencontré, à la différence de riigiteataja.ee/EE ou RIS/ris.bka.gv.at/AT documentés par les lots précédents). COMPOSÉ avec l'art. 125 al. 5 du même acte (voir CORRECTIVE_INVOICE et DEBIT_NOTE ci-dessous pour ce second texte) : l'art. 39 al. 2 confirme que « a tax invoice that amends the initial invoice » (une facture fiscale qui amende la facture initiale) est le VÉHICULE concret par lequel une réduction de prix (remise, escompte pour paiement anticipé) affecte la valeur taxable d'une transaction — c'est l'équivalent fonctionnel letton d'une note de crédit. La loi n'emploie à aucun moment un terme dédié équivalent à « kredītrēķins » (note de crédit) : le mécanisme entier repose sur la clause GÉNÉRALE, direction-agnostique de l'art. 125 al. 5 (« any document which amends the initial tax invoice... shall be regarded as equivalent to the tax invoice »), pas sur un instrument nommément dédié — même situation que ee.json's own CREDIT_NOTE, qui n'a pas non plus trouvé de terme dédié dans sa propre traduction anglaise pour ce cas précis d'assimilation générale (là où l'Estonie disposait, elle, du terme « credit invoice » ailleurs dans son texte). Statut 'allowed', pas 'required' : rien dans l'art. 39 al. 2 ni l'art. 125 al. 5 n'affirme que ce document modificatif soit la SEULE forme possible pour corriger une baisse de prix (à la différence de la Pologne, art. 106j ust. 1, « WYSTAWIA » — seul instrument disponible) ; ce sont des clauses de RECONNAISSANCE et de CONSÉQUENCE COMPTABLE, jamais un mandat exclusif."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Any document which amends the initial tax invoice or especially and clearly indicates thereto shall be regarded as equivalent to the tax invoice if it conforms to the requirements laid down in Paragraph one of this Section.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 125 al. 5 — TEXTE PRIMAIRE, likumi.lv, lu le 2026-09-04 (même méthode d'accès que CREDIT_NOTE ci-dessus). RAISONNEMENT DE COMPOSITION, à connaître avant de réutiliser cette citation ailleurs : ce même alinéa fonde AUSSI CORRECTIVE_INVOICE ci-dessous — la loi elle-même ne distingue PAS un document qui amende à la HAUSSE d'un document qui amende à la BAISSE ; elle nomme « any document which amends the initial tax invoice » (tout document qui amende la facture initiale), sans restriction de sens, exactement la même structure GÉNÉRALE que Käibemaksuseadus § 37(4) fonde déjà pour ee.json's own DEBIT_NOTE. Le texte n'emploie à aucun moment un terme dédié équivalent à « debit note »/« debetrēķins » — cette voie est donc déduite du champ GÉNÉRAL de l'art. 125 al. 5 (tout document qui amende ET référence l'original 'especially and clearly' est réputé équivalent à une facture fiscale, sans restriction de sens), pas d'une clause nommément dédiée à la hausse de prix comme telle. Statut 'allowed' (pas 'required') : rien ne mandate cette forme précise pour une hausse de prix, la loi se contente de RECONNAÎTRE l'effet d'un tel document s'il est utilisé et s'il conforme aux exigences de contenu de l'art. 125 al. 1. Trouvée hors de docs/compliance/CORRECTION-ROUTES.yaml (qui note lui-même, pour DEBIT_NOTE : « exists_in_code: false [...] Si un pays le REQUIERT à la hausse — hypothèse à vérifier pour l'Italie — l'asymétrie hausse/baisse est inexprimable aujourd'hui ») : la Lettonie n'est ici PAS dans le cas 'REQUIERT', seulement 'allowed' par une clause générale — la remarque du YAML sur l'asymétrie inexprimable ne s'applique donc pas de la même façon ici."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Any document which amends the initial tax invoice or especially and clearly indicates thereto shall be regarded as equivalent to the tax invoice if it conforms to the requirements laid down in Paragraph one of this Section.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 125 al. 5 — MÊME citation primaire que DEBIT_NOTE ci-dessus (voir cette note pour le raisonnement de composition complet, à ne pas dupliquer ici). C'est la lecture LA PLUS DIRECTE de cet alinéa au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « any document which amends the initial tax invoice or especially and clearly indicates thereto » — cette clause couvre aussi une correction NON MONÉTAIRE (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) dès lors qu'elle référence l'original de façon « especially and clearly » (spécialement et clairement). RENFORCEMENT PROPRE À LA LETTONIE, absent d'EE : l'art. 126 al. 2 cl. 2 du même acte (« Simplified Tax Invoice », lu le même jour) prévoit EXPLICITEMENT un instrument correctif nommé pour les factures simplifiées (transactions inland < EUR 150) : « in the case referred to in Section 125, Paragraph five of this Law, indicating in the additional simplified tax invoice the date of issue and identification number of the initial tax invoice, as well as the particular data to be amended » — une « additional simplified tax invoice » RÉFÉRENÇANT explicitement la facture initiale par sa date et son numéro et précisant les données amendées. C'est un SECOND texte, distinct de l'art. 125 al. 5 mais qui en applique directement le principe pour le cas simplifié — corroboration interne au même acte, pas une clause redondante. DIFFÉRENTIEL avec nl.json's own CORRECTIVE_INVOICE (resté 'unverified', faute de clause néerlandaise équivalente d'assimilation générale) : le droit letton porte ici une clause structurellement PROCHE, dans son PRINCIPE, du CGI art. 289 I.5 français et de Käibemaksuseadus § 37(4) estonien (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») — sans que cette tâche ait vérifié si leur PORTÉE EXACTE (conditions, exceptions) coïncide au-delà du principe commun."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, MAIS UNE NUANCE RÉELLE A ÉTÉ TROUVÉE, à ne pas perdre pour une lecture future. L'art. 129 al. 6 du Pievienotās vērtības nodokļa likums (lu en primaire le 2026-09-04) dispose : « If a tax invoice is cancelled, a registered taxable person shall keep the cancelled tax invoice in the accounting thereof to justify the derogation from the sequence numbers of the issued tax invoices. » (si une facture fiscale est annulée, l'assujetti conserve la facture annulée dans sa comptabilité pour justifier l'écart dans la séquence des numéros de facture émis) — le concept d'une facture « cancelled » (annulée) existe donc explicitement en droit letton. MAIS ce mécanisme est PUREMENT INTERNE À LA COMPTABILITÉ DE L'ASSUJETTI ; ce n'est PAS une annulation de LA FACTURE ELLE-MÊME 'auprès d'une autorité' au sens où l'entend la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Annuler l'original auprès de l'autorité, puis émettre un remplaçant ») — la Lettonie n'a AUCUN régime de clearance domestique où la facture elle-même serait soumise à/validée par une autorité avant d'être annulable auprès d'elle (à la différence du CFDI mexicain ou de KSeF/SdI ; b2g-routing/data/lv.json, lu pour cohérence, ne documente que le B2G via Peppol-bis et la plateforme nationale eAddress/VDAA, jamais un mandat de clearance B2B domestique). Le texte ne décrit de surcroît PAS le MÉCANISME de cette « cancellation » elle-même (aucun document de remplacement n'est prescrit, aucune procédure précisée au-delà de la conservation comptable) — même ambiguïté, presque mot pour mot, que Käibemaksuseadus § 29(7) documente déjà pour ee.json's own CANCEL_AND_REPLACE. Ce qui trancherait : un texte ou une doctrine du Valsts ieņēmumu dienests (VID, l'administration fiscale lettone) décrivant concrètement l'acte de « cancellation » d'une facture — recherche tentée cette session sur vid.gov.lv, sans aboutir (pages testées en 404)."
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 129 al. 6, lu en primaire le 2026-09-04 — trouvaille réelle mais non concluante, voir resolutionNote."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que ee.json's own INTERNAL_CREDIT_NOTE et nl.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique lettone (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — b2g-routing/data/lv.json, lu pour cohérence, ne documente que le B2G via Peppol-bis/eAddress, jamais le B2B domestique). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction. Ce qui trancherait : confirmer explicitement l'absence, aujourd'hui, de tout mandat letton de clearance B2B domestique (sujet distinct, channel-policy)."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture elle-même (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique lettone ; l'art. 129 al. 6 (voir CANCEL_AND_REPLACE ci-dessus) décrit une « cancellation » purement interne à la comptabilité de l'assujetti, jamais une interaction avec une autorité au moment de l'émission. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique lettone identifiée, ce scénario ne se pose pas de la même façon. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et DEUX MÉCANISMES ADJACENTS RÉELS ont été trouvés, à ne pas confondre avec cette voie précise. PREMIER : l'art. 105 al. 3 du Pievienotās vērtības nodokļa likums (« Adjustment of Input Tax for Bad Debts », lu en primaire le 2026-09-04) impose, pour la créance devenue irrécouvrable : « The supplier of goods or services shall send the information that the relevant debt is considered bad debt within the meaning of this Law to the recipient of goods or services » — soit une NOTIFICATION ÉCRITE distincte, adressée au destinataire. Ceci NE CORRESPOND PAS à la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Le MÊME document, réémis surchargé d'une mention ») : ce n'est pas la facture initiale renvoyée annotée, c'est un ÉCRIT SÉPARÉ et NOUVEAU (une notification, pas une facture ni un duplicata de facture) — même différentiel, dans son PRINCIPE, que celui que ee.json's own ANNOTATED_DUPLICATE documente déjà pour Käibemaksuseadus § 29¹. SECOND, propre à la Lettonie : l'art. 126 al. 2 cl. 2 (« Simplified Tax Invoice », voir aussi CORRECTIVE_INVOICE ci-dessus) prévoit une « additional simplified tax invoice » distincte pour corriger une facture simplifiée (< EUR 150) — c'est là encore un DOCUMENT ADDITIONNEL NOUVEAU référençant l'original par sa date et son numéro, PAS le même document réémis avec une mention surchargée : la loi crée un second document, elle ne surcharge pas le premier. Aucun des deux mécanismes ne correspond donc précisément à ANNOTATED_DUPLICATE tel que défini. Ce qui trancherait : un texte confirmant explicitement qu'aucun mécanisme de duplicata-annoté distinct de ces deux notifications/documents n'existe par ailleurs en droit letton."
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 105 al. 3 et art. 126 al. 2 cl. 2, lus en primaire le 2026-09-04 — le différentiel avec la définition de cette voie est noté pour les deux, pas encore élevé au rang de fait 'forbidden' faute de texte l'affirmant en propre."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et NO_DOCUMENT_BY_LAW ci-dessous — MÊME trouvaille pour les deux, la distinction entre elles n'a pas pu être établie par cette tâche. L'art. 129 al. 6 du Pievienotās vērtības nodokļa likums nomme « cancels a tax invoice » (facture fiscale annulée) et exige que l'assujetti « keep the cancelled tax invoice IN THE ACCOUNTING thereof to justify the derogation from the sequence numbers » — un ANCRAGE COMPTABLE explicite (« in the accounting »), plus proche dans son LIBELLÉ de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Correction opérée dans les registres, SANS émettre aucun document ») que ce que Käibemaksuseadus § 29(7) offrait pour EE — MAIS la loi lettone ne dit PAS 'sans émettre aucun document' : au contraire, un document (la facture ANNULÉE elle-même) est explicitement CONSERVÉ, ce qui s'écarte de la définition stricte de cette voie. OBSERVATION STRUCTURELLE COMPLÉMENTAIRE, propre à la Lettonie et absente du dossier EE : pour la correction ORDINAIRE d'un prix (remise, escompte), l'art. 39 al. 2 combiné à l'art. 125 al. 5 EXIGE positivement l'émission d'« a tax invoice that amends the initial invoice » (voir CREDIT_NOTE ci-dessus) — ce qui exclut, pour ce cas général, un régime par défaut 'sans document' à l'allemande. Le champ resté ouvert est donc étroit : la mécanique EXACTE de la 'cancellation' de l'art. 129 al. 6 elle-même (un document conservé compte-t-il comme une 'écriture dans un registre' au sens de cette voie, ou est-ce simplement la conséquence de plein droit d'un fait que la loi ne formalise pas davantage — voir NO_DOCUMENT_BY_LAW). Ce qui trancherait : une doctrine du VID ou une lecture des règles de déclaration de TVA décrivant concrètement l'acte requis pour signaler une 'cancellation'."
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 129 al. 6, lu en primaire le 2026-09-04 — trouvaille réelle mais non départagée d'avec NO_DOCUMENT_BY_LAW, voir resolutionNote."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et LEDGER_ANNOTATION ci-dessus — voir la resolutionNote de LEDGER_ANNOTATION pour le détail complet de la trouvaille et de l'ambiguïté, non dupliqué ici pour éviter deux versions divergentes du même raisonnement. En bref : l'art. 129 al. 6 fait référence à une « cancellation » de facture qui déclenche la conservation du document annulé pour justifier un écart de séquence, sans préciser si cet effet relève d'une écriture identifiable (LEDGER_ANNOTATION) ou d'un effet de plein droit sans aucun acte formel distinct (NO_DOCUMENT_BY_LAW, le régime allemand par défaut pour remises/rabais/créances irrécouvrables/annulations, découvert pour DE) — avec la RÉSERVE, propre à la Lettonie, que la correction ORDINAIRE d'un prix suit de toute façon un régime à document obligatoire (art. 39 al. 2 + art. 125 al. 5, voir CREDIT_NOTE), ce qui rend un régime GÉNÉRAL 'sans document' moins probable ici que pour l'Allemagne — sans que cette tâche ait pu confirmer ou infirmer le cas spécifique de la 'cancellation' elle-même."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même trouvaille, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Lettonie au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — les art. 125, 126, 129 et 39 du Pievienotās vērtības nodokļa likums, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le contentieux fiscal ou une autre partie du Pievienotās vērtības nodokļa likums non lue par cette tâche)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Lettonie — agent pays LV, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Lettonie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même (Pievienotās vērtības nodokļa likums, Value Added Tax Law, traduction anglaise officielle consolidée, likumi.lv/Latvijas Vēstnesis), pas seulement à une doctrine administrative. MÉTHODE D'ACCÈS : likumi.lv sert son texte en HTML COMPLET dès la première requête (curl direct, sans user-agent spécial nécessaire au-delà d'un en-tête standard, aucune API cachée à découvrir, à la différence de riigiteataja.ee/EE) — jamais le résumé d'un outil de fetch, conformément à la discipline imposée après la découverte, sur l'agent Chypre en parallèle du lot précédent, qu'un tel outil avait fabriqué un article de loi inexistant. HEADLINE, ALIGNÉ SUR LE MODÈLE EE DE CE LOT : TROIS voies sourcées 'legal' et 'allowed' (CREDIT_NOTE — art. 39 al. 2 composé avec art. 125 al. 5 ; CORRECTIVE_INVOICE et DEBIT_NOTE — art. 125 al. 5, une clause GÉNÉRALE d'assimilation d'un document modificatif référencé à une facture que ni les Pays-Bas ni l'Autriche ne portent) — contre UNE seule pour nl.json (CREDIT_NOTE). RENFORCEMENT PROPRE À LA LETTONIE, absent d'EE : l'art. 126 al. 2 cl. 2 prévoit un instrument correctif EXPLICITEMENT NOMMÉ pour les factures simplifiées (< EUR 150), corroborant CORRECTIVE_INVOICE par un second texte du même acte. Les huit autres voies restent honnêtement 'unverified', dont TROIS (CANCEL_AND_REPLACE, LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) portent une trouvaille RÉELLE mais NON DÉPARTAGÉE (art. 129 al. 6 sur la mécanique d'une « cancellation » de facture — conservation du document annulé dans la comptabilité pour justifier un écart de séquence, jamais davantage précisée par le texte), et UNE (ANNOTATED_DUPLICATE) porte DEUX trouvailles adjacentes distinctes (art. 105 al. 3, la notification écrite pour créance irrécouvrable ; art. 126 al. 2 cl. 2, la facture simplifiée additionnelle) qui ne correspondent PAS à la définition exacte de cette voie. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir b2g-routing/data/lv.json, lu pour cohérence, jamais réécrit)."
+}

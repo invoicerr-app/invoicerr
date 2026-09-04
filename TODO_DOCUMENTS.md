@@ -56,7 +56,10 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | EE | ✓ | ✓ | ✓ (3/11 legal — texte PRIMAIRE via l'API riigiteataja) | ✓ | ✓ (4 taux legal) | Lot 2 ✅ |
 | GR | ✓ | ✓ | ✓ (2/11 legal — forin.gr JSON brut) | ✓ | ✓ (3 taux legal) | Lot 2 ✅ |
 | CY | ✓ | ✓ | ✓ (1/11 legal — cylaw texte brut) | ✓ | ✓ (4 taux legal) | Lot 2 ✅ |
-| LT LU LV MT SE | — | ✓ | — | — | — | lots suivants |
+| LT | ✓ | ✓ | ✓ (2/11 legal — e-tar texte brut) | ✓ (VAT+LEGAL_ID legal, CK 2.44) | ✓ (21/12/5 — le 9 % du brief était FAUX, corrigé par la loi + TEDB live) | Lot 3 ✅ |
+| LV | ✓ | ✓ | ✓ (3/11 legal) | ✓ (LEGAL_ID legal — Komerclikums 17(1), clause FRONTALE) | ✓ (4 taux legal) | Lot 3 ✅ |
+| LU | ✓ | ✓ | ✓ (3/11 legal — art. 63 §2 al.2, l'assimilation quasi-289 I 5°) | ✓ | ✓ (5 taux legal dont exemption 57bis) | Lot 3 ✅ |
+| MT SE | — | ✓ | — | — | — | lot 4 |
 | BG CZ DK FI HR IE PT RO SI SK | — | — | — | — | — | lots suivants |
 | AE + autres tax-only | — | — | — | — | — | à trier |
 
@@ -94,6 +97,14 @@ et omis des mots — règle « texte brut obligatoire » désormais en mémoire 
 briefs ; trouvailles méthode : l'API publique non documentée de riigiteataja
 (/public-api/api/v1/en/akt/{id}/blob-html) et la route JSON de forin.gr, réutilisables pour
 les futurs lots EE/GR.
+**Lot 3 (2026-09-04)** — LT : formats numériques (PVM kodas, juridinio asmens kodas) non
+sourcés en droit primaire ; e-seimas non fiable en saisie automatisée (clavier virtuel jQuery),
+contournement e-tar documenté dans lt.json (setter natif JS + PrimeFaces.ab) ; le 9 % supposé
+par le brief N'EXISTE PAS (12 % lu art. 19 §3, TEDB live convergent — re-vérifié par le
+mandataire). LV : VID (fisc) en 404 partout ; format 11 chiffres du numéro d'immatriculation =
+INFÉRENCE marquée et épinglée par spec ; loi du registre non localisée. LU : la disposition
+d'ajustement de base (créance irrécouvrable) non localisée — LEDGER_ANNOTATION/NO_DOCUMENT_BY_LAW
+unverified pour cette raison précise ; accès Legilux par SPARQL ELI documenté (réutilisable).
 **Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
 fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
 WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.

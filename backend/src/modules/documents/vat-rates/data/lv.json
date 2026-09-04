@@ -1,0 +1,54 @@
+{
+  "countryCode": "LV",
+  "rates": [
+    {
+      "id": "lv-standard",
+      "rate": 21,
+      "label": "Standartlikme",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "standard rate of the tax in the amount of 21 per cent (hereinafter - the standard tax rate), unless laid down otherwise in this Law;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums (Value Added Tax Law) art. 41 al. 1 cl. 1 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur likumi.lv (https://likumi.lv/ta/en/en/id/253451-value-added-tax-law — traduction anglaise officielle consolidée). AUCUNE DIVERGENCE avec tax-systems/data/lv.json (déjà dans ce dépôt, agent P2-T02), à la différence de l'écart d'un an trouvé pour l'Estonie lors de la validation du lot 2 : ce fichier TEDB cite lui-même, dans son propre `provenance.sourceText`, « Section 41, Paragraph 1, Clause 1 of the Law » comme base de son taux de 21 % — EXACTEMENT l'article lu ici en primaire, confirmé mot pour mot. Le texte de loi lui-même ne porte aucune date d'amendement récente sur cet alinéa au-delà de « [22 November 2017; 7 January 2021] » figurant en pied de l'art. 41 — le taux de 21 % est donc STABLE depuis au moins 2021, sans changement daté plus récent identifié dans le texte consolidé lu."
+    },
+    {
+      "id": "lv-reduced-12",
+      "rate": 12,
+      "label": "Samazinātā nodokļa likme (12 %)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The reduced tax rate in the amount of 12 per cent shall be applied to accommodation services in tourist accommodation sites.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 42 al. 10 — TEXTE PRIMAIRE, likumi.lv, lu le 2026-09-04 (même méthode d'accès que lv-standard). Le taux de 12 % (art. 41 al. 1 cl. 2 sous-cl. a) COUVRE, via ce même art. 42, une LISTE FERMÉE et longue de biens et services au-delà du seul hébergement touristique cité verbatim ci-dessus : médicaments et dispositifs médicaux (al. 1-2), certains produits alimentaires spécialisés pour nourrissons (al. 3), transport intérieur régulier de voyageurs (al. 4), bois de chauffage et énergie thermique à usage domestique (al. 11-12, 14), certains fruits/légumes/baies frais listés en annexe (al. 16). Ce catalogue ne modélise que le TAUX, pas la liste exhaustive de ces catégories — même limite de périmètre que schema.ts's own header documente déjà pour la France. Catégorie REDUCED (et non SUPER_REDUCED) par construction du présent catalogue : c'est le taux le PLUS ÉLEVÉ des deux taux réduits lettons (12 % et 5 %), même convention que vat-rates/data/at.json (13 % REDUCED, 10 % SUPER_REDUCED) et vat-rates/data/ee.json (13 % REDUCED, 9 % SUPER_REDUCED)."
+    },
+    {
+      "id": "lv-reduced-5",
+      "rate": 5,
+      "label": "Samazinātā nodokļa likme (5 %)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The reduced tax rate in the amount of five per cent shall be applied to the supply of books, including school literature, brochures, booklets and similar printed publications, images, drawing and colouring books for children, printed notated music and sheet music, maps and hydrographic or similar schemes in the form of a printed publication or electronic publication, including to the supply of books in online mode or by downloading.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 42 al. 5 — TEXTE PRIMAIRE, likumi.lv, lu le 2026-09-04. Le taux de 5 % (art. 41 al. 1 cl. 2 sous-cl. b) couvre ÉGALEMENT, via l'al. 7 du même article 42 (lu le même jour, non transcrit ici pour éviter une citation composite), la presse et autres publications de médias de masse (journaux, magazines, bulletins d'information), avec la MÊME exclusion, à l'al. 8, pour les publications à caractère érotique/pornographique ou consacrées principalement à la publicité. Catégorie SUPER_REDUCED (et non REDUCED) : c'est le PLUS BAS des deux taux réduits lettons, sous le taux de 12 % ci-dessus."
+    },
+    {
+      "id": "lv-zero",
+      "rate": 0,
+      "label": "Nulles likme",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The zero per cent tax rate shall be applied to exportation of goods.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 43 al. 1 — TEXTE PRIMAIRE, likumi.lv, lu le 2026-09-04. C'est un VRAI taux zéro AVEC droit à déduction de la TVA amont (comme le nultarief néerlandais, vat-rates/data/nl.json's own ee-zero, et le null-määr estonien, vat-rates/data/ee.json's own ee-zero — jamais une exonération sans droit à déduction), couvrant une liste FERMÉE et longue au-delà de la seule exportation citée verbatim ci-dessus, répartie sur plusieurs articles que l'art. 41 al. 1 cl. 3 renvoie nommément : livraisons intracommunautaires et transport international (art. 44-45, non lus en détail par cette tâche), navires et aéronefs internationaux (art. 46-48, non lus en détail), envois diplomatiques/consulaires/organisations internationales reconnues (art. 49, non lu en détail), biens sous régime douanier suspensif (art. 50, non lu en détail). Ce catalogue ne modélise que le TAUX, pas la liste exhaustive de ces catégories réparties sur plusieurs articles — même limite de périmètre que ce schema.ts's own header documente déjà pour la France et que vat-rates/data/ee.json's own ee-zero documente pour l'Estonie."
+    }
+  ],
+  "notes": "Lettonie — agent pays LV, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Quatre taux, tous 'legal', SOURCÉS AU TEXTE PRIMAIRE DE LOI lui-même (Pievienotās vērtības nodokļa likums, Value Added Tax Law, traduction anglaise officielle consolidée, likumi.lv/Latvijas Vēstnesis) : 21 % (standard, art. 41 al. 1 cl. 1, stable depuis au moins 2021), 12 % (réduit, art. 42 al. 10, hébergement touristique — parmi d'autres catégories listées à l'art. 42), 5 % (réduit, art. 42 al. 5, livres/littérature scolaire), 0 % (zéro véritable avec droit à déduction, art. 43 al. 1, exportations — parmi d'autres catégories réparties sur les art. 44-50). MÉTHODE D'ACCÈS AU TEXTE PRIMAIRE (à documenter précisément, comme pour chaque pays de ce catalogue) : likumi.lv sert son HTML COMPLET (environ 550 Ko pour la loi TVA entière) dès la PREMIÈRE requête curl standard (`curl -sL -A \"Mozilla/5.0\"`), SANS AUCUN blocage JavaScript ni squelette vide à contourner — à la différence de riigiteataja.ee (Estonie, une API publique cachée avait dû être découverte en inspectant le bundle JavaScript du site), efacture.belgium.be (Belgique) ou RIS/ris.bka.gv.at (Autriche), tous documentés comme bloquants par les lots précédents ; le portail letton est, de ce point de vue, LE PLUS DIRECTEMENT ACCESSIBLE rencontré à ce jour dans ce catalogue — le texte a été extrait par un script Python local (strip des balises HTML, dé-échappement des entités) appliqué DIRECTEMENT au fichier téléchargé par curl, jamais par un outil de fetch-résumé, conformément à la discipline imposée après la découverte, sur l'agent Chypre du lot précédent en parallèle, qu'un tel outil avait fabriqué un article de loi inexistant et omis un mot d'une citation eIDAS. AUCUNE DIVERGENCE trouvée face à tax-systems/data/lv.json (déjà dans ce dépôt, agent P2-T02) : ce fichier TEDB cite lui-même « Section 41, Paragraph 1, Clause 1 of the Law » — exactement l'article lu ici en primaire pour lv-standard, confirmé mot pour mot, sans l'écart d'un an trouvé pour l'Estonie lors de la validation du lot 2 (situationOn TEDB = date d'observation, jamais une entrée en vigueur — même précision déjà consignée pour ee.json). Corroboration administrative (VID, Valsts ieņēmumu dienests, l'autorité fiscale officielle de l'État) RECHERCHÉE mais NON ATTEINTE cette session (plusieurs pages testées en 404 côté vid.gov.lv) — signalé honnêtement plutôt que comblé par une supposition ; cette absence ne dégrade aucune des quatre citations ci-dessus, toutes sourcées au texte de loi lui-même."
+}

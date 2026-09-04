@@ -1,0 +1,107 @@
+{
+  "countryCode": "LT",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "1. Jeigu po prekių tiekimo arba paslaugų teikimo įforminimo keičiasi tiekiamų prekių arba teikiamų paslaugų apmokestinamoji vertė ir (arba) kiekis, suteikiamos įvairios nuolaidos, prekės (ar jų dalis) grąžinamos, prekių (ar jų dalies) arba paslaugų atsisakoma ar dėl kokių nors kitų priežasčių keičiasi pirkėjo (kliento) mokėtinas atlygis, kreditinį dokumentą, kuriuo įforminami minėtų aplinkybių pasikeitimai, privalo išrašyti asmuo, kuris išrašė pradinį prekių tiekimą arba paslaugų teikimą įforminantį apskaitos dokumentą.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour la Lituanie (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Lituanie) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Pridėtinės vertės mokesčio įstatymas (PVMĮ, Nr. IX-751), 83 straipsnio 1 dalis (première phrase) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur e-tar.lt (méthode d'accès documentée dans country-policy/data/lt.json's own file-level note — le portail e-seimas.lrs.lt s'est révélé structurellement non fiable face à une saisie automatisée dans son champ de recherche, contourné en déposant la valeur par le setter natif JS puis en déclenchant l'appel PrimeFaces.ab directement ; le texte de loi lui-même a été lu en clair sur l'iframe de rendu statique qu'e-tar.lt embarque, jamais résumé par un outil de fetch). Traduction littérale : « 1. Si, après la formalisation de la livraison de biens ou de la prestation de services, la valeur imposable et/ou la quantité des biens livrés ou des services fournis change, diverses remises sont accordées, les biens (ou une partie) sont retournés, les biens (ou une partie) ou les services sont refusés, ou pour toute autre raison la contrepartie due par l'acheteur (client) change, le document créditeur (kreditinis dokumentas), par lequel sont formalisés ces changements de circonstances, DOIT être émis par la personne qui a émis le document comptable initial formalisant la livraison de biens ou la prestation de services. » Statut 'required' (pas seulement 'allowed') : le verbe « privalo išrašyti » (doit émettre) est un verbe de mandat sans clause alternative pour LE VENDEUR — la seule alternative ouverte par la phrase suivante du même alinéa est le débetinis dokumentas émis par L'ACHETEUR (voir DEBIT_NOTE ci-dessous), pas l'absence de tout document. Terme administratif lituanien : « kreditinis dokumentas » (littéralement « document créditeur »), PAS « kreditinė PVM sąskaita faktūra » (facture TVA créditrice) — la loi utilise un terme GÉNÉRIQUE de document, distinct de la PVM sąskaita faktūra elle-même (voir credit-note.send dans country-policy/data/lt.json pour la nuance complète : l'art. 83 § 3, lu le même jour, exige que ce document REPRENNE le contenu de l'art. 80 § 1, mais ne dit à aucun moment qu'il EST RÉPUTÉ ÊTRE une PVM sąskaita faktūra au sens de l'art. 79 — à la différence de l'Estonie, § 37(4), ou de la Grèce, art. 8 § 3 Ν.4308/2014, qui portent toutes deux une clause GÉNÉRALE d'assimilation qu'aucun équivalent lituanien n'a été trouvé pour l'un ou l'autre document)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Šalių susitarimu minėtų aplinkybių pasikeitimas gali būti įformintas ne prekių tiekėjo ar paslaugų teikėjo išrašomu kreditiniu dokumentu, o pirkėjo (kliento) išrašomu debetiniu dokumentu, jeigu pirkėjas (klientas) yra PVM mokėtojas.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PVMĮ 83 straipsnio 1 dalis (seconde phrase, MÊME alinéa que CREDIT_NOTE ci-dessus, lue dans le même appel le 2026-09-04, même méthode d'accès). Traduction littérale : « Par accord des parties, le changement des circonstances mentionnées peut être formalisé non par un document créditeur émis par le fournisseur ou le prestataire, mais par un document débiteur (debetinis dokumentas) émis par l'acheteur (client), SI l'acheteur (client) est assujetti à la TVA (PVM mokėtojas). » Statut 'allowed' (pas 'required') : c'est une FACULTÉ ouverte par accord des parties, alternative au kreditinis dokumentas normalement requis, sous UNE condition explicite (l'acheteur doit être lui-même assujetti PVM) — exactement le type d'asymétrie hausse/baisse que docs/compliance/CORRECTION-ROUTES.yaml signale lui-même comme structurellement difficile à exprimer pour DEBIT_NOTE (« exists_in_code: false [...] Si un pays le REQUIERT à la hausse — hypothèse à vérifier pour l'Italie — l'asymétrie hausse/baisse est inexprimable aujourd'hui ») : la Lituanie n'est PAS dans le cas 'REQUIERT' pour ce document précis (c'est un CHOIX contractuel de qui, du vendeur ou de l'acheteur, émet le document constatant le même changement de circonstances), donc la remarque du YAML sur l'asymétrie inexprimable ne s'applique pas de la même façon ici — DEBIT_NOTE couvre ici le MÊME fait générateur que CREDIT_NOTE (baisse OU hausse de la contrepartie, l'art. 83 § 1 ne distingue pas), simplement porté par l'autre partie au contrat."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Le PVMĮ art. 83 § 1 (lu en primaire le 2026-09-04, voir CREDIT_NOTE/DEBIT_NOTE ci-dessus) couvre le changement de la VALEUR IMPOSABLE, de la QUANTITÉ, des REMISES, des RETOURS et du REFUS de biens/services — c'est-à-dire des corrections à caractère MONÉTAIRE de la contrepartie due. La loi ne porte, dans cet article, AUCUNE clause couvrant explicitement une correction NON monétaire d'une facture déjà émise (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) par un document DISTINCT qui la référence et l'amende, sans être lui-même un kreditinis/debetinis dokumentas — le PVMĮ ne porte, à la différence de l'Estonie (Käibemaksuseadus § 37(4)) ou de la Grèce (Ν.4308/2014 art. 8 § 3), AUCUNE clause GÉNÉRALE assimilant tout document modificatif référencé à une facture. Ce qui trancherait : une lecture ciblée de la doctrine du Valstybinė mokesčių inspekcija (VMI, l'administration fiscale lituanienne) sur le traitement d'une correction purement formelle d'une PVM sąskaita faktūra déjà émise, ou une lecture plus large du PVMĮ au-delà des art. 78-84 lus par cette tâche."
+      },
+      "notes": "PVMĮ art. 83, lu en primaire le 2026-09-04 — aucune clause générale d'assimilation trouvée, à la différence de EE/GR/FR/BE."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun régime de clearance domestique où la PVM sąskaita faktūra elle-même serait soumise à une autorité et validée par elle avant d'être annulable auprès d'elle n'a été identifié pour la facturation B2B domestique lituanienne par cette tâche (à la différence du CFDI mexicain, de KSeF polonais ou du SdI italien) — b2g-routing/data/lt.json (déjà dans ce dépôt, lu pour cohérence) documente que SABIS, la plateforme B2G lituanienne, est connectée au réseau Peppol pour les marchés publics, un régime B2G distinct du B2B domestique. Le PVMĮ art. 83 (lu en primaire pour CREDIT_NOTE/DEBIT_NOTE ci-dessus) ne nomme à aucun moment une procédure d'« annulation » de la facture elle-même auprès d'une autorité. Ce qui trancherait : confirmer explicitement l'absence, aujourd'hui, de tout mandat lituanien de clearance B2B domestique (sujet distinct, channel-policy)."
+      },
+      "notes": "Non recherché spécifiquement au-delà de l'art. 83 — signalé comme probablement sans objet pour le B2B domestique, pas comme réglé."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que CANCEL_AND_REPLACE ci-dessus : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires, qui n'existe PAS pour la facturation B2B domestique lituanienne identifiée par cette tâche — au contraire, le PVMĮ art. 83 § 1 impose EXPLICITEMENT que le kreditinis dokumentas soit un document dont la logique même suppose qu'il soit porté à la connaissance de l'acheteur (puisque l'acheteur peut, par accord, en émettre lui-même l'équivalent débiteur). Faute d'autorité destinataire à exclure et d'un mandat de transmission identifié, ce fait reste non tranché plutôt que promu 'forbidden' par déduction. Ce qui trancherait : confirmer explicitement l'absence, aujourd'hui, de tout mandat lituanien de clearance B2B domestique (même vérification que ci-dessus)."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que CANCEL_AND_REPLACE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture elle-même (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique lituanienne par cette tâche. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique lituanienne identifiée, ce scénario ne se pose pas de la même façon. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun mécanisme lituanien de « MÊME document, réémis surchargé d'une mention » (docs/compliance/CORRECTION-ROUTES.yaml) distinct du kreditinis/debetinis dokumentas de l'art. 83 n'a été identifié par cette tâche dans les art. 78-84 du PVMĮ lus. Ce qui trancherait : une lecture ciblée d'un éventuel régime propre aux créances irrécouvrables (non recherché par cette tâche) ou de la doctrine du Valstybinė mokesčių inspekcija (VMI)."
+      },
+      "notes": "Non recherché spécifiquement — aucune trouvaille adjacente identifiée, à la différence de EE (Käibemaksuseadus § 29¹)."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Le PVMĮ art. 83 § 2 (lu en primaire le 2026-09-04, même appel que CREDIT_NOTE/DEBIT_NOTE) dispose que « Bet kokie pasikeitimai, įforminti kreditiniais ir (arba) debetiniais dokumentais, privalo būti įtraukiami į [...] PVM apskaitą » (tout changement formalisé par des documents créditeurs et/ou débiteurs doit être inclus dans la comptabilité TVA [du vendeur et de l'acheteur]) — mais ceci est une conséquence COMPTABLE d'un document DÉJÀ émis (le kreditinis/debetinis dokumentas lui-même, voir CREDIT_NOTE/DEBIT_NOTE), pas une voie ALTERNATIVE consistant à corriger SANS émettre aucun document. Ce qui trancherait : confirmer explicitement qu'aucune correction n'est jamais opérée par une simple écriture sans kreditinis/debetinis dokumentas sous-jacent."
+      },
+      "notes": "PVMĮ art. 83 § 2, lu en primaire le 2026-09-04 — décrit un EFFET comptable du kreditinis/debetinis dokumentas, pas une voie distincte sans document."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Au contraire, le PVMĮ art. 83 § 1 (lu en primaire le 2026-09-04) semble exclure ce cas de figure pour son propre champ d'application : la loi IMPOSE l'émission d'un kreditinis dokumentas (voir CREDIT_NOTE ci-dessus), elle ne prévoit PAS d'effet de plein droit sans aucun acte formel pour les remises/rabais/retours/refus qu'elle couvre — à la différence du régime allemand par défaut découvert pour DE. Non recherché : un éventuel cas RÉSIDUEL non couvert par l'art. 83 (hors du périmètre exact de son § 1) qui échapperait à toute formalisation."
+      },
+      "notes": "Non recherché au-delà de l'art. 83 § 1 — probablement sans objet compte tenu de l'obligation d'émettre un kreditinis dokumentas que cet article pose, mais pas formellement exclu."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Lituanie au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — les art. 79, 80 et 83 du PVMĮ, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le contentieux fiscal ou une autre partie du PVMĮ non lue par cette tâche)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Lituanie — agent pays LT, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Lituanie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — au TEXTE PRIMAIRE DE LOI lui-même (Pridėtinės vertės mokesčio įstatymas, PVMĮ, Nr. IX-751, redakcija galiojanti nuo 2026-07-01, lue le 2026-09-04). MÉTHODE D'ACCÈS documentée en détail dans country-policy/data/lt.json's own file-level note : e-seimas.lrs.lt s'est révélé structurellement non fiable pour une saisie automatisée (widget de clavier virtuel jQuery qui efface la valeur avant soumission) ; contournement sur le portail-frère e-tar.lt (même moteur JSF) en déposant la valeur par le setter natif JS puis en invoquant directement l'appel ajax PrimeFaces — le texte lui-même a été lu en clair sur l'iframe de rendu statique qu'e-tar.lt embarque pour chaque édition consolidée, jamais résumé par un outil de fetch. HEADLINE : DEUX voies sourcées 'legal' au premier alinéa d'un SEUL article (art. 83 § 1) — CREDIT_NOTE ('required', le vendeur DOIT émettre un kreditinis dokumentas) et DEBIT_NOTE ('allowed', l'acheteur PEUT, par accord et s'il est lui-même assujetti PVM, émettre un debetinis dokumentas à la place). DIFFÉRENCE IMPORTANTE avec l'Estonie et la Grèce, à CONNAÎTRE avant de réutiliser ce fichier comme modèle : ni le kreditinis dokumentas NI le debetinis dokumentas ne sont, en droit lituanien, RÉPUTÉS ÊTRE une PVM sąskaita faktūra au sens formel de l'art. 79 (l'art. 83 § 3 exige seulement qu'ils REPRENNENT le contenu de l'art. 80, jamais qu'ils EN SOIENT une au sens de la forme/l'émission électronique) — d'où CORRECTIVE_INVOICE resté 'unverified', faute d'une clause GÉNÉRALE d'assimilation équivalente à celle de l'Estonie (§ 37(4)) ou de la Grèce (art. 8 § 3). Les huit autres voies restent honnêtement 'unverified', aucune trouvaille adjacente aussi nette que le § 29¹ estonien (créance irrécouvrable) n'ayant été identifiée dans les art. 78-84 lus par cette tâche. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir b2g-routing/data/lt.json, lu pour cohérence, jamais réécrit)."
+}

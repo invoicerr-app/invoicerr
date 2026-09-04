@@ -1,0 +1,108 @@
+{
+  "countryCode": "LU",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Sont acceptés comme factures tous les documents ou messages sur papier ou sous format électronique remplissant les conditions déterminées par le présent article. Est assimilé à une facture tout document ou message qui modifie la facture initiale et y fait référence de façon spécifique et non équivoque.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour le Luxembourg (docs/compliance/CORRECTION-ROUTES.yaml ne couvre que FR/IT/PL/DE/ES/MX/US) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Loi modifiée du 12 février 1979 concernant la taxe sur la valeur ajoutée (LTVA), art. 63 § 2, tel que rédigé par la Loi du 29 mars 2013 (transposant la directive 2010/45/UE sur les règles de facturation, en vigueur depuis le 1er janvier 2013) — TEXTE PRIMAIRE, LU DIRECTEMENT le 2026-09-04, fichier HTML officiel `https://legilux.public.lu/filestore/eli/etat/leg/loi/2013/03/29/n3/jo/fr/html/eli-etat-leg-loi-2013-03-29-n3-jo-fr-html.html`, curl direct (méthode d'accès détaillée dans vat-rates/data/lu.json's own file-level note : content-negotiation SPARQL sur data.legilux.public.lu → URL du fichier HTML officiel embodying l'acte, jamais un résumé d'outil de fetch). CE QUE CETTE CITATION TRANCHE, à la manière FR/BE/GR/EE et NON à la manière NL : l'art. 63 § 2, alinéa 2 de la LTVA est une clause GÉNÉRALE et DIRECTE d'assimilation d'un document modificatif à une facture — mot pour mot la même formule que le CGI français art. 289, I, 5° (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») et que l'art. 219 de la directive 2006/112/CE elle-même (dont cette clause est la transposition quasi littérale). AUCUN instrument nommé distinct (pas de « note de crédit » ni de « facture rectificative » désignés comme tels par la loi elle-même, à la différence de la Belgique — be.json's own \"notes de crédit\"/\"notes de débit\" nommément visées par le portail e-facture belge) : c'est une clause UNIQUE et GÉNÉRALE, couvrant indifféremment la baisse (avoir), la hausse (note de débit) et la simple correction non monétaire (facture rectificative) — même raisonnement de composition que correction-routes/data/ee.json's own § 37(4) estonien applique à ses trois mêmes voies. La conséquence pratique pour ce produit est la même que pour FR/BE/EE/GR : une correction d'une facture déjà émise emprunte un DOCUMENT DISTINCT qui RÉFÉRENCE l'original de façon spécifique et non équivoque, jamais une réédition silencieuse — voir country-policy/data/lu.json's own invoice.save-draft (statuses: [\"draft\"]) et credit-note.send, sourcés à la MÊME disposition."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Est assimilé à une facture tout document ou message qui modifie la facture initiale et y fait référence de façon spécifique et non équivoque.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME source primaire que CREDIT_NOTE ci-dessus (LTVA art. 63 § 2, alinéa 2) — LU DIRECTEMENT le 2026-09-04, même méthode d'accès. Le texte n'emploie à aucun moment un terme dédié équivalent à « note de débit » — cette voie est déduite du champ GÉNÉRAL de l'art. 63 § 2, alinéa 2 (tout document qui amende ET référence l'original est réputé être une facture, sans restriction de sens vers la hausse ou la baisse), pas d'une clause nommément dédiée à la hausse de prix comme telle. Statut 'allowed' (pas 'required') : rien ne mandate cette forme précise pour une hausse de prix, la loi se contente de RECONNAÎTRE l'effet d'un tel document s'il est utilisé — même raisonnement, même distinction 'allowed' vs 'required', que correction-routes/data/ee.json's own DEBIT_NOTE applique au § 37(4) estonien. Trouvée hors de docs/compliance/CORRECTION-ROUTES.yaml (qui n'a pas de ligne « LU » puisqu'aucun YAML pivot n'existe pour ce pays, voir la note de fichier ci-dessous) ; le YAML lui-même note, pour DEBIT_NOTE en général : « exists_in_code: false [...] Si un pays le REQUIERT à la hausse [...] l'asymétrie hausse/baisse est inexprimable aujourd'hui » — le Luxembourg n'est ici PAS dans le cas 'REQUIERT', seulement 'allowed' par une clause générale, donc cette remarque du YAML sur l'asymétrie inexprimable ne s'applique pas de la même façon ici."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Est assimilé à une facture tout document ou message qui modifie la facture initiale et y fait référence de façon spécifique et non équivoque.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME citation primaire que CREDIT_NOTE et DEBIT_NOTE ci-dessus (LTVA art. 63 § 2, alinéa 2) — LU DIRECTEMENT le 2026-09-04, même méthode d'accès. C'est la lecture LA PLUS DIRECTE de cet alinéa au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « tout document [...] qui modifie la facture initiale [...] et y fait référence de façon spécifique et non équivoque » — cette formule couvre aussi bien une correction NON MONÉTAIRE (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) dès lors qu'elle référence l'original. RENFORCÉ par l'art. 63 § 11 (facture simplifiée assimilée à une facture au sens du § 2, alinéa 2) qui exige explicitement « une référence spécifique et non équivoque à cette facture initiale et les mentions spécifiques qui sont modifiées » — la loi anticipe donc explicitement un document correctif à contenu ALLÉGÉ ne listant QUE ce qui change, exactement le mécanisme d'une facture rectificative. Trois voies distinctes du vocabulaire canonique (CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE) convergent ainsi, en droit luxembourgeois, vers une SEULE et MÊME clause légale — même structure que correction-routes/data/ee.json's own § 37(4) estonien, différente de la structure belge (be.json), qui nomme séparément « notes de crédit » et « notes de débit »."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Le Luxembourg n'a identifié, par cette tâche, AUCUN régime de clearance domestique où une facture B2B serait elle-même soumise à/validée par une autorité avant d'être annulable auprès d'elle (à la différence du CFDI mexicain ou de KSeF/SdI) — seule la facturation ÉLECTRONIQUE B2G (marchés publics, Peppol, voir b2g-routing/data/lu.json, déjà livré, lot 1) est aujourd'hui mandatée, et ce fichier ne documente pas de mécanisme d'annulation-remplacement propre à ce canal B2G. Ce qui trancherait : une lecture dédiée de la Loi du 16 mai 2019 (amendée le 13 décembre 2021) sur la facturation électronique dans les marchés publics, pour vérifier si elle prévoit un mécanisme d'annulation/replacement auprès du réseau Peppol ou de l'autorité contractante — non recherché par cette tâche, hors périmètre strict (b2g-routing appartient à un autre agent)."
+      },
+      "notes": "Non recherché en profondeur — même prudence que correction-routes/data/ee.json's own CANCEL_AND_REPLACE (aucun régime de clearance domestique identifié)."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que correction-routes/data/ee.json's own INTERNAL_CREDIT_NOTE et nl.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique luxembourgeoise (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — b2g-routing/data/lu.json, lu pour cohérence, ne documente que le B2G marchés publics via Peppol, pas le B2B domestique). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que CANCEL_AND_REPLACE et INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture ELLE-MÊME (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique luxembourgeoise par cette tâche."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique luxembourgeoise identifiée, ce scénario ne se pose pas de la même façon. Le mécanisme le plus proche identifié par cette tâche est la PROCÉDURE D'ACCEPTATION de la facture électronique elle-même (LTVA art. 63 § 13 : « L'utilisation d'une facture électronique est soumise à l'acceptation du destinataire »), mais ceci porte sur le CONSENTEMENT préalable du destinataire à recevoir une facture électronique, pas sur le rejet TECHNIQUE d'une facture déjà transmise par une plateforme d'autorité — donc hors du périmètre exact de cette voie."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, MAIS UNE NUANCE RÉELLE A ÉTÉ TROUVÉE, à ne pas perdre pour une lecture future. La LTVA art. 63 § 11 (facture simplifiée, LU le 2026-09-04, même méthode d'accès que CREDIT_NOTE ci-dessus) dispose : « lorsque la facture émise est un document ou message assimilé à une facture conformément au paragraphe 2, alinéa 2, une référence spécifique et non équivoque à cette facture initiale et les mentions spécifiques qui sont modifiées » — ce texte décrit un document qui ne liste QUE ce qui change par rapport à l'original, un mécanisme PROCHE, dans son ESPRIT, de la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Le MÊME document, réémis surchargé d'une mention »). CE N'EST TOUTEFOIS PAS EXACTEMENT cette définition : le § 11 décrit un DOCUMENT SÉPARÉ et NOUVEAU (une facture simplifiée assimilée, au sens du § 2, alinéa 2 — donc elle-même relevant de CORRECTIVE_INVOICE/CREDIT_NOTE ci-dessus), pas la FACTURE INITIALE elle-même renvoyée, surchargée d'une mention et réémise sous son identité d'origine. Même différentiel, dans son PRINCIPE, que celui que correction-routes/data/nl.json's own ANNOTATED_DUPLICATE documente déjà face à la France (qui impose, elle, un duplicata explicitement annoté de la facture elle-même, CGI art. 272, 1, al. 3). Ce qui trancherait : un texte confirmant explicitement qu'aucun mécanisme de duplicata-annoté distinct de ce document assimilé n'existe par ailleurs en droit luxembourgeois."
+      },
+      "notes": "LTVA art. 63 § 11, lu en primaire le 2026-09-04 — le différentiel avec la définition de cette voie est noté, pas encore élevé au rang de fait 'forbidden' faute de texte l'affirmant en propre."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, non recherchée en profondeur. Cette tâche n'a PAS localisé, dans les textes lus (LTVA art. 61 à 64 sur les obligations des assujettis, art. 39/40 sur les taux — voir vat-rates/data/lu.json), de clause générale sur l'ajustement de la base d'imposition pour annulation, résiliation ou créance devenue irrécouvrable (l'équivalent luxembourgeois de l'art. 90 de la directive 2006/112/CE, du § 29(7)/29¹ estonien ou du CGI art. 272 français) — cette disposition existe très probablement ailleurs dans la LTVA (vraisemblablement dans le chapitre consacré à la base d'imposition, art. 28 à 38, non lu en détail par cette tâche faute de temps), mais n'a pas été atteinte. Ce qui trancherait : localiser et lire cette disposition, puis déterminer si l'ajustement qu'elle prévoit relève d'une écriture identifiable (LEDGER_ANNOTATION) ou d'un effet de plein droit sans aucun acte formel (NO_DOCUMENT_BY_LAW)."
+      },
+      "notes": "Non recherché — la disposition de fond (ajustement de base d'imposition) n'a pas été localisée par cette tâche."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même lacune que LEDGER_ANNOTATION ci-dessus — voir sa resolutionNote pour le détail complet, non dupliqué ici pour éviter deux versions divergentes du même constat."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même lacune, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour le Luxembourg au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — les art. 61 à 64 de la LTVA, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le contentieux fiscal ou dans le droit commun des obligations)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Luxembourg — agent pays LU, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas le Luxembourg) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même (LTVA, art. 63, tel que rédigé par la Loi du 29 mars 2013 transposant la directive 2010/45/UE, en vigueur depuis le 1er janvier 2013), pas seulement à une doctrine administrative. MÉTHODE D'ACCÈS documentée en détail dans vat-rates/data/lu.json's own file-level note : legilux.public.lu sert la page d'accueil d'un acte via une SPA Angular qui ne rend rien sans JavaScript, contourné par content-negotiation SPARQL sur data.legilux.public.lu/sparqlendpoint (canal ELI officiel documenté par la plateforme elle-même) pour retrouver l'URL du fichier HTML officiel de l'acte, servi ensuite sans JavaScript — jamais un résumé d'outil de fetch, conformément à la discipline imposée après la découverte, sur l'agent Chypre en parallèle de ce même lot, qu'un tel outil avait fabriqué un article de loi inexistant. HEADLINE : TROIS voies sourcées 'legal' et 'allowed' (CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE), toutes rattachées à la MÊME clause générale d'assimilation (LTVA art. 63 § 2, alinéa 2 — quasi-identique, dans son PRINCIPE, au CGI français art. 289 I 5° et à la clause belge) — même structure que correction-routes/data/ee.json's own § 37(4) estonien (trois voies, une seule clause), différente de la structure belge (be.json, qui nomme séparément deux instruments). Les huit autres voies restent honnêtement 'unverified', dont DEUX (LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) partagent une LACUNE DE RECHERCHE honnêtement documentée (la disposition luxembourgeoise sur l'ajustement de base d'imposition pour créance irrécouvrable/annulation n'a pas été localisée par cette tâche, faute de temps — vraisemblablement dans les art. 28 à 38 de la LTVA, non lus en détail), et UNE (ANNOTATED_DUPLICATE) porte une trouvaille adjacente réelle (art. 63 § 11, facture simplifiée référençant l'original) qui ne correspond PAS exactement à la définition de cette voie. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir b2g-routing/data/lu.json, déjà livré lot 1, lu pour cohérence, jamais réécrit) : AUCUNE contradiction relevée avec ce fichier (Peppol BIS, Loi du 16 mai 2019 amendée le 13 décembre 2021, lu 2026-09-02)."
+}

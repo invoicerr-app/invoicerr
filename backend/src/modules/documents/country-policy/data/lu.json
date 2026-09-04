@@ -1,0 +1,214 @@
+{
+  "countryCode": "LU",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/be.json/nl.json/at.json/gr.json pour cette même action : aucun texte luxembourgeois identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "L'effet juridique et la recevabilité d'une signature électronique comme preuve en justice ne peuvent être refusés au seul motif que cette signature se présente sous une forme électronique ou qu'elle ne satisfait pas aux exigences de la signature électronique qualifiée.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — LU DIRECTEMENT le 2026-09-04 sur eur-lex.europa.eu (CELEX:32014R0910, version FR, `https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32014R0910`), curl direct, RÉUSSI cette fois (contrairement aux tentatives documentées le même jour par country-policy/data/be.json's own note et country-policy/data/gr.json's own note, qui avaient toutes deux reçu un corps VIDE de ce même portail pour cette même URL — HTTP 200/202 mais 0 octet utile). Un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour le Luxembourg : cette citation FRAÎCHE, en français (langue officielle du droit luxembourgeois), remplace avantageusement la citation anglaise déjà réutilisée par plusieurs fichiers de ce même lot. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal luxembourgeois) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte luxembourgeois identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.save-draft/invoice.send ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus. Un texte a bien été identifié pour le TRAITEMENT FISCAL d'un acompte facturé (LTVA art. 63 § 4, point 1°, dernier tiret, lu en primaire le 2026-09-04 : l'obligation d'émettre une facture s'étend « aux acomptes qui lui sont versés avant que [...] la prestation de services ne soit achevée »), mais aucun texte n'encadre spécifiquement le MÉCANISME PRODUIT consistant à faire naître cette facture d'acompte en brouillon depuis un devis. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte luxembourgeois identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal au sens de la LTVA. Aucun texte luxembourgeois identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Sont acceptés comme factures tous les documents ou messages sur papier ou sous format électronique remplissant les conditions déterminées par le présent article. Est assimilé à une facture tout document ou message qui modifie la facture initiale et y fait référence de façon spécifique et non équivoque.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Loi modifiée du 12 février 1979 concernant la taxe sur la valeur ajoutée (LTVA), art. 63 § 2, alinéa 2, tel que rédigé par la Loi du 29 mars 2013 (transposant la directive 2010/45/UE, en vigueur depuis le 1er janvier 2013) — LU DIRECTEMENT le 2026-09-04, fichier HTML officiel `https://legilux.public.lu/filestore/eli/etat/leg/loi/2013/03/29/n3/jo/fr/html/eli-etat-leg-loi-2013-03-29-n3-jo-fr-html.html`, curl direct (méthode d'accès détaillée dans vat-rates/data/lu.json's own file-level note : content-negotiation SPARQL sur data.legilux.public.lu → URL du fichier HTML officiel embodying l'acte, jamais un résumé d'outil de fetch). CE QUE CETTE CITATION TRANCHE, à la manière FR/BE/GR/EE : une erreur sur une facture déjà émise ne se corrige JAMAIS en réécrivant le document original — toute modification emprunte un document DISTINCT qui référence l'original de façon spécifique et non équivoque, lequel est lui-même assimilé à une facture (voir aussi correction-routes/data/lu.json's own CREDIT_NOTE/CORRECTIVE_INVOICE/DEBIT_NOTE, sourcées à la MÊME disposition). Le champ `statuses: [\"draft\"]` applique ce principe en refusant de ré-enregistrer en brouillon une facture déjà 'sent' — même mécanique que fr.json/pl.json/be.json/gr.json pour cette même règle."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "13. L'utilisation d'une facture électronique est soumise à l'acceptation du destinataire.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LTVA art. 63 § 13, même loi et même méthode d'accès que invoice.save-draft ci-dessus (Loi du 29 mars 2013, LU DIRECTEMENT le 2026-09-04). CE QUE CETTE CITATION TRANCHE : le Luxembourg suit le régime À CONSENTEMENT (opt-in du destinataire) déjà documenté pour FR/DE/NL/AT/BE dans ce dépôt — PAS le régime d'acceptation OBLIGATOIRE que country-policy/data/gr.json's own invoice.send documente pour la Grèce en B2B domestique. L'envoi d'une facture est un acte légalement organisé (la LTVA impose, par ailleurs, l'ÉMISSION même d'une facture pour toute livraison/prestation à un autre assujetti — art. 63 § 4, point 1°, non retranscrit ici faute d'usage direct par cette règle précise, qui porte sur le CANAL électronique de cet envoi). COHÉRENCE VÉRIFIÉE avec b2g-routing/data/lu.json (déjà livré, lot 1) : ce fichier documente l'obligation Peppol BIS pour les marchés publics (Loi du 16 mai 2019, amendée le 13 décembre 2021, échéance finale au 18 mars 2023 pour les petites entreprises) — un régime B2G DISTINCT et OBLIGATOIRE qui coexiste avec le régime à consentement de l'art. 63 § 13 pour le B2B/B2C ordinaire, sans contradiction entre les deux fichiers (l'art. 63 § 13 porte sur la facturation électronique EN GÉNÉRAL, le mandat Peppol sur le canal DE TRANSMISSION à une autorité publique, deux concerns disjoints déjà documentés séparément par ce même lot pour la Belgique)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte luxembourgeois identifié n'encadre l'acte de duplication lui-même. La question fiscale (LTVA) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte luxembourgeois spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts. Non recherché : un éventuel effet sur l'ajustement de la base d'imposition en cas de créance devenue irrécouvrable (disposition non localisée par cette tâche cette session, voir correction-routes/data/lu.json's own LEDGER_ANNOTATION/NO_DOCUMENT_BY_LAW — sujet distinct de fond, laissé à une revue dédiée)."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une norme technique européenne — ce n'est pas en soi une obligation légale luxembourgeoise pour cette entreprise de la produire sous cette forme précise pour une facture B2B/B2C domestique ordinaire. Le format réellement mandaté au Luxembourg est Peppol BIS Billing 3.0 (UBL), mais UNIQUEMENT pour la facturation B2G aux marchés publics (voir b2g-routing/data/lu.json, déjà livré) — pas pour la facturation domestique générale, pour laquelle la LTVA (art. 63) reste neutre quant au FORMAT technique précis (elle impose un CONTENU, art. 63 § 8, pas une syntaxe). Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis sous cette forme précise pour toute facture domestique — même raisonnement que be.json/pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte luxembourgeois spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte luxembourgeois identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal luxembourgeois de la correction (voir credit-note.send ci-dessous) concerne LE DOCUMENT ÉMIS résultant, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/pl.json/nl.json/be.json/gr.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email n'est déclenché par cette action) — même distinction méthodique que nl.json/be.json/gr.json appliquent déjà à leur propre credit-note.send. Le FONDEMENT LÉGAL DE FOND, lui, EST sourcé 'legal' : voir la `notes` ci-dessous. Ce fondement (l'assimilation d'un document modificatif référencé à une facture) est réel et cité verbatim, mais ne tranche PAS ce mécanisme produit précis (le changement de statut dans l'outil) — d'où le maintien en 'unverified' à CE niveau précis, exactement le même raisonnement que country-policy/data/gr.json's own credit-note.send applique à sa propre citation légale."
+      },
+      "notes": "LTVA art. 63 § 2, alinéa 2, LU DIRECTEMENT le 2026-09-04 (« Est assimilé à une facture tout document ou message qui modifie la facture initiale et y fait référence de façon spécifique et non équivoque »), MÊME source primaire et MÊME méthode d'accès que invoice.save-draft ci-dessus. À la différence de la Belgique (be.json's own \"notes de crédit\"/\"notes de débit\", nommément visées par le portail e-facture belge) et à l'instar de l'Estonie (ee.json's own § 37(4)), le Luxembourg NE NOMME PAS d'instrument dédié « note de crédit » dans sa loi TVA — c'est une clause UNIQUE et GÉNÉRALE d'assimilation, couvrant indifféremment la baisse (avoir), la hausse (note de débit) et la correction non monétaire. Voir correction-routes/data/lu.json's own CREDIT_NOTE/CORRECTIVE_INVOICE/DEBIT_NOTE pour la qualification légale complète (status 'allowed', provenance 'legal') de ce mécanisme — cette règle-ci ne porte, comme toutes les règles country-policy de ce dépôt, que sur l'ACTION PRODUIT (le bouton 'send' de cet outil), jamais sur le régime légal du document en tant que tel."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte luxembourgeois identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables luxembourgeoises (Loi modifiée du 19 décembre 2002 concernant le registre de commerce et des sociétés ainsi que la comptabilité et les comptes annuels des entreprises — voir country-identifiers/data/lu.json pour son propre usage sur un sujet distinct, la mention RCS ; non approfondi ici pour le volet comptabilité, hors périmètre 'immutabilité/send/avoir' demandé) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte luxembourgeois identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul, même mécanique produit que invoice.save-draft ci-dessus, sans base légale luxembourgeoise propre identifiée pour CE mécanisme précis. Le Luxembourg mandate la réception de factures électroniques structurées pour les marchés publics via Peppol (b2g-routing/data/lu.json, déjà livré) mais cette règle-ci porte sur la RÉCEPTION AU SENS DE L'ENTREPRISE cliente d'un fournisseur, pas sur le rôle d'entité adjudicatrice publique — hors du périmètre du mandat B2G documenté ailleurs."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte luxembourgeois identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte luxembourgeois identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte luxembourgeois identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Luxembourg — agent pays LU, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Le lourd légal repose sur DEUX textes primaires lus en direct le même jour : (1) le Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1, lu DIRECTEMENT sur eur-lex.europa.eu en français — RÉUSSITE là où be.json's own note et gr.json's own note documentent toutes deux un échec (corps vide) pour cette même URL le même jour ; (2) la LTVA (loi modifiée du 12 février 1979), art. 63, tel que rédigé par la Loi du 29 mars 2013 (transposant la directive 2010/45/UE sur les règles de facturation), lu DIRECTEMENT sur legilux.public.lu via content-negotiation SPARQL (méthode documentée en détail dans vat-rates/data/lu.json's own file-level note — la SPA Angular du portail ne rend rien sans JavaScript pour la page d'accueil d'un acte, contournée par le canal ELI/RDF officiel de la plateforme elle-même, jamais un résumé d'outil de fetch, conformément à la discipline imposée après la découverte, sur l'agent Chypre en parallèle, qu'un tel outil avait fabriqué un article de loi inexistant). Sur les 22 règles, 3 sont 'legal' au niveau du fait de fond (quote.send, invoice.save-draft, invoice.send), plus une citation 'legal' réelle mais NON promue au niveau de la règle credit-note.send (voir sa note propre, même discipline que gr.json) — les 18 restantes sont honnêtement 'unverified' avec resolutionNote propre à chacune. AUCUNE contradiction relevée avec b2g-routing/data/lu.json (déjà livré, lot 1 : Peppol BIS obligatoire pour les marchés publics, Loi du 16 mai 2019 amendée le 13 décembre 2021, lu 2026-09-02) ni avec tax/tax-systems/data/lu.json (TEDB, standardRate 17, lu 2026-09-01) ni avec correction-routes/data/lu.json et country-identifiers/data/lu.json (livrés par ce même agent, ce même jour) : les cinq fichiers documentent des angles disjoints du MÊME socle légal luxembourgeois (LTVA) sans se contredire — invoice.send ci-dessus le souligne explicitement pour la coexistence du régime à consentement électronique (art. 63 § 13) et du mandat Peppol B2G (b2g-routing)."
+}

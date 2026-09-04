@@ -1,0 +1,42 @@
+{
+  "countryCode": "LT",
+  "rates": [
+    {
+      "id": "lt-standard",
+      "rate": 21,
+      "label": "Standartinis PVM tarifas",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "32. Standartinis PVM tarifas – 21 procento PVM tarifas.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pridėtinės vertės mokesčio įstatymas (PVMĮ, Nr. IX-751), 2 straipsnio 32 dalis (sąvokų straipsnis) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur e-tar.lt (méthode d'accès documentée dans country-policy/data/lt.json's own file-level note). Traduction littérale : « 32. Le taux standard de TVA — un taux de TVA de 21 pour cent. » Le taux CHIFFRÉ n'apparaît NULLE PART dans l'art. 19 lui-même (qui régit l'APPLICATION des taux) : l'art. 19 § 1 se contente de renvoyer à ce terme défini (« taikomas standartinis PVM tarifas » — le taux standard de TVA s'applique), lui-même lu en primaire le même jour : « 1. Prekių tiekimo bei įsigijimo iš kitos valstybės narės ir paslaugų teikimo atvejais, nenurodytais šio straipsnio 3, 4 ir 5 dalyse bei šio Įstatymo IV ir V skyriuose, taikomas standartinis PVM tarifas. » (Dans les cas de livraison de biens, d'acquisition intracommunautaire et de prestation de services non visés aux § 3, 4 et 5 du présent article ni aux chapitres IV et V de la présente loi, le taux standard de TVA s'applique.) COMPOSITION à DEUX articles, comme pour vat-rates/data/at.json ou d'autres pays de ce dépôt : la DÉFINITION numérique (art. 2 § 32) et la clause d'APPLICATION (art. 19 § 1) sont deux dispositions distinctes du même acte. Cross-vérifié avec tax/tax-systems/data/lt.json (déjà livré, lot antérieur), qui documente ce MÊME taux de 21% via la Taxes in Europe Database (TEDB, DG TAXUD, requête HTTP POST directe du 2026-09-01, situationOn 2026-07-01) — CONVERGENCE CONFIRMÉE entre le texte de loi lui-même et l'enregistrement officiel de la Commission européenne."
+    },
+    {
+      "id": "lt-reduced",
+      "rate": 12,
+      "label": "Lengvatinis PVM tarifas (12 procentų)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "3. Lengvatinis 12 procentų PVM tarifas taikomas:",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PVMĮ 19 straipsnio 3 dalis (première ligne) — même lecture directe que lt-standard ci-dessus, même document, lu le 2026-09-04 sur e-tar.lt. Traduction littérale : « 3. Le taux réduit de TVA de 12 pour cent s'applique : ». La liste des catégories couvertes par ce taux (turizmo apgyvendinimo paslaugos — services d'hébergement touristique ; keleivių vežimas reguliariais maršrutais — transport régulier de voyageurs ; meno ir kultūros įstaigų ir renginių lankymas — accès aux institutions et événements artistiques et culturels ; spausdinti ir elektroniniai periodiniai leidiniai — publications périodiques imprimées et électroniques, entre autres points ajoutés par des modifications successives jusqu'en 2025) N'EST PAS transcrite ici — ce catalogue documente le TAUX, pas la liste exhaustive des catégories qui y sont soumises, même limite de périmètre que schema.ts's own header documente pour la France. ATTENTION, POINT CORRIGÉ PAR RAPPORT À L'HYPOTHÈSE DE DÉPART DE CETTE TÂCHE : le mandat initial supposait un jeu de taux « 21 % / 9 % / 5 % » — LA LECTURE DIRECTE DE L'ART. 19 MONTRE QUE LE TAUX RÉDUIT INTERMÉDIAIRE EST DE 12 %, PAS 9 % (aucun taux de 9% n'existe dans le PVMĮ actuel — voir la note de fichier ci-dessous pour la discussion complète). Cross-vérifié via une requête DIRECTE à l'API TEDB (POST ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch, member state id 18 = isoCode 'LT', le 2026-09-04) : TEDB confirme bien un palier 'Reduced rate' à 12.0% pour la Lituanie, couvrant notamment l'hébergement touristique et le transport de passagers — convergence confirmée avec le texte de loi, et infirmation supplémentaire du chiffre 9% de l'hypothèse initiale."
+    },
+    {
+      "id": "lt-super-reduced",
+      "rate": 5,
+      "label": "Lengvatinis PVM tarifas (5 procentai)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "4. Lengvatinis 5 procentų PVM tarifas taikomas:",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PVMĮ 19 straipsnio 4 dalis (première ligne) — même lecture directe que lt-standard/lt-reduced ci-dessus, même document. Traduction littérale : « 4. Le taux réduit de TVA de 5 pour cent s'applique : ». La liste des catégories couvertes (vaistai, medicinos pagalbos priemonės — médicaments et dispositifs médicaux, sous conditions de remboursement ; asmenų su negalia techninės pagalbos priemonės — aides techniques pour personnes handicapées ; spausdinti ir elektroniniai laikraščiai/žurnalai/periodiniai leidiniai — journaux, magazines et publications périodiques imprimés et électroniques ; livres et publications non périodiques électroniques et imprimées, catégorie AJOUTÉE le 2025-06-17 — Nr. XV-287) N'EST PAS transcrite ici, même limite de périmètre que pour lt-reduced. Ce taux est le plus bas des trois retenus dans ce catalogue (24/13/6 pour la Grèce servant de modèle de rang, ici 21/12/5 pour la Lituanie), catégorisé SUPER_REDUCED par convention de rang, même logique que vat-rates/data/at.json's own taux de 10% ou gr-super-reduced. Cross-vérifié via la MÊME requête TEDB directe du 2026-09-04 (member state id 18) : TEDB liste bien un palier 'Reduced rate' à 5.0% pour la Lituanie (pharmaceuticals, medical equipment for disabled persons, newspapers/periodicals, books), confirmant la convergence."
+    }
+  ],
+  "notes": "Lituanie — agent pays LT, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Trois taux (21% / 12% / 5%), tous 'legal' dès la première lecture : Pridėtinės vertės mokesčio įstatymas (PVMĮ, Nr. IX-751), redakcija galiojanti nuo 2026-07-01, LU DIRECTEMENT le 2026-09-04 sur e-tar.lt — jamais un résumé d'outil de fetch (méthode d'accès détaillée dans country-policy/data/lt.json's own file-level note : e-seimas.lrs.lt s'est révélé structurellement non fiable pour une saisie automatisée dans son champ de recherche par titre — un widget de clavier virtuel jQuery efface la valeur avant soumission ; contournement sur le portail-frère e-tar.lt en déposant la valeur par le setter natif JavaScript de l'input puis en invoquant directement l'appel ajax PrimeFaces du bouton de recherche, ce qui a fonctionné du premier coup — le texte de loi lui-même a ensuite été lu en clair via `document.body.innerText` sur l'iframe de rendu statique qu'e-tar.lt embarque pour chaque édition consolidée). CORRECTION IMPORTANTE PAR RAPPORT À L'HYPOTHÈSE DE DÉPART DE CETTE TÂCHE, à signaler explicitement au mandataire (jamais modifié par cet agent, voir TODO_DOCUMENTS.md) : le mandat suggérait « art. 19 : 21 % / 9 % / 5 % » — LA LECTURE DIRECTE DU TEXTE MONTRE QUE LE PALIER INTERMÉDIAIRE EST DE 12 %, PAS 9 %. Le PVMĮ art. 19 ne connaît AUCUN taux de 9% aujourd'hui ; ses paliers actuels (§ 3, § 4, § 5) sont 12% / 5% / 0%. Le taux STANDARD lui-même (21%) N'EST PAS chiffré dans l'art. 19 : il est DÉFINI à l'art. 2 § 32 (« Standartinis PVM tarifas – 21 procento PVM tarifas »), l'art. 19 § 1-2 se contentant d'en RENVOYER l'application — une composition à deux articles, plus explicite que ce que vat-rates/data/gr.json ou ee.json ont dû composer pour leur propre taux standard. Double recoupement systématique pour chaque taux : (1) tax/tax-systems/data/lt.json (déjà livré, lot antérieur), qui documentait déjà le taux normal (21%) via TEDB (requête du 2026-09-01, situationOn 2026-07-01) — convergence confirmée ; (2) une RE-INTERROGATION DIRECTE de la même API TEDB (POST ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch, member state id 18 = isoCode 'LT', le 2026-09-04) pour recouper les TROIS taux retenus, qui confirme 21.0% (standard), 12.0% (reduced) et 5.0% (reduced, second palier) — AUCUNE trace d'un palier à 9% dans TEDB non plus, ce qui corrobore la lecture du texte de loi. NON MODÉLISÉ ICI, délibérément, conformément à la consigne « modélise SEULEMENT si simple et sourcé, sinon note » : le taux de 0% (art. 19 § 5 — exportations hors UE, livraisons intracommunautaires visées au chapitre VI du PVMĮ, et anciennement les vaccins anti-COVID-19 jusqu'au 2022-12-31), un palier RÉEL mais qui relève d'un régime d'exonération à taux zéro plutôt que d'un choix ordinaire de ligne de facture, même limite de périmètre que les autres pays de ce dépôt appliquent à leur propre taux zéro d'exportation."
+}

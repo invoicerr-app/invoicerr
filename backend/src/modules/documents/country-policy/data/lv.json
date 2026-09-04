@@ -1,0 +1,215 @@
+{
+  "countryCode": "LV",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/at.json/ee.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit letton. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — citation COPIÉE telle quelle depuis country-policy/data/ee.json's own quote.send (elle-même copiée de nl.json), même discipline imposée par le mandataire : une citation déjà posée dans ce dépôt pour un règlement européen d'applicabilité directe se recopie depuis le fichier qui la porte, jamais ne se re-résume depuis eur-lex. Un règlement européen est d'applicabilité directe, sans transposition nationale requise, donc identique pour la Lettonie comme pour les Pays-Bas/l'Allemagne/l'Italie/l'Espagne/la Pologne/l'Estonie qui portent déjà la même citation dans ce catalogue. Un devis n'est pas une facture fiscale (voir invoice.send ci-dessous, propre à la Pievienotās vērtības nodokļa likums — la loi lettone sur la TVA) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit letton (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send et invoice.save-draft ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit letton. La Pievienotās vērtības nodokļa likums (Value Added Tax Law), art. 127, al. 1, cl. 2 (lu en primaire le 2026-09-04 sur likumi.lv), oblige à émettre une facture fiscale pour « advance payment which it has received before the supply of goods or services » (l'acompte reçu avant la livraison), et l'art. 131 al. 1 (même lecture) fixe le DÉLAI d'émission — « not later than on the fifteenth date from the time of transaction or receipt of advance payment » — une fois cette facture d'acompte ÉMISE, jamais l'acte produit consistant à en préparer un brouillon depuis un devis, qui reste ce que cette règle couvre. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit letton. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "the sequence number of one or several series of the tax invoice which provides a unique identification of the tax invoice",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums (Value Added Tax Law) art. 125, al. 1, cl. 2 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur likumi.lv (méthode d'accès documentée dans vat-rates/data/lv.json's own file-level note : à la différence de riigiteataja.ee, l'Estonie, likumi.lv rend un HTML complet dès la première requête curl, sans aucun blocage JavaScript — le texte primaire s'est lu directement, sans contournement d'API). COMPOSITION, comme pour ee.json's own invoice.save-draft, PAS une clause frontale d'intangibilité isolée : le texte tranche que le numéro de facture doit être un « sequence number... which provides a UNIQUE identification » (numéro de séquence assurant une identification unique), et une SECONDE clause, art. 125 al. 3 du même acte (également lue en primaire le 2026-09-04) renforce cette lecture : « A taxable person has the obligation to ensure the authenticity of the origin of a tax invoice (certification of the identity of the issuer of the tax invoice), constant content and legibility from the time of issuing the tax invoice throughout the entire storage period. » (obligation de garantir un contenu CONSTANT dès l'émission et pendant toute la durée de conservation) — DEUX clauses composées, jamais une seule citation unique. La conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro, voir invoice.descriptor.ts) est que ré-invoquer cette action une fois la facture 'sent' romprait à la fois l'unicité du numéro de séquence ET l'obligation de contenu constant — une correction doit alors emprunter un DOCUMENT DISTINCT (voir correction-routes/data/lv.json, les voies CREDIT_NOTE/CORRECTIVE_INVOICE/DEBIT_NOTE, toutes trois sourcées sur l'art. 125 al. 5 du même acte), jamais une réédition silencieuse. Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json/nl.json/ee.json."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "A registered taxable person is entitled to issue (draw up) and deliver a tax invoice by electronic means only when the a recipient of such tax invoice recognises such form of the tax invoice.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 132 al. 1 — TEXTE PRIMAIRE, likumi.lv, lu en direct le 2026-09-04 (même méthode d'accès que invoice.save-draft ci-dessus ; la coquille « the a recipient » figure telle quelle dans la traduction anglaise officielle consolidée, non corrigée par cet agent — citation verbatim, fautes de traduction comprises). MÊME condition de consentement du destinataire que CGI art. 289 VI (France), § 14 UStG (Allemagne), Wet OB 1968 art. 35b lid 1 (Pays-Bas) ou Käibemaksuseadus § 37(6) (Estonie) — et à l'INVERSE de la Pologne où cette même condition a été ABROGÉE par la bascule KSeF. NUANCE COMPLÉMENTAIRE, propre à la Lettonie et lue le même jour : ce catalogue-ci porte sur la loi FISCALE (obligation de consentement pour l'émission d'une facture fiscale électronique) — b2g-routing/data/lv.json (déjà dans ce dépôt, lu pour cohérence, jamais réécrit par cet agent) documente un fait DISTINCT : depuis le 1er janvier 2025, un amendement à la loi comptable (Grāmatvedības likums, citée par la fiche pays de la Commission européenne comme « amendments to the Accounting Law... require suppliers to issue structured electronic invoices when transacting with budget institutions ») rend la facture électronique structurée OBLIGATOIRE — mais UNIQUEMENT envers les institutions budgétaires (B2G), jamais pour la facturation B2B domestique que cette règle-ci couvre ; les deux règles COEXISTENT sans se contredire, exactement le même schéma que ee.json's own invoice.send documente déjà pour la coexistence entre sa loi fiscale et l'amendement 2025 de sa propre loi comptable. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas le consentement du destinataire (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que FR/DE/NL/EE pour leur propre invoice.send."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit letton. La question fiscale (Pievienotās vērtības nodokļa likums) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. La Pievienotās vērtības nodokļa likums, art. 104-106 (« Adjustment of Input Tax for Bad Debts », lus en primaire le 2026-09-04 sur likumi.lv), donnent un droit à réduction de la dette de TVA pour une créance devenue irrécouvrable (délai, radiation comptable, notification écrite au destinataire — art. 105 al. 3) — un fait DISTINCT, non modélisé par ce catalogue faute de correspondre à une action déclarée sur invoice.descriptor.ts, qui porte sur le régime de TVA d'une créance impayée après un délai, jamais sur ce mécanisme d'enregistrement de paiement lui-même. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale lettone pour CETTE entreprise de la produire. b2g-routing/data/lv.json (déjà dans ce dépôt, lu pour cohérence) documente que le format B2G letton est peppol-bis SANS CIUS national (« There is no national CIUS or additional extensions », fiche pays Commission européenne) — mais son caractère OBLIGATOIRE se limite au B2G (marchés publics/institutions budgétaires, depuis l'amendement 2025 de la loi comptable cité par ce même fichier), sujet DISTINCT non recherché par cette tâche, hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE ni dans quel cas."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne du commentaire : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal letton d'un tel document (voir credit-note.send ci-dessous et correction-routes/data/lv.json) concerne le CONTENU et l'effet TVA du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Any document which amends the initial tax invoice or especially and clearly indicates thereto shall be regarded as equivalent to the tax invoice if it conforms to the requirements laid down in Paragraph one of this Section.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Pievienotās vērtības nodokļa likums art. 125 al. 5 — TEXTE PRIMAIRE, likumi.lv, lu en direct le 2026-09-04. COMPOSITION avec l'art. 132 al. 1 (déjà cité pour invoice.send ci-dessus) : puisqu'un document qui amende la facture initiale en la référençant est RÉPUTÉ ÉQUIVALENT à une facture fiscale au sens de tout l'article 125 (« if it conforms to the requirements laid down in Paragraph one » — les exigences de CONTENU, pas de canal), l'art. 132 (émission électronique subordonnée à l'acceptation du destinataire) s'applique À LUI AUSSI par le jeu de cette même clause d'équivalence. C'est la MÊME structure de composition que Käibemaksuseadus § 37(4)+§ 37(6) fonde déjà pour ee.json's own credit-note.send — et à l'INVERSE de nl.json's own credit-note.send (resté 'unverified' faute d'une clause néerlandaise équivalente d'assimilation générale). Terme administratif letton : la loi n'emploie à aucun moment un terme dédié équivalent à « kredītrēķins » (note de crédit) — le mécanisme repose entièrement sur cette clause GÉNÉRALE, direction-agnostique (« amends the initial tax invoice », sans distinguer hausse/baisse), pas sur un instrument nommément dédié. Voir correction-routes/data/lv.json pour le sourçage complet de la voie CREDIT_NOTE elle-même (composé avec l'art. 39 al. 2 du même acte, qui règle l'effet sur la valeur taxable, distinct de cet art. 125 al. 5 qui règle la QUALIFICATION du document)."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables lettones (Pievienotās vērtības nodokļa likums art. 133-134, tenue et conservation des factures fiscales ; Grāmatvedības likums, la loi comptable générale, non recherchée par cette tâche) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : b2g-routing/data/lv.json documente le format B2G sortant (peppol-bis, ainsi que la plateforme nationale eAddress/VDAA) mais aucun mandat B2B de RÉCEPTION structurée équivalent au PPF français ou à KSeF n'a été identifié pour la Lettonie par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Lettonie — agent pays LV, lot 3 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE (Pievienotās vērtības nodokļa likums, Value Added Tax Law, traduction anglaise officielle consolidée, likumi.lv/Latvijas Vēstnesis) — likumi.lv sert son HTML COMPLET dès la première requête curl (aucun blocage JavaScript rencontré, à la différence de riigiteataja.ee/EE, efacture.belgium.be/BE ou RIS/ris.bka.gv.at/AT documentés par les lots précédents). DEUX RÉSULTATS notables par rapport au modèle NL/AT/BE de ce lot, alignés sur celui d'EE : (1) invoice.save-draft s'appuie sur une COMPOSITION à DEUX clauses primaires (art. 125 al. 1 cl. 2 — numérotation, art. 125 al. 3 — contenu constant) ; (2) credit-note.send est promue 'legal' — la Lettonie porte, à la différence des Pays-Bas, une clause GÉNÉRALE (art. 125 al. 5) assimilant tout document modificatif référencé à une facture, ce qui permet de composer avec l'art. 132 al. 1 pour fonder l'émission électronique d'un avoir lui-même, pas seulement son contenu. Corroboration systématique par le Valsts ieņēmumu dienests (VID, la State Revenue Service — l'autorité fiscale officielle de l'État) recherchée mais NON atteinte cette session (pages testées en 404 côté vid.gov.lv) — aucune corroboration administrative distincte de la loi elle-même n'a donc pu être ajoutée, à la différence d'EE où le MTA avait pu être recoupé ; cette absence ne dégrade aucune citation (le texte primaire de loi reste la source), elle est signalée honnêtement plutôt que comblée par une supposition."
+}
