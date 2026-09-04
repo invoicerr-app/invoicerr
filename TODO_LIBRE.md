@@ -84,6 +84,12 @@ labo — rejouée) ; CI l'exécute ; non-gaté il skippe proprement.
 
 ## L4 — Les nettoyages consignés
 
+> ✅ **FAIT** (2026-09-04) — simple-git désinstallé (grep-zéro, watcher survécu, jest 2153
+> inchangé : rien n'en dépendait), commentaire documents-core réécrit vrai (les 5 types, le
+> vocabulaire générique), ligne « directory » fantôme retirée d'architecture.md (dérive plus
+> large du tableau signalée, hors périmètre), 3 fichiers front reformatés (word-diff vérifié
+> pur formatage). biome ci exit 0 des DEUX côtés, batterie 259 verts.
+
 (a) `simple-git` retiré de package.json (plus aucun import depuis P2 — précaution watcher :
 npm install PEUT secouer node_modules pendant que le watcher tourne ; santé avant/après,
 relance si mort). (b) Le commentaire obsolète documents-core.module.ts:417 (QUOTE_SENT/
@@ -95,5 +101,7 @@ simple-git.
 
 ## Clôture
 
-Marquer ici, barrer les entrées TODO_ISSUES réglées, mémoire, rapport au retour du mandant
-(dont : la question du push — +100 commits — et l'état de la pile).
+> ✅ **BORD CLOS** (2026-09-04) — L1 0379d9ff (R002 FR-Peppol), L2 98a7dbe5 (fonctions IT),
+> L3 15e70491 (tripwire d'avant-merge, en CI), L4 (dernier commit). Batteries vertes à chaque
+> commit. AUCUN push (la branche est à +104 — décision mandant). Restes signalés : la dérive
+> large du tableau de modules d'architecture.md, les warnings biome historiques (non bloquants).

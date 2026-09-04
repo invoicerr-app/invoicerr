@@ -414,15 +414,19 @@ function buildDeclarationProviderRegistry(
  * `@Global()` `DocumentQueueModule` origin as `queueDispatcher` just above, so it resolves the same
  * way regardless of process (API or worker).
  *
- * `webhookDispatcher` (TODO_PRODUIT.md T2 / PLAN-V2 R9) is threaded into the quote and the invoice —
- * the two types whose "sent" transition has a dedicated `WebhookEvent` today (`QUOTE_SENT`,
- * `INVOICE_SENT` — see each type's own `deps.webhooks` comment); the credit note gets none, on
- * purpose (its own file's header). Unlike `eventsPublisher`, this does NOT come from the `@Global()`
- * `DocumentQueueModule` — it comes from `WebhooksModule`, imported below specifically so this resolves
- * identically in a scaled ("giga") deployment's dedicated worker process too (TODO_PRODUIT.md T2's own
- * "WORKER_INLINE=false" requirement): `DocumentsQueueWorkerModule` imports THIS Core module, never
- * `WebhooksModule` directly, so without this import a worker-only process could never actually
- * dispatch the webhook it just decided to fire.
+ * `webhookDispatcher` (TODO_PRODUIT.md T2 / PLAN-V2 R9, generalized by T2bis) is threaded into
+ * EVERY type registered below (quote, invoice, credit note, expense, received invoice) — T2bis
+ * replaced the per-type `WebhookEvent`s this comment used to name (`QUOTE_SENT`/`INVOICE_SENT`,
+ * both purged from the schema) with a generic vocabulary (`DOCUMENT_SENT`/`DOCUMENT_CREATED`/
+ * `DOCUMENT_DELETED`/…, see the enum's own header in `schema.prisma`) fired by the shared
+ * `actions/async-send.ts` engine and `generic-actions.ts`, so there is no longer a "this type
+ * opts in, that one is deliberately left out" split — see each type's own `deps.webhooks` comment
+ * for exactly which events it fires. Unlike `eventsPublisher`, this does NOT come from the
+ * `@Global()` `DocumentQueueModule` — it comes from `WebhooksModule`, imported below specifically
+ * so this resolves identically in a scaled ("giga") deployment's dedicated worker process too
+ * (TODO_PRODUIT.md T2's own "WORKER_INLINE=false" requirement): `DocumentsQueueWorkerModule`
+ * imports THIS Core module, never `WebhooksModule` directly, so without this import a worker-only
+ * process could never actually dispatch the webhook it just decided to fire.
  */
 function buildActionRegistry(
   clientsService: ClientsService,

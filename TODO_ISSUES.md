@@ -710,7 +710,10 @@
     produit sur `documentTypes` (quels types de documents chaque pays voit dans sa barre latérale)
     — hors périmètre de C3, à trancher par une tâche dédiée.
 
-- **Dérive migration-vs-schema sur les enums : aucun tripwire automatisé sur base fraîche**
+- ~~**Dérive migration-vs-schema sur les enums : aucun tripwire automatisé sur base fraîche**~~
+  — **RÉSOLU** (L3, 2026-09-04, commit 15e70491) : spec gaté MIGRATION_FRESH_TESTS=1 (base
+  jetable, migrate deploy intégral, diff croisé pg_enum ↔ client généré pour les 24 enums), en
+  CI dans queue-integration ; la mine rejouée mord dans les deux directions. Entrée d'origine :
   (constat de la validation P3, 2026-09-03) : la mine d'ordre (réparée par 20260903170000) et la
   purge P3 partagent la même classe de risque — une migration qui reconstruit un type enum fige
   une LISTE, et rien d'automatisé ne compare le résultat d'un `migrate deploy` intégral depuis

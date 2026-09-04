@@ -95,9 +95,7 @@ describe("descriptor-i18n", () => {
       // language it wrote it in — French here, deliberately, to prove nothing about this mechanism
       // assumes the fallback text is English.
       expect(descriptorTypeLabel(fakeT, "plugin-acme-widget", "Le Machin Acme")).toBe("Le Machin Acme")
-      expect(
-        descriptorFieldLabel(fakeT, "plugin-acme-widget", ["rating"], "Note sur 5"),
-      ).toBe("Note sur 5")
+      expect(descriptorFieldLabel(fakeT, "plugin-acme-widget", ["rating"], "Note sur 5")).toBe("Note sur 5")
       expect(descriptorActionLabel(fakeT, "plugin-acme-widget", "rate", "Noter")).toBe("Noter")
       expect(descriptorStatusLabel(fakeT, "plugin-acme-widget", "brouillon", "Brouillon")).toBe("Brouillon")
     })
@@ -218,7 +216,12 @@ describe("descriptor-i18n", () => {
   })
 
   it("translateWidget recovers the type id from the widget's own id prefix", () => {
-    const widget: MetricWidget = { id: "invoice:pending", kind: "metric", label: "Pending invoices", value: 3 }
+    const widget: MetricWidget = {
+      id: "invoice:pending",
+      kind: "metric",
+      label: "Pending invoices",
+      value: 3,
+    }
     expect(translateWidget(fakeT, widget)).toMatchObject({ label: "Factures en attente", value: 3 })
 
     const unmatched: MetricWidget = {

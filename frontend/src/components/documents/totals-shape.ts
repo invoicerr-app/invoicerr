@@ -1,24 +1,24 @@
-import type { DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
+import type { DocumentFieldDescriptor, DocumentTypeDescriptor } from "./types"
 
 /**
  * Detects whether a descriptor has array fields with "line" shape (has both 'money' and 'number' subfields).
  * Used to decide whether to show totals on the form. Mirrors compute-totals.ts's detection logic.
  */
 export function hasLineArrayFields(descriptor: DocumentTypeDescriptor | undefined): boolean {
-  if (!descriptor?.fields) return false;
+  if (!descriptor?.fields) return false
 
   for (const field of descriptor.fields) {
-    if (field.kind !== 'array' || !field.fields) continue;
+    if (field.kind !== "array" || !field.fields) continue
 
-    const hasMoney = field.fields.some((f) => f.kind === 'money');
-    const hasNumber = field.fields.some((f) => f.kind === 'number');
+    const hasMoney = field.fields.some((f) => f.kind === "money")
+    const hasNumber = field.fields.some((f) => f.kind === "number")
 
     if (hasMoney && hasNumber) {
-      return true;
+      return true
     }
   }
 
-  return false;
+  return false
 }
 
 /**
@@ -29,42 +29,41 @@ export function extractCurrency(
   descriptor: DocumentTypeDescriptor | undefined,
   data: Record<string, unknown>,
 ): string | null {
-  if (!descriptor?.fields) return null;
+  if (!descriptor?.fields) return null
 
   for (const field of descriptor.fields) {
-    if (
-      (field.kind === 'select' || field.kind === 'text') &&
-      field.key.toLowerCase().includes('currency')
-    ) {
-      const value = data[field.key];
-      if (typeof value === 'string' && value) {
-        return value;
+    if ((field.kind === "select" || field.kind === "text") && field.key.toLowerCase().includes("currency")) {
+      const value = data[field.key]
+      if (typeof value === "string" && value) {
+        return value
       }
     }
   }
 
-  return null;
+  return null
 }
 
 /**
  * Finds all array fields that have both 'money' and 'number' subfields.
  * Mirrors compute-totals.ts's detection logic.
  */
-export function findLineArrayFields(descriptor: DocumentTypeDescriptor | undefined): DocumentFieldDescriptor[] {
-  if (!descriptor?.fields) return [];
+export function findLineArrayFields(
+  descriptor: DocumentTypeDescriptor | undefined,
+): DocumentFieldDescriptor[] {
+  if (!descriptor?.fields) return []
 
-  const result: DocumentFieldDescriptor[] = [];
+  const result: DocumentFieldDescriptor[] = []
 
   for (const field of descriptor.fields) {
-    if (field.kind !== 'array' || !field.fields) continue;
+    if (field.kind !== "array" || !field.fields) continue
 
-    const hasMoney = field.fields.some((f) => f.kind === 'money');
-    const hasNumber = field.fields.some((f) => f.kind === 'number');
+    const hasMoney = field.fields.some((f) => f.kind === "money")
+    const hasNumber = field.fields.some((f) => f.kind === "number")
 
     if (hasMoney && hasNumber) {
-      result.push(field);
+      result.push(field)
     }
   }
 
-  return result;
+  return result
 }

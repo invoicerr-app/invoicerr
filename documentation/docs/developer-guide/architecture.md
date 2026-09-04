@@ -17,7 +17,6 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 | `cron` | Scheduled background tasks. |
 | `danger` | Sensitive operations requiring OTP verification (e.g. account deletion). |
 | `dashboard` | Aggregates KPIs: invoice totals, revenue trends, quote statuses, client counts. |
-| `directory` | Restricted filesystem browser used for plugin/config file selection. |
 | `invitations` | Creates and validates invitation codes for multi-user signup. |
 | `invoices` | Core invoice CRUD, PDF/XML generation, payment tracking, line items. |
 | `logger` | Server-sent event stream of real-time logs, filterable by category/level/user. |
