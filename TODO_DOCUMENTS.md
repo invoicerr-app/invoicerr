@@ -49,7 +49,7 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | Pays | policy | b2g | correction | identifiers | vat-rates | Lot |
 |---|---|---|---|---|---|---|
 | FR DE IT PL ES MX US | ✓ | ✓ | ✓ | partiel | FR seul | — (compléter identifiers/vat-rates en vague B fin) |
-| HU | ✓ | — | — | — | — | à venir |
+| HU | ✓ (enrichi : invoice.send legal §175(3)b) | — (canal fermé, B2G_COVERAGE) | ✓ (3/11 — §168(2)/170 cross-vérifié NAV EN) | ✓ (2/2 legal) | ✓ (5 entrées legal dont 27 % — le plus haut d'Europe) | Lot 4 ✅ |
 | BE | ✓ | ✓ | ✓ (4/11 legal) | ✓ | ✓ (4 taux legal) | Lot 1 ✅ |
 | NL | ✓ | — (NLCIUS : MIT, vendorable — DÉCISION ci-dessous) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
 | AT | ✓ | — (ebInterface sans LICENSE, CIUS introuvable) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
@@ -59,7 +59,8 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | LT | ✓ | ✓ | ✓ (2/11 legal — e-tar texte brut) | ✓ (VAT+LEGAL_ID legal, CK 2.44) | ✓ (21/12/5 — le 9 % du brief était FAUX, corrigé par la loi + TEDB live) | Lot 3 ✅ |
 | LV | ✓ | ✓ | ✓ (3/11 legal) | ✓ (LEGAL_ID legal — Komerclikums 17(1), clause FRONTALE) | ✓ (4 taux legal) | Lot 3 ✅ |
 | LU | ✓ | ✓ | ✓ (3/11 legal — art. 63 §2 al.2, l'assimilation quasi-289 I 5°) | ✓ | ✓ (5 taux legal dont exemption 57bis) | Lot 3 ✅ |
-| MT SE | — | ✓ | — | — | — | lot 4 |
+| MT | ✓ | ✓ | ✓ (3/11 legal — /getpdf caché + pdftotext) | ✓ (VAT required UNIVERSEL ; LEGAL_ID honnêtement unverified — la loi distingue business letters/invoices) | ✓ (4 taux legal, 3 paliers réduits) | Lot 4 ✅ |
+| SE | ✓ | ✓ | ✓ (3/11 — CREDIT_NOTE REQUIRED, 17 kap. 23§ « ska utfärdas ») | ✓ (organisationsnummer COMPANY-only, honnête) | ✓ (25/12/6 + EXEMPT ; pas de ZERO forcé) | Lot 4 ✅ |
 | BG CZ DK FI HR IE PT RO SI SK | — | — | — | — | — | lots suivants |
 | AE + autres tax-only | — | — | — | — | — | à trier |
 
@@ -105,6 +106,16 @@ mandataire). LV : VID (fisc) en 404 partout ; format 11 chiffres du numéro d'im
 INFÉRENCE marquée et épinglée par spec ; loi du registre non localisée. LU : la disposition
 d'ajustement de base (créance irrécouvrable) non localisée — LEDGER_ANNOTATION/NO_DOCUMENT_BY_LAW
 unverified pour cette raison précise ; accès Legilux par SPARQL ELI documenté (réutilisable).
+**Lot 4 (2026-09-04)** — MT : format du C-number introuvable (pattern omis), doctrine
+CFR/MBR non atteinte (LEDGER_ANNOTATION vs NO_DOCUMENT_BY_LAW indécis) ; endpoint caché
+legislation.mt /getpdf/<id> documenté (3e précédent SPA-cache-API). SE : Skatteverket non
+tenté ; export = exonération, pas ZERO (structure signalée) ; personnummer d'entrepreneur
+individuel non modélisé ; hausse votée 6→12 % alimentation au 1/1/2028 (Lag 2026:119)
+documentée SANS anticipation. HU : njt.hu en TLS-reset — contourné par net.jogtar.hu (ancien
+domaine officiel, HTML brut) ; formats adószám/cégjegyzékszám non sourcés au primaire ;
+egyéni vállalkozó non recherché. VALIDATION : la mutation « un mot altéré dans la citation
+§170 » ne mordait pas → tripwire verbatim ajouté (mord sur l'omission de mots — la classe
+de risque de feedback-legal-raw-text, désormais testée).
 **Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
 fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
 WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.

@@ -1,0 +1,108 @@
+{
+  "countryCode": "SE",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "En sådan handling eller ett sådant meddelande ska utfärdas vid 1. sådan nedsättning av priset som avses i 8 kap. 14 § första stycket 1 eller 3 om förutsättningarna i 8 kap. 14 § andra stycket inte är uppfyllda, 2. sådan nedsättning av priset som avses i 8 kap. 14 § första stycket 2 om nedsättningen inte framgår av tidigare upprättad faktura, och 3. kundkreditering av annat slag än som avses i 1 och 2.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour la Suède (docs/compliance/CORRECTION-ROUTES.yaml meta.covered = [FR, IT, PL, DE, ES, MX, US] ne couvre pas la Suède) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Mervärdesskattelag (2023:200) 17 kap. 23 § — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur riksdagen.se (https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/mervardesskattelag-2023200_sfs-2023-200/, HTML complet servi dès la première requête curl, aucun blocage JavaScript rencontré). ATTENTION, LOI REFONDUE : cette Mervärdesskattelagen (2023:200) REMPLACE, depuis le 1er juillet 2023, l'ancienne mervärdesskattelag (1994:200), jamais citée ici. TRADUCTION DE TRAVAIL (non officielle, établie par cet agent pour la lecture — le texte source ci-dessus reste la citation verbatim faisant foi) : « Un tel document ou message doit être émis en cas de 1. réduction de prix visée au 8 kap. 14 § premier alinéa points 1 ou 3, si les conditions du second alinéa du 8 kap. 14 § ne sont pas remplies, 2. réduction de prix visée au 8 kap. 14 § premier alinéa point 2, si la réduction ne ressort pas d'une facture précédemment établie, et 3. crédit client d'une autre nature que celles visées aux points 1 et 2. » STATUT 'required' (PAS SEULEMENT 'allowed', à la différence de lv.json's own CREDIT_NOTE et lu.json's own CREDIT_NOTE) : « ska utfärdas » (DOIT être émis) est un impératif, pas une simple reconnaissance d'effet — la trouvaille LA PLUS FORTE de ce fichier. Le « tel document ou message » visé renvoie à 17 kap. 22 § du même acte (lu le même jour, voir CORRECTIVE_INVOICE/DEBIT_NOTE ci-dessous pour ce second texte) : « Varje handling eller meddelande med ändring av den ursprungliga fakturan och med en särskild och otvetydig hänvisning till den ursprungliga fakturan likställs med en faktura » (tout document ou message portant modification de la facture initiale et une référence spécifique et non équivoque à celle-ci est assimilé à une facture) — COMPOSITION à deux clauses, jamais une seule citation isolée : 22 § QUALIFIE le document (il est assimilé à une facture), 23 § rend son ÉMISSION OBLIGATOIRE pour trois cas précis, tous des réductions/crédits (baisse), jamais une hausse. Le renvoi à 8 kap. 14 § (lu en primaire le même jour, base d'imposition) précise les trois scénarios visés : 1° escompte pour paiement anticipé ou réduction post-livraison NON couverte par un accord préalable entre les parties (8 kap. 14 § al. 2), 2° rabais accordé au moment de la livraison si non déjà répercuté sur une facture antérieure, 3° tout autre crédit client. La loi n'emploie à aucun moment un terme dédié équivalent à « kreditfaktura » (facture de crédit) dans ce chapitre — le mécanisme entier repose sur cette clause GÉNÉRALE, jamais sur un instrument nommément désigné, même situation que lv.json's own CREDIT_NOTE et lu.json's own CREDIT_NOTE, mais avec un degré de contrainte plus élevé (impératif, pas une simple reconnaissance)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Varje handling eller meddelande med ändring av den ursprungliga fakturan och med en särskild och otvetydig hänvisning till den ursprungliga fakturan likställs med en faktura.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 17 kap. 22 § — TEXTE PRIMAIRE, riksdagen.se, lu le 2026-09-04 (même méthode d'accès que CREDIT_NOTE ci-dessus). Traduction de travail : « Tout document ou message portant modification de la facture initiale et une référence spécifique et non équivoque à la facture initiale est assimilé à une facture. » Le texte n'emploie à aucun moment un terme dédié équivalent à « debetfaktura » (note de débit) — cette voie est déduite du champ GÉNÉRAL de 17 kap. 22 § (tout document qui amende ET référence l'original est réputé équivalent à une facture, sans restriction de sens vers la hausse ou la baisse), pas d'une clause nommément dédiée à la hausse de prix comme telle. À la différence de CREDIT_NOTE ci-dessus, AUCUNE clause de type 17 kap. 23 § ne rend l'émission de ce document OBLIGATOIRE pour une hausse de prix — 23 § ne vise que des cas de baisse/crédit (voir sa liste exhaustive de trois points, citée dans la note de CREDIT_NOTE). Statut 'allowed' (pas 'required') : rien ne mandate cette forme précise pour une hausse de prix, la loi se contente de RECONNAÎTRE l'effet d'un tel document s'il est utilisé et s'il conforme aux exigences de contenu du même chapitre — même raisonnement, même distinction 'allowed' vs 'required', que lv.json's own DEBIT_NOTE applique à l'art. 125(5) letton et lu.json's own DEBIT_NOTE à l'art. 63 § 2 luxembourgeois. Trouvée hors de docs/compliance/CORRECTION-ROUTES.yaml (qui note lui-même, pour DEBIT_NOTE en général : « exists_in_code: false [...] Si un pays le REQUIERT à la hausse [...] l'asymétrie hausse/baisse est inexprimable aujourd'hui ») — la Suède n'est ici PAS dans le cas 'REQUIERT' pour cette voie précise, seulement 'allowed' par une clause générale."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Varje handling eller meddelande med ändring av den ursprungliga fakturan och med en särskild och otvetydig hänvisning till den ursprungliga fakturan likställs med en faktura.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME citation primaire que DEBIT_NOTE ci-dessus (Mervärdesskattelag 17 kap. 22 §) — riksdagen.se, lu le 2026-09-04, même méthode d'accès. C'est la lecture LA PLUS DIRECTE de cet article au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « handling eller meddelande med ändring av den ursprungliga fakturan [...] med en särskild och otvetydig hänvisning » (document ou message portant modification [...] avec une référence spécifique et non équivoque) — cette clause couvre aussi une correction NON MONÉTAIRE (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) dès lors qu'elle référence l'original de façon spécifique et non équivoque. RENFORCEMENT PROPRE À LA SUÈDE, absent de LV/LU : 17 kap. 28 § point 5 du même acte (« Förenklad faktura », facture simplifiée, lue le même jour) prévoit EXPLICITEMENT le contenu minimal d'une telle facture correctrice simplifiée : « om fakturan är en sådan handling eller sådant meddelande som likställs med en faktura enligt 22 §, en särskild och otvetydig hänvisning till den ursprungliga fakturan samt de uppgifter i denna som ändras » (si la facture est un document ou message assimilé à une facture selon 22 §, une référence spécifique et non équivoque à la facture initiale ainsi que les mentions qui y sont modifiées) — une CORROBORATION interne au même acte, précisant le contenu attendu d'un tel document correctif simplifié, pas une clause redondante. DIFFÉRENTIEL avec nl.json's own CORRECTIVE_INVOICE (resté 'unverified', faute de clause néerlandaise équivalente d'assimilation générale) : le droit suédois porte ici une clause structurellement PROCHE, dans son PRINCIPE, du CGI art. 289 I.5 français, de Käibemaksuseadus § 37(4) estonien, de Pievienotās vērtības nodokļa likums art. 125 al. 5 letton et de la LTVA art. 63 § 2 luxembourgeoise (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») — sans que cette tâche ait vérifié si leur PORTÉE EXACTE (conditions, exceptions) coïncide au-delà du principe commun."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun régime de clearance domestique où une facture B2B suédoise serait elle-même soumise à/validée par une autorité avant d'être annulable auprès d'elle n'a été identifié par cette tâche (à la différence du CFDI mexicain ou de KSeF/SdI) — seule la facturation ÉLECTRONIQUE B2G (marchés publics, Peppol, Act 2018:1277, voir b2g-routing/data/se.json, déjà livré, lu pour cohérence) est aujourd'hui mandatée, et ce fichier ne documente pas de mécanisme d'annulation-remplacement propre à ce canal B2G. Ce qui trancherait : une lecture dédiée de l'Act 2018:1277 elle-même (non recherché par cette tâche, hors périmètre strict — b2g-routing appartient à un autre agent), ou une doctrine de Skatteverket décrivant un mécanisme d'annulation de facture — non recherché non plus, faute de temps."
+      },
+      "notes": "Non recherché en profondeur — même prudence que lv.json/lu.json's own CANCEL_AND_REPLACE (aucun régime de clearance domestique identifié)."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que lv.json/lu.json/ee.json/nl.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique suédoise (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — b2g-routing/data/se.json, lu pour cohérence, ne documente que le B2G via Peppol, jamais le B2B domestique). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que CANCEL_AND_REPLACE et INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture ELLE-MÊME (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique suédoise par cette tâche."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique suédoise identifiée, ce scénario ne se pose pas de la même façon. Le mécanisme le plus proche identifié par cette tâche est la condition de CONSENTEMENT du destinataire pour l'émission électronique elle-même (17 kap. 20 § al. 1, voir country-policy/data/se.json's own invoice.send), mais ceci porte sur l'ACCEPTATION préalable du destinataire à recevoir une facture électronique, pas sur le rejet TECHNIQUE d'une facture déjà transmise par une plateforme d'autorité — donc hors du périmètre exact de cette voie."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, MAIS UNE NUANCE RÉELLE A ÉTÉ TROUVÉE, à ne pas perdre pour une lecture future. Mervärdesskattelag 17 kap. 28 § point 5 (facture simplifiée, lue le 2026-09-04, même méthode d'accès que CREDIT_NOTE ci-dessus) dispose : « om fakturan är en sådan handling eller sådant meddelande som likställs med en faktura enligt 22 §, en särskild och otvetydig hänvisning till den ursprungliga fakturan samt de uppgifter i denna som ändras » (si la facture est un document assimilé à une facture selon 22 §, une référence spécifique et non équivoque à la facture initiale ainsi que les mentions qui y sont modifiées) — ce texte décrit un document qui ne liste QUE ce qui change par rapport à l'original, un mécanisme PROCHE, dans son ESPRIT, de la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Le MÊME document, réémis surchargé d'une mention »). CE N'EST TOUTEFOIS PAS EXACTEMENT cette définition : le point 5 décrit un DOCUMENT SÉPARÉ et NOUVEAU (une facture simplifiée assimilée, au sens du 22 § — donc elle-même relevant de CORRECTIVE_INVOICE/CREDIT_NOTE ci-dessus), pas la FACTURE INITIALE elle-même renvoyée, surchargée d'une mention et réémise sous son identité d'origine. Même différentiel, dans son PRINCIPE, que celui que lv.json's own ANNOTATED_DUPLICATE documente déjà pour l'art. 126 al. 2 cl. 2 letton et lu.json's own ANNOTATED_DUPLICATE pour le § 11 luxembourgeois. Ce qui trancherait : un texte confirmant explicitement qu'aucun mécanisme de duplicata-annoté distinct de ce document assimilé n'existe par ailleurs en droit suédois."
+      },
+      "notes": "Mervärdesskattelag 17 kap. 28 § point 5, lu en primaire le 2026-09-04 — le différentiel avec la définition de cette voie est noté, pas encore élevé au rang de fait 'forbidden' faute de texte l'affirmant en propre."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et NO_DOCUMENT_BY_LAW ci-dessous — MÊME trouvaille pour les deux, la distinction entre elles n'a pas pu être établie par cette tâche. Mervärdesskattelag 8 kap. 16 § (« Kundförlust », créance client irrécouvrable, lu en primaire le 2026-09-04) dispose : « Om en förlust uppkommer på leverantörens eller tillhandahållarens fordran som avser ersättning för en vara eller en tjänst (kundförlust), får denne minska beskattningsunderlaget med förlusten. » (si une perte survient sur la créance du fournisseur relative à la contrepartie d'un bien ou service — perte client —, celui-ci PEUT réduire la base d'imposition du montant de la perte). Le verbe est « får » (PEUT), discrétionnaire, PAS « ska » (doit) — et le texte ne prescrit AUCUN document ni AUCUNE écriture formalisée pour opérer cet ajustement : c'est un simple droit à réduction de la base d'imposition, sans mécanisme documentaire précisé au-delà de la réduction elle-même dans la déclaration de TVA. Ceci ressemble, dans son PRINCIPE, au régime allemand par défaut découvert pour DE (NO_DOCUMENT_BY_LAW) — un ajustement de plein droit, sans document dédié — mais pourrait tout aussi bien impliquer une ÉCRITURE identifiable dans la comptabilité de l'assujetti (LEDGER_ANNOTATION) que cette tâche n'a pas les moyens de confirmer ou d'exclure sur la seule lecture de cet alinéa. DIFFÉRENCE AVEC LV : la Lettonie imposait une NOTIFICATION ÉCRITE distincte au destinataire pour ce même cas (art. 105 al. 3, voir lv.json's own ANNOTATED_DUPLICATE) — rien de tel n'a été trouvé dans le texte suédois lu (8 kap. 16 § ne mentionne aucune notification au débiteur). Ce qui trancherait : une doctrine de Skatteverket ou une lecture des règles de déclaration de TVA (skatteförfarandelagen (2011:1244), non recherchée par cette tâche) décrivant concrètement l'acte requis pour opérer cette réduction."
+      },
+      "notes": "Mervärdesskattelag 8 kap. 16 §, lu en primaire le 2026-09-04 — trouvaille réelle mais non départagée d'avec NO_DOCUMENT_BY_LAW, voir resolutionNote."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et LEDGER_ANNOTATION ci-dessus — voir sa resolutionNote pour le détail complet de la trouvaille et de l'ambiguïté, non dupliqué ici pour éviter deux versions divergentes du même raisonnement. En bref : 8 kap. 16 § accorde un droit DISCRÉTIONNAIRE (« får ») à réduire la base d'imposition pour créance irrécouvrable, sans prescrire de document ni de procédure — plus proche, dans son LIBELLÉ, du régime allemand par défaut (NO_DOCUMENT_BY_LAW) que d'une écriture identifiable formalisée, MAIS cette tâche n'a pas trouvé de texte excluant EXPLICITEMENT toute formalité, ce qui laisse la question ouverte entre les deux voies. RÉSERVE, propre à la Suède : la correction ORDINAIRE d'un prix (remise, escompte, crédit client) suit de toute façon un régime à document OBLIGATOIRE (17 kap. 22-23 §§, voir CREDIT_NOTE) — un régime GÉNÉRAL 'sans document' n'est donc pertinent ici que pour le cas SPÉCIFIQUE de la créance devenue irrécouvrable après coup (kundförlust), jamais pour une correction de prix ordinaire."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même trouvaille, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Suède au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — les 17 kap. 20-30 §§ et 8 kap. 14-16 §§ de la Mervärdesskattelagen, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le droit commun des obligations suédois ou dans skatteförfarandelagen (2011:1244))."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Suède — agent pays SE, lot 4 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas la Suède) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même (Mervärdesskattelag (2023:200), qui REMPLACE, depuis le 1er juillet 2023, l'ancienne mervärdesskattelag (1994:200), jamais citée ici), pas seulement à une doctrine administrative. MÉTHODE D'ACCÈS : riksdagen.se sert son texte en HTML COMPLET dès la première requête curl standard (`curl -sL -A \"Mozilla/5.0...\"`), SANS AUCUN blocage JavaScript ni squelette vide à contourner — même famille d'accessibilité directe que likumi.lv (Lettonie), à l'inverse de riigiteataja.ee (Estonie, API cachée à découvrir) ou legilux.public.lu (Luxembourg, détour SPARQL nécessaire) documentés par ce même lot ; le texte a été extrait par un script Python local (strip des balises HTML, dé-échappement des entités) appliqué DIRECTEMENT au fichier téléchargé par curl, jamais par un outil de fetch-résumé. HEADLINE, PLUS FORT que le modèle LV/LU de ce lot : QUATRE voies sourcées 'legal' — CREDIT_NOTE (17 kap. 23 § composé avec 17 kap. 22 §, statut 'required', PAS SEULEMENT 'allowed' : la Suède MANDATE l'émission de ce document pour toute réduction de prix/crédit client, contrairement à la Lettonie et au Luxembourg où la même clause générale d'assimilation ne rendait aucune voie 'required') ; CORRECTIVE_INVOICE et DEBIT_NOTE — 17 kap. 22 §, une clause GÉNÉRALE d'assimilation d'un document modificatif référencé à une facture, structurellement identique à celle que la Lettonie et le Luxembourg portent déjà — contre UNE seule pour nl.json (CREDIT_NOTE). RENFORCEMENT PROPRE À LA SUÈDE, absent de LV/LU : 17 kap. 28 § point 5 prévoit un contenu minimal EXPLICITEMENT NOMMÉ pour la facture correctrice simplifiée, corroborant CORRECTIVE_INVOICE par un second texte du même acte. Les sept autres voies restent honnêtement 'unverified', dont DEUX (LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) portent une trouvaille RÉELLE mais NON DÉPARTAGÉE (8 kap. 16 § sur la « kundförlust », créance devenue irrécouvrable — réduction discrétionnaire de la base d'imposition, jamais davantage précisée par le texte quant à la forme), et UNE (ANNOTATED_DUPLICATE) porte une trouvaille adjacente réelle (17 kap. 28 § point 5, la facture simplifiée additionnelle) qui ne correspond PAS à la définition exacte de cette voie. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir b2g-routing/data/se.json, déjà livré, lu pour cohérence, jamais réécrit) : AUCUNE contradiction relevée avec ce fichier (Peppol BIS Billing 3.0 sans adaptation nationale, Act 2018:1277, lu 2026-09-02)."
+}

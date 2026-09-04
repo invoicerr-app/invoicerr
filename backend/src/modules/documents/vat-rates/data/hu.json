@@ -1,0 +1,66 @@
+{
+  "countryCode": "HU",
+  "rates": [
+    {
+      "id": "hu-standard",
+      "rate": 27,
+      "label": "Normál adómérték",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "82. § (1) Az adó mértéke az adó alapjának 27 százaléka.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "2007. évi CXXVII. törvény (Áfa tv.), 82. § (1) bekezdés — LU DIRECTEMENT le 2026-09-04, texte consolidé en vigueur, net.jogtar.hu (curl direct, docid=A0700127.TV — njt.hu, le portail officiel visé par le brief, a systématiquement RESET la connexion cette session ; voir correction-routes/data/hu.json's own file-level note pour le détail complet de cette méthode d'accès). Traduction littérale : « Le taux de l'impôt est de 27 pour cent de la base d'imposition. » LE PLUS HAUT TAUX NORMAL DE TVA D'EUROPE, confirmé au texte lui-même. Cross-vérifié avec tax/tax-systems/data/hu.json (déjà livré, lot antérieur), qui documente ce MÊME taux de 27 % via la Taxes in Europe Database (TEDB, DG TAXUD, requête HTTP POST directe du 2026-09-01, situationOn 2026/07/01) — CONVERGENCE CONFIRMÉE. Cette tâche a elle-même RE-INTERROGÉ la même route TEDB le 2026-09-04 (POST https://ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch, member state id 15 = isoCode 'HU') pour recouper les quatre taux ci-dessous : même résultat pour le taux normal (27.0, situationOn 2026/07/01 — cette date est la date d'ENTRÉE EN VIGUEUR du taux actuellement applicable, PAS la date d'observation de la requête, même clarification que le lot 2 a déjà consignée dans TODO_DOCUMENTS.md pour lever une fausse divergence apparente)."
+    },
+    {
+      "id": "hu-reduced",
+      "rate": 18,
+      "label": "Kedvezményes adómérték (18%)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "82. § (3) A 3/A. számú mellékletben felsorolt termékek, szolgáltatások esetében az adó mértéke az adó alapjának 18 százaléka.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "2007. évi CXXVII. törvény, 82. § (3) bekezdés — même lecture directe, même méthode que hu-standard ci-dessus. Traduction littérale : « Pour les biens et services énumérés à l'Annexe 3/A de la présente loi, le taux de l'impôt est de 18 pour cent de la base d'imposition. » L'Annexe 3/A elle-même (lue au 2026-09-04, non transcrite ici — même limite de périmètre que ce catalogue applique déjà pour la France, voir schema.ts's own header) couvre notamment : le lait et les produits laitiers (hors lait maternel), certains produits à base de céréales/farine/amidon/lait, et un service d'entrée à des événements de plein air occasionnels organisés selon la réglementation applicable au 1er janvier 2012. Cross-vérifié via la MÊME requête TEDB directe du 2026-09-04 (member state id 15) : TEDB liste bien un palier « Reduced rate » à 18.0 % pour la Hongrie (situationOn 2026/07/01) — convergence confirmée avec le texte de loi."
+    },
+    {
+      "id": "hu-super-reduced",
+      "rate": 5,
+      "label": "Kedvezményes adómérték (5%)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "82. § (2) A 3. számú mellékletben felsorolt termékek, szolgáltatások esetében az adó mértéke az adó alapjának 5 százaléka.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "2007. évi CXXVII. törvény, 82. § (2) bekezdés — même lecture directe, même méthode que hu-standard ci-dessus. Traduction littérale : « Pour les biens et services énumérés à l'Annexe 3 de la présente loi, le taux de l'impôt est de 5 pour cent de la base d'imposition. » L'Annexe 3 (lue au 2026-09-04, non transcrite intégralement ici — une liste longue) couvre notamment : les médicaments à usage humain autorisés à la mise sur le marché, certains dispositifs médicaux pour malvoyants, les livres et périodiques (dont partitions), certaines viandes fraîches/congelées (porc, bœuf, mouton, chèvre, volaille), le lait, le poisson et œufs frais, ainsi que, sous conditions de surface, certains logements neufs en immeuble collectif ou individuel. Catégorisé SUPER_REDUCED (c'est le taux réduit le plus bas des trois retenus, sous le taux réduit ordinaire de 18 %) — même convention de rang que ce catalogue applique déjà à d'autres pays ayant plus d'un palier sous le taux normal (voir schema.ts's own header, France/Grèce). Cross-vérifié via la MÊME requête TEDB directe du 2026-09-04 : TEDB liste bien un palier « Reduced rate » à 5.0 % pour la Hongrie (situationOn 2026/07/01, catégorie \"Foodstuffs [...]\", commentaires citant notamment la viande de bœuf et de porc domestiques fraîches/congelées) — convergence confirmée avec le texte de loi."
+    },
+    {
+      "id": "hu-zero",
+      "rate": 0,
+      "label": "Nulla százalékos adómérték",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "82. § (4) A 3/B. számú mellékletben felsorolt termékek esetében az adó mértéke az adó alapjának 0 százaléka.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "2007. évi CXXVII. törvény, 82. § (4) bekezdés — même lecture directe, même méthode que hu-standard ci-dessus. Traduction littérale : « Pour les biens énumérés à l'Annexe 3/B de la présente loi, le taux de l'impôt est de 0 pour cent de la base d'imposition. » L'Annexe 3/B, INTÉGRALEMENT lue (elle ne compte que trois points, contrairement aux Annexes 3/3-A) : « 1. Napilap (hetenként legalább négyszer megjelenő kiadvány) » — quotidien (publication paraissant au moins quatre fois par semaine) ; « 2. Kizárólag orvosi rendelvényhez kötött gyógyszerek » — médicaments soumis exclusivement à prescription médicale ; « 3. Humán gyógyászati célú magisztrális készítmények » — préparations magistrales à usage médical humain. CATÉGORIE 'ZERO' RETENUE (taux zéro AVEC droit à déduction en amont — un vrai taux de la loi, PAS une exonération de petite entreprise, voir 'hu-exempt' ci-dessous pour cette distinction), analogue à vat-rates/data/ee.json's own \"ee-zero\". Cross-vérifié via la MÊME requête TEDB directe du 2026-09-04 : TEDB liste un palier à 0.0 % pour la Hongrie (son propre vocabulaire interne l'étiquette « Exempted », catégorie \"Newspapers\", commentaire verbatim lu dans la réponse JSON : « Daily newspapers (journals published at least four times in a week) ») — CONVERGENCE CONFIRMÉE avec le point 1 de l'Annexe 3/B ; TEDB ne recense, pour ce palier, que la sous-catégorie « journaux quotidiens » et pas les deux catégories pharmaceutiques (points 2 et 3), sans que cela contredise le texte de loi lui-même (TEDB n'étant pas nécessairement exhaustif par CN code pour cette ligne)."
+    },
+    {
+      "id": "hu-exempt",
+      "rate": 0,
+      "label": "Alanyi adómentesség (kisvállalkozói mentesség)",
+      "category": "EXEMPT",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "187. § (1) Az az adóalany, akinek (amelynek) gazdasági tevékenységének székhelye, ennek hiányában pedig lakóhelye belföldön van, jogosult az ezen alcímben meghatározottak szerint belföldön alanyi adómentességet választani. [...] 188. § (2) Az alanyi adómentesség választására jogosító felső értékhatár: 20 000 000 forintnak megfelelő pénzösszeg.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "2007. évi CXXVII. törvény, 187. § (1) bekezdés et 188. § (2) bekezdés — même lecture directe, même méthode que hu-standard ci-dessus. Traduction littérale : « 187. § (1) L'assujetti dont le siège de l'activité économique, ou à défaut le domicile, se trouve sur le territoire national, est en droit d'opter, selon les modalités définies au présent sous-titre, pour l'exonération subjective (« alanyi adómentesség ») sur le territoire national. [...] 188. § (2) Le seuil maximal ouvrant droit à l'option pour l'exonération subjective est : un montant équivalent à 20 000 000 forints. » MÊME MODÈLE que vat-rates/data/lu.json's own \"lu-exempt-57bis\" (franchise luxembourgeoise) et vat-rates/data/fr.json's own \"fr-exempt-293b\" : ce n'est PAS un taux zéro avec droit à déduction (voir 'hu-zero' ci-dessus, catégorie distincte) mais une EXONÉRATION SANS droit à déduction pour les petites entreprises sous un seuil de chiffre d'affaires annuel — d'où `rate: 0` mais `category: 'EXEMPT'`, jamais 'ZERO'. Ce seuil (20 000 000 HUF, soit environ 50 000 EUR au taux de change indicatif publié par la BCE au 2026-09-04) est celui-là même qui justifie `required: true` malgré tout sur le schéma VAT de country-identifiers/data/hu.json (contrairement à LU/FR/EE) : voir cette note pour l'explication complète — un assujetti hongrois sous ce régime CONSERVE un adószám (contrairement au numéro de TVA luxembourgeois/français/estonien qui disparaît sous seuil), seul le 9e chiffre (áfakód) de son adószám change de valeur pour refléter son statut d'exonération. Le § 169 m) de l'Áfa tv. (« adómentesség esetében jogszabályi [...] hivatkozás vagy [...] egyértelmű utalás arra, hogy a termék értékesítése [...] mentes az adó alól ») impose une mention de facture pour toute exonération (dont celle-ci) mais SANS formule fixe imposée par la loi elle-même (à la différence du luxembourgeois art. 57bis § 5, qui impose une formule EXACTE) — non modélisé plus avant ici, hors du périmètre strict de ce fichier (taux), signalé pour un futur agent content-requirements/mentions. Non recoupé avec TEDB (TEDB ne modélise pas les seuils de franchise nationale, seulement les taux positifs et le taux zéro — même limite déjà rencontrée par ce catalogue pour d'autres pays)."
+    }
+  ],
+  "notes": "Hongrie — agent pays HU COMPLÉMENT, lot 4 (TODO_DOCUMENTS.md, vague B, 2026-09-04). CINQ entrées, TOUTES 'legal', sourcées AU TEXTE PRIMAIRE DE LOI lui-même : quatre taux positifs de l'article unique 82. § (27 % normal / 18 % réduit / 5 % super-réduit / 0 % taux zéro, Annexes 3/3-A/3-B) plus une exonération petites entreprises (art. 187-188, seuil 20 000 000 HUF). MÉTHODE D'ACCÈS AU TEXTE PRIMAIRE, commune à toutes les entrées et détaillée intégralement dans correction-routes/data/hu.json's own file-level note (non répétée ici en entier) : njt.hu (le portail officiel visé par le brief) a systématiquement RESET la connexion cette session, quels que soient le User-Agent/version TLS/HTTP essayés — CONTOURNÉ par net.jogtar.hu, l'ancien domaine officiel du MÊME système (Nemzeti Jogszabálytár), resté directement joignable et servant le texte consolidé identique en HTML brut, sans JavaScript (curl direct, HTTP 200, docid=A0700127.TV, ~1,6 Mo, le 2026-09-04). RECOUPEMENT SYSTÉMATIQUE : (1) tax/tax-systems/data/hu.json (déjà livré), qui documentait déjà le taux normal (27 %) via TEDB (requête du 2026-09-01) — convergence confirmée ; (2) une RE-INTERROGATION DIRECTE de la même API TEDB (POST ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch, member state id 15 = isoCode 'HU', le 2026-09-04) pour recouper LES QUATRE taux positifs retenus — convergence confirmée sur les quatre paliers (27/18/5/0, ce dernier étiqueté « Exempted » par le vocabulaire propre de TEDB, situationOn 2026/07/01 pour les quatre — une date d'ENTRÉE EN VIGUEUR du barème actuellement applicable, pas une date d'observation, précision déjà consignée par le lot 2 dans TODO_DOCUMENTS.md pour éviter une fausse divergence). NON MODÉLISÉ ICI, délibérément : le § 82 (5) (taux de 5 % pour l'importation de certaines œuvres d'art visées à l'Annexe 8 partie I, dans les conditions du § 24) — une catégorie RÉELLE et SOURCÉE mais trop étroite (importation d'œuvres d'art spécifiquement) pour justifier une sixième entrée de menu déroulant, même discipline « modéliser seulement si simple et général, sinon noter » que ce catalogue applique déjà pour la Grèce (régime des îles de l'Égée) et l'Estonie. AUCUNE contradiction relevée avec country-policy/data/hu.json (préexistant, non modifié par cette tâche) ni avec reporting/data/hu.json (préexistant, non modifié — le régime NAV Online Számla qu'il documente s'applique de façon identique à une facture émise à n'importe lequel de ces cinq taux/régimes, sans qu'aucun des deux fichiers ne se contredisent)."
+}

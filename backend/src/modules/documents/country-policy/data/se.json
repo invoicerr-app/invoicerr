@@ -1,0 +1,215 @@
+{
+  "countryCode": "SE",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/at.json/ee.json/lv.json/lu.json pour cette même action : aucun texte suédois identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — citation COPIÉE telle quelle depuis country-policy/data/lv.json's own quote.send (elle-même copiée de nl.json/ee.json), même discipline imposée par le mandataire pour ce lot : une citation déjà posée dans ce dépôt pour un règlement européen d'applicabilité directe se recopie depuis le fichier qui la porte, jamais ne se re-résume depuis eur-lex. Un règlement européen est d'applicabilité directe, sans transposition nationale requise, donc identique pour la Suède comme pour les Pays-Bas/l'Allemagne/l'Italie/l'Espagne/la Pologne/l'Estonie/la Lettonie/le Luxembourg qui portent déjà la même citation dans ce catalogue. Un devis n'est pas une facture fiscale (voir invoice.send ci-dessous, propre à la Mervärdesskattelagen — la loi suédoise sur la TVA) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte suédois identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send/invoice.save-draft ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus. Un texte a bien été identifié pour le TRAITEMENT FISCAL d'un acompte facturé : Mervärdesskattelag (2023:200) 17 kap. 14 § (lu en primaire le 2026-09-04 sur riksdagen.se) impose que « Varje beskattningsbar person ska se till att en faktura utfärdas [...] för betalningar i förskott eller a conto som gjorts till den beskattningsbara personen » (chaque assujetti doit veiller à ce qu'une facture soit émise [...] pour les paiements en avance ou à valoir qui lui ont été versés) — mais aucun texte n'encadre spécifiquement le MÉCANISME PRODUIT consistant à faire naître cette facture d'acompte en brouillon depuis un devis. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte suédois identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas une facture au sens de la Mervärdesskattelagen. Aucun texte suédois identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "ett löpnummer baserat på en eller flera serier, som unikt identifierar fakturan",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 17 kap. 24 § point 2 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur riksdagen.se (https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/mervardesskattelag-2023200_sfs-2023-200/, page servie en HTML COMPLET dès la première requête curl, sans aucun blocage JavaScript — la Suède A REFONDU sa loi TVA le 1er juillet 2023 : cette Mervärdesskattelagen (2023:200) REMPLACE l'ancienne mervärdesskattelag (1994:200), jamais citée ici). COMPOSITION, même structure que lv.json's own invoice.save-draft : « ett löpnummer [...] som unikt identifierar fakturan » (un numéro de séquence [...] qui identifie UNIQUEMENT la facture) tranche l'UNICITÉ du numéro, et une SECONDE clause, 17 kap. 30 § du même acte (également lue en primaire le 2026-09-04), renforce cette lecture : « Den som [...] ska se till att ett exemplar av fakturan bevaras, ska också från tidpunkten för utfärdandet av fakturan och under hela lagringstiden säkerställa 1. leverantörens, tillhandahållarens eller fakturautfärdarens identitet (ursprungets äkthet), 2. att det innehåll som krävs i fakturan inte har ändrats (innehållets integritet) [...] » (celui qui doit conserver un exemplaire de la facture doit aussi, dès l'émission et pendant toute la durée de conservation, garantir l'authenticité de l'origine et l'intégrité du contenu) — DEUX clauses composées, jamais une seule citation isolée. La conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro, voir invoice.descriptor.ts) est que ré-invoquer cette action une fois la facture 'sent' romprait à la fois l'unicité du numéro de séquence ET l'intégrité du contenu — une correction doit alors emprunter un DOCUMENT DISTINCT (voir correction-routes/data/se.json, les voies CREDIT_NOTE/CORRECTIVE_INVOICE/DEBIT_NOTE, toutes trois sourcées sur 17 kap. 22-23 §§ du même acte), jamais une réédition silencieuse. Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json/nl.json/ee.json/lv.json/lu.json."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Elektronisk faktura får utfärdas bara om mottagaren godkänner det.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 17 kap. 20 § al. 1 — TEXTE PRIMAIRE, riksdagen.se, lu en direct le 2026-09-04 (« Une facture électronique ne peut être émise que si le destinataire l'accepte »). MÊME condition de consentement du destinataire que CGI art. 289 VI (France), § 14 UStG (Allemagne), Wet OB 1968 art. 35b lid 1 (Pays-Bas), Pievienotās vērtības nodokļa likums art. 132 al. 1 (Lettonie) ou LTVA art. 63 § 13 (Luxembourg) — et à l'INVERSE de la Pologne où cette même condition a été ABROGÉE par la bascule KSeF. NUANCE COMPLÉMENTAIRE, propre à la Suède et lue le même jour, au SECOND alinéa du même article : « I 5 § lagen (2018:1277) om elektroniska fakturor till följd av offentlig upphandling finns bestämmelser om skyldighet att ta emot elektroniska fakturor som har utfärdats till följd av offentlig upphandling » (la loi 2018:1277 sur les factures électroniques dans les marchés publics prévoit une OBLIGATION de RECEVOIR une facture électronique issue d'un marché public) — la loi elle-même renvoie donc EXPLICITEMENT, en son sein, au régime B2G distinct que b2g-routing/data/se.json (déjà livré, lu pour cohérence, jamais réécrit par cet agent) documente : Peppol BIS Billing 3.0 sans adaptation nationale, obligatoire pour les pouvoirs adjudicateurs depuis le 1er novembre 2019 (Act 2018:1277 transposant la directive 2014/55/UE). Les deux régimes COEXISTENT sans se contredire — le consentement du 17 kap. 20 § al. 1 gouverne la facturation électronique EN GÉNÉRAL (B2B/B2C), l'obligation de RÉCEPTION du second alinéa gouverne le seul canal B2G — même schéma de coexistence que ee.json's own invoice.send et lv.json's own invoice.send documentent déjà pour leur propre amendement comptable 2025. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas le consentement du destinataire (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que FR/DE/NL/LV/LU pour leur propre invoice.send."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte suédois identifié n'encadre l'acte de duplication lui-même. La question fiscale (Mervärdesskattelagen) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Mervärdesskattelag (2023:200) 8 kap. 16 § (« Kundförlust », lu en primaire le 2026-09-04 sur riksdagen.se) donne un droit — discrétionnaire, « får » (peut), pas « ska » (doit) — à réduction de la base d'imposition pour une créance devenue irrécouvrable : « Om en förlust uppkommer på leverantörens eller tillhandahållarens fordran som avser ersättning för en vara eller en tjänst (kundförlust), får denne minska beskattningsunderlaget med förlusten. » — un fait DISTINCT, non modélisé par ce catalogue faute de correspondre à une action déclarée sur invoice.descriptor.ts, qui porte sur le régime de TVA d'une créance impayée, jamais sur ce mécanisme d'enregistrement de paiement lui-même (voir aussi correction-routes/data/se.json's own LEDGER_ANNOTATION/NO_DOCUMENT_BY_LAW, qui documentent cette même clause du côté des voies de correction). Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale suédoise pour CETTE entreprise de la produire pour une facture B2B/B2C domestique ordinaire. b2g-routing/data/se.json (déjà dans ce dépôt, lu pour cohérence) documente que le format B2G suédois est Peppol BIS Billing 3.0 « used as-is without any national blends » — mais son caractère OBLIGATOIRE se limite au B2G (marchés publics, depuis le 1er novembre 2019, Act 2018:1277), sujet DISTINCT non recherché par cette tâche au-delà de la cohérence de lecture, hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE pour une facture domestique ordinaire — même raisonnement que lv.json/lu.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne du commentaire : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte suédois identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal suédois d'un tel document (voir credit-note.send ci-dessous et correction-routes/data/se.json) concerne le CONTENU et l'effet TVA du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json/lv.json/lu.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Varje handling eller meddelande med ändring av den ursprungliga fakturan och med en särskild och otvetydig hänvisning till den ursprungliga fakturan likställs med en faktura.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 17 kap. 22 § — TEXTE PRIMAIRE, riksdagen.se, lu en direct le 2026-09-04 (« Tout document ou message portant modification de la facture initiale et une référence spécifique et non équivoque à la facture initiale est assimilé à une facture »). COMPOSITION avec l'art. 17 kap. 20 § al. 1 (déjà cité pour invoice.send ci-dessus) : puisqu'un document qui amende la facture initiale en la référençant est LIKSTÄLLS MED (assimilé/réputé équivalent à) une facture, la condition de consentement du destinataire pour l'émission ÉLECTRONIQUE (17 kap. 20 §) s'applique À LUI AUSSI par le jeu de cette même clause d'équivalence — MÊME structure de composition que Pievienotās vērtības nodokļa likums art. 125 al. 5 + art. 132 al. 1 fonde déjà pour lv.json's own credit-note.send. RENFORCEMENT PROPRE À LA SUÈDE, plus fort qu'en Lettonie/qu'au Luxembourg : 17 kap. 23 § du MÊME acte (lu le même jour, voir correction-routes/data/se.json's own CREDIT_NOTE pour le sourçage complet) rend même l'ÉMISSION de ce document OBLIGATOIRE (« ska utfärdas », doit être émis) pour toute réduction de prix ou « kundkreditering » (crédit client) — la Suède ne se contente pas de RECONNAÎTRE l'effet d'un tel document si l'assujetti choisit de l'émettre, elle en impose l'émission pour ce cas précis. Terme administratif suédois : la loi n'emploie à aucun moment un terme dédié équivalent à « kreditfaktura » (facture de crédit) dans ce chapitre — le mécanisme repose sur cette clause GÉNÉRALE, direction-agnostique (« ändring av den ursprungliga fakturan », sans distinguer hausse/baisse), précisée ensuite par 17 kap. 23 § pour le cas spécifique de la baisse de prix. Voir correction-routes/data/se.json pour le sourçage complet de la voie CREDIT_NOTE elle-même (statut 'required', pas seulement 'allowed' — la trouvaille la plus forte de ce fichier)."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte suédois identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables suédoises (bokföringslagen (1999:1078), la loi comptable générale, citée par la Mervärdesskattelagen 17 kap. 32 § pour l'archivage des factures — non recherchée en détail par cette tâche pour son propre volet dépenses) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte suédois identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : b2g-routing/data/se.json documente le format B2G sortant (Peppol BIS, obligatoire depuis le 1er novembre 2019) mais aucun mandat B2B de RÉCEPTION structurée équivalent au PPF français ou à KSeF n'a été identifié pour la Suède par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte suédois identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte suédois identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte suédois identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Suède — agent pays SE, lot 4 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json/lv.json/lu.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE de la Mervärdesskattelag (2023:200) — ATTENTION, C'EST UNE LOI REFONDUE : elle REMPLACE, depuis le 1er juillet 2023, l'ancienne mervärdesskattelag (1994:200), jamais citée dans ce fichier. Portail : riksdagen.se (Svensk författningssamling), qui sert son HTML COMPLET dès la première requête curl standard, SANS AUCUN blocage JavaScript rencontré — le plus directement accessible des portails law-source de ce lot, dans la même famille que likumi.lv (Lettonie) et à l'inverse de riigiteataja.ee (Estonie) ou legilux.public.lu (Luxembourg, qui exige un détour SPARQL). DEUX RÉSULTATS notables, alignés sur le modèle LV/LU de ce lot : (1) invoice.save-draft s'appuie sur une COMPOSITION à DEUX clauses primaires (17 kap. 24 § point 2 — numérotation unique, 17 kap. 30 § — authenticité/intégrité) ; (2) credit-note.send est promue 'legal' — la Suède porte, comme la Lettonie, une clause GÉNÉRALE (17 kap. 22 §) assimilant tout document modificatif référencé à une facture, RENFORCÉE ICI par 17 kap. 23 § qui rend l'ÉMISSION de ce document OBLIGATOIRE pour une réduction de prix/un crédit client — voir correction-routes/data/se.json pour la voie CREDIT_NOTE elle-même, promue 'required' (pas seulement 'allowed', la trouvaille la plus forte de ce fichier, plus forte que LV/LU dont les mêmes voies restent 'allowed'). Corroboration administrative (Skatteverket, l'autorité fiscale suédoise) NON recherchée cette session, faute de temps — le texte de loi primaire, seul, porte chaque citation ci-dessus. AUCUNE contradiction relevée avec b2g-routing/data/se.json (déjà livré, Peppol BIS sans adaptation nationale, Act 2018:1277, lu 2026-09-02) ni avec tax/tax-systems/data/se.json (TEDB, standardRate 25, lu 2026-09-01) ni avec correction-routes/data/se.json et country-identifiers/data/se.json (livrés par ce même agent, ce même jour) : les cinq fichiers documentent des angles disjoints du MÊME socle légal suédois sans se contredire."
+}

@@ -1,0 +1,54 @@
+{
+  "countryCode": "MT",
+  "rates": [
+    {
+      "id": "mt-standard",
+      "rate": 18,
+      "label": "Standard rate",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The tax chargeable on every taxable supply, other than a supply referred to in sub-article (2), shall be at the rate of eighteen per cent of the taxable value of the supply.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), article 19(1) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur legislation.mt (PDF officiel consolidé au 27 mars 2026, https://legislation.mt/getpdf/6a7d667d73ff6d305c833d20 — voir ce fichier's own file-level note pour la méthode d'accès complète). AUCUNE DIVERGENCE avec tax/tax-systems/data/mt.json (déjà dans ce dépôt, agent P2-T02) : ce fichier TEDB cite lui-même, dans son propre `provenance.sourceText`, la valeur 18.0 avec `situationOn: \"2026/07/01\"` (date d'observation TEDB, jamais une entrée en vigueur — même précision déjà consignée par lv.json/ee.json pour leur propre standardRate) — le taux STATUTAIRE lu ici en primaire (art. 19(1), inchangé depuis la substitution par l'Act X. 2003.10) confirme cette même valeur, sans écart de date à signaler cette fois (à la différence de l'écart d'un an trouvé pour l'Estonie lors de la validation du lot 2)."
+    },
+    {
+      "id": "mt-reduced-12",
+      "rate": 12,
+      "label": "Custody and management of securities",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "12. Custody and management of securities. 12%",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), Eighth Schedule [Article 19(2)] 'Rate of tax', item 12 de la Table — TEXTE PRIMAIRE, legislation.mt, lu le 2026-09-04 (même méthode d'accès que mt-standard). Citation VERBATIM de la ligne du tableau telle qu'extraite par `pdftotext -layout` (description en première colonne, taux en seconde colonne sur la MÊME ligne physique de la Table — restituée ici comme une phrase unique, sans reformulation). Le taux de 12 % couvre, dans la MÊME Table, une liste FERMÉE et COURTE de trois autres catégories (items 13-15, lues le même jour, non transcrites ici pour éviter une citation composite) : « Management of credit and credit guarantees by a person or body other than those who granted the credit » (item 13), « Hiring of a pleasure boat [...] » sous condition de durée (item 14), et certains « Services consisting of the care of the human body [...] » régulés par le Health Care Professions Act (item 15). Ce catalogue ne modélise que le TAUX, pas la liste exhaustive de ces quatre catégories — même limite de périmètre que ce schema.ts's own header documente déjà pour la France, et que vat-rates/data/lv.json's own lv-reduced-12 documente pour la Lettonie. Catégorie REDUCED (et non SUPER_REDUCED) par construction du présent catalogue : c'est le taux réduit le PLUS ÉLEVÉ des trois que porte Malte (12 %, 7 % et 5 %), même convention que vat-rates/data/at.json (13 % REDUCED, 10 % SUPER_REDUCED) et vat-rates/data/fr.json (10 % REDUCED, 5.5 % et 2.1 % tous deux SUPER_REDUCED — Malte suit ici le modèle FRANÇAIS à trois paliers non standards, pas le modèle LV/EE/AT à deux paliers)."
+    },
+    {
+      "id": "mt-reduced-7",
+      "rate": 7,
+      "label": "Use of sporting facilities",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "11. Use of sporting facilities. 7%",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), Eighth Schedule, item 11 de la Table — TEXTE PRIMAIRE, legislation.mt, lu le 2026-09-04. Le taux de 7 % couvre AUSSI, dans la MÊME Table, l'item 1 ('Accommodation' — la location ou fourniture d'hébergement dans des locaux devant être licenciés en vertu du Malta Travel and Tourism Services Act, avec une clause de répartition 80/20 lorsque le prix inclut des services non compris dans la notion d'hébergement — lue le même jour, non transcrite ici pour éviter une citation composite plus longue et moins directement vérifiable) — item 11, plus court et sans clause conditionnelle, a été retenu comme citation PRINCIPALE pour sa clarté. Catégorie SUPER_REDUCED (avec le taux de 5 % ci-dessous), suivant le modèle FRANÇAIS à trois paliers non standards documenté par mt-reduced-12 ci-dessus : 12 % (REDUCED, le plus élevé des trois) puis 7 % ET 5 % (tous deux SUPER_REDUCED, distingués par leur propre `id`/`label`, jamais fusionnés en une seule entrée) — même convention que fr.json's own fr-reduced (5.5%) et fr-particular (2.1%)."
+    },
+    {
+      "id": "mt-reduced-5",
+      "rate": 5,
+      "label": "The supply of electricity",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. The supply of electricity. 5%",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), Eighth Schedule, item 2 de la Table — TEXTE PRIMAIRE, legislation.mt, lu le 2026-09-04. Le taux de 5 % couvre, dans la MÊME Table, une LISTE FERMÉE et longue au-delà de la seule électricité citée verbatim ci-dessus (items 3 à 10, lus le même jour, non transcrits ici) : certains biens de consommation identifiés par code NC douanier (item 3), accessoires médicaux (item 4), importation d'œuvres d'art/objets de collection/antiquités (item 7), petites réparations de bicyclettes/chaussures/maroquinerie/vêtements (item 8), services d'aide à domicile (item 9), admission aux musées/expositions/concerts/théâtres (item 10). Ce catalogue ne modélise que le TAUX, pas la liste exhaustive de ces catégories — même limite de périmètre que mt-reduced-12/mt-reduced-7 ci-dessus documentent déjà."
+    }
+  ],
+  "notes": "Malte — agent pays MT, lot 4 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Quatre taux, tous 'legal', SOURCÉS AU TEXTE PRIMAIRE DE LOI lui-même (Value Added Tax Act, Chapter 406 — L'ANGLAIS EST UNE LANGUE OFFICIELLE DE MALTE, aucune traduction à évaluer, à la différence de LV/EE/CY dans ce même lot ou le précédent) : 18 % (standard, art. 19(1)), 12 % (Eighth Schedule item 12, custody/management de titres — parmi trois autres catégories aux items 13-15), 7 % (Eighth Schedule item 11, installations sportives — parmi l'hébergement touristique à l'item 1), 5 % (Eighth Schedule item 2, électricité — parmi sept autres catégories aux items 3-10). MALTE SUIT UN MODÈLE À TROIS PALIERS NON STANDARDS (18/12/7/5), PLUS PROCHE DE fr.json (20/10/5.5/2.1) QUE DE lv.json/ee.json/at.json (un seul palier REDUCED, un seul SUPER_REDUCED) — trouvaille RÉELLE et NON ANTICIPÉE avant lecture (le TEDB, tax/tax-systems/data/mt.json's own file, ne modélise QUE le taux standard et n'aurait pas révélé ce troisième palier). MÉTHODE D'ACCÈS AU TEXTE PRIMAIRE : legislation.mt est une Angular SPA dont le HTML initial NE SERT AUCUN articulé de loi (confirmé par une requête directe sur /eli/cap/406/eng, qui ne rend que la coquille + les métadonnées ELI) — le texte réel vit derrière un endpoint caché `/getpdf/<id>`, découvert en inspectant l'iframe `#the-canvas` du visualiseur PDF embarqué par la page (`src=\"https://legislation.mt//Pdf/web/viewer.html?file=https://legislation.mt/getpdf/<id>\"`), puis récupéré par curl DIRECT (https://legislation.mt/getpdf/6a7d667d73ff6d305c833d20, 1 029 713 octets, `Content-Type: application/pdf`) et son texte extrait avec `pdftotext -layout`, JAMAIS un outil de fetch-résumé — TROISIÈME précédent de SPA-qui-cache-une-API documenté par ce catalogue (après riigiteataja.ee/EE et forin.gr/GR), cette fois pour un DOCUMENT PDF plutôt qu'un endpoint JSON. AUCUNE DIVERGENCE trouvée face à tax-systems/data/mt.json (déjà dans ce dépôt, agent P2-T02) pour le taux standard — voir mt-standard ci-dessus. UN 'ZERO' DÉLIBÉRÉMENT NON MODÉLISÉ, TROUVAILLE RÉELLE À CONSIGNER HONNÊTEMENT : le Value Added Tax Act connaît, à son article 9(1)(a) et son Fifth Schedule Part One ('Exemptions with credit' — [Article 8]), un régime d'exportations et opérations assimilées qui donne DROIT À DÉDUCTION de la taxe amont, fonctionnellement équivalent à un taux zéro (item 1 du Fifth Schedule Part One : « The supply of goods dispatched or transported to a destination outside the Community [...] », lu en primaire le 2026-09-04) — MAIS, À LA DIFFÉRENCE DE lv.json ('the zero per cent tax rate shall be applied to exportation of goods', un chiffre EXPLICITE) et de ee.json, LA LOI MALTAISE NE QUALIFIE JAMAIS CE RÉGIME DE '0 %'/'nil' NULLE PART DANS LE TEXTE LU (recherche menée sur 'nil', 'zero-rat', '0 per cent', '0%' — sans un seul résultat pertinent, voir ce fichier's own recherche) : le texte le qualifie EXCLUSIVEMENT d''EXEMPTION (avec droit à déduction)', jamais d'un TAUX numérique. Ajouter une entrée `rate: 0, category: 'ZERO'` sourcée à ce texte aurait constitué une PROMOTION PAR ANALOGIE avec LV/EE (le même résultat économique, mais un TEXTE structurellement différent) — exactement le type de raccourci que la règle absolue de cette tâche interdit ; cy.json's own vat-rates ne modélise d'ailleurs lui non plus AUCUNE entrée ZERO, précédent cohérent avec ce choix. Ce même Fifth Schedule fonde aussi la définition de 'exempt without credit supply' (Part Two du même Schedule, non recherchée en détail par cette tâche, hors du périmètre 'taux') citée par country-identifiers/data/mt.json's own VAT entry (art. 10(1)(a)). Corroboration administrative (Office of the Commissioner for Revenue, CFR) recherchée mais NON ATTEINTE cette session — signalé honnêtement plutôt que comblé par une supposition ; cette absence ne dégrade aucune des quatre citations ci-dessus, toutes sourcées au texte de loi lui-même."
+}

@@ -1,0 +1,215 @@
+{
+  "countryCode": "MT",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/ee.json/lv.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit maltais (le Value Added Tax Act, Chapter 406, et ses Schedules, lus en primaire par cette tâche, ne s'appliquent qu'à la 'tax invoice' — voir invoice.save-draft ci-dessous — jamais à un devis). À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "RÉUTILISE la citation déjà établie par ce dépôt (be.json/pl.json/de.json/it.json/es.json/lv.json/cy.json…) pour cette même action — Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1, citation COPIÉE telle quelle depuis country-policy/data/lv.json's own quote.send, jamais re-résumée depuis eur-lex : le fait est par nature invariant par pays (un règlement UE d'applicabilité directe, sans transposition nationale requise), donc identique pour Malte comme pour tout autre État membre déjà porté par ce catalogue. Un devis n'est pas une 'tax invoice' au sens du Value Added Tax Act (Chapter 406) — voir invoice.send ci-dessous, propre au droit maltais — c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit maltais (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send et invoice.save-draft ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit maltais. Le Twelfth Schedule du Value Added Tax Act (Chapter 406) [Article 50(5)], item 2(1)(a) (lu en primaire le 2026-09-04 sur legislation.mt, PDF officiel), fixe le DÉLAI d'émission d'une 'tax invoice' à « not later than the fifteenth day of the month following that in which the chargeable event occurs OR THE DATE ON WHICH A PAYMENT IS RECEIVED, whichever is the earlier » — soit un point de départ explicitement déclenché par la réception d'un acompte — mais cette clause s'applique une fois la facture d'acompte ÉMISE, jamais à l'acte produit consistant à en préparer un brouillon depuis un devis, qui reste ce que cette règle-ci couvre. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit maltais. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas une 'tax invoice' au sens du Value Added Tax Act. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "a sequential number, based on one or more series, which uniquely identifies the invoice",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), Twelfth Schedule [Article 50(5)] 'Tax invoice', item 3(b) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur legislation.mt (le PDF officiel consolidé de la loi, obtenu via https://legislation.mt/getpdf/6a7d667d73ff6d305c833d20 — voir la note de fichier ci-dessous pour la méthode d'accès complète, l'Angular SPA de legislation.mt cache le vrai document derrière ce endpoint /getpdf/<id>). COMPOSITION, même structure que lv.json's own invoice.save-draft, PAS une clause frontale d'intangibilité isolée : le texte exige un numéro « based on one or more series, which UNIQUELY IDENTIFIES the invoice » (assurant une identification UNIQUE de la facture), et une SECONDE clause du même Schedule, item 6(3) (également lue en primaire le 2026-09-04) renforce cette lecture : « The authenticity of the origin, the integrity of the content and the legibility of an invoice, whether on paper or in electronic form, shall be ensured from the point in time of issue until the end of the period for storage of the invoice. » (l'origine, le CONTENU et la lisibilité doivent être garantis dès l'émission et pendant toute la durée de conservation) — DEUX clauses composées, jamais une seule citation unique. La conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro, voir invoice.descriptor.ts) est que ré-invoquer cette action une fois la facture 'sent' romprait à la fois l'unicité du numéro de séquence ET l'intégrité garantie du contenu depuis l'émission — une correction doit alors emprunter un DOCUMENT DISTINCT (voir correction-routes/data/mt.json, les voies CREDIT_NOTE/CORRECTIVE_INVOICE/DEBIT_NOTE). Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json/nl.json/ee.json/lv.json."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The use of an electronic invoice shall be subject to acceptance by the recipient.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), Twelfth Schedule [Article 50(5)], item 6(2) — TEXTE PRIMAIRE, legislation.mt, lu en direct le 2026-09-04 (même méthode d'accès que invoice.save-draft ci-dessus). MÊME condition de consentement du destinataire que CGI art. 289 VI (France), § 14 UStG (Allemagne), Wet OB 1968 art. 35b lid 1 (Pays-Bas), Käibemaksuseadus § 37(6) (Estonie) ou Pievienotās vērtības nodokļa likums art. 132(1) (Lettonie) — TOUS des transpositions du même art. 232 de la directive 2006/112/EC, et à l'INVERSE de la Pologne où cette même condition a été ABROGÉE par la bascule KSeF. NUANCE PROPRE À MALTE, lue le même jour et NON MODÉLISÉE ICI : b2g-routing/data/mt.json (déjà dans ce dépôt, lu pour cohérence, jamais réécrit par cet agent) documente que « No mandatory B2G eInvoicing requirement exists » côté fournisseur maltais (seule la RÉCEPTION par l'administration, au-dessus des seuils de marchés publics UE, est obligatoire) — cette règle-ci, propre à la loi FISCALE générale (le consentement du destinataire pour l'émission électronique d'une 'tax invoice'), coexiste sans se contredire avec ce fait B2G distinct, même schéma que lv.json's own invoice.send documente déjà pour sa propre coexistence loi-fiscale / amendement-comptable-B2G. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas le consentement du destinataire (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que FR/DE/NL/EE/LV pour leur propre invoice.send."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit maltais. La question fiscale (Value Added Tax Act) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le Value Added Tax Act (Chapter 406), Tenth Schedule [Articles 22 and 23] 'Deductions', item 10 (« Bad debt relief », lu en primaire le 2026-09-04 sur legislation.mt), donne un droit à déduction de la taxe en sortie déjà payée pour une créance devenue « a bad debt » — un fait DISTINCT, non modélisé par ce catalogue faute de correspondre à une action déclarée sur invoice.descriptor.ts, qui porte sur le régime de TVA d'une créance impayée après un délai, jamais sur ce mécanisme d'enregistrement de paiement lui-même. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale maltaise pour CETTE entreprise de la produire. b2g-routing/data/mt.json (déjà dans ce dépôt, lu pour cohérence) documente que le format B2G maltais est peppol-bis SANS CIUS national (« Malta has chosen to use the Peppol BIS Billing 3.0 and its Core Invoice Usage Specification (CIUS) at the national level and does not foresee any separate national CIUS or additional extensions », fiche pays Commission européenne) — mais son caractère OBLIGATOIRE se limite à la RÉCEPTION par les pouvoirs adjudicateurs (« No mandatory B2G eInvoicing requirement exists » côté fournisseur, même fiche), sujet DISTINCT non recherché par cette tâche, hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE ni dans quel cas."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne du commentaire : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal maltais d'un tel document (voir credit-note.send ci-dessous et correction-routes/data/mt.json) concerne le CONTENU et l'effet TVA du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json/lv.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Any document or message that amends and refers specifically and unambiguously to the initial invoice shall be treated as an invoice.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Value Added Tax Act (Chapter 406), Twelfth Schedule [Article 50(5)], item 1(2) — TEXTE PRIMAIRE, legislation.mt, lu en direct le 2026-09-04. COMPOSITION avec item 6(2) du même Schedule (déjà cité pour invoice.send ci-dessus) : puisqu'un document qui amende la facture initiale en la référençant SPÉCIFIQUEMENT ET SANS AMBIGUÏTÉ (« specifically and unambiguously ») est TRAITÉ COMME une 'tax invoice' au sens de tout le Schedule, l'item 6(2) (émission électronique subordonnée à l'acceptation du destinataire) s'applique À LUI AUSSI par le jeu de cette même clause d'équivalence — même structure de composition que Pievienotās vērtības nodokļa likums art. 125(5)+art. 132(1) fonde déjà pour lv.json's own credit-note.send, et Käibemaksuseadus § 37(4)+§ 37(6) pour ee.json's own credit-note.send — à l'INVERSE de nl.json's own credit-note.send (resté 'unverified' faute d'une clause néerlandaise équivalente d'assimilation générale). RENFORCEMENT PROPRE À MALTE, ABSENT DE LV/EE : à la différence de la Lettonie et de l'Estonie, où le terme « credit note »/« kredītrēķins »/« kreedit­arve » n'apparaissait dans AUCUN texte primaire (le mécanisme y reposait ENTIÈREMENT sur la clause générale), le droit maltais NOMME explicitement l'instrument : le Value Added Tax Act, Eleventh Schedule [Article 48] 'Tax records', item 1(1)(h) (lu en primaire le même jour), impose à tout assujetti de conserver « all CREDIT NOTES, DEBIT NOTES and other documents issued by him or received by him which evidence an increase or a decrease in the consideration for any supplies, intra-community acquisitions or importations » — reconnaissance NOMMÉE, par une SECONDE clause du même acte, de l'existence et de la fonction de la 'credit note' comme catégorie légale distincte (portant sur une DIMINUTION de la contrepartie), même si cette clause-ci porte sur l'obligation de CONSERVATION plutôt que sur le canal d'émission — c'est la clause d'équivalence de l'item 1(2) du Twelfth Schedule, composée ci-dessus avec l'item 6(2), qui reste l'assise OPÉRATOIRE fondant l'émission électronique elle-même. Voir correction-routes/data/mt.json pour le sourçage complet de la voie CREDIT_NOTE."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables maltaises (Value Added Tax Act, Eleventh Schedule, tenue et conservation des factures fiscales pendant dix ans — item 8, lu en primaire le 2026-09-04 ; Companies Act (Chapter 386), non recherché en détail pour ce point par cette tâche) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : b2g-routing/data/mt.json documente le format B2G sortant (peppol-bis, sans CIUS national) mais aucun mandat B2B de RÉCEPTION structurée équivalent au PPF français ou à KSeF n'a été identifié pour Malte par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Malte — agent pays MT, lot 4 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json/lv.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE du Value Added Tax Act (Chapter 406) — la version anglaise est OFFICIELLE à Malte (droit bilingue MT/EN, aucune traduction à évaluer), obtenue via curl DIRECT sur https://legislation.mt/getpdf/6a7d667d73ff6d305c833d20 (1 029 713 octets, PDF officiel consolidé au 27 mars 2026, extrait avec `pdftotext -layout`, jamais un outil de fetch-résumé). MÉTHODE D'ACCÈS, à documenter précisément comme pour chaque pays de ce catalogue : legislation.mt est une Angular SPA qui NE SERT AUCUN texte de loi dans le HTML initial (confirmé par une requête directe sur /eli/cap/406/eng — 200 OK mais seulement la coquille + les métadonnées ELI, jamais l'articulé) — le texte réel vit derrière un endpoint caché `/getpdf/<id>`, découvert en inspectant l'iframe `#the-canvas` du visualiseur PDF embarqué (`src=\"https://legislation.mt//Pdf/web/viewer.html?file=https://legislation.mt/getpdf/<id>\"`) — MÊME schéma que riigiteataja.ee/EE (API cachée derrière le bundle JS) ou forin.gr (JSON caché), désormais un TROISIÈME précédent de SPA-qui-cache-une-API documenté par ce catalogue, cette fois pour un DOCUMENT PDF plutôt qu'un endpoint JSON. DEUX RÉSULTATS notables, alignés sur (et par endroits PLUS FORTS que) le modèle LV/EE de ce lot : (1) invoice.save-draft s'appuie sur une COMPOSITION à DEUX clauses primaires (Twelfth Schedule item 3(b) — numérotation, item 6(3) — contenu constant), même structure que lv.json ; (2) credit-note.send est promue 'legal' via la MÊME clause générale d'assimilation (Twelfth Schedule item 1(2)) que lv.json/ee.json, mais RENFORCÉE ici par un terme NOMMÉ ABSENT des deux ('credit notes'/'debit notes' cités explicitement, Eleventh Schedule item 1(1)(h)) — la loi maltaise reconnaît l'instrument PAR SON NOM, ce que ni la Lettonie ni l'Estonie ne faisaient. Corroboration administrative (Office of the Commissioner for Revenue, CFR) recherchée mais NON ATTEINTE cette session (aucune page cfr.gov.mt directement pertinente localisée pour ce périmètre précis) — aucune corroboration distincte de la loi elle-même n'a donc pu être ajoutée ; cette absence ne dégrade aucune citation (le texte primaire de loi reste la source), elle est signalée honnêtement plutôt que comblée par une supposition."
+}

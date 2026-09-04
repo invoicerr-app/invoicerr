@@ -1,0 +1,54 @@
+{
+  "countryCode": "SE",
+  "rates": [
+    {
+      "id": "se-standard",
+      "rate": 25,
+      "label": "Normalskattesats",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Skatt enligt denna lag tas ut med 25 procent av beskattningsunderlaget om inte annat följer av 4-19 §§.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 9 kap. 2 § — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur riksdagen.se (https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/mervardesskattelag-2023200_sfs-2023-200/, HTML complet servi dès la première requête curl, aucun blocage JavaScript rencontré). ATTENTION, LOI REFONDUE : cette Mervärdesskattelagen (2023:200) REMPLACE, depuis le 1er juillet 2023, l'ancienne mervärdesskattelag (1994:200), jamais citée ici. NUANCE TEMPORELLE RÉELLE trouvée dans le texte lu : cet article 9 kap. 2 § existe en DEUX versions consolidées dans le même fichier officiel — la version CITÉE ci-dessus, marquée « /Upphör att gälla U:2028-01-01/ » (cesse de s'appliquer au 1er janvier 2028, Lag 2026:118), est celle EN VIGUEUR à la date de vérification (2026-09-04) ; une SECONDE version, marquée « /Träder i kraft I:2028-01-01/ » (entre en vigueur le 1er janvier 2028, Lag 2026:119), renuméro seulement les articles auxquels 9 kap. 2 § renvoie (« 3-18 §§ » au lieu de « 4-19 §§ ») SANS changer le taux normal lui-même (25 %, identique dans les deux versions) — cette citation retient la version ACTUELLEMENT applicable, conformément à `sourceCheckedAt`. AUCUNE DIVERGENCE avec tax-systems/data/se.json (déjà dans ce dépôt, agent P2-T02) : ce fichier TEDB cite « 25.0 » avec `situationOn: 2026/07/01` — le même taux, confirmé mot pour mot par cette lecture primaire indépendante."
+    },
+    {
+      "id": "se-reduced-12",
+      "rate": 12,
+      "label": "Reducerad skattesats (12 %)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Skatt tas ut med 12 procent av beskattningsunderlaget för rumsuthyrning i hotellrörelse eller liknande verksamhet samt upplåtelse av campingplatser och motsvarande i campingverksamhet.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 9 kap. 4 § — TEXTE PRIMAIRE, riksdagen.se, lu le 2026-09-04 (même méthode d'accès que se-standard). Le taux de 12 % COUVRE, via les articles voisins du même chapitre (lus en primaire le même jour, non retranscrits ici pour éviter une citation composite), une LISTE FERMÉE au-delà du seul hébergement touristique cité verbatim ci-dessus : restauration et catering hors alcools forts (9 kap. 5 §), œuvres d'art/objets de collection/antiquités hors régime spécial (9 kap. 6 §), certaines réparations de vélos/chaussures/vêtements en cuir/linge de maison (9 kap. 7 §). Ce catalogue ne modélise que le TAUX, pas la liste exhaustive de ces catégories — même limite de périmètre que ce schema.ts's own header documente déjà pour la France. Catégorie REDUCED (et non SUPER_REDUCED) par construction du présent catalogue : c'est le PLUS ÉLEVÉ des deux taux non-normaux suédois (12 % et 6 %), même convention que vat-rates/data/lv.json (12 % REDUCED, 5 % SUPER_REDUCED) et vat-rates/data/ee.json (13 % REDUCED, 9 % SUPER_REDUCED)."
+    },
+    {
+      "id": "se-reduced-6",
+      "rate": 6,
+      "label": "Reducerad skattesats (6 %)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Skatt tas ut med 6 procent av beskattningsunderlaget för persontransporttjänster, med undantag för sådan transport där resemomentet är av underordnad betydelse.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 9 kap. 8 § — TEXTE PRIMAIRE, riksdagen.se, lu le 2026-09-04. Le taux de 6 % couvre ÉGALEMENT, via les articles voisins du même chapitre (lus en primaire le même jour) : livres/journaux/périodiques (9 kap. 9 §), droits d'auteur sur œuvres littéraires/artistiques (9 kap. 16-17 §§), services dans le domaine sportif (9 kap. 18 §), et — TROUVAILLE TEMPORELLE NOTABLE, à ne pas perdre pour une lecture future — les DENRÉES ALIMENTAIRES (9 kap. 19 §, actuellement en vigueur : « Livsmedel [...] Skatt tas ut med 6 procent »), une entrée marquée dans le texte officiel « 19 § /Ny beteckning 9 kap. 3 § U:2028-01-01/ » (nouvelle désignation : 9 kap. 3 § à compter du 1er janvier 2028) : la loi suédoise a DÉJÀ légiféré, par la Lag (2026:119) (lue le même jour), une HAUSSE du taux sur l'alimentation de 6 % à 12 % à compter du 1er janvier 2028 (elle deviendra alors le nouveau 9 kap. 3 §, actuellement réservé — voir 9 kap. 3 § dans le même fichier, marqué « Har betecknats 9 kap. 19 § genom lag (2026:118) », c'est-à-dire l'INVERSE exact de la désignation future) — un changement de taux LÉGISLÉ MAIS PAS ENCORE EN VIGUEUR à la date de vérification (2026-09-04). Ce catalogue NE MODÉLISE PAS la validité temporelle (voir vat-rates/schema.ts's own header et vat-rates/data/fr.json's own note pour cette même limite structurelle) : le taux retenu ici (6 %, alimentation à 9 kap. 19 §) est celui ACTUELLEMENT en vigueur au 2026-09-04, PAS celui qui s'appliquera après le 1er janvier 2028 — à réviser par un futur agent lorsque cette date sera atteinte. Catégorie SUPER_REDUCED : c'est le PLUS BAS des deux taux non-normaux suédois, sous le taux de 12 % ci-dessus."
+    },
+    {
+      "id": "se-exempt-18kap",
+      "rate": 0,
+      "label": "Ej tillämplig — särskild ordning för beskattningsbara personer med liten årsomsättning (18 kap. MVL)",
+      "category": "EXEMPT",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Leveranser av varor och tillhandahållanden av tjänster inom landet är undantagna från skatteplikt om de görs av en beskattningsbar person vars årsomsättning inom landet 1. inte överstiger 120 000 kronor under kalenderåret, och 2. inte har överstigit 120 000 kronor under något av de två närmast föregående kalenderåren. [...] Vid leveranser av varor eller tillhandahållanden av tjänster som omfattas av undantaget från skatteplikt ska mervärdesskatt inte anges i fakturan.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Mervärdesskattelag (2023:200) 18 kap. 4 § (seuil) et 18 kap. 41 § (mention facture) — TEXTE PRIMAIRE, riksdagen.se, lu en direct le 2026-09-04, introduit par la Lag (2024:942) transposant l'art. 1er de la directive (UE) 2020/285 sur le régime particulier des petites entreprises, EN VIGUEUR depuis le 1er janvier 2025 (date confirmée par la clause transitoire de la même loi, également lue le même jour : « Denna lag träder i kraft den 1 januari 2025. »). MÊME MODÈLE que vat-rates/data/fr.json's own \"fr-exempt-293b\" (franchise en base française) et vat-rates/data/lu.json's own \"lu-exempt-57bis\" (franchise luxembourgeoise, même seuil de 50 000 EUR mais texte distinct) : ce n'est PAS un taux zéro avec droit à déduction (à la différence de vat-rates/data/lv.json's own \"lv-zero\" ou vat-rates/data/ee.json's own \"ee-zero\") mais une EXONÉRATION SANS mention de TVA sur facture pour les petites entreprises sous un seuil de chiffre d'affaires — catégorisée EXEMPT, pas ZERO. Le SEUIL de 120 000 SEK est celui-là même qui justifie `required: false` sur le schéma VAT de country-identifiers/data/se.json — cohérence croisée voulue entre les deux fichiers. La citation COMPOSE deux articles du même chapitre (18 kap. 4 § pour le seuil, 18 kap. 41 § pour la conséquence sur la mention de TVA), jamais deux citations non reliées."
+    }
+  ],
+  "notes": "Suède — agent pays SE, lot 4 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Quatre entrées, TOUTES 'legal', sourcées AU TEXTE PRIMAIRE DE LOI lui-même : trois taux (25 % normal / 12 % réduit / 6 % super-réduit, tous rattachés au 9 kap. « Skattesatser » de la Mervärdesskattelag) plus une exonération petites entreprises (18 kap., seuil 120 000 SEK, en vigueur depuis le 1er janvier 2025). ATTENTION, LOI REFONDUE : la Mervärdesskattelag (2023:200) REMPLACE, depuis le 1er juillet 2023, l'ancienne mervärdesskattelag (1994:200) — cette dernière n'est JAMAIS citée dans ce fichier ; cette refonte est signalée explicitement conformément à la consigne de ce lot. AUCUN taux ZÉRO n'est modélisé ici, à la différence de vat-rates/data/lv.json/ee.json/be.json/nl.json : le chapitre 9 (« Skattesatser », les taux) de la loi suédoise ne comporte, texte en main, QUE trois paliers (25/12/6 %) — aucune occurrence de « 0 procent » ni « noll procent » n'a été trouvée dans l'ensemble du fichier (recherche par mot-clé effectuée sur le texte intégral extrait). Les exportations sont traitées, en droit suédois, comme des « undantag från skatteplikt » (exonérations, 10 kap. 64-68 §§, lues en primaire le 2026-09-04) — une structure LÉGALEMENT DISTINCTE d'un taux explicite de 0 %, à la différence de la Lettonie (« Nulles likme », art. 43 al. 1) ou de l'Estonie : cette tâche n'a PAS approfondi le droit à déduction de la TVA amont pour ces exonérations (13 kap., non lu en détail), ce qui aurait été nécessaire pour trancher si un export suédois relève, FONCTIONNELLEMENT, d'un 'ZERO' ou d'un 'EXEMPT' au sens de ce catalogue — omission signalée honnêtement plutôt que comblée par une supposition, plutôt que de forcer une entrée non recherchée. MÉTHODE D'ACCÈS AU TEXTE PRIMAIRE (commune à toutes les entrées) : riksdagen.se (Svensk författningssamling) sert son HTML COMPLET (environ 1,5 Mo pour la loi TVA entière) dès la PREMIÈRE requête curl standard (`curl -sL -A \"Mozilla/5.0...\"`), SANS AUCUN blocage JavaScript ni squelette vide à contourner — le texte a été extrait par un script Python local (strip des balises HTML, dé-échappement des entités) appliqué DIRECTEMENT au fichier téléchargé par curl, jamais par un outil de fetch-résumé, conformément à la discipline imposée après la découverte, sur l'agent Chypre du lot précédent, qu'un tel outil avait fabriqué un article de loi inexistant. TROUVAILLE TEMPORELLE NOTABLE (voir se-reduced-6's own note pour le détail complet) : le taux sur l'alimentation, actuellement 6 % (9 kap. 19 §), est déjà légiféré pour passer à 12 % au 1er janvier 2028 (Lag 2026:119, qui renumérote aussi cet article en 9 kap. 3 §) — un changement FUTUR, non modélisé ici puisque ce catalogue ne porte que le taux ACTUELLEMENT en vigueur, conformément à son propre header. AUCUNE DIVERGENCE trouvée face à tax-systems/data/se.json (déjà dans ce dépôt, agent P2-T02) pour le taux normal : ce fichier TEDB cite 25 %, `situationOn: 2026/07/01` — exactement le taux lu ici en primaire pour se-standard, confirmé mot pour mot. Corroboration administrative (Skatteverket, l'autorité fiscale suédoise) NON recherchée cette session, faute de temps — cette absence ne dégrade aucune des quatre citations ci-dessus, toutes sourcées au texte de loi lui-même."
+}
