@@ -570,8 +570,9 @@
   14 chiffres produisent le MÊME XML CII/UBL, jugé par le vrai Schematron vendoré. Specs e2e (02, 05,
   18) inchangées et vertes telles quelles (elles tapent des 14 chiffres, toujours acceptés).
 
-- **Audit B2G des 27 (2026-09-02) — 13 pays lus mais délibérément NON livrés, et les 6 fonctions
-  Schematron italiennes toujours non enregistrées** : l'audit demandé (« vérifier qu'il manque pas
+- **Audit B2G des 27 (2026-09-02) — 13 pays lus mais délibérément NON livrés, et (à l'époque) les 6
+  fonctions Schematron italiennes toujours non enregistrées — ce second point est réglé depuis, voir
+  la note du 2026-09-04 en fin d'entrée** : l'audit demandé (« vérifier qu'il manque pas
   du B2G pour des pays ») a lu les 23 États membres restants sur les eInvoicing Country Factsheets
   de la Commission (toutes les fiches se sont chargées — aucun pays illisible) et livré 10 règles
   (`b2g-routing/data/{be,cy,ee,gr,lt,lu,lv,mt,se,pl}.json` — 9 en peppol/peppol-bis, PL en ksef/fa3).
@@ -588,6 +589,12 @@
   un échec propre) que les 6 corrigées par cette vague, mais elles ne gatent que des champs de
   PARTIE italiens sur du Peppol BIS (l'Italie B2G passe par SdI/FatturaPA, jamais par BIS) ; hors
   périmètre ici, nommé dans `validate-schematron.ts`'s own header.
+  **Réglé le 2026-09-04** (`TODO_LIBRE.md` L2) : les 6 fonctions sont désormais enregistrées dans
+  `validate-schematron.ts` (portage byte-for-byte, même discipline que les 6 précédentes) ; les 12
+  fonctions déclarées par le `.sch` (hors `u:slack`, déjà au repère) sont désormais les 12
+  enregistrées. `validate-schematron.spec.ts` porte 10 tests verts (6 + 4 nouveaux — `u:checkCF16` et
+  `u:checkPIVA`/`u:addPIVA` exercés transitivement via `u:checkCF`/`u:checkPIVAseIT`, jamais
+  référencés directement par une règle du `.sch`). Voir `B2G_COVERAGE.md` §2/§6 pour le détail.
 
 - **Écran client — le sélecteur de schéma Peppol n'offre pas les EAS des pays nouvellement couverts,
   et une option préexistante est mal étiquetée** (2026-09-02, découvert par l'audit B2G) : les EAS

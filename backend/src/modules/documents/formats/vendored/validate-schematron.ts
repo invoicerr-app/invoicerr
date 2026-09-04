@@ -75,9 +75,11 @@ try {
    * claim just as false. The remaining SIX functions this same .sch declares
    * (u:checkCodiceIPA/u:checkCF/u:checkCF16/u:checkPIVAseIT/u:checkPIVA/u:addPIVA — all Italian
    * Codice Fiscale/Partita IVA/Codice IPA checks on PARTY fields, never on the Peppol electronic
-   * address itself) are DELIBERATELY NOT fixed here — out of this wave's own scope (Italy already has
-   * its own dedicated, real SdI/FatturaPA B2G channel in this repo, `b2g-routing/data/it.json`, not
-   * Peppol BIS) — named honestly in `B2G_COVERAGE.md` as a known, separate remaining gap.
+   * address itself) were deliberately left out of THIS wave's scope (Italy already has its own
+   * dedicated, real SdI/FatturaPA B2G channel in this repo, `b2g-routing/data/it.json`, not Peppol
+   * BIS) — named honestly in `B2G_COVERAGE.md` as a known, separate remaining gap at the time. That
+   * gap is closed by the next comment block below (2026-09-04): all twelve of the .sch's declared
+   * functions are now registered.
    */
   fontoxpath.registerCustomXPathFunction(
     // PEPPOL-EN16931-UBL.sch, u:gln — GS1 GLN (scheme 0088) mod-10 check digit.
@@ -184,6 +186,142 @@ try {
       const calculated = (10 - (sum % 10)) % 10;
       return calculated === checkDigit;
     },
+  );
+
+  /**
+   * The SIX Italian identifier-checksum functions the comment above named as deliberately left out
+   * of the 2026-09-02 B2G wave (`TODO_LIBRE.md` L2, 2026-09-04) — Italy has its own real B2G channel
+   * (SdI/FatturaPA), but the SAME `XPST0017` crash class hits ANY ordinary (non-B2G) Peppol BIS send
+   * carrying an Italian party identifier: `PEPPOL-COMMON-R044` (scheme `0201`, Codice Univoco
+   * Ufficio), `R045`/`R046` (schemes `0210`/`9907`, Codice Fiscale), `R047` (scheme `0211`, Partita
+   * IVA) each call one of these via `test="..."`, and none had ever been registered. Byte-for-byte
+   * ports of the .sch's own `xsl:function` bodies (comment on each cites the exact source lines) —
+   * same discipline as the ten above, never a re-derived checksum.
+   *
+   * `u:checkCF16` and `u:checkPIVA`/`u:addPIVA` are never referenced directly from a rule's
+   * `test="..."` — `u:checkCF` (R045/R046) calls `u:checkCF16` internally when its argument is 16
+   * characters long, and `u:checkPIVAseIT` (R047) calls `u:checkPIVA`, which recurses through
+   * `u:addPIVA`. All three are still independently registered below (this task's own acceptance bar:
+   * "the 12 declared are the 12 registered" — a future rule referencing one of them directly must not
+   * crash either), but the compound functions call the plain JS ports of their helpers directly
+   * rather than round-tripping back through fontoxpath: the .sch's own `xsl:function` bodies are
+   * never interpreted by fontoxpath at all (see this file's header above on `u:slack`), so there is
+   * no XPath call to intercept in the first place — wiring the JS call graph directly is the only way
+   * for `u:checkCF`'s registered callback to reach `u:checkCF16`'s logic.
+   *
+   * `u:checkPIVA` and `u:addPIVA` return `xs:integer`, not `xs:boolean` — the .sch itself declares
+   * `as="xs:integer"` on both (checkPIVA: 0 for a valid checksum, 1 for a non-numeric argument, the
+   * actual nonzero remainder otherwise; addPIVA is its recursive accumulator) — registered with
+   * `'xs:integer'` below, matching the .sch exactly rather than "improving" them into booleans.
+   */
+  // Plain JS helpers shared by the compound functions below — see the comment above on why these
+  // are called directly in JS instead of being round-tripped through fontoxpath.
+  function checkCF16(arg: string): boolean {
+    // PEPPOL-EN16931-UBL.sch:124-140 (u:checkCF16). 1-based XPath substring(s, start, len) below is
+    // ported as s.slice(start - 1, start - 1 + len).
+    const allowed = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const onlyAllowed = (s: string): boolean => [...s].every((ch) => allowed.includes(ch));
+    const castableAsInteger = (s: string): boolean => /^[+-]?\d+$/.test(s.trim());
+    return (
+      onlyAllowed(arg.slice(0, 6)) && // substring($arg,1,6)
+      castableAsInteger(arg.slice(6, 8)) && // substring($arg,7,2)
+      onlyAllowed(arg.slice(8, 9)) && // substring($arg,9,1)
+      castableAsInteger(arg.slice(9, 11)) && // substring($arg,10,2)
+      true && // substring($arg,12,3) castable as xs:string — always true, kept here for fidelity
+      castableAsInteger(arg.slice(14, 15)) && // substring($arg,15,1)
+      onlyAllowed(arg.slice(15, 16)) // substring($arg,16,1)
+    );
+  }
+  function addPIVA(arg: string, pari: number): number {
+    // PEPPOL-EN16931-UBL.sch:176-188 (u:addPIVA) — recurses one character at a time, alternating
+    // `pari` (odd/even position), exactly like the .sch's own recursive xsl:function.
+    const tappo = /^[+-]?\d+$/.test(arg) ? 1 : 0;
+    if (tappo === 0) return 0;
+    const table = '0246813579';
+    const digit = Number(arg.slice(0, 1));
+    const mapper = pari === 1 ? Number(table.slice(digit, digit + 1)) : digit;
+    return mapper + addPIVA(arg.slice(1), pari === 0 ? 1 : 0);
+  }
+  function checkPIVA(arg: string): number {
+    // PEPPOL-EN16931-UBL.sch:168-175 (u:checkPIVA).
+    if (!/^[+-]?\d+$/.test(arg)) return 1;
+    return addPIVA(arg, 0) % 10;
+  }
+
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch:86-91 (u:checkCodiceIPA) — Italian Codice Univoco Ufficio (scheme
+    // 0201, PEPPOL-COMMON-R044): exactly 6 characters, all from the alphanumeric charset below. No
+    // real checksum in the .sch itself — a format check only.
+    { localName: 'checkCodiceIPA', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const arg = String(val);
+      const allowed = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      return arg.length === 6 && [...arg].every((ch) => allowed.includes(ch));
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch:92-123 (u:checkCF) — Italian Codice Fiscale (schemes 0210/9907,
+    // PEPPOL-COMMON-R045/R046): length 16 delegates to u:checkCF16 (format check, individuals);
+    // length 11 only requires the value be castable as xs:integer (companies — same 11 digits as a
+    // Partita IVA, but the .sch does not re-verify the Luhn checksum here); any other length fails.
+    { localName: 'checkCF', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const arg = String(val);
+      if (arg.length === 16) return checkCF16(arg);
+      if (arg.length === 11) return /^[+-]?\d+$/.test(arg.trim());
+      return false;
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch:124-140 (u:checkCF16) — never referenced directly from a rule's
+    // test="...", only internally by u:checkCF above (see the shared `checkCF16` helper); registered
+    // anyway so any future direct reference resolves (this file's own acceptance bar: 12 declared,
+    // 12 registered).
+    { localName: 'checkCF16', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => checkCF16(String(val)),
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch:141-167 (u:checkPIVAseIT) — Italian Partita IVA (scheme 0211,
+    // PEPPOL-COMMON-R047): only validates when the first two characters are the 'IT'/'it' country
+    // prefix (passes unconditionally otherwise — the .sch's own leniency, not ours); when Italian,
+    // the remaining 11 characters must carry a correct u:checkPIVA checksum.
+    { localName: 'checkPIVAseIT', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:boolean',
+    (_ctx: unknown, val: unknown): boolean => {
+      const arg = String(val);
+      const paese = arg.slice(0, 2); // substring($arg,1,2)
+      const codice = arg.slice(2); // substring($arg,3)
+      if (paese === 'IT' || paese === 'it') {
+        return codice.length === 11 && checkPIVA(codice) === 0;
+      }
+      return true;
+    },
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch:168-175 (u:checkPIVA) — returns xs:integer, not xs:boolean, exactly as
+    // the .sch declares (`as="xs:integer"`): 1 if not numeric, else the Luhn-like sum mod 10 (0 =
+    // valid checksum). Called internally by u:checkPIVAseIT above; registered for the same reason
+    // u:checkCF16 is.
+    { localName: 'checkPIVA', namespaceURI: 'utils' },
+    ['xs:string'],
+    'xs:integer',
+    (_ctx: unknown, val: unknown): number => checkPIVA(String(val)),
+  );
+  fontoxpath.registerCustomXPathFunction(
+    // PEPPOL-EN16931-UBL.sch:176-188 (u:addPIVA) — u:checkPIVA's own recursive accumulator, also
+    // xs:integer per the .sch. Never referenced directly from a rule; registered for the same
+    // reason u:checkCF16 is.
+    { localName: 'addPIVA', namespaceURI: 'utils' },
+    ['xs:string', 'xs:integer'],
+    'xs:integer',
+    (_ctx: unknown, arg: unknown, pari: unknown): number => addPIVA(String(arg), Number(pari)),
   );
 } catch {
   // fontoxpath absent — sans conséquence tant que Peppol BIS (seul ruleset à utiliser ces fonctions)

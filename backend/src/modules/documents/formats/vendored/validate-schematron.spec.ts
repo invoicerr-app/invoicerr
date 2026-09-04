@@ -99,3 +99,63 @@ describe('validate-schematron.ts — the six newly-registered Peppol identifier-
     expect(assertIds(xmlWithGreekSupplierEndpoint('123456780'))).toContain('GR-R-009');
   });
 });
+
+/**
+ * The SIX Italian identifier-checksum functions — `TODO_LIBRE.md` L2 (2026-09-04), the gap the file
+ * header above named as deliberately left out of the 2026-09-02 wave: `PEPPOL-EN16931-UBL.sch`
+ * declares `u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/`u:checkPIVAseIT`/`u:checkPIVA`/`u:addPIVA`
+ * as `xsl:function`s, none of which had ever been registered — same `XPST0017` crash class as the
+ * six above, just gating Italian PARTY fields (Codice Univoco Ufficio, Codice Fiscale, Partita IVA)
+ * instead of the Peppol electronic address itself.
+ *
+ * `u:checkCF16` is never referenced directly from a rule's `test="..."` — only internally by
+ * `u:checkCF` when its argument is 16 characters long (see `validate-schematron.ts`'s own header) —
+ * so it is exercised transitively through PEPPOL-COMMON-R045 below, not by a dedicated fixture.
+ * Likewise `u:checkPIVA` and `u:addPIVA` (its own recursive accumulator) are never referenced
+ * directly; both are exercised transitively through PEPPOL-COMMON-R047 (`u:checkPIVAseIT` calls
+ * `u:checkPIVA`, which recurses through `u:addPIVA` once per digit).
+ *
+ * Fixture provenance, never a real identified person or an invented "real" registry entry:
+ * - `RSSMRA80A01H501U` — the canonical worked example used throughout Italian tax-code tutorials and
+ *   documentation (surname/name consonants RSSMRA = "Rossi Mario", the Italian placeholder-name
+ *   convention equivalent to "John Doe", born 01/01/1980 in Roma/H501) — not a real, identifiable
+ *   person's data. `u:checkCF16` only checks the STRUCTURAL letter/digit pattern per position (see
+ *   `validate-schematron.ts`'s own port), it does not re-verify the real check-letter algorithm, so
+ *   this canonical example satisfies it by construction.
+ * - `01234567897` — a Partita IVA digit string whose Luhn-like `u:checkPIVA` checksum genuinely comes
+ *   out to 0 (independently verified against the ported algorithm below), and one of the most
+ *   commonly cited "valid VAT number" test fixtures across open-source Italian checksum validators —
+ *   an independent cross-check that this port matches the real algorithm, not merely a
+ *   self-consistent one. Also reused as the 11-digit company-form Codice Fiscale fixture (same 11
+ *   digits; `u:checkCF`'s own 11-length branch only requires them to be numeric, no checksum
+ *   re-verified there).
+ * - `ABC123` for Codice Univoco Ufficio — `u:checkCodiceIPA` has no real checksum in the .sch itself,
+ *   only a length-6 / alphanumeric-charset check (see `validate-schematron.ts`'s own port); this
+ *   fixture is a synthetic value chosen to demonstrate exactly that check, not a claim that it is a
+ *   real, registered IPA office code.
+ */
+describe('validate-schematron.ts — the six newly-registered Italian identifier-checksum functions', () => {
+  it('u:checkCodiceIPA (scheme 0201, PEPPOL-COMMON-R044) — never throws; a 6-char alphanumeric code passes, a 6-char code with one non-alphanumeric character is caught', () => {
+    expect(() => assertIds(xmlWithEndpoint('0201', 'ABC123'))).not.toThrow();
+    expect(assertIds(xmlWithEndpoint('0201', 'ABC123'))).not.toContain('PEPPOL-COMMON-R044');
+    expect(assertIds(xmlWithEndpoint('0201', 'ABC12@'))).toContain('PEPPOL-COMMON-R044');
+  });
+
+  it('u:checkCF + u:checkCF16 transitively (scheme 0210, PEPPOL-COMMON-R045) — never throws; the canonical 16-character demo Codice Fiscale passes, one altered character is caught', () => {
+    expect(() => assertIds(xmlWithEndpoint('0210', 'RSSMRA80A01H501U'))).not.toThrow();
+    expect(assertIds(xmlWithEndpoint('0210', 'RSSMRA80A01H501U'))).not.toContain('PEPPOL-COMMON-R045');
+    expect(assertIds(xmlWithEndpoint('0210', '0SSMRA80A01H501U'))).toContain('PEPPOL-COMMON-R045');
+  });
+
+  it("u:checkCF's 11-digit branch (scheme 9907, PEPPOL-COMMON-R046) — never throws; an all-numeric 11-digit code passes, one non-numeric character is caught", () => {
+    expect(() => assertIds(xmlWithEndpoint('9907', '01234567897'))).not.toThrow();
+    expect(assertIds(xmlWithEndpoint('9907', '01234567897'))).not.toContain('PEPPOL-COMMON-R046');
+    expect(assertIds(xmlWithEndpoint('9907', '0123456789A'))).toContain('PEPPOL-COMMON-R046');
+  });
+
+  it('u:checkPIVAseIT + u:checkPIVA + u:addPIVA transitively (scheme 0211, PEPPOL-COMMON-R047) — never throws; a checksum-valid IT-prefixed Partita IVA passes, one altered digit is caught', () => {
+    expect(() => assertIds(xmlWithEndpoint('0211', 'IT01234567897'))).not.toThrow();
+    expect(assertIds(xmlWithEndpoint('0211', 'IT01234567897'))).not.toContain('PEPPOL-COMMON-R047');
+    expect(assertIds(xmlWithEndpoint('0211', 'IT01234567898'))).toContain('PEPPOL-COMMON-R047');
+  });
+});

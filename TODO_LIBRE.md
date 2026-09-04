@@ -33,6 +33,28 @@ régression 31/40/43 ; le commentaire-limitation du provider mis à jour (il ne 
 
 ## L2 — Les 6 fonctions Schematron italiennes (XPST0017 latent)
 
+> ✅ **FAIT** (2026-09-04) — port byte-for-byte des 6 corps `xsl:function` (u:checkCodiceIPA:86-91,
+> u:checkCF:92-123, u:checkCF16:124-140, u:checkPIVAseIT:141-167, u:checkPIVA:168-175 en xs:integer,
+> u:addPIVA:176-188 en xs:integer, récursif) dans le bloc fontoxpath de validate-schematron.ts,
+> commentaire citant les lignes source pour chacun. Règles du .sch qui les référencent, établies par
+> grep : PEPPOL-COMMON-R044 (scheme 0201 → u:checkCodiceIPA), R045/R046 (schemes 0210/9907 →
+> u:checkCF, qui délègue à u:checkCF16 en interne pour les 16 caractères) et R047 (scheme 0211 →
+> u:checkPIVAseIT, qui délègue à u:checkPIVA puis u:addPIVA) — R048 (9906) est une règle
+> COMMENTÉE dans le .sch, jamais évaluée. u:checkCF16/u:checkPIVA/u:addPIVA ne sont jamais appelées
+> directement par une règle : enregistrées quand même (les 12 déclarées = les 12 enregistrées),
+> exercées transitivement par les tests de u:checkCF/u:checkPIVAseIT — documenté dans le spec.
+> Identifiants de démo, tous documentés/publics, jamais une personne réelle : Codice Fiscale
+> `RSSMRA80A01H501U` (l'exemple canonique "Mario Rossi" de la doc fiscale italienne — équivalent
+> italien de John Doe) ; Partita IVA `01234567897` (checksum Luhn-like vérifié = 0, fixture publique
+> couramment citée par les validateurs open-source italiens, réutilisée aussi comme le CF-société à
+> 11 chiffres de R046) ; Codice IPA `ABC123` (u:checkCodiceIPA n'a AUCUN vrai checksum dans le .sch —
+> longueur 6 + charset alphanumérique seulement — fixture synthétique documentée comme telle, jamais
+> présentée comme un code IPA réellement enregistré). jest complet 2153 verts (2149 + 4), biome
+> propre, mutation rejouée (u:checkCodiceIPA dé-enregistrée → XPST0017 jeté, test correspondant
+> tombe, les 9 autres restent verts). Deux en-têtes mis à jour : validate-schematron.ts (la
+> dérogation italienne ne s'applique plus) et B2G_COVERAGE.md/TODO_ISSUES.md (gap barré/annoté réglé).
+> Cypress : aucune spec (chantier backend pur).
+
 Le reste nommé de l'audit B2G : u:checkCodiceIPA/u:checkCF/u:checkCF16/u:checkPIVAseIT/
 u:checkPIVA/u:addPIVA déclarées par PEPPOL-EN16931-UBL.sch, non enregistrées dans
 validate-schematron.ts — même classe de crash (throw au lieu d'un verdict) que les 6 corrigées.

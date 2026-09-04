@@ -132,6 +132,17 @@ fonctions italiennes restantes (`u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/`u:
 (l'Italie a déjà son propre canal B2G réel, SdI/FatturaPA, jamais Peppol BIS pour son B2G) —
 consigné ici comme un gap connu, séparé, pour une tâche future.
 
+> **Mise à jour 2026-09-04 (`TODO_LIBRE.md` L2)** : ce gap est refermé. Les SIX fonctions italiennes
+> ci-dessus sont désormais enregistrées dans `validate-schematron.ts`, même discipline (portage
+> BYTE-FOR-BYTE des corps `xsl:function` du `.sch`, lignes sources citées en commentaire). Des **13**
+> fonctions XPath personnalisées que le `.sch` déclare, les 13 sont maintenant enregistrées : `u:slack`
+> (déjà au repère avant cette vague B2G) + les SIX identifiants ci-dessus + les SIX italiennes.
+> `formats/vendored/validate-schematron.spec.ts` porte désormais 10 tests verts (6 + 4 nouveaux ;
+> `u:checkCF16` et `u:checkPIVA`/`u:addPIVA` sont exercés transitivement via `u:checkCF`/
+> `u:checkPIVAseIT`, jamais référencés directement par une règle — établi en grepant le `.sch`). Un
+> identifiant italien (Codice Univoco Ufficio/Codice Fiscale/Partita IVA) dans un envoi Peppol BIS
+> ordinaire ne crashe plus.
+
 ---
 
 ## 3. Pays lus mais délibérément non livrés — pourquoi
@@ -218,11 +229,12 @@ conforme sans l'être.
   jamais sur un texte de loi national ou un portail gouvernemental relu indépendamment. C'est le
   niveau de preuve que le budget de cette tâche a permis, honnêtement nommé plutôt que présenté comme
   plus solide qu'il ne l'est.
-- **Les six fonctions Schematron italiennes** (`u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/
+- ~~**Les six fonctions Schematron italiennes** (`u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/
   `u:checkPIVAseIT`/`u:checkPIVA`/`u:addPIVA`, toutes non enregistrées elles aussi) restent NON
   corrigées — voir §2, hors périmètre de cette vague (l'Italie a son propre canal B2G réel, jamais
   Peppol BIS). Un identifiant italien (codice fiscale/partita IVA/IPA) présent dans un envoi Peppol
-  BIS ordinaire crasherait encore de la même façon.
+  BIS ordinaire crasherait encore de la même façon.~~ **Corrigé le 2026-09-04** (`TODO_LIBRE.md` L2) —
+  voir la mise à jour au §2 ci-dessus.
 - **Le sélecteur Peppol de l'écran client** (`client-upsert.tsx`'s own `peppolSchemeId` : seulement
   0088/0192/0009/9925/0007/0208/0106/0151/0060) ne propose PAS nommément les EAS lus pour EE (`0191`),
   GR (`9933`), LT (`0200`), LU (`0240`), LV (`0218`), MT (`9943`), CY (`9928`) — un utilisateur de ces
