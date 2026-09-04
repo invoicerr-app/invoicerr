@@ -1,0 +1,214 @@
+{
+  "countryCode": "HR",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/be.json/nl.json/at.json/gr.json pour cette même action : aucun texte croate identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — LU DIRECTEMENT le 2026-09-04 sur eur-lex.europa.eu (CELEX:32014R0910, https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0910) : HTTP 200, page complète (613 895 octets), citation retrouvée verbatim. NOTABLE : ceci contredit, pour cette session précise, l'échec documenté le MÊME jour par country-policy/data/be.json's own note et repris par gr.json's own note pour la MÊME URL (HTTP 202, corps VIDE) — soit un incident transitoire côté eur-lex.europa.eu, soit une variation selon l'heure ou l'en-tête de requête ; dans les deux cas, le fait cité est par nature invariant par pays (un règlement UE, d'applicabilité directe, sans transposition nationale), donc la lecture réussie ici vaut aussi bien pour la Croatie que pour n'importe quel autre État membre déjà couvert par ce lot. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal croate) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte croate identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.save-draft/invoice.send ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte croate identifié n'encadre ce mécanisme précis. Le čl. 78 st. 1 t. 4-5 du Zakon o porezu na dodanu vrijednost (lu en primaire, voir invoice.save-draft ci-dessous) IMPOSE bien l'émission d'une facture pour tout acompte reçu — mais cela porte sur la facture d'acompte UNE FOIS émise, jamais sur cet acte préalable de demande depuis un devis encore en brouillon. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte croate identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un « račun » (facture) au sens du Zakon o porezu na dodanu vrijednost. Aucun texte croate identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Svaka isprava ili obavijest koja mijenja prvobitni račun i koja se izričito i nedvojbeno odnosi na njega smatra se računom.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Zakon o porezu na dodanu vrijednost (ZPDV, NN 73/13 et modifications listées à l'en-tête de chaque article — texte consolidé 2026 tel que servi par zakon.hr), čl. 78 st. 7 — LU DIRECTEMENT le 2026-09-04 sur https://www.zakon.hr/c/zakon/674643/zakon-o-porezu-na-dodanu-vrijednost-2026-2026 (page « Zakon o porezu na dodanu vrijednost 2026-2026 », édition annuelle consolidée de zakon.hr — base « ažurirana 22.08.2026. » selon l'en-tête de la page elle-même, donc à jour à la date de lecture). MÉTHODE D'ACCÈS : la page racine zakon.hr est en ASP.NET WebForms (recherche par formulaire GET fonctionnelle sur /search?q=..., contrairement au moteur de recherche interne search.aspx qui est un postback ASP.NET viewstate non exploitable en lecture directe) — la loi elle-même, en revanche, est servie en HTML STATIQUE sur sa propre page /c/zakon/{id}/..., lue directement par curl sans JavaScript. CE QUE CETTE CITATION TRANCHE, à la manière FR/BE/GR/EE et NON à la manière NL : le čl. 78 st. 7 croate est une clause GÉNÉRALE et DIRECTE d'assimilation d'un document modificatif à une facture — quasiment mot pour mot le même mécanisme que CGI art. 289, I, 5° français (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture »), que la citation belge, et que Ν.4308/2014 art. 8 § 3 grec et Käibemaksuseadus § 37(4) estonien déjà établis par ce même lot. La conséquence pratique pour CE produit est la même que pour ces pays : une correction d'une facture déjà émise emprunte un DOCUMENT DISTINCT qui RÉFÉRENCE l'original (voir credit-note.send ci-dessous et correction-routes/data/hr.json's own CORRECTIVE_INVOICE/DEBIT_NOTE, sourcées à la MÊME disposition), jamais une réédition silencieuse — d'où `statuses: [\"draft\"]`, qui bloque `save-draft` une fois la facture 'sent'. Nuance croate PROPRE, absente ailleurs dans ce lot : le Zakon o fiskalizaciji (NN 89/25, voir invoice.send ci-dessous) prévoit lui-même, à son art. 43 « Ponovno slanje eRačuna », un mécanisme DISTINCT et plus étroit — réémettre le MÊME eRačun sous le MÊME numéro, marqué d'un « indikator kopije računa », pour une correction qui N'AFFECTE PAS le calcul de la taxe (voir correction-routes/data/hr.json's own ANNOTATED_DUPLICATE) — sans rapport avec CE mécanisme de brouillon-avant-envoi, mais à ne pas confondre lors d'une lecture future de ce fichier."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(1) Obvezu izdavanja eRačuna ima izdavatelj eRačuna: 1. porezni obveznik sa sjedištem, prebivalištem ili uobičajenim boravištem u tuzemstvu koji je upisan u registar obveznika PDV-a [...]. (2) Izdavatelj eRačuna dužan je izdati eRačun za tuzemne transakcije koje obavlja primatelju eRačuna, osim ako je izuzet od obveze izdavanja računa prema posebnom zakonu.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "TROUVAILLE ATTENDUE DE CETTE TÂCHE, confirmée au texte brut : Zakon o fiskalizaciji (NN 89/25 — « Fiskalizacija 2.0 »), čl. 38 « Obveza izdavanja eRačuna » — LU DIRECTEMENT le 2026-09-04 sur https://www.zakon.hr/z/3960/zakon-o-fiskalizaciji (page statique, même méthode que ci-dessus). LOI VOTÉE EN 2025, PROMULGUÉE NN 89/25, en vigueur (selon son propre čl. 80 « Stupanje na snagu ») depuis le 1er septembre 2025 pour ses dispositions générales — MAIS l'obligation même d'émettre un eRačun (les art. 33 à 43, dont cet art. 38) N'ENTRE EN VIGUEUR QUE LE 1er JANVIER 2026, texte exact de l'art. 80 : « stupa na snagu 1. rujna 2025., osim [...] članaka 33. do 43. [...] koji stupaju na snagu 1. siječnja 2026. ». C'est EXACTEMENT le fait daté attendu par cette tâche : la facturation électronique B2B devient OBLIGATOIRE en Croatie au 1er janvier 2026 pour toute « tuzemna transakcija » (transaction domestique, čl. 2 point 34) faite par un assujetti croate à un autre destinataire éligible (čl. 38 st. 1 : assujettis PDV, mais aussi — points 2 et 3, ceux-ci reportés au 1er janvier 2027 SEULEMENT pour leur volet applicatif MIKROeRAČUN — les redevables de l'impôt sur le revenu/les bénéfices non enregistrés à la TVA, et les organismes publics non enregistrés à la TVA). DIVERGENCE RÉELLE avec FR/DE/NL/AT/BE/GR (déjà documentée par ce lot comme un régime à CONSENTEMENT du destinataire, art. 80 st. 1 du MÊME Zakon o porezu na dodanu vrijednost cité pour invoice.save-draft : « Računom se smatra i račun izdan i poslan u elektroničkom obliku ako postoji suglasnost primatelja za prihvat takvog računa. ») : pour les transactions couvertes par le čl. 38 de la Fiskalizacija, ce MÊME art. 80 dispose, en son st. 2 (lu le même jour, même page zakon.hr) : « Iznimno od stavka 1. ovoga članka, suglasnost primatelja za prihvat računa u elektroničkom obliku nije potrebna u slučaju obveze izdavanja računa u elektroničkom obliku u smislu propisa o fiskalizaciji [...] » — le CONSENTEMENT du destinataire n'est PLUS requis dès lors que l'émission électronique est OBLIGATOIRE au titre de la Fiskalizacija. La Croatie a donc un régime DOUBLE : consentement de principe (art. 80 st. 1, régime commun avec FR/DE/NL/AT/BE/GR) hors du champ B2B domestique couvert, et consentement BALAYÉ par la loi dès lors que le čl. 38 de la Fiskalizacija s'applique — ce dernier cas n'étant PAS encore ouvert au moment où ce texte a été rédigé pour d'autres pays du lot, mais réel et daté ici. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas elle-même si une transaction donnée relève du čl. 38 (c'est une question de channel-policy/format réel, hors périmètre document-action) — elle autorise seulement l'ACTE d'envoi dans l'outil, quel que soit le régime de consentement applicable. Voir aussi Fiskalizacija čl. 39 (exemption pour les transactions payées comptant/carte déjà fiscalisées comme reçu de caisse — régime distinct, art. 12 à 15 du même Zakon, « promet u krajnjoj potrošnji », B2C, hors du périmètre invoice/credit-note de ce produit)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte croate identifié n'encadre l'acte de duplication lui-même. La question fiscale (ZPDV, Zakon o fiskalizaciji) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte croate spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts. Non recherché : Zakon o fiskalizaciji čl. 53 impose une DÉCLARATION distincte à l'administration fiscale (« Podaci o naplati eRačuna ») lorsqu'un eRačun est effectivement payé — mais ceci est une obligation de REPORTING vers le Sustav za fiskalizaciju, pas une règle sur le fait d'enregistrer un paiement DANS cet outil ; sujet distinct, hors périmètre de cette règle document-action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une norme technique européenne — ce n'est pas en soi, ISOLÉMENT, une preuve qu'un export EN 16931 téléchargé DEPUIS CET OUTIL serait légalement requis pour une facture croate ordinaire. Nuance IMPORTANTE trouvée et documentée honnêtement, plus directe encore que le cas grec déjà noté par ce lot : le Zakon o fiskalizaciji (NN 89/25) définit lui-même, à son čl. 2 point 9, l'« EU norma » comme « EU norma 16931-1:2017, kao i Tehnička specifikacija osnovne uporabe eRačuna s proširenjima koju izdaje Porezna uprava » (la norme EU 16931-1:2017, ainsi que la spécification technique d'usage de base de l'eRačun avec extensions publiée par l'administration fiscale), et son čl. 36 dispose, sans condition ni renvoi à un texte d'application ultérieur : « Svaki eRačun mora biti u skladu s EU normom. » (Chaque eRačun DOIT être conforme à la norme UE) — LUS DIRECTEMENT le 2026-09-04, même page que invoice.send ci-dessus. CE FAIT N'EST TOUTEFOIS PAS PROMU 'legal' À CE NIVEAU DE RÈGLE PRÉCIS, par la même discipline que pour la Grèce : le čl. 36 porte sur l'eRačun RÉELLEMENT TRANSMIS dans le circuit obligatoire de la Fiskalizacija (voir invoice.send ci-dessus), pas sur CETTE action produit précise (un export EN 16931 volontairement téléchargé DEPUIS L'OUTIL, en dehors de ce circuit de transmission) — même distinction que ce catalogue applique déjà entre le régime légal d'un document et le bouton produit qui l'actionne (voir credit-note.send ci-dessous). Le niveau de confiance que le format EN 16931 est PERTINENT pour la Croatie est néanmoins plus élevé qu'ailleurs dans ce lot : la norme y est nommément et inconditionnellement rendue obligatoire pour tout eRačun couvert par le čl. 38, sans clause d'habilitation ministérielle en attente comme documenté pour la Grèce."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte croate spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte croate identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal croate de la réduction de la base d'imposition (voir credit-note.send ci-dessous) concerne l'EFFET FISCAL du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/pl.json/nl.json/be.json/gr.json/ee.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email n'est déclenché par cette action) — même distinction méthodique que nl.json/be.json/gr.json appliquent déjà à leur propre credit-note.send. LE FONDEMENT LÉGAL DE FOND, lui, EST sourcé 'legal' : Zakon o porezu na dodanu vrijednost čl. 33 st. 7 (« U slučaju opoziva ili različitih vrsta popusta porezni obveznik koji je obavio isporuku može umanjiti poreznu osnovicu pod uvjetom da poreznog obveznika kojemu je isporučeno dobro ili obavljena usluga obavijesti o provedenom ispravku. » — traduction : « En cas d'annulation ou de différents types de remises, l'assujetti qui a effectué la livraison PEUT réduire la base d'imposition À CONDITION d'aviser l'assujetti auquel le bien a été livré ou le service rendu de la correction effectuée. »), LU DIRECTEMENT le 2026-09-04, même page zakon.hr que invoice.save-draft ci-dessus. À la différence de la Grèce (πιστωτικό τιμολόγιο, un INSTRUMENT NOMMÉ par la loi elle-même) et plus proche de l'Estonie (§ 29(7), une CONSÉQUENCE PROCÉDURALE plutôt qu'un instrument nommé) : le droit croate ne nomme AUCUN instrument dédié « avoir »/« knjižno odobrenje » à ce stade — il decrit une FACULTÉ de réduire la base, CONDITIONNÉE à un avis au client, et c'est le čl. 78 st. 7 (voir invoice.save-draft ci-dessus et correction-routes/data/hr.json's own CREDIT_NOTE/CORRECTIVE_INVOICE) qui, séparément, fait que ce document d'avis — s'il RÉFÉRENCE la facture initiale — est lui-même « réputé être une facture ». Ce fondement légal de fond est réel et cité verbatim ci-dessus, mais ne tranche PAS ce mécanisme produit précis (le changement de statut dans l'outil) — d'où le maintien en 'unverified' à CE niveau précis malgré une citation légale bien réelle rattachée au fait de fond."
+      },
+      "notes": "Voir correction-routes/data/hr.json's own CREDIT_NOTE pour la qualification légale complète (routeId CREDIT_NOTE, status 'allowed', provenance 'legal') du mécanisme de réduction de la base d'imposition lui-même — cette règle-ci ne porte, comme toutes les règles country-policy de ce dépôt, que sur l'ACTION PRODUIT (le bouton 'send' de cet outil), jamais sur le régime légal du document en tant que tel."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte croate identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables croates (non approfondies par cette tâche, hors périmètre 'immutabilité/send/avoir' demandé) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte croate identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu (une facture déjà obtenue par un autre moyen : dépôt, OCR, saisie manuelle), jamais recevoir techniquement un eRačun sur un canal. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul, même mécanique produit que invoice.save-draft ci-dessus, sans base légale croate propre identifiée pour CE mécanisme précis. DISTINCTION IMPORTANTE À NE PAS CONFONDRE : le Zakon o fiskalizaciji čl. 41 (« Obveza zaprimanja eRačuna » — LU le 2026-09-04, même page que invoice.send) dispose : « Primatelj eRačuna dužan je zaprimiti eRačun na način propisan člankom 37. ovoga Zakona. » (Le destinataire d'un eRačun est TENU de le recevoir de la manière prescrite à l'art. 37) — mais cette obligation porte sur la RÉCEPTION TECHNIQUE d'un eRačun via le circuit obligatoire de la Fiskalizacija (art. 37, les points d'accès), un sujet de channel-policy/transmission, PAS sur ce mécanisme produit de saisie/correction d'un enregistrement déjà en base. Les deux ne se contredisent pas mais ne se recouvrent pas non plus."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte croate identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise — DISTINCTE du rejet formel prévu par le Zakon o fiskalizaciji čl. 52 (« Podaci o odbijanju eRačuna », voir correction-routes/data/hr.json's own COUNTERPARTY_OBJECTION), qui est une déclaration ADRESSÉE À L'ADMINISTRATION FISCALE avec un effet précis (renonciation à la déduction de la TVA d'amont sur cet eRačun) et non une simple mécanique d'écran interne à cet outil. Aucun texte croate identifié n'encadre spécifiquement CETTE action produit précise (le marquage 'rejected' dans l'outil, sans déclaration au fisc)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte croate identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Croatie — agent pays HR, lot 6 (TODO_DOCUMENTS.md, vague B, 2026-09-04). TROIS SOURCES PRIMAIRES LUES EN TEXTE BRUT (curl direct, jamais un fetch-résumé) : (1) Zakon o porezu na dodanu vrijednost (ZPDV), édition consolidée 2026 de zakon.hr (https://www.zakon.hr/c/zakon/674643/zakon-o-porezu-na-dodanu-vrijednost-2026-2026, base « ažurirana 22.08.2026. » selon son propre en-tête) — čl. 33 (base d'imposition et son ajustement), čl. 77 (numéro d'identification TVA), čl. 78 à 82 (facture, contenu, papier/électronique, conservation) ; (2) Zakon o fiskalizaciji (NN 89/25, https://www.zakon.hr/z/3960/zakon-o-fiskalizaciji) — LA TROUVAILLE ATTENDUE de cette tâche, dite « Fiskalizacija 2.0 » : la loi qui rend l'eRačun B2B OBLIGATOIRE, VOTÉE EN 2025, dont l'obligation elle-même (čl. 38, dans le bloc čl. 33-43) N'ENTRE EN VIGUEUR QUE LE 1er JANVIER 2026 (texte exact de son čl. 80 cité verbatim par invoice.send ci-dessus) — CONFIRMÉE AU TEXTE, PAS SUPPOSÉE ; (3) Zakon o osobnom identifikacijskom broju (NN 60/08, https://www.zakon.hr/z/83/zakon-o-osobnom-identifikacijskom-broju), lue pour cohérence avec country-identifiers/data/hr.json (jamais réécrit par ce fichier-ci). MÉTHODE D'ACCÈS : zakon.hr sert ses PAGES DE LOIS en HTML statique (curl direct, sans JavaScript) — seul son moteur de recherche interne (search.aspx) est un formulaire ASP.NET WebForms à viewstate non exploitable en lecture directe ; la recherche par mots-clés a été faite via son endpoint GET alternatif (/search?q=...), lui aussi statique. narodne-novine.nn.hr (le Journal officiel) et porezna-uprava.hr (le fisc) répondent tous deux HTTP 200/301 mais n'ont pas été nécessaires : zakon.hr (miroir consolidé, cité par le brief comme piste) a suffi pour une lecture VERBATIM de chaque disposition retenue. Sur les 22 règles, 3 sont 'legal' au niveau du fait de fond (quote.send — lecture eIDAS FRAÎCHE réussie cette session, invoice.save-draft, invoice.send), plus un fondement légal réel documenté en note mais NON promu au niveau de la règle credit-note.send (voir sa note propre, même discipline que gr.json) — les 19 restantes sont honnêtement 'unverified' avec resolutionNote propre à chacune. AUCUNE contradiction relevée avec B2G_COVERAGE.md (déjà livré, audit 2026-09-02 : HR « pas livrable » — CIUS HR national requis, non vendoré) : cette tâche n'a RIEN trouvé qui changerait ce verdict — la Fiskalizacija 2.0 organise un circuit NATIONAL propre (Sustav za fiskalizaciju, AMS, MPS, informacijski posrednici), PAS un CIUS Peppol vendorable en l'état ; voir aussi l'entrée B2G dans le rapport de cette tâche pour l'évaluation demandée. AUCUNE écriture hors de country-policy/data/hr.json et de son propre hr.spec.ts par cette tâche."
+}

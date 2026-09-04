@@ -1,0 +1,214 @@
+{
+  "countryCode": "BG",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/gr.json/cy.json pour cette même action : aucun texte bulgare identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — RÉUTILISE la citation déjà lue en direct par country-policy/data/pl.json (2026-09-03), be.json/nl.json/de.json/it.json/es.json (2026-09-04) et gr.json/cy.json (2026-09-04, même lot) pour leur propre quote.send : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour la Bulgarie. NON RE-VÉRIFIÉE au mot près par cette tâche (même choix que cy.json's own note : le fait est par nature invariant par pays). Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal bulgare — le ЗДДС) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte bulgare identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte bulgare identifié n'encadre ce mécanisme précis. Note annexe, non déterminante ici : le ЗДДС (art. 113, ал. 1) traite explicitement l'avance ('авансово плащане') comme un événement déclenchant l'obligation de facturer — voir invoice.send — mais ceci concerne la facture d'acompte UNE FOIS ÉMISE, pas la demande d'acompte elle-même dans l'outil."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte bulgare identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal au sens du ЗДДС. Aucun texte bulgare identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Поправки и добавки във фактурите и известията към тях не се разрешават. Погрешно съставени или поправени документи се анулират и се издават нови.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Закон за данък върху добавената стойност (ЗДДС, Обн. ДВ. бр.63 от 4 Август 2006г., texte consolidé), чл. 116, ал. 1 — LU DIRECTEMENT le 2026-09-04 sur lex.bg (https://lex.bg/laws/ldoc/2135533201, le texte primaire consolidé, servi en HTML brut encodé windows-1251, reconverti par cette tâche en UTF-8 avant toute citation — jamais via un résumé d'outil). Traduction littérale : « Les corrections et ajouts dans les factures et les avis [known] qui s'y rapportent ne sont PAS autorisés. Les documents erronément établis ou corrigés sont ANNULÉS et de NOUVEAUX sont émis. » CE QUE CETTE CITATION TRANCHE : contrairement à la Grèce (gr.json's own art. 8 § 3, une clause GÉNÉRALE d'assimilation de tout document modificatif référençant l'original) ou la Belgique/France, le droit bulgare ne permet même pas d'envisager une correction PAR RÉÉCRITURE du document déjà émis — le чл. 116, ал. 1 l'INTERDIT explicitement et RESTRICTIVEMENT ('не се разрешават', ne sont pas autorisés) : une facture déjà émise ('sent' dans cet outil) ne peut plus revenir à 'draft' pour être réécrite, elle ne peut qu'être annulée et remplacée par un document séparé — d'où `statuses: [\"draft\"]`, même mécanique que gr.json/cy.json/be.json pour cette même règle, mais fondée ici sur une INTERDICTION FRONTALE plutôt que sur une clause d'assimilation. Voir correction-routes/data/bg.json's own CANCEL_AND_REPLACE (laissée 'unverified', ce même чл. 116 n'impliquant aucune autorité) et CREDIT_NOTE/DEBIT_NOTE (chl. 115, 'required') pour les voies de correction qui en découlent."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Всяко данъчно задължено лице - доставчик, е длъжно да издаде фактура за извършената от него доставка на стока или услуга или при получаване на авансово плащане преди това освен в случаите, когато доставката се документира с протокол по чл. 117. [...] Документирането на доставките с електронни фактури и електронни известия към фактури се извършва, при условие че това документиране се приема от получателя с писмено или мълчаливо съгласие.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ЗДДС, чл. 113, ал. 1 et чл. 114, ал. 9 — LU DIRECTEMENT le 2026-09-04, même texte que ci-dessus. Traduction littérale : « Toute personne assujettie — fournisseur — EST OBLIGÉE d'émettre une facture pour la livraison de biens ou la prestation de services qu'elle a effectuée, ou lors de la réception d'un paiement anticipé avant celle-ci, sauf dans les cas où la livraison est documentée par un procès-verbal [protocole] au sens de l'art. 117. [...] La documentation des livraisons par factures électroniques et avis électroniques aux factures est effectuée À CONDITION que cette documentation soit ACCEPTÉE par le destinataire par un consentement ÉCRIT OU TACITE. » CE QUE CETTE CITATION TRANCHE : contrairement à la Grèce (gr.json's own art. 14 § 3 — acceptation OBLIGATOIRE du destinataire en B2B domestique, un régime inversé), la Bulgarie suit ICI le régime À CONSENTEMENT documenté pour FR/DE/NL/AT/BE/CY — l'émission d'une facture électronique reste subordonnée à l'accord du destinataire, mais ce consentement peut être TACITE ('мълчаливо съгласие'), pas nécessairement exprès. AUCUNE mention de Peppol ni d'obligation de clearance électronique n'a été trouvée dans ces articles pour les factures domestiques ordinaires — cohérent avec B2G_COVERAGE.md's own constat pour la Bulgarie ('CAIS EPP (plateforme fermée...) — mais aucune mention de Peppol sur toute la page'), qui documente un canal B2G distinct et fermé, hors du périmètre B2B/B2C de cette règle."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte bulgare identifié n'encadre l'acte de duplication lui-même. La question fiscale (ЗДДС, chl. 113-116) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte bulgare spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts. Non recherché : l'articulation avec le mécanisme de créance incollectible du ЗДДС (chl. 126а-126в, voir correction-routes/data/bg.json's own LEDGER_ANNOTATION) — un sujet distinct, déclenché par le NON-paiement plutôt que par l'enregistrement d'un paiement."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une norme technique européenne — ce n'est pas en soi une preuve qu'un export EN 16931 téléchargé DEPUIS CET OUTIL serait légalement requis pour une facture bulgare ordinaire. B2G_COVERAGE.md (lu 2026-09-02, relu par cette tâche le 2026-09-04) documente déjà, pour la Bulgarie précisément, que le canal B2G bulgare (CAIS EPP) utilise 'UBL 2.1 / CII, «no national CIUS»' mais 'AUCUNE MENTION DE PEPPOL sur toute la page (recherche ciblée du mot, deux fois)' — la Bulgarie fait partie des '3 pays' listés par ce même fichier comme n'ayant 'aucune joignabilité Peppol confirmée pour le canal fermé national'. Ceci concerne de toute façon le seul canal B2G (marchés publics), jamais une obligation générale de PRODUIRE cet export pour n'importe quel client B2B/B2C — aucun texte de cette nature n'a été recherché ni trouvé dans le ЗДДС lui-même (chl. 113-116, lus intégralement par cette tâche). Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis, même raisonnement que cy.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte bulgare spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte bulgare identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal bulgare du кредитно известие (voir credit-note.send ci-dessous) concerne le CONTENU et le caractère OBLIGATOIRE du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que gr.json/cy.json/be.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email n'est déclenché par cette action) — même distinction méthodique que gr.json/cy.json/nl.json/be.json appliquent déjà à leur propre credit-note.send. NUANCE PROPRE À LA BULGARIE, à noter : contrairement à la Grèce (une simple DÉFINITION, art. 8 § 6, 'είναι'/'est') ou à Chypre (une catégorie reconnue sans verbe de mandat), le fondement légal de fond du кредитно известие bulgare EST une INJONCTION réelle — ЗДДС чл. 115, ал. 1 : 'доставчикът е длъжен да издаде известие към фактурата' ('le fournisseur EST OBLIGÉ d'émettre un avis à la facture') — voir correction-routes/data/bg.json's own CREDIT_NOTE, sourcée 'legal'/'required' à cette même disposition. Ce niveau de preuve plus élevé PORTE SUR LE DOCUMENT LUI-MÊME (son émission est un devoir légal une fois l'événement déclencheur survenu), pas sur CETTE action précise (le bouton 'send' de cet outil, qui ne déclenche par lui-même aucune transmission) — d'où le maintien en 'unverified' à CE niveau précis, exactement la même discipline que gr.json applique à son propre credit-note.send malgré une citation légale bien réelle rattachée au fait de fond."
+      },
+      "notes": "Voir correction-routes/data/bg.json's own CREDIT_NOTE (routeId CREDIT_NOTE, status 'required', provenance 'legal', ЗДДС чл. 115, ал. 1 et 3) pour la qualification légale complète du кредитно известие lui-même — cette règle-ci ne porte, comme toutes les règles country-policy de ce dépôt, que sur l'ACTION PRODUIT (le bouton 'send' de cet outil), jamais sur le régime légal du document en tant que tel."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte bulgare identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables bulgares (Закон за счетоводството — non lu par cette tâche, hors périmètre 'immutabilité/send/avoir' demandé) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte bulgare identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul, même mécanique produit que invoice.save-draft ci-dessus, sans base légale bulgare propre identifiée pour CE mécanisme précis. La Bulgarie ne connaît, pour le B2G, qu'un canal fermé (CAIS EPP, voir B2G_COVERAGE.md) sans mandat B2B/B2C confirmé pour cet outil — cette règle-ci reste donc, comme pour les autres pays de ce lot, non tranchée pour la même raison de fond que pour l'émission (aucune obligation de format/canal identifiée pour la réception domestique ordinaire)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte bulgare identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue INTERNE à l'entreprise. Recherche textuelle négative faite par cette tâche sur le ЗДДС (chl. 113-126в) pour un mécanisme d'objection formelle du destinataire ('оспорва', 'възразява') : AUCUNE occurrence trouvée — voir correction-routes/data/bg.json's own COUNTERPARTY_OBJECTION, restée 'unverified' pour cette même raison. Ce choix produit reste donc, pour la Bulgarie, entièrement non spécifiquement encadré."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte bulgare identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Bulgarie — agent pays BG, lot 6 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Le socle légal repose sur le ЗДДС (Закон за данък върху добавената стойност, Обн. ДВ. бр.63 от 4 Август 2006г., texte consolidé jusqu'à ДВ. бр.69 от 2026 г.), LU INTÉGRALEMENT (chl. 66-173, § 1 des dispositions complémentaires) en TEXTE BRUT le 2026-09-04, DIRECTEMENT sur lex.bg (https://lex.bg/laws/ldoc/2135533201 — HTTP 200, 2,5 Mo de HTML servi en encodage windows-1251, reconverti par cette tâche en UTF-8 avant toute citation, PAS via un résumé d'outil de fetch). MÉTHODE, documentée pour transparence : le moteur de recherche interne de lex.bg (formulaire POST /search) s'est révélé NON FONCTIONNEL cette session (aucun résultat renvoyé pour des requêtes exactes comme 'ЗДДС' ou le nom complet de la loi, avec ou sans cookie de session) — le texte a été atteint en PARCOURANT les liens directs affichés sur la page d'accueil de lex.bg elle-même (home.html), qui liste les URLs `ldoc/<id>` des lois les plus consultées. TROUVAILLE CENTRALE, exactement celle attendue par cette tâche : ЗДДС чл. 115 NOMME EXPLICITEMENT DEUX INSTRUMENTS DISTINCTS — 'дебитно известие' (avis de débit, à la HAUSSE de la base imposable) ET 'кредитно известие' (avis de crédit, à la BAISSE ou en cas de résolution de la livraison) — тous deux sous une INJONCTION réelle ('доставчикът е длъжен да издаде известие', chl. 115 ал. 1) ; voir correction-routes/data/bg.json pour la qualification complète (CREDIT_NOTE et DEBIT_NOTE, tous deux 'required'). AUTRE TROUVAILLE STRUCTURANTE : chl. 116, ал. 1 INTERDIT toute correction/ajout sur une facture déjà émise ('не се разрешават') et impose l'ANNULATION suivie de l'émission d'un NOUVEAU document pour tout document erronément établi — un mécanisme réel de type 'annuler puis remplacer', mais SANS aucune autorité impliquée (un простое protocole bilatéral entre les parties, voir correction-routes/data/bg.json's own CANCEL_AND_REPLACE pour la discussion complète de pourquoi cette règle n'y est PAS promue malgré cette trouvaille). Pour les IDENTIFIANTS, voir country-identifiers/data/bg.json (ЕИК/БУЛСТАТ, ДДС) et pour les TAUX, vat-rates/data/bg.json (20/9/0 %) — TROIS fichiers disjoints du même socle légal, aucune contradiction relevée entre eux ni avec tax/tax-systems/data/bg.json (déjà livré, standardRate 20, TEDB, lu 2026-09-01) ni avec B2G_COVERAGE.md (CAIS EPP, canal fermé, aucune mention de Peppol — lu 2026-09-02, relu 2026-09-04). AUCUN b2g-routing/data/bg.json n'a été créé ni modifié par cette tâche, conformément au périmètre strict confié (le canal B2G bulgare reste une absence honnête, déjà consignée dans B2G_COVERAGE.md)."
+}

@@ -64,7 +64,10 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | DK | ✓ | — (OIOUBL : licence floue, non vendorable — évalué) | ✓ (3/11 — kreditnota ET debit-note required) | ✓ (CVR unverified — CVR-loven non atteinte) | ✓ (25 % MONO-TAUX confirmé au texte) | Lot 5 ✅ |
 | FI | ✓ | — (CIUS FI) | ✓ (négatif net : pas d'assimilation — CREDIT_NOTE allowed) | ✓ (Y-tunnus unverified — 4 niveaux tentés) | ✓ (25,5/13,5/10 — le 14 % du brief déjà remplacé au 1/1/2026, TEDB live confirme) | Lot 5 ✅ |
 | IE | ✓ | — (CIUS IE multiples) | ✓ (5/11 legal — record : credit note ET corrective ET cancel-and-replace required, LEDGER_ANNOTATION 1re promotion du catalogue) | ✓ (CRO unverified — « invoice » absent des 5,7 M chars du Companies Act) | ✓ (5 taux dont le vrai zéro explicite et les décimales 13,5/4,8) | Lot 5 ✅ |
-| BG CZ HR PT RO SI SK | — | — | — | — | — | lots 6-7 |
+| BG | ✓ | — (CAIS EPP fermé) | ✓ (3/11 — les DEUX известия required чл. 115, le plus fort du catalogue) | ✓ (ЕИК legal chaîne à 3 lois PDF officiels) | ✓ (20/9/0 — vrai zéro intracommunautaire) | Lot 6 ✅ |
+| CZ | ✓ | — (NEN fermé) | ✓ (4/11 — opravný doklad UNIQUE § 45, credit/debit forbidden-en-tant-que-distincts, LEDGER général) | ✓ (DIČ legal ; IČO ambigu § 435 NOZ) | ✓ (21/12 — la fusion 2024 citée sur l'état ACTUEL) | Lot 6 ✅ |
+| HR | ✓ (Fiskalizacija 2.0 : e-račun B2B obligatoire 1/1/2026, consentement TOMBE) | — (circuit national, pas un CIUS vendorable — confirmé) | ✓ (5/11 — 1ers ANNOTATED_DUPLICATE et COUNTERPARTY_OBJECTION sourcés du catalogue) | ✓ (OIB required — clause frontale « računima ») | ✓ (25/13/5/0) | Lot 6 ✅ |
+| PT RO SI SK | — | — | — | — | — | lot 7 (dernier) |
 | AE + autres tax-only | — | — | — | — | — | à trier |
 
 ### DÉCISION MANDANT EN ATTENTE — NLCIUS vendorable !
@@ -127,6 +130,15 @@ inaccessible (3 URL + pas de PDF) ; formats Y-tunnus/ALV empiriques (API PRH). I
 « debit note » irlandais est un FAUX-AMI documenté (il anticipe un avoir, n'augmente rien) ;
 divergence temporelle du Revised Act sur le 9 % restauration (substitution en note
 prospective seulement) consignée sans forcer ; format CRO introuvable.
+**Lot 6 (2026-09-04)** — BG : la Правилник (règlement d'application) non atteinte ; le moteur
+de recherche lex.bg cassé (contournement : liens directs ldoc/<id> de l'accueil, et les PDF de
+registryagency.bg) ; la question de vocabulaire CANCEL_AND_REPLACE (« auprès de l'autorité » :
+condition ou cas typique ?) remontée vers CORRECTION-ROUTES.yaml. CZ : l'API RDF/LOD
+d'e-sbirka réelle mais fragmentée par alinéa (piste à scripter pour un futur agent) ; IČO
+requis-sur-facture ambigu (§ 435 NOZ « obchodní listiny », « faktura » jamais nommée) ; format
+IČO par recoupement. HR : doctrine Porezna uprava non consultée (LEDGER vs NO_DOCUMENT
+indécis) ; le clearance JIR temps réel = tickets B2C, hors types du produit — à signaler si un
+type « reçu de caisse » naissait.
 **Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
 fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
 WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.

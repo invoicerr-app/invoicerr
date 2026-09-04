@@ -1,0 +1,108 @@
+{
+  "countryCode": "BG",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "При изменение на данъчната основа на доставка или при развалянето на доставка, за която е издадена фактура, доставчикът е длъжен да издаде известие към фактурата. [...] При увеличение на данъчната основа се издава дебитно известие, а при намаление на данъчната основа или при разваляне на доставки - кредитно известие.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour la Bulgarie (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas ce pays) : c'est une PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent. Source : Закон за данък върху добавената стойност (ЗДДС, Обн. ДВ. бр.63 от 4 Август 2006г., texte consolidé), чл. 115, ал. 1 et ал. 3 — LU DIRECTEMENT le 2026-09-04 sur lex.bg (https://lex.bg/laws/ldoc/2135533201, texte primaire brut, encodage windows-1251 reconverti en UTF-8, PAS un résumé d'outil). Traduction littérale : « (1) En cas de MODIFICATION de la base imposable d'une livraison, ou en cas de RÉSOLUTION d'une livraison pour laquelle une facture a été émise, le fournisseur EST OBLIGÉ d'émettre un avis à la facture. [...] (3) En cas d'AUGMENTATION de la base imposable, un avis de DÉBIT est émis, et en cas de DIMINUTION de la base imposable ou de RÉSOLUTION de livraisons — un avis de CRÉDIT [est émis]. » Statut 'required', PAS seulement 'allowed' : contrairement à la Grèce (gr.json's own art. 8 § 6, une simple DÉFINITION à l'indicatif descriptif, 'είναι'/'est') ou à Chypre (une catégorie reconnue sans verbe de mandat), le texte bulgare emploie ICI un verbe de mandat EXPLICITE — 'е длъжен да издаде' ('EST OBLIGÉ d'émettre') — à la manière de l'Espagne (RD 1619/2012 art. 15.2, 'SERÁ OBLIGATORIA') ou de la Pologne (art. 106j ust. 1, 'WYSTAWIA'). Le terme administratif bulgare — 'кредитно известие' (avis de crédit) — est un INSTRUMENT NOMMÉ par la loi elle-même, à la fois pour la BAISSE de la base imposable ET pour la RÉSOLUTION (annulation) d'une livraison déjà facturée. RENFORCÉ par ЗДДС чл. 126б, ал. 1 (créance devenue incollectible, 'несъбираемо вземане' : la réduction de la base et de la taxe s'opère, quand le destinataire ÉTAIT une personne enregistrée à la TVA au moment de la livraison, 'чрез издаване на кредитно известие по чл. 115' — lu le 2026-09-04, même texte)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "При изменение на данъчната основа на доставка или при развалянето на доставка, за която е издадена фактура, доставчикът е длъжен да издаде известие към фактурата. [...] При увеличение на данъчната основа се издава дебитно известие, а при намаление на данъчната основа или при разваляне на доставки - кредитно известие.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME texte, MÊME lecture, que CREDIT_NOTE ci-dessus (ЗДДС чл. 115, ал. 1 et ал. 3, lex.bg, 2026-09-04). LA TROUVAILLE ATTENDUE PAR CETTE TÂCHE : contrairement à la quasi-totalité des pays déjà couverts par ce dépôt (où DEBIT_NOTE reste 'unverified' ou tout au plus 'allowed' — voir se.json's own DEBIT_NOTE, 'allowed' via une clause générale, PAS une injonction dédiée), le droit bulgare NOMME EXPLICITEMENT un second instrument distinct — 'дебитно известие' (avis de débit) — et l'IMPOSE, au même niveau d'obligation que le кредитно известие, pour toute AUGMENTATION de la base imposable d'une livraison déjà facturée. RENFORCÉ par ЗДДС чл. 126б, ал. 6 : quand un paiement est finalement reçu (en tout ou partie) sur une créance dont la base avait été réduite pour incollectibilité, 'лицето е длъжно да издаде дебитно известие' ('la personne EST OBLIGÉE d'émettre un avis de débit') — lu le 2026-09-04, même texte — un second cas d'usage RÉEL et distinct de l'avis de débit bulgare, confirmant que ce n'est pas un instrument théorique inutilisé."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée — et probablement SANS OBJET pour la Bulgarie, à la différence de la Grèce/France/Belgique. Recherche textuelle NÉGATIVE, faite par cette tâche le 2026-09-04, sur l'intégralité du ЗДДС (chl. 96-126в, Раздел 'Документиране на доставките', et § 1 des Допълнителни разпоредби/dispositions complémentaires en fin de texte) pour une clause GÉNÉRALE et DIRECTION-AGNOSTIQUE du type 'tout document qui modifie et référence la facture originale est considéré comme une facture' (le pendant du CGI art. 289, I, 5° français ou de la Ν.4308/2014 art. 8 § 3 grecque) : AUCUNE occurrence trouvée — ni dans le corps des articles 113 à 117а, ni dans les définitions du § 1. Le droit bulgare ne connaît, pour corriger une facture déjà émise, QUE les deux instruments NOMMÉS et DIRECTIONNELS du чл. 115 (voir CREDIT_NOTE/DEBIT_NOTE ci-dessus) — jamais un document générique 'rectificatif' au sens polonais/français. Ce qui trancherait : une lecture de la Правилник за прилагане на ЗДДС (règlement d'application, non atteint par cette tâche) qui viendrait contredire cette lecture négative, ou une confirmation doctrinale/administrative NAP qu'aucun troisième instrument n'existe."
+      },
+      "notes": "Recherche textuelle négative sur l'intégralité des chl. 96-126в du ЗДДС et de son § 1 (dispositions complémentaires), le 2026-09-04 — voir country-policy/data/bg.json's own file-level note pour la méthode de lecture (lex.bg, texte brut)."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "TROUVAILLE RÉELLE, NON RETENUE en l'état par prudence — le doute porte sur un point précis, documenté ici. ЗДДС чл. 116, ал. 1 (lu le 2026-09-04, même texte que ci-dessus) dispose : 'Поправки и добавки във фактурите и известията към тях не се разрешават. Погрешно съставени или поправени документи се анулират и се издават нови.' (traduction littérale : « Les corrections et ajouts dans les factures et les avis qui s'y rapportent NE SONT PAS AUTORISÉS. Les documents erronément établis ou corrigés sont ANNULÉS et de NOUVEAUX sont émis. ») — c'est bien un mécanisme d'ANNULATION suivie d'un REMPLACEMENT, pour tout document (facture OU известие) ERRONÉ dès l'origine (par opposition à un document correctement établi mais dont la substance change plus tard, couvert par le чл. 115 — voir CREDIT_NOTE/DEBIT_NOTE). CE QUI FAIT HÉSITER : la définition même de cette voie dans le vocabulaire de ce dépôt est 'Annuler l'original AUPRÈS DE L'AUTORITÉ, puis émettre un remplaçant' (docs/compliance/CORRECTION-ROUTES.yaml) — un mécanisme typiquement illustré par une clearance électronique (SdI italien, KSeF polonais). Le чл. 116 bulgare n'implique AUCUNE autorité au moment de l'annulation : ал. 4 du même article prévoit seulement un 'протокол' (procès-verbal) BILATÉRAL entre le fournisseur et le destinataire, conservé par l'ÉMETTEUR ('Всички екземпляри на анулираните документи се съхраняват при издателя') — la Национална агенция за приходите (NAP) n'apparaît nulle part dans ce mécanisme précis (elle n'intervient, ал. 7 du même article, qu'APRÈS coup, en cas de contrôle fiscal déjà clos par un acte définitif — la situation INVERSE de 'annuler auprès de l'autorité'). Faute d'une lecture qui confirmerait ou infirmerait explicitement qu'un mécanisme purement bilatéral et sans autorité relève malgré tout de cet axe plutôt que d'en être exclu par construction, cette voie reste 'unverified' PAR PRUDENCE plutôt que forcée dans un sens ou dans l'autre par déduction — exactement la discipline ⚖ de cette tâche (jamais promu par raisonnement ni analogie). Ce qui trancherait : une clarification du vocabulaire lui-même (docs/compliance/CORRECTION-ROUTES.yaml) sur si 'auprès de l'autorité' est une condition NÉCESSAIRE de cet axe ou seulement le cas typique illustré, ou une lecture de la Правилник за прилагане на ЗДДС confirmant/infirmant un rôle quelconque de la NAP dans l'annulation elle-même."
+      },
+      "notes": "ЗДДС чл. 116, ал. 1 et ал. 4, lu le 2026-09-04 — voir aussi country-policy/data/bg.json's own invoice.save-draft, sourcée à la MÊME disposition pour la restriction `statuses: [\"draft\"]`."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et PROBABLEMENT SANS OBJET pour la Bulgarie B2B/B2C domestique : B2G_COVERAGE.md (lu 2026-09-02, relu par cette tâche le 2026-09-04) documente que le SEUL canal de déclaration/clearance bulgare identifié — CAIS EPP — est un canal B2G FERMÉ, sans mention de Peppol, et que la Bulgarie ne dispose d'AUCUNE autorité de clearance confirmée pour les factures domestiques ordinaires. Sans autorité destinataire à l'égard de laquelle une transmission serait 'interdite', cette voie n'a pas de terrain où s'appliquer — même raisonnement que nl.json/at.json l'ont retenu pour leur propre absence d'autorité de clearance."
+      },
+      "notes": "Dépend du constat déjà établi par B2G_COVERAGE.md pour la Bulgarie (canal CAIS EPP fermé, B2G uniquement) — non redoublé ici, seulement référencé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée pour une ANNULATION au sens de cette voie. Une piste ADJACENTE mais NON RETENUE a été identifiée : ЗДДС чл. 126б, ал. 8 (lu le 2026-09-04, même texte que ci-dessus) impose, pour une créance incollectible dont la base imposable dépasse 51 130 €, que le fournisseur notifie PAR ÉCRIT la direction territoriale compétente de la NAP, laquelle 'издава разрешение за издаване на кредитното известие' ('délivre une AUTORISATION pour l'émission de l'avis de crédit') dans un délai de 60 jours (le silence valant autorisation). Ceci EST une interaction réelle avec l'autorité fiscale — mais c'est une AUTORISATION PRÉALABLE conditionnant l'émission d'un кредитно известие DÉJÀ classé sous CREDIT_NOTE ci-dessus, pas une DEMANDE D'ANNULATION d'un document déjà déposé ou dédouané au sens de cette voie canonique. Non retenue pour cette raison précise — même discipline que nl.json applique à ses propres pistes adjacentes non retenues."
+      },
+      "notes": "Piste adjacente repérée (ЗДДС чл. 126б, ал. 8 — autorisation préalable de la NAP pour un avis de crédit de créance incollectible au-delà de 51 130 €), non retenue comme réglant cette voie précise."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et PROBABLEMENT SANS OBJET pour la même raison que INTERNAL_CREDIT_NOTE ci-dessus : cette voie répond typiquement à un scénario de REJET par une plateforme de clearance BLOQUANTE (KSeF, SdI) suivi d'un renvoi sous la même identité. B2G_COVERAGE.md ne documente, pour la Bulgarie, AUCUN canal de ce type accessible à ce dépôt (CAIS EPP est fermé, B2G uniquement, sans mention de Peppol) — sans clearance bloquante identifiée pour les factures domestiques, il n'y a pas de rejet possible dont cette voie serait la sortie. Ce qui trancherait : un accès aux spécifications techniques du canal CAIS EPP lui-même, hors de portée de cette tâche."
+      },
+      "notes": "Dépend du même constat que INTERNAL_CREDIT_NOTE ci-dessus (B2G_COVERAGE.md, canal CAIS EPP fermé) — non redoublé, seulement référencé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recherche POSITIVE mais NÉGATIVE pour cette voie précise : la Bulgarie a bel et bien un mécanisme de récupération de TVA sur créance incollectible (ЗДДС chl. 126а-126в, 'несъбираемо вземане', lu intégralement le 2026-09-04) — l'équivalent fonctionnel du duplicata annoté français (CGI art. 272, 1, al. 3) — mais ce mécanisme bulgare N'EMPRUNTE JAMAIS la forme d'un duplicata de LA FACTURE ORIGINALE réémis surchargé d'une mention : il passe SOIT par un кредитно известие (чл. 126б, ал. 1, quand le destinataire était enregistré à la TVA — voir CREDIT_NOTE ci-dessus), SOIT par un протокол distinct reflété dans le registre des ventes du fournisseur (чл. 126б, ал. 2 et ал. 5 — voir LEDGER_ANNOTATION ci-dessous). Aucune trace d'une réédition ANNOTÉE de la facture ORIGINALE elle-même n'a été trouvée dans ces articles. Ce qui trancherait : rien d'identifié — cette lecture est considérée comme suffisamment complète pour conclure, par une recherche positive du mécanisme réel plutôt qu'une simple absence de recherche, que cette voie précise n'est PAS celle empruntée par le droit bulgare pour ce cas d'usage."
+      },
+      "notes": "ЗДДС chl. 126а-126в, lus intégralement le 2026-09-04 — le mécanisme réel trouvé est CREDIT_NOTE (chl. 126б, ал. 1) ou LEDGER_ANNOTATION (chl. 126б, ал. 2/5), jamais un duplicata annoté."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Когато получателят по доставката е бил нерегистрирано лице към момента на доставката и са изпълнени условията, посочени в чл. 126а, ал. 1, т. 1 - 4, намалението на данъчната основа и на начисления данък се извършва от доставчика чрез издаване на протокол по ред, определен с правилника, в тримесечен срок от изтичане на данъчния период, през който е възникнало съответното обстоятелство по чл. 126а, ал. 2, т. 1 - 6. [...] Издаденият протокол по ал. 2 се отразява със знак (-) в дневника за продажби и справка-декларацията в съответния данъчен период.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ЗДДС чл. 126б, ал. 2 et ал. 5 (créance incollectible, 'несъбираемо вземане', régime en vigueur depuis le 01.01.2023) — LU DIRECTEMENT le 2026-09-04, même texte que ci-dessus. Traduction littérale : « (2) Lorsque le destinataire de la livraison ÉTAIT une personne NON ENREGISTRÉE [à la TVA] au moment de la livraison [...], la réduction de la base imposable et de la taxe perçue s'opère par le fournisseur AU MOYEN DE L'ÉMISSION D'UN PROCÈS-VERBAL [протокол], selon les modalités fixées par le règlement d'application, dans un délai de trois mois [...]. [...] (5) Le procès-verbal émis en vertu de l'al. 2 est REFLÉTÉ AVEC LE SIGNE (-) DANS LE REGISTRE DES VENTES et la déclaration-relevé pour la période fiscale correspondante. » CE QUE CETTE CITATION TRANCHE : quand le destinataire n'était PAS enregistré à la TVA (donc aucun mécanisme de известие à son égard n'aurait de sens — il n'a jamais eu de droit à déduction à ajuster en retour), la réduction de la base imposable et de la taxe s'opère PAR UNE ÉCRITURE PUREMENT INTERNE AU FOURNISSEUR — un протокол qui n'est JAMAIS transmis au destinataire, et dont l'effet se limite à une INSCRIPTION avec un signe négatif dans le propre registre des ventes ('дневник за продажби') du fournisseur, lequel alimente ensuite sa déclaration de TVA périodique auprès de la NAP. NUANCE HONNÊTEMENT SIGNALÉE, à la frontière entre deux voies canoniques : ce протокол EST un document formel (il a sa propre forme fixée par règlement, à la différence d'une simple case cochée) — ce n'est donc pas un cas aussi pur que la définition 'SANS émettre aucun document' pourrait le laisser entendre littéralement ; mais il ne circule JAMAIS vers le destinataire ET il finit par atteindre la NAP via la déclaration périodique — ce qui l'écarte à la fois d'un pur INTERNAL_CREDIT_NOTE (qui suppose une non-transmission à l'autorité AUSSI) et d'un pur NO_DOCUMENT_BY_LAW (qui suppose l'absence de toute écriture). 'LEDGER_ANNOTATION' reste, de ces trois axes, le plus proche de la substance réelle : une correction qui vit et s'arrête dans les REGISTRES du fournisseur, jamais dans un document qui circule comme une facture ou un известие. Statut 'allowed' (pas 'required') : ce mécanisme de créance incollectible dans son ensemble est une FACULTÉ offerte au fournisseur ('доставчикът [...] намалява', et tout le régime du чл. 126а suppose un choix actif d'engager la procédure), jamais une obligation de corriger pour ce motif précis."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recherche NÉGATIVE, faite le 2026-09-04 sur l'intégralité du régime de correction bulgare identifié par cette tâche (chl. 113-126в) : dans TOUS les cas trouvés, une action documentaire existe TOUJOURS — soit un известие (crédit ou débit, чл. 115), soit un протокол reflété dans un registre (чл. 126б, ал. 2/5, voir LEDGER_ANNOTATION ci-dessus). Aucun scénario n'a été identifié où la position de TVA du fournisseur s'ajusterait DE PLEIN DROIT, sans aucune écriture ni aucun document, à un changement de circonstances — à la différence de ce que DE établit pour son propre droit (remises, rabais, créances irrécouvrables). Ce qui trancherait : une lecture de la Правилник за прилагане на ЗДДС qui identifierait un cas non couvert par les articles déjà lus."
+      },
+      "notes": "Recherche négative sur l'ensemble du régime de correction du ЗДДС (chl. 113-126в), le 2026-09-04 — voir LEDGER_ANNOTATION et CREDIT_NOTE/DEBIT_NOTE ci-dessus pour ce qui a été trouvé à la place."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recherche textuelle NÉGATIVE, faite le 2026-09-04, sur l'intégralité du ЗДДС (chl. 96-126в) pour un droit formel du destinataire à s'opposer unilatéralement à un document reçu ('оспорва', 'възразява', ou toute formulation équivalente) : AUCUNE occurrence trouvée. Le seul mécanisme trouvé où le destinataire joue un rôle actif est le consentement (exprès ou tacite) à la facturation électronique elle-même (чл. 114, ал. 9, voir country-policy/data/bg.json's own invoice.send) — un consentement PRÉALABLE à l'émission, pas une objection À UN DOCUMENT DÉJÀ REÇU qui le priverait rétroactivement d'effet. Ce qui trancherait : une lecture de la Правилник за прилагане на ЗДДС ou d'une pratique administrative NAP documentée qui identifierait un tel mécanisme."
+      },
+      "notes": "Recherche textuelle négative sur les termes 'оспорва'/'възразява' dans l'intégralité du ЗДДС lu, le 2026-09-04."
+    }
+  ],
+  "notes": "Bulgarie — agent pays BG, lot 6 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Bulgarie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — même situation que gr.json/cy.json en lot 2. Sources : Закон за данък върху добавената стойност (ЗДДС, Обн. ДВ. бр.63 от 4 Август 2006г., texte consolidé), chl. 113 à 126в et § 1 des dispositions complémentaires, LUS INTÉGRALEMENT le 2026-09-04, DIRECTEMENT sur lex.bg (https://lex.bg/laws/ldoc/2135533201 — HTTP 200, HTML brut encodé windows-1251, reconverti en UTF-8 par cette tâche avant toute citation, jamais via un résumé d'outil). RÉSULTAT, un des plus riches et différenciés de ce lot : QUATRE voies tranchées positivement — CREDIT_NOTE et DEBIT_NOTE toutes deux 'required' (chl. 115, la trouvaille attendue par cette tâche : les DEUX instruments explicitement nommés ET imposés, un résultat plus fort que la quasi-totalité des pays déjà couverts) et LEDGER_ANNOTATION 'allowed' (chl. 126б, ал. 2/5, le mécanisme de créance incollectible pour un destinataire non enregistré à la TVA) — plus TROIS recherches NÉGATIVES POSITIVES (CORRECTIVE_INVOICE, ANNOTATED_DUPLICATE, NO_DOCUMENT_BY_LAW, COUNTERPARTY_OBJECTION : le texte a été lu et le mécanisme cherché explicitement écarté, pas simplement non atteint) et une trouvaille réelle mais NON PROMUE par prudence (CANCEL_AND_REPLACE, chl. 116 — un mécanisme d'annulation/remplacement réel mais sans autorité impliquée, voir sa propre note pour la discussion complète). Les trois voies restantes (INTERNAL_CREDIT_NOTE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY) dépendent explicitement du constat déjà établi par B2G_COVERAGE.md pour la Bulgarie (canal CAIS EPP fermé, B2G uniquement, aucune mention de Peppol trouvée sur toute la page lors de la lecture du 2026-09-02) — cette tâche ne redouble pas cette recherche, elle la référence. Ce fichier ne modélise aucun B2G routing (décision hors périmètre STRICT de cet agent : PAS de b2g-routing/data/bg.json — le canal fermé CAIS EPP reste une absence honnête, déjà consignée dans B2G_COVERAGE.md)."
+}

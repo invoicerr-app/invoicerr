@@ -1,0 +1,109 @@
+{
+  "countryCode": "CZ",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Opravný daňový doklad je daňový doklad, který se vystavuje při opravě základu nebo výše daně",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance, même structure que correction-routes/data/pl.json's own CREDIT_NOTE. Il n'existe pas d'instrument séparé nommé « dobropis »/« avoir » en droit tchèque : zákon č. 235/2004 Sb., o dani z přidané hodnoty (ZDPH), § 45 odst. 1 (lu en primaire le 2026-09-04 sur zakonyprolidi.cz, aktuální znění 01.01.2026, verze 69, HTML COMPLET servi dès la première requête curl standard, 1 002 662 octets, AUCUN blocage JavaScript rencontré) donne UN SEUL instrument, l'« opravný daňový doklad », pour la baisse (§ 42, oprava základu daně) COMME pour la hausse (§ 45 odst. 5, voir CORRECTIVE_INVOICE et DEBIT_NOTE ci-dessous). Recherche par mot-clé menée sur le texte intégral du ZDPH (4 364 lignes extraites) : ni « dobropis » ni « vrubopis » (les termes de pratique comptable tchèque pour « crédit »/« débit ») N'APPARAISSENT NULLE PART dans la loi — ce sont des usages professionnels, jamais des catégories légales du ZDPH. PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas la Tchéquie) : première lecture directe, niveau de preuve C1, faite par cet agent."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Opravný daňový doklad lze vystavit i v případě, že je opravou zvyšována výše daně, pokud plátce přiznal daň jinak, než stanoví tento zákon, a tím snížil daň na výstupu.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Idem CREDIT_NOTE ci-dessus — même instrument unique. ZDPH § 45 odst. 5 (citée ci-dessus) dit EXPLICITEMENT que l'opravný daňový doklad peut être émis quand la correction AUGMENTE le montant de taxe (« je opravou zvyšována výše daně ») — le pendant tchèque de la clause polonaise « podstawa opodatkowania lub kwota podatku wskazana w fakturze uległa zmianie », neutre quant au SENS de la variation : le remède est TOUJOURS un opravný daňový doklad, jamais un instrument séparé de type « note de débit » (le terme comptable courant « vrubopis » n'apparaît, comme « dobropis », NULLE PART dans le ZDPH — voir CREDIT_NOTE ci-dessus pour la recherche par mot-clé complète). Renforcement : ZDPH § 43 (« Oprava výše daně », lu en primaire le 2026-09-04) organise de façon SYMÉTRIQUE la correction du seul montant de taxe (par opposition à la base) dans les deux sens, TOUJOURS via le même § 45. Contraste avec l'Irlande : le droit irlandais NOMME un « debit note » (VATCA s. 67(2)) mais celui-ci désigne un mécanisme d'ANTICIPATION d'un avoir par la partie créditrice (un faux-ami documenté dans correction-routes/data/ie.json) — le droit tchèque, lui, ne nomme AUCUN instrument séparé sous quelque nom que ce soit pour la hausse : la symétrie est totale et porte un seul nom, opravný daňový doklad. Transcrit par lecture directe, ZDPH § 45 odst. 5, consulté 2026-09-04."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Plátce je povinen vystavit opravný daňový doklad a vynaložit úsilí, které po něm lze rozumně požadovat, k tomu, aby se tento daňový doklad dostal do dispozice příjemce plnění do 15 dnů ode dne uvedeného v odstavci 3.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZDPH § 42 odst. 5 — TEXTE PRIMAIRE, zakonyprolidi.cz, lu en direct le 2026-09-04 (même méthode d'accès que CREDIT_NOTE ci-dessus). Verbe impératif (« je povinen », est obligé), avec un DÉLAI CHIFFRÉ (15 jours à compter du jour visé à l'alinéa 3 — le jour où les faits justifiant la correction sont survenus) : LA voie tchèque de correction, symétrique dans les deux sens (baisse ET hausse, voir CREDIT_NOTE/DEBIT_NOTE ci-dessus), correspond EXACTEMENT à la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir ») : ZDPH § 45 odst. 1 písm. e)-f) (lue le même jour) impose que l'opravný daňový doklad porte « evidenční číslo původního daňového dokladu » (le numéro d'enregistrement du daňový doklad D'ORIGINE) ET « evidenční číslo opravného daňového dokladu » (son propre numéro) — un AMENDEMENT PAR RÉFÉRENCE explicite à l'original, jamais un avoir autonome. NUANCE IMPORTANTE, une EXCEPTION RÉELLE et NOMMÉE par le texte lui-même : ZDPH § 42 odst. 4 dispose qu'à la place de l'émission de l'opravný daňový doklad (písm. a), le plátce PEUT se contenter d'une correction en écriture comptable seule (písm. b) SI « neměl povinnost vystavit daňový doklad » (il n'avait pas d'obligation d'émettre un daňový doklad d'origine) OU « vystavil daňový doklad, ale pro účely vystavení opravného daňového dokladu mu není osoba, pro kterou se původní plnění uskutečnilo, dostatečně známa » (le destinataire du plnění d'origine ne lui est pas suffisamment connu) — voir LEDGER_ANNOTATION ci-dessous pour le sourçage complet de cette exception, qui NE DÉGRADE PAS le statut 'required' de CETTE voie (elle demeure la règle par défaut dès qu'un daňový doklad d'origine existait et que le destinataire est identifiable), exactement le même schéma qu'IE (CORRECTIVE_INVOICE 'required' malgré une exception narrow, voir ie.json's own CANCEL_AND_REPLACE pour un raisonnement de même nature). ZDPH § 43 odst. 1-2 (« Oprava výše daně », lue le même jour) porte la MÊME obligation, structurée à l'identique, pour la correction du seul MONTANT de taxe (par opposition à la base) — une SECONDE clause, corroborante, non retenue comme citation principale pour éviter une citation composite."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée — et pour une raison RÉELLE et PRÉCISE, pas une absence de recherche : contrairement à l'Irlande (VATCA s. 67(3), un cas ÉTROIT et NOMMÉ de taux de TVA erroné traité par une séquence « réduction à zéro puis nouvelle facture »), le ZDPH traite TOUS les cas de taux ou de montant erronés (y compris le cas symétrique de la sous-évaluation, § 45 odst. 5) par le SEUL mécanisme de l'opravný daňový doklad ORDINAIRE (§ 42/§ 43/§ 45, voir CORRECTIVE_INVOICE ci-dessus) — AUCUNE clause lue par cette tâche (ZDPH § 42, § 43, § 45, § 46 à § 46g) ne prescrit de séquence en deux temps « annuler l'original (réduction à zéro) PUIS émettre un remplaçant » comme un mécanisme PROCÉDURAL DISTINCT de la correction ordinaire. Ce qui trancherait : une lecture dédiée du daňový řád (zákon č. 280/2009 Sb., code de procédure fiscale) pour un éventuel mécanisme d'annulation-remplacement PROCÉDURAL propre à une déclaration de TVA déjà déposée (dodatečné daňové přiznání, aperçu au ZDPH § 43 odst. 1 mais non approfondi pour ce point précis par cette tâche) — non recherché."
+      },
+      "notes": "Non recherché en détail au-delà de ZDPH § 42/§ 43/§ 45 — signalé comme probablement sans objet (le mécanisme tchèque ne distingue pas de séquence annulation-remplacement), pas comme réglé."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même raisonnement que ie.json/se.json/mt.json/lv.json/ee.json/nl.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique tchèque à la date de cette lecture (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — B2G_COVERAGE.md, lu pour cohérence, documente seulement un canal B2G NEN NON LIVRABLE dans ce dépôt, jamais un mandat de clearance B2B domestique). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture ELLE-MÊME (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique tchèque par cette tâche, la TVA tchèque restant un système déclaratif (auto-liquidation par daňové přiznání) sans validation de facture au moment de l'émission dans le ZDPH lu (§ 26 à § 45). Ce qui trancherait : une lecture dédiée d'une Informace GFŘ (Generální finanční ředitelství) confirmant l'absence, ou l'existence, d'un mécanisme de clearance — non recherchée par cette tâche."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique tchèque identifiée, ce scénario ne se pose pas de la même façon. Le mécanisme le plus proche identifié par cette tâche est la condition de CONSENTEMENT du destinataire à la forme électronique elle-même (ZDPH § 26 odst. 3, voir country-policy/data/cz.json's own invoice.send), mais ceci porte sur le consentement à la forme électronique entre émetteur et destinataire, pas sur le rejet TECHNIQUE d'une facture déjà transmise par une plateforme d'autorité — donc hors du périmètre exact de cette voie."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun mécanisme tchèque identifié correspondant à « le MÊME document, réémis surchargé d'une mention » (docs/compliance/CORRECTION-ROUTES.yaml). Les mécanismes de correction trouvés par cette tâche (ZDPH § 42, § 43, § 45) produisent tous un DOCUMENT NOUVEAU ET DISTINCT (l'opravný daňový doklad, avec son PROPRE numéro d'enregistrement, § 45 odst. 1 písm. f)), jamais le daňový doklad initial lui-même renvoyé annoté sous son identité d'origine. Recherche par mot-clé menée sur le texte intégral du ZDPH pour « duplikát » et « náhradní doklad » : AUCUNE occurrence trouvée. Ce qui trancherait : une Informace GFŘ ou une doctrine de la pratique fiscale tchèque confirmant explicitement l'absence, ou l'existence, d'un mécanisme général de duplicata annoté — non recherchée par cette tâche."
+      },
+      "notes": "Recherche par mot-clé négative (« duplikát », « náhradní doklad ») sur le texte intégral du ZDPH — signalée honnêtement comme une absence CONSTATÉE dans le texte lu, pas comme une exclusion de principe."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Při opravě základu daně plátce a) vystaví opravný daňový doklad, nebo b) provede opravu základu daně v evidenci pro účely daně z přidané hodnoty, pokud plátce 1. neměl povinnost vystavit daňový doklad nebo 2. vystavil daňový doklad, ale pro účely vystavení opravného daňového dokladu mu není osoba, pro kterou se původní plnění uskutečnilo, dostatečně známa.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZDPH § 42 odst. 4 — TEXTE PRIMAIRE, zakonyprolidi.cz, lu en direct le 2026-09-04 (même méthode d'accès que CREDIT_NOTE ci-dessus). TROUVAILLE LA PLUS NETTE de ce fichier, PLUS LARGE que ie.json's own LEDGER_ANNOTATION (Reg. 10(3)(c) + Reg. 27(1)(m), limitée au cas du bad debt) : le texte tchèque prescrit EXPLICITEMENT une « evidence pro účely daně z přidané hodnoty » (un registre TVA tenu à cette fin) comme ALTERNATIVE STATUTAIRE à l'émission de l'opravný daňový doklad, applicable à TOUTE correction de la base d'imposition (§ 42, pas seulement aux créances irrécouvrables) — DEUX conditions, l'une OU l'autre suffisant : (1) le plátce n'avait aucune obligation d'émettre de daňový doklad d'origine, ou (2) un daňový doklad a bien été émis mais le destinataire du plnění d'origine n'est pas suffisamment connu du plátce pour lui adresser un opravný daňový doklad. RENFORCEMENT : ZDPH § 43 odst. 2 (« Oprava výše daně », lue le même jour) porte la SYMÉTRIQUE EXACTE de cette même règle pour la correction du seul MONTANT de taxe. AUCUN document n'est transmis au débiteur ni à une autorité dans ce cas : c'est une écriture PUREMENT INTERNE, à la différence de CORRECTIVE_INVOICE (transmis au destinataire). Statut 'allowed' (pas 'required') : c'est une FACULTÉ offerte par la loi dans les deux cas cités, jamais une obligation de choisir cette voie plutôt que l'opravný daňový doklad lorsque les deux options sont ouvertes."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée EN FAVEUR de cette voie précisément PARCE QUE LEDGER_ANNOTATION ci-dessus a pu être confirmée 'legal'/'allowed' avec un texte NET et GÉNÉRAL (ZDPH § 42 odst. 4 písm. b) + § 43 odst. 2 písm. b)) : contrairement à un régime purement déclaratif sans la moindre trace écrite, le droit tchèque exige, même dans le cas où l'opravný daňový doklad n'est pas émis, une correction « v evidenci pro účely daně z přidané hodnoty » — une INSCRIPTION dans un registre TVA tenu à cette fin, jamais un simple ajustement silencieux de la déclaration sans AUCUNE trace documentée nulle part. Cette voie NE PEUT DONC PAS être promue à 'forbidden' pour l'ensemble du droit tchèque sans une recherche PLUS LARGE (cette tâche n'a lu que ZDPH § 42/§ 43/§ 45/§ 46 à § 46g) : un AUTRE scénario d'ajustement de TVA, non recherché par cette tâche, pourrait exister ailleurs dans le ZDPH sans exiger la moindre écriture."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note pour la trouvaille complète — ici, comme pour ie.json, l'ambiguïté est en grande partie LEVÉE par un texte général (§ 42 odst. 4 písm. b)), mais la voie reste 'unverified' à l'échelle du droit tchèque dans son ensemble."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Tchéquie au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — le ZDPH § 26 à § 45, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le droit commun des obligations tchèque, zákon č. 89/2012 Sb., občanský zákoník, non recherché pour ce point précis par cette tâche)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Tchéquie — agent pays CZ, lot 6 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas la Tchéquie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même, zákon č. 235/2004 Sb., o dani z přidané hodnoty (ZDPH), lu via zakonyprolidi.cz (aktuální znění 01.01.2026, verze 69, HTML COMPLET servi dès la première requête curl standard, 1 002 662 octets, AUCUN blocage JavaScript rencontré). MÉTHODE D'ACCÈS : le portail officiel moderne e-sbirka.gov.cz, que ce brief demandait de chercher en premier, s'est révélé être une SPA Angular — sa seule API ouverte trouvée (opendata.eselpoint.gov.cz/esel-esb, config.openDataBasePath, lisible dans assets/configs/env.js) EXISTE (HTTP 200 confirmé sur .../eli/cz/sb/2004/235) mais expose un graphe RDF/LOD (LodView) fragmenté PAR ALINÉA DE LOI PAR VERSION DATÉE — non exploitable dans le temps imparti (des dizaines de milliers de fragments distincts pour la seule version du 1.01.2026) ; zakonyprolidi.cz, le repli explicitement prévu par ce brief, a donc servi de source de TEXTE BRUT unique pour ce fichier, un accès aussi direct que celui documenté pour riksdagen.se (Suède) ou revisedacts.lawreform.ie (Irlande). HEADLINE, LA TROUVAILLE ATTENDUE de ce lot : l'« opravný daňový doklad » (ZDPH § 45) est un INSTRUMENT UNIQUE, NOMMÉ ET DÉFINI par la loi elle-même, qui remplace À LA FOIS le credit note ET le debit note d'autres droits — § 45 odst. 5 dit EXPLICITEMENT qu'il peut être émis « i v případě, že je opravou zvyšována výše daně » (même quand la correction AUGMENTE le montant de taxe) — la MÊME structure que la faktura korygująca polonaise (correction-routes/data/pl.json), jamais celle, à deux instruments distincts, de la France, de la Suède ou de l'Irlande. CREDIT_NOTE et DEBIT_NOTE sont donc 'forbidden' EN TANT QU'INSTRUMENTS DISTINCTS (pas en substance), CORRECTIVE_INVOICE est 'required' (§ 42 odst. 5, verbe impératif, délai de 15 jours) — AVEC UNE EXCEPTION RÉELLE ET NOMMÉE, LEDGER_ANNOTATION (§ 42 odst. 4 písm. b) + § 43 odst. 2 písm. b)), 'allowed', PLUS LARGE que celle trouvée par ie.json (limitée au bad debt) : applicable À TOUTE correction de base ou de montant dès lors que (i) aucun daňový doklad d'origine n'existait, ou (ii) le destinataire d'origine n'est pas suffisamment identifiable. Recherche par mot-clé NÉGATIVE et EXPLICITE sur « dobropis »/« vrubopis » (les termes de pratique comptable) et sur « duplikát »/« náhradní doklad » (pour ANNOTATED_DUPLICATE) : aucune des deux paires n'apparaît dans le ZDPH — la Tchéquie ne nomme statutairement AUCUN de ces concepts. Les six autres voies restent honnêtement 'unverified', dont NO_DOCUMENT_BY_LAW (partiellement départagée par LEDGER_ANNOTATION, comme pour l'Irlande, mais non exclue pour d'autres scénarios non recherchés) et CANCEL_AND_REPLACE (contrairement à l'Irlande, aucune clause d'annulation-remplacement en deux temps identifiée pour un taux erroné — le ZDPH traite ce cas par la correction ORDINAIRE, § 42/§ 43/§ 45). Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir B2G_COVERAGE.md : portail NEN, canal fermé, AUCUN fichier b2g-routing/data/cz.json créé par cet agent, l'absence honnête déjà consignée) : AUCUNE contradiction relevée avec ce document."
+}

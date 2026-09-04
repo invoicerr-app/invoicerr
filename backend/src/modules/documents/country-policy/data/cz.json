@@ -1,0 +1,215 @@
+{
+  "countryCode": "CZ",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json/ie.json pour cette même action : le zákon č. 235/2004 Sb., o dani z přidané hodnoty (ci-après « ZDPH »), lu en primaire par cette tâche le 2026-09-04 sur zakonyprolidi.cz (aktuální znění 01.01.2026, verze 69), n'encadre que le « daňový doklad » (§ 26 et suivants) — jamais un devis. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "RÉUTILISE la citation déjà établie par ce dépôt (be.json/pl.json/de.json/it.json/es.json/lv.json/cy.json/mt.json/se.json/ie.json…) pour cette même action — Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1, citation COPIÉE telle quelle, jamais re-résumée : un règlement UE d'applicabilité directe, sans transposition tchèque requise, identique pour la Tchéquie comme pour tout autre État membre déjà porté par ce catalogue. Un devis n'est pas un « daňový doklad » au sens du ZDPH § 26 — voir invoice.send ci-dessous, propre au droit tchèque — c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit tchèque (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.send et invoice.save-draft ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus. Un texte a bien été identifié pour le TRAITEMENT de l'acompte facturé, une fois émis : ZDPH § 28 odst. 1 písm. d) (lu en primaire le 2026-09-04) impose au plátce (assujetti) de vystavit daňový doklad (émettre un daňový doklad) en cas de « přijetí úplaty, pokud před uskutečněním plnění [...] vznikla povinnost přiznat daň nebo přiznat uskutečnění plnění ke dni přijetí úplaty » (réception d'un acompte, si l'obligation de déclarer la taxe ou l'opération naît à la date de réception de cet acompte) — mais cette clause s'applique une fois la facture d'acompte ÉMISE, jamais à l'acte produit consistant à en préparer un brouillon depuis un devis, qui reste ce que cette règle-ci couvre. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit tchèque. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un « daňový doklad » au sens du ZDPH. Aucun texte tchèque identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(1) U daňového dokladu musí být od okamžiku jeho vystavení do konce doby stanovené pro jeho uchovávání zajištěna a) věrohodnost jeho původu, b) neporušenost jeho obsahu a c) jeho čitelnost.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZDPH § 34 odst. 1 (section « Zajištění věrohodnosti původu, neporušenosti obsahu a čitelnosti daňových dokladů ») — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur zakonyprolidi.cz (https://www.zakonyprolidi.cz/cs/2004-235, aktuální znění 01.01.2026, verze 69, HTML COMPLET servi dès la première requête curl standard, 1 002 662 octets, AUCUN blocage JavaScript rencontré — le portail officiel moderne e-sbirka.gov.cz s'est révélé être une SPA Angular dont la seule API ouverte trouvée, opendata.eselpoint.gov.cz/esel-esb (config.openDataBasePath, lue dans assets/configs/env.js), sert un graphe RDF/LOD fragmenté PAR ALINÉA — des dizaines de milliers de fragments distincts par version de la loi, un accès RÉEL mais non exploitable dans le temps imparti à cette tâche ; zakonyprolidi.cz, le repli explicitement prévu par ce brief, a donc été retenu comme source de TEXTE BRUT). COMPOSITION à DEUX clauses, même structure que ie.json's own invoice.save-draft : § 34 odst. 1 transpose l'art. 233 de la directive TVA (authenticité de l'origine / intégrité du contenu / lisibilité), et § 29 odst. 1 písm. e) (lu le même jour) exige que le daňový doklad porte « evidenční číslo daňového dokladu » (le numéro d'enregistrement du daňový doklad) parmi ses mentions obligatoires. Le ZDPH ne qualifie ce numéro NULLE PART de « pořadové »/« sekvenční » (séquentiel) dans le texte lu par cette tâche — à la différence de l'irlandais Reg. 20(2)(b) (« a sequential number [...] which uniquely identifies the invoice ») ou du polonais — mais § 34 impose que CE numéro, une fois le doklad vystaven (émis), reste inchangé et intègre jusqu'à la fin de la période de conservation. La conséquence pratique pour CE produit (où 'save-draft' réécrit toujours le MÊME enregistrement sous le même numéro, voir invoice.descriptor.ts) est que ré-invoquer cette action une fois la facture 'sent' romprait l'intégrité garantie du contenu depuis l'émission — une correction doit alors emprunter un DOCUMENT DISTINCT (voir correction-routes/data/cz.json, la voie CORRECTIVE_INVOICE, 'required' — la trouvaille la plus forte de ce lot : l'opravný daňový doklad tchèque, § 45 ZDPH). Le champ `statuses: [\"draft\"]` applique ce même principe défensif que fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json/ie.json."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Daňový doklad má elektronickou podobu tehdy, pokud je vystaven a obdržen elektronicky. S použitím daňového dokladu v elektronické podobě musí souhlasit osoba, pro kterou se plnění uskutečňuje.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZDPH § 26 odst. 3 — TEXTE PRIMAIRE, zakonyprolidi.cz, lu en direct le 2026-09-04 (même méthode d'accès qu'invoice.save-draft ci-dessus). FORME PROPRE À LA TCHÉQUIE, à noter précisément : le texte pose DEUX conditions cumulatives pour qu'un daňový doklad ait une « forme électronique » — (i) il doit être ÉMIS ET REÇU électroniquement (« vystaven a obdržen elektronicky »), ET (ii) le destinataire du plnění (l'opération) doit CONSENTIR à l'usage de la forme électronique (« musí souhlasit osoba, pro kterou se plnění uskutečňuje ») — un CONSENTEMENT du seul destinataire, formulation plus proche de FR/DE/NL/SE/MT (« acceptance »/« consent ») que de l'accord bilatéral PRÉALABLE irlandais (VATCA s. 66(2)(a), « prior agreement between the person who issues [...] and the person who is in receipt »). Composé avec l'OBLIGATION D'ÉMETTRE elle-même : ZDPH § 28 odst. 1 písm. a) (lu le même jour, non retranscrit ici pour éviter une citation composite) impose au plátce (assujetti) de vystavit daňový doklad (émettre un daňový doklad) pour « dodání zboží nebo poskytnutí služby osobě povinné k dani nebo právnické osobě nepovinné k dani » (livraison de biens ou prestation de services à un assujetti ou une personne morale non assujettie), sauf opérations exonérées sans droit à déduction. NUANCE NON MODÉLISÉE ICI, à connaître : cette règle ne vérifie pas l'existence du consentement électronique (elle autorise seulement l'ACTE d'envoi dans l'outil) — même réserve que FR/DE/NL/SE/MT/IE pour leur propre invoice.send. AUCUNE mention B2G trouvée dans ce texte à réconcilier : le canal B2G tchèque (portail NEN, Národní elektronický nástroj) est un sujet DISTINCT de cette règle fiscale générale et documenté ailleurs comme fermé (B2G_COVERAGE.md), jamais un fichier b2g-routing/data/cz.json dans ce dépôt, hors périmètre de cet agent."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit tchèque. La question fiscale (ZDPH) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. ZDPH § 46 à § 46g (« Oprava základu daně v případě nedobytné pohledávky », correction de la base d'imposition en cas de créance irrécouvrable, lus en primaire le 2026-09-04) donnent un droit à correction de la taxe déjà déclarée pour une créance devenue irrécouvrable — un fait DISTINCT, non modélisé par ce catalogue faute de correspondre à une action déclarée sur invoice.descriptor.ts, qui porte sur le régime de TVA d'une créance impayée, jamais sur ce mécanisme d'enregistrement de paiement lui-même (voir aussi correction-routes/data/cz.json's own LEDGER_ANNOTATION, sourcée à ZDPH § 42 odst. 4 písm. b) et § 43 odst. 2 písm. b) — un mécanisme GÉNÉRAL de correction en écriture, pas limité aux créances irrécouvrables, plus large que celui trouvé par ie.json/se.json/mt.json pour ce même sujet). Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale tchèque pour CETTE entreprise de la produire pour une facture B2B/B2C domestique ordinaire : aucun mandat de facturation électronique structurée B2B domestique n'a été identifié par cette tâche dans le ZDPH (§ 26 à § 34 lus en primaire ne prescrivent qu'un daňový doklad « v listinné nebo elektronické podobě », sans imposer de format structuré). Le canal B2G tchèque (portail NEN) est documenté ailleurs (B2G_COVERAGE.md) comme fermé — hors périmètre de cet agent, aucun fichier b2g-routing/data/cz.json créé. Cette règle-ci autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE ni dans quel cas — même raisonnement que se.json/mt.json/ie.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (confirmé le 2026-09-04 par lecture directe de documents-core.module.ts, ligne du commentaire : « \"export-accounting\" (invoice) is intentionally left unregistered here — see that file's header. ») — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal tchèque d'un tel document (voir credit-note.send ci-dessous et correction-routes/data/cz.json) concerne le CONTENU et l'effet TVA du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json/ie.json/pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Opravný daňový doklad je daňový doklad, který se vystavuje při opravě základu nebo výše daně [...] Opravný daňový doklad lze vystavit i v případě, že je opravou zvyšována výše daně, pokud plátce přiznal daň jinak, než stanoví tento zákon, a tím snížil daň na výstupu.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZDPH § 45 odst. 1 et odst. 5 — TEXTE PRIMAIRE, zakonyprolidi.cz, lu en direct le 2026-09-04 (même méthode d'accès qu'invoice.save-draft ci-dessus). MÊME TROUVAILLE STRUCTURELLE que pl.json's own credit-note.send (« Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance ») : le droit tchèque n'a PAS d'instrument séparé nommé « dobropis »/« avoir » — un SEUL instrument statutaire, l'« opravný daňový doklad », couvre À LA FOIS la BAISSE (ZDPH § 42, oprava základu daně, ordinairement une réduction) ET, EXPLICITEMENT, la HAUSSE (§ 45 odst. 5, citée ci-dessus, pour le cas où le plátce avait sous-évalué sa daň na výstupu) ET la correction du seul MONTANT de taxe sans toucher la base (§ 43, oprava výše daně, dans les deux sens). Les termes usuels « dobropis »/« vrubopis » (crédit/débit, langage comptable courant) n'apparaissent NULLE PART dans le ZDPH lu par cette tâche (recherche par mot-clé sur le texte intégral, 4 364 lignes) — CE SONT DES TERMES DE PRATIQUE COMPTABLE, JAMAIS DES CATÉGORIES LÉGALES DU ZDPH, exactement le type de faux-ami terminologique documenté par ie.json's own DEBIT_NOTE pour un autre pays. CONSÉQUENCE : ce fichier promeut credit-note.send à allowed:true — RÉDUIRE le montant d'une facture par un document référencé (l'opravný daňový doklad) est légalement OUVERT (en fait OBLIGATOIRE dans la plupart des cas, voir correction-routes/data/cz.json's own CORRECTIVE_INVOICE, 'required') en Tchéquie — seule la TERMINOLOGIE/le TYPE d'instrument diffère de ce que le nom du document 'credit-note' de cet outil laisse entendre : pour une société tchèque, l'émission d'un 'credit-note' doit être comprise comme représentant fonctionnellement un opravný daňový doklad de sens négatif, jamais un document tchèque séparé de type 'avoir'. Voir correction-routes/data/cz.json pour le sourçage complet de la voie CORRECTIVE_INVOICE ('required') et le rejet de CREDIT_NOTE/DEBIT_NOTE comme instruments DISTINCTS ('forbidden', pas interdits en substance)."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte tchèque identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables tchèques (zákon č. 563/1991 Sb., o účetnictví, § 11, « Účetní doklady », lu en primaire le 2026-09-04 : liste les mentions obligatoires d'un účetní doklad — désignation, contenu de l'opération et ses participants, montant, date d'établissement — sans jamais viser ce mécanisme précis d'enregistrement dans l'outil) portent sur la comptabilité de l'entreprise elle-même, pas sur cet acte. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : le canal B2G tchèque (portail NEN) est documenté ailleurs comme fermé (B2G_COVERAGE.md) et aucun mandat B2B de RÉCEPTION structurée équivalent à KSeF polonais ou au PPF français n'a été identifié pour la Tchéquie par cette tâche — sujet distinct, hors périmètre de ce workflow interne d'approbation."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte tchèque identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte tchèque identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte tchèque identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Tchéquie — agent pays CZ, lot 6 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/pl.json/nl.json/ee.json/lv.json/lu.json/se.json/mt.json/ie.json pour les mêmes actions. Le lourd légal repose sur une lecture DIRECTE DU TEXTE PRIMAIRE, zákon č. 235/2004 Sb., o dani z přidané hodnoty (ZDPH), lu via zakonyprolidi.cz (aktuální znění 01.01.2026, verze 69, HTML COMPLET servi dès la première requête curl standard, 1 002 662 octets, AUCUN blocage JavaScript rencontré) — le repli explicitement prévu par ce brief : le portail officiel moderne e-sbirka.gov.cz (censé remplacer zakonyprolidi.cz) s'est avéré être une SPA Angular ; sa seule API ouverte identifiée (opendata.eselpoint.gov.cz/esel-esb, config.openDataBasePath, lisible dans assets/configs/env.js) EXISTE RÉELLEMENT (HTTP 200 sur https://opendata.eselpoint.gov.cz/esel-esb/eli/cz/sb/2004/235) mais expose un graphe RDF/LOD (Linked Open Data, LodView) fragmenté PAR ALINÉA DE LOI PAR VERSION — la version du 1.01.2026 seule liste des dizaines de milliers de `frag_<id>` distincts, un accès réel mais non exploitable dans le temps imparti à cette tâche, consigné ici pour un futur agent qui voudrait automatiser une extraction structurée. DEUX RÉSULTATS majeurs, dans la continuité du modèle IE de ce catalogue : (1) invoice.save-draft s'appuie sur une COMPOSITION à DEUX clauses primaires (ZDPH § 34 odst. 1 — authenticité/intégrité/lisibilité, la transposition tchèque de l'art. 233 de la directive TVA — et § 29 odst. 1 písm. e) — numéro d'enregistrement obligatoire) ; (2) credit-note.send est promue 'legal' via une clause qui NOMME ET DÉFINIT l'« opravný daňový doklad » comme INSTRUMENT UNIQUE couvrant EXPLICITEMENT la baisse (§ 42/§ 45 odst. 1) ET la hausse (§ 45 odst. 5) — la MÊME structure qu'a trouvée pl.json pour la faktura korygująca polonaise, jamais celle, à deux instruments distincts, de FR/SE/IE. MISE EN GARDE IMPORTANTE POUR UNE LECTURE FUTURE, propre à la Tchéquie : les termes comptables usuels « dobropis » (crédit) et « vrubopis » (débit) N'APPARAISSENT NULLE PART dans le ZDPH — ce sont des USAGES DE PRATIQUE COMPTABLE, jamais des catégories légales — voir correction-routes/data/cz.json's own CREDIT_NOTE/DEBIT_NOTE pour le sourçage complet de ce point et le rejet de ces deux voies comme instruments DISTINCTS (statut 'forbidden', jamais 'interdit en substance'). AUCUNE contradiction relevée avec country-identifiers/data/cz.json, vat-rates/data/cz.json et correction-routes/data/cz.json (livrés par ce même agent, ce même jour) ni avec tax/tax-systems/data/cz.json (TEDB, standardRate 21, lu 2026-09-01, agent P2-T02) ni avec B2G_COVERAGE.md (portail NEN, canal fermé, lu pour cohérence, jamais réécrit par cet agent — pas de fichier b2g-routing/data/cz.json créé) : les quatre fichiers documentent des angles disjoints du MÊME socle légal tchèque sans se contredire."
+}

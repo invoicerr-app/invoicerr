@@ -134,7 +134,7 @@ describe('country-policy/data — the shipped FR and US files', () => {
   it('no OTHER shipped rule declares a per-status narrowing — these two stay the only deliberate examples', () => {
     // BE (AR n°1 art. 12 §1), NL (art. 35a lid 1.b composition — the file says so itself) and AT
     // (UStG §16 Abs. 1) joined with lot 1 (TODO_DOCUMENTS vague B) — each narrowing SOURCED in its file.
-    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'ES', 'MX', 'BE', 'NL', 'AT', 'EE', 'GR', 'CY', 'LT', 'LV', 'LU', 'MT', 'SE', 'DK', 'FI', 'IE'];
+    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'ES', 'MX', 'BE', 'NL', 'AT', 'EE', 'GR', 'CY', 'LT', 'LV', 'LU', 'MT', 'SE', 'DK', 'FI', 'IE', 'BG', 'CZ', 'HR'];
     const isKnownNarrowing = (countryCode: string, typeId: string, actionId: string) =>
       (typeId === 'invoice' &&
         actionId === 'save-draft' &&
@@ -218,9 +218,9 @@ describe('country-policy/data — FR rules promoted to "legal" by root TODO item
 // one honest `unverified` per country, so a future edit that quietly waters one of these down goes
 // red here first.
 describe('country-policy/data — DE/IT/PL/ES/MX added by root TODO P1 (2026-09-03)', () => {
-  it('the catalog now covers exactly 22 countries: the 19 of lot 4 plus DK, FI, IE (lot 5, TODO_DOCUMENTS vague B)', () => {
+  it('the catalog now covers exactly 25 countries: the 22 of lot 5 plus BG, CZ, HR (lot 6, TODO_DOCUMENTS vague B)', () => {
     const codes = ALL_COUNTRY_POLICY_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['AT', 'BE', 'CY', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'MX', 'NL', 'PL', 'SE', 'US']);
+    expect(codes).toEqual(['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'MX', 'NL', 'PL', 'SE', 'US']);
   });
 
   it('PL invoice.save-draft cites the Podręcznik KSeF verbatim: a file sent to KSeF cannot be edited, only corrected by a new faktura korygująca', () => {

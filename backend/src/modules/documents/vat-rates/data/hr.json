@@ -1,0 +1,54 @@
+{
+  "countryCode": "HR",
+  "rates": [
+    {
+      "id": "hr-standard",
+      "rate": 25,
+      "label": "Standardna stopa",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "PDV se obračunava i plaća po stopi od 25%.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Zakon o porezu na dodanu vrijednost (ZPDV), édition consolidée 2026 de zakon.hr, čl. 38 st. 1 — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur https://www.zakon.hr/c/zakon/674643/zakon-o-porezu-na-dodanu-vrijednost-2026-2026 (page statique, curl direct, base « ažurirana 22.08.2026. » selon son propre en-tête). PAS DE DIVERGENCE avec tax-systems/data/hr.json's own TEDB fragment (déjà dans ce dépôt, agent P2-T02, `\"value\" : 25.0, \"situationOn\" : \"2026/07/01\"`) : les deux sources convergent sur 25%, et à la différence du cas estonien déjà corrigé par ce lot, la Croatie n'a pas changé de taux standard récemment — le čl. 38 lui-même liste, dans son en-tête, les lois modificatives touchant l'article (jusqu'à NN 52/25) sans qu'aucune ne porte sur le st. 1 (le taux de 25% figure identiquement dans le texte consolidé). Le `situationOn` de la TEDB reste, comme documenté par vat-rates/data/ee.json's own note pour la même raison structurelle, une DATE D'OBSERVATION de la requête, pas une date de changement de taux."
+    },
+    {
+      "id": "hr-reduced-13",
+      "rate": 13,
+      "label": "Snižena stopa od 13%",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "PDV se obračunava i plaća po sniženoj stopi od 13% na isporuke sljedećih dobara i usluga: a) usluge smještaja ili smještaja s doručkom, polupansiona ili punog pansiona u hotelima ili objektima slične namjene, uključujući smještaj za vrijeme odmora, iznajmljivanje prostora u kampovima za odmor ili u mjestima određenima za kampiranje te smještaj u plovnim objektima nautičkog turizma, b) novine i časopise novinskog nakladnika koji ima statut medija [...] e) isporuku vode, osim vode koja se stavlja na tržište u bocama ili u drugoj ambalaži [...] f) isporuku električne energije do drugog isporučitelja ili krajnjeg korisnika [...] g) isporuku prirodnog plina i grijanja iz toplinskih stanica [...] l) pripremanje i usluživanje jela i slastica u ugostiteljskom objektu i izvan ugostiteljskog objekta prema posebnom propisu.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZPDV čl. 38 st. 3 — TEXTE PRIMAIRE, zakon.hr, lu le 2026-09-04 (même méthode d'accès que hr-standard ci-dessus). Catégorie REDUCED (et non SUPER_REDUCED) par construction du présent catalogue : c'est le PLUS ÉLEVÉ des deux taux réduits croates (13% et 5%), même convention que vat-rates/data/at.json (13% REDUCED) et vat-rates/data/ee.json (13% REDUCED). Liste complète du st. 3 : hébergement touristique (a), presse périodique (b), sièges auto et couches pour enfants (c), protections périodiques (d), eau (hors bouteille) (e), électricité (f), gaz naturel et chauffage urbain (g), bois de chauffage/pellets/briquettes (h), collecte des déchets municipaux (i), urnes et cercueils (j), droits d'auteur des écrivains/compositeurs/artistes-interprètes membres d'organismes de gestion collective (k), restauration (l) — non transcrite intégralement ci-dessus par souci de lisibilité, seuls les items les plus significatifs le sont ; `sourceText` reste un extrait VERBATIM du texte de loi, pas une paraphrase. NUANCE TEMPORELLE NON MODÉLISÉE ICI, documentée honnêtement : le st. 4 et le st. 5 du MÊME čl. 38 avaient ABAISSÉ À 5% (voir hr-reduced-5 ci-dessous) le gaz naturel/chauffage urbain (g) et le bois de chauffage/pellets/briquettes (h) à titre TEMPORAIRE, respectivement jusqu'au 31 mars 2026 et jusqu'au 31 mars 2026 — cette fenêtre est ÉCHUE à la date de lecture (2026-09-04), donc ces deux postes sont revenus, à la date de lecture, au taux de 13% du st. 3 lui-même ; ce catalogue ne modélise que l'état ACTUEL (13%), pas l'historique de la dérogation temporaire expirée."
+    },
+    {
+      "id": "hr-reduced-5",
+      "rate": 5,
+      "label": "Snižena stopa od 5%",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "PDV se obračunava i plaća po sniženoj stopi od 5% na isporuke sljedećih dobara i usluga: a) sve vrste kruha, b) sve vrste mlijeka (kravlje, ovčje, kozje) koje se stavlja u promet pod istim nazivom u tekućem stanju, svježe, pasterizirano, homogenizirano, kondenzirano [...] c) knjige stručnog, znanstvenog, umjetničkog, kulturnog i obrazovnog sadržaja, udžbenike za pedagoški odgoj i obrazovanje [...] d) lijekove koji imaju odobrenje nadležnog tijela za lijekove i medicinske proizvode, e) medicinsku opremu, pomagala i druge sprave koje se koriste za ublažavanje liječenja invalidnosti isključivo za osobnu uporabu invalida [...] f) kinoulaznice, ulaznice za koncerte, sportska događanja i kulturna događanja [...] g) novine novinskog nakladnika koji ima statut medija, koje izlaze dnevno [...] i) dječju hranu i prerađenu hranu na bazi žitarica za dojenčad i malu djecu, j) jestiva ulja i masti, biljnog i životinjskog podrijetla, maslac i margarin [...] z) proizvode koji se pretežito koriste kao hrana za životinje, osim hrane za kućne ljubimce.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZPDV čl. 38 st. 2 — TEXTE PRIMAIRE, zakon.hr, lu le 2026-09-04. Catégorie SUPER_REDUCED (et non REDUCED) : c'est le PLUS BAS des deux taux réduits croates, sous le taux de 13% ci-dessus, même convention que ee-reduced-9 pour l'Estonie. Liste complète du st. 2 (26 points, lettres a) à z), non transcrite intégralement ci-dessus — extraits représentatifs cités VERBATIM) : pain (a), lait (b), livres et manuels scolaires (c), médicaments (d), dispositifs médicaux pour personnes handicapées (e), billets de cinéma/concerts/événements sportifs et culturels hors ceux visés à l'art. 39 al. 1 n) (f), quotidiens (g), revues scientifiques (h), alimentation infantile (i), huiles et graisses alimentaires (j), animaux vivants de boucherie (k), viandes fraîches (l), charcuterie fraîche (m), poissons vivants (n) et frais (o), crustacés frais (p), légumes frais (r), fruits frais et secs (s), œufs frais (t), plants et semences (u), engrais et pesticides (v), aliments pour animaux hors animaux de compagnie (z)."
+    },
+    {
+      "id": "hr-zero",
+      "rate": 0,
+      "label": "Stopa od 0% — solarne ploče",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "PDV se obračunava i plaća po stopi od 0% na isporuku i ugradnju solarnih ploča na privatne stambene objekte, prostore za stanovanje te javne i druge zgrade koje se koriste za aktivnosti od javnog interesa te isporuku i ugradnju solarnih ploča u blizini takvih objekata, prostora i zgrada.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ZPDV čl. 38 st. 6 — TEXTE PRIMAIRE, zakon.hr, lu le 2026-09-04, TEXTE COMPLET (pas d'extrait, l'alinéa entier tient dans `sourceText`). PARTICULARITÉ CROATE À NOTER, différente du zéro-rating d'exportation/livraison intracommunautaire déjà documenté pour d'autres pays de ce catalogue (ex. ee-zero, nl-zero) : ce taux 0% croate est un TAUX RÉDUIT INCITATIF, ciblé et étroit — la fourniture ET l'installation de panneaux solaires sur des logements privés ou des bâtiments publics/d'intérêt public — PAS un régime général d'exportation. Rien dans le texte lu n'indique une date d'expiration pour cette disposition (contrairement au st. 4/5 du même article, voir hr-reduced-13's own note) : elle est traitée ici comme d'application COURANTE à la date de lecture. Le droit à déduction de la TVA d'amont correspondant à cette opération n'a PAS été vérifié par cette tâche (même limite de périmètre que ce schema.ts's own header documente déjà pour la France : ce catalogue ne modélise que le TAUX affiché au choix de la ligne, pas le régime de déduction)."
+    }
+  ],
+  "notes": "Croatie — agent pays HR, lot 6 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Quatre taux, tous 'legal', SOURCÉS AU TEXTE PRIMAIRE DE LOI lui-même (Zakon o porezu na dodanu vrijednost, édition consolidée 2026 de zakon.hr, čl. 38, ses quatre premiers alinéas pertinents) : 25% (standard, st. 1), 13% (réduit, st. 3 — hébergement touristique/presse périodique/eau/électricité/gaz/chauffage/déchets/restauration), 5% (super-réduit, st. 2 — pain/lait/livres/médicaments/dispositifs médicaux/billetterie culturelle/quotidiens/alimentation infantile/huiles/viandes et poissons frais/légumes et fruits frais/semences/engrais/aliments pour animaux), 0% (taux zéro véritable mais ÉTROIT, st. 6 — fourniture et installation de panneaux solaires sur logements et bâtiments d'intérêt public). CONFIRME EXACTEMENT le brief de la tâche (« čl. 38 : 25% / 13% / 5% ») tout en allant plus loin : le taux zéro (st. 6) n'était pas annoncé par le brief et a été trouvé par la lecture complète de l'article. MÉTHODE D'ACCÈS AU TEXTE PRIMAIRE : zakon.hr sert ses pages de LOIS en HTML STATIQUE (curl direct, sans JavaScript) — contrairement à son moteur de recherche interne (search.aspx, un formulaire ASP.NET WebForms à viewstate non exploitable en lecture directe), contourné en utilisant son endpoint GET alternatif (/search?q=...), lui aussi statique. narodne-novine.nn.hr et porezna-uprava.hr, cités comme pistes par le brief, répondent tous deux (HTTP 200/301) mais n'ont pas été nécessaires : zakon.hr (le miroir consolidé, autre piste citée par le brief) a suffi pour une lecture VERBATIM et COMPLÈTE de chaque disposition retenue, à jour au 22.08.2026 selon l'en-tête propre de la page. NUANCE TEMPORELLE DOCUMENTÉE HONNÊTEMENT, non modélisée comme un taux distinct : le čl. 38 st. 4-5 avait temporairement abaissé à 5% le gaz naturel/chauffage urbain/bois de chauffage jusqu'au 31 mars 2026 (fenêtre ÉCHUE à la date de lecture, 2026-09-04) — voir hr-reduced-13's own note. CROISEMENT AVEC tax-systems/data/hr.json (déjà dans ce dépôt, agent P2-T02, taux TEDB 25.0% au `situationOn` 2026/07/01) : AUCUNE divergence trouvée, contrairement au cas estonien déjà corrigé par ce même lot — les deux sources convergent."
+}
