@@ -157,6 +157,19 @@ jobs:
           CREDENTIALS_ENCRYPTION_KEY: e2896d60a5fe20415931030ea7eadb3352f2698948ba29948a9f2e04b8840e6d
         run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 
+      # The migration-vs-schema enum tripwire (TODO_LIBRE.md L3): deploys the FULL migration chain on
+      # its own disposable database (never `invoicerr_test`, the one this job already migrated above)
+      # and compares the resulting `pg_enum` against the generated client's enum exports, for every
+      # enum either side has. Rides along in THIS job rather than getting one of its own because it
+      # needs the exact same thing this job already provisions — a real Postgres whose user can
+      # CREATE DATABASE (the default postgres:16 image's initial role is a superuser) — and nothing
+      # else (no Redis, no Mailpit, no encryption key). Self-gated on `MIGRATION_FRESH_TESTS=1`; see
+      # `src/prisma/migration-fresh-schema.spec.ts`'s own header.
+      - name: Run migration-vs-schema enum tripwire (fresh disposable Postgres database)
+        env:
+          MIGRATION_FRESH_TESTS: '1'
+        run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'prisma/migration-fresh-schema.spec.ts'
+
   cypress-run:
     runs-on: ubuntu-latest
     services:

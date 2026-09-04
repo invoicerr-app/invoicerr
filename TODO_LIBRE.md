@@ -66,6 +66,13 @@ validate-schematron.ts mis à jour (la dérogation italienne ne s'applique plus)
 
 ## L3 — Le tripwire automatisé migration-vs-schema (le bloqueur d'avant-merge)
 
+> ✅ **FAIT** (2026-09-04) — spec gaté MIGRATION_FRESH_TESTS=1 (src/prisma/, contrainte
+> jest.rootDir), base jetable préfixée avec garde-fou anti-drop, migrate deploy intégral,
+> diff CROISÉ pg_enum ↔ client généré (24 enums découverts des deux côtés, jamais listés à la
+> main) ; la mine P3 rejouée en labo (« only in the generated client: [DOCUMENT_SETTLED] »)
+> ET l'autre direction prouvée par le mandataire (« only in the database: [ZOMBIE_VALUE] ») ;
+> CI : 13 lignes dans queue-integration. jest 2153 (le spec skippe non-gaté), batterie 259 verts.
+
 Consigné à la validation P3 : rien d'automatisé ne compare un `migrate deploy` intégral sur
 Postgres VIERGE avec les enums du client généré. Un spec jest GATÉ (le patron liveDescribe/
 env-flag des specs Redis : `MIGRATION_FRESH_TESTS=1`) qui crée une base jetable, déploie tout,
