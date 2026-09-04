@@ -53,6 +53,18 @@ Invoicerr uses weblate to easily manage the translations
 
 ---
 
+## 🗺️ Country / compliance support
+
+Which invoicing rules apply — document actions, B2G channels, correction routes, VAT rates,
+required identifiers, mandatory mentions — is entirely **data-driven**: no business code hardcodes
+a country. The full picture for every covered country is generated straight from the engine's own
+data files, so it can never say something the code doesn't actually do:
+
+- 📊 [Country compliance matrix](https://docs.invoicerr.app/docs/developer-guide/country-support) — regenerated on every docs build
+- ➕ [Adding a country](https://docs.invoicerr.app/docs/developer-guide/adding-a-country) — the developer guide for extending coverage
+
+---
+
 ## 🐳 Docker Installation (Recommended)
 
 #### Supported Architectures
