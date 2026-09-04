@@ -1,0 +1,214 @@
+{
+  "countryCode": "SI",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/hr.json/be.json/nl.json/at.json pour cette même action : aucun texte slovène identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — LU DIRECTEMENT le 2026-09-05 sur eur-lex.europa.eu (CELEX:32014R0910, https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0910) : HTTP 200, page complète (613 377 octets), citation retrouvée verbatim, LECTURE FRAÎCHE DE CETTE SESSION (pas une reprise du texte déjà cité par be.json/gr.json/hr.json — même URL, requête indépendante). Le fait cité est par nature invariant par pays (un règlement UE, d'applicabilité directe, sans transposition nationale) : un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal slovène) — c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte slovène identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.save-draft/invoice.send ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte slovène identifié n'encadre ce mécanisme précis. Le 81. člen, prvi odstavek, 4. in 5. točka du Zakon o davku na dodano vrednost (ZDDV-1, lu en primaire, voir invoice.save-draft ci-dessous) IMPOSE bien l'émission d'une facture pour tout acompte reçu avant la livraison du bien ou l'achèvement du service — mais cela porte sur la facture d'acompte UNE FOIS émise, jamais sur cet acte préalable de demande depuis un devis encore en brouillon. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte slovène identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un « račun » (facture) au sens du ZDDV-1. Aucun texte slovène identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Kot račun se šteje tudi vsak dokument oziroma sporočilo, ki spreminja prvoten račun in se nanj nedvoumno nanaša.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "Zakon o davku na dodano vrednost (ZDDV-1, EVA 2006-1611-0022, SOP 2006-01-5012 — Uradni list RS, št. 117/06 z dne 16. 11. 2006, et ses modifications), 81. člen (obveznost izdajanja računov), deveti odstavek — LU DIRECTEMENT le 2026-09-05 via l'API JSON PUBLIQUE de pisrs.si (Pravno-informacijski sistem RS, le portail officiel), texte brut (curl, jamais un fetch-résumé) : GET https://pisrs.si/api/rezultat/neuradno-precisceno-besedilo/184270641/details (le « Neuradno prečiščeno besedilo » — texte consolidé non officiel — le plus récent, ZAKO4701, servi par le même portail que celui-ci utilise pour l'affichage de sa propre page /pregledPredpisa?id=ZAKO4701), HTTP 200, corps JSON de 776 439 octets, le champ `data.besedilo` étant un tableau structuré paragraphe par paragraphe (chaque entrée porte un `id`, une `vsebina` — le texte verbatim — et une `struktura` — ex. « clen », « odstavek »). MÉTHODE D'ACCÈS (le portail est une SPA Angular, non lisible par curl direct sur ses URLs de routage) : la config runtime `https://pisrs.si/assets/config.json` expose `BACKEND_ENDPOINT: \"https://pisrs.si/api\"` ; les appels réels de la page (observés via l'onglet réseau du navigateur, jamais devinés) sont GET `/api/rezultat/zbirka/id/{predpisId}` puis GET `/api/rezultat/neuradno-precisceno-besedilo/{npbId}/details` — PRÉCÉDENT SPA-API RÉUTILISABLE pour un futur agent PISRS (même famille que riigiteataja/EE, forin.gr/GR, legislation.mt/getpdf). CE QUE CETTE CITATION TRANCHE, à la manière FR/BE/GR/EE/HR : le 81. člen, neuvième alinéa slovène est une clause GÉNÉRALE et DIRECTE d'assimilation d'un document modificatif à une facture — quasiment mot pour mot le même mécanisme que CGI art. 289, I, 5° français, Ν.4308/2014 art. 8 § 3 grec, Käibemaksuseadus § 37(4) estonien et ZPDV čl. 78 st. 7 croate déjà établis par ce catalogue. La conséquence pratique pour CE produit est la même que pour ces pays : une correction d'une facture déjà émise emprunte un DOCUMENT DISTINCT qui RÉFÉRENCE l'original (voir credit-note.send ci-dessous et correction-routes/data/si.json's own CORRECTIVE_INVOICE/DEBIT_NOTE, sourcées à la MÊME disposition), jamais une réédition silencieuse — d'où `statuses: [\"draft\"]`, qui bloque `save-draft` une fois la facture 'sent'."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Vsak davčni zavezanec mora zagotoviti, da sam, prejemnik ali tretja oseba v njegovem imenu in za njegov račun izda račun za: 1. dobave blaga ali storitev, ki jih je opravil drugemu davčnemu zavezancu ali pravni osebi, ki ni davčni zavezanec;",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "ZDDV-1, 81. člen (obveznost izdajanja računov), prvi odstavek, 1. točka — LU DIRECTEMENT le 2026-09-05, même API et même NPB que invoice.save-draft ci-dessus. RÉGIME ACTUELLEMENT APPLICABLE (à la date de lecture) : ZDDV-1 84. člen (papirnati in elektronski računi), tretji odstavek — LU LE MÊME JOUR, MÊME SOURCE — dispose : « Prejemnik računa se mora strinjati z uporabo elektronskega računa. » (Le destinataire de la facture doit CONSENTIR à l'usage de la facture électronique.) — régime de CONSENTEMENT, même famille que FR/DE/NL/AT/BE/GR déjà établis par ce catalogue, et que HR HORS du champ de sa Fiskalizacija 2.0. TROUVAILLE ATTENDUE DE CETTE TÂCHE, CONFIRMÉE AU TEXTE, DATE PRÉCISÉE ET CORRIGÉE PAR RAPPORT AU BRIEF (qui évoquait « 2027 ? ») : le Zakon o izmenjavi elektronskih računov in drugih elektronskih dokumentov (ZIERDED) — Uradni list RS, št. 85/25, EVA 2024-1611-0037, SOP 2025-01-3032, EPA 2307-IX — est un texte VOTÉ ET PROMULGUÉ, PAS un projet : sprejeto (adopté par le Državni zbor) le 23 octobre 2025, objavljeno (publié au Journal officiel) le 6 novembre 2025, veljaOd (entrée en vigueur, trentième jour après publication per son 2. odstavek des dispositions finales) le 6 décembre 2025 — ces trois dates lues verbatim dans le champ `evidencniPodatki` de GET https://pisrs.si/api/rezultat/zbirka/id/ZAKO9033 (HTTP 200), qui porte lui-même le statut `semafor.naziv: \"Veljaven predpis, ki se še ne uporablja\"` (« Règlement EN VIGUEUR, qui NE S'APPLIQUE PAS ENCORE ») — LA DISTINCTION EXACTE demandée par cette tâche entre « voté » et « projet », ici tranchée par un champ de statut du portail officiel lui-même, pas par une inférence. uporabljaOd (date d'APPLICATION, distincte de l'entrée en vigueur) : 1er JANVIER 2028 pour le corps du texte — confirmé verbatim au texte lui-même (dispositions finales, dernier alinéa, LU même source, même jour) : « Ta zakon se začne uporabljati 1. januarja 2028, razen določb 4. poglavja tega zakona, ki se začnejo uporabljati 1. aprila 2027. » (Cette loi commence à s'appliquer le 1er janvier 2028, à l'exception des dispositions du chapitre 4, qui s'appliquent dès le 1er avril 2027 — le chapitre 4, « PONUDNIKI E-POTI », régit l'enregistrement des prestataires de « voie électronique », une obligation d'INFRASTRUCTURE en amont du mandat lui-même, PAS le mandat B2B en tant que tel). LA RÈGLE OPÉRATIVE elle-même (7. člen, prvi odstavek — LUE LE MÊME JOUR) : « Ne glede na določbe zakona, ki ureja davek na dodano vrednost, ki urejajo možnost izdaje računa v papirnati ali elektronski obliki, poslovni subjekti za medsebojne dobave blaga in storitev, opravljene v Sloveniji, izmenjujejo izključno e-račune. » (Nonobstant les dispositions de la loi TVA autorisant la facture papier ou électronique, les entités professionnelles échangent EXCLUSIVEMENT des e-računi pour leurs livraisons/prestations mutuelles réalisées en Slovénie) — ceci BALAIERA le consentement du 84. člen ci-dessus pour le B2B domestique, MAIS SEULEMENT à compter du 1er janvier 2028 : à la date de lecture (2026-09-05), cette obligation N'EST PAS ENCORE APPLICABLE, et cette règle-ci documente donc le régime AUJOURD'HUI en vigueur (consentement), pas un mandat anticipé par erreur. Modèle d'échange retenu par le ZIERDED, à noter pour un futur chantier channel-policy/b2g-routing : DÉCENTRALISÉ (« ponudniki e-poti » via le réseau Peppol ou l'échange direct, 9. člen), PAS une plateforme de clearance centralisée à la KSeF/SdI — aucun mécanisme de VALIDATION PRÉALABLE par une autorité n'a été identifié dans ce texte (voir correction-routes/data/si.json's own CANCEL_AND_REPLACE/AUTHORITY_ANNULMENT pour le détail)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte slovène identifié n'encadre l'acte de duplication lui-même. La question fiscale (ZDDV-1) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte slovène spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts. Non recherché : le ZIERDED (une fois applicable, 2028) prévoit une « ovojnica » (enveloppe) porteuse de « podatki za plačilo » (données de paiement, 11. člen tretji odstavek) — mais ceci est un sujet de format/transmission de l'e-račun lui-même, pas une règle sur le fait d'enregistrer un paiement DANS cet outil ; sujet distinct, hors périmètre de cette règle document-action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une norme technique européenne — ce n'est pas en soi, ISOLÉMENT, une preuve qu'un export EN 16931 téléchargé DEPUIS CET OUTIL serait légalement requis pour une facture slovène ordinaire aujourd'hui. Nuance trouvée et documentée honnêtement, de même nature que le cas croate déjà noté par ce catalogue : le ZIERDED (Uradni list RS 85/25, une fois applicable au 1er janvier 2028) dispose à son 5. člen, prvi odstavek : « E-računi se izmenjujejo v: 1. standardu e-SLOG, 2. sintaksah, skladnih z evropskim standardom za izdajanje e-računov [...] ali 3. drugih mednarodno uveljavljenih standardih [...]. » (Les e-računi s'échangent selon le standard national e-SLOG, OU des syntaxes conformes à la norme EUROPÉENNE d'émission des e-factures — EN 16931 — OU d'autres standards internationaux convenus contractuellement) — LU DIRECTEMENT le 2026-09-05, même source que invoice.send ci-dessus. CE FAIT N'EST TOUTEFOIS PAS PROMU 'legal' À CE NIVEAU DE RÈGLE PRÉCIS : (a) le ZIERDED ne s'applique pas encore (uporabljaOd 2028-01-01, voir invoice.send) ; (b) même une fois applicable, l'EN 16931 n'y serait qu'UNE option parmi trois (e-SLOG, EN 16931, ou un standard convenu), jamais un format unique imposé ; (c) le 5. člen porte sur l'e-račun RÉELLEMENT ÉCHANGÉ dans le circuit du ZIERDED, pas sur CETTE action produit précise (un export EN 16931 volontairement téléchargé DEPUIS L'OUTIL, en dehors de tout circuit d'échange)."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte slovène spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte slovène identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal slovène de la réduction de la base d'imposition (voir credit-note.send ci-dessous) concerne l'EFFET FISCAL du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/hr.json/nl.json/be.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email n'est déclenché par cette action) — même distinction méthodique que hr.json/nl.json/be.json appliquent déjà à leur propre credit-note.send. LE FONDEMENT LÉGAL DE FOND, lui, EST sourcé 'legal' : ZDDV-1 39. člen (druge določbe), drugi odstavek (« Pri preklicu naročila, vračilu ali znižanju cene po opravljeni dobavi se davčna osnova ustrezno zmanjša. Davčni zavezanec lahko popravi (zmanjša) znesek obračunanega DDV, če pisno obvesti kupca o znesku DDV, za katerega kupec nima pravice do odbitka. » — traduction : « En cas d'annulation de commande, de retour ou de réduction de prix après livraison, la base d'imposition est réduite en conséquence. L'assujetti PEUT corriger (réduire) le montant de TVA facturé, S'IL informe PAR ÉCRIT l'acheteur du montant de TVA pour lequel l'acheteur n'a pas droit à déduction. »), LU DIRECTEMENT le 2026-09-05, même API/NPB que invoice.save-draft ci-dessus. Comme pour la Croatie (ZPDV čl. 33 st. 7) et l'Estonie (§ 29(7)) et à la différence de la Pologne (art. 106j ust. 1, « WYSTAWIA ») : le droit slovène ne nomme AUCUN instrument dédié à ce stade dans CET article précis — il décrit une FACULTÉ de réduire la base, CONDITIONNÉE à un avis ÉCRIT au client, distincte de l'ACTE PRODUIT de changement de statut visé par cette règle-ci — d'où le maintien en 'unverified' à CE niveau précis malgré une citation légale bien réelle rattachée au fait de fond. TERME SLOVÈNE CONFIRMÉ (corroboration croisée, hors ZDDV-1) : le ZIERDED lui-même, 2. člen (pomen izrazov), 4. točka, nomme littéralement « dobropis » (avoir) et « bremepis » (note de débit) comme des exemples de documents relevant de la définition d'« e-račun » — LU LE MÊME JOUR, MÊME SOURCE que invoice.send ci-dessus."
+      },
+      "notes": "Voir correction-routes/data/si.json's own CREDIT_NOTE pour la qualification légale complète (routeId CREDIT_NOTE, status 'allowed', provenance 'legal') du mécanisme de réduction de la base d'imposition lui-même — cette règle-ci ne porte, comme toutes les règles country-policy de ce dépôt, que sur l'ACTION PRODUIT (le bouton 'send' de cet outil), jamais sur le régime légal du document en tant que tel."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte slovène identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables slovènes (non approfondies par cette tâche, hors périmètre 'immutabilité/send/avoir' demandé) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte slovène identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu (une facture déjà obtenue par un autre moyen : dépôt, OCR, saisie manuelle), jamais recevoir techniquement un e-račun sur un canal. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul, même mécanique produit que invoice.save-draft ci-dessus, sans base légale slovène propre identifiée pour CE mécanisme précis à la date de lecture. À noter pour un futur chantier channel-policy : le ZIERDED (une fois applicable, 2028) porte une obligation de RÉCEPTION TECHNIQUE d'un e-račun via le réseau des « ponudniki e-poti »/Peppol (9. člen) — un sujet distinct de channel-policy/transmission, PAS de ce mécanisme produit de saisie/correction d'un enregistrement déjà en base."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte slovène identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise. TROUVAILLE ADJACENTE RÉELLE MAIS INCONCLUSIVE, à ne pas confondre : le ZIERDED (une fois applicable, 2028), 17. člen, prvi odstavek, 7. točka, impose aux « ponudniki e-poti » de permettre l'échange, avec le destinataire, de « povratna sporočila o vsebinski potrditvi ALI ZAVRNITVI prejetih e-računov » (messages de retour de confirmation substantielle OU DE REJET des e-računi reçus) — LU DIRECTEMENT le 2026-09-05, même source que invoice.send. Ce texte impose la CAPACITÉ TECHNIQUE d'un message de rejet réseau, mais NE DIT RIEN de l'EFFET JURIDIQUE d'un tel rejet (à la différence du Zakon o fiskalizaciji croate čl. 52, qui lie explicitement le rejet du destinataire à la perte de son droit à déduction) — donc distinct, à ce niveau de preuve, du marquage 'rejected' PUREMENT INTERNE à cet outil que couvre cette règle-ci. Voir correction-routes/data/si.json's own COUNTERPARTY_OBJECTION pour le développement complet de cette trouvaille inconclusive."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte slovène identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Slovénie — agent pays SI, lot 7 (TODO_DOCUMENTS.md, vague B, dernier lot, 2026-09-05). DEUX SOURCES PRIMAIRES DE FOND LUES EN TEXTE BRUT (curl direct sur l'API JSON officielle de pisrs.si — Pravno-informacijski sistem RS, jamais un fetch-résumé) : (1) Zakon o davku na dodano vrednost (ZDDV-1, texte consolidé le plus récent servi par pisrs.si, ZAKO4701) — 39. člen (base d'imposition et son ajustement), 78. à 84. člen (identification, facture, contenu, papier/électronique) ; (2) Zakon o izmenjavi elektronskih računov in drugih elektronskih dokumentov (ZIERDED, Uradni list RS št. 85/25, ZAKO9033) — LA TROUVAILLE ATTENDUE de cette tâche, la loi slovène de mandat B2B de l'e-facturation, dont l'état exact (VOTÉE, PAS un projet — sprejeto 23/10/2025, objavljeno 6/11/2025, veljaOd 6/12/2025 — mais NON ENCORE APPLICABLE, uporabljaOd 1er JANVIER 2028, sauf son chapitre 4 dès le 1er avril 2027) est CONFIRMÉ AU TEXTE ET AUX MÉTADONNÉES DU PORTAIL OFFICIEL LUI-MÊME (champ `semafor.naziv: \"Veljaven predpis, ki se še ne uporablja\"`), PAS SUPPOSÉE — ceci CORRIGE le « 2027 ? » du brief de cette tâche par une date exacte, sourcée, et une distinction claire voté/applicable. MÉTHODE D'ACCÈS, PRÉCÉDENT SPA-API RÉUTILISABLE : pisrs.si est une SPA Angular ; l'API REST sous-jacente (`https://pisrs.si/api`, exposée par `assets/config.json`) a été identifiée en observant le trafic réseau du navigateur pendant une navigation réelle (recherche « ZDDV-1 » puis « e-računih » via la recherche rapide du site), jamais devinée par tâtonnement d'URL — endpoints utilisés : `/api/rezultat/zbirka/id/{predpisId}` (métadonnées, dont `semafor`/`sprejeto`/`objavljeno`/`veljaOd`/`uporabljaOd`) et `/api/rezultat/neuradno-precisceno-besedilo/{npbId}/details` (texte consolidé complet, structuré par `struktura`: `clen`/`odstavek`/`stevilcna_tocka`/etc., chaque fragment portant son propre `id`). Sur les 22 règles, 3 sont 'legal' au niveau du fait de fond (quote.send — lecture eIDAS FRAÎCHE de cette session, invoice.save-draft, invoice.send), plus un fondement légal réel documenté en note mais NON promu au niveau de la règle credit-note.send (même discipline que gr.json/hr.json) — les 18 restantes sont honnêtement 'unverified' avec resolutionNote propre à chacune. AUCUNE contradiction avec B2G_COVERAGE.md (déjà livré, audit 2026-09-02 : SI « pas livrable » — CIUS SI/e-SLOG 2.0 en construction, non vendorable) : cette tâche n'a RIEN trouvé qui changerait ce verdict — le ZIERDED organise un réseau décentralisé de « ponudniki e-poti »/Peppol, PAS un CIUS B2G vendorable en l'état, et ne s'applique de toute façon pas encore. AUCUNE écriture hors de country-policy/data/si.json et de son propre si.spec.ts par cette tâche."
+}

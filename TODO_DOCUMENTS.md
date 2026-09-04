@@ -67,8 +67,18 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | BG | ✓ | — (CAIS EPP fermé) | ✓ (3/11 — les DEUX известия required чл. 115, le plus fort du catalogue) | ✓ (ЕИК legal chaîne à 3 lois PDF officiels) | ✓ (20/9/0 — vrai zéro intracommunautaire) | Lot 6 ✅ |
 | CZ | ✓ | — (NEN fermé) | ✓ (4/11 — opravný doklad UNIQUE § 45, credit/debit forbidden-en-tant-que-distincts, LEDGER général) | ✓ (DIČ legal ; IČO ambigu § 435 NOZ) | ✓ (21/12 — la fusion 2024 citée sur l'état ACTUEL) | Lot 6 ✅ |
 | HR | ✓ (Fiskalizacija 2.0 : e-račun B2B obligatoire 1/1/2026, consentement TOMBE) | — (circuit national, pas un CIUS vendorable — confirmé) | ✓ (5/11 — 1ers ANNOTATED_DUPLICATE et COUNTERPARTY_OBJECTION sourcés du catalogue) | ✓ (OIB required — clause frontale « računima ») | ✓ (25/13/5/0) | Lot 6 ✅ |
-| PT RO SI SK | — | — | — | — | — | lot 7 (dernier) |
+| PT | ✓ (régime certifié : DL 28/2019, ATCUD/QR 195/2020, signature chaînée 363/2010) | — (CIUS-PT) | ✓ (l'ASYMÉTRIE unique : DEBIT required / CREDIT allowed, même alinéa 78.º n.º 3) | ✓ (NIF required, format unverified — DL 463/79 muré) | ✓ (23/13/6 continent ; Madère/Açores en notes) | Lot 7 ✅ |
+| RO | ✓ | — (RO_CIUS) | ✓ (CREDIT+DEBIT required art. 330(2)+287) | ✓ (CUI sans pattern — la loi ne le fixe pas) | ✓ (21/11/0 — la hausse du 1/8/2025 au texte) | Lot 7 ✅ |
+| SI | ✓ (ZIERDED voté : applicable 1/1/2028 — lu au statut du portail) | — (e-SLOG) | ✓ (3/11 — assimilation 81. člen) | ✓ (davčna frontale « knjigovodske listine ») | ✓ (22/9,5/5) | Lot 7 ✅ |
+| SK | ✓ (IS EFA voté : mandat 1/7/2030 — trois versions comparées) | — (IS EFA fermé) | ✓ (instrument unique § 71 + NO_DOCUMENT_BY_LAW § 25 ods. 3 — la divergence tchèque refusée en calque) | ✓ (IČ DPH ; § 3a = paire fermée sans facture) | ✓ (23/19/5 — réforme 278/2024 par diff de versions) | Lot 7 ✅ |
 | AE + autres tax-only | — | — | — | — | — | à trier |
+
+### 🏁 VAGUE B CLOSE (2026-09-05) — l'UE-27 complète + US/MX
+29 pays dans country-policy, 28 en correction-routes, 26 en identifiers, 23 en vat-rates —
+chaque fait sourcé au texte brut ou honnêtement unverified avec ce qui le trancherait. Sept
+lots, sept batteries vertes, ~25 agents pays. Signal RO à traiter : RO-Romania.md (doc
+compliance) affirme un « 5 Working Days » au 1/1/2026 qu'AUCUN texte lu ne corrobore — lecture
+dédiée avant correction.
 
 ### DÉCISION MANDANT EN ATTENTE — NLCIUS vendorable !
 L'agent NL a établi que le NLCIUS est publiquement téléchargeable SOUS LICENCE MIT (dépôt
@@ -139,6 +149,13 @@ requis-sur-facture ambigu (§ 435 NOZ « obchodní listiny », « faktura » jam
 IČO par recoupement. HR : doctrine Porezna uprava non consultée (LEDGER vs NO_DOCUMENT
 indécis) ; le clearance JIR temps réel = tickets B2C, hors types du produit — à signaler si un
 type « reçu de caisse » naissait.
+**Lot 7 (2026-09-05)** — PT : DL 463/79 (création NIF) muré derrière la SPA du JO (format NIF
+unverified) ; Listes I/II et décrets régionaux non atteints ; nouveau précédent
+SPA-contournée-par-miroir-officiel (portaldasfinancas sert le CIVA article par article).
+RO : legislatie.just.ro RST confirmé ; la convention static.anaf.ro/{TYPE}_{n}_{année}.pdf
+documentée ; CUI sans pattern légal. SI : API pisrs.si (/api/rezultat/...) documentée ;
+davčna številka sans nombre de chiffres légal. SK : static.slov-lex.sk (le noscript du portail
+lui-même) — l'analogue de zakonyprolidi ; IČO délégué au ministère, non publié.
 **Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
 fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
 WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.

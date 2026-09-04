@@ -1,0 +1,42 @@
+{
+  "countryCode": "PT",
+  "rates": [
+    {
+      "id": "pt-standard",
+      "rate": 23,
+      "label": "Taxa normal",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Para as restantes importações, transmissões de bens e prestações de serviços, a taxa de 23%.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Código do IVA (CIVA), texte tel que servi par l'Autoridade Tributária e Aduaneira (AT), art. 18.º n.º 1 alínea c) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx (page HTML statique servie par l'AT, curl direct sans JavaScript). Taux applicable AU CONTINENT (Portugal continental) — voir la note de fichier ci-dessous pour Madère et les Açores, qui appliquent des taux régionaux propres et ne sont PAS modélisés séparément ici. PAS DE DIVERGENCE avec tax-systems/data/pt.json's own fragment TEDB (déjà dans ce dépôt, agent P2-T02/T07 : `\"value\" : 23.0, \"situationOn\" : \"2026/01/01\"`) ni avec la lecture TEDB fraîche refaite par cette tâche (voir notes de fichier) : les deux sources convergent sur 23%."
+    },
+    {
+      "id": "pt-reduced-13",
+      "rate": 13,
+      "label": "Taxa intermédia",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Para as importações, transmissões de bens e prestações de serviços constantes da lista II anexa a este diploma, a taxa de 13%;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "CIVA art. 18.º n.º 1 alínea b) — même page AT que pt-standard ci-dessus, lue le même jour. Catégorie REDUCED (et non SUPER_REDUCED) par construction de ce catalogue : c'est le PLUS ÉLEVÉ des deux taux non-standard portugais (13% et 6%), même convention que vat-rates/data/at.json (13% REDUCED) et vat-rates/data/hr.json (13% REDUCED). S'applique aux biens et services de la « Lista II » annexée au CIVA (non transcrite ici — une liste d'articles distincte du corps de l'article lui-même, non atteinte par cette tâche dans le temps imparti ; le taux lui-même, 13%, est en revanche cité verbatim ci-dessus depuis le corps même de l'art. 18.º)."
+    },
+    {
+      "id": "pt-super-reduced-6",
+      "rate": 6,
+      "label": "Taxa reduzida",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Para as importações, transmissões de bens e prestações de serviços constantes da lista I anexa a este diploma, a taxa de 6%;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "CIVA art. 18.º n.º 1 alínea a) — même page AT que pt-standard ci-dessus, lue le même jour. Catégorie SUPER_REDUCED (et non REDUCED) : c'est le PLUS BAS des deux taux non-standard portugais, sous le taux de 13% ci-dessus, même convention que hr-reduced-5 pour la Croatie. S'applique aux biens et services de la « Lista I » annexée au CIVA (non transcrite ici, même limite que pt-reduced-13 ci-dessus)."
+    }
+  ],
+  "notes": "Portugal — agent pays PT, lot 7 (TODO_DOCUMENTS.md, vague B, dernier lot, 2026-09-04). Trois taux CONTINENTAUX, tous 'legal', SOURCÉS AU TEXTE PRIMAIRE DE LOI lui-même tel que servi par l'Autoridade Tributária e Aduaneira (AT) sur info.portaldasfinancas.gov.pt (page HTML statique par article du CIVA, curl direct, jamais un fetch-résumé) : CIVA art. 18.º n.º 1 — 23% (normal, alínea c)), 13% (intermédia, alínea b), Lista II), 6% (reduzida, alínea a), Lista I). CONFIRME EXACTEMENT le brief de la tâche (art. 18 : 23/13/6 pour le continent). TAUX RÉGIONAUX, DÉLIBÉRÉMENT NON MODÉLISÉS ICI, documentés honnêtement à la place — CIVA art. 18.º n.º 3, lu le même jour, même page AT : « As Assembleias Legislativas das Regiões Autónomas dos Açores e da Madeira podem, nos termos previstos na Lei das Finanças das Regiões Autónomas, aprovada pela Lei Orgânica n.º 2/2013, de 2 de setembro, fixar taxas diminuídas do IVA aplicáveis às transmissões de bens e prestações de serviços que se considerem efetuadas nas regiões autónomas [...] » — le CIVA lui-même DÉLÈGUE aux deux régions autonomes le pouvoir de fixer leurs propres taux réduits, PAR DES DÉCRETS LÉGISLATIFS RÉGIONAUX distincts du CIVA (non atteints par cette tâche dans le temps imparti — portails des gouvernements régionaux de Madère et des Açores, non explorés). VALEURS ACTUELLES, sourcées SÉPARÉMENT via l'API publique de la TEDB (Taxes in Europe Database, DG TAXUD de la Commission européenne — même méthode déjà utilisée par tax-systems/data/pt.json's own provenance pour le taux continental) : requête POST https://ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch {\"searchForm\":{\"selectedMemberStates\":[24],...}}, consultée le 2026-09-04, HTTP 200 — le jeu de résultats PT liste, parmi ses taux « REDUCED », deux entrées explicitement annotées par la TEDB elle-même : {\"key\":\"Reduced rate\",\"value\":22.0,\"comments\":\"[...] Madeira Autonomous Region\"} et {\"key\":\"Reduced rate\",\"value\":16.0,\"comments\":\"[...] Azores Autonomous Region\"} — c'est-à-dire un taux normal RÉGIONAL de 22% pour Madère et de 16% pour les Açores (la TEDB range ces deux taux régionaux sous son propre type « REDUCED » car son schéma ne connaît qu'UN SEUL taux « STANDARD » par État membre — un artefact de la TEDB, pas une qualification CIVA). NI le taux intermédiaire ni le taux réduit propres à chaque région (généralement rapportés par ailleurs comme 12%/5% pour Madère et 9%/4% pour les Açores) n'apparaissent dans ce même jeu de résultats TEDB à la date de consultation — CES DEUX VALEURS PAR RÉGION NE SONT DONC PAS AFFIRMÉES ICI, faute d'une source directement consultée par cette tâche (les décrets législatifs régionaux eux-mêmes, non atteints). CONFORMÉMENT AU PÉRIMÈTRE DE CETTE TÂCHE (« modélise le continent, documente les régions en notes sans les modéliser sauf si simple ») : AUCUNE VatRateFact distincte n'est créée pour Madère/Açores — cette note documente ce qui a été trouvé (la délégation légale elle-même, verbatim et sourcée CIVA art. 18.º n.º 3 ; les deux taux normaux régionaux 22%/16%, sourcés TEDB) sans les promouvoir en entrées de ce catalogue. ISENÇÕES (art. 9.º/13.º/14.º CIVA, dont les exportations) NON MODÉLISÉES : l'art. 14.º (lu en primaire le 2026-09-04, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva14.aspx) qualifie ces opérations d'« isentas do imposto » (exonérées de l'impôt) — jamais d'un « taxa de 0% » énoncé littéralement — donc, par la même discipline que ce schema.ts's own header applique déjà (une catégorie ZERO exige un taux 0% ÉNONCÉ, pas une exonération qualifiée autrement), aucune entrée ZERO n'est ajoutée ici pour le Portugal."
+}

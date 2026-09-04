@@ -1,0 +1,109 @@
+{
+  "countryCode": "SK",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Za faktúru sa považuje aj každý doklad alebo oznámenie, ktoré mení pôvodnú faktúru a osobitne a jednoznačne sa na ňu vzťahuje.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance, même structure que correction-routes/data/cz.json's own CREDIT_NOTE et pl.json's own CREDIT_NOTE. Il n'existe pas d'instrument séparé nommé « dobropis » (avoir) en droit slovaque : zákon č. 222/2004 Z. z. o dani z pridanej hodnoty (zákon o DPH), § 71 ods. 2 (lu en primaire le 2026-09-05 sur static.slov-lex.sk, časová verzia účinná od 01.01.2026 do 31.12.2026, HTML COMPLET servi dès la première requête curl standard, 1 984 156 octets, AUCUN blocage JavaScript rencontré) donne UN SEUL instrument — une faktúra qui modifie l'originale et s'y rapporte de façon spécifique et non équivoque — pour la baisse (§ 25 ods. 1 písm. a)-b)) COMME pour la hausse (§ 25 ods. 1 písm. c), voir CORRECTIVE_INVOICE et DEBIT_NOTE ci-dessous). Recherche par mot-clé menée sur le texte intégral du zákon o DPH (14 664 lignes extraites) : ni « dobropis », ni « ťarchopis », ni « vrubopis » (les trois termes de pratique comptable slovaque pour « crédit »/« débit ») N'APPARAISSENT NULLE PART dans la loi — ce sont des usages professionnels, jamais des catégories légales du zákon o DPH. PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas la Slovaquie) : première lecture directe, niveau de preuve C1, faite par cet agent."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "forbidden",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Základ dane pri dodaní tovaru alebo služby a pri nadobudnutí tovaru v tuzemsku z iného členského štátu sa opraví a) pri úplnom alebo čiastočnom zrušení dodávky tovaru alebo služby a pri úplnom alebo čiastočnom vrátení dodávky tovaru, b) pri znížení ceny tovaru alebo služby po vzniku daňovej povinnosti, c) pri zvýšení ceny tovaru alebo služby.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "Idem CREDIT_NOTE ci-dessus — même instrument unique. Zákon o DPH § 25 ods. 1 (citée ci-dessus) range la HAUSSE de prix (písm. c, « pri zvýšení ceny tovaru alebo služby ») dans le MÊME alinéa, AU MÊME TITRE, que la baisse (písm. a-b) — le pendant slovaque de l'article tchèque § 45 odst. 5 ou de la clause polonaise, neutre quant au SENS de la variation : le remède est TOUJOURS la faktúra modificative du § 71 ods. 2, jamais un instrument séparé de type « note de débit » (le terme comptable courant « ťarchopis »/« vrubopis » n'apparaît, comme « dobropis », NULLE PART dans le zákon o DPH — voir CREDIT_NOTE ci-dessus pour la recherche par mot-clé complète). Renforcement structurel : zákon o DPH § 73 ods. 1 písm. e) (lu le même jour) fixe un DÉLAI unique pour la faktúra couvrant « la opravy základu dane podľa § 25 ods. 1 » SANS distinguer le sens de la correction — la symétrie est totale et porte un seul nom, la faktúra du § 71 ods. 2. Transcrit par lecture directe, zákon o DPH § 25 ods. 1, consulté 2026-09-05."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "required",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Faktúra podľa § 72 musí byť vyhotovená do 15 dní a) odo dňa dodania tovaru alebo služby, ak odsek 2 neustanovuje inak, b) odo dňa prijatia platby pred dodaním tovaru alebo služby alebo do konca kalendárneho mesiaca, v ktorom bola platba prijatá, ak odsek 2 neustanovuje inak, c) od konca kalendárneho mesiaca, v ktorom bol dodaný tovar oslobodený od dane podľa § 43, d) od konca kalendárneho mesiaca, v ktorom bola dodaná služba alebo prijatá platba pred dodaním služby s miestom dodania podľa § 15 ods. 1 v inom členskom štáte, e) od konca kalendárneho mesiaca, v ktorom nastala skutočnosť rozhodná pre vykonanie opravy základu dane podľa § 25 ods. 1.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "Zákon o DPH § 73 ods. 1 písm. e) — TEXTE PRIMAIRE, static.slov-lex.sk, lu en direct le 2026-09-05 (même méthode d'accès que CREDIT_NOTE ci-dessus). Verbe impératif (« musí byť vyhotovená », doit être établie), avec un DÉLAI CHIFFRÉ (15 jours à compter de la fin du mois calendaire au cours duquel est survenu le fait justifiant la correction du § 25 ods. 1) : LA voie slovaque de correction, symétrique dans les deux sens (baisse ET hausse, voir CREDIT_NOTE/DEBIT_NOTE ci-dessus), correspond EXACTEMENT à la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir ») : zákon o DPH § 74 ods. 3 písm. c) (lue le même jour) impose que cette faktúra « musí obsahovať poradové číslo pôvodnej faktúry [...] a údaje, ktoré sa menia » (doit contenir le numéro séquentiel de la faktúra D'ORIGINE et les données modifiées) — un AMENDEMENT PAR RÉFÉRENCE explicite à l'original, jamais un avoir autonome. NUANCE IMPORTANTE, distincte du modèle tchèque : le zákon o DPH ne prévoit PAS d'exception générale équivalente au § 42 odst. 4 písm. b) tchèque à L'INTÉRIEUR DE L'ARTICLE DE CORRECTION LUI-MÊME — l'exception à cette voie 'required' vient d'un mécanisme PLACÉ AILLEURS dans la loi (§ 25 ods. 3, seconde phrase — voir NO_DOCUMENT_BY_LAW ci-dessous), qui anticipe explicitement le cas où « sa pri oprave základu dane nevyhotovuje doklad o oprave základu dane » (aucun document de correction n'est établi) : la structure textuelle est donc DIFFÉRENTE de celle du tchèque (une seule clause combinée) tout en aboutissant à un résultat fonctionnel comparable — CORRECTIVE_INVOICE demeure la règle par défaut dès qu'une faktúra d'origine était due au titre du § 72."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée — et pour une raison RÉELLE et PRÉCISE, pas une absence de recherche : comme pour la Tchéquie, le zákon o DPH traite TOUS les cas de prix ou de montant erronés (y compris le cas symétrique de la sous-évaluation, § 25 ods. 1 písm. c)) par le SEUL mécanisme de la faktúra modificative ORDINAIRE (§ 25/§ 71 ods. 2/§ 73 ods. 1 písm. e), voir CORRECTIVE_INVOICE ci-dessus) — AUCUNE clause lue par cette tâche (zákon o DPH § 25, § 25a, § 71 à § 74) ne prescrit de séquence en deux temps « annuler l'original (réduction à zéro) PUIS émettre un remplaçant » comme un mécanisme PROCÉDURAL DISTINCT de la correction ordinaire. Ce qui trancherait : une lecture dédiée du zákon č. 563/2009 Z. z. (daňový poriadok, code de procédure fiscale) pour un éventuel mécanisme d'annulation-remplacement PROCÉDURAL propre à une déclaration de TVA déjà déposée (dodatočné daňové priznanie) — non recherché."
+      },
+      "notes": "Non recherché en détail au-delà de zákon o DPH § 25/§ 25a/§ 71 à § 74 — signalé comme probablement sans objet (le mécanisme slovaque ne distingue pas de séquence annulation-remplacement), pas comme réglé."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même raisonnement que cz.json/ie.json/se.json/mt.json/lv.json/ee.json/nl.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique slovaque à la date de cette lecture (2026-09-05) : le régime IS EFA naissant (zákon o DPH § 76a/§ 85o, § 80a à partir du 1.07.2030 seulement) est un système de DÉCLARATION/REPORTING, jamais de validation ou de clearance de la facture elle-même au moment de son émission — aucun mandat de transmission-préalable-à-autorité identifié pour ce périmètre par cette tâche. Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture ELLE-MÊME (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique slovaque par cette tâche, la TVA slovaque restant un système déclaratif (auto-liquidation par daňové priznanie) sans validation de facture au moment de l'émission dans le zákon o DPH lu (§ 25 à § 75). Même le futur § 80a (déclaration obligatoire, 1.07.2030) est une obligation de REPORTING a posteriori, jamais une clearance bloquante à l'émission. Ce qui trancherait : une lecture dédiée d'un Usmernenie/Metodický pokyn de la Finančná správa SR confirmant l'absence, ou l'existence, d'un mécanisme de clearance — non recherchée par cette tâche."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique slovaque identifiée à ce jour (le § 80a de 2030 reste un canal de déclaration, pas de validation), ce scénario ne se pose pas de la même façon. Le mécanisme le plus proche identifié par cette tâche est la condition de CONSENTEMENT du destinataire à la forme électronique elle-même (zákon o DPH § 71 ods. 1 písm. b), voir country-policy/data/sk.json's own invoice.send), mais ceci porte sur le consentement à la forme électronique entre émetteur et destinataire, pas sur le rejet TECHNIQUE d'une facture déjà transmise par une plateforme d'autorité — donc hors du périmètre exact de cette voie."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun mécanisme slovaque identifié correspondant à « le MÊME document, réémis surchargé d'une mention » (docs/compliance/CORRECTION-ROUTES.yaml). Le mécanisme de correction trouvé par cette tâche (zákon o DPH § 25/§ 71 ods. 2) produit un DOCUMENT NOUVEAU ET DISTINCT (la faktúra modificative, avec son PROPRE numéro séquentiel en plus de la référence au numéro de l'originale, § 74 ods. 3 písm. c)), jamais la faktúra initiale elle-même renvoyée annotée sous son identité d'origine. Recherche par mot-clé menée sur le texte intégral du zákon o DPH pour « duplikát » et « náhradný doklad » : AUCUNE occurrence trouvée. Ce qui trancherait : un Usmernenie de la Finančná správa SR ou une doctrine de la pratique fiscale slovaque confirmant explicitement l'absence, ou l'existence, d'un mécanisme général de duplicata annoté — non recherchée par cette tâche."
+      },
+      "notes": "Recherche par mot-clé négative (« duplikát », « náhradný doklad ») sur le texte intégral du zákon o DPH — signalée honnêtement comme une absence CONSTATÉE dans le texte lu, pas comme une exclusion de principe."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée — et DÉLIBÉRÉMENT PAS promue 'allowed' malgré la tentation de reprendre le modèle tchèque : zákon o DPH § 25 ods. 3 (lu en primaire le 2026-09-05, voir NO_DOCUMENT_BY_LAW ci-dessous pour la citation complète) anticipe bien un cas où « sa pri oprave základu dane nevyhotovuje doklad o oprave základu dane » (aucun document de correction n'est établi), MAIS, CONTRAIREMENT au tchèque ZDPH § 42 odst. 4 písm. b) (qui nomme EXPLICITEMENT une « evidencia pre účely dane z pridanej hodnoty » — un REGISTRE TVA tenu à cette fin, comme alternative statutaire), le texte slovaque ne nomme AUCUN registre ni AUCUNE écriture spécifique : il dit seulement que la différence « sa uvedie [...] v daňovom priznaní za zdaňovacie obdobie, v ktorom nastala skutočnosť » (est indiquée dans la déclaration de TVA de la période où le fait est survenu) — c'est-à-dire RIEN entre le fait déclencheur et la déclaration elle-même, jamais une écriture intermédiaire nommée. Cette absence de tout registre nommé est précisément ce qui OUVRE NO_DOCUMENT_BY_LAW plutôt que LEDGER_ANNOTATION pour la Slovaquie (voir la distinction exacte des deux voies dans docs/compliance/CORRECTION-ROUTES.yaml : LEDGER_ANNOTATION suppose « au moins une écriture », NO_DOCUMENT_BY_LAW n'en suppose AUCUNE) — mais cette tâche n'exclut pas qu'une pratique comptable ou une doctrine distincte impose malgré tout une trace en registre non prescrite par le zákon o DPH lui-même ; faute de texte NOMMANT un registre, LEDGER_ANNOTATION reste honnêtement 'unverified' plutôt que d'être forcée sur le seul gabarit tchèque."
+      },
+      "notes": "MIROIR EXACT de la trouvaille tchèque, mais INVERSÉ : cz.json avait LEDGER_ANNOTATION 'allowed' (registre nommé) et NO_DOCUMENT_BY_LAW 'unverified' (partiellement départagé). Pour la Slovaquie, c'est NO_DOCUMENT_BY_LAW qui se règle nettement (voir ci-dessous) et LEDGER_ANNOTATION qui reste 'unverified', faute d'un registre nommé par le texte lui-même."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Ak sa pri oprave základu dane nevyhotovuje doklad o oprave základu dane, uvedie sa rozdiel medzi pôvodným základom dane a opraveným základom dane a rozdiel medzi pôvodnou daňou a opravenou daňou v daňovom priznaní za zdaňovacie obdobie, v ktorom nastala skutočnosť, ktorá má za následok opravu základu dane.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "Zákon o DPH § 25 ods. 3 (seconde phrase) — TEXTE PRIMAIRE, static.slov-lex.sk, lu en direct le 2026-09-05 (même méthode d'accès que CREDIT_NOTE ci-dessus). TROUVAILLE LA PLUS NETTE de ce fichier, à l'INVERSE du modèle tchèque : le texte slovaque prévoit EXPLICITEMENT un cas où AUCUN document de correction n'est établi DU TOUT — la différence de base d'imposition et de taxe est reportée DIRECTEMENT dans le daňové priznanie (la déclaration de TVA) de la période où le fait déclencheur est survenu, sans qu'aucun document ni aucun registre distinct ne soit nommé entre les deux. Ceci correspond exactement à la définition de docs/compliance/CORRECTION-ROUTES.yaml : « La taxe s'ajuste DE PLEIN DROIT au changement de base imposable. Aucun document n'est émis, aucun registre n'est annoté, et la position TVA bouge quand même. » — la voie DE L'ALLEMAGNE, ici retrouvée en Slovaquie par une lecture indépendante. Statut 'allowed' (pas 'required') : la première phrase du même alinéa (§ 25 ods. 3) prévoit le cas SYMÉTRIQUE où un document EST établi (la faktúra du § 71 ods. 2 — voir CORRECTIVE_INVOICE ci-dessus, 'required' par défaut dès qu'une faktúra d'origine était due) ; laquelle des deux branches s'applique dépend de si une faktúra était due au titre du § 72 pour l'opération d'origine — la loi ne présente donc pas cette voie comme un choix discrétionnaire, mais l'ARTICULATION EXACTE entre les deux branches (au-delà de l'inférence structurelle tirée de § 72/§ 73 ods. 1 písm. e)) n'a pas été confirmée par un texte les reliant explicitement l'une à l'autre — d'où 'allowed' plutôt que 'required', par prudence."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Slovaquie au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — le zákon o DPH § 25 à § 75, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le droit commun des obligations slovaque, zákon č. 40/1964 Zb., Občiansky zákonník, non recherché pour ce point précis par cette tâche)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Slovaquie — agent pays SK, lot 7 (TODO_DOCUMENTS.md, vague B, dernier lot, 2026-09-05). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml, meta.covered = [FR, IT, PL, DE, ES, MX, US], ne couvre pas la Slovaquie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même, zákon č. 222/2004 Z. z. o dani z pridanej hodnoty (zákon o DPH), lu via static.slov-lex.sk (časová verzia účinná od 01.01.2026 do 31.12.2026, HTML COMPLET servi dès la première requête curl standard, 1 984 156 octets, AUCUN blocage JavaScript rencontré). MÉTHODE D'ACCÈS : le portail moderne www.slov-lex.sk, cherché en premier conformément à ce brief, s'est révélé être une SPA React — mais son propre <noscript> renvoie EXPLICITEMENT vers static.slov-lex.sk, un site Plone à l'ancienne organisé par répertoires de dates de version consolidée, servant du HTML BRUT sans JavaScript : l'exact équivalent slovaque de zakonyprolidi.cz pour la Tchéquie (la piste que ce brief anticipait), réutilisable pour un futur agent slovaque. HEADLINE, LA TROUVAILLE ATTENDUE de ce lot : la faktúra modificative du § 71 ods. 2 (« Za faktúru sa považuje aj každý doklad alebo oznámenie, ktoré mení pôvodnú faktúru... ») est un INSTRUMENT UNIQUE, défini par la loi elle-même, qui remplace À LA FOIS le credit note ET le debit note d'autres droits — § 25 ods. 1 range la HAUSSE (písm. c) et la BAISSE (písm. a-b) dans le MÊME alinéa, sans distinction d'instrument — la MÊME structure que cz.json (opravný daňový doklad) et pl.json (faktura korygująca). CREDIT_NOTE et DEBIT_NOTE sont donc 'forbidden' EN TANT QU'INSTRUMENTS DISTINCTS (pas en substance), CORRECTIVE_INVOICE est 'required' (§ 73 ods. 1 písm. e), verbe impératif, délai de 15 jours depuis la fin du mois du fait déclencheur). SECONDE TROUVAILLE, cette fois DIVERGENTE du modèle tchèque plutôt que convergente : § 25 ods. 3 anticipe un cas SANS AUCUN document ni registre nommé (NO_DOCUMENT_BY_LAW, 'allowed' — la voie décrite pour l'Allemagne dans docs/compliance/CORRECTION-ROUTES.yaml, ici retrouvée en Slovaquie), alors que le tchèque nommait EXPLICITEMENT un registre TVA dédié (LEDGER_ANNOTATION, 'allowed' côté cz.json) — la Slovaquie ne nomme AUCUN registre équivalent, d'où LEDGER_ANNOTATION laissée honnêtement 'unverified' plutôt que forcée sur le gabarit tchèque : les deux pays partagent la MÊME famille juridique (§ 25 slovaque et § 42/§ 43 tchèque sont des cousins structurels très proches) mais NE RÉDIGENT PAS la même exception, un contraste noté précisément plutôt que gommé. Recherche par mot-clé NÉGATIVE et EXPLICITE sur « dobropis »/« ťarchopis »/« vrubopis » (les termes de pratique comptable) et sur « duplikát »/« náhradný doklad » (pour ANNOTATED_DUPLICATE) : aucune de ces occurrences n'apparaît dans le zákon o DPH — la Slovaquie ne nomme statutairement AUCUN de ces concepts. Les cinq autres voies restent honnêtement 'unverified' (CANCEL_AND_REPLACE, INTERNAL_CREDIT_NOTE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY, COUNTERPARTY_OBJECTION), pour l'essentiel parce qu'aucun mécanisme de clearance/validation d'autorité n'existe pour la facturation B2B domestique slovaque à ce jour — le futur § 80a (zákon č. 385/2025 Z. z., déjà PROMULGUÉ et intégré aux versions consolidées officielles, mais n'entrant en vigueur que le 1er JUILLET 2030, PAS 2027 comme le laissait entendre le brief initial) reste un canal de DÉCLARATION a posteriori, jamais de validation bloquante à l'émission — voir country-policy/data/sk.json's own invoice.send/invoice.download-xml pour le détail complet de cette chronologie. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir B2G_COVERAGE.md : IS EFA fermé pour le B2G à ce jour, AUCUN fichier b2g-routing/data/sk.json créé par cet agent) : AUCUNE contradiction relevée avec ce document."
+}

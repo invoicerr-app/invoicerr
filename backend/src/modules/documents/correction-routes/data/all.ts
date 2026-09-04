@@ -17,7 +17,7 @@ import { join } from 'node:path';
 
 import { assertValidCorrectionRouteFact, CountryCorrectionRoutesFile } from '../schema';
 
-const COUNTRY_FILES = ['fr', 'it', 'pl', 'de', 'es', 'mx', 'us', 'be', 'nl', 'at', 'ee', 'gr', 'cy', 'lt', 'lv', 'lu', 'mt', 'se', 'hu', 'dk', 'fi', 'ie', 'bg', 'cz', 'hr'] as const;
+const COUNTRY_FILES = ['fr', 'it', 'pl', 'de', 'es', 'mx', 'us', 'be', 'nl', 'at', 'ee', 'gr', 'cy', 'lt', 'lv', 'lu', 'mt', 'se', 'hu', 'dk', 'fi', 'ie', 'bg', 'cz', 'hr', 'pt', 'ro', 'si', 'sk'] as const;
 
 /** Exported ONLY so `all.spec.ts` can prove the gate against an INVENTED eighth country (a JSON blob
  *  that never ships, mocked at the `node:fs` boundary) without needing a real, checked-in file that

@@ -1,0 +1,108 @@
+{
+  "countryCode": "SI",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Pri preklicu naročila, vračilu ali znižanju cene po opravljeni dobavi se davčna osnova ustrezno zmanjša. Davčni zavezanec lahko popravi (zmanjša) znesek obračunanega DDV, če pisno obvesti kupca o znesku DDV, za katerega kupec nima pravice do odbitka.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "PAS de YAML pivot pour la Slovénie (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Slovénie) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Zakon o davku na dodano vrednost (ZDDV-1), texte consolidé le plus récent servi par pisrs.si (ZAKO4701), 39. člen (druge določbe), drugi odstavek — TEXTE PRIMAIRE, lu en direct le 2026-09-05 via l'API JSON officielle de pisrs.si (GET https://pisrs.si/api/rezultat/neuradno-precisceno-besedilo/184270641/details, HTTP 200, corps JSON structuré paragraphe par paragraphe, jamais un fetch-résumé). MÉCANISME : une FACULTÉ (« lahko » — peut) de corriger/réduire le montant de TVA facturé, en cas d'annulation de commande, de retour ou de réduction de prix APRÈS livraison, CONDITIONNÉE à l'obligation d'aviser PAR ÉCRIT (« pisno obvesti ») le client du montant de TVA pour lequel il n'a pas droit à déduction. Statut 'allowed', pas 'required' : comme pour la Croatie (ZPDV čl. 33 st. 7) et l'Estonie (§ 29(7)), la loi ne nomme AUCUN instrument dédié dans cet article précis (pas de mot slovène pour « avoir » ici) et ne dit pas que cette réduction soit la SEULE voie possible — elle décrit un effet fiscal (la réduction) et une condition (l'avis écrit au client), sans imposer une forme unique. CORROBORATION CROISÉE, hors ZDDV-1 : le Zakon o izmenjavi elektronskih računov in drugih elektronskih dokumentov (ZIERDED, Uradni list RS št. 85/25, ZAKO9033 — voir country-policy/data/si.json's own invoice.send pour son statut voté-mais-pas-encore-applicable), 2. člen (pomen izrazov), 4. točka, nomme littéralement « dobropis » (avoir) comme un exemple de document relevant de la définition d'« e-račun » (« ne glede na to, kako se imenuje (dobropis, bremepis, avansni račun, zahtevek za plačilo, obračun negativnih obresti in podobno) ») — LU LE MÊME JOUR, MÊME MÉTHODE D'ACCÈS (GET https://pisrs.si/api/rezultat/neuradno-precisceno-besedilo/392585552/details). Cet avis du 39. člen, S'IL RÉFÉRENCE explicitement et sans ambiguïté la facture initiale, est lui-même « réputé être une facture » par le 81. člen, deveti odstavek du ZDDV-1 (voir CORRECTIVE_INVOICE ci-dessous, MÊME disposition) — c'est cette combinaison des deux clauses qui, en pratique, fait de l'avis du 39. člen un document assimilable à un « dobropis » au sens de ce catalogue."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Kot račun se šteje tudi vsak dokument oziroma sporočilo, ki spreminja prvoten račun in se nanj nedvoumno nanaša.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "ZDDV-1, 81. člen (obveznost izdajanja računov), deveti odstavek — TEXTE PRIMAIRE, pisrs.si, lu le 2026-09-05 (même méthode d'accès que CREDIT_NOTE ci-dessus). RAISONNEMENT DE COMPOSITION, à connaître avant de réutiliser cette citation ailleurs, MÊME structure que Käibemaksuseadus § 37(4) estonien et ZPDV čl. 78 st. 7 croate déjà établis par ce catalogue : le texte slovène ne distingue PAS un document qui amende à la HAUSSE d'un document qui amende à la BAISSE — il nomme « vsak dokument oziroma sporočilo » (TOUT document ou avis) qui modifie l'original ET s'y réfère de façon explicite et non équivoque. Le texte n'emploie à aucun moment un terme dédié équivalent à « debit note » dans CET article — cette voie est donc déduite du champ GÉNÉRAL du 81. člen, neuvième alinéa (tout document qui amende ET référence l'original est réputé être une facture, sans restriction de sens), pas d'une clause nommément dédiée à la hausse de prix comme telle. Statut 'allowed' (pas 'required') : rien ne mandate cette forme précise pour une hausse de prix, la loi se contente de RECONNAÎTRE l'effet d'un tel document s'il est utilisé. TERME SLOVÈNE CONFIRMÉ (corroboration croisée) : le ZIERDED, 2. člen, 4. točka (lu le même jour, voir CREDIT_NOTE ci-dessus) nomme littéralement « bremepis » (note de débit) comme un exemple de document relevant de la définition d'« e-račun »."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Kot račun se šteje tudi vsak dokument oziroma sporočilo, ki spreminja prvoten račun in se nanj nedvoumno nanaša.",
+        "sourceCheckedAt": "2026-09-05"
+      },
+      "notes": "ZDDV-1, 81. člen, deveti odstavek — MÊME citation primaire que DEBIT_NOTE ci-dessus (voir cette note pour le raisonnement de composition complet, à ne pas dupliquer ici). C'est la lecture LA PLUS DIRECTE de cet alinéa au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « vsak dokument oziroma sporočilo, ki spreminja prvoten račun in [...] se nanj [...] nanaša ». RENFORCÉ par deux dispositions distinctes, lues le même jour, même source : (a) 82. člen (obvezni podatki na računu), lu par ricochet pour cohérence — sa liste des mentions obligatoires n'ajoute rien de spécifique aux documents modificatifs (contrairement au 83. člen ci-dessous), mais confirme que le 81. člen, neuvième alinéa, est le SEUL fondement d'assimilation dans ce chapitre ; (b) 83. člen (poenostavljeni računi), tretji odstavek, 6. točka — pour la FACTURE SIMPLIFIÉE, la loi exige EXPLICITEMENT « jasno in nedvoumno navedbo o prvotnem računu in konkretnih podrobnosti, ki so spremenjene, če je račun dokument iz devetega odstavka 81. člena tega zakona » (une mention CLAIRE ET NON ÉQUIVOQUE de la facture initiale et des détails précis modifiés, lorsque la facture est le document visé au neuvième alinéa du 81. člen) — LU LE MÊME JOUR, MÊME SOURCE : la LOI ELLE-MÊME renvoie nommément à sa propre clause d'assimilation pour poser une exigence de contenu, confirmant que le 81. člen, neuvième alinéa, est bien le mécanisme central de correction par référence en droit slovène — même structure de renfort que ZPDV čl. 79 st. 12 t. 7 croate pour la MÊME famille de clause déjà établie par ce catalogue."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun mécanisme de VALIDATION PRÉALABLE (« clearance ») par une autorité, suivi d'une possibilité de REMPLACEMENT, n'a été identifié pour la facture B2B slovène — ni dans le ZDDV-1 (81.-84. člen, silencieux sur toute intervention d'une autorité avant ou pendant l'émission), ni dans le ZIERDED (Uradni list RS 85/25 — une fois applicable, 2028), dont le modèle d'échange (9. člen, « ponudniki e-poti » via Peppol ou échange direct) est DÉCENTRALISÉ, à la différence d'un KSeF/SdI : aucune plateforme centrale de l'État ne VALIDE ni ne REFUSE un e-račun avant son émission — le rôle du « davčni organ » (autorité fiscale) dans ce texte se limite à opérer une application GRATUITE FACULTATIVE (11. člen) et une supervision (23. člen), jamais un contrôle de conformité bloquant à l'émission. Ce qui trancherait : une doctrine ou une disposition future (le ZIERDED renvoie, à son 17. člen huitième alinéa et 21. člen huitième alinéa, à des règlements d'application du ministre des Finances non encore identifiés par cette tâche) confirmant explicitement l'absence — ou l'existence — d'un tel mécanisme."
+      },
+      "notes": "ZDDV-1 81.-84. člen et ZIERDED (dans son ensemble), lus en primaire le 2026-09-05 — aucune clearance identifiée, voir resolutionNote."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. À la différence de la Croatie (Zakon o fiskalizaciji čl. 38, EN VIGUEUR ET APPLICABLE depuis le 1er janvier 2026), le ZIERDED slovène — qui imposerait, à terme, l'échange EXCLUSIF d'e-računi pour les livraisons B2B domestiques (7. člen, voir country-policy/data/si.json's own invoice.send) — N'EST PAS ENCORE APPLICABLE (uporabljaOd 1er janvier 2028) : à la date de lecture, RIEN n'empêche structurellement un avoir purement comptable, jamais transmis ni à l'acheteur ni à une autorité, sous le régime ZDDV-1 actuellement en vigueur seul. Une fois le ZIERDED applicable, la même tension structurelle que documentée pour la Croatie POURRAIT se poser pour les corrections de factures domestiques B2B couvertes par son 7. člen — mais ceci reste, à ce stade, une PROJECTION vers un texte pas encore applicable, jamais un fait constaté aujourd'hui ; par discipline (jamais promu par raisonnement, et encore moins par anticipation d'un texte non applicable), ce fait reste 'unverified' plutôt que 'allowed' ou 'forbidden'. Ce qui trancherait, à la date de lecture : rien dans le droit ACTUELLEMENT applicable ne l'interdit ni ne le confirme explicitement comme une pratique reconnue — une doctrine FURS (Finančna uprava Republike Slovenije) sur la comptabilisation des avoirs non transmis réglerait la question."
+      },
+      "notes": "ZDDV-1 (régime actuellement applicable) et ZIERDED 7. člen (régime futur, pas encore applicable) — aucune interdiction ni confirmation identifiée pour aujourd'hui, voir resolutionNote."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée — voir CANCEL_AND_REPLACE ci-dessus pour le constat commun (aucune autorité de clearance identifiée pour l'e-račun B2B slovène, ni sous le ZDDV-1 actuel, ni sous le ZIERDED une fois applicable). Aucune demande D'ANNULATION adressée PAR L'ÉMETTEUR à une autorité contre une facture déjà émise n'a été identifiée dans les deux textes lus. Ce qui trancherait : la même vérification que pour CANCEL_AND_REPLACE."
+      },
+      "notes": "Non recherché au-delà du ZDDV-1 (39., 78.-84. člen) et du ZIERDED (dans son ensemble) déjà lus pour les autres voies — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. La définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Après REJET, renvoyer le document sous les MÊMES date et numéro ») suppose un scénario de REJET par une plateforme de clearance (comme KSeF/SdI) — un tel rejet PAR UNE AUTORITÉ n'a été identifié ni dans le ZDDV-1 ni dans le ZIERDED (voir CANCEL_AND_REPLACE ci-dessus). Le seul « zavrnitev » (rejet) identifié dans le ZIERDED (17. člen, prvi odstavek, 7. točka — voir COUNTERPARTY_OBJECTION ci-dessous) est un message de retour ENTRE UTILISATEURS DU RÉSEAU (le destinataire vers l'émetteur), jamais une décision d'une autorité de clearance, et le texte ne précise de toute façon PAS l'effet d'un tel message (contrairement au čl. 43/52 croates, qui distinguent nommément la réémission sous même numéro du storno-puis-nouveau-numéro après rejet). Ce qui trancherait : une confirmation explicite de l'absence, en droit slovène, de tout mécanisme de VALIDATION/REJET par une plateforme d'État elle-même (au-delà du message de retour entre utilisateurs)."
+      },
+      "notes": "ZIERDED 17. člen (message de rejet réseau, effet juridique non précisé) — ne correspond pas à la définition exacte de cette voie, voir COUNTERPARTY_OBJECTION."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun équivalent au čl. 43 croate (« Ponovno slanje eRačuna » — réémission sous le même numéro, dans la même période d'imposition, pour une correction SANS effet fiscal, marquée d'un indicateur de copie) n'a été identifié dans le ZDDV-1 (39., 78.-84. člen, silencieux sur une telle réémission à l'identique) ni dans le ZIERDED (dans son ensemble, lequel porte sur le CANAL d'échange de l'e-račun, pas sur un mécanisme de correction sans effet fiscal). Ce qui trancherait : une disposition ou une doctrine slovène dédiée à la correction d'une mention non fiscale d'une facture déjà émise (ex. une erreur d'adresse) sans passer par un document distinct au sens du 81. člen, neuvième alinéa."
+      },
+      "notes": "Non trouvé dans le ZDDV-1 ni le ZIERDED — absence constatée par lecture complète des deux textes, pas une supposition."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et NO_DOCUMENT_BY_LAW ci-dessous — MÊME trouvaille pour les deux, la distinction n'a pas pu être établie par cette tâche. Le ZDDV-1, 39. člen, tretji in četrti odstavek (lu en primaire le 2026-09-05, même source que CREDIT_NOTE ci-dessus) permet à l'assujetti de corriger (réduire) le montant de TVA facturé et NON PAYÉ, sur la base d'une décision de justice définitive de clôture d'une procédure de faillite ou de concordat forcé (troisième alinéa), ou pour toute créance reconnue déclarée dans une telle procédure (quatrième alinéa) — SANS préciser, dans ces alinéas, si cette correction s'opère par une simple écriture dans la déclaration de TVA (obračun DDV) elle-même, sans document distinct, ou si une notification/pièce justificative séparée est exigée. Si cet ajustement s'opère SANS émission d'aucun document distinct (l'effet se produisant directement dans la déclaration de TVA), NO_DOCUMENT_BY_LAW conviendrait (comme le régime allemand par défaut ou le régime estonien du § 29(7), déjà établis par ce catalogue) ; si une écriture identifiable dans un registre séparé est en pratique exigée (comme la notification à l'administration fiscale que le ZPDV croate impose explicitement à son čl. 33 st. 11, DISPOSITION QUE LE ZDDV-1 slovène N'A PAS D'ÉQUIVALENT EXPLICITE À CE STADE), LEDGER_ANNOTATION conviendrait mieux. Ce qui trancherait : une doctrine de la Finančna uprava Republike Slovenije (FURS) ou le formulaire de déclaration de TVA (obračun DDV-O) lui-même décrivant concrètement l'acte requis pour signaler cette correction."
+      },
+      "notes": "ZDDV-1 39. člen, tretji in četrti odstavek, lu en primaire le 2026-09-05 — trouvaille réelle (créance irrécouvrable après faillite/concordat) mais non départagée d'avec NO_DOCUMENT_BY_LAW, voir resolutionNote. À la différence de la Croatie, AUCUNE obligation de notification distincte à l'administration fiscale n'a été trouvée dans ces alinéas eux-mêmes."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et LEDGER_ANNOTATION ci-dessus — voir la resolutionNote de LEDGER_ANNOTATION pour le détail complet de la trouvaille et de l'ambiguïté ; non dupliqué ici pour éviter deux versions divergentes du même raisonnement. En bref : ZDDV-1 39. člen, tretji in četrti odstavek, permet un ajustement de TVA pour créance irrécouvrable après faillite/concordat, sans préciser si cet ajustement s'opère par une simple écriture dans la déclaration de TVA (sans document distinct) ou par une notification/pièce séparée."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même trouvaille, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée — TROUVAILLE RÉELLE MAIS INCONCLUSIVE, distincte du cas croate déjà établi par ce catalogue (Zakon o fiskalizaciji čl. 52). Le ZIERDED (Uradni list RS 85/25 — voté, PAS un projet, mais NON ENCORE APPLICABLE avant le 1er janvier 2028, voir country-policy/data/si.json's own invoice.send), 17. člen (obveznosti ponudnika e-poti), prvi odstavek, 7. točka ET drugi odstavek, 7. točka, IMPOSE aux « ponudniki e-poti » ET à UJP (l'Uprava Republike Slovenije za javna plačila, le point d'entrée/sortie unique pour les organismes publics) de permettre l'échange de « povratna sporočila o vsebinski potrditvi ALI ZAVRNITVI prejetih e-računov » (messages de retour de confirmation substantielle OU DE REJET des e-računi reçus) — LU DIRECTEMENT le 2026-09-05, même API/même source que country-policy/data/si.json's own invoice.send. CE QUI MANQUE POUR PROMOUVOIR CETTE VOIE 'legal', à la différence du čl. 52 croate qui la tranche NOMMÉMENT : le ZIERDED N'INDIQUE NULLE PART, dans les 23 chapitres/articles lus par cette tâche, l'EFFET JURIDIQUE d'un tel message de « zavrnitev » — ni perte d'un droit à déduction pour le destinataire, ni faculté de storno/réémission pour l'émetteur, ni délai de déclaration à une autorité. Le texte impose une CAPACITÉ TECHNIQUE du réseau (le message doit pouvoir être échangé), pas un RÉGIME JURIDIQUE de l'objection elle-même. Ce qui trancherait : soit un règlement d'application du ministre des Finances (annoncé mais non identifié par cette tâche, prévu par le ZIERDED lui-même à son 17. člen huitième alinéa et son 21. člen huitième alinéa, à prendre dans les douze mois suivant l'entrée en vigueur — donc attendu vers fin 2026/début 2027), soit une doctrine FURS précisant l'effet de la 'zavrnitev'."
+      },
+      "notes": "ZIERDED 17. člen, prvi odstavek 7. točka et drugi odstavek 7. točka, lus en primaire le 2026-09-05 — capacité technique de rejet réseau confirmée, effet juridique non précisé par le texte lui-même à ce stade."
+    }
+  ],
+  "notes": "Slovénie — agent pays SI, lot 7 (TODO_DOCUMENTS.md, vague B, dernier lot, 2026-09-05). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Slovénie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — au TEXTE PRIMAIRE lui-même (API JSON officielle de pisrs.si, curl direct, jamais un fetch-résumé), sur DEUX lois distinctes et complémentaires : le Zakon o davku na dodano vrednost (ZDDV-1, texte consolidé courant, ZAKO4701) pour le mécanisme fiscal de fond (39. člen, 78.-84. člen), et le Zakon o izmenjavi elektronskih računov in drugih elektronskih dokumentov (ZIERDED, Uradni list RS št. 85/25, ZAKO9033) — une loi VOTÉE ET PROMULGUÉE (sprejeto 23/10/2025, objavljeno 6/11/2025) mais dont l'APPLICATION n'intervient que le 1er JANVIER 2028 (statut du portail officiel lui-même : « Veljaven predpis, ki se še ne uporablja ») — pour les mécanismes PROPRES au futur circuit d'e-računi. HEADLINE, plus prudent que la Croatie faute d'un mandat B2B ACTUELLEMENT APPLICABLE : TROIS voies sourcées 'legal' seulement — CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE (ZDDV-1 39. člen deuxième alinéa et 81. člen neuvième alinéa, MÊME famille de clause générale d'assimilation déjà trouvée pour FR/BE/GR/EE/HR). Les HUIT autres voies (CANCEL_AND_REPLACE, INTERNAL_CREDIT_NOTE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY, ANNOTATED_DUPLICATE, LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW, COUNTERPARTY_OBJECTION) restent honnêtement 'unverified', chacune avec une resolutionNote propre : pour plusieurs d'entre elles (CANCEL_AND_REPLACE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY), la conclusion structurelle est que la Slovénie N'A PAS de plateforme de clearance centralisée à la KSeF/SdI — ni aujourd'hui (ZDDV-1 seul), ni demain (le ZIERDED organise un réseau DÉCENTRALISÉ de « ponudniki e-poti »/Peppol, 9. člen) ; pour COUNTERPARTY_OBJECTION, une trouvaille réelle existe (ZIERDED 17. člen — capacité technique d'un message de « zavrnitev ») mais reste inconclusive faute de régime juridique précisé par le texte ; pour INTERNAL_CREDIT_NOTE, la tension structurelle observée pour la Croatie ne s'applique PAS ENCORE à la Slovénie puisque le mandat B2B slovène n'est pas applicable avant 2028. AUCUNE contradiction avec B2G_COVERAGE.md (SI 'pas livrable', CIUS e-SLOG 2.0 en construction — hors périmètre de cet agent, aucun fichier b2g-routing/si.json créé). AUCUNE écriture hors de correction-routes/data/si.json et de son propre si.spec.ts par cette tâche."
+}
