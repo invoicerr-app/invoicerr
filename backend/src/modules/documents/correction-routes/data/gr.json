@@ -1,0 +1,107 @@
+{
+  "countryCode": "GR",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "6. Πιστωτικό τιμολόγιο είναι το τιμολόγιο που εκδίδεται για κάθε περίπτωση εκπτώσεων, επιστροφών ή άλλων διαφορών.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour la Grèce (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas ce pays) : c'est une PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent. Source : Ν. 4308/2014 (Ελληνικά Λογιστικά Πρότυπα, ΦΕΚ Α' 251/24-11-2014), άρθρο 8 § 6 — LU DIRECTEMENT le 2026-09-04, en interrogeant la route JSON publique (POST https://www.forin.gr/laws/paragraphs, {anumber:8, i_law:3267}) que le lecteur de lois de forin.gr appelle lui-même en JavaScript pour remplir la page (le HTML brut ne contient que des <div> vides ; ce texte est marqué `\"law_open\":\"1\"`, PAS un contenu réservé aux abonnés — voir country-policy/data/gr.json's own file-level note pour le détail de cette méthode et des murs rencontrés par ailleurs : aade.gr 403 systématique, e-nomothesia.gr injoignable). Traduction littérale : « Facture de crédit est la facture émise pour chaque cas de remises, retours ou autres différences. » Le terme administratif grec est un INSTRUMENT NOMMÉ par la loi elle-même — « πιστωτικό τιμολόγιο » — plus proche, par sa clarté terminologique, de la Belgique (« notes de crédit », explicitement nommées) que des Pays-Bas (« creditfactuur », un terme de doctrine administrative, absent du texte de loi lui-même). Statut 'allowed', PAS 'required' : le § 6 est une DÉFINITION (« είναι », \"is\"), formulée à l'indicatif descriptif — jamais une INJONCTION (« πρέπει »/\"must\", « υποχρεούται »/\"is obliged to\") faite au vendeur d'émettre CE document précis pour CHAQUE remise/retour ; à la différence de l'Espagne (RD 1619/2012 art. 15.2, « SERÁ OBLIGATORIA ») ou de la Pologne (art. 106j ust. 1, « WYSTAWIA »), aucun verbe de mandat n'a été lu ici. « άλλων διαφορών » (autres différences) élargit le champ de ce que couvre un πιστωτικό τιμολόγιο au-delà des seules remises/retours, sans toutefois nommer explicitement une hausse de prix — voir DEBIT_NOTE ci-dessous pour la limite exacte de ce que ce terme a été lu comme couvrant."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun terme grec dédié (« χρεωστικό τιμολόγιο ») n'a été trouvé dans les articles 8, 9, 14 et 15 de la Ν.4308/2014 lus par cette tâche le 2026-09-04 (recherche textuelle négative sur le contenu JSON brut de ces quatre articles). L'expression « άλλων διαφορών » (autres différences) à l'art. 8 § 6 est LARGE ASSEZ pour, en LECTURE LITTÉRALE, ne pas exclure une hausse de prix référençant l'original — mais le § 6 tout entier reste sous le TITRE « πιστωτικό » (créditeur), ce qui rendrait paradoxal d'y loger une hausse ; aucune lecture n'a permis de trancher si une facture RECTIFICATIVE À LA HAUSSE serait qualifiée de πιστωτικό τιμολόγιο au sens de ce paragraphe, ou couverte SEULEMENT par la clause générale de l'art. 8 § 3 (tout document qui modifie et référence l'original est assimilé à une facture — voir CORRECTIVE_INVOICE ci-dessous, qui elle est direction-agnostique et couvrirait ce cas). Ce qui trancherait : une lecture d'un article de la Ν.4308/2014 ou d'une circulaire ΑΑΔΕ (aade.gr, 403 systématique cette session) nommant explicitement un second instrument distinct pour la hausse, ou confirmant que l'art. 8 § 3 seul suffit à couvrir ce cas sans instrument dédié."
+      },
+      "notes": "Recherche textuelle négative sur les art. 8, 9, 14, 15 de la Ν.4308/2014, le 2026-09-04 — voir country-policy/data/gr.json's own file-level note pour la méthode de lecture."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "3. Κάθε έγγραφο ή μήνυμα που τροποποιεί και αναφέρεται ειδικά και αναμφισβήτητα σε ένα αρχικό τιμολόγιο, θεωρείται τιμολόγιο.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Ν. 4308/2014, άρθρο 8 § 3 — LU DIRECTEMENT le 2026-09-04, même route JSON publique que CREDIT_NOTE ci-dessus. Traduction littérale : « Tout document ou message qui modifie et se réfère spécifiquement et sans équivoque à une facture originale est considéré comme une facture. » CETTE clause est GÉNÉRALE et DIRECTION-AGNOSTIQUE (elle ne distingue pas hausse/baisse, ni remise/erreur de mention) — quasiment mot pour mot le même mécanisme que le CGI art. 289, I, 5° français (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») et la citation belge relevée par correction-routes/data/be.json (« Tout document qui modifie la facture [...] et qui y fait référence spécifiquement et sans ambiguïté [...] »// quasi verbatim identique en grec et en français dans sa STRUCTURE, ce qui suggère une origine commune probable dans la directive 2006/112/CE elle-même, non vérifiée ici). Statut 'allowed' : la clause OUVRE cette voie (« θεωρείται τιμολόγιο », est considéré comme une facture) sans en faire la voie EXCLUSIVE ou OBLIGATOIRE pour toute correction — même lecture prudente que be.json applique à sa propre citation quasi identique. C'EST, avec CREDIT_NOTE ci-dessus, LA VOIE LA MIEUX SOURCÉE de ce fichier — et la seule des deux qui soit à la fois générale (toute nature de correction) et directement citée par le texte primaire plutôt que reconstruite par déduction."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Aucun mécanisme d'annulation-remplacement identifié dans les art. 8, 9, 14, 15 de la Ν.4308/2014 lus le 2026-09-04. Une piste plausible existerait côté myDATA (« ακύρωση παραστατικού » — annulation d'un document déjà transmis à l'ΑΑΔΕ) mais reporting/data/gr.json documente déjà ce terrain comme entièrement 'unverified' faute d'accès à aade.gr (403 systématique) ; cette voie n'a pas été recherchée séparément au-delà de cette lecture négative de la loi comptable elle-même. Ce qui trancherait : un accès à aade.gr (spécifications techniques myDATA) ou à une circulaire ΑΑΔΕ publiée par le ΦΕΚ (et.gr, recherche JS non aboutie cette session)."
+      },
+      "notes": "Non recherché au-delà de la lecture négative des art. 8/9/14/15 de la Ν.4308/2014, le 2026-09-04."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et PROBABLEMENT SANS OBJET pour la Grèce, mais pour une raison DIFFÉRENTE de celle retenue par nl.json/at.json pour leur propre entrée : la Grèce a bel et bien un régime de déclaration continue à une autorité (myDATA), ce qui rendrait cette voie potentiellement PERTINENTE (contrairement aux Pays-Bas/Autriche, qui n'ont aucune autorité destinataire à exclure) — mais reporting/data/gr.json documente déjà le régime myDATA lui-même comme 'unverified' faute d'accès à aade.gr, donc l'articulation exacte entre un avoir purement comptable et l'obligation de déclaration myDATA n'a pas pu être vérifiée par cette tâche non plus. Ce qui trancherait : la même vérification que reporting/data/gr.json appelle déjà de ses vœux (un accès à aade.gr, ou au ΦΕΚ publiant la Loi 4308/2014 art. 15A et ses décisions d'application)."
+      },
+      "notes": "Dépend directement du même mur que reporting/data/gr.json documente déjà — non redoublé ici, seulement référencé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que INTERNAL_CREDIT_NOTE ci-dessus : myDATA reçoit en continu les données de facturation grecque, ce qui rendrait plausible un mécanisme d'annulation CÔTÉ AUTORITÉ pour une facture déjà transmise — mais aucun texte n'a pu être lu pour le confirmer (mur aade.gr, 403 systématique, voir reporting/data/gr.json). Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Dépend du même mur que reporting/data/gr.json documente déjà — non redoublé ici, seulement référencé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Cette voie répond typiquement à un scénario de REJET par une plateforme de clearance BLOQUANTE (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — rien de lu cette session ne permet d'affirmer que myDATA fonctionne comme une clearance BLOQUANTE (à la différence de KSeF/SdI, qui empêchent l'émission tant que la validation n'a pas eu lieu) plutôt que comme un régime de déclaration CONTINUE a posteriori (ce que b2g-routing/data/gr.json's own note, en lisant la fiche pays de la Commission européenne, semble suggérer sans le trancher explicitement pour ce point précis). Ce qui trancherait : une lecture directe des spécifications techniques myDATA (aade.gr, 403 systématique cette session)."
+      },
+      "notes": "Non recherché au-delà de ce qui est déjà documenté par b2g-routing/data/gr.json et reporting/data/gr.json."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée. Cette voie répond en France à un mécanisme précis (CGI art. 272, 1, al. 3 : un duplicata annoté « Facture demeurée impayée pour la somme de [...] » pour récupérer la TVA sur une créance impayée). Aucune disposition équivalente n'a été recherchée dans la Ν.2859/2000 (Κώδικας ΦΠΑ) par cette tâche — le périmètre de lecture de cette session pour ce code s'est concentré sur l'art. 21 (taux, voir vat-rates/data/gr.json) et l'art. 39 (petites entreprises, voir country-identifiers/data/gr.json), pas sur un éventuel régime de récupération de TVA sur créance impayée (souvent logé, dans d'autres codes TVA européens, à un article dédié aux régularisations). Ce qui trancherait : une lecture ciblée de la Ν.2859/2000 sur ce point précis (article non identifié par cette tâche)."
+      },
+      "notes": "Non recherché — hors du périmètre effectivement lu de la Ν.2859/2000 cette session."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Grèce — aucune lecture ciblée sur une correction purement comptable sans document émis n'a été menée par cette tâche."
+      },
+      "notes": "Non recherché."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée pour une CORRECTION au sens de cette voie. Une piste ADJACENTE mais NON RETENUE a été identifiée : l'art. 8 § 9 de la Ν.4308/2014 dispense le Δημόσιο (l'État), les régions, préfectures, communes et autres organismes de droit public de l'obligation d'ÉMETTRE une facture pour leurs activités de puissance publique hors champ TVA — mais ceci concerne l'ÉMISSION INITIALE d'un document (ou son absence), pas la CORRECTION d'une facture déjà émise, qui est l'objet exact de cette voie canonique. Aucune disposition traitant d'une correction sans document n'a été identifiée par ailleurs."
+      },
+      "notes": "Piste adjacente repérée (art. 8 § 9, exemption d'émission pour le secteur public hors TVA), non retenue comme réglant cette voie précise — même discipline que nl.json applique à sa propre piste adjacente pour COUNTERPARTY_OBJECTION."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour la Grèce au sens strict de la voie (un droit formel du destinataire à faire objection à une facture reçue et déclencher une correction). Une piste plausible existerait côté myDATA (le mécanisme grec de « χαρακτηρισμός »/classification d'une facture reçue par son destinataire, connu de la littérature tierce sur myDATA) mais n'a pas pu être vérifiée par cette tâche faute d'accès à aade.gr (403 systématique, voir reporting/data/gr.json's own note)."
+      },
+      "notes": "Piste adjacente non vérifiée (mécanisme myDATA de classification par le destinataire) — dépend du même mur aade.gr que reporting/data/gr.json documente déjà."
+    }
+  ],
+  "notes": "Grèce — agent pays GR, lot 2 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas la Grèce) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — même situation que nl.json en lot 1. Sources : Ν. 4308/2014 (Ελληνικά Λογιστικά Πρότυπα, ΦΕΚ Α' 251/24-11-2014), art. 8 §§ 1, 3, 5, 6, 9 et art. 9 § 1, lus DIRECTEMENT le 2026-09-04 en interrogeant la route JSON publique du lecteur de lois de forin.gr (POST /laws/paragraphs — voir country-policy/data/gr.json's own file-level note pour le détail de cette méthode, qui n'est PAS un contournement de paywall : ce texte précis est marqué `\"law_open\":\"1\"`, librement accessible). MURS RENCONTRÉS, documentés ici pour ce module précis : aade.gr (403 Forbidden systématique, y compris via curl direct avec User-Agent de navigateur — confirme et renforce l'avertissement déjà consigné par reporting/data/gr.json et la mémoire du dépôt) ; e-nomothesia.gr (ECONNREFUSED, injoignable) ; forin.gr lui-même, pour DEUX AUTRES lois utiles à ce fichier (Ν.4174/2013 pour un éventuel terrain fiscal-procédural, Ν.4919/2022 pour ΓΕΜΗ) réservées aux abonnés « Forin.gr Analysis » — non pertinentes pour CE fichier précis (correction-routes), mais documentées dans country-identifiers/data/gr.json où elles s'appliquent réellement. HEADLINE : DEUX voies sourcées 'legal'/'allowed' — CREDIT_NOTE (art. 8 § 6, le πιστωτικό τιμολόγιο, un instrument NOMMÉ par la loi) et CORRECTIVE_INVOICE (art. 8 § 3, une clause générale d'assimilation quasi identique, dans sa structure, à celle du CGI français et de la loi belge) — un résultat MEILLEUR que nl.json/at.json (1/11 chacun) grâce à cette clause générale grecque directement comparable à FR/BE. Les neuf autres voies restent honnêtement 'unverified', avec pour plusieurs d'entre elles (INTERNAL_CREDIT_NOTE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY, COUNTERPARTY_OBJECTION) une dépendance EXPLICITE et ASSUMÉE au même mur aade.gr que reporting/data/gr.json documente déjà pour myDATA — cette tâche ne redouble pas cette recherche, elle la référence. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir b2g-routing/data/gr.json, déjà livré en lot 1)."
+}

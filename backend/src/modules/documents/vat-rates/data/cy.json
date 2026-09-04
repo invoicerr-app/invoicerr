@@ -1,0 +1,54 @@
+{
+  "countryCode": "CY",
+  "rates": [
+    {
+      "id": "cy-standard",
+      "rate": 19,
+      "label": "Κανονικός συντελεστής (taux normal)",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Κανονικός συντελεστής 17. Τηρουμένων των διατάξεων του άρθρου 18 και οποιωνδήποτε διαταγμάτων που εκδίδονται δυνάμει αυτού, Φ.Π.Α. επιβάλλεται με συντελεστή δεκαοκτώ τοις εκατόν (18%) για την περίοδο από 14 Ιανουαρίου 2013 μέχρι 12 Ιανουαρίου 2014 και με συντελεστή δεκαεννέα τοις εκατόν (19%) από 13 Ιανουαρίου 2014 και επιβάλλεται - (α) Επί της παράδοσης αγαθών ή παροχής υπηρεσιών, με αναφορά στην αξία της συναλλαγής όπως καθορίζεται δυνάμει του παρόντος Νόμου.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html — cylaw.org, LE portail primaire chypriote pour la législation consolidée (contrairement à mof.gov.cy/tax.mof.gov.cy, voir ce fichier's own notes de tête pour le mur rencontré sur ces deux domaines), texte consolidé du Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000), Article 17 (« Κανονικός συντελεστής » — taux normal), tel que modifié. Récupéré par curl direct (HTTP 200, encodage windows-1253 reconverti en UTF-8 par cette tâche — cylaw.org sert un XHTML très ancien, non couvert par un certificat TLS bloquant contrairement à mof.gov.cy) puis lu au texte brut, PAS via le résumé d'un outil de fetch tiers (un risque de fabrication a été positivement constaté et écarté pendant cette même tâche — voir country-policy/data/cy.json's own notes de tête sur un faux « article 12A/12B » halluciné par un premier essai, jamais retenu). Le taux de 19 % est en vigueur depuis le 13 janvier 2014 (le taux antérieur de 18 % ne s'appliquait que du 14 janvier 2013 au 12 janvier 2014) — ce catalogue ne modélise pas la temporalité (même choix que fr.json/be.json), seul le taux ACTUELLEMENT en vigueur est repris. CORROBORÉ par une requête FRAÎCHE de cette tâche (2026-09-04) à l'API publique du TEDB (Taxes in Europe Database, DG TAXUD) — POST https://ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch, member-state id 4 = isoCode \"CY\" — qui renvoie exactement { \"type\": \"STANDARD\", \"rates\": [ { \"value\": 19.0 } ] }, et RECOUPE tax/tax-systems/data/cy.json's own standardRate (déjà 19, legal, lu 2026-09-01 par une tâche antérieure via cette même API TEDB) : les trois lectures (loi primaire chypriote, TEDB frais, tax-systems déjà en base) concordent exactement, sans aucune contradiction."
+    },
+    {
+      "id": "cy-reduced-9",
+      "rate": 9,
+      "label": "Μειωμένος συντελεστής εννέα τοις εκατόν (9%)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Μειωμένος συντελεστής εννέα τοις εκατόν (9%) 18Α. - (1) Ο Φ.Π.Α. επιβάλλεται επί – (α) Οποιασδήποτε συναλλαγής που εκάστοτε εμπίπτει στο Δωδέκατο Παράρτημα· ή (β) οποιασδήποτε αντίστοιχης απόκτησης, με συντελεστή εννέα τοις εκατόν (9%).",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html, Article 18Α de la même loi consolidée (Ν.95(Ι)/2000), renvoyant au Δωδέκατο Παράρτημα (Douzième Annexe) pour la liste des opérations couvertes. CORROBORÉ par la même requête TEDB fraîche du 2026-09-04 : le type \"REDUCED\" chypriote comprend une ligne \"value\": 9.0, \"key\": \"Reduced rate\", catégorie \"Transport of passengers...\" / \"Accommodation provided in hotels...\" / \"Restaurant and catering services...\" (avec le commentaire TEDB \"Until 31/8/2022 was 5% - from 1/9/2022 is 9%\" pour l'hôtellerie/restauration — un changement de taux postérieur au texte de loi ici cité, qui ne fixe que le taux ACTUEL de 9 %, sans dater son entrée en vigueur précise dans le corps même de l'article 18Α consulté). Posé en catégorie REDUCED (le taux le plus élevé des trois taux chypriotes inférieurs au taux normal) — même convention de classement relatif que vat-rates/data/fr.json's own header (« la ranking, pas le libellé officiel exact ») : cy-reduced-5 et cy-reduced-3 ci-dessous, tous deux inférieurs à celui-ci, sont classés SUPER_REDUCED."
+    },
+    {
+      "id": "cy-reduced-5",
+      "rate": 5,
+      "label": "Μειωμένος συντελεστής (taux réduit, 5%)",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Μειωμένος συντελεστής 18.—(1) Ο Φ.Π.Α. που επιβάλλεται επί— (α) Οποιασδήποτε συναλλαγής που εκάστοτε εμπίπτει στο Πέμπτο Παράρτημα˙ ή (β) οποιασδήποτε αντίστοιχης απόκτησης ή εισαγωγής, επιβάλλεται με συντελεστή πέντε τοις εκατόν (5%).",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html, Article 18 (« Μειωμένος συντελεστής » — taux réduit) de la même loi, renvoyant au Πέμπτο Παράρτημα (Cinquième Annexe). CORROBORÉ par la requête TEDB fraîche du 2026-09-04 : le type \"REDUCED\" chypriote comprend plusieurs lignes \"value\": 5.0 (ex. « Foodstuffs... », « Pharmaceutical products... », « Supply of goods and services of a kind normally intended for use in agricultural production... »). Posé en SUPER_REDUCED (sous cy-reduced-9, le taux réduit le plus élevé des trois — voir sa propre note pour la convention de classement relatif), bien que ce soit — historiquement, avant l'introduction de l'article 18Α en 2005 (mention « 100(I)/2005 » dans le texte consolidé) — LE taux réduit \"de base\" de la loi chypriote ; ce catalogue ne classe que par RANG relatif aux autres taux du même pays, jamais par ancienneté du texte."
+    },
+    {
+      "id": "cy-reduced-3",
+      "rate": 3,
+      "label": "Μειωμένος συντελεστής τρία τοις εκατόν (3%) — βιβλία, εφημερίδες, περιοδικά",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Μειωμένος συντελεστής τρία τοις εκατόν (3%) 18Β.-(1) Ο Φ.Π.Α. επιβάλλεται επί- (α) οποιασδήποτε συναλλαγής που εκάστοτε εμπίπτει στο Δέκατο Πέμπτο Παράρτημα . ή (β) οποιασδήποτε αντίστοιχης απόκτησης ή εισαγωγής, με συντελεστή τρία τοις εκατόν (3%). [...] ΔΕΚΑΤΟ ΠΕΜΠΤΟ ΠΑΡΑΡΤΗΜΑ (Άρθρο 18Β) Πίνακας Α: Παραδόσεις Αγαθών 1. Παράδοση βιβλίων, εφημερίδων και περιοδικών που παρέχονται είτε σε υλικό υπόθεμα είτε ηλεκτρονικά είτε και στις δύο μορφές [...], εξαιρουμένων των δημοσιεύσεων που προορίζονται εξ ολοκλήρου ή κατά κύριο λόγο για διαφημιστικούς σκοπούς και των δημοσιεύσεων που συνίστανται εξ ολοκλήρου ή κατά κύριο λόγο σε περιεχόμενο βίντεο ή ακουστική μουσική.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html : l'Article 18Β lui-même (« [3%] ... transaction qui relève à tout moment de la Quinzième Annexe ») ET le texte de la Δέκατο Πέμπτο Παράρτημα (Quinzième Annexe, Table A, point 1 — « Livraison de livres, journaux et périodiques ») que cet article désigne — les « [...] » omettent le milieu du point 1 (détails sur brochures, cahiers de coloriage, partitions, cartes hydrographiques, non nécessaires au fait tranché ici) et le reste de la liste (points 2+). CORROBORÉ MOT POUR MOT par la requête TEDB fraîche du 2026-09-04 : le type \"REDUCED\" chypriote comprend trois lignes \"value\": 3.0, \"key\": \"Super-reduced rate\", catégories exactement « Books » / « Newspapers » / « Periodicals » — la même triade que le Πίνακας Α, point 1, ci-dessus. Posé en SUPER_REDUCED (le plus bas des trois taux réduits chypriotes) — TEDB lui-même nomme d'ailleurs ce taux \"Super-reduced rate\" (\"key\"), contrairement aux deux autres nommés \"Reduced rate\", confirmant indépendamment ce rang."
+    }
+  ],
+  "notes": "Chypre — lot 2 TODO_DOCUMENTS.md vague B, agent pays CY (2026-09-04). Les QUATRE taux (19/9/5/3) sont établis par LECTURE DIRECTE DU TEXTE PRIMAIRE — le Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000), consolidé, lu sur cylaw.org (Articles 17, 18, 18Α, 18Β) — CORROBORÉE, pour chacun des quatre, par une requête FRAÎCHE de cette tâche (2026-09-04) à l'API publique du TEDB (Taxes in Europe Database, DG TAXUD), qui recoupe exactement les quatre valeurs ET (pour le taux normal) tax/tax-systems/data/cy.json's own standardRate déjà en base (19, legal, 2026-09-01). AUCUNE contradiction relevée entre les trois sources. MUR RENCONTRÉ, documenté pour ne pas laisser croire à un oubli : les portails gouvernementaux chypriotes eux-mêmes (mof.gov.cy → redirige vers www.gov.cy/mof-tax, HTTP 403 ; tax.mof.gov.cy, ne résout même pas en DNS) n'ont PAS pu être atteints par cette tâche pour une corroboration officielle chypriote directe — cylaw.org (le texte de loi lui-même) et le TEDB (base officielle de la Commission européenne, déjà le choix du catalogue-tax-systems pour ce même pays) suffisent néanmoins à une provenance `legal` pleine et entière : cylaw.org EST le texte primaire, pas un simple repli. ZÉRO TAUX DÉLIBÉRÉMENT NON MODÉLISÉ ICI (contrairement à vat-rates/data/be.json's own be-zero-press) : la Loi connaît bien un « μηδενικός συντελεστής » (taux zéro, Article 25, renvoyant à la Έκτο Παράρτημα / Sixième Annexe — exportations, transport international, etc.), mais AUCUNE des quatre lignes \"value\": 0.0 renvoyées par TEDB pour Chypre en type REDUCED n'y est qualifiée \"with deduction right\" (elles portent toutes \"key\": \"Exempted\" ou \"Not applicable\" — de VRAIES exonérations sans droit à déduction, l'inverse du vrai taux zéro que be.json's own be-zero-press avait pu isoler grâce à cette mention explicite chez TEDB) : sans corroboration TEDB d'un vrai taux zéro avec droit à déduction pour un poste précis, et sans lecture de la Sixième Annexe elle-même (non atteinte par cette tâche), ce catalogue ne modélise PAS de taux ZERO chypriote — à revoir si une lecture dédiée de la Sixième Annexe isolait une ligne comparable à celle des journaux belges. Ce catalogue ne modélise pas la temporalité (même choix que fr.json/be.json's own header) : le passage du taux hôtellerie/restauration de 5 % à 9 % au 1er septembre 2022 (cité par TEDB pour cy-reduced-9) n'est pas repris comme un champ structuré."
+}

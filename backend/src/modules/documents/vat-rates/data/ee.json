@@ -1,0 +1,54 @@
+{
+  "countryCode": "EE",
+  "rates": [
+    {
+      "id": "ee-standard",
+      "rate": 24,
+      "label": "Standardmäär",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The rate of value added tax is 24 per cent of the taxable value, except in the cases provided in subsections 1¹–4 of this section. [RT I, 02.01.2025, 2 - entry into force 01.07.2025]",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "ARBITRAGE MANDATAIRE (validation lot 2, 2026-09-04) : fausse divergence — le champ situationOn du fragment TEDB est la DATE D’OBSERVATION de la requête (« le taux en vigueur au 2026/07/01 »), pas une date d’entrée en vigueur ; il est donc parfaitement compatible avec l’entrée en vigueur au 01.07.2025 lue au §15(1). Aucune correction à porter sur tax-systems/data/ee.json (fragment TEDB verbatim, fidèle). Käibemaksuseadus (Value-Added Tax Act), § 15(1) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur riigiteataja.ee (voir la note de fichier ci-dessous pour la méthode d'accès exacte). L'amendement cité entre crochets EST le texte de loi lui-même (convention de rédaction estonienne : chaque alinéa affiche l'instrument RT qui l'a introduit) : « RT I, 02.01.2025, 2 » = promulgué le 02.01.2025, entrée en vigueur le 01.07.2025 — CONFIRME de façon PRIMAIRE et DÉFINITIVE la date du 1er juillet 2025 (déjà corroborée par le Maksu- ja Tolliamet, MTA, et par Wikipédia — voir la note de fichier). RÉSOUT la divergence face à tax/tax-systems/data/ee.json (déjà dans ce dépôt, agent P2-T02) : ce fichier porte, dans son propre JSON TEDB, `\"situationOn\" : \"2026/07/01\"` (1er juillet 2026) — le texte de loi lui-même, à sa source primaire, dit sans ambiguïté 01.07.2025. La TEDB (Taxes in Europe Database, Commission européenne) porte donc, sur ce point précis, une erreur d'un an — signalé explicitement au mandataire pour correction de tax-systems/data/ee.json (hors périmètre strict de cet agent pays, qui n'écrit que dans vat-rates/)."
+    },
+    {
+      "id": "ee-reduced-13",
+      "rate": 13,
+      "label": "Vähendatud maksumäär (majutus)",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The rate of value added tax is 13 per cent of the taxable value of accommodation or accommodation with breakfast, except for goods or service accompanying this service. [RT I, 01.07.2023, 2 - entry into force 01.01.2025]",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Käibemaksuseadus § 15(1¹) — TEXTE PRIMAIRE, riigiteataja.ee, lu le 2026-09-04 (même méthode d'accès que ee-standard). Alinéa introduit par l'amendement RT I, 01.07.2023 (promulgué), entrée en vigueur le 01.01.2025 — AVANT cette date, l'hébergement relevait du taux à 9% (confirmé par le MTA, emta.ee/.../supply-taxable-13-vat-rate, lu le 2026-09-04 : « As of 1 January 2025, accommodation or accommodation with breakfast is subject to 13% VAT rate instead of the previous 9% »). Catégorie REDUCED (et non SUPER_REDUCED) par construction du présent catalogue : c'est le taux le PLUS ÉLEVÉ des deux taux réduits estoniens (13% et 9%), même convention que vat-rates/data/at.json (13% REDUCED, 10% SUPER_REDUCED) — voir schema.ts's own header sur ce classement relatif. Portée : UNIQUEMENT l'hébergement lui-même, à l'exclusion des biens/services l'accompagnant (mots exacts de la loi : « except for goods or service accompanying this service ») — ce catalogue ne modélise que le TAUX, pas la liste précise des exclusions, ni la disposition transitoire de comptabilité de caisse (§ 46(26) de la même loi, permettant à titre transitoire 9% jusqu'au 31.12.2026 pour certains redevables, non modélisée ici)."
+    },
+    {
+      "id": "ee-reduced-9",
+      "rate": 9,
+      "label": "Vähendatud maksumäär",
+      "category": "SUPER_REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The rate of value added tax on the following goods and services shall be 9 per cent of the taxable value: 1) books and educational literature, both on a physical medium and electronically, excluding learning materials specified in clause 6 of subsection 1 of § 16 of this Act; 2) medicinal products, contraceptive preparations, sanitary and toiletry products and medical devices intended for the personal use of disabled persons for the purposes of the Medical Devices Act and technical aid for the purposes of the Social Welfare Act which are specified in the list established by a regulation of the minister in charge of the policy sector and the grant of use of such medical devices to disabled persons; [...] 5) a press publication, both on a physical medium and electronic, with the exception of a publication that mainly publishes advertising or private advertisements or that mainly has erotic or pornographic content or video or music content.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Käibemaksuseadus § 15(2) — TEXTE PRIMAIRE, riigiteataja.ee, lu le 2026-09-04. CORRECTIF DE MÉTHODE FAIT PENDANT CETTE TÂCHE, à documenter honnêtement : une première passe de recherche, fondée UNIQUEMENT sur le résumé d'un outil de fetch appliqué à la page du Maksu- ja Tolliamet (MTA, emta.ee), avait cru lire une citation explicite « According to subsection 2 of § 15 of the VAT Act » associée à l'ouverture de cette liste — LA RELECTURE DU HTML BRUT de cette même page MTA (curl direct, sans résumé) NE CONTENAIT PAS cette phrase : l'alinéa n'y était donc PAS confirmé par la page MTA elle-même. C'est la lecture ULTÉRIEURE du TEXTE PRIMAIRE DE LOI directement (riigiteataja.ee, voir note de fichier) qui confirme, cette fois sans aucun doute, que § 15(2) est bien le bon alinéa. Points 3, 4 et 21 de cet alinéa ont été abrogés (Repealed) par des amendements successifs (2022, 2023) et ne sont donc plus listés dans `sourceText` — non transcrits ici, seuls les trois points encore en vigueur (1, 2, 5) le sont. Catégorie SUPER_REDUCED (et non REDUCED) : c'est le PLUS BAS des deux taux réduits estoniens, sous le taux de 13% ci-dessus."
+    },
+    {
+      "id": "ee-zero",
+      "rate": 0,
+      "label": "Null-määr",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "The rate of value added tax on the following goods shall be 0 per cent of the taxable value: 1) exported goods, excluding cases where the supply of such goods is exempt from tax pursuant to § 16 of this Act;",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Käibemaksuseadus § 15(3) — TEXTE PRIMAIRE, riigiteataja.ee, lu le 2026-09-04. C'est un VRAI taux zéro AVEC droit à déduction de la TVA amont (comme le nultarief néerlandais, vat-rates/data/nl.json's own ee-zero — jamais une exonération sans droit à déduction), couvrant une liste FERMÉE et longue au-delà du seul point 1 cité verbatim ci-dessus : livraisons intracommunautaires (2), navires et aéronefs internationaux et leur avitaillement (3, 4), envois diplomatiques/consulaires/organisations internationales reconnues (5, 5¹, 5²), biens pour les forces armées de l'OTAN/UE participant à un effort de défense commun (6, 6¹), marchandises sous régime douanier suspensif — entrepôt douanier, zone franche, admission temporaire (8), et une liste symétrique de services au 0% dans un article séparé (non recherché par cette tâche). Ce catalogue ne modélise que le TAUX, pas la liste exhaustive de ces catégories — même limite de périmètre que ce schema.ts's own header documente déjà pour la France."
+    }
+  ],
+  "notes": "Estonie — agent pays EE, lot 2 (TODO_DOCUMENTS.md, vague B, 2026-09-04). Quatre taux, tous 'legal', SOURCÉS AU TEXTE PRIMAIRE DE LOI lui-même (Käibemaksuseadus, § 15, ses quatre alinéas 1/1¹/2/3) : 24% (standard, depuis le 1er juillet 2025), 13% (réduit, hébergement, depuis le 1er janvier 2025 — 9% avant cette date), 9% (réduit, livres/littérature éducative, produits médicaux pour personnes handicapées, presse), 0% (zéro véritable avec droit à déduction, exportations/livraisons intracommunautaires/etc.). MÉTHODE D'ACCÈS AU TEXTE PRIMAIRE (à documenter précisément, car non triviale) : riigiteataja.ee sert son texte légal via une application cliente (Angular) qui ne rend RIEN sans exécution JavaScript — un accès direct (curl, ou l'outil de fetch de cette tâche, ou un lecteur tiers exécutant le JavaScript comme r.jina.ai) ne renvoie que le squelette HTML vide (« Laeb... » / « Loading... »), MÊME famille de blocage que efacture.belgium.be (BE) et RIS/ris.bka.gv.at (AT) documentée par ce lot pour ces deux pays. CE BLOCAGE A ÉTÉ CONTOURNÉ cette session : le bundle JavaScript de l'application (`main.*.js`, ~3,6 Mo, téléchargé par curl direct) a été inspecté (grep) pour y trouver les appels HTTP qu'il émet lui-même, révélant une API PUBLIQUE non documentée : `GET /public-api/api/v1/en/akt/{id}` (métadonnées : validité, statut, groupe de versions) et `GET /public-api/api/v1/en/akt/{id}/blob-html` (texte intégral HTML de la version demandée) — les DEUX interrogées en direct par curl, sans aucun outil de fetch ni résumé intermédiaire, conformément à la discipline imposée après la découverte, sur l'agent Chypre en parallèle, qu'un outil de fetch-résumé avait fabriqué un article de loi inexistant. L'identifiant `id` exact de la version anglaise consolidée actuelle (512062025002 — validité au sens des métadonnées de l'API : du 01.07.2025 au 30.12.2025, publiée le 11.07.2025, `grupiId` 100093) a été trouvé en repérant les liens que le MTA (emta.ee) fait lui-même vers riigiteataja.ee depuis ses propres pages doctrinales (elles diffèrent d'une page à l'autre selon la date de rédaction de la page MTA — 511072022006, 531082022001 et 512062025002 ont ainsi été vus, le plus récent étant retenu). LIMITE HONNÊTE NON LEVÉE : cette session n'a pas confirmé s'il existe une consolidation anglaise ENCORE PLUS RÉCENTE couvrant la période à partir du 01.01.2026 (les métadonnées de la version retenue s'arrêtent au 30.12.2025) — le texte de § 15 lui-même ne porte cependant AUCUN amendement daté après le 01.07.2025 (la loi affiche par construction chaque alinéa avec la date de son dernier amendement), ce qui rend hautement probable que son contenu SUBSTANTIEL soit inchangé dans une consolidation plus récente, mais ceci reste une INFÉRENCE, pas une vérification directe d'une version ultérieure. Corroboration systématique, à chaque taux, par le Maksu- ja Tolliamet (MTA, Estonian Tax and Customs Board, emta.ee/en) — l'autorité fiscale officielle de l'État, lue en HTML BRUT (curl direct, jamais le résumé d'un outil de fetch, pour la même raison de discipline) : elle corrobore chaque taux et chaque date sans aucun écart trouvé, à UNE exception mineure et corrigée (voir ee-reduced-9's own note)."
+}

@@ -53,7 +53,10 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | BE | ✓ | ✓ | ✓ (4/11 legal) | ✓ | ✓ (4 taux legal) | Lot 1 ✅ |
 | NL | ✓ | — (NLCIUS : MIT, vendorable — DÉCISION ci-dessous) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
 | AT | ✓ | — (ebInterface sans LICENSE, CIUS introuvable) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
-| CY EE GR LT LU LV MT SE | — | ✓ | — | — | — | lots suivants |
+| EE | ✓ | ✓ | ✓ (3/11 legal — texte PRIMAIRE via l'API riigiteataja) | ✓ | ✓ (4 taux legal) | Lot 2 ✅ |
+| GR | ✓ | ✓ | ✓ (2/11 legal — forin.gr JSON brut) | ✓ | ✓ (3 taux legal) | Lot 2 ✅ |
+| CY | ✓ | ✓ | ✓ (1/11 legal — cylaw texte brut) | ✓ | ✓ (4 taux legal) | Lot 2 ✅ |
+| LT LU LV MT SE | — | ✓ | — | — | — | lots suivants |
 | BG CZ DK FI HR IE PT RO SI SK | — | — | — | — | — | lots suivants |
 | AE + autres tax-only | — | — | — | — | — | à trier |
 
@@ -79,6 +82,18 @@ textes (art. 35a lid 1.b + doctrine), pas de clause frontale ; KOR (art. 25) non
 patterns UID/Firmenbuchnummer non confirmés au texte primaire ; taux Jungholz/Mittelberg et
 Kleinunternehmerregelung non modélisés (délibéré) ; ebInterface : AUCUNE LICENSE au dépôt
 AUSTRIAPRO, CIUS AT introuvable en téléchargement — b2g reste correctement non livré.
+**Lot 2 (2026-09-04)** — EE : Äriregistri seadus non localisée (trancherait le
+registrikood-sur-facture) ; fausse divergence TEDB levée en validation (situationOn = date
+d'observation, note corrigée). GR : ΓΕΜΗ derrière le paywall forin (Ν.4919/2022 art. 16/22),
+9/11 voies unverified (le mur aade.gr), et le « art. 15A » cité par reporting/gr.json N'EXISTE
+PAS dans le texte consolidé (la TOC saute de 15 à 16) — à savoir pour le chantier myDATA.
+CY : les Κανονισμοί ΦΠΑ (règlements d'application) introuvables depuis cylaw — portent le
+détail opérationnel (mentions, formats) ; Companies Law Cap. 113 non ouvert ; portails fiscaux
+en 403/DNS-mort. TRANSVERSE MAJEUR : le fetch-résumé a FABRIQUÉ des articles (CY « 12A/12B »)
+et omis des mots — règle « texte brut obligatoire » désormais en mémoire et dans tous les
+briefs ; trouvailles méthode : l'API publique non documentée de riigiteataja
+(/public-api/api/v1/en/akt/{id}/blob-html) et la route JSON de forin.gr, réutilisables pour
+les futurs lots EE/GR.
 **Transverse** : la convention de specs diverge (BE dans les all.spec.ts partagés, NL/AT en
 fichiers <cc>.spec.ts séparés) — les deux tiennent, réconciliation cosmétique un jour ;
 WebSearch épuisé pour le lot (200/200), tout en WebFetch pur.

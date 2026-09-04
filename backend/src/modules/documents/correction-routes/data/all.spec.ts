@@ -36,9 +36,9 @@ describe('correction-routes/data/all.ts', () => {
     expect(ALL_CORRECTION_ROUTES_FILES.length).toBeGreaterThan(0);
   });
 
-  it('ships the seven YAML pivots PLUS the lot-1 direct readings (BE/NL/AT — TODO_DOCUMENTS vague B, first readings OUTSIDE docs/compliance/CORRECTION-ROUTES.yaml, each file saying so itself)', () => {
+  it('ships the seven YAML pivots PLUS the lot-1/lot-2 direct readings (BE/NL/AT/EE/GR/CY — TODO_DOCUMENTS vague B, first readings OUTSIDE docs/compliance/CORRECTION-ROUTES.yaml, each file saying so itself)', () => {
     const countries = ALL_CORRECTION_ROUTES_FILES.map((f) => f.countryCode).sort();
-    expect(countries).toEqual(['AT', 'BE', 'DE', 'ES', 'FR', 'IT', 'MX', 'NL', 'PL', 'US']);
+    expect(countries).toEqual(['AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FR', 'GR', 'IT', 'MX', 'NL', 'PL', 'US']);
   });
 
   it('every shipped route carries either legal or unverified provenance, never anything else', () => {

@@ -1,0 +1,214 @@
+{
+  "countryCode": "GR",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/pl.json/be.json/nl.json/at.json pour cette même action : aucun texte grec identifié qui encadrerait spécifiquement cet acte. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-03"
+      },
+      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — RÉUTILISE la citation déjà lue en direct par country-policy/data/pl.json (2026-09-03) et de.json/it.json/es.json/nl.json (2026-09-04)'s own quote.send : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour la Grèce. NON RE-VÉRIFIÉE par cette tâche : une tentative de lecture directe d'eur-lex.europa.eu (CELEX:32014R0910) le 2026-09-04 a échoué — HTTP 202 avec un corps VIDE (0 octet), exactement le même échec déjà documenté par country-policy/data/be.json's own note pour sa propre tentative du même jour sur la même URL. Le fait cité est par nature invariant par pays (un règlement UE, d'applicabilité directe) : la citation déjà vérifiée par d'autres pays de ce lot reste donc valide ici. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit comptable/fiscal grec) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte grec identifié n'impose ni n'interdit ce mécanisme précis (la seule contrainte légale porte sur la facture qui en résulte, voir invoice.save-draft/invoice.send ci-dessous). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte grec identifié n'encadre ce mécanisme précis. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte grec identifié ne l'encadre. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document comptable au sens de la Ν.4308/2014. Aucun texte grec identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "3. Κάθε έγγραφο ή μήνυμα που τροποποιεί και αναφέρεται ειδικά και αναμφισβήτητα σε ένα αρχικό τιμολόγιο, θεωρείται τιμολόγιο. — corroboré par l'art. 9 § 1 περ. β') du même chapitre : « Τον αύξοντα αριθμό για μία ή περισσότερες σειρές τιμολογίων, ο οποίος χαρακτηρίζει το τιμολόγιο με μοναδικό τρόπο. »",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Ν. 4308/2014 (Ελληνικά Λογιστικά Πρότυπα, ΦΕΚ Α' 251/24-11-2014), άρθρο 8 § 3, LU DIRECTEMENT le 2026-09-04 — pas depuis aade.gr (403 systématique cette session, comme documenté par reporting/data/gr.json's own note et par b2g-routing/data/gr.json), ni depuis e-nomothesia.gr (ECONNREFUSED, site injoignable cette session) ni depuis forin.gr en lecture web normale (Taxheaven.gr a confirmé le TITRE de l'article huit — « Άρθρο 8. Τιμολόγιο πώλησης » — mais réserve son propre texte aux abonnés) : le texte VERBATIM a été obtenu en interrogeant DIRECTEMENT l'endpoint JSON public que le lecteur de lois de forin.gr lui-même appelle en JavaScript (POST https://www.forin.gr/laws/paragraphs, {anumber:8, i_law:3267} — 3267 étant l'identifiant interne que forin.gr attribue à ce texte, confirmé par son propre `$.laws.init(3267)` embarqué dans la page ; le HTML de la page elle-même ne contient QUE des <div> vides marqués `style=\"display: none\"`, remplis par cet appel côté client — ce N'EST PAS un contournement d'un paywall, c'est le MÊME contenu, public, servi par la MÊME route que tout visiteur de forin.gr charge). Le champ `\"law_open\":\"1\"` renvoyé par cette route confirme que ce texte particulier n'est PAS un contenu réservé aux abonnés (à la différence de Ν.4174/2013 et Ν.4919/2022, cités par country-identifiers/data/gr.json, qui ont renvoyé « Το περιεχόμενο του νόμου αυτού είναι διαθέσιμο μόνο στους συνδρομητές » — un mur DIFFÉRENT, un paywall plutôt qu'un blocage réseau). CE QUE CETTE CITATION TRANCHE, à la manière FR/BE et NON à la manière NL : l'art. 8 § 3 grec est une clause GÉNÉRALE et DIRECTE d'assimilation d'un document modificatif à une facture — quasiment mot pour mot le même mécanisme que CGI art. 289, I, 5° français (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») et que la citation belge (« Tout document qui modifie la facture [...] et qui y fait référence spécifiquement et sans ambiguïté [...] »), PLUS DIRECTE que ce que nl.json a pu établir pour son propre droit (une COMPOSITION, faute de clause générale équivalente). La conséquence pratique pour CE produit est la même que pour FR/BE/PL : une correction d'une facture déjà émise emprunte un DOCUMENT DISTINCT qui RÉFÉRENCE l'original (voir credit-note.send ci-dessous et correction-routes/data/gr.json's own CORRECTIVE_INVOICE/CREDIT_NOTE, sourcées à la MÊME disposition et à l'art. 8 § 6), jamais une réédition silencieuse — d'où `statuses: [\"draft\"]`, qui bloque `save-draft` une fois la facture 'sent'. L'art. 9 § 1 περ. β') (numérotation séquentielle unique, lu dans le MÊME appel JSON que ci-dessus) est cité en renfort, même rôle que le fait équivalent néerlandais (Wet OB art. 35a) joue pour nl.json's own invoice.save-draft."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "1. Το τιμολόγιο μπορεί να εκδίδεται σε ηλεκτρονική ή σε έντυπη μορφή. [...] 3. Η χρήση ηλεκτρονικού τιμολογίου για τις συναλλαγές των περ. α) και γ) της παρ. 1, γίνεται υποχρεωτικά αποδεκτή από τον λήπτη των αγαθών ή υπηρεσιών, που υπόκειται σε τιμολόγηση [...] Για τις λοιπές συναλλαγές, η χρήση ηλεκτρονικού τιμολογίου υπόκειται στην αποδοχή του, με έντυπο ή ηλεκτρονικό τρόπο, εκ μέρους του λήπτη των αγαθών ή υπηρεσιών που υπόκεινται σε τιμολόγηση.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Ν. 4308/2014, άρθρο 14 § 1 et § 3 — LU DIRECTEMENT le 2026-09-04, MÊME route JSON publique que invoice.save-draft ci-dessus (POST /laws/paragraphs, anumber=14, i_law=3267). CE QUE CETTE CITATION TRANCHE, et c'est une DIVERGENCE RÉELLE avec FR/DE/NL/AT/BE (tous cités ailleurs dans ce dépôt comme conditionnant la facture électronique à l'ACCEPTATION du destinataire) : pour les transactions DOMESTIQUES B2B (περ. α, « εντός της χώρας, προς οντότητα που υπόκειται στις ρυθμίσεις του παρόντος νόμου ») et les MARCHÉS PUBLICS (περ. γ), la Grèce ne laisse PAS le choix au destinataire — l'usage de la facture électronique lui est « υποχρεωτικά αποδεκτή » (obligatoirement acceptée), littéralement rendue INOPPOSABLE en tant que motif de refus. Ce n'est que « pour les AUTRES transactions » (essentiellement les exportations hors UE hors vente à distance, περ. β) que l'acceptation du destinataire reste requise — le régime inverse de celui documenté pour la plupart des autres pays de ce dépôt. COHÉRENCE VÉRIFIÉE avec b2g-routing/data/gr.json (déjà livré, lot 1) : cette clause γ) « marchés publics » recoupe exactement l'obligation B2G que ce fichier documente déjà (Peppol BIS, Joint Ministerial Decision 52445 EX 2023, généralisée depuis le 2025-09-01) — les deux fichiers, écrits par deux agents à deux moments différents, convergent sur le même socle légal sans se contredire. NUANCE NON MODÉLISÉE ICI, à connaître (même caveat que pour les autres pays) : cette règle ne vérifie pas elle-même laquelle des trois catégories (α/β/γ) s'applique à une transaction donnée — elle autorise seulement l'ACTE d'envoi dans l'outil. Le format et le canal réels de cette facture électronique (Υ.ΠΑ.Η.Ε.Σ. — Πάροχοι Ηλεκτρονικής Τιμολόγησης, cités à l'art. 14 § 7 et à l'art. 15 § 3 περ. γ) — et l'application myDATA de l'ΑΑΔΕ, art. 15 § 3 περ. ε) et § 4) restent hors du périmètre de cette règle document-action ; voir reporting/data/gr.json (unverified, mur aade.gr documenté) et b2g-routing/data/gr.json (Peppol, sourcé) pour ces deux volets."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte grec identifié n'encadre l'acte de duplication lui-même. La question comptable/fiscale (Ν.4308/2014) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte grec spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts. Non recherché : un éventuel effet sur le calcul de la TVA due (art. 39 § 1 de la Ν.2859/2000 conditionne certains régimes au chiffre d'affaires réalisé, non au paiement effectif — sujet distinct)."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une norme technique européenne — ce n'est pas en soi, ISOLÉMENT, une preuve qu'un export EN 16931 téléchargé DEPUIS CET OUTIL serait légalement requis pour une facture grecque ordinaire. Nuance IMPORTANTE trouvée et documentée honnêtement : l'art. 14 § 5 περ. β') de la Ν.4308/2014 (lu le 2026-09-04, même route que ci-dessus) dispose que « Το πρότυπο έκδοσης ηλεκτρονικού τιμολογίου χρησιμοποιείται σε όλες τις συναλλαγές των οντοτήτων, με την εξαίρεση των δημοσίων συμβάσεων » (le modèle d'émission de facture électronique — fondé sur le standard européen visé à l'art. 149 de la ν. 4601/2019, donc l'EN 16931 — s'applique à TOUTES les transactions des entités, à l'exception des marchés publics qui suivent leur propre régime) : ceci est plus large qu'un cadre B2G, et suggérerait un mandat structurel bien plus étendu que ce que FR/DE/NL/AT/BE documentent pour l'EN 16931 chez eux. CE FAIT N'EST TOUTEFOIS PAS PROMU 'legal' ICI, par prudence : l'art. 14 § 5 περ. α') lui-même subordonne la mise en musique de cette disposition à une « απόφαση του Υπουργού [...] μετά από εισήγηση του Διοικητή της Α.Α.Δ.Ε. » (une décision ministérielle sur proposition du gouverneur de l'ΑΑΔΕ) — c'est une loi-CADRE habilitante, pas une règle d'application immédiate et auto-suffisante ; savoir SI et DEPUIS QUAND cette décision ministérielle est effectivement en vigueur pour l'ensemble des transactions domestiques (au-delà du B2G déjà confirmé par b2g-routing/data/gr.json) exigerait de lire cette décision elle-même (vraisemblablement publiée sur aade.gr — 403 systématique cette session, voir reporting/data/gr.json's own note) ou le ΦΕΚ qui la publie. Cette règle continue donc, par prudence, d'autoriser le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est aujourd'hui légalement OBLIGATOIRE sous cette forme précise pour toute facture domestique — mais avec un niveau de doute sensiblement PLUS ÉLEVÉ que pour NL/AT/BE, qui n'ont trouvé aucune trace d'un mandat aussi large."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte grec spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte grec identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal grec du « πιστωτικό τιμολόγιο » (voir credit-note.send ci-dessous) concerne la DÉFINITION et l'effet comptable du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/pl.json/nl.json/be.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Faire passer un avoir de 'draft' à 'sent' dans cet outil est un mécanisme produit interne (aucune transmission, aucun email n'est déclenché par cette action) — même distinction méthodique que nl.json/be.json appliquent déjà à leur propre credit-note.send. Le TERME administratif grec, lui, EST sourcé 'legal' : Ν. 4308/2014, άρθρο 8 § 6 (« 6. Πιστωτικό τιμολόγιο είναι το τιμολόγιο που εκδίδεται για κάθε περίπτωση εκπτώσεων, επιστροφών ή άλλων διαφορών. » — traduction littérale : « Facture de crédit est la facture émise pour chaque cas de remises, retours ou autres différences. »), LU DIRECTEMENT le 2026-09-04, même route JSON publique que invoice.save-draft ci-dessus. Le terme administratif grec est donc « πιστωτικό τιμολόγιο » (littéralement « facture créditrice »), un INSTRUMENT NOMMÉ par la loi elle-même — à la différence des Pays-Bas (nl.json's own finding : aucune clause générale d'assimilation, seul un droit à restitution de TVA sans mandat de forme) et plus proche de la Belgique (be.json's own « notes de crédit » explicitement nommées). Ce fondement légal de fond (la définition légale du πιστωτικό τιμολόγιο elle-même, voir aussi correction-routes/data/gr.json's own CREDIT_NOTE, sourcée 'legal'/'allowed' à la MÊME disposition) est réel et cité verbatim ci-dessus, mais ne tranche PAS ce mécanisme produit précis (le changement de statut dans l'outil) — d'où le maintien en 'unverified' à CE niveau précis malgré une citation légale bien réelle rattachée au fait de fond."
+      },
+      "notes": "Voir correction-routes/data/gr.json's own CREDIT_NOTE pour la qualification légale complète (routeId CREDIT_NOTE, status 'allowed', provenance 'legal') du πιστωτικό τιμολόγιο lui-même — cette règle-ci ne porte, comme toutes les règles country-policy de ce dépôt, que sur l'ACTION PRODUIT (le bouton 'send' de cet outil), jamais sur le régime légal du document en tant que tel."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte grec identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables grecques (Ν.4308/2014, art. 3 à 7 sur le système comptable et les archives — non approfondi par cette tâche, hors périmètre 'immutabilité/send/avoir' demandé) portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte grec identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul, même mécanique produit que invoice.save-draft ci-dessus, sans base légale grecque propre identifiée pour CE mécanisme précis. La Grèce connaît un régime de déclaration continue (myDATA) qui pourrait, une fois documenté, toucher la réception de factures — mais reporting/data/gr.json documente déjà ce sujet comme 'unverified' (mur aade.gr, 403 systématique) : cette règle-ci ne le redouble pas, elle reste elle-même non tranchée pour la même raison de fond."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte grec identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte grec identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte grec identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Grèce — agent pays GR, lot 2 (TODO_DOCUMENTS.md, vague B, 2026-09-04). AVERTISSEMENT DOCUMENTÉ CONFIRMÉ : aade.gr a renvoyé 403 Forbidden pour CHAQUE tentative cette session (page myDATA, homepage — via curl ET via l'outil de fetch, avec et sans User-Agent de navigateur), exactement comme déjà documenté par reporting/data/gr.json et b2g-routing/data/gr.json. e-nomothesia.gr a été ENTIÈREMENT INJOIGNABLE (ECONNREFUSED, pas même un 403) — un mur DIFFÉRENT du 403, potentiellement un site hors service plutôt qu'un blocage délibéré. forin.gr, en revanche, s'est révélé être un REPLI RÉELLEMENT EFFICACE pour LA LOI COMPTABLE ELLE-MÊME (Ν.4308/2014) et LE CODE TVA (Ν.2859/2000, voir vat-rates/data/gr.json) : ces deux textes sont marqués `\"law_open\":\"1\"` par le lecteur de lois de forin.gr et ont pu être lus VERBATIM, article par article, en interrogeant directement la route JSON publique que ce lecteur appelle lui-même en JavaScript (POST /laws/paragraphs) — PAS un contournement, le même contenu public que sert la page elle-même une fois son script exécuté. D'AUTRES textes (Ν.4174/2013 — Κώδικας Φορολογικής Διαδικασίας ; Ν.4919/2022 — loi ΓΕΜΗ, voir country-identifiers/data/gr.json) se sont révélés RÉSERVÉS AUX ABONNÉS sur ce même site (« Forin.gr Analysis ») — un mur DIFFÉRENT (paywall, pas blocage réseau), documenté séparément là où il s'applique. LE LOURD LÉGAL de ce fichier repose sur DEUX articles de la Ν.4308/2014 (Ελληνικά Λογιστικά Πρότυπα, ΦΕΚ Α' 251/24-11-2014) lus en direct le 2026-09-04 : art. 8 (Τιμολόγιο πώλησης — §3 assimilation d'un document modificatif à une facture, §6 définition du πιστωτικό τιμολόγιο) et art. 14 (Ηλεκτρονικό τιμολόγιο — §1 forme électronique ou papier, §3 acceptation OBLIGATOIRE par le destinataire en B2B domestique et marchés publics, à l'INVERSE du régime à consentement documenté pour FR/DE/NL/AT/BE). Art. 9 § 1 (numérotation unique, ΑΦΜ obligatoire) et art. 15 (authenticité/intégrité) ont également été lus en renfort, cités où pertinent. Sur les 22 règles, 3 sont 'legal' au niveau du fait de fond (quote.send — réutilisée, invoice.save-draft, invoice.send), plus une citation 'legal' réelle mais NON promue au niveau de la règle credit-note.send (voir sa note propre) — les 19 restantes sont honnêtement 'unverified' avec resolutionNote propre à chacune. AUCUNE contradiction relevée avec b2g-routing/data/gr.json (Peppol BIS, obligation B2G ≥ 2 500 € depuis 2025-09-01, lu 2026-09-02) ni avec reporting/data/gr.json (myDATA, 'unverified', mur aade.gr, lu 2026-09-02) : les trois fichiers documentent des angles disjoints du MÊME socle légal (Ν.4308/2014) sans se contredire — voir en particulier invoice.send ci-dessus, dont la clause B2G (art. 14 § 1 περ. γ) recoupe exactement ce que b2g-routing/data/gr.json établit indépendamment. CONSTAT ANNEXE (hors périmètre de ce fichier, signalé pour la cohérence inter-fichiers) : reporting/data/gr.json's own note cite « Loi 4308/2014 art. 15A » comme la disposition généralement citée par la doctrine tierce pour myDATA — cette tâche N'A PAS TROUVÉ d'article « 15Α » dans le texte consolidé actuel de la Ν.4308/2014 tel que servi par forin.gr (la table des matières va directement de l'art. 15 à l'art. 16) ; ceci ne contredit ni ne confirme le fait 'unverified' de reporting/data/gr.json (qui reste correctement non tranché), mais mérite d'être noté pour un futur agent myDATA."
+}

@@ -1,0 +1,106 @@
+{
+  "countryCode": "CY",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Le Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000), lu intégralement (texte brut, cylaw.org, 2026-09-04), NE NOMME JAMAIS un instrument équivalent à « πιστωτικό σημείωμα » (note de crédit) — recherche explicite faite sur l'intégralité du texte consolidé, sans un seul résultat (le seul usage de « πιστωτικ- » trouvé concerne « πιστωτικό ίδρυμα », établissement de crédit, et « πιστωτικό υπόλοιπο Φ.Π.Α. », le solde créditeur de TVA — deux faux-amis sans rapport avec une note de crédit). Ce que la loi reconnaît, en revanche (voir CORRECTIVE_INVOICE ci-dessous), c'est la catégorie générique « document qui se réfère à la facture TVA et est destiné à la modifier » (Δέκατο Παράρτημα, άρθρο 43, παράγραφος 2(2)(β)) — sans jamais dire si CETTE forme précise (une note de crédit nommée, au sens où la France ou la Belgique la connaissent) est celle attendue en pratique à Chypre, ou si les Κανονισμοί (Règlements d'application de l'article 43, non atteints par cette tâche — voir ce fichier's own notes de tête) en imposent une autre. Ce qui trancherait : les Κανονισμοί ΦΠΑ eux-mêmes (probablement Οι περί Φόρου Προστιθέμενης Αξίας (Γενικοί) Κανονισμοί), non localisés sur cylaw.org (aucun lien croisé trouvé depuis la page de la Loi) et non atteints par les outils disponibles pour cette tâche."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04 (docs/compliance/CORRECTION-ROUTES.yaml ne couvre que FR/IT/PL/DE/ES/MX/US)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même recherche, même résultat négatif que CREDIT_NOTE ci-dessus : aucune occurrence de « χρεωστικό σημείωμα » (note de débit) dans l'intégralité du texte consolidé de la Loi TVA chypriote lu par cette tâche. Rien n'exclut ni ne confirme l'existence, à Chypre, d'un instrument distinct pour AUGMENTER (plutôt que diminuer) le montant d'une facture déjà émise — la catégorie générique du Δέκατο Παράρτημα, παράγραφος 2(2)(β) (« document qui se réfère à la facture et la modifie ») couvrirait structurellement aussi bien une hausse qu'une baisse, mais ce texte ne nomme ni ne détaille cette distinction. Ce qui trancherait : les mêmes Κανονισμοί ΦΠΑ que CREDIT_NOTE, non atteints."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Τα στοιχεία για τα οποία εφαρμόζεται η παρούσα παράγραφος είναι - (α) οποιοδήποτε τιμολόγιο Φ.Π.Α.· (β) οποιοδήποτε έγγραφο το οποίο αναφέρεται στο τιμολόγιο Φ.Π.Α. και προορίζεται να το τροποποιήσει· (γ) οποιοδήποτε τιμολόγιο αναφέρεται σε κανονισμούς που γίνονται για τους σκοπούς του άρθρου 9(8)(β) ή 12Γ(1)(β).",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html — le Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000), Δέκατο Παράρτημα (Dixième Annexe, rattachée à l'article 43 — pouvoir réglementaire), paragraphe 2(2), rubrique « Τιμολόγια Φ.Π.Α. που διαβιβάζονται με ηλεκτρονικά μέσα και αποθήκευση τιμολογίων Φ.Π.Α. » (Factures TVA transmises par voie électronique et conservation des factures TVA). CE QUE CETTE CITATION TRANCHE : la loi chypriote reconnaît EXPLICITEMENT, comme catégorie distincte de la facture TVA elle-même, « tout document qui se réfère à la facture TVA et est destiné à la MODIFIER » (point β) — soumis au même régime légal de transmission électronique et de conservation que la facture TVA elle-même (point α). C'est une définition GÉNÉRIQUE de la correction PAR RÉFÉRENCE, quasi identique dans son principe à la France (fr.json's own CORRECTIVE_INVOICE, CGI art. 289, I, 5°) et à la Belgique (be.json's own CORRECTIVE_INVOICE, AR n°1/efacture.belgium.be) — preuve, comme pour ces deux pays, que ce mécanisme dérive de la même logique européenne de facturation par référence (directive TVA 2006/112/CE, art. 219 ; cette dérivation n'a toutefois pas été vérifiée à sa propre source par cette tâche, elle reste une observation). CONTRAIREMENT à CREDIT_NOTE/DEBIT_NOTE ci-dessus, ce fait NE dépend PAS des Κανονισμοί non atteints : le texte de LA LOI elle-même, pas d'un règlement d'application, suffit à établir que ce type de document est un mécanisme reconnu et autorisé."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui nommerait un mécanisme chypriote distinct d'« annulation et remplacement » (une facture entièrement nouvelle annulant et remplaçant la précédente, plutôt qu'un document rectificatif qui la modifie par référence). La lecture faite pour cette tâche (Δέκατο Παράρτημα, παράγραφος 2(2) — voir CORRECTIVE_INVOICE) ne tranche que la correction PAR RÉFÉRENCE, jamais l'hypothèse d'un remplacement intégral. Ce qui trancherait : une lecture des Κανονισμοί ΦΠΑ (non atteints) ou d'une circulaire du Τμήμα Φορολογίας (Département fiscal) sur ce point précis, non localisée par cette tâche."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui imposerait ou interdirait, pour Chypre, un avoir PUREMENT COMPTABLE jamais transmis à un réseau ou à l'administration. Le modèle B2G chypriote (une passerelle centrale/Peppol pour les administrations publiques, réception obligatoire, émission B2B toujours volontaire — voir b2g-routing/data/cy.json's own citation de la fiche pays de la Commission européenne) ne renseigne en rien sur ce fait précis : aucune plateforme n'intercepte aujourd'hui les factures B2B chypriotes (structurellement proche de la Belgique — be.json's own INTERNAL_CREDIT_NOTE fait la même observation, restée elle aussi 'unverified' pour la même raison de prudence), mais cette seule observation architecturale n'est pas une règle juridique tranchant CETTE question. Ce qui trancherait : une lecture directe des dispositions chypriotes sur la déduction/régularisation de la TVA (proches, par analogie structurelle jamais vérifiée, de l'art. 79 belge), non recherchées par cette tâche."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui organiserait (ou exclurait explicitement) une annulation, PAR L'ADMINISTRATION FISCALE CHYPRIOTE (le Έφορος Φορολογίας — le Commissaire fiscal, nommé à de multiples reprises dans la Loi TVA pour d'autres pouvoirs, jamais pour celui-ci) elle-même, des données réglementaires d'une facture déjà transmise. Chypre dispose d'une passerelle centrale de type Gouvernement pour le B2G (documentation/compliance/CY-Cyprus.md — une note de CE dépôt, PAS une source officielle, non retenue comme preuve ici), mais aucune lecture de cette tâche n'a établi, au niveau de preuve C1 requis, l'existence ou l'absence d'un pouvoir d'annulation administrative — ni côté B2G (silence du texte de loi lu), ni côté fiscal général. Ce qui trancherait : une confirmation explicite du Τμήμα Φορολογίας (Département fiscal chypriote) — mof.gov.cy/tax.mof.gov.cy, tous deux inaccessibles à cette tâche (voir ce fichier's own notes de tête) — ou la lecture des Κανονισμοί ΦΠΑ eux-mêmes."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non résolue — DÉLIBÉRÉMENT PAS promue par analogie avec un autre pays (voir resolutionNote)."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui autoriserait (ou interdirait) explicitement de renvoyer, sous le MÊME numéro de facture, un document rejeté avant sa réception effective par le destinataire (p. ex. un rejet technique côté canal B2G chypriote, avant toute validation). La lecture faite pour cette tâche (Δέκατο Παράρτημα, παράγραφος 2(2)) porte sur la correction d'une facture DÉJÀ ÉMISE/reçue, jamais sur le sort d'un envoi rejeté AVANT réception. Ce qui trancherait : une lecture directe des spécifications techniques de la passerelle B2G chypriote (documentée par b2g-routing/data/cy.json comme reposant sur Peppol BIS Billing 3.0) sur la gestion d'un rejet réseau, non recherchée par cette tâche."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non résolue."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recherche FAITE, sans résultat : cette tâche a cherché, dans l'intégralité du texte consolidé de la Loi TVA chypriote, une disposition de type 'créance définitivement impayée' (les chaînes « επισφαλ- » [créance douteuse] et « ανείσπρακτ- » [non recouvré] et « μη καταβολή » [non-paiement] n'apparaissent nulle part dans le texte lu) — l'équivalent chypriote de l'art. 90 de la directive TVA 2006/112/CE (réduction de la base d'imposition pour non-paiement total ou partiel, que tout État membre doit transposer sous une forme ou une autre) N'A PAS pu être localisé dans les articles parcourus par cette tâche. Cela ne signifie pas qu'un tel mécanisme n'existe pas à Chypre (l'art. 90 de la directive est d'ordre public européen) : plus vraisemblablement, il se trouve dans une partie de la Loi non couverte par les recherches ciblées de cette tâche, ou dans les Κανονισμοί d'application. Ce qui trancherait : une lecture exhaustive, article par article, de l'intégralité de la Loi (plus de 550 000 caractères de texte brut, seule une fraction ciblée a été parcourue par cette tâche), ou une recherche dédiée sur un terme chypriote spécifique non encore essayé."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Recherchée (contrairement au gabarit belge 'non recherchée' pour cette même route), négatif honnêtement rapporté."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour Chypre — aucune lecture de cette tâche n'a porté sur cette voie (une simple annotation dans le grand livre comptable, sans aucun document de correction émis)."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non recherchée, même statut que fr.json/be.json's own LEDGER_ANNOTATION."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour Chypre — cette voie (une correction pour laquelle la loi elle-même n'exigerait AUCUN document, p. ex. par simple compensation) n'a été rencontrée dans aucune des lectures faites pour cette tâche."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non recherchée, même statut que fr.json/be.json's own NO_DOCUMENT_BY_LAW."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Aucun texte identifié qui organiserait, pour le DESTINATAIRE d'une facture chypriote, une voie de rejet légalement outillée au niveau du réseau/protocole — contrairement à la Belgique (be.json's own COUNTERPARTY_OBJECTION, sourcée à efacture.belgium.be citant l'Invoice Response Peppol BIS code 'RE'). La Loi TVA chypriote elle-même est muette sur ce point (elle ne traite, à l'Article 24, que le cas distinct de l'autofacturation anti-abus — « Τιμολόγια που εκδίδονται από λήπτες αγαθών ή υπηρεσιών », un mécanisme où le PRENEUR émet un document valant facture en sous-déclarant la TVA due, sans rapport avec le rejet d'une facture mal adressée). b2g-routing/data/cy.json confirme que Chypre utilise Peppol BIS Billing 3.0 pour le canal B2G — un réseau qui, comme en Belgique, prévoit structurellement un message 'Invoice Response' — mais AUCUNE lecture de cette tâche n'a confirmé que Chypre impose ou documente officiellement ce mécanisme de rejet pour ses propres flux, contrairement à la FAQ belge explicite. Ce qui trancherait : une spécification chypriote officielle de la passerelle B2G (non localisée) ou une confirmation du Τμήμα Φορολογίας (portails inaccessibles, voir ce fichier's own notes de tête)."
+      },
+      "notes": "Pas de pivot YAML pour Chypre — première lecture C1 par cette tâche, 2026-09-04. Non résolue — DÉLIBÉRÉMENT PAS promue par analogie avec la Belgique malgré un socle Peppol commun (voir resolutionNote)."
+    }
+  ],
+  "notes": "Chypre — lot 2 TODO_DOCUMENTS.md vague B, agent pays CY (2026-09-04). PAS DE PIVOT dans docs/compliance/CORRECTION-ROUTES.yaml (qui ne couvre que FR/IT/PL/DE/ES/MX/US) : les onze statuts ci-dessus sont une PREMIÈRE lecture directe, niveau de preuve C1, faite entièrement par cette tâche à partir du texte intégral du Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000), lu sur cylaw.org (https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html, HTTP 200, encodage windows-1253 reconverti en UTF-8 par cette tâche) — UNE SEULE route SOURCÉE 'legal' (CORRECTIVE_INVOICE, Δέκατο Παράρτημα/άρθρο 43, παράγραφος 2(2)(β)), les dix autres honnêtement 'unverified'. Résultat conforme à l'attente de la consigne de cette tâche pour Chypre (« un fichier majoritairement unverified avec de bonnes resolutionNotes est un SUCCÈS honnête ») : le VRAI mur n'est pas la Loi elle-même (atteinte avec succès, contrairement à AT/RIS et PAS comme un portail cassé) mais les Κανονισμοί ΦΠΑ (Règlements d'application pris sous l'article 43) qui portent le détail opérationnel de la correction — instrument distinct, jamais localisé sur cylaw.org depuis la page de la Loi (aucun lien croisé trouvé), et les deux portails gouvernementaux visés par la consigne de cette tâche (mof.gov.cy → HTTP 403 sur www.gov.cy/mof-tax ; tax.mof.gov.cy → échec DNS) n'ont pu fournir aucune corroboration de repli. MUR AUSSI RENCONTRÉ SUR eur-lex.europa.eu POUR L'IDÉE D'UNE DÉRIVATION COMMUNE (directive TVA 2006/112/CE, art. 219 et 90) : observée par analogie avec fr.json/be.json (voir CORRECTIVE_INVOICE et ANNOTATED_DUPLICATE ci-dessus) mais jamais vérifiée à sa propre source par cette tâche. AUCUNE contradiction relevée avec b2g-routing/data/cy.json (Peppol BIS, B2G réception obligatoire/B2B émission volontaire, lu 2026-09-02) ni country-policy/data/cy.json (lus pour cohérence, non modifiés) : ces fichiers portent sur le CANAL/FORMAT et les ACTIONS DOCUMENT, ce fichier-ci sur la VOIE DE CORRECTION elle-même — trois concerns disjoints, cohérents entre eux (CORRECTIVE_INVOICE et country-policy/data/cy.json's own invoice.save-draft/credit-note.send pointent d'ailleurs vers EXACTEMENT LE MÊME TEXTE, sans contradiction)."
+}

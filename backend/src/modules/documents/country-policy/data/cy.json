@@ -1,0 +1,215 @@
+{
+  "countryCode": "CY",
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "rules": [
+    {
+      "typeId": "quote",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/be.json/pl.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit chypriote. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "RÉUTILISE la citation déjà lue par be.json/pl.json/de.json/it.json/es.json pour cette même action (Règlement (UE) n° 910/2014, eIDAS, art. 25 § 1) — NON RE-VÉRIFIÉE au mot près par cette tâche : une tentative directe sur eur-lex.europa.eu (CELEX:32014R0910) le 2026-09-04 a certes atteint la page (contrairement à la tentative de be.json, qui l'a reçue vide), mais l'outil de fetch a renvoyé un résumé qui OMETTAIT le mot « solely » présent dans la citation déjà vérifiée de ce même dépôt — un écart repéré en comparant les deux, et une preuve concrète, faite pendant cette même tâche, que le résumé d'un outil tiers peut légèrement mais réellement altérer une citation censée être verbatim (voir ce fichier's own notes de tête pour un second exemple, plus grave, du même risque — un faux « article 12A/12B » entièrement halluciné). Le sourceText ci-dessus reprend donc le texte déjà établi par ce dépôt, PAS le résumé de cette tentative. Le fait est par nature invariant par pays (un règlement UE, d'applicabilité directe, sans transposition nationale) : la citation déjà vérifiée par un autre pays de ce même lot reste valide ici, même raisonnement que be.json/pl.json. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal chypriote et à la Loi sur la TVA) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+    },
+    {
+      "typeId": "quote",
+      "actionId": "convert-to-invoice",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit chypriote (la seule contrainte légale porte sur la facture qui en résulte — voir invoice.send). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "request-deposit",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit chypriote."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit chypriote."
+      }
+    },
+    {
+      "typeId": "quote",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "save-draft",
+      "allowed": true,
+      "statuses": ["draft"],
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Τα στοιχεία για τα οποία εφαρμόζεται η παρούσα παράγραφος είναι - (α) οποιοδήποτε τιμολόγιο Φ.Π.Α.· (β) οποιοδήποτε έγγραφο το οποίο αναφέρεται στο τιμολόγιο Φ.Π.Α. και προορίζεται να το τροποποιήσει· (γ) οποιοδήποτε τιμολόγιο αναφέρεται σε κανονισμούς που γίνονται για τους σκοπούς του άρθρου 9(8)(β) ή 12Γ(1)(β).",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html — le Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000), Δέκατο Παράρτημα (Dixième Annexe, rattachée à l'article 43 — pouvoir réglementaire), paragraphe 2(2), rubrique « Τιμολόγια Φ.Π.Α. που διαβιβάζονται με ηλεκτρονικά μέσα και αποθήκευση τιμολογίων Φ.Π.Α. » (Factures TVA transmises par voie électronique et conservation des factures TVA). CE QUE CETTE CITATION TRANCHE : la loi chypriote distingue EXPLICITEMENT, comme deux catégories séparées, « (α) toute facture TVA » et « (β) tout document qui SE RÉFÈRE à la facture TVA et est DESTINÉ À LA MODIFIER » — la même logique de correction PAR DOCUMENT SÉPARÉ RÉFÉRENÇANT L'ORIGINAL que la Belgique (be.json's own invoice.send/credit-note.send, AR n°1 art. 12 § 1er) ou la France. Une facture déjà émise n'est donc jamais réécrite : sa correction emprunte un document distinct — d'où la restriction `statuses: [\"draft\"]`, qui refuse de ré-enregistrer en brouillon une facture déjà envoyée, même mécanique que be.json/fr.json/pl.json pour cette même règle. Voir aussi correction-routes/data/cy.json's own CORRECTIVE_INVOICE et credit-note.send ci-dessous, sourcés à LA MÊME disposition."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Τιμολόγια Φ.Π.Α. 1Α.-(1) Κανονισμοί δυνάμει της παρούσας παραγράφου μπορούν να απαιτούν από υποκείμενο στο φόρο πρόσωπο να εξασφαλίζει την έκδοση τιμολογίου (που στο εξής θα αναφέρεται ως «τιμολόγιο Φ.Π.Α.»), από τον ίδιο, από τον πελάτη του ή εξ' ονόματος του και για λογαριασμό του για τις παραδόσεις αγαθών και τις παροχές υπηρεσιών σε άλλο πρόσωπο, εγκατεστημένο στη Δημοκρατία, σε άλλο κράτος μέλος ή σε τρίτη χώρα ή αποδείξεις Φ.Π.Α. για παραδόσεις αγαθών ή/και παροχές υπηρεσιών σε άλλο πρόσωπο στη Δημοκρατία. (2) Το τιμολόγιο Φ.Π.Α. πρέπει να περιέχει - (α) τέτοια στοιχεία της συναλλαγής και των προσώπων από και προς τα οποία παραδίδονται τα αγαθά ή παρέχονται οι υπηρεσίες· (β) ένδειξη για το κατά πόσο είναι επιβλητέος Φ.Π.Α. επί της συναλλαγής δυνάμει του παρόντος Νόμου ή του νόμου άλλου κράτους μέλους· (γ) τέτοια στοιχεία οποιουδήποτε Φ.Π.Α. που μπορεί να είναι επιβλητέος, όπως μπορεί να καθορίζονται σε Κανονισμούς.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "LU DIRECTEMENT le 2026-09-04 sur https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html — Δέκατο Παράρτημα (Dixième Annexe, article 43), paragraphe 1Α, rubrique « Τιμολόγια Φ.Π.Α. » (Factures TVA). CE QUE CETTE CITATION TRANCHE : émettre une facture (« τιμολόγιο Φ.Π.Α. ») pour une livraison de biens ou une prestation de services à un tiers, avec un contenu minimal fixé par la loi (données de l'opération et des parties, mention de l'assujettissement à la TVA, montant de TVA), est un acte ENCADRÉ PAR LA LOI chypriote — pas seulement toléré. NUANCE HONNÊTEMENT REPORTÉE : le paragraphe 1Α(1) est une CLAUSE D'HABILITATION (« Κανονισμοί ... μπορούν να απαιτούν » — « des Règlements ... peuvent exiger ») : le détail opérationnel précis (quand une facture est obligatoire, sous quelle forme exacte, quel délai) est renvoyé à des Κανονισμοί (Règlements d'application) pris en vertu de l'article 43 — INSTRUMENT DISTINCT DE LA LOI ELLE-MÊME, PAS ATTEINT PAR CETTE TÂCHE (cylaw.org ne les héberge pas à l'URL de cette loi ; aucun lien croisé trouvé sur la page). AUCUNE CONTRADICTION avec b2g-routing/data/cy.json (lu pour cohérence, non modifié) : ce dernier documente que Chypre n'a « aucun mandat B2G général pour les fournisseurs » (l'envoi reste volontaire) et que le B2B reste volontaire — cette règle-ci ne porte que sur le fait que LA LOI TVA elle-même organise la notion de facture et son contenu minimal dès qu'une facture est émise, jamais sur une obligation de format ou de canal (b2g-routing/data/cy.json et transports/channel-policy/ portent CE sujet-là, disjoint)."
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "duplicate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal. La question fiscale (Δέκατο Παράρτημα, paragraphe 1Α/2) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "download-xml",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale chypriote pour CETTE entreprise de la produire sous cette forme précise pour un usage domestique B2B (resté volontaire à Chypre — voir b2g-routing/data/cy.json's own citation de la fiche pays de la Commission européenne, 'no general B2G eInvoicing mandate for suppliers'). Le format Peppol BIS Billing 3.0/EN 16931 documenté par b2g-routing/data/cy.json ne concerne que le canal vers les administrations publiques, pas une obligation générale de PRODUIRE cet export pour n'importe quel client. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE pour toute facture, même raisonnement que be.json/pl.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "export-accounting",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+      }
+    },
+    {
+      "typeId": "invoice",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal de la correction chypriote (voir credit-note.send ci-dessous) concerne le CONTENU et le statut fiscal du document une fois émis, pas l'acte d'enregistrer un brouillon — même distinction que be.json/fr.json pour cette même action."
+      }
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Τα στοιχεία για τα οποία εφαρμόζεται η παρούσα παράγραφος είναι - (α) οποιοδήποτε τιμολόγιο Φ.Π.Α.· (β) οποιοδήποτε έγγραφο το οποίο αναφέρεται στο τιμολόγιο Φ.Π.Α. και προορίζεται να το τροποποιήσει· (γ) οποιοδήποτε τιμολόγιο αναφέρεται σε κανονισμούς που γίνονται για τους σκοπούς του άρθρου 9(8)(β) ή 12Γ(1)(β).",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "MÊME texte, MÊME lecture, que invoice.save-draft ci-dessus (cylaw.org, Ν.95(Ι)/2000, Δέκατο Παράρτημα/άρθρο 43, παράγραφος 2(2), 2026-09-04). CE QUE CETTE CITATION TRANCHE PRÉCISÉMENT ICI : la loi chypriote reconnaît, comme catégorie distincte de la facture elle-même, « tout document qui se réfère à la facture TVA et est destiné à la modifier » (point β) — soumis au MÊME régime de transmission électronique et de conservation que la facture TVA elle-même (point α). C'est la base légale directe pour L'ENVOI d'un tel document correctif — voir correction-routes/data/cy.json's own CORRECTIVE_INVOICE, sourcée à la MÊME phrase. NUANCE : contrairement à la Belgique (be.json's own credit-note.send, qui nomme explicitement « notes de crédit » ET « notes de débit »), le texte chypriote consulté ne nomme JAMAIS ce document par un terme équivalent à « πιστωτικό σημείωμα » (note de crédit) ou « χρεωστικό σημείωμα » (note de débit) — recherche explicite faite sur le texte intégral de la loi, sans résultat (voir correction-routes/data/cy.json's own CREDIT_NOTE/DEBIT_NOTE, restées 'unverified' pour cette raison précise). Ce que cette règle-ci tranche reste donc le fait GÉNÉRIQUE (envoyer un document de ce type est un acte légalement organisé), pas le nom ni le régime détaillé d'un instrument nommé « note de crédit »."
+    },
+    {
+      "typeId": "credit-note",
+      "actionId": "share-link",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables chypriotes portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+      }
+    },
+    {
+      "typeId": "expense",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "receive",
+      "allowed": true,
+      "statuses": ["received"],
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : le mécanisme d'autofacturation de l'Article 24 de la Loi TVA chypriote (« Τιμολόγια που εκδίδονται από λήπτες αγαθών ή υπηρεσιών » — factures émises par les preneurs de biens ou services, un dispositif anti-abus distinct d'une note de crédit) n'est pas un canal de RÉCEPTION agréé au sens de ce fichier, hors périmètre de cette règle."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "approve",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "reject",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue INTERNE à l'entreprise. Contrairement à la Belgique (be.json's own received-invoice.reject, qui distingue un rejet réseau Peppol sourcé de ce choix interne), AUCUN mécanisme de rejet réseau chypriote équivalent n'a été identifié par cette tâche (voir correction-routes/data/cy.json's own COUNTERPARTY_OBJECTION, restée 'unverified') — ce choix produit reste donc, pour Chypre, entièrement non spécifiquement encadré, sans même une distinction à faire avec un rejet protocolaire sourcé."
+      }
+    },
+    {
+      "typeId": "received-invoice",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+      }
+    }
+  ],
+  "notes": "Chypre — lot 2 TODO_DOCUMENTS.md vague B, agent pays CY (2026-09-04). Le socle légal repose sur DEUX lectures DIRECTES du même texte primaire chypriote : cylaw.org (https://www.cylaw.org/nomoi/enop/non-ind/2000_1_95/full.html), le Ο περί Φόρου Προστιθέμενης Αξίας Νόμος του 2000 (Ν.95(Ι)/2000) consolidé — ATTEINT AVEC SUCCÈS (HTTP 200 par curl direct, encodage windows-1253 reconverti proprement) —, dont le Δέκατο Παράρτημα (Dixième Annexe, rattachée à l'article 43, pouvoir réglementaire) fournit à la fois la base de invoice.send (paragraphe 1Α, contenu minimal d'une facture TVA) et de invoice.save-draft/credit-note.send (paragraphe 2(2), qui distingue explicitement « toute facture TVA » d'un « document qui s'y réfère et est destiné à la modifier »). MUR RENCONTRÉ ET DOCUMENTÉ, pas escamoté : mof.gov.cy redirige vers www.gov.cy/mof-tax qui renvoie HTTP 403 (bot-block, Cloudflare/Sucuri) ; tax.mof.gov.cy ne résout MÊME PAS en DNS depuis cette tâche — aucun des deux portails gouvernementaux cités par la consigne de cette tâche n'a donc pu être atteint pour une corroboration officielle chypriote directe du détail opérationnel (les Κανονισμοί/Règlements d'application pris sous l'article 43, qui portent le VRAI détail : mentions obligatoires précises, délais, format électronique) — d'où le volume important de règles 'unverified' sur ce fichier, conforme à l'attente de cette tâche pour un pays 'le plus dur du lot'. UN PIÈGE ÉVITÉ, documenté pour la transparence : une première tentative (fetch résumé par un outil tiers, PAS retenue) avait avancé l'existence d'articles « 12A/12B — Διορθωτικό τιμολόγιο (facture rectificative) » dans cette même loi ; une relecture directe du texte brut (curl + recherche exhaustive de la chaîne « Άρθρο 12 » et de « Διορθωτικ » dans l'intégralité du texte) N'A TROUVÉ NI L'UN NI L'AUTRE — ces articles n'existent PAS dans le texte réel, la première lecture était fabriquée par l'outil de résumé, jamais retenue dans ce fichier ni dans aucun autre de cet agent. AUCUNE contradiction relevée avec b2g-routing/data/cy.json (Peppol BIS, fiche pays CE, lue 2026-09-02 — B2G réception obligatoire, émission B2B volontaire) ni tax/tax-systems/data/cy.json (standardRate 19, TEDB, 2026-09-01) : ces fichiers portent sur le CANAL/FORMAT et le TAUX, ce fichier-ci sur les ACTIONS DOCUMENT — trois concerns disjoints, cohérents entre eux."
+}

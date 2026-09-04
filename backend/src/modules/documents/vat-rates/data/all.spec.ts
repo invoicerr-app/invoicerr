@@ -6,8 +6,8 @@
 import { ALL_VAT_RATE_FILES } from './all';
 
 describe('vat-rates/data — the shipped FR catalog', () => {
-  it('loads exactly FR plus the lot-1 countries (BE/NL/AT — TODO_DOCUMENTS vague B, every rate with per-rate provenance)', () => {
-    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['AT', 'BE', 'FR', 'NL']);
+  it('loads exactly FR plus the lot-1/lot-2 countries (BE/NL/AT/EE/GR/CY — TODO_DOCUMENTS vague B, every rate with per-rate provenance)', () => {
+    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['AT', 'BE', 'CY', 'EE', 'FR', 'GR', 'NL']);
   });
 
   it('every rate in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit)', () => {

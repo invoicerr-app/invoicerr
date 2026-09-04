@@ -1,0 +1,108 @@
+{
+  "countryCode": "EE",
+  "routes": [
+    {
+      "routeId": "CREDIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "If a taxable person cancels an invoice concerning goods or services or submits a credit invoice due to the reduction in the price of the goods or service after submission of a value added tax return concerning the taxable period in which the supply of the goods or services was created, both the seller and the purchaser shall indicate the corresponding amendments in the value added tax return submitted concerning the taxable period during which the invoice was cancelled or the credit invoice was submitted. A credit invoice may only be submitted with regard to a specific invoice referred to in the credit invoice. The provision shall not be applied if the credit invoice has been submitted due to a failure to pay for goods or services partially or in full.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "PAS de YAML pivot pour l'Estonie (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas l'Estonie) : première lecture directe, niveau de preuve C1, faite par cet agent. Source : Käibemaksuseadus (Value-Added Tax Act) § 29(7) — TEXTE PRIMAIRE, lu en direct le 2026-09-04 sur riigiteataja.ee. MÉTHODE D'ACCÈS : documentée en détail dans vat-rates/data/ee.json's own file-level note — l'URL SPA habituelle du site ne rend rien sans JavaScript (même famille de blocage que efacture.belgium.be/BE et RIS/ris.bka.gv.at/AT documentée par ce lot) ; contournée en interrogeant directement, par curl, l'API publique non documentée découverte en inspectant le bundle JavaScript du site (`GET /public-api/api/v1/en/akt/512062025002/blob-html`) — jamais le résumé d'un outil de fetch, conformément à la discipline imposée après qu'un tel outil a été surpris, sur l'agent Chypre en parallèle, à fabriquer un article de loi inexistant. Terme administratif : « credit invoice » dans la traduction anglaise officielle (correspond au « credit invoice » déjà employé par le Maksu- ja Tolliamet, MTA — Estonian Tax and Customs Board — dans sa propre doctrine, emta.ee, lue en HTML brut le même jour, en recoupement systématique : aucun écart trouvé entre le texte de loi et la doctrine du MTA sur cette voie). Statut 'allowed', pas 'required' : le § 29(7) décrit la conséquence procédurale (ajustement de la déclaration de TVA) UNE FOIS qu'une facture de crédit a été soumise ou qu'une facture a été annulée — il n'affirme PAS que la facture de crédit soit la SEULE forme possible pour corriger une baisse de prix (à la différence de la Pologne, art. 106j ust. 1, « WYSTAWIA » — seul instrument disponible). Contrainte structurelle lue et retenue : « A credit invoice may only be submitted with regard to a specific invoice referred to in the credit invoice » — la référence à la facture initiale est OBLIGATOIRE, pas optionnelle. Exclusion lue et retenue : cette voie NE S'APPLIQUE PAS à l'impayé (« shall not be applied if the credit invoice has been submitted due to a failure to pay ») — l'impayé relève d'un mécanisme DISTINCT, le § 29¹ (voir ANNOTATED_DUPLICATE ci-dessous)."
+    },
+    {
+      "routeId": "DEBIT_NOTE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "A document, including a credit invoice, which amends an initial invoice and which contains a reference to the initial invoice shall be deemed to be an invoice.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Käibemaksuseadus § 37(4) — TEXTE PRIMAIRE, riigiteataja.ee, lu le 2026-09-04 (même méthode d'accès que CREDIT_NOTE ci-dessus). RAISONNEMENT DE COMPOSITION, à connaître avant de réutiliser cette citation ailleurs : ce même alinéa fonde AUSSI CORRECTIVE_INVOICE ci-dessous — la loi elle-même ne distingue PAS un document qui amende à la HAUSSE d'un document qui amende à la BAISSE ; elle nomme « a document... including a credit invoice » (une facture de crédit n'étant citée qu'à TITRE D'EXEMPLE d'un document modificatif référencé plus large). Le texte n'emploie à aucun moment un terme dédié équivalent à « debit note »/« debiitarve » — cette voie est donc déduite du champ GÉNÉRAL de § 37(4) (tout document qui amende ET référence l'original est réputé être une facture, sans restriction de sens), pas d'une clause nommément dédiée à la hausse de prix comme telle. Statut 'allowed' (pas 'required') : rien ne mandate cette forme précise pour une hausse de prix, la loi se contente de RECONNAÎTRE l'effet d'un tel document s'il est utilisé. Trouvée hors de docs/compliance/CORRECTION-ROUTES.yaml (qui note lui-même, pour DEBIT_NOTE : « exists_in_code: false [...] Si un pays le REQUIERT à la hausse — hypothèse à vérifier pour l'Italie — l'asymétrie hausse/baisse est inexprimable aujourd'hui ») : l'Estonie n'est ici PAS dans le cas 'REQUIERT', seulement 'allowed' par une clause générale — la remarque du YAML sur l'asymétrie inexprimable ne s'applique donc pas de la même façon ici."
+    },
+    {
+      "routeId": "CORRECTIVE_INVOICE",
+      "status": "allowed",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "A document, including a credit invoice, which amends an initial invoice and which contains a reference to the initial invoice shall be deemed to be an invoice.",
+        "sourceCheckedAt": "2026-09-04"
+      },
+      "notes": "Käibemaksuseadus § 37(4) — MÊME citation primaire que DEBIT_NOTE ci-dessus (voir cette note pour le raisonnement de composition complet, à ne pas dupliquer ici). C'est la lecture LA PLUS DIRECTE de cet alinéa au regard du VOCABULAIRE de docs/compliance/CORRECTION-ROUTES.yaml : « Document qui AMENDE l'original par référence, sans être un avoir » correspond mot pour mot à « a document [...] which amends an initial invoice and which contains a reference to the initial invoice » — la facture de crédit n'étant qu'UN EXEMPLE (« including a credit invoice ») de ce genre plus large, qui couvre aussi une correction NON MONÉTAIRE (mauvaise date, mauvaise désignation du bien/service, mauvais taux de TVA sans changement de montant) dès lors qu'elle référence l'original. DIFFÉRENTIEL avec nl.json's own CORRECTIVE_INVOICE (resté 'unverified', faute de clause néerlandaise équivalente d'assimilation générale) : le droit estonien porte ici une clause structurellement PROCHE, dans son PRINCIPE, du CGI art. 289 I.5 français (« tout document [...] qui modifie la facture initiale [...] est assimilé à une facture ») — sans que cette tâche ait vérifié si leur PORTÉE EXACTE (conditions, exceptions) coïncide au-delà du principe commun."
+    },
+    {
+      "routeId": "CANCEL_AND_REPLACE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, MAIS UNE NUANCE RÉELLE A ÉTÉ TROUVÉE, à ne pas perdre pour une lecture future. Le § 29(7) du Käibemaksuseadus (lu en primaire le 2026-09-04) nomme explicitement « cancels an invoice » (annule une facture) comme un DES DEUX faits déclencheurs de l'ajustement de TVA — mais ce mécanisme est BILATÉRAL (vendeur/acheteur) et se traduit uniquement par un ajustement de la déclaration de TVA soumise à l'administration fiscale ; ce n'est PAS une annulation de LA FACTURE ELLE-MÊME 'auprès de l'autorité' au sens où l'entend la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Annuler l'original auprès de l'autorité, puis émettre un remplaçant ») — l'Estonie n'a AUCUN régime de clearance domestique où la facture elle-même serait soumise à/validée par une autorité avant d'être annulable auprès d'elle (à la différence du CFDI mexicain ou de KSeF/SdI), seule la DÉCLARATION DE TVA périodique l'est. Le texte ne décrit de surcroît PAS le MÉCANISME de cette « cancellation » elle-même (aucun document, aucune procédure précisée) — voir aussi LEDGER_ANNOTATION et NO_DOCUMENT_BY_LAW ci-dessous, où cette même ambiguïté est reprise. Ce qui trancherait : un texte ou une doctrine du Maksu- ja Tolliamet décrivant concrètement l'acte de « cancellation » d'une facture en droit estonien."
+      },
+      "notes": "Käibemaksuseadus § 29(7), lu en primaire le 2026-09-04 — trouvaille réelle mais non concluante, voir resolutionNote."
+    },
+    {
+      "routeId": "INTERNAL_CREDIT_NOTE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et probablement peu pertinente en l'état, même raisonnement que nl.json's own INTERNAL_CREDIT_NOTE : cette voie (un avoir purement comptable, dont la transmission à une autorité OU à l'acheteur est INTERDITE) répond à une distinction propre aux régimes de clearance obligatoires (PPF français, KSeF polonais, SdI italien), qui n'existe PAS pour la facturation B2B domestique estonienne (aucun mandat de transmission à une autorité identifié pour ce périmètre par cette tâche — b2g-routing/data/ee.json, lu pour cohérence, ne documente que le B2G, pas le B2B domestique). Faute d'autorité destinataire à exclure, ce fait reste non tranché plutôt que promu 'forbidden' par déduction. Ce qui trancherait : confirmer explicitement l'absence, aujourd'hui, de tout mandat estonien de clearance B2B domestique (sujet distinct, channel-policy)."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "AUTHORITY_ANNULMENT",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque que INTERNAL_CREDIT_NOTE ci-dessus : cette voie suppose une autorité qui reçoit/valide la facture elle-même (Veri*Factu espagnol, KSeF polonais) et auprès de laquelle une annulation pourrait être demandée — aucun mécanisme de ce type identifié pour la facturation B2B domestique estonienne ; seule la déclaration de TVA périodique est soumise à l'administration (§ 29(7), voir CANCEL_AND_REPLACE ci-dessus), jamais la facture elle-même au moment de son émission. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "RESUBMIT_SAME_IDENTITY",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, même remarque : cette voie répond à un scénario de REJET par une plateforme de clearance (KSeF, SdI, Veri*Factu) suivi d'un renvoi sous la même identité — sans plateforme de clearance domestique estonienne identifiée, ce scénario ne se pose pas de la même façon. Ce qui trancherait : la même vérification que ci-dessus."
+      },
+      "notes": "Non recherché spécifiquement — signalé comme probablement sans objet, pas comme réglé."
+    },
+    {
+      "routeId": "ANNOTATED_DUPLICATE",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée, et un MÉCANISME ADJACENT RÉEL a été trouvé pour l'impayé, à ne pas confondre avec cette voie précise. Le Käibemaksuseadus § 29¹ (« Reduction of tax liability », introduit par RT I, 23.02.2021 et amendé, en vigueur depuis le 01.01.2022 — lu en primaire le 2026-09-04) permet au vendeur de réduire sa dette de TVA sur une créance devenue irrécouvrable, À CONDITION notamment (clause 8 de son alinéa 1) que « the taxable person has notified the purchaser of the goods or the recipient of the service in writing of the write-off of the claim in the accounting in the month of the write-off, indicating the amount of the value added tax related to the written-off claim » — soit une NOTIFICATION ÉCRITE distincte, adressée à l'acheteur. Ceci NE CORRESPOND PAS à la définition de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Le MÊME document, réémis surchargé d'une mention ») : ce n'est pas la facture initiale renvoyée annotée, c'est un ÉCRIT SÉPARÉ et NOUVEAU (une notification, pas une facture ni un duplicata de facture) — même différentiel, dans son PRINCIPE, que celui que nl.json's own ANNOTATED_DUPLICATE documente déjà face à la France (qui impose, elle, un duplicata explicitement annoté de la facture elle-même, CGI art. 272, 1, al. 3). Ce qui trancherait : un texte confirmant explicitement qu'aucun mécanisme de duplicata-annoté distinct de cette notification n'existe par ailleurs en droit estonien."
+      },
+      "notes": "Käibemaksuseadus § 29¹, lu en primaire le 2026-09-04 — le différentiel avec la définition de cette voie est noté, pas encore élevé au rang de fait 'forbidden' faute de texte l'affirmant en propre."
+    },
+    {
+      "routeId": "LEDGER_ANNOTATION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et NO_DOCUMENT_BY_LAW ci-dessous — MÊME trouvaille pour les deux, la distinction entre elles n'a pas pu être établie par cette tâche. Le § 29(7) du Käibemaksuseadus nomme « cancels an invoice » comme fait déclencheur d'un ajustement de la déclaration de TVA, SANS décrire la mécanique de cette annulation elle-même : aucun registre spécifique n'est nommé, aucune écriture précise n'est prescrite au-delà de l'ajustement de la déclaration de TVA elle-même. Si cet ajustement de déclaration COMPTE comme 'une écriture dans un registre' au sens de cette voie (docs/compliance/CORRECTION-ROUTES.yaml : « Correction opérée dans les registres, SANS émettre aucun document »), alors LEDGER_ANNOTATION serait le bon classement ; si l'ajustement est regardé comme une simple CONSÉQUENCE AUTOMATIQUE de la loi plutôt qu'un acte d'écriture distinct, NO_DOCUMENT_BY_LAW conviendrait mieux (comme le régime allemand par défaut, découvert pour DE). Ce qui trancherait : une doctrine du Maksu- ja Tolliamet ou une lecture des règles de déclaration de TVA (formulaire KMD) décrivant concrètement l'acte requis pour signaler une 'cancellation'."
+      },
+      "notes": "Käibemaksuseadus § 29(7), lu en primaire le 2026-09-04 — trouvaille réelle mais non départagée d'avec NO_DOCUMENT_BY_LAW, voir resolutionNote."
+    },
+    {
+      "routeId": "NO_DOCUMENT_BY_LAW",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non tranchée entre cette voie et LEDGER_ANNOTATION ci-dessus — voir la resolutionNote de LEDGER_ANNOTATION pour le détail complet de la trouvaille et de l'ambiguïté ; non dupliqué ici pour éviter deux versions divergentes du même raisonnement. En bref : § 29(7) du Käibemaksuseadus fait s'ajuster la position de TVA sur simple 'cancellation' d'une facture, sans préciser si cet ajustement relève d'une écriture identifiable (LEDGER_ANNOTATION) ou d'un effet de plein droit sans aucun acte formel (NO_DOCUMENT_BY_LAW, le régime allemand par défaut pour remises/rabais/créances irrécouvrables/annulations, découvert pour DE)."
+      },
+      "notes": "Voir LEDGER_ANNOTATION's own note — même trouvaille, non départagée."
+    },
+    {
+      "routeId": "COUNTERPARTY_OBJECTION",
+      "status": "unverified",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Non recherchée pour l'Estonie au sens strict de la voie (un droit formel du destinataire à faire objection unilatéralement à une facture reçue, lui faisant perdre l'effet d'une facture, sans intervention de l'émetteur). Aucune lecture ciblée menée par cette tâche sur ce point précis — le § 37 et le § 29/29¹ du Käibemaksuseadus, lus en primaire pour les autres voies, ne portent aucune clause de ce type, mais l'absence n'a pas fait l'objet d'une recherche DÉDIÉE (par exemple dans le contentieux fiscal ou une autre partie du Käibemaksuseadus non lue par cette tâche)."
+      },
+      "notes": "Non recherché."
+    }
+  ],
+  "notes": "Estonie — agent pays EE, lot 2 (TODO_DOCUMENTS.md, vague B, 2026-09-04). PAS de YAML pivot pour ce pays (docs/compliance/CORRECTION-ROUTES.yaml ne couvre pas l'Estonie) : c'est la PREMIÈRE lecture directe, niveau de preuve C1, faite par cet agent — mais au TEXTE PRIMAIRE DE LOI lui-même (Käibemaksuseadus, Value-Added Tax Act, traduction anglaise officielle consolidée, riigiteataja.ee), pas seulement à une doctrine administrative. MÉTHODE D'ACCÈS documentée en détail dans vat-rates/data/ee.json's own file-level note (API publique du site découverte en inspectant son bundle JavaScript, interrogée en direct par curl — jamais par un outil de fetch-résumé, conformément à la discipline imposée après la découverte, sur l'agent Chypre en parallèle, qu'un tel outil avait fabriqué un article de loi inexistant). HEADLINE, DIFFÉRENT du modèle NL/BE/AT de ce lot : TROIS voies sourcées 'legal' et 'allowed' (CREDIT_NOTE — § 29(7) ; CORRECTIVE_INVOICE et DEBIT_NOTE — § 37(4), une clause GÉNÉRALE d'assimilation d'un document modificatif référencé à une facture que ni les Pays-Bas ni l'Autriche ne portent) — contre UNE seule pour nl.json (CREDIT_NOTE) et UNE seule pour at.json. Les huit autres voies restent honnêtement 'unverified', dont DEUX (LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) portent une trouvaille RÉELLE mais NON DÉPARTAGÉE (§ 29(7) sur la mécanique d'une « cancellation » de facture, jamais précisée par le texte), et UNE (ANNOTATED_DUPLICATE) porte une trouvaille adjacente distincte (§ 29¹, la notification écrite pour créance irrécouvrable) qui ne correspond PAS à la définition exacte de cette voie. Ce fichier ne modélise aucun B2G routing (décision hors périmètre de cet agent, voir b2g-routing/data/ee.json, lu pour cohérence, jamais réécrit)."
+}

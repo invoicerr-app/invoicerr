@@ -134,7 +134,7 @@ describe('country-policy/data — the shipped FR and US files', () => {
   it('no OTHER shipped rule declares a per-status narrowing — these two stay the only deliberate examples', () => {
     // BE (AR n°1 art. 12 §1), NL (art. 35a lid 1.b composition — the file says so itself) and AT
     // (UStG §16 Abs. 1) joined with lot 1 (TODO_DOCUMENTS vague B) — each narrowing SOURCED in its file.
-    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'ES', 'MX', 'BE', 'NL', 'AT'];
+    const COUNTRIES_WITH_SOURCED_SAVE_DRAFT_NARROWING = ['FR', 'DE', 'IT', 'PL', 'ES', 'MX', 'BE', 'NL', 'AT', 'EE', 'GR', 'CY'];
     const isKnownNarrowing = (countryCode: string, typeId: string, actionId: string) =>
       (typeId === 'invoice' &&
         actionId === 'save-draft' &&
@@ -218,9 +218,9 @@ describe('country-policy/data — FR rules promoted to "legal" by root TODO item
 // one honest `unverified` per country, so a future edit that quietly waters one of these down goes
 // red here first.
 describe('country-policy/data — DE/IT/PL/ES/MX added by root TODO P1 (2026-09-03)', () => {
-  it('the catalog now covers exactly 11 countries: the 8 of P1 plus BE, NL, AT (lot 1, TODO_DOCUMENTS vague B)', () => {
+  it('the catalog now covers exactly 14 countries: the 11 of lot 1 plus EE, GR, CY (lot 2, TODO_DOCUMENTS vague B)', () => {
     const codes = ALL_COUNTRY_POLICY_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['AT', 'BE', 'DE', 'ES', 'FR', 'HU', 'IT', 'MX', 'NL', 'PL', 'US']);
+    expect(codes).toEqual(['AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FR', 'GR', 'HU', 'IT', 'MX', 'NL', 'PL', 'US']);
   });
 
   it('PL invoice.save-draft cites the Podręcznik KSeF verbatim: a file sent to KSeF cannot be edited, only corrected by a new faktura korygująca', () => {
