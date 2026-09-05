@@ -27,7 +27,7 @@ Romania has implemented a full **Clearance** system to combat VAT fraud. The sys
 | **Active** | **B2G** | Mandatory. |
 | **Active** | **B2B** | Mandatory. No paper invoices allowed. |
 | **Active** | **B2C** | Mandatory reporting. |
-| **Jan 1, 2026** | **Updates** | **5 Working Days** transmission deadline (changed from calendar days). |
+| **Jan 1, 2026** | **Updates** | **5 Working Days** transmission deadline (changed from calendar days). See §4 for the legal basis. |
 
 ---
 
@@ -96,7 +96,9 @@ sequenceDiagram
 
 ## 4. Transmission Deadline
 
-* **New Rule (2026):** Invoices must be transmitted within **5 working days** of issuance.
+* **New Rule (from Jan 1, 2026):** Invoices must be transmitted within **5 working days** (*zile lucrătoare*) of issuance, no later than 5 working days after the statutory issuance deadline (Codul fiscal art. 319 §16). This replaces the **calendar-day** deadline (*zile calendaristice*) that had applied to the permanent B2B mandate since July 1, 2024.
+* **Legal basis (verified verbatim, primary text):** OUG (Emergency Government Ordinance) no. 89/2025 of December 23, 2025 (Monitorul Oficial no. 1,203 of December 24, 2025), Art. X point 2, rewrites art. 10 §7 of OUG 120/2021: *"Termenul-limită pentru transmiterea facturilor în sistemul naţional privind factura electronică RO e-Factura este de 5 zile lucrătoare de la data emiterii facturii, dar nu mai târziu de 5 zile lucrătoare de la data-limită pentru emiterea facturii prevăzută la art. 319 alin. (16) din Legea nr. 227/2015..."* Entry into force is explicit in the same OUG, Art. XIV §1: *"Prevederile art. X pct. 1-3 [...] intră în vigoare la data de 1 ianuarie 2026."* Read directly (curl + `pdftotext -layout`) from `https://static.anaf.ro/static/10/Anaf/legislatie/OUG_89_2025.pdf` (HTTP 200), 2026-09-05. No later 2026 text amends this point (checked OUG 9/2026, OUG 13/2026, OUG 38/2026, and Legea 43/2026, which all cite OUG 89/2025 but only for other articles).
+* **Note for maintainers:** an earlier compliance-catalog reading (`backend/src/modules/documents/country-policy/data/ro.json`, lot 7, 2026-09-05) flagged this claim as uncorroborated after reading OUG 120/2021, Legea 296/2023, OUG 115/2023, OUG 69/2024, OUG 156/2024, and OUG 21/2025 — none of which mention it. That reading stopped short of OUG 89/2025 (published a week after the ones it checked). The signal has since been resolved in that same data file: this claim stands confirmed.
 * **Sanctions:** Fines range from 1,000 to 10,000 RON depending on company size. Non-transmitted invoices are **non-deductible** for the buyer.
 
 ---
