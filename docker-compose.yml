@@ -52,14 +52,25 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - WORKER_INLINE=true
 
-      # TODO_PRODUIT.md T5(c) — OCR of unstructured received-invoice PDFs (Mistral Document AI).
-      # OPTIONAL: absent (the default) means this instance runs full-local, self-host — a plain
-      # scanned PDF stores with empty fields for a human to fill in, exactly as before this feature
-      # existed. Uncomment BOTH this line and the "ocr" service below (and start it with
-      # `docker compose --profile ocr up`) to enable OCR for every company on this instance — this
-      # backend NEVER sees a Mistral API key itself, only this URL; the key lives ONLY in the "ocr"
-      # service's own environment, below.
+      # TODO_PRODUIT.md T5(c) — OCR of unstructured received-invoice PDFs. OPTIONAL: absent (the
+      # default) means this instance runs full-local, self-host — a plain scanned PDF stores with
+      # empty fields for a human to fill in, exactly as before this feature existed. This backend
+      # NEVER sees a Mistral API key, and never talks to the local engine directly either — it only
+      # ever knows this ONE URL; the real engine's own credential/container lives entirely in
+      # whichever service below is actually enabled. Pick EXACTLY ONE of the two modes:
+      #
+      #   CLOUD — Mistral Document AI (needs YOUR OWN Mistral API key, structured extraction, the
+      #   more accurate of the two): uncomment this line + the "ocr" service below, then
+      #   `docker compose --profile ocr up`.
       # - OCR_SERVICE_URL=http://ocr:3002
+      #
+      #   LOCAL — MANDANT DECISION (verbatim, follow-up to the above): "J'ai pas de clé Mistral,
+      #   pour moi en local faut lancer un service Docker qui fait ça." Zero API key, zero data ever
+      #   leaving this machine — a heuristic text-scrape, meaningfully weaker than the cloud path
+      #   (see `backend/src/ocr-service/local-client.ts`'s own header for the full, honest account
+      #   of what that costs). Uncomment this line + BOTH the "ocr-local" and "tika" services below,
+      #   then `docker compose --profile ocr-local up`.
+      # - OCR_SERVICE_URL=http://ocr-local:3002
     depends_on:
       - invoicerr_db
       - redis
@@ -73,7 +84,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  # TODO_PRODUIT.md T5(c) — OPT-IN (Compose `profiles`: only starts with
+  # TODO_PRODUIT.md T5(c) — OPT-IN, CLOUD mode (Compose `profiles`: only starts with
   # `docker compose --profile ocr up`, never with a plain `docker compose up`). The ONLY process in
   # this whole deployment that ever holds a real Mistral API key — the main "invoicerr" service above
   # only ever knows OCR_SERVICE_URL. Same image, third ROLE (see entrypoint.sh's own "one image, N
@@ -82,13 +93,53 @@ services:
   # SaaS mode: an operator enables this ONE service, ONCE, with THEIR OWN Mistral key — every company
   # on the instance then gets OCR with nothing further to configure ("personne a besoin de le
   # configurer" — the mandant's own wording). Self-host mode: leave this service (and
-  # OCR_SERVICE_URL above) commented out — full local, no data ever leaves the instance for OCR.
+  # OCR_SERVICE_URL above) commented out — full local, no data ever leaves the instance for OCR — or
+  # use the "ocr-local"/"tika" pair below for full-local OCR instead of no OCR at all.
   ocr:
     image: ghcr.io/invoicerr-app/invoicerr:latest
     profiles: ["ocr"]
     environment:
       - ROLE=ocr
+      - OCR_ENGINE=mistral # the default even if omitted — explicit here for symmetry with "ocr-local" below
       - MISTRAL_API_KEY=your_mistral_api_key # https://console.mistral.ai — NEVER commit a real value
+    restart: unless-stopped
+
+  # TODO_PRODUIT.md T5(c) follow-up — MANDANT DECISION (verbatim): "J'ai pas de clé Mistral, pour moi
+  # en local faut lancer un service Docker qui fait ça." OPT-IN, LOCAL mode (Compose profile
+  # "ocr-local": only starts with `docker compose --profile ocr-local up`, together with the "tika"
+  # service right below it). ZERO API key anywhere, ZERO data leaving this machine — every byte of
+  # every received PDF stays on this instance, reaching only the "tika" container over the internal
+  # compose network. Meaningfully WEAKER than the cloud "ocr" service above: a heuristic text-scrape,
+  # not a model reading the invoice — `backend/src/ocr-service/local-client.ts`'s own header
+  # documents exactly what that can and cannot get right (a wrong/missing field only ever lands on
+  # an EDITABLE proposal, never silently accepted downstream).
+  ocr-local:
+    image: ghcr.io/invoicerr-app/invoicerr:latest
+    profiles: ["ocr-local"]
+    environment:
+      - ROLE=ocr
+      - OCR_ENGINE=local
+      - LOCAL_OCR_URL=http://tika:9998
+    depends_on:
+      - tika
+    restart: unless-stopped
+
+  # The local OCR engine itself — apache/tika:latest-full (Apache Software Foundation, Apache-2.0,
+  # the most actively maintained of the three candidates this task evaluated — see `local-client.ts`'s
+  # own header for the full comparison, including WHY a bare Tesseract-server image was ruled out
+  # despite broader language coverage: it cannot read a PDF at all, and converting one ourselves would
+  # need a new dependency this task's own root instruction forbids). Tika reads the PDF NATIVELY —
+  # it rasterizes any page with no text layer and OCRs it with its own bundled Tesseract, with zero
+  # extra code on either side of this HTTP call. Ships eng/fra/deu/ita/spa/jpn OCR language packs —
+  # NOT Polish or Dutch out of the box (verified: an unsupported language falls back silently to
+  # Tika's own default guess rather than erroring). An operator who needs those two builds a tiny
+  # custom image instead of the stock one:
+  #   FROM apache/tika:latest-full
+  #   RUN apt-get update && apt-get install -y tesseract-ocr-pol tesseract-ocr-nld && rm -rf /var/lib/apt/lists/*
+  # — then points the "ocr-local" service's `image:` at that build instead of `apache/tika:latest-full`.
+  tika:
+    image: apache/tika:latest-full
+    profiles: ["ocr-local"]
     restart: unless-stopped
 
   redis:

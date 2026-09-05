@@ -46,7 +46,7 @@ describe('createOcrServer — ROLE=ocr, booted for real', () => {
       const body = await res.text();
 
       expect(res.status).toBe(200);
-      expect(JSON.parse(body)).toEqual({ status: 'ok', configured: true });
+      expect(JSON.parse(body)).toEqual({ status: 'ok', engine: 'mistral', configured: true });
       expect(body).not.toContain('sk-real-secret-do-not-leak'); // the key NEVER appears in any response
     });
   });
@@ -54,7 +54,7 @@ describe('createOcrServer — ROLE=ocr, booted for real', () => {
   it('GET /health reports configured:false when no key is set — the honest self-host default', async () => {
     await withServer({ mistralApiKey: undefined }, async (baseUrl) => {
       const res = await fetch(`${baseUrl}/health`);
-      expect(await res.json()).toEqual({ status: 'ok', configured: false });
+      expect(await res.json()).toEqual({ status: 'ok', engine: 'mistral', configured: false });
     });
   });
 
@@ -212,5 +212,132 @@ describe('createOcrServer — ROLE=ocr, booted for real', () => {
         });
       },
     );
+  });
+});
+
+/** A tiny real `node:http` stub standing in for the local engine (`apache/tika:latest-full` in
+ *  production — see `ocr-service/local-client.ts`'s own header) — same "never a mocked fetch"
+ *  discipline as `withMistralStub` above. */
+async function withLocalOcrStub(
+  handler: http.RequestListener,
+  run: (localOcrUrl: string) => Promise<void>,
+): Promise<void> {
+  const server = http.createServer(handler);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('local OCR stub did not bind');
+  const localOcrUrl = `http://127.0.0.1:${address.port}`;
+  try {
+    await run(localOcrUrl);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
+describe('createOcrServer — OCR_ENGINE routing (mandant: "pour moi en local faut lancer un service Docker")', () => {
+  it('OCR_ENGINE=local, configured: forwards to the local engine and returns the heuristically-mapped proposal', async () => {
+    await withLocalOcrStub(
+      (req, res) => {
+        expect(req.method).toBe('PUT');
+        expect(req.url).toBe('/tika');
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.end('Ma Societe SARL\nTotal TTC: 42.00 EUR\n');
+      },
+      async (localOcrUrl) => {
+        await withServer({ ocrEngine: 'local', localOcrUrl }, async (baseUrl) => {
+          const res = await fetch(`${baseUrl}/extract`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              mime: 'application/pdf',
+              bytesBase64: Buffer.from('%PDF fake bytes').toString('base64'),
+            }),
+          });
+          const body = await res.json();
+
+          expect(res.status).toBe(200);
+          expect(body.fields.grossAmount).toBe(42);
+          expect(body.fields.supplier).toBe('Ma Societe SARL');
+        });
+      },
+    );
+  });
+
+  it("GET /health with OCR_ENGINE=local reports the engine and its OWN configured flag — never Mistral's", async () => {
+    await withServer(
+      { ocrEngine: 'local', localOcrUrl: 'http://127.0.0.1:9', mistralApiKey: undefined },
+      async (baseUrl) => {
+        const res = await fetch(`${baseUrl}/health`);
+        expect(await res.json()).toEqual({ status: 'ok', engine: 'local', configured: true });
+      },
+    );
+  });
+
+  it('OCR_ENGINE=local without LOCAL_OCR_URL answers a NAMED 503 — never silently falls back to Mistral', async () => {
+    await withServer({ ocrEngine: 'local', localOcrUrl: undefined }, async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/extract`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mime: 'application/pdf', bytesBase64: 'AAAA' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(503);
+      expect(body.error).toMatch(/LOCAL_OCR_URL is not configured/);
+    });
+  });
+
+  it('GET /health with OCR_ENGINE=local and no LOCAL_OCR_URL honestly reports configured:false', async () => {
+    await withServer({ ocrEngine: 'local', localOcrUrl: undefined }, async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/health`);
+      expect(await res.json()).toEqual({ status: 'ok', engine: 'local', configured: false });
+    });
+  });
+
+  it('a non-2xx from the local engine propagates through with the SAME status, named', async () => {
+    await withLocalOcrStub(
+      (_req, res) => {
+        res.writeHead(422, { 'content-type': 'text/plain' });
+        res.end('Unprocessable Entity');
+      },
+      async (localOcrUrl) => {
+        await withServer({ ocrEngine: 'local', localOcrUrl }, async (baseUrl) => {
+          const res = await fetch(`${baseUrl}/extract`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ mime: 'application/pdf', bytesBase64: 'AAAA' }),
+          });
+          expect(res.status).toBe(422);
+        });
+      },
+    );
+  });
+
+  it('OCR_ENGINE absent still defaults to mistral — every deployment from before this env var existed', async () => {
+    await withServer({ mistralApiKey: undefined }, async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/health`);
+      expect((await res.json()).engine).toBe('mistral');
+    });
+  });
+
+  it('an unrecognized OCR_ENGINE is an honest, NAMED 501 on /extract — never guessed as either engine', async () => {
+    await withServer({ ocrEngine: 'azure-form-recognizer' }, async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/extract`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mime: 'application/pdf', bytesBase64: 'AAAA' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(501);
+      expect(body.error).toMatch(/Unknown OCR_ENGINE "azure-form-recognizer"/);
+    });
+  });
+
+  it('an unrecognized OCR_ENGINE is honestly NOT "configured" on /health either', async () => {
+    await withServer({ ocrEngine: 'azure-form-recognizer' }, async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/health`);
+      expect(await res.json()).toEqual({ status: 'ok', engine: 'azure-form-recognizer', configured: false });
+    });
   });
 });

@@ -34,7 +34,8 @@ Hard-success contract (enforced per-spec):
 | ApplySignalService atomic transitions | `COMPLIANCE_LIVE_DB_TESTS=1` | `DATABASE_URL` only — **no external cred, no `CREDENTIALS_ENCRYPTION_KEY`** | `nest/apply-signal.live.spec.ts` | ✅ Proven creds-free — runs against the CI job's disposable Postgres |
 | NAV Online Számla (HU) ⚖ *déclaration, not a channel* | `NAV_LIVE=1` | `NAV_TAX_NUMBER`, `NAV_LOGIN`, `NAV_PASSWORD`, `NAV_SIGNING_KEY`, `NAV_EXCHANGE_KEY` | `documents/reporting/providers/nav.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-02** (`api-test.onlineszamla.nav.gov.hu` real `funcCode`/`errorCode`) — full round-trip 🔴 deferred, no Hungarian taxpayer identity to register a technical user with (see `CREDENTIALS_GUIDE.md` §21) |
 | AADE myDATA (GR) ⚖ *déclaration, not a channel* | `MYDATA_LIVE=1` | `MYDATA_USER_ID`, `MYDATA_SUBSCRIPTION_KEY` | `documents/reporting/providers/mydata.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-02** (`mydataapidev.aade.gr` real Azure APIM 401) — full round-trip 🔴 deferred, no Greek AADE/TaxisNet identity, aade.gr itself 403s to this task (see `CREDENTIALS_GUIDE.md` §22) |
-| Mistral OCR (received-invoice PDF extraction, T5(c)) ⚙ *not a channel — the dedicated `ROLE=ocr` service's own client, never the main backend* | `MISTRAL_OCR_LIVE=1` | `MISTRAL_API_KEY` | `ocr-service/mistral-client.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-03** (`api.mistral.ai/v1/ocr`, no/garbage auth → real `401 {"detail":"Invalid API Key"}`) — full round-trip 🔴 deferred, no Mistral API key provisioned for this task |
+| Mistral OCR (received-invoice PDF extraction, T5(c)) ⚙ *not a channel — the dedicated `ROLE=ocr` service's own CLOUD engine, never the main backend* | `MISTRAL_OCR_LIVE=1` | `MISTRAL_API_KEY` | `ocr-service/mistral-client.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-03** (`api.mistral.ai/v1/ocr`, no/garbage auth → real `401 {"detail":"Invalid API Key"}`) — full round-trip 🔴 deferred, no Mistral API key provisioned for this task |
+| Local OCR engine (`apache/tika:latest-full`, T5(c) follow-up) ⚙ *not a channel — the SAME `ROLE=ocr` service's LOCAL engine, `OCR_ENGINE=local`, mandant: "pour moi en local faut lancer un service Docker qui fait ça"* | `LOCAL_OCR_LIVE=1` | _(none — no cloud key, that is the entire point; the spec launches its own `apache/tika:latest-full` container via `docker`, gated on a usable local Docker daemon — `docker info` — checked at load time)_ | `ocr-service/local-client.live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-05** — the spec launches the real container, `PUT`s a real `pdf-lib`-built invoice PDF to it, and the heuristic mapping correctly reads HT/TVA/TTC and the VAT id back. A SEPARATE, MANUAL round-trip the same day against a genuinely RASTERIZED (image-only) invoice PDF proved the real Tesseract-OCR path too (not just Tika's text-layer fast path) — see `local-client.ts`'s own header for that citation; not automated into the jest spec (no checked-in binary fixture, matching this codebase's existing `mistral-client.live.spec.ts` preference for a `pdf-lib`-drawn PDF over a hand-crafted one) |
 
 ---
 
@@ -249,6 +250,15 @@ TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
 # tables before/after every test (safe only on a disposable local/CI Postgres).
 COMPLIANCE_LIVE_DB_TESTS=1 DATABASE_URL=postgresql://user:pass@localhost:PORT/db \
   npx jest src/compliance/nest/apply-signal.live.spec.ts --runInBand
+
+# Mistral OCR (cloud engine, ROLE=ocr's OWN client — real API key required)
+MISTRAL_OCR_LIVE=1 MISTRAL_API_KEY=<key> \
+  npx jest mistral-client.live --no-coverage --forceExit
+
+# Local OCR engine (apache/tika:latest-full, ROLE=ocr's OTHER client — NO cloud key at all).
+# Requires a usable local Docker daemon (`docker info`) — the spec launches, uses, and tears down
+# its own container itself; nothing needs to be started manually first.
+LOCAL_OCR_LIVE=1 npx jest local-client.live --no-coverage --forceExit
 ```
 
 ---
