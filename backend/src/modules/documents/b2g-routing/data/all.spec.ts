@@ -9,9 +9,15 @@
  * `formatSyntax: "peppol-bis"`, no country-specific required identifiers/fields — so they get ONE
  * pinned, looped test rather than nine near-duplicate ones; pl is structurally different (its own
  * national channel/format) and gets its own dedicated test, same treatment as fr/de/it/es above.
+ *
+ * `nl` is added by a LATER task still (root TODO, "NLCIUS vendorable" — mandant "Go", 2026-09-05) —
+ * structurally closer to DE (its own vendored national CIUS, `formatOverride`-carried over the SAME
+ * `"peppol"` transport) than to the nine generic `"peppol-bis"` countries above, so it gets its own
+ * dedicated test too, same treatment as DE's below.
  */
 import { peppolBisFormatProvider } from '../../formats/peppol-bis-provider';
 import { fa3FormatProvider } from '../../formats/national/fa3-provider';
+import { nlciusFormatProvider } from '../../formats/nlcius-provider';
 import { ALL_B2G_ROUTING_FILES } from './all';
 
 /** The nine countries read as "generic Peppol BIS, no national CIUS" — see each file's own header
@@ -23,7 +29,7 @@ describe('b2g-routing/data/all.ts', () => {
     expect(ALL_B2G_ROUTING_FILES.length).toBeGreaterThan(0);
   });
 
-  it("ships exactly 14 countries: the original FR/DE/IT/ES wave plus the 2026-09-02 B2G audit's ten", () => {
+  it("ships exactly 15 countries: the original FR/DE/IT/ES wave, the 2026-09-02 B2G audit's ten, plus NL (NLCIUS)", () => {
     const countries = ALL_B2G_ROUTING_FILES.map((f) => f.countryCode).sort();
     expect(countries).toEqual([
       'BE',
@@ -38,6 +44,7 @@ describe('b2g-routing/data/all.ts', () => {
       'LU',
       'LV',
       'MT',
+      'NL',
       'PL',
       'SE',
     ]);
@@ -70,6 +77,26 @@ describe('b2g-routing/data/all.ts', () => {
     expect(de.formatSyntax).toBe('xrechnung');
     const buyerRef = de.requiredDocumentFields?.find((f) => f.field === 'buyerReference');
     expect(buyerRef?.required).toBe(true);
+  });
+
+  // NL (NLCIUS) — root TODO, "NLCIUS vendorable" (mandant "Go", 2026-09-05). Structurally closer to
+  // DE (its own vendored national CIUS, format-overridden over the SAME "peppol" transport) than to
+  // the nine generic peppol-bis countries above — see `data/nl.json`'s own header for the full
+  // citation and for why NO `requiredClientIdentifiers`/mandatory `requiredDocumentFields` are added
+  // (every NLCIUS BR-NL-* rule is scoped to a DUTCH supplier, unlike BR-DE-*'s own unconditional
+  // Leitweg-ID requirement).
+  it('NL routes through the IMPLEMENTED "peppol" channel, carrying "nlcius" CONTENT (never Peppol BIS), matching the registered nlciusFormatProvider id, and adds NO unconditional required identifier/field (every BR-NL-* rule is scoped to a Dutch supplier)', () => {
+    const nl = ALL_B2G_ROUTING_FILES.find((f) => f.countryCode === 'NL')!;
+    expect(nl.transportId).toBe('peppol');
+    expect(nl.formatSyntax).toBe('nlcius');
+    expect(nl.formatSyntax).toBe(nlciusFormatProvider.id);
+    expect(nl.requiredClientIdentifiers ?? []).toEqual([]);
+    // The one document field this rule names (buyerReference/BR-NL-2) is informational only —
+    // `required: false` — precisely because it is NOT unconditional (see `data/nl.json`'s own note).
+    const buyerRef = nl.requiredDocumentFields?.find((f) => f.field === 'buyerReference');
+    expect(buyerRef?.required).toBe(false);
+    expect(nl.notes).toContain('0106');
+    expect(nl.notes).toContain('0190');
   });
 
   it('IT routes to the ALREADY IMPLEMENTED "sdi" channel with "fatturapa" and requires the IPA code', () => {

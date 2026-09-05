@@ -423,3 +423,8 @@ export const EN16931_UBL_SCH = 'en16931/EN16931-UBL-validation-preprocessed.sch'
 export const PEPPOL_BIS_UBL_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
 /** Le delta KoSIT XRechnung 3.0.x — idem, branché par `../xrechnung-provider.ts`. */
 export const XRECHNUNG_UBL_SCH = 'de/XRechnung-UBL-validation-preprocessed.sch';
+/** Le delta SI-UBL 2.0 / NLCIUS (Peppol Autoriteit NL) — idem, branché par `../nlcius-provider.ts`.
+ *  Voir `nl/si-ubl-2.0-nlcius-preprocessed.sch`'s own header pour la provenance (tag, licence MIT) et
+ *  pour ce qui, du dépôt d'origine, n'est délibérément PAS vendoré ici (sa propre copie groupée de la
+ *  base EN 16931 — ce fichier ne porte que le delta NLCIUS lui-même). */
+export const NLCIUS_UBL_SCH = 'nl/si-ubl-2.0-nlcius-preprocessed.sch';

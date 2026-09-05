@@ -76,6 +76,19 @@
  *    unidad tramitadora/oficina contable) rather than DE's single Leitweg-ID — a SEPARATE test below
  *    proves the reactive on-screen field mechanism scales to three without any code change
  *    (`applyB2gDocumentFieldHints`'s own generic `requiredDocumentFields.map(...)` bridge).
+ *  - NL (Peppol, NLCIUS content — root TODO, "NLCIUS vendorable", mandant "Go" 2026-09-05): structurally
+ *    closer to BE than to DE at the SCREEN level — the "peppol" channel is ALREADY implemented, so
+ *    (like BE) this test CONNECTS it (fictitious credentials, closed port — same fixture as BE/31's own
+ *    Peppol wave) and proves the B2G precedence over the company's free "email" choice with a REAL
+ *    network failure, never a preflight block the way DE stays in this suite. Content-wise it mirrors
+ *    DE instead — a vendored NATIONAL CIUS (`formats/nlcius-provider.ts`, `formats/vendored/nl/si-
+ *    ubl-2.0-nlcius-preprocessed.sch`) carried via the SAME `formatOverride` mechanism
+ *    (`documents-core.module.ts`'s own `formatOverrides.nlcius`), never a generic Peppol BIS
+ *    substitute. The KVK-nummer (LEGAL_ID) is ALREADY required by `country-identifiers/data/nl.json`
+ *    for every Dutch client — same "nothing new to add on screen for this field" precedent as FR's
+ *    own SIRET. EAS 0106/0190 themselves stay a JEST-only proof (`formats/nlcius-provider.spec.ts`,
+ *    `transports/peppol-transport.spec.ts`'s own NLCIUS format-override block) — same "not the point
+ *    of THIS screen test" precedent BE's own header already sets for its own EAS 0208.
  *
  * `cy.resetAndSeed()` seeds a FRENCH company (Acme Corp, SIRET/VAT already on file) — this file adds
  * an IBAN to it via the API before the DE case (BR-DE-1/23-a/23-b's own requirement, see
@@ -690,6 +703,145 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		// Nettoyage — laisse le canal déconnecté pour ne pas polluer une autre spec qui relirait
 		// company/channels après celui-ci (même discipline que le dernier test de la 31 et les tests
 		// FR/IT/ES ci-dessus).
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Connected",
+		);
+		cy.get('[data-cy="channel-peppol-disconnect-button"]').click();
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Not connected",
+		);
+	});
+
+	// NOUVEAU (root TODO, "NLCIUS vendorable" — mandant "Go", 2026-09-05) — `b2g-routing/data/nl.json`
+	// routes vers le canal "peppol" DÉJÀ implémenté, mais avec le CONTENU "nlcius" (le format-override
+	// mechanism, `documents-core.module.ts`'s own `formatOverrides.nlcius` — la MÊME structure que le
+	// cas allemand ci-dessus), jamais un Peppol BIS générique — voir `data/nl.json`'s own header pour
+	// la citation complète. Même patron de preuve que BE ci-dessus (canal peppol connecté par
+	// l'écran, identifiants fictifs vers un port fermé, la préséance B2G l'emporte sur le choix
+	// "email" de la société, échec réseau réel jamais un succès silencieux) — le schéma Peppol par
+	// défaut de l'écran (0088 — GLN) est laissé tel quel, exactement comme pour BE : le point de CE
+	// test est la préséance du canal + format nlcius et l'échec réseau réel, jamais l'EAS néerlandais
+	// lui-même (0106/0190, déjà épinglé au niveau jest par `formats/nlcius-provider.spec.ts` et
+	// `transports/peppol-transport.spec.ts`'s own NLCIUS format-override block).
+	it("NL — un client GOVERNMENT affiche l'aide Peppol/NLCIUS, puis l'envoi force le canal peppol connecté (identifiants fictifs, port fermé) même si la société a choisi email, et échoue réellement, jamais par email", () => {
+		// Le canal Peppol, connecté par l'écran, identifiants fictifs (port fermé — même fixture que
+		// 31's own Peppol wave et le cas BE ci-dessus).
+		cy.visit("/settings/channels");
+		cy.get('[data-cy="channel-peppol"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="channel-peppol-accesspointurl-input"]')
+			.clear()
+			.type(FAKE_PEPPOL.accessPointUrl);
+		cy.get('[data-cy="channel-peppol-apikey-input"]')
+			.clear()
+			.type(FAKE_PEPPOL.apiKey);
+		cy.get('[data-cy="channel-peppol-participantid-input"]')
+			.clear()
+			.type(FAKE_PEPPOL.participantId);
+		cy.get('[data-cy="channel-peppol-connect-button"]').click();
+		cy.get('[data-cy="channel-peppol-status"]', { timeout: 10000 }).should(
+			"contain.text",
+			"Connected",
+		);
+
+		// La société choisit "email" — un canal qui MARCHERAIT réellement (Mailpit). La préséance B2G
+		// doit l'ignorer complètement, même motif que FR/IT/ES/BE ci-dessus.
+		setInvoiceTransport("email");
+
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Gemeente Teststad");
+		cy.selectCountry("client-country-select", "Netherlands");
+
+		cy.get('[data-cy="client-kind-select"]').click();
+		cy.get('[data-cy="client-kind-government"]').click();
+
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="client-b2g-hint-channel"]')
+			.should("contain.text", "peppol")
+			.and("contain.text", "nlcius");
+		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "NLCIUS");
+
+		// Le KVK-nummer — déjà exigé par le catalogue country-identifiers pour TOUT client néerlandais
+		// (LEGAL_ID, appliesTo BOTH, `country-identifiers/data/nl.json`) : la règle B2G elle-même n'a
+		// rien à ajouter de nouveau à l'écran pour ce champ précis (même raisonnement que le SIRET
+		// français ci-dessus — voir `data/nl.json`'s own note sur pourquoi AUCUN
+		// `requiredClientIdentifiers` n'est ajouté par la règle B2G elle-même).
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+			.clear()
+			.type("87654321");
+
+		// Le PEPPOL_ENDPOINT du client — sa PROPRE section dédiée ("Peppol / Electronic routing"),
+		// jamais dans la liste générique des identifiants pays (même motif que BE ci-dessus). Le
+		// schéma par défaut de l'écran (0088 — GLN) est laissé tel quel : le point de CE test est la
+		// préséance du canal+format et l'échec réseau réel, jamais l'EAS néerlandais lui-même (0106,
+		// déjà épinglé au niveau jest).
+		cy.get('[data-cy="client-peppol-endpoint-input"]')
+			.scrollIntoView()
+			.clear()
+			.type("12345678");
+
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("facturen@teststad.example");
+		cy.get('[name="address"]').clear().type("Stadhuisplein 1");
+		cy.get('[name="postalCode"]').clear().type("1234 AB");
+		cy.get('[name="city"]').clear().type("Teststad");
+		cy.get('[data-cy="client-currency-select"] button')
+			.scrollIntoView()
+			.click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Gemeente Teststad", { timeout: 10000 });
+
+		findClientIdByName("Gemeente Teststad").then((clientId) => {
+			createInvoiceDraft(clientId).then((invoiceId) => {
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+					.find('[data-cy="document-status-badge"]')
+					.should("contain.text", "Draft");
+
+				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
+					timeout: 15000,
+				}).click();
+
+				// Le canal B2G (peppol, contenu nlcius) EST implémenté ET connecté : la file échoue
+				// RÉELLEMENT contre le port fermé — jamais un succès silencieux via email.
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+					.should("contain.text", "Send failed");
+				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
+					"contain.text",
+					"Peppol",
+				);
+
+				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+					.its("body")
+					.then((doc) => {
+						expect(
+							doc.status,
+							'la facture échoue réellement via Peppol, jamais "sent" par email',
+						).to.eq("send_failed");
+						expect(
+							doc.lastActionError,
+							"l'erreur nomme Peppol, jamais email",
+						).to.match(/Peppol/);
+					});
+			});
+		});
+
+		// Nettoyage — laisse le canal déconnecté pour ne pas polluer une autre spec qui relirait
+		// company/channels après celui-ci (même discipline que BE ci-dessus).
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-peppol-status"]', { timeout: 15000 }).should(
 			"contain.text",

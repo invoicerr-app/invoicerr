@@ -23,13 +23,22 @@
  * see each file's own header for its own citation) and pl (`transportId: "ksef"`, `formatSyntax:
  * "fa3"` — Poland's OWN national channel/format, already implemented and already proven live,
  * deliberately chosen over the Peppol-based PEF platform whose Polish-specific extension this repo
- * does not vendor; see `data/pl.json`'s own header for why). THIRTEEN more were read and are
- * DELIBERATELY NOT shipped here — a required national CIUS this repo does not vendor (at/hr/dk/fi/ie/
- * nl/pt/ro/si/sk) or no confirmed Peppol-network reachability for the country's own closed platform
- * (bg/cz/hu) — see `B2G_COVERAGE.md` for the citation behind each one; adding a rule for any of them
- * today would mean either claiming a format this repo cannot actually build, or a channel with no
- * evidence it is reachable at all — precisely the "artefact qui a l'air conforme sans l'être" this
- * whole mechanism exists to refuse.
+ * does not vendor; see `data/pl.json`'s own header for why). THIRTEEN more were read and were, AT THE
+ * TIME, DELIBERATELY NOT shipped here — a required national CIUS this repo did not vendor (at/hr/dk/
+ * fi/ie/nl/pt/ro/si/sk) or no confirmed Peppol-network reachability for the country's own closed
+ * platform (bg/cz/hu) — see `B2G_COVERAGE.md` for the citation behind each one; adding a rule for any
+ * of them at that point would have meant either claiming a format this repo could not actually build,
+ * or a channel with no evidence it was reachable at all — precisely the "artefact qui a l'air conforme
+ * sans l'être" this whole mechanism exists to refuse.
+ *
+ * `nl` is the ELEVENTH, added by a LATER task still (root TODO, "NLCIUS vendorable" — mandant "Go",
+ * 2026-09-05): the ONE blocker the 2026-09-02 audit named for the Netherlands — "NLCIUS ... non
+ * vendoré" — is closed (`formats/vendored/nl/si-ubl-2.0-nlcius-preprocessed.sch`, MIT-licensed,
+ * see that file's own header for the tag and provenance). `transportId: "peppol"`,
+ * `formatSyntax: "nlcius"` — see `data/nl.json`'s own header for the full citation and for the
+ * genuine structural difference from XRechnung (every NLCIUS BR-NL-* rule is scoped to a Dutch
+ * SUPPLIER, never unconditional the way BR-DE-* is). AT/HR/DK/FI/IE/PT/RO/SI/SK (nine, NL now removed
+ * from this list) and BG/CZ/HU remain NOT shipped, for the exact same reasons as before.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -49,6 +58,7 @@ const COUNTRY_FILES = [
   'lu',
   'lv',
   'mt',
+  'nl',
   'pl',
   'se',
 ] as const;

@@ -51,7 +51,7 @@ Tout ce qui n'est pas trouvé/atteignable : unverified avec ce qui trancherait +
 | FR DE IT PL ES MX US | ✓ | ✓ | ✓ | partiel | FR seul | — (compléter identifiers/vat-rates en vague B fin) |
 | HU | ✓ (enrichi : invoice.send legal §175(3)b) | — (canal fermé, B2G_COVERAGE) | ✓ (3/11 — §168(2)/170 cross-vérifié NAV EN) | ✓ (2/2 legal) | ✓ (5 entrées legal dont 27 % — le plus haut d'Europe) | Lot 4 ✅ |
 | BE | ✓ | ✓ | ✓ (4/11 legal) | ✓ | ✓ (4 taux legal) | Lot 1 ✅ |
-| NL | ✓ | — (NLCIUS : MIT, vendorable — DÉCISION ci-dessous) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
+| NL | ✓ | ✓ (NLCIUS vendoré 2026-09-05 — décision « Go » ci-dessous) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
 | AT | ✓ | — (ebInterface sans LICENSE, CIUS introuvable) | ✓ (1/11 legal) | ✓ | ✓ (3 taux legal) | Lot 1 ✅ |
 | EE | ✓ | ✓ | ✓ (3/11 legal — texte PRIMAIRE via l'API riigiteataja) | ✓ | ✓ (4 taux legal) | Lot 2 ✅ |
 | GR | ✓ | ✓ | ✓ (2/11 legal — forin.gr JSON brut) | ✓ | ✓ (3 taux legal) | Lot 2 ✅ |
@@ -80,13 +80,20 @@ lots, sept batteries vertes, ~25 agents pays. Signal RO à traiter : RO-Romania.
 compliance) affirme un « 5 Working Days » au 1/1/2026 qu'AUCUN texte lu ne corrobore — lecture
 dédiée avant correction.
 
-### DÉCISION MANDANT EN ATTENTE — NLCIUS vendorable !
-L'agent NL a établi que le NLCIUS est publiquement téléchargeable SOUS LICENCE MIT (dépôt
-officiel peppolautoriteit-nl/validation : si-ubl-2.0.sch incluant les règles NLCIUS, LICENSE.txt
-MIT © Stichting Simplerinvoicing) — ce qui ROUVRE le verdict « non livrable » de
-B2G_COVERAGE.md : NL pourrait passer couvert en B2G (peppol + Schematron NLCIUS vendoré).
-Chantier : vendorer, brancher un format nlcius (delta bloquant, le patron xrechnung),
-b2g-routing/nl.json. À valider par le mandant.
+### ~~DÉCISION MANDANT EN ATTENTE — NLCIUS vendorable !~~ — TRANCHÉE « Go » (2026-09-05) ✅
+Mandant : « 1. Go. » — chantier livré le 2026-09-05 : `si-ubl-2.0/si-ubl-2.0-nlcius.sch` du tag
+STABLE `2025-11-27` de peppolautoriteit-nl/validation (le tag `2026-05-21` est prerelease ;
+le fichier NLCIUS est byte-identique entre les deux) vendoré avec LICENSE.txt MIT dans
+`formats/vendored/nl/`, format `nlcius` branché (delta bloquant, patron xrechnung,
+CustomizationID lu dans le fatal [SI-V20-INV-R000] du .sch — la valeur pressentie
+`...gaccount:v1.0` était un profil séparé, jamais construit ici), `b2g-routing/data/nl.json`
+(14→15 pays), `LEGAL_ID_SCHEME_BY_COUNTRY` {FR:'0002', NL:'0106'} dans le builder sémantique
+(+ correction du gating buyer : le schemeID de l'acheteur était gaté sur le pays du VENDEUR —
+défaut latent jamais observé, tripwire mandataire ajouté). Validation mandataire : vendoring
+re-diffé contre l'upstream au tag (27 ids BR-NL identiques, 35 asserts identiques à
+l'espace près), 3 mutations (délta débranché → 3 tests mordent ; gating buyer réverti →
+tripwire mord ; scheme NL corrompu → le juge Schematron mord), full jest 2902, batterie
+complète. NL passe 🟡→✅ dans B2G_COVERAGE.md.
 
 ### Manques consignés (lot 1, 2026-09-04)
 **BE** : l'AR n°1 (29/12/1992) introuvable en texte primaire sur ejustice (ELI → page d'aide) —

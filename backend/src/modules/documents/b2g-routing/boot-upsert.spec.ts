@@ -152,22 +152,23 @@ describe('upsertB2gRoutingRules', () => {
     expect(rows()).toHaveLength(0);
   });
 
-  // The REAL catalog (`data/all.ts`'s 14 shipped files), not a hand-rolled fake — the ONE test in
+  // The REAL catalog (`data/all.ts`'s 15 shipped files), not a hand-rolled fake — the ONE test in
   // this file that exercises the actual `defaultB2gRoutingCatalog` default parameter, proving what
   // `B2gRoutingBootUpsertService`'s own boot log line ("N upserted, M deleted") reports for a REAL
   // boot reflects what `data/*.json` actually ships, not just what a synthetic fixture claims. Pins
   // the count so it moves — deliberately — the moment a country is added or removed from that
-  // directory, never silently drifting between the two.
-  it("the REAL default catalog (every file under data/*.json) upserts exactly 14 rows at boot — the 2026-09-02 B2G audit's count", async () => {
+  // directory, never silently drifting between the two. 14 → 15 (root TODO, "NLCIUS vendorable",
+  // mandant "Go" 2026-09-05): NL added, see `data/nl.json`'s own header.
+  it("the REAL default catalog (every file under data/*.json) upserts exactly 15 rows at boot — the 2026-09-02 B2G audit's count plus NL (NLCIUS)", async () => {
     const { client, rows } = buildFakePrisma();
 
     const summary = await upsertB2gRoutingRules(client, defaultB2gRoutingCatalog);
 
-    expect(summary).toEqual({ upserted: 14, deleted: 0 });
+    expect(summary).toEqual({ upserted: 15, deleted: 0 });
     expect(
       rows()
         .map((r) => r.countryCode)
         .sort(),
-    ).toEqual(['BE', 'CY', 'DE', 'EE', 'ES', 'FR', 'GR', 'IT', 'LT', 'LU', 'LV', 'MT', 'PL', 'SE']);
+    ).toEqual(['BE', 'CY', 'DE', 'EE', 'ES', 'FR', 'GR', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'SE']);
   });
 });

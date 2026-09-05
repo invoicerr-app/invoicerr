@@ -37,6 +37,7 @@ import prisma from '@/prisma/prisma.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { nlciusFormatProvider } from '../formats/nlcius-provider';
 import { peppolBisFormatProvider } from '../formats/peppol-bis-provider';
 import { xrechnungFormatProvider } from '../formats/xrechnung-provider';
 import { PeppolApHttpClient, PEPPOL_DOC_TYPES } from './peppol/peppol-client';
@@ -134,6 +135,64 @@ const GERMAN_GOV_BUYER_WITH_ENDPOINT = {
   postalCode: '10117',
   country: 'Germany',
   partyIdentifiers: [{ scheme: 'PEPPOL_ENDPOINT', value: '0204:04011000-1234512345-06' }],
+};
+
+/** ISO 13616's own published example IBAN (ABN AMRO) — checksum-valid, never a real account — used
+ *  the same way `TEST_IBAN` above is: only `sellerPaymentMeans()` reads it, and only to satisfy
+ *  BR-NL-11/12 below. Required for the NL FORMAT OVERRIDE tests: `nlciusFormatProvider`'s own BR-NL-11. */
+const TEST_IBAN_NL = 'NL91ABNA0417164300';
+
+/** A Dutch seller with EVERYTHING `nlciusFormatProvider` needs to pass BR-NL-1/3/11/12 — an 8-digit
+ *  KVK-nummer as `LEGAL_ID` (`country-identifiers/data/nl.json`'s own scheme — `semantic/build-
+ *  semantic-invoice.ts#LEGAL_ID_SCHEME_BY_COUNTRY` tags it schemeID `0106` for BR-NL-1), a complete
+ *  address (BR-NL-3), and an IBAN on file (BR-NL-11/12, `sellerPaymentMeans()`, ALWAYS emitted with
+ *  code `'30'` — already in BR-NL-12's own allowed set). */
+const DUTCH_SELLER_WITH_KVK_AND_IBAN = {
+  id: 'company-3',
+  name: 'Voorbeeld B.V.',
+  address: 'Damrak 1',
+  city: 'Amsterdam',
+  postalCode: '1012 LG',
+  country: 'Netherlands',
+  email: 'contact@voorbeeld.example',
+  phone: '+31201234567',
+  iban: TEST_IBAN_NL,
+  partyIdentifiers: [
+    { scheme: 'VAT', value: 'NL123456789B01' },
+    { scheme: 'LEGAL_ID', value: '12345678' },
+  ],
+};
+
+/** The SAME Dutch seller, but with NO `LEGAL_ID` on file at all — the ONE fact BR-NL-1 demands,
+ *  missing (never a malformed one): `cac:PartyLegalEntity/cbc:CompanyID` is not emitted at all when
+ *  `sellerLegalId` is falsy (`build-semantic-invoice.ts`), so BR-NL-1's own `string-join(@schemeID,
+ *  ' ')` test finds nothing to match `0106`/`0190` against — a clean, NAMED BR-NL-1 refusal. */
+const DUTCH_SELLER_WITHOUT_KVK = {
+  ...DUTCH_SELLER_WITH_KVK_AND_IBAN,
+  partyIdentifiers: [{ scheme: 'VAT', value: 'NL123456789B01' }],
+};
+
+/** A Dutch PUBLIC-SECTOR buyer, addressed on the Peppol network under EAS `0106` (KVK — the SAME
+ *  generic `PEPPOL_ENDPOINT` mechanism `GERMAN_GOV_BUYER_WITH_ENDPOINT` above already uses, never an
+ *  NL-specific code path). ALSO carries its OWN `LEGAL_ID` (a KVK-nummer, DIFFERENT fact from the
+ *  `PEPPOL_ENDPOINT` routing address above — see `build-semantic-invoice.ts`'s own header): BR-NL-10
+ *  requires the CUSTOMER's own `cac:PartyLegalEntity/cbc:CompanyID` to carry schemeID `0106`/`0190`
+ *  too, whenever the customer's OWN country is NL — a fact this fixture genuinely IS (a Dutch
+ *  government body), not merely a Dutch seller's counterparty. `country-identifiers/data/nl.json`
+ *  only models the KVK-nummer scheme (never the OIN some real Dutch public bodies carry instead — see
+ *  `b2g-routing/data/nl.json`'s own header on this named, honest limitation), so a KVK-shaped value is
+ *  used here too, consistent with what this catalog can actually express. */
+const DUTCH_GOV_BUYER_WITH_ENDPOINT = {
+  id: 'client-3',
+  name: 'Gemeente Teststad',
+  address: 'Stadhuisplein 1',
+  city: 'Teststad',
+  postalCode: '1234 AB',
+  country: 'Netherlands',
+  partyIdentifiers: [
+    { scheme: 'PEPPOL_ENDPOINT', value: '0106:12345678' },
+    { scheme: 'LEGAL_ID', value: '87654321' },
+  ],
 };
 
 const CTX: DocumentTransportContext = {
@@ -615,6 +674,95 @@ describe('buildPeppolTransport', () => {
         await expect(action).rejects.toThrow(/failed validation/);
         const error = await action.catch((e) => e);
         expect(error.response.errors.join(' ')).toContain('BR-DE-1');
+        expect(sendSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    // Root TODO, "NLCIUS vendorable" (mandant "Go", 2026-09-05) — the SAME `formatOverride` mechanism
+    // as XRechnung above, one entry per national CIUS. `CTX_NL_GOV` mirrors `CTX_DE_GOV` exactly.
+    describe('the REAL nlcius-provider, wired as the override — the CustomizationID proof', () => {
+      const CTX_NL_GOV: DocumentTransportContext = {
+        ...CTX,
+        document: {
+          ...CTX.document,
+          data: { ...(CTX.document.data as Record<string, unknown>), client: 'client-3' },
+        },
+      };
+
+      beforeEach(() => {
+        mockedPrisma.company.findUnique.mockResolvedValue(DUTCH_SELLER_WITH_KVK_AND_IBAN);
+        mockedPrisma.client.findUnique.mockResolvedValue(DUTCH_GOV_BUYER_WITH_ENDPOINT);
+      });
+
+      it('sends NLCIUS — never Peppol BIS — when `ctx.formatOverride` is "nlcius": CustomizationID, documentTypeId, and artifact role all agree, both the Dutch seller AND the Dutch government buyer carry a KVK-tagged legal id (BR-NL-1 AND BR-NL-10)', async () => {
+        let receivedBody = '';
+        const { server, url } = await startStubServer((req, res) => {
+          const chunks: Buffer[] = [];
+          req.on('data', (c) => chunks.push(c));
+          req.on('end', () => {
+            receivedBody = Buffer.concat(chunks).toString('utf-8');
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ messageId: 'msg-nlcius-001', status: 'SENT' }));
+          });
+        });
+
+        try {
+          const deps = buildDeps({
+            resolveActive: jest.fn().mockResolvedValue({
+              ...CONNECTED_CONFIG,
+              config: { ...CONNECTED_CONFIG.config, accessPointUrl: url },
+            }),
+            formatOverrides: {
+              nlcius: {
+                provider: nlciusFormatProvider,
+                documentTypeId: PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL,
+              },
+            },
+          });
+          const transport = buildPeppolTransport(deps);
+
+          const result = await transport.send({ ...CTX_NL_GOV, formatOverride: 'nlcius' });
+
+          expect(result.artifacts?.[0]?.role).toBe('nlcius');
+          expect(result.artifacts?.[0]?.mime).toBe('application/xml');
+
+          const body = JSON.parse(receivedBody) as { document: string; documentTypeId: string };
+          expect(body.documentTypeId).toBe(PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL);
+          const xml = Buffer.from(body.document, 'base64').toString('utf-8');
+          // THE ASSERTION — NLCIUS's own CustomizationID reached the Access Point, Peppol BIS's never
+          // did, and BOTH parties' KVK-nummer carry the schemeID BR-NL-1 (seller) AND BR-NL-10 (buyer)
+          // demand.
+          expect(xml).toContain('urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0');
+          expect(xml).not.toContain('urn:fdc:peppol.eu:2017:poacc:billing:3.0');
+          expect(xml).toMatch(/cbc:CompanyID schemeID="0106">12345678<\/cbc:CompanyID>/); // seller
+          expect(xml).toMatch(/cbc:CompanyID schemeID="0106">87654321<\/cbc:CompanyID>/); // buyer
+          // The RECEIVER GATE read the SAME generic `PEPPOL_ENDPOINT` mechanism, addressed under EAS
+          // `0106` (KVK) — `b2g-routing/data/nl.json`'s own header.
+          const parsedBody = JSON.parse(receivedBody) as { receiver: string };
+          expect(parsedBody.receiver).toBe('0106:12345678');
+        } finally {
+          await closeServer(server);
+        }
+      });
+
+      it('the FORMAT GATE still applies under the override — a Dutch seller with NO KVK/OIN number refuses, named (BR-NL-1), before the Access Point is ever called', async () => {
+        mockedPrisma.company.findUnique.mockResolvedValue(DUTCH_SELLER_WITHOUT_KVK); // no LEGAL_ID — the ONE fact missing
+        const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
+        const deps = buildDeps({
+          formatOverrides: {
+            nlcius: {
+              provider: nlciusFormatProvider,
+              documentTypeId: PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL,
+            },
+          },
+        });
+        const transport = buildPeppolTransport(deps);
+
+        const action = transport.send({ ...CTX_NL_GOV, formatOverride: 'nlcius' });
+        await expect(action).rejects.toThrow(BadRequestException);
+        await expect(action).rejects.toThrow(/failed validation/);
+        const error = await action.catch((e) => e);
+        expect(error.response.errors.join(' ')).toContain('BR-NL-1');
         expect(sendSpy).not.toHaveBeenCalled();
       });
     });

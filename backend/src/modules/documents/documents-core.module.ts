@@ -77,6 +77,7 @@ import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
 import { fa3FormatProvider } from './formats/national/fa3-provider';
 import { fatturapaFormatProvider } from './formats/national/fatturapa-provider';
+import { nlciusFormatProvider } from './formats/nlcius-provider';
 import { peppolBisFormatProvider } from './formats/peppol-bis-provider';
 import { ublFormatProvider } from './formats/ubl-provider';
 import { xrechnungFormatProvider } from './formats/xrechnung-provider';
@@ -154,6 +155,11 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * DOES need a dependency (`signingCertificates` — root TODO item 13's own port, the first real
  * consumer of the XAdES provider, see that provider's own header) so it is a factory, the same shape
  * `facturx`'s own `referenceRegistry` dependency already established here.
+ *
+ * `nlcius` (NL, `nlcius-provider.ts`) is the NINTH — root TODO, "NLCIUS vendorable" (mandant "Go",
+ * 2026-09-05), the SAME UBL-syntax EN 16931 profile shape as `peppol-bis`/`xrechnung` above (its own
+ * vendored delta, `formats/vendored/nl/si-ubl-2.0-nlcius-preprocessed.sch`, runs on top of the base
+ * Schematron — see that provider's own header). No dependency either, so a plain object too.
  */
 function buildFormatProviderRegistry(
   referenceRegistry: EntityReferenceRegistry,
@@ -168,6 +174,7 @@ function buildFormatProviderRegistry(
   registry.register(peppolBisFormatProvider);
   registry.register(xrechnungFormatProvider);
   registry.register(buildFacturaeFormatProvider({ signingCredentials: signingCertificates }));
+  registry.register(nlciusFormatProvider);
   return registry;
 }
 
@@ -248,6 +255,13 @@ function buildFormatProviderRegistry(
  * that transport's own header, "THE PAYLOAD, HONESTLY", for what the base EN 16931 Schematron gate
  * does NOT additionally cover (Romania's own CIUS-RO extension, not vendored anywhere in this
  * checkout).
+ *
+ * `formatOverrides.nlcius` — root TODO, "NLCIUS vendorable" (mandant "Go", 2026-09-05): the SAME
+ * mechanism as `formatOverrides.xrechnung` above, one entry per new national CIUS. The Netherlands'
+ * own B2G routing rule (`b2g-routing/data/nl.json`) names `transportId: "peppol"` with
+ * `formatSyntax: "nlcius"`; `documentTypeId` is `PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL`, and
+ * `nlciusFormatProvider` is the SAME stateless plain object registered above under "nlcius" for
+ * `download-xml` — a second reference, never a new instance, identical to every other entry here.
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -301,6 +315,12 @@ function buildTransportRegistry(
         'peppol-bis': {
           provider: peppolBisFormatProvider,
           documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL,
+        },
+        // See this function's own header, "formatOverrides.nlcius" — the Netherlands' own B2G
+        // routing rule (`b2g-routing/data/nl.json`).
+        nlcius: {
+          provider: nlciusFormatProvider,
+          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL,
         },
       },
     }),

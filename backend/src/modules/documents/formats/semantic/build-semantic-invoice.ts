@@ -61,9 +61,16 @@
  *    from the `LEGAL_ID` party identifier (see `entity-identifiers.ts`) when present — the France-first
  *    SIRET→SIREN derivation (schemeID '0002') is REPRISED VERBATIM from the old code's own
  *    `toSiren`: FR is this product's primary market (see `documentation`'s own priority notes) and
- *    this exact derivation was proven against a real PDP deposit. A non-FR `LEGAL_ID` (e.g. a US EIN)
- *    is emitted as a bare `cbc:CompanyID` with NO schemeID — asserting the French SIREN scheme
- *    (ISO 6523 '0002') for it would be inventing a registry membership nobody claimed.
+ *    this exact derivation was proven against a real PDP deposit. `LEGAL_ID_SCHEME_BY_COUNTRY` below
+ *    (added for NLCIUS — root TODO, "NLCIUS vendorable") extends the SAME "country is data" mapping to
+ *    NL's own KVK-nummer (ISO 6523 '0106'), read from `country-identifiers/data/nl.json`'s own LEGAL_ID
+ *    scheme — never a derived/reshaped value the way SIRET→SIREN is, since a KVK number is already the
+ *    exact 8-digit form both `BR-NL-1`/`BR-NL-10` (`formats/vendored/nl/si-ubl-2.0-nlcius-
+ *    preprocessed.sch`) and the GENERIC Peppol BIS delta's own `NL-R-003`/`NL-R-005`
+ *    (`formats/vendored/peppol/PEPPOL-EN16931-UBL.sch:880-894` — flagged as a pre-existing gap by
+ *    `country-identifiers/data/nl.json`'s own note before this task closed it) expect. A `LEGAL_ID` for
+ *    any OTHER country is still emitted as a bare `cbc:CompanyID` with NO schemeID — asserting a
+ *    registry membership (French SIREN, Dutch KVK, or otherwise) nobody claimed would be inventing one.
  *  - BT-31 Seller VAT identifier       → `cac:PartyTaxScheme/cbc:CompanyID` + `cac:TaxScheme/cbc:ID`='VAT',
  *    from the `VAT` party identifier when present. ABSENT when the seller has none on file — BR-S-02/
  *    BR-Z-02 (see below) then correctly refuse the document, which is the STANDARD's own
@@ -302,6 +309,22 @@ function toSiren(legalId: string | undefined, isFrenchSeller: boolean): string |
   const digits = legalId.replace(/\D/g, '');
   return digits.length === 14 ? digits.slice(0, 9) : legalId;
 }
+
+/**
+ * ISO 6523 scheme for a party's OWN `cac:PartyLegalEntity/cbc:CompanyID` — keyed by that SAME
+ * party's OWN country ("country is data", the same discipline `toSiren`'s FR-only SIRET→SIREN
+ * derivation above already holds — see this file's own header, "BT-29/BT-30", for the full
+ * reasoning). `'FR': '0002'` is the PRE-EXISTING mapping, unchanged (this map's value for 'FR' is
+ * exactly the literal `isFrenchSeller ? '0002' : undefined` branch it replaces below — verified by
+ * every EXISTING French-seller test, none of which changes). `'NL': '0106'` is NEW (root TODO,
+ * "NLCIUS vendorable"): `country-identifiers/data/nl.json`'s only NL `LEGAL_ID` scheme is the
+ * KVK-nummer, so `0106` (KVK) is the only value this map ever emits for NL — a Dutch OIN
+ * (schemeID `0190`, the alternative both `BR-NL-1`/`BR-NL-10` and Peppol's own `NL-R-003`/`NL-R-005`
+ * also accept) is a SEPARATE identifier this catalog does not collect, and is not modeled here.
+ * A country absent from this map (every other one) keeps the pre-existing behaviour: a bare
+ * `cbc:CompanyID`, no schemeID — never a guessed registry membership.
+ */
+const LEGAL_ID_SCHEME_BY_COUNTRY: Record<string, string> = { FR: '0002', NL: '0106' };
 
 /**
  * BT-34/BT-49 (Seller/Buyer electronic address) — read from a `PEPPOL_ENDPOINT` party identifier
@@ -547,6 +570,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     );
   }
 
+  const sellerLegalIdScheme = LEGAL_ID_SCHEME_BY_COUNTRY[sellerCountryCode];
   const sellerParty: Record<string, unknown> = {
     'cbc:EndpointID': sellerEndpoint.id,
     'cbc:EndpointID@schemeID': sellerEndpoint.scheme,
@@ -554,8 +578,8 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     'cac:PartyLegalEntity': {
       'cbc:RegistrationName': input.seller.name,
       ...(sellerLegalId
-        ? isFrenchSeller
-          ? { 'cbc:CompanyID': sellerLegalId, 'cbc:CompanyID@schemeID': '0002' }
+        ? sellerLegalIdScheme
+          ? { 'cbc:CompanyID': sellerLegalId, 'cbc:CompanyID@schemeID': sellerLegalIdScheme }
           : { 'cbc:CompanyID': sellerLegalId }
         : {}),
     },
@@ -573,6 +597,13 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     ];
   }
 
+  // Gated on the BUYER's OWN country, never the seller's — this is a fix, not just NL's own addition:
+  // the previous `isFrenchSeller` gate would have stamped ANY buyer's `LEGAL_ID` (e.g. a German
+  // buyer's HRB number) with the French SIREN scheme ('0002') whenever the SELLER happened to be
+  // French, which was never correct — no existing test exercised a buyer `LEGAL_ID` at all (verified
+  // across every `providers.spec.ts`/`facturx-provider.spec.ts`/`legal-mentions.spec.ts` fixture
+  // before this change), so this was a latent, never-observed defect, not a documented behaviour.
+  const buyerLegalIdScheme = LEGAL_ID_SCHEME_BY_COUNTRY[buyerCountryCode];
   const buyerParty: Record<string, unknown> = {
     'cbc:EndpointID': buyerEndpoint.id,
     'cbc:EndpointID@schemeID': buyerEndpoint.scheme,
@@ -580,8 +611,8 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     'cac:PartyLegalEntity': {
       'cbc:RegistrationName': input.buyer.name,
       ...(buyerLegalId
-        ? isFrenchSeller
-          ? { 'cbc:CompanyID': buyerLegalId, 'cbc:CompanyID@schemeID': '0002' }
+        ? buyerLegalIdScheme
+          ? { 'cbc:CompanyID': buyerLegalId, 'cbc:CompanyID@schemeID': buyerLegalIdScheme }
           : { 'cbc:CompanyID': buyerLegalId }
         : {}),
     },

@@ -25,6 +25,23 @@
 > build) ✅ ; `npx biome check` sur tous les fichiers touchés ✅ (0 erreur, 0 avertissement) ; boot
 > upsert réel (via `defaultB2gRoutingCatalog`) : **14 upserted, 0 deleted** (4 pays d'origine + 10
 > nouveaux). Deux mutations rejouées et re-vérifiées mordantes (§4). Aucun commit.
+>
+> **MISE À JOUR 2026-09-05 (root TODO, "NLCIUS vendorable" — mandant "Go")** : le compte ci-dessus
+> ("10 des 23"/"13 autres") est celui de l'audit ORIGINAL du 2026-09-02 — figé tel quel, pour
+> l'exactitude historique. Il a depuis changé : **NL passe de 🟡 à ✅**, le seul blocage cité pour elle
+> ("NLCIUS ... non vendoré") étant levé — le dépôt officiel `peppolautoriteit-nl/validation` (Peppol
+> Autoriteit NL / Stichting Simplerinvoicing) publie `si-ubl-2.0.sch` sous LICENCE MIT, vendoré ici
+> (`backend/src/modules/documents/formats/vendored/nl/`). Le compte À JOUR (voir §1/§2/§3
+> ci-dessous, toutes mises à jour) : **11 des 23** pays lus sont livrables (10 + NL), **12 autres**
+> restent délibérément non livrés (13 − NL). Preuves de CETTE tâche : jest ciblé (`b2g-routing/` +
+> `nlcius-provider.spec.ts` + `peppol-transport.spec.ts`) **72/72 passed** ; jest complet du backend
+> (specs live exclues) **2901/2901 passed** (63 skipped = gated, attendu, 0 failed) ; `npm run build`
+> ✅ ; `npx biome check` sur tous les fichiers touchés/créés ✅ (0 erreur, 0 avertissement) ; boot
+> upsert réel : **15 upserted, 0 deleted** (14 précédents + NL), observé EN DIRECT au boot réel du
+> backend (`start:test`). Cypress `40-b2g-routing.cy.ts`, RÉELLEMENT EXÉCUTÉ (Firefox headless,
+> `--config trashAssetsBeforeRuns=false`) : **10/10 passed** (2m03s), dont le nouveau cas NL (canal
+> peppol connecté par l'écran, identifiants fictifs vers un port fermé, échec réseau réel nommé
+> "Peppol", jamais un envoi silencieux par email — même patron de preuve que BE). Aucun commit.
 
 ---
 
@@ -51,7 +68,7 @@ cette fois).
 | 🇱🇺 Luxembourg (LU) | ✅ **couvert** | « All public sector bodies are required to receive e-Invoices via the Peppol network » | UBL/CII via Peppol BIS Billing 3.0, « has not developed a specific national CIUS » | **oui** — `peppol` / `peppol-bis` | `0240` (registre des personnes morales) | EC factsheet LU, page 467108893, lu 2026-09-02 |
 | 🇱🇻 Lettonie (LV) | ✅ **couvert** (nuance notée) | eAddress (VDAA) EN PREMIER, e-mail, et « PEPPOL service providers » cité comme méthode de transmission disponible | « no national CIUS or additional extensions » | **oui** — `peppol` / `peppol-bis` | `0218` (numéro d'immatriculation unifié) | EC factsheet LV, page 467108891, lu 2026-09-02 |
 | 🇲🇹 Malte (MT) | ✅ **couvert** | « Malta chose to rely its eInvoicing system on the Peppol delivery network » | Peppol BIS Billing 3.0, « does not foresee any separate national CIUS » | **oui** — `peppol` / `peppol-bis` | `9943` (TVA, seul schéma existant pour MT) | EC factsheet MT, page 467108894, lu 2026-09-02 |
-| 🇳🇱 Pays-Bas (NL) | 🟡 pas livrable | Digipoort (+ Peppol en amont, + portail central bas volume) | **CIUS NL — NLCIUS**, « a customised version of... EN 16931... for the Netherlands », Peppol BIS cité « with specific rules for the Netherlands » | non | — | EC factsheet NL, page 467108895, lu 2026-09-02 |
+| 🇳🇱 Pays-Bas (NL) | ✅ **couvert** (MIS À JOUR 2026-09-05) | Digipoort (+ Peppol en amont, + portail central bas volume) | **CIUS NL — NLCIUS**, « a customised version of... EN 16931... for the Netherlands », Peppol BIS cité « with specific rules for the Netherlands » — vendoré depuis (`peppolautoriteit-nl/validation` @ tag `2025-11-27`, MIT) | **oui** — `peppol` / `nlcius` | `0106` (KVK) / `0190` (OIN) | EC factsheet NL, page 467108895, lu 2026-09-02 ; NLCIUS vendoré et câblé le 2026-09-05 (mandant "Go") — voir `b2g-routing/data/nl.json`'s own header |
 | 🇵🇱 Pologne (PL) | ✅ **couvert** (canal national, pas Peppol) | KSeF **ou** PEF — « B2G transactions can be processed through either KSeF or PEF » ; PEF porte des extensions Peppol polonaises propres, PAS vendorées ici | **fa3** (FA(3), schéma national KSeF 2.0, déjà vendoré et déjà prouvé live) | **oui** — `ksef` / `fa3` | n/a (canal national, pas Peppol) | EC factsheet PL, page 467108896 + `ksef.podatki.gov.pl` (portail JST), lus 2026-09-02 |
 | 🇵🇹 Portugal (PT) | 🟡 pas livrable | FE-AP (eSPap), usage non obligatoire, portails tiers variés | **CIUS PT**, « Portugal applies... EN 16931... through its national version known as CIUS-PT », formats « UBL 2.1 or XML-GS1 » — **aucune mention de Peppol** sur la page | non | — | EC factsheet PT, page 467108897, lu 2026-09-02 |
 | 🇷🇴 Roumanie (RO) | 🟡 pas livrable (malgré le transport `anaf` déjà câblé) | RO e-Factura (ANAF) | **RO_CIUS** — « Electronic invoices must conform to the RO_CIUS specifications » (Ordre MF 1366/2021) — **non vendoré** (`transports/anaf-transport.ts`'s own header le documente déjà : payload UBL générique, jamais RO_CIUS) | non | — | EC factsheet RO, page 467108898, lu 2026-09-02 |
@@ -88,11 +105,14 @@ pas non plus le texte de loi lui-même : consigné une fois ici plutôt que rép
 | MT | `peppol` | `peppol-bis` | `9943` | aucun | émission volontaire côté fournisseur (comme CY) |
 | SE | `peppol` | `peppol-bis` | `0007` | aucun | « used as-is without any national blends » |
 | PL | `ksef` | `fa3` | n/a | `VAT` (NIP) | canal national déjà prouvé live, PEF/Peppol PL délibérément écarté (extension non vendorée) |
+| NL *(ajouté 2026-09-05)* | `peppol` | `nlcius` | `0106` (KVK) / `0190` (OIN) | aucun (le KVK-nummer est déjà exigé par `country-identifiers/data/nl.json` pour TOUT client néerlandais — pas un ajout de CETTE règle) | CIUS vendoré (MIT) après décision mandant ; format-override structurellement comme DE (jamais un Peppol BIS générique) ; chaque BR-NL-* du delta est scopée au FOURNISSEUR néerlandais, jamais inconditionnelle comme BR-DE-* |
 
-Aucune de ces 10 règles n'ajoute de `requiredClientIdentifiers` pour l'adressage Peppol lui-même
+Aucune de ces 11 règles n'ajoute de `requiredClientIdentifiers` pour l'adressage Peppol lui-même
 (sauf le NIP polonais, structurel à FA(3), pas à l'adressage) : ce fait reste porté par la section
 dédiée « Peppol / Electronic routing » du client (`PEPPOL_ENDPOINT`), jamais dupliqué dans la liste
 générique — le même raisonnement que `b2g-routing/data/de.json` documente déjà pour le Leitweg-ID.
+NL suit le MÊME raisonnement pour son KVK-nummer (LEGAL_ID), déjà universellement requis pour tout
+client néerlandais par le catalogue `country-identifiers/`, jamais un ajout spécifique à cette règle.
 
 **Correctif fonctionnel nécessaire, découvert en câblant cette vague** : `resolveB2gInvoiceTransport`
 (`actions/invoice-actions.ts`) pose `ctx.formatOverride` INCONDITIONNELLEMENT pour toute règle B2G ;
@@ -151,10 +171,11 @@ consigné ici comme un gap connu, séparé, pour une tâche future.
 la règle lue) : **AT** (deux CIUS, dont un « tailored to... the government sector »), **HR** (CIUS
 national pour VAT/marchés publics), **DK** (OIOUBL, v3.0 attendue au 15/11/2025), **FI** (CIUS
 « tailored to government VAT requirements »), **IE** (trois CIUS sectoriels — NSSO/ETB/Local
-Government), **NL** (NLCIUS), **PT** (CIUS-PT), **RO** (RO_CIUS — Ordre MF 1366/2021 ; le transport
+Government), **PT** (CIUS-PT), **RO** (RO_CIUS — Ordre MF 1366/2021 ; le transport
 `anaf` existe déjà mais construit de l'UBL générique, jamais du RO_CIUS, comme
 `anaf-transport.ts`'s own header le documente déjà honnêtement), **SI** (e-SLOG 2.0, extensions
-nationales). **10 pays.**
+nationales). **9 pays** (10 au 2026-09-02 — **NL** en est retiré depuis le 2026-09-05, voir la MISE À
+JOUR en tête de ce document : son CIUS, NLCIUS, EST désormais vendoré, MIT, décision mandant).
 
 **Aucune joignabilité Peppol confirmée pour le canal fermé national lu** (le format serait acceptable
 — pas de CIUS — mais rien ne prouve que ce canal est sur le réseau Peppol, et ce dépôt n'implémente
@@ -166,10 +187,10 @@ pays.**
 « a new national solution built on Peppol-based infrastructure » explicitement datée « expected in
 2027 » : ni le canal actuel ni le canal futur ne sont livrables aujourd'hui avec ce dépôt. **1 pays.**
 
-Total : 10 + 3 + 1 = **13 pays lus, consignés, aucune règle ajoutée** — un client GOVERNMENT de l'un
-de ces pays garde le refus honnête existant du mécanisme (« No B2G routing rule is declared for
-"XX" ») lorsqu'il n'a pas déjà de règle — jamais un envoi B2B silencieux, jamais un format qui a l'air
-conforme sans l'être.
+Total : 9 + 3 + 1 = **12 pays lus, consignés, aucune règle ajoutée** (13 au 2026-09-02, NL retiré
+depuis) — un client GOVERNMENT de l'un de ces pays garde le refus honnête existant du mécanisme
+(« No B2G routing rule is declared for "XX" ») lorsqu'il n'a pas déjà de règle — jamais un envoi B2B
+silencieux, jamais un format qui a l'air conforme sans l'être.
 
 ---
 
@@ -224,11 +245,12 @@ conforme sans l'être.
 
 ## 6. Ce qui n'a pas été fait, sans l'enjoliver
 
-- **Le portail national n'a été recoupé que pour PL** (en plus de la fiche de la Commission) — les 8
-  autres pays couverts (BE/CY/EE/GR/LT/LU/LV/MT/SE) reposent SEULEMENT sur la fiche de la Commission,
-  jamais sur un texte de loi national ou un portail gouvernemental relu indépendamment. C'est le
-  niveau de preuve que le budget de cette tâche a permis, honnêtement nommé plutôt que présenté comme
-  plus solide qu'il ne l'est.
+- **Le portail national n'a été recoupé que pour PL** (en plus de la fiche de la Commission) — les 9
+  autres pays couverts (BE/CY/EE/GR/LT/LU/LV/MT/SE, et — pour le FAIT "canal/mandat B2G" précisément,
+  jamais pour le ruleset NLCIUS lui-même, vendoré depuis le dépôt GitHub officiel — NL) reposent
+  SEULEMENT sur la fiche de la Commission pour ce fait-là, jamais sur un texte de loi national ou un
+  portail gouvernemental (Digipoort) relu indépendamment. C'est le niveau de preuve que le budget de
+  cette tâche a permis, honnêtement nommé plutôt que présenté comme plus solide qu'il ne l'est.
 - ~~**Les six fonctions Schematron italiennes** (`u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/
   `u:checkPIVAseIT`/`u:checkPIVA`/`u:addPIVA`, toutes non enregistrées elles aussi) restent NON
   corrigées — voir §2, hors périmètre de cette vague (l'Italie a son propre canal B2G réel, jamais
@@ -241,12 +263,34 @@ conforme sans l'être.
   pays doit se rabattre sur `9925` (EU VAT, générique) ou saisir manuellement via le champ texte
   libre ; ce trou d'écran est nommé dans chaque fichier concerné mais N'A PAS été corrigé (hors
   périmètre déclaré de cette tâche : la règle de routage B2G, pas le sélecteur front-end).
-- **Une incohérence PRÉ-EXISTANTE, trouvée en lisant `client-upsert.tsx` pour préparer le test BE,
+- ~~**Une incohérence PRÉ-EXISTANTE, trouvée en lisant `client-upsert.tsx` pour préparer le test BE,
   jamais introduite par cette tâche** : son option `"0106" — DK CVR` est mal étiquetée — `0106` est en
   réalité le schéma néerlandais (KVK, « Vereniging van Kamers van Koophandel », codeliste v9.7),
   jamais le CVR danois (qui est `0184`). Signalé ici pour mémoire, PAS corrigé (hors périmètre de
   cette tâche, et une correction non demandée aurait été un changement de code au-delà de l'audit
-  B2G demandé).
-- **AT/HR/DK/FI/IE/NL/PT/RO/SI/SK/BG/CZ/HU** : aucune règle, par construction (voir §3) — rien à faire
+  B2G demandé).~~ **Corrigé depuis** (`TODO_PRODUIT.md` T4-b, avant la présente tâche NLCIUS) —
+  reconfirmé en lisant `client-upsert.tsx`/`company.settings.tsx` le 2026-09-05 : l'option porte
+  désormais `"0106 — NL KVK"`, et `"0184 — DK CVR"` a été ajoutée séparément. Le sélecteur Peppol
+  offrait donc DÉJÀ le bon EAS néerlandais avant même que NLCIUS ne soit vendoré — aucun changement
+  d'écran n'a été nécessaire pour cette tâche.
+- **AT/HR/DK/FI/IE/PT/RO/SI/SK/BG/CZ/HU** : aucune règle, par construction (voir §3) — rien à faire
   de plus sans vendorer un CIUS nouveau ou implémenter un canal national nouveau, un travail hors
-  périmètre d'un audit.
+  périmètre d'un audit. **NL en est retiré depuis le 2026-09-05** (voir la MISE À JOUR en tête de ce
+  document) — son CIUS est désormais vendoré et câblé.
+- **NL (NLCIUS), limites honnêtement assumées par CETTE tâche, nommées** : (1) l'identifiant de type
+  de document Peppol annoncé à l'Access Point (`PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL`) MIRRORE la
+  construction d'URN standard Peppol (le même `CustomizationID` que celui réellement inscrit dans le
+  XML) mais n'a PAS été vérifié indépendamment contre un enregistrement SMP réel d'une administration
+  néerlandaise — même limite, nommée au même endroit, que `PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL`
+  pour l'Allemagne ; (2) l'OIN (`0190`, réservé aux organismes publics néerlandais) n'est PAS modélisé
+  comme un schéma distinct dans `country-identifiers/data/nl.json` (qui ne porte que le KVK-nummer,
+  `0106`) — un client néerlandais dont le SEUL identifiant réel serait un OIN n'a aujourd'hui aucun
+  champ d'écran dédié pour le saisir sous ce schéma précis, une limite nommée à son propre
+  emplacement (`b2g-routing/data/nl.json`'s own header) plutôt que devinée ; (3) AUCUN
+  `requiredClientIdentifiers` n'est ajouté par la règle B2G elle-même — une lecture DIRECTE du `.sch`
+  vendoré a établi que BR-NL-10 (l'identifiant légal du CLIENT) ne s'applique QUE lorsque le
+  FOURNISSEUR est lui-même néerlandais (`[$s]`), donc l'imposer inconditionnellement à l'écran aurait
+  affirmé un fait faux pour la majorité des cas (un vendeur non-néerlandais facturant ce même client) ;
+  (4) Digipoort (le portail central bas volume, également cité par la fiche EC) n'est PAS implémenté
+  — seul le chemin Peppol/NLCIUS l'est, exactement comme documenté pour DE (ZRE/OZG-RE) et FR
+  (Chorus Pro) avant que leurs propres canaux dédiés ne soient câblés.
