@@ -177,6 +177,57 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     );
   });
 
+  // TODO_FEATURES.md item 7 ("référence client / n° de commande") — `clientReference` is an ordinary
+  // OPTIONAL top-level field on the descriptor (quote.descriptor.ts), so it needs no special-cased
+  // persistence path: it round-trips through the exact same generic `data` JSON blob every other
+  // field already does. This is the "bites" proof the task asked for at the storage layer — the PDF's
+  // own rendering of it is covered separately in rendering/render-html.spec.ts.
+  it('persists an optional clientReference verbatim', async () => {
+    const dataWithReference = { ...validQuoteData, clientReference: 'PO-2026-00042' };
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: dataWithReference,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', {
+      data: dataWithReference,
+    });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'quote',
+      undefined,
+      'draft',
+      dataWithReference,
+    );
+  });
+
+  // Not required (quote.descriptor.ts) — a document that omits it altogether must keep validating and
+  // saving exactly as it always did before this field existed.
+  it('validates and saves fine when clientReference is omitted entirely', async () => {
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-2',
+      typeId: 'quote',
+      status: 'draft',
+      data: validQuoteData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as Record<string, unknown>).clientReference).toBeUndefined();
+  });
+
   it('blocks "save-draft" on invalid data before ever touching persistence', async () => {
     await expect(
       buildService().service.runAction('company-1', 'quote', 'save-draft', { data: {} }),

@@ -15,6 +15,13 @@ export interface DocumentFieldDescriptor {
   label: string
   required?: boolean
   helpText?: string
+  /** Mirrors the backend's `DocumentFieldDescriptor.hideWhenEmpty` (descriptors/types.ts) — skips this
+   *  field entirely (no label, no "—" placeholder) wherever a consumer honors the hint and its value
+   *  is unset on this instance, instead of the otherwise-universal "always show the row" rule every
+   *  other field gets. Honored by `document-list.tsx`'s secondary-info line; NOT by the create/edit
+   *  form (an empty, optional input must still be visible to fill in) nor by the raw data-preview
+   *  dialog (`custom/invoice-preview-button.tsx` — an honest, unfiltered dump by design). */
+  hideWhenEmpty?: boolean
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: whether a value NOT among `options` is still accepted — but ONLY when `options`

@@ -398,6 +398,16 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   // Render each field
   for (const field of descriptor.fields) {
     const value = instance.data[field.key];
+
+    // See `DocumentFieldDescriptor.hideWhenEmpty`'s own header (types.ts) — an opt-in escape from the
+    // otherwise-universal "every field gets a row, even an empty one shows a '—' placeholder" rule
+    // right below. Checked with the SAME emptiness test `validate.ts#isMissing` uses for required-ness
+    // (undefined/null/'' — a 0 or `false` value is NOT empty), so a field that legitimately holds a
+    // falsy value is never hidden by mistake.
+    if (field.hideWhenEmpty && (value === undefined || value === null || value === '')) {
+      continue;
+    }
+
     const renderedValue = renderFieldValue(field, value, referenceLabels, instance.data);
 
     html += `

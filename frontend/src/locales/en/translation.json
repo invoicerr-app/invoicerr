@@ -3000,6 +3000,9 @@
           "notes": {
             "label": "Notes"
           },
+          "clientReference": {
+            "label": "Client reference / PO number"
+          },
           "lines": {
             "label": "Lines",
             "fields": {
@@ -3126,6 +3129,9 @@
           },
           "notes": {
             "label": "Notes"
+          },
+          "clientReference": {
+            "label": "Client reference / PO number"
           },
           "lines": {
             "label": "Lines",

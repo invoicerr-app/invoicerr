@@ -194,6 +194,37 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     );
   });
 
+  // TODO_FEATURES.md item 7 ("référence client / n° de commande") — an ordinary OPTIONAL top-level
+  // field (invoice.descriptor.ts): round-trips through the exact same generic `data` JSON blob every
+  // other field already does, with no special-cased persistence path. The PDF's own conditional
+  // rendering of it is covered separately in rendering/render-html.spec.ts's own `hideWhenEmpty` block.
+  it('persists an optional clientReference verbatim, and omitting it entirely still validates', async () => {
+    const dataWithReference = { ...validInvoiceData, clientReference: 'PO-2026-00042' };
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'invoice',
+      status: 'draft',
+      data: dataWithReference,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { service } = buildService();
+    const result = await service.runAction('company-1', 'invoice', 'save-draft', {
+      data: dataWithReference,
+    });
+
+    expect(result.changed).toBe(true);
+    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'invoice',
+      undefined,
+      'draft',
+      dataWithReference,
+    );
+  });
+
   it('its fields validate: an empty invoice is rejected before ever touching persistence', async () => {
     await expect(
       buildService().service.runAction('company-1', 'invoice', 'save-draft', { data: {} }),

@@ -168,6 +168,25 @@ export interface DocumentFieldDescriptor {
   label: string;
   required?: boolean;
   helpText?: string;
+  /**
+   * TODO_FEATURES.md item 7 ("référence client / n° de commande") — ANY kind, not just this field's
+   * own 'text': skips this field ENTIRELY (never a label + em-dash placeholder) wherever a consumer
+   * honors the hint, when its value is missing on this instance. Every other field in this core shows
+   * its row unconditionally (see render-html.ts's own fields loop, field-value.tsx) — including one
+   * that is optional and empty, like a quote's own `dueDate` — because for THOSE fields the absence
+   * itself is a fact worth a reader seeing ("no due date was set"). `clientReference` is different: an
+   * unset buyer-side convenience reference has NOTHING to communicate, so a permanent, empty
+   * "Client reference: —" on every single document that never had one would be noise, not
+   * information — this is what lets a consumer opt a field OUT of the otherwise-universal
+   * "always show the row" rule, without that consumer ever having to know WHICH field key this is.
+   * Honored by `rendering/render-html.ts` (the PDF's own field loop) and the frontend's
+   * `document-list.tsx` (the card's secondary-info line) — deliberately NOT by the create/edit FORM
+   * (the user needs to see the empty input to fill it in) nor by the raw, unfiltered data-preview
+   * dialog (`custom/invoice-preview-button.tsx`, frontend — its own stated purpose is an HONEST,
+   * complete dump of every field, so hiding one there would contradict it). Absent/false: unchanged,
+   * universal behavior for every field that existed before this hint did.
+   */
+  hideWhenEmpty?: boolean;
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
   /**

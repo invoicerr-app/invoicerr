@@ -144,12 +144,19 @@ function DocumentCardSecondaryInfo({ descriptor, instance }: DocumentCardSeconda
 
   return (
     <div className="mt-1 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-4">
-      {secondaryFields.map((field) => (
-        <span key={field.key}>
-          <span className="font-medium text-foreground">{field.label}:</span>{" "}
-          <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
-        </span>
-      ))}
+      {secondaryFields.map((field) => {
+        // See the backend's `DocumentFieldDescriptor.hideWhenEmpty` (descriptors/types.ts) — an
+        // opt-in escape from this line's own otherwise-universal "every named field gets a
+        // '<label>: <value-or-—>' span" rule, for a field whose absence has nothing to communicate
+        // (e.g. `clientReference` — most documents never had a buyer reference to begin with).
+        if (field.hideWhenEmpty && isEmptyFieldValue(instance.data[field.key])) return null
+        return (
+          <span key={field.key}>
+            <span className="font-medium text-foreground">{field.label}:</span>{" "}
+            <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
+          </span>
+        )
+      })}
       <span>
         <span className="font-medium text-foreground">{t("documents.list.columns.updatedAt")}:</span>{" "}
         {new Date(instance.updatedAt).toLocaleString()}

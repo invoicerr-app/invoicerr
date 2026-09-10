@@ -97,7 +97,10 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
     // without (required) and the one a reader actually wants to see first in a list of quotes.
     listItem: {
       titleFields: ['client'],
-      secondaryFields: ['issueDate', 'dueDate', 'currency'],
+      // `clientReference` is last and `hideWhenEmpty` (see that field's own comment above) — most
+      // quotes will never set it, so it never crowds the line for the common case, and the frontend's
+      // own `document-list.tsx` honors the SAME hint to skip it there too.
+      secondaryFields: ['issueDate', 'dueDate', 'currency', 'clientReference'],
     },
     fields: [
       {
@@ -131,6 +134,32 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         kind: 'longText',
         label: 'Notes',
         required: false,
+      },
+      // TODO_FEATURES.md item 7 ("référence client / n° de commande") — a free-text slot for the
+      // BUYER's own internal reference (their purchase order, a file/dossier number): quasi-universal
+      // on a competitor's quote/invoice form, and required in practice by most B2G/B2B buyers for
+      // their OWN reconciliation, even though nothing in French or EU law forces a seller to carry it.
+      // Deliberately NOT `notes` (free text already exists and nobody types a PO number into it in
+      // practice — the whole point is a field a buyer's accounts-payable system can find at a FIXED
+      // key) and deliberately NOT the same key as the DE country-fields overlay's own `buyerReference`
+      // (country-fields/data/de.json): that field is wired into a REAL compliance mechanism this task
+      // must not touch — EN 16931's BT-10 on the CII/UBL export (`formats/shared-build.ts`), XRechnung's
+      // BR-DE-15, Peppol's PEPPOL-EN16931-R003, and Germany's/France's own B2G required-field rules
+      // (`b2g-routing/data/*.json`) all read `data.buyerReference` specifically. Reusing that key here
+      // would either silently feed a user-typed convenience note into a legal EN 16931 field it was
+      // never vetted for, or — worse — collide outright: `country-fields/apply-overlay.ts`'s own `add`
+      // operation THROWS when a key it is about to add already exists on the trunk descriptor, so a DE
+      // company would get a hard 500 building its OWN invoice form the moment this field's key matched.
+      // `clientReference` stays a distinct, purely product-level fact: universal, optional, carrying no
+      // legal citation and touching no format/transport/B2G mechanism at all — see this field's own
+      // `hideWhenEmpty` for why it degrades to invisible rather than a permanent empty placeholder.
+      {
+        key: 'clientReference',
+        kind: 'text',
+        label: 'Client reference / PO number',
+        required: false,
+        helpText: "The buyer's own reference for this document — their purchase order or file number.",
+        hideWhenEmpty: true,
       },
       {
         key: 'lines',

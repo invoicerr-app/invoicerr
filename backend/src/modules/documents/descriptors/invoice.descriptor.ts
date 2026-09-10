@@ -337,7 +337,8 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     // sibling type: `client` is required and the one thing a reader scans a list of invoices for.
     listItem: {
       titleFields: ['client'],
-      secondaryFields: ['issueDate', 'dueDate', 'currency'],
+      // `clientReference` last and `hideWhenEmpty` — see quote.descriptor.ts's own identical comment.
+      secondaryFields: ['issueDate', 'dueDate', 'currency', 'clientReference'],
     },
     fields: [
       {
@@ -379,6 +380,18 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         kind: 'longText',
         label: 'Notes',
         required: false,
+      },
+      // TODO_FEATURES.md item 7 ("référence client / n° de commande") — see quote.descriptor.ts's own
+      // comment on this exact field for the full reasoning, including why this is deliberately NOT
+      // the same key as the DE country-fields overlay's own `buyerReference` (BT-10/Leitweg-ID/Chorus
+      // Pro "code service" — a compliance-wired field this task must not touch or collide with).
+      {
+        key: 'clientReference',
+        kind: 'text',
+        label: 'Client reference / PO number',
+        required: false,
+        helpText: "The buyer's own reference for this document — their purchase order or file number.",
+        hideWhenEmpty: true,
       },
       {
         key: 'lines',

@@ -15,6 +15,15 @@
 
 ---
 
+## Suivi (mise à jour 2026-09-11)
+
+- **Rang 7 — référence client / n° de commande** : ✅ FAIT (champ descripteur `clientReference` sur
+  devis/factures, `hideWhenEmpty`, rendu PDF + liste ; e2e 46-client-reference).
+- **Rang 10 — écran déclarations mydata/NAV** : ⛔ SANS OBJET depuis le prune aux 5 pays — le
+  mécanisme `reporting` est vide (gr/hu retirés), rien à afficher. À rouvrir si un pays à
+  e-reporting est réintroduit.
+- Quick wins restants en file : rang 6 (relevé de compte), rang 8 (QR SEPA), rang 9 (taux de change auto).
+
 ## 1. Inventaire de l'existant (100 % code)
 
 ### 1.1 Documents (devis, factures, avoirs, dépenses, factures reçues)

@@ -381,6 +381,70 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  // TODO_FEATURES.md item 7 ("référence client / n° de commande") — `hideWhenEmpty` (types.ts) is the
+  // one opt-in escape from the "missing and empty values" block right above: a field that declares it
+  // gets NO row at all when unset, rather than the universal label + em-dash placeholder.
+  describe('hideWhenEmpty', () => {
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test',
+      label: 'Test',
+      fields: [{ key: 'clientReference', kind: 'text', label: 'Client reference', hideWhenEmpty: true }],
+      actions: [],
+    };
+
+    it('omits the field row entirely when the value is unset', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Client reference');
+    });
+
+    it('omits the field row entirely when the value is an empty string', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { clientReference: '' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('Client reference');
+    });
+
+    it('renders the field, label and value, exactly as any other field, once it is set', () => {
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { clientReference: 'PO-2026-00042' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Client reference');
+      expect(html).toContain('PO-2026-00042');
+    });
+
+    it('never hides a field that does not opt in, even when unset — the universal rule is unchanged', () => {
+      const untouched: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'notes', kind: 'longText', label: 'Notes' }],
+        actions: [],
+      };
+      const html = renderDocumentHtml({
+        descriptor: untouched,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Notes');
+      expect(html).toContain('—');
+    });
+  });
+
   describe('XSS prevention', () => {
     it('escapes HTML in text values', () => {
       const descriptor: DocumentTypeDescriptor = {
