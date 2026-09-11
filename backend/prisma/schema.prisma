@@ -369,6 +369,14 @@ model Company {
   // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
   referenceCurrency String?
 
+  // TODO_FEATURES.md rank 2 ("relances automatiques") — OPT-IN, default `false`: auto-emailing a
+  // company's own CLIENTS is side-effectful in a way none of this module's other background sweeps
+  // are (the conformity/currency-rate sweeps only ever touch this company's own rows) — a company
+  // that never asked for it must never have a client suddenly receive a dunning email the day this
+  // migration lands. `reminders/reminder-sweep-runner.ts`'s own sweep queries exactly this flag; a
+  // company left at the default is invisible to it, not merely "not yet due" for one.
+  remindersEnabled Boolean @default(false)
+
   createdAt               DateTime                    @default(now())
   emailTemplates          MailTemplate[]
   webhooks                Webhook[]
@@ -385,6 +393,7 @@ model Company {
   documentArchives        DocumentArchive[]
   documentAuthorityEvents DocumentAuthorityEvent[]
   documentDownloadTokens  DocumentDownloadToken[]
+  documentReminders       DocumentReminder[]
   currencyRates           CurrencyRate[]
   channelConfigs          CompanyChannelConfig[]
   signingCertificates     CompanySigningCertificate[]
@@ -928,6 +937,12 @@ model DocumentInstance {
   // lifecycle, no draft, no send), only a record hanging off an existing document instance.
   payments DocumentPayment[]
 
+  // TODO_FEATURES.md rank 2 — see DocumentReminder below (reminders/). One row per ESCALATION TIER
+  // actually emailed for this document, never per attempt — a document can accumulate up to
+  // `REMINDER_TIERS.length` of these over its overdue life (reminder-sweep.ts), one per crossed
+  // threshold.
+  reminders DocumentReminder[]
+
   // See DocumentArchive below (archive/) — one row per successful delivery that produced at least
   // one artifact, never a "current archive" singleton: a re-send after "send_failed" archives AGAIN
   // (archive/archive-on-send.ts's own header — "deux archives pour un même document sont deux faits
@@ -1089,6 +1104,47 @@ model DocumentPayment {
   createdAt DateTime @default(now())
 
   @@index([companyId, documentId])
+}
+
+// TODO_FEATURES.md rank 2 ("relances automatiques") — one row per ESCALATION TIER actually emailed
+// for an overdue document. The `@@unique([documentId, tier])` below IS the "once per tier, ever"
+// guarantee this whole feature runs on: `reminders/reminder-sweep-runner.ts` writes this row ONLY
+// AFTER `MailService.sendMail` has already succeeded for that tier, and a row already present for
+// (documentId, tier) means that escalation step is done — a later daily pass, or two overlapping
+// ones (the identical race `conformity-sweep.ts`'s own header documents at length for its own
+// jobId), can never re-send the SAME tier. If two concurrent passes still both observe "not sent
+// yet" and both call `sendMail` (a genuine race, not merely a slow query), the SECOND write's own
+// unique-constraint violation is what actually stops the duplicate from being durably double-
+// recorded — see that runner's own header for why a caught P2002 there is treated as "already sent",
+// never a crash (the identical "belt and suspenders" posture `authority-events.persistence.ts`'s own
+// `skipDuplicates` gives the conformity journal).
+//
+// Invoices only, for now — TODO_FEATURES.md rank 2's own acceptance, and `reminder-sweep.ts`'s own
+// header on unsigned quotes being a deliberate non-goal THIS pass — but nothing about this table
+// names "invoice": `documentId` is a bare FK to ANY `DocumentInstance`, exactly like
+// `DocumentPayment.documentId` above, so extending this to a quote-signature reminder later needs no
+// schema change, only a second overdue predicate feeding the same runner.
+model DocumentReminder {
+  id         String           @id @default(cuid())
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId  String
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  // Which escalation step this row represents — the SAME number as the matching `REMINDER_TIERS`
+  // entry's own `daysOverdue` (reminder-sweep.ts), e.g. 7/14/30. A plain `Int`, not an enum: the
+  // tier set is an application-level constant a later task can extend without a migration, the same
+  // "closed at the application layer, not the database's" choice `DocumentInstance.status` and
+  // `DocumentSchedule.cadence` already make.
+  tier Int
+
+  // WHEN this tier's email was actually sent — set once, at write time, never updated afterwards
+  // (this row is never touched again once it exists, the same "a payment is a single complete act"
+  // posture `DocumentPayment`'s own header holds).
+  sentAt DateTime @default(now())
+
+  @@unique([documentId, tier])
+  @@index([companyId])
 }
 
 // Root TODO item 14 ("archivage légal ⚖ — rétention par pays, intégrité"). One row per DELIVERY that

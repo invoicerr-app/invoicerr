@@ -36,6 +36,13 @@
  * for real by `document-queue-worker.module.ts` (not `documents-core.module.ts` — that runner has no
  * Nest dependencies of its own, so it needs no home in the Core module at all; see that worker
  * module's own header).
+ *
+ * TODO_FEATURES.md rank 2 (automatic dunning reminders) adds a FIFTH job name, same shape again: ONE
+ * more repeatable (`reminders/reminder-sweep.ts`'s `REMINDER_SWEEP_JOB_NAME`), routed to
+ * `ReminderSweepRunner`, `@Optional()`-injected for the identical reason and provided for real by
+ * `document-queue-worker.module.ts` (not `documents-core.module.ts` — same rationale as
+ * `CurrencyRateSweepRunner`: that runner's only Nest dependency, `MailService`, is a plain leaf
+ * provider with no reason to live in the Core module either).
  */
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, Optional } from '@nestjs/common';
@@ -54,6 +61,8 @@ import {
 } from '../../conformity/conformity-sweep';
 import { ConformitySweepRunner, RunConformitySweepResult } from '../../conformity/conformity-sweep-runner';
 import { DocumentsService } from '../../documents.service';
+import { REMINDER_SWEEP_JOB_NAME } from '../../reminders/reminder-sweep';
+import { ReminderSweepRunner, RunReminderSweepResult } from '../../reminders/reminder-sweep-runner';
 import { DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../../reporting/report-job';
 import { ReportingRunner } from '../../reporting/reporting-runner';
 import { DocumentScheduleSweepRunner, RunSweepResult } from '../../schedules/schedule-sweep-runner';
@@ -111,6 +120,11 @@ export class DocumentActionProcessor extends WorkerHost {
     // this processor without one and never sends a currency-rate-sweep-named job; production wiring
     // (document-queue-worker.module.ts) always provides a real one.
     @Optional() private readonly currencyRateSweepRunner?: CurrencyRateSweepRunner,
+    // TODO_FEATURES.md rank 2 (automatic dunning reminders) — same `@Optional()` reasoning again:
+    // every EXISTING spec in this file constructs this processor without one and never sends a
+    // reminder-sweep-named job; production wiring (document-queue-worker.module.ts) always provides
+    // a real one.
+    @Optional() private readonly reminderSweepRunner?: ReminderSweepRunner,
   ) {
     super();
   }
@@ -122,6 +136,7 @@ export class DocumentActionProcessor extends WorkerHost {
     | RunSweepResult
     | RunConformitySweepResult
     | RunCurrencyRateSweepResult
+    | RunReminderSweepResult
     | { journaled: number }
   > {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
@@ -154,6 +169,11 @@ export class DocumentActionProcessor extends WorkerHost {
     if (job.name === CURRENCY_RATE_SWEEP_JOB_NAME) {
       this.logger.log(`Running the currency-rate sweep (job ${job.id})`);
       return this.requireCurrencyRateSweepRunner().runSweep();
+    }
+
+    if (job.name === REMINDER_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the dunning-reminder sweep (job ${job.id})`);
+      return this.requireReminderSweepRunner().runSweep();
     }
 
     if (job.name === DOCUMENT_REPORT_JOB_NAME) {
@@ -224,6 +244,17 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.currencyRateSweepRunner;
   }
 
+  private requireReminderSweepRunner(): ReminderSweepRunner {
+    if (!this.reminderSweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received a reminder-sweep job but has no ReminderSweepRunner.',
+      );
+    }
+    return this.reminderSweepRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -287,7 +318,12 @@ export class DocumentActionProcessor extends WorkerHost {
       // Same reasoning again — `CurrencyRateSweepRunner.runSweep` never throws either (a failed ECB
       // fetch is reported as `{ ok: false }`, never rethrown: see its own header), and this job's
       // data (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s vocabulary.
-      job.name === CURRENCY_RATE_SWEEP_JOB_NAME
+      job.name === CURRENCY_RATE_SWEEP_JOB_NAME ||
+      // Same reasoning once more — `ReminderSweepRunner.runSweep` never throws either (a per-invoice
+      // send/record failure is caught and counted in its own `skipped`, never rethrown: see that
+      // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
+      // with `markSendFailed`'s vocabulary either.
+      job.name === REMINDER_SWEEP_JOB_NAME
     )
       return;
 

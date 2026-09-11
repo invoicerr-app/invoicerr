@@ -1,7 +1,10 @@
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
 
+import { MailService } from '@/mail/mail.service';
+
 import { CurrencyRateSweepRunner } from '../../company/currency-rates/currency-rate-sweep-runner';
 import { DocumentsCoreModule } from '../documents-core.module';
+import { ReminderSweepRunner } from '../reminders/reminder-sweep-runner';
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { DocumentActionProcessor } from './processors/document-action.processor';
 
@@ -39,10 +42,24 @@ import { DocumentActionProcessor } from './processors/document-action.processor'
  * needing to import wherever the class happens to live — the identical reasoning that lets
  * `DocumentActionProcessor` itself (this module's other provider) sit here despite depending on
  * classes from three different directories.
+ *
+ * `ReminderSweepRunner` (TODO_FEATURES.md rank 2 — automatic dunning reminders) is provided directly
+ * HERE for the exact same reason `CurrencyRateSweepRunner` is, even though ITS OWN dependency is not
+ * quite "zero": it needs `MailService` (an empty-constructor, plain-class leaf provider itself — see
+ * `mail.service.ts`), never anything from `AuthorityStatusPollerRegistry`/`DocumentQueueDispatcher`'s
+ * own family of Core-module-only tokens. `MailService` is listed right below it, in THIS module's own
+ * `providers`, rather than relying on `DocumentsCoreModule`'s own (unexported) `MailService` provider
+ * — Nest resolves each provider within the scope of the module that actually lists it, so a class
+ * only reachable via an import chain that never `exports` it (`DocumentsCoreModule`'s own `providers`
+ * array carries `MailService`, but its `exports` array does not) would otherwise fail to resolve here
+ * at boot. A second, independent `MailService` instance costs nothing (it selects its own transport
+ * from `process.env.MAIL_PROVIDER` in its constructor, holds no other state) — the identical
+ * "resolved by Nest the same way a plain class always is, no factory needed" posture every other
+ * leaf provider on this page already holds.
  */
 @Module({
   imports: [DocumentsCoreModule],
-  providers: [DocumentActionProcessor, CurrencyRateSweepRunner],
+  providers: [DocumentActionProcessor, CurrencyRateSweepRunner, MailService, ReminderSweepRunner],
 })
 export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
   constructor(private readonly queueDispatcher: DocumentQueueDispatcher) {}
@@ -55,5 +72,8 @@ export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
     // TODO_FEATURES.md rank 9 — same idempotent-registration guarantee, same reasoning: see
     // `registerCurrencyRateSweepRepeatable`'s own header (document-queue.dispatcher.ts).
     await this.queueDispatcher.registerCurrencyRateSweepRepeatable();
+    // TODO_FEATURES.md rank 2 — same idempotent-registration guarantee, same reasoning: see
+    // `registerReminderSweepRepeatable`'s own header (document-queue.dispatcher.ts).
+    await this.queueDispatcher.registerReminderSweepRepeatable();
   }
 }

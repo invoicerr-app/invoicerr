@@ -17,6 +17,17 @@
 
 ## Suivi (mise à jour 2026-09-11)
 
+- **Rang 2 — relances automatiques (dunning)** : ✅ FAIT — sweep BullMQ quotidien (`reminders/reminder-sweep.ts`
+  pur + `reminder-sweep-runner.ts`, même patron que conformity/currency-rate), **opt-in par société**
+  (`Company.remindersEnabled` défaut OFF — aucun envoi surprise), paliers 7/14/30 j de retard (ton
+  croissant, le plus bas palier dû-et-non-envoyé par passe → jamais de rafale). Idempotent via
+  `DocumentReminder @@unique([documentId, tier])` (migration `20260911062312`). Détection du retard
+  réutilise le pipeline settlement (jamais recalculé), envoi via `MailService`. **Factures uniquement**
+  cette passe (devis non signés = extension 1 fichier, notée). jest 31 (sélection de palier + idempotence
+  mordues par mutation), **validé bout-en-bout contre la vraie DB de test** (envoi + ligne `DocumentReminder`
+  + 2ᵉ passe no-op via la vraie contrainte unique). Pas d'écran (job de fond) — le flag `remindersEnabled`
+  sera exposé par le chemin admin que le produit décidera.
+
 - **Rang 6 — relevé de compte client** : ✅ FAIT (endpoint company-scopé `GET /clients/:id/statement`
   → `settlement/client-statement.ts` : agrège les factures « sent » du client, réutilise
   `compute-settlement`/`credits` sans réinventer un calcul, produit une balance âgée par devise

@@ -29,6 +29,11 @@ import {
 } from '../../company/currency-rates/currency-rate-sweep';
 import { buildReportJobId, DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../reporting/report-job';
 import {
+  REMINDER_SWEEP_JOB_ID,
+  REMINDER_SWEEP_JOB_NAME,
+  readReminderSweepIntervalMs,
+} from '../reminders/reminder-sweep';
+import {
   readSweepIntervalMs,
   SCHEDULE_OCCURRENCE_JOB_NAME,
   SCHEDULE_SWEEP_JOB_ID,
@@ -195,6 +200,29 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     });
     this.logger.log(
       `Registered the currency-rate sweep repeatable (every ${readCurrencyRateSweepIntervalMs()}ms).`,
+    );
+  }
+
+  /**
+   * Registers the ONE dunning-reminder sweep repeatable (TODO_FEATURES.md rank 2 — automatic
+   * escalating payment reminders) — same idempotent-registration guarantee as
+   * `registerCurrencyRateSweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
+   * across the whole cluster), same `attempts: 1` reasoning: a pass that itself throws is a real bug
+   * worth surfacing loudly now, never silently retried moments later — the next tick,
+   * `readReminderSweepIntervalMs()` (24h by default) away, is already the natural retry for "the sweep
+   * didn't run this time". No payload either (`{}`) — `ReminderSweepRunner.runSweep` takes no
+   * arguments beyond an optional clock, it always reads the CURRENT set of opted-in companies.
+   */
+  async registerReminderSweepRepeatable(): Promise<void> {
+    await this.queue.add(REMINDER_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
+      jobId: REMINDER_SWEEP_JOB_ID,
+      repeat: { every: readReminderSweepIntervalMs() },
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(
+      `Registered the dunning-reminder sweep repeatable (every ${readReminderSweepIntervalMs()}ms).`,
     );
   }
 
