@@ -34,9 +34,37 @@
   taille —, absent sans IBAN ou en non-EUR).
 - **Rang 7 — référence client / n° de commande** : ✅ FAIT (champ descripteur `clientReference` sur
   devis/factures, `hideWhenEmpty`, rendu PDF + liste ; e2e 46-client-reference).
-- **Rang 10 — écran déclarations mydata/NAV** : ⛔ SANS OBJET depuis le prune aux 5 pays — le
-  mécanisme `reporting` est vide (gr/hu retirés), rien à afficher. À rouvrir si un pays à
-  e-reporting est réintroduit.
+- **Rang 10 — écran déclarations mydata/NAV** : ⚠️ ÉTUDE DE COMPATIBILITÉ FAITE (2026-09-11,
+  sous-agent, sources primaires citées) — **aucun des 5 pays gardés n'entre dans le mécanisme de
+  déclaration existant** (`reporting/`). Ce mécanisme modèle « le vendeur DÉCLARE les données de la
+  facture à SON autorité fiscale en temps réel et reçoit un identifiant émis par l'autorité »
+  (`DeclarationResult.authorityId` obligatoire) — NAV (HU) et myDATA (GR) sont les deux seules formes
+  livrées, et ces deux pays ont été retirés. Verdicts :
+  - **FR** : ne correspond pas — l'e-reporting transite PAR la PDP→PPF (axe transport), transmission
+    périodique (bi-mensuelle à 3×/mois selon régime TVA), pas une API de déclaration temps réel.
+  - **PL/IT** : ne correspondent pas — KSeF/SdI sont de la clearance/transport, déjà modélisée dans
+    `transports/` (+ pollers → `DocumentAuthorityEvent`). L'esterometro IT a été absorbé dans SdI en
+    2022.
+  - **DE** : ne correspond pas — le Meldesystem n'est pas encore législé (BMF : « prévu à un stade
+    ultérieur »).
+  - **PT** : SEUL candidat honnête, mais nécessite un NOUVEAU provider complet (webservice SOAP
+    WS-Security de l'AT, comunicação de faturas, DL 198/2012 art. 3(4)) — taille comparable au build
+    NAV/myDATA d'origine, PAS un quick win. Deux caveats : l'AT ne renvoie pas d'identifiant émis
+    (juste un code de résultat → `authorityId` à synthétiser), et le webservice temps réel n'est QU'UN
+    des 3 canaux légaux (webservice / SAF-T mensuel / saisie portail) → tension avec la posture « pas
+    de déclaration optionnelle » du schéma.
+  - **Anti-pattern à ne PAS faire** : écrire `reporting/data/{fr,pl,it}.json` avec `pdp`/`ksef`/`sdi`
+    comme `providerId` (données qui roulent sur le tuyau transport ≠ ce mécanisme), ou `de.json`
+    (obligation légale inexistante à ce jour). C'est exactement le forçage que l'en-tête de
+    `reporting/schema.ts` proscrit.
+  - **Alternative rapide et honnête** pour le besoin produit (« donner du contenu à l'écran ») :
+    re-scoper l'écran pour lister génériquement les `DocumentAuthorityEvent` (événements d'autorité /
+    clearance) — cette table reçoit DÉJÀ des événements temps réel par facture pour FR (PDP
+    200→201→202), PL (KSeF) et IT (SdI, RC/NS/NE/DT/AT poussés), sans aucun provider neuf. C'est un
+    re-scope du FEATURE (renommer « événements d'autorité », pas « déclarations » — ce sont des
+    événements de clearance, pas des déclarations vendeur→autorité), pas un détournement du mécanisme
+    `reporting/`. **Décision produit en attente** (option A : provider PT complet ; option B : écran
+    d'événements d'autorité génériques ; option C : abandonner).
 - Quick wins restants en file : rang 9 (taux de change auto).
 
 ## 1. Inventaire de l'existant (100 % code)
