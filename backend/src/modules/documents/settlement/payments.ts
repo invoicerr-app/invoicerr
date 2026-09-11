@@ -121,6 +121,28 @@ export function toSettlementPaymentInputs(
 }
 
 /**
+ * Every payment recorded ACROSS THE WHOLE COMPANY whose `paidAt` falls within `[from, to]` (inclusive)
+ * — the period-wide read accounting-export/accounting-export.service.ts's ledger needs
+ * (TODO_FEATURES.md rank 4). `paidAt` is a real DateTime column, so this filters in SQL, never in
+ * memory — unlike a document's own `issueDate` (buried in the JSON `data` field, filtered by callers
+ * instead — see persistence.ts's own `listDocuments`). Not scoped to one document, unlike
+ * `listPayments` above: this is the "one query, many documents" shape `sumPaidMinorByDocument` already
+ * holds for a SUM, extended here to the payment ROWS themselves. Ordered by `paidAt`, oldest first —
+ * a ledger reads chronologically, the same convention `listPayments` already holds.
+ */
+export async function listPaymentsInRange(
+  companyId: string,
+  from: Date,
+  to: Date,
+): Promise<DocumentPaymentResult[]> {
+  const rows = await prisma.documentPayment.findMany({
+    where: { companyId, paidAt: { gte: from, lte: to } },
+    orderBy: { paidAt: 'asc' },
+  });
+  return rows.map(toPaymentResult);
+}
+
+/**
  * The total paid, in minor units OF THE DOCUMENT'S OWN CURRENCY, for each of `documentIds` — ONE
  * grouped query rather than one lookup per document, for the dashboard's "pending invoices"
  * contribution (contributions/invoice-contributions.ts), which reads this for up to

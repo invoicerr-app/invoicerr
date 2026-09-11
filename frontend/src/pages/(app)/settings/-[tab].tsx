@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Building2,
+  FileSpreadsheet,
   FileText,
   KeyRound,
   Mail,
@@ -17,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useNavigate, useParams } from "react-router"
 
 import AccountSettings from "./_components/account.settings"
+import AccountingExportSettings from "./_components/accounting-export.settings"
 import ApiKeysSettings from "./_components/api-keys.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
@@ -56,6 +58,7 @@ export default function Settings() {
     "channels",
     "signing",
     "recurring",
+    "accountingExport",
     "danger",
   ]
   const currentTab = validTabs.includes(tab!) ? tab! : "company"
@@ -131,6 +134,11 @@ export default function Settings() {
       icon: Repeat,
     },
     {
+      value: "accountingExport",
+      label: t("settings.tabs.accountingExport"),
+      icon: FileSpreadsheet,
+    },
+    {
       value: "danger",
       label: t("settings.tabs.dangerZone"),
       icon: AlertTriangle,
@@ -175,6 +183,8 @@ export default function Settings() {
         return <SigningCertificatesSettings />
       case "recurring":
         return <RecurringSettings />
+      case "accountingExport":
+        return <AccountingExportSettings />
       case "danger":
         return <DangerZoneSettings />
       default:

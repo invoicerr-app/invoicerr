@@ -11,6 +11,7 @@ import { CompanyLookupModule } from './modules/company-lookup/company-lookup.mod
 import { CompanyModule } from './modules/company/company.module';
 import { CountryReadinessModule } from './modules/country-readiness/country-readiness.module';
 import { ConfigModule } from '@nestjs/config';
+import { AccountingExportModule } from './modules/documents/accounting-export/accounting-export.module';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
@@ -79,6 +80,9 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     CompanyLookupModule,
     DangerModule,
     DocumentsModule,
+    // TODO_FEATURES.md rank 4 — the generic accounting CSV export's own controller, deliberately its
+    // own module (see accounting-export.module.ts's own header for why it never joins DocumentsModule).
+    AccountingExportModule,
     PublicDocumentsModule,
     // Root TODO item 10, SdI wave — the ONE `@Public()` route for the six `TrasmissioneFatture`
     // notifiche SdI pushes at us (see `sdi-notifiche.module.ts`'s own header on why its own module,

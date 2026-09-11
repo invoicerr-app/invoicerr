@@ -17,6 +17,17 @@
 
 ## Suivi (mise à jour 2026-09-11)
 
+- **Rang 4 — export comptable générique CSV** : ✅ FAIT (tranche CSV ; FEC/DATEV spécifiques = extension
+  future notée). Module `documents/accounting-export/` : `build-accounting-csv.ts` PUR (échappement
+  RFC-4180, colonnes figées `type,reference,date,client,currency,net,vat,gross,paid,method,status`,
+  CSV en-tête seule si période vide) + service (factures « sent »/avoirs filtrés par `issueDate` dans
+  la période, paiements par `paidAt` ; montants issus de `compute-totals`/`compute-settlement`, JAMAIS
+  recalculés) + endpoint `GET /api/accounting-export?from&to` (text/csv en download, 400 si bornes
+  absentes/malformées). Onglet Settings « Accounting export » (2 dates + bouton, download via
+  `authenticatedFetch`→blob car l'endpoint exige le cookie d'auth). jest 25 (échappement mordu par
+  mutation + cohérence des montants), e2e `52-accounting-export` (facture+paiement d'août → 2 lignes à
+  1200.00 ; janvier → aucune ; bornes manquantes → 400).
+
 - **Rang 12 — facturation échelonnée multi-jalons** : ✅ FAIT — action `request-installments` sur le
   devis (availableWhen `sent`, param `milestones` = tableau `{percent, dueDate}`). Génère N factures
   draft, somme des bruts = TTC du devis EXACTEMENT : `computeMilestoneSplit` pur découpe le NET par %

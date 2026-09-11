@@ -1547,7 +1547,22 @@
       "channels": "E-invoicing",
       "signing": "Signing certs",
       "members": "Members",
-      "recurring": "Recurrences"
+      "recurring": "Recurrences",
+      "accountingExport": "Accounting export"
+    },
+    "accountingExport": {
+      "title": "Accounting export",
+      "description": "Download a CSV ledger of every invoice, credit note, and payment issued or recorded in a date range — one row per real document or payment, ready for your accounting software.",
+      "form": {
+        "from": "From",
+        "to": "To",
+        "download": "Download CSV"
+      },
+      "messages": {
+        "rangeRequired": "Pick both a start and end date",
+        "invalidRange": "\"From\" must not be after \"to\"",
+        "error": "Export failed"
+      }
     },
     "invitations": {
       "create": {

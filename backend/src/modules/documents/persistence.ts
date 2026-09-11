@@ -111,6 +111,25 @@ export async function listDocuments(
   });
 }
 
+/**
+ * The batched, EXACT-id companion to `findOwnedDocument` — every document among `ids` that belongs to
+ * `companyId`, in ONE query, regardless of type or how far back `listDocuments`' own `take` cap would
+ * otherwise reach. Added for accounting-export/accounting-export.service.ts (TODO_FEATURES.md rank 4):
+ * a `DocumentPayment` row's `documentId` can, in principle, name any document (see
+ * `DocumentPayment.documentId`'s own schema comment), so resolving "which invoice did this payment
+ * settle" for a period-wide read needs an exact lookup, never a status/type-filtered, capped list. An
+ * id absent from this company (foreign, deleted, or simply not among `ids`) is silently absent from
+ * the result — never a throw, unlike `findOwnedDocument`: a caller resolving MANY ids at once treats a
+ * stale one as "not found", not as a reason to abort the whole batch.
+ */
+export async function findOwnedDocumentsByIds(
+  companyId: string,
+  ids: readonly string[],
+): Promise<DocumentInstanceResult[]> {
+  if (ids.length === 0) return [];
+  return prisma.documentInstance.findMany({ where: { companyId, id: { in: [...new Set(ids)] } } });
+}
+
 /** Permanently removes an owned instance — used by the generic "delete" action
  *  (actions/generic-actions.ts's registerDeleteAction). 404s via findOwnedDocument the same way every
  *  other single-document operation here does, before ever issuing the delete. */
