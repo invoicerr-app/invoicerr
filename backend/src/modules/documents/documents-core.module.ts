@@ -37,6 +37,7 @@ import { ContributionRegistry } from './contributions/contribution-registry';
 import { DeclarationProviderRegistry } from './reporting/declaration-provider';
 import { buildNavDeclarationProvider } from './reporting/providers/nav-declaration-provider';
 import { buildMyDataDeclarationProvider } from './reporting/providers/mydata-declaration-provider';
+import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
 import { ReportingRunner } from './reporting/reporting-runner';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
@@ -407,7 +408,10 @@ function buildAuthorityStatusPollerRegistry(
  * Root TODO — declarative reporting (`reporting/`): a NEW concept, never a transport (see
  * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
  * as `buildAuthorityStatusPollerRegistry` just above — "nav" (Hungary, NAV Online Számla 3.0) and
- * "mydata" (Greece, AADE myDATA) are the two shipped providers, both gated by the exact same
+ * "mydata" (Greece, AADE myDATA) were the first two shipped providers; "pt-at" (Portugal, AT
+ * "comunicação de faturas") joined implemented-to-contract-but-credential-gated, the exact same
+ * "awaiting accreditation" posture `transports/sdi/` already carries — see
+ * `reporting/providers/pt-at-client.ts`'s own header. Every provider here is gated by the exact same
  * `ChannelCredentialsService` every transport/poller already shares (credentials are generic,
  * per-`providerId`, reusable for a declarative channel with zero changes — see
  * `modules/company/channels/channels.service.ts`'s own header).
@@ -418,6 +422,7 @@ function buildDeclarationProviderRegistry(
   const registry = new DeclarationProviderRegistry();
   registry.register(buildNavDeclarationProvider({ channelCredentials }));
   registry.register(buildMyDataDeclarationProvider({ channelCredentials }));
+  registry.register(buildPtAtDeclarationProvider({ channelCredentials }));
   return registry;
 }
 

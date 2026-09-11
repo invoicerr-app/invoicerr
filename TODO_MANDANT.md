@@ -103,6 +103,24 @@ Chacun exige une identité/entité locale réelle, sans chemin automatisable (d�
       pour créer l'utilisateur technique.
 - [ ] 🇬🇷 AADE myDATA (déclaration ⚖) : identité TaxisNet grecque (aade.gr refuse les accès
       automatisés — citation légale restée unverified).
+- [ ] 🇵🇹 AT « comunicação de faturas » (déclaration ⚖ — **marché GARDÉ, un des 5**, donc plus
+      prioritaire que le reste de cette section) : canal temps réel implémenté au contrat documenté,
+      **jamais éprouvé en réel** (`pt-declaration-provider.ts`/`pt-at-client.ts`, providerId `pt-at`).
+      Démarche :
+      - [ ] Adhésion « envio de dados » au Portal das Finanças → créer un **subutilizador** avec le
+            droit WebService (identifiant `NIF/UserId` + senha).
+      - [ ] Demander à l'AT la **clé publique RSA** de chaque environnement (test puis prod), par
+            email (manuel AT §2.1.1) — à poser en `authPublicKeyPem`.
+      - [ ] Générer un **CSR** et obtenir le **certificat client X.509 signé AT** (mTLS obligatoire,
+            §2.3). ⚠ Le transport mTLS n'est **pas encore câblé** côté code (gap nommé dans
+            `pt-at-client.ts` — un vrai appel prod échouerait au handshake TLS) : à câbler quand un
+            vrai PKCS#12 existe pour le tester (même forme `pfx`/`passphrase` que SdI). Poser ensuite
+            `clientCertificateBase64` + `clientCertificatePassword`.
+      - [ ] Les poser dans Settings → Channels (providerId `pt-at`), puis rejouer `PT_AT_LIVE=1`.
+      → 2 réserves de conception (cf. `reporting/data/pt.json` `notes`) : (a) ce webservice n'est
+      qu'**UNE des 3 voies légales** (l'autre = SAF-T mensuel / saisie portail) ; (b) `authorityId`
+      est **synthétisé** (l'AT ne renvoie aucune référence par facture). Le padding RSA exact
+      (PKCS#1 v1.5 supposé, OAEP écarté) se confirmera au 1er round-trip réel.
 - [ ] 🇷🇴 ANAF e-Factura : OAuth interactif avec certificat qualifié (seul le refresh token 365 j
       s'automatise ensuite).
 - [ ] 🇲🇽 CFDI : compte **PAC** certifié SAT (Finkok, Facturama…) + certificat **CSD** de

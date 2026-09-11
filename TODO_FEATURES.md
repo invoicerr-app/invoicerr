@@ -75,8 +75,14 @@
     200→201→202), PL (KSeF) et IT (SdI, RC/NS/NE/DT/AT poussés), sans aucun provider neuf. C'est un
     re-scope du FEATURE (renommer « événements d'autorité », pas « déclarations » — ce sont des
     événements de clearance, pas des déclarations vendeur→autorité), pas un détournement du mécanisme
-    `reporting/`. **Décision produit en attente** (option A : provider PT complet ; option B : écran
-    d'événements d'autorité génériques ; option C : abandonner).
+    `reporting/`.
+  - **DÉCISION PRISE (2026-09-11) : option A — provider Portugal livré.** `reporting/providers/pt-at-client.ts`
+    + `pt-declaration-provider.ts` (providerId `pt-at`, AT « comunicação de faturas », WS-Security
+    UsernameToken RSA/AES, mappe `DeclaredInvoice`→`RegisterInvoiceRequest`), `reporting/data/pt.json`
+    (provenance `legal` : DL 198/2012 art. 3º n.º1 lu en source primaire). Statut **implemented-
+    awaiting-accreditation** (comme SdI) — jamais éprouvé en réel, 2 gaps consignés (mTLS non câblé,
+    padding RSA unverified) → TODO_ISSUES + credentials → TODO_MANDANT §D. jest (reporting) 88✓/5 skip,
+    contenu/gating mordus par mutation ; round-trip réel gated `PT_AT_LIVE=1`.
 - Quick wins TOUS FAITS (rangs 6, 7, 8, 9). Rang 10 : décision produit en attente (voir plus haut).
 
 ## 1. Inventaire de l'existant (100 % code)

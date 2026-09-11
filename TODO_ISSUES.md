@@ -18,6 +18,18 @@
 
 ## Limites consignées en cours de route
 
+- **PT `pt-at` (déclaration AT) : implémenté au contrat documenté, PAS éprouvé en réel** (livré
+  2026-09-11, rang 10) — 2 gaps techniques nommés, à fermer quand de vraies credentials AT existent :
+  (1) **mTLS non câblé** — l'AT exige un certificat client X.509 signé pour la connexion HTTPS
+  elle-même (§2.3), `pt-at-client.ts` utilise `fetch()` simple (comme NAV/myDATA) : un appel prod
+  échouerait au handshake TLS avant même la couche WS-Security. Câblage = même forme `pfx`/`passphrase`
+  que `transports/sdi/sdicoop-client.ts`, délibérément pas fait à l'aveugle sans PKCS#12 réel à
+  tester. (2) **Padding RSA du Nonce ⚠ unverified** — le manuel nomme « RSA » sans paramètre de
+  padding ; PKCS#1 v1.5 retenu comme meilleure lecture (OAEP = défaut Node, écarté), à confirmer au
+  1er round-trip (un mauvais padding échoue bruyamment : `CodigoResposta` 16/17). `authorityId` est
+  SYNTHÉTISÉ (l'AT ne mine aucune référence par facture). Démarche credentials → TODO_MANDANT §D.
+  Tests : structure + gating + parsing (mordus par mutation) ; round-trip réel gated `PT_AT_LIVE=1`.
+
 - **Crash du renderer Electron de Cypress sur 3 specs lourdes** (constaté 2026-09-11, batterie
   post-QW6) : `18-onboarding-wizard`, `25-document-settlement` et `29-document-recurrence` font
   planter le process renderer d'Electron (« We detected that the Electron Renderer process just
