@@ -18,6 +18,19 @@
 
 ## Limites consignées en cours de route
 
+- **Crash du renderer Electron de Cypress sur 3 specs lourdes** (constaté 2026-09-11, batterie
+  post-QW6) : `18-onboarding-wizard`, `25-document-settlement` et `29-document-recurrence` font
+  planter le process renderer d'Electron (« We detected that the Electron Renderer process just
+  crashed ») — pas une AssertionError, un crash process (OOM/SIGILL), donc **infra, pas code**. C'est
+  REPRODUCTIBLE même spec par spec en isolation (donc pas seulement la pression mémoire du batch :
+  `14-articles` et `36-received-invoices` plantaient dans le batch mais repassent verts seuls / au
+  re-run — ceux-là, c'est bien la pression mémoire). **Sans lien avec QW6** : 18 et 29 ne touchent
+  aucune surface QW6, et le seul test QW6-adjacent de 25 (le badge de règlement) PASSE avant le
+  crash. `experimentalMemoryManagement=true` est déjà activé. Ce qui le débloquerait : baisser
+  `numTestsKeptInMemory`, découper ces specs, ou isoler une éventuelle fuite mémoire côté client sur
+  ces écrans (à ne pas confondre avec un rouge de code — la base de rouges permanents reste vide).
+  À vérifier aussi si ça se produit en CI (machine différente, plus de RAM) ou seulement en local.
+
 - ~~« Sent » avant l'envoi~~ (découvert à la tâche 4) — **RÉSOLU à l'item 22** (2026-08-31) : `send`
   déclare désormais `draft`/`send_failed` → `sending` → `sent` | `send_failed` (quote/invoice/
   credit-note — voir actions/async-send.ts). Le numéro est pris en ENTRANT dans `sending`, avant que
