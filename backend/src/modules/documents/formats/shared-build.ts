@@ -47,7 +47,7 @@ export function newEuInvoiceService(): EuInvoiceService {
  * written as a bare date string, hiding the gap) throws a 500 the moment a document saved through
  * the ordinary form is downloaded. `new Date(...).toISOString().slice(0, 10)` normalizes EITHER
  * shape (a bare date parses to midnight UTC the same way) to the pattern the library actually wants.
- * Exported (item 10, wave 2) — the SAME gap exists for any national format's own issue-date field
+ * Exported — the SAME gap exists for any national format's own issue-date field
  * (FA(3)'s `P_1`, FatturaPA's `Data`), so `formats/national/*-provider.ts` reuse this rather than
  * re-deriving it.
  */
@@ -78,7 +78,7 @@ function extractSupplyType(value: unknown): SemanticLineInput['supplyType'] {
 }
 
 /**
- * `__crossBorderCategory`/`__crossBorderExemptionReason` — root TODO item 16 ("transfrontalier")'s
+ * `__crossBorderCategory`/`__crossBorderExemptionReason` — the cross-border tax engine's
  * OWN sidecar convention, written ONLY by `tax/resolve-invoice-tax.ts` onto the in-memory, never
  * persisted, rewritten `data` it hands back for a CROSS-BORDER invoice (see that file's own header,
  * "Never a blind store"). Absent for every domestic invoice and every OTHER document type — this is
@@ -94,7 +94,7 @@ function extractCrossBorderCategory(value: unknown): SemanticLineInput['vatCateg
     : undefined;
 }
 
-/** Exported (root TODO — `reporting/build-declared-invoice.ts`) so a declarative-reporting provider's
+/** Exported (for `reporting/build-declared-invoice.ts`) so a declarative-reporting provider's
  *  own line mapping reuses the EXACT SAME "which array is the line array, what does each descriptive
  *  field default to" logic the CII/UBL bridge already relies on, rather than a second, parallel
  *  extraction that could silently drift from it. Every OTHER caller (`buildEuInvoiceForDocument`
@@ -114,7 +114,7 @@ export function extractLines(data: Record<string, unknown>): SemanticLineInput[]
 }
 
 /** `__crossBorderMentions` — the document-level twin of the sidecar above: the tax engine's own,
- *  already-deduplicated `LegalMention[]` for a cross-border invoice (root TODO item 16). Read here,
+ *  already-deduplicated `LegalMention[]` for a cross-border invoice. Read here,
  *  once, and handed to `buildSemanticInvoice` as `additionalMentions` — see that function's own
  *  header for how they join BG-1 through the EXISTING `mentions/invoice-notes.ts#toUblNote`
  *  mechanism, never a parallel one. */

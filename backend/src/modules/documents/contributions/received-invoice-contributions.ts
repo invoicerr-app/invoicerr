@@ -6,9 +6,9 @@ import { consolidateByCurrency, loadCurrencyContext } from './currency-consolida
 import { MetricWidget, Widget } from './widgets';
 
 /**
- * Root TODO item 18's own dashboard contribution — "factures reçues en attente" (count + amount by
- * currency). DASHBOARD only, deliberately: this task did not ask for a Statistics table the way
- * expense/invoice/credit-note each got one, and inventing one ahead of being asked would be exactly
+ * The received-invoice dashboard contribution — "factures reçues en attente" (count + amount by
+ * currency). DASHBOARD only, deliberately: no Statistics table here the way expense/invoice/credit-
+ * note each got one — inventing one unprompted would be exactly
  * the kind of unrequested scope this codebase avoids elsewhere (see credit-note.descriptor.ts's own
  * "no forced negative amounts" list). Calqued on expense-contributions.ts's own dashboard metric —
  * same reasoning reused: grouped BY currency, one metric per currency actually present, NEVER a
@@ -71,7 +71,7 @@ export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async (
 };
 
 /**
- * Wraps `buildReceivedInvoiceDashboardWidgets` with multi-currency consolidation (root TODO item 9)
+ * Wraps `buildReceivedInvoiceDashboardWidgets` with multi-currency consolidation
  * — identical shape to `expense-contributions.ts`'s own
  * `buildExpenseDashboardWidgetsWithConsolidation` (see that function's own header for the full
  * reasoning this reuses verbatim): purely ADDITIVE over the base handler's own output, and a no-op

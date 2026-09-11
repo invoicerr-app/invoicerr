@@ -71,10 +71,10 @@ describe('resolveInvoiceCrossBorderTax — unresolved buyer country: hard block,
   });
 });
 
-// USER DECISION (2026-09-01, TODO_ISSUES.md "le pays vendeur irrésolu retombait sur 'FR'
+// USER DECISION (2026-09-01, "le pays vendeur irrésolu retombait sur 'FR'
 // silencieusement", now RÉSOLU) — symmetric to the buyer block above: this function used to fall
 // back to `'FR'` for an unresolvable SELLER country, the SAME class of bug the buyer block already
-// exists to prevent. MUTATION TARGET (task's own mutation #2): reinstating `?? 'FR'` on `sellerCC`
+// exists to prevent. MUTATION TARGET: reinstating `?? 'FR'` on `sellerCC`
 // makes every test in this block pass with the OLD, silent behaviour instead of throwing — this is
 // exactly what a reviewer should watch for.
 describe("resolveInvoiceCrossBorderTax — unresolved SELLER country: hard block, never a silent 'FR'", () => {
@@ -184,10 +184,10 @@ describe('resolveInvoiceCrossBorderTax — FR→US export: G/O, art. 146', () =>
   });
 });
 
-// Root TODO item 16 follow-up (2026-09-01): DE used to be the textbook example of "no destination
+// OSS follow-up (2026-09-01): DE used to be the textbook example of "no destination
 // rate table" — the OSS gate's own error message names it verbatim (see resolve-invoice-tax.ts's own
-// header, "OSS with no destination rate table"). This task read Germany's real standard VAT rate
-// (19%) from the European Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) along
+// header, "OSS with no destination rate table"). Germany's real standard VAT rate (19%) was read
+// from the European Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) along
 // with all 26 other EU member states — DE no longer blocks. The BLOCK MECHANISM itself is still
 // exercised below, via dependency injection, against a registry that genuinely has no destination
 // file — proving the gate did not get weakened, only the real-world DE gap got closed.
@@ -239,7 +239,7 @@ describe('resolveInvoiceCrossBorderTax — FR→DE B2C GOODS: OSS now resolves a
 // The block mechanism itself, proven independently of whether any REAL country happens to be
 // uncatalogued today: a registry built from a subset of files (FR only) has no DE profile, so the
 // exact same gate `resolve-invoice-tax.ts` holds for the real (uncatalogued) case still fires here —
-// this is what stays true even after this task closes the real-world DE/EU gap entirely.
+// this is what stays true even with the real-world DE/EU gap closed entirely.
 describe('resolveInvoiceCrossBorderTax — the OSS block itself still fires for ANY uncatalogued destination', () => {
   it('a registry with no DE file (dependency-injected) still blocks FR→DE B2C GOODS, named', () => {
     const frOnly = ALL_TAX_SYSTEM_FILES.filter((f) => f.countryCode === 'FR');
@@ -312,7 +312,7 @@ describe('resolveInvoiceCrossBorderTax — a syntactically wrong VAT number neve
 });
 
 /**
- * Root TODO item 16, the SURGICAL FIX: the resolved treatment is now PERSISTED at "sending"
+ * The SURGICAL FIX: the resolved treatment is now PERSISTED at "sending"
  * (`actions/async-send.ts`'s own `preflight` header — the resolution the preflight computes REPLACES
  * the "sending" document's own `data`, it is no longer discarded) and re-resolved AGAIN at
  * `deliver()` (`invoice-actions.ts`'s own header) — and a "send_failed" retry re-submits the
@@ -350,7 +350,7 @@ describe('resolveInvoiceCrossBorderTax — idempotence: re-resolving an ALREADY-
 
     // THE re-resolution: same seller/buyer identity, but `data` is now the FIRST pass's own output
     // (0%, AE, `__crossBorderCategory` already on the line) — exactly what `deliver()` and a
-    // send_failed retry's own preflight actually see once this task's fix lands.
+    // send_failed retry's own preflight actually see.
     const secondPass = resolveInvoiceCrossBorderTax({ ...parties, data: firstPass.data });
 
     expect(secondPass.crossBorder).toBe(true);

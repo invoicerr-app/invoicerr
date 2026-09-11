@@ -180,7 +180,7 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 					// réellement l'erreur figée que le correctif doit savoir effacer. Un vrai clic — jamais
 					// un appel direct à l'action, qui contournerait l'écran.
 					//
-					// TODO_PRODUIT.md T1 / PLAN-V2 R8 — l'horodatage capturé ici sert la preuve SSE plus
+					// L'horodatage capturé ici sert la preuve SSE plus
 					// bas : AUCUN cy.reload() n'apparaît nulle part dans ce fichier (grep-le), et le
 					// repli de polling de la liste vient d'être ralenti à 60 s
 					// (frontend/src/hooks/queries/use-document-types.ts's own SENDING_POLL_INTERVAL_MS) —
@@ -233,7 +233,7 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 						"no contact email on file",
 					);
 
-					// PLAN-V2 R8 (verbatim) : "le bouton Retry apparaît de lui-même". Ce dépôt n'a pas de
+					// L'exigence : "le bouton Retry apparaît de lui-même". Ce dépôt n'a pas de
 					// bouton étiqueté "Retry" à part — c'est la MÊME action "send" qui redevient
 					// disponible depuis "send_failed" (invoice.descriptor.ts's SEND_TRANSITIONS), cachée
 					// pendant "sending" (document-list.tsx's own isProcessing check) puis réaffichée SANS

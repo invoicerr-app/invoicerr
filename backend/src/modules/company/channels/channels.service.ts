@@ -30,11 +30,10 @@ export interface ActiveChannelConfig extends ResolvedChannelConfig {
   companyId: string;
 }
 
-/** What GET returns — status ONLY, never a config value (masked or not): the task this module
- *  serves has ONE non-negotiable rule ("le GET dit configuré/actif/environnement, pas les valeurs"),
- *  and the surest way to honor it is to never let a secret reach this type's own shape at all,
- *  rather than trust a per-field masking step (the old repo's own `maskSecrets`) to run correctly on
- *  every call site forever. See `channels.service.spec.ts`'s own mutation-proof test. */
+/** What GET returns — status ONLY, never a config value (masked or not). The surest way to honor
+ *  that is to never let a secret reach this type's own shape at all, rather than trust a per-field
+ *  masking step (the old repo's own `maskSecrets`) to run correctly on every call site forever. See
+ *  `channels.service.spec.ts`'s own mutation-proof test. */
 export interface ChannelConfigStatus {
   providerId: string;
   channel: string;
@@ -70,7 +69,7 @@ export interface ChannelPolicyStatus {
 
 /**
  * What `GET /api/company/channels`'s own `reportingObligations` array returns — a NEW concept
- * (root TODO, "déclaration"), never a widened `ChannelPolicyStatus`: a declarative-reporting
+ * ("déclaration"), never a widened `ChannelPolicyStatus`: a declarative-reporting
  * obligation (NAV/myDATA) is not "this country's stance on a DELIVERY channel", it says nothing at
  * all about how an invoice reaches the buyer — see `documents/reporting/report-on-send.ts`'s own
  * header for the full "a country is data, a declaration is not a transport" reasoning. Kept as its
@@ -98,7 +97,7 @@ function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
 }
 
 /**
- * Item 10 (root TODO), "transports nationaux" — the credentials layer REPRISED from git tag
+ * "Transports nationaux" — the credentials layer REPRISED from git tag
  * `avant-refonte-documents` (`channel-credentials.service.ts` + `channel-settings.service.ts`,
  * merged into ONE service here: the old split existed to keep the compliance module decoupled from
  * `invoices`, a cycle this codebase's `documents`/`company` modules do not have — see this file's own
@@ -202,8 +201,8 @@ export class ChannelCredentialsService {
   /**
    * Every ACTIVE (company, environment) config for a provider, across ALL companies — REPRISED for
    * a future inbound poller the same shape as the removed `KsefInboxPort` used it for (see this
-   * method's own header at the repère); nothing in wave 1 calls it yet (PDP has no poller here — see
-   * TODO_ISSUES.md), kept because the task asks for the reuse and a future poller should not have to
+   * method's own header at the repère); nothing calls it yet (PDP has no poller here yet),
+   * kept because the reuse is deliberate and a future poller should not have to
    * reinvent it.
    */
   async listActiveByProvider(providerId: string): Promise<ActiveChannelConfig[]> {
@@ -312,8 +311,8 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * What this company's OWN country says about each channel (item 10's "le pays suggère son canal",
-   * item 11's "le pays impose son canal" — `transports/channel-policy/`), regardless of whether it is
+   * What this company's OWN country says about each channel (a suggestion, or a mandate —
+   * `transports/channel-policy/`), regardless of whether it is
    * already connected: the settings screen decides how to render "already connected" vs "suggested/
    * mandated, not yet connected" by cross-referencing this against `listCompanyChannels` itself, so
    * this method never needs to.
@@ -337,7 +336,7 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * This company's own country's DECLARATIVE-REPORTING obligations (root TODO, "déclaration") —
+   * This company's own country's DECLARATIVE-REPORTING obligations ("déclaration") —
    * `documents/reporting/data/*.json`, read the same way `suggestedChannels` reads
    * `channel-policy/data/*.json` just above, but a categorically different fact: NEVER a hint about
    * which TRANSPORT to use, always "declare this invoice's data to this authority, regardless of how
@@ -364,7 +363,7 @@ export class ChannelCredentialsService {
    * `channel` is derived from `providerId` (uppercased) rather than looked up in a provider
    * registry: wave 1 ships exactly one non-"email" provider ("pdp"), so a real provider→channel
    * taxonomy is deferred until a SECOND provider shares a channel category (wave 2: KSeF/SdI, each
-   * its own) actually needs one — see root TODO item 10's own two-wave split.
+   * its own) actually needs one.
    *
    * At most ONE environment stays active per provider: activating a new one deactivates any other
    * environment already active for the same (company, provider) — a transport's `resolveActive`

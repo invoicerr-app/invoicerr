@@ -18,8 +18,8 @@ describe('assertValidMentionRule', () => {
   });
 
   // The mutation this exact test rehearses: a mention with no legalRef must NEVER load — the same
-  // "a mandate without a citation does not load" discipline root TODO item 11 established.
-  it('rejects a mention with no legalRef at all — the discipline this task’s brief names by name', () => {
+  // "a mandate without a citation does not load" discipline the schema enforces.
+  it('rejects a mention with no legalRef at all', () => {
     expect(() => assertValidMentionRule(entry({ ...base, legalRef: '' }), 'test')).toThrow(
       InvalidMentionRuleError,
     );

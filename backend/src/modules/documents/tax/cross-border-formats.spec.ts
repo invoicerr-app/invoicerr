@@ -1,9 +1,9 @@
 /**
- * Root TODO item 16 ("transfrontalier") — the END-TO-END proof the task's own brief demands: a real
+ * Cross-border tax ("transfrontalier") — the END-TO-END proof: a real
  * CII export, built through the REAL pipeline (`resolveInvoiceCrossBorderTax` →
  * `computeDocumentTotals` → `formats/cii-provider.ts`), JUDGED by the real vendored EN 16931
  * Schematron (`formats/vendored/validate-schematron.ts`) — never a hand-asserted opinion of the XML.
- * Same harness `formats/providers.spec.ts` already established as "the master proof" for item 12.
+ * Same harness `formats/providers.spec.ts` already established as "the master proof".
  */
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
@@ -45,9 +45,8 @@ const US_BUYER: DocumentFormatParty = {
 };
 
 // A true B2C German consumer — NO VAT identifier at all (unlike DE_BUYER above, which carries one
-// for the B2B reverse-charge tests). Root TODO item 16 follow-up (2026-09-01): this is exactly the
-// buyer shape that used to hit `UnsupportedOssDestinationError` before this task sourced DE's real
-// standard VAT rate from TEDB.
+// for the B2B reverse-charge tests). This is exactly the buyer shape that used to hit
+// `UnsupportedOssDestinationError` before DE's real standard VAT rate was sourced from TEDB.
 const DE_BUYER_B2C: DocumentFormatParty = {
   name: 'Klaus Mustermann',
   address: 'Friedrichstraße 42',
@@ -57,7 +56,7 @@ const DE_BUYER_B2C: DocumentFormatParty = {
   partyIdentifiers: [],
 };
 
-describe('root TODO item 16 — FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schematron', () => {
+describe('FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schematron', () => {
   it('the downloaded CII carries 0%, category AE, and the art. 196 mention in BG-1', async () => {
     const rawData = {
       client: 'client-1',
@@ -102,12 +101,12 @@ describe('root TODO item 16 — FR→DE B2B, valid VAT: reverse charge, judged b
   });
 });
 
-// Root TODO item 16 follow-up (2026-09-01): the OSS branch — FR→DE B2C GOODS used to be a hard,
+// The OSS branch — FR→DE B2C GOODS used to be a hard,
 // named block (`UnsupportedOssDestinationError`, "no VAT rate table is known for DE") because no
-// tax-system file existed for DE. This task read DE's real standard VAT rate (19%) from the European
+// tax-system file existed for DE. DE's real standard VAT rate (19%) was read from the European
 // Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) — the send now goes through, and
 // the vendored EN 16931 Schematron judges the resulting CII, not a hand-asserted opinion of it.
-describe('root TODO item 16 follow-up — FR→DE B2C GOODS: OSS charges DE’s real standard rate, judged by real EN 16931 Schematron', () => {
+describe('FR→DE B2C GOODS: OSS charges DE’s real standard rate, judged by real EN 16931 Schematron', () => {
   it('the downloaded CII carries 19% (DE’s real rate), category S, and totals computed on it — never FR’s 20% and never a block', async () => {
     const rawData = {
       client: 'client-4',
@@ -129,7 +128,7 @@ describe('root TODO item 16 follow-up — FR→DE B2C GOODS: OSS charges DE’s 
     const resolved = resolveInvoiceCrossBorderTax({
       seller: { country: FR_SELLER.country },
       buyer: { country: DE_BUYER_B2C.country },
-      // no buyerVat at all — a true B2C consumer, exactly the shape this task's own Cypress
+      // no buyerVat at all — a true B2C consumer, exactly the shape the Cypress
       // extension (35-cross-border-tax.cy.ts) drives through the screen.
       data: rawData,
     });
@@ -160,7 +159,7 @@ describe('root TODO item 16 follow-up — FR→DE B2C GOODS: OSS charges DE’s 
   });
 });
 
-describe('root TODO item 16 — FR→US B2B export of goods: category G, judged by real EN 16931 Schematron', () => {
+describe('FR→US B2B export of goods: category G, judged by real EN 16931 Schematron', () => {
   it('the downloaded CII carries 0%, category G, and the art. 146 export mention', async () => {
     const rawData = {
       client: 'client-2',
@@ -200,8 +199,8 @@ describe('root TODO item 16 — FR→US B2B export of goods: category G, judged 
   });
 });
 
-describe('root TODO item 16 — a pure-domestic FR send is untouched by any of this', () => {
-  it('a FR→FR invoice at 20% is byte-identical in intent to the pre-item-16 behaviour (category S)', async () => {
+describe('a pure-domestic FR send is untouched by any of this', () => {
+  it('a FR→FR invoice at 20% is byte-identical in intent to the pre-cross-border behaviour (category S)', async () => {
     const rawData = {
       client: 'client-3',
       issueDate: '2026-08-30',

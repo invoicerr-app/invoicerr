@@ -1,6 +1,6 @@
 /**
- * The Chorus Pro `AuthorityStatusPoller` — root TODO item 10's own named remainder (post-deposit
- * conformity tracking, `conformity/authority-status-poller.ts`'s own header), the read-side twin of
+ * The Chorus Pro `AuthorityStatusPoller` — post-deposit
+ * conformity tracking (`conformity/authority-status-poller.ts`'s own header), the read-side twin of
  * `transports/chorus-pro-transport.ts`. The repère's own client (`avant-refonte-documents`,
  * `compliance/providers/transmission/choruspro-client.ts`) DID carry a usable status method —
  * `consulterCr(numeroFluxDepot)` (`POST /cpro/factures/v1/consulter/cr` → `statutFlux`) — so this is
@@ -52,7 +52,7 @@ export { CHORUS_PRO_PROVIDER_ID };
  *  (VALIDE/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) and REJECTED (REJETE) alike, the same "predicate
  *  over the provider's own vocabulary" shape `peppol-status-poller.ts`'s own `isTerminal` already
  *  holds, never a fixed two-code list the way `pdp-status-poller.ts` can afford (PDP's own vocabulary
- *  never grew past fr:202/fr:213 in this session's live proof — Chorus Pro's is wider, per the repère's
+ *  never grew past fr:202/fr:213 in live proof — Chorus Pro's is wider, per the repère's
  *  own client). */
 function isTerminalChorusProStatus(statusCode: string): boolean {
   const mapped = mapChorusProStatus(statusCode);

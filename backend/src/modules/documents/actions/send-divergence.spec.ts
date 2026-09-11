@@ -23,7 +23,7 @@ jest.mock('../transports/company-transport');
 jest.mock('../rendering/render-instance-pdf');
 jest.mock('../numbering/take-number');
 jest.mock('./company-email-templates');
-// Root TODO item 11 — `invoice-actions.ts`'s "send" now ALSO resolves the company's own country
+// Country channel mandate — `invoice-actions.ts`'s "send" now ALSO resolves the company's own country
 // (`resolveCompanyCountryCode`) to check for a channel mandate. Mocked here for the same reason
 // `documents.service.invoice.spec.ts` already mocks this module wholesale: the real function reaches
 // Prisma directly, which this file (no Nest, no DB) cannot provide. Automocked to `undefined` by
@@ -31,7 +31,7 @@ jest.mock('./company-email-templates');
 // exactly what it always did (none of them exercises a mandated country on purpose; that is
 // `invoice-channel-mandate.spec.ts`'s own job).
 jest.mock('../country-policy/country-policy');
-// Root TODO item 16 ("transfrontalier") — `invoice-actions.ts`'s "send" now ALSO resolves cross-
+// Cross-border VAT ("transfrontalier") — `invoice-actions.ts`'s "send" now ALSO resolves cross-
 // border VAT (`tax/load-and-resolve.ts`), which reaches Prisma directly, same reason as
 // `country-policy` above. A FACTORY mock (not an automock) — a permissive pass-through — because,
 // unlike `country-policy`'s own "automocked to undefined is already the neutral case", an automocked
@@ -53,10 +53,9 @@ jest.mock('../b2g-routing/b2g-routing');
  * pas" reading that turned out to be wrong — a quote always sends by email, an invoice's transport is
  * a company setting. This file proves the two "send" actions run through genuinely DIFFERENT code —
  * not just two functions that happen to produce the same result — so a future refactor that quietly
- * re-merges them makes THIS file go red. That is deliberate: the task that fixed this asked for
- * exactly that property.
+ * re-merges them makes THIS file go red. That is deliberate.
  *
- * Both "send"s are now ASYNCHRONOUS (TODO.md item 22, actions/async-send.ts) — this file calls each
+ * Both "send"s are now ASYNCHRONOUS (actions/async-send.ts) — this file calls each
  * type's registered handler directly (bypassing DocumentsService.runAction's own gates entirely, same
  * as it always did), so every test here sets `findOwnedDocument`'s mock explicitly to whichever phase
  * it means to exercise ("draft" for phase 1 — enqueue; "sending" for phase 2 — the worker's replay,
@@ -64,7 +63,7 @@ jest.mock('../b2g-routing/b2g-routing');
  */
 describe('quote "send" and invoice "send" do not share a path', () => {
   afterEach(() => jest.resetAllMocks());
-  // Root TODO item 16 — see this file's own `jest.mock('../tax/load-and-resolve')` comment above.
+  // Cross-border VAT — see this file's own `jest.mock('../tax/load-and-resolve')` comment above.
   // Re-installed in `beforeEach`, not just once, because `afterEach`'s own `jest.resetAllMocks()`
   // wipes it after every test — the SAME discipline `documents.service.invoice.spec.ts` already
   // holds for this exact mock.

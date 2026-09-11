@@ -108,7 +108,7 @@ export interface DocumentTypeDescriptor {
    */
   email?: DocumentEmailTemplate;
   /**
-   * Root TODO item 15 ("mentions obligatoires") — opts this type into the country-mandated-mentions
+   * "mentions obligatoires" — opts this type into the country-mandated-mentions
    * mechanism (`mentions/`): `rendering/render-instance-pdf.ts` resolves the seller's own country and
    * this instance's own `issueDate` field ONLY when this flag is set, and passes the result to
    * `rendering/render-html.ts`'s own `legalMentions` block. EN 16931's BG-1 (the mentions' natural
@@ -126,7 +126,7 @@ export interface DocumentTypeDescriptor {
    */
   usesLegalMentions?: boolean;
   /**
-   * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — opts this type into the SEPA-credit-transfer QR
+   * "QR SEPA / GiroCode" — opts this type into the SEPA-credit-transfer QR
    * mechanism (`rendering/sepa-qr.ts`): `rendering/render-instance-pdf.ts` builds and renders an
    * EPC069-12 payload ONLY when this flag is set (and its own further gates — an IBAN on file, a EUR
    * amount, a positive total — all hold too), and passes the result to `rendering/render-html.ts`'s
@@ -186,7 +186,7 @@ export interface DocumentFieldDescriptor {
   required?: boolean;
   helpText?: string;
   /**
-   * TODO_FEATURES.md item 7 ("référence client / n° de commande") — ANY kind, not just this field's
+   * "référence client / n° de commande" — ANY kind, not just this field's
    * own 'text': skips this field ENTIRELY (never a label + em-dash placeholder) wherever a consumer
    * honors the hint, when its value is missing on this instance. Every other field in this core shows
    * its row unconditionally (see render-html.ts's own fields loop, field-value.tsx) — including one
@@ -238,7 +238,7 @@ export interface DocumentFieldDescriptor {
    */
   currencyField?: string;
   /**
-   * 'select' — TODO_PRODUIT.md T4-d: locks this field's value to a SIBLING 'reference' field's
+   * 'select': locks this field's value to a SIBLING 'reference' field's
    * resolved entity, e.g. a credit note's own `currency` following the `invoice` it corrects
    * (settlement/credits.ts credits a claim structurally denominated in the invoice's OWN currency —
    * see that file's own header; a credit note declaring a DIFFERENT currency has no business
@@ -267,13 +267,13 @@ export interface DocumentFieldDescriptor {
    * unchanged since before `entities` existed, and every existing single-target field (the "client"
    * field on both the quote and the invoice) keeps this exact shape.
    *
-   * ALSO the target hint for 'hiddenReference' (below the closed kind list) — TODO_FEATURES.md rank
-   * 18 ("gestion de stock basique"): a ROW-scoped bookkeeping pointer, e.g. an invoice/quote line's
+   * ALSO the target hint for 'hiddenReference' (below the closed kind list) — basic stock
+   * management ("gestion de stock basique"): a ROW-scoped bookkeeping pointer, e.g. an invoice/quote line's
    * `articleId`. Same stored shape as above (a plain, optional, non-empty id string) but never a
    * second, user-facing picker — it is normally populated by a SIBLING field's own `prefillFrom` (add
    * its key to that field's `map`, e.g. `{ articleId: 'id', description: 'name', ... }` — the
    * provider's `getFields` must return an `id`, which article-reference.provider.ts does precisely
-   * for this). This is the "dedicated hidden/reference field kind" this task chose over merely
+   * for this). This is the "dedicated hidden/reference field kind" chosen over merely
    * flagging an ordinary 'reference' field: `hideWhenEmpty` above is an opt-OUT from the "always show
    * a row" rule that still prints a value once one IS set — the exact opposite of what a pure
    * bookkeeping id needs, which must never print, set or not. Skipped ENTIRELY — no label, no value,
@@ -420,7 +420,7 @@ export interface DocumentActionTransition {
    * The status the record must be in immediately after this action runs, given a `from` match — OR,
    * for an action whose SAME invocation can legitimately land on more than one outcome from the SAME
    * starting status, every status it is allowed to land on. This is what an asynchronous "send"
-   * needs (TODO item 22, documents/queue/): the exact same action, replayed by the worker once a
+   * needs (documents/queue/): the exact same action, replayed by the worker once a
    * record is already "sending", either succeeds (-> "sent") or, after every retry is exhausted,
    * fails (-> "send_failed") — two honestly different outcomes of ONE declared transition, not two
    * separate actions. `checkTransitionResult` (lifecycle.ts) accepts EITHER as valid; a single string
@@ -448,7 +448,7 @@ export const CORE_FIELD_KINDS = [
   // row-selection/row-selection.ts for the mechanism (registered separately, not inline here) and
   // this file's own `sourceField`/`sourceEntity`/`sourceArrayField` for the declared shape.
   'rowSelection',
-  // The 11th (TODO_FEATURES.md rank 18) — a reference stored but never shown to a human anywhere:
+  // The 11th — a reference stored but never shown to a human anywhere:
   // see `entity`'s own doc comment above for the full "why a dedicated kind, not just a flag" account.
   'hiddenReference',
 ] as const;

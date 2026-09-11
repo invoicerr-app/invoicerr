@@ -1,5 +1,5 @@
 /**
- * The ONE Prisma-aware entry point for root TODO item 16's wiring — loads exactly the facts
+ * The ONE Prisma-aware entry point for the cross-border tax wiring — loads exactly the facts
  * `resolve-invoice-tax.ts` needs (seller/buyer country, buyer VAT + its STORED validation verdict —
  * never a live VIES call, see `clients.service.ts`'s own header on why that happens at save time) and
  * calls the pure resolver. Both real call sites (`invoice-actions.ts`'s preflight and `deliver()`, and
@@ -41,7 +41,7 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
     seller: { country: company?.country, countryCode: company?.countryCode },
     // No client row at all (a data problem `documents.service.ts`'s own validation already catches
     // earlier — `client` is a required field) resolves to an unresolved buyer country, which is
-    // EXACTLY the named hard block this task requires — never a second, silent code path.
+    // EXACTLY the named hard block `resolve-invoice-tax.ts` requires — never a second, silent code path.
     buyer: { country: client?.country, countryCode: client?.countryCode },
     buyerVat: buyerVatRow
       ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }

@@ -1,15 +1,15 @@
 /**
- * Root TODO item 18 ("réception de factures") — the ONE bespoke service this type needs beyond the
+ * "Réception de factures" — the ONE bespoke service this type needs beyond the
  * generic document machinery: uploading a file is not "persist this type's own declared fields"
  * (`actions/received-invoice-actions.ts`'s "receive" already covers that), it is a SEPARATE
  * operation — store bytes, hash them, refuse an exact repeat, best-effort extract — that has no
  * document instance to act on yet. Controller -> Service -> Prisma, same as everywhere else in this
  * module; `DocumentInstance` reads/writes go through `persistence.ts`'s tenant-scoped helpers, as
- * everywhere else in this module. TODO_PRODUIT.md T5(b) adds ONE further Prisma-touching step —
+ * everywhere else in this module. Supplier reconciliation adds ONE further Prisma-touching step —
  * `supplier-reconciliation.ts`'s own `reconcileSupplierClient`, reaching `Client`/`PartyIdentifier`
  * directly (never through `ClientsService` — see that file's own header for why) — because matching a
  * supplier is not a `DocumentInstance` concern `persistence.ts` has any business knowing about.
- * TODO_PRODUIT.md T5(c) adds ONE further step, ONLY for a PDF structural extraction found nothing
+ * The OCR fallback adds ONE further step, ONLY for a PDF structural extraction found nothing
  * in: `ocr/apply-ocr-fallback.ts` — this service never imports a cloud provider, only that pure
  * orchestration function and the fields it hands back (see `ocr/extractor.ts`'s own header for the
  * full "core has no cloud dependency" reasoning).
@@ -55,7 +55,7 @@ export interface UploadReceivedInvoicePreview {
     fields: Record<string, unknown>;
   };
   /**
-   * TODO_PRODUIT.md T5(b) — the OUTCOME of auto-reconciliation "au dépôt", computed from whatever the
+   * The OUTCOME of auto-reconciliation "au dépôt", computed from whatever the
    * `extraction` above just read (`supplierVatId`/`supplier`) — see `supplier-reconciliation.ts`'s own
    * header for the exact rule (VAT first, exact name fallback, ambiguity never silently resolved,
    * NEVER a created client). Surfaced separately from `extraction.fields` so the upload dialog can
@@ -66,7 +66,7 @@ export interface UploadReceivedInvoicePreview {
    */
   supplierMatch: SupplierMatchResult;
   /**
-   * TODO_PRODUIT.md T5(c) — the OCR fallback's own outcome (`ocr/apply-ocr-fallback.ts`), tried ONLY
+   * The OCR fallback's own outcome (`ocr/apply-ocr-fallback.ts`), tried ONLY
    * when this deposit was a PDF and structural extraction (above) found nothing at all. Surfaced
    * separately from `extraction`/`supplierMatch` for the SAME reason `supplierMatch` already is
    * (see that field's own comment): the upload dialog must be able to tell "OCR extracted this" or
@@ -106,7 +106,7 @@ export class ReceivedInvoicesService {
     persistInboundFile(companyId, fileRef, input.mime, bytes);
 
     const structural = await extractReceivedInvoiceFields(bytes, input.mime, input.fileName);
-    // TODO_PRODUIT.md T5(c) — tried ONLY when `structural` found nothing at all AND this deposit is
+    // OCR fallback — tried ONLY when `structural` found nothing at all AND this deposit is
     // a PDF (see that function's own header): a working CII/UBL/Factur-X read is never
     // second-guessed by OCR, and OCR is never attempted for anything but a PDF.
     const {
@@ -115,7 +115,7 @@ export class ReceivedInvoicesService {
       ocr,
     } = await applyOcrFallback(structural, bytes, input.mime, input.fileName);
 
-    // TODO_PRODUIT.md T5(b) — "au dépôt": the ONLY point this runs. `data.supplierClient` (a
+    // Supplier reconciliation "au dépôt": the ONLY point this runs. `data.supplierClient` (a
     // 'reference' field, see received-invoice.descriptor.ts) is filled in HERE, exactly like every
     // other extracted field, then simply flows through the ordinary create form — "receive" never
     // re-runs this (see that action's own header on why). Reads `extractedFields`, NOT `structural.

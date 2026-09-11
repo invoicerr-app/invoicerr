@@ -26,7 +26,7 @@ describe('resolveRequiredIdentifiers', () => {
   // invented default — but SAYS so, exactly the "un pays sans fichier n'a aucune exigence déclarée,
   // et le dit" requirement this whole module exists to satisfy. If someone changes the
   // `rows.length === 0` branch to silently return an empty list with no reason (the exact mutation
-  // this task asks to rehearse), this test goes red.
+  // rehearsed here), this test goes red.
   it('a country with no rows at all declares NO requirements, and SAYS so by name — never a silently empty form', async () => {
     findRequirements.mockResolvedValue([]);
 

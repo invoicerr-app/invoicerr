@@ -1,7 +1,7 @@
 /**
- * Root TODO item 15 ("mentions obligatoires") — the CII/UBL half of the proof, through the REAL
+ * Mandatory legal mentions — the CII/UBL half of the proof, through the REAL
  * providers (`cii-provider.ts`/`ubl-provider.ts`) and the REAL vendored EN 16931 Schematron, the
- * same discipline `providers.spec.ts` (item 12's own master proof) already holds. This is precisely
+ * same discipline `providers.spec.ts` (the master proof) already holds. This is precisely
  * what changes the verdict a real superpdp deposit gets back — see
  * `../transports/pdp/pdp.live.spec.ts`'s own header for the fr:213 rejection ("BR-FR-05/BT-22 : La
  * mention relative aux frais de recouvrement (code PMT) est absente") this data exists to fix.
@@ -124,8 +124,7 @@ describe.each([
     expect(xml).toContain((totals.grossMinor / 100).toFixed(2));
   });
 
-  // REGRESSION — Peppol BIS root TODO item L1 ("R002 : le vendeur français passe enfin la
-  // validation Peppol BIS"): `peppol-post-process.ts#mergePeppolNotesInObject` collapses the three
+  // REGRESSION — Peppol BIS rule R002: `peppol-post-process.ts#mergePeppolNotesInObject` collapses the three
   // mentions into ONE `cbc:Note`, but ONLY on the Peppol BIS bridge — see that file's own header,
   // "CONFINED to this Peppol BIS bridge alone". CII and plain UBL (this describe.each's own two
   // providers) never wire that postProcessor at all (`cii-provider.ts`/`ubl-provider.ts` call

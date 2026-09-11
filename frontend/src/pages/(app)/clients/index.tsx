@@ -16,9 +16,9 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 type ActiveFilter = "active" | "inactive" | undefined
-// TODO_PRODUIT.md T5(b) — "l'écran clients peut filtrer par rôle": the ONE role this filter
+// "l'écran clients peut filtrer par rôle": the ONE role this filter
 // recognizes today is "supplier" (Client.isSupplier) — a toggle, not a full role enum, since that is
-// the only role this task introduces; a future role would extend this the same way.
+// the only role that exists today; a future role would extend this the same way.
 type RoleFilter = "supplier" | undefined
 
 export default function Clients() {
@@ -134,7 +134,7 @@ export default function Clients() {
               >
                 {t("clients.stats.inactive")} ({activeCounts.inactive})
               </Badge>
-              {/* TODO_PRODUIT.md T5(b) — filtre par rôle : le seul rôle introduit par cette tâche. */}
+              {/* Filtre par rôle : le seul rôle existant aujourd'hui. */}
               <Badge
                 onClick={() => setRoleFilter(roleFilter === "supplier" ? undefined : "supplier")}
                 variant="outline"
@@ -197,7 +197,7 @@ export default function Clients() {
                               ? t("clients.upsert.fields.type.individual")
                               : t("clients.upsert.fields.type.company")}
                           </span>
-                          {/* TODO_PRODUIT.md T5(b) — le rôle "fournisseur", visible sans ouvrir la fiche. */}
+                          {/* Le rôle "fournisseur", visible sans ouvrir la fiche. */}
                           {client.isSupplier && (
                             <span
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit ml-2"

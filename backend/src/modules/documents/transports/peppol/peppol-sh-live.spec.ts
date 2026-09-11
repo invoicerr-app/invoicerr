@@ -6,10 +6,10 @@
  * any more, so this spec calls the SAME two, DB-free building blocks `pdp.live.spec.ts` already
  * established the precedent for — `formats/peppol-bis-provider.ts#build` (pure: descriptor → totals →
  * semantic bridge → UBL → the REAL vendored base EN 16931 + Peppol BIS Schematron gate, no Prisma) and
- * `peppol/peppol-sh-client.ts` (REPRISED, this task's own file) directly, never through
+ * `peppol/peppol-sh-client.ts` (REPRISED) directly, never through
  * `peppol-transport.ts` itself (which needs `Company`/`Client` DB rows this DB-free run never has).
  *
- * THIS TASK'S OWN RETRY, run 2026-09-02 — RAW RESULT, not a guess (see `LIVE_TESTING.md` for the full
+ * THE 2026-09-02 RETRY — RAW RESULT, not a guess (see `LIVE_TESTING.md` for the full
  * write-up):
  *   1. Signup: WORKS (a real `acc_…` account + `ps_test_…` key every run).
  *   2. Company creation with `country: 'FR'`: STILL `HTTP 400 invalid_country` — the SAME failure

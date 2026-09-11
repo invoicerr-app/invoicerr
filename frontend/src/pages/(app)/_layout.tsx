@@ -29,7 +29,7 @@ const PageHeaderActions = () => {
 }
 
 const AuthenticatedLayout = () => {
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — mounted exactly ONCE, for the whole authenticated app: opens
+  // Mounted exactly ONCE, for the whole authenticated app: opens
   // the SSE connection (documents.controller.ts's `events` route) the moment a session exists, and
   // invalidates whichever document queries a status/conformity change concerns, regardless of which
   // screen the user currently has open. See that hook's own header for the full reasoning.

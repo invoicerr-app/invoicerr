@@ -1,5 +1,5 @@
 /**
- * fa3-provider.ts — root TODO item 10, wave 2. Proves the REAL vendored `schemat_FA3.xsd` actually
+ * fa3-provider.ts — proves the REAL vendored `schemat_FA3.xsd` actually
  * judges what this provider emits (never a home-made replacement — see `vendored/validate-xsd.ts`'s
  * own header), that an amount TRACES from the document's own data through `compute-totals.ts` to a
  * specific XML field (never recomputed by this provider), and that the gate is not decorative: strip

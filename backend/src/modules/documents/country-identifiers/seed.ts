@@ -158,8 +158,8 @@ export async function seedCountryIdentifierRequirements(
     });
   }
 
-  // Whole-country purge — TODO_ISSUES.md's own note ("`country-identifiers/seed.ts` ne purge jamais
-  // un pays entièrement retiré", découvert à la tâche 19): the loop above only ever opens a
+  // Whole-country purge — the known gap ("`country-identifiers/seed.ts` ne purge jamais
+  // un pays entièrement retiré"): the loop above only ever opens a
   // transaction for a country the FILES still name (`countries`, from `catalog.countries()`), so a
   // country dropped from `data/*.json` entirely is never visited by it at all — its rows would
   // otherwise survive forever. One query outside any per-country transaction, precisely because it

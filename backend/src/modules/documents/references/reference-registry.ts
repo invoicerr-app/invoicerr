@@ -19,7 +19,7 @@ export interface EntityReferenceProvider {
    * (e.g. "client" — nothing prefills a line FROM a client, nor locks a field to one) simply never
    * implements this; DocumentsService.getReferenceFields treats an absent implementation as "nothing
    * to read from", never an error. "quote"/"invoice" (document-reference.provider.ts) DO implement
-   * it as of TODO_PRODUIT.md T4-d — the credit note's own `currency` field locks to its `invoice`
+   * it — the credit note's own `currency` field locks to its `invoice`
    * field's resolved `currency` (see descriptors/types.ts's own `lockedFromReference`).
    */
   getFields?(companyId: string, id: string): Promise<Record<string, unknown> | null>;

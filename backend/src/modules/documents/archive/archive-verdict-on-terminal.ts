@@ -1,6 +1,6 @@
 /**
- * The point of accroche of VERDICT archiving on the conformity poller — mandataire decision,
- * 2026-09-06 (TODO_ISSUES.md, "le poller de conformité PDP/KSeF n'archive PAS le VERDICT, seulement
+ * The point of accroche of VERDICT archiving on the conformity poller — decided
+ * 2026-09-06 ("le poller de conformité PDP/KSeF n'archive PAS le VERDICT, seulement
  * le DÉPÔT"; see `DocumentArchive`'s own schema comment and `verdict-artifact.ts`'s header for the
  * content itself). `conformity/conformity-sweep-runner.ts#runPoll` calls
  * `archiveTerminalAuthorityVerdictIfAny` for every event a poll observed that its own poller

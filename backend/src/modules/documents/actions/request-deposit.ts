@@ -18,8 +18,8 @@ import { createDraftInvoiceFromQuote } from './quote-to-invoice';
 const QUOTE_DESCRIPTOR = buildQuoteDescriptor();
 
 /**
- * "request-deposit": the MINIMAL, honest replacement for the old, removed "deposit invoice" concept
- * (see the root TODO's item 6). Creates a brand-new DRAFT invoice whose single line is
+ * "request-deposit": the MINIMAL, honest replacement for the old, removed "deposit invoice" concept.
+ * Creates a brand-new DRAFT invoice whose single line is
  * "Deposit (N% of <quote's own display number>)", for an amount equal to N% of the QUOTE's own
  * gross (TTC) total — recomputed here via `computeDocumentTotals`, in MINOR units, never trusted from
  * a stale, client-submitted figure.

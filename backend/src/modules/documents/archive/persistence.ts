@@ -1,5 +1,5 @@
 /**
- * Persistance Prisma de l'archive légale (root TODO item 14) — même discipline que
+ * Persistance Prisma de l'archive légale — même discipline que
  * `documents/persistence.ts` : des fonctions plates, scopées par `companyId`, jamais une classe.
  *
  * AUCUNE fonction de modification ou de suppression n'existe ici, et c'est délibéré : une fois écrite,
@@ -36,7 +36,7 @@ export interface DocumentArchiveResult {
   documentId: string;
   /** See `DocumentArchive`'s own schema comment — `'DELIVERY'` for every archive written before this
    *  field existed, and for every ordinary "artifact actually sent" archive since; `'VERDICT'` only
-   *  for the authority's own later verdict on one of those (mandataire decision, 2026-09-06). */
+   *  for the authority's own later verdict on one of those. */
   kind: DocumentArchiveKind;
   /** Set only for `kind: 'VERDICT'` — the DELIVERY archive this verdict attests to. */
   parentArchiveId: string | null;
@@ -138,7 +138,7 @@ export async function createDocumentArchive(
 }
 
 /** What archiving a terminal authority verdict actually did — read by `archiveTerminalAuthorityVerdict`
- *  (this task's own "never throws" wrapper, see that file's header) to decide whether the "no deposit
+ *  (the "never throws" wrapper, see that file's header) to decide whether the "no deposit
  *  archive" case deserves a loud log. `'duplicate'` is the EXPECTED steady state for every poll after
  *  the first that observes the same terminal status (see `verdictKey`'s own schema comment) — never
  *  logged as an error by the caller. */
@@ -152,7 +152,7 @@ export interface TerminalVerdictInput extends TerminalAuthorityVerdict {
 }
 
 /**
- * Archives ONE terminal authority verdict (mandataire decision, 2026-09-06 — see `DocumentArchive`'s
+ * Archives ONE terminal authority verdict (see `DocumentArchive`'s
  * own schema comment and `verdict-artifact.ts`'s header for the full reasoning) under the exact same
  * discipline `createDocumentArchive` above already holds for a deposit: content-hashed
  * (`hashing.ts`), persisted WORM-style (`storage.ts`), and — unlike a deposit — linked to, and given

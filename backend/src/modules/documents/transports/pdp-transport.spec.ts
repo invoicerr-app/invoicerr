@@ -1,8 +1,8 @@
 /**
- * The "pdp" transport in isolation — root TODO item 10, wave 1. `PdpClient` and `@/prisma/
+ * The "pdp" transport in isolation. `PdpClient` and `@/prisma/
  * prisma.service` are mocked wholesale (the real HTTP round-trip is `pdp-live.spec.ts`'s job, gated
  * on real sandbox credentials — see that file's own header); this proves the ORCHESTRATION: the
- * preflight gate, the payload build, and — the two facts this task's mutations target — that an
+ * preflight gate, the payload build, and the two facts that matter most — that an
  * empty deposit id is NEVER a success and that a disconnected channel blocks BEFORE any network call.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
@@ -175,9 +175,9 @@ describe('buildPdpTransport', () => {
       );
     });
 
-    // THE MUTATION TARGET (#1 in the task brief): an accepted upload with an EMPTY deposit id must
-    // be a FAILURE, never a silent success — a reference nobody can look up on the platform is not a
-    // reference at all (this task's own hard-success contract, LIVE_TESTING.md).
+    // An accepted upload with an EMPTY deposit id must be a FAILURE, never a silent success — a
+    // reference nobody can look up on the platform is not a reference at all (the hard-success
+    // contract, LIVE_TESTING.md).
     it('treats an EMPTY deposit id as a FAILURE, never a success', async () => {
       mockAuthenticate.mockResolvedValue('bearer-token');
       mockSendInvoice.mockResolvedValue({ id: undefined });

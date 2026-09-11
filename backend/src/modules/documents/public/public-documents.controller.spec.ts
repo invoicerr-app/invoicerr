@@ -72,7 +72,7 @@ jest.mock('@/prisma/prisma.service', () => {
 });
 
 /**
- * Proves root TODO item 24's central invariant: "the public link serves EXACTLY the same PDF the
+ * Proves the central invariant: "the public link serves EXACTLY the same PDF the
  * authenticated GET already does — never a second implementation." Both controllers below are built
  * over the SAME `DocumentsService` instance, and `renderInstancePdf` (the one place that composes
  * render + PAdES-signing) is spied on rather than reimplemented — so a passing test here means both
@@ -103,7 +103,7 @@ function buildControllers() {
   );
   const shareLinksService = new ShareLinksService(documentsService);
   const schedulesService = { list: jest.fn() };
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — this suite proves the PDF download path, entirely unrelated to
+  // This suite proves the PDF download path, entirely unrelated to
   // the SSE `events` route; a bare stub is enough, the same "unrelated dependency, minimal stub"
   // choice `schedulesService` above already makes.
   const eventsBridge = { subscribeCompany: jest.fn() };

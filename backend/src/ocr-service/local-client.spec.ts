@@ -10,7 +10,7 @@ import {
 /** A real `node:http` stub standing in for the `ocr-image` repo's server.py's own `POST /ocr` — never a
  *  mocked `fetch`, the same discipline `mistral-client.spec.ts`/`ocr-server.spec.ts` already use
  *  one directory over. The response shape asserted against (`POST`, `Accept: text/plain` in,
- *  PLAIN TEXT body out, no JSON envelope) is quoted from this task's own real, live round-trip
+ *  PLAIN TEXT body out, no JSON envelope) is quoted from a real, live round-trip
  *  against that server (`local-client.ts`'s own header) — never invented. */
 async function withLocalOcrStub(
   handler: http.RequestListener,
@@ -168,7 +168,7 @@ IBAN: FR7630006000011234567890189
     expect(mapOcrTextToProposal(ibanFirst).fields.supplierVatId).toBe('FR12345678901');
   });
 
-  // Mandataire tripwire (validation OCR-local, 2026-09-05): the test above passes even WITHOUT the
+  // Tripwire: the test above passes even WITHOUT the
   // IBAN line-filter, because the keyword-anchored first pass already wins on its fixture — the
   // filter only ever decides the KEYWORD-LESS fallback path. A compact IBAN body (FR + 25 digits)
   // can never match VAT_ID_SHAPE_RE (12-char cap + \b), so the realistic way the filter earns its
@@ -234,7 +234,7 @@ Gesamtbetrag: 595.00 EUR`;
   });
 
   it('recognizes a Polish invoice (Netto / VAT / Razem) — the VAT keyword IS covered even though', () => {
-    // the mandant's own required languages include Polish; Poland's own tax name IS the borrowed
+    // Polish is a target language; Poland's own tax name IS the borrowed
     // acronym "VAT", already covered by `VAT_RE` with no extra keyword needed.
     const text = `Netto: 500,00
 VAT: 115,00

@@ -7,7 +7,7 @@ import * as useFetchModule from "./use-fetch"
 import { useDocumentEventsSse } from "./use-document-events-sse"
 
 /**
- * TODO_PRODUIT.md T1 / PLAN-V2 R8 — proves the hook's OWN contract in isolation: on a message the
+ * Proves the hook's OWN contract in isolation: on a message the
  * underlying `useSse` hands back, invalidate the matching TanStack query; before any message, and for
  * every distinct message afterwards, never anything else. `useSse` itself (the real `EventSource`
  * wiring) is mocked here — jsdom has no real SSE transport, and the REAL Redis round trip this

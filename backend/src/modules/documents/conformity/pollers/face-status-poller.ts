@@ -1,6 +1,6 @@
 /**
- * The FACe `AuthorityStatusPoller` — root TODO item 10's own named remainder (post-deposit
- * conformity tracking, `conformity/authority-status-poller.ts`'s own header), the read-side twin of
+ * The FACe `AuthorityStatusPoller` — post-deposit
+ * conformity tracking (`conformity/authority-status-poller.ts`'s own header), the read-side twin of
  * `transports/face-transport.ts`. The repère's own client (`avant-refonte-documents`,
  * `compliance/providers/transmission/face-client.ts`) carried a usable status method —
  * `consultarFactura(numeroRegistro)` (`transports/face/face-client.ts` REPRISES it — see that file's
@@ -63,7 +63,7 @@ function isTerminalFaceStatus(statusCode: string): boolean {
 
 export interface FaceStatusPollerDeps {
   channelCredentials: ChannelCredentialsService;
-  /** Root TODO item 13's own port — see this file's own header for why `poll()` resolves the SAME
+  /** The signing port — see this file's own header for why `poll()` resolves the SAME
    *  `"{companyId}:XAdES"` cert `face-transport.ts#send()` does, and why (unlike that write-side
    *  gate) a missing cert here falls back to an unsigned call instead of refusing outright. */
   signingCredentials: SigningCredentialsPort;

@@ -1,13 +1,12 @@
 /**
- * The "sdi" transport in isolation — root TODO item 10, wave 2, now **implemented-awaiting-
+ * The "sdi" transport in isolation — **implemented-awaiting-
  * accreditation** (a real SdICoop SOAP client exists — `sdi/sdicoop-client.ts`). `@/prisma/prisma.service`
  * is mocked wholesale, same discipline `pdp-transport.spec.ts`/`ksef-transport.spec.ts` hold. Three
  * distinct things are proven here:
  *
  *  1. Without a fully-connected channel (missing ANY of idTrasmittente/certificate/`endpoint`) —
  *     today's honest default for every company, since none holds real AdE accreditation — `preflight()`
- *     throws, pointing at `CREDENTIALS_GUIDE.md` §4 (the exact "renvoi au guide" this task's own brief
- *     asks for).
+ *     throws, pointing at `CREDENTIALS_GUIDE.md` §4.
  *  2. The REAL production wiring (no `httpPort` override), WITH a fully-connected (but necessarily
  *     unaccredited-in-reality) config, genuinely reaches a REAL `SdiCoopClient` and genuinely fails —
  *     against a local, unroutable endpoint (`127.0.0.1:1`, connection refused — no real network
@@ -15,7 +14,7 @@
  *     stub. This is NOT a bug this spec papers over: it is the honest, current state
  *     (implemented-awaiting-accreditation), asserted rather than assumed.
  *  3. The ORCHESTRATION around a (mocked) accredited client — preflight gate, FatturaPA payload
- *     build+gate, and this task's mutation #2-adjacent fact for THIS channel: an empty `idSdI` is
+ *     build+gate, and the key fact for THIS channel: an empty `idSdI` is
  *     NEVER a success — using an injected mock `SdiHttpPort`, the seam the real `SdiCoopClient` also
  *     plugs into. The real wire is `sdi/sdicoop.live.spec.ts`, gated `SDI_LIVE=1`.
  */

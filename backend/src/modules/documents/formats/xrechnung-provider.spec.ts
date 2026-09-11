@@ -1,5 +1,5 @@
 /**
- * THE MASTER PROOF for `xrechnung-provider.ts` (root TODO item 26, "Peppol/Allemagne") — same
+ * THE MASTER PROOF for `xrechnung-provider.ts` — same
  * discipline as `providers.spec.ts`/`peppol-bis-provider.spec.ts`: a hand-computed fixture goes
  * through the REAL build pipeline and the REAL vendored base EN 16931 Schematron PLUS the REAL
  * vendored KoSIT XRechnung delta (`vendored/de/XRechnung-UBL-validation-preprocessed.sch`) — never
@@ -78,7 +78,7 @@ describe('xrechnung-provider — the master proof (fixture computed by hand)', (
     );
 
     // A failing assertion here prints EVERY BR-DE-* rule the vendored delta actually fired — never
-    // swallowed, per this ticket's own "a gate, not a report" requirement.
+    // swallowed: this is a gate, not a report.
     expect(result.validation.errors).toEqual([]);
     expect(result.validation.valid).toBe(true);
 

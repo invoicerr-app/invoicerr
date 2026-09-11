@@ -1,9 +1,9 @@
 /**
- * The "ksef" transport in isolation — root TODO item 10, wave 2. `KsefClient` and `@/prisma/
+ * The "ksef" transport in isolation. `KsefClient` and `@/prisma/
  * prisma.service` are mocked wholesale (the real KSeF round-trip is `ksef/ksef-live.spec.ts`'s job,
  * gated on real credentials — see that file's own header, and on `KSEF_LIVE`/`KSEF_AUTH_TOKEN`/
  * `KSEF_NIP`, absent today); this proves the ORCHESTRATION: the preflight gate, the FA(3) payload
- * build+gate, and — the two facts this task's mutation #2 targets — that an empty session/invoice
+ * build+gate, and the two facts that matter most — that an empty session/invoice
  * reference is NEVER a success and that a disconnected channel blocks BEFORE any network call.
  * `ksef-crypto.spec.ts`/`ksef-client.spec.ts` are reprised unchanged and prove the crypto/client
  * pieces this transport composes; this file only proves the composition.
@@ -212,8 +212,8 @@ describe('buildKsefTransport', () => {
       expect(mockCloseSession).toHaveBeenCalledWith('session-ref-1', 'access-token-1');
     });
 
-    // THE MUTATION TARGET (#2 in the task brief): an accepted submission with an EMPTY session or
-    // invoice reference must be a FAILURE, never a silent success.
+    // An accepted submission with an EMPTY session or invoice reference must be a FAILURE, never a
+    // silent success.
     it('treats an EMPTY invoice reference as a FAILURE, never a success', async () => {
       mockNominalKsefRoundTrip();
       mockSendInvoice.mockResolvedValue({ referenceNumber: '' });

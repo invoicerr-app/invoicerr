@@ -33,7 +33,7 @@ async function fileToBase64(file: File): Promise<string> {
  *  present here — this core's own outbound CII/UBL builders never emit it either (see
  *  extraction.ts's own header) — left for the user to type in if they know it.
  *
- *  TODO_PRODUIT.md T5(c) — an OCR-read field (`extraction.syntax === "OCR"`) lands in this SAME
+ *  An OCR-read field (`extraction.syntax === "OCR"`) lands in this SAME
  *  `preview.extraction.fields` object, keyed identically (`ocr/extractor.ts`'s own
  *  `ExtractedInvoiceProposal` is the EXACT `ExtractedInvoiceFields` shape) — this function needed NO
  *  change at all to pick it up: a PRE-FILLED, still fully editable field either way, the human
@@ -48,7 +48,7 @@ function buildInitialData(preview: UploadReceivedInvoicePreview): Record<string,
 }
 
 /**
- * Root TODO item 18's own entry point into creating a received-invoice: a file (PDF, or XML CII/
+ * The entry point into creating a received-invoice: a file (PDF, or XML CII/
  * UBL, or Factur-X) is uploaded FIRST, structurally extracted best-effort, and the result seeds a
  * normal `DocumentUpsertDialog` — the user reviews/edits exactly like any other document type's
  * create form, then the generic "receive" action persists it. Registered at "list-header-extra"
@@ -84,7 +84,7 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
       resetUploadDialog()
       setPreview(result)
 
-      // TODO_PRODUIT.md T5(b) — "sinon... l'écran le dit": a MATCHED outcome is already visible
+      // "sinon... l'écran le dit": a MATCHED outcome is already visible
       // through the pre-filled "Linked supplier" field itself (no toast needed); anything else, once
       // the file WAS recognized (a plain scanned PDF with nothing to match has nothing to say here),
       // gets a named message so an empty/ambiguous link is never mistaken for a missed one.
@@ -96,14 +96,14 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
         }
       }
 
-      // TODO_PRODUIT.md T5(c) — OCR of an unstructured PDF, ONE honest message per outcome:
+      // OCR of an unstructured PDF, ONE honest message per outcome:
       // `not-attempted` says nothing (a structured deposit, or a non-PDF, has no OCR story to tell —
-      // the CURRENT, pre-T5(c) behaviour, proven UNCHANGED); `unavailable` covers BOTH "no OCR
+      // the pre-OCR behaviour, proven UNCHANGED); `unavailable` covers BOTH "no OCR
       // service deployed for this instance" and "a declining extractor" as the SAME honest absence
       // (see `use-received-invoices.ts`'s own `OcrOutcome` header for why the two are never told
       // apart on screen — self-host's default, always-present case); `extracted` flags the fields
       // below as AI-read so the human reviews rather than trusting them blindly; `failed` NAMES the
-      // provider's own error — never swallowed, per this task's own root instruction.
+      // provider's own error — never swallowed.
       if (result.ocr.outcome === "unavailable") {
         toast.info(t("documents.custom.receivedInvoiceUpload.ocrUnavailable"))
       } else if (result.ocr.outcome === "extracted") {

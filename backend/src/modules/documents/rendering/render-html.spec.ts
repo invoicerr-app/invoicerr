@@ -294,11 +294,11 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — an invoice/quote line's `articleId` must
+  // Basic stock management ("gestion de stock basique") — an invoice/quote line's `articleId` must
   // be STORED but never printed. Deliberately a SEPARATE describe block from `hideWhenEmpty` below:
   // that hint still prints a value once one is set (see its own test "renders ... once it is set"),
   // the exact opposite of what this kind guarantees — see types.ts's own `entity` doc comment.
-  describe('hiddenReference (never rendered, not even when set — TODO_FEATURES.md rank 18)', () => {
+  describe('hiddenReference (never rendered, not even when set)', () => {
     it('renders no row at all for a TOP-LEVEL hiddenReference field, whether set or unset', () => {
       const descriptor: DocumentTypeDescriptor = {
         id: 'test',
@@ -453,7 +453,7 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // TODO_FEATURES.md item 7 ("référence client / n° de commande") — `hideWhenEmpty` (types.ts) is the
+  // Client reference / order number ("référence client / n° de commande") — `hideWhenEmpty` (types.ts) is the
   // one opt-in escape from the "missing and empty values" block right above: a field that declares it
   // gets NO row at all when unset, rather than the universal label + em-dash placeholder.
   describe('hideWhenEmpty', () => {
@@ -669,12 +669,12 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // Root TODO item 15 ("mentions obligatoires") — reprises the repère's own
+  // Mandatory legal mentions ("mentions obligatoires") — reprises the repère's own
   // `legal-mentions-pdf.spec.ts` intent (git tag `avant-refonte-documents`), adapted to this generic
   // renderer: the mentions come in as a plain `legalMentions` array (already resolved for a date by
   // `mentions/invoice-notes.ts` — this file has no opinion on WHERE they came from), and the only
   // thing under test here is how the HTML PRESENTS them.
-  describe('legal mentions (root TODO item 15)', () => {
+  describe('legal mentions', () => {
     const invoiceDescriptor: DocumentTypeDescriptor = {
       id: 'invoice',
       label: 'Invoice',
@@ -783,11 +783,11 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — `renderDocumentHtml` itself only knows how to
+  // SEPA payment QR / GiroCode — `renderDocumentHtml` itself only knows how to
   // PRESENT a `paymentQr` input, exactly the way it only presents `legalMentions` above; whether one is
   // actually passed is entirely `render-instance-pdf.ts#sepaPaymentQrFor`'s own gating, proven in that
   // file's own spec, not here.
-  describe('payment QR (TODO_FEATURES.md rank 8)', () => {
+  describe('payment QR', () => {
     const invoiceDescriptor: DocumentTypeDescriptor = {
       id: 'invoice',
       label: 'Invoice',

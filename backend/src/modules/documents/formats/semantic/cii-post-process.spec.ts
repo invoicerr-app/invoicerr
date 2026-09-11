@@ -1,5 +1,5 @@
 /**
- * `splitCiiIncludedNotesInObject` — root TODO item 15's own fix for the gap
+ * `splitCiiIncludedNotesInObject` — the fix for the gap
  * `facturx-provider.ts`'s header now documents as REACHED (a real superpdp `fr:213` rejection, see
  * `pdp/pdp.live.spec.ts`). The object shape asserted here is the ACTUAL shape
  * `@e-invoice-eu/core@`'s own `FormatCIIService` produces before rendering — verified empirically

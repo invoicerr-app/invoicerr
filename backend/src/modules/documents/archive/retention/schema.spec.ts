@@ -9,7 +9,7 @@ describe('assertValidRetentionRule', () => {
 
   // The mutation this exact test rehearses: a retention duration with no legalRef must NEVER load —
   // the same "a legal claim without a citation does not load" discipline `mentions/schema.spec.ts`
-  // already proves for a mandatory mention, and this task's own rule: no duration is ever invented.
+  // already proves for a mandatory mention, and the retention rule: no duration is ever invented.
   it('rejects a rule with no legalRef at all', () => {
     expect(() => assertValidRetentionRule({ ...base, legalRef: '' }, 'test')).toThrow(
       InvalidRetentionRuleError,

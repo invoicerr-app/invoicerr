@@ -1,5 +1,5 @@
 /**
- * ChannelCredentialsService in isolation — root TODO item 10 ("transports nationaux"). Mocks
+ * ChannelCredentialsService in isolation ("transports nationaux"). Mocks
  * `@/prisma/prisma.service` at its own entry point (the same discipline `company-transport.spec.ts`
  * already holds), so this proves the SERVICE's own logic (encryption round-trip, what a GET is and
  * is not allowed to carry, the "at most one active environment" invariant) — never a real database.
@@ -230,7 +230,7 @@ describe('ChannelCredentialsService', () => {
       for (const row of rows) {
         expect(Object.keys(row)).not.toContain('config');
       }
-      // THE MUTATION PROOF (task mutation #2): if this method were changed to decrypt and return the
+      // THE MUTATION PROOF: if this method were changed to decrypt and return the
       // blob, this is the assertion that would catch it — the secret must not appear ANYWHERE in the
       // serialized response, not just absent from a named field.
       expect(JSON.stringify(rows)).not.toContain(secretMarker);
@@ -239,7 +239,7 @@ describe('ChannelCredentialsService', () => {
   });
 
   describe('suggestedChannels() — reads the country file, never a hard-coded country check', () => {
-    // Root TODO item 11 — France now MANDATES pdp (channel-policy/data/fr.json, mandatedFrom
+    // France now MANDATES pdp (channel-policy/data/fr.json, mandatedFrom
     // 2026-09-01), not merely suggests it: this is the real, shipped shape, not a fixture, so the
     // test proves the SERVICE hands the mandate fields straight through, unmassaged.
     it("a French company's channel policy is pdp, MANDATED from 2026-09-01, with legal provenance", async () => {
@@ -269,13 +269,13 @@ describe('ChannelCredentialsService', () => {
     });
   });
 
-  // Root TODO ("déclaration") — a NEW, categorically different concept from `suggestedChannels`
+  // "Déclaration" — a NEW, categorically different concept from `suggestedChannels`
   // above: never a transport hint, always "declare this invoice's data to this authority". Reads
   // `documents/reporting/data/*.json`, the real, shipped files, not a fixture.
   describe('reportingObligations() — reads the country file, never a hard-coded country check', () => {
     // HU ("nav") and GR ("mydata") were the only two countries this mechanism ever shipped a
-    // reporting obligation for — both removed by the 5-country prune (2026-09-10, see this task's
-    // own report): the shipped catalog is now honestly EMPTY (reporting/data/all.spec.ts's own
+    // reporting obligation for — both removed by the 5-country prune (2026-09-10): the shipped
+    // catalog is now honestly EMPTY (reporting/data/all.spec.ts's own
     // pin). Re-anchored here (not deleted) on that same fact, so this still proves the SERVICE reads
     // the real (now-empty) catalog rather than a hard-coded guess.
     it('a Hungarian or Greek company has no reporting obligation any more — the shipped catalog is now empty', async () => {

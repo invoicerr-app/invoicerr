@@ -7,7 +7,7 @@
  * passes before this spec ever reaches the network — see `xrechnung-provider.spec.ts`'s own master
  * proof for the same fixture shape.
  *
- * THIS TASK'S OWN RUN, 2026-09-02 — RAW RESULT recorded here VERBATIM once obtained (never rounded up
+ * THE 2026-09-02 RUN — RAW RESULT recorded here VERBATIM once obtained (never rounded up
  * to "it works" from a partial signal) — see `LIVE_TESTING.md` for the canonical write-up this file's
  * own header points back to.
  *
@@ -26,7 +26,7 @@
  * break the naive walker), but it is NOT proof that peppol.sh's own sandbox receiver judges, keeps, or
  * forwards the document AS XRechnung specifically — their own re-serialized copy is a generic
  * peppol.sh-shaped document, not a byte-for-byte relay of what this codebase built. The genuinely
- * XRechnung-specific claim this task settles is judged LOCALLY, before this file ever sends anything:
+ * XRechnung-specific claim this spec settles is judged LOCALLY, before this file ever sends anything:
  * `xrechnungFormatProvider.build()`'s own `validation.valid` gate (the real vendored KoSIT Schematron)
  * and the `cbc:CustomizationID` this spec asserts on the BUILT bytes below, prior to the network call.
  *

@@ -176,7 +176,7 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     await expect(service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii')).rejects.toThrow(
       BadRequestException,
     );
-    // Citing the rule — never a bare "invalid", per this ticket's own "gate, not a report" requirement.
+    // Citing the rule — never a bare "invalid": a gate, not a report.
     try {
       await service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii');
       fail('expected a BadRequestException');
@@ -186,10 +186,10 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     }
   }, 30_000);
 
-  // USER DECISION (2026-09-01, TODO_ISSUES.md "le pays vendeur irrésolu retombait sur 'FR'
+  // USER DECISION (2026-09-01, "le pays vendeur irrésolu retombait sur 'FR'
   // silencieusement", now RÉSOLU) — `download-xml` shares `resolveInvoiceCrossBorderTax` with the
   // "send" preflight/deliver path (`tax/load-and-resolve.ts`'s own header: "both real call sites...
-  // share this"), so this is the SECOND of the task's own two named entry points, proven directly at
+  // share this"), so this is the SECOND of the two named entry points, proven directly at
   // the SERVICE layer rather than only at the pure resolver (`tax/resolve-invoice-tax.spec.ts`).
   it('gate 4 (400) — an unresolvable SELLER country blocks, named, before any artifact is built or served', async () => {
     mockDocument({});

@@ -1,5 +1,5 @@
 /**
- * The WIRING for root TODO item 16 ("transfrontalier") — the ONE place the pure `tax-engine.ts`
+ * The WIRING for cross-border tax ("transfrontalier") — the ONE place the pure `tax-engine.ts`
  * (reprise du repère) meets an actual invoice, at the moment it enters "sending" (`actions/
  * async-send.ts` phase 1, before numbering/enqueue — see `invoice-actions.ts`'s own `preflight`) and
  * again whenever the ACTUAL delivery/export is built (`invoice-actions.ts#deliver`,
@@ -31,7 +31,7 @@
  * ## The three hard blocks this product's own history required
  *
  * - **Unresolved buyer country**: this is the exact bug the product paid for once — "B2C pays inconnu
- *   → 0% de TVA silencieux" (see the root TODO item 16 brief, and `vat-unknown-country-undercharge`
+ *   → 0% de TVA silencieux" (see `vat-unknown-country-undercharge`
  *   in this codebase's own project memory). `buildSemanticInvoice`'s own `guessCountryCode(...) ??
  *   'FR'` fallback is FINE for a document that merely needs SOME jurisdiction to print an address
  *   under — it would be catastrophic here, where an unresolved buyer country would silently look
@@ -39,7 +39,7 @@
  *   applies that fallback to the BUYER: unresolved buyer country is `UnresolvedBuyerCountryError`,
  *   always, before anything else runs.
  * - **Unresolved SELLER country** (USER DECISION, 2026-09-01, symmetric to the buyer block above —
- *   see TODO_ISSUES.md, "le pays vendeur irrésolu retombait sur 'FR' silencieusement", now RÉSOLU):
+ *   "le pays vendeur irrésolu retombait sur 'FR' silencieusement", now RÉSOLU):
  *   this function used to fall back to `'FR'` for an unresolvable seller country — the SAME class of
  *   silent-wrong-tax bug the buyer block above already exists to prevent, just on the other party. A
  *   company whose own country cannot be resolved (never configured, or a free-text value
@@ -176,8 +176,8 @@ function assertDomesticRatesKnown(
   });
 }
 
-/** Buyer role derivation — "numéro TVA valide → B2B ; sinon B2C" (root TODO item 16's own contract,
- *  the repère's `TrustFlagVatValidator`). A syntactically invalid number never even reaches the
+/** Buyer role derivation — "numéro TVA valide → B2B ; sinon B2C" (the repère's
+ *  `TrustFlagVatValidator`). A syntactically invalid number never even reaches the
  *  stored VIES verdict: it is B2C immediately, with a named warning. */
 function resolveBuyerRole(
   buyerCountryCode: string,

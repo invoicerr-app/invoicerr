@@ -5,11 +5,11 @@
  * email say" are both plain functions of data already in hand, testable without a broker, a database,
  * or an SMTP server (reminder-sweep.spec.ts).
  *
- * ## TODO_FEATURES.md rank 2 — scope: OVERDUE INVOICES ONLY, this pass
+ * ## Scope: OVERDUE INVOICES ONLY
  *
  * The feature's own description also names unsigned quotes as a candidate for the same escalating-
- * reminder treatment — deliberately NOT built here (the task's own instructions warn against exactly
- * this scope creep). Nothing below hardcodes "invoice" though: `selectDueReminderTier` only ever takes
+ * reminder treatment — deliberately NOT built here (exactly the scope creep to avoid). Nothing below
+ * hardcodes "invoice" though: `selectDueReminderTier` only ever takes
  * a `daysOverdue` number and a set of already-sent tiers, and `buildReminderEmail` only ever takes
  * plain display facts (a number, an amount, a date) — a later "quote missing a signature N days after
  * being sent" variant needs only a second overdue-candidate query in reminder-sweep-runner.ts (its own
@@ -30,13 +30,13 @@
  *
  * ## Tier selection — see `selectDueReminderTier` below
  *
- * `REMINDER_TIERS` is ascending and fixed (7/14/30 days overdue, TODO_FEATURES.md rank 2's own
- * example set). Per invoice per pass, this picks the LOWEST tier that is BOTH due
+ * `REMINDER_TIERS` is ascending and fixed (7/14/30 days overdue, the feature's own example set).
+ * Per invoice per pass, this picks the LOWEST tier that is BOTH due
  * (`daysOverdue >= tier.daysOverdue`) AND not yet sent — never the highest: an invoice nobody looked
  * at for 40 days must still climb 7 -> 14 -> 30, one email per day-crossing on successive daily runs,
  * never a burst of three at once the first time anyone looks. Returning on the FIRST ascending match
  * is what makes "at most one tier per call" — and therefore "at most one email per invoice per sweep
- * pass" (this task's own explicit rule) — true by construction, never an accident of the tiers
+ * pass" (the sweep's own explicit rule) — true by construction, never an accident of the tiers
  * happening to be declared in order.
  */
 
@@ -60,7 +60,7 @@ export interface ReminderTier {
   daysOverdue: number;
 }
 
-/** Ascending, fixed, three steps — TODO_FEATURES.md rank 2's own example set ("7, 14, 30 jours").
+/** Ascending, fixed, three steps — the feature's own example set ("7, 14, 30 jours").
  *  Extending the escalation later (a fourth tier, a different cadence) is exactly one more entry
  *  here, kept in ascending order (`selectDueReminderTier` below relies on that order to return the
  *  LOWEST due tier first) — plus one more `case` in `buildReminderEmail`'s own switch; nothing else in
@@ -138,7 +138,7 @@ export interface ReminderEmailContent {
 /**
  * One escalating subject/body per tier — THE one place this feature's copy lives (this file's own
  * header: backend-generated email content, not a frontend screen, so it does NOT go through `t()`/
- * `locales/en/translation.json` — see the task's own instructions on why). A plain switch over the
+ * `locales/en/translation.json`, which only covers the SPA's own strings). A plain switch over the
  * SAME `tierDaysOverdue` value `selectDueReminderTier` returns and `DocumentReminder.tier` stores —
  * never a second, independent "tone" enum that could drift out of sync with `REMINDER_TIERS` above.
  */

@@ -83,7 +83,7 @@ export interface ConformityCandidateRow {
   transportRef: string;
   channelProviderId: string;
   /** A proxy for "when this document was actually sent" — `DocumentInstance.updatedAt` at fetch
-   *  time. Not a dedicated `sentAt` column (this task adds none): in practice, nothing touches a
+   *  time. Not a dedicated `sentAt` column (none exists): in practice, nothing touches a
    *  "sent" document's own row again except the archive write that happens SYNCHRONOUSLY, in the same
    *  call, immediately after "sent" is persisted (`archive/archive-on-send.ts`) — so this proxy is
    *  accurate to within milliseconds of the real send time, which is ample precision against a
@@ -133,7 +133,7 @@ export interface ConformityPollJobData {
   providerId: string;
   transportRef: string;
   /**
-   * TODO_PRODUIT.md T1 / PLAN-V2 R8 — carried through so `ConformitySweepRunner.runPoll` can publish
+   * Carried through so `ConformitySweepRunner.runPoll` can publish
    * a `{documentId, typeId, kind: 'authority-event'}` SSE nudge once a poll journals something new
    * (see that method's own header); the frontend's own query keys need BOTH `typeId` and `documentId`
    * to invalidate the right cache entry. OPTIONAL: several EXISTING specs construct this shape by hand

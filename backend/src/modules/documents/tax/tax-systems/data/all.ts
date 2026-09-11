@@ -9,7 +9,7 @@
  * plus `.json`, which is a country file and nothing else (it excludes this `all.ts` and
  * `all.spec.ts`, neither of which is `.json`). `readdirSync` makes no ordering promise, so the codes
  * are sorted before loading — deterministic, reproducible, independent of the OS or filesystem. What
- * shipped here — the 7 non-EU jurisdictions plus the full EU-27 (root TODO item 16's OSS follow-up,
+ * shipped here — the 7 non-EU jurisdictions plus the full EU-27 (the OSS follow-up,
  * "sourcer les tables de taux par pays de destination", standard VAT rate only, read from the
  * European Commission's TEDB / DG TAXUD — see each file's own `provenance`/`notes` for the exact HTTP
  * request and response quoted) — is now a fact about what's on disk, not a list to keep in sync.

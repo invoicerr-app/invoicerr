@@ -2,7 +2,7 @@
  * Real cryptographic signing providers for XAdES, CAdES, PAdES, and the none pass-through — reprised
  * from the repère (`avant-refonte-documents`, `compliance/providers/signing/providers.ts`) almost
  * verbatim: xadesjs, node-forge, @signpdf, pkijs are ALL already dependencies (see backend/package.json
- * — nothing new was added for this task), and the crypto itself (RSA import, XML/PKCS#7/PDF signing,
+ * — no new dependency was added), and the crypto itself (RSA import, XML/PKCS#7/PDF signing,
  * RFC 3161 timestamp embedding) is untouched. What changed is only the SHAPE this module hands
  * around: `RenderedArtifact`/`SignedArtifact` (a whole compliance-plan artifact, with a `role` and a
  * closed `DocumentSyntax`) became this module's own `SigningArtifact`/`SignedArtifact`
@@ -22,8 +22,8 @@
  * TSA is opt-in: passing no TsaPort (or NullTsaClient) always produces BES output.
  *
  * ONE DELIBERATE DEPARTURE FROM THE REPÈRE, in `PadesSigningProvider` only — see that class's own
- * header for the full reasoning: root TODO item 13 requires that a company with an ACTIVE, applicable
- * certificate never receive a silently-unsigned PDF because the crypto operation itself blew up (a
+ * header for the full reasoning: a company with an ACTIVE, applicable
+ * certificate must never receive a silently-unsigned PDF because the crypto operation itself blew up (a
  * corrupt PFX only discoverable at sign time, a library error) — the repère's blanket
  * try/catch-and-warn swallowed that case identically to "no cert configured", which is no longer
  * acceptable for the ONE algorithm actually wired to a live flow (`rendering/sign-instance-pdf.ts`).
@@ -333,7 +333,7 @@ export class XadesSigningProvider implements SigningProvider {
 
 // ---------------------------------------------------------------------------
 // CAdES provider — CAdES-BES PKCS#7 (.p7m) enveloping signature. NOT wired to any flow today — see
-// registry.ts's own header (SdI accepts CAdES but that channel is not accredited, TODO.md item 10).
+// registry.ts's own header (SdI accepts CAdES but that channel is not accredited).
 // ---------------------------------------------------------------------------
 
 export class CadesSigningProvider implements SigningProvider {

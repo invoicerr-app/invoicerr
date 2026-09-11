@@ -1,6 +1,6 @@
 /**
- * TODO_PRODUIT.md T2 / PLAN-V2 R9, updated by T2bis for the generic `DOCUMENT_SENT` vocabulary — the
- * ONE end-to-end proof the original task's own "Accepte si" demands: a REAL local HTTP stub
+ * The generic `DOCUMENT_SENT` webhook vocabulary — the
+ * ONE end-to-end proof of its emission: a REAL local HTTP stub
  * (`node:http`, never a mock of the HTTP client — same `startStubServer`/`closeServer` pattern
  * `transports/peppol-transport.spec.ts` already established for this exact reason) receives EXACTLY
  * ONE webhook on a successful send, ZERO on a failed one, ZERO at enqueue, and the payload genuinely
@@ -20,12 +20,12 @@
  *  - `WebhooksService` (`modules/webhooks/webhooks.service.ts`) is the production driver-SELECTION
  *    layer — but it constructs `new DiscordDriver()` unconditionally in its own driver list, and
  *    `discord.driver.ts` imports `@teever/ez-hook`, a pure-ESM JSR package ts-jest cannot compile —
- *    see `TODO_ISSUES.md`'s own documented, PRE-EXISTING "ClientsModule inimportable sous ts-jest"
- *    entry (`clients.vat-validation.spec.ts` hits the identical wall for the identical reason and
- *    works around it with a factory mock). `SlackDriver`'s own import chain (`chat-webhook.driver.ts`
+ *    the PRE-EXISTING "ClientsModule inimportable sous ts-jest" wall (`clients.vat-validation.spec.ts`'s
+ *    own header: it hits the identical wall for the identical reason and works around it with a
+ *    factory mock). `SlackDriver`'s own import chain (`chat-webhook.driver.ts`
  *    → `event-formatters.ts`) never touches Discord or `@teever/ez-hook` at all, so importing it
  *    DIRECTLY — skipping only `WebhooksService`'s trivial `type → driver` `.find()`, never anything
- *    this task's own webhook-EMISSION discipline is about — sidesteps that wall while keeping the
+ *    the webhook-EMISSION discipline under test is about — sidesteps that wall while keeping the
  *    formatter call, the HTTP POST, and the driver's own body shape entirely real.
  */
 import * as http from 'node:http';
@@ -91,7 +91,7 @@ const sendingInvoice = {
 
 const sentInvoice = { ...sendingInvoice, status: 'sent' };
 
-describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub (TODO_PRODUIT.md T2bis)', () => {
+describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('a successful send makes EXACTLY ONE POST reach the stub, carrying the formatted (not raw) payload', async () => {
@@ -137,7 +137,7 @@ describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub (
       // `attachments[0].text` is EXACTLY `formatPayloadForEvent`'s own return value
       // (drivers/event-formatters.ts's `DOCUMENT_SENT` formatter: `**${documentLabel(typeId)}
       // #${documentNumber(p)}**\nSent`). Asserting the invoice's OWN displayNumber appears proves the
-      // formatter genuinely read `payload.document` — T2bis's own FIXED `document` key
+      // formatter genuinely read `payload.document` — the FIXED `document` key
       // (`buildDocumentWebhookPayload`, `queue/document-webhooks.ts`) — never a raw JSON dump
       // (event-formatters.ts's own fallback on a formatter exception).
       const body = JSON.parse(receivedBody) as { attachments: Array<{ title: string; text: string }> };

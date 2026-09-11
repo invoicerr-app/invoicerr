@@ -7,7 +7,7 @@
  * deleted that option while refactoring" into a red test instead of a silent regression.
  *
  * `DiscordDriver` is NOT covered here, even for the `timeoutMs` it does accept: `discord.driver.ts`
- * imports `@teever/ez-hook`, a pure-ESM JSR package ts-jest cannot compile (see TODO_ISSUES.md's
+ * imports `@teever/ez-hook`, a pure-ESM JSR package ts-jest cannot compile (the
  * pre-existing "ClientsModule inimportable sous ts-jest" note) — merely IMPORTING the file, even to
  * mock the package away, fails ts-jest's own type-check of that import statement. Its hardening
  * (`hook.addEmbed(embed).send({ timeoutMs: WEBHOOK_FETCH_TIMEOUT_MS })`, and the redirect-following

@@ -1,8 +1,8 @@
 /**
- * TODO_PRODUIT.md T5(c) — the composition between the EXISTING structural reader (`extraction.ts`,
- * T5(a)/T5(b)) and the OCR extension point (`extractor.ts`): OCR is a FALLBACK, tried only when a
- * PDF carried nothing structural at all ("l'OCR des PDF reçus non structurés" — the task's own
- * title). A structured deposit (CII/UBL/Factur-X) never reaches this function's own extractor call
+ * The composition between the EXISTING structural reader (`extraction.ts`) and the OCR extension
+ * point (`extractor.ts`): OCR is a FALLBACK, tried only when a PDF carried nothing structural at all
+ * ("l'OCR des PDF reçus non structurés"). A structured deposit (CII/UBL/Factur-X) never reaches this
+ * function's own extractor call
  * at all — this is what guarantees a working Factur-X deposit can never be second-guessed by OCR,
  * and that OCR is never even attempted for a non-PDF file (an XML upload has nothing an OCR provider
  * could read anyway).
@@ -22,8 +22,8 @@ import { ExtractorNotReadyError, receivedDocumentExtractorRegistry } from './ext
  *  - `unavailable`: a PDF WITH NOTHING STRUCTURAL was found, and OCR was tried but nothing could
  *    answer — no extractor registered, or a registered one declined (`ExtractorNotReadyError`, e.g.
  *    a plugin toggled off or unconfigured). Deliberately the SAME outcome for both cases: the screen
- *    only ever needs to say "no OCR available, fill in by hand" — see this task's own root
- *    instruction, "absence honnête, jamais un échec silencieux", never a distinction the user could
+ *    only ever needs to say "no OCR available, fill in by hand" — "absence honnête, jamais un
+ *    échec silencieux", never a distinction the user could
  *    not act on differently anyway.
  *  - `extracted`: an extractor answered — `fields` (the caller's own, already merged) came, at least
  *    in part, from OCR. `extractorId` names WHICH one, for observability.
@@ -53,8 +53,8 @@ export interface OcrFallbackResult {
 /** A PDF, by mime OR filename — the exact same two-signal check `extraction.ts`'s own
  *  `extractReceivedInvoiceFields` already uses for `looksLikePdf` (deliberately duplicated here
  *  rather than exported from that file: this is a one-line, stable predicate, and keeping it here
- *  avoids widening that file's own public surface for a single caller — see this task's own
- *  root instruction to prefer the minimal touch to an already-shipped, heavily-commented file). */
+ *  avoids widening that file's own public surface for a single caller — the minimal touch to an
+ *  already-shipped, heavily-commented file). */
 function looksLikePdf(mime: string, fileName: string): boolean {
   return mime === 'application/pdf' || /\.pdf$/i.test(fileName);
 }

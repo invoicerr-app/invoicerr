@@ -1,7 +1,7 @@
 /**
  * The REAL SdICoop SOAP client — `SdIRiceviFile.RiceviFile`, the operation a trasmittente calls to
- * submit a FatturaPA (or archive) file to the Sistema di Interscambio. Explicit user decision (this
- * task's own brief): build the real client NOW, gated on AdE (Agenzia delle Entrate) intermediary
+ * submit a FatturaPA (or archive) file to the Sistema di Interscambio. Explicit user decision: build
+ * the real client NOW, gated on AdE (Agenzia delle Entrate) intermediary
  * accreditation being complete, rather than waiting for accreditation to exist first — status
  * **implemented-awaiting-accreditation**: this file is never run against the true AdE endpoint until
  * that accreditation lands (see `sdicoop.live.spec.ts`'s own header, and `CREDENTIALS_GUIDE.md` §4
@@ -60,7 +60,7 @@
  * `conformity/authority-status-poller.ts`'s own header: SdI notifiche are PUSHED, never polled), and
  * `SdIRiceviNotifica`/`RicezioneFatture` (the OTHER pair of web-services published alongside these,
  * also read from the same page) are the RECEPTION direction — for when we are the BUYER submitting an
- * esito committente, a different feature this task does not build. Both throw a named,
+ * esito committente, a different feature not built here. Both throw a named,
  * honest "not part of this client" error rather than pretending either exists here.
  */
 import * as https from 'node:https';
@@ -192,7 +192,7 @@ export function parseRiceviFileResponse(
   const identificativoSdI = textOf(firstByLocalName(doc, 'IdentificativoSdI'));
   const idSdI = identificativoSdI ? Number(identificativoSdI) : NaN;
   if (!identificativoSdI || !Number.isFinite(idSdI) || idSdI <= 0) {
-    // MUTATION TARGET #1 (this task's own brief): removing this check would let a response with no
+    // Removing this check would let a response with no
     // usable IdentificativoSdI parse into a "successful" result — never acceptable, see this
     // function's own header point 3.
     throw sdiCoopError(
@@ -210,7 +210,7 @@ export function parseRiceviFileResponse(
 }
 
 // ---------------------------------------------------------------------------
-// HTTPS transport — node:https, native pfx/passphrase mTLS (no SOAP library, per this task's rule).
+// HTTPS transport — node:https, native pfx/passphrase mTLS (no SOAP library).
 // ---------------------------------------------------------------------------
 
 export interface SdiCoopClientConfig {
@@ -353,7 +353,7 @@ export class SdiCoopClient implements SdiHttpPort {
   }
 
   /** `NotificaEsito` on `SdIRiceviNotifica` is a RECEPTION-side operation (we would be the BUYER
-   *  submitting an esito committente) — a different feature this task does not build. Honest, named
+   *  submitting an esito committente) — a different feature not built here. Honest, named
    *  non-implementation, never an invented call against a service this client was never asked to
    *  implement. */
   async sendEsito(

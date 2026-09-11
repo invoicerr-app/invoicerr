@@ -1,16 +1,16 @@
 /**
- * The "sdi" transport — root TODO item 10 ("transports nationaux"), wave 2: Italy's Sistema di
+ * The "sdi" transport — Italy's Sistema di
  * Interscambio. Same `DocumentTransport` interface `pdp-transport.ts`/`ksef-transport.ts` implement,
  * registered the same way.
  *
- * STATUS: **implemented-awaiting-accreditation** (explicit user decision, re-affirmed this task —
+ * STATUS: **implemented-awaiting-accreditation** (explicit user decision —
  * see `sdi/sdicoop-client.ts`'s own header for the full "what was read vs extrapolated" account). SdI
  * access for a real Sistema di Interscambio submission requires AdE (Agenzia delle Entrate)
  * intermediary accreditation and a qualified PFX certificate, NEITHER obtained (see
  * `CREDENTIALS_GUIDE.md` §4) — so a REAL SOAP client now exists (`sdi/sdicoop-client.ts`,
  * `SdiCoopClient`, built from the published SdICoop WSDL/XSD/instructions, read and cited), but it has
  * NEVER been run against the true AdE endpoint: this transport is, by construction, unproven live
- * until accreditation lands. The DIFFERENCE from wave 2's original state: previously `send()` reached
+ * until accreditation lands. Previously `send()` reached
  * `sdi/sdi-client.ts`'s `UNACCREDITED_SDI_HTTP_PORT` unconditionally (every call failed with the SAME
  * "not implemented" message, whether or not credentials were configured); now, a company that HAS
  * connected all four fields (idTrasmittente/certificate/certificatePassword/`endpoint` — the
@@ -218,7 +218,7 @@ export function buildSdiTransport(deps: SdiTransportDeps): DocumentTransport {
           'and is journaled there against this same idSdI.',
         reference,
         providerId: PROVIDER_ID,
-        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving — the ONLY artifact this transport ever delivers is
         // the FatturaPA actually submitted (`xmlBytes`, already gated valid above), same reasoning as
         // `pdp-transport.ts`'s own `artifacts`.
         artifacts: [

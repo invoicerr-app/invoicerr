@@ -1,5 +1,5 @@
 /**
- * Signature électronique (root TODO item 13, module supprimé) — prouvée PAR L'ÉCRAN : on uploade un
+ * Signature électronique — prouvée PAR L'ÉCRAN : on uploade un
  * certificat de FIXTURE (auto-signé, généré par node-forge — voir
  * `backend/gen-e2e-fixture-pfx.tmp.ts`'s own header at the commit that produced
  * `cypress/fixtures/signing/e2e-fixture-cert.pfx`, JAMAIS un vrai certificat), la liste affiche ses
@@ -12,7 +12,7 @@
  * test bidon pour un certificat auto-signé jetable :
  *   e2e-fake-pfx-password-not-real
  *
- * Régression couverte par la même passe : 19 (rendu PDF de base, aucun certificat actif au départ)
+ * Régressions couvertes : 19 (rendu PDF de base, aucun certificat actif au départ)
  * et 28 (l'envoi asynchrone continue de fonctionner une fois un certificat actif — la facture envoyée
  * par email est du PDF signé, jamais un envoi cassé).
  */
@@ -82,7 +82,7 @@ function fetchInvoicePdfRaw(invoiceId: string) {
 		});
 }
 
-describe("Signature électronique — certificats de société (root TODO item 13)", () => {
+describe("Signature électronique — certificats de société", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});

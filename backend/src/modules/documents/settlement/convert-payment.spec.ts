@@ -2,7 +2,7 @@ import { CurrencyRateLike } from '../../company/currency-rates/convert';
 import { resolvePaymentConversion } from './convert-payment';
 
 /**
- * `resolvePaymentConversion` — TODO_PRODUIT.md T3's own per-operation, dated conversion. Pure and
+ * `resolvePaymentConversion` — the per-operation, dated conversion. Pure and
  * DB-free (this file's own header), so every rule is proven with plain fixtures, no Prisma, no jest
  * mock of any store — the same discipline convert.spec.ts already holds for `convertMinor`/
  * `resolveLatestRate` themselves.
@@ -130,7 +130,7 @@ describe('resolvePaymentConversion', () => {
       });
     });
 
-    it('rounds HALF-UP to the nearest target minor unit — the rounding rule is a pinned decision, not an accident (added by the T3 validation pass: the floor-mutation went unbitten, every prior pinned value landed exactly)', () => {
+    it('rounds HALF-UP to the nearest target minor unit — the rounding rule is a pinned decision, not an accident (added because a floor-mutation went unbitten: every prior pinned value landed exactly)', () => {
       // 100.01 USD at 0.925 → 92.50925 EUR → 9250.925 minor: round = 9251, floor = 9250.
       const rates = [rate({ from: 'USD', to: 'EUR', rate: 0.925 })];
       const result = resolvePaymentConversion('EUR', 'USD', 10001, rates, new Date('2026-08-30'));

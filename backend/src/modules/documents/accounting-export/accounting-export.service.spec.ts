@@ -161,7 +161,7 @@ describe('buildAccountingExport — invoices', () => {
     expect(csv).toBe(HEADER);
   });
 
-  it('a CANCELLED invoice never appears — TODO_CORRECTION.md C3, nothing owed on a void document', async () => {
+  it('a CANCELLED invoice never appears — nothing owed on a void document', async () => {
     listDocuments.mockResolvedValue([
       invoice({ id: 'void-1', status: 'cancelled', data: invoiceData({ issueDate: '2026-03-15' }) }),
     ]);

@@ -44,7 +44,7 @@ export class ClientsController {
   @ApiOperation({
     summary: "A client's account statement",
     description:
-      'TODO_FEATURES.md rank 6 — every "sent" invoice for this client, the credit notes correcting ' +
+      'Every "sent" invoice for this client, the credit notes correcting ' +
       'each one, the resulting balance (settlement/compute-settlement.ts — payments and credits ' +
       'already netted in), and an aged balance per currency (current / 0-30 / 31-60 / 60+ days ' +
       "overdue, by the balance's own due date). See settlement/client-statement.ts.",

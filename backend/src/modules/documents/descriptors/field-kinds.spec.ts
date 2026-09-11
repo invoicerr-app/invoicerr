@@ -53,7 +53,7 @@ describe('FieldKindRegistry', () => {
     ]);
   });
 
-  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — an invoice/quote line's `articleId`.
+  // Basic stock management ("gestion de stock basique") — an invoice/quote line's `articleId`.
   // Structurally identical to single-target 'reference' (see field-kinds.ts's own registration
   // comment); what actually differs (never rendered anywhere) is exercised by render-html.spec.ts and
   // the frontend, not here — this is only the structural validation half.
@@ -158,7 +158,7 @@ describe('FieldKindRegistry', () => {
     });
   });
 
-  // Root TODO item 16 follow-up (2026-09-01) — a REAL bug this task's own Cypress extension caught,
+  // Cross-border tax follow-up (2026-09-01) — a REAL bug the Cypress cross-border extension caught,
   // never a jest test: `resolveInvoiceCrossBorderTax` (documents/tax/resolve-invoice-tax.ts) replaces
   // a line's `vatRate` with a FOREIGN destination country's real rate (e.g. Germany's 19% for a FR
   // seller's OSS sale) and persists it as `instance.data` at "sending". `queue/processors/document-
@@ -166,7 +166,7 @@ describe('FieldKindRegistry', () => {
   // re-validates that SAME data against this exact 'select' validator, using the SELLER's own
   // (FR) vatRate catalog. Every existing B2B case (reverse charge/intra-Community/export) resolves to
   // 0%, which happens to already be a valid FR rate — so this never surfaced until a REAL non-zero
-  // OSS destination rate (this task's own de.json et al.) reached a genuine end-to-end send and threw
+  // OSS destination rate (de.json et al.) reached a genuine end-to-end send and threw
   // "Invalid document data" (verified live: `35-cross-border-tax.cy.ts`'s new OSS test failed with
   // exactly this error before the fix below, confirmed by fetching the failed document over the API —
   // `lastActionError: "Invalid document data"`, `data.lines[0].vatRate: "19"` already correctly

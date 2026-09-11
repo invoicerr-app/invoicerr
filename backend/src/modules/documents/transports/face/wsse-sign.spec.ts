@@ -4,7 +4,7 @@
  * `signing/providers.spec.ts`/`signing-certificates.service.spec.ts` already use for the identical
  * "no real certificate is ever committed" reasoning).
  *
- * DoD (this task's own brief):
+ * What these tests prove:
  *  - Structure: `wsse:BinarySecurityToken` present, `ds:SignedInfo`'s ONE `ds:Reference` targets the
  *    `soapenv:Body`'s OWN `wsu:Id` (not merely "some id"), `KeyInfo`/`SecurityTokenReference` points
  *    back at the token.
@@ -110,9 +110,9 @@ describe('signSoapEnvelope', () => {
     expect(sigOf(a.envelope)).not.toBe(sigOf(b.envelope));
   });
 
-  // MUTATION GUARD #1 (this task's own) — "la signature couvre autre chose que le Body (la référence
-  // pointe ailleurs)". Rather than only asserting on the HAPPY output above, this simulates the
-  // mutant's OWN observable symptom directly against `verifyWsseSignature` — a Reference rewritten to
+  // MUTATION GUARD #1 — the guarded defect: the signature covering something other than the Body (a
+  // Reference pointing elsewhere). Rather than only asserting on the HAPPY output above, this
+  // simulates that symptom directly against `verifyWsseSignature` — a Reference rewritten to
   // point at the wrong id must be caught, because the verifier recomputes the Body digest from the
   // REAL Body element, never from whatever the URI merely claims.
   it('MUTATION GUARD #1 — a Reference rewritten to point away from the real Body is caught by verifyWsseSignature', async () => {

@@ -64,7 +64,7 @@ export class PluginRegistry {
   }
 
   /**
-   * TODO_PRODUIT.md T5(c) — deliberately NOT a `registerProvider(PluginType.OCR, ...)` call: this
+   * Deliberately NOT a `registerProvider(PluginType.OCR, ...)` call: this
    * registers directly into `received-invoices/ocr/extractor.ts`'s OWN registry, a completely
    * separate structure from `this.providersMap`/`Plugin` above — see `plugins/ocr/providers/mistral/
    * mistral.ts`'s own header for why the `PluginType`/`PluginRegistry` machinery (instance-wide,

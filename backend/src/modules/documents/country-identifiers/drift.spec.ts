@@ -62,7 +62,7 @@ describe('detectCountryIdentifierRequirementsDrift', () => {
     expect(report.removedCountries).toEqual([]);
   });
 
-  // The exact bug this task fixes: a country ENTIRELY removed from the catalog must still be
+  // The exact bug this fixes: a country ENTIRELY removed from the catalog must still be
   // visible to the drift report, even though the catalog itself no longer names it at all.
   it('detects a REMOVED country — rows in the DB, no file for it at all', () => {
     const catalog = new CountryIdentifierRequirementsCatalog([]);

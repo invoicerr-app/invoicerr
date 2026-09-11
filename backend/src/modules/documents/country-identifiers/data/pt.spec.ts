@@ -1,7 +1,6 @@
 /**
- * PT — direct-load content spec, added by the PT country agent (TODO_DOCUMENTS.md, vague B, lot 7,
- * dernier lot). Same rationale as country-identifiers/data/hr.spec.ts: reads `pt.json` straight off
- * disk rather than through `data/all.ts` (wiring "pt" in is a mandataire decision), and re-runs the
+ * PT — direct-load content spec. Same rationale as country-identifiers/data/hr.spec.ts: reads `pt.json` straight off
+ * disk rather than through `data/all.ts` (wiring "pt" in is a product decision), and re-runs the
  * exact load-time gate (`assertValidProvenance`) independently.
  */
 import { readFileSync } from 'node:fs';

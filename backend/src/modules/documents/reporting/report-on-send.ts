@@ -30,7 +30,7 @@
  * `ReportingObligationCatalog.obligationFor` returns `undefined` for every country with no
  * `reporting/data/*.json` file (which is every country except HU and GR today) — this function
  * returns immediately, having enqueued nothing, exactly the pre-existing "send" behaviour for every
- * type and every seller this task did not touch.
+ * type and every seller without an obligation.
  */
 import { logger } from '@/logger/logger.service';
 
@@ -65,7 +65,7 @@ export async function reportOnSendIfObligated(
     if (!countryCode) return;
 
     const obligation = catalog.obligationFor(countryCode, typeId);
-    if (!obligation) return; // "pays sans obligation : RIEN ne change" — this task's own rule.
+    if (!obligation) return; // "pays sans obligation : RIEN ne change" — the governing rule.
 
     await queueDispatcher.enqueueReport({
       companyId,

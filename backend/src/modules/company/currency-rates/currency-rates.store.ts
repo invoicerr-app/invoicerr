@@ -121,7 +121,7 @@ export function toCurrencyRateLikes(rates: readonly CurrencyRateResult[]): Curre
 }
 
 /**
- * TODO_PRODUIT.md T3 — the SAME "any failure here degrades to nothing available, never a crash"
+ * The SAME "any failure here degrades to nothing available, never a crash"
  * posture `contributions/currency-consolidation.ts`'s own `loadCurrencyContext` already documents in
  * full (see that function's header for why: the backend's offline jest CI job runs with NO Postgres
  * reachable at all, and every one of those specs must collapse to "no rate resolvable" rather than

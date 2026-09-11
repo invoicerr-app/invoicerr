@@ -11,7 +11,7 @@ export interface CreateArticleDto {
   type?: ItemType;
   unitPrice?: number;
   vatRate?: number;
-  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — see Article's own schema comment
+  // Basic stock management ("gestion de stock basique") — see Article's own schema comment
   // (schema.prisma) for what `null`/omitted means for each: no `quantity` at all is "not
   // stock-tracked" (the SERVICE default), no `lowStockThreshold` is "no alert, ever".
   quantity?: number | null;
@@ -119,7 +119,7 @@ export class ArticlesService {
   }
 
   /**
-   * TODO_FEATURES.md rank 18 — every active, stock-tracked article this company owns that is
+   * Every active, stock-tracked article this company owns that is
    * currently AT or UNDER its own threshold. `quantity`/`lowStockThreshold` "not null" is filtered at
    * the DB — cheap and exact, since NEITHER side of `isArticleLowStock`'s comparison can hold once
    * either is null — but comparing the two COLUMNS to each other is not something a plain Prisma

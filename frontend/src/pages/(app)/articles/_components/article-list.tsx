@@ -109,7 +109,7 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
                             <Badge variant="outline" className="text-xs">
                               {t(`articles.fields.type.${article.type?.toLowerCase()}`) || article.type}
                             </Badge>
-                            {/* TODO_FEATURES.md rank 18 — `isLowStock` is server-computed
+                            {/* `isLowStock` is server-computed
                                 (articles.service.ts), never re-derived here; the badge only
                                 ever reflects what the API already decided. */}
                             {article.isLowStock && (

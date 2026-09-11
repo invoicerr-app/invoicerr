@@ -12,9 +12,9 @@ import type { DocumentAuthorityEvent } from "./types"
 /**
  * The Cypress spec 31 fictional PDP channel only ever produces a `send_failed` (no real deposit — see
  * that spec's own header), so there is no e2e-reachable way to put real conformity events on screen.
- * This file is the fallback this task's own brief names explicitly ("le motif de descriptor-i18n.spec.ts")
- * — a genuine `@testing-library/react` RENDER of the presentational timeline/badge with HARDCODED
- * events, the first component-render test in this codebase (vite.config.ts's own jsdom environment
+ * This file is the fallback — a genuine `@testing-library/react` RENDER of the presentational
+ * timeline/badge with HARDCODED events, the first component-render test in this codebase
+ * (vite.config.ts's own jsdom environment
  * and `src/test/setup.ts` were already provisioned for exactly this, just never exercised before).
  */
 
@@ -56,7 +56,7 @@ describe("computeConformityVerdict — pure", () => {
     expect(computeConformityVerdict([event({ statusCode: "pl:415" })])).toBe("rejected")
   })
 
-  // Root TODO ("déclaration") — a report:blocked/report:failed event is its OWN verdict, deliberately
+  // A report:blocked/report:failed event is its OWN verdict, deliberately
   // never "rejected": the INVOICE was never refused, only its post-issuance data report has a
   // problem — see DECLARATION_ISSUE_CODES's own header.
   it("declarationIssue once report:blocked is present — never conflated with a real rejection", () => {
@@ -104,7 +104,7 @@ describe("<ConformityTimeline> — hardcoded events, REAL render", () => {
     expect(screen.getByTestId("document-conformity-event-e2")).toHaveTextContent("Reçue par la plateforme")
   })
 
-  it("renders the REAL fr:213 reason captured live this session (2026-09-01)", () => {
+  it("renders the REAL fr:213 reason captured live (2026-09-01)", () => {
     const reason =
       "Element 'ram:Content' must occur exactly 1 times. ... " +
       "BR-FR-05/BT-22 : La mention relative aux frais de recouvrement (code PMT) est absente. " +

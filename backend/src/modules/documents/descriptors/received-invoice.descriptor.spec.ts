@@ -2,7 +2,7 @@ import { DocumentTypeRegistry } from './type-registry';
 import { buildReceivedInvoiceDescriptor } from './received-invoice.descriptor';
 
 /**
- * Root TODO item 18 — the descriptor's own shape, independent of DocumentsService wiring (that side
+ * The descriptor's own shape, independent of DocumentsService wiring (that side
  * is documents.service.received-invoice.spec.ts's job). The one thing every descriptor spec in this
  * module proves first: registering it does not throw — i.e. it passes `validateLifecycle`
  * (descriptors/lifecycle.ts), called by `DocumentTypeRegistry.register()`.
@@ -38,7 +38,7 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     }
   });
 
-  it('declares the ten expected business fields, no fewer, no more — TODO_PRODUIT.md T5(b) added "supplierClient"', () => {
+  it('declares the ten expected business fields, no fewer, no more — including "supplierClient"', () => {
     const descriptor = buildReceivedInvoiceDescriptor();
     expect(descriptor.fields.map((f) => f.key).sort()).toEqual(
       [
@@ -100,7 +100,7 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     expect(supplier?.entity).toBeUndefined();
   });
 
-  it('declares "dashboard" as its only contribution — no "statistics" in this wave', () => {
+  it('declares "dashboard" as its only contribution — no "statistics"', () => {
     expect(buildReceivedInvoiceDescriptor().contributions).toEqual(['dashboard']);
   });
 

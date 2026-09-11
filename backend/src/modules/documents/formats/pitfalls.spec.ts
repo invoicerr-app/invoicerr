@@ -2,7 +2,7 @@
  * The three per-category pitfalls the old, removed cross-border tax engine's own format layer paid
  * for in production (`compliance/providers/format/{br-z-02-reproduction,e-category-schematron,
  * o-category-schematron}.spec.ts` at git tag `avant-refonte-documents`) — ADAPTED, not copy-pasted,
- * to what this ticket's bridge can actually produce today. See each `describe` block's own header
+ * to what the bridge can actually produce today. See each `describe` block's own header
  * for exactly how each one is adapted and why.
  */
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -287,7 +287,7 @@ describe("today's bridge limitation, stated rather than hidden", () => {
   });
 });
 
-// USER DECISION (2026-09-01, TODO_ISSUES.md "le pays vendeur irrésolu retombait sur 'FR'
+// USER DECISION (2026-09-01, "le pays vendeur irrésolu retombait sur 'FR'
 // silencieusement", now RÉSOLU) — this bridge's OWN independent block, symmetric to
 // `tax/resolve-invoice-tax.ts`'s own `UnresolvedSellerCountryError` (see that file's own header) for
 // the one path that can reach `buildSemanticInvoice` without going through the tax resolver first.

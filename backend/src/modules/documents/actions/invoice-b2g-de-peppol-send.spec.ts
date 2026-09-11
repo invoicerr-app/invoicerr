@@ -90,8 +90,8 @@ const COMPANY_WITH_IBAN = {
   email: 'contact@muster.example',
   phone: '+49301234567',
   iban: TEST_IBAN,
-  // "un certificat rien-à-voir" (task brief) — a signing certificate is FACe/Facturae's own concept
-  // (root TODO item 13), entirely unrelated to Peppol/XRechnung; carried here only to prove its mere
+  // "un certificat rien-à-voir" — a signing certificate is FACe/Facturae's own concept
+  // entirely unrelated to Peppol/XRechnung; carried here only to prove its mere
   // PRESENCE on the company changes nothing about this path — `formats/xrechnung-provider.ts` never
   // reads it, `peppol-transport.ts` never reads it.
   signingCertificate: 'unrelated-cert-blob',
@@ -271,7 +271,7 @@ describe('B2G DE, end to end at the service level — government client + connec
       'peppol',
     );
 
-    // THE PROOF this task's own brief asks for: the payload that ACTUALLY reached the Access Point IS
+    // THE PROOF: the payload that ACTUALLY reached the Access Point IS
     // an XRechnung — never a Peppol BIS document sent "by default" despite the DE rule's own override.
     expect(capturedBody).toBeDefined();
     expect(capturedBody!.documentTypeId).toBe(PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL);
@@ -284,7 +284,7 @@ describe('B2G DE, end to end at the service level — government client + connec
     expect(capturedBody!.receiver).toBe(`0204:${LEITWEG}`);
   });
 
-  // MUTATION GUARD — "l'endpoint Peppol manquant accepté" (this task's own brief): if
+  // MUTATION GUARD — "l'endpoint Peppol manquant accepté": if
   // `peppol-transport.ts#send()`'s own receiver gate ever stopped refusing an absent
   // `PEPPOL_ENDPOINT`, THIS test is what would catch it for the B2G/DE path specifically (never only
   // at the bare-transport level `peppol-transport.spec.ts` already covers).

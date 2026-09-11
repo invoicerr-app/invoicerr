@@ -1,5 +1,5 @@
 /**
- * Signature électronique du devis (OTP par email) — root TODO item 13 REDONE, réintroduite DURCIE
+ * Signature électronique du devis (OTP par email) — DURCIE
  * (GHSA-vhjw-gwc5-pjfp fermé). Prouvé PAR L'ÉCRAN, côté client anonyme : le vendeur demande une
  * signature (action `request-signature` sur un devis "sent"), le client reçoit un lien à jeton
  * haute-entropie par email, ouvre la page publique `/signature/:token`, demande un OTP (envoyé par

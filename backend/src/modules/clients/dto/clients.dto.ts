@@ -28,7 +28,7 @@ export class EditClientsDto {
   // (schema.prisma's own `@default(BUSINESS)`) — every existing caller that never sends this field
   // keeps today's behavior exactly.
   kind?: ClientKind;
-  // TODO_PRODUIT.md T5(b) — the received-invoice reconciliation's own "role", a PLAIN, INDEPENDENT
+  // The received-invoice reconciliation's own "role", a PLAIN, INDEPENDENT
   // boolean (never folded into `kind` above — see schema.prisma's own `Client.isSupplier` comment for
   // the full "why"). Optional, defaults to `false` at the DB level: every existing caller that never
   // sends this field keeps today's behaviour exactly. Normally set by

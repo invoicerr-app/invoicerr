@@ -89,10 +89,10 @@ export class EditCompanyDto {
    *  "send" action uses — e.g. "email". Null/empty clears the choice, which blocks sending until a
    *  new one is chosen; see Company.invoiceTransportId's own comment in schema.prisma. */
   invoiceTransportId?: string | null;
-  /** Opts the company INTO multi-currency consolidation (item 9, root TODO) — null/absent keeps
+  /** Opts the company INTO multi-currency consolidation — null/absent keeps
    *  every aggregate grouped by currency, unchanged; see Company.referenceCurrency's own comment. */
   referenceCurrency?: string | null;
-  /** TODO_FEATURES.md rank 17 — the approval-threshold gate on "send"; see
+  /** The approval-threshold gate on "send"; see
    *  Company.approvalThresholdMinor's own schema.prisma comment and documents/approval/approval-gate.ts.
    *  MINOR units. `null` (not `undefined`) is how the settings screen explicitly clears it back to
    *  "no approval required, ever" — `undefined` would be dropped by `...rest` and leave the existing

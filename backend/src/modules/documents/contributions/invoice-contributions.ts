@@ -15,7 +15,7 @@ import { MetricWidget, ShortListWidget, TableWidget, TimeSeriesWidget, Widget } 
  * own comments for the reasoning, not just the shape. It covers exactly what was asked for the
  * invoice: a dashboard curve and a pending-invoices list, plus a statistics table so both locations
  * have one worked example. Everything here is ARITHMETIC (counting, summing a document's own line
- * amounts, or — since payments (and now credits — item 8, "le lettrage") landed — its own recorded
+ * amounts, or — since payments (and now credits — "le lettrage") landed — its own recorded
  * payments and the credit notes correcting it) — never a fiscal rule: no VAT INVENTED here (though
  * `computeDocumentTotals` and `computeSettlement` are reused verbatim from their own modules for the
  * "pending" filter below, not reimplemented), no rounding convention invented, no numbering. See
@@ -96,19 +96,19 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   const invoices = await listDocuments(companyId, 'invoice', CONTRIBUTION_READ_LIMIT);
 
   // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
-  // widget means — that part is unchanged. What changed once payments (and now credits — item 8,
+  // widget means — that part is unchanged. What changed once payments (and now credits —
   // "le lettrage") landed (settlement/): a "sent" invoice that has since been SETTLED (paid in full,
   // credited in full, or a mix that exceeds it) is no longer awaiting anything either, so it is
   // excluded too — a fully-credited invoice sitting in "pending invoices" would be exactly the stale,
-  // still-chasing-a-customer-for-nothing fact this task exists to fix. `computeDocumentTotals`/
+  // still-chasing-a-customer-for-nothing fact the settlement exclusion exists to fix. `computeDocumentTotals`/
   // `computeSettlement` are reused verbatim (never reimplemented) for this — see this file's own
   // header. `listCreditNotes` is ONE extra query for every "sent" invoice at once (same "one query,
   // many callers" shape `sumPaidMinorByDocument` already gives payments), not one per invoice.
   //
-  // TODO_CORRECTION.md C3 — a "cancelled" invoice (invoice.descriptor.ts) is EXCLUDED here too, for
+  // A "cancelled" invoice (invoice.descriptor.ts) is EXCLUDED here too, for
   // free: `status === 'sent'` was always a STRICT equality, never a "not draft" negation, so the new
   // status simply never matches it — nothing to add. This is the settlement/contributions decision
-  // C3 asked to establish and pin: a void invoice must never count toward "pending" (nothing is
+  // to establish and pin: a void invoice must never count toward "pending" (nothing is
   // owed on a document that no longer legally exists) — invoice-contributions.spec.ts's own
   // "excludes a 'cancelled' invoice" test proves it. The STATISTICS table below (`buildInvoice
   // StatisticsWidgets`) deliberately keeps counting it — that table is a full audit list of every
@@ -154,7 +154,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     items: pendingItems,
   };
 
-  // "le total des factures en attente" (item 9, root TODO's own multi-currency wording) — grouped by
+  // "le total des factures en attente" (the multi-currency wording) — grouped by
   // currency, same discipline as expense-contributions.ts's own monthly totals and this file's own
   // curve above: NEVER summed across currencies. `id` is prefixed `invoice:pending-total:` so
   // buildInvoiceDashboardWidgetsWithConsolidation (below) can find exactly these widgets, and only
@@ -194,7 +194,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
 };
 
 /**
- * Wraps `buildInvoiceDashboardWidgets` with multi-currency consolidation (item 9, root TODO) — same
+ * Wraps `buildInvoiceDashboardWidgets` with multi-currency consolidation — same
  * split, for the same reason, as expense-contributions.ts's own
  * `buildExpenseDashboardWidgetsWithConsolidation` (see that function's own header): the base handler
  * above stays exactly what invoice-contributions.spec.ts already tests directly — it never touches

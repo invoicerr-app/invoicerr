@@ -44,7 +44,7 @@ export interface Scenario {
   };
 }
 
-// 5-COUNTRY PRUNE (2026-09-10) — SCENARIO MAPPING, see this task's own report for the full rationale.
+// 5-COUNTRY PRUNE (2026-09-10) — SCENARIO MAPPING.
 // The product now keeps FR/PL/IT/PT/DE only. Four of the six scenarios named a removed country (BE,
 // ES, MX, and the US on both sides of "mx-us"/"us-us") and are re-pointed onto kept-country pairs,
 // preserving each replaced scenario's own SHAPE and role in the matrix rather than redesigning it:
@@ -59,7 +59,7 @@ export interface Scenario {
 //                   authority-stamped folio) have NO equivalent among the kept countries — none of
 //                   FR/PL/IT/PT/DE's own channels (PDP/KSeF/SdI) overwrite the invoice's own display
 //                   number the way Mexico's SAT does, so `expectsAuthorityNumbering` is dropped
-//                   rather than asserted on a trait this task never verified. Italy → Portugal.
+//                   rather than asserted on a trait the prune never verified. Italy → Portugal.
 //                   `noCiTransmission: true` carries over from it-it, same reason (SdI has no EMAIL
 //                   fallback and no CI credentials).
 //   us-us → pl-de : same role — a B2C scenario with an INDIVIDUAL client — but US's own domestic,
@@ -75,7 +75,7 @@ export interface Scenario {
 // ("refactor!: suppression des documents légaux et du moteur de conformité"), predating and
 // independent of the 5-country prune. This mapping is prepared and internally consistent, but
 // `.github/workflows/scenarios.yml`'s "Business Scenarios" job cannot actually run until that spec
-// exists again — flagged here and in this task's own report rather than silently left inconsistent.
+// exists again — flagged here rather than silently left inconsistent.
 export const SCENARIOS: Record<string, Scenario> = {
   'fr-pl': {
     id: 'fr-pl',

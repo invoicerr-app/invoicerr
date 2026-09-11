@@ -1,5 +1,5 @@
 /**
- * The REAL Redis proof for TODO_PRODUIT.md T1 / PLAN-V2 R8's worker→API bridge: a genuine
+ * The REAL Redis proof for the worker→API bridge: a genuine
  * `DocumentEventsPublisher.publish` (real ioredis PUBLISH) is what `DocumentEventsBridge.
  * subscribeCompany` (real ioredis PSUBSCRIBE, `document-events-bridge.ts`'s own dedicated
  * subscriber connection) actually receives — proven against real Redis rather than a mocked
@@ -86,7 +86,7 @@ describeWithRedis('DocumentEventsPublisher / DocumentEventsBridge — real Redis
     unsubscribe();
   });
 
-  // THE MULTI-TENANT PROOF TODO_PRODUIT.md T1 requires explicitly: two companies, the event of one
+  // THE MULTI-TENANT PROOF the bridge requires explicitly: two companies, the event of one
   // NEVER reaches the other — against REAL Redis, not merely asserted from the in-process
   // `EventEmitter`'s own semantics (see `document-events-bridge.ts`'s own header for why the event
   // name being the exact companyId makes cross-tenant delivery structurally impossible, proven here

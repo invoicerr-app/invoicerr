@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 /**
- * C4 — how stale a verdict may be before it is asked again.
+ * How stale a verdict may be before it is asked again.
  *
  * A VAT registration can be withdrawn, so "valid as of 2019" is not a fact about today. Ninety days
  * is a deliberate, arbitrary-but-stated choice: long enough that a client edited twice in a week
@@ -43,7 +43,7 @@ export class ClientsService {
   }
 
   /**
-   * TODO_FEATURES.md rank 6 ("relevé de compte client") — the client's own statement (open/settled
+   * Client account statement ("relevé de compte client") — the client's own statement (open/settled
    * invoices, the credit notes correcting them, the total owed, and an aged balance), computed by
    * settlement/client-statement.ts's `resolveClientStatement`. 404s the same way every other
    * single-client read on this service does when `id` doesn't exist or belongs to another company —
@@ -82,7 +82,7 @@ export class ClientsService {
   }
 
   /**
-   * TODO_PRODUIT.md T5(b) — `options.excludeSuppliers` filters out `isSupplier: true` clients when
+   * `options.excludeSuppliers` filters out `isSupplier: true` clients when
    * set (the invoice's/quote's own "client" reference entity — see
    * `references/client-reference.provider.ts`'s own header on why); every OTHER caller (the plain
    * `/clients/search` combobox screens use directly, the MCP `list_clients` tool, the "supplier"
@@ -142,7 +142,7 @@ export class ClientsService {
   private async upsertPartyIdentifiers(
     clientId: string,
     identifiers: IdentifierEntry[] | undefined,
-    // C4: VIES is addressed per member state, so the client's country is needed to ask at all.
+    // VIES is addressed per member state, so the client's country is needed to ask at all.
     countryCode: string | null | undefined,
   ) {
     if (!identifiers) return;
@@ -167,7 +167,7 @@ export class ClientsService {
         update: { value: entry.value },
       });
 
-      // C4: validate the VAT number HERE — when it is entered or changed — and never at issuance.
+      // Validate the VAT number HERE — when it is entered or changed — and never at issuance.
       // Validating at issuance would make emitting an invoice depend on a third-party service that
       // is regularly saturated, which is exactly what the port's UNAVAILABLE verdict exists to
       // avoid. Here a slow or failing VIES only delays a form submission.
@@ -175,7 +175,7 @@ export class ClientsService {
       // A changed value invalidates any previous verdict: it is a different number.
       const valueChanged = before?.value !== entry.value;
       if (entry.scheme === 'VAT' && countryCode && (valueChanged || needsRevalidation(before))) {
-        // Root TODO item 16 ("transfrontalier") — the SYNTAX gate runs FIRST, before ever asking
+        // Cross-border ("transfrontalier") — the SYNTAX gate runs FIRST, before ever asking
         // VIES: a syntactically wrong number ("un numéro TVA invalide syntaxiquement") is B2C, named,
         // without spending a network round-trip on a number that cannot possibly be valid. Only a
         // number that PASSES its own country's format is worth asking the European Commission about.

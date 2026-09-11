@@ -1,8 +1,8 @@
 /**
  * The "anaf" transport in isolation — `AnafClient` and `@/prisma/prisma.service` are mocked wholesale
  * (the real HTTP round-trip is `anaf/anaf-client.spec.ts`'s job, against a real local HTTP stub); this
- * proves the ORCHESTRATION: the preflight gate, the format gate, and — the two facts this task's
- * mutations target — that an empty `index_incarcare` is NEVER a success and that a disconnected
+ * proves the ORCHESTRATION: the preflight gate, the format gate, and — the two facts the
+ * mutation tests target — that an empty `index_incarcare` is NEVER a success and that a disconnected
  * channel blocks BEFORE any network call.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
@@ -168,9 +168,9 @@ describe('buildAnafTransport', () => {
       expect(mockUploadInvoice).toHaveBeenCalledWith(expect.any(String));
     });
 
-    // THE MUTATION TARGET (#1 in the task brief): an accepted upload with an EMPTY index_incarcare
+    // THE MUTATION TARGET: an accepted upload with an EMPTY index_incarcare
     // must be a FAILURE, never a silent success — a reference nobody can look up on ANAF's own portal
-    // is not a reference at all (this task's own hard-success contract, LIVE_TESTING.md). The client
+    // is not a reference at all (the hard-success contract, LIVE_TESTING.md). The client
     // itself already throws on this (`anaf-client.spec.ts`) — this proves the transport's OWN
     // defence-in-depth check holds too, for a hypothetical client implementation that didn't.
     it('treats an EMPTY index_incarcare as a FAILURE, never a success', async () => {

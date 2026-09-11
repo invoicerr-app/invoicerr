@@ -48,8 +48,8 @@
       CustomizationID gate that is what actually makes a document an SI-UBL 2.0 / NLCIUS invoice
       rather than a bare EN 16931 UBL one — `[SI-V20-INV-R000]` requires
       `starts-with(cbc:CustomizationID, 'urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0')`.
-      READ VERBATIM, never guessed (the mandant's own instruction) — the value the task prompt's own
-      candidate guess (`...#compliant#urn:fdc:nen.nl:gaccount:v1.0`) is, on inspection of THIS exact
+      READ VERBATIM from the rule, never guessed — a plausible-looking alternative value
+      (`...#compliant#urn:fdc:nen.nl:gaccount:v1.0`) is, on inspection of THIS exact
       rule and of the sibling `si-ubl-2.0/si-ubl-2.0-nlcius.sch` pattern below, the id of a SEPARATE,
       OPTIONAL "g-account" extension profile (`schematron/si-ubl-2.0-ext-gaccount.sch`, Dutch
       temporary-employment-agency reserve-account invoicing — `#conformant#`, not `#compliant#`, and

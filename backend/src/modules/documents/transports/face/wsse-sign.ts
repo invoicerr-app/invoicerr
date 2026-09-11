@@ -3,17 +3,17 @@
  * SECOND B2G hole named at `face-transport.ts`'s own header: `FaceSoapHttpPort` sent the envelope
  * UNSIGNED at the TRANSPORT layer even though the Facturae DOCUMENT it carries is already XAdES-signed
  * (a different, business-level signature — `formats/national/facturae-provider.ts`'s own header).
- * REAL, OBSERVED CONSEQUENCE (this task, 2026-09-02): the live sandbox
+ * REAL, OBSERVED CONSEQUENCE (2026-09-02): the live sandbox
  * (`https://se-face-webservice.redsara.es/facturasspp2`) refuses an unsigned envelope with a genuine
  * SOAP Fault, `<faultcode>401</faultcode><faultstring>La petición no esta firmada</faultstring>` — see
- * `face.live.spec.ts`'s own header and this task's own report for the exact bytes, both before and
+ * `face.live.spec.ts`'s own header for the exact bytes, both before and
  * after this file existed.
  *
  * ## THE FORM — cited, not invented
  *
  * OASIS Web Services Security X.509 Certificate Token Profile (`docs.oasis-open.org`,
  * `oasis-200401-wss-x509-token-profile-1.0` / the 1.1 revision, `wss-x509TokenProfile-v1.1.1-os`),
- * §3.3.2's own worked example — fetched LIVE this task (2026-09-02,
+ * §3.3.2's own worked example — fetched LIVE (2026-09-02,
  * `docs.oasis-open.org/wss-m/wss/v1.1.1/os/wss-x509TokenProfile-v1.1.1-os.html`), not from memory:
  *
  *  - `wsse:BinarySecurityToken` carries the DER certificate, base64-encoded, with
@@ -35,7 +35,7 @@
  *    `wsu:Timestamp` (unlike some WS-Security deployments that sign Timestamp+Body together) — the
  *    only content that exists to sign here is the `soapenv:Body`, so that is the ONE `ds:Reference`
  *    this file emits. A real FACe deployment MAY expect more (Timestamp, or the whole Envelope) — not
- *    established either way; see this task's own report for what the live proof did and did not show.
+ *    established either way by the live proof.
  *  - **The signature/digest algorithm.** RSA-SHA256 / SHA-256
  *    (`http://www.w3.org/2001/04/xmldsig-more#rsa-sha256` / `http://www.w3.org/2001/04/xmlenc#sha256`)
  *    — matching this codebase's OWN existing XAdES/CAdES choice (`signing/providers.ts`'s `RSA_ALGO`),
@@ -48,14 +48,14 @@
  *    about the token/signature shape, not the SOAP header's own attributes). Included because it is
  *    harmless and near-universal; marked here as extrapolated, not cited.
  *  - **FACe's OWN integration manual** (administracionelectronica.gob.es/PAe/face) was NOT reachable
- *    this task — a WAF rejected the request outright ("Request Rejected", no document content). A
+ *    (2026-09-02) — a WAF rejected the request outright ("Request Rejected", no document content). A
  *    cross-check attempt against `github.com/josemmo/Facturae-PHP` (a maintained OSS FACe client,
  *    already cited by `face-client.ts`'s own header for the endpoint hosts) found NO WS-Security
  *    signing code in its `Face/Traits/FaceTrait.php` — that client appears to authenticate by mTLS
  *    alone. This is named, not swept aside: it is either (a) evidence a real FACe deployment's
  *    requirement is mTLS-only and the sandbox's "no está firmada" fault tests something that client's
  *    callers configure differently, or (b) that client is simply untested against a live SSPP server
- *    itself. Genuinely unresolved — see this task's own report, not overclaimed here.
+ *    itself. Genuinely unresolved, not overclaimed here.
  *
  * ## WHY xmldsigjs, NOT hand-rolled crypto
  *
@@ -161,7 +161,7 @@ async function sha256Base64(input: string): Promise<string> {
   return Buffer.from(digest).toString('base64');
 }
 
-/** Build the UNSIGNED envelope — same shape `FaceSoapHttpPort.post()` sent before this task, kept
+/** Build the UNSIGNED envelope — same shape `FaceSoapHttpPort.post()` sent before signing existed, kept
  *  here so both the signed and unsigned paths share ONE `soapenv:Envelope` skeleton (never two
  *  independently-typed templates that could silently drift). */
 export function buildUnsignedEnvelope(bodyInner: string): string {
@@ -261,7 +261,7 @@ export async function signSoapEnvelope(bodyInner: string, cert: WsseCertificate)
 }
 
 // ---------------------------------------------------------------------------
-// Local re-verification — used by wsse-sign.spec.ts (this task's own structure/mutation tests) and
+// Local re-verification — used by wsse-sign.spec.ts (structure/mutation tests) and
 // available to any future caller that wants to sanity-check a signed envelope offline. Independently
 // re-derives the Body digest from the ACTUAL `soapenv:Body` element found in the document (never from
 // whatever the `ds:Reference/@URI` merely CLAIMS to point at) — a signature that covers the wrong

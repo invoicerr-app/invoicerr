@@ -130,7 +130,7 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
 }
 
 /**
- * Company settings → Signing certificates (root TODO item 13). A company's OPT-IN capability to have
+ * Company settings → Signing certificates. A company's OPT-IN capability to have
  * its PDFs (GET .../pdf and the email attachment — see `signing/sign-instance-pdf.ts`'s own header)
  * signed PAdES-BES, once an ACTIVE certificate is uploaded here. Deliberately never framed as an
  * obligation anywhere on this screen: no jurisdiction this product ships requires a signed document

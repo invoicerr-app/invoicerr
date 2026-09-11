@@ -1,5 +1,5 @@
 /**
- * Root TODO item 16 ("transfrontalier") — la limite la plus profonde, prouvée par l'écran.
+ * Le transfrontalier — la limite la plus profonde, prouvée par l'écran.
  *
  * Même discipline que 30/32 : l'ACTION passe par un vrai clic (créer le client, cliquer "Send",
  * cliquer le bouton de téléchargement XML), les ASSERTIONS qui comptent relisent l'API ou
@@ -32,7 +32,7 @@ function setInvoiceTransport(transportId: string) {
 		});
 }
 
-describe("Root TODO item 16 — le transfrontalier, à travers l'écran", () => {
+describe("Le transfrontalier, à travers l'écran", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -352,8 +352,8 @@ describe("Root TODO item 16 — le transfrontalier, à travers l'écran", () => 
 		});
 	});
 
-	// Root TODO item 16 FOLLOW-UP (2026-09-01) — the OSS gate's own real-world gap ("OSS hors FR"):
-	// this task sourced Germany's real standard VAT rate (19%) from the European Commission's TEDB
+	// The OSS gate's own real-world gap ("OSS hors FR"), closed 2026-09-01:
+	// Germany's real standard VAT rate (19%) is sourced from the European Commission's TEDB
 	// (`documents/tax/tax-systems/data/de.json`'s own `provenance`), so a B2C sale of GOODS to a
 	// German consumer with NO VAT number no longer hits `UnsupportedOssDestinationError` — it now
 	// resolves to DE's own destination rate. Same discipline as the first test in this file: the

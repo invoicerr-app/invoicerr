@@ -1,5 +1,5 @@
 /**
- * FatturaPA 1.2 (IT/SM) format provider — root TODO item 10, wave 2. REPRISED from
+ * FatturaPA 1.2 (IT/SM) format provider. REPRISED from
  * `invoice-rendering/national/fattura-pa.ts` at git tag `avant-refonte-documents`, ADAPTED to the
  * current generic document model the same way `fa3-provider.ts` is (see that file's own header for
  * the shared reasoning): amounts come from `totals/compute-totals.ts` (via `national-lines.ts`),
@@ -201,7 +201,7 @@ async function build(
   // The PA discriminant is checked FIRST and, when it fires, decides BOTH fields outright — see this
   // file's own header ("FPA12 vs FPR12") for why a valid 6-char `IT_PA_CODE` identifier is the signal
   // used, not `Client.kind`. Only once it does NOT fire does the ORIGINAL 4-branch B2B/private routing
-  // (VERBATIM from the repère) run unchanged — same outcomes as before this task for every client that
+  // (VERBATIM from the repère) run unchanged — same outcomes as before for every client that
   // has no `IT_PA_CODE` on file, which is every test/fixture that predates it.
   const clientePaCode = getIdentifier(client, 'IT_PA_CODE') || '';
   const isValidPaCode = /^[A-Za-z0-9]{6}$/.test(clientePaCode);

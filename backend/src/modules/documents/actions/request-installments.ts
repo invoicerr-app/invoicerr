@@ -31,7 +31,7 @@ export interface MilestoneSplitEntry {
 /**
  * Pure math, unit-tested on its own (request-installments.spec.ts): splits a quote's NET total across
  * N milestones, in MINOR units, so that BOTH the nets and the (VAT-inclusive) grosses sum back to the
- * cent to the quote's own totals — this is the whole point of TODO_FEATURES.md rank 12's acceptance
+ * cent to the quote's own totals — this is the whole point of the feature's acceptance criterion
  * ("sum = TTC of the quote, EXACTLY"), and it is why the split happens on NET rather than gross: gross
  * only sums correctly if the ONE VAT rate is applied on top of nets that themselves already sum
  * exactly, never the other way around.
@@ -122,7 +122,7 @@ export function computeMilestoneSplit(
 }
 
 /**
- * "request-installments" (TODO_FEATURES.md rank 12) — from a SENT quote, generates N DRAFT invoices,
+ * "request-installments" — from a SENT quote, generates N DRAFT invoices,
  * one per milestone, each due on its own date, whose gross totals sum to the quote's own gross (TTC)
  * EXACTLY (computeMilestoneSplit above). Only available once 'sent' — the same reasoning
  * request-deposit.ts's own header already holds ("one cannot ask for installments on a quote the

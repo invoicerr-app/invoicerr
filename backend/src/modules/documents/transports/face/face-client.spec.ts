@@ -8,7 +8,7 @@
  *
  * The response fixtures are taken verbatim (structure + field names) from the Diputación Foral de
  * Gipuzkoa "Servicios para sistemas Automatizados de proveedores..." v1.0.3 manual, exactly as the
- * repère's own spec documents — not re-fetched by this task.
+ * repère's own spec documents — not re-fetched here.
  */
 import {
   FACE_ANULACION_ESTADOS,
@@ -173,7 +173,7 @@ describe('FaceClient.enviarFactura', () => {
     ).rejects.toThrow(/La firma de la petición SOAP no es válida/);
   });
 
-  // REAL, OBSERVED behaviour (this task, 2026-09-02) — see `face-client.ts#enviarFactura`'s own
+  // REAL, OBSERVED behaviour (2026-09-02) — see `face-client.ts#enviarFactura`'s own
   // header: the live sandbox (`se-face-webservice.redsara.es`) answers an UNSIGNED request with
   // HTTP 500 carrying a REAL SOAP Fault, `faultcode` 401, `faultstring` "La petición no esta
   // firmada". A client that discarded the body behind a bare "HTTP 500" would lose exactly the
@@ -193,7 +193,7 @@ describe('FaceClient.enviarFactura', () => {
     ).rejects.toThrow(/La petición no esta firmada/);
   });
 
-  // MUTATION TARGET — the hard-success contract this task's own `face-transport.ts` enforces on TOP
+  // MUTATION TARGET — the hard-success contract `face-transport.ts` enforces on TOP
   // of this client's own parsing: a `numeroRegistro` field can legitimately be absent from a parsed
   // result (e.g. a rejected `codigo`) — this client itself never invents one, never treats an empty
   // string as present.

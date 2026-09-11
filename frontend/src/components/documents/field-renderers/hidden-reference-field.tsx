@@ -1,7 +1,7 @@
 import type { FieldRendererProps } from "./registry"
 
 /**
- * TODO_FEATURES.md rank 18 ("gestion de stock basique") — the renderer for 'hiddenReference' (e.g. a
+ * Basic stock management ("gestion de stock basique") — the renderer for 'hiddenReference' (e.g. a
  * line's `articleId`). Mirrors the backend's render-html.ts skipping this kind entirely for the PDF:
  * this is the CREATE/EDIT FORM's own equivalent, drawing nothing at all rather than DocumentField's
  * usual "unsupported kind" fallback (document-field.tsx) — that fallback exists for a kind nobody

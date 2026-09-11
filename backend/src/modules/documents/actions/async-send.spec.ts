@@ -229,7 +229,7 @@ describe('runAsyncSendAction', () => {
       expect(queueDispatcher.enqueueAction).toHaveBeenCalled();
     });
 
-    // Root TODO item 16 ("transfrontalier") — THE PLUMBING this task's fix adds: a preflight that
+    // Cross-border tax ("transfrontalier") — THE PLUMBING: a preflight that
     // RETURNS resolved field values (invoice-actions.ts's own cross-border resolution) REPLACES
     // `data` for the "sending" write AND the enqueued job payload, never just for a synchronous
     // check that then throws its own answer away. See `RunAsyncSendInput.preflight`'s own header.
@@ -359,7 +359,7 @@ describe('runAsyncSendAction', () => {
       });
     });
 
-    // Root TODO item 10 ("transports nationaux") — the "pdp" transport hands back a `reference`
+    // National transports ("transports nationaux") — the "pdp" transport hands back a `reference`
     // (the deposit id) AND a `providerId` alongside `message`; this proves BOTH reach
     // `updateDocumentStatus` as `transportRef`/`channelProviderId`, on the SAME write that records
     // "sent" — see `DocumentInstance.transportRef`/`.channelProviderId`'s own schema comments and
@@ -401,7 +401,7 @@ describe('runAsyncSendAction', () => {
       );
     });
 
-    // Root TODO item 14 ("archivage légal") — archiving runs AFTER "sent" is persisted, fed EXACTLY
+    // Legal archiving ("archivage légal") — archiving runs AFTER "sent" is persisted, fed EXACTLY
     // what `deliver()` handed back, never before and never invented. See `archive/archive-on-send.ts`
     // for why this call itself can never throw or undo a delivery that already succeeded.
     it('archives the artifacts deliver() returned, AFTER "sent" is persisted, never before', async () => {
@@ -463,7 +463,7 @@ describe('runAsyncSendAction', () => {
       });
     });
 
-    // A NEW concept (root TODO — "déclaration"), never a transport — see `reporting/report-on-send.ts`'s
+    // A NEW concept ("déclaration"), never a transport — see `reporting/report-on-send.ts`'s
     // own header. Runs AFTER archiving (same "après le fait acquis" ordering), generically for every
     // type/transport — this test proves the WIRING (call order + arguments), never the obligation
     // decision itself (that is `reporting/report-on-send.spec.ts`'s job).
@@ -577,12 +577,12 @@ describe('runAsyncSendAction', () => {
     });
   });
 
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge (`queue/document-events-publisher.ts`).
+  // The worker→API SSE bridge (`queue/document-events-publisher.ts`).
   // `events` is OPTIONAL (see `RunAsyncSendInput.events`'s own header) — every test ABOVE this block
   // omits it and must keep passing unchanged; these are the DEDICATED tests for the publish behavior
   // itself: publish only once the fact is genuinely ACQUIRED in Postgres, never before, never on a
   // failed write.
-  describe('events — TODO_PRODUIT.md T1 / PLAN-V2 R8 (the SSE status nudge)', () => {
+  describe('events — the SSE status nudge', () => {
     it('phase 1: publishes "sending" AFTER upsertDocument persists it, with the record\'s own id', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
@@ -759,13 +759,13 @@ describe('runAsyncSendAction', () => {
     });
   });
 
-  // TODO_PRODUIT.md T2bis (the generic "sent" webhook — DOCUMENT_SENT, replacing T2's own per-type
-  // INVOICE_SENT/QUOTE_SENT). `webhooks` is OPTIONAL (see `RunAsyncSendInput.webhooks`'s own header)
+  // The generic "sent" webhook — DOCUMENT_SENT, replacing the old per-type
+  // INVOICE_SENT/QUOTE_SENT. `webhooks` is OPTIONAL (see `RunAsyncSendInput.webhooks`'s own header)
   // — every test ABOVE this block omits it and must keep passing unchanged; these are the DEDICATED
   // tests for the dispatch itself: fire only once the fact is genuinely ACQUIRED in Postgres, never
   // before, never on a failed delivery, and NEVER let a dispatch failure undo (or even surface past)
   // an already-successful send.
-  describe('webhooks — TODO_PRODUIT.md T2bis (the generic "sent" webhook)', () => {
+  describe('webhooks — the generic "sent" webhook', () => {
     it('dispatches DOCUMENT_SENT AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish, BEFORE archiving', async () => {
       const callOrder: string[] = [];
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
@@ -882,7 +882,7 @@ describe('runAsyncSendAction', () => {
       expect(webhooks.dispatch).not.toHaveBeenCalled();
     });
 
-    // THE MUTATION TARGET this task's own brief names: a webhook ENDPOINT being down must never look
+    // THE MUTATION TARGET: a webhook ENDPOINT being down must never look
     // like the send itself failed — `WebhookDispatcherService.dispatch` (the production `webhooks`)
     // logs then RETHROWS (see that file's own header) exactly like every one of its EXISTING callers
     // (`company.service.ts`, `clients.service.ts`) expects to catch; this proves `runAsyncSendAction`

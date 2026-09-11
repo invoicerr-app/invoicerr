@@ -64,7 +64,7 @@ export async function createAuthorityEvents(
  * Journals exactly ONE synthetic event this codebase invented (never received from a platform) —
  * `GAVE_UP_STATUS_CODE`/`BLOCKED_STATUS_CODE` (`conformity-sweep.ts`). Same dedup guarantee as
  * `createAuthorityEvents` above (it IS that function, called with a single, synthetic entry): a
- * 'poll:gave-up' this task's own rule says must be journaled "une seule fois" is exactly what the
+ * 'poll:gave-up' that must be journaled "une seule fois" is exactly what the
  * unique constraint already gives for free, needing no extra existence check here.
  */
 export async function journalSyntheticEvent(
@@ -107,7 +107,7 @@ export async function findDocumentByTransportRef(
 ): Promise<{ id: string; companyId: string; typeId: string } | null> {
   const row = await prisma.documentInstance.findFirst({
     where: { channelProviderId, transportRef },
-    // `typeId` (added for TODO_PRODUIT.md T1 / PLAN-V2 R8) is what lets
+    // `typeId` is what lets
     // `sdi-notifiche.service.ts` publish a `{documentId, typeId, kind: 'authority-event'}` SSE nudge
     // — the frontend's own query keys (`["documents", typeId, id, "authority-events"]`) need BOTH to
     // invalidate the right cache entry, never `documentId` alone.
@@ -135,8 +135,8 @@ export interface ConformitySweepCandidateRow {
  * function over `existingStatusCodes`, fetched here via the relation in ONE query (never N+1).
  *
  * A document sent by "email" (`channelProviderId` null) never matches `in: pollableProviderIds`
- * (`null` cannot equal any string in the list) — the exact "email = non" case this task's own
- * eligibility test names.
+ * (`null` cannot equal any string in the list) — the exact "email = non" case the eligibility
+ * test names.
  */
 export async function findConformitySweepCandidates(
   pollableProviderIds: string[],

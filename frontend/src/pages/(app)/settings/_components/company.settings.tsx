@@ -179,17 +179,17 @@ export default function CompanySettings() {
     // action delivers through — "" means none chosen yet, which is a valid state (sending blocks
     // until the company picks one), not something this form needs to refuse.
     invoiceTransportId: z.string().optional(),
-    // Multi-currency consolidation (item 9, root TODO) — "" means no reference currency chosen,
+    // Multi-currency consolidation — "" means no reference currency chosen,
     // which is the default and stays valid forever: every dashboard aggregate simply stays grouped
     // by currency (see backend's Company.referenceCurrency comment).
     referenceCurrency: z.string().optional(),
-    // TODO_FEATURES.md rank 17 — MAJOR units, in the company's own `currency` (see backend's
+    // Approval threshold — MAJOR units, in the company's own `currency` (see backend's
     // Company.approvalThresholdMinor comment). A FORM-ONLY field: converted to/from
     // `approvalThresholdMinor` at the load/submit boundary below, the same way peppolSchemeId/
     // peppolEndpointId are synthesized from/folded back into `identifiers`. `undefined` (never "")
     // means "no threshold" — a plain number input has no empty-string state of its own to reuse.
     approvalThreshold: z.number().min(0, t("settings.company.form.approvalThreshold.errors.min")).optional(),
-    // TODO_FEATURES.md rank 2 — gates the daily reminder sweep (backend's
+    // Gates the daily reminder sweep (backend's
     // reminders/reminder-sweep-runner.ts). Off by default; see Company.remindersEnabled's own
     // schema.prisma comment.
     remindersEnabled: z.boolean().optional(),
@@ -644,7 +644,7 @@ export default function CompanySettings() {
                                 0208 — BE org.nr
                               </SelectItem>
                               {/*
-                                TODO_PRODUIT.md T4-b — same fix as clients/_components/client-
+                                Same fix as clients/_components/client-
                                 upsert.tsx's own identical selector (see that file's own comment for
                                 the full citation): 0106 is the Dutch KVK in the Peppol v9.7
                                 codelist, not Danish. The real Danish CVR is 0184, added just below.
@@ -662,7 +662,7 @@ export default function CompanySettings() {
                                 0060 — DUNS
                               </SelectItem>
                               {/*
-                                TODO_PRODUIT.md T4-a — same seven EAS as clients/_components/client-
+                                Same seven EAS as clients/_components/client-
                                 upsert.tsx's own identical selector (see that file's own comment for
                                 the full citation, sourced from the 2026-09-02 B2G audit's
                                 b2g-routing/data/{ee,lt,lv,lu,cy,gr,mt}.json).
@@ -1101,7 +1101,7 @@ export default function CompanySettings() {
                     <FormControl>
                       <Select
                         // NOT `field.onChange` directly — found empirically (a real "no transport
-                        // configured" 501 hit while proving item 26's own e2e coverage, never from a
+                        // configured" 501 hit while proving this picker's own e2e coverage, never from a
                         // guess): `invoiceTransports` (useDocumentTransports) loads ASYNCHRONOUSLY,
                         // unlike every other <Select>'s options on this page (all static arrays,
                         // available on the very first render). Radix's own hidden native-`<select>`

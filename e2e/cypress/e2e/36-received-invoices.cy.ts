@@ -1,20 +1,18 @@
 /**
- * Root TODO item 18 ("réception de factures") — prouvé PAR L'ÉCRAN, comme 17-document-descriptor.cy.ts
+ * Réception de factures — prouvé PAR L'ÉCRAN, comme 17-document-descriptor.cy.ts
  * et le reste de cette suite : les ACTIONS passent par l'interface, les ASSERTIONS de contenu (le
  * fichier téléchargé est-il exactement celui uploadé ?) passent par l'API — mêmes conventions que
  * 33-signing-certificates.cy.ts (upload d'un fichier de FIXTURE réel, jamais une donnée inventée).
  *
- * Étendu pour TODO_PRODUIT.md T5(a) ("lignes détaillées") — deux tests ajoutés, tous les tests
- * PRÉEXISTANTS restent inchangés (aucune assertion affaiblie) : un dépôt structuré porte désormais
+ * Les lignes détaillées : un dépôt structuré porte désormais
  * SES LIGNES (désignation/quantité/prix unitaire HT/taux de TVA), extraites automatiquement du CII/
  * UBL qu'on savait déjà lire (`received-invoices/extraction.ts`), et un écart entre le total déposé
  * et la somme des lignes est un avertissement NOMMÉ, visible à l'écran et porté par le document,
  * jamais bloquant (`received-invoices/line-totals-check.ts`).
  *
- * Étendu pour TODO_PRODUIT.md T5(c) ("OCR des PDF non structurés, en plugin") — un test ajouté au
- * test "PDF pur" PRÉEXISTANT (une assertion de toast en PLUS, jamais retirée) prouvant l'absence
- * honnête d'extracteur, et un NOUVEAU test prouvant le cas symétrique (un extracteur disponible via
- * `OCR_SERVICE_URL` pré-remplit le formulaire, éditable) — les deux passent par un backend de test
+ * L'OCR des PDF non structurés, en plugin : le test "PDF pur" prouve l'absence
+ * honnête d'extracteur, et un test symétrique prouve qu'un extracteur disponible via
+ * `OCR_SERVICE_URL` pré-remplit le formulaire, éditable — les deux passent par un backend de test
  * SANS aucun credential Mistral réel (`ocr/fake-extractor.ts`, voir ce fichier ou son propre header).
  *
  * Fixtures (`cypress/fixtures/received-invoices/`) — toutes générées par NOS PROPRES providers
@@ -28,13 +26,13 @@
  *    100% réel et a été vérifié offline (extraction.spec.ts) avant d'être committé ici.
  *  - `supplier-invoice-plain.pdf` : un PDF réel sans aucun XML embarqué — le cas de l'artisan qui
  *    scanne une facture papier — donc AUCUNE ligne extraite, jamais un motif d'échec.
- *  - `supplier-invoice-ocr-fake.pdf` (T5(c)) : PAS un vrai PDF, DÉLIBÉRÉMENT — un simple fichier
+ *  - `supplier-invoice-ocr-fake.pdf` : PAS un vrai PDF, DÉLIBÉRÉMENT — un simple fichier
  *    texte portant le marqueur exact du stub OCR de test (`ocr/fake-extractor.ts`, enregistré
  *    automatiquement sous NODE_ENV=test, jamais en production) ; toute autre "fausse" extension .pdf
  *    de cette suite (dont `supplier-invoice-plain.pdf` ci-dessus) N'A PAS ce marqueur et reçoit donc
  *    l'issue « aucun extracteur disponible » — exactement le défaut de production (Mistral/
  *    OCR_SERVICE_URL jamais configuré).
- *  - `supplier-invoice-mismatch.xml` (T5(a)) : même méthode — CII réel via `ciiFormatProvider` (une
+ *  - `supplier-invoice-mismatch.xml` : même méthode — CII réel via `ciiFormatProvider` (une
  *    ligne, 5 x 100.00 @ 20% = net 500.00 / TVA 100.00 / TTC 600.00) — puis SEUL le TTC de l'en-tête
  *    (`GrandTotalAmount`/`DuePayableAmount`) est corrigé chirurgicalement à 650.00 après coup : le
  *    cas réel, banal, d'un fournisseur dont le total imprimé ne s'accorde pas avec ses propres
@@ -53,20 +51,20 @@ const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const CII_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-cii.xml";
 const FACTURX_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-facturx.pdf";
 const PLAIN_PDF_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-plain.pdf";
-// TODO_PRODUIT.md T5(c) — OCR of unstructured PDFs. This backend's own test double
+// OCR of unstructured PDFs. This backend's own test double
 // (`FakeReceivedInvoiceOcrExtractor`, registered automatically under NODE_ENV=test — see
 // `plugins/index.ts`'s own header) only ever answers a document that carries its exact marker
 // string in its raw bytes; every OTHER PDF (PLAIN_PDF_FIXTURE included) gets the SAME honest
 // "no OCR available" outcome production gets by default (Mistral/OCR_SERVICE_URL never configured).
 const OCR_FAKE_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-ocr-fake.pdf";
-// TODO_PRODUIT.md T5(a) — real CII from `ciiFormatProvider` (one line: 5 x 100.00 @ 20% = net 500.00
+// Real CII from `ciiFormatProvider` (one line: 5 x 100.00 @ 20% = net 500.00
 // / VAT 100.00 / gross 600.00), with ONLY the HEADER's own GrandTotalAmount/DuePayableAmount
-// surgically bumped to 650.00 afterwards — the exact, mundane real-world case this task's own warning
+// surgically bumped to 650.00 afterwards — the exact, mundane real-world case the warning
 // exists to catch (the supplier's own printed total disagrees with what their own lines add up to).
 // Never a hand-written fixture: see this file's own header and received-invoices/extraction.spec.ts.
 const MISMATCH_FIXTURE = "cypress/fixtures/received-invoices/supplier-invoice-mismatch.xml";
 
-// TODO_PRODUIT.md T5(b) — rapprochement fournisseur. Same generation method as every fixture above
+// Rapprochement fournisseur. Same generation method as every fixture above
 // (`ciiFormatProvider`, real EN 16931 CII, never hand-written XML). `KNOWN_VAT_FIXTURE`'s own seller
 // carries the SAME VAT (FR12345678901) as the client `createClientByScreen` creates below but a
 // DIFFERENT name ("Fixture Fournisseur Reconnu SARL" vs "Fournisseur Confirmé SARL") — the auto-link
@@ -93,7 +91,7 @@ function uploadAndOpenForm(fixturePath: string) {
 	cy.get('[data-cy="received-invoice-upload-dialog"]', { timeout: 10000 }).should("be.visible");
 	cy.get('[data-cy="received-invoice-upload-file-input"]').selectFile(fixturePath, { force: true });
 	cy.get('[data-cy="received-invoice-upload-dialog"]').should("not.exist");
-	// TODO_PRODUIT.md T5(a) — the dialog (the fixed-position overlay) is what must be visible; the
+	// The dialog (the fixed-position overlay) is what must be visible; the
 	// FORM inside it no longer fits above the fold now that it also carries a "lines" row (this is a
 	// real, intentional consequence of the new field, not a bug) — `.should("be.visible")` on the
 	// whole `<form>` checks its CENTER point, which a taller form can push below the dialog's own
@@ -109,8 +107,8 @@ function confirmReceive() {
 	cy.get('[data-cy="document-form"]').should("not.exist");
 }
 
-// TODO_PRODUIT.md T5(b) — creates a client PAR L'ÉCRAN (never seeded/via API): the whole point of
-// this task's own screen coverage. Same France + LEGAL_ID(+VAT) pattern already proven in
+// Creates a client PAR L'ÉCRAN (never seeded/via API): the whole point of
+// this screen coverage. Same France + LEGAL_ID(+VAT) pattern already proven in
 // 05-clients.cy.ts's own "accepts valid EU VAT format" case.
 function createClientByScreen(name: string, opts?: { vat?: string }) {
 	cy.visit("/clients");
@@ -139,7 +137,7 @@ function createClientByScreen(name: string, opts?: { vat?: string }) {
 	cy.get('[data-cy="client-dialog"]').should("not.exist");
 }
 
-describe("Réception de factures — root TODO item 18", () => {
+describe("Réception de factures", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -165,7 +163,7 @@ describe("Réception de factures — root TODO item 18", () => {
 		cy.get('[data-cy="document-field-currency-input"]').should("contain.text", "EUR");
 		cy.get('[data-cy="document-field-issueDate-input"]').should("not.contain.text", "Pick a date");
 
-		// TODO_PRODUIT.md T5(a) — la ligne (BG-25) embarquée dans ce même CII est, elle aussi,
+		// La ligne (BG-25) embarquée dans ce même CII est, elle aussi,
 		// extraite et pré-remplie sans ressaisie ; sa somme (3 x 250.00 @ 20% = 900.00 TTC) s'accorde
 		// EXACTEMENT avec les totaux déposés ci-dessus, donc AUCUN avertissement ne doit apparaître —
 		// la régression que ce test couvre pour de vrai, sur un document réellement bien formé.
@@ -240,7 +238,7 @@ describe("Réception de factures — root TODO item 18", () => {
 	it("un PDF pur (sans XML embarqué) : formulaire vide mais le fichier est quand même attaché, jamais un refus", () => {
 		uploadAndOpenForm(PLAIN_PDF_FIXTURE);
 
-		// TODO_PRODUIT.md T5(c) — l'écran DIT l'absence d'extracteur OCR, jamais un silence : le
+		// L'écran DIT l'absence d'extracteur OCR, jamais un silence : le
 		// comportement d'AUJOURD'HUI (formulaire vide, saisie manuelle) reste inchangé, PROUVÉ
 		// préservé par les trois assertions de champs vides juste en dessous.
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "OCR");
@@ -278,11 +276,11 @@ describe("Réception de factures — root TODO item 18", () => {
 		});
 	});
 
-	// TODO_PRODUIT.md T5(c) — le pendant "extracteur disponible" du test précédent : un PDF marqué
+	// Le pendant "extracteur disponible" du test précédent : un PDF marqué
 	// pour le stub OCR de test arrive PRÉ-REMPLI, mais reste ÉDITABLE (une proposition, jamais une
-	// vérité — l'humain valide) ; le rapprochement fournisseur (T5b) et le contrôle de somme (T5a)
+	// vérité — l'humain valide) ; le rapprochement fournisseur et le contrôle de somme
 	// tournent ensuite sur les MÊMES champs, exactement comme pour une extraction structurelle.
-	it("TODO_PRODUIT.md T5(c) — un PDF marqué pour le stub OCR de test arrive pré-rempli via OCR, et reste éditable", () => {
+	it("Un PDF marqué pour le stub OCR de test arrive pré-rempli via OCR, et reste éditable", () => {
 		uploadAndOpenForm(OCR_FAKE_FIXTURE);
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "OCR");
@@ -311,7 +309,7 @@ describe("Réception de factures — root TODO item 18", () => {
 		});
 	});
 
-	it("TODO_PRODUIT.md T5(a) — dépôt structuré avec lignes : les lignes s'affichent sans ressaisie, et un écart total/lignes affiche un avertissement nommé, jamais bloquant", () => {
+	it("Dépôt structuré avec lignes : les lignes s'affichent sans ressaisie, et un écart total/lignes affiche un avertissement nommé, jamais bloquant", () => {
 		uploadAndOpenForm(MISMATCH_FIXTURE);
 
 		// La ligne (désignation, quantité, prix unitaire HT, taux de TVA) est pré-remplie par
@@ -356,7 +354,7 @@ describe("Réception de factures — root TODO item 18", () => {
 		});
 	});
 
-	it("TODO_PRODUIT.md T5(a) — éditer une ligne fait réagir le contrôle de somme (le nombre d'avertissements change)", () => {
+	it("Éditer une ligne fait réagir le contrôle de somme (le nombre d'avertissements change)", () => {
 		listReceivedInvoices().then((instances) => {
 			const target = instances.find((i) => i.data.supplier === "Fixture Fournisseur Discordant SARL");
 			expect(target, "le document créé par le test précédent existe toujours").to.exist;
@@ -394,7 +392,7 @@ describe("Réception de factures — root TODO item 18", () => {
 		});
 	});
 
-	it("TODO_PRODUIT.md T5(b) — un client existant portant la TVA du vendeur, créé PAR L'ÉCRAN, se relie automatiquement au dépôt", () => {
+	it("Un client existant portant la TVA du vendeur, créé PAR L'ÉCRAN, se relie automatiquement au dépôt", () => {
 		createClientByScreen("Fournisseur Confirmé SARL", { vat: SUPPLIER_VAT });
 
 		cy.visit("/documents/received-invoice");
@@ -430,7 +428,7 @@ describe("Réception de factures — root TODO item 18", () => {
 		});
 	});
 
-	it("TODO_PRODUIT.md T5(b) — un dépôt d'un vendeur INCONNU ne relie rien, et l'écran le dit", () => {
+	it("Un dépôt d'un vendeur INCONNU ne relie rien, et l'écran le dit", () => {
 		uploadAndOpenForm(UNKNOWN_VAT_FIXTURE);
 
 		// Le champ reste vide — jamais un lien deviné.
@@ -451,7 +449,7 @@ describe("Réception de factures — root TODO item 18", () => {
 		});
 	});
 
-	it("TODO_PRODUIT.md T5(b) — lier un fournisseur À LA MAIN pose le rôle 'supplier', visible côté clients", () => {
+	it("Lier un fournisseur À LA MAIN pose le rôle 'supplier', visible côté clients", () => {
 		createClientByScreen("Fournisseur Manuel SARL");
 
 		cy.visit("/documents/received-invoice");

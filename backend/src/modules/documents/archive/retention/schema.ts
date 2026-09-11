@@ -1,5 +1,5 @@
 /**
- * The country RETENTION-DURATION file format — root TODO item 14, "archivage légal ⚖". A retention
+ * The country RETENTION-DURATION file format — "archivage légal ⚖". A retention
  * rule is a LEGAL DURATION a country's law requires business documents to be kept for, resolved
  * against the moment a document was archived. Same file-per-country, load-time-validated,
  * provenance-mandatory shape `documents/mentions/schema.ts` already established for a DIFFERENT
@@ -34,8 +34,7 @@ export interface RetentionRule {
    *  load a rule with no `legalRef`, the same "a legal claim without a citation does not load"
    *  discipline `mentions/schema.ts#assertValidMentionRule` already holds for a mandatory mention,
    *  and `transports/channel-policy/schema.ts#assertValidChannelPolicyFact` holds for a channel
-   *  mandate. This task's own rule: "N'invente AUCUNE durée légale — tout vient du repère avec ses
-   *  références, ou est nul en le disant." */
+   *  mandate. */
   legalRef: string;
   /** Free-form sourcing/maintenance note — same convention as `mentions/schema.ts`'s own per-rule
    *  `notes`: JSON carries no comments, so a maintenance/sourcing note that would be a code comment

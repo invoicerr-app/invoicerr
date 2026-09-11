@@ -12,47 +12,47 @@
  *     established for FACe's own sibling SOAP client (SdICoop) in THIS codebase — string
  *     concatenation with a hand-rolled `escapeXml` is gone; xmlbuilder2 escapes for us.
  *  2. `SigningLogger`/local imports are dropped — this file has no compliance-engine logger to lean
- *     on (that engine is gone, see `TODO.md`'s own header); callers (`face-transport.ts`) use the
+ *     on (that engine is gone); callers (`face-transport.ts`) use the
  *     ordinary NestJS `logger` singleton instead, the same split every sibling transport draws.
  *
  * Everything else below — the endpoint hosts, the operation contract, the estado table, and the
  * "why this file stops short of a WS-Security signature" reasoning — is the repère's own content,
- * RE-VERIFIED on 2026-09-02 (this task), not merely copied forward:
+ * RE-VERIFIED on 2026-09-02, not merely copied forward:
  *
  *  - `FACE_ENDPOINTS` — RE-FETCHED today from the SAME source #1 the repère cites
  *    (github.com/josemmo/Facturae-PHP, `src/Face/FaceClient.php`, an actively maintained OSS client
  *    exercised against the REAL production endpoint): identical values to what the repère recorded —
  *    `https://webservice.face.gob.es/facturasspp2` (prod) / `https://se-face-webservice.redsara.es/
  *    facturasspp2` (sandbox). This is STRONGER evidence than the repère had (a live re-fetch on the
- *    date of this task, not a one-time historical read) — see this task's own report for what was
- *    also independently observed today: the HUMAN-FACING face.gob.es portal itself now redirects to
+ *    2026-09-02, not a one-time historical read) — also independently observed that day: the
+ *    HUMAN-FACING face.gob.es portal itself now redirects to
  *    a successor, `proveedores.face.gob.es` ("en este portal solo se pueden consultar facturas
  *    remitidas hasta el 27/02/2026") — a portal-only migration; nothing fetched today suggests the
  *    machine SSPP SOAP endpoints below moved, but this codebase has NOT independently exercised them
  *    live (no FACe-registered certificate — see `CREDENTIALS_GUIDE.md`'s own FACe section), so that
  *    absence-of-evidence is named, never treated as proof either way.
  *  - The estado code table (`FACE_TRAMITACION_ESTADOS`/`FACE_ANULACION_ESTADOS`) — REPRISED verbatim,
- *    not re-fetched this task (the Diputación Foral de Gipuzkoa PDF the repère cites was not
+ *    not re-fetched (the Diputación Foral de Gipuzkoa PDF the repère cites was not
  *    re-read here); treated as still authoritative because nothing found today contradicts it.
  *  - The AdministrativeCentres RoleTypeCode ↔ DIR3-role mapping used by `formats/national/
  *    facturae-provider.ts` (órgano gestor/unidad tramitadora/oficina contable) is a DIFFERENT fact,
- *    NEWLY sourced this task from `github.com/josemmo/Facturae-PHP`, `src/FacturaeCentre.php`
+ *    NEWLY sourced (2026-09-02) from `github.com/josemmo/Facturae-PHP`, `src/FacturaeCentre.php`
  *    (`ROLE_GESTOR`/`ROLE_RECEPTOR = "02"`, `ROLE_TRAMITADOR`/`ROLE_PAGADOR = "03"`,
  *    `ROLE_CONTABLE`/`ROLE_FISCAL = "01"`), cross-checked against this repo's OWN vendored
  *    `formats/vendored/es/Facturaev3_2_2.xsd`'s `RoleTypeCodeType` documentation (01 Fiscal, 02
  *    Receptor, 03 Pagador) — two independent sources agreeing, the same corroboration discipline the
  *    repère's own header used. See that provider's own header for the citation, not repeated here.
  *
- * THE SOAP MESSAGE'S OWN WS-Security SIGNATURE — CLOSED, 2026-09-02 TASK (previously deferred,
- * unchanged from the repère until now): every SSPP request/response is authenticated by WS-Security
+ * THE SOAP MESSAGE'S OWN WS-Security SIGNATURE — CLOSED 2026-09-02 (previously deferred,
+ * unchanged from the repère until then): every SSPP request/response is authenticated by WS-Security
  * X.509 Token Profile 1.0/1.1 — a `<wsse:BinarySecurityToken>` plus a `<ds:Signature>` over (at
  * least) the `<soapenv:Body>` digest, NOT a plain bearer token and NOT (as far as either the repère or
- * this task could establish) mutual TLS. This client (`FaceHttpPort`'s own contract) still hands
+ * the 2026-09-02 re-verification could establish) mutual TLS. This client (`FaceHttpPort`'s own contract) still hands
  * `FaceSoapHttpPort`/`wsse-sign.ts` the RAW, unsigned operation fragment — the signing itself happens
  * one layer up, in `face-transport.ts`'s `FaceSoapHttpPort.post()`, the exact seam this interface's own
  * doc comment always described. What changed is that seam is now FILLED: `wsse-sign.ts` builds a real
  * WS-Security-signed envelope via `xmldsigjs` (OASIS X.509 Certificate Token Profile form — see that
- * file's own header for the citation), and this task LIVE-VERIFIED (2026-09-02, `se-face-webservice
+ * file's own header for the citation), and it was LIVE-VERIFIED (2026-09-02, `se-face-webservice
  * .redsara.es`, a throwaway self-signed test certificate — no FACe-registered credential needed) that
  * doing so makes the sandbox's own SOAP Fault CHANGE NATURE: from `<faultstring>La petición no esta
  * firmada</faultstring>` (unsigned) to `<faultstring>Error al validar el certificado</faultstring>`
@@ -160,7 +160,7 @@ export interface FaceConsultarFacturaResult {
 // ---------------------------------------------------------------------------
 // Official estado code table — REPRISED verbatim from the repère (Diputación Foral de Gipuzkoa
 // "Servicios para sistemas Automatizados de proveedores..." v1.0.3, §5 "Estados posibles"; NOT
-// re-fetched by this task — see this file's own header).
+// re-fetched — see this file's own header).
 // ---------------------------------------------------------------------------
 
 /** §5.1 — Estados de tramitación (ordinary processing lifecycle). */
@@ -361,7 +361,7 @@ export class FaceClient {
    * SSPP `enviarFactura` — submit a (XAdES-signed) Facturae invoice for registration.
    *
    * A non-2xx status is tried for a SOAP Fault FIRST, never treated as an opaque failure outright —
-   * REAL, OBSERVED BEHAVIOUR (this task, 2026-09-02, `curl` AND `fetch` directly against
+   * REAL, OBSERVED BEHAVIOUR (2026-09-02, `curl` AND `fetch` directly against
    * `https://se-face-webservice.redsara.es/facturasspp2`, an UNSIGNED request, `face.live.spec.ts`'s
    * own gated reachability test): the live sandbox answers with a real, informative
    * `<SOAP-ENV:Fault><faultcode>401</faultcode><faultstring>La petición no esta firmada</faultstring>`

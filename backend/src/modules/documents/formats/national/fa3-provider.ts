@@ -1,7 +1,7 @@
 /**
- * FA(3) (PL, KSeF 2.0) format provider — root TODO item 10, wave 2. REPRISED from
+ * FA(3) (PL, KSeF 2.0) format provider. REPRISED from
  * `invoice-rendering/national/fa-vat.ts` at git tag `avant-refonte-documents` (the FA(3) half only —
- * FA(2) is out of this wave's scope, see this task's own brief), ADAPTED to the current generic
+ * FA(2) is out of scope), ADAPTED to the current generic
  * document model exactly the way `facturx-provider.ts`/`cii-provider.ts` are: amounts come from
  * `totals/compute-totals.ts` (via `national-lines.ts`), NEVER recalculated by hand the way the old
  * `InvoiceRenderData`-based builder did (`item.quantity * item.unitPrice`, no discount concept at
@@ -17,11 +17,11 @@
  * 12 left it out.
  *
  * Deliberately NOT reprised from fa-vat.ts, and why:
- *  - FA(2) / `selectFaVatVersion` — this wave only ever emits FA(3) (the KSeF 2.0 structure); FA(2)
+ *  - FA(2) / `selectFaVatVersion` — this provider only ever emits FA(3) (the KSeF 2.0 structure); FA(2)
  *    was the pre-2026-02-01 structure and has no caller in this branch's document model.
  *  - The `korFients`/faktura korygująca (credit-note) block — this branch's `invoice` descriptor has
  *    no correction-linkage shape compatible with the old one's `correction` input; a credit note
- *    reaching KSeF is a real, NAMED gap (see this task's own report), not silently dropped.
+ *    reaching KSeF is a real, NAMED gap, not silently dropped.
  *
  * ## Provenance — what is and isn't asserted
  * The XML SHAPE (element names, nesting, the FA(3) mandatory `JST`/`GV` "not applicable" markers) is
@@ -30,7 +30,7 @@
  * 8%→group 2, 5%→group 3, 0%→group 7, anything else uncounted in the per-rate summary though still
  * counted in the P_15 grand total) is preserved VERBATIM from that same builder — a genuine, known
  * limitation for a rate outside {23,22,8,7,5,0} (e.g. a reduced rate this catalog doesn't carry for
- * Poland), not a new gap this task introduces.
+ * Poland), not a new gap introduced here.
  */
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { guessCountryCode } from '@/utils/country-name-to-iso';

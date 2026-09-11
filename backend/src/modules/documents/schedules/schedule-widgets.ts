@@ -1,5 +1,5 @@
 /**
- * The dashboard's "upcoming recurrences" widget (root TODO item 5, point 6) — added ALONGSIDE every
+ * The dashboard's "upcoming recurrences" widget — added ALONGSIDE every
  * existing dashboard widget (contributions/), never in place of them: this is not a per-DOCUMENT-TYPE
  * contribution (the `ContributionRegistry` mechanism, contributions/contribution-registry.ts, is
  * keyed by (typeId, location) precisely because a document TYPE decides what it shows about ITSELF),

@@ -17,19 +17,19 @@ import { ActionRegistry, DocumentInstanceResult } from './action-registry';
 import { performSaveDraft } from './generic-actions';
 
 /** Same direct-import model as actions/invoice-actions.ts's own `INVOICE_DESCRIPTOR` constant — used
- *  ONLY to feed `computeDocumentTotals` the invoice's own field shape when a credit note this task's
+ *  ONLY to feed `computeDocumentTotals` the invoice's own field shape when a credit note the
  *  settlement-crossing check just sent might have settled it (see
  *  `checkAndEmitInvoiceSettledFromCreditNote` below). */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
-  /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
+  /** See `async-send.ts`'s own `RunAsyncSendInput.events` header. */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2bis — see `async-send.ts`'s own `RunAsyncSendInput.webhooks` header. Under T2
+   * See `async-send.ts`'s own `RunAsyncSendInput.webhooks` header. Under per-type events
    * this type deliberately got NO webhook at all: the schema had no `CREDIT_NOTE_SENT` (nor any other
-   * `CREDIT_NOTE_*` entry) and inventing one was explicitly out of that task's scope. T2bis's own
+   * `CREDIT_NOTE_*` entry) and inventing one was deliberately avoided. The
    * generic `DOCUMENT_SENT`/`DOCUMENT_CREATED` removes the need for a per-type event entirely — this
    * type now passes the SAME `deps.webhooks` invoice/quote already do, and gets both for free.
    */
@@ -38,8 +38,8 @@ export interface CreditNoteActionDeps {
 
 /**
  * Registers the credit note type's action IMPLEMENTATIONS — "save-draft" (the exact same generic
- * mechanism the quote and the invoice already share, generic-actions.ts) and, as of item 8 of the
- * root TODO ("le lettrage"), "send" (see credit-note.descriptor.ts's own "Actions" paragraph for the
+ * mechanism the quote and the invoice already share, generic-actions.ts) and, for lettrage
+ * ("le lettrage"), "send" (see credit-note.descriptor.ts's own "Actions" paragraph for the
  * full reasoning). "send" is deliberately NOT the quote's own send-by-email mechanism
  * (quote-actions.ts), nor any bespoke transport lookup (the invoice's own, invoice-actions.ts): its
  * own `deliver` below does nothing at all — no transport, no email, no recipient — only the shared
@@ -50,13 +50,13 @@ export interface CreditNoteActionDeps {
  * comment, carried over from the removed `invoices/settlement.ts`), so lettrage needed SOME way out of
  * "draft" to mean anything at all.
  *
- * As of TODO.md item 22, this goes through `runAsyncSendAction` (actions/async-send.ts) like every
+ * This goes through `runAsyncSendAction` (actions/async-send.ts) like every
  * other type's "send" — see credit-note.descriptor.ts's own comment on why that is deliberate even
  * though this type's `deliver` has nothing to await: ONE mechanism for the action id "send", whatever
  * a given type's own delivery actually does.
  */
 /**
- * TODO_PRODUIT.md T3's own "T2bis différé" — a credit note reaching "sent" is the SECOND (and only
+ * A credit note reaching "sent" is the SECOND (and only
  * other) write path that can make an INVOICE cross into "settled" (settlement/credits.ts only counts
  * a credit note once it is "sent" — a draft settles nothing): the invoice's own "record-payment"
  * (invoice-actions.ts) covers the first. Called ONLY once `sentCreditNote.status === 'sent'` is
@@ -130,11 +130,11 @@ async function checkAndEmitInvoiceSettledFromCreditNote(
 }
 
 /**
- * TODO_PRODUIT.md T4-d — the currency a credit note declares has no business meaning independent of
- * the invoice it corrects: T3 established that an avoir carries NO conversion of its own (settlement/
+ * The currency a credit note declares has no business meaning independent of
+ * the invoice it corrects: an avoir carries NO conversion of its own (settlement/
  * credits.ts credits whatever it declares directly against the invoice's own, un-converted balance —
- * see that file's own header and TODO_ISSUES.md's "avoirs : pas de conversion — structurellement en
- * devise facture" constat) — so a credit note in a currency OTHER than its invoice's is not a second
+ * see that file's own header: "avoirs : pas de conversion — structurellement en
+ * devise facture") — so a credit note in a currency OTHER than its invoice's is not a second
  * valid business case with its own rule, it is a data-entry mistake with no sensible reading at all,
  * refused outright rather than silently miscounted forever against the wrong total.
  *
@@ -157,7 +157,7 @@ async function checkAndEmitInvoiceSettledFromCreditNote(
  * Screen-side, `credit-note.descriptor.ts`'s own `currency` field declares `lockedFromReference`
  * (descriptors/types.ts) so the create/edit form never lets a user TYPE a mismatch in the first
  * place — this is the hard backstop for whatever reaches the API directly, the same "the screen is
- * never trusted alone" posture invoice-actions.ts's own buyer-country guard (TODO_PRODUIT.md T4-c)
+ * never trusted alone" posture invoice-actions.ts's own buyer-country guard
  * already holds.
  */
 async function assertCreditNoteCurrencyMatchesInvoice(
@@ -184,17 +184,17 @@ async function assertCreditNoteCurrencyMatchesInvoice(
       `This credit note declares "${String(data.currency)}", but the invoice it corrects ` +
         `(${invoice.displayNumber ?? invoiceId}) is in "${invoiceCurrency}" — a credit note has no ` +
         'business existing in a currency other than the invoice it corrects: the amount it credits ' +
-        `is structurally denominated in that invoice's own currency, with no conversion of its own ` +
-        `(TODO_PRODUIT.md T3). Pick "${invoiceCurrency}".`,
+        `is structurally denominated in that invoice's own currency, with no conversion of its own. ` +
+        `Pick "${invoiceCurrency}".`,
     );
   }
 }
 
 /**
- * "save-draft" for the credit note — NOT the plain generic mechanism (unlike before T4-d): wraps
+ * "save-draft" for the credit note — NOT the plain generic mechanism: wraps
  * `performSaveDraft` (generic-actions.ts) with the currency guard above, the same "diverge from the
  * shared mechanism for one documented, invoice-shaped reason" precedent invoice-actions.ts's own
- * `registerInvoiceSaveDraftAction` already set (TODO_PRODUIT.md T4-c) — this is credit-note's
+ * `registerInvoiceSaveDraftAction` already set — this is credit-note's
  * analogous case, not a coincidence: both types need ONE extra check the generic mechanism has no
  * business knowing about, and both reuse `performSaveDraft` for the actual persistence so the two
  * never drift.
@@ -221,11 +221,11 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       params,
       queueDispatcher: deps.queueDispatcher,
       events: deps.events,
-      // TODO_PRODUIT.md T2bis — see async-send.ts's own `RunAsyncSendInput.webhooks` header.
+      // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
       // credit-note.descriptor.ts declares NO `numbering` at all — never number this type, ever.
       numberOnEnqueue: false,
-      // TODO_PRODUIT.md T4-d — "send" (unlike every OTHER action) persists whatever `data` THIS
+      // "send" (unlike every OTHER action) persists whatever `data` THIS
       // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`
       // call, right after `preflight` runs) — a SEPARATE write path from "save-draft", which
       // `assertCreditNoteCurrencyMatchesInvoice` above already guards. Without this, a scripted

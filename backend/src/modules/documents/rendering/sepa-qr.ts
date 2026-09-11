@@ -1,7 +1,7 @@
 import * as QRCode from 'qrcode';
 
 /**
- * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — builds and renders the EPC069-12 payload that lets
+ * "QR SEPA / GiroCode" — builds and renders the EPC069-12 payload that lets
  * a payer scan the invoice PDF and have their banking app pre-fill a SEPA credit transfer, instead of
  * re-typing the IBAN and amount by hand.
  *

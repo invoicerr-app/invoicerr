@@ -18,9 +18,9 @@ import { AccountingLedgerRow, buildAccountingCsv } from './build-accounting-csv'
 import { resolveClientLabels } from './client-labels';
 
 /**
- * TODO_FEATURES.md rank 4 — the GENERIC accounting CSV export (the CSV slice ONLY: a country-specific
- * ledger FORMAT — FR's FEC, DE's DATEV, the "L" part of that item — needs a chart-of-accounts mapping
- * this task does not build; a future extension registers a formatter over the exact same rows this
+ * The GENERIC accounting CSV export (the CSV slice ONLY: a country-specific
+ * ledger FORMAT — FR's FEC, DE's DATEV, the "L" part — needs a chart-of-accounts mapping
+ * not built here; a future extension registers a formatter over the exact same rows this
  * file already resolves, never a rewrite of the resolution below).
  *
  * Same "gather + compute, never recompute a balance" discipline `settlement/client-statement.ts`
@@ -145,7 +145,7 @@ export async function buildAccountingExport(
 
   // === Resolve EVERY "sent" invoice's totals/settlement/credits/client — see this file's own header,
   //     `ResolvedInvoice`, on why this runs regardless of the invoice's own date. "sent" only, never
-  //     "draft" (not yet actually issued) or "cancelled" (TODO_CORRECTION.md C3 — nothing is owed on
+  //     "draft" (not yet actually issued) or "cancelled" (nothing is owed on
   //     a document that no longer legally exists) — the exact filter `client-statement.ts` already
   //     applies for the identical reason. ===
   const allInvoices = await listDocuments(companyId, 'invoice', ACCOUNTING_EXPORT_READ_LIMIT);

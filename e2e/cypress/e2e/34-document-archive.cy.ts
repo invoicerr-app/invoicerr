@@ -1,5 +1,5 @@
 /**
- * L'archivage légal (root TODO item 14, "⚖ — rétention par pays, intégrité") — prouvé PAR L'ÉCRAN,
+ * L'archivage légal — prouvé PAR L'ÉCRAN,
  * même discipline que 28/33 : l'envoi passe par un vrai clic sur "Send", les ASSERTIONS qui comptent
  * relisent l'API (jamais l'écran comme preuve de ce qui est en base), et le verify RE-HACHE réellement
  * les octets stockés côté serveur — jamais un verdict mis en cache côté client.
@@ -7,11 +7,11 @@
  * La société de seed (cy.resetAndSeed()) est française (Acme Corp, countryCode FR) — exactement le
  * cas où la rétention légale a une donnée sourcée : max(fiscale 6 ans LPF L102 B, commerciale 10 ans
  * C. com. L123-22) = 10 ans, voir backend/src/modules/documents/archive/retention/data/fr.json. On
- * envoie une facture par e-mail (le transport le plus simple à faire réussir en CI, "email suffit"
- * selon la tâche) : le seul artefact réellement livré est le PDF signé s'il l'était, jamais un format
+ * envoie une facture par e-mail (le transport le plus simple à faire réussir en CI) : le seul
+ * artefact réellement livré est le PDF signé s'il l'était, jamais un format
  * structuré inventé pour un transport qui n'en produit pas.
  *
- * Régression couverte par la même passe : 28 (l'envoi asynchrone continue de fonctionner une fois
+ * Régressions couvertes : 28 (l'envoi asynchrone continue de fonctionner une fois
  * l'archivage câblé après le "sent" — jamais un envoi cassé par cet ajout).
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";

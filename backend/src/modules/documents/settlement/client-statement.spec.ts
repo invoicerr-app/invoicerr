@@ -6,7 +6,7 @@ import * as settlementPayments from './payments';
 import { resolveAgingBucket, resolveClientStatement } from './client-statement';
 
 /**
- * TODO_FEATURES.md rank 6 ("relevé de compte client") — same mocking discipline as
+ * "Relevé de compte client" — same mocking discipline as
  * contributions/invoice-contributions.spec.ts (this file's own model): `../persistence` and
  * `./payments` fully mocked (both reach Prisma directly), `./credits` mocked ONLY for
  * `listCreditNotes` (the one function here that reaches Prisma) — `creditsForInvoiceFromNotes`/
@@ -223,7 +223,7 @@ describe('resolveClientStatement', () => {
     expect(statement.totals).toEqual([]);
   });
 
-  it('excludes a CANCELLED invoice — TODO_CORRECTION.md C3, nothing is owed on a void document', async () => {
+  it('excludes a CANCELLED invoice — nothing is owed on a void document', async () => {
     listDocuments.mockResolvedValue([invoice({ id: 'void-1', status: 'cancelled', data: invoiceData() })]);
 
     const statement = await resolveClientStatement('company-1', 'client-1', ASOF);

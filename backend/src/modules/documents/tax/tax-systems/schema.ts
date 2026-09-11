@@ -1,5 +1,5 @@
 /**
- * The country TAX-SYSTEM catalog — root TODO item 16's own input for the seller's (and, when known,
+ * The country TAX-SYSTEM catalog — the cross-border tax engine's input for the seller's (and, when known,
  * the buyer's) `CountryTaxSystemProfile` (`../types.ts`). Same "a country is data" shape as
  * `vat-rates/schema.ts` and `country-identifiers/schema.ts`, for a DIFFERENT concern: not what a user
  * picks from a dropdown (`vat-rates/`), but what the CROSS-BORDER TAX ENGINE (`../tax-engine.ts`)

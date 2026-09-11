@@ -1,5 +1,5 @@
 /**
- * TODO_PRODUIT.md T5(b) — real Prisma, same discipline as `clients.vat-validation.spec.ts`: this
+ * Real Prisma, same discipline as `clients.vat-validation.spec.ts`: this
  * module reaches `Client`/`PartyIdentifier` through the bare `prisma` singleton (never
  * `ClientsService`/`ClientsModule` — see this module's own header on why), so proving it means real
  * rows, not a mock of a query builder. Every `it` below creates and tears down its own Company(+
@@ -51,7 +51,7 @@ async function createClient(companyId: string, name: string, vat?: string) {
   return client;
 }
 
-describe('supplier-reconciliation — TODO_PRODUIT.md T5(b), real Prisma', () => {
+describe('supplier-reconciliation — real Prisma', () => {
   describe('reconcileSupplierClient — VAT match', () => {
     let companyId: string;
     let clientId: string;

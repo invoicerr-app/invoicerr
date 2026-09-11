@@ -19,7 +19,7 @@ export function useClientSearch(query: string) {
 }
 
 /**
- * TODO_FEATURES.md rank 6 ("relevé de compte client") — see the backend's
+ * Client account statement ("relevé de compte client") — see the backend's
  * `ClientsService.getStatement`. Keyed under `queryKeys.clients.statement`, its own key (not nested
  * under `["clients", "list", ...]`) since it isn't paginated and has nothing to do with the list's own
  * cache entries.

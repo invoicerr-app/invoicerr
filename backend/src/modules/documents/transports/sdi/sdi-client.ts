@@ -1,5 +1,5 @@
 /**
- * SdI (Sistema di Interscambio) client abstraction — root TODO item 10, wave 2. REPRISED from git
+ * SdI (Sistema di Interscambio) client abstraction. REPRISED from git
  * tag `avant-refonte-documents` (`compliance/providers/transmission/sdi/sdi-client.ts`), with ONE
  * change: `SdiClient.mapNotifica`'s return type used to be the removed compliance engine's own
  * `TransmissionResult` (`execution/types.ts`) — replaced here by `SdiNotificaOutcome`, a small local
@@ -18,7 +18,7 @@
  * (`https://sdi.fatturapa.gov.it/SdI_riceviFile/v1.0/RiceviFileService`) was NEVER read from an
  * official source — it does not appear in the published WSDL (`SdIRiceviFile_v1.0.wsdl`'s own
  * `soapbind:address` is a placeholder, `http://servizi.fatturapa.it/ricevi_file`) nor in either
- * instructions PDF fetched this task (see `sdicoop-client.ts`'s own header for the full citation
+ * instructions PDF (see `sdicoop-client.ts`'s own header for the full citation
  * list). Removed rather than left standing uncorrected: the real endpoint is assigned per
  * intermediary at accreditation and is a required "sdi" channel credential (`endpoint`), never a
  * constant.
@@ -145,7 +145,7 @@ export interface SdiHttpPort {
 
 /** The default port a production caller gets when it injects none — throws a NAMED, honest error
  *  rather than pretending a real SOAP transport exists. See `../sdi-transport.ts`'s own header for
- *  why this is not a gap this wave hides. */
+ *  why this is not a hidden gap. */
 export const UNACCREDITED_SDI_HTTP_PORT: SdiHttpPort = {
   submit: async () => {
     throw new Error(

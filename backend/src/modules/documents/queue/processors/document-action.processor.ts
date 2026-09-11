@@ -1,6 +1,6 @@
 /**
  * The document-action queue's ONLY processor — one generic worker for every declared action, not one
- * processor per business need (TODO.md item 22: "un mécanisme générique, pas un job ad hoc"). Lives in
+ * processor per business need ("un mécanisme générique, pas un job ad hoc"). Lives in
  * its OWN module (document-queue-worker.module.ts), gated by WORKER_INLINE, so a scaled deployment can
  * run it in a dedicated process without the API also consuming (see that module's own header).
  *
@@ -9,11 +9,10 @@
  * THIS is what makes "an action forbidden by the country policy must be refused in the worker too"
  * true by construction: `runAction` is where all four gates live (country policy 403, status 409,
  * implementation 501, data validation 400), and this processor has no other way to run an action.
- * Mutating this call to bypass `runAction` (e.g. calling the registry directly) is exactly THE
- * MUTATION TARGET #1 this task's own instructions ask to prove against — see
- * document-action.processor.spec.ts.
+ * Mutating this call to bypass `runAction` (e.g. calling the registry directly) is exactly the
+ * mutation document-action.processor.spec.ts proves against.
  *
- * ## Root TODO item 5 (recurring documents) — TWO more job names, same queue, same class
+ * ## Recurring documents — TWO more job names, same queue, same class
  *
  * `Q_DOCUMENT_ACTION` also carries the ONE sweep repeatable
  * (schedules/schedule-sweep.ts's `SCHEDULE_SWEEP_JOB_NAME`) and every OCCURRENCE job it dispatches
@@ -27,17 +26,17 @@
  * `sweepRunner` is `@Optional()`: every EXISTING spec in this file (and the real Redis integration
  * spec, queue/__tests__/document-action-queue.redis.spec.ts) constructs this processor with only a
  * `DocumentsService` and never sends a schedule-named job — Nest injects `undefined` for an omitted
- * optional dependency rather than throwing, so none of that had to change for this task. Production
+ * optional dependency rather than throwing, so none of that had to change. Production
  * wiring (documents-core.module.ts) always provides a real one.
  *
- * TODO_FEATURES.md rank 9 (automatic ECB exchange rates) adds a FOURTH job name the same way: ONE
+ * Automatic ECB exchange rates add a FOURTH job name the same way: ONE
  * more repeatable (`currency-rate-sweep/currency-rate-sweep.ts`'s `CURRENCY_RATE_SWEEP_JOB_NAME`),
  * routed to `CurrencyRateSweepRunner`, `@Optional()`-injected for the identical reason and provided
  * for real by `document-queue-worker.module.ts` (not `documents-core.module.ts` — that runner has no
  * Nest dependencies of its own, so it needs no home in the Core module at all; see that worker
  * module's own header).
  *
- * TODO_FEATURES.md rank 2 (automatic dunning reminders) adds a FIFTH job name, same shape again: ONE
+ * Automatic dunning reminders add a FIFTH job name, same shape again: ONE
  * more repeatable (`reminders/reminder-sweep.ts`'s `REMINDER_SWEEP_JOB_NAME`), routed to
  * `ReminderSweepRunner`, `@Optional()`-injected for the identical reason and provided for real by
  * `document-queue-worker.module.ts` (not `documents-core.module.ts` — same rationale as
@@ -88,12 +87,12 @@ export class DocumentActionProcessor extends WorkerHost {
     // never sends a conformity-named job; production wiring (documents-core.module.ts) always
     // provides a real one.
     @Optional() private readonly conformitySweepRunner?: ConformitySweepRunner,
-    // Same `@Optional()` reasoning again — declarative reporting (root TODO, `reporting/`) is a
+    // Same `@Optional()` reasoning again — declarative reporting (`reporting/`) is a
     // ONE-SHOT job, not a repeatable sweep, but the shape is identical: every EXISTING spec in this
     // file constructs this processor without one and never sends a report-named job; production
     // wiring (documents-core.module.ts) always provides a real one.
     @Optional() private readonly reportingRunner?: ReportingRunner,
-    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — a DIFFERENT reason to be `@Optional()` than the three above:
+    // The SSE status nudge — a DIFFERENT reason to be `@Optional()` than the three above:
     // this is a SIDE CHANNEL (see `mark-send-failed.ts`'s own `MarkSendFailedInput.events` header), not
     // a whole job kind this processor would otherwise be unable to handle. A missing publisher only
     // means the "send_failed" SSE nudge doesn't fire — the WRITE itself (already correct, already
@@ -103,7 +102,7 @@ export class DocumentActionProcessor extends WorkerHost {
     // one — this is the SAME concrete class `ACTION_REGISTRY`'s own factory injects for `async-send.ts`'s
     // side of this mechanism, never a second implementation.
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
-    // TODO_PRODUIT.md T2bis — the `DOCUMENT_SEND_FAILED` webhook's own emitter (see
+    // The `DOCUMENT_SEND_FAILED` webhook's own emitter (see
     // `mark-send-failed.ts`'s own `MarkSendFailedInput.webhooks` header). `@Optional()` for the same
     // reason `eventsPublisher` above is: every EXISTING spec in this file constructs the processor
     // without one. Injected by the `DOCUMENT_WEBHOOK_EMITTER` token (`documents-core.module.ts`
@@ -115,12 +114,12 @@ export class DocumentActionProcessor extends WorkerHost {
     // into every file that imports it, breaking THIS class's own spec (and the four
     // `queue/__tests__/*.redis.spec.ts` integration suites that import it) under ts-jest.
     @Optional() @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhookDispatcher?: DocumentWebhookEmitter,
-    // TODO_FEATURES.md rank 9 (automatic ECB exchange rates) — same `@Optional()` reasoning as
+    // Automatic ECB exchange rates — same `@Optional()` reasoning as
     // `conformitySweepRunner`/`reportingRunner` above: every EXISTING spec in this file constructs
     // this processor without one and never sends a currency-rate-sweep-named job; production wiring
     // (document-queue-worker.module.ts) always provides a real one.
     @Optional() private readonly currencyRateSweepRunner?: CurrencyRateSweepRunner,
-    // TODO_FEATURES.md rank 2 (automatic dunning reminders) — same `@Optional()` reasoning again:
+    // Automatic dunning reminders — same `@Optional()` reasoning again:
     // every EXISTING spec in this file constructs this processor without one and never sends a
     // reminder-sweep-named job; production wiring (document-queue-worker.module.ts) always provides
     // a real one.

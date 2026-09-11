@@ -18,18 +18,18 @@ export interface RenderDocumentInstanceDeps {
 }
 
 /**
- * Root TODO item 15 ("mentions obligatoires") — resolves the printed footer block for ONE instance.
+ * "Mentions obligatoires" — resolves the printed footer block for ONE instance.
  * Gated on `descriptor.usesLegalMentions` (types.ts's own header on why this is a document-TYPE
  * flag, not inferred from field presence): every non-invoice type today returns `[]` unconditionally,
- * so its own PDF is byte-for-byte unchanged by this task.
+ * so its own PDF is byte-for-byte unchanged by the legal mentions.
  *
  * `company.country` is the free-text column the country picker writes (the same field
  * `formats/semantic/build-semantic-invoice.ts`'s own `guessCountryCode` resolves for the CII/UBL
  * export) — but UNLIKE that bridge, this function does NOT fall back to 'FR' when the country cannot
  * be resolved: that bridge's fallback is a pre-existing, documented product default for its own
  * concern (a party's postal address always needs SOME country code to serialize); inventing the same
- * default here, for a DIFFERENT concern (which country's law applies), would be a guess this task's
- * own "never invent a rule" discipline forbids. A company with a genuinely unresolvable country
+ * default here, for a DIFFERENT concern (which country's law applies), would be a guess the
+ * "never invent a rule" discipline forbids. A company with a genuinely unresolvable country
  * simply prints no mentions in its PDF — never a throw, and never a silently-assumed jurisdiction.
  *
  * `issueDate` is read from the instance's own `data.issueDate` — the same field name
@@ -57,7 +57,7 @@ export function legalMentionsFor(
 }
 
 /**
- * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — resolves the SEPA-payment QR block for ONE
+ * "QR SEPA / GiroCode" — resolves the SEPA-payment QR block for ONE
  * instance, gated the same layered way `legalMentionsFor` above is: EVERY condition must hold before a
  * QR is even attempted — the document TYPE opts in (`descriptor.usesPaymentQr`), the seller has an
  * IBAN on file, the document's own `currency` field is EUR (SEPA Credit Transfer moves nothing else),
@@ -142,7 +142,7 @@ export async function renderDocumentInstance(
 ): Promise<RenderedDocumentInstance> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    // `iban: true` — TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode"): read here for `sepaPaymentQrFor`
+    // `iban: true` — "QR SEPA / GiroCode": read here for `sepaPaymentQrFor`
     // below, never rendered directly in the company header block (`render-html.ts` has no field for
     // it there).
     select: { name: true, address: true, city: true, postalCode: true, country: true, iban: true },

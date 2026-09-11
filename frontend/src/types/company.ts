@@ -47,11 +47,11 @@ export interface Company {
    *  chosen (see backend/src/modules/documents/actions/invoice-actions.ts). Never a country/channel
    *  the app infers — it is only ever this stored choice. */
   invoiceTransportId?: string | null
-  /** Opts the company INTO multi-currency consolidation (item 9, root TODO) — null/unset means every
+  /** Opts the company INTO multi-currency consolidation — null/unset means every
    *  dashboard aggregate stays grouped by currency, unchanged (see backend's Company.referenceCurrency
    *  comment in schema.prisma). */
   referenceCurrency?: string | null
-  /** TODO_FEATURES.md rank 17 ("workflow d'approbation interne au-delà d'un seuil") — the "send"
+  /** Internal approval workflow ("workflow d'approbation interne au-delà d'un seuil") — the "send"
    *  approval-threshold gate. MINOR units, in the company's OWN `currency` above (a rough guardrail,
    *  never currency-converted — see backend's documents/approval/approval-gate.ts). Null/unset means
    *  no approval is ever required, for any role, at any amount. */

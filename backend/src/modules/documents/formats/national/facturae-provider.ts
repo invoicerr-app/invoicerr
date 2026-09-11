@@ -18,13 +18,13 @@
  * `xsd:import` resolves), judged by THAT XSD alone — the same "a national format's own XSD is its
  * judge" reasoning `fa3-provider.ts`/`fatturapa-provider.ts` already establish.
  *
- * ## THE XAdES SIGNATURE — root TODO item 13's first real consumer
+ * ## THE XAdES SIGNATURE — the first real consumer
  *
  * FACe requires a SIGNED Facturae, not merely a well-formed one (the vendored XSD's own root
  * `<xs:element ref="ds:Signature" minOccurs="0">` documentation says as much: "must be completed in
  * order for an electronic invoice to be considered legally valid before third parties" — see
- * `formats/vendored/es/Facturaev3_2_2.xsd` itself). Root TODO item 13 built a real, tested XAdES
- * provider (`signing/providers.ts#XadesSigningProvider`) that, until this task, had NO caller outside
+ * `formats/vendored/es/Facturaev3_2_2.xsd` itself). A real, tested XAdES
+ * provider (`signing/providers.ts#XadesSigningProvider`) had, until this file, NO caller outside
  * its own spec (`registry.ts`'s own header: "nothing in this codebase calls `registry.get('XAdES' |
  * 'CAdES')` outside their own specs"). This file is that first real caller:
  *
@@ -51,7 +51,7 @@
  *     error) → ALSO refuse, loudly — never fall back to the unsigned bytes. `XadesSigningProvider`
  *     itself still swallows a mid-sign failure into "unsigned" (see that file's own header: XAdES/
  *     CAdES keep the repère's graceful-swallow contract because neither had a live caller before
- *     this task) — this file distinguishes the two cases itself by checking `signed.signature` is
+ *     now) — this file distinguishes the two cases itself by checking `signed.signature` is
  *     actually populated, the SAME two-distinct-failure-mode reasoning `PadesSigningProvider`'s own
  *     header already documents for `sign-instance-pdf.ts` ("no cert" is not an error; "cert present
  *     but signing failed" always is). Re-validated after signing (`signature.spec.ts`'s own "re-signs
@@ -101,7 +101,7 @@ const FACTURAE_XSD = 'es/Facturaev3_2_2.xsd';
  *  header). A DIFFERENT algo suffix ("XAdES" vs "PAdES") so a company that scoped a cert to ONE of
  *  the two is never handed to the other by mistake — same reasoning that file's own header gives.
  *
- * Exported so `transports/face-transport.ts` (WS-Security SOAP envelope signing, 2026-09-02 task) can
+ * Exported so `transports/face-transport.ts` (WS-Security SOAP envelope signing) can
  * resolve the EXACT SAME company certificate a second time for the transport layer — DELIBERATE reuse,
  * not a coincidence: in reality a company presents ONE FNMT certificate for BOTH the Facturae
  * document's OWN XAdES signature and the SOAP transport's WS-Security signature (see that file's own
@@ -352,7 +352,7 @@ function buildUnsignedXml(
 }
 
 export interface FacturaeFormatProviderDeps {
-  /** Root TODO item 13's own port (`SigningCertificatesService` in production) — see this file's
+  /** The signing-credentials port (`SigningCertificatesService` in production) — see this file's
    *  own header, "THE XAdES SIGNATURE", for the resolution/refusal contract built on top of it. */
   signingCredentials: SigningCredentialsPort;
   /** Overridable for tests only — defaults to a real `SigningProviderRegistry` wired to

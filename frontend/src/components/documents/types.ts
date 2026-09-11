@@ -34,7 +34,7 @@ export interface DocumentFieldDescriptor {
   currency?: string
   /** 'money': the key of a top-level sibling field whose current value is the currency to show. */
   currencyField?: string
-  /** 'select' — TODO_PRODUIT.md T4-d: locks this field's value to a SIBLING 'reference' field's
+  /** 'select' — locks this field's value to a SIBLING 'reference' field's
    *  resolved entity (e.g. a credit note's own `currency` following its `invoice`). `field` names
    *  the sibling 'reference' field; `entity` is which EntityReferenceRegistry entry it resolves
    *  against (duplicated rather than cross-read off `field`'s own descriptor, same self-containment
@@ -47,7 +47,7 @@ export interface DocumentFieldDescriptor {
   /** 'reference', SINGLE target: which entity the generic search/resolve endpoints target (e.g.
    *  "client"). The stored value is a plain non-empty id string.
    *
-   *  ALSO the target hint for 'hiddenReference' (TODO_FEATURES.md rank 18) — a line-scoped
+   *  ALSO the target hint for 'hiddenReference' — a line-scoped
    *  bookkeeping pointer (e.g. an invoice/quote line's `articleId`) that is never rendered by
    *  anything a human sees: field-renderers/hidden-reference-field.tsx draws nothing for it in the
    *  create/edit form, mirroring the backend's render-html.ts skipping it entirely on the PDF. See
@@ -136,7 +136,7 @@ export interface DocumentActionTransition {
   /** 'always' matches every status, INCLUDING a brand-new, never-saved record. */
   from: string[] | "always"
   /** The resulting status — or, for a transition with more than one honest outcome (the async "send"
-   *  shape, TODO.md item 22: the worker's replay either succeeds or, after every retry, fails), every
+   *  shape: the worker's replay either succeeds or, after every retry, fails), every
    *  status it may land on. Mirrors the backend's own `DocumentActionTransition.to` exactly. */
   to: string | string[]
 }
@@ -216,7 +216,7 @@ export interface DocumentInstance {
    *  the backend's numbering/format-number.ts. Show this verbatim; never reformat `number` yourself. */
   displayNumber?: string | null
   /** Mirrors the backend's `DocumentInstance.lastActionError` — the error from the most recent
-   *  FAILED asynchronous action (a "send" that ended in "send_failed", TODO.md item 22). Null/absent
+   *  FAILED asynchronous action (a "send" that ended in "send_failed"). Null/absent
    *  once cleared by any later write. Shown verbatim, never an i18n key — same convention as
    *  `ActionResult.message`. */
   lastActionError?: string | null
@@ -229,7 +229,7 @@ export interface DocumentInstance {
  *
  * `amountMinor`/`currency` are the amount ACTUALLY received, in the payment's OWN currency —
  * unchanged since always. `documentAmountMinor`/`conversionRate`/`conversionRateAsOf`/
- * `conversionSource` are new (TODO_PRODUIT.md T3): the settlement-relevant figure, already converted
+ * `conversionSource` are new: the settlement-relevant figure, already converted
  * into the document's own currency at a DATED rate, pinned at record time. `conversionRate` is null
  * exactly when no conversion was applied (the payment already matched the document's own currency).
  */
@@ -249,7 +249,7 @@ export interface DocumentPayment {
 }
 
 /** The balance computed from a document's totals, its recorded payments, and the credit notes
- *  correcting it (item 8 of the root TODO — "le lettrage") — mirrors the backend's
+ *  correcting it — mirrors the backend's
  *  `DocumentSettlement` (settlement/compute-settlement.ts). See that file's header on why a credit
  *  note is never merged into `paidMinor`, and why the excess is ONE field (`excessMinor`, renamed
  *  from the earlier `overpaidMinor` — an over-CREDITED document with zero payments was never
@@ -275,7 +275,7 @@ export interface DocumentCredit {
 /** What `GET /documents/:id/settlement` returns — mirrors the backend's `DocumentSettlementView`.
  *  `totals` is narrowed to only what the settlement UI needs (never the full line-by-line breakdown
  *  DocumentTotals already renders elsewhere via totals-calculator.ts's OWN, client-side copy).
- *  `credits`/`warnings` are new (item 8, "le lettrage"): always present, empty for any type that
+ *  `credits`/`warnings` are new: always present, empty for any type that
  *  isn't an invoice. */
 export interface DocumentSettlementResult {
   totals: { currency: string | null; grossMinor: number }
@@ -285,7 +285,7 @@ export interface DocumentSettlementResult {
   settlement: DocumentSettlement
 }
 
-/** Root TODO item 14 ("archivage légal ⚖") — one artifact this archive covers, mirrors the backend's
+/** One artifact this archive covers, mirrors the backend's
  *  `StoredArtifactMeta` (documents/archive/persistence.ts). Never the bytes themselves. */
 export interface DocumentArchiveArtifact {
   role: string
@@ -318,8 +318,8 @@ export type ArchiveVerificationResult =
   | { status: "corrupted"; details: { role: string; expected: string; actual: string | null }[] }
 
 /** One row from `GET /documents/:id/authority-events` — mirrors the backend's
- *  `DocumentAuthorityEventResult` (post-deposit conformity tracking, root TODO item 10's own named
- *  remainder). Append-only, most recent (`observedAt`) first. `statusText`/`reason` are shown
+ *  `DocumentAuthorityEventResult` (post-deposit conformity tracking). Append-only, most recent
+ *  (`observedAt`) first. `statusText`/`reason` are shown
  *  VERBATIM, never translated — the same convention `ActionResult.message`/
  *  `DocumentInstance.lastActionError` already hold: this is what the ISSUING PLATFORM itself said,
  *  not this app's own copy. `statusCode` is either a real platform code (`"fr:202"`, `"pl:200"`, …)
@@ -407,7 +407,7 @@ export function resolveTransitionTarget(
 }
 
 /**
- * A RECURRENCE (root TODO item 5) — mirrors the backend's `DocumentScheduleRecord`
+ * A RECURRENCE — mirrors the backend's `DocumentScheduleRecord`
  * (schedules/schedule.persistence.ts). "Replay `actionId` on `sourceDocumentId`, on this cadence" —
  * generic, the same way `DocumentInstance` names no document type: the invoice case (cadence ===
  * "monthly", actionId === "duplicate") is the FIRST consumer, never something this shape hard-codes.
@@ -434,10 +434,10 @@ export interface DocumentSchedule {
 
 /** One of the eleven canonical correction routes, as `GET .../correction-routes` hands it back for
  *  ONE document's own seller country — mirrors the backend's `CorrectionRouteView`
- *  (correction-routes/correction-routes.ts, TODO_CORRECTION.md C1). `status` is the closed
+ *  (correction-routes/correction-routes.ts). `status` is the closed
  *  `required`/`allowed`/`forbidden`/`unverified` vocabulary that file's own schema.ts enforces.
  *  `label` is the legal citation (or, for `unverified`, the honest resolution note) VERBATIM off the
- *  country file's own provenance — rendered as-is by the screen (C2), NEVER re-summarized: the same
+ *  country file's own provenance — rendered as-is by the screen, NEVER re-summarized: the same
  *  "backend's own words, not this app's paraphrase" convention `DocumentAuthorityEvent.statusText`/
  *  `ActionResult.message` already hold. `implemented` is which of the eleven this repo actually WIRES
  *  to a real mechanism today — only `INTERNAL_CREDIT_NOTE`, see that file's own header. */
@@ -450,7 +450,7 @@ export interface CorrectionRouteView {
 
 /** What `GET /documents/:id/correction-routes` returns — mirrors the backend's
  *  `CorrectionRoutesDecision`. `limitation` is always present, plain text (never an i18n key): the
- *  P3-U02 seller-only scope this read never pretends to answer for the buyer's side — see the
+ *  seller-only scope this read never pretends to answer for the buyer's side — see the
  *  backend's own `LIMITATION_TEXT` for the exact wording this always carries verbatim. */
 export interface CorrectionRoutesDecision {
   countryCode: string

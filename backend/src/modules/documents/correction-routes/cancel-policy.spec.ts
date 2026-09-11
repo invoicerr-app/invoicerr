@@ -2,9 +2,9 @@ import { countriesWithLocalCancel, resolveCancelPolicyForCountry } from './cance
 import { defaultCorrectionRoutesCatalog } from './registry';
 
 /**
- * TODO_CORRECTION.md C3 — the country-by-country cancel MAP pinned, contre le vrai catalogue
+ * The country-by-country cancel MAP pinned, contre le vrai catalogue
  * correction-routes (jamais mocké — cf. correction-routes.spec.ts's own discipline). C'est LE
- * livrable central de C3 : qui a `cancel` fondée, qui ne l'a pas, et l'inversion PL/MX (statut
+ * livrable central : qui a `cancel` fondée, qui ne l'a pas, et l'inversion PL/MX (statut
  * "required" mais AUCUN mécanisme réel derrière).
  */
 describe('resolveCancelPolicyForCountry — the per-country map', () => {
@@ -42,7 +42,7 @@ describe('resolveCancelPolicyForCountry — the per-country map', () => {
     expect(decision.reason).toMatch(/clearance/i);
   });
 
-  it('the INVERSION this task turns on: PL declares CANCEL_AND_REPLACE "required", yet does not found a local cancel — required is not implementable', () => {
+  it('the INVERSION: PL declares CANCEL_AND_REPLACE "required", yet does not found a local cancel — required is not implementable', () => {
     // The map's own most important, non-obvious fact: a route being LEGALLY REQUIRED never implies
     // it is LOCALLY IMPLEMENTABLE (see this file's own header). Read straight off the real catalog to
     // prove the premise, not asserted blind. (MX used to illustrate the same inversion a second way —

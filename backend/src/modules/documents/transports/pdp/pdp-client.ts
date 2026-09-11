@@ -11,13 +11,12 @@
  * Source of truth: OpenAPI specs fetched from superpdp.tech/openapi on 2026-06-28.
  *
  * REPRISED VERBATIM (byte-for-byte, only this header changed) from git tag
- * `avant-refonte-documents` (`compliance/providers/transmission/pdp/pdp-client.ts`) — root TODO item
- * 10, "transports nationaux": this client is dependency-free (bare `fetch`/`FormData`/`Blob`), so
- * nothing about the document-engine rebuild required touching it. Wave 1 (`pdp-transport.ts`) only
- * calls `authenticate()` + `sendInvoice()` — the AFNOR Flow / directory / lifecycle-push methods
- * below are kept unused rather than trimmed: a future wave (KSeF/SdI reuse the same "one client per
- * jurisdiction" shape) or a PDP polling follow-up (TODO_ISSUES.md) can reach for them without a
- * second port of this file.
+ * `avant-refonte-documents` (`compliance/providers/transmission/pdp/pdp-client.ts`): this client is
+ * dependency-free (bare `fetch`/`FormData`/`Blob`), so nothing about the document-engine rebuild
+ * required touching it. `pdp-transport.ts` only calls `authenticate()` + `sendInvoice()` — the AFNOR
+ * Flow / directory / lifecycle-push methods below are kept unused rather than trimmed: another
+ * transport (KSeF/SdI reuse the same "one client per jurisdiction" shape) or a PDP polling follow-up
+ * can reach for them without a second port of this file.
  */
 
 // ---------------------------------------------------------------------------

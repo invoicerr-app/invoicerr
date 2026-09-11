@@ -1,13 +1,13 @@
 /**
  * KSeF public key management — vendorized PEM keys by environment.
  *
- * REPRISED from git tag `avant-refonte-documents` (`compliance/providers/transmission/ksef/`) — item
- * 10 (root TODO), wave 2. Keys are loaded from THIS module's own `certs/{environment}/*.pem`
+ * REPRISED from git tag `avant-refonte-documents` (`compliance/providers/transmission/ksef/`).
+ * Keys are loaded from THIS module's own `certs/{environment}/*.pem`
  * (colocated rather than a shared top-level `backend/certs/`, since this is the only consumer —
- * copied to `dist/src` via `nest-cli.json`'s generic `**\/*.pem` asset glob, already in place since
- * wave 1) — obtained from the official MF endpoint `GET /api/v2/security/public-key-certificates`.
+ * copied to `dist/src` via `nest-cli.json`'s generic `**\/*.pem` asset glob, already in place)
+ * — obtained from the official MF endpoint `GET /api/v2/security/public-key-certificates`.
  * No `.env`, no company input — these are MF's public keys, not ours. Only `test/` is vendored today
- * (see this task's own report on the PROD gap: `loadVendorizedKeys('prod')` throws — fail-fast, by
+ * (the PROD gap: `loadVendorizedKeys('prod')` throws — fail-fast, by
  * design, rather than silently falling back to test keys against a production KSeF endpoint).
  *
  * Optional: a runtime cache can refresh keys from the live endpoint (e.g. for

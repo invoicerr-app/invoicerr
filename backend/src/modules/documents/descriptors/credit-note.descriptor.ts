@@ -12,7 +12,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * example that happens to fit the same mold as the first two. It describes a FORM. It does NOT encode
  * any rule about what a credit note must legally contain (no forced negative amounts, no required
  * reason code, no link to a specific tax regime) — that would be exactly the kind of legal assertion
- * the removed compliance engine used to own, and this task explicitly asks not to reinvent.
+ * the removed compliance engine used to own, and which is deliberately not reinvented here.
  *
  * Fields:
  *  - `invoice` (reference, entity: 'invoice', REQUIRED) — the invoice this credit note corrects.
@@ -38,13 +38,12 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    built for this type alone; nothing here is specific to a credit note beyond the three hints below
  *    naming which sibling field, which entity, and which array they point at.
  *
- * Actions: "save-draft" was, until TODO_PRODUIT.md T4-d, the exact same generic mechanism every
+ * Actions: "save-draft" was, until the currency guard, the exact same generic mechanism every
  * document type here shares (actions/generic-actions.ts's `performSaveDraft`) — it now goes through
  * `credit-note-actions.ts`'s own `registerCreditNoteSaveDraftAction`, which wraps that same
  * persistence with ONE guard: the currency declared here must equal the `invoice` field's own
  * (see that function's own header for the full "why", and this file's own `currency` field for the
- * SCREEN-side half of the same rule, `lockedFromReference`). Plus, as of item 8 of the root TODO
- * ("le lettrage"), "send"
+ * SCREEN-side half of the same rule, `lockedFromReference`). Plus, for lettrage, "send"
  * (actions/credit-note-actions.ts): a plain STATUS transition that reads and writes NOTHING beyond
  * that status — no transport, no email, no recipient. This is deliberately NOT the quote's
  * `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
@@ -58,7 +57,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * nothing more: it does not attempt delivery, and reusing this name (rather than, say, "issue") keeps
  * it the same verb the frontend already renders a button for on every other type (quote, invoice).
  *
- * As of TODO.md item 22, "send" ALSO goes through the same asynchronous two-phase shape the quote's
+ * "send" ALSO goes through the same asynchronous two-phase shape the quote's
  * and the invoice's own do (actions/async-send.ts) — even though this type's own `deliver()`
  * (credit-note-actions.ts) does nothing at all (no transport, no email — see above). This is
  * deliberate, not an oversight: a "send" that is not asynchronous would be a SECOND declared shape for
@@ -70,17 +69,17 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * quote.descriptor.ts's own lifecycle paragraph documents in full. "save-draft"
  * (credit-note-actions.ts's registerCreditNoteSaveDraftAction, wrapping generic-actions.ts's
  * performSaveDraft) always persists "draft", from ANY current status (`from: 'always'`, faithful to
- * what the handler actually does — the currency guard T4-d added can only BLOCK that persist, never
+ * what the handler actually does — the currency guard can only BLOCK that persist, never
  * change the declared transition itself); "send" (credit-note-actions.ts) has
  * the same two transition entries as the quote's and the invoice's own: "draft"/"send_failed" ->
  * "sending", then "sending" -> "sent" OR "send_failed".
  *
  * Numbering: still NOT declared — see types.ts's own comment on `numbering`. Whether an ISSUED credit
  * note needs a legal, sequential number of its own is a real question for actual French bookkeeping,
- * but it is a DIFFERENT task from lettrage: item 8 asks that a sent credit note reduce what its
+ * but it is a DIFFERENT concern from lettrage: lettrage asks that a sent credit note reduce what its
  * invoice owes, not that it be numbered. Adding `numbering` here would be exactly the kind of
  * unrequested scope this file's own header already declines elsewhere (no forced negative amounts, no
- * required reason code) — left for whichever task actually asks for it, not guessed at here.
+ * required reason code) — left for whichever need actually calls for it, not guessed at here.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
@@ -146,9 +145,9 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         label: 'Currency',
         required: true,
         options: CURRENCY_OPTIONS,
-        // TODO_PRODUIT.md T4-d — a credit note has no business declaring a currency other than the
+        // A credit note has no business declaring a currency other than the
         // invoice it corrects: the amount it credits is structurally denominated in that invoice's
-        // OWN currency (settlement/credits.ts's own header, and T3's own "no conversion for
+        // OWN currency (settlement/credits.ts's own header, and the "no conversion for
         // avoirs" constat). Locks this field's value to whatever `currency` the picked `invoice`
         // resolves to — see types.ts's own `lockedFromReference` header for the full mechanism, and
         // credit-note-actions.ts's own header for the SERVER-SIDE hard block this screen convenience
@@ -191,7 +190,7 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'share-link',
         label: 'Share link',
-        // Root TODO item 24 — see invoice.descriptor.ts's own "share-link" comment for the full
+        // See invoice.descriptor.ts's own "share-link" comment for the full
         // reasoning. This type has no `numbering` declared at all (this file's own header, above),
         // so "available once numbered" doesn't apply here the way it does for the invoice/quote —
         // the gate that matters is simply "not a draft any more", the same status set anyway.

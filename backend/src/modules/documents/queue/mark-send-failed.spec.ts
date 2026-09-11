@@ -172,12 +172,12 @@ describe('markSendFailed', () => {
     expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
   });
 
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge. `events` is OPTIONAL (see
+  // The worker→API SSE bridge. `events` is OPTIONAL (see
   // `MarkSendFailedInput.events`'s own header) — every test ABOVE this block omits it and must keep
   // passing unchanged; these are the DEDICATED tests for the publish behavior: publish only once
   // "send_failed" is genuinely ACQUIRED (write done, lifecycle check passed), never before, never for
   // any of the early-return "nothing to mark" branches.
-  describe('events — TODO_PRODUIT.md T1 / PLAN-V2 R8 (the SSE status nudge)', () => {
+  describe('events — the SSE status nudge', () => {
     it('publishes "send_failed" AFTER the write and the lifecycle check both succeed', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
@@ -319,11 +319,11 @@ describe('markSendFailed', () => {
     });
   });
 
-  // TODO_PRODUIT.md T2bis — `DOCUMENT_SEND_FAILED`'s own orchestration, the SAME "publish only on a
+  // `DOCUMENT_SEND_FAILED`'s own orchestration, the SAME "publish only on a
   // genuinely acquired fact" gate `events` above holds, proven the identical way with a bare
   // `jest.fn()` (the REAL-driver, REAL-HTTP proof lives in `mark-send-failed-webhook.spec.ts`, mirroring
   // `actions/async-send-webhook.spec.ts`'s own split for `DOCUMENT_SENT`).
-  describe('webhooks — TODO_PRODUIT.md T2bis (the DOCUMENT_SEND_FAILED webhook)', () => {
+  describe('webhooks — the DOCUMENT_SEND_FAILED webhook', () => {
     it('dispatches DOCUMENT_SEND_FAILED, carrying the error, AFTER the write and the lifecycle check both succeed', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',
@@ -386,9 +386,8 @@ describe('markSendFailed', () => {
       expect(webhooks.dispatch).not.toHaveBeenCalled();
     });
 
-    // THE MUTATION TARGET this task's own brief names: a dead webhook endpoint must never look like
-    // the write itself failed — the identical discipline `async-send.ts`'s own DOCUMENT_SENT dispatch
-    // already holds.
+    // A dead webhook endpoint must never look like the write itself failed — the identical discipline
+    // `async-send.ts`'s own DOCUMENT_SENT dispatch already holds.
     it('a dispatch failure NEVER propagates — markSendFailed still resolves', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',

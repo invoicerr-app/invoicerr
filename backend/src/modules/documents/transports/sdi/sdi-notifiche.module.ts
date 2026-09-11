@@ -15,7 +15,7 @@ import { SdiNotificheService } from './sdi-notifiche.service';
  * is a singleton default export" rule) — importing the whole documents module graph for one route
  * would be a needless coupling.
  *
- * `WebhooksModule` (TODO_PRODUIT.md T2bis) is the ONE addition: `SdiNotificheService` now dispatches
+ * `WebhooksModule` is the ONE addition: `SdiNotificheService` now dispatches
  * `DOCUMENT_AUTHORITY_EVENT`, whose emitter (`WebhookDispatcherService`) is NOT `@Global()` the way
  * `DocumentEventsPublisher` is — it has to be imported explicitly wherever it is injected.
  * `WebhooksModule` itself only imports `PluginsModule` (no Prisma-managed provider, no documents

@@ -1,7 +1,7 @@
 /**
- * The channel-policy mechanism itself — item 10's "le pays suggère son canal" requirement, PLUS item
- * 11's "un fichier pays en rend un obligatoire" — read as DATA (this spec proves it, never a
- * hard-coded `if country === 'FR'` anywhere in the product code the way the task brief demands).
+ * The channel-policy mechanism itself — the "le pays suggère son canal" requirement, PLUS
+ * "un fichier pays en rend un obligatoire" — read as DATA (this spec proves it, never a
+ * hard-coded `if country === 'FR'` anywhere in the product code).
  */
 import { assertValidChannelPolicyFact, InvalidChannelPolicyProvenanceError } from './schema';
 import { ALL_CHANNEL_POLICY_FILES } from './data/all';
@@ -19,7 +19,7 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ]);
   });
 
-  it('PL suggests (never mandates) the "ksef" provider — item 10, wave 2, a fact read from data/pl.json', () => {
+  it('PL suggests (never mandates) the "ksef" provider — a fact read from data/pl.json', () => {
     expect(defaultChannelPolicyCatalog.factsFor('PL')).toEqual([
       expect.objectContaining({
         providerId: 'ksef',
@@ -29,7 +29,7 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ]);
   });
 
-  it('IT suggests (never mandates) the "sdi" provider — item 10, wave 2, a fact read from data/it.json', () => {
+  it('IT suggests (never mandates) the "sdi" provider — a fact read from data/it.json', () => {
     expect(defaultChannelPolicyCatalog.factsFor('IT')).toEqual([
       expect.objectContaining({
         providerId: 'sdi',
@@ -40,8 +40,8 @@ describe('channel policy files — loaded, not hard-coded', () => {
   });
 
   // BE (suggested "peppol", REAL legal citation) and RO (mandated "anaf", the same unconditional
-  // shape as FR's own mandate) were removed by the 5-country prune (2026-09-10, see this task's own
-  // report) along with their data/xx.json. Neither case has an honest re-anchor among the kept three
+  // shape as FR's own mandate) were removed by the 5-country prune (2026-09-10)
+  // along with their data/xx.json. Neither case has an honest re-anchor among the kept three
   // files: FR alone is "mandated" + "legal" (already pinned above), IT/PL are both "suggested" +
   // "unverified" (also already pinned above) — no kept file exhibits BE's own "suggested" + "legal"
   // combination, so this case is deleted rather than weakened.
@@ -87,7 +87,7 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ).toThrow(InvalidChannelPolicyProvenanceError);
   });
 
-  // Root TODO item 11 — the mutation this exact test is written to catch: a `mandated` fact that
+  // The mutation this exact test is written to catch: a `mandated` fact that
   // manages to load with anything less than a real ('legal') citation would mean this product could
   // claim "the law requires this channel" on an unverified guess. See schema.ts's own header.
   it('a "mandated" fact with "unverified" provenance is REJECTED at load — a mandate must be sourced', () => {

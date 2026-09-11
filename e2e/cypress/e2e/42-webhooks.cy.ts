@@ -1,6 +1,6 @@
 /**
- * TODO_PRODUIT.md T2 / PLAN-V2 R9, mis à jour par T2bis pour le vocabulaire générique `DOCUMENT_*` —
- * le webhook `DOCUMENT_SENT` part quand la transmission ABOUTIT, jamais avant, jamais sur un échec.
+ * Le webhook `DOCUMENT_SENT` (vocabulaire générique `DOCUMENT_*`) part quand la transmission
+ * ABOUTIT, jamais avant, jamais sur un échec.
  * L'idempotence à travers un retry BullMQ et le comportement sur échec/enqueue sont déjà prouvés par
  * jest, contre un VRAI serveur HTTP local (`async-send.spec.ts`, `async-send-webhook.spec.ts`,
  * `documents.service.invoice.spec.ts`) — ce fichier prouve la SEULE chose que jest ne peut pas : que
@@ -12,7 +12,7 @@
  * HTTP RÉEL (`cypress.config.ts`'s `startWebhookReceiver`, `node:http`, jamais un `cy.intercept` —
  * celui-ci ne verrait qu'un appel fait par le NAVIGATEUR, alors que ce POST part du BACKEND, serveur à
  * serveur). L'écran offre `DOCUMENT_SENT` (et non plus `INVOICE_SENT`, purgé de l'enum par la
- * migration T2bis) parce que `GET /api/webhooks/options` reflète `Object.values(WebhookEvent)`
+ * migration de purge) parce que `GET /api/webhooks/options` reflète `Object.values(WebhookEvent)`
  * directement — aucun changement d'écran n'était nécessaire pour ça, seulement de cette spec.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
@@ -112,7 +112,7 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 						.should("contain.text", "Sent");
 
 					// 4) LA preuve : le récepteur RÉEL a reçu EXACTEMENT un webhook, portant l'événement
-					// DOCUMENT_SENT (générique — TODO_PRODUIT.md T2bis, `typeId` en donnée de filtrage,
+					// DOCUMENT_SENT (générique — `typeId` en donnée de filtrage,
 					// jamais une clé calculée par type) et la facture réellement envoyée — jamais zéro
 					// (rien n'est parti), jamais deux (une double émission), jamais un événement
 					// générique qui ne dirait rien de ce qui vient de se passer.
@@ -132,7 +132,7 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 		});
 	});
 
-	// TODO_PRODUIT.md T3 — "T2bis différé" : DOCUMENT_SETTLED part quand le RÈGLEMENT franchit le
+	// DOCUMENT_SETTLED part quand le RÈGLEMENT franchit le
 	// seuil "soldé", au moment où le paiement qui fait franchir ce seuil est PERSISTÉ — jamais sur un
 	// recalcul de lecture. "record-payment" est SYNCHRONE (pas de file BullMQ, contrairement à
 	// "send") : le webhook est déjà expédié avant même que le navigateur ne reçoive la réponse de la

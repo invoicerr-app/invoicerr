@@ -16,8 +16,8 @@
  * has expired — is therefore the MAXIMUM across all of them, never any single rule read in isolation.
  *
  * This is not this codebase inventing an answer to the open question its own repère (git tag
- * `avant-refonte-documents`) left unresolved (see `docs/compliance/DECISIONS.md`'s own entry D-001,
- * and `docs/compliance/audit/03-LEGAL-VERIFICATION.md`'s FR-D9): that question was "which ONE of the
+ * `avant-refonte-documents`) left unresolved (see `documentation/internal/DECISIONS.md`'s own entry D-001,
+ * and `documentation/internal/audit/03-LEGAL-VERIFICATION.md`'s FR-D9): that question was "which ONE of the
  * two should the engine treat as *the* retention duration", framed as a choice between two facts that
  * are not actually in competition. Applying BOTH texts simultaneously — which is what French law
  * genuinely requires of a French company regardless of what any compliance engine decides — sidesteps

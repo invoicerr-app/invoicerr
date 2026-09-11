@@ -1,5 +1,5 @@
 /**
- * The ONE place a rendered document PDF is turned into a SIGNED PDF (PAdES-BES) — root TODO item 13.
+ * The ONE place a rendered document PDF is turned into a SIGNED PDF (PAdES-BES).
  *
  * WHERE this is called from, and where it deliberately is NOT:
  *  - `documents.service.ts#renderInstancePdf` ("GET /documents/:id/pdf") calls this AFTER
@@ -17,7 +17,7 @@
  *
  * No certificate configured (`credentials.resolve()` → null, the default `NullSigningCredentials`
  * path) → the PDF returned is the EXACT input, unchanged — this is the "société sans certificat → PDF
- * strictement inchangé" invariant root TODO item 13 requires, and it needs no special-casing here:
+ * strictement inchangé" invariant, and it needs no special-casing here:
  * `PadesSigningProvider.sign()` already returns `{ ...artifact }` verbatim in that case.
  *
  * A certificate IS configured but the crypto operation fails → this function does NOT catch that

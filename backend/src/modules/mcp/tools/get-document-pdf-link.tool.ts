@@ -23,7 +23,7 @@ const outputSchema = {
 
 /**
  * Mints a public, unauthenticated link to a document's PDF through the EXISTING share-links
- * mechanism (`ShareLinksService.create`, root TODO item 24) — this is exactly why that mechanism
+ * mechanism (`ShareLinksService.create`) — this is exactly why that mechanism
  * exists: a chat client that does not render an MCP `resource` content block can still offer the
  * user a clickable URL. `ShareLinksService.create` already runs its own two gates (country policy
  * 403, status 409 — "a draft has no number and no legal existence yet to hand a stranger a link to")

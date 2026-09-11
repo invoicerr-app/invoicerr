@@ -241,7 +241,7 @@ export class DocumentsController {
   }
 
   /**
-   * Live document status/conformity nudges — TODO_PRODUIT.md T1 / PLAN-V2 R8: the screen used to keep
+   * Live document status/conformity nudges: the screen used to keep
    * an async "send"'s OLD status until a manual reload, because nothing pushed the change to the
    * browser once the worker (a separate PROCESS once `WORKER_INLINE=false`) persisted it. See
    * `queue/document-events-publisher.ts`'s own header for the worker→API bridge (Redis pub/sub —
@@ -380,7 +380,7 @@ export class DocumentsController {
   @ApiResponse({
     status: 403,
     description:
-      'TODO_FEATURES.md rank 17: a MEMBER ran "send" on a document whose gross total exceeds the ' +
+      'A MEMBER ran "send" on a document whose gross total exceeds the ' +
       "company's configured approval threshold — an ADMIN or OWNER must send it instead",
   })
   runAction(
@@ -469,13 +469,13 @@ export class DocumentsController {
   @ApiOperation({
     summary: "A document's correction routes, for its SELLER country",
     description:
-      'TODO_CORRECTION.md C1. Every correction route (CREDIT_NOTE, INTERNAL_CREDIT_NOTE, …) the ' +
+      'Every correction route (CREDIT_NOTE, INTERNAL_CREDIT_NOTE, …) the ' +
       "active company's own country declares for this document, each with its status " +
       '(required/allowed/forbidden/unverified), its legal label VERBATIM (never a summary), and ' +
       'whether this repo actually implements it today — only INTERNAL_CREDIT_NOTE does. `limitation` ' +
       'always names the seller-only scope of this read (see ' +
       "correction-routes/correction-routes.ts's own header on the unwritten seller×buyer " +
-      'composition, task P3-U02). V1 only answers for typeId="invoice".',
+      'composition). V1 only answers for typeId="invoice".',
   })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })

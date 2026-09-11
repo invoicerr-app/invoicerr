@@ -2,14 +2,14 @@
  * France Chorus Pro B2G transmission client — PISTE gateway.
  *
  * REPRISED, structurally verbatim, from git tag `avant-refonte-documents`
- * (`compliance/providers/transmission/choruspro-client.ts`) — this task's own brief ("le client du
- * repère avait été écrit contre la vraie doc") is honored by keeping every endpoint path, every
- * request/response shape, and every status-mapping table exactly as that file had them. Two
+ * (`compliance/providers/transmission/choruspro-client.ts`) — the repère's client was written
+ * against the real documentation, so every endpoint path, every request/response shape, and every
+ * status-mapping table is kept exactly as that file had them. Two
  * deliberate ADAPTATIONS to the CURRENT contract, both documented at their own call site below:
  *
  *  1. `deposerFlux` takes a `Buffer` (`fileBytes`), not a UTF-8 `string` — the repère's own signature
  *     assumed a plain XML string (`Buffer.from(xmlContent, 'utf-8')`), which is safe for pure text but
- *     would CORRUPT this wave's own payload: the B2G FR rule (`b2g-routing/data/fr.json`) names
+ *     would CORRUPT the actual payload: the B2G FR rule (`b2g-routing/data/fr.json`) names
  *     `formatSyntax: "facturx"`, and Factur-X is a PDF/A-3 BINARY with an embedded XML (see
  *     `formats/facturx-provider.ts`) — round-tripping arbitrary binary bytes through a UTF-8 string
  *     first (`Buffer.from(str, 'utf-8')`) is lossy for any byte sequence that isn't valid UTF-8, which
@@ -44,7 +44,7 @@
  *  - deposerFlux  : POST /cpro/factures/v1/deposer/flux
  *  - consulterCr  : POST /cpro/factures/v1/consulter/cr
  *
- * VERIFIED LIVE, THIS TASK (2026-09-02), from this checkout's own network: the OAuth endpoint at
+ * VERIFIED LIVE (2026-09-02): the OAuth endpoint at
  * `https://sandbox-oauth.piste.gouv.fr/api/oauth/token` (the repère's own hostname) resolves and
  * answers a REAL `HTTP 400 {"error":"invalid_client", ...}` for a garbage client_id/secret — a real,
  * deterministic rejection, not a network-level guess. `CREDENTIALS_GUIDE.md` §3 names a DIFFERENT
@@ -173,7 +173,7 @@ export class ChorusProClient {
    * Returns: { numeroFluxDepot, statut, dateDepot, nbFacturesDepot }
    *
    * `fileBytes` is a `Buffer` — see this file's own header, adaptation §1, for why this is NOT a
-   * `string` the way the repère had it: this wave's payload is Factur-X (a PDF/A-3 binary), and
+   * `string` the way the repère had it: the payload is Factur-X (a PDF/A-3 binary), and
    * base64-encoding the raw bytes directly is the only lossless way to carry it.
    */
   async deposerFlux(

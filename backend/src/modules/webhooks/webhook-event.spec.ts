@@ -2,19 +2,18 @@ import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { EVENT_STYLES } from './drivers/event-formatters';
 
 /**
- * TODO_SUITE.md P3 (2026-09-03) — pins the WebhookEvent enum to the exact list this task's grep
- * proved alive (see the migration's own header, `20260903200000_purge_dead_webhook_events`, for the
- * per-family evidence). This is the tripwire the task asked for: it fails LOUDLY the moment anyone —
- * this task included, if it had gotten the list wrong — adds, removes, or reorders a WebhookEvent
- * member without updating this list AND its own justification (a real dispatch call site, proven by
- * grep, or an explicit decision recorded the way this task's own migration header records one).
+ * The post-purge pin (2026-09-03) — pins the WebhookEvent enum to the exact list a grep proved alive
+ * (see the migration's own header, `20260903200000_purge_dead_webhook_events`, for the per-family
+ * evidence). This is a tripwire: it fails LOUDLY the moment anyone adds, removes, or reorders a
+ * WebhookEvent member without updating this list AND its own justification (a real dispatch call
+ * site, proven by grep, or an explicit decision recorded the way the migration header records one).
  *
  * `Object.values(WebhookEvent)` is exactly what `GET /api/webhooks/options` returns to the screen
  * (`webhooks.controller.ts#options`) and what `EVENT_STYLES`/`formatPayloadForEvent`
  * (`drivers/event-formatters.ts`) key their `Record<WebhookEvent, ...>` on — so this single pin
  * indirectly protects all three from drifting apart.
  */
-describe('WebhookEvent enum (TODO_SUITE.md P3 — the post-purge pin)', () => {
+describe('WebhookEvent enum (the post-purge pin)', () => {
   // Order matches the enum's own declaration in schema.prisma exactly — Object.values on a TS
   // `as const` object preserves insertion order, so this also pins the *order* the settings screen
   // renders the event picker in, not merely its membership.
@@ -26,7 +25,7 @@ describe('WebhookEvent enum (TODO_SUITE.md P3 — the post-purge pin)', () => {
     'DOCUMENT_DELETED',
     'DOCUMENT_SETTLED',
     'DOCUMENT_CANCELLED',
-    // Root TODO item 13 REDONE (2026-09-10) — see signatures/signatures.service.ts's own
+    // See signatures/signatures.service.ts's own
     // "markSigned" for the real emitter (the public OTP-verification flow).
     'DOCUMENT_SIGNED',
     'CLIENT_CREATED',
@@ -45,7 +44,7 @@ describe('WebhookEvent enum (TODO_SUITE.md P3 — the post-purge pin)', () => {
     expect(Object.values(WebhookEvent)).toEqual(EXPECTED_EVENTS);
   });
 
-  it('does not resurrect any of the 79 members purged by TODO_SUITE.md P3', () => {
+  it('does not resurrect any of the 79 members purged on 2026-09-03', () => {
     const purged = [
       // Client / Company / Webhook families — the ones purged alongside their surviving siblings.
       'CLIENT_ACTIVATED',

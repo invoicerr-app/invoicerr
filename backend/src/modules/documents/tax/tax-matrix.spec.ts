@@ -3,10 +3,10 @@
  * `avant-refonte-documents`): GCC union, GST domestic, un fournisseur NONE, l'OSS avec un vrai profil
  * acheteur, les régimes exempt/zéro, et les deux helpers de classification. Seuls les imports
  * changent (types/`../tax-systems/registry` de ce module plutôt que les profils pays complets
- * supprimés) — chaque assertion est CHIFFRÉE (root TODO item 16's own test brief), pas seulement
+ * supprimés) — chaque assertion est CHIFFRÉE, pas seulement
  * qualitative, là où le repère ne l'était pas déjà.
  *
- * Re-anchored by the 5-country prune (2026-09-10, see this task's own report): SA/AE/IN/QA/HU's own
+ * Re-anchored by the 5-country prune (2026-09-10): SA/AE/IN/QA/HU's own
  * `tax-systems/data/xx.json` files were removed along with every country outside FR/PL/IT/PT/DE. The
  * GCC-union, GST-domestic and NONE-tax-system cases below test GENERIC, data-driven dispatch in
  * `tax-engine.ts`/`classification.ts` (never a per-country branch — `EU_MEMBERS`/`GCC_VAT` in
@@ -142,7 +142,7 @@ describe('LA MATRICE — TaxEngine — OSS destination rate from a real buyer pr
     expect(t.reportingFlags).toContain('OSS');
   });
 
-  // Root TODO item 16 follow-up (2026-09-01): the EU member states' standard rate, read from the
+  // The EU member states' standard rate, read from the
   // European Commission's TEDB. HU (27%, the highest in the full EU) was removed by the 5-country
   // prune (2026-09-10) — re-anchored on PL, tied for the highest standard rate among the KEPT
   // countries (23%, same as PT — see tax-systems/data/all.spec.ts's own matching claim).

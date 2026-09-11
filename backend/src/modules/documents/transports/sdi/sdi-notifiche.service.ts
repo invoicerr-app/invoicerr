@@ -1,7 +1,7 @@
 /**
- * The minimal PUSH receiver for SdI's own `TrasmissioneFatture` notifiche — root TODO item 10's own
- * "implemented-awaiting-accreditation" wave for SdI (see `sdicoop-client.ts`'s own header for the
- * full status). Explicit scope, per this task's own brief: PARSE + JOURNAL into
+ * The minimal PUSH receiver for SdI's own `TrasmissioneFatture` notifiche —
+ * "implemented-awaiting-accreditation" for SdI (see `sdicoop-client.ts`'s own header for the
+ * full status). Explicit scope: PARSE + JOURNAL into
  * `DocumentAuthorityEvent` (the existing conformity mechanism, `conformity/authority-events.persistence.ts`)
  * — reconciled by `IdentificativoSdI` = `DocumentInstance.transportRef` — NOTHING more. This is
  * deliberately NOT an `AuthorityStatusPoller` (`conformity/authority-status-poller.ts`): "sdi"
@@ -21,16 +21,16 @@
  *    automatically; that is an operational step for whoever holds the accreditation.
  *  - Until both of the above exist, this endpoint is dormant in practice: nothing routes real SdI
  *    traffic to it because AdE has never been told it exists. It is built now, gated, so accreditation
- *    has somewhere real to point on day one — the same "implemented, never yet exercised for real" the
- *    whole SdI channel status is this task.
+ *    has somewhere real to point on day one — the same "implemented, never yet exercised for real"
+ *    state the whole SdI channel is in.
  *
  * ## The "unknown reference" rule
  *
  * The read spec never states what SdI expects back on THESE six one-way operations beyond "non
- * prevede Response SOAP" — no retry policy is documented either way. This task's own instruction is
- * explicit regardless: an unknown `IdentificativoSdI` must never be journaled onto an arbitrary
- * document (MUTATION TARGET #2, see this file's own test) and must still answer 200 — "SdI ne doit
- * pas retenter éternellement" a notifica this codebase has no matching deposit for (a document from
+ * prevede Response SOAP" — no retry policy is documented either way. The rule here is explicit
+ * regardless: an unknown `IdentificativoSdI` must never be journaled onto an arbitrary
+ * document (see this file's own test) and must still answer 200 — SdI must not retry forever on
+ * a notifica this codebase has no matching deposit for (a document from
  * before this channel existed, a stale test notifica, a bug on SdI's own side — all indistinguishable
  * from here, and none of them warrant an infinite retry storm). Logged NAMED, nothing silent.
  */
@@ -61,7 +61,7 @@ export interface HandleNotificaResult {
 
 @Injectable()
 export class SdiNotificheService {
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` for the same "side channel, never load-bearing"
+  // `@Optional()` for the same "side channel, never load-bearing"
   // reason `ConformitySweepRunner`/`ReportingRunner` hold theirs: every EXISTING spec constructs this
   // service with zero args and must keep passing unchanged. `sdi-notifiche.module.ts` deliberately
   // imports nothing from `DocumentsCoreModule` (see that module's own header) — this still resolves
@@ -70,7 +70,7 @@ export class SdiNotificheService {
   // available everywhere once bootstrapped, with no explicit import needed here.
   constructor(
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
-    // TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`'s own emitter. UNLIKE `eventsPublisher`,
+    // `DOCUMENT_AUTHORITY_EVENT`'s own emitter. UNLIKE `eventsPublisher`,
     // the `DOCUMENT_WEBHOOK_EMITTER` token's own provider (`WebhooksModule`) is NOT `@Global()` —
     // `sdi-notifiche.module.ts` now imports `WebhooksModule` directly (a small, one-line addition;
     // `WebhooksModule` only imports `PluginsModule`, which touches nothing this module graph already
@@ -103,7 +103,7 @@ export class SdiNotificheService {
 
     const document = await findDocumentByTransportRef(SDI_PROVIDER_ID, parsed.identificativoSdI);
     if (!document) {
-      // MUTATION TARGET #2 (this task's own brief): journaling onto an arbitrary/wrong document here
+      // Journaling onto an arbitrary/wrong document here
       // instead of returning early would be exactly the bug this branch exists to prevent.
       logger.warn(
         `SdI notifica ${parsed.notificaType} received for an unknown IdentificativoSdI — ` +
@@ -141,7 +141,7 @@ export class SdiNotificheService {
       `SdI notifica ${parsed.notificaType} journaled for document ${document.id} (IdentificativoSdI ${parsed.identificativoSdI})`,
       { category: 'documents', details: { documentId: document.id, notificaType: parsed.notificaType } },
     );
-    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — only on a genuinely new row (count > 0, never for a
+    // Only on a genuinely new row (count > 0, never for a
     // re-delivered notifica the dedup already absorbed): this push receiver is itself a worker→API
     // boundary of its own (SdI calls straight into this API process, no BullMQ job involved), but the
     // SAME Redis pub/sub bridge still applies unchanged — every SSE consumer subscribes by companyId

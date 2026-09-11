@@ -2,7 +2,7 @@ import { SignaturesService } from '../signatures/signatures.service';
 import { ActionRegistry } from './action-registry';
 
 /**
- * "request-signature" — root TODO item 13 REDONE (see schema.prisma's own `Signature` model header
+ * "request-signature" (see schema.prisma's own `Signature` model header
  * for the full "why" and the GHSA-vhjw-gwc5-pjfp advisory this hardens against). Registered on the
  * "quote" type exactly like "request-deposit"/"convert-to-invoice" (quote.descriptor.ts): no
  * `transitions` — this action's entire effect is a brand-new `Signature` row plus an email, it never

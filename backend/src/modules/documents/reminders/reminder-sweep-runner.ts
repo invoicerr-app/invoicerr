@@ -49,7 +49,7 @@ const REMINDER_SWEEP_INVOICE_READ_LIMIT = 500;
 
 /** The invoice's own base descriptor — see `client-statement.ts`'s identical constant for why a
  *  direct import is fine here: this file only ever computes totals for "invoice" instances (this
- *  feature's own scope, this pass — see reminder-sweep.ts's own header). */
+ *  feature's own scope — see reminder-sweep.ts's own header). */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 export interface RunReminderSweepResult {
@@ -141,7 +141,7 @@ export class ReminderSweepRunner {
   ): Promise<CompanyReminderResult> {
     const invoices = (await listDocuments(companyId, 'invoice', REMINDER_SWEEP_INVOICE_READ_LIMIT)).filter(
       // "sent" only — the same rule `client-statement.ts#resolveClientStatement` already applies: a
-      // draft was never actually issued, and a cancelled invoice owes nothing (TODO_CORRECTION.md C3).
+      // draft was never actually issued, and a cancelled invoice owes nothing.
       (invoice) => invoice.status === 'sent',
     );
     if (invoices.length === 0) return { remindersSent: 0, skipped: 0 };

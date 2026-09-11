@@ -1,5 +1,5 @@
 /**
- * The conformity sweep's own real end-to-end proof (root TODO item 10's own named remainder) — real
+ * The conformity sweep's own real end-to-end proof — real
  * Redis, real Postgres, the SAME shape `document-schedule-queue.redis.spec.ts` already established
  * (see that file's own header for the `ClientsModule`/ts-jest gap that keeps both specs from
  * importing `DocumentsCoreModule` directly, and the exact reasoning behind gating on
@@ -320,8 +320,8 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
 
     const codes = events.map((e) => e.statusCode).sort();
     expect(codes).toEqual(['fr:200', 'fr:202']);
-    // The document's OWN lifecycle status never moved because of this — the dedicated proof this
-    // task's own brief requires, here against a REAL row, not a mock.
+    // The document's OWN lifecycle status never moved because of this — proven here against a REAL
+    // row, not a mock.
     const reread = await prisma.documentInstance.findUniqueOrThrow({ where: { id: document.id } });
     expect(reread.status).toBe('sent');
   });

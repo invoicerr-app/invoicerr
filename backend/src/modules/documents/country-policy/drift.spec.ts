@@ -62,7 +62,7 @@ describe('detectCountryPolicyDrift', () => {
     expect(report.removedCountries).toEqual([]);
   });
 
-  // The exact case TODO_ISSUES.md names for the sibling table ("country-identifiers/seed.ts ne
+  // The exact case already named for the sibling table ("country-identifiers/seed.ts ne
   // purge jamais un pays entièrement retiré"): a country ENTIRELY removed from the catalog must
   // still be visible to the drift report, even though the catalog itself no longer names it at all.
   it('detects a REMOVED country — rows in the DB, no file for it at all', () => {

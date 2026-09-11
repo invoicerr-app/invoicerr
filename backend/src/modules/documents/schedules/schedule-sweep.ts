@@ -31,7 +31,7 @@
  *
  * This is a DELIBERATE, debatable trade-off: at the default 60s interval, a three-month backlog
  * still finishes catching up in three minutes with no human in the loop at any point — throttled,
- * not silent, but still fully automatic. TODO_ISSUES.md records this as worth reconsidering (e.g. a
+ * not silent, but still fully automatic. This is worth reconsidering (e.g. a
  * schedule that finds itself more than one cadence step behind could instead surface a "catch-up
  * pending, confirm?" state) rather than deciding it unilaterally here.
  *

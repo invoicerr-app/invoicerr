@@ -2,7 +2,7 @@
  * The "pt-at" `DeclarationProvider` — Portugal's real-time "comunicação de documentos de faturação"
  * to the Autoridade Tributária e Aduaneira (AT). Status: **implemented to the documented AT contract,
  * awaiting accreditation** — the SAME posture `transports/sdi/` (SdI, Italy) already carries: no real
- * AT "subutilizador" credential or AT public key was available to this task, so this has never made a
+ * AT "subutilizador" credential or AT public key was available, so this has never made a
  * real round-trip. See `pt-at-client.ts`'s own header for the full VERIFIED/⚠ UNVERIFIED breakdown of
  * the wire protocol itself — this file is the thin `DeclarationProvider` adapter around it, plus the
  * ONE thing `pt-at-client.ts` deliberately does not own: mapping `DeclaredInvoice` onto AT's own

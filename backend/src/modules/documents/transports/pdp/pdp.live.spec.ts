@@ -1,5 +1,5 @@
 /**
- * REAL round-trip against the superpdp sandbox — root TODO item 10, wave 1. Gated the same way the
+ * REAL round-trip against the superpdp sandbox. Gated the same way the
  * repère's own `pdp-live.spec.ts` was (`PDP_LIVE=1` + credential env vars — `live-gate.ts`, REPRISED
  * verbatim), and run the same way:
  *
@@ -30,15 +30,15 @@
  * DOES matter to conformity — the semantic bridge, the vendored Schematron gate, the actual Factur-X
  * PDF/A-3 embedder, the actual HTTP round-trip — runs for REAL, unmocked, against the real sandbox.
  *
- * HARD-SUCCESS CONTRACT (LIVE_TESTING.md, and this task's own instructions): a REJECTED/SKIPPED
+ * HARD-SUCCESS CONTRACT (LIVE_TESTING.md): a REJECTED/SKIPPED
  * outcome or an EMPTY deposit id is a FAILURE, never tolerated — this spec throws rather than assert
- * a soft `expect().toBeFalsy()` that could quietly pass on a shrugging response. Wave 1's own
+ * a soft `expect().toBeFalsy()` that could quietly pass on a shrugging response. The original
  * contract stopped at "the deposit was ACCEPTED" (a non-empty id back from `POST /v1.beta/invoices`),
  * deliberately not following the conformity verdict any further at the time — see
- * `pdp-transport.ts`'s own header and TODO_ISSUES.md for that named remainder, and this file's own
+ * `pdp-transport.ts`'s own header for that named remainder, and this file's own
  * git history for why: a poller that could only ever answer PENDING would have been a false green.
  *
- * STRENGTHENED, root TODO item 15's own remainder (BT-23): once the last cited rejection cause
+ * STRENGTHENED (BT-23): once the last cited rejection cause
  * (BR-FR-08/BT-23 — see `business-process.ts`'s own header for the full wiring this fixes) stopped
  * appearing, the verdict genuinely turned stable and positive — not PENDING, and not once but reproduced
  * across two independent live deposits before this file's own assertion below was tightened: both
@@ -47,7 +47,7 @@
  * FULL conformity verdict this architecture has produced, not merely an accepted upload. The block at
  * the end of this test now asserts on that directly (a short retry loop, not a fixed sleep — this
  * platform's own verdict lands in well under a second, see the log timestamps above), while the
- * original wave-1 contract above is UNCHANGED and still the FIRST thing checked: this only adds a
+ * original contract above is UNCHANGED and still the FIRST thing checked: this only adds a
  * strictly stronger claim on top, never a softer one in its place.
  */
 import { PDFDocument } from 'pdf-lib';
@@ -124,8 +124,8 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
     const data = {
       client: 'live-client',
       // superpdp refuses a BT-2 (invoice date) later than today (found running this very spec,
-      // live — see `pdp-client.ts` callers) — CONFIRMED AGAIN, live, while wiring THIS task's own
-      // fix: pinning this to '2026-09-01' (the content requirement's own `mandatedFrom` — see below)
+      // live — see `pdp-client.ts` callers) — CONFIRMED AGAIN, live: pinning this to '2026-09-01'
+      // (the content requirement's own `mandatedFrom` — see below)
       // got a REAL 400 from superpdp itself: "La date de facture (BT-2) DOIT ETRE antérieure ou
       // égale à date d'application du contrôle de conformité". So `new Date()` it stays.
       issueDate: new Date().toISOString().slice(0, 10),
@@ -158,7 +158,7 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
       })),
       totals,
     });
-    // BT-23 (root TODO item 15's own remainder — `business-process.ts`): the shipped content
+    // BT-23 (`business-process.ts`): the shipped content
     // requirement (`content-requirements/data/fr.json`) only binds from `mandatedFrom` 2026-09-01
     // (CGI ann. II art. 242 nonies A I 8° bis), so `buildSemanticInvoice`'s own temporal gate
     // correctly resolves NOTHING for an invoice dated today (2026-08-31, one calendar day short of
@@ -213,12 +213,11 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
       lang: 'en',
       // Mirrors `facturx-provider.ts`'s own embed call EXACTLY (this spec's whole point is to run
       // the real production recipe by hand — see this file's own header) — found NECESSARY by this
-      // very spec, live, once root TODO item 15 ("mentions obligatoires") started emitting more than
-      // one BG-1 note for a French seller: without it, superpdp's own conformity check rejects the
+      // very spec, live, once the obligatory mentions ("mentions obligatoires") started emitting more
+      // than one BG-1 note for a French seller: without it, superpdp's own conformity check rejects the
       // deposit (`fr:213`) citing every mention "absente", with "Element 'ram:Content' must occur
       // exactly 1 times" underneath — `splitCiiIncludedNotesInObject`'s own header has the full story.
-      // Chained with `applyFrenchBusinessProcessInObject` for the SAME reason, for BT-23 — this
-      // task's own remainder.
+      // Chained with `applyFrenchBusinessProcessInObject` for the SAME reason, for BT-23.
       postProcessor: async (data) => {
         const embeddedCii = data as Record<string, unknown>;
         splitCiiIncludedNotesInObject(embeddedCii);
@@ -250,12 +249,12 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
     console.log('DEPOSIT ACCEPTED — id:', invoice.id);
     expect(String(invoice.id)).not.toBe('');
 
-    // ── 4) STRENGTHENED — root TODO item 15's own remainder (BT-23): the verdict genuinely turned
+    // ── 4) STRENGTHENED (BT-23): the verdict genuinely turned
     // stable and positive (see this file's own header for the two independent reproductions that
     // justified tightening this from a purely informational log into a real assertion). A short
     // retry loop, not a fixed sleep: this platform's own verdict lands in well under a second (the
-    // live timestamps this task's own report cites), so polling every 500ms for up to 5s is ample
-    // margin without turning this into the PENDING-only poller wave 1 deliberately did not build.
+    // live timestamps observed), so polling every 500ms for up to 5s is ample
+    // margin without turning this into the PENDING-only poller that was deliberately not built.
     let refetched = await client.getInvoice(Number(invoice.id));
     for (let attempt = 0; attempt < 10; attempt++) {
       const codes = new Set((refetched.events ?? []).map((e) => e.status_code));
@@ -273,7 +272,7 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
       reason: latestEvent?.data?.reason,
     });
 
-    // No event may cite a REJECTED verdict, and none may still name BT-23 — this task's own root
+    // No event may cite a REJECTED verdict, and none may still name BT-23 — the root
     // cause. Checked across EVERY event, not just the latest: a real rejection earlier in the chain
     // must fail this test even if a later event looks fine.
     const allReasons = events.map((e) => JSON.stringify(e.data?.reason ?? '')).join(' ');

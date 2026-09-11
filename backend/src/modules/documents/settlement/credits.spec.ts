@@ -4,8 +4,8 @@ import { ROW_ID_KEY } from '../row-selection/row-selection';
 import { creditsForInvoiceFromNotes, resolveCreditsForDocument, toSettlementCreditInputs } from './credits';
 
 /**
- * `creditsForInvoiceFromNotes` — the pure resolution step behind item 8 of the root TODO ("le
- * lettrage"). Pure and DB-free (see this module's own header on why the status/currency rules live
+ * `creditsForInvoiceFromNotes` — the pure resolution step behind "le lettrage". Pure and DB-free
+ * (see this module's own header on why the status/currency rules live
  * here rather than in the Prisma query), so every rule is proven with plain fixtures, no mocking.
  */
 
@@ -101,7 +101,7 @@ describe('creditsForInvoiceFromNotes', () => {
     expect(warnings).toEqual([]);
   });
 
-  // TODO_PRODUIT.md T3 ("un avoir suit la même règle que sa facture") — a credit note whose OWN
+  // "Un avoir suit la même règle que sa facture" — a credit note whose OWN
   // `currency` field differs from the invoice's used to be EXCLUDED here entirely. It no longer is:
   // `computeCreditedAmountMinor` computes the credited amount FROM the invoice's own priced lines
   // (never the note's), so the number is ALREADY, unavoidably, the invoice's own currency — applying

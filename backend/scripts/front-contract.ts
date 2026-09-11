@@ -1,5 +1,5 @@
 /**
- * Generates `docs/compliance/FRONT-CONTRACT.yaml` — the per-country contract the FRONTEND has to
+ * Generates `documentation/internal/FRONT-CONTRACT.yaml` — the per-country contract the FRONTEND has to
  * honour, ordered by how much this product needs each country.
  *
  * WHY IT IS GENERATED AND NOT WRITTEN BY HAND. The repository already holds per-country rules in
@@ -347,7 +347,7 @@ PRIORITY.forEach(({ code, why }, i) => {
   (doc.countries as Record<string, unknown>)[code] = entry;
 });
 
-const outPath = join(__dirname, '..', '..', 'docs', 'compliance', 'FRONT-CONTRACT.yaml');
+const outPath = join(__dirname, '..', '..', 'documentation', 'internal', 'FRONT-CONTRACT.yaml');
 writeFileSync(outPath, HEADER + dump(doc, { lineWidth: 100, noRefs: true, quotingType: '"' }), 'utf-8');
 
 const all = PRIORITY.map(({ code }) => defaultRegistry.resolve(code));

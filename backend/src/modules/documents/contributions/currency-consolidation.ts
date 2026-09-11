@@ -6,7 +6,7 @@ import {
 } from '../../company/currency-rates/currency-rates.store';
 
 /**
- * The ONE rule this whole feature exists to enforce (item 9, root TODO — "le multi-devises"): **a
+ * The ONE rule this whole feature exists to enforce ("le multi-devises"): **a
  * conversion is information, never a replacement.** Every per-currency total a contribution already
  * computes (expense-contributions.ts's `totalsByCurrency`, invoice-contributions.ts's pending totals)
  * stays exactly as it is — this module never touches those. It only ever ADDS one extra, clearly
@@ -123,8 +123,8 @@ export interface CurrencyContext {
  *
  * This is the ONE place in the whole feature allowed to swallow an error, and deliberately so: the
  * backend's own offline `backend-tests` CI job (`.github/workflows/cypress.yml`) runs every plain
- * jest spec — including expense-contributions.spec.ts and invoice-contributions.spec.ts, both
- * untouched by this task — with NO Postgres reachable at all (its own Prisma-generate step points at
+ * jest spec — including expense-contributions.spec.ts and invoice-contributions.spec.ts — with NO
+ * Postgres reachable at all (its own Prisma-generate step points at
  * a deliberately-unused URL). Every one of those pre-existing tests proves "no referenceCurrency ->
  * unchanged behavior" by construction: a company that never opted in (their fixture's normal state)
  * and a database that cannot even be reached collapse to the exact same, correct outcome here — no

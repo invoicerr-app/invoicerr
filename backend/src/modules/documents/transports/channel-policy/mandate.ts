@@ -1,9 +1,9 @@
 /**
- * Root TODO item 11, "canal imposé par pays" — evaluates whether a country's channel-policy MANDATE
+ * "Canal imposé par pays" — evaluates whether a country's channel-policy MANDATE
  * (schema.ts's `ChannelPolicyFact.requirement === 'mandated'`) has come into force for one particular
  * invoice. Kept in its own small file (not folded into `registry.ts`'s plain lookup, nor into
  * `invoice-actions.ts` itself) because the DATE COMPARISON below is the one genuinely new piece of
- * logic this item adds, and it deserves its own focused tests (`mandate.spec.ts`) independent of the
+ * logic this file adds, and it deserves its own focused tests (`mandate.spec.ts`) independent of the
  * catalog's own loading tests (`registry.spec.ts`) and of `invoice-actions.ts`'s own preflight wiring
  * (`actions/invoice-channel-mandate.spec.ts`).
  *
@@ -19,8 +19,8 @@
  *     (`compliance/profiles/data/fr.ts`, `avant-refonte-documents`) before this branch's demolition —
  *     this module continues that precedent rather than inventing a new one that happens to be
  *     simpler to write.
- *  2. Practically, `invoice-actions.ts`'s own "send" is ASYNCHRONOUS (TODO.md item 22,
- *     `actions/async-send.ts`): a worker can replay `deliver()` seconds — or, after a BullMQ retry,
+ *  2. Practically, `invoice-actions.ts`'s own "send" is ASYNCHRONOUS
+ *     (`actions/async-send.ts`): a worker can replay `deliver()` seconds — or, after a BullMQ retry,
  *     much LATER — than the original click that moved the record to "sending". If the mandate were
  *     judged by `new Date()` at delivery time, the exact same invoice could be judged "free" at
  *     enqueue (the preflight) and "mandated" at delivery a few seconds later purely because a clock

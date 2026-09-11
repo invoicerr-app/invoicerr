@@ -26,7 +26,7 @@
  *
  * LIVE STATUS: this generic gateway remains what the repère already called it — "live-deferred": it
  * models the common REST denominator and needs a concrete connected AP (Basware, Pagero, Qvalia, or a
- * self-hosted phase4/oxalis-ng — see `PEPPOL_AP_RESEARCH.md`). The ACTUAL live attempt this task ran
+ * self-hosted phase4/oxalis-ng — see `PEPPOL_AP_RESEARCH.md`). The ACTUAL live attempt
  * went through the peppol.sh adapter instead (`peppol-sh-client.ts`, zero-secret sandbox) — see that
  * file's own header and `LIVE_TESTING.md` for the raw result.
  */
@@ -58,7 +58,7 @@ export interface PeppolSendRequest {
 
 export interface PeppolSendResult {
   /** AP-assigned message ID, used to poll status — an EMPTY one is a failure, never a silent success
-   *  (`../peppol-transport.ts`'s own hard-success contract, this task's own mutation #1). */
+   *  (`../peppol-transport.ts`'s own hard-success contract). */
   messageId: string;
   status: 'QUEUED' | 'SENT';
 }
@@ -99,7 +99,7 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  * the network's own addressing of "which profile is this" is never an independent guess, it MIRRORS
  * what is actually inside the envelope.
  *
- * `INVOICE_UBL` is Peppol BIS Billing 3 — the ONE type this transport sent before root TODO item 26's
+ * `INVOICE_UBL` is Peppol BIS Billing 3 — the ONE type this transport sent before the
  * "Peppol/Allemagne" wave (an invoice; this codebase has no credit-note transport wiring today, see
  * `../transport-registry.ts`'s own header: "See invoice-actions.ts's 'send' for the one caller
  * today"). `INVOICE_XRECHNUNG_UBL` is the SECOND, added for `../peppol-transport.ts`'s own format
@@ -110,7 +110,7 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  * `peppol-bis-provider.ts`'s own customization id.
  *
  * HONEST LIMIT: this mirrors the STANDARD Peppol URN construction rule, which is architecture, not a
- * guess — but this task did NOT independently verify this EXACT identifier against a real SMP
+ * guess — but this EXACT identifier was NOT independently verified against a real SMP
  * registration for the German federal portal (OZG-RE) itself; only two narrower facts were read and
  * are cited at their own call sites: (1) OZG-RE accepts Peppol as an input CHANNEL at all
  * (`b2g-routing/data/de.json`'s own addendum, e-rechnung-bund.de/faq/), and (2) a German public body's
@@ -121,7 +121,7 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  * own CustomizationID, which is all this client actually sends) was not read anywhere and is not
  * claimed here — a genuine, named remainder for whoever connects a REAL OZG-RE-facing AP account.
  *
- * `INVOICE_NLCIUS_UBL` is the THIRD (root TODO, "NLCIUS vendorable" — mandant "Go", 2026-09-05), the
+ * `INVOICE_NLCIUS_UBL` is the THIRD (NLCIUS, vendored), the
  * SAME mirroring discipline as `INVOICE_XRECHNUNG_UBL`: its `<CustomizationID>` segment is COPIED
  * VERBATIM from `../../formats/nlcius-provider.ts`'s own `NLCIUS_CUSTOMIZATION_ID` constant
  * (`urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0`), itself read verbatim from the

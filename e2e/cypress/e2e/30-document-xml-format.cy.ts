@@ -1,9 +1,9 @@
 /**
- * Normalized EN 16931 export (root TODO item 12, "formats normalisés") — same discipline as
+ * Normalized EN 16931 export — same discipline as
  * 19-document-pdf.cy.ts: the ACTION is a real click on the screen, the ASSERTIONS that matter
  * intercept the real network request the click triggers (never the screen alone as proof of what
  * was actually served), and the body is checked for the exact figures `compute-totals.ts` produced
- * for this fixture — never a re-sum, per this ticket's own point (c).
+ * for this fixture — never a re-sum.
  *
  * The fixture: one line, quantity 2 × unit price 100.00 EUR at 20% VAT.
  *   net = 200.00, VAT = 40.00, gross (BT-112/BT-115) = 240.00 — the exact string this spec looks for
@@ -174,7 +174,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		});
 	});
 
-	// Root TODO item 15 ("mentions obligatoires") — the seeded baseline company is French
+	// The seeded baseline company is French
 	// (resetAndSeed's own fixture: country "France" / countryCode "FR"), so the SAME click this
 	// spec already drives now also carries the three C. com. art. L441-9 I al. 5 mentions in BG-1.
 	// This is precisely what makes a real superpdp deposit's conformity check stop citing
@@ -291,7 +291,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 			});
 	});
 
-	// Root TODO item 15's own remainder — BT-23, wired via the FR `country-fields/` overlay
+	// BT-23, wired via the FR `country-fields/` overlay
 	// (`supplyType`, a line subfield) and `content-requirements/` (the sourced, dated country rule —
 	// see `formats/semantic/business-process.ts`'s own header). The overlay field is checked THROUGH
 	// THE SCREEN (the form itself, not the API); the resulting code is checked on the real downloaded
@@ -333,7 +333,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		cy.contains('[data-cy*="-option-"]', "Services").first().click();
 
 		// `issueDate` must be on/after the content requirement's own `mandatedFrom` (2026-09-01) for
-		// BT-23 to be derived at all — but that is the EXACT SAME date root TODO item 11's own channel
+		// BT-23 to be derived at all — but that is the EXACT SAME date the channel
 		// MANDATE binds from (32-channel-mandate.cy.ts): the seeded baseline's default transport
 		// ("email", set in this file's own `before()`) is refused at preflight for any invoice issued
 		// on/after it. So, exactly like 31/32, this one test connects PDP with FICTITIOUS credentials
@@ -423,7 +423,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		});
 	});
 
-	// Root TODO item 26 ("Peppol/Allemagne") — the two NEW EN 16931 profiles, each judged by the base
+	// The two NEW EN 16931 profiles, each judged by the base
 	// Schematron PLUS its own vendored delta (backend/src/modules/documents/formats/{peppol-bis,
 	// xrechnung}-provider.ts). Same discipline as the rest of this file: the ACTION is a real click,
 	// the ASSERTIONS intercept the real network request, never the screen alone.

@@ -1,8 +1,8 @@
 import { CurrencyRateLike, convertMinor, resolveLatestRate } from '../../company/currency-rates/convert';
 
 /**
- * TODO_PRODUIT.md T3 — the ONE per-operation conversion decision the TODO_ISSUES.md entry this task
- * closes ("les taux existent, mais paiements et avoirs ne convertissent toujours pas") demanded: "un
+ * The ONE per-operation conversion decision the issue "les taux existent, mais paiements et avoirs
+ * ne convertissent toujours pas" demanded: "un
  * taux PAR OPÉRATION (saisi au moment du paiement, stocké sur lui), pas le taux ambiant de la
  * société." Pure and DB-free, same discipline as `contributions/currency-consolidation.ts`'s own
  * `consolidateByCurrency` — the caller (`actions/invoice-actions.ts`'s "record-payment") fetches

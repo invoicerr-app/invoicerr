@@ -10,8 +10,8 @@
  *
  * PRECEDENCE UNDER TEST, in order (see `invoice-actions.ts`'s own B2G section header): (1) a B2G rule
  * for the CLIENT's country, when the client is GOVERNMENT — completely BYPASSES (2) the seller's own
- * country mandate (item 11) and (3) the company's free transport choice. The two tests marked
- * "MUTATION GUARD" below are this task's own two named mutations: #1, precedence ignored (the
+ * country mandate and (3) the company's free transport choice. The two tests marked
+ * "MUTATION GUARD" below are the two named mutations: #1, precedence ignored (the
  * company's own choice wins); #2, a government client of an uncovered country silently sends as B2B.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
@@ -47,7 +47,7 @@ const IT_RULE_READY = {
 };
 
 // ES/FACe — the SAME "IMPLEMENTED AND CONNECTED, overrides the company's own free choice" shape as
-// IT_RULE_READY above, this task's own service-level proof: a GOVERNMENT client of Spain routes to
+// IT_RULE_READY above, the service-level proof: a GOVERNMENT client of Spain routes to
 // "face" (`b2g-routing/data/es.json`), never the company's own configured transport.
 const ES_RULE_READY = {
   countryCode: 'ES',
@@ -313,7 +313,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
   // this assertion on `toHaveBeenCalled()` — or the refusal message itself — would flip.
   it("PRECEDENCE: a government client of an uncovered-transport country BLOCKS naming that country's OWN channel — the seller-country mandate is NEVER EVEN CONSULTED, even when one is active for this company", async () => {
     mockB2g({ applies: true, countryCode: 'FR', rule: FR_RULE_UNIMPLEMENTED, missingIdentifierSchemes: [] });
-    // This company's OWN country mandates "pdp" (item 11) — irrelevant: the recipient's B2G regime
+    // This company's OWN country mandates "pdp" — irrelevant: the recipient's B2G regime
     // wins, so `activeChannelMandateFor` must never even be called.
     (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
     (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue({
@@ -407,7 +407,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     await expect(action).rejects.toThrow(/SdI credentials are not connected\./);
   });
 
-  // ES/FACe — this task's own service-level proof: a GOVERNMENT client whose country is Spain, with
+  // ES/FACe — the service-level proof: a GOVERNMENT client whose country is Spain, with
   // the DIR3 triad already on the invoice and the "face" channel CONNECTED, routes to "face" and the
   // worker actually calls its `send()`/`preflight()` — the client stub standing in for the real
   // `FaceClient` (proven separately, offline, by `face-transport.spec.ts`/`facturae-provider.spec.ts`).

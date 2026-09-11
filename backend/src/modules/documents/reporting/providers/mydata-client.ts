@@ -2,7 +2,7 @@
  * The AADE myDATA REST API wire-level client — HTTP + XML shape ONLY (`DeclaredInvoice` mapping
  * lives in `mydata-declaration-provider.ts`).
  *
- * ## Sources actually read for this file (2026-09-02) — and the wall this task hit
+ * ## Sources actually read for this file (2026-09-02) — and the access wall
  *
  * aade.gr itself (the myDATA home page, its own "τεχνικές προδιαγραφές" documentation page, and
  * every direct file path tried under `/sites/default/files/...` for a vendored XSD/PDF) returned
@@ -20,7 +20,7 @@
  *    `xsd/` directory (https://github.com/attheodo/mydatanaut).
  *  - `firebed/aade-mydata` (PHP, one of the most widely used myDATA client libraries) — its own HTTP
  *    client source (`src/Http/MyDataRequest.php`) names the exact base URLs and header keys read
- *    below, matching the `Ocp-Apim-Subscription-Key`/`aade-user-id` pair this task's own brief names.
+ *    below, including the `Ocp-Apim-Subscription-Key`/`aade-user-id` pair.
  *
  * This is a WEAKER provenance than NAV's (an official government GitHub repo + an official PDF spec
  * with a reproducible test vector) — every fact below is corroborated by INDEPENDENT third-party
@@ -39,7 +39,7 @@
  *
  * `ResponseDoc > response[]`: `index` (int), then EITHER a success branch (`invoiceUid`,
  * `invoiceMark` — xs:long, "Μοναδικός Αριθμός Καταχώρησης παραστατικού" = "Unique Registration
- * Number" — this IS the "MARK" this task's own brief names) or an error branch (`errors/error[]`:
+ * Number" — this IS the "MARK") or an error branch (`errors/error[]`:
  * `code`, `message`), and always `statusCode`.
  *
  * ## EXTRAPOLATED — NOT verified against the primary source in hand

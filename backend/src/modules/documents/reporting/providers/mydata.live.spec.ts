@@ -1,25 +1,25 @@
 /**
- * REAL round-trip against the AADE myDATA dev sandbox — root TODO, GR/"déclaration" wave.
+ * REAL round-trip against the AADE myDATA dev sandbox — GR "déclaration".
  *
  * Gated `MYDATA_LIVE=1` + `MYDATA_USER_ID`/`MYDATA_SUBSCRIPTION_KEY` (`../../transports/live-gate.ts`),
  * the same shape every sibling channel's own live spec uses:
  *
  *   MYDATA_LIVE=1 MYDATA_USER_ID=... MYDATA_SUBSCRIPTION_KEY=... npx jest mydata.live --no-coverage
  *
- * HONEST STATUS AT THE END OF THIS TASK: **skipped, always** — this checkout holds no AADE myDATA
+ * HONEST STATUS: **skipped, always** — this checkout holds no AADE myDATA
  * subscription. aade.gr itself (the myDATA home page, the "τεχνικές προδιαγραφές" documentation page,
  * and the dev-environment registration page) returned HTTP 403 for EVERY path tried from this
- * environment (see `mydata-client.ts`'s own header) — this task could not even READ the registration
- * procedure directly at its own source, let alone attempt it. What IS independently, repeatedly
+ * environment (see `mydata-client.ts`'s own header) — the registration procedure could not even be
+ * READ directly at its own source, let alone attempted. What IS independently, repeatedly
  * corroborated across many separate third-party myDATA client projects (never a single unverified
  * source — `mydata-client.ts`'s own header lists them) is that registration requires a genuine Greek
  * AADE / TaxisNet business identity (myDATA is a Greek tax-authority reporting obligation, not a
- * vendor-neutral developer program) — this task did not attempt registration since it holds no such
- * identity, and no self-service, identity-free signup path was found anywhere reachable. See
+ * vendor-neutral developer program) — registration was not attempted since no such identity is held
+ * here, and no self-service, identity-free signup path was found anywhere reachable. See
  * `CREDENTIALS_GUIDE.md`'s own myDATA section for the full writeup.
  *
- * WHAT WAS INDEPENDENTLY, LIVE-VERIFIED for this task (2026-09-02, real `curl`, credential-free): the
- * reachability block below reproduces EXACTLY the real response this task captured directly against
+ * WHAT WAS INDEPENDENTLY, LIVE-VERIFIED (2026-09-02, real `curl`, credential-free): the
+ * reachability block below reproduces EXACTLY the real response captured directly against
  * `mydataapidev.aade.gr` — confirming the host, the `/SendInvoices` path, and the Azure APIM
  * authentication header name (`Ocp-Apim-Subscription-Key`) are all real, not merely documented by
  * third-party clients.

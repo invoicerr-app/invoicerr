@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { authenticatedFetch } from "@/hooks/use-fetch"
 
 /**
- * TODO_FEATURES.md rank 4 — the GENERIC accounting CSV export's own download UI (the CSV slice only;
+ * The GENERIC accounting CSV export's own download UI (the CSV slice only;
  * a per-country ledger FORMAT is a future extension, see the backend's own
  * accounting-export.service.ts header). `GET /api/accounting-export?from=...&to=...` is hit directly
  * through `authenticatedFetch`, never a plain `<a href>`: the endpoint needs the session cookie, which

@@ -6,7 +6,7 @@ import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs }
 import { sumPaidMinorByDocument } from './payments';
 
 /**
- * TODO_FEATURES.md rank 6 ("relevé de compte client") — a PER-CLIENT aggregation of facts that
+ * "Relevé de compte client" — a PER-CLIENT aggregation of facts that
  * already exist: which of the client's invoices are open/settled, which credit notes correct them,
  * the total still owed, and an AGED BALANCE (how overdue each still-open franc/euro/dollar is).
  *
@@ -169,10 +169,10 @@ function addToAging(
  *
  * "sent" only, for BOTH document kinds — the exact same rule invoice-contributions.ts's own "pending"
  * widget already applies to invoices (`status === 'sent'`, a strict equality: never "draft", never
- * "sending"/"send_failed" — not yet actually issued — and never "cancelled" — TODO_CORRECTION.md C3,
+ * "sending"/"send_failed" — not yet actually issued — and never "cancelled" —
  * "nothing is owed on a document that no longer legally exists"), and the one `credits.ts`'s own
  * `creditsForInvoiceFromNotes` already applies to credit notes. A statement that listed a draft would
- * show an obligation that was never actually issued; this task invents no exception to that rule.
+ * show an obligation that was never actually issued; no exception to that rule is invented here.
  *
  * `asOf` defaults to "now" but is an explicit parameter (same shape as invoice-contributions.ts's own
  * `recentMonths(now)`) so a test can pin the clock instead of racing the real one.

@@ -81,7 +81,7 @@ const validQuoteData = {
   lines: [{ description: 'Widget', quantity: 2, unitPrice: 9.9 }],
 };
 
-describe('DocumentsService.runAction — the approval-threshold gate (TODO_FEATURES.md rank 17)', () => {
+describe('DocumentsService.runAction — the approval-threshold gate', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
     (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);

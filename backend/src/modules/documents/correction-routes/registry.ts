@@ -11,7 +11,7 @@ function buildIndex(files: CountryCorrectionRoutesFile[]): Record<string, Countr
  * In-memory view of the correction-routes files — the same role `mentions/registry.ts#MentionsCatalog`
  * plays for its own country-is-data concern, and for the SAME reason (see that class's own header):
  * a correction route's binding effect (required/allowed/forbidden) costs nothing to re-read straight
- * from these files on every request, and this is a NEW, still-narrow mechanism (TODO_CORRECTION.md C1)
+ * from these files on every request, and this is a NEW, still-narrow mechanism
  * with no existing per-request performance case that would justify mirroring it into a database the
  * way `country-policy/` and `b2g-routing/` (both older, both proven under real load) already are.
  *

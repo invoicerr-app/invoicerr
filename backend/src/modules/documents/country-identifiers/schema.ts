@@ -23,7 +23,7 @@
  *    checked to turn this into a `legal` entry. An `unverified` entry is not a lesser citizen: see
  *    data/fr.json and data/us.json in this same directory for how far a real research pass got
  *    before hitting a real access limit (legifrance.gouv.fr, economie.gouv.fr and
- *    impots.gouv.fr all refused this task's automated requests on 2026-08-30 — the same wall
+ *    impots.gouv.fr all refused automated requests on 2026-08-30 — the same wall
  *    country-policy/data/fr.json already documents for Légifrance specifically).
  */
 

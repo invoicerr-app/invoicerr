@@ -5,7 +5,7 @@
  * All functions are side-effect-free and independently testable.
  *
  * REPRISED VERBATIM (byte-for-byte, this file and its spec) from git tag `avant-refonte-documents`
- * (`compliance/providers/transmission/ksef/ksef-crypto.ts`) — item 10 (root TODO), wave 2. This is
+ * (`compliance/providers/transmission/ksef/ksef-crypto.ts`). This is
  * the delicate, PROVEN piece (the session-token encryption that made the real CLEARED + ksefNumber
  * round-trip work, 2026-06-28): no reason to touch a single line of it.
  */

@@ -1,7 +1,7 @@
 /**
  * Reprise ciblée du contrat syntaxique du repère (`identifier-validator.spec.ts`,
- * `avant-refonte-documents`) — quelques cas par pays plutôt que la suite exhaustive, root TODO item
- * 16's own scope: prouver que le dispatcher marche pour les pays réellement en jeu (FR, DE, IT), et
+ * `avant-refonte-documents`) — quelques cas par pays plutôt que la suite exhaustive : prouver que le
+ * dispatcher marche pour les pays réellement en jeu (FR, DE, IT), et
  * que le comportement PERMISSIF pour un pays non couvert est bien celui documenté (jamais un blocage
  * sur un pays qu'on ne sait pas vérifier hors ligne).
  */

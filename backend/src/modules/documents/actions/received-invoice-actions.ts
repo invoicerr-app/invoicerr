@@ -6,13 +6,13 @@ import { ActionRegistry } from './action-registry';
 import { registerDeleteAction } from './generic-actions';
 
 /**
- * Registers the "received-invoice" type's action IMPLEMENTATIONS — root TODO item 18. Three bespoke
+ * Registers the "received-invoice" type's action IMPLEMENTATIONS. Three bespoke
  * handlers plus one reused generic one, none of them touching a transport, a queue, or an email —
  * this type is never sent anywhere (see received-invoice.descriptor.ts's own header).
  *
- * `webhooks` (TODO_PRODUIT.md T2bis) only reaches the generic "delete" below — "receive" (this
+ * `webhooks` only reaches the generic "delete" below — "receive" (this
  * type's OWN create/edit action, not `registerSaveDraftAction`) deliberately does NOT dispatch
- * `DOCUMENT_CREATED` here: `DOCUMENT_RECEIVED` (TODO_PRODUIT.md's own T5) is the honest event for an
+ * `DOCUMENT_CREATED` here: `DOCUMENT_RECEIVED` is the honest event for an
  * inbound deposit, and wiring `DOCUMENT_CREATED` here too, ahead of that decision, would give a
  * receiver two different "this arrived" signals for the same fact.
  */
@@ -31,7 +31,7 @@ export function registerReceivedInvoiceActions(
    * header on why), so `validateAgainstDescriptor` never touches them, but `upsertDocument` persists
    * `data` whole, exactly the same way it already does for every other type's own declared fields.
    *
-   * TODO_PRODUIT.md T5(a) — also computes `lineTotalWarnings` (received-invoices/line-totals-check.ts)
+   * Also computes `lineTotalWarnings` (received-invoices/line-totals-check.ts)
    * and writes it into `data` under that same reserved-key convention: an array, possibly empty, of
    * NAMED warnings when the lines' own sum disagrees with the flat `netAmount`/`vatAmount`/
    * `grossAmount` beyond rounding tolerance. Recomputed on EVERY save (this action is the type's only
@@ -40,7 +40,7 @@ export function registerReceivedInvoiceActions(
    * warning "porté par le document" (visible again on a later GET, the list, the detail screen)
    * without a second generic mechanism reading `lines` on every fetch.
    *
-   * TODO_PRODUIT.md T5(b) — also the ONLY point that turns a supplier LINK into a persisted role:
+   * Also the ONLY point that turns a supplier LINK into a persisted role:
    * when `data.supplierClient` (the 'reference' field, entity "supplier" — see the descriptor's own
    * header) names a client, that Client is marked `isSupplier: true`
    * (`received-invoices/supplier-reconciliation.ts#markClientAsSupplier`) — whether the link came from

@@ -23,7 +23,7 @@ jest.mock('./persistence');
 // default "allowed" is (re-)installed in `beforeEach` below, not just here, since
 // `afterEach(() => jest.resetAllMocks())` would otherwise wipe it after the first test.
 jest.mock('./country-policy/country-policy');
-// TODO_PRODUIT.md T3 — "send" (phase 2) now checks whether IT is the write that settles the invoice
+// "send" (phase 2) now checks whether IT is the write that settles the invoice
 // it corrects (credit-note-actions.ts's `checkAndEmitInvoiceSettledFromCreditNote`), which reaches
 // Prisma directly through `listPayments`/`listCreditNotes` — same "mock what bypasses the mocked
 // ./persistence" discipline documents.service.invoice.spec.ts already holds for the identical
@@ -58,10 +58,10 @@ jest.mock('./settlement/credits', () => ({
  * registry, exactly the way it would in the real DocumentsModule wiring.
  */
 /**
- * `webhooks` (TODO_PRODUIT.md T2bis) is OPTIONAL, defaulted to `undefined` — every pre-existing test
+ * `webhooks` is OPTIONAL, defaulted to `undefined` — every pre-existing test
  * in this file constructs `buildService()` with no opinion on webhooks and must keep meaning exactly
  * what it always did. Only the dedicated "DOCUMENT_SENT" test below passes one — proving the type
- * T2 deliberately left webhook-less (no `CREDIT_NOTE_SENT` ever existed) gets one for free the moment
+ * deliberately left webhook-less (no `CREDIT_NOTE_SENT` ever existed) gets one for free the moment
  * the vocabulary stops being per-type (credit-note-actions.ts's own header).
  */
 function buildService(webhooks?: { dispatch: jest.Mock }) {
@@ -72,7 +72,7 @@ function buildService(webhooks?: { dispatch: jest.Mock }) {
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  // "send" is asynchronous (TODO.md item 22, actions/async-send.ts) for every type that has one,
+  // "send" is asynchronous (actions/async-send.ts) for every type that has one,
   // credit-note included — see credit-note.descriptor.ts's own header on why, even though this
   // type's own `deliver` does nothing at all. A fake dispatcher: no BullMQ, no Nest, no Redis.
   const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
@@ -128,7 +128,7 @@ const validCreditNoteData = {
 describe('DocumentsService — the credit note type, the THIRD descriptor-only type', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
-    // TODO_PRODUIT.md T3 — see this file's own top-of-file comment on the two partial mocks: no
+    // See this file's own top-of-file comment on the two partial mocks: no
     // payments, no OTHER credit notes, by default. A test that cares about settlement overrides these.
     (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
     (settlementCredits.listCreditNotes as jest.Mock).mockResolvedValue([]);
@@ -142,7 +142,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   });
 
   it('declares exactly three actions: "save-draft", "send", and "share-link" — nothing more', () => {
-    // "share-link" (root TODO item 24) joined "save-draft"/"send" here — see
+    // "share-link" joined "save-draft"/"send" here — see
     // credit-note.descriptor.ts's own comment on that action for why it is declared at all despite
     // never running through ActionRegistry.
     const descriptor = buildService().service.getType('credit-note');
@@ -228,11 +228,11 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
   });
 
-  // TODO_PRODUIT.md T2bis — "l'avoir gagne le webhook au passage": T2 deliberately left this type
+  // "L'avoir gagne le webhook au passage": the per-type vocabulary deliberately left this type
   // with NO webhook at all (no `CREDIT_NOTE_SENT` ever existed in the schema); the generic
   // `DOCUMENT_SENT` removes the need for a per-type event, so the credit note gets one for free the
   // moment `deps.webhooks` is passed — the SAME wiring invoice/quote already have, no new mechanism.
-  it('"send" (phase 2) dispatches DOCUMENT_SENT — the type T2 left webhook-less gets one for free', async () => {
+  it('"send" (phase 2) dispatches DOCUMENT_SENT — the type left webhook-less gets one for free', async () => {
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
       ...invoiceDocument('invoice-doc-1', ['line-1']),
       status: 'sending',
@@ -266,7 +266,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     );
   });
 
-  // ── TODO_PRODUIT.md T3's own "T2bis différé" — a credit note reaching "sent" is the SECOND write
+  // ── DOCUMENT_SETTLED from a credit note — a credit note reaching "sent" is the SECOND write
   // path (besides invoice-actions.ts's "record-payment") that can cross an invoice into "settled".
   describe('"send" (phase 2) — DOCUMENT_SETTLED, when THIS credit note is the one that settles the invoice it corrects', () => {
     /** Two 100 EUR (0% VAT) lines — round numbers, so every settlement figure below is exact and
@@ -473,7 +473,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 
-  // THE case this task singled out: a corrected line that has since disappeared from the invoice it
+  // THE case: a corrected line that has since disappeared from the invoice it
   // targets. This must block through the REAL, wired path (runAction), not merely in the pure
   // validator's own unit tests (resolve-row-selection.spec.ts) — a regression that wired the
   // mechanism but never actually called it from runAction would pass every test in that file while
@@ -514,13 +514,13 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
   });
 
   /**
-   * TODO_PRODUIT.md T4-d — credit-note-actions.ts's own `assertCreditNoteCurrencyMatchesInvoice`:
+   * credit-note-actions.ts's own `assertCreditNoteCurrencyMatchesInvoice`:
    * a credit note's own `currency` must equal the invoice it corrects, at every save (creation AND
    * a later re-edit) — never a silent mismatch. `validCreditNoteData`/`invoiceDocument()` (this
    * file's own fixtures, used by every OTHER test above) already agree on "EUR" for both, which is
    * exactly why none of those pre-existing tests needed to change for this guard to land.
    */
-  describe('"save-draft" — TODO_PRODUIT.md T4-d: the credit note\'s own currency must match its invoice', () => {
+  describe('"save-draft" — the credit note\'s own currency must match its invoice', () => {
     beforeEach(() => {
       (persistence.upsertDocument as jest.Mock).mockImplementation(
         async (_companyId, _typeId, _documentId, status, data) => ({

@@ -1,9 +1,9 @@
 /**
  * Loads every shipped B2G routing file the same way `documents-core.module.ts` does at boot (via
- * `data/all.ts`) — proves each one is well-formed AND that the countries this wave actually shipped
- * (fr, de, it — see this task's own explicit scope) are exactly what's there, no more, no less.
+ * `data/all.ts`) — proves each one is well-formed AND that the countries actually shipped
+ * are exactly what's there, no more, no less.
  *
- * Re-pinned by the 5-country prune (2026-09-10, see this task's own report): this mechanism now ships
+ * Re-pinned by the 5-country prune (2026-09-10): this mechanism now ships
  * DE/FR/IT/PL only. ES (its own "face"/facturae/DIR3 triad), NL (NLCIUS), and the nine countries the
  * 2026-09-02 B2G audit added as "generic Peppol BIS, no national CIUS"
  * (BE/CY/EE/GR/LT/LU/LV/MT/SE) were all `git rm`'d along with their data/xx.json — none of the four

@@ -1,21 +1,20 @@
 /**
- * REAL round-trip against the Mistral Document AI (OCR) API — TODO_PRODUIT.md T5(c).
+ * REAL round-trip against the Mistral Document AI (OCR) API.
  *
  * Gated `MISTRAL_OCR_LIVE=1` + `MISTRAL_API_KEY` (`../modules/documents/transports/live-gate.ts`),
  * the same shape every sibling channel's own live spec uses:
  *
  *   MISTRAL_OCR_LIVE=1 MISTRAL_API_KEY=... npx jest mistral-client.live --no-coverage
  *
- * HONEST STATUS AT THE END OF THIS TASK: **skipped, always** — this checkout holds no Mistral API
- * key (a real one costs money and was never provisioned for this task). What WAS independently,
- * live-verified (2026-09-03, real `curl`, credential-free, no API key needed at all) is reproduced by
- * the reachability block below: `POST https://api.mistral.ai/v1/ocr` with no `Authorization` header,
- * AND with an obviously-fake bearer token, both answer `HTTP 401` with body
- * `{"detail":"Invalid API Key"}` — confirming the host, the path, and the error shape are real, not
- * merely documented by `docs.mistral.ai` (see `mistral-client.ts`'s own header for the fuller
- * citation list). The mandant's own follow-up instruction is honoured here too: this spec tests the
- * OCR SERVICE'S OWN client (`mistral-client.ts`), the only code in this whole deployment that is
- * meant to ever hold `MISTRAL_API_KEY` — never the main backend's `MistralOcrProvider`
+ * HONEST STATUS: **skipped unless a key is provided** — this checkout holds no Mistral API
+ * key (a real one costs money). What WAS independently, live-verified (2026-09-03, real `curl`,
+ * credential-free, no API key needed at all) is reproduced by the reachability block below:
+ * `POST https://api.mistral.ai/v1/ocr` with no `Authorization` header, AND with an obviously-fake
+ * bearer token, both answer `HTTP 401` with body `{"detail":"Invalid API Key"}` — confirming the
+ * host, the path, and the error shape are real, not merely documented by `docs.mistral.ai` (see
+ * `mistral-client.ts`'s own header for the fuller citation list). This spec tests the OCR SERVICE'S
+ * OWN client (`mistral-client.ts`), the only code in this whole deployment that is meant to ever
+ * hold `MISTRAL_API_KEY` — never the main backend's `MistralOcrProvider`
  * (`plugins/ocr/providers/mistral/mistral.ts`), which by design never sees a real Mistral key at all.
  */
 import { PDFDocument } from 'pdf-lib';
@@ -55,10 +54,10 @@ describeLive('Mistral OCR live round-trip', () => {
 
     const client = buildMistralOcrClient({ apiKey: process.env.MISTRAL_API_KEY! });
 
-    // Never asserted against exact field VALUES (real OCR accuracy on a synthetic PDF is not this
-    // task's own concern) — only that the round-trip completes and returns THIS shape, proving the
+    // Never asserted against exact field VALUES (real OCR accuracy on a synthetic PDF is not the
+    // concern here) — only that the round-trip completes and returns THIS shape, proving the
     // endpoint, auth, request body, and `document_annotation` JSON-string parsing all work against
-    // the real API, not merely against this task's own stub.
+    // the real API, not merely against a stub.
     const proposal = await client.extract(pdfBytes, 'application/pdf');
     expect(proposal).toHaveProperty('fields');
     expect(typeof proposal.fields).toBe('object');

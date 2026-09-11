@@ -25,12 +25,12 @@ import {
  * with a status, a date and a source), and the conservative branch is the one exercised: an
  * unverified number keeps standard-rate VAT.
  *
- * Root TODO item 16 ("transfrontalier") ADDS one opt-in escape hatch: `VAT_VALIDATION_FAKE=1` (set
+ * Cross-border ("transfrontalier") support ADDS one opt-in escape hatch: `VAT_VALIDATION_FAKE=1` (set
  * only in `backend/.env.test`, the e2e backend's own env — never in dev/prod) swaps in
  * `FakeSyntaxOnlyVatValidationClient` instead of the null one. This is what makes the
- * VALID -> B2B/reverse-charge transition observable through a real browser (Cypress spec 35) — the
- * paragraph above used to end here: "What e2e cannot cover is the VALID -> AE transition, because
- * that needs an answer only VIES can give." That was true before this task; see
+ * VALID -> B2B/reverse-charge transition observable through a real browser (Cypress spec 35) —
+ * without it, e2e could not cover the VALID -> AE transition, because that needs an answer only
+ * VIES can give. See
  * `vat-validation.ts`'s own header on `FakeSyntaxOnlyVatValidationClient` for why answering `VALID`
  * for a syntactically-valid number is still a network-free, deterministic fake, never a real VIES
  * call — the "CI must never depend on VIES being up" contract is unchanged. Plain `NODE_ENV=test`
@@ -49,9 +49,9 @@ function vatValidationClient(): VatValidationPort {
   providers: [
     ClientsService,
     JwtService,
-    // C4 — the VAT validation client, WIRED. Without this provider ClientsService cannot be
+    // The VAT validation client, WIRED. Without this provider ClientsService cannot be
     // constructed, so the wiring cannot be forgotten the way ComplianceService's format registry
-    // was (P1-T03a): there, an optional constructor argument silently fell back to an unwired
+    // once was: there, an optional constructor argument silently fell back to an unwired
     // singleton and nothing failed. Here a missing provider is a boot error.
     //
     // ViesVatValidationClient talks to the European Commission's public service — no credentials,

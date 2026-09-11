@@ -12,7 +12,7 @@
  */
 // `WebhooksService`'s own driver list unconditionally constructs `new DiscordDriver()`, and
 // `discord.driver.ts` imports `@teever/ez-hook` — a pure-ESM JSR package ts-jest cannot compile (see
-// TODO_ISSUES.md's "ClientsModule inimportable sous ts-jest" note; `clients.vat-validation.spec.ts`
+// the known "ClientsModule inimportable sous ts-jest" limit; `clients.vat-validation.spec.ts`
 // hits the identical wall one level up and works around it the same way: a FACTORY mock at the exact
 // import path, so the real `discord.driver.ts` is never `require()`'d/transpiled at all). Unlike
 // that file, this suite constructs `WebhooksService` itself, so the mock has to sit one level

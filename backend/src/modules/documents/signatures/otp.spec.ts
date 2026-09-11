@@ -84,10 +84,10 @@ describe('otp — CSPRNG, format, and the guarantee this whole feature exists to
 
   describe('the guarantee', () => {
     /**
-     * THE mandant requirement, encoded so it cannot silently regress: recomputed from the two real,
+     * THE security requirement, encoded so it cannot silently regress: recomputed from the two real,
      * exported constants (never a copy-pasted "5" and "100000000" that could drift from the actual
      * values) — bumping MAX_FAILED_ATTEMPTS up, or shrinking OTP_CODE_SPACE down, fails this test and
-     * therefore CI. The mandant's own ceiling is 0.01% (0.0001); the actual figure is 0.000005%.
+     * therefore CI. The ceiling is 0.01% (0.0001); the actual figure is 0.000005%.
      */
     it('MAX_FAILED_ATTEMPTS / OTP_CODE_SPACE never exceeds 0.01% (0.0001)', () => {
       const fraction = MAX_FAILED_ATTEMPTS / OTP_CODE_SPACE;

@@ -38,8 +38,8 @@ export interface DocumentTransportContext {
    * behavior and NO error. A transport that DOES understand the concept (peppol) must still never
    * SILENTLY substitute its own default when it cannot honor a requested override — see
    * `peppol-transport.ts`'s own `resolveFormatForSend` for the named refusal that guards against
-   * exactly that (this task's own mutation target: a government invoice silently leaving in the wrong
-   * format would be worse than a block).
+   * exactly that (a government invoice silently leaving in the wrong format would be worse than a
+   * block).
    */
   formatOverride?: string;
 }
@@ -55,8 +55,8 @@ export interface DocumentTransportResult {
   reference?: string;
   /**
    * This transport's OWN registered id (e.g. "pdp", "ksef") — set by every transport that has one
-   * (never by "email", which has no provider-side conformity concept at all). Root TODO item 10's
-   * own named remainder (post-deposit conformity tracking, `conformity/`): `actions/async-send.ts`'s
+   * (never by "email", which has no provider-side conformity concept at all). Serves post-deposit
+   * conformity tracking (`conformity/`): `actions/async-send.ts`'s
    * phase-2 delivery persists this onto `DocumentInstance.channelProviderId` on the SAME write as
    * `reference` above — the conformity sweep needs to know which channel THIS document actually went
    * through, which `Company.invoiceTransportId` alone cannot answer (it is the company's CURRENT
@@ -67,7 +67,7 @@ export interface DocumentTransportResult {
    */
   providerId?: string;
   /**
-   * Root TODO item 14 ("archivage légal") — the artifacts THIS transport actually delivered, in
+   * Legal archiving ("archivage légal") — the artifacts THIS transport actually delivered, in
    * delivery order: the human-readable PDF (already signed if it was — see
    * `signing/sign-instance-pdf.ts`) for "email", or the structured format actually
    * deposited/submitted for "pdp"/"ksef"/"sdi" (Factur-X/FA(3)/FatturaPA — see each transport's own

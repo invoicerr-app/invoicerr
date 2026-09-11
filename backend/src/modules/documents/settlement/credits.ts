@@ -8,7 +8,7 @@ import { SettlementCreditInput } from './compute-settlement';
 
 /**
  * WHICH credit notes reduce WHAT a document owes, and by HOW MUCH — the resolution step
- * compute-settlement.ts's own header points to (item 8 of the root TODO, "le lettrage").
+ * compute-settlement.ts's own header points to ("le lettrage").
  *
  * Unlike settlement/payments.ts (a fully generic mechanism: `DocumentPayment` hangs off ANY document
  * type via a bare `documentId` FK, no type name anywhere in that file), a "credit" is NOT generic
@@ -32,8 +32,8 @@ const CREDIT_NOTE_READ_LIMIT = 500;
 export interface DocumentCreditResult {
   id: string;
   /** The credit note's own `displayNumber` — always null today, since credit-note.descriptor.ts
-   *  declares no `numbering` at all yet (see that file's own comment on why this task does not add
-   *  one) — kept as a field regardless, exactly like `DocumentPaymentResult` already anticipates
+   *  declares no `numbering` at all yet (see that file's own comment on why none is added) — kept
+   *  as a field regardless, exactly like `DocumentPaymentResult` already anticipates
    *  facts a payment doesn't have yet, so numbering a credit note later needs no shape change here. */
   displayNumber: string | null;
   amountMinor: number;
@@ -45,7 +45,7 @@ export interface CreditsForDocument {
   /**
    * Plain English, same convention as `DocumentTotals.warnings`.
    *
-   * TODO_PRODUIT.md T3 ("un avoir suit la même règle que sa facture") — before this task, a credit
+   * "Un avoir suit la même règle que sa facture" — previously, a credit
    * note whose OWN `currency` field differed from the invoice's was EXCLUDED here entirely (never
    * counted, never converted) on the theory that it needed the SAME dated-rate conversion a foreign
    * payment does. It does not: `computeCreditedAmountMinor` below computes the credited GROSS amount

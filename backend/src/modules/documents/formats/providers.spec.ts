@@ -1,5 +1,5 @@
 /**
- * THE MASTER PROOF for item 12 ("formats normalisés EN 16931") — offline, no network, no mocked
+ * THE MASTER PROOF for the normalized EN 16931 formats — offline, no network, no mocked
  * validation: a hand-computed fixture goes through the REAL build pipeline (descriptor →
  * `semantic/build-semantic-invoice.ts` → `@e-invoice-eu/core`'s own XML generator) and the REAL
  * vendored EN 16931 Schematron (`vendored/validate-schematron.ts`, node-schematron over the verbatim
@@ -116,11 +116,11 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
     ['CII', ciiFormatProvider, 'CrossIndustryInvoice'] as const,
     ['UBL', ublFormatProvider, 'Invoice'] as const,
   ])('%s — build + REAL XSD-equivalent structural gate + REAL Schematron', (_label, provider, rootTag) => {
-    it('builds an artifact the vendored EN 16931 ruleset accepts — the proof this ticket exists for', async () => {
+    it('builds an artifact the vendored EN 16931 ruleset accepts', async () => {
       const result = await provider.build(descriptor, DOCUMENT, SELLER, BUYER);
 
       // A failing assertion here prints EVERY BR-* rule the vendored Schematron actually fired —
-      // never swallowed, per this ticket's own "a gate, not a report" requirement.
+      // never swallowed: this is a gate, not a report.
       expect(result.validation.errors).toEqual([]);
       expect(result.validation.valid).toBe(true);
 
@@ -163,7 +163,7 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
     }, 30_000);
 
     /**
-     * BT-23 — root TODO item 15's own remainder, now wired via `../content-requirements/` (see
+     * BT-23 — now wired via `../content-requirements/` (see
      * `semantic/business-process.ts`'s own header). Every case here is issued ON the shipped content
      * requirement's own `mandatedFrom` (2026-09-01), and every artifact is still judged by the REAL
      * vendored Schematron via `result.validation` — a code that broke the base standard would fail
@@ -249,7 +249,7 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
 });
 
 /**
- * USER DECISION (2026-09-01, TODO_ISSUES.md "SIRET vs SIREN sur la facture", now RÉSOLU) —
+ * USER DECISION —
  * `country-identifiers/data/fr.json`'s LEGAL_ID field now accepts EITHER a 9-digit SIREN or a
  * 14-digit SIRET (see that file's own `notes`). This is the proof the DECISION actually holds where
  * it matters — the exported BT-29/BT-30 (`cac:PartyLegalEntity/cbc:CompanyID`, ISO 6523 scheme
@@ -259,7 +259,7 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
  * own header) — so a 9-digit input was already, structurally, never re-derived. Judged by the REAL
  * vendored EN 16931 Schematron, exactly like the master proof above, never a hand-asserted opinion.
  */
-describe('root TODO item 21 — SIREN (9 digits) is accepted and emits the identical SIREN as a SIRET (14 digits)', () => {
+describe('SIREN (9 digits) is accepted and emits the identical SIREN as a SIRET (14 digits)', () => {
   const SELLER_WITH_SIREN: DocumentFormatParty = {
     ...SELLER,
     partyIdentifiers: [

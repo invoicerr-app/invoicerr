@@ -60,7 +60,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
       // this client must use, per its own country (see the B2G hint panel further down this form).
       kind: z.enum(["BUSINESS", "GOVERNMENT"]),
-      // TODO_PRODUIT.md T5(b) — the received-invoice reconciliation's own role, a PLAIN boolean
+      // The received-invoice reconciliation's own role, a PLAIN boolean
       // independent from "kind" above (see backend Client.isSupplier's own schema comment for why).
       isSupplier: z.boolean().optional(),
       name: z.string().optional(),
@@ -689,11 +689,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                 0208 — BE org.nr
                               </SelectItem>
                               {/*
-                                TODO_PRODUIT.md T4-b — was "0106 — DK CVR", WRONG: 0106 is the Dutch
+                                Was "0106 — DK CVR", WRONG: 0106 is the Dutch
                                 KVK ("Vereniging van Kamers van Koophandel en Fabrieken in Nederland",
                                 NL, active) in the Peppol v9.7 Participant Identifier Schemes codelist
                                 (docs.peppol.eu/edelivery/codelists/), not a Danish scheme at all —
-                                found by the 2026-09-02 B2G audit (TODO_ISSUES.md), re-verified live
+                                found by the 2026-09-02 B2G audit, re-verified live
                                 against the v9.7 codelist JSON on 2026-09-03. The real Danish CVR is
                                 0184 (Peppol scheme name: "The Danish Business Authority - CVR-number
                                 (DK:CVR)"), added just below.
@@ -711,7 +711,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                                 0060 — DUNS
                               </SelectItem>
                               {/*
-                                TODO_PRODUIT.md T4-a — the seven EAS the 2026-09-02 B2G audit added
+                                The seven EAS the 2026-09-02 B2G audit added
                                 routing rules for (backend/src/modules/documents/b2g-routing/data/
                                 {ee,lt,lv,lu,cy,gr,mt}.json) but this selector never offered — each
                                 label below is the scheme name the audit itself already read from the

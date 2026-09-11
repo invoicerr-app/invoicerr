@@ -30,7 +30,7 @@ import * as crypto from 'node:crypto';
  *  test below, and `signatures.spec.ts`'s own "the guarantee" spec, recompute their fraction from). */
 export const OTP_CODE_SPACE = 100_000_000;
 
-/** 5 minutes — down from the removed module's own 15 (mandant's own hardening parameter). */
+/** 5 minutes — down from the removed module's own 15 (a deliberate hardening). */
 export const OTP_WINDOW_MS = 5 * 60 * 1000;
 
 /**
@@ -39,7 +39,7 @@ export const OTP_WINDOW_MS = 5 * 60 * 1000;
  * `recordFailedAttempt`), an attacker gets AT MOST this many guesses against a code space of
  * `OTP_CODE_SPACE`. `MAX_FAILED_ATTEMPTS / OTP_CODE_SPACE` = 5 / 10^8 = 0.000005 % — see
  * `otp.spec.ts`'s own "the guarantee" test, which recomputes this fraction from these two exported
- * constants and fails the moment either one drifts past the mandant's own 0.01 % ceiling. This is
+ * constants and fails the moment either one drifts past the 0.01 % ceiling. This is
  * DELIBERATELY independent of `MAX_OTP_MINTS` below: re-arming narrows the CURRENT code's own 5-minute
  * window, it never grants a fresh attempt budget.
  */

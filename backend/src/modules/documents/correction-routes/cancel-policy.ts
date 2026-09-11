@@ -1,16 +1,15 @@
 /**
- * TODO_CORRECTION.md C3 — whether cancelling an already-ISSUED invoice is something this repo can
+ * Whether cancelling an already-ISSUED invoice is something this repo can
  * actually do LOCALLY for a given seller country, and from which of the invoice's own post-issuance
  * statuses ("sent"/"send_failed" — invoice.descriptor.ts's own CANCEL_TRANSITIONS). Read straight off
- * the SAME correction-routes catalog C1 already loads (registry.ts) — this is a DECISION about the
+ * the SAME correction-routes catalog registry.ts already loads — this is a DECISION about the
  * eleven-route vocabulary's own CANCEL_AND_REPLACE, never a second, independently-typed country file.
  *
  * `resolveCancelPolicyForCountry` returns the exact same shape `country-policy/country-policy.ts`'s
  * own `evaluateCountryPolicy` does (`CountryPolicyDecision`) so `documents.service.ts` can compose it
  * through the IDENTICAL 403/409 machinery `runAction` already holds for every other action — see that
  * file's own `resolveActionPolicy`. What differs is the SOURCE: `country-policy/` is a DB-mirrored
- * table covering eight countries today (FR/US/HU/DE/IT/PL/ES/MX — data/all.ts, root TODO P1 added the
- * last five), but even full overlap with correction-routes' own seven pivots would not make the two
+ * table covering eight countries today (FR/US/HU/DE/IT/PL/ES/MX — data/all.ts), but even full overlap with correction-routes' own seven pivots would not make the two
  * interchangeable for THIS action: `country-policy/` can only say allowed/forbidden for the WHOLE
  * action, never "the route exists but only from one post-issuance status" (Italy) or "the route is
  * `required` in law but this repo wires no authority channel to REALIZE it" (Poland, Mexico — see this
@@ -22,7 +21,7 @@
  * ## Why this can't be a generic "status is required/allowed -> implementable" rule
  *
  * Unlike INTERNAL_CREDIT_NOTE's own universal `IMPLEMENTED_ROUTE_IDS` entry (correction-routes.ts,
- * C1/C2: the credit-note SCREEN works identically regardless of which country calls it, only its
+ * the credit-note SCREEN works identically regardless of which country calls it, only its
  * required/allowed/forbidden STATUS varies), CANCEL_AND_REPLACE's own REALIZATION genuinely differs
  * per country — two of the seven pivots DECLARE it `required`/`allowed` yet have NO real local
  * cancellation mechanism behind it at all:
@@ -30,7 +29,7 @@
  *  - Poland (`required`): data/pl.json's own notes say it plainly — "Exécuté AU MOYEN de factures
  *    correctives, jamais par une annulation — la voie existe, le mécanisme d'annulation non." The
  *    ROUTE is mandatory, but its own REALIZATION is a corrective invoice (CORRECTIVE_INVOICE, a
- *    different mechanism this task does not build), never a status flip on the original record.
+ *    different mechanism, not built here), never a status flip on the original record.
  *
  * Portugal's own CANCEL_AND_REPLACE stays honestly `unverified` (no clearance/refusal-then-reissue
  * mechanism was found in the Decreto-Lei n.º 28/2019 read in primary text) — the generic
@@ -99,7 +98,7 @@ function findCancelAndReplaceRoute(countryCode: string): CorrectionRouteFact | u
 }
 
 /** The route's own words, verbatim — same "never a summary written for this endpoint" discipline
- *  `correction-routes.ts`'s own `describeLabel` already holds for the C1 API (kept as its own small,
+ *  `correction-routes.ts`'s own `describeLabel` already holds for the read API (kept as its own small,
  *  local copy rather than an import: sharing a three-line pure function across two files that must
  *  never import each other — see this file's own header on the correction-routes.ts <-> cancel-
  *  policy.ts dependency direction — is not worth the indirection). */
@@ -113,7 +112,7 @@ function describeCancelRefusal(countryCode: string, route: CorrectionRouteFact):
   return (
     `Cancelling an invoice locally is not implementable for "${countryCode}" today: its own ` +
     `CANCEL_AND_REPLACE data (status: ${route.status}) says ${describeRouteWords(route)} — see ` +
-    'docs/compliance/CORRECTION-ROUTES.yaml and TODO_CORRECTION.md C3 for why this route is declared ' +
+    'documentation/internal/CORRECTION-ROUTES.yaml for why this route is declared ' +
     'but not wired to a real local-cancellation mechanism.'
   );
 }

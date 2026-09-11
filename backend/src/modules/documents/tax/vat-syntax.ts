@@ -2,7 +2,7 @@
  * Pure, offline VAT-number SYNTAX validators — REPRISE quasi verbatim of the `validateVat` dispatcher
  * and its per-country checksum functions from `compliance/canonical/identifier-validator.ts` (git
  * tag `avant-refonte-documents`). Only the SIREN/SIRET/Codice-Fiscale/RFC validators were dropped —
- * this module cares only about VAT numbers (root TODO item 16's own "syntaxique par pays" contract);
+ * this module cares only about VAT numbers (the "syntaxique par pays" contract);
  * `validateNip` is kept because the repère's own `validateVat` calls it internally for PL.
  *
  * No network I/O. Each algorithm cites its authoritative reference, copied from the repère.
@@ -15,7 +15,7 @@
  *  ES VAT/NIF  : https://en.wikipedia.org/wiki/VAT_identification_number#Spain
  *
  * `resolve-invoice-tax.ts` is the consumer that turns `valid: false` into "treat this buyer as B2C,
- * with a named warning — never a silent B2B" (root TODO item 16, "un numéro TVA invalide
+ * with a named warning — never a silent B2B" ("un numéro TVA invalide
  * syntaxiquement → l'acheteur est B2C").
  */
 

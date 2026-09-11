@@ -1,5 +1,5 @@
 /**
- * REAL round-trip against SdI's `SdIRiceviFile.RiceviFile` — root TODO item 10, wave 2, SdI channel.
+ * REAL round-trip against SdI's `SdIRiceviFile.RiceviFile`.
  * Status: **implemented-awaiting-accreditation** — this spec has NEVER been executed against the true
  * AdE endpoint: no environment available in this checkout holds real AdE (Agenzia delle Entrate)
  * intermediary accreditation (see `sdicoop-client.ts`'s own header, and `CREDENTIALS_GUIDE.md` §4 for

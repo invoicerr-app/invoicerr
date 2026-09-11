@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 4 — the GENERIC accounting CSV export, "L" part explicitly out of scope: this
+ * The GENERIC accounting CSV export, "L" part explicitly out of scope: this
  * file is only the ledger's syntax (RFC 4180 CSV), never a country-specific column mapping (FR's FEC,
  * DE's DATEV). A future extension registers a per-country FORMATTER reading the exact same
  * `AccountingLedgerRow[]` accounting-export.service.ts already resolves — the same "one read, several

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import type { DocumentAuthorityEvent } from "./types"
 
 /**
- * Root TODO item 10's own named remainder — post-deposit conformity tracking (PDP: fr:200 déposée →
+ * Post-deposit conformity tracking (PDP: fr:200 déposée →
  * fr:201 émise → fr:202 reçue, or fr:213 rejetée; KSeF: gated, see the backend's own
  * `ksef-status-poller.ts`). Same mould as `document-archive-section.tsx`: shown inside the document
  * edit dialog for ANY document type/status once it has at least one event, renders NOTHING for a
@@ -25,7 +25,7 @@ import type { DocumentAuthorityEvent } from "./types"
 
 export type ConformityVerdict = "accepted" | "rejected" | "gaveUp" | "pending" | "declarationIssue"
 
-/** The two REAL PDP codes this session proved live (`pdp-conformity.live.spec.ts`, 2026-09-01):
+/** The two REAL PDP codes proved live (`pdp-conformity.live.spec.ts`, 2026-09-01):
  *  fr:202 ("Reçue par la plateforme") is the platform's own final ACCEPTANCE; fr:213 ("Rejetée") is
  *  its own final refusal. `pl:200`/any `pl:4xx`/`pl:5xx` mirror the SAME `{code}` convention the
  *  backend's own `ksef-status-poller.ts` borrows (gated — see that file's own honesty note). A new
@@ -35,7 +35,7 @@ const ACCEPTED_CODES = new Set(["fr:202"])
 const REJECTED_CODES = new Set(["fr:213"])
 const KSEF_CODE = /^pl:(\d+)$/
 
-/** Root TODO ("déclaration") — `reporting/report-job.ts`'s own two synthetic codes. DELIBERATELY a
+/** `reporting/report-job.ts`'s own two synthetic codes. DELIBERATELY a
  *  verdict of its OWN, never folded into `rejected`: a declaration failure/block says NOTHING about
  *  the invoice itself (it already left — see `reporting/report-on-send.ts`'s own header) — labeling
  *  it "Rejected" would falsely imply the INVOICE was refused, when only its post-issuance DATA
@@ -127,9 +127,8 @@ export function ConformityBadge({ events, className, dataCySuffix }: ConformityB
   )
 }
 
-/** Shown on the document LIST — deliberately ONLY for "rejected" or "declarationIssue" (this task's
- *  own brief: "un indicateur discret pour rejeté (c'est l'info qui compte)", extended by root TODO
- *  "déclaration" to the SAME discipline for a declarative-reporting failure — see
+/** Shown on the document LIST — deliberately ONLY for "rejected" or "declarationIssue" (a
+ *  declarative-reporting failure follows the SAME discipline — see
  *  `DECLARATION_ISSUE_CODES`'s own header on why that is its own verdict, never folded into
  *  "rejected"). An accepted or still-pending deposit shows nothing on the list row at all; the full
  *  timeline (all five states) lives in the section below, inside the edit dialog. */
@@ -153,8 +152,7 @@ interface ConformityTimelineProps {
 
 /** The PRESENTATIONAL half — pure props in, markup out, no data fetching of its own. Split out from
  *  `DocumentConformitySection` below so `document-conformity-section.spec.tsx` can render it directly
- *  with hardcoded events, no query client/network mocking needed (this task's own brief: "un test de
- *  composant vitest ... avec des événements en dur"). Most-recent-first — the API's own order
+ *  with hardcoded events, no query client/network mocking needed. Most-recent-first — the API's own order
  *  (`listAuthorityEvents`), never re-sorted here. */
 export function ConformityTimeline({ events }: ConformityTimelineProps) {
   const { t } = useTranslation()

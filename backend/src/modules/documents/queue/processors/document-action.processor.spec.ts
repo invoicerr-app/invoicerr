@@ -74,7 +74,7 @@ describe('DocumentActionProcessor', () => {
     });
   });
 
-  describe('process() — schedule job names (root TODO item 5)', () => {
+  describe('process() — schedule job names', () => {
     it('a job named after the sweep runs DocumentScheduleSweepRunner.runSweep, never runAction', async () => {
       const runAction = jest.fn();
       const documentsService = { runAction } as unknown as DocumentsService;
@@ -134,7 +134,7 @@ describe('DocumentActionProcessor', () => {
     });
   });
 
-  describe('process() — declarative report job name (root TODO, reporting/)', () => {
+  describe('process() — declarative report job name', () => {
     const REPORT_DATA: ReportJobData = {
       companyId: 'company-1',
       documentId: 'doc-1',
@@ -328,8 +328,8 @@ describe('DocumentActionProcessor', () => {
         expect(recordTerminalFailure).not.toHaveBeenCalled();
       });
 
-      // THE MUTATION TARGET this task's own brief names: "l'échec déclaratif casse le statut de la
-      // facture" — this proves the ONLY thing a terminal report failure ever touches is
+      // The defect this guards against — "l'échec déclaratif casse le statut de la
+      // facture": this proves the ONLY thing a terminal report failure ever touches is
       // `ReportingRunner.recordTerminalFailure` (which journals `report:failed`, see
       // `reporting-runner.spec.ts`), never `markSendFailed`/the document's own status.
       it('records the terminal failure once every retry is exhausted, and NEVER touches markSendFailed', async () => {

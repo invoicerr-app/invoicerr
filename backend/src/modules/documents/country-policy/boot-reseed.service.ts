@@ -26,7 +26,7 @@
  *     exists to remove — and would leave a still-unfixed asymmetry between this table and
  *     `B2gRoutingRule`, which already has no such branch.
  *
- * Refusing to reseed in production was the other option this task's brief allowed, gated on logging
+ * Refusing to reseed in production was the other option considered, gated on logging
  * the drift loudly instead of correcting it silently. That path was not taken: this codebase already
  * has a stronger, working precedent (`B2gRoutingRule`) for "just correct it, safely, everywhere" —
  * preferred here over inventing a softer, log-only stance for one table but not its sibling.

@@ -8,13 +8,13 @@
  *
  * DoD:
  *  - No `wsseCertificate` configured → the envelope on the wire is UNSIGNED, byte-identical in shape
- *    to what `FaceSoapHttpPort` sent before this task (regression — a caller that has not been
+ *    to what `FaceSoapHttpPort` sent before `wsse-sign.ts` existed (regression — a caller that has not been
  *    updated, or FACe channels with no signing cert resolved, keep working exactly as before).
  *  - A `wsseCertificate` IS configured → the envelope on the wire carries a real, independently
  *    re-verifiable WS-Security signature (`wsse-sign.ts#verifyWsseSignature`).
- *  - MUTATION GUARD #2 (this task's own) — "l'enveloppe part non signée malgré un certificat
+ *  - MUTATION GUARD #2 — "l'enveloppe part non signée malgré un certificat
  *    présent": demonstrated against THIS spec by literally mutating `FaceSoapHttpPort.post()` to
- *    always build the unsigned envelope (see this task's own report for the before/after run).
+ *    always build the unsigned envelope.
  */
 import * as forge from 'node-forge';
 import * as https from 'node:https';

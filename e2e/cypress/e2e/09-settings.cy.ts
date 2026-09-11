@@ -96,9 +96,9 @@ describe('Settings E2E', () => {
     });
 
     describe('Plugins Settings', () => {
-        // TODO_SUITE.md P2 (2026-09-03) — the external, git-clone "Add Plugin" form and the
-        // installed-plugins list it fed were removed (no real extension point behind them, see
-        // TODO_ISSUES.md T5c). No spec touched `/settings/plugins` before this task (grep found
+        // The external, git-clone "Add Plugin" form and the installed-plugins list it fed were
+        // removed on 2026-09-03 (no real extension point behind them, see the backend's
+        // plugins.service.ts's own header). No spec touched `/settings/plugins` before the removal (grep found
         // none) — this is a fresh smoke of the screen that remains: in-app plugins only
         // (PluginRegistry/PluginType — signing, storage), proving the removal didn't take the
         // survivor down with it.

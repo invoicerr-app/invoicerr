@@ -353,8 +353,8 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
-			// P1 (TODO_SUITE, 2026-09-03) a donné une policy à l'Allemagne — l'ancien exemple de « pays
-			// sans règle » de ce test est devenu un pays COUVERT (201 au lieu de 403, la batterie P1 l'a
+			// L'Allemagne a reçu une policy le 2026-09-03 — l'ancien exemple de « pays
+			// sans règle » de ce test est devenu un pays COUVERT (201 au lieu de 403, la batterie l'a
 			// attrapé). Le Japon reprend le rôle : aucun fichier country-policy/data/jp.json n'existe,
 			// et l'intention du test (un client scripté ne contourne pas l'écran pour un pays non
 			// couvert) est inchangée, assertion pour assertion.

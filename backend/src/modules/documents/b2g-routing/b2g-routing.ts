@@ -131,7 +131,7 @@ export interface B2gClientRoutingDecision {
  * document names its client by, see `descriptors/invoice.descriptor.ts`) — resolved here, not
  * through `ClientsService` (this module stays a plain Prisma reader, the same DI-free convention
  * `country-policy.ts` already holds, and the one this repo's OWN pitfall list names for
- * `ClientsModule` under ts-jest — see TODO_ISSUES.md).
+ * `ClientsModule` under ts-jest).
  */
 export async function resolveClientB2gRouting(
   companyId: string,

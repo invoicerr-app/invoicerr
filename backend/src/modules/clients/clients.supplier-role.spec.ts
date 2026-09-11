@@ -1,5 +1,5 @@
 /**
- * TODO_PRODUIT.md T5(b) — `Client.isSupplier`, the reused-role decision. `ClientsService` constructed
+ * `Client.isSupplier`, the reused-role decision. `ClientsService` constructed
  * DIRECTLY (never `ClientsModule` — see `clients.vat-validation.spec.ts`'s own header, "ClientsModule
  * inimportable sous ts-jest"), real Prisma.
  */
@@ -20,7 +20,7 @@ const fakeVatValidator: VatValidationPort = {
   validate: jest.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
 };
 
-describe('ClientsService — Client.isSupplier (TODO_PRODUIT.md T5(b))', () => {
+describe('ClientsService — Client.isSupplier', () => {
   let companyId: string;
   let service: ClientsService;
 

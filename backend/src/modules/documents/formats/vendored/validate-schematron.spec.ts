@@ -9,7 +9,7 @@
  * Each test below drives the REAL `validateSchematron` against the REAL vendored
  * `PEPPOL-EN16931-UBL.sch` (never a re-implementation of the ruleset) with a minimal XML fragment
  * carrying ONE `cbc:EndpointID` under the scheme the function in question gates — proving three
- * things per function: (1) it never throws (the actual bug this task found and fixed), (2) a
+ * things per function: (1) it never throws (the actual bug found and fixed), (2) a
  * genuinely valid identifier passes (the assert's own id absent from `errors`), (3) a genuinely
  * invalid one is caught (the assert's own id present) — never a function that "no longer crashes"
  * by accepting everything.
@@ -101,7 +101,7 @@ describe('validate-schematron.ts — the six newly-registered Peppol identifier-
 });
 
 /**
- * The SIX Italian identifier-checksum functions — `TODO_LIBRE.md` L2 (2026-09-04), the gap the file
+ * The SIX Italian identifier-checksum functions (added 2026-09-04) — the gap the file
  * header above named as deliberately left out of the 2026-09-02 wave: `PEPPOL-EN16931-UBL.sch`
  * declares `u:checkCodiceIPA`/`u:checkCF`/`u:checkCF16`/`u:checkPIVAseIT`/`u:checkPIVA`/`u:addPIVA`
  * as `xsl:function`s, none of which had ever been registered — same `XPST0017` crash class as the

@@ -1,7 +1,7 @@
 import prisma from '@/prisma/prisma.service';
 
 /**
- * TODO_FEATURES.md rank 4 — resolves a batch of `Client.id`s to a human-readable label, for the
+ * Resolves a batch of `Client.id`s to a human-readable label, for the
  * accounting export's own "client" column: a document's own `data.client` field (an invoice's/credit
  * note's billable party) is a bare id, never a name.
  *

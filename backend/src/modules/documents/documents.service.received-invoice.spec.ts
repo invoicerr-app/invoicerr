@@ -20,7 +20,7 @@ jest.mock('./persistence');
 // default "allowed" is (re-)installed in beforeEach, since `afterEach(() => jest.resetAllMocks())`
 // would otherwise wipe it after the first test.
 jest.mock('./country-policy/country-policy');
-// TODO_PRODUIT.md T5(b) — mocked for the SAME reason as `./persistence` above: this file's own
+// Mocked for the SAME reason as `./persistence` above: this file's own
 // concern is DocumentsService's WIRING ("receive" calls `markClientAsSupplier` with the right args
 // when a link is present, never otherwise"), not `markClientAsSupplier`'s own real Prisma behaviour
 // (companyId scoping, idempotence — proven for real in
@@ -111,7 +111,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
         fileRef: 'abc123',
         fileName: 'invoice.pdf',
         fileMime: 'application/pdf',
-        // TODO_PRODUIT.md T5(a) — always written, even empty: see received-invoice-actions.ts's own
+        // Always written, even empty: see received-invoice-actions.ts's own
         // header on "receive" for why this is computed and stored on every save, not just when there
         // is something to warn about.
         lineTotalWarnings: [],
@@ -139,7 +139,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     });
   });
 
-  it('"receive" persists a non-empty `lineTotalWarnings` when the lines disagree with the stated totals — T5(a)', async () => {
+  it('"receive" persists a non-empty `lineTotalWarnings` when the lines disagree with the stated totals', async () => {
     (persistence.upsertDocument as jest.Mock).mockResolvedValue(fakeRecord());
     const { service } = buildService();
 
@@ -189,7 +189,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     expect(result.document).toMatchObject({ status: 'received' });
   });
 
-  // TODO_PRODUIT.md T5(b) — "le rôle posé au moment du lien": both the auto-match (upload time) and a
+  // "Le rôle posé au moment du lien": both the auto-match (upload time) and a
   // manual pick converge on THIS one handler, so both are proven by the same two tests.
   it('"receive" marks the linked client as a supplier when `data.supplierClient` is set', async () => {
     (persistence.upsertDocument as jest.Mock).mockResolvedValue(
@@ -292,7 +292,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     expect(persistence.deleteDocument).toHaveBeenCalledWith('company-1', 'received-invoice', 'ri-1');
   });
 
-  // The obligatory country-policy wiring proof this task asks for: a country with no rule for this
+  // The obligatory country-policy wiring proof: a country with no rule for this
   // ACTION refuses with a NAMED 403 — this only proves DocumentsService's own wiring (it calls
   // evaluateCountryPolicy and turns a refusal into ForbiddenException with the exact reason); the
   // REAL, unmocked mechanism ("a country the policy catalog has no file for blocks everything, and

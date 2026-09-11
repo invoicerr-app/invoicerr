@@ -15,7 +15,7 @@ jest.mock('../persistence');
 // way `../persistence` already is, defaulting to "nothing paid" so every pre-existing test in this
 // file keeps meaning exactly what it always did.
 jest.mock('../settlement/payments');
-// Same reason, same discipline, for CREDITS (item 8, "le lettrage") — `listCreditNotes` also reaches
+// Same reason, same discipline, for CREDITS ("le lettrage") — `listCreditNotes` also reaches
 // Prisma directly. Defaulted to "no credit notes at all" so every pre-existing test keeps meaning
 // exactly what it always did; the dedicated test below overrides it.
 jest.mock('../settlement/credits', () => {
@@ -96,7 +96,7 @@ describe('buildInvoiceDashboardWidgets', () => {
     expect(pending.items[1]).toMatchObject({ primary: '100.00 EUR', secondary: '2026-09-10' });
   });
 
-  it('excludes a "cancelled" invoice — TODO_CORRECTION.md C3, a void invoice owes nothing and is never pending', async () => {
+  it('excludes a "cancelled" invoice — a void invoice owes nothing and is never pending', async () => {
     listDocuments.mockResolvedValue([
       invoice({
         id: 'cancelled-1',
@@ -150,7 +150,7 @@ describe('buildInvoiceDashboardWidgets', () => {
     expect(sumPaidMinorByDocument).toHaveBeenCalledWith('c1', ['settled-1', 'partial-1']);
   });
 
-  it('excludes a "sent" invoice that has been fully CREDITED — item 8, "le lettrage" — same function, automatically', async () => {
+  it('excludes a "sent" invoice that has been fully CREDITED — "le lettrage" — same function, automatically', async () => {
     // credited-1: one 100 EUR line, no VAT rate given -> grossMinor 10000, corrected in FULL by a
     // SENT credit note selecting that same line. still-pending-1: correctable line untouched by any
     // credit note at all.
@@ -259,7 +259,7 @@ describe('buildInvoiceStatisticsWidgets', () => {
         status: 'draft',
         data: { issueDate: '2026-02-01', dueDate: '2026-03-01', currency: 'USD', lines: [] },
       }),
-      // TODO_CORRECTION.md C3 — unlike the dashboard's own "pending" list (see the dedicated
+      // Unlike the dashboard's own "pending" list (see the dedicated
       // exclusion test above), the full audit table keeps a "cancelled" invoice, exactly like
       // "draft"/"send_failed" already are — this is a record of every invoice ever issued, not a
       // worklist of what is still owed.

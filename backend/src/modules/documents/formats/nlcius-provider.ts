@@ -7,10 +7,9 @@
  * repo, tag, MIT license, what was and was not vendored) and for the XPST0017 check (this delta
  * declares ZERO `xsl:function`s — nothing to register in `vendored/validate-schematron.ts`).
  *
- * ## MANDANT DECISION (root TODO, "NLCIUS vendorable" — "Go" 2026-09-05)
+ * ## Why NLCIUS is now deliverable
  *
- * `TODO_DOCUMENTS.md`'s own pending-decision entry recorded that the NL agent had established the
- * official repo (github.com/peppolautoriteit-nl/validation, Peppol Autoriteit NL / Stichting
+ * The official repo (github.com/peppolautoriteit-nl/validation, Peppol Autoriteit NL / Stichting
  * Simplerinvoicing) ships `si-ubl-2.0.sch` (incl. the NLCIUS rules) under an MIT `LICENSE.txt` — this
  * REOPENS `B2G_COVERAGE.md`'s prior "🟡 pas livrable" verdict for the Netherlands (its ONLY blocker
  * was "CIUS NL — NLCIUS ... non [vendorable]"). This provider, plus `b2g-routing/data/nl.json` and
@@ -42,7 +41,7 @@
  *    Dutch company/client). A Dutch seller with no KVK number on file → refused, NAMED, by BR-NL-1.
  *  - BR-NL-2 (fatal, supplier-in-NL only): `cbc:BuyerReference` (BT-10) OR `cac:OrderReference/cbc:ID`
  *    (BT-13) — comblé by the SAME generic `data.buyerReference` mechanism DE's own Leitweg-ID uses
- *    (`shared-build.ts#extractBuyerReference`); no NL-specific screen field is added by this task (no
+ *    (`shared-build.ts#extractBuyerReference`); no NL-specific screen field is added (no
  *    `country-fields/data/nl.json` overlay exists yet — a Dutch seller has no dedicated input for this
  *    field today, the identical, already-documented UX gap `country-fields/data/de.json`'s own header
  *    calls out for a foreign seller invoicing a German public body).

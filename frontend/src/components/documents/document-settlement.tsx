@@ -17,7 +17,7 @@ import { decimalsFor, fromMinor } from "./totals-calculator"
  * (document-list.tsx, document-form.tsx), which gate on `descriptor.actions` alone, the same way
  * `descriptor.numbering` already gates the number badge without naming a type either.
  *
- * Item 8 of the root TODO ("le lettrage") added CREDITS to the balance — a credit note is NOT a
+ * Lettering ("le lettrage") added CREDITS to the balance — a credit note is NOT a
  * payment (see the backend's compute-settlement.ts header), so the section below renders them as a
  * THIRD block of their own, never merged into the "Payments" list: `paidMinor` and `creditedMinor`
  * stay two separate numbers, and the payments/credits LISTS stay two separate lists, all the way from
@@ -53,7 +53,7 @@ export function settlementBadgeInfo(settlement: DocumentSettlement): SettlementB
 }
 
 // Exported so a different screen rendering the same tone/label pair (clients/_components/
-// client-statement.tsx's own per-row badge, TODO_FEATURES.md rank 6) never invents a second color
+// client-statement.tsx's own per-row badge) never invents a second color
 // mapping for the exact same three states.
 export const TONE_CLASSES: Record<SettlementTone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
@@ -109,9 +109,9 @@ interface DocumentSettlementSectionProps {
  * The settlement section inside the edit dialog — THREE blocks, never mixed:
  *  1. the badge + the balance itself (paid / credited / outstanding / excess);
  *  2. the PAYMENTS recorded so far;
- *  3. the CREDIT NOTES correcting this document (item 8, "le lettrage").
+ *  3. the CREDIT NOTES correcting this document ("le lettrage").
  * Does NOT render the "record-payment" button itself — that is the descriptor's own action, already
- * rendered generically by document-form.tsx's action loop (the mechanism this whole task tests: the
+ * rendered generically by document-form.tsx's action loop (the mechanism this section relies on: the
  * declared params are enough for that existing screen, nothing bespoke needed here). It does not
  * render a "send" button for a credit note either, for the identical reason.
  */
@@ -183,7 +183,7 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
                 <span className="text-muted-foreground">{new Date(payment.paidAt).toLocaleDateString()}</span>
                 <span className="flex flex-col items-end">
                   <span className="font-medium">{formatMinor(payment.amountMinor, payment.currency)}</span>
-                  {/* TODO_PRODUIT.md T3 — "jamais silencieux": a payment recorded in a currency other
+                  {/* "jamais silencieux": a payment recorded in a currency other
                       than the document's own is CONVERTED (never refused any more), and the pinned,
                       dated rate that conversion used is shown here, verbatim — the same "never a
                       converted amount without its proof" discipline the dashboard's own consolidated

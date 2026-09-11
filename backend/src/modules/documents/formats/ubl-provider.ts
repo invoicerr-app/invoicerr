@@ -1,6 +1,6 @@
 /**
  * The EN 16931 UBL 2.1 format provider — see `cii-provider.ts`'s own header for the sibling this
- * mirrors, and `format-registry.spec.ts`'s header for what stays out of this ticket's scope.
+ * mirrors, and `format-registry.spec.ts`'s header for what stays out of scope.
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';

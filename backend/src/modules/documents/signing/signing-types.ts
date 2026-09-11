@@ -1,5 +1,5 @@
 /**
- * Local artifact/signature shapes for the signing module — root TODO item 13.
+ * Local artifact/signature shapes for the signing module.
  *
  * The repère (`avant-refonte-documents`, `compliance/execution/types.ts`) had `RenderedArtifact`/
  * `SignedArtifact` carry a `role` (AUTHORITATIVE/…) and a closed `DocumentSyntax` enum, because the

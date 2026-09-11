@@ -1,21 +1,17 @@
 /**
- * TODO_PRODUIT.md T5(c) — MANDANT AMENDMENT (mid-task, verbatim): "Faudrait que le docker puisse
- * embarquer une api pour l'OCR, comme ça si j'héberge l'appli pour le saas, personne a besoin de le
- * configurer y'a que la selfhost qui tourne en full local." — a THIRD container role, `ROLE=ocr`,
- * alongside the existing `api`/`worker` (see `entrypoint.sh`'s own "one image, N roles" switch).
- * This is the ONLY process in the whole deployment that ever holds `MISTRAL_API_KEY` — the main
- * backend (`api`/`worker`) never sees it, never stores it, only knows `OCR_SERVICE_URL`
- * (`plugins/ocr/providers/mistral/mistral.ts`, this task's own "plugin"). An operator running the
- * SaaS offering enables this ONE service, ONCE, with their own key, and every company on that
- * instance gets OCR for free; a self-hoster who never sets `OCR_SERVICE_URL` (the default in
- * `docker-compose.yml` — this service is opt-in, see that file's own comment) gets the honest,
- * full-local-by-default "no OCR" outcome the mandant's own root instruction already required.
+ * The OCR service — a THIRD container role, `ROLE=ocr`, alongside the existing `api`/`worker` (see
+ * `entrypoint.sh`'s own "one image, N roles" switch). This is the ONLY process in the whole
+ * deployment that ever holds `MISTRAL_API_KEY` — the main backend (`api`/`worker`) never sees it,
+ * never stores it, only knows `OCR_SERVICE_URL` (`plugins/ocr/providers/mistral/mistral.ts`, the
+ * backend-side "plugin"). An operator running the SaaS offering enables this ONE service, ONCE, with
+ * their own key, and every company on that instance gets OCR for free; a self-hoster who never sets
+ * `OCR_SERVICE_URL` (the default in `docker-compose.yml` — this service is opt-in, see that file's
+ * own comment) gets the honest, full-local-by-default "no OCR" outcome.
  *
- * ## `OCR_ENGINE` — FOLLOW-UP MANDANT DECISION (verbatim): "J'ai pas de clé Mistral, pour moi en
- * local faut lancer un service Docker qui fait ça" — a self-hoster with no cloud credentials at all
- * must still get OCR, 100% locally, no API key anywhere. `OCR_ENGINE` (`mistral` — the default, for
- * backward compatibility with every deployment from before this env var existed at all — or
- * `local`) picks which downstream engine THIS service calls; `MISTRAL_API_KEY` and `LOCAL_OCR_URL`
+ * ## `OCR_ENGINE` selects the downstream OCR backend: `mistral` (cloud API) or `local` (a
+ * self-hosted Docker OCR service) — so a self-hoster with no cloud credentials at all still gets
+ * OCR, 100% locally, no API key anywhere. `mistral` is the default, for backward compatibility with
+ * every deployment from before this env var existed at all. `MISTRAL_API_KEY` and `LOCAL_OCR_URL`
  * are each read only by the branch that needs them, so an operator only ever configures the ONE
  * credential their chosen engine actually requires. See `ocr-service/local-client.ts`'s own header
  * for which local Docker image was chosen and why, and the honest limits of what it can do that a
@@ -130,8 +126,8 @@ export function createOcrServer(options: OcrServerOptions = {}): http.Server {
 
     if (req.method === 'POST' && req.url === '/extract') {
       if (engine === undefined) {
-        // The mandant's own required "501/absence honnête" outcome for a typo'd OCR_ENGINE — never
-        // silently treated as either real engine.
+        // A typo'd OCR_ENGINE gets an honest, NAMED 501 — never silently treated as either real
+        // engine.
         sendJson(res, 501, {
           error: `Unknown OCR_ENGINE "${requestedEngine}" — only "mistral" or "local" are supported.`,
         });

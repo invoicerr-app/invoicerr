@@ -51,7 +51,7 @@ describe('assertValidCorrectionRouteFact', () => {
     expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(InvalidCorrectionRouteProvenanceError);
   });
 
-  // THE GATE this whole module exists to enforce — TODO_CORRECTION.md C1's own wording: "une voie au
+  // THE GATE this whole module exists to enforce — in its original wording: "une voie au
   // statut required/allowed/forbidden SANS provenance légale -> le chargement ÉCHOUE". One test per
   // status, each a candidate mutation (flip the coupling check and one of these three starts passing).
   it.each([

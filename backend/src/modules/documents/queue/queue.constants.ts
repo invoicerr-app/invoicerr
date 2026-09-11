@@ -1,13 +1,13 @@
 /**
  * The document-action queue's own constants and wire shapes — see this directory's header
  * (document-queue.module.ts) for the full split (Core providers / worker processors / WORKER_INLINE)
- * this module is part of, and TODO.md item 22 for the task this was built for.
+ * this module is part of.
  */
 import { ReportJobData } from '../reporting/report-job';
 
 /** The ONE queue this whole mechanism needs — see document-action-job.ts's own header for why the
  *  job form is generic (companyId/typeId/documentId/actionId/payload) rather than one queue per
- *  business need: item 5 (recurring documents) is expected to reuse this exact same queue and job
+ *  business need: recurring documents are expected to reuse this exact same queue and job
  *  shape, only with its OWN scheduling deciding when to enqueue, never a second queue. */
 export const Q_DOCUMENT_ACTION = 'document-action';
 
@@ -17,7 +17,7 @@ export const Q_DOCUMENT_ACTION = 'document-action';
  * replays `(companyId, typeId, documentId, actionId)` through `DocumentsService.runAction` — the
  * EXACT SAME execution path (and its four gates: country policy 403, status 409, implementation 501,
  * data validation 400) the API itself goes through for that same action. Nothing here is specific to
- * "send" — a future recurring-document job (item 5) enqueues the exact same shape for whichever
+ * "send" — a future recurring-document job enqueues the exact same shape for whichever
  * action it needs replayed later.
  */
 export interface DocumentActionJobData {

@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 18 ("gestion de stock basique") — the stock effect of ISSUING a document.
+ * Basic stock management ("gestion de stock basique") — the stock effect of ISSUING a document.
  * Called once, type-agnostically, from `documents.service.ts#runAction` — see that call site's own
  * comment for exactly where and why. Never named "invoice" anywhere in this file: it only ever reads
  * "lines that reference a stock-tracked article", which is what lets any current or future
@@ -12,8 +12,8 @@
  * stock-tracked articles and issues one UPDATE per article that changed.
  *
  * Never atomic across concurrent issuances of the SAME article (the writer reads a quantity, the pure
- * function computes a target, the writer persists it) — accepted for this quick win exactly because
- * the split the task asked for (pure "what should the new quantity be" vs. "go persist it") is what
+ * function computes a target, the writer persists it) — accepted exactly because
+ * the deliberate split (pure "what should the new quantity be" vs. "go persist it") is what
  * makes the computation testable without a DB in the first place; a `{ decrement: n }` atomic update
  * would need to fold the "is this even stock-tracked" check into the SQL WHERE clause instead, which
  * would leave nothing here for `computeStockDecrements`'s own tests to exercise. A genuine oversell

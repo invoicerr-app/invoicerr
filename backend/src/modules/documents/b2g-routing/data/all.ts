@@ -31,8 +31,8 @@
  * or a channel with no evidence it was reachable at all — precisely the "artefact qui a l'air conforme
  * sans l'être" this whole mechanism exists to refuse.
  *
- * `nl` is the ELEVENTH, added by a LATER task still (root TODO, "NLCIUS vendorable" — mandant "Go",
- * 2026-09-05): the ONE blocker the 2026-09-02 audit named for the Netherlands — "NLCIUS ... non
+ * `nl` is the ELEVENTH (NLCIUS, vendored): the ONE blocker the 2026-09-02 audit named for the
+ * Netherlands — "NLCIUS ... non
  * vendoré" — is closed (`formats/vendored/nl/si-ubl-2.0-nlcius-preprocessed.sch`, MIT-licensed,
  * see that file's own header for the tag and provenance). `transportId: "peppol"`,
  * `formatSyntax: "nlcius"` — see `data/nl.json`'s own header for the full citation and for the

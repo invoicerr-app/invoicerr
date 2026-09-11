@@ -1,5 +1,5 @@
 /**
- * The BOOT half of the fix for TODO_ISSUES.md's "`resetAndSeed` ne re-sème pas la politique pays"
+ * The BOOT half of the fix for "`resetAndSeed` ne re-sème pas la politique pays"
  * note. Until now `DocumentCountryActionRule` was only ever written by `seedCountryPolicies` from
  * two entry points: `prisma/seed.ts` (the `migrate dev`/`migrate reset`/`db seed` hook —
  * `prisma.config.ts`'s `migrations.seed`) and `sync-schema.ts` (production API-role boot, called

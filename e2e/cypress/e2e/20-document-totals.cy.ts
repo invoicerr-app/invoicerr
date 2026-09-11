@@ -141,7 +141,7 @@ describe("Document totals", () => {
 		cy.get('[data-cy="document-totals-gross"]').should("contain", "120");
 	});
 
-	// The per-line discount (root TODO item 6) — applied BEFORE VAT, mirrored client-side
+	// The per-line discount — applied BEFORE VAT, mirrored client-side
 	// (totals-calculator.ts) and server-side (compute-totals.ts). A discount typed on screen must
 	// change BOTH the totals shown live AND the ones the API returns once saved — hard-coded numbers
 	// throughout, the same discipline as the two tests above.
@@ -149,7 +149,7 @@ describe("Document totals", () => {
 	// The document itself is created via the API first (client/currency/dates — same convention as
 	// EVERY other spec in this suite, e.g. 21-document-lifecycle.cy.ts: no cypress spec here drives
 	// the date-picker through the UI), so the ONLY thing this test actually types on screen is the
-	// discount itself — exactly what the task asks to prove, without conflating it with unrelated
+	// discount itself — without conflating it with unrelated
 	// field-filling machinery.
 	it("a discount entered on screen changes both the displayed totals AND the API's, once saved", () => {
 		cy.request({ url: `${api}/api/documents/references/client/search` })

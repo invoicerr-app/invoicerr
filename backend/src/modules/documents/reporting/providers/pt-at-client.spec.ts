@@ -29,7 +29,7 @@ import {
 } from './pt-at-client';
 
 // A real RSA keypair, generated ONCE for this whole spec — stands in for the AT Sistema de
-// Autenticação's own key pair (this task held no real one — see `pt-at-client.ts`'s own header).
+// Autenticação's own key pair (no real one was available — see `pt-at-client.ts`'s own header).
 const { publicKey: AT_PUBLIC_KEY_PEM, privateKey: AT_PRIVATE_KEY_PEM } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
   publicKeyEncoding: { type: 'spki', format: 'pem' },

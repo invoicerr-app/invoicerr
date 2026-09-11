@@ -235,7 +235,7 @@ describe('DocumentsService.runAction — composed with the country policy', () =
       expect(send?.policyBlockedReason).toBe('forbidden for "ZZ"');
       // The underlying declared shape (label, availableWhen, …) is untouched — this is an ADDITIVE
       // annotation, never a rewrite of the descriptor's own data. `availableWhen` now includes
-      // "send_failed"/"sending" too (TODO.md item 22's async two-phase "send" — see
+      // "send_failed"/"sending" too (the async two-phase "send" — see
       // invoice.descriptor.ts's own SEND_TRANSITIONS), not just "draft".
       expect(send).toMatchObject({
         id: 'send',

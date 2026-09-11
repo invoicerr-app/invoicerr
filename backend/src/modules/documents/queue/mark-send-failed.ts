@@ -37,7 +37,7 @@ export interface MarkSendFailedInput {
   actionId: string;
   error: Error;
   /**
-   * TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `actions/async-send.ts`'s own `RunAsyncSendInput.events`
+   * The SSE status nudge — see `actions/async-send.ts`'s own `RunAsyncSendInput.events`
    * header for the full "why optional, why a nudge never the state" reasoning; this is the SAME
    * mechanism's third publish point (a "send_failed" terminal write is exactly as SSE-worthy as
    * "sending"/"sent" — the badge and the Retry button both key off this status). OPTIONAL for the
@@ -46,7 +46,7 @@ export interface MarkSendFailedInput {
    */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2bis — `DOCUMENT_SEND_FAILED`, the terminal-failure twin of `async-send.ts`'s own
+   * `DOCUMENT_SEND_FAILED`, the terminal-failure twin of `async-send.ts`'s own
    * `DOCUMENT_SENT`: this is the ONE place a "send_failed" webhook is allowed to fire from, right
    * after the SAME acquired fact `events` above announces (Postgres already holds "send_failed",
    * checked against the type's own declared lifecycle) — never earlier, never for the idempotent
@@ -134,13 +134,13 @@ export async function markSendFailed(
     );
   }
 
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the fact is ACQUIRED right above (Postgres already holds
+  // The SSE status nudge — the fact is ACQUIRED right above (Postgres already holds
   // "send_failed", checked against the declared lifecycle): publishing here, never earlier, is what
   // lets a browser's own SSE connection move a screen from "sending" straight to "échec" — and shows
   // the Retry button, which the frontend derives from this exact status — without a manual reload.
   await events?.publish(companyId, { documentId, typeId, kind: 'send_failed' });
 
-  // TODO_PRODUIT.md T2bis — `DOCUMENT_SEND_FAILED`, from the SAME acquired fact `events` just
+  // `DOCUMENT_SEND_FAILED`, from the SAME acquired fact `events` just
   // announced, for the identical reason (never earlier — the idempotent/lookup-failure branches
   // above all `return` before ever reaching here). Wrapped, never left to propagate: the identical
   // "the write already genuinely happened, a dead webhook endpoint must never undo or even surface

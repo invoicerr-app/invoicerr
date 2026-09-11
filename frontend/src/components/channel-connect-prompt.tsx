@@ -21,7 +21,7 @@ interface ConfiguredChannel {
 }
 interface SuggestedChannel {
   providerId: string
-  // Root TODO item 11 — see channels.settings.tsx's own comment on this exact shape.
+  // See channels.settings.tsx's own comment on this exact shape.
   requirement?: "suggested" | "mandated"
   mandatedFrom?: string
   effectiveNow?: boolean
@@ -42,13 +42,13 @@ function sourceLine(channel: SuggestedChannel): string {
 }
 
 /**
- * Proactive nudge — item 10 (root TODO): renders a small non-blocking banner when this company's
+ * Proactive nudge: renders a small non-blocking banner when this company's
  * own country SUGGESTS a channel (`GET /api/company/channels`'s own `suggested`, advisory — see
  * `transports/channel-policy/schema.ts`'s header on why a mere suggestion is never a legal
  * requirement) that is not yet connected. Self-fetches, self-hides once there is nothing to
  * suggest, so it is safe to mount in multiple places (company settings, onboarding).
  *
- * Root TODO item 11 upgrades this SAME component for a channel the country actually MANDATES: once a
+ * The SAME component is upgraded for a channel the country actually MANDATES: once a
  * mandate is `effectiveNow` (see channels.service.ts's own header on that distinct, "as of today"
  * clock) and the company either hasn't connected it or has a DIFFERENT transport chosen, the plain
  * amber "suggested" look is replaced by a stronger, destructive-styled banner naming the channel, its

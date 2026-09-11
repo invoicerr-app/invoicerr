@@ -10,7 +10,7 @@ import { ActionRegistry } from './action-registry';
 /**
  * The actual "save-draft" WORK: persist `data` under status "draft", creating a new instance the
  * first time this runs for a given record, and fire `DOCUMENT_CREATED` on that first time only.
- * Extracted from `registerSaveDraftAction` below (TODO_PRODUIT.md T4-c) so `invoice-actions.ts` can
+ * Extracted from `registerSaveDraftAction` below so `invoice-actions.ts` can
  * reuse the exact same persistence + webhook mechanics from its OWN "save-draft" handler — one that
  * needs to run one extra check first (see that file's own comment) — without duplicating this glue.
  * Nothing here reads a single field of `data`, which is exactly why one function still covers every
@@ -52,11 +52,11 @@ export async function performSaveDraft(
  * credit note, expense, received-invoice): persisting a draft's field values has nothing to do with
  * WHERE the document eventually travels, unlike "send" below. The INVOICE is the one exception —
  * `invoice-actions.ts` registers its own "save-draft" handler instead of calling this (see that
- * file's own comment, TODO_PRODUIT.md T4-c) because re-editing an already-issued invoice back into
+ * file's own comment) because re-editing an already-issued invoice back into
  * a draft needs one extra, invoice-specific check this generic function has no business knowing
  * about; it still calls `performSaveDraft` above for the actual persistence, so the two never drift.
  *
- * `webhooks` (TODO_PRODUIT.md T2bis) is OPTIONAL, the same "no capability, no effect" posture
+ * `webhooks` is OPTIONAL, the same "no capability, no effect" posture
  * `async-send.ts`'s own `webhooks` field holds — fires `DOCUMENT_CREATED` exactly once per record,
  * the FIRST time this runs for it (`documentId` absent on entry — `upsertDocument` branches on the
  * exact same test to decide create vs. update, so this reuses that same signal rather than
@@ -83,7 +83,7 @@ export function registerSaveDraftAction(
  * section). "expense" (expense-actions.ts) and "received-invoice" (received-invoice-actions.ts) are
  * its two uses today.
  *
- * `webhooks` (TODO_PRODUIT.md T2bis) — same optional posture as `registerSaveDraftAction` above.
+ * `webhooks` — same optional posture as `registerSaveDraftAction` above.
  * `deleteDocument` (persistence.ts) returns the row AS IT WAS the instant before removal — the only
  * possible value for `document` in a `DOCUMENT_DELETED` payload, since the row no longer exists to
  * re-read afterward.
@@ -129,7 +129,7 @@ export function registerDeleteAction(
  * mechanism, even though it lives in this "generic-actions.ts" file and even though its shape (a
  * registry, a typeId parameter) looks exactly as reusable as `registerSaveDraftAction` above. What it
  * pre-fills (a typed "recipient" param) used to be paired with this file's own `registerEmailSendAction`
- * — the quote's unconditional, synchronous email send — which item 22 (TODO.md) replaced with the
+ * — the quote's unconditional, synchronous email send — which the async-send queue replaced with the
  * asynchronous two-phase shape every type with a "send" now shares (actions/async-send.ts); see
  * quote-actions.ts for where "send" itself is registered today. This resolver survives that change
  * UNCHANGED: pre-filling a typed recipient from the document's own client has nothing to do with

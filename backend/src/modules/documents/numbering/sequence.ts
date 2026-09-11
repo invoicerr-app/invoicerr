@@ -17,7 +17,7 @@
  * cannot observe a stale value: there is no separate "read" step for another transaction to slip in
  * between.
  *
- * ## "Never waste a number" (this task's ⚖ note)
+ * ## "Never waste a number" (⚖ note)
  *
  * A number, once handed out by `bumpSequence`, can never be handed back — the counter only ever
  * moves forward. That makes "never waste one" purely a question of never LETTING `bumpSequence` run

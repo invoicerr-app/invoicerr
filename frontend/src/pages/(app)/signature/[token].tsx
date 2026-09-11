@@ -11,7 +11,7 @@ import { ApiError } from "@/hooks/use-api-query"
 import { usePublicSignature, useRequestPublicSignatureOtp, useSignPublicSignature } from "@/hooks/queries"
 
 /**
- * Root TODO item 13 REDONE — the public `/signature/:token` page: an anonymous client opens the
+ * The public `/signature/:token` page: an anonymous client opens the
  * emailed link, asks for a verification code, and submits it. No `@ActiveCompany()`, no session, no
  * sidebar (this route is one of `(app)/_layout.tsx`'s own `ALLOWED_PATHS`, rendered through
  * `UnauthenticatedLayout` for a visitor with no session — see that file's own header). Mirrors

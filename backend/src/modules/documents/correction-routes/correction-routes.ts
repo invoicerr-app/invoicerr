@@ -1,5 +1,5 @@
 /**
- * The READ side of the correction-routes catalog (TODO_CORRECTION.md C1) — a plain function reading
+ * The READ side of the correction-routes catalog — a plain function reading
  * the in-memory `CorrectionRoutesCatalog` directly, same convention `b2g-routing/b2g-routing.ts` and
  * `country-policy/country-policy.ts` already established for "read one fact about a country, decide":
  * no DI token, mockable with `jest.mock` the exact same way `documents.service.correction-routes.spec.ts`
@@ -8,13 +8,13 @@
  * Reads the SELLER's own country ONLY — the country of the ACTIVE COMPANY issuing (and now
  * correcting) the document, resolved by `country-policy/country-policy.ts#resolveCompanyCountryCode`
  * exactly the way every other document-action gate in this module already does. This is a REAL,
- * DOCUMENTED LIMIT, not an oversight: `docs/compliance/CORRECTION-JURISDICTION.yaml` (P3-U01) finds
+ * DOCUMENTED LIMIT, not an oversight: `documentation/internal/CORRECTION-JURISDICTION.yaml` finds
  * FOUR distinct cross-border attachments, and confirms this repo's own engine already follows the
  * right one for THIS specific question — "A_invoicing_rules" (which correction DOCUMENT a country
  * imposes) attaches to the supplier's own state under EU directive 2006/112/CE art. 219 bis. But a
  * SECOND layer, "B_substantive_vat" (whether/how the tax base may be reduced, and the DEADLINE for
  * doing so), attaches to the STATE OF TAXATION instead — which, under reverse-charge, can be the
- * BUYER's own country. Composing the two (P3-U02) is NOT written here: this endpoint answers "what
+ * BUYER's own country. Composing the two is NOT written here: this endpoint answers "what
  * document does my own country require", never "what does this specific cross-border correction, to
  * this specific buyer, actually require" — see `LIMITATION_TEXT` below, always returned alongside the
  * routes so a caller can never mistake the one question for the other.
@@ -36,15 +36,15 @@ export const CORRECTION_ROUTES_DATA_DIR_HINT = 'backend/src/modules/documents/co
 /**
  * Routes this repo wires to a real mechanism for EVERY country that declares them — the credit-note
  * document type's own creation (`actions/credit-note-actions.ts`), pre-linked to the invoice it
- * corrects (mandatory reference, currency locked — see TODO_PRODUIT.md T4-d/T3). Every other one of
+ * corrects (mandatory reference, currency locked — see `credit-note.descriptor.ts`'s own header). Every other one of
  * the eleven canonical routes is DECLARED (a country may `require`/`allow`/`forbid` it) but has NO
  * implementation behind it — this set is one of the two places (`cancel-policy.ts`'s own
  * `CANCEL_LOCAL_AVAILABILITY` is the other) that decide honesty, so a country file changing its mind
  * about a STATUS can never accidentally change what the API claims is IMPLEMENTED, and vice versa.
  *
  * DELIBERATELY NOT `AUTHORITY_ANNULMENT` — no channel this repo wires (KSeF/SdI/PDP) has an
- * annulment OPERATION behind it today, for ANY country, `required` or not (TODO_CORRECTION.md C3's
- * own finding) — nor `CANCEL_AND_REPLACE` as a BLANKET entry here: unlike INTERNAL_CREDIT_NOTE (the
+ * annulment OPERATION behind it today, for ANY country, `required` or not — nor `CANCEL_AND_REPLACE`
+ * as a BLANKET entry here: unlike INTERNAL_CREDIT_NOTE (the
  * credit-note screen works identically for every country), whether a local cancel is genuinely
  * implementable for CANCEL_AND_REPLACE differs PER COUNTRY (two of the seven pivots declare it
  * `required` with no real mechanism behind it — see cancel-policy.ts's own header) — `isImplemented`
@@ -68,12 +68,12 @@ function isImplemented(routeId: CorrectionRouteId, countryCode: string): boolean
 }
 
 /** Same shared phrasing every "GET .../correction-routes" response carries — see this module's own
- *  header for the P3-U01/P3-U02 reasoning this text is a plain-language summary of. */
+ *  header for the jurisdiction reasoning this text is a plain-language summary of. */
 const LIMITATION_TEXT =
   "This reads the document's SELLER country only (the active company issuing it) — never the buyer's. " +
-  'For a purely domestic invoice this is the whole answer (docs/compliance/CORRECTION-JURISDICTION.yaml ' +
+  'For a purely domestic invoice this is the whole answer (documentation/internal/CORRECTION-JURISDICTION.yaml ' +
   'confirms the invoicing-rule layer, art. 219 bis, already correctly follows the supplier). For a ' +
-  'cross-border one, the SELLER×BUYER composition (task P3-U02, TODO_CORRECTION.md) is NOT written: ' +
+  'cross-border one, the SELLER×BUYER composition is NOT written: ' +
   "the buyer's own country can, under reverse-charge, govern whether/how the tax base may be reduced " +
   'and by when — a fact this endpoint does not know and never guesses.';
 
@@ -105,7 +105,7 @@ function describeLabel(provenance: LegalProvenance | UnverifiedProvenance): stri
 /**
  * The full correction-routes decision for one seller country, or `undefined` when no file is declared
  * for it at all (unresolved country code included) — the caller (`documents.service.ts`) turns
- * `undefined` into the NAMED 404 TODO_CORRECTION.md C1 requires ("aucune règle de correction déclarée
+ * `undefined` into the NAMED 404 the catalog contract requires ("aucune règle de correction déclarée
  * pour XX"), never a silent empty list.
  */
 export function resolveCorrectionRoutesForCountry(

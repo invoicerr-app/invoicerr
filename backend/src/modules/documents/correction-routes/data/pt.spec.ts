@@ -1,11 +1,10 @@
 /**
- * PT — direct-load content spec, added by the PT country agent (TODO_DOCUMENTS.md, vague B, lot 7,
- * dernier lot). Same rationale as correction-routes/data/hr.spec.ts: reads `pt.json` straight off
- * disk rather than through `data/all.ts` (wiring "pt" in is a mandataire decision), and re-runs the
+ * PT — direct-load content spec. Same rationale as correction-routes/data/hr.spec.ts: reads `pt.json` straight off
+ * disk rather than through `data/all.ts` (wiring "pt" in is a product decision), and re-runs the
  * exact load-time gate (`assertValidCorrectionRouteFact`) independently.
  *
- * PT has no `docs/compliance/CORRECTION-ROUTES.yaml` entry (covered: FR/IT/PL/DE/ES/MX/US only) —
- * this is the first, direct (C1) reading for this country, grounded in the Código do IVA (CIVA, as
+ * PT has no `documentation/internal/CORRECTION-ROUTES.yaml` entry (covered: FR/IT/PL/DE/ES/MX/US only) —
+ * this is the first, direct reading for this country, grounded in the Código do IVA (CIVA, as
  * served by the Autoridade Tributária e Aduaneira on info.portaldasfinancas.gov.pt, static HTML, curl
  * direct) and the Decreto-Lei n.º 28/2019 (official PDF, pdftotext -layout) — never a fetch-résumé.
  */

@@ -43,7 +43,7 @@ async function labelFor(
  * already generic; only the set of REGISTERED providers needed to grow by one call.
  *
  * `search` does not filter server-side on the stored JSON `data` (there is no per-field index on it,
- * and building one would be a schema decision well beyond this task) — it fetches the company's most
+ * and building one would be a schema decision well beyond a picker) — it fetches the company's most
  * recent instances of this type (persistence.listDocuments, already capped) and filters in memory on
  * the resolved label. Good enough for a picker; not a general-purpose search.
  */
@@ -77,7 +77,7 @@ export function buildDocumentReferenceProvider(
       }
     },
 
-    // TODO_PRODUIT.md T4-d — the credit note's own `currency` field locks to whatever `data.currency`
+    // The credit note's own `currency` field locks to whatever `data.currency`
     // its `invoice` field resolves to (descriptors/types.ts's `lockedFromReference`,
     // credit-note.descriptor.ts). Returns the referenced document's raw `data` VERBATIM (never a
     // narrower, hand-picked subset) — the exact same "hand back whatever this entity actually

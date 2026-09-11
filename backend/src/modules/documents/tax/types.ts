@@ -1,5 +1,5 @@
 /**
- * The tax-engine's own canonical types — root TODO item 16 ("transfrontalier"), REPRISE of the
+ * The tax-engine's own canonical types — cross-border tax ("transfrontalier"), REPRISE of the
  * removed compliance engine's `compliance/canonical/canonical-document.ts` and `compliance/types.ts`
  * (git tag `avant-refonte-documents`), narrowed to exactly what `tax-engine.ts`/`classification.ts`
  * consume. The old files carried a much larger canonical DOCUMENT model (formats, transmission,

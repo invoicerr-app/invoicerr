@@ -62,7 +62,7 @@ describe("Clients E2E", () => {
 			cy.get('[name="contactLastname"]').clear().type("Doe");
 			cy.get('[name="description"]').clear().type("Freelance developer");
 
-			// TODO_PRODUIT.md T5(b) — the new "Supplier" switch (client-upsert.tsx) pushes the
+			// The "Supplier" switch (client-upsert.tsx) pushes the
 			// currency select further down the scrollable dialog, the same reason the company client
 			// test just above already scrolls its own currency select into view first.
 			cy.get('[data-cy="client-currency-select"] button')
@@ -441,7 +441,7 @@ describe("Clients E2E", () => {
 			cy.contains("Société Française", { timeout: 10000 });
 		});
 
-		// USER DECISION (2026-09-01, TODO_ISSUES.md "SIRET vs SIREN sur la facture", now RÉSOLU) —
+		// USER DECISION (2026-09-01, "SIRET vs SIREN sur la facture", now RÉSOLU) —
 		// `country-identifiers/data/fr.json`'s LEGAL_ID field accepts EITHER a 9-digit SIREN or a
 		// 14-digit SIRET (see that file's own `notes`). Every OTHER FR fixture in this spec types a
 		// 14-digit-shaped value (unaffected by the decision — both lengths pass); this is the one
@@ -500,12 +500,12 @@ describe("Clients E2E", () => {
 		});
 	});
 
-	// TODO_PRODUIT.md T4-a/T4-b — the Peppol scheme selector (`peppolSchemeId`,
+	// The Peppol scheme selector (`peppolSchemeId`,
 	// client-upsert.tsx). Every label asserted below is quoted VERBATIM from the Peppol v9.7
 	// Participant Identifier Schemes codelist (docs.peppol.eu/edelivery/codelists/) — see that
 	// component's own inline comments for the exact source citation on each entry.
-	describe("Peppol scheme selector (TODO_PRODUIT.md T4-a/b)", () => {
-		it("T4-a: offers the 7 EAS the 2026-09-02 B2G audit added routing rules for, but this selector never offered", () => {
+	describe("Peppol scheme selector", () => {
+		it("offers the 7 EAS the 2026-09-02 B2G audit added routing rules for, but this selector never offered", () => {
 			cy.visit("/clients");
 			cy.contains("button", /add|new|créer|ajouter/i, {
 				timeout: 10000,
@@ -551,7 +551,7 @@ describe("Clients E2E", () => {
 			);
 		});
 
-		it('T4-b: 0106 is labelled NL KVK (was wrongly "DK CVR"), and the real Danish CVR, 0184, is now offered', () => {
+		it('0106 is labelled NL KVK (was wrongly "DK CVR"), and the real Danish CVR, 0184, is now offered', () => {
 			cy.visit("/clients");
 			cy.contains("button", /add|new|créer|ajouter/i, {
 				timeout: 10000,
@@ -661,17 +661,17 @@ describe("Clients E2E", () => {
 });
 
 /**
- * TODO_PRODUIT.md T5(b) — the "Supplier" role, manual toggle on THIS screen (auto-set-at-link is
+ * The "Supplier" role, manual toggle on THIS screen (auto-set-at-link is
  * covered end-to-end, by the screen, in 36-received-invoices.cy.ts). A SEPARATE top-level `describe`,
  * deliberately placed LAST in this file and starting with its own `cy.resetAndSeed()`: the client
- * list/filter this task adds (`clients/index.tsx`) is PAGE-SCOPED client-side filtering (10 clients
+ * list/filter (`clients/index.tsx`) is PAGE-SCOPED client-side filtering (10 clients
  * per page, filtered from whatever page is currently loaded — a pre-existing product limit, out of
- * this task's own scope to fix) — every OTHER describe above this one has, between them, created
- * enough clients that which page holds any one of them is not something this task should have to
+ * scope here to fix) — every OTHER describe above this one has, between them, created
+ * enough clients that which page holds any one of them is not something this spec should have to
  * predict. Resetting first (safe here ONLY because nothing else in this file runs afterwards) makes
  * "at most two clients exist, both on page 1" simply true instead of assumed.
  */
-describe("Supplier role (TODO_PRODUIT.md T5(b))", () => {
+describe("Supplier role", () => {
 	const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
 	before(() => {

@@ -129,7 +129,7 @@ describe('archive/persistence', () => {
     });
   });
 
-  // Root TODO item 14's own remainder (TODO_ISSUES.md, mandataire decision 2026-09-06) — the
+  // Legal archiving's own remainder (2026-09-06) — the
   // PROBATIVE archive for a TERMINAL authority verdict, under the same discipline as
   // `createDocumentArchive` above, but linked to and inheriting the retention of the DELIVERY archive
   // it attests to instead of resolving its own.

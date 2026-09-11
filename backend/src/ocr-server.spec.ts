@@ -189,7 +189,7 @@ describe('createOcrServer — ROLE=ocr, booted for real', () => {
     });
   });
 
-  // The mandant's own required proof: the key never appears in ANY response body, under any outcome.
+  // Proof that the key never appears in ANY response body, under any outcome.
   it('the configured API key never appears in any /extract response body, success or failure', async () => {
     const SECRET = 'sk-must-never-leak-anywhere';
     await withMistralStub(
@@ -234,7 +234,7 @@ async function withLocalOcrStub(
   }
 }
 
-describe('createOcrServer — OCR_ENGINE routing (mandant: "pour moi en local faut lancer un service Docker")', () => {
+describe('createOcrServer — OCR_ENGINE routing', () => {
   it('OCR_ENGINE=local, configured: forwards to the local engine and returns the heuristically-mapped proposal', async () => {
     await withLocalOcrStub(
       (req, res) => {

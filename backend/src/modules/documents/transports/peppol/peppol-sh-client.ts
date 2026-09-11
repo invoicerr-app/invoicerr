@@ -5,17 +5,17 @@
  * proven there on 2026-07-11. Kept SEPARATE from `peppol-client.ts` (the generic, production-facing
  * adapter this deployment's `PROVIDER_FIELDS.peppol` settings screen actually wires — see
  * `peppol-transport.ts`'s own header) rather than folded into it: this file exists to RE-ATTEMPT the
- * live round-trip this task was asked to retry (`peppol-sh-live.spec.ts`), not to become a second,
+ * live round-trip (`peppol-sh-live.spec.ts`), not to become a second,
  * user-facing channel choice — the repère's own multi-vendor `apProvider` selector (`ap-adapters.ts`)
  * was NOT reprised for that reason (see `peppol-transport.ts`'s own header on why the settings screen
- * ships exactly one, generic adapter this wave).
+ * ships exactly one, generic adapter).
  *
  * peppol.sh (https://peppol.sh) is a hosted Peppol AP with a JSON REST API and a free, unlimited
  * sandbox (zero-secret self-signup — the Ethereal-email of Peppol).
  *
  * API surface (as documented at the repère, VERIFIED against the live OpenAPI at
  * https://api.peppol.sh/v1/openapi.json and a real sandbox round-trip on 2026-07-11 —
- * `PEPPOL_AP_RESEARCH.md` / `LIVE_TESTING.md`; RE-VERIFIED (or found broken) by THIS task's own retry
+ * `PEPPOL_AP_RESEARCH.md` / `LIVE_TESTING.md`; RE-VERIFIED (or found broken) by the 2026-09-02 retry
  * — see `peppol-sh-live.spec.ts`'s own header for the raw, current result):
  *
  *   - POST https://api.peppol.sh/v1/signup           {email,name?} → 201 {id, api_key: ps_test_…}
@@ -274,7 +274,7 @@ export class PeppolShApClient implements PeppolApPort {
       country?: string;
       address?: { street?: string; city?: string; postal_code?: string };
       /** Explicit Peppol participant id (scheme:value) — the repère's own 2026-07-11 proof never
-       *  needed this (tax_id alone was enough); THIS task's own live retry (2026-09-02) found the
+       *  needed this (tax_id alone was enough); the 2026-09-02 live retry found the
        *  sandbox now REJECTS a company creation with no `peppol_id` at all for at least one country
        *  (BE) — see `peppol-sh-live.spec.ts`'s own header / `LIVE_TESTING.md` for the raw response. */
       peppolId?: string;

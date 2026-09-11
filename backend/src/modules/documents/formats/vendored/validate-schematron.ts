@@ -190,7 +190,7 @@ try {
 
   /**
    * The SIX Italian identifier-checksum functions the comment above named as deliberately left out
-   * of the 2026-09-02 B2G wave (`TODO_LIBRE.md` L2, 2026-09-04) — Italy has its own real B2G channel
+   * of the 2026-09-02 B2G wave (added 2026-09-04) — Italy has its own real B2G channel
    * (SdI/FatturaPA), but the SAME `XPST0017` crash class hits ANY ordinary (non-B2G) Peppol BIS send
    * carrying an Italian party identifier: `PEPPOL-COMMON-R044` (scheme `0201`, Codice Univoco
    * Ufficio), `R045`/`R046` (schemes `0210`/`9907`, Codice Fiscale), `R047` (scheme `0211`, Partita
@@ -201,7 +201,7 @@ try {
    * `u:checkCF16` and `u:checkPIVA`/`u:addPIVA` are never referenced directly from a rule's
    * `test="..."` — `u:checkCF` (R045/R046) calls `u:checkCF16` internally when its argument is 16
    * characters long, and `u:checkPIVAseIT` (R047) calls `u:checkPIVA`, which recurses through
-   * `u:addPIVA`. All three are still independently registered below (this task's own acceptance bar:
+   * `u:addPIVA`. All three are still independently registered below (the acceptance bar:
    * "the 12 declared are the 12 registered" — a future rule referencing one of them directly must not
    * crash either), but the compound functions call the plain JS ports of their helpers directly
    * rather than round-tripping back through fontoxpath: the .sch's own `xsl:function` bodies are

@@ -8,8 +8,8 @@ import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { ChannelCredentialsService, UpsertChannelConfigBody } from './channels.service';
 
 /**
- * Item 10 (root TODO), "transports nationaux" — the settings screen this backs is "Canaux"
- * (company settings): connect/disconnect a national transport (PDP today; KSeF/SdI, wave 2, are
+ * National transports ("transports nationaux") — the settings screen this backs is "Canaux"
+ * (company settings): connect/disconnect a national transport (PDP today; KSeF/SdI are
  * more rows the exact same three endpoints already cover). Scoped to the caller's ACTIVE company
  * (`@ActiveCompany()`) the same way every other company-settings route in this codebase is — never
  * the URL, which carries no company id at all.
@@ -22,8 +22,8 @@ export class ChannelsController {
   /**
    * GET /api/company/channels — what is connected (status only — see `ChannelConfigStatus`'s own
    * header: never a credential value, masked or not) plus what this company's OWN country says about
-   * each channel (`suggested` — the field KEPT its item-10 name for backward compatibility, but each
-   * entry may now be a bare `suggested` hint OR a sourced `mandated` requirement, item 11 — see
+   * each channel (`suggested` — the field KEPT its original name for backward compatibility, but each
+   * entry may now be a bare `suggested` hint OR a sourced `mandated` requirement — see
    * `channel-policy/schema.ts`'s header on the difference and `channels.service.ts`'s own
    * `ChannelPolicyStatus` for the exact shape).
    */
@@ -32,7 +32,7 @@ export class ChannelsController {
     summary: 'List channel connections',
     description:
       "Returns this company's connected channels (status only — never a credential value), " +
-      "this company's own country channel policy (suggested and/or mandated, item 11), and this " +
+      "this company's own country channel policy (suggested and/or mandated), and this " +
       "company's own country DECLARATIVE-REPORTING obligations (nav/mydata — never a transport hint).",
   })
   @ApiResponse({ status: 200, description: 'Channel status retrieved' })
@@ -40,7 +40,7 @@ export class ChannelsController {
     const [configured, suggested, reportingObligations] = await Promise.all([
       this.channels.listCompanyChannels(companyId),
       this.channels.suggestedChannels(companyId),
-      // Root TODO ("déclaration") — a categorically different fact from `suggested` above: never a
+      // Declarative reporting ("déclaration") — a categorically different fact from `suggested` above: never a
       // transport hint, always "declare this invoice's data to this authority" — see
       // `channels.service.ts#reportingObligations`'s own header.
       this.channels.reportingObligations(companyId),

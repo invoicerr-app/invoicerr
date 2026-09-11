@@ -1,5 +1,5 @@
 /**
- * TODO_PRODUIT.md T5(c) — a deterministic, network-free stand-in for a real OCR plugin, registered
+ * A deterministic, network-free stand-in for a real OCR plugin, registered
  * ONLY under `NODE_ENV=test` (`plugins/index.ts`'s own composition root) — the SAME discipline
  * `modules/documents/tax/vat-validation.ts`'s own `FakeSyntaxOnlyVatValidationClient` already
  * established for VAT validation, applied here so Cypress spec 36 can exercise "PDF -> pre-filled
@@ -12,7 +12,7 @@
  * every OTHER PDF (in particular, `36-received-invoices.cy.ts`'s own pre-existing
  * `supplier-invoice-plain.pdf` fixture) still gets an honest `ExtractorNotReadyError`, the SAME "no
  * extractor available" outcome production gets by default (Mistral shipped but never toggled on) —
- * see that spec file's own "un PDF pur" test, extended by this task to assert exactly that. This is
+ * see that spec file's own "un PDF pur" test, which asserts exactly that. This is
  * what lets ONE fake, always registered in test environments, prove BOTH outcomes (absence AND a
  * successful proposal) without any per-test plugin activation dance.
  */

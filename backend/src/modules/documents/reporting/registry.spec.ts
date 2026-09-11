@@ -9,15 +9,15 @@ import { defaultReportingObligationCatalog, ReportingObligationCatalog } from '.
 
 describe('reporting obligation files — loaded, not hard-coded', () => {
   // HU ("nav") and GR ("mydata") — the first two countries this mechanism ever shipped a reporting
-  // obligation for — were both removed by the 5-country prune (2026-09-10, see this task's own
-  // report): FR/PL/IT/PT/DE had no data/xx.json here at that point. PT ("pt-at", the AT "comunicação
+  // obligation for — were both removed by the 5-country prune (2026-09-10): FR/PL/IT/PT/DE had no
+  // data/xx.json here at that point. PT ("pt-at", the AT "comunicação
   // de faturas" webservice) is the first entry the 5-country lineup itself ships — see
   // `reporting/data/pt.json`'s own `notes` and `providers/pt-at-client.ts`'s own header for its
   // "implemented to the documented AT contract, awaiting accreditation" status. FR/DE/IT still have no
   // file at all, and the registry tolerates that cleanly: every lookup for one of THOSE countries
   // below behaves exactly like "a country with no file", never a crash or a permissive fallback. The
-  // `nav-client.ts`/`mydata-client.ts` PROVIDER implementations are left in place (see this task's own
-  // report) — they are reachable again the moment a country data file names their `providerId`.
+  // `nav-client.ts`/`mydata-client.ts` PROVIDER implementations are left in place — they are
+  // reachable again the moment a country data file names their `providerId`.
   it('the shipped catalog now carries exactly PT — GR/HU stay removed by the 5-country prune', () => {
     expect(ALL_REPORTING_OBLIGATION_FILES.map((f) => f.countryCode)).toEqual(['PT']);
   });

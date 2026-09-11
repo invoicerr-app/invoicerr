@@ -6,7 +6,7 @@
  *  1. A notifica for a KNOWN `IdentificativoSdI` (a `DocumentInstance.transportRef` this codebase
  *     actually has, for the "sdi" channel) is journaled into `DocumentAuthorityEvent`, on THAT
  *     document's own (companyId, documentId) — never a different one.
- *  2. MUTATION TARGET #2 (this task's own brief): a notifica for an UNKNOWN reference journals
+ *  2. A notifica for an UNKNOWN reference journals
  *     NOTHING — `createAuthorityEvents` must never be called at all, on ANY document (an implementation
  *     that "journals onto an arbitrary document instead" is exactly the bug this test exists to catch;
  *     asserting `not.toHaveBeenCalled()` — not merely "not called with THIS specific id" — is what
@@ -17,7 +17,7 @@ import * as documentPersistence from '../../persistence';
 import { SDI_PROVIDER_ID, SdiNotificheService } from './sdi-notifiche.service';
 
 jest.mock('../../conformity/authority-events.persistence');
-// TODO_PRODUIT.md T2bis — needed ONLY for the "webhooks" describe block below:
+// Needed ONLY for the "webhooks" describe block below:
 // `dispatchDocumentAuthorityEventWebhook` (`queue/document-authority-webhook.ts`) re-fetches the row
 // via `findOwnedDocument` before dispatching `DOCUMENT_AUTHORITY_EVENT` — every test ABOVE that block
 // never configures a `webhookDispatcher`, so that fetch never runs for them.
@@ -60,7 +60,7 @@ describe('SdiNotificheService.handleNotifica', () => {
     );
   });
 
-  it('MUTATION TARGET #2 — an unknown IdentificativoSdI journals NOTHING, on ANY document', async () => {
+  it('an unknown IdentificativoSdI journals NOTHING, on ANY document', async () => {
     mockedFindDocument.mockResolvedValue(null);
 
     const service = new SdiNotificheService();
@@ -80,11 +80,11 @@ describe('SdiNotificheService.handleNotifica', () => {
   });
 });
 
-// TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
+// `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
 // at the SAME "genuinely new row" gate (`count > 0`) the existing SSE nudge already uses.
 // `webhookDispatcher` is this service's 2nd constructor arg — every test ABOVE this block constructs
 // the service with zero/one arg and must keep passing unchanged.
-describe('SdiNotificheService — webhooks (TODO_PRODUIT.md T2bis)', () => {
+describe('SdiNotificheService — webhooks', () => {
   const mockedFindOwnedDocument = documentPersistence.findOwnedDocument as jest.Mock;
 
   beforeEach(() => {

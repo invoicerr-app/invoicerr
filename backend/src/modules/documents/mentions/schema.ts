@@ -1,5 +1,5 @@
 /**
- * The country MANDATORY-MENTIONS file format — root TODO item 15, "mentions obligatoires". A mention
+ * The country MANDATORY-MENTIONS file format ("mentions obligatoires"). A mention
  * is a legal text a country requires on EVERY invoice (BG-1 in EN 16931 terms — BT-21 subject code +
  * BT-22 free text), resolved for a document's own issue date. Same file-per-country, load-time-gated
  * shape `transports/channel-policy/schema.ts` already established for a DIFFERENT country-is-data

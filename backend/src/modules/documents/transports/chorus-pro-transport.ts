@@ -22,7 +22,7 @@
  * payload, and enforces the hard-success contract".
  *
  * Credentials — TWO layers, both required to be "connected" (see `CREDENTIALS_GUIDE.md` §3, read at
- * the repère and unchanged by this task): a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
+ * the repère, unchanged): a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
  * Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`) — PISTE alone
  * authenticates the CALLING APPLICATION, never a specific Chorus Pro structure; without the compte
  * technique there is no `cpro-account` header to send, and every real Chorus Pro API call needs both
@@ -59,7 +59,7 @@
  *    usable `numeroFluxDepot`) — thrown from inside `deliver()`, so BullMQ's own retries get a chance
  *    to run before this ever becomes `send_failed`.
  * An accepted deposit with an EMPTY `numeroFluxDepot` is the SECOND kind of failure, never a success —
- * this task's own mutation #1 target, the same hard-success contract every transport in this directory
+ * the same hard-success contract every transport in this directory
  * already enforces (LIVE_TESTING.md: "a reference nobody can look up is not a reference at all").
  *
  * Post-deposit conformity: `consulterCr` is exactly the kind of pull endpoint
@@ -103,7 +103,7 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /**
  * PISTE base URLs — REPRISED from the repère's own `choruspro-transmission.ts#CHORUS_PRO_URLS`, and
- * the sandbox pair independently RE-VERIFIED reachable this task (see `choruspro-client.ts`'s own
+ * the sandbox pair independently RE-VERIFIED reachable on 2026-09-02 (see `choruspro-client.ts`'s own
  * header for the real `HTTP 400 invalid_client` this checkout observed against it). Fixed by
  * environment, never a user-editable field — same convention `ksef-transport.ts`'s own `BASE_URLS`
  * already holds for the identical reason (a PISTE application's own OAuth/API hosts are a platform
@@ -276,7 +276,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
       }
 
       if (!numeroFluxDepot) {
-        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md, and this task's own mutation #1): PISTE
+        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md): PISTE
         // answering OK with no usable numeroFluxDepot is a FAILURE, never a silent success — a
         // reference nobody can look up is not a reference at all.
         throw new BadRequestException(
@@ -297,7 +297,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
           'conformity/pollers/chorus-pro-status-poller.ts for the timeline.',
         reference: numeroFluxDepot,
         providerId: CHORUS_PRO_PROVIDER_ID,
-        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving ("archivage légal") — the ONLY artifact this transport ever delivers is
         // the Factur-X actually deposited (already gated valid above), same reasoning every sibling
         // transport's own `artifacts` holds.
         artifacts: [

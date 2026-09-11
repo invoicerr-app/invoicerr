@@ -1,6 +1,6 @@
 /**
- * The CANONICAL, dated representation of one TERMINAL authority verdict — mandataire decision,
- * 2026-09-06 (TODO_ISSUES.md, "le poller de conformité PDP/KSeF n'archive PAS le VERDICT, seulement
+ * The CANONICAL, dated representation of one TERMINAL authority verdict — decided
+ * 2026-09-06 ("le poller de conformité PDP/KSeF n'archive PAS le VERDICT, seulement
  * le DÉPÔT"). This is the "content" half of the decision; `persistence.ts#createAuthorityVerdictArchive`
  * is the "write it under the same discipline as the deposit" half.
  *

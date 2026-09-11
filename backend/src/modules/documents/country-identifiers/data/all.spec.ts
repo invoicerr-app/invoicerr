@@ -12,9 +12,8 @@ function fileFor(countryCode: string) {
 
 describe('country-identifiers/data — the shipped FR, DE and PT files', () => {
   // Re-pinned by the 5-country prune (2026-09-10): this mechanism ships identifier requirements
-  // for DE, FR and PT only — PL and IT never had a country-identifiers file (see this task's own
-  // report). US, GB and BE (below) were removed by the prune along with every other country
-  // outside FR/PL/IT/PT/DE.
+  // for DE, FR and PT only — PL and IT never had a country-identifiers file. US, GB and BE (below)
+  // were removed by the prune along with every other country outside FR/PL/IT/PT/DE.
   it('loads exactly the three countries this mechanism ships', () => {
     const codes = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
     expect(codes).toEqual(['DE', 'FR', 'PT']);
@@ -29,7 +28,7 @@ describe('country-identifiers/data — the shipped FR, DE and PT files', () => {
   });
 
   // Honest state check, not an aspiration: this is a MIXED-grade check, not a blanket
-  // "everything is unverified" one — root TODO item 19's research pass (gesetze-im-internet.de,
+  // "everything is unverified" one — a research pass (gesetze-im-internet.de,
   // legislation.gov.uk) upgraded the GB VAT fact to "legal", the first shipped fact in this catalog
   // to clear that bar; see the DE/GB-specific describe block below for what exactly was and wasn't
   // settled. Every OTHER shipped fact is still honestly "unverified" (see each fact's own
@@ -91,11 +90,11 @@ describe('country-identifiers/data — the shipped FR, DE and PT files', () => {
   });
 });
 
-// Root TODO item 19 — DE, added so a German CLIENT has a country-specific identifiers section on
+// DE, added so a German CLIENT has a country-specific identifiers section on
 // the client screen at all (de.json had only a VAT scheme before). Sourced at the primary text —
 // gesetze-im-internet.de for Germany — see each fact's own provenance for exactly what was read
-// and what it does and doesn't settle. GB was removed by the 5-country prune (2026-09-10, see this
-// task's own report) — re-anchored here on PT, which this mechanism keeps.
+// and what it does and doesn't settle. GB was removed by the 5-country prune (2026-09-10) —
+// re-anchored here on PT, which this mechanism keeps.
 describe('country-identifiers/data — the shipped DE and PT files', () => {
   it('DE declares a VAT scheme applying to BOTH party types and a LEGAL_ID (Handelsregisternummer) scheme applying to COMPANY only', () => {
     const de = fileFor('DE');
@@ -177,19 +176,19 @@ describe('country-identifiers/data — the shipped DE and PT files', () => {
   });
 });
 
-// Root TODO item 21 — "Sourcer FR et US". FR's VAT scheme was read at its own text this time (CGI
+// FR's VAT scheme was read at its own text (CGI
 // ann. II art. 242 nonies A, on codes.droit.org, a Légifrance mirror — Légifrance itself still
-// refused every automated request) and promoted to "legal", the same way task 19 promoted GB's own
-// VAT fact above. FR's LEGAL_ID stayed "unverified" at the time item 21 first ran: both candidate
+// refused every automated request) and promoted to "legal", the same way the GB VAT fact was
+// promoted above. FR's LEGAL_ID stayed "unverified" at first: both candidate
 // texts named in its old resolutionNote were read too, and they settled the underlying legal question
 // (a French invoice must carry the SIREN, not necessarily the SIRET) while that answer diverged from
-// what the scheme encoded — item 21's own scope was provenance, not behavior, so nothing changed yet.
+// what the scheme encoded — that pass's scope was provenance, not behavior, so nothing changed yet.
 //
-// USER DECISION (2026-09-01, TODO_ISSUES.md "SIRET vs SIREN sur la facture" — now RÉSOLU): the field
+// USER DECISION (2026-09-01, "SIRET vs SIREN sur la facture" — now RÉSOLU): the field
 // accepts EITHER length. Label "SIREN / SIRET", pattern `^\d{9}(\d{5})?$`, provenance promoted to
 // "legal" (the citations settle the question; accepting the longer SIRET on top is a documented
 // product choice, not an unsourced claim — see the fact's own `notes`), `required` unchanged (true).
-describe('country-identifiers/data — FR VAT promoted to "legal" by root TODO item 21 (2026-09-01)', () => {
+describe('country-identifiers/data — FR VAT promoted to "legal" (2026-09-01)', () => {
   it('FR VAT cites CGI ann. II art. 242 nonies A (the VAT number is a mandatory mention, except under franchise-en-base)', () => {
     const fr = fileFor('FR');
     const vat = fr.schemes.find((s) => s.scheme === 'VAT')!;
@@ -203,7 +202,7 @@ describe('country-identifiers/data — FR VAT promoted to "legal" by root TODO i
 });
 
 // USER DECISION (2026-09-01) — FR's LEGAL_ID accepts SIREN (9 digits) OR SIRET (14 digits). See
-// TODO_ISSUES.md's own entry, now RÉSOLU, and fr.json's own `notes` for the full reasoning: a valid
+// fr.json's own `notes` for the full reasoning: a valid
 // SIRET always CONTAINS the required SIREN as its own first 9 digits (R.123-221's second alinéa), so
 // accepting the longer value is not a departure from the text, only a tolerance for a more precise
 // input the codebase already knows how to reduce (`build-semantic-invoice.ts#toSiren`).
@@ -237,9 +236,9 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
   });
 });
 
-// BE's country-identifiers/data/be.json (agent pays Belgique) was removed by the 5-country prune
-// (2026-09-10, see this task's own report) along with every other country outside FR/PL/IT/PT/DE —
-// it was never registered in data/all.ts to begin with, so nothing here re-anchors it.
+// BE's country-identifiers/data/be.json was removed by the 5-country prune (2026-09-10) along with
+// every other country outside FR/PL/IT/PT/DE — it was never registered in data/all.ts to begin with,
+// so nothing here re-anchors it.
 
 // Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
 // really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory

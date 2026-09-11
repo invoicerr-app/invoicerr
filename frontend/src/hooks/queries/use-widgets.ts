@@ -9,7 +9,7 @@ import type { Widget } from "@/components/widgets/types"
 /**
  * Every widget document types contribute to the dashboard — see the backend's
  * contributions/collect-widgets.ts. Never names a document type. Each widget's own `label` is
- * translated here (root TODO item 25's own reliquat — see lib/descriptor-i18n.ts's own header):
+ * translated here (see lib/descriptor-i18n.ts's own header):
  * `Widget`/`MetricWidgetRenderer`/`TimeSeriesWidgetRenderer`/`ShortListWidgetRenderer`/
  * `TableWidgetRenderer` all only ever read `widget.label` off what this hook (or
  * `useStatisticsWidgets` below) hands them, so translating it here, once, reaches every widget kind

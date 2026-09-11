@@ -17,10 +17,10 @@ jest.mock('./persistence');
 jest.mock('./country-policy/country-policy');
 
 /**
- * TODO_CORRECTION.md C1 — proves `DocumentsService#getCorrectionRoutes` composes its FOUR gates (type
+ * Proves `DocumentsService#getCorrectionRoutes` composes its FOUR gates (type
  * known -> 404, type is "invoice" -> 501, status not draft -> 409, seller country has a file -> 404
  * named) against the REAL correction-routes catalog (never mocked — a passing test here is a genuine
- * read of docs/compliance/CORRECTION-ROUTES.yaml's own transcription), the same "compose real country
+ * read of documentation/internal/CORRECTION-ROUTES.yaml's own transcription), the same "compose real country
  * data, mock only Prisma" discipline `documents.service.formats.spec.ts` already holds for
  * `downloadDocumentFormat`.
  */
@@ -58,7 +58,7 @@ function mockDocument(overrides: Partial<{ status: string }> = {}) {
   });
 }
 
-describe("DocumentsService#getCorrectionRoutes — TODO_CORRECTION.md C1's four gates", () => {
+describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('gate 1 (404): a typeId nobody registered at all', async () => {
@@ -148,7 +148,7 @@ describe("DocumentsService#getCorrectionRoutes — TODO_CORRECTION.md C1's four 
     expect(decision.limitation).toMatch(/buyer/i);
 
     // Every OTHER route stays honestly unimplemented, whatever its own status — EXCEPT
-    // CANCEL_AND_REPLACE (TODO_CORRECTION.md C3): France is one of the four seller countries
+    // CANCEL_AND_REPLACE: France is one of the four seller countries
     // `correction-routes/cancel-policy.ts` founds a real local cancellation for — see that file's own
     // header, and `correction-routes/correction-routes.spec.ts` for the full per-country pinning.
     for (const route of decision.routes) {

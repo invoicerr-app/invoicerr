@@ -11,7 +11,7 @@
  * "a mandate without a citation does not load" discipline
  * `transports/channel-policy/data/all.ts` already holds for a channel mandate.
  *
- * Only France ships today (this task's own scope — the repère's only sourced country for this
+ * Only France ships today (the repère's only sourced country for this
  * concern), but the list is DISCOVERED, not hand-maintained: `discoverCountryCodes()` reads this
  * directory with `readdirSync` and keeps only names matching `/^[a-z]{2}\.json$/` — a lowercase
  * two-letter code plus `.json`, which is a country file and nothing else (it excludes this `all.ts`

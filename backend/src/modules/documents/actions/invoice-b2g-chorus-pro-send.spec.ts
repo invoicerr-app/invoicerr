@@ -224,7 +224,7 @@ describe('B2G FR, end to end at the service level — government client + connec
       params: {},
     });
 
-    // THE PROOF this task's own brief asks for: the (mocked) client was genuinely invoked, with the
+    // THE PROOF: the (mocked) client was genuinely invoked, with the
     // Factur-X bytes the format registry built (never skipped), and its numeroFluxDepot made it all
     // the way to `updateDocumentStatus`'s own `reference`/`providerId` write.
     expect(mockDeposerFlux).toHaveBeenCalledTimes(1);

@@ -1,6 +1,6 @@
 /**
- * The "nav" `DeclarationProvider` — Hungary's Online Számla 3.0. Orchestrates the flow this task's
- * own brief names verbatim and `nav-client.ts`'s own header verifies against the official spec:
+ * The "nav" `DeclarationProvider` — Hungary's Online Számla 3.0. Orchestrates the flow
+ * `nav-client.ts`'s own header verifies against the official spec:
  * `tokenExchange` → `manageInvoice` → `queryTransactionStatus`. See that file's own header for the
  * full "verified vs extrapolated" breakdown of the wire protocol itself — this file is the thin
  * `DeclarationProvider` adapter around it, plus the ONE thing `nav-client.ts` deliberately does not
@@ -19,8 +19,8 @@
  * ## ⚖ invoiceData.xsd — a DELIBERATELY MINIMAL subset, not full conformance
  *
  * `invoiceData.xsd` (the actual Hungarian invoice business-content schema NAV expects inside
- * `manageInvoice`'s own `invoiceData` field) is a VERY large, Hungary-specific schema — this task did
- * not read it exhaustively (see `nav-client.ts`'s own header, "EXTRAPOLATED"). What WAS confirmed, by
+ * `manageInvoice`'s own `invoiceData` field) is a VERY large, Hungary-specific schema — it was not
+ * read exhaustively (see `nav-client.ts`'s own header, "EXTRAPOLATED"). What WAS confirmed, by
  * reading the schema's own top-level structure directly: the root type is `InvoiceDataType`
  * (`invoiceNumber` → `invoiceIssueDate` → `completenessIndicator` → `invoiceMain`), `invoiceMain`
  * carries exactly one `invoice` (`InvoiceType`: `invoiceHead` → `invoiceLines` → `invoiceSummary`),
@@ -70,7 +70,7 @@ export function extractNavCredentials(resolved: ResolvedChannelConfig): NavCrede
 
 /** `InvoiceStatusType` (invoiceApi.xsd, VERIFIED — see `nav-client.ts`'s own header): RECEIVED,
  *  PROCESSING, SAVED, DONE, ABORTED. A NON-terminal status (RECEIVED/PROCESSING/SAVED) is still an
- *  HONEST, journalable outcome — this task's own trigger runs `queryTransactionStatus` exactly ONCE,
+ *  HONEST, journalable outcome — this codebase's trigger runs `queryTransactionStatus` exactly ONCE,
  *  immediately after `manageInvoice` (see `nav-client.ts`'s own header on why no fixed polling
  *  cadence is asserted); a status that has not reached DONE/ABORTED yet is not a FAILURE of this
  *  mechanism, it is simply what NAV had decided by the time this one query ran. */

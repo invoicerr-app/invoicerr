@@ -123,8 +123,8 @@ describe('seedCountryIdentifierRequirements', () => {
     expect(table.rows[0].required).toBe(false);
   });
 
-  // TODO_ISSUES.md's own note ("country-identifiers/seed.ts ne purge jamais un pays entièrement
-  // retiré", découvert à la tâche 19): a country ENTIRELY removed from the catalog (not just one of
+  // The known gap ("country-identifiers/seed.ts ne purge jamais un pays entièrement
+  // retiré"): a country ENTIRELY removed from the catalog (not just one of
   // its schemes) must lose ALL of its rows on the next seed, not survive because the per-country
   // loop never visits a country the catalog no longer names.
   it('a country ENTIRELY REMOVED from the catalog (not just one of its schemes) purges every one of its rows', async () => {

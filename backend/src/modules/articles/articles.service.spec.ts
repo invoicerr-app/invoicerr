@@ -1,5 +1,5 @@
 /**
- * ArticlesService in isolation — TODO_FEATURES.md rank 18 ("gestion de stock basique"). Mocks
+ * ArticlesService in isolation — basic stock management ("gestion de stock basique"). Mocks
  * `@/prisma/prisma.service` at its own entry point, the same discipline `channels.service.spec.ts`
  * already holds, so this proves the SERVICE's own logic (the `isLowStock` predicate, and every read
  * method attaching it consistently) — never a real database.

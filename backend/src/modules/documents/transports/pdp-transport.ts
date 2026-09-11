@@ -1,16 +1,15 @@
 /**
- * The "pdp" transport — root TODO item 10 ("transports nationaux"), wave 1: France's Plateforme de
+ * The "pdp" transport — France's Plateforme de
  * Dématérialisation Partenaire. Same `DocumentTransport` interface `email-transport.ts` implements
  * (registered under `TransportRegistry` exactly like it — see that file's own header on why a
  * company opts in via `Company.invoiceTransportId`, nothing here treated specially).
  *
  * The client (`pdp/pdp-client.ts`) and the round-trip shape are REPRISED from git tag
  * `avant-refonte-documents` — a real deposit was proven end-to-end there (fr:200→201→202, superpdp
- * sandbox, 2026-08-29). This wave's own contract is narrower than what that engine eventually
+ * sandbox, 2026-08-29). This transport's contract is narrower than what that engine eventually
  * reached: a deposit SUCCEEDS the moment superpdp ACCEPTS the upload (a non-empty invoice id back
  * from `POST /v1.beta/invoices`) — following the conformity verdict through fr:201/202 needs a
- * POLLER (the old engine's `InboxPoller`), which is consigned to TODO_ISSUES.md as this item's
- * named remainder, not guessed at here.
+ * POLLER (the old engine's `InboxPoller`), which is a known remainder, not guessed at here.
  *
  * Two distinct failure shapes, both loud, neither silent:
  *  - `preflight()` — no PDP channel connected for this company (or an incomplete config) — thrown
@@ -20,7 +19,7 @@
  *    with no usable deposit id) — thrown from inside `deliver()`, so BullMQ's own retries get a
  *    chance to run before `send_failed` is ever recorded (see `actions/async-send.ts`'s own header).
  * An accepted deposit with an EMPTY id is treated as the SECOND kind of failure, never a success —
- * this task's own hard-success contract (LIVE_TESTING.md): a reference nobody can look up is not a
+ * the hard-success contract (LIVE_TESTING.md): a reference nobody can look up is not a
  * reference at all.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
@@ -40,9 +39,9 @@ import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } 
 
 export interface PdpTransportDeps {
   channelCredentials: ChannelCredentialsService;
-  /** The Factur-X provider (`formats/facturx-provider.ts`) — the PDP payload for this wave (see this
-   *  file's own header: the round-trip's PROVEN artifact at the repère was raw CII, but this wave's
-   *  task explicitly asks for Factur-X, and the format provider already gates the embedded CII
+  /** The Factur-X provider (`formats/facturx-provider.ts`) — the PDP payload (see this
+   *  file's own header: the round-trip's PROVEN artifact at the repère was raw CII, but Factur-X is
+   *  the deliberate choice here, and the format provider already gates the embedded CII
    *  through the identical Schematron `cii-provider.ts` uses — never an unvalidated artifact sent). */
   facturxFormatProvider: DocumentFormatProvider;
 }
@@ -159,7 +158,7 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
       }
 
       if (!depositId) {
-        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md, and this task's own mutation #1): an accepted
+        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md): an accepted
         // upload with no usable deposit id is a FAILURE, never a silent success — a reference nobody
         // can look up on the platform is not a reference at all.
         throw new BadRequestException(
@@ -179,7 +178,7 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
           'fr:213 rejection) is tracked by the post-deposit sweep — see conformity/ for the timeline.',
         reference: depositId,
         providerId: PROVIDER_ID,
-        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving — the ONLY artifact this transport ever delivers is
         // the Factur-X actually deposited (`buildResult.bytes`, already gated valid above): never a
         // second, separately-rendered "plain PDF" nobody actually sent anywhere through this
         // transport. `deps.facturxFormatProvider.id`/`.mime` (not a literal) so this can never drift

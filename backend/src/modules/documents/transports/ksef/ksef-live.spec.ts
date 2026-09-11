@@ -1,5 +1,5 @@
 /**
- * REAL round-trip against ksef-test.mf.gov.pl — root TODO item 10, wave 2. Gated the same way the
+ * REAL round-trip against ksef-test.mf.gov.pl. Gated the same way the
  * repère's own `ksef-live.spec.ts` was (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN` [+ `KSEF_NIP`] —
  * `../live-gate.ts`), run the same way:
  *
@@ -9,8 +9,7 @@
  * **THESE CREDENTIALS ARE ABSENT TODAY** — no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or
  * in CI secrets (unlike PDP/KSeF's OWN historical proof at the repère, which used a token that has
  * since expired/rotated). `liveDescribe` therefore SKIPS this suite cleanly and says so on stderr —
- * this file does NOT invent a sandbox, a mock server, or a fabricated token to force a green run; see
- * this task's own report for exactly this gap.
+ * this file does NOT invent a sandbox, a mock server, or a fabricated token to force a green run.
  *
  * DB-FREE ON PURPOSE, same choice `pdp/pdp.live.spec.ts` makes for the identical reason: this spec
  * calls `fa3FormatProvider.build()` directly (descriptor + plain party objects, no Prisma — unlike
@@ -20,7 +19,7 @@
  * HARD-SUCCESS CONTRACT — REPRISED VERBATIM from the repère's own `ksef-live.spec.ts`: a REJECTED or
  * SKIPPED transmission result, or an empty/missing `ksefNumber`, is a FAILURE the assertions below
  * throw on — never a soft `expect().toBeFalsy()` that could quietly pass on a shrugging response.
- * Unlike `ksef-transport.ts`'s own wave-2 contract (which stops at "session/invoice accepted" — see
+ * Unlike `ksef-transport.ts`'s own contract (which stops at "session/invoice accepted" — see
  * that file's own header), THIS live spec polls all the way to CLEARED: it is the one place in this
  * codebase that proves the FULL round-trip, not just the upload.
  */

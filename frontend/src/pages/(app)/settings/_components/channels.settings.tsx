@@ -31,16 +31,16 @@ interface ConfiguredChannel {
 }
 interface SuggestedChannel {
   providerId: string
-  // Root TODO item 11 — a country's own policy on this channel: "suggested" is item 10's original,
+  // A country's own policy on this channel: "suggested" is the original,
   // non-binding hint; "mandated" (with `mandatedFrom`) means an invoice issued on or after that date
   // is REFUSED at the backend preflight if sent through anything else (see invoice-actions.ts's own
-  // header). Both fields optional so a pre-item-11 response shape still type-checks — nothing here
+  // header). Both fields optional so an older response shape still type-checks — nothing here
   // assumes every provider entry has been through the new schema.
   requirement?: "suggested" | "mandated"
   mandatedFrom?: string
   provenance: ChannelProvenance
 }
-// Root TODO ("déclaration") — a NEW concept, never a transport: NAV/myDATA never carry an invoice to
+// A NEW concept, never a transport: NAV/myDATA never carry an invoice to
 // its buyer, they require the SELLER to declare its data to a tax authority AFTER issuance. Kept as
 // its OWN array (`reportingObligations`), never folded into `suggested` above — see
 // `channels.service.ts#reportingObligations`'s own header for why that would misrepresent the fact.
@@ -71,15 +71,15 @@ const PROVIDER_LABELS: Record<string, string> = {
 }
 
 /** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
- *  distinction root TODO's own brief asks for, unconditional on the badge (never dependent on
+ *  distinction, unconditional on the badge (never dependent on
  *  whether `reportingObligations` actually named it for THIS company's country: a company that
  *  already connected one of these before moving its registered country elsewhere still sees it
  *  correctly labeled, never silently relabeled as an ordinary channel). */
 const REPORTING_PROVIDER_IDS = new Set(["nav", "mydata"])
 
 /**
- * One provider's config field — the settings-screen half of what wave 1 (PDP) had hard-coded
- * directly into `ChannelRow`'s own JSX. Item 10, wave 2 (KSeF/SdI) generalizes it: a THIRD PARTY
+ * One provider's config field — the settings-screen half of what the PDP integration had hard-coded
+ * directly into `ChannelRow`'s own JSX. KSeF/SdI generalize it: a THIRD PARTY
  * provider (this screen's `providerIds` already unions `TransportRegistry.list()` with whatever is
  * configured/suggested — see this file's own `ChannelsSettings` header) declares its config shape
  * HERE, once, rather than needing a new branch in the render function the way PDP's own fields used
@@ -94,7 +94,7 @@ interface ChannelFieldSpec {
   labelDefault: string
   type: "text" | "password"
   placeholder?: string
-  /** Root TODO ("déclaration") — NAV/myDATA's own `baseUrl` override is the first field genuinely
+  /** NAV/myDATA's own `baseUrl` override is the first field genuinely
    *  optional at the BACKEND (`NavCredentials.baseUrl`/`MyDataCredentials.baseUrl`'s own header: left
    *  blank, the provider falls back to the fixed per-environment host). Every OTHER field on every
    *  OTHER provider leaves this unset — `handleConnect`'s own "every field required" check below
@@ -127,7 +127,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       type: "password",
     },
   ],
-  // KSeF (PL) — item 10, wave 2. `nip`/`ksefToken` are the ONLY provider-specific fields
+  // KSeF (PL). `nip`/`ksefToken` are the ONLY provider-specific fields
   // `ksef-transport.ts#extractCredentials` reads; the environment selector below (generic, already
   // rendered for every provider) is what the transport reads as TEST/PROD.
   ksef: [
@@ -145,7 +145,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       type: "password",
     },
   ],
-  // SdI (IT) — item 10, wave 2, now "implemented-awaiting-accreditation" (a real SdICoop SOAP client
+  // SdI (IT) — now "implemented-awaiting-accreditation" (a real SdICoop SOAP client
   // exists, `transports/sdi/sdicoop-client.ts` — see that file's own header). Exactly the four fields
   // `sdi-transport.ts#extractCredentials` reads: idTrasmittente/certificate/`endpoint` are required to
   // be "connected"; certificatePassword is read through when present without being required (a real
@@ -180,13 +180,13 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       type: "password",
     },
   ],
-  // Peppol — root TODO item 10 remainder / item 26 wave. The GENERIC Access Point contract
+  // Peppol — the GENERIC Access Point contract
   // (`transports/peppol/peppol-client.ts`): a company connects ITS OWN AP vendor's REST endpoint,
   // API key, and its OWN Peppol participant id (the SENDER side — the RECEIVER side is read per-
   // invoice from the client's own "Peppol / electronic routing" field, already collected on the
   // client edit screen, never asked here). No `apProvider` selector the way the pre-refonte engine's
-  // own multi-vendor registry had — see `peppol-transport.ts`'s own header for why this wave ships
-  // exactly one, generic adapter.
+  // own multi-vendor registry had — see `peppol-transport.ts`'s own header for why exactly one,
+  // generic adapter ships.
   peppol: [
     {
       key: "accessPointUrl",
@@ -216,7 +216,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
   // Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`), both required
   // to be "connected". The environment selector below (generic, already rendered for every provider)
   // picks sandbox vs prod — `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS` targets the PISTE
-  // sandbox this task independently verified reachable (TEST) or the production PISTE host (PROD);
+  // sandbox independently verified reachable (TEST) or the production PISTE host (PROD);
   // there is no separate URL field here, unlike PDP/SdI, since Chorus Pro's own OAuth/API hosts are a
   // fixed platform fact, never a user-editable endpoint.
   "chorus-pro": [
@@ -314,7 +314,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       placeholder: "facturacion@empresa.es",
     },
   ],
-  // NAV Online Számla 3.0 (HU) — root TODO, "déclaration": a DECLARATIVE channel, never a delivery
+  // NAV Online Számla 3.0 (HU) — a DECLARATIVE channel, never a delivery
   // one (see `REPORTING_PROVIDER_IDS` above). Exactly the five fields
   // `nav-declaration-provider.ts#extractNavCredentials` reads: `login`/`password`/`taxNumber` are the
   // technical user's own authentication triad (spec §3, "Structure of the UserHeaderType element"),
@@ -364,7 +364,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       optional: true,
     },
   ],
-  // AADE myDATA (GR) — root TODO, "déclaration": likewise DECLARATIVE, never a delivery channel.
+  // AADE myDATA (GR) — likewise DECLARATIVE, never a delivery channel.
   // Exactly the two fields `mydata-declaration-provider.ts#extractMyDataCredentials` reads —
   // AADE's own Azure APIM subscription pair (`aade-user-id` / `Ocp-Apim-Subscription-Key`, see
   // `mydata-client.ts`'s own header). `baseUrl` is the same OPTIONAL override `nav` offers above.
@@ -393,9 +393,9 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
 }
 
 /**
- * One channel's connect/disconnect card — item 10 (root TODO), now GENERIC by provider (wave 1 hard-
- * coded PDP's own three fields directly here; wave 2 needed a second and third shape, KSeF's and
- * SdI's, so the field LIST moved to `PROVIDER_FIELDS` above and this component only ever renders
+ * One channel's connect/disconnect card, now GENERIC by provider (PDP's own three fields used to be
+ * hard-coded directly here; KSeF and SdI needed a second and third shape,
+ * so the field LIST moved to `PROVIDER_FIELDS` above and this component only ever renders
  * whatever that list declares — no branch on `providerId` anywhere in this function). `GET/PUT/DELETE
  * /api/company/channels/:providerId` (`modules/company/channels/`): the PUT body is encrypted at rest
  * server-side and NEVER echoed back — see `channels.service.ts`'s own header — so this component
@@ -480,8 +480,8 @@ function ChannelRow({
                   })
                 : t("settings.channels.status.notConnected", "Not connected")}
             </Badge>
-            {/* Root TODO ("déclaration") — the concept-distinguishing badge this task's own brief
-                asks for: NEVER a delivery channel, whatever its own connected/not-connected status
+            {/* The concept-distinguishing badge: NEVER a delivery channel, whatever its own
+                connected/not-connected status
                 reads above. Shown unconditionally for a provider this screen classifies as
                 declarative (`REPORTING_PROVIDER_IDS`), independent of `reportingObligations` (a
                 company that already connected one before moving its own registered country
@@ -496,7 +496,7 @@ function ChannelRow({
                 {t("settings.channels.status.suggested", "Suggested for your country")}
               </Badge>
             )}
-            {/* Root TODO item 11 — a STRONGER, visually distinct badge for a channel the country
+            {/* A STRONGER, visually distinct badge for a channel the country
                 MANDATES, never replacing the "suggested" badge above (a mandate is a strengthened
                 suggestion, not a contradiction of it — see this file's own header on `requirement`).
                 Shown unconditionally whenever the file declares `mandated`, regardless of whether
@@ -627,13 +627,13 @@ function ChannelRow({
 }
 
 /**
- * Company settings → Channels (`/settings/channels`, root TODO item 10) — connect/disconnect a
+ * Company settings → Channels (`/settings/channels`) — connect/disconnect a
  * national transmission channel. `GET /api/company/channels` returns both what is already
  * `configured` (status only, never a secret — see `channels.service.ts`'s own header) and what this
- * company's OWN country `suggested` (advisory, item 10's "le pays suggère son canal" — the data comes
+ * company's OWN country `suggested` (advisory — the data comes
  * from `transports/channel-suggestion/data/*.json`, never a hard-coded country check here — a PL
  * company sees KSeF suggested, an IT company sees SdI, a FR company sees PDP, all from the same three
- * lines of JSON, item 10 wave 2).
+ * lines of JSON).
  *
  * The provider list itself is the union of every registered TRANSPORT (`GET /api/documents/
  * transports`, excluding "email" — a plain address, not a channel needing credentials) with whatever
@@ -654,7 +654,7 @@ export default function ChannelsSettings() {
   const knownProviderIds = (transports ?? []).map((tr) => tr.id).filter((id) => id !== "email")
   const configuredMap = new Map((channels?.configured ?? []).map((c) => [c.providerId, c] as const))
   const suggestedMap = new Map((channels?.suggested ?? []).map((s) => [s.providerId, s] as const))
-  // Root TODO ("déclaration") — a reporting provider is offered ONLY when this company's own country
+  // A reporting provider is offered ONLY when this company's own country
   // actually carries the obligation (unlike `knownProviderIds` above, listed for every company
   // regardless of country): unlike a delivery channel, connecting one for a country with no such
   // obligation would be pure noise, never a genuine option. `configuredMap` still keeps a PREVIOUSLY

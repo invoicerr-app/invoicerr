@@ -1,7 +1,7 @@
 /**
  * Used to pin an "empty, on purpose" state — see all.ts's own header for why that changed: France
  * shipped the first real field overlay (`supplyType` on `invoice.lines`, for BT-23); Germany
- * (root TODO item 26, "Peppol/Allemagne") is the SECOND, adding a document-level `buyerReference`
+ * ("Peppol/Allemagne") is the SECOND, adding a document-level `buyerReference`
  * (BT-10 / Leitweg-ID) for `formats/xrechnung-provider.ts`'s own BR-DE-15. This file pins the NEW
  * state the same way the old one pinned the empty one and then the FR-only one, so whoever adds a
  * THIRD country's file has to update the one place asserting what is shipped, same discipline either

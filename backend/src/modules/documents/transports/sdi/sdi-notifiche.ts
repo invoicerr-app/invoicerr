@@ -34,7 +34,7 @@
  *
  * The `File` payload's own INTERNAL structure (the notifica's business content — e.g. NE's own
  * `EsitoCommittente` EC01/EC02, NS's own `ListaErrori`) is documented in "l'allegato B-1 delle
- * specifiche attuative delle regole tecniche" — a document this task never fetched (only referenced
+ * specifiche attuative delle regole tecniche" — a document never fetched here (only referenced
  * by footnote in the read PDF). This module therefore does NOT decode that inner XML: it journals the
  * OUTER envelope's own facts (`identificativoSdI`, `nomeFile`, which of the six operations fired, and
  * the base64 `File` itself, kept verbatim for a human/future-parser to inspect) — never a business

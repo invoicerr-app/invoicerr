@@ -1,10 +1,10 @@
 /**
- * `signRenderedPdfIfConfigured` in isolation — root TODO item 13's wiring. No Prisma, no Puppeteer:
+ * `signRenderedPdfIfConfigured` in isolation — the signing wiring. No Prisma, no Puppeteer:
  * `SigningCredentialsPort` is a fake here (this is exactly the seam `sign-instance-pdf.ts`'s own
  * header documents), the same discipline `send-document-email.spec.ts` already holds for
  * `renderDocumentInstance`.
  *
- * The two behaviors root TODO item 13 requires, proven directly:
+ * The two behaviors required here, proven directly:
  *  1. No certificate configured → the PDF returned is the EXACT SAME BYTES, untouched.
  *  2. An ACTIVE certificate that fails to actually sign → THROWS (never a silent unsigned PDF).
  */
@@ -123,7 +123,7 @@ describe('signRenderedPdfIfConfigured', () => {
   }, 30_000);
 
   /**
-   * THE loud-failure contract root TODO item 13 asks for: a certificate IS active (a p12Buffer WAS
+   * THE loud-failure contract: a certificate IS active (a p12Buffer WAS
    * resolved) but the PFX itself is unusable — this must never come back as an unsigned PDF with no
    * indication anything went wrong.
    */

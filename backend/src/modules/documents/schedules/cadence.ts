@@ -1,5 +1,5 @@
 /**
- * The RECURRENCE math (root TODO item 5) — pure, framework-agnostic, and deliberately the ONLY place
+ * The RECURRENCE math — pure, framework-agnostic, and deliberately the ONLY place
  * that knows how to move a schedule's `nextRunAt` forward. No Prisma, no BullMQ, no Nest: every
  * function here takes plain dates/numbers and returns plain dates/numbers, which is what makes the
  * month-end edge cases below testable by hand (cadence.spec.ts) rather than by running a real sweep.
@@ -9,7 +9,7 @@
  * The old, removed `RecurringInvoice` (git tag `avant-refonte-documents`) offered EIGHT
  * (`RecurrenceFrequency`: WEEKLY/BIWEEKLY/MONTHLY/BIMONTHLY/QUARTERLY/QUADMONTHLY/SEMIANNUALLY/
  * ANNUALLY) — that enum is still physically present in schema.prisma, orphaned since the module was
- * deleted, and deliberately NOT reused here: this task's own brief asks for four, and a closed union
+ * deleted, and deliberately NOT reused here: only four cadences are offered, and a closed union
  * a person can actually reason about beats a longer list carried over just because it used to exist.
  * Nothing here rules out growing the union later; it simply is not asked for now.
  *

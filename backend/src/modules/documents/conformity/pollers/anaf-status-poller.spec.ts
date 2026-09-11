@@ -2,8 +2,8 @@
  * `anaf-status-poller.ts` in isolation — same style `peppol-status-poller.spec.ts`/
  * `chorus-pro-status-poller.ts`'s own (unwritten yet) sibling would hold: `AnafClient` is mocked
  * wholesale (the real HTTP round-trip is `transports/anaf/anaf-client.spec.ts`'s job), this proves the
- * MAPPING — `stareMesaj` → `RawAuthorityEvent`, terminal vs not, ok AND nok alike (this task's own
- * mutation #2 target: a poller that called every `stare` "ok" would pass a naive smoke test forever).
+ * MAPPING — `stareMesaj` → `RawAuthorityEvent`, terminal vs not, ok AND nok alike (the mutation #2
+ * target: a poller that called every `stare` "ok" would pass a naive smoke test forever).
  */
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 

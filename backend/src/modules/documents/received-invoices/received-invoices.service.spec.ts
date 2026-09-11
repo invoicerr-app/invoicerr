@@ -40,8 +40,8 @@ const MINIMAL_CII_XML = `<?xml version="1.0" encoding="utf-8"?>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;
 
-/** Same fixture, plus a seller VAT identifier (`SpecifiedTaxRegistration`) — TODO_PRODUIT.md T5(b)'s
- *  own wiring test below needs the ONE extra fact `reconcileSupplierClient` reads. */
+/** Same fixture, plus a seller VAT identifier (`SpecifiedTaxRegistration`) — the supplier-reconciliation
+ *  wiring test below needs the ONE extra fact `reconcileSupplierClient` reads. */
 function ciiXmlWithSellerVat(vatId: string): string {
   return MINIMAL_CII_XML.replace(
     '<ram:SellerTradeParty><ram:Name>Fournisseur Test SARL</ram:Name></ram:SellerTradeParty>',
@@ -114,8 +114,7 @@ describe('ReceivedInvoicesService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    // MUTATION 2 of this task's report: "le doublon par hash n'est plus détecté" — this is the test
-    // that must go red for that mutation.
+    // Mutation "le doublon par hash n'est plus détecté" — this is the test that must go red for it.
     it('refuses re-uploading the exact same file (same hash) already on an existing received-invoice, by name', async () => {
       const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
       const hash = computeArtifactHash(Buffer.from(MINIMAL_CII_XML, 'utf-8'));
@@ -161,7 +160,7 @@ describe('ReceivedInvoicesService', () => {
   });
 
   /**
-   * TODO_PRODUIT.md T5(b) — "au dépôt", proven end-to-end through the REAL `upload()` pipeline: real
+   * Supplier reconciliation "au dépôt", proven end-to-end through the REAL `upload()` pipeline: real
    * Prisma for the Client/PartyIdentifier side (this file's own `jest.mock('../persistence')` only
    * ever touched `DocumentInstance` reads/writes, never this) — see `supplier-reconciliation.spec.ts`
    * for the exhaustive matching-rule coverage (ambiguity, companyId scoping, name fallback); this
@@ -169,7 +168,7 @@ describe('ReceivedInvoicesService', () => {
    * as `fields.supplierClient` + `supplierMatch`, exactly the shape the frontend's own
    * `buildInitialData` (received-invoice-upload-button.tsx) already spreads verbatim.
    */
-  describe('upload — supplier reconciliation (TODO_PRODUIT.md T5(b))', () => {
+  describe('upload — supplier reconciliation', () => {
     let companyId: string;
     let clientId: string;
     const KNOWN_VAT = 'FR40506070801';
@@ -257,15 +256,15 @@ describe('ReceivedInvoicesService', () => {
   });
 
   /**
-   * TODO_PRODUIT.md T5(c) — proves the WIRING, not the Mistral client (that lives in
+   * Proves the WIRING, not the Mistral client (that lives in
    * `plugins/ocr/providers/mistral/client.spec.ts`, against a real HTTP stub) nor the fallback
    * function itself (`ocr/apply-ocr-fallback.spec.ts`): a STUB extractor registered into the exact
    * same core registry a real plugin would use, proving an OCR proposal reaches `preview.extraction.
-   * fields` and that T5(b)'s supplier reconciliation AND T5(a)'s total-vs-sum check both run on
+   * fields` and that supplier reconciliation AND the total-vs-sum check both run on
    * whatever it hands back — exactly as they already do for a structurally-read field, since neither
    * downstream mechanism has (or needs) any notion of WHERE a field came from.
    */
-  describe('upload — OCR fallback (TODO_PRODUIT.md T5(c))', () => {
+  describe('upload — OCR fallback', () => {
     const STUB_ID = 'stub-ocr-for-received-invoices-service-spec';
     const KNOWN_OCR_VAT = 'FR60708090801';
     let companyId: string;
@@ -346,7 +345,7 @@ describe('ReceivedInvoicesService', () => {
       expect(preview.extraction.fields.netAmount).toBe(400);
     });
 
-    it("the OCR-read supplier VAT auto-reconciles against this company's own client book — the SAME mechanism T5(b) proved for structural extraction", async () => {
+    it("the OCR-read supplier VAT auto-reconciles against this company's own client book — the SAME mechanism proved for structural extraction", async () => {
       const base64 = Buffer.from('another scanned page').toString('base64');
 
       const preview = await service.upload(companyId, {
@@ -359,11 +358,11 @@ describe('ReceivedInvoicesService', () => {
       expect(preview.extraction.fields.supplierClient).toBe(clientId);
     });
 
-    it("the OCR-read lines feed T5(a)'s total-vs-sum check exactly like a structurally-read line would — a named, non-blocking warning", () => {
+    it('the OCR-read lines feed the total-vs-sum check exactly like a structurally-read line would — a named, non-blocking warning', () => {
       // The check itself (line-totals-check.ts) runs at "receive" time (received-invoice-actions.ts),
       // not at upload — this proves the FIELDS this upload just returned are the SAME shape that
       // check already knows how to read, without re-driving the whole action pipeline here (that
-      // wiring is `received-invoice-actions.ts`'s own concern, untouched by this task).
+      // wiring is `received-invoice-actions.ts`'s own concern).
       const warnings = checkReceivedInvoiceLineTotals({
         currency: 'EUR',
         netAmount: 400,

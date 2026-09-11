@@ -1,5 +1,5 @@
 /**
- * The CRUD half of recurrences (root TODO item 5) — everything the schedules screen needs
+ * The CRUD half of recurrences — everything the schedules screen needs
  * (documents.controller.ts's `schedules/*` routes). The RUNTIME half (the sweep, an occurrence's own
  * execution) lives in schedule-sweep-runner.ts; this class never touches the queue at all.
  */

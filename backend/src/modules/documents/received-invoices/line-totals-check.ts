@@ -1,5 +1,5 @@
 /**
- * TODO_PRODUIT.md T5(a) — "le total contrôle la somme des lignes": a received invoice is the ONE
+ * "Le total contrôle la somme des lignes": a received invoice is the ONE
  * document type in this core that carries BOTH a declarative line array (`data.lines`, added
  * alongside this file — see `received-invoice.descriptor.ts`'s own header) AND three separately
  * stated FLAT totals (`data.netAmount`/`vatAmount`/`grossAmount`) that are never derived from those

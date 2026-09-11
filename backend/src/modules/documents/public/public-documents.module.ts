@@ -12,7 +12,7 @@ import { PublicSignaturesController } from './public-signatures.controller';
  * reason `DocumentsModule` itself does: `DocumentsCoreModule` already exports
  * `DocumentsService`/`ShareLinksService`/`SignaturesService`, no re-export layer is needed on top.
  *
- * `PublicSignaturesController` (root TODO item 13 REDONE) joined `PublicDocumentsController` here
+ * `PublicSignaturesController` joined `PublicDocumentsController` here
  * rather than getting its own THIRD module: both controllers already share the identical shape (one
  * `DocumentsCoreModule`-provided service, zero controller-local state, every route `@Public()`) this
  * module exists to host — unlike `SdiNotificheModule`, which earns its OWN module for a genuinely

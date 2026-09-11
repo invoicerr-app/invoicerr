@@ -6,7 +6,7 @@ import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/do
 import { DocumentSettlement } from './compute-settlement';
 
 /**
- * TODO_PRODUIT.md T3's own "T2bis différé": `DOCUMENT_SETTLED` fires the instant a WRITE makes a
+ * `DOCUMENT_SETTLED` fires the instant a WRITE makes a
  * document's own settlement (compute-settlement.ts) CROSS from "not settled" to "settled" — never on
  * an ordinary read/recompute of an ALREADY-settled document (a `GET .../settlement` that happens to
  * find `settled: true` fires nothing: the crossing already happened, at whichever earlier write

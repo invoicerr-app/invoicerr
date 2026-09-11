@@ -9,11 +9,11 @@
  * `GET {baseUrl}/stareMesaj?id_incarcare={id}`, and `mapAnafStatus` (`ok`→CLEARED, `nok`→REJECTED, else
  * PENDING) — the repère's own reading of this API's lifecycle, kept as this file's own.
  *
- * TWO deliberate DEPARTURES from the repère's own scaffold, both because this session had a real,
- * reachable source the repère (its own header: "no ANAF sandbox credentials available") did not:
+ * TWO deliberate DEPARTURES from the repère's own scaffold, both because a real, reachable source
+ * was available here that the repère (its own header: "no ANAF sandbox credentials available") did not have:
  *
- *  1. HOST — the repère guessed `https://api.anaf.ro/{test,prod}/FCTEL/rest`. This session fetched
- *     ANAF's own published endpoint page directly
+ *  1. HOST — the repère guessed `https://api.anaf.ro/{test,prod}/FCTEL/rest`. ANAF's own published
+ *     endpoint page was fetched directly
  *     (`static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/url_eFactura.html`, verified reachable
  *     2026-09-02) and the REAL host is `webserviceapl.anaf.ro` — already documented in
  *     `CREDENTIALS_GUIDE.md` §5, and now also `../anaf-transport.ts`'s own `ANAF_URLS`. Shipping the
@@ -42,7 +42,7 @@
  * beyond a short-lived token cache" discipline `pdp/pdp-client.ts#authenticate`/
  * `chorus-pro/choruspro-client.ts` already hold.
  *
- * VERIFIED LIVE, THIS SESSION (2026-09-02), from this checkout's own network: `POST
+ * VERIFIED LIVE (2026-09-02), from this checkout's own network: `POST
  * https://logincert.anaf.ro/anaf-oauth2/v1/token` (Basic-Auth'd, `grant_type=refresh_token`) resolves
  * and answers a REAL, deterministic `HTTP 400 {"error":"invalid_client","error_description":"Invalid
  * client_id …"}` for a garbage client id/secret/refresh token — a genuine rejection, not a network-level
@@ -57,7 +57,7 @@
  * real response to be certain of the casing.
  *
  * OUT OF SCOPE, same as the repère: `listaMesajeFactura`/`descarcare` (downloading ANAF's own signed
- * response). Nothing in this wave's own transport/poller needs them; a future inbound/archival flow can
+ * response). Nothing in the transport/poller needs them; a future inbound/archival flow can
  * add them from the endpoint list already documented in `CREDENTIALS_GUIDE.md` §5, never guessed at.
  */
 import { DOMParser, Element as XmlElement } from '@xmldom/xmldom';

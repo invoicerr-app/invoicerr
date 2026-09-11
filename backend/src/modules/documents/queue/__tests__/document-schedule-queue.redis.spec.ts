@@ -1,5 +1,5 @@
 /**
- * The recurrence mechanism's own real end-to-end proof (root TODO item 5) — real Redis, real
+ * The recurrence mechanism's own real end-to-end proof — real Redis, real
  * Postgres, real Mailpit, exactly the same shape document-action-queue.redis.spec.ts already
  * established for the ordinary "send" queue (this file's own header explains the ClientsModule/
  * ts-jest gap that keeps both specs from importing DocumentsCoreModule directly). Self-gated on
@@ -7,7 +7,7 @@
  * (.github/workflows/cypress.yml — its own `--testPathPattern 'modules/documents/queue/__tests__'`
  * already matches this file with no workflow change needed).
  *
- * Three proofs, matching the task's own three requirements:
+ * Three proofs:
  *  - a due schedule traverses the REAL sweep (`DocumentScheduleSweepRunner.runSweep`, the exact
  *    function the repeatable job calls) -> the duplicate genuinely EXISTS in the database, with
  *    `issueDate` overridden to the occurrence date and `dueDate` shifted by the source's own delta;

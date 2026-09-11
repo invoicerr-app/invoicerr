@@ -110,7 +110,7 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   registry.register(buildInvoiceDescriptor());
   registry.register(buildCreditNoteDescriptor());
   registry.register(buildExpenseDescriptor());
-  // Root TODO item 18 ("réception de factures") — the FIFTH type, and the first in the "L'entrée"
+  // The FIFTH type, and the first in the "L'entrée"
   // category: see received-invoice.descriptor.ts for the full reasoning.
   registry.register(buildReceivedInvoiceDescriptor());
   return registry;
@@ -141,29 +141,29 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * The invoice's "download-xml" action's own registry — same registration shape as
  * `buildTransportRegistry` above (a plugin adds a jurisdiction's syntax by registering ONE more
  * provider here, never by touching `documents.service.ts#downloadDocumentFormat`). Only the two
- * EN 16931 base syntaxes this ticket built (item 12) are registered today — see
+ * EN 16931 base syntaxes are registered today — see
  * `formats/format-registry.ts`'s own header for what stays deliberately unbranched (Peppol BIS,
- * XRechnung — item 16). Factur-X (`facturx-provider.ts`) is the THIRD, added by item 10 (wave 1) —
- * see that file's own header for the reuse `TODO_ISSUES.md` used to flag as not-yet-done. `fa3` (PL,
+ * XRechnung). Factur-X (`facturx-provider.ts`) is the THIRD —
+ * see that file's own header for the reuse. `fa3` (PL,
  * `national/fa3-provider.ts`) and `fatturapa` (IT, `national/fatturapa-provider.ts`) are the FOURTH
- * and FIFTH, added by item 10 (wave 2) — both TRANSPORT-only by default (see `ksef-transport.ts`/
+ * and FIFTH — both TRANSPORT-only by default (see `ksef-transport.ts`/
  * `sdi-transport.ts`), registered here too so `download-xml` can also offer them directly (see that
  * action's own `syntax` param options). Neither needs a companyId or any extra dependency, so
  * (unlike `facturx`) they are plain objects, not factories.
  *
- * `peppol-bis` and `xrechnung` (root TODO item 26, wave: "Peppol/Allemagne") are the SIXTH and
+ * `peppol-bis` and `xrechnung` are the SIXTH and
  * SEVENTH — both UBL-syntax EN 16931 profiles judged by the base Schematron PLUS their own vendored
  * delta (see each provider's own header for exactly which BR-DE-* / PEPPOL-EN16931-R* rules that
  * delta enforces and how). Neither needs a companyId either, so both are plain objects too.
  *
  * `facturae` (ES, `national/facturae-provider.ts`) is the EIGHTH — Spain's B2G channel FACe's own
  * payload (`transports/face-transport.ts`, `b2g-routing/data/es.json`). Unlike `fa3`/`fatturapa`, it
- * DOES need a dependency (`signingCertificates` — root TODO item 13's own port, the first real
+ * DOES need a dependency (`signingCertificates` — the XAdES signing port, the first real
  * consumer of the XAdES provider, see that provider's own header) so it is a factory, the same shape
  * `facturx`'s own `referenceRegistry` dependency already established here.
  *
- * `nlcius` (NL, `nlcius-provider.ts`) is the NINTH — root TODO, "NLCIUS vendorable" (mandant "Go",
- * 2026-09-05), the SAME UBL-syntax EN 16931 profile shape as `peppol-bis`/`xrechnung` above (its own
+ * `nlcius` (NL, `nlcius-provider.ts`) is the NINTH — (NLCIUS, vendored), the SAME UBL-syntax EN 16931
+ * profile shape as `peppol-bis`/`xrechnung` above (its own
  * vendored delta, `formats/vendored/nl/si-ubl-2.0-nlcius-preprocessed.sch`, runs on top of the base
  * Schematron — see that provider's own header). No dependency either, so a plain object too.
  */
@@ -192,7 +192,7 @@ function buildFormatProviderRegistry(
  * buildActionRegistry below, for the quote's OWN send) never creates a circular dependency, even
  * though ACTION_REGISTRY is where the send actions that call into this machinery are registered.
  *
- * "pdp" (root TODO item 10, wave 1 — `transports/pdp-transport.ts`) is the SECOND. It gets its own
+ * "pdp" (`transports/pdp-transport.ts`) is the SECOND. It gets its own
  * `buildFacturxFormatProvider({ referenceRegistry })` instance rather than sharing the one
  * `FORMAT_PROVIDER_REGISTRY` already builds below: both are stateless closures over the exact same
  * pure function, so a second instance costs nothing and avoids making TRANSPORT_REGISTRY's own
@@ -202,13 +202,13 @@ function buildFormatProviderRegistry(
  * purely to make that injectable here, the same reuse `ClientsService`/`MailService` already get.
  *
  * "ksef" (PL, `transports/ksef-transport.ts`) and "sdi" (IT, `transports/sdi-transport.ts`) are the
- * THIRD and FOURTH — item 10, wave 2. Same reasoning as "pdp": each gets its OWN
+ * THIRD and FOURTH. Same reasoning as "pdp": each gets its OWN
  * `fa3FormatProvider`/`fatturapaFormatProvider` reference (both stateless, plain objects — see
  * `buildFormatProviderRegistry`'s own header) rather than sharing `FORMAT_PROVIDER_REGISTRY`'s
  * instance, for the identical "no reason to couple two registries" argument.
  *
- * "peppol" (`transports/peppol-transport.ts`) is the FIFTH — root TODO item 10's remainder / item 26
- * wave. Same reasoning again: its own `peppolBisFormatProvider` reference is the SAME stateless plain
+ * "peppol" (`transports/peppol-transport.ts`) is the FIFTH. Same reasoning again: its own
+ * `peppolBisFormatProvider` reference is the SAME stateless plain
  * object `buildFormatProviderRegistry` already registers under "peppol-bis" for `download-xml` — a
  * second reference to the identical object, not a second instance (there is nothing to construct: the
  * provider takes no dependency at all, unlike `facturx`'s own `referenceRegistry`-bound factory).
@@ -237,14 +237,14 @@ function buildFormatProviderRegistry(
  * behaves BYTE-FOR-BYTE like an ordinary B2B Peppol send, proven by
  * `peppol-transport.spec.ts`'s own "THE FORMAT OVERRIDE" block ("`peppol-bis` names ITSELF").
  *
- * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`, root
- * TODO item 13) is threaded into "email" (the one transport that hands a human-readable PDF to
+ * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`) is
+ * threaded into "email" (the one transport that hands a human-readable PDF to
  * someone — see `EmailTransportDeps.signingCertificates`'s own header) AND, as of a 2026-09-02 task,
  * "face" (its own `buildFacturaeFormatProvider` call's XAdES cert AND, SEPARATELY, its
  * `signingCredentials` field for WS-Security SOAP-envelope signing — see `face-transport.ts`'s own
  * header, "THE WS-SECURITY CERTIFICATE", for why these are the SAME cert resolved twice, not two
  * different certs). "pdp"/"ksef"/"sdi"/"peppol" transmit XML/Factur-X formats built by
- * `formats/*-provider.ts`, which this task deliberately does NOT sign (see `sign-instance-pdf.ts`'s
+ * `formats/*-provider.ts`, which are deliberately NOT signed (see `sign-instance-pdf.ts`'s
  * own header on why Factur-X's raw-PDF material is exempt).
  *
  * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the SIXTH — this makes the channel the B2G
@@ -262,7 +262,7 @@ function buildFormatProviderRegistry(
  * does NOT additionally cover (Romania's own CIUS-RO extension, not vendored anywhere in this
  * checkout).
  *
- * `formatOverrides.nlcius` — root TODO, "NLCIUS vendorable" (mandant "Go", 2026-09-05): the SAME
+ * `formatOverrides.nlcius` — (NLCIUS, vendored): the SAME
  * mechanism as `formatOverrides.xrechnung` above, one entry per new national CIUS. The Netherlands'
  * own B2G routing rule (`b2g-routing/data/nl.json`) names `transportId: "peppol"` with
  * `formatSyntax: "nlcius"`; `documentTypeId` is `PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL`, and
@@ -353,7 +353,7 @@ function buildTransportRegistry(
   );
   // "face" (Spain, B2G) — makes the channel the B2G ES routing rule (`b2g-routing/data/es.json`)
   // names actually EXIST, the same "chorus-pro"/"anaf" precedent above. Own `facturaeFormatProvider`
-  // instance (needs `signingCertificates` — root TODO item 13's XAdES port, see
+  // instance (needs `signingCertificates` — the XAdES signing port, see
   // `formats/national/facturae-provider.ts`'s own header), same "stateless factory, no reason to
   // couple two registries" reasoning every sibling transport above already holds.
   registry.register(
@@ -372,7 +372,7 @@ function buildTransportRegistry(
 }
 
 /**
- * Root TODO item 10's own named remainder — post-deposit conformity tracking (`conformity/`). Same
+ * Post-deposit conformity tracking (`conformity/`). Same
  * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
  * registry's own read-side twin: "pdp", "ksef", "peppol" (generic AP `getStatus()` —
  * `conformity/pollers/peppol-status-poller.ts`), "chorus-pro" (`consulterCr` —
@@ -406,7 +406,7 @@ function buildAuthorityStatusPollerRegistry(
 }
 
 /**
- * Root TODO — declarative reporting (`reporting/`): a NEW concept, never a transport (see
+ * Declarative reporting (`reporting/`): a NEW concept, never a transport (see
  * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
  * as `buildAuthorityStatusPollerRegistry` just above — "nav" (Hungary, NAV Online Számla 3.0) and
  * "mydata" (Greece, AADE myDATA) were the first two shipped providers; "pt-at" (Portugal, AT
@@ -429,32 +429,32 @@ function buildDeclarationProviderRegistry(
 
 /**
  * `queueDispatcher` (DocumentQueueDispatcher, queue/document-queue.dispatcher.ts) is what turns
- * "send" asynchronous for every type that has one (TODO.md item 22) — see actions/async-send.ts for
+ * "send" asynchronous for every type that has one — see actions/async-send.ts for
  * the shared two-phase engine every one of these registrations now goes through. Injecting the
  * CONCRETE class here (never `import type` — see this repo's own DI rule) is safe: it comes from
  * `DocumentQueueModule`, `@Global()` and imported below, so Nest resolves it the same way regardless
  * of which process (API or worker) this module boots in.
  *
- * `signingCertificates` (root TODO item 13) is threaded into the quote's own "send" only — see
+ * `signingCertificates` is threaded into the quote's own "send" only — see
  * `QuoteActionDeps.signingCertificates`'s own header; the invoice's "send" goes through
  * `TRANSPORT_REGISTRY` instead (see `buildTransportRegistry` above), never through this function.
  *
- * `eventsPublisher` (TODO_PRODUIT.md T1 / PLAN-V2 R8) is threaded into every type declaring a "send"
+ * `eventsPublisher` is threaded into every type declaring a "send"
  * — the SSE status bridge, see `async-send.ts`'s own `RunAsyncSendInput.events` header. Same
  * `@Global()` `DocumentQueueModule` origin as `queueDispatcher` just above, so it resolves the same
  * way regardless of process (API or worker).
  *
- * `webhookDispatcher` (TODO_PRODUIT.md T2 / PLAN-V2 R9, generalized by T2bis) is threaded into
- * EVERY type registered below (quote, invoice, credit note, expense, received invoice) — T2bis
- * replaced the per-type `WebhookEvent`s this comment used to name (`QUOTE_SENT`/`INVOICE_SENT`,
- * both purged from the schema) with a generic vocabulary (`DOCUMENT_SENT`/`DOCUMENT_CREATED`/
+ * `webhookDispatcher` is threaded into
+ * EVERY type registered below (quote, invoice, credit note, expense, received invoice) — the
+ * per-type `WebhookEvent`s this comment used to name (`QUOTE_SENT`/`INVOICE_SENT`,
+ * both purged from the schema) were replaced with a generic vocabulary (`DOCUMENT_SENT`/`DOCUMENT_CREATED`/
  * `DOCUMENT_DELETED`/…, see the enum's own header in `schema.prisma`) fired by the shared
  * `actions/async-send.ts` engine and `generic-actions.ts`, so there is no longer a "this type
  * opts in, that one is deliberately left out" split — see each type's own `deps.webhooks` comment
  * for exactly which events it fires. Unlike `eventsPublisher`, this does NOT come from the
  * `@Global()` `DocumentQueueModule` — it comes from `WebhooksModule`, imported below specifically
  * so this resolves identically in a scaled ("giga") deployment's dedicated worker process too
- * (TODO_PRODUIT.md T2's own "WORKER_INLINE=false" requirement): `DocumentsQueueWorkerModule`
+ * (the "WORKER_INLINE=false" requirement): `DocumentsQueueWorkerModule`
  * imports THIS Core module, never `WebhooksModule` directly, so without this import a worker-only
  * process could never actually dispatch the webhook it just decided to fire.
  */
@@ -483,11 +483,11 @@ function buildActionRegistry(
   });
   registerConvertToInvoiceAction(registry);
   registerRequestDepositAction(registry);
-  // TODO_FEATURES.md rank 12 ("échéancier") — see request-installments.ts's own header. Needs no
+  // The "échéancier" action — see request-installments.ts's own header. Needs no
   // extra dependency (unlike, say, request-signature.ts's SignaturesService), so it registers exactly
   // like "request-deposit" right above: pure function of the ActionRegistry it's handed.
   registerRequestInstallmentsAction(registry);
-  // Root TODO item 13 REDONE — see request-signature.ts's own header. `SignaturesService` is a plain
+  // See request-signature.ts's own header. `SignaturesService` is a plain
   // provider of THIS module (below), the same "inject the concrete class here, never `import type`"
   // rule every other DI token on this page already follows.
   registerRequestSignatureAction(registry, signaturesService);
@@ -500,8 +500,8 @@ function buildActionRegistry(
   registerCreditNoteActions(registry, {
     queueDispatcher,
     events: eventsPublisher,
-    // TODO_PRODUIT.md T2bis — see credit-note-actions.ts's own header on why this type, deliberately
-    // webhook-less under T2 (no per-type `CREDIT_NOTE_SENT` ever existed), gets `DOCUMENT_SENT` for
+    // See credit-note-actions.ts's own header on why this type, deliberately
+    // webhook-less before (no per-type `CREDIT_NOTE_SENT` ever existed), gets `DOCUMENT_SENT` for
     // free the moment the vocabulary stops being per-type: the SAME `webhookDispatcher` instance
     // invoice/quote already receive above, no new wiring concept needed.
     webhooks: webhookDispatcher,
@@ -519,7 +519,7 @@ function buildActionRegistry(
  * same way registering the quote type itself is exactly one line in buildDocumentTypeRegistry.
  *
  * Only the invoice gets `dateRecalc`: recomputing `issueDate`/`dueDate` on a scheduled occurrence
- * (schedules/, root TODO item 5) is exactly what the invoice case needs — the quote has no
+ * (schedules/) is exactly what the invoice case needs — the quote has no
  * recurrence screen wired to it today, so there is no real caller yet to build a `dateRecalc` for
  * without inventing one. Nothing here wires "send" chaining onto "duplicate" — see
  * duplicate-extension.ts's own header ("Why 'then send' does NOT live here") for why that is now
@@ -539,7 +539,7 @@ function buildEntityReferenceRegistry(
   articlesService: ArticlesService,
 ): EntityReferenceRegistry {
   const registry = new EntityReferenceRegistry();
-  // TODO_PRODUIT.md T5(b) — "client" (the invoice's/quote's own BILLABLE picker) excludes pure
+  // "client" (the invoice's/quote's own BILLABLE picker) excludes pure
   // suppliers; "supplier" (received-invoice's own `supplierClient` field) reuses the SAME Client
   // table with no such exclusion — see client-reference.provider.ts's own header for the full "why"
   // (both entities, one search implementation, two different `options`).
@@ -562,7 +562,7 @@ function buildEntityReferenceRegistry(
  * The PROVIDERS-ONLY half of the documents module — no controllers — split out from
  * `DocumentsModule` for exactly the reason the pre-refonte compliance engine split its own
  * `ComplianceCoreModule` out (git tag `avant-refonte-documents`,
- * `compliance/compliance-core.module.ts`, referenced by this branch's own TODO.md item 22): so a
+ * `compliance/compliance-core.module.ts`): so a
  * WORKER process (`DocumentsQueueWorkerModule`, queue/document-queue-worker.module.ts) can import
  * JUST this module and get the exact same DI-wired `DocumentsService`/`ActionRegistry`/etc. instances
  * the API process uses — never a second, parallel construction of the same registries.
@@ -573,7 +573,7 @@ function buildEntityReferenceRegistry(
  * Redis check in EVERY process that imports this Core module, API or worker alike: there is no way to
  * boot the documents system at all without also proving Redis is reachable.
  *
- * `WebhooksModule` (TODO_PRODUIT.md T2 / PLAN-V2 R9) is imported for the identical "every process that
+ * `WebhooksModule` is imported for the identical "every process that
  * imports this Core module gets it" reason — `WebhookDispatcherService` needs to resolve in a
  * dedicated worker process (`WORKER_INLINE=false`) exactly as much as in the API, since that is where
  * the "sent" write (and therefore the webhook it announces) actually happens under that topology.
@@ -585,25 +585,25 @@ function buildEntityReferenceRegistry(
   providers: [
     DocumentsService,
     MailService,
-    // Recurrences (root TODO item 5) — `DocumentSchedulesService` is the CRUD half
+    // Recurrences — `DocumentSchedulesService` is the CRUD half
     // (documents.controller.ts's `schedules/*` routes); `DocumentScheduleSweepRunner` is the
     // RUNTIME half the queue's own processor calls (queue/processors/document-action.processor.ts).
     // Both are plain classes (not string-tokened registries) resolved by Nest the same way
     // `DocumentsService`/`MailService` already are — nothing here needs a factory.
     DocumentSchedulesService,
     DocumentScheduleSweepRunner,
-    // Root TODO item 24 — the CRUD half of a public download link (share-links/). Same shape as
+    // The CRUD half of a public download link (share-links/). Same shape as
     // `DocumentSchedulesService` right above (a plain class, resolved by Nest, reusing
     // `DocumentsService` for its own tenant-scoped 404s) — no factory needed.
     ShareLinksService,
-    // Root TODO item 13 REDONE — see signatures/signatures.service.ts's own header. A plain class,
+    // See signatures/signatures.service.ts's own header. A plain class,
     // resolved by Nest the same way `ShareLinksService` right above already is: Nest auto-wires its
     // constructor (`ClientsService`, `MailService`, both already available in this module; the
     // `DOCUMENT_WEBHOOK_EMITTER` token, provided further below) with no factory needed. Exported (see
     // this module's own `exports` array) so `PublicDocumentsModule`'s controller — a DIFFERENT
     // module, importing `DocumentsCoreModule` directly — can inject it for the public OTP flow.
     SignaturesService,
-    // Root TODO item 13 REDONE — see signatures.service.ts's own `CLIENT_CONTACT_LOOKUP` header for
+    // See signatures.service.ts's own `CLIENT_CONTACT_LOOKUP` header for
     // why this is a token/`useExisting` mapping, never a direct `ClientsService` constructor param on
     // that (decorated) class — the identical shape `DOCUMENT_WEBHOOK_EMITTER` below already uses.
     { provide: CLIENT_CONTACT_LOOKUP, useExisting: ClientsService },
@@ -616,12 +616,12 @@ function buildEntityReferenceRegistry(
     // extended to the two SIBLING country-data tables it didn't originally cover — see each
     // service's own header (country-policy/boot-reseed.service.ts,
     // country-identifiers/boot-reseed.service.ts) for the drift-detect-then-reseed mechanism and the
-    // decision to also run it in production. Closes TODO_ISSUES.md's "`resetAndSeed` ne re-sème pas
-    // la politique pays" note, which `B2gRoutingRule`'s own boot-upsert deliberately left open for
+    // decision to also run it in production. Closes the "`resetAndSeed` ne re-sème pas
+    // la politique pays" gap, which `B2gRoutingRule`'s own boot-upsert deliberately left open for
     // these two tables when it first shipped (see `schema.prisma`'s own comment on `B2gRoutingRule`).
     CountryPolicyBootReseedService,
     CountryIdentifierRequirementsBootReseedService,
-    // Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) —
+    // Post-deposit conformity tracking (`conformity/`) —
     // `AuthorityStatusPollerRegistry` is this mechanism's read-side twin of `TRANSPORT_REGISTRY`
     // (registered as a plain class token, not a string one, the same choice `DocumentScheduleSweepRunner`
     // makes: nothing outside this module ever needs to `@Inject()` it by name — only
@@ -636,7 +636,7 @@ function buildEntityReferenceRegistry(
       // CompanyModule — no cycle (see TRANSPORT_REGISTRY's own inject comment).
       inject: [ChannelCredentialsService, SigningCertificatesService],
     },
-    // TODO_PRODUIT.md T2bis — the `DOCUMENT_WEBHOOK_EMITTER` token (`queue/document-webhooks.ts`)
+    // The `DOCUMENT_WEBHOOK_EMITTER` token (`queue/document-webhooks.ts`)
     // resolves to the SAME `WebhookDispatcherService` instance `buildActionRegistry` already injects
     // directly below — `useExisting`, never a second instance. Declared here (not inside
     // `WebhooksModule` itself) deliberately: `WebhooksModule` is a generic, document-agnostic module
@@ -645,7 +645,7 @@ function buildEntityReferenceRegistry(
     // token, the same reasoning `sdi-notifiche.module.ts` repeats for its own (much smaller) graph.
     { provide: DOCUMENT_WEBHOOK_EMITTER, useExisting: WebhookDispatcherService },
     ConformitySweepRunner,
-    // Root TODO — declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/
+    // Declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/
     // `ConformitySweepRunner` just above — the registry (a provider registers itself under an id) and
     // the runtime half the queue's own processor calls (`queue/processors/document-action.processor.ts`).
     // `ReportingRunner` additionally needs `DOCUMENT_TYPE_REGISTRY` (to rebuild a `DeclaredInvoice` from
@@ -657,12 +657,12 @@ function buildEntityReferenceRegistry(
     },
     {
       provide: ReportingRunner,
-      // TODO_PRODUIT.md T2bis — BUG FOUND WHILE WIRING `DOCUMENT_AUTHORITY_EVENT`: this factory
+      // BUG FOUND WHILE WIRING `DOCUMENT_AUTHORITY_EVENT`: this factory
       // manually calls `new ReportingRunner(...)`, which is PLAIN JavaScript construction, not Nest's
       // own reflection-based DI — `@Optional()` constructor-param decorators on `ReportingRunner`
       // itself (its own header claims "no factory change needed... resolves automatically") only ever
       // take effect when NEST instantiates the class itself (a plain `providers: [ReportingRunner]`
-      // entry, exactly how `ConformitySweepRunner` right above IS registered). Concretely: T1's own
+      // entry, exactly how `ConformitySweepRunner` right above IS registered). Concretely: the
       // `eventsPublisher` was NEVER actually threaded through here in production — every
       // `reporting-runner.spec.ts` test passed because it constructs the class directly with an
       // `events` mock, never through this factory, so the gap was invisible to jest. Fixed here by
@@ -763,7 +763,7 @@ function buildEntityReferenceRegistry(
     COUNTRY_FIELD_OVERLAY_REGISTRY,
     VAT_RATE_CATALOG_REGISTRY,
     FORMAT_PROVIDER_REGISTRY,
-    // TODO_PRODUIT.md T2bis — `DOCUMENT_WEBHOOK_EMITTER` (the token, defined and provided just above,
+    // `DOCUMENT_WEBHOOK_EMITTER` (the token, defined and provided just above,
     // NEVER the concrete `WebhookDispatcherService` class itself — see that token's own header,
     // `queue/document-webhooks.ts`, for why exporting the concrete class would poison every consumer
     // under ts-jest) is exported so a DIRECT consumer of `DocumentsCoreModule` can inject it too:

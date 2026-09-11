@@ -7,14 +7,14 @@
  * been created for it, so this spec still runs the OAuth half and SKIPS only the deposit half when the
  * technical-account pair is absent, rather than gating the whole file on all four.
  *
- * HONEST STATUS AT THE END OF THIS TASK: **skipped, always** — this checkout holds no PISTE account of
- * any kind (see `CREDENTIALS_GUIDE.md` §3, "Repo status: 🔴 missing", unchanged by this task). Nobody
- * has run this file's own `describeLive` block for real. What IS independently verified, live, THIS
- * task (2026-09-02, recorded in `choruspro-client.ts`'s own header): the OAuth endpoint this spec would
+ * HONEST STATUS: **skipped, always** — this checkout holds no PISTE account of
+ * any kind (see `CREDENTIALS_GUIDE.md` §3, "Repo status: 🔴 missing"). Nobody
+ * has run this file's own `describeLive` block for real. What IS independently verified, live
+ * (2026-09-02, recorded in `choruspro-client.ts`'s own header): the OAuth endpoint this spec would
  * hit (`https://sandbox-oauth.piste.gouv.fr/api/oauth/token`) is reachable and answers a genuine
  * `HTTP 400 {"error":"invalid_client"}` for a garbage client_id/secret — proof the HOST/PATH are
  * correct, never a claim that a real PISTE application's own credentials would succeed here (that
- * needs the account this task does not have). Do not read a future green run of THIS file as more than
+ * needs the account this checkout does not have). Do not read a future green run of THIS file as more than
  * what it actually checks — see this module's own README-level discipline (`LIVE_TESTING.md`, and the
  * project memory entry "KSeF mock tests = false confidence": a gated spec that passes with mocks proves
  * nothing about the integration).

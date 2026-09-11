@@ -9,8 +9,7 @@ import { SettlementPaymentInput } from './compute-settlement';
  *
  * A payment is never UPDATED or DELETED by anything in this module — recording one is a single,
  * complete act (see compute-settlement.ts's own header on why a payment isn't a document with a
- * lifecycle). Correcting a mis-entered one is out of scope here, the same way this task never asked
- * for it.
+ * lifecycle). Correcting a mis-entered one is out of scope here.
  */
 
 export interface DocumentPaymentResult {
@@ -112,7 +111,7 @@ export async function listPayments(companyId: string, documentId: string): Promi
 /** `DocumentPaymentResult[]` -> what `computeSettlement` actually needs — mirrors
  *  `settlement/credits.ts`'s own `toSettlementCreditInputs`. Reads `documentAmountMinor`, NEVER the
  *  raw `amountMinor` (see `DocumentPaymentResult`'s own header on the two figures being different
- *  once a payment has been converted — TODO_PRODUIT.md T3): the two coincide only when a payment
+ *  once a payment has been converted): the two coincide only when a payment
  *  already matched the document's own currency. */
 export function toSettlementPaymentInputs(
   payments: readonly DocumentPaymentResult[],
@@ -122,8 +121,8 @@ export function toSettlementPaymentInputs(
 
 /**
  * Every payment recorded ACROSS THE WHOLE COMPANY whose `paidAt` falls within `[from, to]` (inclusive)
- * — the period-wide read accounting-export/accounting-export.service.ts's ledger needs
- * (TODO_FEATURES.md rank 4). `paidAt` is a real DateTime column, so this filters in SQL, never in
+ * — the period-wide read accounting-export/accounting-export.service.ts's ledger needs.
+ * `paidAt` is a real DateTime column, so this filters in SQL, never in
  * memory — unlike a document's own `issueDate` (buried in the JSON `data` field, filtered by callers
  * instead — see persistence.ts's own `listDocuments`). Not scoped to one document, unlike
  * `listPayments` above: this is the "one query, many documents" shape `sumPaidMinorByDocument` already
@@ -151,11 +150,11 @@ export async function listPaymentsInRange(
  * yet", the same "absence means zero" convention `computeSettlement` itself holds for an empty
  * `payments` array.
  *
- * Sums `documentAmountMinor`, NOT `amountMinor` (TODO_PRODUIT.md T3) — see `DocumentPaymentResult`'s
+ * Sums `documentAmountMinor`, NOT `amountMinor` — see `DocumentPaymentResult`'s
  * own header: a foreign-currency payment's `amountMinor` is in ITS OWN currency, which this grouped
  * sum (one total PER document, implicitly in that document's currency) would otherwise silently mix
  * with same-currency payments — exactly the "one number, several currencies pretending to be one"
- * bug this whole task exists to close.
+ * bug the `documentAmountMinor` column exists to close.
  */
 export async function sumPaidMinorByDocument(
   companyId: string,

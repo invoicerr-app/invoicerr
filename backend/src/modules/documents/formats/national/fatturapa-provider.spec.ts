@@ -1,5 +1,5 @@
 /**
- * fatturapa-provider.ts — root TODO item 10, wave 2. Same discipline as `fa3-provider.spec.ts`:
+ * fatturapa-provider.ts — same discipline as `fa3-provider.spec.ts`:
  * proves the REAL vendored `Schema_VFPR12.xsd` judges what this provider emits, that an amount
  * TRACES from the document's own data through `compute-totals.ts` to a specific XML field (never
  * recomputed here), and that the gate actually enforces something (a mandatory field removed makes
@@ -138,7 +138,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(result.validation.valid).toBe(true);
   });
 
-  // ── FPA12 (government recipient) — the two named gaps `3cb39f91` left open, closed by this task ──
+  // ── FPA12 (government recipient) — the two named gaps `3cb39f91` left open, closed here ──
   // See fatturapa-provider.ts's own header ("FPA12 vs FPR12") for the discriminant chosen (a valid
   // 6-char `IT_PA_CODE` party identifier, never `Client.kind`) and the XSD verification.
   it('PA: a valid 6-char IT_PA_CODE on the client wins outright → FPA12 (versione + FormatoTrasmissione), CodiceDestinatario = that code, judged by the SAME real XSD', async () => {
@@ -204,8 +204,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(directResult.errors.join(' ')).toMatch(/Data/);
   });
 
-  // REGRESSION — root TODO item L1 ("R002 : le vendeur français passe enfin la validation Peppol
-  // BIS"): `peppol-post-process.ts#mergePeppolNotesInObject` is wired ONLY into
+  // REGRESSION — Peppol BIS rule R002: `peppol-post-process.ts#mergePeppolNotesInObject` is wired ONLY into
   // `peppol-bis-provider.ts` (see that file's own header). This provider never calls
   // `build-semantic-invoice.ts`/`shared-build.ts` at all — it has no `cbc:Note`/mentions concept
   // whatsoever (`@digitalia/fatturapa`'s own FatturaPA XML has no equivalent field this codebase

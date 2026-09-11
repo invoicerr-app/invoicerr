@@ -37,7 +37,7 @@ import { auth } from './lib/auth';
  * enqueue-capable half (`DocumentQueueModule`, `@Global()`) — the API process can always ENQUEUE a
  * job, and Redis being required to boot at all (see `DocumentQueueRedisRequiredGuard`) applies
  * regardless of this flag. What THIS flag gates is only whether the API process ALSO CONSUMES —
- * imports `DocumentsQueueWorkerModule`, the processors themselves (TODO.md item 22, on the exact
+ * imports `DocumentsQueueWorkerModule`, the processors themselves (on the exact
  * model the pre-refonte compliance engine used for its own `WORKER_INLINE`, git tag
  * `avant-refonte-documents`).
  *
@@ -53,7 +53,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    // Root TODO item 13 REDONE — the mandant-flagged NEW dependency: defense in depth on top of the
+    // Defense in depth on top of the
     // real, mathematical bound `documents/signatures/otp.ts#MAX_FAILED_ATTEMPTS` already gives the
     // signature OTP flow (see that constant's own header). This is a GLOBAL default (every route gets
     // it, `ThrottlerGuard` below is a global `APP_GUARD`); `PublicSignaturesController`'s own two
@@ -80,11 +80,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     CompanyLookupModule,
     DangerModule,
     DocumentsModule,
-    // TODO_FEATURES.md rank 4 — the generic accounting CSV export's own controller, deliberately its
+    // The generic accounting CSV export's own controller, deliberately its
     // own module (see accounting-export.module.ts's own header for why it never joins DocumentsModule).
     AccountingExportModule,
     PublicDocumentsModule,
-    // Root TODO item 10, SdI wave — the ONE `@Public()` route for the six `TrasmissioneFatture`
+    // The ONE `@Public()` route for the six `TrasmissioneFatture`
     // notifiche SdI pushes at us (see `sdi-notifiche.module.ts`'s own header on why its own module,
     // not folded into `PublicDocumentsModule`).
     SdiNotificheModule,
@@ -109,7 +109,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
-    // Root TODO item 13 REDONE — global rate limiting, see ThrottlerModule.forRoot's own comment
+    // Global rate limiting, see ThrottlerModule.forRoot's own comment
     // above. A THIRD global APP_GUARD: Nest runs every registered one, ANDing their results, so this
     // adds a check rather than replacing AuthGuard/RolesGuard's own.
     {

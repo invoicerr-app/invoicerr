@@ -1,5 +1,5 @@
 /**
- * The PUBLIC half of root TODO item 24 — the one controller in this module `AuthGuard`
+ * The PUBLIC half of the share-link feature — the one controller in this module `AuthGuard`
  * (src/guards/auth.guard.ts) never gates. Deliberately its OWN controller/module rather than a
  * `@Public()` route bolted onto `DocumentsController`: every other route on that controller is
  * `@ActiveCompany()`-scoped company data, and keeping the one unauthenticated route in a file of its

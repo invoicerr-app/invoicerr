@@ -22,15 +22,15 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * minimal, honest replacement for the old, removed "deposit invoice" concept: it creates a brand-new
  * draft INVOICE for N% of this quote's own total, the same "acts on a quote, writes an invoice"
  * shape convert-to-invoice already has, sharing that skeleton via actions/quote-to-invoice.ts), and
- * request-installments (TODO_FEATURES.md rank 12, implemented — see
+ * request-installments (implemented — see
  * actions/request-installments.ts — N draft INVOICES, one per milestone, whose gross totals sum to
  * this quote's own TTC exactly; unlike request-deposit it REFUSES a quote mixing more than one VAT
  * rate rather than leaving a line's rate unset, because its whole acceptance criterion depends on
  * exactly one rate applying uniformly — see that file's own header).
  *
  * Lifecycle: FOUR statuses — "draft", "sending", "sent", "send_failed" (grown from the original two
- * by TODO.md item 22: the async-send mechanism, actions/async-send.ts — see its own header for the
- * full design and TODO_ISSUES.md for the "sent before the email actually left" limit it replaces).
+ * by the async-send mechanism, actions/async-send.ts — see its own header for the
+ * full design and the "sent before the email actually left" limit it replaces).
  * "save-draft" is faithful to what `registerSaveDraftAction` actually does: it persists "draft"
  * REGARDLESS of the record's current status (even from "sent" — the literal, if slightly surprising,
  * behavior the handler already had before this file's own `transitions` existed to name it), hence
@@ -49,7 +49,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * request-deposit.ts) — so their `availableWhen` stays its own explicit, hand-declared fact, exactly
  * as it was for "convert-to-invoice" before this cycle mechanism existed.
  *
- * Numbering: `onEnterStatus: 'sending'` (moved here from "sent" by item 22) — a quote receives its
+ * Numbering: `onEnterStatus: 'sending'` (moved here from "sent" by the async-send mechanism) — a quote receives its
  * number the moment it starts being sent, not once delivery actually succeeds, so the number is
  * already on the record (and therefore on the PDF) by the time `deliver()` ever runs — see
  * numbering/ for the full mechanism. `number` is never cleared once set: a "send_failed" retry
@@ -70,7 +70,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       { id: 'sending', label: 'Sending' },
       { id: 'sent', label: 'Sent' },
       { id: 'send_failed', label: 'Send failed' },
-      // Root TODO item 13 REDONE — reached ONLY through the public OTP-signature flow
+      // Reached ONLY through the public OTP-signature flow
       // (signatures/signatures.service.ts#markSigned), never through `runAction`/`ActionRegistry`:
       // there is no authenticated caller to run a "sign" action AS, the client is anonymous. No
       // action below declares a `transitions` entry targeting this status (see lifecycle.ts's own
@@ -140,14 +140,14 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         label: 'Notes',
         required: false,
       },
-      // TODO_FEATURES.md item 7 ("référence client / n° de commande") — a free-text slot for the
+      // "référence client / n° de commande" — a free-text slot for the
       // BUYER's own internal reference (their purchase order, a file/dossier number): quasi-universal
       // on a competitor's quote/invoice form, and required in practice by most B2G/B2B buyers for
       // their OWN reconciliation, even though nothing in French or EU law forces a seller to carry it.
       // Deliberately NOT `notes` (free text already exists and nobody types a PO number into it in
       // practice — the whole point is a field a buyer's accounts-payable system can find at a FIXED
       // key) and deliberately NOT the same key as the DE country-fields overlay's own `buyerReference`
-      // (country-fields/data/de.json): that field is wired into a REAL compliance mechanism this task
+      // (country-fields/data/de.json): that field is wired into a REAL compliance mechanism this descriptor
       // must not touch — EN 16931's BT-10 on the CII/UBL export (`formats/shared-build.ts`), XRechnung's
       // BR-DE-15, Peppol's PEPPOL-EN16931-R003, and Germany's/France's own B2G required-field rules
       // (`b2g-routing/data/*.json`) all read `data.buyerReference` specifically. Reusing that key here
@@ -182,7 +182,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         // form used to have — see the 14-articles.cy.ts spec this was built to make pass again.
         prefillFrom: {
           entity: 'article',
-          // `articleId: 'id'` (TODO_FEATURES.md rank 18, "gestion de stock basique") — see
+          // `articleId: 'id'` ("gestion de stock basique") — see
           // article-reference.provider.ts's own `getFields` comment for why `id` is there to map
           // from, and invoice.descriptor.ts's identical `articleId` field for the full "why".
           map: { articleId: 'id', description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
@@ -195,7 +195,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             required: true,
           },
           {
-            // TODO_FEATURES.md rank 18 — see invoice.descriptor.ts's identical field for the full
+            // See invoice.descriptor.ts's identical field for the full
             // "why". A quote never itself decrements stock (only an invoice's own ISSUANCE does — see
             // documents.service.ts's call site), but this line still carries the pointer: "convert to
             // invoice" (actions/convert-to-invoice.ts) copies `lines` VERBATIM, `articleId` included,
@@ -226,8 +226,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             // Même champ que sur la facture (invoice.descriptor.ts) : un devis annonce un prix, et
             // un prix sans son taux de TVA ne dit pas ce que le client paiera. OPTIONNEL ici, là où
             // la facture l'exige : chiffrer sans détailler la taxe reste un devis valable — c'est un
-            // choix produit, pas une règle de droit. Découvert par la tâche « totaux » : ses tests
-            // posaient un vatRate sur les lignes d'un devis, et le champ n'existait pas.
+            // choix produit, pas une règle de droit.
             key: 'vatRate',
             kind: 'select',
             label: 'VAT rate',
@@ -313,7 +312,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'request-installments',
         label: 'Generate installment invoices',
-        // TODO_FEATURES.md rank 12 — "un devis à 3 échéances génère 3 factures draft aux dates
+        // Acceptance criterion: "un devis à 3 échéances génère 3 factures draft aux dates
         // prévues, somme = TTC du devis". Same "only once actually sent" reasoning as
         // "request-deposit" right above (a quote the client hasn't received yet has no installment
         // plan to honor), and the same reason it needs no `transitions`: this action's entire effect
@@ -353,7 +352,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'request-signature',
         label: 'Request signature',
-        // Root TODO item 13 REDONE — see actions/request-signature.ts's own header (the hardened
+        // See actions/request-signature.ts's own header (the hardened
         // OTP-by-email reintroduction of the removed `modules/signatures/`). Only once 'sent' — the
         // identical reasoning "request-deposit" right above already holds: asking a client to sign a
         // quote they have not even received yet makes no sense, and 'sent' is also this type's own
@@ -370,7 +369,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'share-link',
         label: 'Share link',
-        // Root TODO item 24 — see invoice.descriptor.ts's own "share-link" comment for the full
+        // See invoice.descriptor.ts's own "share-link" comment for the full
         // reasoning (declared for the country-policy/status gates, served by share-links/ REST
         // routes, never through ActionRegistry). Same three statuses as the invoice's own: a quote
         // still in "draft" has no number and nothing worth handing a stranger a link to.

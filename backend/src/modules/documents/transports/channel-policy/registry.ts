@@ -15,8 +15,8 @@ function buildIndex(files: CountryChannelPolicyFile[]): Record<string, CountryCh
  * `mandated` one still costs nothing to re-read straight from these files on every preflight — there
  * is no per-request performance case here the way there is for `country-policy/`'s own
  * per-(country,type,action) rule table, and no `resetAndSeed`-style staleness gap to worry about
- * either (see root TODO item 11's own task brief on this exact choice, and TODO_ISSUES.md's existing
- * note on `country-policy/`'s own reseed gap for the precedent this deliberately avoids repeating).
+ * either (see `country-policy/`'s own reseed gap for the precedent
+ * this deliberately avoids repeating).
  */
 export class ChannelPolicyCatalog {
   private readonly files: Record<string, CountryChannelPolicyFile>;

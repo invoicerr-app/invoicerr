@@ -66,7 +66,7 @@ describe('computeSettlement', () => {
 });
 
 /**
- * CREDITS (item 8 of the root TODO — "le lettrage"). A credit note is NOT a payment — see this
+ * CREDITS ("le lettrage"). A credit note is NOT a payment — see this
  * module's own header — so every test here checks `paidMinor`/`creditedMinor` SEPARATELY, never as
  * one merged "amount settled" figure, even where their SUM is also asserted.
  */

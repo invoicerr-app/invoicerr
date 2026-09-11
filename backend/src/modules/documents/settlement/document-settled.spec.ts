@@ -4,7 +4,7 @@ import { DocumentSettlement } from './compute-settlement';
 import { crossedIntoSettled, emitDocumentSettled } from './document-settled';
 
 /**
- * `crossedIntoSettled`/`emitDocumentSettled` — TODO_PRODUIT.md T3's own "T2bis différé". Pure crossing
+ * `crossedIntoSettled`/`emitDocumentSettled` — the deferred document-settled webhook. Pure crossing
  * logic proven with hand-built settlement fixtures (no Prisma, no real webhook dispatcher); the
  * dispatch itself proven with a bare `{ dispatch: jest.fn() }`, the same convention every other
  * `DocumentWebhookEmitter` call site's own spec already holds.

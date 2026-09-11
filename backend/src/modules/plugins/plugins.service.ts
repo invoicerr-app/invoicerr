@@ -5,14 +5,14 @@ import { generateWebhookSecret } from '@/utils/webhook-security';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
-// TODO_SUITE.md P2 (2026-09-03) — this service used to ALSO run a second, entirely separate
+// Until 2026-09-03 this service used to ALSO run a second, entirely separate
 // mechanism: git-clone-and-dynamic-`import()` "external" plugins (POST /api/plugins, an in-memory
 // `IPlugin[]` array, a `PLUGIN_DIR` on disk). It was removed: `IPlugin` there was `{__uuid,
 // __filepath, name, description}` with NO real extension point behind it — the two generic
 // consumers a caller could reach (`canGenerateXml`/`generateXml`) were permanent stubs (`return
-// false` / `throw`), so an external plugin, once loaded, could do nothing. See TODO_ISSUES.md,
-// "Le système de plugins, vu par son premier vrai consommateur" (T5c) for the full account and the
-// decision: extensibility is the narrow-interface-at-the-core pattern (this task's own OCR/Mistral
+// false` / `throw`), so an external plugin, once loaded, could do nothing. See
+// "Le système de plugins, vu par son premier vrai consommateur" for the full account and the
+// decision: extensibility is the narrow-interface-at-the-core pattern (the OCR/Mistral
 // plugin, `plugins/ocr/providers/mistral/mistral.ts`), not third-party code loading. Everything
 // below is the OTHER mechanism, which this service always also ran: IN-APP plugins
 // (`PluginRegistry`/`PluginType`, the `Plugin` Postgres table, the Settings > Plugins screen) —

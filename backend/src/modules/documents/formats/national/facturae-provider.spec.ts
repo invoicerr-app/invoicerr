@@ -5,7 +5,7 @@
  *     `fatturapa-provider.spec.ts`/`fa3-provider.spec.ts` already hold for their own national XSDs.
  *  2. A mandatory field stripped makes the SAME schema reject it.
  *  3. WITHOUT a certificate configured → the format REFUSES, naming the gap — never a silently
- *     unsigned "success" (this task's own first real XAdES consumer, root TODO item 13).
+ *     unsigned "success" (the first real XAdES consumer).
  *  4. WITH a forged test certificate → the XML is genuinely signed AND `xadesjs`'s own `Verify()`
  *     re-validates that signature — the actual proof, not just "a `signature` field is present".
  *  5. The DIR3 triad (`dir3OrganoGestor`/`dir3UnidadTramitadora`/`dir3OficinaContable`) becomes an

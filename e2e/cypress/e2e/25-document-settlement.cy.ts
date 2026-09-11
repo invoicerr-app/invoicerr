@@ -243,9 +243,9 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 });
 
 /**
- * TODO_PRODUIT.md T4-d — this file's own header, above, used to say the credit note's CREATION
+ * This file's own header, above, used to say the credit note's CREATION
  * form had "rien d'utile de plus à prouver par un clic" beyond a reference field and a checkbox:
- * true before this task, no longer true now that `currency` (credit-note.descriptor.ts) declares
+ * true once, no longer true now that `currency` (credit-note.descriptor.ts) declares
  * `lockedFromReference` — THIS is the one screen behaviour that only shows up by actually creating
  * an avoir through the dialog, never through the API-only fixture the rest of this file uses.
  *
@@ -254,7 +254,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
  * ORDERED sequence of `it`s (line A/line B, partial payment, settlement); this only needs one
  * throwaway invoice, created fresh, with no bearing on that sequence.
  */
-describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige (TODO_PRODUIT.md T4-d)", () => {
+describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -336,7 +336,7 @@ describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige
 					);
 					cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
 					cy.wait("@saveCreditNoteDraft").then((interception) => {
-						expect(interception.response?.statusCode, "l'avoir se crée sans le blocage T4-d").to.be
+						expect(interception.response?.statusCode, "l'avoir se crée sans le blocage de devise").to.be
 							.oneOf([200, 201]);
 						const creditNoteId = interception.response?.body?.document?.id as string;
 						expect(creditNoteId).to.be.a("string");

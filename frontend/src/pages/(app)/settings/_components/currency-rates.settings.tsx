@@ -13,7 +13,7 @@ import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import type { CurrencyRate } from "@/types"
 
 /**
- * Minimal CRUD screen for manually-entered exchange rates (item 9, root TODO — "le multi-devises") —
+ * Minimal CRUD screen for manually-entered exchange rates ("le multi-devises") —
  * GET/POST /api/company/currency-rates. No delete, no edit: correcting a mis-entered rate means
  * entering a NEW one with a later `asOf` — it simply outranks the old one at resolution time (see
  * the backend's CurrencyRatesController header) — the same "never mutate history, add a new fact"

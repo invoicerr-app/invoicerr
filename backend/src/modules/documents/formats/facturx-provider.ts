@@ -1,10 +1,7 @@
 /**
- * Factur-X (EN 16931 CII embedded in a PDF/A-3) — root TODO item 12's own documented remainder,
- * RESOLVED: `TODO_ISSUES.md` used to carry an entry titled "Factur-X : embarqueur existant au repère,
- * NON repris" explaining exactly this reuse; that entry is now struck through there (item 10, wave
- * 1) and this file is the promised follow-through, not a new design.
+ * Factur-X (EN 16931 CII embedded in a PDF/A-3) — reuse of an existing embedder, not a new design.
  *
- * The recipe, verbatim from that entry: `buildEuInvoiceForDocument` (shared with `cii-provider.ts`/
+ * The recipe: `buildEuInvoiceForDocument` (shared with `cii-provider.ts`/
  * `ubl-provider.ts`) produces the SAME semantic `EuInvoice`; `@e-invoice-eu/core` (already a
  * dependency — no new one added) embeds it into the SAME human-readable PDF a company downloads
  * (`rendering/render-instance-pdf.ts`) via `service.generate(euInvoice, { format:
@@ -19,12 +16,12 @@
  * instead — the library takes the semantic model, not text), so the embedded copy is a
  * deterministic function of content already proven valid.
  *
- * ONE GAP THIS USED TO DOCUMENT AS "bounded but unreached" REACHED, LIVE, BY ROOT TODO ITEM 15
- * ("mentions obligatoires"): the multi-note packing fix
+ * ONE GAP THIS USED TO DOCUMENT AS "bounded but unreached" REACHED, LIVE, BY MANDATORY LEGAL
+ * MENTIONS: the multi-note packing fix
  * (`semantic/cii-post-process.ts#splitCiiIncludedNotes`) applies to the plain CII STRING this
  * provider validates above, but that fix is string-based and has no way to reach the library's own
  * INTERNAL regeneration during the embed call below — invisible as long as this bridge only ever
- * emitted at most one note (true before item 15), but a French seller now carries three statutory
+ * emitted at most one note, but a French seller now carries three statutory
  * mentions PLUS the user's own note. A real superpdp deposit surfaced this exactly as it would in
  * production: `fr:213`, still citing every mention "absente", with the platform's own XML-schema
  * error underneath ("Element 'ram:Content' must occur exactly 1 times") — see
@@ -35,8 +32,8 @@
  * regeneration or a hand-rolled CII serializer. See that function's own header for the object shape
  * this mutates and how it was verified against the vendored dependency directly.
  *
- * A SECOND, independent gap of the exact same shape, closed the SAME way: BT-23 (root TODO item 15's
- * own remainder — `semantic/business-process.ts`). The plain CII gate above gets its BT-23 fix from
+ * A SECOND, independent gap of the exact same shape, closed the SAME way: BT-23
+ * (`semantic/business-process.ts`). The plain CII gate above gets its BT-23 fix from
  * `applyFrenchBusinessProcess` on the rendered STRING; the embed call's own internal regeneration
  * never sees that string either, so `applyFrenchBusinessProcessInObject` is chained into the SAME
  * `postProcessor` below, right after `splitCiiIncludedNotesInObject` — one call, two independent
@@ -132,10 +129,10 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       },
       lang: 'en',
       // See this file's own header, "ONE GAP THIS USED TO DOCUMENT [...] REACHED, LIVE" — without
-      // this, a seller with more than one BG-1 note (any French seller since root TODO item 15) gets
+      // this, a seller with more than one BG-1 note (any French seller) gets
       // an embedded CII with several `ram:Content` under one `ram:IncludedNote`, invalid per the
       // UN/CEFACT schema, exactly what a real superpdp deposit rejected. Chained with
-      // `applyFrenchBusinessProcessInObject` (root TODO item 15's own remainder — BT-23) — the same
+      // `applyFrenchBusinessProcessInObject` (BT-23) — the same
       // public `postProcessor` extension point fixing a SECOND, independent defect the library's
       // internal CII regeneration would otherwise carry into the embedded copy: the plain CII gate
       // above already got its BT-23 fix from `applyFrenchBusinessProcess` on the STRING, which this

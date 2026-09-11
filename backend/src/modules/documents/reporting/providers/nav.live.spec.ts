@@ -1,5 +1,5 @@
 /**
- * REAL round-trip against the NAV Online Számla 3.0 sandbox — root TODO, HU/"déclaration" wave.
+ * REAL round-trip against the NAV Online Számla 3.0 sandbox — HU "déclaration".
  *
  * Gated `NAV_LIVE=1` + `NAV_TAX_NUMBER`/`NAV_LOGIN`/`NAV_PASSWORD`/`NAV_SIGNING_KEY`/`NAV_EXCHANGE_KEY`
  * (`../../transports/live-gate.ts`), the same shape every sibling channel's own live spec uses:
@@ -7,7 +7,7 @@
  *   NAV_LIVE=1 NAV_TAX_NUMBER=... NAV_LOGIN=... NAV_PASSWORD=... NAV_SIGNING_KEY=... \
  *     NAV_EXCHANGE_KEY=... npx jest nav.live --no-coverage
  *
- * HONEST STATUS AT THE END OF THIS TASK: **skipped, always** — this checkout holds no NAV technical
+ * HONEST STATUS: **skipped, always** — this checkout holds no NAV technical
  * user. Registering one requires (spec's own "Conditions of use for taxpayers", read directly from
  * the official interface specification — see `nav-client.ts`'s own header):
  *   1) "a valid registration in the Online Invoice System" on the taxpayer's own behalf, launched
@@ -18,16 +18,16 @@
  *   3) a signing key and a replacement (exchange) key generated for that technical user, "by the
  *      primary user on the Online Invoice System web interface" — no API for either step.
  * `taxNumber`'s own pattern (`TaxpayerIdType`, `[0-9]{8}`) is a HUNGARIAN tax number — the whole
- * registration chain above binds to a real Hungarian taxpayer identity. This task found NO indication
+ * registration chain above binds to a real Hungarian taxpayer identity. NO indication was found
  * anywhere in the spec, the official GitHub repo, or the reachability probe below that a non-Hungarian
  * entity could obtain even a TEST-system registration without one — unlike, say, KSeF's own test
  * token issuance (`CREDENTIALS_GUIDE.md` §1), there is no separate "developer sandbox signup" page
- * distinct from the real taxpayer registration flow. This task did NOT attempt to register (there is
+ * distinct from the real taxpayer registration flow. Registration was NOT attempted (there is
  * no Hungarian tax number to register with, and no headless path was found) — see
  * `CREDENTIALS_GUIDE.md`'s own NAV section for the full writeup.
  *
- * WHAT WAS INDEPENDENTLY, LIVE-VERIFIED for this task (2026-09-02, real `curl`, credential-free): the
- * reachability block below reproduces EXACTLY the real response this task captured directly against
+ * WHAT WAS INDEPENDENTLY, LIVE-VERIFIED (2026-09-02, real `curl`, credential-free): the
+ * reachability block below reproduces EXACTLY the real response captured directly against
  * `api-test.onlineszamla.nav.gov.hu` — see `nav-client.ts`'s own "LIVE-VERIFIED" section, and the same
  * fixture `nav-client.spec.ts` already asserts on offline. This confirms the host, the `/tokenExchange`
  * path, and the response VOCABULARY (`funcCode`/`errorCode`/`message`) are real, not merely documented.
@@ -83,7 +83,7 @@ describeLive('NAV Online Számla live round-trip (test sandbox)', () => {
     const exchangeToken = await client.tokenExchange();
     expect(exchangeToken.trim().length).toBeGreaterThan(0);
 
-    // A minimal, deliberately invalid `invoiceData` — this task holds no real technical user to test
+    // A minimal, deliberately invalid `invoiceData` — no real technical user is held here to test
     // a genuinely accepted invoice against; a HARD SUCCESS spec (the model `sdicoop.live.spec.ts`/
     // `pdp.live.spec.ts` set) would assert a real, accepted transaction — never written here, since
     // this block is not expected to ever actually run (see this file's own header).

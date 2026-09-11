@@ -283,11 +283,11 @@ describe("Les paiements d'une facture — un enregistrement, pas un type de docu
 		});
 	});
 
-	// TODO_PRODUIT.md T3 — "les taux existent, mais paiements et avoirs ne convertissent toujours
-	// pas" (TODO_ISSUES.md) est refermé : un paiement dans une devise différente n'est plus refusé
+	// "les taux existent, mais paiements et avoirs ne convertissent toujours
+	// pas" est refermé : un paiement dans une devise différente n'est plus refusé
 	// d'office (voir le test précédent, qui reste vrai en l'ABSENCE de taux configuré) — une fois un
 	// taux DATÉ saisi pour la paire, il CONVERTIT, au lieu de refuser.
-	describe("un paiement dans une AUTRE devise, avec un taux daté configuré — il CONVERTIT au lieu de refuser (TODO_PRODUIT.md T3)", () => {
+	describe("un paiement dans une AUTRE devise, avec un taux daté configuré — il CONVERTIT au lieu de refuser", () => {
 		it("un paiement de 50 USD sur une facture de 120,00 € convertit au taux daté — reste-à-payer exact, vérifié par l'API", () => {
 			// Le taux — saisi par l'API (seul le PAIEMENT lui-même doit passer par l'écran ici ; la
 			// spec e2e 27 couvre déjà la saisie d'un taux PAR L'ÉCRAN). Daté AVANT le paiement plus

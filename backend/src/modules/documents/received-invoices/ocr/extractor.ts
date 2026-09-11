@@ -1,6 +1,5 @@
 /**
- * TODO_PRODUIT.md T5(c) — the OCR extension point. MANDANT DECISION (already made, recorded in the
- * task's own board section): OCR is a cloud service reached THROUGH THE PLUGIN SYSTEM — this core
+ * The OCR extension point. OCR is a cloud service reached THROUGH THE PLUGIN SYSTEM — this core
  * (`received-invoices/`) never imports Mistral, never imports `fetch`-based HTTP client code for a
  * provider, and never even imports the plugin/Prisma machinery that decides which provider is
  * active. It only declares WHAT a provider must look like and holds a plain in-memory registry of
@@ -20,7 +19,7 @@
  * THIS id" — it asks "does ANYTHING here support this mime type", for every single PDF a user drops,
  * whether or not an OCR plugin was ever installed. "Nobody registered anything that can read this
  * mime" is therefore not a caller bug, it is the EXPECTED, EVERYDAY answer for any deployment that
- * never toggled Mistral on (or any deployment before this task existed at all) — see
+ * never toggled Mistral on — see
  * `received-invoice.descriptor.ts`'s own header, "a plain scanned PDF is the base case". Throwing
  * here would turn "OCR is not enabled" into an exception the upload flow would have to catch on
  * every single upload; returning `undefined` lets the caller treat "no extractor" as data, the same
@@ -43,11 +42,11 @@
  */
 import { ExtractedInvoiceFields } from '../extraction';
 
-/** What an extractor hands back — see this file's own header: EXACTLY the shape TODO_PRODUIT.md
- *  T5(a)/T5(b) already gave `extraction.ts`'s own structural reader, never a second, OCR-specific
+/** What an extractor hands back — see this file's own header: EXACTLY the shape `extraction.ts`'s
+ *  own structural reader already produces, never a second, OCR-specific
  *  shape. This is what lets `apply-ocr-fallback.ts` merge an OCR proposal into the SAME `fields`
- *  object a CII/UBL/Factur-X read already produces — the line-totals check (T5a) and the supplier
- *  reconciliation (T5b) never need to know which source populated `fields.lines`/`fields.supplierVatId`. */
+ *  object a CII/UBL/Factur-X read already produces — the line-totals check and the supplier
+ *  reconciliation never need to know which source populated `fields.lines`/`fields.supplierVatId`. */
 export interface ExtractedInvoiceProposal {
   fields: ExtractedInvoiceFields;
 }
@@ -70,8 +69,8 @@ export interface ReceivedDocumentExtractor {
    * extractor is registered but not currently usable (a plugin toggled off, no credentials
    * configured) — `apply-ocr-fallback.ts` treats that specific type as the SAME honest "no extractor
    * available" outcome as nothing being registered at all, rather than a provider failure. Any OTHER
-   * thrown error (a real HTTP failure, an invalid response) is surfaced as a NAMED provider error —
-   * see this task's own root instruction: "les erreurs du provider... sont NOMMÉES, jamais avalées".
+   * thrown error (a real HTTP failure, an invalid response) is surfaced as a NAMED provider error,
+   * never swallowed.
    */
   extract(bytes: Uint8Array, mime: string): Promise<ExtractedInvoiceProposal>;
 }
@@ -107,7 +106,7 @@ export class ReceivedDocumentExtractorRegistry {
   }
 
   /** Every registered extractor, id only — mirrors `TransportRegistry.list()`'s own "what a settings
-   *  screen could offer to choose from" shape, even though nothing in this wave's own screen reads
+   *  screen could offer to choose from" shape, even though no screen reads
    *  it yet (there is only ever meant to be one OCR provider active at a time — see
    *  `plugins/index.ts`'s own "only one active plugin per type" rule). */
   list(): { id: string }[] {

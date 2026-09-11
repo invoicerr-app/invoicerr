@@ -1,6 +1,6 @@
 /**
- * Redis is REQUIRED to boot this app — never a silently-degraded synchronous fallback (TODO.md item
- * 22's own wording). BullMQ's own `Queue`/`Worker` classes do not enforce that themselves: ioredis
+ * Redis is REQUIRED to boot this app — never a silently-degraded synchronous fallback. BullMQ's own
+ * `Queue`/`Worker` classes do not enforce that themselves: ioredis
  * retries a broken connection forever by default, so a Nest app wired only with `BullModule.forRoot`
  * would boot "successfully" and simply never process a single job, with nothing but a stream of retry
  * warnings in the log to notice by. This provider is what turns that into a LOUD, NAMED failure.
@@ -55,7 +55,7 @@ export class DocumentQueueRedisRequiredGuard implements OnModuleInit {
       this.logger.log(`Redis reachable at ${target} — document action queue can boot.`);
     } catch (error) {
       throw new Error(
-        `Redis is required to boot (document action queue, TODO.md item 22) but is unreachable at ` +
+        `Redis is required to boot (document action queue) but is unreachable at ` +
           `${target}: ${error instanceof Error ? error.message : String(error)}. Set REDIS_URL (or ` +
           'REDIS_HOST/REDIS_PORT/REDIS_PASSWORD) to a reachable Redis instance — there is no degraded ' +
           'synchronous fallback.',

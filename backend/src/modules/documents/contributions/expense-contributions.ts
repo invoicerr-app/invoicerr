@@ -103,7 +103,7 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
 };
 
 /**
- * Wraps `buildExpenseDashboardWidgets` with multi-currency consolidation (item 9, root TODO) — kept
+ * Wraps `buildExpenseDashboardWidgets` with multi-currency consolidation — kept
  * as a SEPARATE function, composing on the widgets the base handler already returns, rather than
  * folded into it. This is deliberate, not cosmetic: `buildExpenseDashboardWidgets` above stays
  * byte-for-byte what expense-contributions.spec.ts already tests directly — including that it never

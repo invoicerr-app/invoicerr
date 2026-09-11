@@ -5,7 +5,7 @@
  * never needs this class at all — it depends on the narrow interface instead (see that file's own
  * header).
  *
- * Also owns the two RECURRENCE-specific queue operations (root TODO item 5) — the sweep's repeatable
+ * Also owns the two RECURRENCE-specific queue operations — the sweep's repeatable
  * registration and the occurrence job's own enqueue — kept on this SAME class rather than a second
  * one: `@InjectQueue(Q_DOCUMENT_ACTION)` is deliberately held in exactly one place, the same "only
  * this class touches the raw Queue" discipline the rest of this directory already holds for the
@@ -181,7 +181,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
   }
 
   /**
-   * Registers the ONE currency-rate sweep repeatable (TODO_FEATURES.md rank 9 — automatic ECB
+   * Registers the ONE currency-rate sweep repeatable (automatic ECB
    * exchange rates) — same idempotent-registration guarantee as `registerConformitySweepRepeatable`
    * above (BullMQ dedups a repeatable definition by its own key across the whole cluster), same
    * `attempts: 1` reasoning: a pass that itself throws is a real bug worth surfacing loudly now,
@@ -204,7 +204,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
   }
 
   /**
-   * Registers the ONE dunning-reminder sweep repeatable (TODO_FEATURES.md rank 2 — automatic
+   * Registers the ONE dunning-reminder sweep repeatable (automatic
    * escalating payment reminders) — same idempotent-registration guarantee as
    * `registerCurrencyRateSweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
    * across the whole cluster), same `attempts: 1` reasoning: a pass that itself throws is a real bug

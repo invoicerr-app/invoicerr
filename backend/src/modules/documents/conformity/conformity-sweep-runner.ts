@@ -3,8 +3,7 @@
  * decisions (`decideConformityAction`, `buildConformityPollJobId`); this class is what actually reads
  * `DocumentInstance`/`DocumentAuthorityEvent` rows, resolves pollers, and talks to the queue — the
  * same "pure core, thin persistence shell" split `schedules/schedule-sweep-runner.ts` already holds
- * for the recurrence mechanism, imitated deliberately (this task's own brief: "le motif du sweep de
- * récurrences résout déjà ça, imite-le").
+ * for the recurrence mechanism, imitated deliberately.
  *
  * Consumed by `queue/processors/document-action.processor.ts` — the sweep repeatable and every POLL
  * job it dispatches both come off the SAME `Q_DOCUMENT_ACTION` queue that processor already owns,
@@ -54,13 +53,13 @@ export class ConformitySweepRunner {
   constructor(
     private readonly pollerRegistry: AuthorityStatusPollerRegistry,
     private readonly queueDispatcher: DocumentQueueDispatcher,
-    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` because this is a SIDE CHANNEL (a missing
+    // `@Optional()` because this is a SIDE CHANNEL (a missing
     // publisher only means the conformity panel's own SSE nudge doesn't fire; every EXISTING spec in
     // this file constructs the runner with two args and must keep passing unchanged). Production
     // wiring resolves this automatically (`@Global()` `DocumentQueueModule`) — no factory change
     // needed in `documents-core.module.ts`.
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
-    // TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`'s own emitter, the SAME "side channel,
+    // `DOCUMENT_AUTHORITY_EVENT`'s own emitter, the SAME "side channel,
     // `@Optional()`, every EXISTING spec constructs this runner without one" posture `eventsPublisher`
     // already holds. Injected by the `DOCUMENT_WEBHOOK_EMITTER` TOKEN, never the concrete
     // `WebhookDispatcherService` class directly — see that token's own header
@@ -138,7 +137,7 @@ export class ConformitySweepRunner {
         );
         if (created > 0) {
           gaveUp++;
-          // TODO_PRODUIT.md T1 / PLAN-V2 R8 — journaled just above (Postgres already holds
+          // SSE nudge — journaled just above (Postgres already holds
           // 'poll:gave-up', a genuinely new row): publishing lets the conformity panel refresh
           // without a reload the moment this pass decides to stop waiting.
           await this.eventsPublisher?.publish(candidate.companyId, {
@@ -146,7 +145,7 @@ export class ConformitySweepRunner {
             typeId: candidate.typeId,
             kind: 'authority-event',
           });
-          // TODO_PRODUIT.md T2bis — same "genuinely new row" gate, for the OTHER subscriber: a third
+          // Webhook — same "genuinely new row" gate, for the OTHER subscriber: a third
           // party watching `DOCUMENT_AUTHORITY_EVENT`.
           await dispatchDocumentAuthorityEventWebhook(
             this.webhookDispatcher,
@@ -178,12 +177,12 @@ export class ConformitySweepRunner {
   /**
    * Runs ONE poll — resolves the poller fresh (never a value cached at enqueue time, the identical
    * discipline `schedule-sweep-runner.ts#runOccurrence` already holds for its own re-read source
-   * document), calls it, and journals whatever comes back. Also the single entry point (mandataire
-   * decision, 2026-09-06) that WORM-archives any TERMINAL event among them — see
+   * document), calls it, and journals whatever comes back. Also the single entry point that
+   * WORM-archives any TERMINAL event among them — see
    * `archive/archive-verdict-on-terminal.ts`'s own header.
    *
    * NEVER throws — see `authority-status-poller.ts`'s own header ("un handler d'événement ne tue
-   * jamais le processus", this task's own explicit rule): a missing/invalid credential
+   * jamais le processus"): a missing/invalid credential
    * (`ChannelNotConnectedError`) OR any other unexpected failure (a network error, a malformed
    * response) both end up journaling `BLOCKED_STATUS_CODE` with the failure's own message as
    * `reason` — loud (logged, and visible on the document as a "blocked" badge), never a crashed
@@ -206,8 +205,7 @@ export class ConformitySweepRunner {
           `${events.length} event(s) observed, ${journaled} newly journaled.`,
       );
 
-      // Root TODO item 14's own remainder (TODO_ISSUES.md, mandataire decision 2026-09-06) — the
-      // WORM-probative twin of the journal write just above. Every TERMINAL event this poll observed
+      // The WORM-probative twin of the journal write just above. Every TERMINAL event this poll observed
       // (never an intermediate one — `poller.isTerminal` is this provider's own vocabulary, never
       // guessed at here), regardless of `journaled`: `archiveTerminalAuthorityVerdictIfAny` is
       // idempotent on its own (`verdictKey`), so re-archiving an already-archived verdict on a
@@ -244,7 +242,7 @@ export class ConformitySweepRunner {
         );
       }
 
-      // TODO_PRODUIT.md T1 / PLAN-V2 R8 — only when something was GENUINELY new (journaled > 0, never
+      // SSE nudge — only when something was GENUINELY new (journaled > 0, never
       // for a re-poll that only rediscovered events already known) and only when this job data
       // actually carries a typeId (see `ConformityPollJobData.typeId`'s own header — several EXISTING
       // specs construct this shape without one, and there is nothing to invalidate a query FOR
@@ -255,7 +253,7 @@ export class ConformitySweepRunner {
           typeId: data.typeId,
           kind: 'authority-event',
         });
-        // TODO_PRODUIT.md T2bis — `statusCode` is the LAST observed event: `events` can carry more
+        // Webhook — `statusCode` is the LAST observed event: `events` can carry more
         // than one newly-journaled status per poll (a platform reporting several steps at once), and
         // "the most recent fact" is the honest single value for a payload that names only ONE.
         await dispatchDocumentAuthorityEventWebhook(
@@ -275,8 +273,7 @@ export class ConformitySweepRunner {
         `Conformity poll for document ${data.documentId} ("${data.providerId}") could not run: ${message}` +
           (isBlocked ? '' : ' (unexpected failure, not merely "not connected")'),
       );
-      // BELT AND SUSPENDERS — found necessary by this task's own mutation testing (mutation #2,
-      // "dedup cassée"): with the DB's own `@@unique` constraint still in place but the application-
+      // BELT AND SUSPENDERS — with the DB's own `@@unique` constraint still in place but the application-
       // level `skipDuplicates` removed, a SECOND blocked poll for the SAME document collided on its
       // OWN previous 'poll:blocked' row and threw straight out of this method — exactly the "never
       // crashes the process" rule this whole mechanism exists to uphold, broken by its own

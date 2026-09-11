@@ -1,7 +1,7 @@
 /**
- * C4 — REPRISE quasi verbatim of `compliance/canonical/vat-validation.port.ts` +
+ * REPRISE quasi verbatim of `compliance/canonical/vat-validation.port.ts` +
  * `vies-vat-validation.client.ts` (git tag `avant-refonte-documents`) — the seam that decides whether
- * a VAT number has been VERIFIED, not merely typed. Root TODO item 16's own contract: "syntaxique par
+ * a VAT number has been VERIFIED, not merely typed. The cross-border contract: "syntaxique par
  * pays (vat-syntax.ts) + un port VIES optionnel" — this file is that port.
  *
  * The defect this exists to fix, verbatim from the repère's own header: hardcoding `validated: false`
@@ -47,7 +47,7 @@ export class NullVatValidationClient implements VatValidationPort {
 }
 
 /**
- * Root TODO item 16 ("transfrontalier") — a SECOND offline, deterministic, network-free client,
+ * Cross-border ("transfrontalier") support — a SECOND offline, deterministic, network-free client,
  * distinct from `NullVatValidationClient` above: it answers `VALID` for a number that PASSES its own
  * syntax check (`vat-syntax.ts`), `INVALID` otherwise. Never touches a network — the exact same "CI
  * job must never depend on... VIES being up" contract `NullVatValidationClient`'s own module wiring
@@ -55,7 +55,7 @@ export class NullVatValidationClient implements VatValidationPort {
  * charge transition be OBSERVED end-to-end through a real browser, which `clients.module.ts`'s own
  * pre-existing header comment used to document as unreachable from e2e ("What e2e cannot cover is
  * the VALID -> AE transition, because that needs an answer only VIES can give"). That was true before
- * this task: e2e is the ONE place `resolve-invoice-tax.ts`'s B2B/reverse-charge branch can be proven
+ * this client existed: e2e is the ONE place `resolve-invoice-tax.ts`'s B2B/reverse-charge branch can be proven
  * through the SCREEN (spec 35), and a Cypress run cannot reach the real European Commission service —
  * so this fake exists to make that one transition reachable, opted into explicitly
  * (`VAT_VALIDATION_FAKE=1`, set only in `backend/.env.test`) rather than silently changing what

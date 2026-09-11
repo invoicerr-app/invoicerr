@@ -36,10 +36,10 @@ export function resolveTimestampOptions(
  * Registry of signing providers by algorithm — reprised verbatim from the repère
  * (`compliance/providers/signing/registry.ts`).
  *
- * Only PAdES is wired to a live flow today (`rendering/sign-instance-pdf.ts`, root TODO item 13): no
+ * Only PAdES is wired to a live flow today (`rendering/sign-instance-pdf.ts`): no
  * jurisdiction this product ships requires us to prove a document SIGNATURE — PDP Factur-X does not
  * require one, KSeF authenticates by session token not a document signature, and SdI accepts CAdES
- * but that channel has no accreditation yet (TODO.md item 10's own `sdi-transport.ts` header). XAdES
+ * but that channel has no accreditation yet (`sdi-transport.ts`'s own header). XAdES
  * and CAdES are registered here, tested (`providers.spec.ts`), and ready — so the capability exists
  * the moment a real obligation is sourced (`content-requirements/`-style, never invented) — but
  * nothing in this codebase calls `registry.get('XAdES' | 'CAdES')` outside their own specs.

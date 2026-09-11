@@ -1,7 +1,7 @@
 /**
  * Pure functions building a document-action job's identity and data — no BullMQ, no Nest, no I/O, so
- * this is testable (document-action-job.spec.ts) without a broker, exactly what TODO.md item 22 asks
- * for. `document-queue.dispatcher.ts` is the only caller in production; a jest spec calls these
+ * this is testable (document-action-job.spec.ts) without a broker.
+ * `document-queue.dispatcher.ts` is the only caller in production; a jest spec calls these
  * directly.
  */
 import { DocumentActionJobData } from './queue.constants';

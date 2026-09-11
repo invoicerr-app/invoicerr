@@ -1,5 +1,5 @@
 /**
- * Local, content-hash-addressed persistence for UPLOADED INBOUND files — root TODO item 18. Imitates
+ * Local, content-hash-addressed persistence for UPLOADED INBOUND files. Imitates
  * `archive/storage.ts` (see that file's own header for the reasoning this reuses): `inboundRoot()` is
  * re-read on EVERY call, never cached, so a test can repoint `DOCUMENTS_INBOUND_DIR` to a fresh
  * `os.tmpdir()` subdirectory without ever risking a write into the project's own working directory.

@@ -194,7 +194,7 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   // a "Recurrence" row action is offered ONLY once the type declares "duplicate" at all (native or
   // third-party extension — documents-core.module.ts) and it is available from this record's own
   // current status. Never a per-type name — a plugin's own type gets this for free the moment it
-  // registers "duplicate" too (root TODO item 5).
+  // registers "duplicate" too.
   const duplicateAction = descriptor.actions.find((action) => action.id === "duplicate")
   const showRecurrenceButton = !!duplicateAction && isActionAvailable(duplicateAction, instance.status)
   // "then send" (the recurrence dialog's own optional toggle) only makes sense for a type that
@@ -222,7 +222,7 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
     }
   }
 
-  // "download-xml" (root TODO item 12, "formats normalisés") is declared on the descriptor — that is
+  // "download-xml" is declared on the descriptor — that is
   // what `isActionAvailable` reads for status/country-policy gating below — but, like the PDF button
   // just above, its actual download is a plain GET, never `runAction` (see
   // `documents.service.ts#downloadDocumentFormat`'s own header, and `invoice.descriptor.ts`'s comment
@@ -242,8 +242,8 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
         const body = await response.json().catch(() => null)
         // `body.message` alone is the GENERIC "failed EN 16931 validation" wrapper — the actual named
         // rule (BR-DE-1, BR-DE-15, ...) lives in `body.errors` (documents.service.ts#downloadDocument
-        // Format's own "THE GATE" comment). A named refusal (root TODO item 26, "Peppol/Allemagne" —
-        // e.g. "download an xrechnung export with no IBAN on file") must actually SAY which rule/field
+        // Format's own "THE GATE" comment). A named refusal (e.g. "download an xrechnung export with
+        // no IBAN on file") must actually SAY which rule/field
         // is missing, not just that something failed — the generic message alone used to hide it.
         const detail = Array.isArray(body?.errors) && body.errors.length ? body.errors.join(" — ") : null
         throw new Error(detail || body?.message || `HTTP ${response.status}`)
@@ -253,13 +253,13 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
       window.open(url, "_blank")
     } catch (error) {
       // The backend's OWN message — it cites the failing BR-* rule when validation is what refused
-      // it, and a generic fallback would hide exactly the information this ticket's own gate exists
+      // it, and a generic fallback would hide exactly the information the gate exists
       // to surface.
       toast.error(error instanceof Error ? error.message : t("documents.list.downloadXmlError"))
     }
   }
 
-  // "share-link" (root TODO item 24) — same reasoning as "download-xml" right above: declared on the
+  // "share-link" — same reasoning as "download-xml" right above: declared on the
   // descriptor purely for the country-policy/status gates (see invoice.descriptor.ts's own comment
   // on that action), but its create/list/revoke are REST resources (share-links/), never a POST
   // through `runAction` — so it gets its OWN dialog (share-link-dialog.tsx), not the generic
@@ -267,15 +267,15 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
   const shareLinkAction = descriptor.actions.find((action) => action.id === "share-link")
   const showShareLink = !!shareLinkAction && isActionAvailable(shareLinkAction, instance.status)
 
-  // "sending" is the generic queue-processing status the async "send" mechanism introduces (TODO.md
-  // item 22, actions/async-send.ts on the backend) — not a per-document-type name, a property of the
+  // "sending" is the generic queue-processing status the async "send" mechanism introduces
+  // (actions/async-send.ts on the backend) — not a per-document-type name, a property of the
   // record itself: something is actively in flight for it, driven by the worker, not by a further
   // click here. Hiding the declared action buttons while it lasts is what keeps the worker's own
   // replay of "send" (which the record's `availableWhen` MUST include for the 409 gate to pass —
   // see quote.descriptor.ts's own comment on why) from also being a button a human could click a
   // second time mid-flight and race the queue.
   const isProcessing = instance.status === "sending"
-  // "cancel" (TODO_CORRECTION.md C3) — same reasoning as "download-xml"/"share-link" right above:
+  // "cancel" — same reasoning as "download-xml"/"share-link" right above:
   // declared on the descriptor purely for the backend's own country-policy/status gates
   // (cancel-policy.ts, invoice.descriptor.ts), but its ONE entry point is the correction-routes
   // dialog (custom/invoice-correction-routes-button.tsx) — never a second, generic "Cancel" button
@@ -289,10 +289,9 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           action.id !== "cancel" &&
           isActionAvailable(action, instance.status),
       )
-  // A LIST, not a single component — TODO_CORRECTION.md C2 added a second "invoice"/"list-row-extra"
-  // registration (the correction-routes button) alongside the pre-existing preview button; see
-  // custom-slots.ts's own header for why a single `Map.set` used to make the second silently replace
-  // the first.
+  // A LIST, not a single component — a second "invoice"/"list-row-extra" registration (the
+  // correction-routes button) exists alongside the preview button; see custom-slots.ts's own header
+  // for why a single `Map.set` used to make the second silently replace the first.
   const customRowExtras = getDocumentCustomComponents(descriptor.id, "list-row-extra")
   // A disabled <button> (Button's own `disabled:pointer-events-none`, see ui/button.tsx) never
   // receives a REAL hover at all — the `tooltip` prop below still opens it for a keyboard/
@@ -479,8 +478,8 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
       )}
 
       {instance.lastActionError && (
-        // Never a silent failure (TODO.md item 22, TODO_ISSUES.md's own entry on the limit this
-        // replaces): a "send_failed" document names WHY, right here, not only in a server log.
+        // Never a silent failure: a "send_failed" document names WHY, right here, not only in a
+        // server log.
         // Generic — reads whatever the backend recorded, on ANY status, never a per-type branch.
         <p
           className="line-clamp-2 max-w-[220px] whitespace-normal text-right text-xs text-destructive"
@@ -576,9 +575,8 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
                   dataCySuffix={instance.id}
                 />
               )}
-              {/* Root TODO item 10's own named remainder — "un indicateur discret pour rejeté" on
-                  the list (this task's own brief): renders nothing unless the platform actually
-                  rejected this deposit (see that component's own header). */}
+              {/* The list's discreet rejected-deposit indicator: renders nothing unless the
+                  platform actually rejected this deposit (see that component's own header). */}
               <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
             </div>
             <DocumentCardSecondaryInfo descriptor={descriptor} instance={instance} />

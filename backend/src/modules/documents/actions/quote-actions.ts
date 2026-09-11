@@ -18,19 +18,19 @@ export interface QuoteActionDeps {
   typeRegistry: DocumentTypeRegistry;
   referenceRegistry: EntityReferenceRegistry;
   queueDispatcher: DocumentActionQueueDispatcher;
-  /** Root TODO item 13 — threaded straight through to `sendDocumentInstanceEmail`, same optional
+  /** Signing certificate — threaded straight through to `sendDocumentInstanceEmail`, same optional
    *  no-op-when-absent contract as `EmailTransportDeps.signingCertificates`. A quote's own "send" is
    *  unconditionally by email (see this file's own header), so a company with an active certificate
    *  gets a signed quote PDF exactly the way it gets a signed invoice one. */
   signingCertificates?: SigningCredentialsPort;
-  /** TODO_PRODUIT.md T1 / PLAN-V2 R8 — see `async-send.ts`'s own `RunAsyncSendInput.events` header. */
+  /** See `async-send.ts`'s own `RunAsyncSendInput.events` header. */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2bis — see `async-send.ts`'s own `RunAsyncSendInput.webhooks` header:
-   * `DOCUMENT_SENT`/`DOCUMENT_CREATED` now, generic across every type — QUOTE_SENT (T2's own
-   * per-type event, never wired to anything before T2 either: grep the `avant-refonte-documents` tag,
+   * See `async-send.ts`'s own `RunAsyncSendInput.webhooks` header:
+   * `DOCUMENT_SENT`/`DOCUMENT_CREATED` now, generic across every type — QUOTE_SENT (the former
+   * per-type event, never wired to anything: grep the `avant-refonte-documents` tag,
    * the one place it was ever dispatched from, `utils/plugins/signing.ts`, no longer exists) is
-   * purged from the schema by that same commit.
+   * purged from the schema.
    */
   webhooks?: DocumentWebhookEmitter;
 }
@@ -44,7 +44,7 @@ export interface QuoteActionDeps {
  * (actions/convert-to-invoice.ts, registered alongside this one in documents.module.ts) rather than
  * here, since it reads a quote's shape and writes an invoice's — it belongs to neither type alone.
  *
- * As of TODO.md item 22, "send" is ASYNCHRONOUS — built on `runAsyncSendAction` (actions/async-send.ts),
+ * "send" is ASYNCHRONOUS — built on `runAsyncSendAction` (actions/async-send.ts),
  * the exact same two-phase engine the invoice's own "send" now uses (invoice-actions.ts) and the
  * credit note's own too (credit-note-actions.ts). What stays genuinely THIS type's own, and what the
  * shared engine never sees: `deliver()` below always composes and sends a real email (PDF attached,
@@ -65,7 +65,7 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
       params,
       queueDispatcher: deps.queueDispatcher,
       events: deps.events,
-      // TODO_PRODUIT.md T2bis — see async-send.ts's own `RunAsyncSendInput.webhooks` header.
+      // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
       numberOnEnqueue: true, // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
       deliver: async ({ companyId: c, document }) => {

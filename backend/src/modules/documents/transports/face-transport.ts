@@ -1,7 +1,7 @@
 /**
  * The "face" transport — Spain's B2G invoice entry point (FACe, Ley 25/2013 — see
  * `b2g-routing/data/es.json`'s own header for the article-level citation), the channel that rule
- * names since this task. Same `DocumentTransport` interface every sibling transport implements,
+ * names. Same `DocumentTransport` interface every sibling transport implements,
  * registered the same way (`TransportRegistry.register`, `documents-core.module.ts`).
  *
  * The client (`face/face-client.ts`) is REPRISED from git tag `avant-refonte-documents`
@@ -19,18 +19,17 @@
  * `postSoap` helper (same file the task's own brief points at as the template for "enveloppes via
  * xmlbuilder2") — not a stub.
  *
- *  1. **The SOAP envelope IS NOW WS-Security-signed (2026-09-02 task)** — `face/wsse-sign.ts` builds
+ *  1. **The SOAP envelope IS WS-Security-signed** — `face/wsse-sign.ts` builds
  *     the `wsse:Security` header (BinarySecurityToken + `ds:Signature` over the `soapenv:Body` +
  *     `KeyInfo`/`SecurityTokenReference`), per the OASIS X.509 Certificate Token Profile — see that
  *     file's own header for the cited form, what is extrapolated, and why `xmldsigjs`'s high-level
- *     `SignedXml.Sign()` could not be used as-is. Before this task, `face-client.ts`'s header
- *     explained why building a signature a live SSPP server would ACCEPT could not be settled offline
- *     — that is STILL true (no FACe-registered certificate exists in this checkout to prove full
- *     acceptance), but the NARROWER, live-provable claim — that a WS-Security-signed envelope makes
- *     the sandbox's OWN fault CHANGE NATURE (from "no está firmada" to something else) — is exactly
- *     what this task's own report documents, both ways, with the raw server responses. When NO
+ *     `SignedXml.Sign()` could not be used as-is. Building a signature a live SSPP server would
+ *     ACCEPT cannot be settled offline (no FACe-registered certificate exists in this checkout to
+ *     prove full acceptance), but the NARROWER, live-provable claim holds: a WS-Security-signed
+ *     envelope makes the sandbox's OWN fault CHANGE NATURE (from "no está firmada" to something
+ *     else), verified both ways against the raw server responses. When NO
  *     signing certificate is configured (see `FaceTransportDeps.signingCredentials` below), `send()`
- *     now refuses OUTRIGHT rather than falling back to the old unsigned behaviour — see "THE
+ *     refuses OUTRIGHT rather than falling back to unsigned behaviour — see "THE
  *     WS-SECURITY CERTIFICATE" below for the resolution and gate-ordering reasoning.
  *  2. **The company's certificate IS ALSO offered as the TLS client certificate (mTLS)**, purely as a
  *     defensive extrapolation — `face-client.ts`'s own header flags this as an open question
@@ -60,13 +59,13 @@
  * "XAdES" or "*"). A real, working FACe deposit needs these to be the SAME physical certificate (mTLS
  * identity and WS-Security signer must agree) — this codebase does not enforce that today. Named here,
  * not silently assumed away; unifying the two credential slots is a SEPARATE, larger product decision
- * this task does not make.
+ * not made here.
  *
- * GATE ORDER (this task's own "vérifie l'ordre des gates" requirement): `facturaeFormatProvider
+ * GATE ORDER: `facturaeFormatProvider
  * .build()` ALREADY throws `FacturaeSigningRequiredError` when no `"{companyId}:XAdES"` cert resolves
  * (`facturae-provider.ts`'s own header, "point 3") — BEFORE `send()` ever reaches the WS-Security
- * resolution below, let alone the network. So "no certificate at all" was ALREADY a hard refusal
- * before this task; this task ADDS a symmetric guard for the (only reachable via independently-mocked
+ * resolution below, let alone the network. So "no certificate at all" is ALREADY a hard refusal;
+ * a symmetric guard covers the (only reachable via independently-mocked
  * dependencies, since `facturaeFormatProvider`/`signingCredentials` are two SEPARATE constructor
  * params) case where the Facturae build somehow succeeded but the SECOND resolve, for WS-Security,
  * comes back empty — refused too, never silently sent unsigned (see `face-transport.spec.ts`'s own
@@ -95,7 +94,7 @@
  *    thrown from inside `deliver()`, so BullMQ's own retries get a chance to run before this ever
  *    becomes `send_failed`.
  * An accepted `enviarFactura` with an EMPTY `numeroRegistro` is the SECOND kind of failure, never a
- * success — this task's own mutation #2 target, the same hard-success contract every transport in
+ * success — the same hard-success contract every transport in
  * this directory already enforces (LIVE_TESTING.md: "a reference nobody can look up is not a
  * reference at all").
  *
@@ -131,7 +130,7 @@ export interface FaceTransportDeps {
   /** The Facturae provider (`formats/national/facturae-provider.ts`) — the ONLY payload this
    *  transport ever deposits, XSD-gated and XAdES-signed before this file ever sees the bytes. */
   facturaeFormatProvider: DocumentFormatProvider;
-  /** Root TODO item 13's own port (`SigningCertificatesService` in production) — see this file's own
+  /** The signing-credentials port (`SigningCertificatesService` in production) — see this file's own
    *  header, "THE WS-SECURITY CERTIFICATE", for why the SOAP transport layer resolves the EXACT SAME
    *  `"{companyId}:XAdES"` cert `facturaeFormatProvider` already required a moment earlier, rather
    *  than a second, independent credential. */
@@ -200,11 +199,11 @@ function resolveEndpoint(environment: string): string {
 
 /**
  * REAL `node:https` SOAP transport — see this file's own header, "THE SOAP TRANSPORT ITSELF", for
- * what is genuinely implemented (the envelope, the POST, mTLS-offered-defensively, and — as of this
- * task — the WS-Security signature). Wraps `face-client.ts`'s own operation FRAGMENT into a full
+ * what is genuinely implemented (the envelope, the POST, mTLS-offered-defensively, and the
+ * WS-Security signature). Wraps `face-client.ts`'s own operation FRAGMENT into a full
  * `soap:Envelope` — the exact seam `FaceHttpPort`'s own doc comment describes a real implementation
- * filling in — signed via `wsse-sign.ts` when a `wsseCertificate` is configured, UNSIGNED (the
- * pre-task shape, kept for a company with no WS-Security cert resolved — see this file's own header,
+ * filling in — signed via `wsse-sign.ts` when a `wsseCertificate` is configured, UNSIGNED (kept for
+ * a company with no WS-Security cert resolved — see this file's own header,
  * "THE WS-SECURITY CERTIFICATE") otherwise.
  */
 export class FaceSoapHttpPort implements FaceHttpPort {
@@ -213,9 +212,9 @@ export class FaceSoapHttpPort implements FaceHttpPort {
     private readonly passphrase?: string,
     private readonly timeoutMs = 30_000,
     /** WS-Security signing certificate — see this file's own header, "THE WS-SECURITY CERTIFICATE",
-     *  for where this is resolved. `undefined` → the envelope is sent UNSIGNED, same as every call
-     *  before this task (a caller that has not been updated to pass one, or a test exercising the
-     *  regression path — see `face-transport.spec.ts`'s own "stub still behaves as before" case). */
+     *  for where this is resolved. `undefined` → the envelope is sent UNSIGNED (a caller that passes
+     *  none, or a test exercising the unsigned path — see `face-transport.spec.ts`'s own "stub still
+     *  behaves as before" case). */
     private readonly wsseCertificate?: WsseCertificate,
     /** Test-only: trust an additional CA (a local stub server's own self-signed cert) WITHOUT
      *  weakening `rejectUnauthorized` globally — the SAME reasoning `sdicoop-client.ts`'s own `ca`
@@ -373,7 +372,7 @@ export function buildFaceTransport(deps: FaceTransportDeps): DocumentTransport {
       // `facturaeFormatProvider`/`signingCredentials` are two INDEPENDENT constructor params with no
       // compile-time link, so this refuses OUTRIGHT rather than silently sending the SOAP envelope
       // unsigned in the one case they disagree (a misconfigured wiring, or a test double built that
-      // way — see `face-transport.spec.ts`'s own "WS-SECURITY GATE" tests, this task's mutation guard).
+      // way — see `face-transport.spec.ts`'s own "WS-SECURITY GATE" tests).
       const signingMaterial = await deps.signingCredentials.resolve(certRefFor(ctx.companyId));
       if (!signingMaterial) {
         throw new BadRequestException(
@@ -419,9 +418,9 @@ export function buildFaceTransport(deps: FaceTransportDeps): DocumentTransport {
         throw new BadRequestException(`FACe enviarFactura failed: ${message}`);
       }
 
-      // MUTATION GUARD #2 (this task's own brief): FACe accepting the request with no usable
-      // numeroRegistro is a FAILURE, never a silent success — a reference nobody can look up is not
-      // a reference at all. Same hard-success contract every transport in this directory enforces.
+      // FACe accepting the request with no usable numeroRegistro is a FAILURE, never a silent
+      // success — a reference nobody can look up is not a reference at all. Same hard-success
+      // contract every transport in this directory enforces.
       if (!numeroRegistro) {
         throw new BadRequestException(
           'FACe accepted the request but returned no registry number (numeroRegistro) — treating ' +

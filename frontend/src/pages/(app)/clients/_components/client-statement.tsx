@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import type { Client, ClientStatementCurrencyTotals, ClientStatementDocumentRow } from "@/types"
 
 /**
- * TODO_FEATURES.md rank 6 ("relevé de compte client") — a client's own account statement, opened
+ * A client's own account statement ("relevé de compte client"), opened
  * from the clients list (index.tsx's own "Statement" action, next to view/edit/delete). Read-only:
  * this screen computes nothing itself — every number here is exactly what `GET /clients/:id/
  * statement` (the backend's `resolveClientStatement`) already resolved, the same "the backend

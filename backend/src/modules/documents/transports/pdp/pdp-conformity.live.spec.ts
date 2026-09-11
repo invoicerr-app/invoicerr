@@ -1,6 +1,6 @@
 /**
- * REAL round-trip proof of the post-deposit conformity POLLER (root TODO item 10's own named
- * remainder) — gated the same way `pdp.live.spec.ts` already is (`PDP_LIVE=1` + the same three
+ * REAL round-trip proof of the post-deposit conformity POLLER — gated the same way
+ * `pdp.live.spec.ts` already is (`PDP_LIVE=1` + the same three
  * credential env vars, `live-gate.ts`, REPRISED verbatim), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
@@ -11,7 +11,7 @@
  * itself (`DocumentAuthorityEvent`) genuinely fills with REAL events, not merely that a poller
  * function returns a plausible-looking array in memory. `@/prisma/prisma.service` does `import
  * 'dotenv/config'` at module load, which loads `backend/.env`'s own `DATABASE_URL` (the DEV database,
- * already migrated by this task) since `.env.test.local` sets no `DATABASE_URL` of its own to take
+ * already migrated) since `.env.test.local` sets no `DATABASE_URL` of its own to take
  * priority — this spec runs against `invoicerr_dev`, and cleans up after itself (deletes the
  * throwaway Company, cascading to its DocumentInstance/DocumentAuthorityEvent rows).
  *
@@ -396,13 +396,13 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
       ),
     );
 
-    // HARD assertion, not a soft `if` — reproduced live, twice, while wiring this very spec (see
-    // this task's own report for the raw payload: a real BR-FR-05/BT-22 rejection, "Element
+    // HARD assertion, not a soft `if` — reproduced live, twice (the raw payload: a real
+    // BR-FR-05/BT-22 rejection, "Element
     // 'ram:Content' must occur exactly 1 times", citing the exact missing BG-1 mentions this
     // deliberately-crafted artifact omits). If superpdp's own sandbox ever stops rejecting this
     // shape (a real behavior change on their side), this assertion SHOULD fail loud rather than
     // silently downgrade to a warning — a poller that can only ever prove the success path again
-    // would be exactly the kind of false-green this task exists to rule out.
+    // would be exactly the kind of false-green this spec exists to rule out.
     const rejected = journaled.find((e) => e.statusCode === 'fr:213');
     expect(rejected).toBeDefined();
     expect(rejected!.reason).toEqual(expect.stringContaining('BG-1'));

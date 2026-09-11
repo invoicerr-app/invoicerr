@@ -1,6 +1,6 @@
 /**
- * The ANAF `AuthorityStatusPoller` — root TODO item 10's own named remainder (post-upload conformity
- * tracking, `conformity/authority-status-poller.ts`'s own header), the read-side twin of
+ * The ANAF `AuthorityStatusPoller` — post-upload conformity
+ * tracking (`conformity/authority-status-poller.ts`'s own header), the read-side twin of
  * `transports/anaf-transport.ts`. `stareMesaj` (`GET {baseUrl}/stareMesaj?id_incarcare={id}`) is the
  * repère's own status-consultation endpoint (`compliance/providers/transmission/anaf-client.ts`,
  * `avant-refonte-documents`) — wired here, never an invented one; `transports/anaf/anaf-client.ts`

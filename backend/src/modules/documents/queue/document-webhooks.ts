@@ -1,7 +1,7 @@
 /**
  * The wire shape for the OUTBOUND webhooks a document's own lifecycle announces to a THIRD PARTY —
- * TODO_PRODUIT.md T2bis (generic `DOCUMENT_*` vocabulary), superseding T2 / PLAN-V2 R9's own
- * per-type `INVOICE_SENT`/`QUOTE_SENT`. Kept in its own file, with NO Nest/Prisma-service import at
+ * a generic `DOCUMENT_*` vocabulary, superseding the earlier per-type `INVOICE_SENT`/`QUOTE_SENT`.
+ * Kept in its own file, with NO Nest/Prisma-service import at
  * all — the same "pure shape, separate from the plumbing that moves it" split `document-events.ts`
  * already holds for the SSE nudge right next to it, so every call site (`actions/async-send.ts`,
  * `queue/mark-send-failed.ts`, `actions/generic-actions.ts`) depends on the SHAPE alone, never the
@@ -32,7 +32,7 @@ export interface DocumentWebhookEmitter {
 }
 
 /**
- * TODO_PRODUIT.md T2bis — the Nest injection TOKEN for `DocumentWebhookEmitter`, used by every
+ * The Nest injection TOKEN for `DocumentWebhookEmitter`, used by every
  * consumer that needs NEST'S OWN constructor injection (`ConformitySweepRunner`,
  * `SdiNotificheService`, `DocumentActionProcessor`) rather than a value threaded by hand through a
  * factory (`buildActionRegistry`, `async-send.ts`'s own callers). A bare TS interface has no runtime
@@ -45,7 +45,7 @@ export interface DocumentWebhookEmitter {
  * different, Prisma/Redis-only class — already does elsewhere) would force every file that imports
  * one of those three classes to pull in `webhook-dispatcher.service.ts` → `webhooks.service.ts` →
  * `drivers/discord.driver.ts` → `@teever/ez-hook`, the pure-ESM package ts-jest cannot compile
- * (TODO_ISSUES.md's own "ClientsModule inimportable sous ts-jest" entry) — breaking not just those
+ * (the "ClientsModule inimportable sous ts-jest" constraint) — breaking not just those
  * three classes' own spec files but every OTHER spec that transitively imports them (found the hard
  * way: `document-action.processor.spec.ts`, the four `queue/__tests__/*.redis.spec.ts` integration
  * specs, `sdi-notifiche.controller.spec.ts`). Depending on this token (a plain `Symbol`, never a
@@ -59,8 +59,8 @@ export interface DocumentWebhookEmitter {
 export const DOCUMENT_WEBHOOK_EMITTER = Symbol('DOCUMENT_WEBHOOK_EMITTER');
 
 /**
- * The uniform payload EVERY `DOCUMENT_*` webhook carries — TODO_PRODUIT.md T2bis's own "contrat de
- * payload uniforme", decided with the mandant specifically so a receiver never needs a per-type
+ * The uniform payload EVERY `DOCUMENT_*` webhook carries — a uniform payload contract, so a receiver
+ * never needs a per-type
  * branch to find the row: `document` is a FIXED key, always the untouched `DocumentInstance` row,
  * never the per-type computed key (`{ invoice: sent }`/`{ quote: sent }`) T2's own payload used —
  * `typeId` is what a receiver filters on instead. A future document type gets every `DOCUMENT_*`

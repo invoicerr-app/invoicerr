@@ -1,16 +1,16 @@
 /**
  * Coverage + content guard for the shipped tax-system catalog — same role
- * `vat-rates/data/all.spec.ts` plays for its own files. Root TODO item 16's own OSS follow-up
+ * `vat-rates/data/all.spec.ts` plays for its own files. The OSS follow-up
  * ("sourcer les tables de taux par pays de destination") added the 26 OTHER EU member states'
  * standard VAT rate — this file pins BOTH that the loader still enforces provenance on every file
  * (mutation target #2: a country file with no `provenance` must fail to load, not silently ship) AND
- * that a handful of notorious rates actually LOADED with the value this task's own TEDB reading
+ * that a handful of notorious rates actually LOADED with the value the TEDB reading
  * produced (mutation target: a copy/paste error swapping two countries' rates, or the seller's own
  * rate leaking into a destination file, would slip past a purely structural "does it load" check).
  *
- * Re-pinned by the 5-country prune (2026-09-10, see this task's own report): this mechanism now
- * ships DE/FR/IT/PL/PT only — the other 25 EU member states plus AE/IN/QA/SA/US read for root TODO
- * item 16's own OSS follow-up were all `git rm`'d along with their data/xx.json. The superlative
+ * Re-pinned by the 5-country prune (2026-09-10): this mechanism now
+ * ships DE/FR/IT/PL/PT only — the other 25 EU member states plus AE/IN/QA/SA/US read for the
+ * OSS follow-up were all `git rm`'d along with their data/xx.json. The superlative
  * "highest/lowest in the EU" claims this file used to pin (HU 27%, LU 17%) no longer have an honest
  * basis — this catalog can no longer see the full EU-27 to make that claim — so they were re-scoped
  * to "highest/lowest AMONG THE KEPT COUNTRIES" instead of deleted outright, since PL/PT/DE's own real
@@ -32,7 +32,7 @@ describe('tax-systems/data — coverage', () => {
   });
 });
 
-describe('tax-systems/data — the kept standard rates read from TEDB (item 16 follow-up), content-pinned', () => {
+describe('tax-systems/data — the kept standard rates read from TEDB, content-pinned', () => {
   const byCode = (cc: string) => ALL_TAX_SYSTEM_FILES.find((f) => f.countryCode === cc);
 
   it('DE (Germany): 19% — the rate the OSS gate used to name as missing', () => {
@@ -56,7 +56,7 @@ describe('tax-systems/data — the kept standard rates read from TEDB (item 16 f
     expect(byCode('DE')?.standardRate).toBe(19);
   });
 
-  // Spot-checks across the kept set — each value is the one this task's own TEDB reading returned
+  // Spot-checks across the kept set — each value is the one the TEDB reading returned
   // (see each file's own `provenance.sourceText`), not a value recalled from memory.
   it.each([
     ['DE', 19],
@@ -72,7 +72,7 @@ describe('tax-systems/data — the kept standard rates read from TEDB (item 16 f
     expect(fr?.standardRate).toBeUndefined(); // FR derives its rate from vat-rates/registry.ts, see schema.ts's own header
   });
 
-  it('FR is PROMOTED to `legal` (Vague A correction, TODO_DOCUMENTS.md) — the resolutionNote already documented a DIRECT reading of CGI art. 293 B, I confirming FRANCHISE_BASE verbatim, so the envelope is promoted with exactly that citation, never a fact the note did not already establish as read', () => {
+  it('FR is PROMOTED to `legal` — the resolutionNote already documented a DIRECT reading of CGI art. 293 B, I confirming FRANCHISE_BASE verbatim, so the envelope is promoted with exactly that citation, never a fact the note did not already establish as read', () => {
     const fr = byCode('FR');
     expect(fr?.provenance.kind).toBe('legal');
     if (fr?.provenance.kind === 'legal') {
@@ -121,7 +121,7 @@ describe('tax-systems/data — mutation target #2: a file with no provenance mus
     );
   });
 
-  it('rejects a fact claiming "legal" provenance but missing sourceText — the exact shape a careless copy/paste of this task’s own files could produce', () => {
+  it('rejects a fact claiming "legal" provenance but missing sourceText — the exact shape a careless copy/paste of the shipped files could produce', () => {
     const broken = {
       countryCode: 'DE',
       kind: 'VAT',

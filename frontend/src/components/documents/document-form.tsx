@@ -21,8 +21,8 @@ import { useDocumentType } from "@/hooks/queries"
  * `data.lineTotalWarnings` — a RESERVED key (never a declared `DocumentFieldDescriptor`), the same
  * convention `received-invoice.descriptor.ts`'s own `fileRef`/`fileName`/`fileMime` already use for
  * bookkeeping the generic field-render never touches. Read here GENERICALLY, by key name only —
- * nothing below names "received-invoice" (TODO_PRODUIT.md T5(a)'s own `received-invoices/
- * line-totals-check.ts`, backend, is the only writer today; any future type could reuse the same key
+ * nothing below names "received-invoice" (the backend's own `received-invoices/
+ * line-totals-check.ts` is the only writer today; any future type could reuse the same key
  * and get this same rendering for free, exactly the "a country/type is data" discipline the rest of
  * this module already holds).
  */
@@ -47,7 +47,7 @@ interface DocumentFormProps {
    *  unlike `status`/`displayNumber` above, this is never re-synced into local state at all, only
    *  ever rendered straight from THIS prop, so it follows whatever the caller feeds it: the page
    *  ([typeId].tsx) re-derives it, live, from the SAME query cache the list itself polls while the
-   *  record is "sending" (TODO.md item 22) — so it updates here too, without closing and reopening
+   *  record is "sending" — so it updates here too, without closing and reopening
    *  this dialog, the moment a "send" this very form triggered actually fails. */
   lastActionError?: string | null
   /** Fires after an action that actually changed the document — e.g. so a caller can refresh a list
@@ -79,14 +79,14 @@ export function DocumentForm({
   const [currentDocumentId, setCurrentDocumentId] = useState(documentId)
   const [currentStatus, setCurrentStatus] = useState(status)
   const [currentDisplayNumber, setCurrentDisplayNumber] = useState(displayNumber ?? null)
-  // TODO_PRODUIT.md T5(a) — see extractLineTotalWarnings's own header. Seeded from whatever this
+  // See extractLineTotalWarnings's own header. Seeded from whatever this
   // instance already carried (a reopened, already-saved record); re-derived below both when
   // `initialData` itself changes AND the moment "receive" runs again (a save recomputes it — see
   // received-invoice-actions.ts's own header), so editing a line and saving reacts immediately,
   // without waiting on a page reload or a second fetch.
   const [lineTotalWarnings, setLineTotalWarnings] = useState(() => extractLineTotalWarnings(initialData))
 
-  // The B2G document-field bridge's OWN screen gap (root TODO's "the Leitweg field is proven only at
+  // The B2G document-field bridge's OWN screen gap ("the Leitweg field is proven only at
   // the service level, not interactive"): `descriptor` (this component's own prop) was fetched by the
   // PAGE with no client known yet, so a rule's `requiredDocumentFields` (e.g. Germany's Leitweg-ID,
   // `documents.service.ts#applyB2gDocumentFieldHints`) never reaches it. This watches whichever field
@@ -145,7 +145,7 @@ export function DocumentForm({
   // This effect ALSO keeps firing for as long as the dialog stays open on the SAME record (the `key`
   // on DocumentUpsertDialog never changes, so this never remounts): the caller ([typeId].tsx) now
   // re-derives `status`/`displayNumber` LIVE from the same query cache the list itself polls while a
-  // record is "sending" (TODO.md item 22), so once a "send" this form triggered actually settles —
+  // record is "sending", so once a "send" this form triggered actually settles —
   // "sending" -> "sent" or "send_failed" — `currentStatus` catches up here too, without closing and
   // reopening this dialog. `initialData`'s own object reference stays the frozen snapshot the whole
   // time (see [typeId].tsx's own comment on why), so `form.reset` never re-fires from this alone.
@@ -190,7 +190,7 @@ export function DocumentForm({
   // carry a `policyBlockedReason` (see types.ts), in which case it stays ON SCREEN — rendered
   // disabled with the reason spelled out — rather than disappearing. A vanished button looks like a
   // missing feature; a disabled one with a reason looks like a rule, which is what it is.
-  // "cancel" (TODO_CORRECTION.md C3) is EXCLUDED here too, same reasoning as document-list.tsx's own
+  // "cancel" is EXCLUDED here too, same reasoning as document-list.tsx's own
   // row-level filter: its one entry point is the correction-routes dialog (custom/invoice-correction-
   // routes-button.tsx, with its own irreversibility confirmation), never a second generic button in
   // this edit dialog's own action row.
@@ -216,8 +216,8 @@ export function DocumentForm({
         )}
 
         {lastActionError && (
-          // Same generic surfacing as document-list.tsx's own card — never a silent failure
-          // (TODO.md item 22). Kept live by the CALLER — see this prop's own comment above.
+          // Same generic surfacing as document-list.tsx's own card — never a silent failure.
+          // Kept live by the CALLER — see this prop's own comment above.
           <p className="text-sm text-destructive" data-cy="document-form-last-error">
             {t("documents.list.lastActionError", { message: lastActionError })}
           </p>
@@ -231,7 +231,7 @@ export function DocumentForm({
 
         <DocumentTotals descriptor={descriptor} />
 
-        {/* TODO_PRODUIT.md T5(a) — see extractLineTotalWarnings's own header: a NAMED, never-blocking
+        {/* See extractLineTotalWarnings's own header: a NAMED, never-blocking
             warning when this record's own lines don't sum to its stated totals (rounding tolerance
             aside). Rendered verbatim, untranslated, exactly like DocumentTotals's own `warnings`
             block just above (both are backend-composed sentences, not i18n keys). */}
@@ -252,7 +252,7 @@ export function DocumentForm({
           <DocumentSettlementSection typeId={descriptor.id} documentId={currentDocumentId} />
         )}
 
-        {/* Root TODO item 14 ("archivage légal ⚖") — shown for ANY document type/status once it has
+        {/* Legal archiving ("archivage légal ⚖") — shown for ANY document type/status once it has
             at least one archive (the component itself renders nothing otherwise, see its own header):
             never gated on "sent" here, since the component's own emptiness check already carries
             that fact (a draft has no archive yet, whatever its type). */}
@@ -260,7 +260,7 @@ export function DocumentForm({
           <DocumentArchiveSection typeId={descriptor.id} documentId={currentDocumentId} />
         )}
 
-        {/* Root TODO item 10's own named remainder ("le suivi de conformité") — same gate as the
+        {/* Conformity tracking ("le suivi de conformité") — same gate as the
             archive section right above (any type/status once it has at least one event; renders
             nothing otherwise, see that component's own header): a document sent by email, or by a
             channel with no poller (e.g. "sdi"), never shows a section here at all. */}
@@ -303,7 +303,7 @@ export function DocumentForm({
                           ? statusLabel(descriptor, currentStatus)
                           : t("documents.form.transitionFromNew"),
                       // `transitionTarget` is an ARRAY for a transition with more than one honest
-                      // outcome (the async "send" shape, TODO.md item 22: the worker's replay either
+                      // outcome (the async "send" shape: the worker's replay either
                       // succeeds or, after every retry, fails) — joined with a translated "or" rather
                       // than picking one arbitrarily, so the hint stays truthful about both.
                       to: (Array.isArray(transitionTarget) ? transitionTarget : [transitionTarget])

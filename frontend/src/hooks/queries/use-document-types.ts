@@ -21,7 +21,7 @@ import type {
 
 /**
  * Every registered document type — a front-end nav renders this without knowing any type by name.
- * Translated here (root TODO item 25's own reliquat — see lib/descriptor-i18n.ts's own header) so
+ * Translated here (see lib/descriptor-i18n.ts's own header) so
  * every consumer (reference-field.tsx's multi-target picker, recurring.settings.tsx's type badges)
  * reads an already-resolved `label`, never a raw one: this is the ONE place this response is fetched.
  */
@@ -66,8 +66,8 @@ export function useAvailableDocumentTypes() {
 }
 
 /**
- * The full descriptor a form is rendered from — translated in ONE place (root TODO item 25's own
- * reliquat, see lib/descriptor-i18n.ts's own header) so every consumer of this hook's `data`
+ * The full descriptor a form is rendered from — translated in ONE place (see
+ * lib/descriptor-i18n.ts's own header) so every consumer of this hook's `data`
  * (DocumentForm, DocumentList, ActionParamsDialog, every custom slot, the page header) reads already-
  * resolved `label`s on every field/action/status, with zero changes needed to any of them: they all
  * always just displayed whatever string `.label` held.
@@ -97,14 +97,14 @@ export function useDocumentType(typeId: string | undefined, clientId?: string) {
 
 /**
  * Polls while ANY currently-loaded instance is "sending" — the async "send" mechanism's own
- * in-flight status (TODO.md item 22, actions/async-send.ts on the backend): a document enqueued for
+ * in-flight status (actions/async-send.ts on the backend): a document enqueued for
  * delivery moves to "sent"/"send_failed" entirely from the WORKER's own write, never from a
  * follow-up click this tab makes, so nothing else would ever tell this list to refetch and notice.
  * Stops polling the moment nothing is "sending" anymore — never an unconditional background poll for
  * a list that has nothing in flight. Generic on purpose: reads the STATUS STRING this mechanism
  * itself introduces, never a document type.
  *
- * TODO_PRODUIT.md T1 / PLAN-V2 R8 — DECISION: SSE (`useDocumentEventsSse`, mounted once for the whole
+ * DECISION: SSE (`useDocumentEventsSse`, mounted once for the whole
  * authenticated app — `(app)/_layout.tsx`) is now the PRIMARY signal for this exact transition; this
  * `refetchInterval` is DELIBERATELY KEPT, not removed, but slowed way down to a SAFETY NET rather than
  * the main mechanism. Two independent reasons, both load-bearing:
@@ -153,7 +153,7 @@ export function useDocumentSettlement(typeId: string | undefined, id: string | u
 }
 
 /**
- * Root TODO item 14 ("archivage légal ⚖") — every legal archive written for this document instance,
+ * Every legal archive written for this document instance,
  * most recent first (see the backend's `DocumentArchive` schema comment: a re-send archives AGAIN,
  * never overwriting). Keyed under `["documents", ...]` like `useDocumentSettlement` above, so nothing
  * here needs its own invalidation wiring — a re-send's own `useRunDocumentAction` already sweeps every
@@ -168,12 +168,12 @@ export function useDocumentArchives(typeId: string | undefined, id: string | und
 }
 
 /**
- * TODO_CORRECTION.md C2 — which correction routes THIS document's own seller country declares (see
+ * Which correction routes THIS document's own seller country declares (see
  * the backend's `DocumentsService.getCorrectionRoutes`, correction-routes/correction-routes.ts's own
  * header for the four gates it composes). `retry: false`, unlike most queries here (the default
  * client-wide policy retries up to twice — lib/query-client.ts): a 404 (no file for this country, or
  * the document itself gone), a 409 (still "draft"), or a 501 (a typeId this endpoint doesn't cover)
- * are all STRUCTURAL refusals, never a transient failure retrying would fix — the screen (C2) reads
+ * are all STRUCTURAL refusals, never a transient failure retrying would fix — the screen reads
  * `error` (an `ApiError`, see use-api-query.ts) to show the backend's own named refusal VERBATIM the
  * instant it arrives, rather than spinning through two pointless retries first. `enabled` composes
  * the caller's own gate (only offered at all for an ISSUED invoice) with the usual id/typeId guard.
@@ -206,7 +206,7 @@ export function useVerifyDocumentArchive() {
 }
 
 /**
- * Root TODO item 10's own named remainder (post-deposit conformity tracking, `conformity/`) — every
+ * Post-deposit conformity tracking (`conformity/`) — every
  * event the ISSUING PLATFORM itself reported for this document, most recent first. Empty (not an
  * error) for a document sent by a channel with no poller ("email", "sdi") or a PDP/KSeF deposit the
  * background sweep hasn't polled yet. ONLY once something is actually IN FLIGHT (at least one event
@@ -216,7 +216,7 @@ export function useVerifyDocumentArchive() {
  * "poll only while something could still change" discipline `useDocumentInstances`'s own
  * `refetchInterval` already holds for the "sending" status.
  *
- * TODO_PRODUIT.md T1 / PLAN-V2 R8 — SAME decision as `useDocumentInstances`'s own
+ * SAME decision as `useDocumentInstances`'s own
  * `SENDING_POLL_INTERVAL_MS` (see that constant's own comment for the full "why kept, why slowed, why
  * this is what makes SSE provable at all" reasoning): `useDocumentEventsSse` is now the PRIMARY signal
  * for a newly-journaled authority event (a poller sweep result, a declarative-report verdict, an SdI
@@ -314,8 +314,8 @@ export async function fetchPrefillFields(
 /**
  * LIVE (React Query) variant of `fetchPrefillFields`, for a field that must track a SIBLING
  * 'reference' field's resolved raw values REACTIVELY as the user changes that reference — see the
- * backend's `DocumentFieldDescriptor.lockedFromReference` (descriptors/types.ts, TODO_PRODUIT.md
- * T4-d: a credit note's own `currency` following its `invoice`). Unlike `fetchPrefillFields` above
+ * backend's `DocumentFieldDescriptor.lockedFromReference` (descriptors/types.ts: a credit note's own
+ * `currency` following its `invoice`). Unlike `fetchPrefillFields` above
  * (fetched once, imperatively, on a button click), this one is meant to be called on every render
  * with whatever id the sibling field CURRENTLY holds, the same "keep this live" posture
  * `useReferenceResolve` already holds for a reference field's own label.

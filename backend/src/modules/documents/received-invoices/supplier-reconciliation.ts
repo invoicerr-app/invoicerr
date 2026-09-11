@@ -1,6 +1,6 @@
 /**
- * TODO_PRODUIT.md T5(b) — "rapprochement fournisseur des factures reçues". DÉCISION MANDANT (déjà
- * prise, consignée in the task's own board section): reuse `Client` with a role rather than a
+ * Supplier reconciliation for received invoices ("rapprochement fournisseur des factures reçues"):
+ * reuse `Client` with a role rather than a
  * dedicated entity. That role is `Client.isSupplier` — a plain, independent boolean, NEVER an
  * extension of `Client.kind` (BUSINESS/GOVERNMENT): `kind` is a B2G ROUTING fact about the OUTBOUND
  * direction (which channel/format an invoice TO this client must use); "is this company's own
@@ -19,7 +19,7 @@
  *
  *  - `reconcileSupplierClient` — READ-ONLY matching, run at UPLOAD time (`received-invoices.service.
  *    ts`'s own `upload()`) against whatever `extraction.ts` read off the deposited file. "au dépôt"
- *    (the task's own wording) means exactly this: the moment the file's own supplier VAT/name become
+ *    means exactly this: the moment the file's own supplier VAT/name become
  *    known, not later at "receive" — by the time "receive" runs, the match (or its absence) has
  *    already flowed through as ordinary pre-filled form data (`fields.supplierClient`), the SAME
  *    mechanism every other extracted field already uses (`custom/received-invoice-upload-button.tsx`'s
@@ -33,7 +33,7 @@
  *    rule is "once flagged, stays flagged" rather than a query over every other received invoice to
  *    decide whether unflagging would be safe.
  *
- * Never creates a Client. Root instruction, restated here because it is the one this module could
+ * Never creates a Client — the one rule this module could
  * most easily violate by accident: a deposit whose vendor matches NOTHING (no VAT hit, no exact name
  * hit) returns `unmatched` and leaves `data.supplierClient` unset — the screen offers to choose or
  * create one exactly the way `invoice.descriptor.ts`'s own `client` field already does (there is no
@@ -57,7 +57,7 @@ export interface SupplierMatchCriteria {
    *  client book must never defeat an otherwise-real match. */
   vatId?: string;
   /** Raw text off `extraction.ts`'s own `supplier` (the seller's name) — compared EXACTLY (trimmed,
-   *  case-SENSITIVE): the task's own wording is "si le nom correspond exactement", read literally on
+   *  case-SENSITIVE): "si le nom correspond exactement", read literally on
    *  purpose. Unlike a VAT number, a company name has no canonical normalized form this codebase can
    *  safely assume (case folding "Dupont" against "DUPONT" is far more likely to coincidentally
    *  collide two UNRELATED entities than a VAT checksum ever would) — exact-or-nothing is the honest,
@@ -85,7 +85,7 @@ function normalizeVat(value: string): string {
  * company's (every query below is scoped by `companyId`, the same multi-tenancy discipline as every
  * other read in this codebase), and never a soft-deleted client (`isActive: false` — resurrecting a
  * deleted client via an incoming invoice would be a stranger surprise than simply asking the user to
- * pick one). VAT is tried FIRST (the task's own "TVA en tête") and, on a clean miss (zero identifier
+ * pick one). VAT is tried FIRST ("TVA en tête") and, on a clean miss (zero identifier
  * rows share the normalized value), name is tried as the fallback — but an AMBIGUOUS vat match returns
  * immediately as `ambiguous`, never silently falling through to a name guess: the safest reading of
  * "un identifiant qui pointe vers deux clients" is to name the ambiguity, not to paper over it with a

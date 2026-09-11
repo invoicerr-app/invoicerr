@@ -1,5 +1,5 @@
 /**
- * TODO_PRODUIT.md T2bis — the shared dispatch for `DOCUMENT_AUTHORITY_EVENT`, the one `DOCUMENT_*`
+ * The shared dispatch for `DOCUMENT_AUTHORITY_EVENT`, the one `DOCUMENT_*`
  * webhook whose "faits propres" (`providerId`, `statusCode`) are genuinely the SAME shape at every
  * one of its three call sites (`conformity/conformity-sweep-runner.ts`, `reporting/reporting-runner.
  * ts`, `transports/sdi/sdi-notifiche.service.ts`) despite each journaling through a different

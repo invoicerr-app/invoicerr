@@ -17,7 +17,7 @@ export interface DocumentEventMessage {
 }
 
 /**
- * TODO_PRODUIT.md T1 / PLAN-V2 R8 — the frontend half of the worker→API SSE bridge. Mounted ONCE, for
+ * The frontend half of the worker→API SSE bridge. Mounted ONCE, for
  * the whole authenticated app ((app)/_layout.tsx's own AuthenticatedLayout — see that file), so a
  * status change reaches every open screen without a manual reload, regardless of which document
  * list/detail/conformity panel happens to be mounted at that moment. Consumes the backend's

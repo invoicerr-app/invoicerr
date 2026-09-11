@@ -6,7 +6,7 @@ import { assertValidMentionRule } from '../schema';
 import { ALL_MENTIONS_FILES } from './all';
 
 describe('mentions/data — the shipped FR catalog', () => {
-  it('loads exactly France today — this task’s own scope', () => {
+  it('loads exactly France today', () => {
     expect(ALL_MENTIONS_FILES.map((f) => f.countryCode)).toEqual(['FR']);
   });
 
@@ -31,7 +31,7 @@ describe('mentions/data — the shipped FR catalog', () => {
     }
   });
 
-  it('every FR mention carries a real legalRef — the discipline this task’s brief names by name', () => {
+  it('every FR mention carries a real legalRef', () => {
     const fr = ALL_MENTIONS_FILES.find((f) => f.countryCode === 'FR');
     for (const entry of fr?.invoiceNotes ?? []) {
       expect(entry.value.legalRef?.trim()).toBeTruthy();

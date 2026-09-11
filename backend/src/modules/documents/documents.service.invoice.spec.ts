@@ -35,7 +35,7 @@ jest.mock('./settlement/payments');
 // below so every pre-existing test in this file keeps meaning exactly what it always did; the
 // dedicated credits describe block overrides it to prove the balance actually changes.
 jest.mock('./settlement/credits');
-// Root TODO item 16 ("transfrontalier") — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
+// Cross-border tax ("transfrontalier") — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
 // resolve.ts) ALSO reaches Prisma directly (the seller/buyer country + buyer VAT lookup), same
 // reason, same discipline as every mock above. Defaulted to a permissive PASS-THROUGH in
 // `beforeEach` below (this file's own fixtures never set up a real client/company row, so the real
@@ -57,7 +57,7 @@ jest.mock('./country-policy/country-policy');
 // BUSINESS by construction (a bare id string, no real row), so this concern is unrelated to what this
 // file tests; see `actions/invoice-b2g-routing.spec.ts` for the dedicated B2G suite.
 jest.mock('./b2g-routing/b2g-routing');
-// TODO_PRODUIT.md T3 — "record-payment" now resolves a dated exchange rate (`loadRatesSafely`,
+// "record-payment" now resolves a dated exchange rate (`loadRatesSafely`,
 // currency-rates.store.ts) whenever the payment's own currency differs from the invoice's; that store
 // reaches Prisma directly too, same reason as every mock above. Defaulted to "no rates at all" in
 // `beforeEach` below (so the pre-existing "refuses a mismatched currency" test keeps meaning exactly
@@ -76,7 +76,7 @@ jest.mock('../company/currency-rates/currency-rates.store');
  * actions/send-divergence.spec.ts) — the transport is read from `Company.invoiceTransportId`
  * (transports/company-transport.ts), mocked here the same way persistence.ts already is.
  *
- * `webhooks` (TODO_PRODUIT.md T2bis, generic `DOCUMENT_*` vocabulary) is OPTIONAL, defaulted to
+ * `webhooks` (generic `DOCUMENT_*` vocabulary) is OPTIONAL, defaulted to
  * `undefined` — every pre-existing test in this file constructs `buildService()` with no opinion on
  * webhooks at all and must keep meaning exactly what it always did (no `DocumentWebhookEmitter` ever
  * wired, `DOCUMENT_SENT` never fires). Only the dedicated "webhook" describe block below passes one.
@@ -91,7 +91,7 @@ function buildService(
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
 
-  // "send" is asynchronous (TODO.md item 22, actions/async-send.ts) — a fake dispatcher, no BullMQ,
+  // "send" is asynchronous (actions/async-send.ts) — a fake dispatcher, no BullMQ,
   // no Nest, no Redis needed.
   const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
 
@@ -141,7 +141,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     (settlementCredits.toSettlementCreditInputs as jest.Mock).mockImplementation((credits) =>
       credits.map((c: { id: string; amountMinor: number }) => ({ id: c.id, amountMinor: c.amountMinor })),
     );
-    // TODO_PRODUIT.md T3 — `./settlement/payments` is mocked whole (see this file's own top-of-file
+    // `./settlement/payments` is mocked whole (see this file's own top-of-file
     // comment), so `toSettlementPaymentInputs` needs the SAME "mirror the real implementation" default
     // `toSettlementCreditInputs` just above already gets — every `listPayments` fixture below now
     // carries its own `documentAmountMinor` explicitly (see each one), same discipline as a real row.
@@ -194,7 +194,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     );
   });
 
-  // TODO_FEATURES.md item 7 ("référence client / n° de commande") — an ordinary OPTIONAL top-level
+  // "Référence client / n° de commande" — an ordinary OPTIONAL top-level
   // field (invoice.descriptor.ts): round-trips through the exact same generic `data` JSON blob every
   // other field already does, with no special-cased persistence path. The PDF's own conditional
   // rendering of it is covered separately in rendering/render-html.spec.ts's own `hideWhenEmpty` block.
@@ -369,7 +369,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
   });
 
-  // The behaviour the task explicitly asks to keep proven on THIS second type, not only on the
+  // The behaviour that must stay proven on THIS second type, not only on the
   // quote's "convert-to-invoice": a real, declared action on the real invoice descriptor, genuinely
   // never registered (invoice-actions.ts), is blocked with a clear 501 — never a silent no-op. This
   // used to be "record-payment"'s role; it moved to "export-accounting" the day "record-payment" got
@@ -586,7 +586,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       );
     });
 
-    // ── TODO_PRODUIT.md T3 — currency conversion at a dated rate ────────────────────────────────────
+    // ── currency conversion at a dated rate ────────────────────────────────────
     describe("a payment in a currency other than the invoice's own — converted at a DATED rate, never refused when one is configured", () => {
       it('converts at the exact resolved rate — PINNED to the exact minor-unit amount, never a loose toBeCloseTo', async () => {
         (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
@@ -703,7 +703,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       });
     });
 
-    // ── TODO_PRODUIT.md T3's own "T2bis différé" — DOCUMENT_SETTLED, exactly once ────────────────────
+    // ── DOCUMENT_SETTLED, exactly once ────────────────────
     describe('DOCUMENT_SETTLED — fires exactly once, at the write that makes the crossing happen', () => {
       it('a SINGLE partial payment leaves a remainder — zero DOCUMENT_SETTLED emissions', async () => {
         const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
@@ -814,7 +814,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         );
       });
 
-      // Caught a real gap during this task's own mutation pass: `crossedIntoSettled(before, after)`
+      // A real coverage gap: `crossedIntoSettled(before, after)`
       // mutated to `after.settled` alone (dropping the `!before.settled` half) still passed the
       // "two payments" test above by COINCIDENCE (partial-then-final happens to agree with "after
       // alone"). This is the test that actually needs the `before` half: an invoice ALREADY settled
@@ -1003,16 +1003,16 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   });
 
   /**
-   * TODO_PRODUIT.md T2bis — the `DOCUMENT_SENT` webhook (T2's own per-type `INVOICE_SENT` no longer
+   * The `DOCUMENT_SENT` webhook (the former per-type `INVOICE_SENT` no longer
    * exists). `async-send.spec.ts`'s own "webhooks" describe block already proves `runAsyncSendAction`
    * in isolation (fires once, from "sent", never before, never on failure, a dispatch failure never
    * propagates); THIS describe block proves the two things that only exist ABOVE that isolation
    * boundary: that `invoice-actions.ts` actually wires `deps.webhooks` through to
-   * `WebhookEvent.DOCUMENT_SENT`, and — the idempotence guarantee T2 (unchanged by T2bis) demands —
+   * `WebhookEvent.DOCUMENT_SENT`, and — the idempotence guarantee —
    * that `DocumentsService.runAction`'s own status gate is what makes a REDELIVERED job structurally
    * incapable of dispatching the webhook a second time.
    */
-  describe('"send" — TODO_PRODUIT.md T2bis (the DOCUMENT_SENT webhook)', () => {
+  describe('"send" — the DOCUMENT_SENT webhook', () => {
     it('phase 2: dispatches DOCUMENT_SENT, carrying the row under the FIXED "document" key, once the transport genuinely delivers', async () => {
       (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');
       const transportRegistry = new TransportRegistry();
@@ -1059,7 +1059,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       );
     });
 
-    // THE IDEMPOTENCE PROOF TODO_PRODUIT.md T2 demands: "exactement une émission par document même à
+    // THE IDEMPOTENCE PROOF: "exactement une émission par document même à
     // travers les retries BullMQ". The guarantee is STRUCTURAL, not a new lock/table — it lives
     // entirely in `DocumentsService.runAction`'s own status gate (`isActionAvailable`,
     // `documents.service.spec.ts` proves that gate in isolation): "send"'s `availableWhen` (derived
@@ -1068,7 +1068,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     // `(companyId, typeId, documentId, 'send')` job is the only way `runAction('send')` could ever be
     // invoked again once "sent" was genuinely persisted — nothing between that write and the job's
     // normal completion can throw (`events.publish`/`archiveDeliveredArtifactsIfAny`/
-    // `reportOnSendIfObligated`/this task's own webhook dispatch are ALL "never throws" by contract,
+    // `reportOnSendIfObligated`/the webhook dispatch are ALL "never throws" by contract,
     // see async-send.ts's own header), so BullMQ never naturally retries a "sent" job — a redelivery
     // is the only remaining path back to `runAction`. That redelivered call hits a `ConflictException`
     // (409) from `runAction`'s OWN gate BEFORE ever reaching `invoice-actions.ts`'s handler — the
@@ -1162,7 +1162,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   });
 
   /**
-   * Root TODO item 16, the SURGICAL FIX — the bug this task exists to close: `resolveInvoiceCrossBorderTax`
+   * The SURGICAL FIX — the bug: `resolveInvoiceCrossBorderTax`
    * ("tax/resolve-invoice-tax.ts") was only ever applied at `deliver()` (what the client received, what
    * the archive kept), never to the STORED `instance.data` a "sending"/"sent" record actually carries —
    * so `computeDocumentTotals`, the settlement balance, and the dashboard's own "pending" total all kept
@@ -1175,7 +1175,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
    * REAL, pure `resolveInvoiceCrossBorderTax` underneath, so this proves the actual FR→DE reverse-charge
    * arithmetic, not a hand-rolled fixture standing in for it.
    */
-  describe('"send" — root TODO item 16: phase 1 persists the RESOLVED cross-border data, never the raw draft', () => {
+  describe('"send" — phase 1 persists the RESOLVED cross-border data, never the raw draft', () => {
     // 1 line, 12 000 EUR net, SERVICES, FR seller → DE buyer with a valid intra-Community VAT number:
     // reverse charge (art. 196), category AE, 0% — resolved GROSS must be 12 000.00 EUR (1 200 000
     // minor units), never the 14 400.00 EUR (1 440 000 minor) the user's own drafted 20% would total.
@@ -1256,7 +1256,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       expect(persistedLine.vatRate).toBe('0'); // never the drafted "20"
       expect(persistedLine.__crossBorderCategory).toBe('AE');
 
-      // The number this task's own bug report names: the STORED document's own totals, computed the
+      // The STORED document's own totals, computed the
       // exact same way documents.service.ts's own `computeTotals` endpoint and the settlement screen
       // do, off the exact same descriptor.
       const totals = computeDocumentTotals(buildInvoiceDescriptor(), persistedData);
@@ -1373,7 +1373,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       expect(settlement.settled).toBe(true);
       expect(settlement.outstandingMinor).toBe(0);
 
-      // Against the WRONG (unresolved, 20%) total this task's bug report names, the SAME 12 000 EUR
+      // Against the WRONG (unresolved, 20%) total, the SAME 12 000 EUR
       // payment would have wrongly read as a partial payment — spelled out here so a future change
       // that reintroduces the defect fails LOUDLY on this exact contrast, not silently.
       const wrongTotals = computeDocumentTotals(buildInvoiceDescriptor(), frDeB2bInvoiceData);
@@ -1408,7 +1408,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
   });
 
   /**
-   * TODO_PRODUIT.md T4-c — the residual `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`
+   * The residual `invoice-actions.ts`'s own `registerInvoiceSaveDraftAction`
    * header documents in full: re-editing an ALREADY-ISSUED invoice (any status other than "draft")
    * back into a draft — the ONLY transition "save-draft" declares (`{ from: 'always', to: 'draft' }`)
    * — must re-resolve the buyer country and hard-block exactly like "send" already does, the same
@@ -1416,7 +1416,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
    * still-draft record must stay untouched (proven by the "NEVER resolves cross-border tax" test
    * just above, and by this describe's own first test).
    */
-  describe('"save-draft" — TODO_PRODUIT.md T4-c: re-editing an already-issued invoice re-resolves the buyer country', () => {
+  describe('"save-draft" — re-editing an already-issued invoice re-resolves the buyer country', () => {
     // Same FR seller / DE buyer / reverse-charge shape as the "send" describe's own
     // `frDeB2bInvoiceData` above (out of THIS describe's scope) — kept local rather than hoisted,
     // since this block's own fixtures also need a client-country CHANGE, which that shared const

@@ -1,5 +1,5 @@
 /**
- * The BOOT half of the fix for TODO_ISSUES.md's "`resetAndSeed` ne re-sème pas la politique pays"
+ * The BOOT half of the fix for "`resetAndSeed` ne re-sème pas la politique pays"
  * note, extended to `CountryIdentifierRequirement` — the sibling table shares the identical gap (see
  * country-policy/boot-reseed.ts's own header for the full history). `readCountryIdentifierRequirements`
  * + `detectCountryIdentifierRequirementsDrift` (drift.ts, pure and independently spec'd) do the

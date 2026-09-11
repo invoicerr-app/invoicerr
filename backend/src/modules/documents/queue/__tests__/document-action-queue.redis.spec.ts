@@ -1,5 +1,5 @@
 /**
- * The document-action queue's real end-to-end proof (TODO.md item 22) — real Redis, real Postgres,
+ * The document-action queue's real end-to-end proof — real Redis, real Postgres,
  * real Mailpit, a real BullMQ worker consuming what the API side enqueued. Self-gated on `REDIS_URL`
  * (same pattern the pre-refonte compliance queue's own `queue-smoke.redis.spec.ts` used —
  * `avant-refonte-documents`): skipped entirely in the offline `backend-tests` CI job, which never
@@ -10,7 +10,7 @@
  * `ClientsModule` -> `WebhooksModule` -> `drivers/discord.driver.ts`) makes booting that MODULE
  * (as opposed to merely referencing `ClientsService` in a type position, which every other spec in
  * this directory already does safely) fail to even compile under jest today. Fixing that dependency
- * is out of this task's scope, so this file builds the SAME registries `documents-core.module.ts`
+ * is out of scope here, so this file builds the SAME registries `documents-core.module.ts`
  * wires — real descriptors, real action registrations, a real `MailService` — with a plain STUB
  * `clientsService`, exactly the pattern documents.service.spec.ts/documents.service.invoice.spec.ts
  * already use throughout, PLUS the one piece those files never needed for real: a genuine BullMQ
@@ -306,7 +306,7 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
   });
 
   it('an invoice "send" that fails delivery lands on "send_failed" with the error recorded, and a re-send after the fix succeeds', async () => {
-    // A REAL client (root TODO item 16, "transfrontalier" — its own preflight resolves the buyer's
+    // A REAL client ("transfrontalier" — the cross-border preflight resolves the buyer's
     // country and would otherwise hard-block a merely-DANGLING id, which this test used to rely on
     // before that gate existed: an id resolving to `null` is indistinguishable from "no country on
     // file" from that gate's own point of view). Same country as the company (domestic — this test

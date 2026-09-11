@@ -9,7 +9,7 @@
  * fichier's own header pour pourquoi ce fallback reste correct à tester ici, sans jamais être exécuté
  * par le vrai flux d'envoi.
  *
- * Re-anchored by the 5-country prune (2026-09-10, see this task's own report): `tax-systems/data/
+ * Re-anchored by the 5-country prune (2026-09-10): `tax-systems/data/
  * us.json` was removed along with every country outside FR/PL/IT/PT/DE, so `defaultTaxSystemRegistry.
  * resolve('US')` no longer resolves. The "United States sales tax" describe block below tests
  * GENERIC, data-driven SALES_TAX dispatch in `tax-engine.ts#salesTax` (never a US-specific branch),

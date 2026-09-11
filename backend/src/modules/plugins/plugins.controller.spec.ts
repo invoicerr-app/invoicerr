@@ -1,11 +1,11 @@
 /**
- * TODO_SUITE.md P2 (2026-09-03) — the external, git-clone plugin mechanism (`POST /api/plugins`,
+ * The external, git-clone plugin mechanism (removed 2026-09-03 — `POST /api/plugins`,
  * `GET /api/plugins`, `GET /api/plugins/formats`, `DELETE /api/plugins`, and everything behind
  * them in `PluginsService`: `cloneRepo`/`loadPluginFromPath`/`loadExistingPlugins`/
  * `loadAllPlugins`/`getPlugins`/`deletePlugin`/`canGenerateXml`/`generateXml`/`getFormats`, and the
- * `IPlugin`/`InvoicePlugin`/`PdfFormatInfo` types that shaped it) was REMOVED (decision recorded in
- * TODO_ISSUES.md, "Le système de plugins, vu par son premier vrai consommateur", T5c). This is a
- * removal of behavior, not a weakened test: no spec exercised that mechanism before this task (grep
+ * `IPlugin`/`InvoicePlugin`/`PdfFormatInfo` types that shaped it) was REMOVED (decision recorded
+ * under "Le système de plugins, vu par son premier vrai consommateur"). This is a
+ * removal of behavior, not a weakened test: no spec exercised that mechanism before the removal (grep
  * found none), so there is nothing to "port" — this file's job is the OPPOSITE direction, proving
  * the OTHER, unrelated mechanism this same controller/service always also carried — in-app plugins
  * (`PluginRegistry`/`PluginType`, the `Plugin` Postgres table, the Settings > Plugins screen) —
@@ -57,7 +57,7 @@ const mockedPrisma = prisma as unknown as {
   };
 };
 
-describe('Plugins — the in-app mechanism survives the external mechanism removal (P2)', () => {
+describe('Plugins — the in-app mechanism survives the external mechanism removal', () => {
   let controller: PluginsController;
   let service: PluginsService;
 
@@ -68,8 +68,8 @@ describe('Plugins — the in-app mechanism survives the external mechanism remov
     controller = new PluginsController(service);
   });
 
-  describe('the four surviving routes are GENUINELY ROUTED — path metadata pinned (validation P2 tripwire)', () => {
-    /** Added by the P2 VALIDATION pass (2026-09-03): stripping `@Get('in-app')` off the controller
+  describe('the four surviving routes are GENUINELY ROUTED — path metadata pinned (validation tripwire)', () => {
+    /** Added by the removal's VALIDATION (2026-09-03): stripping `@Get('in-app')` off the controller
      *  left this whole suite green — the tests call the methods directly, so a method that silently
      *  stopped being a ROUTE was invisible. Nest stores the route path under the 'path' metadata
      *  key on the method: pinning it here makes "still a route, at the expected path" a tested
@@ -96,7 +96,7 @@ describe('Plugins — the in-app mechanism survives the external mechanism remov
         ['getInAppPlugins', 'toggleInAppPlugin', 'configureInAppPlugin', 'validatePlugin'].sort(),
       );
 
-      // The external surface named in TODO_ISSUES.md — none of it survives as a callable method.
+      // The removed external surface — none of it survives as a callable method.
       for (const ghost of ['getPlugins', 'getFormats', 'addPlugin', 'deletePlugin']) {
         expect((controller as any)[ghost]).toBeUndefined();
       }

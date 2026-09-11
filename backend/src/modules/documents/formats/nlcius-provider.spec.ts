@@ -1,6 +1,6 @@
 /**
- * THE MASTER PROOF for `nlcius-provider.ts` (root TODO, "NLCIUS vendorable" — mandant "Go",
- * 2026-09-05) — same discipline as `xrechnung-provider.spec.ts`/`providers.spec.ts`: a hand-computed
+ * THE MASTER PROOF for `nlcius-provider.ts` — same discipline as
+ * `xrechnung-provider.spec.ts`/`providers.spec.ts`: a hand-computed
  * fixture goes through the REAL build pipeline and the REAL vendored base EN 16931 Schematron PLUS
  * the REAL vendored NLCIUS delta (`vendored/nl/si-ubl-2.0-nlcius-preprocessed.sch`) — never mocked.
  * See `nlcius-provider.ts`'s own header for exactly which BR-NL-* rules this fixture was built to
@@ -78,7 +78,7 @@ describe('nlcius-provider — the master proof (fixture computed by hand)', () =
     const result = await nlciusFormatProvider.build(descriptor, DOCUMENT, SELLER_NL_COMPLETE, BUYER_NL_GOV);
 
     // A failing assertion here prints EVERY BR-NL-* rule the vendored delta actually fired — never
-    // swallowed, per this ticket's own "a gate, not a report" requirement.
+    // swallowed: a gate, not a report.
     expect(result.validation.errors).toEqual([]);
     expect(result.validation.valid).toBe(true);
 
@@ -185,7 +185,7 @@ describe('nlcius-provider — the master proof (fixture computed by hand)', () =
     // the Dutch-supplier-specific rules had anything to check for THIS seller.
     expect(xml).toContain('urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0');
 
-    // Mandataire tripwire (validation NLCIUS, 2026-09-05): the buyer's LEGAL_ID scheme is keyed on
+    // Tripwire: the buyer's LEGAL_ID scheme is keyed on
     // the BUYER's OWN country — build-semantic-invoice.ts's fix of the latent seller-gated defect.
     // Every other fixture in this file has seller and buyer BOTH Dutch, where the two gatings are
     // indistinguishable; THIS one (French seller, Dutch buyer) is the only place they diverge.

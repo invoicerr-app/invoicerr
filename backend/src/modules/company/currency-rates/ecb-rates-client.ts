@@ -1,6 +1,6 @@
 /**
  * The one HTTP call this feature makes — a free, no-key GET against the European Central Bank's
- * daily reference-rates feed (item 9, root TODO — "le multi-devises", automatic leg). Kept as a
+ * daily reference-rates feed ("le multi-devises", automatic leg). Kept as a
  * standalone client (no Nest DI, no Prisma) so `currency-rate-sweep-runner.ts` can mock it with a
  * single `jest.mock('./ecb-rates-client')`, the same "provider client is a plain async function"
  * shape `transports/*-client.ts` already holds throughout this codebase.

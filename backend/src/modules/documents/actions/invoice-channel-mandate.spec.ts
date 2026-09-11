@@ -1,5 +1,5 @@
 /**
- * Root TODO item 11, "canal imposé par pays" — the WIRING inside `invoice-actions.ts`'s "send":
+ * The country channel mandate ("canal imposé par pays") — the WIRING inside `invoice-actions.ts`'s "send":
  * `resolveCompanyCountryCode` and `activeChannelMandateFor` (`channel-policy/mandate.ts`) are both
  * mocked here, the same way `documents.service.invoice.spec.ts` already mocks
  * `country-policy/country-policy` wholesale — this file's job is "does invoice-actions.ts react
@@ -36,7 +36,7 @@ jest.mock('../b2g-routing/b2g-routing');
 // `documents.service.invoice.spec.ts` already mock it: this file has no Nest, no DB, and does not
 // care about numbering at all, only about the mandate decision.
 jest.mock('../numbering/take-number');
-// Root TODO item 16 ("transfrontalier") — see `send-divergence.spec.ts`'s own comment on this exact
+// Cross-border VAT ("transfrontalier") — see `send-divergence.spec.ts`'s own comment on this exact
 // mock: a permissive pass-through, this file's own concern is the channel mandate, never cross-border
 // VAT.
 jest.mock('../tax/load-and-resolve');
@@ -89,7 +89,7 @@ function buildRegistry(transportRegistry = new TransportRegistry()) {
 
 describe('invoice "send" — a country channel mandate overrides the company\'s free choice', () => {
   afterEach(() => jest.resetAllMocks());
-  // Root TODO item 16 — see `send-divergence.spec.ts`'s own comment on this exact mock and why it is
+  // Cross-border VAT — see `send-divergence.spec.ts`'s own comment on this exact mock and why it is
   // re-installed here, in `beforeEach`, rather than relying on the module factory alone.
   beforeEach(() => {
     (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as jest.Mock).mockImplementation(
@@ -207,7 +207,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
     expect(result.document).toMatchObject({ status: 'sending' });
   });
 
-  it('a country with NO active mandate leaves the company entirely free to choose — unaffected by this task', async () => {
+  it('a country with NO active mandate leaves the company entirely free to choose — unaffected by the mandate machinery', async () => {
     (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('DE');
     (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(undefined);
     (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('email');

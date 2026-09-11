@@ -1,7 +1,7 @@
 /**
  * The two-phase "send" every type declaring one shares (quote/invoice/credit-note — never "expense",
- * which has no "send" at all) — TODO.md item 22, and TODO_ISSUES.md's own entry on the limit this
- * replaces: the document used to be persisted "sent" (and numbered) BEFORE the email actually left,
+ * which has no "send" at all). The limit this replaces: the document used to be persisted "sent"
+ * (and numbered) BEFORE the email actually left,
  * so a PDF/SMTP failure left a "sent" document nobody ever received. Fixed by an intermediate
  * status, declared in data on each type's own lifecycle (see e.g. quote.descriptor.ts's own
  * `SEND_TRANSITIONS`):
@@ -21,7 +21,7 @@
  *    too late here: the job is enqueued (and can be picked up by a real worker) BEFORE control ever
  *    returns to `runAction`'s own post-handler hook. Without taking the number here first, a fast
  *    worker can render+send the email BEFORE the number exists, producing a document (and a subject
- *    line) with a blank number — a real race this task's own integration test
+ *    line) with a blank number — a real race the integration test
  *    (queue/__tests__/document-action-queue.redis.spec.ts) caught in practice, not a theoretical one.
  *    Only once numbered does this enqueue a document-action job for this SAME action and return.
  *    Nothing is delivered yet.
@@ -36,7 +36,7 @@
  * `deliver` is the only thing that genuinely varies by type: the quote's unconditional email
  * (quote-actions.ts), the invoice's company-configured transport (invoice-actions.ts), or
  * (credit-note-actions.ts) nothing at all — a plain status transition with no transport, no email,
- * exactly as before this task, just reached one hop later.
+ * exactly as before the async model, just reached one hop later.
  */
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
@@ -90,8 +90,8 @@ export interface RunAsyncSendInput {
    * the same "blocked, and says so, before touching anything" behavior this action had before it
    * became asynchronous. Absent for a type with no such precondition (the quote, the credit note).
    *
-   * Root TODO item 16 ("transfrontalier") — MAY now return the field values to persist INSTEAD OF
-   * `data` (returning `undefined`, the ONLY shape a preflight had before this task, still means
+   * Cross-border ("transfrontalier") — MAY now return the field values to persist INSTEAD OF
+   * `data` (returning `undefined`, the original preflight shape, still means
    * "nothing to rewrite, persist `data` exactly as submitted" — the quote's and the credit note's own
    * preflights, and every existing caller, are entirely unaffected). The invoice's own preflight
    * (invoice-actions.ts) uses this to hand back the RESOLVED cross-border treatment: the principle,
@@ -107,7 +107,7 @@ export interface RunAsyncSendInput {
    */
   preflight?: () => Promise<Record<string, unknown> | undefined>;
   /**
-   * TODO_PRODUIT.md T1 / PLAN-V2 R8 — publishes a `{documentId, typeId, kind}` nudge (never the
+   * Publishes a `{documentId, typeId, kind}` nudge (never the
    * resulting state, see `queue/document-events.ts`'s own header) for the SSE stream
    * (`documents.controller.ts`'s `events` route) to relay to a browser, at each of the two points
    * below where a status transition is genuinely ACQUIRED in Postgres — never before, and never for a
@@ -120,7 +120,7 @@ export interface RunAsyncSendInput {
    */
   events?: DocumentEventPublisher;
   /**
-   * TODO_PRODUIT.md T2bis — replaces T2 / PLAN-V2 R9's own bundled `{ emitter, event }` field: the
+   * Replaces the earlier bundled `{ emitter, event }` field: the
    * event is no longer PER-TYPE (`invoice-actions.ts` used to pass `WebhookEvent.INVOICE_SENT`,
    * `quote-actions.ts` `WebhookEvent.QUOTE_SENT`, `credit-note-actions.ts` nothing at all, because the
    * schema had no `CREDIT_NOTE_SENT`) — it is now the ONE constant `WebhookEvent.DOCUMENT_SENT` every
@@ -198,15 +198,15 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       providerId,
     );
 
-    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the fact is ACQUIRED right above (Postgres already holds
+    // The fact is ACQUIRED right above (Postgres already holds
     // "sent"); publishing right after, before archive/reporting, is what lets a browser's own SSE
     // connection move a screen straight from "sending" to "sent" without a manual reload. Never
     // reached if `deliver()` or `updateDocumentStatus` above threw — see `RunAsyncSendInput.events`'s
     // own header for why a failed write must never publish.
     await events?.publish(companyId, { documentId, typeId, kind: 'sent' });
 
-    // TODO_PRODUIT.md T2bis — the fix for what R1 (085919bf) left undone, now GENERIC rather than
-    // per-type (T2's own `INVOICE_SENT`/`QUOTE_SENT`): fires `DOCUMENT_SENT`, the one event every
+    // The fix for what 085919bf left undone, now GENERIC rather than
+    // per-type (the earlier `INVOICE_SENT`/`QUOTE_SENT`): fires `DOCUMENT_SENT`, the one event every
     // document type shares, right after the SAME acquired fact `events` just announced, and for the
     // identical reason — never earlier, never for a call that threw before reaching here. Absent for
     // a deployment with no `webhooks` wired at all (every EXISTING spec of this function) — "no
@@ -219,7 +219,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // `clients.service.ts` — wraps it in its own try/catch for the exact same reason), and this is the
     // one call site where "the send genuinely succeeded" must never be undone by a THIRD PARTY's
     // webhook endpoint being down. A named, loud log — never silent — is what "jamais silencieux"
-    // (this task's own instruction, echoing `report-on-send.ts`'s header) means here.
+    // (echoing `report-on-send.ts`'s header) means here.
     if (webhooks) {
       try {
         await webhooks.dispatch(
@@ -242,7 +242,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       }
     }
 
-    // Root TODO item 14 ("archivage légal") — archived ONLY once delivery has genuinely succeeded
+    // Legal archiving ("archivage légal") — archived ONLY once delivery has genuinely succeeded
     // (this line runs after `sent` is already persisted, never before): archiving a delivery that
     // could still fail would be a lie about what was actually conserved. `archiveDeliveredArtifactsIfAny`
     // NEVER throws (see its own header) — a storage/DB problem here must never undo a delivery that
@@ -250,7 +250,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // recorded on the document itself (`lastArchiveError`) and logged loudly, never silently.
     await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts });
 
-    // A NEW concept (root TODO — "déclaration"), never a transport: Hungary/NAV and Greece/myDATA
+    // A separate concept ("déclaration"), never a transport: Hungary/NAV and Greece/myDATA
     // require the SELLER to declare the invoice's data to its tax authority AFTER issuance,
     // regardless of the channel that just delivered it — see `reporting/report-on-send.ts`'s own
     // header. Runs generically, for every type/transport, exactly like the archive call just above;
@@ -261,7 +261,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   }
 
   if (preflight) {
-    // Root TODO item 16 — a resolved replacement REPLACES `data` for everything below: the
+    // A resolved replacement REPLACES `data` for everything below: the
     // "sending" write just after this, AND the job payload enqueued further down. `deliver()` later
     // re-resolves that SAME (already-resolved) value again — see this function's own `preflight`
     // header on why that has to be, and is, idempotent.
@@ -271,7 +271,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
 
   let sending = await upsertDocument(companyId, typeId, documentId, 'sending', data);
 
-  // TODO_PRODUIT.md T1 / PLAN-V2 R8 — the fact is ACQUIRED right above (Postgres already holds
+  // The fact is ACQUIRED right above (Postgres already holds
   // "sending"); publishing here, BEFORE numbering/enqueueing, means a browser's own SSE connection
   // sees the record leave "draft"/"send_failed" the moment it genuinely does, not once the (possibly
   // slower) job has even been queued. Never reached if `upsertDocument` above threw or if a preflight
@@ -287,7 +287,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, sending.id);
     if (numbered) {
       sending = { ...sending, ...numbered };
-      // STOCK EFFECT (TODO_FEATURES.md rank 18) — this is the numbering site that actually fires for
+      // STOCK EFFECT — this is the numbering site that actually fires for
       // the async send path (the number is taken HERE, before the job is enqueued, to win the race
       // this file's own header describes). Anchored to the SAME `if (numbered)` atomic winner as the
       // other numbering sites (documents.service.ts#runAction, send-document-email.ts), so the

@@ -1,5 +1,5 @@
 /**
- * The PUBLIC half of root TODO item 13 REDONE (see schema.prisma's own `Signature` model header) —
+ * The PUBLIC half of the signature flow (see schema.prisma's own `Signature` model header) —
  * three `@Public()` routes (`@thallesp/nestjs-better-auth`'s own decorator, NOT
  * `@/decorators/public.decorator.ts` — see `public-documents.controller.ts`'s own header for why that
  * one is dead code) an anonymous client hits from the `/signature/:token` page: resolve the token,
@@ -12,7 +12,7 @@
  * guarantee is `SignaturesService`'s own lifetime `otpFailedAttempts` counter
  * (`signatures/otp.ts#MAX_FAILED_ATTEMPTS`), which caps an attacker at 5 guesses against a 10^8 code
  * space NO MATTER how many IPs they spread requests across — a per-IP rate limit alone could never
- * make that claim. `sign` (10/min/IP) and `otp` (3/min/IP) get the mandant's own tighter figures;
+ * make that claim. `sign` (10/min/IP) and `otp` (3/min/IP) get tighter figures;
  * `resolve` relies on the global default (`app.module.ts`'s own `ThrottlerModule.forRoot`) since it
  * carries no secret-guessing surface at all (a wrong token here is indistinguishable from a right one
  * a moment too late to matter — see `SignaturesService.resolvePublicSignature`'s own header).

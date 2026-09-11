@@ -7,7 +7,7 @@
  * reused verbatim, not reimplemented: a declaration IS an authority event (NAV's transactionId,
  * myDATA's MARK), so it belongs in the exact same append-only journal a conformity poll result does,
  * visible in the SAME timeline (`GET /documents/:id/authority-events`), under a DIFFERENT
- * `providerId` ("nav"/"mydata" rather than "pdp"/"ksef"/…) — see this task's own architecture note:
+ * `providerId` ("nav"/"mydata" rather than "pdp"/"ksef"/…) — the architecture note being:
  * declaring is not delivering, but it IS conformity-shaped.
  *
  * Consumed by `queue/processors/document-action.processor.ts`, exactly one more `job.name` branch on
@@ -60,17 +60,17 @@ export class ReportingRunner {
   constructor(
     private readonly providerRegistry: DeclarationProviderRegistry,
     private readonly typeRegistry: DocumentTypeRegistry,
-    // TODO_PRODUIT.md T1 / PLAN-V2 R8 — `@Optional()` for the same reason
+    // `@Optional()` for the same reason
     // `ConformitySweepRunner`'s own `eventsPublisher` is: a SIDE CHANNEL, never load-bearing for a
     // declaration's own correctness, so every EXISTING spec constructing this runner with two args
     // keeps passing unchanged. Production wiring is a MANUAL `useFactory` (`documents-core.module.ts`)
     // rather than a plain class provider (unlike `ConformitySweepRunner`) — this constructor's own
     // `@Optional()` decorators only take effect when NEST itself instantiates the class via
     // reflection, never through a hand-written `new ReportingRunner(...)` call, so the factory MUST
-    // pass every argument explicitly; TODO_PRODUIT.md T2bis found this had silently never happened
-    // for this exact field (fixed there, alongside adding `webhookDispatcher` below).
+    // pass every argument explicitly; this had silently never happened for this exact field (fixed
+    // alongside adding `webhookDispatcher` below).
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
-    // TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`'s own emitter, the identical "side channel,
+    // `DOCUMENT_AUTHORITY_EVENT`'s own emitter, the identical "side channel,
     // `@Optional()`" posture `eventsPublisher` holds — see that field's own comment just above for why
     // the manual factory in `documents-core.module.ts` has to pass this explicitly too. Typed as the
     // narrow `DocumentWebhookEmitter` interface, never the concrete `WebhookDispatcherService` class —
@@ -159,7 +159,7 @@ export class ReportingRunner {
           REPORT_BLOCKED_STATUS_CODE,
           message,
         );
-        // TODO_PRODUIT.md T1 / PLAN-V2 R8 — only on a genuinely new row (journaled > 0): a
+        // Only on a genuinely new row (journaled > 0): a
         // 'report:blocked' verdict is exactly as conformity-panel-worthy as a real declaration.
         if (journaled > 0) {
           await this.eventsPublisher?.publish(data.companyId, {
@@ -227,7 +227,7 @@ export class ReportingRunner {
         REPORT_FAILED_STATUS_CODE,
         error.message,
       );
-      // TODO_PRODUIT.md T1 / PLAN-V2 R8 — same "only on a genuinely new row" rule as `runReport`'s own
+      // Same "only on a genuinely new row" rule as `runReport`'s own
       // two publish points above: 'report:failed' is a terminal conformity-panel-worthy verdict too.
       if (journaled > 0) {
         await this.eventsPublisher?.publish(data.companyId, {

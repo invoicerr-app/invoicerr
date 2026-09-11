@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 import { assertValidRetentionRule, CountryRetentionFile } from '../schema';
 
-// Only France today — the country this task's own repère (`avant-refonte-documents`) sourced two
+// Only France today — the country the `avant-refonte-documents` repère sourced two
 // SIMULTANEOUS, cited durations for (see `data/fr.json`'s own header). Adding a second country's
 // retention rule is exactly one entry here plus its own data/xx.json, the same shape
 // `mentions/data/all.ts`'s own `COUNTRY_FILES` already has. A country with NO entry here is not an

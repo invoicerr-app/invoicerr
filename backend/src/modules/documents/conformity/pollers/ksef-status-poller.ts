@@ -8,8 +8,8 @@
  * ## HONESTY NOTE — what is, and is NOT, verified here
  *
  * `KSEF_AUTH_TOKEN` is absent from every environment available in this checkout (see
- * `transports/ksef/ksef-live.spec.ts`'s own header — `send()` itself has never been re-proven live
- * THIS session either, only historically, before this task). Two consequences, both real:
+ * `transports/ksef/ksef-live.spec.ts`'s own header — `send()` itself was only ever proven live
+ * historically, not re-proven alongside this poller). Two consequences, both real:
  *
  *  1. The status-code mapping below (`isTerminal`, `mapKsefEvent`) is NOT independently live-verified
  *     for THIS endpoint. It reuses the ONE convention this exact codebase already trusts for the
@@ -18,7 +18,7 @@
  *     status endpoint (`AuthStatusResponse`). `InvoiceStatusResponse.status` is typed with the exact
  *     same shape (`ksef-client.ts`), so applying the same reading here is a principled reuse of an
  *     already-relied-upon convention, not a fabrication — but it is still an EXTRAPOLATION across two
- *     different endpoints, not a value this session watched KSeF actually return.
+ *     different endpoints, not a value KSeF was actually observed to return.
  *  2. Whether `invoiceStatus` still answers ONCE THE SESSION IS CLOSED is UNKNOWN: `ksef-transport.ts`
  *     closes the online session immediately after sending (`closeSession`, right after
  *     `sendInvoice`), and this codebase has never observed, live, whether a closed session's own
@@ -26,8 +26,8 @@
  *     KSeF answers 4xx/404 for a closed session, THAT response is itself journaled as `poll:blocked`
  *     (an ordinary thrown error, caught by `conformity-sweep-runner.ts`'s own `runPoll` — never a
  *     crash), which is at least an honest, visible signal rather than a silent gap, but it is NOT the
- *     same thing as a proven, working poll. Recorded here, in `TODO_ISSUES.md`, and in this task's
- *     own report — not glossed over.
+ *     same thing as a proven, working poll. Recorded here — not glossed
+ *     over.
  *
  * `ksef-status-poller.live.spec.ts` is gated `KSEF_LIVE=1` (`KSEF_AUTH_TOKEN` required) and SKIPS
  * cleanly today, saying so on stderr — it does not invent a sandbox or a fabricated token to force a

@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 6 ("relevé de compte client") — `ClientsService.getStatement`'s own
+ * Client account statement ("relevé de compte client") — `ClientsService.getStatement`'s own
  * tenant-isolation guard. Prisma MOCKED here (unlike `clients.vat-validation.spec.ts`/
  * `clients.supplier-role.spec.ts`, which use a real database): this file tests exactly ONE thing —
  * that a client id belonging to a DIFFERENT company is refused BEFORE `resolveClientStatement` ever

@@ -1,45 +1,37 @@
 /**
- * TODO_PRODUIT.md T5(c) — the reference OCR provider AS SEEN FROM THE MAIN BACKEND: a thin HTTP
- * client of a SEPARATE, dedicated container (`ocr-server.ts`, `ROLE=ocr`) — never Mistral directly.
+ * The reference OCR provider AS SEEN FROM THE MAIN BACKEND: a thin HTTP client of a SEPARATE,
+ * dedicated container (`ocr-server.ts`, `ROLE=ocr`) — never Mistral directly.
  *
- * MANDANT DECISIONS, in the order they actually arrived this task:
- *  (1) OCR is a cloud service reached THROUGH THE PLUGIN SYSTEM — the core (`received-invoices/`)
- *      has zero cloud dependency, exposes an extension point, the provider IS a plugin.
- *  (2) Mistral Document AI (OCR) is the reference provider.
- *  (3) MID-TASK AMENDMENT (verbatim): "Faudrait que le docker puisse embarquer une api pour l'OCR,
- *      comme ça si j'héberge l'appli pour le saas, personne a besoin de le configurer y'a que la
- *      selfhost qui tourne en full local." — OCR must be a `docker-compose` SERVICE (a THIRD image
- *      role, `ROLE=ocr` — see `ocr-server.ts`'s own header), operator-managed, holding
- *      `MISTRAL_API_KEY` ITSELF. This backend (API or worker — see `docker-compose.yml`'s own
- *      `OCR_SERVICE_URL` comment for which role actually reaches this code) knows exactly ONE fact:
- *      `OCR_SERVICE_URL`. Absent = no OCR service deployed for this instance = the honest,
- *      full-local self-host default. Present = every company on this instance gets OCR, with ZERO
- *      per-company configuration screen — the mandant's own "personne a besoin de le configurer".
- *      The Mistral API key NEVER reaches this backend or its database, at any point.
+ * ## Design: an operator-managed OCR SERVICE, not an in-app credential
  *
- * This class is still "the plugin" decision (1) asked for: the ONE thing that implements
- * `ReceivedDocumentExtractor` (`received-invoices/ocr/extractor.ts`) and registers into that core's
- * own extension-point registry (`plugins/index.ts`) — the core itself never imports this file, or
- * knows Mistral/the OCR service/`OCR_SERVICE_URL` exist. "The provider is a plugin" holds exactly as
- * originally decided; WHERE that provider gets its credential moved, twice, as the mandant's own
- * requirements sharpened — see the git history of this same file/task for the two abandoned designs
- * (an in-app `PluginRegistry` toggle, then a per-company encrypted key) and why each was dropped.
+ * OCR is reached THROUGH THE PLUGIN SYSTEM — the core (`received-invoices/`) has zero cloud
+ * dependency, exposes an extension point, and the provider IS a plugin. The provider itself is a
+ * THIN HTTP CLIENT of a `docker-compose` SERVICE (a THIRD image role, `ROLE=ocr` — see
+ * `ocr-server.ts`'s own header), operator-managed, holding `MISTRAL_API_KEY` ITSELF. This backend
+ * (API or worker — see `docker-compose.yml`'s own `OCR_SERVICE_URL` comment for which role actually
+ * reaches this code) knows exactly ONE fact: `OCR_SERVICE_URL`. Absent = no OCR service deployed for
+ * this instance = the honest, full-local self-host default. Present = every company on this instance
+ * gets OCR, with ZERO per-company configuration screen. The Mistral API key NEVER reaches this
+ * backend or its database, at any point.
  *
- * ## What this task tried first, and abandoned — kept here so the reasoning travels with the code
+ * This class is "the plugin": the ONE thing that implements `ReceivedDocumentExtractor`
+ * (`received-invoices/ocr/extractor.ts`) and registers into that core's own extension-point registry
+ * (`plugins/index.ts`) — the core itself never imports this file, or knows Mistral/the OCR service/
+ * `OCR_SERVICE_URL` exist.
  *
- * Attempt 1: an IN-APP PLUGIN (`PluginType.OCR`, `PluginRegistry`, the Settings > Plugins screen, a
- * global on/off toggle + config form). Real, working machinery — but `Plugin`/`PluginRegistry`
- * enforces "one active provider per type" GLOBALLY (`PluginsService.toggleInAppPlugin`), an
- * INSTANCE-WIDE shape that cannot express "each company brings its own key" even before the mandant
- * ruled that idea out entirely (see attempt 2). Attempt 2: a per-company encrypted API key
- * (`CompanyChannelConfig`-shaped). Superseded within the SAME task, before either was ever wired to
- * a screen, by the mandant's OWN final instruction: no per-company screen at all, a single
- * operator-managed SERVICE instead (this file's current design). The `PluginType.OCR` Postgres enum
- * value from attempt 1 is LEFT IN PLACE, unused — Postgres cannot cheaply drop a value from a live
- * enum without rebuilding the whole type (see `20260903000000_generic_document_webhook_events`'s own
- * migration, which had to do exactly that for `WebhookEvent`) and no `Plugin` row of that type was
- * ever created, so leaving it costs nothing beyond one inert enum member — see schema.prisma's own
- * comment on `PluginType`.
+ * ## Abandoned designs — kept here so the reasoning travels with the code
+ *
+ * Two earlier credential shapes were dropped before either was wired to a screen: (1) an IN-APP
+ * PLUGIN (`PluginType.OCR`, `PluginRegistry`, the Settings > Plugins screen, a global on/off toggle +
+ * config form) — real, working machinery, but `Plugin`/`PluginRegistry` enforces "one active provider
+ * per type" GLOBALLY (`PluginsService.toggleInAppPlugin`), an INSTANCE-WIDE shape that cannot express
+ * "each company brings its own key"; and (2) a per-company encrypted API key
+ * (`CompanyChannelConfig`-shaped), superseded by the single operator-managed SERVICE above. The
+ * `PluginType.OCR` Postgres enum value from attempt 1 is LEFT IN PLACE, unused — Postgres cannot
+ * cheaply drop a value from a live enum without rebuilding the whole type (see
+ * `20260903000000_generic_document_webhook_events`'s own migration, which had to do exactly that for
+ * `WebhookEvent`) and no `Plugin` row of that type was ever created, so leaving it costs nothing
+ * beyond one inert enum member — see schema.prisma's own comment on `PluginType`.
  */
 import {
   ExtractedInvoiceProposal,

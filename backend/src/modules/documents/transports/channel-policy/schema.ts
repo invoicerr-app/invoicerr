@@ -1,12 +1,12 @@
 /**
- * The country CHANNEL-POLICY file format — root TODO items 10 and 11. Item 10 shipped the first half:
- * a settings-screen prompt that tells a company "this transport is the usual one for your country"
- * (product memory: FR → PDP) — a non-binding, advisory HINT, never a block. Item 11 ("canal imposé par
- * pays") adds the second half: a fact can now say a channel is not merely usual but LEGALLY REQUIRED,
+ * The country CHANNEL-POLICY file format. A policy file carries two kinds of fact. The first is a
+ * settings-screen prompt that tells a company "this transport is the usual one for your country"
+ * (FR → PDP) — a non-binding, advisory HINT, never a block. The second ("canal imposé par
+ * pays") says a channel is not merely usual but LEGALLY REQUIRED,
  * with its own sourced provenance, and that fact DOES have a binding effect once the invoice it
  * applies to is issued on or after its start date.
  *
- * Renamed from "channel-suggestion" (item 10) to "channel-policy" (item 11): calling this directory
+ * Renamed from "channel-suggestion" to "channel-policy": calling this directory
  * "suggestion" stopped being an honest name the moment one of its own facts could mean "mandatory" —
  * the same reasoning that keeps `country-policy/`'s own file format named for the wider concept
  * ("policy") rather than for whichever single case it originally shipped with. The concept this format

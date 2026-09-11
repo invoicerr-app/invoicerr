@@ -18,7 +18,7 @@ type Tone = "neutral" | "info" | "success" | "warning" | "destructive"
 
 // Order matters: the first pattern to match wins, so a more specific word (e.g. "overdue") should
 // stay ahead of a broader one it could also satisfy. "sending" (the async "send" mechanism's own
-// in-flight status, TODO.md item 22) is matched by "warning" ALONGSIDE "pending" — both mean "not
+// in-flight status) is matched by "warning" ALONGSIDE "pending" — both mean "not
 // yet settled, something is actively in progress" — deliberately BEFORE "destructive"'s own "fail"
 // pattern would otherwise be reached, even though "send_failed" (a genuinely different status) is
 // correctly caught by that "fail" pattern regardless of this one's own position.
@@ -46,7 +46,7 @@ const TONE_CLASSES: Record<Tone, string> = {
 }
 
 // Generic — never keyed to any one status name: a snake_case id (e.g. "send_failed", the async
-// "send" mechanism's own failure status, TODO.md item 22) reads as space-separated words, the same
+// "send" mechanism's own failure status) reads as space-separated words, the same
 // way a plain one-word status already did before this case existed.
 function capitalize(value: string): string {
   const spaced = value.replace(/_/g, " ")
@@ -59,8 +59,8 @@ interface DocumentStatusBadgeProps {
    * The status's own DECLARED, already-translated label — e.g.
    * `descriptor.statuses?.find((s) => s.id === status)?.label`, where `descriptor` came back through
    * `useDocumentType` (hooks/queries/use-document-types.ts), which already ran it through the
-   * `documents.descriptors.<typeId>.statuses.<statusId>` derivation (root TODO item 25's own
-   * reliquat — see lib/descriptor-i18n.ts). Absent — a status this descriptor never declared at all,
+   * `documents.descriptors.<typeId>.statuses.<statusId>` derivation (see lib/descriptor-i18n.ts).
+   * Absent — a status this descriptor never declared at all,
    * e.g. a data mismatch, or a THIRD-PARTY type whose status vocabulary this app has never heard of —
    * falls back to the capitalized raw id below, exactly this component's ENTIRE behavior before this
    * prop existed: a plugin's own status string still displays, unmolested, in any language it wrote

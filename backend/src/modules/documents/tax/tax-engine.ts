@@ -1,5 +1,5 @@
 /**
- * The Tax Determination Engine — root TODO item 16 ("transfrontalier"). REPRISE quasi verbatim de
+ * The Tax Determination Engine (cross-border tax). REPRISE quasi verbatim de
  * `compliance/engine/tax-engine.ts` (git tag `avant-refonte-documents`, `COMPLIANCE_ARCHITECTURE.md`
  * §9 in that lineage) — a pure, deterministic cascade over (supplier tax system, buyer, same
  * country?, same union?, role, supply type, VAT validity) producing a per-line `TaxTreatment`. This
@@ -8,8 +8,8 @@
  *
  * ONLY the import paths changed (this module's own `./types`/`./classification` rather than the
  * removed `../canonical/canonical-document`/`../profiles/schema`) — every mention TEXT, every branch,
- * every comment below is the repère's own, unedited. `resolve-invoice-tax.ts` is the NEW file in this
- * task: the wiring that calls this pure engine from the actual "send" flow, decides roles from a
+ * every comment below is the repère's own, unedited. `resolve-invoice-tax.ts` is the wiring that
+ * calls this pure engine from the actual "send" flow, decides roles from a
  * REAL stored VAT-validation verdict, and adds the stricter no-silent-fallback guards (unresolved
  * buyer country, OSS with no destination rate table) the product's own history required — see that
  * file's own header. This file stays exactly what it was at the repère: a pure function of its

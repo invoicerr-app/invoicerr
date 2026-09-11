@@ -73,7 +73,7 @@ function buildService() {
 
   const referenceRegistry = new EntityReferenceRegistry();
 
-  // "send" is asynchronous (TODO.md item 22, actions/async-send.ts) — a fake dispatcher, no BullMQ,
+  // "send" is asynchronous (actions/async-send.ts) — a fake dispatcher, no BullMQ,
   // no Nest, no Redis: the tests below only ever need to know WHAT was enqueued, never that it was
   // genuinely consumed (that proof is queue/__tests__/document-action-queue.redis.spec.ts).
   const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
@@ -177,10 +177,10 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     );
   });
 
-  // TODO_FEATURES.md item 7 ("référence client / n° de commande") — `clientReference` is an ordinary
+  // "Référence client / n° de commande" — `clientReference` is an ordinary
   // OPTIONAL top-level field on the descriptor (quote.descriptor.ts), so it needs no special-cased
   // persistence path: it round-trips through the exact same generic `data` JSON blob every other
-  // field already does. This is the "bites" proof the task asked for at the storage layer — the PDF's
+  // field already does. This is the "bites" proof at the storage layer — the PDF's
   // own rendering of it is covered separately in rendering/render-html.spec.ts.
   it('persists an optional clientReference verbatim', async () => {
     const dataWithReference = { ...validQuoteData, clientReference: 'PO-2026-00042' };
@@ -242,7 +242,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     expect(persistence.findOwnedDocument).not.toHaveBeenCalled();
   });
 
-  // The 409 the task explicitly asks to keep proven: a scripted client cannot get further than the
+  // The 409 that must stay proven: a scripted client cannot get further than the
   // UI would by posting directly for a status the action does not allow. "sent" is a real status a
   // quote can be in, and "convert-to-invoice" genuinely requires "draft" or "sent" — this uses a
   // status OUTSIDE that list, so the request must be refused before the handler is ever reached.

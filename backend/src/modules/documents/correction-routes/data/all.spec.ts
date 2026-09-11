@@ -12,7 +12,7 @@ const FAKE_ZZ_FILE_NO_PROVENANCE = {
     {
       routeId: 'CREDIT_NOTE',
       status: 'required',
-      // No legal citation — exactly the case TODO_CORRECTION.md C1 requires to fail load.
+      // No legal citation — exactly the case the load-time gate requires to fail load.
       provenance: { kind: 'unverified', resolutionNote: 'Invented for this test, never researched.' },
     },
   ],
@@ -36,7 +36,7 @@ describe('correction-routes/data/all.ts', () => {
     expect(ALL_CORRECTION_ROUTES_FILES.length).toBeGreaterThan(0);
   });
 
-  // Re-pinned by the 5-country prune (2026-09-10, see this task's own report): this mechanism ships
+  // Re-pinned by the 5-country prune (2026-09-10): this mechanism ships
   // correction-routes rules for DE/FR/IT/PL/PT only — every other country the YAML or a later
   // direct-reading lot ever covered (AT/BE/BG/CY/CZ/DK/EE/ES/FI/GR/HR/HU/IE/LT/LU/LV/MT/MX/NL/RO/
   // SE/SI/SK/US) was `git rm`'d along with its data/xx.json.
@@ -78,7 +78,7 @@ describe('correction-routes/data/all.ts', () => {
     return file.routes.find((r) => r.routeId === routeId)!.status;
   }
 
-  // THE CANONICAL INVERSION — docs/compliance/CORRECTION-ROUTES.yaml's own "the_decisive_finding":
+  // THE CANONICAL INVERSION — documentation/internal/CORRECTION-ROUTES.yaml's own "the_decisive_finding":
   // the internal credit note is IMPOSED in France/Italy and FORBIDDEN in Poland/Spain/Mexico. This is
   // the single fact the whole per-country mechanism (rather than one shared enum) exists to carry.
   it('FR requires INTERNAL_CREDIT_NOTE (the avoir interne is IMPOSED, transmission forbidden)', () => {
@@ -137,8 +137,8 @@ describe('correction-routes/data/all.ts', () => {
     expect(statusOf('DE', 'LEDGER_ANNOTATION')).toBe('unverified');
   });
 
-  // THE LOAD-TIME GATE, proven against an INVENTED eighth country — TODO_CORRECTION.md C1's own
-  // acceptance criterion: "un 8e pays inventé sans provenance refuse de charger".
+  // THE LOAD-TIME GATE, proven against an INVENTED eighth country — the acceptance criterion:
+  // "un 8e pays inventé sans provenance refuse de charger".
   it('an eighth, invented country with a "required" route but no legal provenance REFUSES to load', () => {
     expect(() => loadCountryFile('zz')).toThrow(InvalidCorrectionRouteProvenanceError);
     expect(() => loadCountryFile('zz')).toThrow(/legal citation/);
@@ -146,7 +146,7 @@ describe('correction-routes/data/all.ts', () => {
 });
 
 // BE's correction-routes/data/be.json (agent pays Belgique) was removed by the 5-country prune
-// (2026-09-10, see this task's own report) along with every other country outside FR/PL/IT/PT/DE —
+// (2026-09-10) along with every other country outside FR/PL/IT/PT/DE —
 // it was never registered in data/all.ts to begin with, so nothing here re-anchors it.
 
 // Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`

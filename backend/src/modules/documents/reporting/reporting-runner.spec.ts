@@ -149,7 +149,7 @@ describe('ReportingRunner.runReport', () => {
     expect(mockedJournalSynthetic).not.toHaveBeenCalled();
   });
 
-  // Credentials absent → `report:blocked`, journaled, NEVER a crash — this task's own named rule.
+  // Credentials absent → `report:blocked`, journaled, NEVER a crash.
   it('missing credentials (ChannelNotConnectedError): journals report:blocked, never calls createAuthorityEvents', async () => {
     const declare = jest.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
     const runner = buildRunner({ providerId: 'nav', declare });
@@ -247,11 +247,11 @@ describe('ReportingRunner.recordTerminalFailure', () => {
   });
 });
 
-// TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge. `events` is OPTIONAL (see
+// The worker→API SSE bridge. `events` is OPTIONAL (see
 // `ReportingRunner`'s own constructor header) — every test ABOVE this block builds the runner without
 // one and must keep passing unchanged; these are the DEDICATED tests for the publish behavior:
 // publish only on a GENUINELY NEW journal row, never on a dedup no-op.
-describe('ReportingRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', () => {
+describe('ReportingRunner — events', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
@@ -342,12 +342,12 @@ describe('ReportingRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', () => {
   });
 });
 
-// TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
+// `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
 // (`queue/document-authority-webhook.ts`) at the SAME three "genuinely new row" gates `events` above
 // already proves. `webhooks` is the runner's 4th constructor arg (see `ReportingRunner`'s own header
-// on the manual-factory pitfall this task found and fixed) — every test ABOVE this block omits it and
+// on the manual-factory pitfall) — every test ABOVE this block omits it and
 // must keep passing unchanged.
-describe('ReportingRunner — webhooks (TODO_PRODUIT.md T2bis)', () => {
+describe('ReportingRunner — webhooks', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
@@ -399,7 +399,7 @@ describe('ReportingRunner — webhooks (TODO_PRODUIT.md T2bis)', () => {
     );
   });
 
-  // THE MUTATION TARGET this task's own brief names: a dead webhook endpoint must never look like the
+  // THE MUTATION TARGET: a dead webhook endpoint must never look like the
   // declaration itself failed.
   it('a dispatch failure NEVER propagates — runReport still resolves normally', async () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);

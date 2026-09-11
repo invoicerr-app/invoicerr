@@ -30,11 +30,11 @@ export type DocumentCustomComponent = ComponentType<DocumentCustomSlotProps>
  *
  * Slots currently consulted by the generic renderer:
  *  - "list-row-extra": rendered in the document list's per-row action area, after every action the
- *    descriptor itself declares (see document-list.tsx). Registered for "invoice" — TWICE, as of
- *    TODO_CORRECTION.md C2 (custom/invoice-preview-button.tsx AND
+ *    descriptor itself declares (see document-list.tsx). Registered for "invoice" — TWICE
+ *    (custom/invoice-preview-button.tsx AND
  *    custom/invoice-correction-routes-button.tsx, two unrelated concerns that both happen to want a
  *    per-row icon button, neither aware the other exists) — and for "received-invoice"
- *    (custom/received-invoice-download-button.tsx, root TODO item 18).
+ *    (custom/received-invoice-download-button.tsx).
  *  - "list-header-extra": rendered in the document list's HEADER, next to the generic "New <type>"
  *    button (document-list.tsx) — additive, never a replacement for it. The one real user is
  *    custom/received-invoice-upload-button.tsx: uploading a file is a genuinely different entry
@@ -44,8 +44,8 @@ export type DocumentCustomComponent = ComponentType<DocumentCustomSlotProps>
  * A future slot (e.g. inside the create/edit modal) is added the same way: pick a new slot name,
  * consult it from wherever it renders, and it stays unused everywhere nothing is registered for it.
  *
- * ONE (typeId, slot) key maps to a LIST of components, not a single one — see TODO_CORRECTION.md C2's
- * own discovery: a second `registerDocumentCustomComponent("invoice", "list-row-extra", ...)` call
+ * ONE (typeId, slot) key maps to a LIST of components, not a single one: a second
+ * `registerDocumentCustomComponent("invoice", "list-row-extra", ...)` call
  * used to silently OVERWRITE the first (a plain `Map.set`), which would have made the correction-
  * routes button quietly delete the preview button the moment custom-registrations.ts imported both.
  * Appending instead of replacing is what makes this genuinely "additive" for more than one extension

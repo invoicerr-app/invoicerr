@@ -1,6 +1,6 @@
 /**
  * REAL round-trip against the AT (Autoridade Tributária e Aduaneira) "comunicação de faturas" test
- * webservice — root TODO, PT/"déclaration" wave (rank 10, TODO_FEATURES.md).
+ * webservice — PT "déclaration".
  *
  * Gated `PT_AT_LIVE=1` + `PT_AT_USERNAME`/`PT_AT_PASSWORD`/`PT_AT_PUBLIC_KEY_PEM`/
  * `PT_AT_CLIENT_CERTIFICATE_BASE64`/`PT_AT_CLIENT_CERTIFICATE_PASSWORD` (`../../transports/live-gate.ts`,
@@ -10,9 +10,9 @@
  *     PT_AT_CLIENT_CERTIFICATE_BASE64=... PT_AT_CLIENT_CERTIFICATE_PASSWORD=... \
  *     npx jest pt-declaration-provider.live --no-coverage
  *
- * HONEST STATUS AT THE END OF THIS TASK: **skipped, always** — this checkout holds no real AT
+ * HONEST STATUS: **skipped, always** — this checkout holds no real AT
  * "subutilizador" credential, no real AT Sistema de Autenticação public key, and no AT-signed mTLS
- * client certificate. Obtaining all three requires (per the two official manuals this task actually
+ * client certificate. Obtaining all three requires (per the two official manuals actually
  * read — see `pt-at-client.ts`'s own header):
  *   1) a subutilizador created in the Portal das Finanças, under a REAL Portuguese NIF, with the
  *      "WFA – Webservice de Comunicação de dados de faturas" profile (Aspetos Genéricos §2.2/§2.1.4);
@@ -21,7 +21,7 @@
  *      (§2.1.1) — no self-service developer sandbox exists, the same "no headless path found" gap
  *      `nav.live.spec.ts`'s own header already documents for NAV's own registration;
  *   3) that same AT-signed certificate integrated into a PKCS#12 (§2.3.1-2.3.3).
- * This task found no indication that a non-Portuguese entity, or one without a genuine NIF-holding
+ * No indication was found that a non-Portuguese entity, or one without a genuine NIF-holding
  * taxpayer relationship with AT, could obtain even a TEST-environment credential set without going
  * through this exact chain. No attempt was made to register (there is no Portuguese NIF to register
  * with here, and — per this file's own header — this client's mTLS wiring itself is not even
@@ -59,7 +59,7 @@ describeLive('AT comunicação de faturas — live round-trip (test environment)
     const baseUrl = resolvePtAtBaseUrl('TEST');
     const client = buildPtAtClient(credentials, baseUrl);
 
-    // A minimal, deliberately fixture-shaped request — this task holds no real subutilizador to test
+    // A minimal, deliberately fixture-shaped request — no real subutilizador is held here to test
     // a genuinely accepted invoice against; a HARD SUCCESS spec (the model `sdicoop.live.spec.ts`/
     // `pdp.live.spec.ts` set) would assert a real, accepted CodigoResposta 0 — never written here,
     // since this block is not expected to ever actually run (see this file's own header), and — per

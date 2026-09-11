@@ -85,7 +85,7 @@ describe('sendDocumentInstanceEmail', () => {
       attachments: [{ filename: 'quote-doc-1.pdf', content: FAKE_PDF, contentType: 'application/pdf' }],
     });
     expect(result.message).toMatch(/client@example\.com/);
-    // Root TODO item 14 ("archivage légal") — the artifact handed back for archiving is the EXACT
+    // Legal archiving ("archivage légal") — the artifact handed back for archiving is the EXACT
     // same bytes just attached, never a freshly re-rendered copy.
     expect(result.artifacts).toEqual([
       { role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(FAKE_PDF) },
@@ -127,7 +127,7 @@ describe('sendDocumentInstanceEmail', () => {
     );
   });
 
-  // Since TODO.md item 22, quote.descriptor.ts's own `numbering.onEnterStatus` is "sending", not
+  // Since the async-send queue, quote.descriptor.ts's own `numbering.onEnterStatus` is "sending", not
   // "sent" — `runAsyncSendAction` (actions/async-send.ts) only ever calls THIS function once the
   // record is already "sending", so in the normal flow it is already numbered by then (see this
   // file's own header, "Numbering — a defensive fallback"). This test still proves the fallback
@@ -172,7 +172,7 @@ describe('sendDocumentInstanceEmail', () => {
     );
   });
 
-  // The choice this task made explicit: a PDF render failure must FAIL THE SEND, never degrade to a
+  // The explicit choice: a PDF render failure must FAIL THE SEND, never degrade to a
   // bare email — see send-document-email.ts's own header ("PDF failure — fails LOUDLY"). Mocks the
   // render ENTRY POINT (`renderDocumentInstance`) failing exactly the way real Puppeteer
   // unavailability would (rendering/render-pdf.ts's own error message), never this function's own
@@ -209,7 +209,7 @@ describe('sendDocumentInstanceEmail', () => {
     expect(mailService.sendMail).not.toHaveBeenCalled();
   });
 
-  // TODO_FEATURES.md rank 18 — this is the PRIMARY issuance path for a sent document: it is numbered
+  // Stock effect — this is the PRIMARY issuance path for a sent document: it is numbered
   // HERE (the worker), not in documents.service.ts's runAction epilogue, so the stock decrement must
   // fire HERE, tied to actually TAKING the number.
   it('decrements stock when it TAKES the number at issuance (the real async-send path)', async () => {

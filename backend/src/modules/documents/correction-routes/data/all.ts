@@ -4,8 +4,8 @@
  * with `fs.readFileSync` rather than `import`ing it as a TS module: editing a rule is then a plain
  * data change, never a TypeScript one.
  *
- * Ships exactly the seven pivot countries `docs/compliance/CORRECTION-ROUTES.yaml` itself covers
- * (meta.covered: FR/IT/PL/DE/ES/MX/US) — TODO_CORRECTION.md C1's own explicit scope — plus every later
+ * Ships exactly the seven pivot countries `documentation/internal/CORRECTION-ROUTES.yaml` itself covers
+ * (meta.covered: FR/IT/PL/DE/ES/MX/US) — plus every later
  * addition, each a plain `data/xx.json` drop. A country with no entry here has NO correction-routes
  * rule at all: `correction-routes.ts`'s own read side surfaces that as an HONEST, NAMED refusal ("no
  * correction-routes rule declared for XX"), never a silent "assume CREDIT_NOTE like everyone else"

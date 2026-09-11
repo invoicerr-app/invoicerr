@@ -1,5 +1,5 @@
 /**
- * TODO_SUITE.md P1 — les 5 fichiers country-policy sourcés (DE, IT, PL, ES, MX,
+ * Les 5 fichiers country-policy sourcés (DE, IT, PL, ES, MX,
  * `backend/src/modules/documents/country-policy/data/`). Avant ce fichier, une société dont le pays
  * n'avait pas de fichier country-policy/ voyait TOUTE action document refusée (403, "no document
  * action policy is declared for..." — country-policy.ts's own DECISION 1) : la Pologne, un marché
@@ -19,7 +19,7 @@
  *     header : l'action EST permise par ce pays en principe, seulement pas depuis ce statut, exactement
  *     ce qu'un 409 signifie déjà pour `availableWhen`), et fait disparaître le bouton "Save draft" de
  *     l'écran d'édition d'une facture déjà émise — jamais un bouton visible qui échouerait en silence.
- *     Aucune des cinq nouvelles règles de ce root TODO n'est `allowed: false` (la recherche n'a trouvé
+ *     Aucune des cinq nouvelles règles n'est `allowed: false` (la recherche n'a trouvé
  *     aucune interdiction nette pour les paires (type, action) couvertes — un `allowed: false` inventé
  *     serait exactement la règle fiscale inventée que ce dépôt interdit) : ce test prouve donc la
  *     restriction RÉELLEMENT sourcée (le statut), pas un `policyBlockedReason` qui n'a pas lieu d'être
@@ -93,7 +93,7 @@ function createInvoiceDraft(clientId: string) {
 		});
 }
 
-describe("Country policy — la Pologne (root TODO P1) peut désormais émettre, et sa propre restriction sourcée bloque là où KSeF le dit", () => {
+describe("Country policy — la Pologne peut désormais émettre, et sa propre restriction sourcée bloque là où KSeF le dit", () => {
 	let invoiceId: string;
 
 	before(() => {

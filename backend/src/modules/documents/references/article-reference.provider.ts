@@ -21,7 +21,7 @@ import { EntityReferenceOption, EntityReferenceProvider } from './reference-regi
  * a line's 'select' `vatRate` field actually stores, so this provider stays honest about what an
  * Article record IS, not what any one document field kind needs it to look like.
  *
- * Also returns `id` — TODO_FEATURES.md rank 18 ("gestion de stock basique"): `resolve`/`search` above
+ * Also returns `id` — "gestion de stock basique": `resolve`/`search` above
  * already hand a picker the article's id, but `getFields` is the ONLY thing `prefillFrom`'s `map`
  * (invoice/quote.descriptor.ts's line shape) can copy from, and the line needs its OWN copy of that
  * same id (`articleId`, a 'hiddenReference' field) so `documents/stock/apply-stock-on-issuance.ts` can

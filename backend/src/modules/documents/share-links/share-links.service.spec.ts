@@ -149,7 +149,7 @@ describe('ShareLinksService', () => {
 
       const rows = jest.requireMock('@/prisma/prisma.service').__rows;
       expect(rows).toHaveLength(1);
-      // THE assertion this ticket's own mutation #1 has to break: the stored value is a DIGEST, not
+      // THE assertion the mutation test has to break: the stored value is a DIGEST, not
       // the token itself, and it is computed the same way `resolvePublicToken` looks it up.
       expect(rows[0].tokenHash).not.toBe(result.token);
       expect(rows[0].tokenHash).toBe(hashShareLinkToken(result.token));

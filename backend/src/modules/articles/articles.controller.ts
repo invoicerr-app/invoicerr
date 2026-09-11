@@ -20,7 +20,7 @@ export class ArticlesController {
     return this.articlesService.findAll(companyId);
   }
 
-  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — declared BEFORE `GET :id` so Nest's route
+  // Basic stock management ("gestion de stock basique") — declared BEFORE `GET :id` so Nest's route
   // matching never treats the literal segment "low-stock" as an `:id` value (Nest matches routes in
   // declaration order within a controller).
   @Get('low-stock')

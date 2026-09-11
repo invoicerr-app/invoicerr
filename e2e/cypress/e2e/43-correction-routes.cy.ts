@@ -1,22 +1,23 @@
 /**
- * TODO_CORRECTION.md C1 — `GET /api/documents/:id/correction-routes?typeId=invoice`
+ * `GET /api/documents/:id/correction-routes?typeId=invoice`
  * (`backend/src/modules/documents/correction-routes/`). NIVEAU API d'abord, comme le reste de la
  * discipline « assertions par l'API » du dépôt (cy.request pour l'action ET pour la vérification) —
- * l'écran (le bouton « Corriger », le dialogue des voies) arrive en C2, PAS ici.
+ * l'écran (le bouton « Corriger », le dialogue des voies) arrive dans le describe « Corriger » plus
+ * bas, PAS ici.
  *
  * Le mandant par défaut (`cy.resetAndSeed()`) est déjà une société FRANÇAISE (SIRET/VAT sur le
  * dossier) — exactement le pays canonique dont l'avoir interne est `required` dans
- * `docs/compliance/CORRECTION-ROUTES.yaml`. Les describe C1/C2 ci-dessous ne basculent donc JAMAIS
+ * `documentation/internal/CORRECTION-ROUTES.yaml`. Les deux premiers describe ci-dessous ne basculent donc JAMAIS
  * le pays de la société : le contenu épinglé pays par pays (l'inversion FR/PL, l'échantillon par
  * pays) est déjà prouvé en jest (`correction-routes/data/all.spec.ts`,
  * `correction-routes/cancel-policy.spec.ts`) contre le VRAI fichier — pas la peine de le refaire ici
  * au prix d'un aller-retour navigateur par pays. Ces specs prouvent le CÂBLAGE bout en bout : les
  * quatre gates composés par `documents.service.ts#getCorrectionRoutes`, contre le vrai serveur.
  *
- * Le describe « Annulation (TODO_CORRECTION.md C3) », tout en bas, EST l'exception : il bascule le
- * pays vendeur vers PL une fois — voir son propre en-tête pour pourquoi (à l'écriture de C3, aucun
+ * Le describe « Annulation », tout en bas, EST l'exception : il bascule le
+ * pays vendeur vers PL une fois — voir son propre en-tête pour pourquoi (à son écriture, aucun
  * fichier country-policy/ n'existait pour PL, ce qui rendait impossible d'émettre une facture SOUS PL
- * directement ; root TODO P1 a depuis ajouté `country-policy/data/pl.json`, PROUVÉ par
+ * directement ; `country-policy/data/pl.json` a depuis été ajouté, PROUVÉ par
  * `44-country-policy.cy.ts`'s own "LE DÉBLOCAGE" — la bascule après coup reste ici par choix, pas par
  * nécessité : elle isole le gate CANCEL, sans rapport avec country-policy/, sans avoir à dupliquer une
  * émission PL complète que 44 couvre déjà). Dernier describe du dernier
@@ -48,7 +49,7 @@ function createClient(name: string) {
 }
 
 /** `issueDate`/`dueDate` are overridable — the "émise" test below needs a date BEFORE 2026-09-01
- *  (root TODO item 11's own FR seller-country PDP mandate, sourced 2026-08-27: "FR requires
+ *  (the FR seller-country PDP mandate, sourced 2026-08-27: "FR requires
  *  invoices issued on or after 2026-09-01 to go through the \"pdp\" channel") so a plain "email"
  *  transport (Mailpit, no PDP credentials configured anywhere in this suite) can actually reach
  *  the SYNCHRONOUS "sending" phase this spec needs — see `sendInvoice`'s own header. This mandate
@@ -144,7 +145,7 @@ function sendInvoice(
 		});
 }
 
-describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/correction-routes", () => {
+describe("Correction routes — GET /api/documents/:id/correction-routes", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -215,7 +216,7 @@ describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/c
 							"annulation comptable",
 						);
 
-						// TODO_CORRECTION.md C3 — CANCEL_AND_REPLACE est la SECONDE voie réellement
+						// CANCEL_AND_REPLACE est la SECONDE voie réellement
 						// branchée, mais SEULEMENT pour les pays qui la fondent localement (FR en fait
 						// partie — voir correction-routes/cancel-policy.ts côté backend) : le mapping
 						// "implemented" ne suit toujours pas le statut légal SEUL (PL/MX déclarent
@@ -227,7 +228,7 @@ describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/c
 							.exist;
 						expect(
 							cancelAndReplace!.implemented,
-							"FR fonde une annulation locale (TODO_CORRECTION.md C3)",
+							"FR fonde une annulation locale",
 						).to.eq(true);
 
 						// Chaque AUTRE voie reste honnêtement non implémentée, quel que soit son statut
@@ -245,7 +246,7 @@ describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/c
 							}
 						}
 
-						// La limite P3-U02 (composition vendeur×acheteur non écrite) est toujours
+						// La limite (composition vendeur×acheteur non écrite) est toujours
 						// consignée, jamais tue.
 						expect(res.body.limitation).to.match(/seller/i);
 						expect(res.body.limitation).to.match(/buyer/i);
@@ -290,15 +291,15 @@ describe("Correction routes (TODO_CORRECTION.md C1) — GET /api/documents/:id/c
 });
 
 /**
- * TODO_CORRECTION.md C2 — l'ÉCRAN : le bouton « Corriger » (document-list.tsx's own per-row custom
+ * L'ÉCRAN : le bouton « Corriger » (document-list.tsx's own per-row custom
  * slot, custom/invoice-correction-routes-button.tsx), le dialogue des voies, et le mécanisme RÉEL
  * pour la seule voie branchée (INTERNAL_CREDIT_NOTE) — la création d'avoir PRÉ-LIÉE. Même discipline
- * que 25-document-settlement.cy.ts's own T4-d test : la fixture (client, facture émise) est préparée
- * par API — rien de nouveau à prouver par un clic pour ÇA — mais tout ce que cette tâche ajoute
- * (ouvrir le dialogue, lire la voie imposée, cliquer, atterrir sur l'écran d'avoir déjà pré-rempli,
- * sauvegarder) passe par un VRAI clic, et la preuve qui compte est relue par l'API.
+ * que 25-document-settlement.cy.ts's own `lockedFromReference` test : la fixture (client, facture émise)
+ * est préparée par API — rien de nouveau à prouver par un clic pour ÇA — mais tout ce que l'écran
+ * ajoute (ouvrir le dialogue, lire la voie imposée, cliquer, atterrir sur l'écran d'avoir déjà
+ * pré-rempli, sauvegarder) passe par un VRAI clic, et la preuve qui compte est relue par l'API.
  */
-describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () => {
+describe("Corriger — l'écran, niveau navigateur", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -342,7 +343,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
 					// LE VRAI mécanisme, PRÉ-LIÉ — jamais un stub : navigation vers l'écran d'avoir,
 					// le dialogue de création s'ouvre déjà, la référence facture est déjà résolue
 					// (le label backend combine client + date d'émission — jamais un champ vide) et
-					// T4-d verrouille déjà la devise, sans aucune recherche manuelle.
+					// `lockedFromReference` verrouille déjà la devise, sans aucune recherche manuelle.
 					cy.location("pathname", { timeout: 10000 }).should(
 						"eq",
 						"/documents/credit-note",
@@ -360,7 +361,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
 						.and("contain.text", "EUR");
 
 					// Ce que le descripteur exige encore : la date d'émission de l'avoir et la ligne
-					// corrigée (issue de la facture liée — même patron que 25's own T4-d test).
+					// corrigée (issue de la facture liée — même patron que 25's own `lockedFromReference` test).
 					cy.get('[data-cy="document-field-issueDate-input"]').click();
 					const today = new Date().toLocaleDateString();
 					cy.get(`[data-day="${today}"]`).click();
@@ -382,7 +383,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
 					cy.wait("@saveCreditNoteDraft").then((interception) => {
 						expect(
 							interception.response?.statusCode,
-							"l'avoir se crée sans le blocage T4-d",
+							"l'avoir se crée sans le blocage de devise",
 						).to.be.oneOf([200, 201]);
 						const creditNoteId = interception.response?.body?.document
 							?.id as string;
@@ -403,7 +404,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
 								).to.eq(invoiceId);
 								expect(
 									doc.data?.currency,
-									"la devise verrouillée (T4-d) est bien celle de la facture",
+									"la devise verrouillée est bien celle de la facture",
 								).to.eq("EUR");
 							});
 					});
@@ -452,7 +453,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
 });
 
 /**
- * TODO_CORRECTION.md C3 — l'annulation LOCALE : l'entrée vit DANS le dialogue C2 (la ligne
+ * L'annulation LOCALE : l'entrée vit DANS le dialogue « Corriger » (la ligne
  * CANCEL_AND_REPLACE), jamais un second bouton générique à côté du bouton « Corriger ». Un pays QUI
  * FONDE (FR — voir correction-routes/cancel-policy.ts côté backend) : choisir la voie ouvre une
  * confirmation d'irréversibilité, confirmer annule RÉELLEMENT la facture — vérifié par API (statut
@@ -461,7 +462,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — l'écran, niveau navigateur", () 
  * reste honnêtement non implémentée à l'écran (le panneau 501), et l'API refuse un POST direct par
  * 403 nommé.
  */
-describe("Annulation (TODO_CORRECTION.md C3) — un pays qui fonde, un pays qui ne fonde pas", () => {
+describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -556,8 +557,8 @@ describe("Annulation (TODO_CORRECTION.md C3) — un pays qui fonde, un pays qui 
 			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
 				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
 					// Bascule le pays VENDEUR après l'émission — cette même facture, relue sous le
-					// prisme d'un pays qui ne fonde PAS d'annulation locale. Root TODO P1 a depuis
-					// donné à PL un vrai fichier country-policy/ (data/pl.json, save-draft/send y sont
+					// prisme d'un pays qui ne fonde PAS d'annulation locale. PL a depuis reçu
+					// un vrai fichier country-policy/ (data/pl.json, save-draft/send y sont
 					// `allowed: true` — émettre une facture SOUS PL directement est donc possible
 					// aujourd'hui, voir 44-country-policy.cy.ts's own "LE DÉBLOCAGE") ; cette spec
 					// garde néanmoins la bascule après coup PAR CHOIX, pas par nécessité — le gate testé

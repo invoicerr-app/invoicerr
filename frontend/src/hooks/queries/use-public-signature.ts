@@ -1,7 +1,7 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 /**
- * The frontend half of root TODO item 13 REDONE — three PUBLIC, unauthenticated endpoints
+ * The frontend half of the signature flow — three PUBLIC, unauthenticated endpoints
  * (`backend/.../public/public-signatures.controller.ts`), driving the `/signature/:token` page. No
  * `useApiQuery`/`useApiMutation` call here is any different from an authenticated one (both hooks
  * only ever wrap `authenticatedFetch`, which sends the session cookie IF one exists but never

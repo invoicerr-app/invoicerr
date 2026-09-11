@@ -23,7 +23,7 @@
  * alone; the old code's OWN richer model included fields (document-level `cac:PaymentMeans`,
  * `cbc:BuyerReference`, seller `cac:Contact`) that turned out, on inspection of the vendored
  * Schematron, to be entirely OPTIONAL at the base EN 16931 layer (only Peppol BIS / XRechnung deltas
- * — neither branched in this ticket, see `format-registry.ts`'s own header — make some of them
+ * — neither branched here, see `format-registry.ts`'s own header — make some of them
  * mandatory). They are omitted here rather than carried over out of habit.
  *
  * ## BT/BG map (numbers cited so a reviewer can check this against the standard, not this comment)
@@ -39,7 +39,7 @@
  *    (BT-9 is optional at the base layer, so this is a completeness gap, never a validity one).
  *  - BT-22 Invoice note / BG-1         → `cbc:Note`                        (the document's own `notes`
  *    field, verbatim, FOLLOWED by one entry per country-mandated mention the seller's country
- *    requires — root TODO item 15, "mentions obligatoires". Resolved by `../../mentions/invoice-
+ *    requires. Resolved by `../../mentions/invoice-
  *    notes.ts#resolveInvoiceNotes` against `sellerCountryCode` (below) and the document's own
  *    `issueDate` — NEVER `new Date()`, so a re-generated export of an old invoice still carries the
  *    rate that was in force when it was ISSUED, not the one in force today (`mentions/schema.ts`'s
@@ -62,13 +62,13 @@
  *    SIRET→SIREN derivation (schemeID '0002') is REPRISED VERBATIM from the old code's own
  *    `toSiren`: FR is this product's primary market (see `documentation`'s own priority notes) and
  *    this exact derivation was proven against a real PDP deposit. `LEGAL_ID_SCHEME_BY_COUNTRY` below
- *    (added for NLCIUS — root TODO, "NLCIUS vendorable") extends the SAME "country is data" mapping to
+ *    (added for NLCIUS) extends the SAME "country is data" mapping to
  *    NL's own KVK-nummer (ISO 6523 '0106'), read from `country-identifiers/data/nl.json`'s own LEGAL_ID
  *    scheme — never a derived/reshaped value the way SIRET→SIREN is, since a KVK number is already the
  *    exact 8-digit form both `BR-NL-1`/`BR-NL-10` (`formats/vendored/nl/si-ubl-2.0-nlcius-
  *    preprocessed.sch`) and the GENERIC Peppol BIS delta's own `NL-R-003`/`NL-R-005`
  *    (`formats/vendored/peppol/PEPPOL-EN16931-UBL.sch:880-894` — flagged as a pre-existing gap by
- *    `country-identifiers/data/nl.json`'s own note before this task closed it) expect. A `LEGAL_ID` for
+ *    `country-identifiers/data/nl.json`'s own note before it was closed) expect. A `LEGAL_ID` for
  *    any OTHER country is still emitted as a bare `cbc:CompanyID` with NO schemeID — asserting a
  *    registry membership (French SIREN, Dutch KVK, or otherwise) nobody claimed would be inventing one.
  *  - BT-31 Seller VAT identifier       → `cac:PartyTaxScheme/cbc:CompanyID` + `cac:TaxScheme/cbc:ID`='VAT',
@@ -144,8 +144,8 @@
  *
  * E (exempt), O (out of scope), AE (reverse charge), K (intra-EU supply) and G (export) all need a
  * FACT this generic, country-blind bridge does not have (a cross-border tax engine's own verdict,
- * removed with the old engine — root TODO item 16, "transfrontalier", not built) — never derivable
- * from a rate of 0 alone. Consigned in `TODO_ISSUES.md`, not silently narrowed here.
+ * removed with the old engine — cross-border tax, not built) — never derivable
+ * from a rate of 0 alone. Not silently narrowed here.
  */
 import type { Invoice as EuInvoice } from '@e-invoice-eu/core';
 
@@ -200,16 +200,16 @@ export interface SemanticLineInput {
    */
   supplyType?: SupplyType;
   /**
-   * Root TODO item 16 ("transfrontalier") — the RESOLVED BT-151 category for this line, when
+   * Cross-border tax — the RESOLVED BT-151 category for this line, when
    * `documents/tax/resolve-invoice-tax.ts` ran (a cross-border invoice). Overrides `vatCategoryFor`'s
    * own rate-only derivation below, which cannot tell AE/K/G/O apart from a bare 0% rate on its own
    * (see this file's own header, "VAT category"). `undefined` for every domestic line and every other
-   * document type — behaviour there is BYTE-FOR-BYTE what it was before item 16 existed.
+   * document type — behaviour there is BYTE-FOR-BYTE what it was before cross-border tax existed.
    */
   vatCategory?: TaxCategoryCode;
   /** BT-120 (`cbc:TaxExemptionReason`) — carried through from the SAME resolution, for the categories
    *  that need one (`E`/`O`). Not emitted below today (no required test path exercises E/O with a
-   *  reason yet — see TODO_ISSUES.md's own item 16 entry) but threaded through so a future E/O path
+   *  reason yet) but threaded through so a future E/O path
    *  does not need to touch this interface again. */
   exemptionReason?: string;
 }
@@ -227,7 +227,7 @@ export interface SemanticInvoiceInput {
   lines: SemanticLineInput[];
   totals: DocumentTotals;
   /**
-   * Root TODO item 16 ("transfrontalier") — cross-border legal mentions the tax engine resolved
+   * Cross-border legal mentions the tax engine resolved
    * (reverse charge art. 196, intra-Community supply art. 138, export art. 146, …), joining BG-1
    * through the SAME `mentions/invoice-notes.ts#toUblNote` encoding the country-mandated ones already
    * use (see `resolveInvoiceCrossBorderTax`'s own header) — never a parallel note mechanism. Empty
@@ -236,8 +236,8 @@ export interface SemanticInvoiceInput {
   additionalMentions?: { code: string; text: string }[];
   /**
    * BT-10 (Buyer reference) — COUNTRY-NEUTRAL by construction: this bridge never asks who the seller
-   * is before emitting it, because the real-world need is not either (root TODO item 26's own
-   * report, point 2): a German public buyer requires a Leitweg-ID/BT-10 on ANY invoice addressed to
+   * is before emitting it, because the real-world need is not either: a German public buyer
+   * requires a Leitweg-ID/BT-10 on ANY invoice addressed to
    * it, including one issued by a seller in a country with no overlay field for it at all. Wired
    * generically here (`shared-build.ts#extractBuyerReference`, reading `data.buyerReference` off ANY
    * document regardless of which country-fields overlay — if any — put the input on screen) rather
@@ -264,7 +264,7 @@ export interface SemanticInvoiceInput {
  * ISO 6523 ICD) code for THAT country's own national VAT scheme. REPRISED VERBATIM from
  * `invoice-rendering.service.ts` at the repère — see that file's own comment for the sourcing
  * (cross-checked against the vendored `PEPPOL-EN16931-UBL.sch`'s own eaid enumeration) this table
- * carries. Peppol transmission itself is not wired by this ticket (see `format-registry.ts`'s own
+ * carries. Peppol transmission itself is not wired here (see `format-registry.ts`'s own
  * header) — this table is used here only to give a VAT-registered party SOME `cbc:EndpointID` scheme
  * more specific than a bare email placeholder, satisfying `@e-invoice-eu/core`'s own mandatory field
  * without asserting a Peppol registration that was never verified.
@@ -316,8 +316,8 @@ function toSiren(legalId: string | undefined, isFrenchSeller: boolean): string |
  * derivation above already holds — see this file's own header, "BT-29/BT-30", for the full
  * reasoning). `'FR': '0002'` is the PRE-EXISTING mapping, unchanged (this map's value for 'FR' is
  * exactly the literal `isFrenchSeller ? '0002' : undefined` branch it replaces below — verified by
- * every EXISTING French-seller test, none of which changes). `'NL': '0106'` is NEW (root TODO,
- * "NLCIUS vendorable"): `country-identifiers/data/nl.json`'s only NL `LEGAL_ID` scheme is the
+ * every EXISTING French-seller test, none of which changes). `'NL': '0106'` is NEW:
+ * `country-identifiers/data/nl.json`'s only NL `LEGAL_ID` scheme is the
  * KVK-nummer, so `0106` (KVK) is the only value this map ever emits for NL — a Dutch OIN
  * (schemeID `0190`, the alternative both `BR-NL-1`/`BR-NL-10` and Peppol's own `NL-R-003`/`NL-R-005`
  * also accept) is a SEPARATE identifier this catalog does not collect, and is not modeled here.
@@ -503,7 +503,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   }
   const isFrenchSeller = sellerCountryCode === 'FR';
 
-  // Root TODO item 15 ("mentions obligatoires") — resolved against the SAME `sellerCountryCode` the
+  // Legal mentions — resolved against the SAME `sellerCountryCode` the
   // rest of this bridge already uses (including its own documented fallback-to-FR for an
   // unresolvable seller country, see this file's own header on BT-35-BT-40): a mention is a fact
   // about the SELLER's own jurisdiction, never the buyer's. `input.issueDate` is a plain "yyyy-mm-dd"
@@ -514,7 +514,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     new Date(input.issueDate),
   ).map(toUblNote);
 
-  // Root TODO item 16 ("transfrontalier") — the tax engine's OWN mentions (reverse charge, intra-
+  // Cross-border tax — the tax engine's OWN mentions (reverse charge, intra-
   // Community supply, export, …), appended through the EXACT SAME `toUblNote` encoding as the
   // country-mandated ones above (see `SemanticInvoiceInput.additionalMentions`'s own header): a
   // `LegalMention` never carries a UNTDID 4451 subject code (unlike PMT/PMD/AAB), so `subjectCode` is
@@ -623,7 +623,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
 
   const invoiceLines = input.lines.map((line, index) => {
     const computed = input.totals.lines[index];
-    // Root TODO item 16 — a RESOLVED cross-border category (AE/K/G/O/E) always wins over the naive
+    // A RESOLVED cross-border category (AE/K/G/O/E) always wins over the naive
     // rate-only derivation, which structurally cannot tell them apart from a bare 0% (see this file's
     // own header, "VAT category"). `undefined` for every domestic line — behaviour there is
     // unchanged.
@@ -660,7 +660,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
 
   // BG-23's own category, PER RATE — `input.totals.vatBreakdown` (compute-totals.ts, untouched, pure)
   // aggregates by RATE alone, never by category, so a resolved cross-border category is looked up
-  // from the first LINE that carries this same rate. Root TODO item 16's own documented limitation
+  // from the first LINE that carries this same rate. A documented limitation
   // (see this file's own header, "VAT category"): a single invoice mixing two DIFFERENT resolved
   // categories at the SAME 0% rate (e.g. one intra-Community "K" goods line and one reverse-charge
   // "AE" services line on the same cross-border invoice) would see every 0% subtotal reported under
@@ -686,8 +686,8 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       'cbc:ID': categoryForRate(entry.ratePercent),
       'cbc:Percent': String(entry.ratePercent),
       // BR-AE-10/BR-K-*/BR-G-10/BR-O-10/BR-E-10 — the categories that need a reason all need it HERE,
-      // at BG-23 (the breakdown), not merely on the line's own `ClassifiedTaxCategory` above. Root
-      // TODO item 16's resolved `component.reason` (`tax-engine.ts`) is either a genuine VATEX CODE
+      // at BG-23 (the breakdown), not merely on the line's own `ClassifiedTaxCategory` above. The
+      // cross-border-resolved `component.reason` (`tax-engine.ts`) is either a genuine VATEX CODE
       // (BT-121 — 'VATEX-EU-AE'/'VATEX-EU-IC'/'VATEX-EU-G'/'VATEX-EU-O', the repère's own values,
       // verbatim) or free legal TEXT (BT-120 — France's own 293 B mention) — `exemptionReasonFields`
       // tells them apart by the 'VATEX-' prefix, never guessing which BT a given string belongs to.

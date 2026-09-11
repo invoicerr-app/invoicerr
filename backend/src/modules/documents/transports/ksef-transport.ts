@@ -1,6 +1,6 @@
 /**
- * The "ksef" transport — root TODO item 10 ("transports nationaux"), wave 2: Poland's Krajowy System
- * e-Faktur. Same `DocumentTransport` interface `pdp-transport.ts` implements, registered the same
+ * The "ksef" transport — Poland's Krajowy System e-Faktur. Same `DocumentTransport` interface
+ * `pdp-transport.ts` implements, registered the same
  * way (`TransportRegistry.register` — see that file's own header on why nothing here treats KSeF
  * specially).
  *
@@ -9,12 +9,12 @@
  * end-to-end against `ksef-test.mf.gov.pl` there (2026-06-28). What is NEW in this file is the
  * ORCHESTRATION: the old engine's `ksef-transmission.ts` was a `TransmissionProvider` for a
  * lifecycle runtime that no longer exists (event-sourced signals, a `poll()` a scheduler called on a
- * timer) — this transport instead follows `pdp-transport.ts`'s OWN, narrower wave-1 contract: a
+ * timer) — this transport instead follows `pdp-transport.ts`'s OWN, narrower contract: a
  * `send()` SUCCEEDS the moment KSeF ACCEPTS the online-session submission (a non-empty session +
  * invoice reference back from `POST /sessions/online/{ref}/invoices`), never waiting for the
  * asynchronous CLEARED verdict. Chasing that verdict needs a POLLER (the old engine's own, or a new
- * one) — consigned to TODO_ISSUES.md as this item's named remainder, the same way PDP's own
- * conformity-poll gap already is, NOT guessed at here.
+ * one) — a known remainder, the same way PDP's own conformity-poll gap already is, NOT guessed at
+ * here.
  *
  * Two distinct failure shapes, both loud, neither silent — same split `pdp-transport.ts`'s own
  * header documents:
@@ -24,9 +24,8 @@
  *    KSeF answers with no usable session/invoice reference) — thrown from inside `deliver()`, so
  *    BullMQ's own retries run before `send_failed` is ever recorded.
  * An accepted submission with an EMPTY session or invoice reference is the SECOND kind of failure,
- * never a success — this task's own mutation #2 target: a reference nobody can look up is not a
- * reference at all (the exact same hard-success contract `pdp-transport.ts` already enforces for its
- * own deposit id).
+ * never a success: a reference nobody can look up is not a reference at all (the exact same
+ * hard-success contract `pdp-transport.ts` already enforces for its own deposit id).
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
@@ -209,7 +208,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         const invoiceResult = await ksefClient.sendInvoice(sessionRef, accessToken, xmlContent, sessionKey);
         invoiceRef = invoiceResult.referenceNumber ?? '';
 
-        // Close the session even though this wave never polls its outcome — an open session left
+        // Close the session even though the transport never polls its outcome — an open session left
         // dangling is a real KSeF-side resource, not a free no-op to skip.
         await ksefClient.closeSession(sessionRef, accessToken);
       } catch (error) {
@@ -224,8 +223,8 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
       }
 
       if (!sessionRef || !invoiceRef) {
-        // THE HARD-SUCCESS CONTRACT (this task's own mutation #2 target): an accepted call with no
-        // usable session/invoice reference is a FAILURE, never a silent success.
+        // THE HARD-SUCCESS CONTRACT: an accepted call with no usable session/invoice reference is a
+        // FAILURE, never a silent success.
         throw new BadRequestException(
           'KSeF accepted the request but returned no usable session/invoice reference — treating ' +
             'this as a failed submission, never a silent success.',
@@ -246,7 +245,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
           'this particular mapping is).',
         reference,
         providerId: PROVIDER_ID,
-        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving — the ONLY artifact this transport ever delivers is
         // the FA(3) actually submitted (`buildResult.bytes`, already gated valid above), same
         // reasoning as `pdp-transport.ts`'s own `artifacts`.
         artifacts: [

@@ -1,7 +1,7 @@
 /**
  * Chorus Pro client — mocked / structural tests. REPRISED from git tag `avant-refonte-documents`'s
- * own `choruspro-client.spec.ts` — same assertions, adapted for the ONE structural change this wave
- * makes (`deposerFlux` takes a `Buffer`, not a UTF-8 `string` — see `choruspro-client.ts`'s own header,
+ * own `choruspro-client.spec.ts` — same assertions, adapted for the ONE structural change made
+ * here (`deposerFlux` takes a `Buffer`, not a UTF-8 `string` — see `choruspro-client.ts`'s own header,
  * adaptation §1).
  *
  * No network calls — all HTTP responses are stubs. The REAL round-trip (`FetchChorusProHttpPort`

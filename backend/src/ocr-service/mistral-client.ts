@@ -1,11 +1,11 @@
 /**
  * Mistral Document AI (OCR) — bare `fetch` HTTP client, no SDK (`@mistralai/mistralai` was
- * deliberately NOT added — root instruction: no new npm dependency for this task; `fetch` is
- * native since Node 18, this backend's own minimum). Every fact below is either VERIFIED (this
- * task's own `curl`, or a verbatim quote off `docs.mistral.ai`, both cited) or explicitly marked
- * EXTRAPOLATED — the same "cite, don't invent" discipline `nav-client.ts`'s own header holds.
+ * deliberately NOT added — no new npm dependency; `fetch` is native since Node 18, this backend's
+ * own minimum). Every fact below is either VERIFIED (a real `curl`, or a verbatim quote off
+ * `docs.mistral.ai`, both cited) or explicitly marked EXTRAPOLATED — the same "cite, don't invent"
+ * discipline `nav-client.ts`'s own header holds.
  *
- * ## Lives here, not in `backend/src/plugins/` — MANDANT AMENDMENT (mid-task)
+ * ## Lives here, not in `backend/src/plugins/`
  *
  * This client is used by exactly ONE caller: `ocr-server.ts`, the entrypoint for a THIRD container
  * role (`ROLE=ocr`, alongside the existing `api`/`worker`) that is the ONLY thing in this whole
@@ -30,7 +30,7 @@
  *    json_schema: {schema, name, strict}}` wrapper, quoted VERBATIM from `docs.mistral.ai/
  *    capabilities/OCR/annotations/`'s own curl example (a DIFFERENT schema there — chapter titles
  *    of a paper — the WRAPPER shape is what is cited, `INVOICE_ANNOTATION_JSON_SCHEMA` below is
- *    this task's own schema, not a Mistral-provided one: no invoice-specific example was available
+ *    our own schema, not a Mistral-provided one: no invoice-specific example was available
  *    to quote).
  *
  * ## VERIFIED — response shape
@@ -41,10 +41,10 @@
  *  - `document_annotation` is a JSON-ENCODED STRING, not a nested object — verified against the
  *    docs' own worked example response: `"document_annotation": "{\n\"language\": \"English\",
  *    ...}"`. `mapMistralResponseToProposal` below `JSON.parse()`s it for exactly this reason;
- *    `mistral-client.spec.ts`'s own fixture is that exact captured shape, narrowed to this task's
+ *    `mistral-client.spec.ts`'s own fixture is that exact captured shape, narrowed to our
  *    own schema.
  *
- * ## VERIFIED, LIVE, CREDENTIAL-FREE (this task's own `curl`, 2026-09-03)
+ * ## VERIFIED, LIVE, CREDENTIAL-FREE (real `curl`, 2026-09-03)
  *
  *    `curl -X POST https://api.mistral.ai/v1/ocr -H "Content-Type: application/json" -d '{...}'`
  *    (no Authorization header at all, AND with an obviously-fake bearer token) both answer
@@ -65,9 +65,8 @@ export const MISTRAL_OCR_DEFAULT_BASE_URL = 'https://api.mistral.ai';
 const MISTRAL_OCR_MODEL = 'mistral-ocr-latest';
 const DEFAULT_TIMEOUT_MS = 60_000;
 
-/** A NAMED error for every failure mode this client can produce — never a bare, unlabelled `Error`,
- *  per this task's own root instruction ("les erreurs du provider... sont NOMMÉES, jamais
- *  avalées"). `status` is present for every HTTP-level failure (absent only for a timeout or a
+/** A NAMED error for every failure mode this client can produce — never a bare, unlabelled `Error`.
+ *  `status` is present for every HTTP-level failure (absent only for a timeout or a
  *  network-level failure, where there IS no HTTP status). */
 export class MistralOcrError extends Error {
   constructor(
@@ -87,7 +86,7 @@ export class MistralOcrTimeoutError extends MistralOcrError {
 }
 
 /**
- * This task's OWN JSON Schema for the fields `received-invoices/ocr/extractor.ts`'s
+ * Our OWN JSON Schema for the fields `received-invoices/ocr/extractor.ts`'s
  * `ExtractedInvoiceProposal` needs — see this file's own header: the OUTER `document_annotation_
  * format` wrapper syntax is cited from Mistral's docs, this inner schema is not. Every property is
  * nullable (`["string", "null"]`/`["number", "null"]`) but still listed in `required` — the
@@ -141,7 +140,7 @@ const INVOICE_ANNOTATION_JSON_SCHEMA = {
   additionalProperties: false,
 };
 
-/** The exact request body — see this file's own header for what is cited vs. this task's own. */
+/** The exact request body — see this file's own header for what is cited vs. our own. */
 function buildRequestBody(base64: string, mime: string): Record<string, unknown> {
   return {
     model: MISTRAL_OCR_MODEL,

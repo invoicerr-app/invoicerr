@@ -31,10 +31,10 @@ export default function DocumentTypePage() {
   // that one. The list already hands over each instance's FULL `data` (see the backend's
   // listDocuments, which selects everything), so editing never needs a second fetch. This is a
   // SNAPSHOT, taken once when "Edit" is clicked — deliberately never re-derived from `instances` on
-  // its own, so a background refetch (the async "send" mechanism's own polling, TODO.md item 22)
+  // its own, so a background refetch (the async "send" mechanism's own polling)
   // never silently overwrites field values the user may still be editing in the open form.
   const [dialogTarget, setDialogTarget] = useState<DocumentInstance | null | undefined>(undefined)
-  // A cross-page "create, pre-linked" seed — TODO_CORRECTION.md C2's own hand-off: a DIFFERENT type's
+  // A cross-page "create, pre-linked" seed — the correction-routes dialog's own hand-off: a DIFFERENT type's
   // own screen (e.g. an invoice's "Corriger" button, custom/invoice-correction-routes-button.tsx)
   // navigates HERE with `state.initialData` set, rather than trying to render a foreign type's create
   // dialog on its own page. Generic on purpose — this page still names no document type: whatever

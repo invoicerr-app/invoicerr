@@ -1,5 +1,5 @@
 /**
- * Le suivi de conformité post-dépôt (root TODO item 10, reliquat) — prouvé PAR L'ÉCRAN, même
+ * Le suivi de conformité post-dépôt — prouvé PAR L'ÉCRAN, même
  * discipline que 28/31/34 : l'envoi passe par un vrai clic sur "Send", les ASSERTIONS qui comptent
  * relisent l'API, jamais l'écran comme preuve de ce qui est en base.
  *
@@ -15,7 +15,7 @@
  *    (`frontend/src/components/documents/document-conformity-section.spec.tsx`, le même motif que
  *    `descriptor-i18n.spec.ts`) — jamais atteignable ici, dans cette suite Cypress, honnêtement.
  *
- * Régression couverte par la même passe : 28 (l'envoi asynchrone continue de fonctionner) et 31 (le
+ * Régressions couvertes : 28 (l'envoi asynchrone continue de fonctionner) et 31 (le
  * canal PDP fictif continue d'échouer en "send_failed", jamais en "sent" — le sweep de conformité
  * n'a donc jamais rien à trouver pour ce document non plus).
  */

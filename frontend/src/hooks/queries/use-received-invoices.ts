@@ -1,7 +1,7 @@
 import { useApiMutation } from "@/hooks/use-api-query"
 
 /**
- * Root TODO item 18 ("réception de factures") — the ONE bespoke endpoint this type needs beyond the
+ * Invoice reception ("réception de factures") — the ONE bespoke endpoint this type needs beyond the
  * fully generic document machinery (`use-document-types.ts` already covers listing, the descriptor,
  * and running "receive"/"approve"/"reject"/"delete" through `useRunDocumentAction`). Kept in its own
  * file, mirroring `use-document-schedules.ts`'s own placement, rather than folded into
@@ -17,7 +17,7 @@ export interface UploadReceivedInvoiceVariables {
   base64: string
 }
 
-/** TODO_PRODUIT.md T5(b) — mirrors the backend's `SupplierMatchResult`
+/** Mirrors the backend's `SupplierMatchResult`
  *  (received-invoices/supplier-reconciliation.ts). `outcome: 'matched'` means `extraction.fields`
  *  below ALSO carries a `supplierClient` id (the SAME generic pre-fill mechanism every other
  *  extracted field already uses — see `buildInitialData` in
@@ -28,7 +28,7 @@ export type SupplierMatchResult =
   | { outcome: "ambiguous"; matchedBy: "vat" | "name"; candidateIds: string[] }
 
 /**
- * TODO_PRODUIT.md T5(c) — mirrors the backend's `OcrOutcome`
+ * Mirrors the backend's `OcrOutcome`
  * (`received-invoices/ocr/apply-ocr-fallback.ts`). OCR is tried ONLY for a PDF that carried nothing
  * structural at all — every other deposit (XML, or a PDF that already had embedded CII) reports
  * `not-attempted`. `unavailable` covers BOTH "no OCR service deployed for this instance"
@@ -53,7 +53,7 @@ export interface UploadReceivedInvoicePreview {
   extraction: {
     /** null when nothing recognizable was found (a plain scanned PDF, an unknown XML dialect) —
      *  never a refusal by itself, only an exact repeat (same SHA-256) is (see the mutation below).
-     *  `"OCR"` once T5(c)'s own fallback filled `fields` from the OCR service instead. */
+     *  `"OCR"` once the OCR fallback (`apply-ocr-fallback.ts`) filled `fields` from the OCR service instead. */
     syntax: string | null
     fields: Record<string, unknown>
   }

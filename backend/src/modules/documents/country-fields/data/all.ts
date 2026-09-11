@@ -6,7 +6,7 @@
  * FIRST REAL FILE LANDED: France's own `data/fr.json`, adding an OPTIONAL `supplyType` subfield to
  * `invoice.lines` — the concrete "add/modify/remove" need this directory's own header used to say
  * had not shown up yet. It arrived exactly the way that header predicted a second pass would justify
- * one: BT-23 (root TODO item 15's own remainder, `formats/semantic/business-process.ts`) needs to
+ * one: BT-23 (`formats/semantic/business-process.ts`) needs to
  * know, PER LINE, whether it is a good or a service, a fact `descriptors/invoice.descriptor.ts`'s own
  * trunk line shape has no field for and should not gain unconditionally (asserting a French legal
  * category's INPUT on every country's invoice line would be the same "no business code names a

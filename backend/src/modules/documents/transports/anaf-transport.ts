@@ -42,7 +42,7 @@
  *    the base EN 16931 gate, or ANAF answering with no usable `index_incarcare`) — thrown from inside
  *    `deliver()`, so BullMQ's own retries get a chance to run before this ever becomes `send_failed`.
  * An accepted upload with an EMPTY `index_incarcare` is the SECOND kind of failure, never a success —
- * this task's own mutation #1 target, the same hard-success contract every transport in this directory
+ * the same hard-success contract every transport in this directory
  * already enforces (LIVE_TESTING.md: "a reference nobody can look up is not a reference at all").
  *
  * Post-upload conformity: `stareMesaj` is exactly the kind of pull endpoint
@@ -233,7 +233,7 @@ export function buildAnafTransport(deps: AnafTransportDeps): DocumentTransport {
           'header, "THE PAYLOAD, HONESTLY".',
         reference: idIncarcare,
         providerId: ANAF_PROVIDER_ID,
-        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving ("archivage légal") — the ONLY artifact this transport ever delivers is
         // the UBL document actually uploaded (already gated valid above), same reasoning every sibling
         // transport's own `artifacts` holds.
         artifacts: [

@@ -9,7 +9,7 @@ export type DocumentFormatParty = SemanticPartyInput;
 
 export interface DocumentFormatBuildResult {
   bytes: Uint8Array;
-  /** Human-facing outcome of the validation GATE (point 2 of this ticket) — `valid: false` means
+  /** Human-facing outcome of the validation GATE — `valid: false` means
    *  `bytes` must NEVER be served; every string in `errors` cites the rule that failed (BR-* for
    *  Schematron, a plain description for the structural pre-check — see `structural-check.ts`). */
   validation: { valid: boolean; errors: string[] };

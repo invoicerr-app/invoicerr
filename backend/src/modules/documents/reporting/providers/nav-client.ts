@@ -11,7 +11,7 @@
  * `<GeneralExceptionResponse ...><funcCode>ERROR</funcCode><errorCode>INVALID_REQUEST</errorCode>
  * <message>Érvénytelen kérés!</message>...</GeneralExceptionResponse>` — confirming the host, the
  * path, and the `funcCode`/`errorCode`/`message` vocabulary live, not merely from the PDF spec. This
- * ALSO revealed a real gap this task's own reading of the spec alone had missed: a schema-invalid
+ * ALSO revealed a real gap reading the spec alone had missed: a schema-invalid
  * request's `funcCode` is NOT nested under `<result>` the way a well-formed operation response's own
  * `BasicResultType` is (per the spec's own tables) — it rides bare inside a DIFFERENT root element,
  * `GeneralExceptionResponse`. `parseNavFunctionResult` below was fixed to read `funcCode`/`errorCode`/
@@ -56,15 +56,15 @@
  * is reproduced VERBATIM, including its own intermediate hash values, by
  * `nav-client.spec.ts#navRequestSignature` — this file's OWN implementation is checked against NAV's
  * own numbers, not merely against itself. `node:crypto`'s `'sha3-512'` digest was confirmed to exist
- * and to match FIPS 202 by running that exact test vector (this task's own instructions flagged this
- * as needing a check — it does exist, in this Node runtime, and it matches).
+ * and to match FIPS 202 by running that exact test vector (flagged as needing a check — it does
+ * exist, in this Node runtime, and it matches).
  *
  * ## VERIFIED — `/manageInvoice`'s own request shape (spec §1.8.2.1, and invoiceApi.xsd)
  *
  * `exchangeToken` (the DECODED token — see below), `compressedContent` (false — this client never
  * gzips), one `invoiceOperation` per invoice: `index` (1-based, contiguous, spec's own rule — this
  * client only ever submits ONE invoice per call, so `index` is always `1`), `invoiceOperation`
- * ("CREATE" — an original invoice; the only value this task's own trigger ever needs, see
+ * ("CREATE" — an original invoice; the only value this codebase's trigger ever needs, see
  * `nav-declaration-provider.ts`'s own header on why MODIFY/STORNO are out of scope), `invoiceData`
  * (base64 of the invoice XML), and `electronicInvoiceHash` (OPTIONAL at schema level unless
  * `completenessIndicator` is true — never set by this client, so this field is omitted entirely,
@@ -87,13 +87,13 @@
  *    key bytes. This client takes the FIRST 16 bytes of the UTF-8 encoding of the exchange key
  *    (`exchangeKeyToAesKey` below) — the convention several independent, widely-used community NAV
  *    client implementations follow — but this was NOT read from an official NAV source, and is
- *    UNTESTED against a real NAV-issued key (no NAV sandbox credentials were available to this task
+ *    UNTESTED against a real NAV-issued key (no NAV sandbox credentials were available
  *    — see `CREDENTIALS_GUIDE.md`'s own NAV section for why, and for the registration process that
  *    WAS read).
  *  - `invoiceData.xsd`'s own business-content schema (the actual Hungarian invoice XML NAV expects
  *    inside `invoiceData`) was NOT read in full (it is a very large, highly Hungary-specific schema)
  *    — `nav-declaration-provider.ts#buildNavInvoiceXml` builds a DELIBERATELY MINIMAL subset (the
- *    header/parties/lines/summary fields this task's own `DeclaredInvoice` actually carries), marked
+ *    header/parties/lines/summary fields `DeclaredInvoice` actually carries), marked
  *    as such in that file's own header, not a claim of full `invoiceData.xsd` conformance.
  *  - `queryTransactionStatus`'s own polling cadence/backoff (how long after `/manageInvoice` a
  *    caller should wait before the processing result is actually available) is not specified as a
@@ -271,7 +271,7 @@ export function buildNavEnvelope(
 }
 
 /** The three responses this client ever parses — deliberately narrow (never the FULL
- *  `BasicOnlineInvoiceResponseType`, most of which this task's own trigger has no use for). */
+ *  `BasicOnlineInvoiceResponseType`, most of which this codebase's trigger has no use for). */
 export interface NavFunctionResult {
   funcCode: string;
   errorCode?: string;

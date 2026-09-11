@@ -1,5 +1,5 @@
 /**
- * `DocumentsController.streamEvents` — TODO_PRODUIT.md T1 / PLAN-V2 R8's SSE endpoint, in isolation
+ * `DocumentsController.streamEvents` — the SSE endpoint, in isolation
  * from Redis entirely: `DocumentEventsBridge` is constructed WITHOUT calling `onModuleInit()` here
  * (no real Redis connection is ever made — see that method's own header), so this proves what THIS
  * controller does with whatever the bridge hands it, by driving the bridge's own in-process
@@ -9,7 +9,7 @@
  * publish reaching a genuine PSUBSCRIBE) is `queue/__tests__/document-events-bridge.redis.spec.ts`'s
  * job.
  *
- * THE MULTI-TENANT PROOF T1 requires explicitly: two companies, each with their OWN open SSE stream,
+ * THE MULTI-TENANT PROOF: two companies, each with their OWN open SSE stream,
  * and an event published for one NEVER reaches the other's.
  */
 import { EventEmitter } from 'node:events';
@@ -76,7 +76,7 @@ describe('DocumentsController.streamEvents', () => {
     subscription.unsubscribe();
   });
 
-  // THE MULTI-TENANT PROOF (TODO_PRODUIT.md T1 / PLAN-V2 R8's own acceptance criterion #3): two
+  // THE MULTI-TENANT PROOF (the SSE endpoint's own acceptance criterion): two
   // companies, each holding their own open stream off the SAME bridge instance (exactly the
   // production shape — one dedicated Redis subscriber connection shared by every tenant's own SSE
   // connection, see `document-events-bridge.ts`'s own header) — an event for company A must reach

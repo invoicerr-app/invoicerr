@@ -1,5 +1,5 @@
 /**
- * SigningCertificatesService in isolation — root TODO item 13. Mocks `@/prisma/prisma.service` at its
+ * SigningCertificatesService in isolation. Mocks `@/prisma/prisma.service` at its
  * own entry point, the same discipline `channels.service.spec.ts` already holds for
  * `ChannelCredentialsService` — this proves the SERVICE's own logic (encrypt→store→resolve→decrypt
  * round-trip, expiry handling, what a GET is and is not allowed to carry), never a real database.

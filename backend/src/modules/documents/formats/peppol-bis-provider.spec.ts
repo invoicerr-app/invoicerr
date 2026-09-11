@@ -1,5 +1,5 @@
 /**
- * THE MASTER PROOF for `peppol-bis-provider.ts` (root TODO item 26, "Peppol/Allemagne") — same
+ * THE MASTER PROOF for `peppol-bis-provider.ts` — same
  * discipline as `providers.spec.ts`: a hand-computed fixture goes through the REAL build pipeline and
  * the REAL vendored base EN 16931 Schematron PLUS the REAL vendored Peppol BIS delta
  * (`vendored/peppol/PEPPOL-EN16931-UBL.sch`) — never mocked, never a hand-asserted opinion of what
@@ -64,7 +64,7 @@ describe('peppol-bis-provider — the master proof (fixture computed by hand)', 
     const result = await peppolBisFormatProvider.build(descriptor, DOCUMENT, SELLER, BUYER);
 
     // A failing assertion here prints EVERY BR-*/PEPPOL-EN16931-R* rule either ruleset actually
-    // fired — never swallowed, per this ticket's own "a gate, not a report" requirement.
+    // fired — never swallowed: this is a gate, not a report.
     expect(result.validation.errors).toEqual([]);
     expect(result.validation.valid).toBe(true);
 

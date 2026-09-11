@@ -14,7 +14,7 @@ import * as stock from './stock/apply-stock-on-issuance';
 import { TransportRegistry } from './transports/transport-registry';
 
 /**
- * Proves documents.service.ts's runAction WIRING for the stock effect (TODO_FEATURES.md rank 18) —
+ * Proves documents.service.ts's runAction WIRING for the stock effect —
  * never `apply-stock-on-issuance.ts`'s own computation/persistence, which
  * `stock/apply-stock-on-issuance.spec.ts` already proves on its own. This file only proves: WHEN
  * runAction calls `applyStockOnIssuance`, and when it deliberately does NOT — mocking
@@ -112,7 +112,7 @@ function registerSendHandler(
   });
 }
 
-describe('DocumentsService.runAction — stock-effect wiring (TODO_FEATURES.md rank 18)', () => {
+describe('DocumentsService.runAction — stock-effect wiring', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
   });

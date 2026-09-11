@@ -13,7 +13,7 @@ function labelFor(client: {
 
 export interface ClientReferenceProviderOptions {
   /**
-   * TODO_PRODUIT.md T5(b) — set on the "client" entity ONLY (`documents-core.module.ts`'s
+   * Set on the "client" entity ONLY (`documents-core.module.ts`'s
    * `buildEntityReferenceRegistry`), never on "supplier": the invoice's/quote's own `client` field is
    * the BILLABLE picker, and a pure supplier (`Client.isSupplier`) is noise there — this company does
    * not invoice its own suppliers through that field. The "supplier" entity (received-invoice's own

@@ -1,5 +1,5 @@
 /**
- * The wire shape for a document status/conformity NUDGE — TODO_PRODUIT.md T1 / PLAN-V2 R8. See
+ * The wire shape for a document status/conformity NUDGE. See
  * `document-events-publisher.ts`'s own header for the full "why Redis pub/sub, why WORKER_INLINE=false
  * requires it" reasoning. Kept in its OWN file, with NO Redis/Nest import at all — the same "pure
  * shape, separate from the plumbing that moves it" split `conformity-sweep.ts` already holds next to

@@ -1,12 +1,12 @@
 /**
  * C4, restored — `ClientsService` constructed DIRECTLY (never `ClientsModule` as a module: see
- * TODO_ISSUES.md's own note, "ClientsModule inimportable sous ts-jest" — `WebhooksModule` pulls in
+ * the known "ClientsModule inimportable sous ts-jest" limit — `WebhooksModule` pulls in
  * `@teever/ez-hook`, a pure-ESM package ts-jest cannot compile). Real Prisma (this file's own
  * `beforeAll`/`afterAll` create/delete a real company+client), a FAKE `VatValidationPort` (the real
  * VIES round-trip is `vat-validation.live.spec.ts`, gated `VIES_LIVE=1`).
  */
 // `WebhookDispatcherService` → `WebhooksService` → `DiscordDriver` → `@teever/ez-hook` (a pure-ESM
-// package ts-jest cannot compile) — see TODO_ISSUES.md's own "ClientsModule inimportable sous
+// package ts-jest cannot compile) — the known "ClientsModule inimportable sous
 // ts-jest" note. A FACTORY mock (never `jest.mock(path)` alone, which still has to load the REAL
 // module to build its automock shape, hitting the same wall) avoids the chain entirely — `clients.
 // service.ts` only ever calls `.dispatch(...)` on it, which this stub happily provides.

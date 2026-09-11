@@ -9,7 +9,7 @@ import { CreateCurrencyRateDto } from './dto/currency-rate.dto';
 import { CurrencyRatesService } from './currency-rates.service';
 
 /**
- * Minimal CRUD for manually-entered exchange rates (item 9, root TODO) — GET to list, POST to add
+ * Minimal CRUD for manually-entered exchange rates — GET to list, POST to add
  * one. No PATCH/DELETE: a mis-entered rate is corrected by entering a NEW one with a later `asOf`
  * (it simply outranks the old one at resolution time — see convert.ts's `resolveLatestRate`), the
  * same "never mutate history, add a new fact" posture settlement/payments.ts already holds for

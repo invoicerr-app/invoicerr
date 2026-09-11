@@ -1,6 +1,6 @@
 /**
  * Shared line-extraction for NATIONAL (non-EN16931) format providers — `fa3-provider.ts` (PL) and
- * `fatturapa-provider.ts` (IT), item 10 (root TODO), wave 2. Same split `../shared-build.ts#extractLines`
+ * `fatturapa-provider.ts` (IT). Same split `../shared-build.ts#extractLines`
  * already draws for CII/UBL: the DESCRIPTIVE facts (description/quantity/unit) come straight off the
  * invoice descriptor's own raw `lines` field, while the ARITHMETIC facts (net/VAT/gross, discount
  * already applied) come from `totals/compute-totals.ts` — NEVER recomputed here. Centralized in one

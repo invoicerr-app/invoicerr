@@ -12,7 +12,7 @@
 
 export const DOCUMENT_REPORT_JOB_NAME = 'document-report';
 
-/** `report-<providerId>-<documentId>` — the deterministic id this task's own brief names verbatim.
+/** `report-<providerId>-<documentId>` — the deterministic job id.
  *  Two enqueue calls for the SAME document/provider pair (a duplicate trigger, a replayed webhook,
  *  whatever) always resolve to the SAME BullMQ job — see `DocumentQueueDispatcher.enqueueReport`'s
  *  own header for what happens when one already exists. */
@@ -41,7 +41,7 @@ export const REPORT_BLOCKED_STATUS_CODE = 'report:blocked';
  * Journaled ONCE every BullMQ retry is exhausted for a genuine declaration failure (network error, a
  * malformed response, the platform itself rejecting the submission) — see `mark-send-failed.ts`'s own
  * header for the identical "only the TERMINAL failure gets a durable record, not every attempt"
- * discipline, applied here to a NEW field this task adds rather than to `DocumentInstance.lastActionError`
+ * discipline, applied here to a NEW field rather than to `DocumentInstance.lastActionError`
  * itself (see `report-on-send.ts`'s own header for why: a reporting failure must NEVER look like the
  * "send" action itself failed — the invoice genuinely left, only its DECLARATION did not land).
  */

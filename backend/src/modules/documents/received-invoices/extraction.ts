@@ -1,12 +1,12 @@
 /**
- * Structural field extraction from an UPLOADED inbound invoice — root TODO item 18. Ported from the
+ * Structural field extraction from an UPLOADED inbound invoice. Ported from the
  * pre-refonte compliance engine's own inbound parser (`avant-refonte-documents:backend/src/
  * compliance/reception/inbound-document-parser.ts`), narrowed to the TWO syntaxes this branch's own
  * outbound formats actually produce (CII, UBL — `formats/cii-provider.ts`/`formats/ubl-provider.ts`)
  * plus Factur-X (the SAME CII, embedded in a PDF/A-3 — `formats/facturx-provider.ts`). FatturaPA/FA(3)
- * inbound parsing existed at the repère but is NOT ported here: this wave's own scope (root TODO item
- * 18) is the generic upload screen, not a second national-format reception path — see this module's
- * own `received-invoice.descriptor.ts` for the full list of what stays out of this wave.
+ * inbound parsing existed at the repère but is NOT ported here: the scope is the generic upload
+ * screen, not a second national-format reception path — see this module's
+ * own `received-invoice.descriptor.ts` for the full list of what stays out of scope.
  *
  * ## Never `fromXml` — the documented CII round-trip bug
  *
@@ -22,7 +22,7 @@
  * never a hand-written XML fixture — so a real drift in what our own outbound builders emit fails
  * this module's own test, not just a live round-trip with a third party.
  *
- * ## Line extraction — TODO_PRODUIT.md T5(a)
+ * ## Line extraction
  *
  * BG-25 (invoice line) is repeated per line in both syntaxes — `ram:IncludedSupplyChainTradeLineItem`
  * (CII) / `cac:InvoiceLine` (UBL), verified by dumping this branch's OWN `cii-provider.ts`/
@@ -58,7 +58,7 @@
  * `extractVatRate` already turns a non-numeric 'select' value into its existing "no usable VAT rate —
  * counted in net only" warning — reused, not re-implemented, here.
  *
- * ## Supplier VAT extraction — TODO_PRODUIT.md T5(b)
+ * ## Supplier VAT extraction
  *
  * BT-31 (seller VAT identifier), read one level deeper than `supplier` (the name) already scopes:
  *  - CII: `SellerTradeParty/SpecifiedTaxRegistration/ID` (`schemeID="VA"` — the attribute itself is
@@ -96,7 +96,7 @@ export interface ExtractedInvoiceFields {
   supplierNumber?: string;
   issueDate?: string; // "YYYY-MM-DD"
   supplier?: string;
-  /** The supplier's OWN VAT identifier — TODO_PRODUIT.md T5(b), read from the exact same
+  /** The supplier's OWN VAT identifier, read from the exact same
    *  `SellerTradeParty`/`AccountingSupplierParty` block `supplier` (the name) already scopes into, one
    *  level deeper: CII `SpecifiedTaxRegistration/ID` (`schemeID="VA"`) · UBL `PartyTaxScheme/
    *  CompanyID` — see this file's own header, "Supplier VAT extraction", for how these were verified

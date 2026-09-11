@@ -17,7 +17,7 @@ export interface SendDocumentEmailDeps {
   typeRegistry: DocumentTypeRegistry;
   referenceRegistry: EntityReferenceRegistry;
   /**
-   * Root TODO item 13 — resolves this company's active signing certificate, if any
+   * Resolves this company's active signing certificate, if any
    * (`SigningCertificatesService`, `modules/company/signing-certificates/`). OPTIONAL, defaulting to
    * `NullSigningCredentials` (always unsigned) below: every pre-existing caller of this function
    * (`send-document-email.spec.ts`, `send-quote.live.spec.ts`, `email-transport.spec.ts`) constructs
@@ -43,7 +43,7 @@ export interface SendDocumentEmailInput {
 export interface SendDocumentEmailResult {
   /** Human-facing outcome string — same convention as ActionResult.message. */
   message: string;
-  /** Root TODO item 14 ("archivage légal") — the exact PDF bytes just attached (signed if a
+  /** Legal archiving ("archivage légal") — the exact PDF bytes just attached (signed if a
    *  certificate was configured — see `pdf` below), the ONE artifact this function ever hands back:
    *  it never builds a structured format, only ever a human-readable PDF. Both the quote's own "send"
    *  and the invoice's "email" transport return this straight through, so
@@ -66,10 +66,10 @@ export interface SendDocumentEmailResult {
  *
  * ## Numbering — a defensive fallback, not the primary mechanism anymore
  *
- * Before TODO.md item 22 (the async-send queue), a type's `numbering.onEnterStatus` was the SAME
+ * Before the async-send queue, a type's `numbering.onEnterStatus` was the SAME
  * status "send" delivered to synchronously, so this function had to pull the number FORWARD itself
- * (documents.service.ts's `runAction` only numbers a document AFTER its handler returns). Since item
- * 22, `onEnterStatus` is "sending" (see e.g. quote.descriptor.ts) and BOTH callers (actions/async-send.ts's
+ * (documents.service.ts's `runAction` only numbers a document AFTER its handler returns). Since the
+ * queue, `onEnterStatus` is "sending" (see e.g. quote.descriptor.ts) and BOTH callers (actions/async-send.ts's
  * `runAsyncSendAction`) only ever invoke this function once the record is ALREADY "sending" — meaning
  * `runAction`'s own post-handler numbering hook already ran, on the FIRST ("sending") call, strictly
  * before this SECOND call (the actual delivery) is even reachable. In the normal flow `document` is
@@ -91,12 +91,12 @@ export interface SendDocumentEmailResult {
  * bare email" coverage — mocking `renderDocumentInstance` itself (the entry point this function calls
  * into), never this function's own internals, so the test cannot pass for the wrong reason.
  *
- * This propagated error is also exactly what item 22's queue was BUILT to catch: this function is only
+ * This propagated error is also exactly what the async-send queue was BUILT to catch: this function is only
  * ever called from `runAsyncSendAction`'s `deliver` closure (actions/async-send.ts), which never
  * catches this error either — it propagates all the way out to BullMQ, which retries per its own
  * backoff and, once every attempt is exhausted, leaves the record "send_failed" with the error
  * recorded (queue/mark-send-failed.ts) rather than a "sent" document nobody ever received. This is the
- * fix for the gap this comment used to document here (TODO_ISSUES.md's own entry on it) — no longer
+ * fix for the gap this comment used to document here — no longer
  * something this function's own header needs to carry, since the record is no longer written "sent"
  * until delivery has genuinely succeeded (see async-send.ts's own header for the full sequencing).
  */
@@ -112,7 +112,7 @@ export async function sendDocumentInstanceEmail(
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id);
     if (numbered) {
       document = { ...document, ...numbered };
-      // STOCK EFFECT (TODO_FEATURES.md rank 18): this is the PRIMARY issuance path for a document with
+      // STOCK EFFECT: this is the PRIMARY issuance path for a document with
       // an async send — the invoice is numbered HERE, in the worker, not in `documents.service.ts`'s
       // own `runAction` epilogue. Tied to `numbered` being truthy (the atomic once-only winner — see
       // `takeDocumentNumberForTransition`), so the decrement fires exactly once per document, at the
@@ -152,7 +152,7 @@ export async function sendDocumentInstanceEmail(
 
   const filename = document.displayNumber ? `${document.displayNumber}.pdf` : `${typeId}-${document.id}.pdf`;
 
-  // Root TODO item 13 — same wiring, same invariants as `documents.service.ts#renderInstancePdf`:
+  // Signing — same wiring, same invariants as `documents.service.ts#renderInstancePdf`:
   // no cert configured → `pdf` unchanged; an active cert that fails to sign THROWS here, which
   // propagates exactly like a `renderDocumentInstance` failure already does (see this function's own
   // header, "PDF failure — fails LOUDLY") — never a bare email sent because the signed attachment

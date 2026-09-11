@@ -1,12 +1,11 @@
 /**
- * REAL round-trip against the LOCAL OCR engine this task chose — OUR OWN image, built + published
+ * REAL round-trip against the LOCAL OCR engine — OUR OWN image, built + published
  * from its own repo `invoicerr-app/ocr-image` (`ghcr.io/invoicerr-app/ocr-image`). This spec PULLS
  * that published image and runs it itself (never a pre-existing service the operator must remember
- * to start) — MANDANT DECISION (verbatim): "pour l'OCR on peut faire notre propre image et notre
- * propre serveur: FROM jbarlow83/ocrmypdf:latest + RUN apt-get install tesseract-ocr-{ita,nld,rus,
- * equ}…", replacing the earlier `apache/tika:latest-full` this same spec used to launch (Tika's own
- * disqualifying limit — a language set frozen at build time — is exactly what motivated building our
- * own image instead; see `local-client.ts`'s own header and the `ocr-image` repo for the full account).
+ * to start), replacing the earlier `apache/tika:latest-full` this same spec used to launch (Tika's
+ * own disqualifying limit — a language set frozen at build time — is exactly what motivated building
+ * our own image instead; see `local-client.ts`'s own header and the `ocr-image` repo for the full
+ * account).
  *
  * Gated `LOCAL_OCR_LIVE=1` (`../modules/documents/transports/live-gate.ts`, same shape every
  * sibling live spec uses) — deliberately with NO required credential env var: that is the entire
@@ -17,13 +16,13 @@
  *
  *   LOCAL_OCR_LIVE=1 npx jest local-client.live --no-coverage --forceExit
  *
- * VERIFIED, LIVE, in the OCR build task's own sandbox: a `docker build` of the `ocr-image` sources + `docker run` +
+ * VERIFIED, LIVE: a `docker build` of the `ocr-image` sources + `docker run` +
  * a real `POST /ocr` against a genuinely RASTERIZED (image-only, no text layer) invoice PDF, in BOTH
  * English/French and Polish, came back with the full, correctly-recognized invoice text — real
  * Tesseract OCR, not merely a text-layer read, proving both the engine swap and the new language
- * packs this Dockerfile adds over Tika's own frozen set. That exact manual round-trip is what this
- * task's own final report cites verbatim; THIS spec proves the same image + this client's own HTTP
- * wiring + the heuristic mapping, all together, automatically, on every `LOCAL_OCR_LIVE=1` run.
+ * packs this Dockerfile adds over Tika's own frozen set. THIS spec proves the same image + this
+ * client's own HTTP wiring + the heuristic mapping, all together, automatically, on every
+ * `LOCAL_OCR_LIVE=1` run.
  *
  * An IMPROVEMENT over this spec's own former Tika-era limit, stated honestly because it changed:
  * the Tika version of this file could only prove its own HTTP round-trip with a `pdf-lib`-drawn
@@ -33,9 +32,9 @@
  * rasterizes and OCRs EVERY page regardless of whether it already had text — so the exact same
  * `pdf-lib`-drawn PDF below now DOES exercise real Tesseract recognition, automatically, every time
  * this spec runs. No separate manual proof is required for THIS spec's own claim anymore (a
- * separate, genuinely rasterized-image round-trip was still run manually for this task's own
- * language-pack coverage claim — see the report this task produced — since building a checked-in
- * binary image fixture would not travel through a jest spec file as legibly as drawn text does).
+ * separate, genuinely rasterized-image round-trip was still run manually for the language-pack
+ * coverage claim, since building a checked-in binary image fixture would not travel through a jest
+ * spec file as legibly as drawn text does).
  */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';

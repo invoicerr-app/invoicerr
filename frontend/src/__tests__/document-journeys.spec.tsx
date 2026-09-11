@@ -11,7 +11,7 @@ import * as useFetchModule from "@/hooks/use-fetch"
 import DocumentTypePage from "@/pages/(app)/documents/[typeId]"
 
 /**
- * TODO_PRODUIT.md T6 / PLAN-V2 P4-T02 — journey coverage, not line coverage: five NAMED tests, one
+ * Journey coverage, not line coverage: five NAMED tests, one
  * per parcours (émission, rejet, correction, avoir, annulation), each rendering the REAL screen this
  * app actually ships (`DocumentTypePage` — the exact component `[typeId].tsx`'s own route mounts, the
  * SAME tree `document-list.tsx`/`document-form.tsx`/`document-conformity-section.tsx`/
@@ -20,8 +20,7 @@ import DocumentTypePage from "@/pages/(app)/documents/[typeId]"
  * `authenticatedFetch`, wrapped by `use-api-query.ts`'s `apiFetch`) — never a re-implementation of any
  * business rule, so a descriptor/action/event handed back here is exactly the shape a real backend
  * response would carry. i18n is the REAL instance (`src/test/setup.ts`), never mocked. Each `it()`
- * ends with a comment naming the ONE production-code mutation proven to turn it red (see this task's
- * own report for the full red→green trace of all five).
+ * ends with a comment naming the ONE production-code mutation proven to turn it red.
  */
 
 vi.mock("@/hooks/use-fetch", async (importOriginal) => {
@@ -115,7 +114,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe("Émission — brouillon envoyé, l'écran suit sans reload (T1's SSE mechanism)", () => {
+describe("Émission — brouillon envoyé, l'écran suit sans reload (SSE mechanism)", () => {
   it("shows 'Sending' the moment send is clicked, then 'Sent' once the SSE nudge arrives", async () => {
     const descriptor: DocumentTypeDescriptor = {
       id: "invoice",
@@ -189,9 +188,9 @@ describe("Émission — brouillon envoyé, l'écran suit sans reload (T1's SSE m
 })
 
 describe("Slots personnalisés — les DEUX composants list-row-extra coexistent (tripwire du registre à liste)", () => {
-  /** Ajouté par la VALIDATION C2 (2026-09-03) : la mutation « seul le DERNIER composant enregistré
-   *  survit » (l'ancien comportement Map-écrase du registre custom-slots, exactement le bug que C2
-   *  a trouvé et corrigé) laissait les 55 tests verts — rien ne prouvait que le bouton de preview
+  /** La mutation « seul le DERNIER composant enregistré
+   *  survit » (l'ancien comportement Map-écrase du registre custom-slots)
+   *  laissait les 55 tests verts — rien ne prouvait que le bouton de preview
    *  ET le bouton de correction coexistent sur une même ligne de facture émise. Ce test est ce
    *  tripwire : les deux déclencheurs présents, sur la même ligne. */
   it("une facture émise porte À LA FOIS le bouton preview et le bouton correction", async () => {
@@ -320,8 +319,8 @@ describe("Rejet — un verdict d'autorité négatif journalisé apparaît sur le
 
     renderDocumentTypeScreen("invoice")
 
-    // The list itself, with the dialog still closed — root TODO item 10's own "un indicateur discret
-    // pour rejeté", proven end to end through the real query, not just `computeConformityVerdict`'s
+    // The list itself, with the dialog still closed — the rejected-deposit indicator, proven end to
+    // end through the real query, not just `computeConformityVerdict`'s
     // own pure-function unit tests (document-conformity-section.spec.tsx).
     await waitFor(() =>
       expect(screen.getByTestId("document-conformity-badge-inv-2")).toHaveTextContent("Rejected"),
@@ -413,7 +412,7 @@ describe("Correction — ce que l'écran offre RÉELLEMENT aujourd'hui (pas un �
   // suite green again.
 })
 
-describe("Avoir — la référence obligatoire, la devise verrouillée (T4-d), le crédit visible au règlement", () => {
+describe("Avoir — la référence obligatoire, la devise verrouillée, le crédit visible au règlement", () => {
   it("locks the currency to the picked invoice's own, then shows the saved credit note on that invoice's settlement", async () => {
     const creditNoteDescriptor: DocumentTypeDescriptor = {
       id: "credit-note",
@@ -507,7 +506,7 @@ describe("Avoir — la référence obligatoire, la devise verrouillée (T4-d), l
     fireEvent.click(invoiceTrigger())
     fireEvent.click(await screen.findByTestId("document-field-invoice-input-option-invoice-inv-2026-0009"))
 
-    // T4-d: picking the invoice locks the currency to ITS OWN ("EUR") — disabled, with the reference
+    // Picking the invoice locks the currency to ITS OWN ("EUR") — disabled, with the reference
     // note shown — never a value the user could still pick independently.
     await waitFor(() => expect(currencyTrigger()).toHaveTextContent("EUR"))
     expect(currencyTrigger()).toBeDisabled()
@@ -595,7 +594,7 @@ describe("Annulation — le parcours tel qu'il existe (ÉCART consigné : aucun 
    * hypothétique déclarée par le descripteur (une donnée, exactement comme "send"/"record-payment" le
    * sont déjà — voir ce fichier's own header : « add an action... this component never changes either
    * way ») restreinte à "draft" — jamais "sent", le seul point qui compte tant qu'aucune loi n'a été
-   * établie sur ce qu'annuler une facture ÉMISE voudrait dire (voir PLAN-V2's own Phase 3 ter).
+   * établie sur ce qu'annuler une facture ÉMISE voudrait dire.
    */
   it("never renders a 'cancel' action for an already-SENT invoice, even when one is declared for drafts", async () => {
     const descriptor: DocumentTypeDescriptor = {
@@ -652,16 +651,16 @@ describe("Annulation — le parcours tel qu'il existe (ÉCART consigné : aucun 
 })
 
 /**
- * TODO_CORRECTION.md C2 — the "Corriger" screen: a country-is-data dialog rendered off C1's own
+ * The "Corriger" screen: a country-is-data dialog rendered off the
  * `GET .../correction-routes`, on the REAL screen (custom/invoice-correction-routes-button.tsx,
  * registered the same way invoice-preview-button.tsx already is), never a re-implementation of the
- * status/label vocabulary. Four journeys, matching the task's own brief: FR sees the internal credit
+ * status/label vocabulary. Four journeys: FR sees the internal credit
  * note IMPOSED and reaches the real, pre-linked credit-note screen; PL sees the SAME routeId
  * FORBIDDEN, disabled, with its own reason; a declared-but-unwired route shows the honest
  * "not implemented" panel, never a stub; an unresolved seller country shows the backend's own NAMED
  * 404, verbatim.
  */
-describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays vendeur", () => {
+describe("Corriger — les voies de correction, par pays vendeur", () => {
   const invoiceDescriptor: DocumentTypeDescriptor = {
     id: "invoice",
     label: "Invoice",
@@ -765,7 +764,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays
     fireEvent.click(chooseButton)
 
     // THE REAL mechanism — a fresh mount of the credit-note create screen, pre-linked: the invoice
-    // reference already resolved, T4-d's own lock already engaged, no manual search needed.
+    // reference already resolved, the currency lock already engaged, no manual search needed.
     await screen.findByTestId("document-create-dialog")
     await waitFor(() =>
       expect(
@@ -883,7 +882,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays
     expect(errorMessage).toHaveTextContent(namedMessage)
   })
 
-  it("TODO_CORRECTION.md C3 — vendeur FR : CANCEL_AND_REPLACE est IMPLÉMENTÉE ; le clic exige une confirmation d'irréversibilité avant d'annuler réellement", async () => {
+  it("Vendeur FR : CANCEL_AND_REPLACE est IMPLÉMENTÉE ; le clic exige une confirmation d'irréversibilité avant d'annuler réellement", async () => {
     const invoice = issuedInvoice("inv-cancel-fr")
     const cancelCitation =
       "Doit porter référence exacte à la facture initiale et la mention expresse de l'annulation de " +
@@ -925,7 +924,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays
 
     fireEvent.click(chooseButton)
 
-    // The confirmation step this task requires — clicking "choose" never cancels on its own.
+    // The confirmation step — clicking "choose" never cancels on its own.
     const confirmPanel = await screen.findByTestId("document-correction-confirm-cancel")
     expect(confirmPanel).toHaveTextContent("cannot be undone")
     expect(screen.getByTestId("document-correction-confirm-cancel-label")).toHaveTextContent(cancelCitation)
@@ -939,7 +938,7 @@ describe("Corriger (TODO_CORRECTION.md C2) — les voies de correction, par pays
   // in `handleChoose` disabled (`if (false && route.routeId === ...)`). RED: "document-correction-
   // confirm-cancel" never appears — the choose click falls through to the generic "not-implemented"
   // panel instead, exactly the silent regression that would let a click skip the irreversibility
-  // confirmation this task exists to enforce. Reverted; suite green again.
+  // confirmation. Reverted; suite green again.
   // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
   // `route.status === "required" || route.status === "allowed"` -> `true` unconditionally. RED: the
   // PL test above ("le MÊME routeId ... est affiché INTERDIT, désactivé") fails —

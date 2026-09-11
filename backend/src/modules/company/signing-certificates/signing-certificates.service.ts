@@ -1,17 +1,17 @@
 /**
- * SigningCertificatesService — per-company encrypted signing certificate store. Root TODO item 13
- * ("Signature électronique — module supprimé"), the credentials layer REPRISED from git tag
+ * SigningCertificatesService — per-company encrypted signing certificate store ("Signature
+ * électronique — module supprimé"). The credentials layer REPRISED from git tag
  * `avant-refonte-documents` (`modules/signing-certificates/signing-certificates.service.ts`), adapted
  * to this codebase's CURRENT `ChannelCredentialsService` conventions (`modules/company/channels/`,
- * the pattern this task was told to imitate): no injected `PrismaService` — the `prisma` singleton
+ * the pattern it imitates): no injected `PrismaService` — the `prisma` singleton
  * default export is used directly; `credentialAudit` calls unchanged (that module already anticipated
  * a "Signing certs" caller — see its own header, `credentialRef` doc comment).
  *
  * WHY THIS IS A COMPANY CAPABILITY, NEVER A LEGAL OBLIGATION — read before touching this file:
  * no jurisdiction this product ships today requires us to prove a SIGNATURE on the document itself.
  * PDP (FR) accepts an unsigned Factur-X; KSeF (PL) authenticates the SESSION by token, never the
- * document; SdI (IT) accepts CAdES but that channel has no accreditation (TODO.md item 10's own
- * `sdi-transport.ts` header) — a company can go through this product's entire compliance surface
+ * document; SdI (IT) accepts CAdES but that channel has no accreditation (see `sdi-transport.ts`'s
+ * own header) — a company can go through this product's entire compliance surface
  * today without ever touching this file. Signing is therefore opt-in, company-scoped, and NEVER
  * presented as required anywhere in this module or its screen (`settings.signing.*`, front-end) — the
  * day a real sourced obligation appears (a `content-requirements/`-style dated legal citation, never
@@ -26,10 +26,10 @@
  *
  * ADAPTED (deliberately, beyond the type/import path changes every reprised file has):
  *  - `upload()` now ALSO refuses an ALREADY-EXPIRED certificate outright (the repère silently stored
- *    it and only skipped it at resolve time) — root TODO item 13 explicitly asks for a noisy refusal
- *    at upload, not a certificate that sits in the store looking configured while never actually
+ *    it and only skipped it at resolve time) — a noisy refusal at upload is deliberate, not a
+ *    certificate that sits in the store looking configured while never actually
  *    signing anything.
- *  - `delete()` is now `deactivate()` — a SOFT delete (`isActive: false`), matching this task's own
+ *  - `delete()` is now `deactivate()` — a SOFT delete (`isActive: false`), matching the
  *    "upload/list/deactivate" verb set: a signing certificate is audit-relevant history (which
  *    document was signed under which cert), unlike a channel connection's credentials, which
  *    `channels.service.ts#deleteChannelConfig` really does erase.

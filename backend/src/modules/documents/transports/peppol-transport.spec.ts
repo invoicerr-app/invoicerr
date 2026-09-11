@@ -1,5 +1,5 @@
 /**
- * The "peppol" transport in isolation — root TODO item 10 remainder. `@/prisma/prisma.service` is
+ * The "peppol" transport in isolation. `@/prisma/prisma.service` is
  * mocked (company/client rows); the Access Point itself is exercised TWO ways in this one file:
  *
  *  - a REAL local HTTP stub (`node:http`, no TLS needed — the generic AP is plain Bearer-token REST)
@@ -9,24 +9,24 @@
  *    prove the network is never even reached (no channel connected, no valid client, no Peppol
  *    endpoint on the client, or an artifact that failed the format gate).
  *
- * This proves the ORCHESTRATION plus the two facts this task's own mutations target: an empty AP
+ * This proves the ORCHESTRATION plus two key facts: an empty AP
  * message id is NEVER a success, and the transport SENDS THE PEPPOL-BIS PAYLOAD (never a plain UBL
  * that skipped the delta gate) — see the "peppol-bis-provider — R002" describe block below, which
- * runs the REAL format provider (not mocked) against a French seller. Root TODO item L1 ("R002 : le
- * vendeur français passe enfin la validation Peppol BIS") FIXED the underlying gap
+ * runs the REAL format provider (not mocked) against a French seller. R002 ("le vendeur français
+ * passe enfin la validation Peppol BIS") FIXED the underlying gap
  * (`formats/semantic/peppol-post-process.ts`): that describe block used to prove a French seller's
  * three mandatory notes made the Peppol BIS delta refuse the document outright (the Access Point
  * never even called); it now proves the OPPOSITE — the merged single note passes R002, and the real
  * local stub Access Point actually receives it, carrying all three legal texts verbatim.
  *
- * "THE FORMAT OVERRIDE" describe block below is root TODO "le trou allemand du B2G" — see
+ * "THE FORMAT OVERRIDE" describe block below closes "le trou allemand du B2G" — see
  * `peppol-transport.ts`'s own header for the full contract: `ctx.formatOverride` absent (every test
  * ABOVE that block) is unmodified, unchanged behavior — the REAL proof this new mechanism does not
  * regress a single pre-existing case; present-but-unwired is a NAMED refusal, never a silent
  * Peppol-BIS substitute; present-and-wired (`xrechnung`) runs the REAL `xrechnungFormatProvider`
  * (never mocked) against a complete German government-buyer fixture and asserts the CustomizationID
  * actually reaching the Access Point is XRechnung's, never Peppol BIS's — the exact "mutation #1"
- * target this task's own brief names.
+ * target.
  */
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -344,7 +344,7 @@ describe('buildPeppolTransport', () => {
       ],
     };
 
-    // Root TODO item L1 — this test USED TO prove PEPPOL-EN16931-R002 refused this exact document
+    // This test USED TO prove PEPPOL-EN16931-R002 refused this exact document
     // (three separate `cbc:Note` elements, one per mandatory C. com. mention) and that the Access
     // Point was never called. `formats/semantic/peppol-post-process.ts#mergePeppolNotesInObject`
     // collapses them into ONE note before the Schematron ever runs, so this now proves the OPPOSITE:
@@ -433,7 +433,7 @@ describe('buildPeppolTransport', () => {
       }
     });
 
-    // THE MUTATION TARGET (#1 in the task brief): an accepted AP response with an EMPTY message id
+    // THE MUTATION TARGET #1: an accepted AP response with an EMPTY message id
     // must be a FAILURE, never a silent success.
     it('treats an EMPTY AP message id as a FAILURE, never a success', async () => {
       const { server, url } = await startStubServer((_req, res) => {
@@ -479,7 +479,7 @@ describe('buildPeppolTransport', () => {
     });
   });
 
-  // Root TODO "le trou allemand du B2G" — see `peppol-transport.ts`'s own header, "THE FORMAT
+  // Closes "le trou allemand du B2G" — see `peppol-transport.ts`'s own header, "THE FORMAT
   // OVERRIDE". `CTX_DE_GOV` mirrors `CTX` exactly (same document shape, same `buyerReference`) but
   // names the German government buyer instead — so a test in this block differs from one above it by
   // EXACTLY one variable: whether `ctx.formatOverride`/`deps.formatOverrides` are involved at all.
@@ -603,7 +603,7 @@ describe('buildPeppolTransport', () => {
       expect(sendSpy).not.toHaveBeenCalled();
     });
 
-    // MUTATION TARGET #1 (this task's own brief): if `send()` ever stopped reading `ctx.formatOverride`
+    // MUTATION TARGET #1: if `send()` ever stopped reading `ctx.formatOverride`
     // (or read it but kept calling `deps.peppolBisFormatProvider.build` regardless), this test is what
     // would catch it — the REAL `xrechnungFormatProvider` (never mocked) is run, and the assertion is
     // on the actual CustomizationID inside the bytes the (real local stub) Access Point receives.
@@ -678,7 +678,7 @@ describe('buildPeppolTransport', () => {
       });
     });
 
-    // Root TODO, "NLCIUS vendorable" (mandant "Go", 2026-09-05) — the SAME `formatOverride` mechanism
+    // NLCIUS (vendored) — the SAME `formatOverride` mechanism
     // as XRechnung above, one entry per national CIUS. `CTX_NL_GOV` mirrors `CTX_DE_GOV` exactly.
     describe('the REAL nlcius-provider, wired as the override — the CustomizationID proof', () => {
       const CTX_NL_GOV: DocumentTransportContext = {

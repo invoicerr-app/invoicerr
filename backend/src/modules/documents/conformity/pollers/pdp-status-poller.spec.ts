@@ -1,11 +1,11 @@
 /**
  * `buildPdpStatusPoller` in isolation — `PdpClient` is mocked (the real HTTP round-trip is
  * `pdp-conformity.live.spec.ts`'s job, gated on real sandbox credentials). The fixtures below are the
- * ACTUAL raw payloads captured LIVE this session (`pdp-conformity.live.spec.ts`, 2026-09-01) — deposit
+ * ACTUAL raw payloads captured LIVE (`pdp-conformity.live.spec.ts`, 2026-09-01) — deposit
  * 397536 (accepted, fr:200→201→202) and deposit 397548 (rejected, fr:213, real BR-FR-05/BT-22 reason)
  * — pasted verbatim, not invented.
  *
- * THE MUTATION TARGET this file exists to catch (this task's own brief, and `pdp-client.ts`'s own
+ * THE MUTATION TARGET this file exists to catch (`pdp-client.ts`'s own
  * header): reading `invoice.status_code` instead of `invoice.events[]`. Every fixture below has NO
  * top-level `status_code` field at all — exactly what the real superpdp API actually returns (VERIFIED
  * live, see `pdp-client.ts`'s own comment on `SuperPdpInvoice.status_code`) — so a poller mistakenly
@@ -48,7 +48,7 @@ function buildChannelCredentials(resolveActive = jest.fn().mockResolvedValue(CON
   return { resolveActive } as unknown as ChannelCredentialsService;
 }
 
-// REAL, session-captured (2026-09-01) — deposit id 397536, a fully compliant Factur-X. Note: NO
+// REAL, captured live (2026-09-01) — deposit id 397536, a fully compliant Factur-X. Note: NO
 // top-level `status_code` at all — only `events[]` carries the lifecycle (see this file's own header).
 const ACCEPTED_INVOICE_397536: SuperPdpInvoice = {
   id: 397536,
@@ -85,7 +85,7 @@ const ACCEPTED_INVOICE_397536: SuperPdpInvoice = {
   ],
 } as SuperPdpInvoice;
 
-// REAL, session-captured (2026-09-01) — deposit id 397548, a Factur-X deliberately built without its
+// REAL, captured live (2026-09-01) — deposit id 397548, a Factur-X deliberately built without its
 // BG-1 mentions (the exact "reason" text is what superpdp's own sandbox actually answered).
 const REJECTED_REASON =
   "Element 'ram:Content' must occur exactly 1 times. at " +

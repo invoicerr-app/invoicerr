@@ -102,7 +102,7 @@ function renderFieldValue(
       if (rows.length === 0) {
         return '—';
       }
-      // 'hiddenReference' subfields (e.g. a line's `articleId`, TODO_FEATURES.md rank 18) are excluded
+      // 'hiddenReference' subfields (e.g. a line's `articleId`) are excluded
       // BEFORE the header/body loops below even run — not via `hideWhenEmpty`'s "skip a per-row cell
       // that happens to be empty" check (this loop never applies that hint to subfields at all, and a
       // populated `articleId` is exactly the case that must still never print), so there is neither a
@@ -196,7 +196,7 @@ export interface RenderDocumentHtmlInput {
    */
   legalMentions?: RenderableLegalMention[];
   /**
-   * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — the pre-rendered EPC069-12 QR bitmap (already a
+   * "QR SEPA / GiroCode" — the pre-rendered EPC069-12 QR bitmap (already a
    * `data:image/png;base64,...` URI, from `sepa-qr.ts#renderSepaQrDataUri`) to print near the totals,
    * so the payer can scan it straight from the PDF. A TOP-LEVEL input, deliberately not folded into
    * `company` above: unlike the company's own address, this is not a fact ABOUT the company, it is the
@@ -431,7 +431,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 
   // Render each field
   for (const field of descriptor.fields) {
-    // 'hiddenReference' (TODO_FEATURES.md rank 18) is not merely `hideWhenEmpty` — it never gets a row
+    // 'hiddenReference' is not merely `hideWhenEmpty` — it never gets a row
     // AT ALL, set or not (see types.ts's own `entity` doc comment for why a dedicated kind, not a
     // flag, was chosen). No top-level field is one today (only a line's own `articleId` is), but this
     // guard holds the SAME "never printed" contract if one ever is, exactly like the 'array' case's
@@ -518,7 +518,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 `;
   }
 
-  // TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — sits right after the totals block it pays, before
+  // "QR SEPA / GiroCode" — sits right after the totals block it pays, before
   // the legal mentions footer. Absent (no IBAN on file, non-EUR currency, a zero/negative total, or a
   // type that never opts in — see `paymentQr`'s own header above) prints NOTHING here, not an empty
   // frame, same rule `legalMentions` right below already holds.

@@ -77,7 +77,7 @@ describe('createAuthorityEvents — dedup', () => {
     const second = await createAuthorityEvents('company-1', 'doc-1', 'pdp', events);
 
     expect(first).toBe(3);
-    expect(second).toBe(0); // THIS is the dedup guarantee this task's own tests must prove
+    expect(second).toBe(0); // THIS is the dedup guarantee
   });
 
   it('passes skipDuplicates: true — the actual mechanism the unique index relies on', async () => {
@@ -172,7 +172,7 @@ describe('findConformitySweepCandidates — eligibility', () => {
     ]);
   });
 
-  // "email = non" (this task's own eligibility test): a document sent by email has
+  // "email = non": a document sent by email has
   // `channelProviderId: null`, which the WHERE clause's `{ in: pollableProviderIds }` can never match
   // — proven here by asserting the QUERY the Prisma layer is asked to run, since a mocked `findMany`
   // cannot itself demonstrate what Postgres would filter out; the real filtering behavior is exactly
@@ -189,7 +189,7 @@ describe('findConformitySweepCandidates — eligibility', () => {
   });
 });
 
-// THE DEDICATED TEST this task's own brief requires: "le statut lifecycle ne bouge JAMAIS" — proven
+// "le statut lifecycle ne bouge JAMAIS" — proven
 // structurally, at the exact point a mutation could sneak one in, rather than merely asserted in
 // prose. `DocumentInstance.status` is written ONLY through `../persistence.ts` (upsertDocument /
 // updateDocumentStatus) — neither of which this file, nor any function it calls, ever imports or

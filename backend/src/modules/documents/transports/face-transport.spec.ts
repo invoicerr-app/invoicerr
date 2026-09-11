@@ -269,7 +269,7 @@ describe('buildFaceTransport', () => {
       );
     });
 
-    // MUTATION GUARD #2 — this task's own hard-success contract: an accepted enviarFactura with an
+    // MUTATION GUARD #2 — the hard-success contract: an accepted enviarFactura with an
     // EMPTY numeroRegistro must be a FAILURE, never a silent success — a reference nobody can look
     // up is not a reference at all.
     it('MUTATION GUARD #2 — treats an EMPTY numeroRegistro as a FAILURE, never a success', async () => {
@@ -315,7 +315,7 @@ describe('buildFaceTransport', () => {
       expect(signingResolve).toHaveBeenCalledWith('company-1:XAdES');
     });
 
-    // MUTATION GUARD #3 (this task's own) — "l'enveloppe part non signée malgré un certificat
+    // MUTATION GUARD #3 — "l'enveloppe part non signée malgré un certificat
     // présent" would mean this resolve's result is silently DISCARDED; this test cannot see the
     // envelope itself (FaceClient is mocked), but it DOES prove the material is actually threaded to
     // `buildFaceClient` by asserting the deposit still succeeds ONLY when this resolve is honoured —

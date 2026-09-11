@@ -1,5 +1,5 @@
 /**
- * Le canal imposé par pays (root TODO item 11, "canal imposé par pays") — la France impose désormais
+ * Le canal imposé par pays — la France impose désormais
  * PDP aux factures dont la date d'ÉMISSION (issueDate) est le 2026-09-01 ou plus tard
  * (`backend/.../transports/channel-policy/data/fr.json`, source reprise du repère git
  * `avant-refonte-documents`, voir ce fichier). Ce spec prouve, par l'écran, les trois effets du

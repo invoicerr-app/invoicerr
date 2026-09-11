@@ -6,7 +6,7 @@ import { assertValidRetentionRule } from '../schema';
 import { ALL_RETENTION_FILES } from './all';
 
 describe('archive/retention/data — the shipped FR catalog', () => {
-  it('loads exactly France today — the country this task’s own repère sourced', () => {
+  it('loads exactly France today — the country the `avant-refonte-documents` repère sourced', () => {
     expect(ALL_RETENTION_FILES.map((f) => f.countryCode)).toEqual(['FR']);
   });
 

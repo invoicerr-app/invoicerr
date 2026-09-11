@@ -1,8 +1,8 @@
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
 /**
- * What is still owed on a document, once PAYMENTS and CREDITS are counted — nothing else (item 8 of
- * the root TODO, "le lettrage" — a credit note reconciled against the document it corrects).
+ * What is still owed on a document, once PAYMENTS and CREDITS are counted — nothing else
+ * ("le lettrage" — a credit note reconciled against the document it corrects).
  *
  * A credit note is NOT a payment, and this module deliberately does not pretend otherwise: it is a
  * document that WITHDRAWS from the claim, not cash that arrived, and a settlement that filed one as
@@ -15,7 +15,7 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
  * arrived, a credit is an amount withdrawn from the claim. A product that files a credit as a
  * payment will one day report revenue it never received."
  *
- * `credits` was, until this task, a documented gap in this function's own signature ("deliberately
+ * `credits` was previously a documented gap in this function's own signature ("deliberately
  * narrow ... so that future work can extend it ... without this function having silently pretended
  * to support it all along") — resolving WHICH credit notes count, and what their amount even means
  * for a type whose own descriptor has no line items of its own, is now `settlement/credits.ts`'s
@@ -27,7 +27,7 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
 
 /** The one fact `computeSettlement` needs about each payment — its amount, ALWAYS already expressed
  *  in the document's own currency. Deliberately narrower than the full `DocumentPayment` row
- *  (method/note/paidAt play no part in the arithmetic) — and, since TODO_PRODUIT.md T3, deliberately
+ *  (method/note/paidAt play no part in the arithmetic) — and deliberately
  *  NOT the row's own `amountMinor` either when a conversion was applied: a payment in a foreign
  *  currency is no longer refused (see actions/invoice-actions.ts's "record-payment"), it is CONVERTED
  *  once, at record time, to a dated rate (`settlement/convert-payment.ts`) and the result is stored on
@@ -76,7 +76,7 @@ export interface DocumentSettlement {
    * got here. Splitting the excess too would be precision with no decision it actually helps make.
    *
    * Renamed from the earlier `overpaidMinor` (this field's only previous name, before `credits`
-   * existed): keeping that name would have MISNAMED the exact case this task exists to get right — a
+   * existed): keeping that name would have MISNAMED the exact case `credits` exists to get right — a
    * fully over-CREDITED document with zero payments is not "overpaid".
    */
   excessMinor: number;
@@ -116,8 +116,8 @@ export function computeSettlement(
 
 /**
  * A human-facing sentence stating the settlement's own numbers — what "record-payment" hands back as
- * its `ActionResult.message` (see actions/invoice-actions.ts): the task asks for a result that SAYS
- * the new balance, and `ActionResult` has no structured field for one beyond `message` (widening it
+ * its `ActionResult.message` (see actions/invoice-actions.ts): the action must return a result that
+ * SAYS the new balance, and `ActionResult` has no structured field for one beyond `message` (widening it
  * for this alone would touch every action/result consumer for a single caller's benefit). Plain
  * English, same convention as everything else this module hands the frontend verbatim
  * (DocumentTypeDescriptor.label, an action's own `message`) — not an i18n key.

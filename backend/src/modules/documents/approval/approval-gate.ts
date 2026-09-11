@@ -2,7 +2,7 @@ import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import prisma from '@/prisma/prisma.service';
 
 /**
- * TODO_FEATURES.md rank 17 ("workflow d'approbation interne au-delà d'un seuil") — the QUICK-WIN
+ * Internal approval workflow ("workflow d'approbation interne au-delà d'un seuil") — the QUICK-WIN
  * scope: a ROLE+VALUE GATE on the "send" action, wired into `documents.service.ts#runAction`. NOT a
  * full request→approve state machine — there is no pending-approval record, no separate "approve"
  * action, and no notification to an approver. A higher role (ADMIN/OWNER) sending the document past

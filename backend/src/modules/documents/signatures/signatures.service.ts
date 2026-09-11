@@ -80,7 +80,7 @@ export interface PublicSignatureView {
  * `queue/document-webhooks.ts`'s own `DOCUMENT_WEBHOOK_EMITTER` header documents: `ClientsService`
  * (`modules/clients/clients.service.ts`) imports `WebhookDispatcherService` directly, which chains
  * into `webhooks.service.ts` → `drivers/discord.driver.ts` → `@teever/ez-hook`, the pure-ESM package
- * ts-jest cannot compile (TODO_ISSUES.md's own "`ClientsModule` inimportable sous ts-jest" entry).
+ * ts-jest cannot compile (the known "`ClientsModule` inimportable sous ts-jest" limit).
  * `quote-actions.ts`'s own `QuoteActionDeps.clientsService: ClientsService` gets away with importing
  * the concrete class because it is a BARE INTERFACE FIELD (erased entirely at compile time, no
  * decorator ever forces it to survive as a real value) — but THIS class is `@Injectable()`, and a

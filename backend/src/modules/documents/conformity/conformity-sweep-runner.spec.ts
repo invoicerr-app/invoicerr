@@ -7,13 +7,13 @@
  * plain mocked object (`{ enqueueConformityPoll } as unknown as DocumentQueueDispatcher`), the exact
  * same pattern `schedule-sweep-runner.spec.ts` already uses for its own dispatcher dependency.
  *
- * `../persistence` (TODO_PRODUIT.md T2bis) is ALSO mocked wholesale, ONLY for the "webhooks" describe
+ * `../persistence` is ALSO mocked wholesale, ONLY for the "webhooks" describe
  * block below: `dispatchDocumentAuthorityEventWebhook` (`queue/document-authority-webhook.ts`) fetches
  * the row via `findOwnedDocument` before dispatching `DOCUMENT_AUTHORITY_EVENT` — every test ABOVE
  * that block never configures a `webhookDispatcher` at all, so that fetch never runs for them.
  *
- * `../archive/archive-verdict-on-terminal` (root TODO item 14's own remainder, mandataire decision
- * 2026-09-06) is mocked wholesale too, for the exact same isolation reason: it is Prisma/disk-touching
+ * `../archive/archive-verdict-on-terminal` is mocked wholesale too, for the exact same isolation
+ * reason: it is Prisma/disk-touching
  * (`archive/persistence.ts#createAuthorityVerdictArchive`), and this file's whole point is a
  * `ConformitySweepRunner` that never reaches a real database — dedicated coverage for THAT function's
  * own dedup/retention/parent-linking logic lives in `archive/persistence.spec.ts`.
@@ -254,10 +254,10 @@ describe('ConformitySweepRunner.runPoll', () => {
     ).resolves.toEqual({ journaled: 0 });
   });
 
-  // BELT AND SUSPENDERS — found by this task's own mutation testing (mutation #2): the compensating
-  // 'poll:blocked' write is not itself guaranteed to succeed (a real DB outage, or — as mutation
-  // testing actually demonstrated live — a broken dedup colliding with a PREVIOUS 'poll:blocked' row
-  // for the same document). `runPoll` must survive that too, never propagate it.
+  // BELT AND SUSPENDERS — the compensating
+  // 'poll:blocked' write is not itself guaranteed to succeed (a real DB outage, or a broken dedup
+  // colliding with a PREVIOUS 'poll:blocked' row for the same document). `runPoll` must survive that
+  // too, never propagate it.
   it('NEVER THROWS even when journaling poll:blocked itself fails', async () => {
     const poller = buildPdpPoller({ poll: jest.fn().mockRejectedValue(new Error('ECONNRESET')) });
     registry.register(poller);
@@ -270,12 +270,12 @@ describe('ConformitySweepRunner.runPoll', () => {
   });
 });
 
-// Root TODO item 14's own remainder (TODO_ISSUES.md, mandataire decision 2026-09-06) — `runPoll` is
+// `runPoll` is
 // the ONE entry point that WORM-archives a terminal authority verdict. Dedicated coverage for
 // `createAuthorityVerdictArchive` itself (dedup, retention copied from the parent, the
 // "no-deposit-archive" outcome) lives in `archive/persistence.spec.ts` — these tests only prove
 // `runPoll` calls the (mocked) wrapper for the RIGHT events, and never lets it affect its own result.
-describe('ConformitySweepRunner.runPoll — verdict archiving (root TODO item 14, 2026-09-06)', () => {
+describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
   const dispatcher = {} as DocumentQueueDispatcher;
   let registry: AuthorityStatusPollerRegistry;
 
@@ -374,12 +374,12 @@ describe('ConformitySweepRunner.runPoll — verdict archiving (root TODO item 14
   });
 });
 
-// TODO_PRODUIT.md T1 / PLAN-V2 R8 — the worker→API SSE bridge. `eventsPublisher` is OPTIONAL (see
+// The worker→API SSE bridge. `eventsPublisher` is OPTIONAL (see
 // `ConformitySweepRunner`'s own constructor header) — every test ABOVE this block constructs the
 // runner with two args and must keep passing unchanged; these are the DEDICATED tests for the publish
 // behavior: publish only on a GENUINELY NEW journal row, never on a dedup no-op, and only when the job
 // data actually carries a typeId.
-describe('ConformitySweepRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', () => {
+describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () => {
   let dispatcher: DocumentQueueDispatcher;
   let registry: AuthorityStatusPollerRegistry;
   let events: { publish: jest.Mock };
@@ -593,12 +593,12 @@ describe('ConformitySweepRunner — events (TODO_PRODUIT.md T1 / PLAN-V2 R8)', (
   });
 });
 
-// TODO_PRODUIT.md T2bis — `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
+// `DOCUMENT_AUTHORITY_EVENT`, dispatched via `dispatchDocumentAuthorityEventWebhook`
 // at the SAME "genuinely new row" gates the "events" describe block above already proves for the SSE
 // nudge. `webhookDispatcher` is this runner's 4th constructor arg (a PLAIN class provider — unlike
 // `ReportingRunner`, Nest's own reflection-based DI resolves this with no factory pitfall, see that
 // class's own header) — every test ABOVE this block omits it and must keep passing unchanged.
-describe('ConformitySweepRunner — webhooks (TODO_PRODUIT.md T2bis)', () => {
+describe('ConformitySweepRunner — webhooks', () => {
   let dispatcher: DocumentQueueDispatcher;
   let registry: AuthorityStatusPollerRegistry;
   const mockedFindOwnedDocument = persistence.findOwnedDocument as jest.Mock;
@@ -688,7 +688,7 @@ describe('ConformitySweepRunner — webhooks (TODO_PRODUIT.md T2bis)', () => {
     expect(webhooks.dispatch).not.toHaveBeenCalled();
   });
 
-  // THE MUTATION TARGET this task's own brief names: a dead webhook endpoint must never look like the
+  // THE MUTATION TARGET: a dead webhook endpoint must never look like the
   // poll itself failed.
   it('a dispatch failure NEVER propagates — runPoll still returns normally', async () => {
     registry.register(

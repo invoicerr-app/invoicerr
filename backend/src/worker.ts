@@ -5,7 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { WorkerModule } from './worker.module';
 
 /**
- * Bootstrap for the dedicated document-action queue worker process (ROLE=worker) — TODO.md item 22.
+ * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
  * Rebuilt on the model of the pre-refonte compliance engine's own worker.ts (git tag
  * `avant-refonte-documents`), adapted to the documents module.
  *

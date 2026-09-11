@@ -10,7 +10,7 @@ import {
 /**
  * `document_annotation` sample CITED VERBATIM from `docs.mistral.ai/capabilities/OCR/annotations/`'s
  * own worked example response (fetched 2026-09-03, see `client.ts`'s own header) — proves the ONE
- * mechanic this task could not have gotten right by guessing: the field is a JSON-ENCODED STRING,
+ * mechanic that could not have been gotten right by guessing: the field is a JSON-ENCODED STRING,
  * not a nested object, REGARDLESS of what schema was requested. This particular sample used a
  * language-detection schema (chapter titles of a paper), not an invoice — none of ITS fields
  * (`language`/`chapter_titles`/`urls`) exist in `INVOICE_ANNOTATION_JSON_SCHEMA`, so mapping it
@@ -30,7 +30,7 @@ describe('mapMistralResponseToProposal', () => {
     expect(proposal).toEqual({ fields: {} });
   });
 
-  it("maps a full invoice-shaped annotation (this task's own schema) to ExtractedInvoiceFields", () => {
+  it('maps a full invoice-shaped annotation (our own schema) to ExtractedInvoiceFields', () => {
     const annotation = JSON.stringify({
       supplier: 'Fournisseur OCR SARL',
       supplierVatId: 'FR12345678901',
@@ -171,7 +171,7 @@ describe('buildMistralOcrClient — against a real HTTP stub (never a mocked fet
     );
   });
 
-  // The REAL, live-captured Mistral response (this task's own `curl`, no Authorization header AND a
+  // The REAL, live-captured Mistral response (a real `curl`: no Authorization header AND a
   // garbage bearer token both answered identically — see `client.ts`'s own header) — reproduced
   // verbatim by this stub.
   it('a 401 becomes a NAMED MistralOcrError, carrying the real "Invalid API Key" body', async () => {

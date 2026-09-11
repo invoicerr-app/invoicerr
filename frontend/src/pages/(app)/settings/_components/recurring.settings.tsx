@@ -116,7 +116,7 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
 }
 
 /**
- * The recurrences screen — root TODO item 5, point 5: every `DocumentSchedule` for the active
+ * The recurrences screen: every `DocumentSchedule` for the active
  * company, across EVERY document type, generic on purpose (a plugin's own type that registers
  * "duplicate" gets a row here for free the moment it creates a schedule, with no change to this
  * file). Lives as its own settings tab (see -[tab].tsx) rather than a per-type page section: a

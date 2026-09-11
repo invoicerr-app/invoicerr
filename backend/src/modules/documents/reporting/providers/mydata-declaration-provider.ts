@@ -1,6 +1,6 @@
 /**
  * The "mydata" `DeclarationProvider` — Greece's AADE myDATA. A single-call flow (unlike NAV's
- * three-step one): `SendInvoices` → `invoiceMark` (this task's own "MARK myDATA"). See
+ * three-step one): `SendInvoices` → `invoiceMark` (the "MARK myDATA"). See
  * `mydata-client.ts`'s own header for the full "verified vs extrapolated" breakdown, INCLUDING the
  * weaker provenance this provider's own facts carry (aade.gr itself was unreachable from this
  * environment — every fact below is corroborated by independent third-party client implementations,
@@ -45,7 +45,7 @@ export function extractMyDataCredentials(resolved: ResolvedChannelConfig): MyDat
  * confidence (category 1 = the standard rate; category 7 = "no VAT" / exempt / 0%). Every OTHER rate
  * (Greece's own reduced rates — 13%, 6%, and the island-specific reduced rates) falls back to
  * category 1 too, deliberately NAMED as a fallback here rather than silently guessed at a specific
- * code this task could not verify — a real myDATA account would reject a genuinely wrong category
+ * code that could not be verified — a real myDATA account would reject a genuinely wrong category
  * loudly (`MyDataApiError`, surfaced as `report:failed`, never masked).
  */
 export function mapVatRateToMyDataCategory(ratePercent: number | null): number {
@@ -55,7 +55,7 @@ export function mapVatRateToMyDataCategory(ratePercent: number | null): number {
 
 /**
  * `invoiceType` (`InvoiceHeaderType`, required — see `mydata-client.ts`'s own header) — "1.1"
- * ("Τιμολόγιο Πώλησης" / ordinary sale-of-goods invoice) is this task's own fixed default: the ONLY
+ * ("Τιμολόγιο Πώλησης" / ordinary sale-of-goods invoice) is the fixed default here: the ONLY
  * value independently corroborated across multiple third-party client READMEs as the common case for
  * an ordinary B2B/B2C sales invoice. The XSD's own enumeration (dozens of values, for services,
  * self-billing, intra-community supplies, retail receipts, …) was NOT individually verified — a

@@ -53,7 +53,7 @@ describe('DocumentsService.collectWidgets', () => {
     const service = buildService([descriptor({ contributions: ['dashboard'] })], contributionRegistry);
 
     const widgets = await service.collectWidgets('company-1', 'dashboard');
-    // PLUS the "upcoming recurrences" widget (root TODO item 5, point 6) — ADDED alongside every
+    // PLUS the "upcoming recurrences" widget — ADDED alongside every
     // type's own contribution, never in place of it (documents.service.ts's own collectWidgets).
     expect(widgets).toEqual([
       { id: 'w1', kind: 'metric', label: 'Pending', value: 2 },

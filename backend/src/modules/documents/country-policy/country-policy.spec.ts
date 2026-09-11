@@ -32,11 +32,12 @@ describe('evaluateCountryPolicy', () => {
 
   // DECISION 1, proven directly: a country with NO rows in the policy table blocks EVERY action —
   // no permissive fallback. If someone changes the `rules.length === 0` branch to return
-  // `{ allowed: true }` (the exact mutation this task asks to rehearse), this test goes red.
+  // `{ allowed: true }` (the exact mutation rehearsed here), this test goes red.
   // `findRules` is mocked straight to `[]` here — this proves the CODE PATH for "zero rows", not a
-  // claim about which real country has none; Germany was this fixture's placeholder until root TODO
-  // P1 gave it a real, sourced policy file, so it moved to Belgium — which lot 1 (TODO_DOCUMENTS vague B) then covered too, so it moved AGAIN to Japan (genuinely uncovered) rather
-  // than keep a now-misleading "Germany has no rows" framing.
+  // claim about which real country has none; Germany was this fixture's placeholder until it got a
+  // real, sourced policy file, so it moved to Belgium — which was then covered too, so it moved
+  // AGAIN to Japan (genuinely uncovered) rather than keep a now-misleading "Germany has no rows"
+  // framing.
   it('blocks EVERY action for a country with no policy rows at all, and NAMES the country', async () => {
     findCompany.mockResolvedValue({ country: 'Japan', countryCode: 'JP' });
     findRules.mockResolvedValue([]);
@@ -49,8 +50,8 @@ describe('evaluateCountryPolicy', () => {
     expect(decision.reason).toMatch(/country-policy\/data\/jp\.json/);
   });
 
-  // Root TODO item 18 ("réception de factures") — the SAME mechanism, proven again against the new
-  // type/action pair, for the exact case the task asks to prove directly: "approve refusé pour un
+  // Received invoices ("réception de factures") — the SAME mechanism, proven again against the new
+  // type/action pair, for the exact case to prove directly: "approve refusé pour un
   // pays sans règle → 403 nommé" (the 403 itself is documents.service.received-invoice.spec.ts's own
   // wiring proof; THIS is the real, unmocked decision the service call above is proven to relay).
   it('blocks "received-invoice"/"approve" for a country with no policy rows at all, and NAMES the country', async () => {
@@ -251,10 +252,10 @@ describe('resolveAvailableDocumentTypes', () => {
   });
 
   // A country with NO policy file at all (e.g. Japan — see the COUNTRY_FILES list in data/all.ts,
-  // which as of root TODO P1 covers FR/US/HU/DE/IT/PL/ES/MX only) must say so BY NAME, never render a
+  // which covers FR/US/HU/DE/IT/PL/ES/MX only) must say so BY NAME, never render a
   // silently empty group — this is the "un pays sans règles n'a aucun type, et son groupe Documents
   // doit le DIRE" requirement, proven against the real catalog rather than a mock of it. Germany used
-  // to be this test's placeholder "uncovered" country; root TODO P1 gave it a real, sourced policy
+  // to be this test's placeholder "uncovered" country; it then got a real, sourced policy
   // file, so this fixture moved to Belgium (still genuinely absent from COUNTRY_FILES) rather than
   // weakening what this test proves.
   it('a country with no policy file at all has NO types, and says so by name — never a silent empty list', async () => {

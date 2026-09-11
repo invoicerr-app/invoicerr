@@ -20,9 +20,9 @@
  *   8. GET /sessions/{sRef}/invoices/{iRef} → invoice status + ksefNumber
  *
  * REPRISED VERBATIM (byte-for-byte, this file and its spec) from git tag `avant-refonte-documents`
- * (`compliance/providers/transmission/ksef/ksef-client.ts`) — item 10 (root TODO), wave 2. This is
+ * (`compliance/providers/transmission/ksef/ksef-client.ts`). This is
  * the exact client that reached CLEARED against ksef-test.mf.gov.pl on 2026-06-28; only its CALLER
- * changed (`../ksef-transport.ts`, this wave's own — the old `ksef-transmission.ts` orchestrator, a
+ * changed (`../ksef-transport.ts` — the old `ksef-transmission.ts` orchestrator, a
  * `TransmissionProvider` for the removed compliance engine, is NOT reprised, see that file's own
  * header).
  */

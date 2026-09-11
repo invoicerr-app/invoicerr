@@ -1,8 +1,7 @@
 /**
- * The "peppol" transport — root TODO item 10 remainder / item 26 wave, the highest-leverage channel
- * left unwired at this task's own start: DE/BE/NL/the Nordics run B2B e-invoicing over the Peppol
- * network, and several EU B2G routes name it too (see `b2g-routing/data/de.json`'s own header for
- * the German federal portal case — "le trou allemand du B2G", now CLOSED via the format override
+ * The "peppol" transport — a high-leverage channel: DE/BE/NL/the Nordics run B2B e-invoicing over the
+ * Peppol network, and several EU B2G routes name it too (see `b2g-routing/data/de.json`'s own header
+ * for the German federal portal case — "le trou allemand du B2G", CLOSED via the format override
  * this file's own header, "THE FORMAT OVERRIDE", documents below; see that JSON file's own ADDENDUM
  * for the full, sourced resolution). Same `DocumentTransport` interface `pdp-transport.ts`/
  * `ksef-transport.ts` implement, registered the same way (`TransportRegistry.register`).
@@ -10,7 +9,7 @@
  * The GENERIC Access Point adapter (`peppol/peppol-client.ts`) is REPRISED and adapted from git tag
  * `avant-refonte-documents` (`compliance/providers/transmission/peppol/peppol-client.ts`) — see that
  * file's own header for exactly what was kept, adapted, and dropped. Its own live status is
- * "live-deferred" (needs a real connected AP vendor); the ACTUAL live attempt this task ran went
+ * "live-deferred" (needs a real connected AP vendor); the ACTUAL live attempt went
  * through a DIFFERENT adapter, peppol.sh (`peppol/peppol-sh-client.ts` + `peppol/peppol-sh-live.
  * spec.ts`, zero-secret sandbox self-signup) — see that file's own header and `LIVE_TESTING.md` for
  * the raw, honest result. This PRODUCTION transport uses ONLY the generic adapter: the settings
@@ -29,7 +28,7 @@
  * `peppol-transport.spec.ts`'s own "vendor-FR/R002 case, FIXED" test proves the Access Point actually
  * receives it, merged into one note.
  *
- * ## THE FORMAT OVERRIDE — root TODO item 10/26's own remainder, "le trou allemand du B2G"
+ * ## THE FORMAT OVERRIDE — "le trou allemand du B2G"
  *
  * The Peppol NETWORK is content-agnostic — it is the same four-corner transport whether the envelope
  * carries a generic Peppol BIS invoice or a national CIUS built on the same UBL syntax. Germany's own
@@ -46,7 +45,7 @@
  * carries its OWN `formatSyntax` — forwarded verbatim as `ctx.formatOverride`. `resolveFormatForSend`
  * below is the ONLY place that reads it: absent (every ordinary B2B send, and every B2G rule that
  * routes to peppol with NO override recorded, which is every rule except DE today) means the ORIGINAL,
- * unchanged behavior — `peppolBisFormatProvider`, exactly as before this task, proven unchanged by
+ * unchanged behavior — `peppolBisFormatProvider`, exactly as before, proven unchanged by
  * every pre-existing test in `peppol-transport.spec.ts`. Present but UNKNOWN to `deps.formatOverrides`
  * is a NAMED refusal, never a silent fall-back to Peppol BIS — the whole point of this mechanism is
  * that a government recipient gets EXACTLY the format the law names, or an honest block, never a
@@ -58,7 +57,7 @@
  * sdi → FatturaPA, face → Facturae signed, anaf → UBL, email → a rendered PDF) and simply never reads
  * `ctx.formatOverride` at all — setting it on their context (which `resolveB2gInvoiceTransport` does
  * unconditionally whenever a B2G rule applies, regardless of which transport it names) is harmless,
- * inert, and asserted so by this task's own tests: a fixed-format transport's own behavior is
+ * inert, and asserted so by the tests here: a fixed-format transport's own behavior is
  * UNCHANGED by a field it never looks at.
  *
  * The RECEIVER is the client's own Peppol endpoint — the EXISTING `PEPPOL_ENDPOINT` party identifier
@@ -299,7 +298,7 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
       }
 
       if (!messageId) {
-        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md, and this task's own mutation #1): an AP that
+        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md): an AP that
         // answers OK with no usable message id is a FAILURE, never a silent success.
         throw new BadRequestException(
           'Peppol accepted the request but returned no message id — treating this as a failed send, ' +
@@ -318,7 +317,7 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
           'post-send conformity sweep — see conformity/pollers/peppol-status-poller.ts.',
         reference: messageId,
         providerId: PEPPOL_PROVIDER_ID,
-        // Root TODO item 14 ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving — the ONLY artifact this transport ever delivers is
         // the document ACTUALLY sent (Peppol BIS by default, or the format override — already gated
         // valid above), same reasoning as every sibling transport's own `artifacts`.
         artifacts: [

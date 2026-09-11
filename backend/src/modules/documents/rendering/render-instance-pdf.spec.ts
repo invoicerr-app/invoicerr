@@ -1,5 +1,5 @@
 /**
- * `legalMentionsFor` (root TODO item 15) and `sepaPaymentQrFor` (TODO_FEATURES.md rank 8) are the two
+ * `legalMentionsFor` and `sepaPaymentQrFor` are the two
  * pieces of `render-instance-pdf.ts` that need neither Prisma nor Puppeteer to exercise — everything
  * else in that file needs both (see this file's own header for why no broader spec exists here today).
  * `legalMentionsFor` is proven directly, against the REAL shipped `data/fr.json`, the same discipline
@@ -59,7 +59,7 @@ describe('legalMentionsFor', () => {
   });
 });
 
-describe('sepaPaymentQrFor (TODO_FEATURES.md rank 8)', () => {
+describe('sepaPaymentQrFor', () => {
   const paymentQrDescriptor: DocumentTypeDescriptor = {
     id: 'invoice',
     label: 'Invoice',

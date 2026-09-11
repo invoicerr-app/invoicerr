@@ -19,13 +19,13 @@ import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 /**
- * TODO_CORRECTION.md C2 — "Corriger" on an ISSUED invoice (sent/send_failed; a draft has nothing to
+ * "Corriger" on an ISSUED invoice (sent/send_failed; a draft has nothing to
  * correct, and the backend's own gate 4 would 409 anyway — see correction-routes.spec.ts) opens a
- * dialog rendering THIS INVOICE'S OWN SELLER COUNTRY's correction routes, exactly as C1's
+ * dialog rendering THIS INVOICE'S OWN SELLER COUNTRY's correction routes, exactly as
  * `GET .../correction-routes` hands them back. Same custom-slot mechanism, same file location
  * (custom/) as `invoice-preview-button.tsx` right next to it — this is the SECOND "invoice" ×
  * "list-row-extra" registration (see custom-slots.ts's own header on why that used to be impossible,
- * a real bug this task found and fixed).
+ * a real bug found and fixed while wiring this button).
  *
  * The dialog never invents a legal fact: `status` and `label` are rendered EXACTLY as the API sends
  * them — `label` in particular is the country file's own legal citation (or, for `unverified`, its
@@ -40,13 +40,13 @@ import { cn } from "@/lib/utils"
  * choosable route that is also `implemented` (today: only INTERNAL_CREDIT_NOTE) navigates to the
  * REAL credit-note creation screen, PRE-LINKED to this invoice (`invoice: instance.id` handed through
  * router `state.initialData` — the exact same generic seed `DocumentUpsertDialog.initialData` already
- * serves the received-invoice upload flow, see [typeId].tsx's own consumption of it); T4-d's own
+ * serves the received-invoice upload flow, see [typeId].tsx's own consumption of it);
  * `lockedFromReference` then locks the currency the moment that id resolves, with NO further wiring
  * needed here. Choosing a choosable-but-NOT-implemented route (every other route, for every country,
  * today) never pretends to run anything — it shows the honest "declared by the law, not implemented
- * here" panel below, the NAMED refusal TODO_CORRECTION.md C2 requires instead of a stub that fakes it.
+ * here" panel below, a NAMED refusal instead of a stub that fakes it.
  *
- * TODO_CORRECTION.md C3 — CANCEL_AND_REPLACE is the SECOND routeId this dialogue actually wires to a
+ * CANCEL_AND_REPLACE is the SECOND routeId this dialogue actually wires to a
  * real mechanism, alongside INTERNAL_CREDIT_NOTE: `implemented` for it is now COUNTRY-AWARE (see the
  * backend's `correction-routes/cancel-policy.ts`) — true only for the seller countries that genuinely
  * found a LOCAL cancellation (FR/DE/US unrestricted, IT narrowed to "send_failed" — the backend's own
@@ -72,8 +72,8 @@ function isIssued(status: string): boolean {
 
 /** Whether the seller's own country PERMITS attempting this route at all — `required`/`allowed`
  *  only. `unverified` is deliberately NOT choosable: "nobody has settled this for this country" is
- *  not the same fact as "this country allows it" (TODO_CORRECTION.md C2's own wording: "« non établi »
- *  n'est pas « permis »"), and `forbidden` obviously never is either. This is INDEPENDENT of
+ *  not the same fact as "this country allows it" ("« non établi » n'est pas « permis »"), and
+ *  `forbidden` obviously never is either. This is INDEPENDENT of
  *  `implemented` — a required route with no real mechanism behind it is still choosable (it leads to
  *  the honest "not implemented" panel), a forbidden route is never choosable even for the one routeId
  *  this repo does know how to execute. */
@@ -177,7 +177,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   const navigate = useNavigate()
   const { data, isLoading, error } = useCorrectionRoutes("invoice", instance.id)
   const [view, setView] = useState<DialogView>({ kind: "routes" })
-  // TODO_CORRECTION.md C3 — the SAME mutation every generic action button elsewhere in this module
+  // The SAME mutation every generic action button elsewhere in this module
   // already uses (`useRunDocumentAction`, hooks/queries/use-document-types.ts); its own
   // `invalidateKeys: [["documents"]]` is what makes the list's own "Cancelled" badge appear the
   // instant this dialogue closes, with no bespoke refetch wired here.
@@ -189,8 +189,8 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       // is the SAME generic seed `DocumentUpsertDialog` already accepts for a brand-new record (see
       // that component's own header — the received-invoice upload flow is the other user of it);
       // [typeId].tsx reads it off `useLocation().state` the moment the credit-note page mounts and
-      // opens the create dialog with it already applied. Setting only `invoice` is enough: T4-d's
-      // own `lockedFromReference` on the credit note's `currency` field watches that sibling field
+      // opens the create dialog with it already applied. Setting only `invoice` is enough:
+      // `lockedFromReference` on the credit note's `currency` field watches that sibling field
       // and locks itself the instant it resolves — no currency value needs to be guessed here.
       onClose()
       navigate("/documents/credit-note", { state: { initialData: { invoice: instance.id } } })
@@ -203,7 +203,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       return
     }
     // Declared by the country's own law (required/allowed) but not one this repo wires to a real
-    // mechanism today — the NAMED, honest refusal TODO_CORRECTION.md C2 requires, never a button that
+    // mechanism today — a NAMED, honest refusal, never a button that
     // quietly does nothing or pretends to create something.
     setView({ kind: "not-implemented", route })
   }
@@ -320,7 +320,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
 
   return (
     <div className="space-y-4">
-      {/* The P3-U02 limitation — the API's own words, discreet but never hidden: this is the
+      {/* The seller×buyer limitation — the API's own words, discreet but never hidden: this is the
           SELLER-only answer, and the seller's own law is not always the whole story once a buyer in
           a different country is involved. */}
       <p className="text-xs text-muted-foreground" data-cy="document-correction-limitation">

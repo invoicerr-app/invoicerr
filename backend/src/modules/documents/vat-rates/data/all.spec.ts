@@ -1,12 +1,12 @@
 /**
  * Coverage guard for the SHIPPED VAT rate catalog — same role country-policy/data/all.spec.ts plays
- * for its own files. This task's scope is France only ("La France, et elle seule"), so this file
- * pins that fact rather than leaving it as an unverified impression of the directory listing.
+ * for its own files. The shipped scope is pinned here as a fact rather than left as an unverified
+ * impression of the directory listing.
  */
 import { ALL_VAT_RATE_FILES } from './all';
 
 describe('vat-rates/data — the shipped FR/PT catalog', () => {
-  // Re-pinned by the 5-country prune (2026-09-10, see this task's own report): this mechanism now
+  // Re-pinned by the 5-country prune (2026-09-10): this mechanism now
   // ships FR and PT only — DE/PL/IT never had a vat-rates file (they derive their standard rate from
   // tax-systems/ instead, see tax-systems/schema.ts's own header), and every lot-1/lot-2 country
   // (BE/NL/AT/EE/GR/CY/…) was `git rm`'d along with its data/xx.json.
@@ -35,7 +35,7 @@ describe('vat-rates/data — the shipped FR/PT catalog', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  // Root TODO item 21 (2026-09-01) read every one of these five articles at its own text on
+  // The 2026-09-01 legal verification read every one of these five articles at its own text on
   // codes.droit.org (a Légifrance mirror — Légifrance itself still refused every automated request)
   // and promoted all five rates from "unverified" to "legal". This REPLACES the previous version of
   // this test, which asserted the opposite ("honestly, none of the FR rates claim legal provenance
@@ -67,8 +67,8 @@ describe('vat-rates/data — the shipped FR/PT catalog', () => {
   });
 });
 
-// BE's vat-rates/data/be.json (agent pays Belgique) was removed by the 5-country prune (2026-09-10,
-// see this task's own report) along with every other country outside FR/PL/IT/PT/DE — it was never
+// BE's vat-rates/data/be.json was removed by the 5-country prune (2026-09-10)
+// along with every other country outside FR/PL/IT/PT/DE — it was never
 // registered in data/all.ts to begin with, so nothing here re-anchors it. PT's own equivalent content
 // is pinned instead by this same directory's dedicated data/pt.spec.ts.
 

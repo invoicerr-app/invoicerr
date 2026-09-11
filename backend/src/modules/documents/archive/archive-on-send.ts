@@ -1,5 +1,5 @@
 /**
- * Le point d'accroche de l'archivage légal (root TODO item 14) sur l'envoi asynchrone —
+ * Le point d'accroche de l'archivage légal sur l'envoi asynchrone —
  * `actions/async-send.ts`'s phase-2 (`deliver()` déjà réussi, le document déjà écrit "sent") appelle
  * `archiveDeliveredArtifactsIfAny` juste après cette écriture, jamais avant : archiver ce qui n'a pas
  * encore été livré serait un mensonge (une archive prétendant conserver un envoi qui pourrait encore
@@ -7,7 +7,7 @@
  *
  * ## La garantie que cette fonction tient : elle NE PROPAGE JAMAIS D'EXCEPTION
  *
- * "Un échec d'archivage ne doit PAS annuler un envoi déjà livré" (root TODO item 14) — au moment où
+ * "Un échec d'archivage ne doit PAS annuler un envoi déjà livré" — au moment où
  * cette fonction est appelée, l'e-mail est déjà parti / le dépôt est déjà accepté, c'est un FAIT
  * acquis, et rien ici ne doit pouvoir le remettre en cause. `async-send.ts` appelle donc ceci APRÈS
  * avoir persisté "sent" et sans l'englober dans un try/catch de son cru — c'est CETTE fonction qui

@@ -1,6 +1,5 @@
 /**
- * facturx-provider.ts — root TODO item 10's promised follow-through on TODO_ISSUES.md's Factur-X
- * entry. `rendering/render-instance-pdf.ts` is MOCKED (the same discipline `email-transport.spec.ts`
+ * facturx-provider.ts — `rendering/render-instance-pdf.ts` is MOCKED (the same discipline `email-transport.spec.ts`
  * already holds for the identical reason: real Puppeteer has no business in a unit spec) — but it
  * hands back a REAL, valid PDF built with `pdf-lib` rather than a fake byte string, because
  * `@e-invoice-eu/core`'s Factur-X embedder genuinely PARSES and manipulates the PDF it is given (PDF/
@@ -24,7 +23,7 @@ import { buildFacturxFormatProvider } from './facturx-provider';
 jest.mock('../rendering/render-instance-pdf');
 
 /**
- * Root TODO item 15's own regression guard for the gap this file's own header now documents as
+ * Regression guard for the gap this file's own header now documents as
  * REACHED-and-FIXED (`splitCiiIncludedNotesInObject`, wired via `@e-invoice-eu/core`'s own
  * `postProcessor` option): pulls the ACTUAL embedded CII back out of the PDF/A-3
  * `buildFacturxFormatProvider` produces, so a future regression here fails OFFLINE, in this spec,
@@ -150,7 +149,7 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
     );
   }, 30_000);
 
-  // Root TODO item 15 ("mentions obligatoires") — VALID_DATA's SELLER is French, so this now embeds
+  // VALID_DATA's SELLER is French, so this now embeds
   // FOUR notes (the user's own + the three statutory mentions). The regression this test exists to
   // catch: `@e-invoice-eu/core` regenerates the CII internally for THIS embed step, a copy the plain
   // structural+Schematron gate above never sees — see `facturx-provider.ts`'s own header for the
@@ -184,7 +183,7 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
     expect(embeddedCii).toContain('Merci de votre confiance.'); // the user's own note, still there too
   }, 30_000);
 
-  // Root TODO item 15's own remainder — BT-23. The plain-CII gate above (built the same way
+  // BT-23. The plain-CII gate above (built the same way
   // `cii-provider.ts` does) gets its fix from `applyFrenchBusinessProcess` on the rendered STRING;
   // `@e-invoice-eu/core`'s own internal regeneration for THIS embed step never sees that string, the
   // exact gap `applyFrenchBusinessProcessInObject` (chained into the SAME `postProcessor` as

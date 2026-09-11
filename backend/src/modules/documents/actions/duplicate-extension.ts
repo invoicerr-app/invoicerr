@@ -15,11 +15,11 @@ import { findOwnedDocument, upsertDocument } from '../persistence';
  * declare this action and never register a handler, and it would 501 exactly like any other
  * unimplemented action. Nothing about the mechanism special-cases "duplicate".
  *
- * ## Root TODO item 5 (recurring documents) reuses this SAME handler — no second implementation
+ * ## Recurring documents reuse this SAME handler — no second implementation
  *
  * A scheduled occurrence (documents/schedules/) is, at its core, still just "duplicate this
- * document" — the task's own instruction is explicit that it must "adapt WITHOUT a second
- * implementation of duplicate". ONE optional param, a no-op for the plain manual "Duplicate" button
+ * document" — it must adapt WITHOUT a second implementation of duplicate. ONE optional param, a
+ * no-op for the plain manual "Duplicate" button
  * (which never sends it), makes that possible: `occurrenceDate` — when present, OVERRIDES
  * `dateRecalc.anchorField` on the clone (e.g. an invoice's own `issueDate`) with this exact value,
  * and shifts every field named in `dateRecalc.dependentFields` (e.g. `dueDate`) by the SAME offset
@@ -114,7 +114,7 @@ export function registerDuplicateExtension(
         label: 'Occurrence date',
         required: false,
         helpText:
-          "Internal — set by a scheduled recurrence (root TODO item 5) to recompute this type's " +
+          "Internal — set by a scheduled recurrence to recompute this type's " +
           'own date fields on the duplicate. Left empty for an ordinary, manual duplicate.',
       },
     ],

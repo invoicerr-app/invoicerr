@@ -17,7 +17,7 @@ jest.mock('./persistence');
 jest.mock('./country-policy/country-policy');
 
 /**
- * TODO_CORRECTION.md C3 — proves the WIRING: `DocumentsService#runAction('invoice', 'cancel', ...)`
+ * Proves the WIRING: `DocumentsService#runAction('invoice', 'cancel', ...)`
  * actually reads `correction-routes/cancel-policy.ts`'s own per-country map (never mocked here — the
  * REAL catalog, same "compose real country data, mock only Prisma" discipline
  * `documents.service.correction-routes.spec.ts` already holds), composes it through the exact same
@@ -80,7 +80,7 @@ function mockDocument(overrides: Partial<{ id: string; status: string }> = {}) {
   return document;
 }
 
-describe('DocumentsService.runAction("invoice", "cancel") — TODO_CORRECTION.md C3', () => {
+describe('DocumentsService.runAction("invoice", "cancel")', () => {
   afterEach(() => jest.resetAllMocks());
 
   describe('the per-country gate (correction-routes/cancel-policy.ts, real catalog)', () => {
@@ -116,7 +116,7 @@ describe('DocumentsService.runAction("invoice", "cancel") — TODO_CORRECTION.md
     });
 
     // US used to pair with DE here — data/us.json (correction-routes) was removed by the 5-country
-    // prune (2026-09-10, see this task's own report), and with it US's own entry in cancel-policy.ts's
+    // prune (2026-09-10), and with it US's own entry in cancel-policy.ts's
     // whitelist (now dead code, removed too — see that file's own header). DE alone still proves the
     // point: FR is not the only country with an unrestricted local cancel.
     it('DE: also an unrestricted local cancel (no restrictedToStatuses), same as FR', async () => {

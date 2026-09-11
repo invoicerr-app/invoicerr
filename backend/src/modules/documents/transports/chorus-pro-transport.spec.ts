@@ -5,7 +5,7 @@
  * choruspro-live.spec.ts`'s job, gated on real PISTE credentials this checkout does not have — see
  * that file's own header); this proves the ORCHESTRATION, mirroring `pdp-transport.spec.ts`'s own
  * structure exactly: the preflight gate, the recipient (SIRET) gate, the payload build/gate, and —
- * this task's own two named mutations — that an empty `numeroFluxDepot` is NEVER a success and that an
+ * the two named mutation guards — that an empty `numeroFluxDepot` is NEVER a success and that an
  * artifact that failed the Factur-X/EN 16931 gate is NEVER deposited.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
@@ -219,7 +219,7 @@ describe('buildChorusProTransport', () => {
       );
     });
 
-    // MUTATION GUARD #1 — "identifiant de dépôt vide accepté" — this task's own hard-success
+    // MUTATION GUARD #1 — "identifiant de dépôt vide accepté" — the hard-success
     // contract (LIVE_TESTING.md): an accepted deposit with an EMPTY numeroFluxDepot must be a
     // FAILURE, never a silent success — a reference nobody can look up is not a reference at all.
     it('MUTATION GUARD #1 — treats an EMPTY numeroFluxDepot as a FAILURE, never a success', async () => {

@@ -1,7 +1,7 @@
 import { buildDocumentActionJobData, buildDocumentActionJobId } from './document-action-job';
 
 /**
- * Pure functions — no BullMQ, no Nest, no Redis. TODO.md item 22 explicitly asks for this: "forme du
+ * Pure functions — no BullMQ, no Nest, no Redis. The requirement, stated: "forme du
  * job et déterminisme du jobId (fonctions pures testables sans broker)".
  */
 describe('buildDocumentActionJobId', () => {

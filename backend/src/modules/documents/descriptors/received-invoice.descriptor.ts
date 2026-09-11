@@ -6,8 +6,8 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
 
 /**
- * The RECEIVED INVOICE document type — root TODO item 18 ("réception de factures"), the D — L'entrée
- * category's first (and, for this wave, only) type. Unlike every OUTBOUND type this core has
+ * The RECEIVED INVOICE document type — the D — L'entrée
+ * category's first (and only) type. Unlike every OUTBOUND type this core has
  * (quote/invoice/credit-note), this one is never numbered by US, never sent, and never signed: it
  * records a fact about something a THIRD PARTY (a supplier) already issued, which this company is
  * merely bookkeeping.
@@ -19,8 +19,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    on their own document (may drift from the linked client's own registered name — a trading name,
  *    a typo, a different legal entity in the same group), the other is THIS company's own bookkeeping
  *    link. Neither ever overwrites the other.
- *  - `supplierClient` (TODO_PRODUIT.md T5(b), `reference`, entity "supplier") — the persistent
- *    fournisseur this invoice is linked to, reusing `Client` (mandant's decision: a role, not a
+ *  - `supplierClient` (`reference`, entity "supplier") — the persistent
+ *    fournisseur this invoice is linked to, reusing `Client` (a role, not a
  *    dedicated entity — see `Client.isSupplier`'s own schema comment for the full "why a separate
  *    boolean, never `kind`"). Registered under its OWN entity id ("supplier",
  *    `documents-core.module.ts`), NOT "client": the invoice's/quote's own `client` field is the
@@ -43,7 +43,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *  - `currency`, `netAmount`, `vatAmount`, `grossAmount`: FLAT money fields — the totals are whatever
  *    the supplier's own document says, taken (extracted or typed) as-is, never re-priced or
  *    re-computed by this company.
- *  - `lines` (TODO_PRODUIT.md T5(a), superseding this file's own former "deliberately NOT an array"
+ *  - `lines` (superseding this file's own former "deliberately NOT an array"
  *    stance — see the superseded reasoning preserved at this file's own tail comment): désignation,
  *    quantité, prix unitaire HT, taux de TVA, the SAME `kind: 'array'` mechanism
  *    `invoice.descriptor.ts`'s own `lines` field already uses (field-kinds.ts's 'array', validate.ts's
@@ -77,8 +77,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    are never overwritten by what the lines add up to — see that file's header for why).
  *
  * Every one of the nine fields above is `required: false` — DELIBERATELY, unlike every outbound
- * type here (an invoice needs a client, a credit note needs the invoice it corrects). The task this
- * type exists for is explicit: "recevoir un PDF papier scanné est le cas de base d'un artisan" — a
+ * type here (an invoice needs a client, a credit note needs the invoice it corrects). Recevoir un
+ * PDF papier scanné est le cas de base d'un artisan — a
  * plain scanned PDF carries NO machine-extractable field at all, and the whole point of this type is
  * that such a document still gets recorded, with an attached file and empty fields to fill in later,
  * rather than being refused. Making any field required here would turn that base case into a wall.
@@ -91,7 +91,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * instance's `data` JSON by the upload flow (`received-invoices/received-invoices.service.ts`) and
  * by the "receive" action handler below, exactly the way `DocumentInstance.data` already carries
  * every other field's value — no migration needed (`DocumentInstance.data` already is a `Json`
- * column; see this task's own instruction to prefer it over a new column). They are NOT listed in
+ * column). They are NOT listed in
  * `fields` above on purpose: a raw SHA-256 hex string is not something a human ever TYPES or EDITS
  * through the generic field-kind form (there is no 'file' field kind in this core, and inventing one
  * for this single use would be exactly the kind of speculative, single-consumer vocabulary this
@@ -128,7 +128,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * rejected is closer to a reviewed record than a mis-entered draft, and letting it vanish silently
  * after that review would erase the very decision this lifecycle exists to keep. A mis-uploaded
  * document (wrong file, duplicate entry corrected some other way) can still be deleted BEFORE that
- * review concludes, which is the actual "oops" case this task asks to cover.
+ * review concludes, which is the actual "oops" case.
  *
  * ## What this type deliberately does NOT declare
  *
@@ -159,7 +159,7 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
     ],
     initialStatus: 'received',
     // Dashboard only — see contributions/received-invoice-contributions.ts's own header for why
-    // there is no 'statistics' entry in this first wave (not asked for by root TODO item 18).
+    // there is no 'statistics' entry yet.
     contributions: ['dashboard'],
     // See types.ts's own comment on `listItem`. `supplier` is the natural heading for "who is this
     // from" — `supplierNumber` joins it (both required: false, so the fallback "<label> #<id>" title
@@ -318,14 +318,13 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
 }
 
 /**
- * Deliberately OUT of this wave (root TODO item 18's own scope note, carried here verbatim so the
- * decision travels with the type it applies to):
- *  - channel inboxes (KSeF inbound port, PDP/Peppol reception) — the poller remainder root TODO item
- *    10 already names; this type is filled by a human UPLOADING a file, never by a channel pushing
+ * Deliberately out of scope:
+ *  - channel inboxes (KSeF inbound port, PDP/Peppol reception) — this type is filled by a human
+ *    UPLOADING a file, never by a channel pushing
  *    one in automatically.
  *  - supplier reconciliation (matching a received invoice against this company's own purchase
  *    records) — no such records exist in this core today.
- *  - OCR of a scanned PDF — SUPERSEDED by TODO_PRODUIT.md T5(c): a PDF that structural extraction
+ *  - OCR of a scanned PDF — SUPERSEDED: a PDF that structural extraction
  *    (`received-invoices/extraction.ts`) reads nothing from is now, opportunistically, handed to
  *    `received-invoices/ocr/apply-ocr-fallback.ts`'s own extension point — never a hard dependency
  *    (a self-hosted instance with no `OCR_SERVICE_URL` configured, or one running an older build

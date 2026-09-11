@@ -1,5 +1,5 @@
 /**
- * The WRITE side of the worker→API bridge TODO_PRODUIT.md T1 / PLAN-V2 R8 calls for. Every status
+ * The WRITE side of the worker→API bridge. Every status
  * transition (`actions/async-send.ts`, `queue/mark-send-failed.ts`) and every newly-journaled batch of
  * authority events (`conformity/conformity-sweep-runner.ts`, `reporting/reporting-runner.ts`, the SdI
  * push receiver `transports/sdi/sdi-notifiche.service.ts`) is written in whichever PROCESS happens to

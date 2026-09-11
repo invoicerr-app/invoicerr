@@ -29,7 +29,7 @@ function FieldChrome({
       <FormLabel required={field.required}>{field.label}</FormLabel>
       <FormControl>{children}</FormControl>
       {field.helpText && <FormDescription>{field.helpText}</FormDescription>}
-      {/* TODO_PRODUIT.md T4-d — the ONLY caller today is SelectField's own `lockedFromReference`
+      {/* The ONLY caller today is SelectField's own `lockedFromReference`
           note, kept generic (a plain optional prop, not a `field.lockedFromReference` check inside
           FieldChrome itself) the same way `helpText` above is generic across every field kind. */}
       {note && <FormDescription data-cy={`document-field-${field.key}-note`}>{note}</FormDescription>}
@@ -178,7 +178,7 @@ export function SelectField({ field, name }: FieldRendererProps) {
   const allOptions = field.options ?? []
   const [search, setSearch] = useState("")
 
-  // TODO_PRODUIT.md T4-d — `lockedFromReference` (types.ts): watch the named SIBLING 'reference'
+  // `lockedFromReference` (types.ts): watch the named SIBLING 'reference'
   // field (e.g. a credit note's own "invoice"), and once it resolves to a real id, copy
   // `sourceKey` off that entity's raw fields (the SAME `getFields` mechanism `prefillFrom`,
   // array-field.tsx, already calls) onto THIS field — kept in sync for as long as the reference

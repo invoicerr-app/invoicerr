@@ -163,7 +163,7 @@ export async function seedCountryPolicies(
     });
   }
 
-  // Whole-country purge — TODO_ISSUES.md's own remaining note ("`country-identifiers/seed.ts` ne
+  // Whole-country purge — the known remainder ("`country-identifiers/seed.ts` ne
   // purge jamais un pays entièrement retiré") names this gap for the sibling table; this one shares
   // it identically, and for the same structural reason: the loop above only ever opens a
   // transaction for a country the FILES still name (`countries`, from `catalog.countries()`). A

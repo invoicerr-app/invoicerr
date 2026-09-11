@@ -7,7 +7,7 @@ import { ALL_TAX_SYSTEM_FILES } from '@/modules/documents/tax/tax-systems/data/a
 import { ALL_VAT_RATE_FILES } from '@/modules/documents/vat-rates/data/all';
 
 /**
- * The five CŒUR mechanisms a country needs to be "complete" — a business decision (mandant, 2026-09),
+ * The five CŒUR mechanisms a country needs to be "complete" — a business decision,
  * NOT something discovered from disk. `mentions/` and `content-requirements/` are deliberately left
  * out: they are FR-specific extras that no other jurisdiction is expected to ship, so requiring them
  * would make every non-FR country "incomplete" forever regardless of how well it is actually covered.

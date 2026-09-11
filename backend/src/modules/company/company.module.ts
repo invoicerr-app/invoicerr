@@ -26,7 +26,7 @@ import { SigningCertificatesService } from './signing-certificates/signing-certi
     SigningCertificatesService,
   ],
   // `ChannelCredentialsService`/`SigningCertificatesService` are exported so `DocumentsCoreModule` can
-  // inject them (into the "pdp" transport, and into the PAdES signing wiring — root TODO item 13,
+  // inject them (into the "pdp" transport, and into the PAdES signing wiring,
   // `documents/signing/sign-instance-pdf.ts`) — the same cross-module reuse `ClientsService`/
   // `MailService` already get for the "email" transport, nothing bespoke.
   exports: [CompanyService, ChannelCredentialsService, SigningCertificatesService],

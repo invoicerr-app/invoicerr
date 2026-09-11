@@ -1,5 +1,5 @@
 /**
- * The migration-vs-schema enum tripwire (TODO_LIBRE.md L3 / TODO_ISSUES.md "Dérive
+ * The migration-vs-schema enum tripwire ("Dérive
  * migration-vs-schema sur les enums : aucun tripwire automatisé sur base fraîche").
  *
  * The class of bug this closes: `20260903170000_restore_document_settled_after_enum_rebuild`'s own
@@ -51,7 +51,7 @@
  * throwaway database itself is named `invoicerr_migration_fresh_<pid>`: `process.pid` rather than
  * `Date.now()` because this file runs under jest, where a pid is already a unique-enough,
  * human-traceable handle for "which run left this behind" without reaching for wall-clock time (the
- * CI workflow context this task was read against rules out `Date.now()` for exactly this kind of
+ * CI workflow context rules out `Date.now()` for exactly this kind of
  * name precisely because two things in the same second can collide there — a pid never collides
  * with a concurrent process on the same machine).
  *

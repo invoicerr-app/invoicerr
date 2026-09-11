@@ -1,5 +1,5 @@
 /**
- * Root TODO item 24 ("liens publics de téléchargement") — the CRUD half of a public, unauthenticated
+ * "Liens publics de téléchargement" — the CRUD half of a public, unauthenticated
  * download link for one document instance's PDF. On the model of `DocumentSchedulesService`
  * (schedules/schedules.service.ts): a small class that reuses `DocumentsService.getType`/
  * `getDocument` for the exact same tenant-scoped 404s every other entry point into this module
@@ -22,7 +22,7 @@
  * opposite on purpose: a persistent, LISTED (see `list` below), REVOCABLE (see `revoke`) link a
  * company hands to a client to actually open an invoice — an hour would make "list the active links,
  * revoke one" nearly pointless (most links would already be dead before anyone thought to revoke
- * them). 30 days is the "reasonable default" this ticket allows when the repère's own number doesn't
+ * them). 30 days is the reasonable default when the repère's own number doesn't
  * transfer to the new use case.
  */
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';

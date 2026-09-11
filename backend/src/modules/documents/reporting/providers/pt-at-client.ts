@@ -4,7 +4,7 @@
  * `pt-declaration-provider.ts`, the same split `nav-client.ts`/`nav-declaration-provider.ts` already
  * hold). Status: **implemented to the documented AT contract, awaiting accreditation** — exactly
  * `transports/sdi/sdicoop-client.ts`'s own posture. This has NEVER been run against a real AT
- * endpoint (no "subutilizador" credential or AT public key was available to this task) — every fact
+ * endpoint (no "subutilizador" credential or AT public key was available) — every fact
  * below is either VERIFIED against the primary manuals (cited, quoted) or explicitly marked
  * EXTRAPOLATED/⚠ UNVERIFIED. A green `pt-at-client.spec.ts` proves the STRUCTURE this file builds,
  * never that AT accepts it — see `LIVE_TESTING.md`'s own standing warning about mocked-green ≠ live.
@@ -23,8 +23,8 @@
  *    FULL worked SOAP example (§2.1.1.3), reproduced structurally by this client and by
  *    `pt-at-client.spec.ts`.
  *  - Both PDFs were fetched directly with `curl` (a plain HTTP GET renders the real, static PDF —
- *    unlike `diariodarepublica.pt`/`onlineszamla.nav.gov.hu`/`aade.gr`, which this codebase's own
- *    prior tasks already found render only an empty JavaScript shell to a plain request) and read
+ *    unlike `diariodarepublica.pt`/`onlineszamla.nav.gov.hu`/`aade.gr`, which were already found to
+ *    render only an empty JavaScript shell to a plain request) and read
  *    with `pdftotext -layout`.
  *  - `Fatcorews.wsdl` itself (the field-level WSDL both manuals point to,
  *    `info.portaldasfinancas.gov.pt/.../Fatcorews/Documents/Fatcorews.wsdl`) returned HTTP 404 from
@@ -63,7 +63,7 @@
  *     `PtAtCredentials.authPublicKeyPem` below).
  *     ⚠ UNVERIFIED: the exact RSA padding scheme. The manual names the algorithm ("RSA") but no
  *     padding/OAEP parameters anywhere in either PDF. Node's OWN default for `crypto.publicEncrypt`
- *     is OAEP (confirmed empirically for this task: encrypting with the default padding and then
+ *     is OAEP (confirmed empirically: encrypting with the default padding and then
  *     decrypting with `RSA_PKCS1_PADDING` explicitly does NOT reproduce the plaintext — the two are
  *     genuinely different schemes, not interchangeable). This client uses `RSA_PKCS1_PADDING`
  *     (classic PKCS#1 v1.5) — the conventional default for legacy Java/.NET government webservices of
@@ -127,7 +127,7 @@
  *    transport, neither of which needs mTLS) rather than `node:https` with a `pfx`/`passphrase`
  *    secure context (the pattern `transports/sdi/sdicoop-client.ts#postSoap` already establishes in
  *    this codebase for a channel that DOES need it) — a real production call would fail the TLS
- *    handshake before ever reaching the WS-Security layer this task was scoped to build. Named here,
+ *    handshake before ever reaching the WS-Security layer this client builds. Named here,
  *    not silently omitted: wiring the certificate is straightforward (same `pfx`/`passphrase` shape
  *    SdI already uses) once a real AT-issued PKCS#12 exists to test it against — building it blind,
  *    with no certificate to hold it against and no way to structurally test it beyond "does

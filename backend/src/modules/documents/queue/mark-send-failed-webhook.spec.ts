@@ -1,5 +1,5 @@
 /**
- * TODO_PRODUIT.md T2bis — the ONE end-to-end proof `DOCUMENT_SEND_FAILED` needs, mirroring
+ * The ONE end-to-end proof `DOCUMENT_SEND_FAILED` needs, mirroring
  * `actions/async-send-webhook.spec.ts`'s own "REAL local HTTP stub, real `SlackDriver`, never a mock
  * of the HTTP client" discipline for the identical reason (see that file's own header for the full
  * "why SlackDriver, never GenericDriver/WebhooksService" reasoning — copied here rather than shared,
@@ -76,7 +76,7 @@ function realEmitter(url: string): DocumentWebhookEmitter {
   };
 }
 
-describe('markSendFailed — DOCUMENT_SEND_FAILED, against a REAL local HTTP stub (TODO_PRODUIT.md T2bis)', () => {
+describe('markSendFailed — DOCUMENT_SEND_FAILED, against a REAL local HTTP stub', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('a terminal failure makes EXACTLY ONE POST reach the stub, carrying the error and the formatted payload', async () => {

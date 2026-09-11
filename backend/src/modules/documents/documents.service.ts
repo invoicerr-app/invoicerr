@@ -178,7 +178,7 @@ export class DocumentsService implements OnModuleInit {
     // which none of them exercise) — never a breaking change to add a new capability.
     @Inject(FORMAT_PROVIDER_REGISTRY)
     private readonly formatProviderRegistry: FormatProviderRegistry = new FormatProviderRegistry(),
-    // Root TODO item 13 ("Signature électronique") — a plain concrete-class dependency, the same
+    // Signature électronique — a plain concrete-class dependency, the same
     // pattern `ChannelsController`/`buildTransportRegistry` already use for `ChannelCredentialsService`
     // (no string token needed: Nest resolves a concrete class by its own type). Defaulted to a fresh
     // `SigningCertificatesService()` (no-arg constructor, same shape as `ChannelCredentialsService`)
@@ -290,7 +290,7 @@ export class DocumentsService implements OnModuleInit {
       contributionRegistry: this.contributionRegistry,
     });
 
-    // "Upcoming recurrences" (root TODO item 5, point 6) — ADDED alongside every existing widget
+    // "Upcoming recurrences" — ADDED alongside every existing widget
     // above, never in place of them. Not a per-TYPE contribution (ContributionRegistry is keyed by
     // (typeId, location) because a type decides what it shows about ITSELF): this widget spans every
     // type at once, so it is wired here directly rather than through that registry — see
@@ -393,7 +393,7 @@ export class DocumentsService implements OnModuleInit {
    * never hardcoded to Germany or to "buyerReference" specifically.
    */
   /**
-   * TODO_CORRECTION.md C3 — the one composition point BOTH `describeTypeForCompany` (below) and
+   * The one composition point BOTH `describeTypeForCompany` (below) and
    * `runAction` (further down) call instead of `evaluateCountryPolicy` directly, so the FRONTEND view
    * and the ACTUAL execution gate can never drift apart (the same "the API refuses exactly what the
    * screen would refuse" discipline this whole module already holds for country policy and status).
@@ -401,7 +401,7 @@ export class DocumentsService implements OnModuleInit {
    * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
    * instead of the ordinary `country-policy/` DB table. The two coverage sets are DIFFERENT ON
    * PURPOSE — `country-policy/` mirrors eight country FILES today (FR/US/HU/DE/IT/PL/ES/MX,
-   * data/all.ts, root TODO P1 added the last five); `correction-routes/` (TODO_CORRECTION.md C1)
+   * data/all.ts); `correction-routes/`
    * covers all SEVEN pivots, each with the exact CANCEL_AND_REPLACE citation this one action needs —
    * a NARROWER, action-specific fact that `evaluateCountryPolicy`'s generic allowed/forbidden shape
    * cannot express. Routing "cancel" through the ordinary `evaluateCountryPolicy` would give the
@@ -651,7 +651,7 @@ export class DocumentsService implements OnModuleInit {
    *    `DocumentActionRuleFact.statuses` — refuses it; both land on the same 409, never a second 403)
    *  - action declared, available, but no implementation registered -> 501, clearly worded
    *  - document data or the action's own params don't match their descriptors -> 400, per-field
-   *  - TODO_FEATURES.md rank 17: a MEMBER running "send" on a document whose gross total exceeds the
+   *  - a MEMBER running "send" on a document whose gross total exceeds the
    *    company's configured approval threshold -> 403, see the gate just before `handler` runs below
    *
    * This is the ONLY place an action actually runs — the HTTP controller has no other route that
@@ -774,7 +774,7 @@ export class DocumentsService implements OnModuleInit {
     // data that has already passed every check above (never to data about to be rejected anyway).
     const data = stampRowIds(fields, payload.data ?? {}, referencedArrayFieldKeys(this.typeRegistry, typeId));
 
-    // TODO_FEATURES.md rank 17 — the approval-threshold gate. Placed HERE, after every gate above
+    // The approval-threshold gate. Placed HERE, after every gate above
     // (country policy, per-status restriction, impl/501, field+param+row-selection validation) but
     // strictly BEFORE `handler` runs: a blocked send must never transition status, take a document
     // number, or enqueue delivery, and every check above it is either cheaper or more fundamental
@@ -830,7 +830,7 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    // THE NUMBER (numbering/) and the STOCK EFFECT (documents/stock/, TODO_FEATURES.md rank 18) below
+    // THE NUMBER (numbering/) and the STOCK EFFECT (documents/stock/) below
     // both hang off the exact SAME "is this record entering its type's own `numbering.onEnterStatus`
     // for the very first time" fact — captured ONCE, here, before either block below can mutate
     // `result.document.number` (the numbering block does, immediately after). Re-deriving this
@@ -866,7 +866,7 @@ export class DocumentsService implements OnModuleInit {
       if (numbered) {
         const numberedDocument = { ...result.document, ...numbered };
         result = { ...result, document: numberedDocument };
-        // STOCK EFFECT (TODO_FEATURES.md rank 18): decrements every stock-tracked article a line of
+        // STOCK EFFECT: decrements every stock-tracked article a line of
         // THIS document references — see `apply-stock-on-issuance.ts`'s own header. Tied to `numbered`
         // being truthy, NOT to `enteringNumberedStatus` alone: `takeDocumentNumberForTransition`
         // returns a number for EXACTLY the one caller that atomically won it (undefined for the loser
@@ -940,7 +940,7 @@ export class DocumentsService implements OnModuleInit {
     const totals = computeDocumentTotals(descriptor, data);
     const payments = await listPayments(companyId, id);
     const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
-    // TODO_PRODUIT.md T3 — `toSettlementPaymentInputs`, never the raw `payments` array directly:
+    // `toSettlementPaymentInputs`, never the raw `payments` array directly:
     // since a payment can now be recorded in a currency other than the document's own (converted at
     // record time — settlement/convert-payment.ts), `computeSettlement` must read each payment's
     // `documentAmountMinor` (already in the document's own currency), not its own `amountMinor`
@@ -954,11 +954,11 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * TODO_CORRECTION.md C1 — which correction routes this document's own SELLER country declares, and
+   * Which correction routes this document's own SELLER country declares, and
    * which of them this repo actually implements. Four gates, each distinct and named, the same
    * "un brouillon sans numéro refuse en le disant" discipline `downloadDocumentFormat` already holds:
    *  - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
-   *  - typeId known but not "invoice"             -> 501 (docs/compliance/CORRECTION-ROUTES.yaml only
+   *  - typeId known but not "invoice"             -> 501 (documentation/internal/CORRECTION-ROUTES.yaml only
    *    ever covers invoices; V1 of this mechanism does not generalize past that — see
    *    correction-routes/correction-routes.spec.ts for the pinned message)
    *  - the record is still a "draft"              -> 409 (a correction corrects an ISSUED document —
@@ -980,7 +980,7 @@ export class DocumentsService implements OnModuleInit {
     if (typeId !== 'invoice') {
       throw new NotImplementedException(
         `Correction routes are declared for "invoice" only today — "${typeId}" is not supported yet ` +
-          '(docs/compliance/CORRECTION-ROUTES.yaml only covers invoices; TODO_CORRECTION.md C1).',
+          '(documentation/internal/CORRECTION-ROUTES.yaml only covers invoices).',
       );
     }
 
@@ -1026,7 +1026,7 @@ export class DocumentsService implements OnModuleInit {
       descriptor,
       instance,
     );
-    // Root TODO item 13 — signs PAdES-BES when (and only when) this company has an active,
+    // Signs PAdES-BES when (and only when) this company has an active,
     // applicable, non-expired certificate configured (`signing/sign-instance-pdf.ts`'s own header).
     // No certificate → `pdf` returned untouched, byte-for-byte (the invariant every pre-existing
     // `documents.service.*.spec.ts` and Cypress spec 19 already proves without knowing this call
@@ -1080,7 +1080,7 @@ export class DocumentsService implements OnModuleInit {
       // A dedicated message, not `runAction`'s generic one: "download-xml" refuses for exactly ONE
       // structural reason (no number yet — see invoice.descriptor.ts's own comment), so the 409 says
       // so directly rather than making the caller cross-reference `availableWhen` themselves. This IS
-      // the "un brouillon sans numéro refuse en le disant" behavior this ticket asks for.
+      // the "un brouillon sans numéro refuse en le disant" behavior.
       throw new ConflictException(
         `Cannot download a normalized XML export of a document with status "${instance.status}" — an ` +
           'EN 16931 invoice requires a definitive invoice number (BT-1), only assigned once sending ' +
@@ -1130,7 +1130,7 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    // Root TODO item 16 ("transfrontalier") — invoice-only: the download is otherwise a generic
+    // Cross-border tax ("transfrontalier") — invoice-only: the download is otherwise a generic
     // export shared by any future document type's own `download-xml`-style action. Reuses the
     // company/client rows ALREADY fetched above (with their `partyIdentifiers`) rather than a second
     // round trip through `tax/load-and-resolve.ts` — the pure resolver
@@ -1196,7 +1196,7 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * "GET .../archives" — root TODO item 14 ("archivage légal ⚖"). Every archive written for this
+   * "GET .../archives" — archivage légal ⚖. Every archive written for this
    * document, most recent first — DELIVERY rows (`archive/archive-on-send.ts`, one per successful
    * delivery that produced at least one artifact) AND, since 2026-09-06, VERDICT rows (the
    * authority's own terminal verdict on one of those deposits, `archive/persistence.ts#
@@ -1232,8 +1232,8 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * "GET .../authority-events" — root TODO item 10's own named remainder (post-deposit conformity
-   * tracking, `conformity/`). Every event journaled for this document, most recent first — see
+   * "GET .../authority-events" — post-deposit conformity
+   * tracking (`conformity/`). Every event journaled for this document, most recent first — see
    * `DocumentAuthorityEvent`'s own schema comment for why this is a plain read of an append-only log,
    * never a computed "current status". `findOwnedDocument` first, the same tenant/existence check
    * every other per-document read in this class already runs.

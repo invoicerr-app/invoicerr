@@ -208,7 +208,7 @@ describe('AnafClient — real local HTTP stub', () => {
       }
     });
 
-    // THE HARD-SUCCESS CONTRACT (this task's own mutation #1): an ANAF response with NO usable
+    // THE HARD-SUCCESS CONTRACT: an ANAF response with NO usable
     // index_incarcare is a FAILURE, never a silent success — a reference nobody can look up on ANAF's
     // own portal is not a reference at all.
     it('throws when ANAF answers 2xx with NO index_incarcare at all — never invents one', async () => {

@@ -1,5 +1,5 @@
 /**
- * Les transports NATIONAUX (root TODO item 10) — vague 1 : le socle credentials + le canal PDP,
+ * Les transports NATIONAUX — vague 1 : le socle credentials + le canal PDP,
  * prouvé par l'écran : on connecte le canal PDP avec des identifiants FICTIFS pointant un serveur
  * qui n'existe pas (port fermé en local), on choisit `pdp` comme transport de facturation, et on
  * observe l'échec réel de la file (BullMQ retry puis "send_failed", l'erreur nommant le canal). Le
@@ -11,7 +11,7 @@
  * l'écran → choisir le transport → envoyer → "send_failed" nommant le canal — avec DEUX différences
  * assumées, documentées ici plutôt que devinées en silence :
  *
- *  1. AUCUN fichier `country-policy/data/{pl,it}.json` n'existe (item 11, pas item 10 — voir ce
+ *  1. AUCUN fichier `country-policy/data/{pl,it}.json` n'existe (voir ce
  *     module's own header : "aucune règle fiscale/juridique inventée"). Une société dont le pays EST
  *     la Pologne/l'Italie a donc TOUTE action document bloquée (403, `country-policy.ts`'s propre
  *     décision 1) — y compris `save-draft`. Les tests ci-dessous basculent donc le pays de la société

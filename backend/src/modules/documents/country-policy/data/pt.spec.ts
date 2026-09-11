@@ -1,9 +1,7 @@
 /**
- * Content-pinning + schema-gate spec for `data/pt.json` — the AGENT PAYS PT deliverable (lot 7,
- * TODO_DOCUMENTS.md vague B, dernier lot). Deliberately does NOT go through `all.ts`/`all.spec.ts`
- * (both are mandataire-only for validation, and `pt` is not registered in `all.ts`'s own
- * `COUNTRY_FILES` list yet — adding it there is the mandataire's call, not this agent's) — this spec
- * reads `pt.json` directly with `readFileSync` and re-runs the SAME `assertValidProvenance` gate
+ * Content-pinning + schema-gate spec for `data/pt.json`. Deliberately does NOT go through
+ * `all.ts`/`all.spec.ts` (`pt` is not registered in `all.ts`'s own `COUNTRY_FILES` list yet) — this
+ * spec reads `pt.json` directly with `readFileSync` and re-runs the SAME `assertValidProvenance` gate
  * `all.ts` would run, so the file is proven valid on its own before it is ever wired into the
  * aggregator.
  */
@@ -50,12 +48,12 @@ describe('PT — country-policy/data/pt.json', () => {
         'quote::send',
         'quote::convert-to-invoice',
         'quote::request-deposit',
-        // TODO_FEATURES.md rank 12 ("échéancier") — see this rule's own resolutionNote in pt.json:
+        // Installments ("échéancier") — see this rule's own resolutionNote in pt.json:
         // same product-convenience posture as 'quote::request-deposit' right above.
         'quote::request-installments',
         'quote::duplicate',
         'quote::share-link',
-        // Root TODO item 13 REDONE (2026-09-10) — the hardened, reintroduced e-signature: signing a
+        // The hardened, reintroduced e-signature (2026-09-10): signing a
         // quote is a product convenience, not a legally-encumbered act, the same posture
         // 'quote::duplicate' already holds — see this rule's own resolutionNote in pt.json.
         'quote::request-signature',
@@ -104,7 +102,7 @@ describe('PT — country-policy/data/pt.json', () => {
     expect(rule.notes).toMatch(/documentos retificativos de faturas/);
   });
 
-  it('invoice.send is sourced to the Decreto-Lei n.º 28/2019 art. 4.º certified-software mandate — the TROUVAILLE ATTENDUE of this task — and documents ATCUD/QR and the chained signature', () => {
+  it('invoice.send is sourced to the Decreto-Lei n.º 28/2019 art. 4.º certified-software mandate — the expected headline finding — and documents ATCUD/QR and the chained signature', () => {
     const rule = ruleFor(pt, 'invoice', 'send');
     expect(rule.provenance.kind).toBe('legal');
     if (rule.provenance.kind === 'legal') {

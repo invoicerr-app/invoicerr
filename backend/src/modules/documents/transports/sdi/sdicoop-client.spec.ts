@@ -1,13 +1,13 @@
 /**
- * `sdicoop-client.ts` in isolation — root TODO item 10, SdI wave, **implemented-awaiting-
+ * `sdicoop-client.ts` in isolation — **implemented-awaiting-
  * accreditation** (see that file's own header for the full "what was read vs extrapolated" account,
  * and `sdicoop.live.spec.ts` for the real, gated round-trip nobody can run today).
  *
- * Three layers proven here, exactly as this task's own brief asks:
+ * Three layers proven here:
  *  1. `buildRiceviFileEnvelope` — the exact SOAP structure read from the WSDL/XSD (pure, no network).
  *  2. `parseRiceviFileResponse` — every named failure shape (SOAP Fault, business `<Errore>`, and the
  *     hard-success contract: no `IdentificativoSdI` is a FAILURE even with no `<Errore>` either —
- *     MUTATION TARGET #1, see that function's own comment in `sdicoop-client.ts`).
+ *     see that function's own comment in `sdicoop-client.ts`).
  *  3. `SdiCoopClient` against a REAL local HTTPS server requiring mTLS — a self-signed client
  *     certificate (built in-memory with `node-forge`, the exact `generateTestCert` shape
  *     `signing-certificates.service.spec.ts` already uses for the identical "no real certificate is

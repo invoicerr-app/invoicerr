@@ -1,6 +1,6 @@
 /**
  * The generic poll-side interface every national channel's post-deposit conformity check implements —
- * this task's own remainder of root TODO item 10 ("transports nationaux"): a deposit today succeeds
+ * national transports: a deposit today succeeds
  * the moment the platform ACCEPTS the upload (`DocumentInstance.transportRef`), and nothing ever
  * follows up on the platform's own LATER verdict (PDP: fr:200 déposée → fr:201 émise → fr:202 reçue,
  * or fr:213 rejetée — proven live in ~1s, five times, see `pollers/pdp-status-poller.ts`'s own
@@ -23,7 +23,7 @@
  *  (`DocumentAuthorityEvent`), but still exactly what the platform said, never re-interpreted beyond
  *  what `terminal`/`statusCode` require. `rawPayload` is the ENTIRE raw object this event came from —
  *  kept verbatim so a future mapping bug (the exact "read `status_code` instead of `events[]`"
- *  mistake this whole task exists to fix) can be diagnosed from what was actually received. */
+ *  mistake) can be diagnosed from what was actually received. */
 export interface RawAuthorityEvent {
   statusCode: string;
   statusText?: string;
@@ -38,7 +38,7 @@ export interface RawAuthorityEvent {
 /** Thrown by a poller's own `poll()` when this company has no usable credentials connected for this
  *  provider RIGHT NOW — the sweep catches this ONE type specifically (never a bare string match on an
  *  error message) and journals a `poll:blocked` synthetic event instead of letting the job fail loud;
- *  every OTHER thrown error is treated the same way (this task's own explicit rule: "un handler
+ *  every OTHER thrown error is treated the same way ("un handler
  *  d'événement ne tue jamais le processus") but is logged as a genuine unexpected failure, not merely
  *  "not connected". */
 export class ChannelNotConnectedError extends Error {

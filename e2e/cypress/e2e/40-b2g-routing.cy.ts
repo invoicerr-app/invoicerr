@@ -2,7 +2,7 @@
  * B2G routing (`backend/src/modules/documents/b2g-routing/`) — a client marked GOVERNMENT
  * (`Client.kind`) changes which channel/format an invoice addressed to it MUST use, per THAT
  * CLIENT's OWN country — never the seller's, and never overridable by the company's own free
- * transport choice or by root TODO item 11's own seller-country mandate (see
+ * transport choice or by the seller-country mandate (see
  * `actions/invoice-actions.ts`'s own precedence header).
  *
  * Same discipline as 31/32/35: the ACTION passes by a real click on screen (create the client,
@@ -18,7 +18,7 @@
  * Four countries, four shipped rules, four different shapes of proof:
  *  - FR (Chorus Pro): **RENFORCÉ** — `transportId: "chorus-pro"` used to name a channel absent from
  *    `transport-registry.ts` (the thesis of this whole model: a rule may legitimately name a channel
- *    not implemented yet), so sending BLOCKED, synchronously, at the preflight, before this task. The
+ *    not implemented yet), so sending BLOCKED, synchronously, at the preflight. The
  *    channel now EXISTS (`transports/chorus-pro-transport.ts`) — this is the mechanism PROGRESSING,
  *    not weakening: a company that connects chorus-pro (fictitious PISTE credentials, same discipline
  *    31's own wave 3 already established) gets a REAL asynchronous send attempt, exactly the IT/SdI
@@ -45,7 +45,7 @@
  *    load-time block) to "this channel EXISTS but is not connected for this company" (the SAME
  *    `NotImplementedException` shape `peppol-transport.spec.ts`'s own preflight tests already cover
  *    exhaustively, jest) — a STRICTER, more honest proof, never a silent fall-back to email or to
- *    Peppol BIS. GENUINE STRUCTURAL LIMIT still holds, UNCHANGED by this task: `download-xml` is only
+ *    Peppol BIS. GENUINE STRUCTURAL LIMIT still holds, UNCHANGED: `download-xml` is only
  *    `availableWhen: ['sending', 'sent', 'send_failed']` (`invoice.descriptor.ts`'s own numbering
  *    paragraph — a "draft" has no invoice NUMBER yet, and BT-1 needs one) — and a B2G-blocked
  *    country's invoice NEVER reaches any of those three statuses (the whole point of blocking at the
@@ -66,22 +66,22 @@
  *    deliberately set to "email" (a channel that WOULD succeed) to prove precedence for real: the
  *    invoice still fails via SdI (a fake, unreachable endpoint — same fixture as 31's own SdI wave),
  *    never silently through email.
- *  - ES (FACe): a SECOND rule whose channel is ALREADY implemented (added by a later task, root TODO
- *    item 13's own XAdES wiring + Ley 25/2013) — same "email" precedence proof as IT/FR, but a
- *    DIFFERENT shape of failure, found while writing this test: FACe additionally requires a
- *    Facturae SIGNED with XAdES (item 13), and this suite never configures a signing certificate —
+ *  - ES (FACe): a SECOND rule whose channel is ALREADY implemented (added by a later task — XAdES
+ *    wiring + Ley 25/2013) — same "email" precedence proof as IT/FR, but a
+ *    DIFFERENT shape of failure: FACe additionally requires a
+ *    Facturae SIGNED with XAdES, and this suite never configures a signing certificate —
  *    so the send fails at that LOCAL signature gate (`FacturaeSigningRequiredError`), before any
  *    network attempt, never against the real `se-face-webservice.redsara.es` sandbox (that live
  *    rejection is proven separately, credential-free, by `31`'s own header pointer to
  *    `face/face.live.spec.ts`). This is still a REAL, meaningful proof — arguably the more relevant
- *    one for root TODO item 13's own thesis: the first real consumer of the XAdES provider is wired
+ *    one for the XAdES thesis: the first real consumer of the XAdES provider is wired
  *    end-to-end, through the actual screen, all the way to a company that never set up a certificate
  *    correctly being refused rather than silently sent unsigned. ES is also the FIRST rule in this
  *    file whose `requiredDocumentFields` names THREE fields at once (the DIR3 triad: órgano gestor/
  *    unidad tramitadora/oficina contable) rather than DE's single Leitweg-ID — a SEPARATE test below
  *    proves the reactive on-screen field mechanism scales to three without any code change
  *    (`applyB2gDocumentFieldHints`'s own generic `requiredDocumentFields.map(...)` bridge).
- *  - NL (Peppol, NLCIUS content — root TODO, "NLCIUS vendorable", mandant "Go" 2026-09-05): structurally
+ *  - NL (Peppol, NLCIUS content — vendored): structurally
  *    closer to BE than to DE at the SCREEN level — the "peppol" channel is ALREADY implemented, so
  *    (like BE) this test CONNECTS it (fictitious credentials, closed port — same fixture as BE/31's own
  *    Peppol wave) and proves the B2G precedence over the company's free "email" choice with a REAL

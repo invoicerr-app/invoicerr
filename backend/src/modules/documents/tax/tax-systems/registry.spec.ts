@@ -19,7 +19,7 @@ describe('TaxSystemRegistry', () => {
   // than weakened. `toTaxSystemSpec`'s own SALES_TAX/GST/NONE branches in registry.ts stay: they are
   // generic, data-driven dispatch on `fact.kind`, not a US/MX-specific branch, and remain reachable
   // by constructing a `TaxSystemRegistry` with a synthetic fact directly (see this file's own
-  // constructor parameter) — see this task's own report.
+  // constructor parameter).
   it('IT is resolvable with its own explicit rate', () => {
     expect(registry.resolve('IT')?.taxSystem).toMatchObject({ kind: 'VAT', standardRate: 22 });
   });
@@ -29,9 +29,9 @@ describe('TaxSystemRegistry', () => {
     expect(registry.resolve('GB')).toBeUndefined();
   });
 
-  // Root TODO item 16 follow-up (2026-09-01): DE used to be the OSS gate's own textbook example of
-  // "no destination rate table" — its own error message names DE verbatim. It no longer is: this
-  // task sourced all 26 other EU member states' standard VAT rate from the European Commission's
+  // OSS follow-up (2026-09-01): DE used to be the OSS gate's own textbook example of
+  // "no destination rate table" — its own error message names DE verbatim. It no longer is: all 26
+  // other EU member states' standard VAT rate were sourced from the European Commission's
   // TEDB (DG TAXUD) — see `data/de.json`'s own `provenance`. `data/all.spec.ts` pins every rate;
   // this test pins that the REGISTRY's own public `resolve()` — what `resolve-invoice-tax.ts`
   // actually calls — surfaces it correctly, composed through `toTaxSystemSpec`.

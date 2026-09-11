@@ -29,7 +29,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { Article } from "@/types"
 
-// TODO_FEATURES.md rank 18 ("gestion de stock basique") — `number | null` on BOTH sides (never
+// Basic stock management ("gestion de stock basique") — `number | null` on BOTH sides (never
 // `.optional()`, and no `z.preprocess`/`z.coerce`): the two inputs below convert an emptied box to
 // `null` themselves (see their own `onChange`), so this schema's INPUT and OUTPUT types are
 // identical, which is what keeps `useForm<ArticleForm>` a single, ordinary generic instead of
@@ -240,7 +240,7 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
               />
             </div>
 
-            {/* TODO_FEATURES.md rank 18 ("gestion de stock basique") — both optional, both blank by
+            {/* Basic stock management ("gestion de stock basique") — both optional, both blank by
                 default: an article starts "not stock-tracked", the same rule Article.quantity's own
                 schema comment (backend) documents. Rendered as a SEPARATE row from the grid above
                 (rather than a 4th/5th column there) since these two are conceptually one unit

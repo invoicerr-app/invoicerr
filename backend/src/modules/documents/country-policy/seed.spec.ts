@@ -128,7 +128,7 @@ describe('seedCountryPolicies', () => {
     expect(table.rows.find((r) => r.actionId === 'send')?.statuses).toEqual([]);
   });
 
-  // TODO_ISSUES.md's remaining note ("country-identifiers/seed.ts ne purge jamais un pays
+  // The known remainder ("country-identifiers/seed.ts ne purge jamais un pays
   // entièrement retiré") applies identically here: a country ENTIRELY removed from the catalog (not
   // just one of its rules) must lose ALL of its rows on the next seed, not just be skipped because
   // the per-country loop never visits a country the catalog no longer names.
