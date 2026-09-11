@@ -125,6 +125,23 @@ export interface DocumentTypeDescriptor {
    * mentions block, ever — the existing PDF of every other document type is byte-for-byte unchanged.
    */
   usesLegalMentions?: boolean;
+  /**
+   * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — opts this type into the SEPA-credit-transfer QR
+   * mechanism (`rendering/sepa-qr.ts`): `rendering/render-instance-pdf.ts` builds and renders an
+   * EPC069-12 payload ONLY when this flag is set (and its own further gates — an IBAN on file, a EUR
+   * amount, a positive total — all hold too), and passes the result to `rendering/render-html.ts`'s
+   * own `paymentQr` block. Same discipline as `usesLegalMentions` right above, scaled to a different
+   * concern: this is a fact about the document TYPE (does it request payment at all?), not something
+   * inferred from field presence — an invoice requests payment, a quote is not yet a request, a credit
+   * note reduces what is owed rather than asking for more, an expense records money the COMPANY paid
+   * OUT (a QR on it would invite a scan-to-pay TO the wrong party entirely), and a received invoice is
+   * itself the incoming bill this company owes, not one it is asking to be paid for.
+   *
+   * Only `invoice.descriptor.ts` sets this today. Absent (the default for every other type, including
+   * third-party ones) means no QR block, ever — the existing PDF of every other document type is
+   * byte-for-byte unchanged.
+   */
+  usesPaymentQr?: boolean;
 }
 
 /** One document type's default (or company-overriding) EMAIL template — see

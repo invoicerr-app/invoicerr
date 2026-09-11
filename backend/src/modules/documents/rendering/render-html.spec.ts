@@ -710,4 +710,70 @@ describe('renderDocumentHtml', () => {
       expect(ifCallerMisusedIt).toContain('class="legal-mentions"');
     });
   });
+
+  // TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — `renderDocumentHtml` itself only knows how to
+  // PRESENT a `paymentQr` input, exactly the way it only presents `legalMentions` above; whether one is
+  // actually passed is entirely `render-instance-pdf.ts#sepaPaymentQrFor`'s own gating, proven in that
+  // file's own spec, not here.
+  describe('payment QR (TODO_FEATURES.md rank 8)', () => {
+    const invoiceDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      usesPaymentQr: true,
+    };
+
+    const SAMPLE_DATA_URI =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk';
+
+    it('renders an <img> with the given data URI and a "Scan to pay" label when paymentQr is passed', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: SAMPLE_DATA_URI },
+      });
+
+      expect(html).toContain('<img');
+      expect(html).toContain(SAMPLE_DATA_URI);
+      expect(html).toContain('Scan to pay');
+    });
+
+    it('renders no <img> and no "Scan to pay" label at all when paymentQr is omitted', () => {
+      const html = renderDocumentHtml({
+        descriptor: invoiceDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('<img');
+      expect(html).not.toContain('Scan to pay');
+      // The `.payment-qr-section` CSS RULE is always in the stylesheet (see renderDocumentHtml's own
+      // <style> block, same convention `document numbering`'s own test above already uses) — what must
+      // be absent is the ELEMENT that would use it.
+      expect(html).not.toContain('class="payment-qr-section"');
+    });
+
+    it('a document type that never declares `usesPaymentQr` still renders one if the caller mistakenly passes it — the flag is enforced upstream, not re-checked by this pure function', () => {
+      const plainDescriptor: DocumentTypeDescriptor = {
+        id: 'expense',
+        label: 'Expense',
+        fields: [],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor: plainDescriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: SAMPLE_DATA_URI },
+      });
+
+      expect(html).toContain('<img');
+    });
+  });
 });

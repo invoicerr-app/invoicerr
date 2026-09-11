@@ -24,12 +24,20 @@
   client ; jest `client-statement.spec.ts`+`clients.service.statement.spec.ts` (23 tests, boundaries
   et isolation société), e2e `47-client-statement`. **Reste** : export PDF du relevé (laissé en TODO
   explicite — la donnée et l'écran existent, seul le rendu PDF manque).
+- **Rang 8 — QR de paiement SEPA / EPC069-12 (GiroCode)** : ✅ FAIT (`rendering/sepa-qr.ts` :
+  `buildEpcPayload` pur (EPC069-12 v002, BIC vide car pas de colonne BIC, EUR-only, troncatures) +
+  `renderSepaQrDataUri` async ; drapeau descripteur `usesPaymentQr` (invoice uniquement) ; bloc
+  `<img>` gated dans `render-html.ts`, câblé par `sepaPaymentQrFor` dans `render-instance-pdf.ts`
+  (gardes : type + IBAN posé + devise EUR + total > 0). `qrcode` déjà présent (dépendance existante,
+  aucune install). jest : `sepa-qr.spec`+`render-html.spec`+`render-instance-pdf.spec` (62 tests,
+  contenu EPC exact + gardes), e2e `48-payment-qr` (le PDF EUR+IBAN embarque le QR — prouvé par la
+  taille —, absent sans IBAN ou en non-EUR).
 - **Rang 7 — référence client / n° de commande** : ✅ FAIT (champ descripteur `clientReference` sur
   devis/factures, `hideWhenEmpty`, rendu PDF + liste ; e2e 46-client-reference).
 - **Rang 10 — écran déclarations mydata/NAV** : ⛔ SANS OBJET depuis le prune aux 5 pays — le
   mécanisme `reporting` est vide (gr/hu retirés), rien à afficher. À rouvrir si un pays à
   e-reporting est réintroduit.
-- Quick wins restants en file : rang 8 (QR SEPA), rang 9 (taux de change auto).
+- Quick wins restants en file : rang 9 (taux de change auto).
 
 ## 1. Inventaire de l'existant (100 % code)
 

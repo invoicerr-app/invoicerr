@@ -11,6 +11,7 @@ import { EntityReferenceRegistry } from '../references/reference-registry';
 import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals';
 import { renderDocumentHtml } from './render-html';
 import { renderPdf } from './render-pdf';
+import { buildEpcPayload, renderSepaQrDataUri } from './sepa-qr';
 
 export interface RenderDocumentInstanceDeps {
   referenceRegistry: EntityReferenceRegistry;
@@ -55,6 +56,51 @@ export function legalMentionsFor(
   return resolveInvoiceNotes(defaultMentionsCatalog.fileFor(countryCode), issueDate);
 }
 
+/**
+ * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — resolves the SEPA-payment QR block for ONE
+ * instance, gated the same layered way `legalMentionsFor` above is: EVERY condition must hold before a
+ * QR is even attempted — the document TYPE opts in (`descriptor.usesPaymentQr`), the seller has an
+ * IBAN on file, the document's own `currency` field is EUR (SEPA Credit Transfer moves nothing else),
+ * and the computed total is actually positive (nothing to collect on a zero or negative document —
+ * `totals.grossMinor` is the SAME figure the totals block on the PDF already shows, never a separately
+ * re-derived one). Any single condition failing returns `undefined` — no QR at all, never a broken
+ * one — the same discipline `buildEpcPayload` itself holds internally for its own, narrower checks
+ * (amount bounds, payload length).
+ *
+ * `displayNumber` is a separate parameter from `data`, deliberately: it lives on the INSTANCE
+ * (`instance.displayNumber`, assigned by `numbering/` at issuance), not inside the document's own
+ * user-editable `data` object — the exact same split `RenderDocumentHtmlInput.instance` vs `.company`/
+ * `.totals` already draws below, and the reason `render-html.ts`'s own header gives for why
+ * `displayNumber` is optional there too (absent/null before numbering, or for a type that never
+ * numbers at all).
+ */
+export async function sepaPaymentQrFor(
+  descriptor: DocumentTypeDescriptor,
+  company: { name: string; iban?: string | null },
+  totals: DocumentTotals,
+  data: Record<string, unknown>,
+  displayNumber: string | null | undefined,
+): Promise<{ dataUri: string } | undefined> {
+  if (!descriptor.usesPaymentQr) return undefined;
+  if (!company.iban) return undefined;
+  if (data.currency !== 'EUR') return undefined;
+  if (!(totals.grossMinor > 0)) return undefined;
+
+  const payload = buildEpcPayload({
+    beneficiaryName: company.name,
+    iban: company.iban,
+    amountMinor: totals.grossMinor,
+    currency: 'EUR',
+    remittance: displayNumber,
+  });
+  // buildEpcPayload already re-checks amount bounds and the overall payload length — a `null` here
+  // means one of ITS OWN guards tripped despite every gate above passing (e.g. a total over the
+  // EPC069-12 ceiling), and the same "never a broken QR" rule applies: render nothing.
+  if (!payload) return undefined;
+
+  return { dataUri: await renderSepaQrDataUri(payload) };
+}
+
 export interface RenderedDocumentInstance {
   pdf: Buffer;
   /** REUSED by the send path's email template (`actions/email-template.ts`'s `totalGross`) — this is
@@ -96,7 +142,10 @@ export async function renderDocumentInstance(
 ): Promise<RenderedDocumentInstance> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true, address: true, city: true, postalCode: true, country: true },
+    // `iban: true` — TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode"): read here for `sepaPaymentQrFor`
+    // below, never rendered directly in the company header block (`render-html.ts` has no field for
+    // it there).
+    select: { name: true, address: true, city: true, postalCode: true, country: true, iban: true },
   });
   if (!company) {
     throw new NotFoundException(`Company "${companyId}" not found.`);
@@ -155,6 +204,7 @@ export async function renderDocumentInstance(
     referenceLabels,
     totals,
     legalMentions: legalMentionsFor(descriptor, company.country, instanceData),
+    paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
   });
 
   const pdf = await renderPdf(html);

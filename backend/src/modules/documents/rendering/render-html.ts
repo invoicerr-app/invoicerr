@@ -190,6 +190,18 @@ export interface RenderDocumentHtmlInput {
    * about this one document instance.
    */
   legalMentions?: RenderableLegalMention[];
+  /**
+   * TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — the pre-rendered EPC069-12 QR bitmap (already a
+   * `data:image/png;base64,...` URI, from `sepa-qr.ts#renderSepaQrDataUri`) to print near the totals,
+   * so the payer can scan it straight from the PDF. A TOP-LEVEL input, deliberately not folded into
+   * `company` above: unlike the company's own address, this is not a fact ABOUT the company, it is the
+   * outcome of gating THIS document instance's own currency/amount/type (see `render-instance-pdf.ts`'s
+   * `sepaPaymentQrFor`, the only caller that ever fills this in). Absent prints NO block at all — same
+   * "nothing, not an empty frame" discipline `legalMentions` above already holds — so a document with
+   * no IBAN on file, a non-EUR currency, a zero/negative total, or a type that never opts in
+   * (`descriptor.usesPaymentQr`) renders byte-for-byte the same HTML this function always produced.
+   */
+  paymentQr?: { dataUri: string };
 }
 
 /**
@@ -368,6 +380,23 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       color: #555;
       margin-bottom: 4px;
     }
+    .payment-qr-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+      padding: 12px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    .payment-qr-image {
+      width: 130px;
+      height: 130px;
+    }
+    .payment-qr-label {
+      font-size: 12px;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -471,6 +500,19 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     }
 
     html += `
+    </div>
+`;
+  }
+
+  // TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — sits right after the totals block it pays, before
+  // the legal mentions footer. Absent (no IBAN on file, non-EUR currency, a zero/negative total, or a
+  // type that never opts in — see `paymentQr`'s own header above) prints NOTHING here, not an empty
+  // frame, same rule `legalMentions` right below already holds.
+  if (input.paymentQr) {
+    html += `
+    <div class="payment-qr-section">
+      <img class="payment-qr-image" src="${input.paymentQr.dataUri}" alt="SEPA payment QR code" width="130" height="130">
+      <div class="payment-qr-label">Scan to pay (SEPA)</div>
     </div>
 `;
   }

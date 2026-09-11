@@ -329,6 +329,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     // (EN 16931's mentions block) is an invoice concept; the invoice is the first, and today the
     // only, type that opts in.
     usesLegalMentions: true,
+    // TODO_FEATURES.md rank 8 ("QR SEPA / GiroCode") — see types.ts's own comment on this flag. An
+    // invoice is the one document type that actually REQUESTS payment; quote/credit-note/expense/
+    // received-invoice each have their own reason NOT to opt in (see that comment).
+    usesPaymentQr: true,
     // See contributions/invoice-contributions.ts for the implementation — the first real one written
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.
