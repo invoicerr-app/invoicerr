@@ -21,7 +21,12 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * see invoice.descriptor.ts), and request-deposit (implemented, see actions/request-deposit.ts — the
  * minimal, honest replacement for the old, removed "deposit invoice" concept: it creates a brand-new
  * draft INVOICE for N% of this quote's own total, the same "acts on a quote, writes an invoice"
- * shape convert-to-invoice already has, sharing that skeleton via actions/quote-to-invoice.ts).
+ * shape convert-to-invoice already has, sharing that skeleton via actions/quote-to-invoice.ts), and
+ * request-installments (TODO_FEATURES.md rank 12, implemented — see
+ * actions/request-installments.ts — N draft INVOICES, one per milestone, whose gross totals sum to
+ * this quote's own TTC exactly; unlike request-deposit it REFUSES a quote mixing more than one VAT
+ * rate rather than leaving a line's rate unset, because its whole acceptance criterion depends on
+ * exactly one rate applying uniformly — see that file's own header).
  *
  * Lifecycle: FOUR statuses — "draft", "sending", "sent", "send_failed" (grown from the original two
  * by TODO.md item 22: the async-send mechanism, actions/async-send.ts — see its own header for the
@@ -302,6 +307,46 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             required: true,
             min: 1,
             max: 100,
+          },
+        ],
+      },
+      {
+        id: 'request-installments',
+        label: 'Generate installment invoices',
+        // TODO_FEATURES.md rank 12 — "un devis à 3 échéances génère 3 factures draft aux dates
+        // prévues, somme = TTC du devis". Same "only once actually sent" reasoning as
+        // "request-deposit" right above (a quote the client hasn't received yet has no installment
+        // plan to honor), and the same reason it needs no `transitions`: this action's entire effect
+        // is N brand-new INVOICES elsewhere (actions/request-installments.ts) — it never changes THIS
+        // quote's own status.
+        availableWhen: ['sent'],
+        params: [
+          {
+            key: 'milestones',
+            kind: 'array',
+            label: 'Milestones',
+            required: true,
+            // Structural floor only — the handler's own computeMilestoneSplit re-checks this (never
+            // trusts a descriptor gate alone, the same discipline every other action handler here
+            // holds) and is where the REAL business rules live: percents summing to exactly 100, each
+            // one strictly positive.
+            min: 2,
+            fields: [
+              {
+                key: 'percent',
+                kind: 'number',
+                label: 'Percentage',
+                required: true,
+                min: 0,
+                max: 100,
+              },
+              {
+                key: 'dueDate',
+                kind: 'date',
+                label: 'Due date',
+                required: true,
+              },
+            ],
           },
         ],
       },

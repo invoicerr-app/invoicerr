@@ -42,6 +42,15 @@
     },
     {
       "typeId": "quote",
+      "actionId": "request-installments",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un échéancier de facturation depuis un devis accepté (plusieurs factures en brouillon, une par échéance) est une commodité produit de même nature que 'request-deposit' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit polonais (la seule contrainte légale porterait sur les factures qui en résultent une fois émises, pas sur la création de ces brouillons). À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la génération d'un échéancier elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

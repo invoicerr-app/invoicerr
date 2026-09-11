@@ -42,6 +42,15 @@
     },
     {
       "typeId": "quote",
+      "actionId": "request-installments",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un échéancier de facturation depuis un devis accepté (plusieurs factures en brouillon, une par échéance) est une commodité produit de même nature que 'request-deposit' ci-dessus ; aucun texte portugais identifié n'encadre ce mécanisme précis. La seule contrainte légale porte sur LES FACTURES qui en résulteront une fois émises (voir invoice.save-draft/invoice.send ci-dessous, et le CIVA art. 29.º n.º 1 alínea b) cité par 'request-deposit' ci-dessus pour tout paiement reçu par avance), jamais sur cet acte préalable de génération depuis un devis encore en brouillon."
+      }
+    },
+    {
+      "typeId": "quote",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

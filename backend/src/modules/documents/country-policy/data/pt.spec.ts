@@ -42,7 +42,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 23 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 24 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -50,6 +50,9 @@ describe('PT — country-policy/data/pt.json', () => {
         'quote::send',
         'quote::convert-to-invoice',
         'quote::request-deposit',
+        // TODO_FEATURES.md rank 12 ("échéancier") — see this rule's own resolutionNote in pt.json:
+        // same product-convenience posture as 'quote::request-deposit' right above.
+        'quote::request-installments',
         'quote::duplicate',
         'quote::share-link',
         // Root TODO item 13 REDONE (2026-09-10) — the hardened, reintroduced e-signature: signing a
@@ -74,10 +77,10 @@ describe('PT — country-policy/data/pt.json', () => {
         'received-invoice::delete',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(23);
+    expect(new Set(declared).size).toBe(24);
   });
 
-  it('allows every one of its 23 rules — PT never itself needs an unblock', () => {
+  it('allows every one of its 24 rules — PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 

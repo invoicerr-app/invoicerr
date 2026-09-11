@@ -17,6 +17,18 @@
 
 ## Suivi (mise à jour 2026-09-11)
 
+- **Rang 12 — facturation échelonnée multi-jalons** : ✅ FAIT — action `request-installments` sur le
+  devis (availableWhen `sent`, param `milestones` = tableau `{percent, dueDate}`). Génère N factures
+  draft, somme des bruts = TTC du devis EXACTEMENT : `computeMilestoneSplit` pur découpe le NET par %
+  (dernier jalon absorbe le reste) ET ré-ancre le brut du dernier sur `quoteGrossMinor` (deux restes,
+  car la somme des TVA arrondies par jalon peut dériver d'un centime — contre-exemple vérifié en
+  test). Refuse un devis multi-taux de TVA (divergence assumée vs `request-deposit` : la garantie
+  somme=TTC l'exige). Règle country-policy `quote::request-installments` ajoutée aux 5 pays (allowed,
+  provenance `unverified` — commodité produit, sinon 403 par défaut-deny hors FR). jest 8 (découpage +
+  refus multi-taux, reste mordu par mutation), e2e `51-installments` (API : 30/40/30 → 3 factures à
+  leurs dates, somme des bruts = 120000 = TTC du devis). Dialogue d'action frontend rend déjà le param
+  `array` (renderers génériques) — rien à construire.
+
 - **Rang 17 — workflow d'approbation interne** : ✅ FAIT (scope = garde rôle×valeur sur `send`, pas de
   machine à états request→approve — noté comme extension future). `Company.approvalThresholdMinor`
   (null = aucune approbation requise ; migration `20260911073050`). Nouveau `@ActiveRole()` (lit

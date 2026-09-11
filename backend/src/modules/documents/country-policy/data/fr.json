@@ -42,6 +42,15 @@
     },
     {
       "typeId": "quote",
+      "actionId": "request-installments",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Générer un échéancier de facturation depuis un devis accepté (plusieurs factures en brouillon, une par échéance) est une commodité produit de même nature que 'request-deposit' ci-dessus : aucun texte n'impose ni n'interdit ce mécanisme précis en droit français (la seule contrainte légale porterait sur les factures qui en résultent une fois émises, pas sur l'acte de créer ces brouillons). Contrairement à 'request-deposit', ce mécanisme REFUSE un devis mélangeant plusieurs taux de TVA plutôt que de laisser un taux indéterminé sur chaque échéance — voir actions/request-installments.ts — un choix produit destiné à garantir que la somme des échéances égale le TTC du devis, pas une exigence légale distincte. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la génération d'un échéancier elle-même."
+      }
+    },
+    {
+      "typeId": "quote",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

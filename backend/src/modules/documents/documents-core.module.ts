@@ -19,6 +19,7 @@ import { registerExpenseActions } from './actions/expense-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerQuoteActions } from './actions/quote-actions';
 import { registerRequestDepositAction } from './actions/request-deposit';
+import { registerRequestInstallmentsAction } from './actions/request-installments';
 import { registerRequestSignatureAction } from './actions/request-signature';
 import { registerCreditNoteActions } from './actions/credit-note-actions';
 import { registerReceivedInvoiceActions } from './actions/received-invoice-actions';
@@ -482,6 +483,10 @@ function buildActionRegistry(
   });
   registerConvertToInvoiceAction(registry);
   registerRequestDepositAction(registry);
+  // TODO_FEATURES.md rank 12 ("échéancier") — see request-installments.ts's own header. Needs no
+  // extra dependency (unlike, say, request-signature.ts's SignaturesService), so it registers exactly
+  // like "request-deposit" right above: pure function of the ActionRegistry it's handed.
+  registerRequestInstallmentsAction(registry);
   // Root TODO item 13 REDONE — see request-signature.ts's own header. `SignaturesService` is a plain
   // provider of THIS module (below), the same "inject the concrete class here, never `import type`"
   // rule every other DI token on this page already follows.
