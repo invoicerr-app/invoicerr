@@ -215,7 +215,7 @@ describe('createOcrServer — ROLE=ocr, booted for real', () => {
   });
 });
 
-/** A tiny real `node:http` stub standing in for the local engine (`apache/tika:latest-full` in
+/** A tiny real `node:http` stub standing in for the local engine (the `ocr-image` repo's server.py in
  *  production — see `ocr-service/local-client.ts`'s own header) — same "never a mocked fetch"
  *  discipline as `withMistralStub` above. */
 async function withLocalOcrStub(
@@ -238,8 +238,8 @@ describe('createOcrServer — OCR_ENGINE routing (mandant: "pour moi en local fa
   it('OCR_ENGINE=local, configured: forwards to the local engine and returns the heuristically-mapped proposal', async () => {
     await withLocalOcrStub(
       (req, res) => {
-        expect(req.method).toBe('PUT');
-        expect(req.url).toBe('/tika');
+        expect(req.method).toBe('POST');
+        expect(req.url).toBe('/ocr');
         res.writeHead(200, { 'content-type': 'text/plain' });
         res.end('Ma Societe SARL\nTotal TTC: 42.00 EUR\n');
       },

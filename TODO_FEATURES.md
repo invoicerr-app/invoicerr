@@ -163,7 +163,8 @@ Preuves e2e : `17-document-descriptor`, `19-document-pdf`, `20-document-totals`,
 - **Dépenses** : type "expense" minimal — description/montant/devise/date/notes, **aucune pièce
   jointe, aucune catégorie** (voir §3 — gap).
 - **Factures reçues (AP)** : module dédié `received-invoices/` avec extraction (`extraction.ts`),
-  OCR (`received-invoices/ocr/`, moteurs Mistral **et** local Tika — `ocr-service/`), et
+  OCR (`received-invoices/ocr/`, moteurs Mistral **et** local `ocrmypdf` (the `ocr-image` repo) —
+  `ocr-service/`), et
   rapprochement fournisseur automatique/manuel (`supplier-reconciliation.ts`, marque
   `Client.isSupplier`) — e2e `36-received-invoices`.
 - **Lignes** : remise en % par ligne déjà supportée, appliquée avant TVA

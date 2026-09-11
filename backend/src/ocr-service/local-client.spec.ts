@@ -7,19 +7,19 @@ import {
   mapOcrTextToProposal,
 } from './local-client';
 
-/** A real `node:http` stub standing in for `apache/tika:latest-full`'s own `PUT /tika` — never a
+/** A real `node:http` stub standing in for the `ocr-image` repo's server.py's own `POST /ocr` — never a
  *  mocked `fetch`, the same discipline `mistral-client.spec.ts`/`ocr-server.spec.ts` already use
- *  one directory over. The response shape asserted against (`PUT`, `Accept: text/plain` in,
+ *  one directory over. The response shape asserted against (`POST`, `Accept: text/plain` in,
  *  PLAIN TEXT body out, no JSON envelope) is quoted from this task's own real, live round-trip
- *  against `apache/tika:latest-full` (`local-client.ts`'s own header, 2026-09-05) — never invented. */
-async function withTikaStub(
+ *  against that server (`local-client.ts`'s own header) — never invented. */
+async function withLocalOcrStub(
   handler: http.RequestListener,
   run: (baseUrl: string) => Promise<void>,
 ): Promise<void> {
   const server = http.createServer(handler);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('tika stub did not bind');
+  if (!address || typeof address === 'string') throw new Error('local OCR stub did not bind');
   const baseUrl = `http://127.0.0.1:${address.port}`;
   try {
     await run(baseUrl);
@@ -29,14 +29,14 @@ async function withTikaStub(
 }
 
 describe('buildLocalOcrClient', () => {
-  it('PUTs the raw bytes to {baseUrl}/tika with the mime as Content-Type and Accept: text/plain', async () => {
+  it('POSTs the raw bytes to {baseUrl}/ocr with the mime as Content-Type and Accept: text/plain', async () => {
     let receivedMethod = '';
     let receivedPath = '';
     let receivedContentType = '';
     let receivedAccept = '';
     let receivedBody = '';
 
-    await withTikaStub(
+    await withLocalOcrStub(
       (req, res) => {
         receivedMethod = req.method ?? '';
         receivedPath = req.url ?? '';
@@ -56,8 +56,8 @@ describe('buildLocalOcrClient', () => {
 
         const proposal = await client.extract(bytes, 'application/pdf');
 
-        expect(receivedMethod).toBe('PUT');
-        expect(receivedPath).toBe('/tika');
+        expect(receivedMethod).toBe('POST');
+        expect(receivedPath).toBe('/ocr');
         expect(receivedContentType).toBe('application/pdf');
         expect(receivedAccept).toBe('text/plain');
         expect(receivedBody).toBe('%PDF fake bytes');
@@ -68,7 +68,7 @@ describe('buildLocalOcrClient', () => {
 
   it('tolerates a trailing slash on baseUrl', async () => {
     let receivedPath = '';
-    await withTikaStub(
+    await withLocalOcrStub(
       (req, res) => {
         receivedPath = req.url ?? '';
         res.writeHead(200, { 'content-type': 'text/plain' });
@@ -77,13 +77,13 @@ describe('buildLocalOcrClient', () => {
       async (baseUrl) => {
         const client = buildLocalOcrClient({ baseUrl: `${baseUrl}/` });
         await client.extract(new Uint8Array([1]), 'application/pdf');
-        expect(receivedPath).toBe('/tika');
+        expect(receivedPath).toBe('/ocr');
       },
     );
   });
 
   it('a non-2xx response is a NAMED LocalOcrError carrying the real HTTP status', async () => {
-    await withTikaStub(
+    await withLocalOcrStub(
       (_req, res) => {
         res.writeHead(422, { 'content-type': 'text/plain' });
         res.end('Unprocessable Entity');
@@ -106,7 +106,7 @@ describe('buildLocalOcrClient', () => {
   });
 
   it('a request that never answers times out with a NAMED LocalOcrTimeoutError', async () => {
-    await withTikaStub(
+    await withLocalOcrStub(
       () => {
         // Never responds — the engine hung.
       },
@@ -121,10 +121,12 @@ describe('buildLocalOcrClient', () => {
 });
 
 describe('mapOcrTextToProposal — the heuristic text -> proposal mapping', () => {
-  /** A realistic multi-field OCR transcript — the EXACT text this task's own real
-   *  `apache/tika:latest-full` round-trip returned for a genuinely rasterized (image-only, no
-   *  text layer) invoice PNG, minor OCR noise ("PrixU." glued together) included on purpose: this
-   *  pins the mapping against what the real engine actually outputs, not an idealized transcript. */
+  /** A realistic multi-field OCR transcript — real text a Tesseract-based engine returned for a
+   *  genuinely rasterized (image-only, no text layer) invoice PNG, minor OCR noise ("PrixU." glued
+   *  together) included on purpose: this pins the mapping against what a real engine actually
+   *  outputs, not an idealized transcript — this mapping function is engine-agnostic (it never
+   *  knows or cares whether the plain text it receives came from Tika or, now, this repo's own
+   *  the `ocr-image` repo `ocrmypdf` server, see `local-client.ts`'s own header). */
   const REALISTIC_INVOICE_TEXT = `ACME FOURNITURES SARL
 12 rue de la Paix, 75002 Paris
 TVA: FR12345678901

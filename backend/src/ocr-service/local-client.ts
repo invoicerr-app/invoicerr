@@ -7,62 +7,48 @@
  * API key), and the extraction is a HEURISTIC text scrape rather than Mistral's own structured
  * `document_annotation` — see this file's own header below for exactly what that costs.
  *
- * ## Which local engine, and why — the three candidates this task actually evaluated (all facts
- * below verified LIVE in this task's own sandbox, `docker pull` + real `curl` round-trips against
- * real containers, 2026-09-05 — never taken from documentation alone)
+ * ## The engine: OUR OWN image + server, not Tika — MANDANT DECISION (verbatim, follow-up):
+ * "pour l'OCR on peut faire notre propre image et notre propre serveur: FROM jbarlow83/ocrmypdf:
+ * latest + RUN apt-get install tesseract-ocr-{ita,nld,rus,equ}…"
  *
- *  1. `hertzg/tesseract-server` (MIT, actively maintained: 294 commits, image rebuilt within the
- *     last month) — a thin HTTP wrapper around the `tesseract` CLI. VERIFIED: `POST /tesseract`
- *     (multipart `options` JSON + `file`) returns `{"data":{"exit":{...},"stdout":"...",
- *     "stderr":"..."}}` (NOT the flat `{exit,stdout,stderr}` its own README shows — the real
- *     response nests under a `data` key, confirmed by an actual round-trip). Ships `eng`/`deu`/
- *     `fra`/`pol`/`rus`/`spa`/`kat` out of the box; `ita`/`nld` are addable at container start via
- *     `TESSERACT_SERVER_INSTALL_LANGUAGES=ita,nld` — so all SIX languages this task asked about
- *     (fra/nld/deu/ita/pol/eng) are reachable with one env var. On a real rasterized (image-only,
- *     no text layer) invoice PNG it OCR'd cleanly.
- *     DISQUALIFYING FINDING: it does NOT read PDF. A real round-trip against a genuine image-only
- *     PDF (built by rasterizing that same PNG, exactly the shape `apply-ocr-fallback.ts` hands this
- *     client — see that file's own header, OCR is only ever tried on a PDF) answered
- *     `"stderr":"Error in pixReadMem: Pdf reading is not supported\n"`. Tesseract/Leptonica in this
- *     image were built without PDF support. Converting a PDF to an image first, ourselves, would
- *     need EITHER a new npm dependency (ruled out — this task's own root instruction) OR a system
- *     binary (`pdftoppm`/poppler) whose presence in this backend's OWN base image
- *     (`ghcr.io/invoicerr-app/server-image:latest`, built in a DIFFERENT repo this task cannot
- *     touch) is not something this task can verify or guarantee. Ruled out on this basis alone.
- *  2. PaddleOCR — no official, maintained, single-`docker run` HTTP-serving image was found with the
- *     same directness as the two candidates above (PaddleOCR's own serving story is a Python
- *     package/`hub serving` step layered on `paddlepaddle` base images, not a turnkey "one image,
- *     one HTTP endpoint" the way both other candidates already are). Ruled out for NOT meeting the
- *     "image publique maintenue, API HTTP simple" bar as cleanly as Tika did — not because it is
- *     unmaintained, but because this task found no equally simple, citable, single-image HTTP
- *     contract to depend on with the same confidence.
- *  3. `apache/tika:latest-full` (Apache Software Foundation, Apache-2.0, official ASF release,
- *     image rebuilt within days of this task — the most actively maintained of the three by a wide
- *     margin) — CHOSEN. VERIFIED: `PUT /tika` with the raw file bytes and `Accept: text/plain`
- *     returns PLAIN TEXT directly (no JSON envelope at all) — the simplest of the three APIs. Most
- *     importantly: **it reads the PDF itself** — PDFBox rasterizes each page and hands it to its
- *     own bundled Tesseract when a page carries no text layer, with ZERO extra code, no new
- *     dependency, no separate conversion step, on either side of this HTTP call. A real round-trip
- *     against a genuine image-only invoice PDF (same one candidate 1 above failed on) came back
- *     with the full invoice text, correctly recognized, no special headers required (an OCR
- *     strategy header exists, `X-Tika-PDFOcrStrategy`, but the default already triggers OCR for a
- *     page with no extractable text). This is the decisive, load-bearing fact: choosing Tika means
- *     this client stays a bare `fetch`, no PDF-to-image step anywhere in this codebase.
+ * This client originally targeted `apache/tika:latest-full` (chosen at the time over a bare
+ * `hertzg/tesseract-server` image specifically because Tika reads a PDF NATIVELY and
+ * `tesseract-server` cannot read PDF at all — see git history for that full evaluation, preserved
+ * there rather than here since it is no longer the live decision). Tika's own DISQUALIFYING limit,
+ * once lived with rather than fixed, is exactly what triggered this switch: its language set is
+ * BAKED INTO THE IMAGE at build time and not operator-configurable without a custom image anyway
+ * — so building a custom image was always the real fix, just deferred. the `ocr-image` repo
+ * (Dockerfile + `server.py`, THIS repo, not a third party) is that custom image, done properly:
+ * `jbarlow83/ocrmypdf:latest` (the `ocrmypdf` tool's own official, actively-published image) reads
+ * a PDF directly the same way Tika did — it rasterizes each page itself and hands it to its own
+ * bundled Tesseract — so this client still never does a PDF-to-image conversion step of its own,
+ * the same load-bearing property that justified Tika in the first place. The Dockerfile's own
+ * header carries the full apt-get language-pack list (verified against a real `apt-cache search`
+ * on that exact base image) and the vision this switch is FOR: a full-local OCR server covering
+ * the world's main languages, never frozen to one image's fixed set again — adding a language from
+ * here on is one `RUN apt-get install tesseract-ocr-<code>` line in that Dockerfile, no code change
+ * on either side of this HTTP call.
  *
  * ## THE HONEST LIMIT — stated up front, never hidden (mandant's own words: "NE CACHE PAS la
  * limite")
  *
- *  - **Language coverage**: `apache/tika:latest-full`'s own Dockerfile bakes in a FIXED language
- *    set at build time (`ARG LANGUAGES='eng ita fra spa deu jpn'`, confirmed by reading that
- *    Dockerfile directly, and by `tesseract --list-langs` inside a running container: `deu eng fra
- *    ita jpn spa`) — unlike `tesseract-server`'s runtime env var, Tika's language set is NOT
- *    operator-configurable without building a custom image (`FROM apache/tika:latest-full` +
- *    `apt-get install tesseract-ocr-pol tesseract-ocr-nld`, one extra `RUN` line — left as an
- *    operator option, documented in `docker-compose.yml`'s own comment, not automated here).
- *    CONCRETELY: **Polish and Dutch invoices get OCR'd with the WRONG language model** on the stock
- *    image (verified live: requesting `X-Tika-OCRLanguage: pol` against a container with no Polish
- *    pack installed does not error — it silently falls back to Tika's default language guess). This
- *    is a real, known gap for exactly the languages this task was asked to cover.
+ *  - **Language coverage**: the `ocr-image` repo installs ALL ~94 Tesseract languages
+ *    (`tesseract-ocr-all`, mandant decision) — so there is no real language ceiling anymore, unlike
+ *    Tika's frozen set. The one thing still per-request is WHICH of them a given run uses: a document
+ *    whose actual language isn't in the run's `-l` set (the server's default, or a `?lang=` override)
+ *    is OCR'd with the wrong model and misrecognizes with no error — so pass `?lang=` for anything
+ *    outside the default Latin subset (see the `ocr-image` repo for the default and the full list).
+ *  - **Force-OCR, not a native-text fast path**: the `ocr-image` repo's server.py's own header documents
+ *    a real, verified finding — `ocrmypdf --skip-text` (the "obvious" flag for "don't needlessly
+ *    re-OCR a page that already has text") answers a page with existing text with a literal
+ *    `[OCR skipped on page(s) 1]` placeholder in its sidecar, NOT that page's own text. Since
+ *    `apply-ocr-fallback.ts`'s own trigger is "no STRUCTURED xml was found" — not "this looks like a
+ *    scan" — an ordinary, non-structured, already-digital-text invoice PDF is this fallback's most
+ *    common customer, not an edge case, so that placeholder would have been a real regression from
+ *    Tika. The server instead always force-rasterizes and re-OCRs every page (`--force-ocr`),
+ *    trading a small amount of accuracy on already-crisp digital text (Tesseract reading a
+ *    rendering of it, not the text itself) and some speed, for a sidecar that is NEVER a
+ *    placeholder — see that file's header for the full round-trip evidence.
  *  - **Structured extraction vs. plain text**: Mistral's `document_annotation` is the MODEL reading
  *    the invoice and answering a JSON SCHEMA directly. This client gets back UNSTRUCTURED TEXT and
  *    then runs the SAME KIND OF REGEXES a human skimming the page would use — proximity of a
@@ -90,9 +76,9 @@
  *    pattern match anywhere in the text, but a document with no such keyword at all can still
  *    misfire on any other two-letters-then-digits token it contains.
  *  - **Supplier name**: "the first non-blank line that isn't a generic invoice-title word" — no
- *    layout awareness at all (Tika's plain-text output loses position/font-size entirely). A
- *    letterhead with a logo-only top line, no printed company name as the very first line, defeats
- *    this outright — it will pick whatever text line happens to come first.
+ *    layout awareness at all (the sidecar's plain-text output loses position/font-size entirely,
+ *    same as Tika's did). A letterhead with a logo-only top line, no printed company name as the
+ *    very first line, defeats this outright — it will pick whatever text line happens to come first.
  */
 import { ExtractedInvoiceProposal } from '@/modules/documents/received-invoices/ocr/extractor';
 
@@ -392,9 +378,11 @@ export function mapOcrTextToProposal(text: string): ExtractedInvoiceProposal {
 }
 
 export interface LocalOcrClientConfig {
-  /** The local engine's own base URL (e.g. `http://tika:9998` in `docker-compose.yml`'s own
-   *  `ocr-local` profile) — this client is Tika-shaped (`PUT {baseUrl}/tika`), see this file's own
-   *  header for why Tika specifically was chosen. */
+  /** The local engine's own base URL (e.g. `http://ocr-local-engine:9998` in `docker-compose.yml`'s
+   *  own `ocr-local` profile) — this client speaks OUR OWN contract (`POST {baseUrl}/ocr`, raw PDF
+   *  bytes in, plain text back), served by the `ocr-image` repo's server.py. See this file's own header
+   *  for why that image (not Tika) is the engine now, and that server file's own header for the
+   *  exact `ocrmypdf` invocation behind it. */
   baseUrl: string;
   timeoutMs?: number;
 }
@@ -413,8 +401,8 @@ export function buildLocalOcrClient(config: LocalOcrClientConfig): LocalOcrClien
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       let res: Response;
       try {
-        res = await fetch(`${baseUrl}/tika`, {
-          method: 'PUT',
+        res = await fetch(`${baseUrl}/ocr`, {
+          method: 'POST',
           headers: { 'content-type': mime, accept: 'text/plain' },
           body: Buffer.from(bytes),
           signal: controller.signal,

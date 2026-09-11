@@ -66,13 +66,16 @@ main backend never knows or cares which one is behind `OCR_SERVICE_URL`:
   Structured extraction: the model itself answers a JSON schema (`ocr-service/mistral-client.ts`).
 - `OCR_ENGINE=local` — MANDANT DECISION (verbatim): *"J'ai pas de clé Mistral, pour moi en local
   faut lancer un service Docker qui fait ça."* No API key, no data ever leaves the instance. Calls
-  a second, self-hosted container (`apache/tika:latest-full`, `docker-compose.yml`'s own
-  `ocr-local`/`tika` services) that reads the PDF and OCRs it itself, then maps the resulting PLAIN
-  TEXT to the same proposal shape with regex heuristics (amount/date/VAT-id/invoice-number keyword
-  proximity — `ocr-service/local-client.ts`). Meaningfully weaker than the cloud path by design —
-  that file's own header documents exactly what it can and cannot get right, and why Tika was
-  chosen over a bare Tesseract-server image (short version: Tika reads a PDF natively, so this
-  stays a bare `fetch` with no new dependency; Tesseract does not read PDF at all).
+  a second, self-hosted container — OUR OWN image (the `ocr-image` repo, repo root, built from
+  `jbarlow83/ocrmypdf:latest` + a broad Tesseract language-pack set, `docker-compose.yml`'s own
+  `ocr-local`/`ocr-local-engine` services), a follow-up MANDANT DECISION replacing this service's
+  original `apache/tika:latest-full` engine specifically to fix Tika's own frozen, non-configurable
+  language set — that reads the PDF and OCRs it itself, then maps the resulting PLAIN TEXT to the
+  same proposal shape with regex heuristics (amount/date/VAT-id/invoice-number keyword proximity —
+  `ocr-service/local-client.ts`). Meaningfully weaker than the cloud path by design — that file's own
+  header documents exactly what it can and cannot get right, and why `ocrmypdf` was chosen (short
+  version: like Tika before it, `ocrmypdf` reads a PDF natively, so this stays a bare `fetch` with no
+  new dependency; a bare Tesseract-server image does not read PDF at all).
 
 Either way, `apply-ocr-fallback.ts` treats the result as an editable PROPOSAL, never an auto-commit
 — the local engine's weaker accuracy is an acceptable trade for costing nothing and staying fully

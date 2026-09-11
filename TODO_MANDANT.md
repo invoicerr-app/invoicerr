@@ -66,10 +66,15 @@ peppol.sh est prouvé en test, **zéro secret**. Pour la prod :
 
 ## B. Décisions produit — TRANCHÉES (2026-09-11)
 
-- ✅ **OCR : full local, pas de cloud** (décision mandant). On bâtit NOTRE image + serveur
-      (`FROM jbarlow83/ocrmypdf` + packs Tesseract des principales langues, serveur `--sidecar`) —
-      remplace Tika (langues figées). La clé Mistral cloud est ABANDONNÉE ; l'item « langues Tika
-      pol/nld » est SANS OBJET (superseded par notre image multilingue). Chantier en cours.
+- ✅ **OCR : full local, pas de cloud** (décision mandant) — **LIVRÉ (2026-09-11)**. Notre image +
+      serveur (the `ocr-image` repo : `FROM jbarlow83/ocrmypdf:latest` + fra/deu/ita/spa/por/nld/pol/
+      rus/ara/chi-sim/jpn + `equ` via tessdata, serveur Python stdlib `--sidecar`, `--force-ocr`
+      choisi après un round-trip réel ayant montré que `--skip-text` renvoie un placeholder au lieu
+      du texte réel) remplace Tika (langues figées) — `local-client.ts`/`ocr-server.spec.ts` alignés
+      sur le nouveau contrat `POST /ocr`. Round-trip réel prouvé (build + run + OCR FR et PL sur PDF
+      image pur, + spec jest live automatisée) — voir `LIVE_TESTING.md`. La clé Mistral cloud est
+      ABANDONNÉE ; l'item « langues Tika pol/nld » est SANS OBJET (superseded par notre image
+      multilingue).
 - ✅ **`e2e/demo-videos/run-complet/`** : SUPPRIMÉ (2026-09-11, 64 Mo de vidéos non versionnées).
 - ✅ **Doctrine voies de correction `unverified`** : vague de lectures légales COMMANDÉE (sous-agents,
       sources primaires, discipline ⚖ texte brut) — chantier en file.
