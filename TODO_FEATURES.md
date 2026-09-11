@@ -17,6 +17,18 @@
 
 ## Suivi (mise à jour 2026-09-11)
 
+- **Rang 17 — workflow d'approbation interne** : ✅ FAIT (scope = garde rôle×valeur sur `send`, pas de
+  machine à états request→approve — noté comme extension future). `Company.approvalThresholdMinor`
+  (null = aucune approbation requise ; migration `20260911073050`). Nouveau `@ActiveRole()` (lit
+  `request.role` posé par l'AuthGuard). `approval/approval-gate.ts` : `requiresApproval(role, gross,
+  seuil)` pur (null → false ; rôle undefined/≠MEMBER → false ; sinon `gross > seuil` strict). Câblé
+  dans `documents.service#runAction` AVANT tout effet de bord (statut/numérotation/enqueue), seulement
+  pour `actionId==='send'`, type-agnostique ; rôle undefined (worker async, MCP, schedules) → jamais
+  gardé (confirmé sur chaque site d'appel). jest 18 (logique pure + câblage, borne `>` mordue),
+  **e2e `50-approval` avec une VRAIE session MEMBER (par invitation)** : MEMBER au-dessus du seuil →
+  403 + facture reste `draft` ; MEMBER en dessous → envoyée ; OWNER au-dessus → envoyée. Seuil
+  configurable en Settings (saisi en unités majeures).
+
 - **Rang 18 — gestion de stock basique** : ✅ FAIT — `Article.quantity`/`lowStockThreshold` (null =
   non suivi / pas d'alerte ; migration `20260911064825`). Une ligne peut désormais RÉFÉRENCER son
   article via un `articleId` (nouveau *field kind* `hiddenReference` : stocké mais JAMAIS imprimé sur
@@ -270,7 +282,7 @@ personnalisés/tags, application mobile native.
 | 14 |  | **Langue du document par destinataire** — générer le PDF/email dans la langue du client. Attendu dès qu'on facture hors de son pays (marché FR/PL/IT). | M | Non | Absent : `Client` n'a pas de champ langue. | Un client langue « PL » reçoit un PDF aux libellés fixes en polonais ; sans langue → comportement actuel. |
 | 15 |  | **Champs personnalisés / tags** — champs propres sur client/document sans toucher au code. Standard « custom fields ». | M | Non | Absent — champs définis uniquement par les descripteurs. | Un champ personnalisé créé en Settings apparaît sur le formulaire et le PDF des factures suivantes. |
 | 16 |  | **Personnalisation de template sans code** — galerie de thèmes + éditeur visuel, en plus du Handlebars actuel. | M/L | Non | Partiel : `pdf.settings.tsx` complet mais réservé à un profil technique. | Un utilisateur non technique choisit un thème et voit le PDF changer sans toucher au HTML. |
-| 17 |  | **Workflow d'approbation interne** — validation par un rôle supérieur au-dessus d'un seuil. | M | Non | Absent : `CompanyRole` global, pas de circuit par document. | Un MEMBER ne peut pas envoyer une facture au-dessus du seuil sans approbation d'un ADMIN/OWNER. |
+| 17 |  | **Workflow d'approbation interne** — validation par un rôle supérieur au-dessus d'un seuil. | M | Non | Partiel (quick win, 2026-09-11) : gate rôle+valeur sur l'action « send » — `Company.approvalThresholdMinor` (seuil configurable en Settings), `documents/approval/approval-gate.ts#requiresApproval`. Un MEMBER au-dessus du seuil est bloqué (403) ; un ADMIN/OWNER l'envoyant EST l'approbation. Pas de file demande→validation asynchrone avec acteur/notification dédiés — extension future si le produit en a besoin. | Un MEMBER ne peut pas envoyer une facture au-dessus du seuil sans approbation d'un ADMIN/OWNER. |
 | 18 |  | **Gestion de stock basique** — quantité par article, décrément à la facturation, alerte stock bas. | M | Non | Absent : `Article` n'a aucun champ de quantité. | Facturer N unités décrémente le solde ; sous le seuil → alerte visible. |
 | 19 |  | **Bons de commande / achats fournisseurs** — émettre un BC, le rapprocher (3-way match) avec la facture reçue. | L | Non | Absent — seule la réception/rapprochement aval existe. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
 | 20 |  | **Facturation par abonnement avancée (usage-based, paliers, essai)** — metered/tiered billing façon Stripe Billing. Segment SaaS différent du cœur B2B/compliance actuel. | L | Généralement oui | Absent — la récurrence rejoue un document identique, pas un calcul d'usage. | À ne traiter qu'après les items 1-13, sauf demande explicite. |

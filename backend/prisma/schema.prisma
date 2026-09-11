@@ -377,6 +377,17 @@ model Company {
   // company left at the default is invisible to it, not merely "not yet due" for one.
   remindersEnabled Boolean @default(false)
 
+  // TODO_FEATURES.md rank 17 ("workflow d'approbation interne au-delà d'un seuil") — the QUICK-WIN
+  // scope: a ROLE+VALUE GATE on the "send" action, not a full request→approve state machine with its
+  // own pending-approval records (that remains a future extension — see
+  // documents/approval/approval-gate.ts's own header). NULL — the default, and the only state every
+  // existing company was already in before this column existed — means "no approval required, ever":
+  // a MEMBER can send any document regardless of amount. A value is a MINOR-units amount in the
+  // DOCUMENT's OWN currency (never currency-converted — see approval-gate.ts for that caveat); a
+  // MEMBER trying to send a document whose gross total exceeds it is refused, while an ADMIN/OWNER
+  // sending it IS the approval (there is deliberately no separate "approve" action or actor to record).
+  approvalThresholdMinor Int?
+
   createdAt               DateTime                    @default(now())
   emailTemplates          MailTemplate[]
   webhooks                Webhook[]

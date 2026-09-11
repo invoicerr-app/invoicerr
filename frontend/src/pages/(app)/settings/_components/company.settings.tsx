@@ -10,6 +10,7 @@ import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import CountryReadinessAlert from "@/components/country-readiness-alert"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
+import { fromMinor, toMinor } from "@/components/documents/totals-calculator"
 import CurrencyRatesSettings from "./currency-rates.settings"
 import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
@@ -182,6 +183,12 @@ export default function CompanySettings() {
     // which is the default and stays valid forever: every dashboard aggregate simply stays grouped
     // by currency (see backend's Company.referenceCurrency comment).
     referenceCurrency: z.string().optional(),
+    // TODO_FEATURES.md rank 17 — MAJOR units, in the company's own `currency` (see backend's
+    // Company.approvalThresholdMinor comment). A FORM-ONLY field: converted to/from
+    // `approvalThresholdMinor` at the load/submit boundary below, the same way peppolSchemeId/
+    // peppolEndpointId are synthesized from/folded back into `identifiers`. `undefined` (never "")
+    // means "no threshold" — a plain number input has no empty-string state of its own to reuse.
+    approvalThreshold: z.number().min(0, t("settings.company.form.approvalThreshold.errors.min")).optional(),
   })
 
   const { data } = useGet<Company>("/api/company/info")
@@ -222,6 +229,7 @@ export default function CompanySettings() {
       peppolEndpointId: "",
       invoiceTransportId: "",
       referenceCurrency: "",
+      approvalThreshold: undefined,
     },
   })
 
@@ -244,6 +252,12 @@ export default function CompanySettings() {
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
         referenceCurrency: data.referenceCurrency ?? "",
+        // MINOR (stored) -> MAJOR (form) — the company's OWN currency, same "rough guardrail, not
+        // currency-converted" assumption the backend gate documents (approval-gate.ts).
+        approvalThreshold:
+          data.approvalThresholdMinor != null
+            ? fromMinor(data.approvalThresholdMinor, data.currency || "EUR")
+            : undefined,
         identifiers: (data.partyIdentifiers || [])
           .filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
           .map((pi) => ({
@@ -351,7 +365,9 @@ export default function CompanySettings() {
       values.peppolSchemeId && values.peppolEndpointId?.trim()
         ? { scheme: "PEPPOL_ENDPOINT", value: `${values.peppolSchemeId}:${values.peppolEndpointId.trim()}` }
         : null
-    const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...valuesWithoutPeppol } = values
+    // `approvalThreshold` is form-only (MAJOR units) — never sent as-is, replaced by
+    // `approvalThresholdMinor` below (MINOR units, the column the backend actually reads).
+    const { peppolSchemeId: _ps, peppolEndpointId: _pe, approvalThreshold, ...valuesWithoutPeppol } = values
     const payload = {
       ...valuesWithoutPeppol,
       identifiers: [
@@ -364,6 +380,13 @@ export default function CompanySettings() {
       // never fabricated (see Company.iban's own schema.prisma comment), so leaving this blank must
       // stay indistinguishable from "never set one".
       iban: values.iban?.trim() ? values.iban.trim().toUpperCase().replace(/\s+/g, "") : null,
+      // MAJOR (form) -> MINOR (stored), in the company's own currency — see this field's own zod
+      // comment above and approval-gate.ts's cross-currency caveat. `null`, not `undefined`: a
+      // blanked-out input must explicitly clear the column back to "no approval required", which
+      // `...rest`'s spread on the backend (company.service.ts#editCompanyInfo) would otherwise leave
+      // untouched for `undefined`.
+      approvalThresholdMinor:
+        approvalThreshold != null ? toMinor(approvalThreshold, values.currency || "EUR") : null,
     }
     trigger(payload)
       .then((result) => {
@@ -1160,6 +1183,42 @@ export default function CompanySettings() {
                       />
                     </FormControl>
                     <FormDescription>{t("settings.company.form.exemptVat.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.company.approval.title")}</CardTitle>
+              <CardDescription>{t("settings.company.approval.description")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="approvalThreshold"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.company.form.approvalThreshold.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder={t("settings.company.form.approvalThreshold.placeholder")}
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
+                        }
+                        data-cy="company-approval-threshold-input"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("settings.company.form.approvalThreshold.description")}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

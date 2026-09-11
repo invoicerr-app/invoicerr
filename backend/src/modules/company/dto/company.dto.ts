@@ -92,4 +92,10 @@ export class EditCompanyDto {
   /** Opts the company INTO multi-currency consolidation (item 9, root TODO) — null/absent keeps
    *  every aggregate grouped by currency, unchanged; see Company.referenceCurrency's own comment. */
   referenceCurrency?: string | null;
+  /** TODO_FEATURES.md rank 17 — the approval-threshold gate on "send"; see
+   *  Company.approvalThresholdMinor's own schema.prisma comment and documents/approval/approval-gate.ts.
+   *  MINOR units. `null` (not `undefined`) is how the settings screen explicitly clears it back to
+   *  "no approval required, ever" — `undefined` would be dropped by `...rest` and leave the existing
+   *  value untouched, which a blanked-out input must NOT do. */
+  approvalThresholdMinor?: number | null;
 }

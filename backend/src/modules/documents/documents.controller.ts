@@ -3,7 +3,9 @@ import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/
 import { Response } from 'express';
 import { Observable } from 'rxjs';
 
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
+import { ActiveRole } from '@/decorators/active-role.decorator';
 
 import { DocumentsService } from './documents.service';
 import { RunActionDto } from './dto/documents.dto';
@@ -375,13 +377,22 @@ export class DocumentsController {
   })
   @ApiResponse({ status: 409, description: "Action not available for the record's current status" })
   @ApiResponse({ status: 501, description: 'Action declared but not implemented' })
+  @ApiResponse({
+    status: 403,
+    description:
+      'TODO_FEATURES.md rank 17: a MEMBER ran "send" on a document whose gross total exceeds the ' +
+      "company's configured approval threshold — an ADMIN or OWNER must send it instead",
+  })
   runAction(
     @ActiveCompany() companyId: string,
     @Param('typeId') typeId: string,
     @Param('actionId') actionId: string,
     @Body() body: RunActionDto,
+    // Undefined only for API-key auth (see ActiveRole's own header) — `documentsService.runAction`
+    // treats that exactly like OWNER/ADMIN for the approval-threshold gate (never re-gated).
+    @ActiveRole() role: CompanyRole | undefined,
   ) {
-    return this.documentsService.runAction(companyId, typeId, actionId, body);
+    return this.documentsService.runAction(companyId, typeId, actionId, body, role);
   }
 
   @Post('types/:typeId/actions/:actionId/params/defaults')

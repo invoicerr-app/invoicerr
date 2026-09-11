@@ -1612,6 +1612,10 @@
         "title": "Other Settings",
         "description": "Additional settings for your company"
       },
+      "approval": {
+        "title": "Approval workflow",
+        "description": "Require an ADMIN or OWNER to send a document above a given amount. A member can still send anything at or under it; an admin or owner sending it above the limit IS the approval — there is no separate approval step to complete."
+      },
       "currency": {
         "title": "Multi-currency",
         "description": "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged."
@@ -1820,6 +1824,14 @@
         "referenceCurrency": {
           "label": "Reference currency",
           "description": "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears."
+        },
+        "approvalThreshold": {
+          "label": "Approval threshold",
+          "placeholder": "No threshold — any role can send",
+          "description": "In your company's default currency. A member cannot send a document whose total is above this amount — an admin or owner must send it instead. Leave empty to never require approval.",
+          "errors": {
+            "min": "Approval threshold must be zero or greater"
+          }
         },
         "dateFormat": {
           "label": "Date Format",

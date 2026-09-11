@@ -51,6 +51,11 @@ export interface Company {
    *  dashboard aggregate stays grouped by currency, unchanged (see backend's Company.referenceCurrency
    *  comment in schema.prisma). */
   referenceCurrency?: string | null
+  /** TODO_FEATURES.md rank 17 ("workflow d'approbation interne au-delà d'un seuil") — the "send"
+   *  approval-threshold gate. MINOR units, in the company's OWN `currency` above (a rough guardrail,
+   *  never currency-converted — see backend's documents/approval/approval-gate.ts). Null/unset means
+   *  no approval is ever required, for any role, at any amount. */
+  approvalThresholdMinor?: number | null
 }
 
 /** A manually-entered exchange rate — GET/POST /api/company/currency-rates. See backend's

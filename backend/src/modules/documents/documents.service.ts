@@ -9,11 +9,17 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
+import {
+  APPROVAL_REQUIRED_MESSAGE,
+  requiresApproval,
+  resolveApprovalThresholdMinor,
+} from './approval/approval-gate';
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -645,6 +651,8 @@ export class DocumentsService implements OnModuleInit {
    *    `DocumentActionRuleFact.statuses` — refuses it; both land on the same 409, never a second 403)
    *  - action declared, available, but no implementation registered -> 501, clearly worded
    *  - document data or the action's own params don't match their descriptors -> 400, per-field
+   *  - TODO_FEATURES.md rank 17: a MEMBER running "send" on a document whose gross total exceeds the
+   *    company's configured approval threshold -> 403, see the gate just before `handler` runs below
    *
    * This is the ONLY place an action actually runs — the HTTP controller has no other route that
    * reaches an ActionHandler — so this check is what makes "what the screen refuses, the API
@@ -656,12 +664,21 @@ export class DocumentsService implements OnModuleInit {
    * it actually persisted (if any, on THIS same record) is the one the type's own declared lifecycle
    * says it must be — a handler bug that persists an undeclared status is a thrown Error here, never
    * a phantom status quietly reaching the database.
+   *
+   * `role` is an OPTIONAL trailing parameter, deliberately: it is what the approval-threshold gate
+   * below keys on, and it must default to `undefined` for every caller that isn't a live HTTP request
+   * carrying a company role — the worker replaying an already-approved async "send"
+   * (`actions/async-send.ts`), a scripted/internal caller, anything that isn't `documents.controller.ts`
+   * forwarding `@ActiveRole()`. `undefined` reads as "not a MEMBER" (see `requiresApproval`'s own
+   * header), so those callers are never re-gated — only the ORIGINAL, human, over-the-wire "send" ever
+   * sees this check.
    */
   async runAction(
     companyId: string,
     typeId: string,
     actionId: string,
     payload: RunActionDto,
+    role?: CompanyRole,
   ): Promise<ActionResult> {
     const { descriptor, action } = this.resolveAction(typeId, actionId);
 
@@ -756,6 +773,28 @@ export class DocumentsService implements OnModuleInit {
     // prerequisite a selection needs, applied only where something actually selects from, and only to
     // data that has already passed every check above (never to data about to be rejected anyway).
     const data = stampRowIds(fields, payload.data ?? {}, referencedArrayFieldKeys(this.typeRegistry, typeId));
+
+    // TODO_FEATURES.md rank 17 — the approval-threshold gate. Placed HERE, after every gate above
+    // (country policy, per-status restriction, impl/501, field+param+row-selection validation) but
+    // strictly BEFORE `handler` runs: a blocked send must never transition status, take a document
+    // number, or enqueue delivery, and every check above it is either cheaper or more fundamental
+    // (an unknown action, a wrong status, bad data) than "can THIS caller afford to send THIS total" —
+    // there is no cleaner existing preflight seam this reuses, since this is the first gate that needs
+    // BOTH the caller's role and the fully-validated document data at once. Scoped to "send" only, and
+    // to actions with a computable gross: a type whose `computeDocumentTotals` finds no line-item
+    // field at all (grossMinor 0) can never trip `requiresApproval` (0 is never > a positive
+    // threshold), so this never blocks a document type with no notion of a total.
+    // `role === 'MEMBER'` short-circuits BEFORE the threshold lookup — every other role/undefined
+    // case is `requiresApproval(...) === false` for ANY threshold (see its own header), so there is
+    // nothing to gain from a DB round trip the vast majority of "send" calls (OWNER/ADMIN, or no role
+    // at all) would otherwise pay for no reason.
+    if (actionId === 'send' && role === 'MEMBER') {
+      const thresholdMinor = await resolveApprovalThresholdMinor(companyId);
+      const { grossMinor } = computeDocumentTotals(descriptor, data);
+      if (requiresApproval(role, grossMinor, thresholdMinor)) {
+        throw new ForbiddenException(APPROVAL_REQUIRED_MESSAGE);
+      }
+    }
 
     let result = await handler({
       companyId,
