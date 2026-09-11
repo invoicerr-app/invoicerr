@@ -3,6 +3,7 @@ export const queryKeys = {
     list: (page: number) => ["clients", "list", page] as const,
     listsAll: () => ["clients", "list"] as const,
     search: (query: string) => ["clients", "search", query] as const,
+    statement: (clientId: string) => ["clients", "statement", clientId] as const,
   },
   invoices: {
     list: (page: number) => ["invoices", "list", page] as const,

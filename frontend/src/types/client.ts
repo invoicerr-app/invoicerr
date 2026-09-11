@@ -32,3 +32,43 @@ export interface Client {
   isActive?: boolean
   partyIdentifiers?: PartyIdentifier[]
 }
+
+/**
+ * TODO_FEATURES.md rank 6 ("relevé de compte client") — mirrors the backend's
+ * `ClientStatementDocumentRow` (settlement/client-statement.ts). ONE shape for both an invoice and a
+ * credit note correcting it — see that file's own header for why `paidMinor`/`outstandingMinor` are
+ * always 0 for a credit note (it carries no independent balance of its own: it already reduced the
+ * invoice's own `outstandingMinor`, never a second time here).
+ */
+export interface ClientStatementDocumentRow {
+  id: string
+  typeId: "invoice" | "credit-note"
+  displayNumber: string | null
+  status: string
+  issueDate: string | null
+  dueDate: string | null
+  currency: string
+  amountMinor: number
+  paidMinor: number
+  outstandingMinor: number
+  settled: boolean
+}
+
+/** One currency's own aged balance — mirrors the backend's `ClientStatementCurrencyTotals`. NEVER
+ *  summed across currencies (same discipline as the dashboard's own pending-invoice totals) — a
+ *  client billed in two currencies gets two of these. */
+export interface ClientStatementCurrencyTotals {
+  currency: string
+  totalOutstandingMinor: number
+  currentMinor: number
+  days0to30Minor: number
+  days31to60Minor: number
+  days60PlusMinor: number
+}
+
+/** What `GET /clients/:id/statement` returns — mirrors the backend's `ClientStatement`. */
+export interface ClientStatement {
+  clientId: string
+  documents: ClientStatementDocumentRow[]
+  totals: ClientStatementCurrencyTotals[]
+}

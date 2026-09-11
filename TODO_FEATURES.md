@@ -17,12 +17,19 @@
 
 ## Suivi (mise à jour 2026-09-11)
 
+- **Rang 6 — relevé de compte client** : ✅ FAIT (endpoint company-scopé `GET /clients/:id/statement`
+  → `settlement/client-statement.ts` : agrège les factures « sent » du client, réutilise
+  `compute-settlement`/`credits` sans réinventer un calcul, produit une balance âgée par devise
+  (current/0-30/31-60/60+) ; écran `clients/_components/client-statement.tsx` ouvert depuis la fiche
+  client ; jest `client-statement.spec.ts`+`clients.service.statement.spec.ts` (23 tests, boundaries
+  et isolation société), e2e `47-client-statement`. **Reste** : export PDF du relevé (laissé en TODO
+  explicite — la donnée et l'écran existent, seul le rendu PDF manque).
 - **Rang 7 — référence client / n° de commande** : ✅ FAIT (champ descripteur `clientReference` sur
   devis/factures, `hideWhenEmpty`, rendu PDF + liste ; e2e 46-client-reference).
 - **Rang 10 — écran déclarations mydata/NAV** : ⛔ SANS OBJET depuis le prune aux 5 pays — le
   mécanisme `reporting` est vide (gr/hu retirés), rien à afficher. À rouvrir si un pays à
   e-reporting est réintroduit.
-- Quick wins restants en file : rang 6 (relevé de compte), rang 8 (QR SEPA), rang 9 (taux de change auto).
+- Quick wins restants en file : rang 8 (QR SEPA), rang 9 (taux de change auto).
 
 ## 1. Inventaire de l'existant (100 % code)
 

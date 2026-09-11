@@ -40,6 +40,22 @@ export class ClientsController {
     return await this.clientsService.searchClients(companyId, query);
   }
 
+  @Get(':id/statement')
+  @ApiOperation({
+    summary: "A client's account statement",
+    description:
+      'TODO_FEATURES.md rank 6 — every "sent" invoice for this client, the credit notes correcting ' +
+      'each one, the resulting balance (settlement/compute-settlement.ts — payments and credits ' +
+      'already netted in), and an aged balance per currency (current / 0-30 / 31-60 / 60+ days ' +
+      "overdue, by the balance's own due date). See settlement/client-statement.ts.",
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Client ID' })
+  @ApiResponse({ status: 200, description: 'Statement computed' })
+  @ApiResponse({ status: 404, description: 'Not found for this company' })
+  getStatement(@ActiveCompany() companyId: string, @Param('id') id: string) {
+    return this.clientsService.getStatement(companyId, id);
+  }
+
   @Post()
   @ApiOperation({
     summary: 'Create a client',

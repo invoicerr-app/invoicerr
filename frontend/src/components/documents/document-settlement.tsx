@@ -24,7 +24,7 @@ import { decimalsFor, fromMinor } from "./totals-calculator"
  * `computeSettlement` to this screen.
  */
 
-type SettlementTone = "neutral" | "warning" | "success"
+export type SettlementTone = "neutral" | "warning" | "success"
 
 interface SettlementBadgeInfo {
   tone: SettlementTone
@@ -52,7 +52,10 @@ export function settlementBadgeInfo(settlement: DocumentSettlement): SettlementB
     : { tone: "neutral", labelKey: "documents.settlement.badge.unpaid" }
 }
 
-const TONE_CLASSES: Record<SettlementTone, string> = {
+// Exported so a different screen rendering the same tone/label pair (clients/_components/
+// client-statement.tsx's own per-row badge, TODO_FEATURES.md rank 6) never invents a second color
+// mapping for the exact same three states.
+export const TONE_CLASSES: Record<SettlementTone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
   success: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
   warning: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",

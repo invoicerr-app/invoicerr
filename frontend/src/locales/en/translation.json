@@ -34,10 +34,37 @@
       "tooltips": {
         "view": "View client details",
         "edit": "Edit client",
-        "delete": "Delete client"
+        "delete": "Delete client",
+        "statement": "Account statement"
       },
       "title": "All Clients",
       "description": "Manage and view all your clients in one place."
+    },
+    "statement": {
+      "title": "Account statement — {{name}}",
+      "description": "Every invoice and credit note for this client, its balance, and the aged balance of what remains outstanding.",
+      "empty": "No invoices for this client yet.",
+      "totalOutstanding": "Total outstanding",
+      "aging": {
+        "current": "Not yet due",
+        "days0to30": "0–30 days",
+        "days31to60": "31–60 days",
+        "days60plus": "60+ days"
+      },
+      "columns": {
+        "type": "Type",
+        "document": "Document",
+        "issueDate": "Issue date",
+        "dueDate": "Due date",
+        "amount": "Amount",
+        "paid": "Paid",
+        "outstanding": "Outstanding",
+        "status": "Status"
+      },
+      "type": {
+        "invoice": "Invoice",
+        "creditNote": "Credit note"
+      }
     },
     "upsert": {
       "title": {

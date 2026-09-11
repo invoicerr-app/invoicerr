@@ -26,6 +26,7 @@ import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { VatValidationPort } from '../documents/tax/vat-validation';
 import { validateVat } from '../documents/tax/vat-syntax';
+import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 
 @Injectable()
 export class ClientsService {
@@ -39,6 +40,25 @@ export class ClientsService {
    *  for display, e.g. a quote's client, goes through here). */
   async getClientById(companyId: string, id: string) {
     return prisma.client.findFirst({ where: { id, companyId } });
+  }
+
+  /**
+   * TODO_FEATURES.md rank 6 ("relevé de compte client") — the client's own statement (open/settled
+   * invoices, the credit notes correcting them, the total owed, and an aged balance), computed by
+   * settlement/client-statement.ts's `resolveClientStatement`. 404s the same way every other
+   * single-client read on this service does when `id` doesn't exist or belongs to another company —
+   * a client id is never enough on its own; every one of this file's own reads scopes by `companyId`
+   * first, and this is no exception (`resolveClientStatement` itself never touches `Client` at all,
+   * so skipping this check would let a guessed id from ANOTHER tenant's client silently read invoices
+   * whose own `data.client` happens to match it — this check is what keeps that structurally
+   * impossible, not merely a filter that could be forgotten).
+   */
+  async getStatement(companyId: string, id: string): Promise<ClientStatement> {
+    const client = await prisma.client.findFirst({ where: { id, companyId } });
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+    return resolveClientStatement(companyId, id);
   }
 
   async getClients(companyId: string, page: string) {

@@ -1,11 +1,12 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Edit, Eye, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from "lucide-react"
+import { Edit, Eye, FileText, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from "lucide-react"
 
 import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import { ClientDeleteDialog } from "./_components/client-delete"
+import { ClientStatementDialog } from "./_components/client-statement"
 import { ClientUpsert } from "./_components/client-upsert"
 import { ClientViewDialog } from "./_components/client-view"
 import { Input } from "@/components/ui/input"
@@ -29,6 +30,7 @@ export default function Clients() {
   const [editClientDialog, setEditClientDialog] = useState<Client | null>(null)
   const [viewClientDialog, setViewClientDialog] = useState<Client | null>(null)
   const [deleteClientDialog, setDeleteClientDialog] = useState<Client | null>(null)
+  const [statementClientDialog, setStatementClientDialog] = useState<Client | null>(null)
 
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
@@ -67,6 +69,10 @@ export default function Clients() {
 
   function handleDelete(client: Client) {
     setDeleteClientDialog(client)
+  }
+
+  function handleStatement(client: Client) {
+    setStatementClientDialog(client)
   }
 
   usePageHeader(t("sidebar.navigation.clients"))
@@ -244,6 +250,16 @@ export default function Clients() {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
+                        tooltip={t("clients.list.tooltips.statement")}
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleStatement(client)}
+                        className="text-gray-600 hover:text-blue-600 mr-2"
+                        dataCy={`statement-client-button-${client.contactEmail}`}
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button
                         tooltip={t("clients.list.tooltips.delete")}
                         variant="ghost"
                         size="icon"
@@ -294,6 +310,13 @@ export default function Clients() {
         client={deleteClientDialog}
         onOpenChange={(open) => {
           if (!open) setDeleteClientDialog(null)
+        }}
+      />
+
+      <ClientStatementDialog
+        client={statementClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setStatementClientDialog(null)
         }}
       />
     </div>
