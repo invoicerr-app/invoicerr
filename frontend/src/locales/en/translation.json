@@ -1399,7 +1399,20 @@
       },
       "vatRate": {
         "label": "VAT (%)"
+      },
+      "quantity": {
+        "label": "Stock quantity",
+        "placeholder": "Not tracked",
+        "helpText": "Leave empty if this item's stock isn't tracked."
+      },
+      "lowStockThreshold": {
+        "label": "Low-stock alert threshold",
+        "placeholder": "No alert",
+        "helpText": "Alert once the remaining quantity falls to, or under, this number."
       }
+    },
+    "stock": {
+      "lowStockBadge": "Low stock"
     },
     "upsert": {
       "title": {

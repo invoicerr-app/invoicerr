@@ -18,6 +18,13 @@ export interface Article {
   unitPrice: number
   vatRate: number
   isActive?: boolean
+  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — mirrors the backend's own
+  // Article.quantity/lowStockThreshold (schema.prisma): null means "not stock-tracked"/"no alert".
+  // `isLowStock` is a SERVER-computed fact (articles.service.ts's `isArticleLowStock`), never
+  // recomputed here — this screen only ever displays it.
+  quantity?: number | null
+  lowStockThreshold?: number | null
+  isLowStock?: boolean
   createdAt?: string
   updatedAt?: string
 }

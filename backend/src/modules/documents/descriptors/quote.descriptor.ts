@@ -177,7 +177,10 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         // form used to have — see the 14-articles.cy.ts spec this was built to make pass again.
         prefillFrom: {
           entity: 'article',
-          map: { description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
+          // `articleId: 'id'` (TODO_FEATURES.md rank 18, "gestion de stock basique") — see
+          // article-reference.provider.ts's own `getFields` comment for why `id` is there to map
+          // from, and invoice.descriptor.ts's identical `articleId` field for the full "why".
+          map: { articleId: 'id', description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
         },
         fields: [
           {
@@ -185,6 +188,19 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             kind: 'text',
             label: 'Designation',
             required: true,
+          },
+          {
+            // TODO_FEATURES.md rank 18 — see invoice.descriptor.ts's identical field for the full
+            // "why". A quote never itself decrements stock (only an invoice's own ISSUANCE does — see
+            // documents.service.ts's call site), but this line still carries the pointer: "convert to
+            // invoice" (actions/convert-to-invoice.ts) copies `lines` VERBATIM, `articleId` included,
+            // so a quote line picked from the catalog keeps pointing at its article once it becomes a
+            // real, stock-decrementing invoice line — no separate mechanism needed for that to happen.
+            key: 'articleId',
+            kind: 'hiddenReference',
+            label: 'Article',
+            required: false,
+            entity: 'article',
           },
           {
             key: 'quantity',

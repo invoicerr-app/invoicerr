@@ -73,11 +73,23 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    recurses with the SAME registry per row). This is the bullet that used to say "deliberately NOT
  *    added" for exactly this reason ("no concrete need yet"); the need arrived, so the field did.
  *
+ *  - `articleId` (kind: 'hiddenReference', OPTIONAL) — TODO_FEATURES.md rank 18 ("gestion de stock
+ *    basique"), added alongside the SIX business fields above, not a seventh one of them: it carries
+ *    no designation/price/tax fact of its own, only WHICH catalog article (if any) this line came
+ *    from, so `documents/stock/apply-stock-on-issuance.ts` can find it again at issuance. Filled by
+ *    the SAME `prefillFrom` mechanism as `description`/`unitPrice`/`vatRate` below (see `map`) — never
+ *    a second picker — and, per its own kind, never rendered anywhere a human looks (form, PDF, list);
+ *    see types.ts's own `entity` doc comment for the full "why a dedicated kind" account. A line
+ *    typed by hand, with no article ever picked, simply has no `articleId` at all — stock bookkeeping
+ *    then has nothing to attribute that line's quantity to, which is the correct, honest outcome for
+ *    a business that keeps no catalog record of what it just sold.
+ *
  * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }` — lets a row's UI offer a
  * "from catalog" button (field-renderers/array-field.tsx, frontend) that fills `description`/
- * `unitPrice`/`vatRate` from a picked Article (articles/articles.service.ts — the ONE module that
- * survived the pre-refactor architecture unchanged). See types.ts's own comment on `prefillFrom` for
- * the full, entity-agnostic mechanism; this descriptor only ever supplies the map, never any code.
+ * `unitPrice`/`vatRate`/`articleId` from a picked Article (articles/articles.service.ts — the ONE
+ * module that survived the pre-refactor architecture unchanged). See types.ts's own comment on
+ * `prefillFrom` for the full, entity-agnostic mechanism; this descriptor only ever supplies the map,
+ * never any code.
  *
  * What actually distinguishes an invoice from a quote here, beyond the line shape, and why each one
  * is here:
@@ -411,7 +423,9 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         // removed article-line form used to have.
         prefillFrom: {
           entity: 'article',
-          map: { description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
+          // `articleId: 'id'` (TODO_FEATURES.md rank 18) — see article-reference.provider.ts's own
+          // `getFields` comment for why `id` is there to map from at all.
+          map: { articleId: 'id', description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
         },
         fields: [
           {
@@ -419,6 +433,16 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
             kind: 'text',
             label: 'Designation',
             required: true,
+          },
+          {
+            // TODO_FEATURES.md rank 18 — see this file's own header bullet on `articleId` for the
+            // full "why", and types.ts's `entity` doc comment for why this is a distinct field KIND
+            // rather than a 'reference' field or a rendering flag.
+            key: 'articleId',
+            kind: 'hiddenReference',
+            label: 'Article',
+            required: false,
+            entity: 'article',
           },
           {
             key: 'quantity',

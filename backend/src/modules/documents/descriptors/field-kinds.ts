@@ -149,6 +149,18 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
   // alongside validateAgainstDescriptor all live in row-selection/, deliberately never spread in here
   // (see row-selection/row-selection.ts's header).
   registerRowSelectionFieldKind(registry);
+
+  // The 11th (TODO_FEATURES.md rank 18, "gestion de stock basique") — structurally IDENTICAL to
+  // single-target 'reference' (a plain non-empty id string; presence/required-ness is still decided
+  // once, above, by validateAgainstDescriptor, so this is only ever called with a value that is
+  // actually present). The entire difference from 'reference' is what happens once the value is
+  // valid: nothing renders it, anywhere a human looks — see types.ts's own `entity` doc comment for
+  // the full "why a dedicated kind" account. Never multi-target (no `entities` variant): a line either
+  // names one catalog article or it doesn't, there is no case here for "one of several possible
+  // entities" the way an invoice's cross-document `origin` field needs.
+  registry.register('hiddenReference', (value) =>
+    typeof value === 'string' && value.length > 0 ? null : 'must reference an existing record.',
+  );
 }
 
 export { CORE_FIELD_KINDS };

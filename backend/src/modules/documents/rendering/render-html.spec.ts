@@ -294,6 +294,78 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — an invoice/quote line's `articleId` must
+  // be STORED but never printed. Deliberately a SEPARATE describe block from `hideWhenEmpty` below:
+  // that hint still prints a value once one is set (see its own test "renders ... once it is set"),
+  // the exact opposite of what this kind guarantees — see types.ts's own `entity` doc comment.
+  describe('hiddenReference (never rendered, not even when set — TODO_FEATURES.md rank 18)', () => {
+    it('renders no row at all for a TOP-LEVEL hiddenReference field, whether set or unset', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'articleId', kind: 'hiddenReference', label: 'Article', entity: 'article' }],
+        actions: [],
+      };
+
+      const withValue = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { articleId: 'article-123' } },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+      const withoutValue = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: {} },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      // The id itself must never leak into the PDF, and — since `articleId` is the ONLY field this
+      // descriptor declares — neither rendering produces a single field-row at all (`field-label` is
+      // also a static CSS class name in the document's own <style> block, present regardless of
+      // whether any row uses it, so the row markup itself is what this actually has to check).
+      expect(withValue).not.toContain('article-123');
+      expect(withValue).not.toContain('class="field-row"');
+      expect(withoutValue).not.toContain('class="field-row"');
+    });
+
+    it('excludes a hiddenReference SUBFIELD from an array — no header column, no cell, in ANY row, even when set', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [
+          {
+            key: 'lines',
+            kind: 'array',
+            label: 'Lines',
+            fields: [
+              { key: 'description', kind: 'text', label: 'Designation' },
+              { key: 'articleId', kind: 'hiddenReference', label: 'Article', entity: 'article' },
+            ],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: {
+          ...baseInstance,
+          data: { lines: [{ description: 'Widget', articleId: 'article-secret-id' }] },
+        },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('Widget');
+      expect(html).toContain('<table');
+      // No header column for it...
+      expect(html).not.toContain('>Article<');
+      // ...and, above all, the referenced id itself never appears anywhere in the document.
+      expect(html).not.toContain('article-secret-id');
+    });
+  });
+
   describe('unknown field kinds', () => {
     it('produces a visible marker for unknown kinds', () => {
       const descriptor: DocumentTypeDescriptor = {

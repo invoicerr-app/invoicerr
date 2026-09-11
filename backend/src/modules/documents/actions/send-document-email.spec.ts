@@ -3,11 +3,13 @@ import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import * as takeNumber from '../numbering/take-number';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import * as renderInstancePdf from '../rendering/render-instance-pdf';
+import * as stock from '../stock/apply-stock-on-issuance';
 import * as companyEmailTemplates from './company-email-templates';
 import { sendDocumentInstanceEmail } from './send-document-email';
 
 jest.mock('../numbering/take-number');
 jest.mock('../rendering/render-instance-pdf');
+jest.mock('../stock/apply-stock-on-issuance');
 jest.mock('./company-email-templates');
 
 /**
@@ -205,6 +207,77 @@ describe('sendDocumentInstanceEmail', () => {
 
     await expect(action).rejects.toBe(renderError);
     expect(mailService.sendMail).not.toHaveBeenCalled();
+  });
+
+  // TODO_FEATURES.md rank 18 — this is the PRIMARY issuance path for a sent document: it is numbered
+  // HERE (the worker), not in documents.service.ts's runAction epilogue, so the stock decrement must
+  // fire HERE, tied to actually TAKING the number.
+  it('decrements stock when it TAKES the number at issuance (the real async-send path)', async () => {
+    mockSuccessfulRender();
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+      number: 7,
+      displayNumber: 'QUOTE-2026-0007',
+    });
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+    const lines = [{ articleId: 'article-1', quantity: 8 }];
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'quote',
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending', // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
+          data: { lines },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: null,
+          displayNumber: null,
+        },
+        recipient: 'client@example.com',
+        label: 'Quote',
+      },
+    );
+
+    expect(stock.applyStockOnIssuance).toHaveBeenCalledTimes(1);
+    expect(stock.applyStockOnIssuance).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({ id: 'doc-1', data: { lines } }),
+    );
+  });
+
+  it('does NOT decrement stock when the document is ALREADY numbered (a re-send is a stock no-op)', async () => {
+    mockSuccessfulRender();
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'quote',
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: { lines: [{ articleId: 'article-1', quantity: 8 }] },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        recipient: 'client@example.com',
+        label: 'Quote',
+      },
+    );
+
+    expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
+    expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
   });
 
   it("the company's OWN template override wins over the descriptor default", async () => {

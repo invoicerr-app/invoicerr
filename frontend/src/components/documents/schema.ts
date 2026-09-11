@@ -30,6 +30,13 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
       return field.entities?.length
         ? z.object({ entity: z.string().min(1), id: z.string().min(1) })
         : z.string()
+    case "hiddenReference":
+      // Always single-target, always optional (see types.ts's own `entity` doc comment) — the same
+      // bare id string as single-target 'reference' above. Client-side shape only: nothing renders a
+      // control for this kind (field-renderers/hidden-reference-field.tsx), so there is no form input
+      // for this schema to ever reject; the backend's own 'hiddenReference' validator
+      // (field-kinds.ts) is what actually enforces it on save.
+      return z.string()
     case "number":
     case "money": {
       let schema = z.number()

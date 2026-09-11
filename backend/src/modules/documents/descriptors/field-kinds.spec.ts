@@ -2,7 +2,7 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './field-kinds';
 import { validateAgainstDescriptor } from './validate';
 
 describe('FieldKindRegistry', () => {
-  it('registers and resolves the 10 core kinds', () => {
+  it('registers and resolves the 11 core kinds', () => {
     const registry = new FieldKindRegistry();
     registerCoreFieldKinds(registry);
 
@@ -17,6 +17,7 @@ describe('FieldKindRegistry', () => {
       'reference',
       'array',
       'rowSelection',
+      'hiddenReference',
     ]) {
       expect(registry.has(kind)).toBe(true);
     }
@@ -50,6 +51,31 @@ describe('FieldKindRegistry', () => {
     expect(validateAgainstDescriptor(fields, { rating: 9 }, registry)).toEqual([
       { key: 'rating', message: '"Rating" must be a rating from 1 to 5.' },
     ]);
+  });
+
+  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — an invoice/quote line's `articleId`.
+  // Structurally identical to single-target 'reference' (see field-kinds.ts's own registration
+  // comment); what actually differs (never rendered anywhere) is exercised by render-html.spec.ts and
+  // the frontend, not here — this is only the structural validation half.
+  describe("'hiddenReference'", () => {
+    const registry = new FieldKindRegistry();
+    registerCoreFieldKinds(registry);
+    const field = { key: 'articleId', kind: 'hiddenReference', label: 'Article', entity: 'article' };
+
+    it('accepts a non-empty id string', () => {
+      expect(validateAgainstDescriptor([field], { articleId: 'article-1' }, registry)).toEqual([]);
+    });
+
+    it('an empty string is "missing", not invalid — the field stays optional (a line need not reference an article)', () => {
+      expect(validateAgainstDescriptor([field], { articleId: '' }, registry)).toEqual([]);
+      expect(validateAgainstDescriptor([field], {}, registry)).toEqual([]);
+    });
+
+    it('rejects a non-string value', () => {
+      expect(validateAgainstDescriptor([field], { articleId: 42 }, registry)).toEqual([
+        { key: 'articleId', message: '"Article" must reference an existing record.' },
+      ]);
+    });
   });
 
   describe("'reference' — single- vs multi-target", () => {

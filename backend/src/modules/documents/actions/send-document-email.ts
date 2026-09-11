@@ -5,6 +5,7 @@ import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
+import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
 import { DocumentInstanceResult } from './action-registry';
@@ -111,6 +112,13 @@ export async function sendDocumentInstanceEmail(
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id);
     if (numbered) {
       document = { ...document, ...numbered };
+      // STOCK EFFECT (TODO_FEATURES.md rank 18): this is the PRIMARY issuance path for a document with
+      // an async send — the invoice is numbered HERE, in the worker, not in `documents.service.ts`'s
+      // own `runAction` epilogue. Tied to `numbered` being truthy (the atomic once-only winner — see
+      // `takeDocumentNumberForTransition`), so the decrement fires exactly once per document, at the
+      // one site that actually issued the number. `applyStockOnIssuance` never throws (see its own
+      // header), so a stock-bookkeeping hiccup can never stop a send that already numbered the record.
+      await applyStockOnIssuance(companyId, document);
     }
   }
 

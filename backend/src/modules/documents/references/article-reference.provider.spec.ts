@@ -3,11 +3,12 @@ import { buildArticleReferenceProvider } from './article-reference.provider';
 /**
  * Proves the boundary `prefillFrom` (descriptors/types.ts) actually rests on: `getFields` hands back
  * EXACTLY the Article's own business fields the quote/invoice line descriptors' `map`s name
- * (`name`, `description`, `unitPrice`, `vatRate`) — never the internal `unitPriceMinor` column,
- * never `id`/`companyId`/`isActive`/timestamps. The actual "which row key receives which of these"
- * copy happens in the frontend (field-renderers/array-field.tsx, proven by 14-articles.cy.ts); this
- * is the backend half of "fills what's declared and nothing else" — there is nothing MORE than this
- * shape for a row to ever pick up from, however its own `map` is written.
+ * (`name`, `description`, `unitPrice`, `vatRate`, and — TODO_FEATURES.md rank 18 — `id`, so a line's
+ * own `articleId` 'hiddenReference' subfield can be prefilled the exact same way) — never the internal
+ * `unitPriceMinor` column, never `companyId`/`isActive`/timestamps. The actual "which row key receives
+ * which of these" copy happens in the frontend (field-renderers/array-field.tsx, proven by
+ * 14-articles.cy.ts); this is the backend half of "fills what's declared and nothing else" — there is
+ * nothing MORE than this shape for a row to ever pick up from, however its own `map` is written.
  */
 describe('buildArticleReferenceProvider', () => {
   const article = {
@@ -36,6 +37,7 @@ describe('buildArticleReferenceProvider', () => {
     const fields = await provider.getFields!('company-1', 'article-1');
 
     expect(fields).toEqual({
+      id: 'article-1',
       name: 'Web Design Day',
       description: 'Full day of web design',
       unitPrice: 800,
@@ -44,7 +46,6 @@ describe('buildArticleReferenceProvider', () => {
     // Never the minor-units storage detail, never anything the Article row doesn't itself mean to
     // expose as a business fact.
     expect(fields).not.toHaveProperty('unitPriceMinor');
-    expect(fields).not.toHaveProperty('id');
     expect(fields).not.toHaveProperty('companyId');
     expect(fields).not.toHaveProperty('isActive');
   });

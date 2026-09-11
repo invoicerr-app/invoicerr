@@ -1,4 +1,3 @@
-import { CoreFieldKind } from '../descriptors/types';
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { DocumentTotals } from '../totals/compute-totals';
@@ -103,7 +102,13 @@ function renderFieldValue(
       if (rows.length === 0) {
         return '—';
       }
-      const subFields = field.fields ?? [];
+      // 'hiddenReference' subfields (e.g. a line's `articleId`, TODO_FEATURES.md rank 18) are excluded
+      // BEFORE the header/body loops below even run — not via `hideWhenEmpty`'s "skip a per-row cell
+      // that happens to be empty" check (this loop never applies that hint to subfields at all, and a
+      // populated `articleId` is exactly the case that must still never print), so there is neither a
+      // header column nor a per-row cell for one, ever, regardless of value. See types.ts's own
+      // `entity` doc comment ("ALSO the target hint for 'hiddenReference'") for the full rationale.
+      const subFields = (field.fields ?? []).filter((subField) => subField.kind !== 'hiddenReference');
       let html = '<table style="border-collapse: collapse; width: 100%; margin-top: 8px;">';
       // Header
       html += '<thead><tr style="border-bottom: 1px solid #ccc;">';
@@ -426,6 +431,15 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 
   // Render each field
   for (const field of descriptor.fields) {
+    // 'hiddenReference' (TODO_FEATURES.md rank 18) is not merely `hideWhenEmpty` — it never gets a row
+    // AT ALL, set or not (see types.ts's own `entity` doc comment for why a dedicated kind, not a
+    // flag, was chosen). No top-level field is one today (only a line's own `articleId` is), but this
+    // guard holds the SAME "never printed" contract if one ever is, exactly like the 'array' case's
+    // own subfield filter just above holds it for a nested row.
+    if (field.kind === 'hiddenReference') {
+      continue;
+    }
+
     const value = instance.data[field.key];
 
     // See `DocumentFieldDescriptor.hideWhenEmpty`'s own header (types.ts) — an opt-in escape from the

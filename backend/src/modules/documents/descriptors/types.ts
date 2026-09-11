@@ -266,6 +266,24 @@ export interface DocumentFieldDescriptor {
    * this field. The stored value is a plain non-empty id string (e.g. `data.client = "client-1"`) —
    * unchanged since before `entities` existed, and every existing single-target field (the "client"
    * field on both the quote and the invoice) keeps this exact shape.
+   *
+   * ALSO the target hint for 'hiddenReference' (below the closed kind list) — TODO_FEATURES.md rank
+   * 18 ("gestion de stock basique"): a ROW-scoped bookkeeping pointer, e.g. an invoice/quote line's
+   * `articleId`. Same stored shape as above (a plain, optional, non-empty id string) but never a
+   * second, user-facing picker — it is normally populated by a SIBLING field's own `prefillFrom` (add
+   * its key to that field's `map`, e.g. `{ articleId: 'id', description: 'name', ... }` — the
+   * provider's `getFields` must return an `id`, which article-reference.provider.ts does precisely
+   * for this). This is the "dedicated hidden/reference field kind" this task chose over merely
+   * flagging an ordinary 'reference' field: `hideWhenEmpty` above is an opt-OUT from the "always show
+   * a row" rule that still prints a value once one IS set — the exact opposite of what a pure
+   * bookkeeping id needs, which must never print, set or not. Skipped ENTIRELY — no label, no value,
+   * no table column when nested in an 'array' row — by every human-facing renderer:
+   * `rendering/render-html.ts`'s own field loop (top-level AND inside its 'array' case's row/header
+   * loop) for the PDF, and the frontend's `field-renderers/index.ts` registers a renderer that draws
+   * nothing at all for the create/edit form (there is nothing for a human to see or edit — the value
+   * only ever moves via the prefill mechanism above). Deliberately NOT skipped by the raw, unfiltered
+   * data-preview dialog (`custom/invoice-preview-button.tsx`, frontend) — the same "an honest,
+   * complete dump" carve-out `hideWhenEmpty` documents for itself.
    */
   entity?: string;
   /**
@@ -430,6 +448,9 @@ export const CORE_FIELD_KINDS = [
   // row-selection/row-selection.ts for the mechanism (registered separately, not inline here) and
   // this file's own `sourceField`/`sourceEntity`/`sourceArrayField` for the declared shape.
   'rowSelection',
+  // The 11th (TODO_FEATURES.md rank 18) — a reference stored but never shown to a human anywhere:
+  // see `entity`'s own doc comment above for the full "why a dedicated kind, not just a flag" account.
+  'hiddenReference',
 ] as const;
 
 export type CoreFieldKind = (typeof CORE_FIELD_KINDS)[number];

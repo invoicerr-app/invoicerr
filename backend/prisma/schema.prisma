@@ -545,18 +545,28 @@ model MailTemplate {
 }
 
 model Article {
-  id             String   @id @default(cuid())
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId      String
-  name           String // label shown in the picker
-  description    String? // text injected into the line item
-  type           ItemType @default(SERVICE)
-  unitPrice      Float    @default(0)
-  unitPriceMinor Int?
-  vatRate        Float    @default(0)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default(cuid())
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId         String
+  name              String // label shown in the picker
+  description       String? // text injected into the line item
+  type              ItemType @default(SERVICE)
+  unitPrice         Float    @default(0)
+  unitPriceMinor    Int?
+  vatRate           Float    @default(0)
+  isActive          Boolean  @default(true)
+  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — NULL means "not stock-tracked" (a SERVICE
+  // article has no stock; only a GOODS/PRODUCT article opts in by having this set at all). Only a
+  // non-null `quantity` is ever decremented (documents/stock/apply-stock-on-issuance.ts) or alerted on
+  // (articles.service.ts's `isLowStock`) — deliberately NOT keyed off `type` itself, so a company that
+  // DOES want to track a "SERVICE" line's stock (e.g. a limited course seat count) isn't blocked by a
+  // type this schema never meant as a hard constraint, only a picker label.
+  quantity          Int?
+  // NULL means "no alert, ever" for this article — distinct from `0` (alert as soon as ANY stock is
+  // gone). See `isLowStock`'s own doc comment (articles.service.ts) for the exact predicate.
+  lowStockThreshold Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Signature model
@@ -1431,7 +1441,7 @@ model DocumentDownloadToken {
 model Signature {
   id         String           @id @default(cuid())
   company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String
+  companyId  String
   typeId     String
   document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId String

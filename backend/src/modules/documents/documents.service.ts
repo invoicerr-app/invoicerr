@@ -72,6 +72,7 @@ import { companyToFormatParty, clientToFormatParty } from './formats/party-snaps
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { takeDocumentNumberForTransition } from './numbering/take-number';
 import { findOwnedDocument, listDocuments } from './persistence';
+import { applyStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
@@ -790,22 +791,33 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    // THE NUMBER (numbering/): taken the first time this record's now-persisted status actually
-    // EQUALS the type's own declared `numbering.onEnterStatus` — never before (a draft has none) and
-    // never again once one is set. Checking the RESULTING status against `onEnterStatus`, combined
-    // with `number` still being null, is enough to mean "first time" WITHOUT re-deriving which
-    // transition edge fired: `number` is never cleared once set (see `DocumentInstance`'s own schema
-    // comment), so this exact check can never fire a second time for the same record no matter how
-    // many different actions might be able to reach `onEnterStatus`. Scoped to `result.document`
-    // being THIS SAME type (never a foreign record a side-effect action like "convert-to-invoice"
-    // created) — the same guard `checkTransitionResult` just above already holds for its own concern.
-    if (
-      descriptor.numbering &&
-      result.document &&
+    // THE NUMBER (numbering/) and the STOCK EFFECT (documents/stock/, TODO_FEATURES.md rank 18) below
+    // both hang off the exact SAME "is this record entering its type's own `numbering.onEnterStatus`
+    // for the very first time" fact — captured ONCE, here, before either block below can mutate
+    // `result.document.number` (the numbering block does, immediately after). Re-deriving this
+    // condition a second time AFTER the numbering block ran would be wrong: `result.document.number`
+    // would then already carry the number JUST assigned, making `number == null` false on every
+    // request that actually reaches this point — the once-only gate would fire close to never rather
+    // than exactly once. `enteringNumberedStatus` is what lets a fresh document, `numbered` or not,
+    // still see the SAME "first time" answer the numbering block itself saw.
+    //
+    // Taken the first time this record's now-persisted status actually EQUALS the type's own declared
+    // `numbering.onEnterStatus` — never before (a draft has none) and never again once one is set.
+    // Checking the RESULTING status against `onEnterStatus`, combined with `number` still being null,
+    // is enough to mean "first time" WITHOUT re-deriving which transition edge fired: `number` is
+    // never cleared once set (see `DocumentInstance`'s own schema comment), so this exact check can
+    // never fire a second time for the same record no matter how many different actions might be able
+    // to reach `onEnterStatus`. Scoped to `result.document` being THIS SAME type (never a foreign
+    // record a side-effect action like "convert-to-invoice" created) — the same guard
+    // `checkTransitionResult` just above already holds for its own concern.
+    const enteringNumberedStatus =
+      descriptor.numbering !== undefined &&
+      result.document !== undefined &&
       result.document.typeId === typeId &&
       result.document.status === descriptor.numbering.onEnterStatus &&
-      result.document.number == null
-    ) {
+      result.document.number == null;
+
+    if (enteringNumberedStatus && result.document) {
       const numbered = await takeDocumentNumberForTransition(companyId, typeId, result.document.id);
       // `numbered` is undefined only if a concurrent request already numbered this exact record
       // between the in-memory check just above and the atomic DB write inside `takeDocumentNumber` —
@@ -813,7 +825,24 @@ export class DocumentsService implements OnModuleInit {
       // number that other request gave it, and this response simply doesn't carry it (the caller's
       // own next read of the record will).
       if (numbered) {
-        result = { ...result, document: { ...result.document, ...numbered } };
+        const numberedDocument = { ...result.document, ...numbered };
+        result = { ...result, document: numberedDocument };
+        // STOCK EFFECT (TODO_FEATURES.md rank 18): decrements every stock-tracked article a line of
+        // THIS document references — see `apply-stock-on-issuance.ts`'s own header. Tied to `numbered`
+        // being truthy, NOT to `enteringNumberedStatus` alone: `takeDocumentNumberForTransition`
+        // returns a number for EXACTLY the one caller that atomically won it (undefined for the loser
+        // of a concurrent race), so this fires exactly once per document, at exactly the site that
+        // issued the number — never twice, never on a re-send of an already-numbered record.
+        // Deliberately NEVER keyed off `typeId === 'invoice'`: it only reads `data.lines` for an
+        // `articleId`, so any current or future article-referencing type gets the same bookkeeping for
+        // free (this repo's "a document type is just data" thesis). Never throws (see its own header),
+        // so a stock hiccup can never block an otherwise legally-issued document.
+        //
+        // NOTE: the PRIMARY issuance path (async send) numbers the document in the worker,
+        // `actions/send-document-email.ts` (its OWN `if (numbered)` block) — so a SENT invoice's real
+        // decrement happens THERE, not here. This site covers any OTHER action that numbers a document
+        // synchronously through `runAction`.
+        await applyStockOnIssuance(companyId, numberedDocument);
       }
     }
 

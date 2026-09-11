@@ -45,6 +45,7 @@ import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { logger } from '@/logger/logger.service';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
+import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
@@ -284,7 +285,17 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
   // its original number, no gap, no duplicate).
   if (numberOnEnqueue && sending.number == null) {
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, sending.id);
-    if (numbered) sending = { ...sending, ...numbered };
+    if (numbered) {
+      sending = { ...sending, ...numbered };
+      // STOCK EFFECT (TODO_FEATURES.md rank 18) — this is the numbering site that actually fires for
+      // the async send path (the number is taken HERE, before the job is enqueued, to win the race
+      // this file's own header describes). Anchored to the SAME `if (numbered)` atomic winner as the
+      // other numbering sites (documents.service.ts#runAction, send-document-email.ts), so the
+      // decrement runs exactly once per document, at whichever site actually issues its number — for a
+      // sent invoice, that is right here. Type-agnostic and never-throwing — see
+      // `stock/apply-stock-on-issuance.ts`'s own header.
+      await applyStockOnIssuance(companyId, sending);
+    }
   }
 
   await queueDispatcher.enqueueAction({

@@ -17,6 +17,19 @@
 
 ## Suivi (mise à jour 2026-09-11)
 
+- **Rang 18 — gestion de stock basique** : ✅ FAIT — `Article.quantity`/`lowStockThreshold` (null =
+  non suivi / pas d'alerte ; migration `20260911064825`). Une ligne peut désormais RÉFÉRENCER son
+  article via un `articleId` (nouveau *field kind* `hiddenReference` : stocké mais JAMAIS imprimé sur
+  le PDF — peuplé par `prefillFrom`). À l'ÉMISSION, `stock/apply-stock-on-issuance.ts` décrémente le
+  stock des articles suivis référencés par les lignes — TYPE-AGNOSTIQUE (jamais `typeId==='invoice'`),
+  ancré au gagnant atomique `takeDocumentNumberForTransition` donc exactement une fois, au site qui
+  prend le numéro. **Piège corrigé en revue** : il y a TROIS sites de numérotation ; pour l'envoi async
+  c'est `async-send.ts` qui numérote (avant d'enfiler le job) — le décrément y était absent
+  initialement (e2e l'a révélé : stock resté à 10). Ajouté aux 3 sites, idempotent par construction.
+  Alerte `isLowStock` exposée (API `GET /articles/low-stock` + badge `article-low-stock-<id>`). jest
+  (never-print du hiddenReference + décrément pur + gating mordus par mutation), e2e `49-stock`
+  (facturer 8 d'un stock de 10 → 2, sous le seuil 3, badge visible — prouvé par le vrai pipeline).
+
 - **Rang 2 — relances automatiques (dunning)** : ✅ FAIT — sweep BullMQ quotidien (`reminders/reminder-sweep.ts`
   pur + `reminder-sweep-runner.ts`, même patron que conformity/currency-rate), **opt-in par société**
   (`Company.remindersEnabled` défaut OFF — aucun envoi surprise), paliers 7/14/30 j de retard (ton

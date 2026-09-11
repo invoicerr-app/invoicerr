@@ -20,6 +20,21 @@ export class ArticlesController {
     return this.articlesService.findAll(companyId);
   }
 
+  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — declared BEFORE `GET :id` so Nest's route
+  // matching never treats the literal segment "low-stock" as an `:id` value (Nest matches routes in
+  // declaration order within a controller).
+  @Get('low-stock')
+  @ApiOperation({
+    summary: 'List low-stock articles',
+    description:
+      'Returns the active, stock-tracked catalog articles currently at or under their own alert threshold.',
+  })
+  @ApiResponse({ status: 200, description: 'Low-stock articles retrieved' })
+  async findLowStock(@ActiveCompany() companyId: string) {
+    const articles = await this.articlesService.findLowStock(companyId);
+    return { count: articles.length, articles };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get an article', description: 'Returns a single catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })

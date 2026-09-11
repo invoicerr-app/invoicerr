@@ -1,4 +1,4 @@
-import { Edit, Package, Plus, Search, Trash2 } from "lucide-react"
+import { Edit, Package, Plus, Search, Trash2, TriangleAlert } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { forwardRef, useImperativeHandle, useState } from "react"
 
@@ -109,6 +109,19 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
                             <Badge variant="outline" className="text-xs">
                               {t(`articles.fields.type.${article.type?.toLowerCase()}`) || article.type}
                             </Badge>
+                            {/* TODO_FEATURES.md rank 18 — `isLowStock` is server-computed
+                                (articles.service.ts), never re-derived here; the badge only
+                                ever reflects what the API already decided. */}
+                            {article.isLowStock && (
+                              <Badge
+                                variant="destructive"
+                                className="text-xs gap-1"
+                                data-cy={`article-low-stock-${article.id}`}
+                              >
+                                <TriangleAlert className="h-3 w-3" />
+                                {t("articles.stock.lowStockBadge")}
+                              </Badge>
+                            )}
                           </div>
                           {article.description && (
                             <div className="mt-1 text-sm text-muted-foreground break-words">
@@ -118,6 +131,16 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
                           <div className="mt-1 text-sm text-muted-foreground">
                             {t("articles.fields.unitPrice.label")}: {article.unitPrice}
                             {currencySymbol} · {t("articles.fields.vatRate.label")}: {article.vatRate}%
+                            {/* Only shown for a STOCK-TRACKED article (`quantity` non-null) — an
+                                article with no stock concept at all (most SERVICE items) gets no
+                                quantity line, same "null means the concept doesn't apply" rule
+                                Article.quantity's own schema comment documents. */}
+                            {article.quantity != null && (
+                              <>
+                                {" "}
+                                · {t("articles.fields.quantity.label")}: {article.quantity}
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

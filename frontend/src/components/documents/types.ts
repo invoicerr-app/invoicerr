@@ -45,7 +45,14 @@ export interface DocumentFieldDescriptor {
    *  hard block this screen convenience is backed by, never a substitute for it. */
   lockedFromReference?: { field: string; entity: string; sourceKey: string }
   /** 'reference', SINGLE target: which entity the generic search/resolve endpoints target (e.g.
-   *  "client"). The stored value is a plain non-empty id string. */
+   *  "client"). The stored value is a plain non-empty id string.
+   *
+   *  ALSO the target hint for 'hiddenReference' (TODO_FEATURES.md rank 18) — a line-scoped
+   *  bookkeeping pointer (e.g. an invoice/quote line's `articleId`) that is never rendered by
+   *  anything a human sees: field-renderers/hidden-reference-field.tsx draws nothing for it in the
+   *  create/edit form, mirroring the backend's render-html.ts skipping it entirely on the PDF. See
+   *  the backend's own `entity` doc comment (descriptors/types.ts) for the full "why a dedicated
+   *  kind" account. */
   entity?: string
   /** 'reference', MULTIPLE possible targets (e.g. an invoice's origin can be a quote OR another
    *  invoice) — mutually exclusive with `entity`. When set, the field's stored value is
