@@ -5,7 +5,7 @@
 fusionnées, puis l'amont a été intégré. **Phases 0 à 3, plus le plan de travail P0–P8, terminés.**
 
 L'audit lui-même n'a rien corrigé : `git diff feat/compliance-architecture..HEAD` sur la branche
-d'audit ne contient que `docs/compliance/audit/` et `scripts/audit/`. Les corrections ont vécu sur
+d'audit ne contient que `documentation/internal/audit/` et `scripts/audit/`. Les corrections ont vécu sur
 des branches `fix/` distinctes, une par sujet, chacune avec son test de non-régression.
 
 ---

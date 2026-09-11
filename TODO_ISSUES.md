@@ -495,8 +495,8 @@
   verdict a été reçu et quand).
 
 - **Item 14 — la rétention FR applique les deux durées simultanément (leur MAXIMUM) plutôt que de
-  trancher FR-D9** (2026-08-31) : `docs/compliance/audit/03-LEGAL-VERIFICATION.md` (FR-D9) et
-  `docs/compliance/DECISIONS.md` (D-001) signalaient déjà la confusion entre la durée fiscale (LPF
+  trancher FR-D9** (2026-08-31) : `documentation/internal/audit/03-LEGAL-VERIFICATION.md` (FR-D9) et
+  `documentation/internal/DECISIONS.md` (D-001) signalaient déjà la confusion entre la durée fiscale (LPF
   art. L102 B, 6 ans) et commerciale (C. com. art. L123-22, 10 ans) dans l'ancien profil FR, sans la
   trancher — D-001 proposait explicitement "porter les deux plutôt que d'en choisir une".
   `archive/retention/compute-retention.ts` fait exactement ça : les deux règles sont déclarées
@@ -515,7 +515,7 @@
   Concrètement : en France, la RÉCEPTION de factures électroniques par une plateforme agréée est
   obligatoire pour « toutes les entreprises, quelle que soit la taille » depuis le 2026-09-01
   (recontrôlé sur economie.gouv.fr et impots.gouv.fr le 2026-08-27 — voir le repère git
-  `avant-refonte-documents:docs/compliance/audit/03-LEGAL-VERIFICATION.md`, tableau « Calendrier »,
+  `avant-refonte-documents:documentation/internal/audit/03-LEGAL-VERIFICATION.md`, tableau « Calendrier »,
   ligne Réception ; citation reprise dans `country-policy/data/fr.json`'s own
   `received-invoice.receive` rule). Cet écran AIDE à consigner une facture reçue par n'importe quel
   moyen, mais NE SATISFAIT PAS, à lui seul, l'obligation de réception via une plateforme agréée. Ce
@@ -749,7 +749,7 @@
   dans l'env du service ocr (jamais ailleurs), rejouer le live.
 
 - **Restes consignés à la clôture de TODO_CORRECTION.md (C1/C2/C3, 2026-09-03)** :
-  - **Composition vendeur×acheteur (P3-U02)** — `docs/compliance/CORRECTION-JURISDICTION.yaml`
+  - **Composition vendeur×acheteur (P3-U02)** — `documentation/internal/CORRECTION-JURISDICTION.yaml`
     documente QUATRE rattachements transfrontaliers distincts ; `correction-routes/` (C1) et
     `cancel-policy.ts` (C3) ne lisent QUE le pays vendeur (couche "A_invoicing_rules", art. 219
     bis — la bonne couche pour "quel document mon pays impose"), jamais la couche
@@ -763,7 +763,7 @@
     chacun sourcé ou unverified honnête. Entrée d'origine : seuls les 7 pivots (FR/IT/PL/DE/ES/MX/US)
     avaient un fichier `correction-routes/data/*.json` ; tout autre pays (ex. BE, testé dans
     43-correction-routes.cy.ts) reçoit le refus honnête 404 nommé, jamais une voie inventée. Étendre
-    la couverture est un travail de RECHERCHE JURIDIQUE pays par pays (le patron `docs/compliance/
+    la couverture est un travail de RECHERCHE JURIDIQUE pays par pays (le patron `documentation/internal/
     CORRECTION-ROUTES.yaml`), pas un mécanisme à construire.
   - ~~**`country-policy/` ne couvre QUE FR/US/HU aujourd'hui — DE/IT/PL/ES/MX sont TOTALEMENT
     bloqués sur TOUTE action document**~~ — **RÉSOLU en deux temps** : TODO_SUITE P (les 5 fichiers

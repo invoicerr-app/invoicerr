@@ -26,7 +26,7 @@ meta:
   pending: []
   # Comment reprendre si la session est interrompue — c'est déjà arrivé une fois, au milieu de six
   # recherches lancées en parallèle, dont quatre ont été perdues.
-  resume: docs/compliance/LEGAL-DOCUMENTS.RESUME.md
+  resume: documentation/internal/LEGAL-DOCUMENTS.RESUME.md
 
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 # LES AXES — la vraie structure, et ce sur quoi le refactor devrait s'appuyer

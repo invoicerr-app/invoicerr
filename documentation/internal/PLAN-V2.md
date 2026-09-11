@@ -4,7 +4,7 @@
 > Branche unique : `feat/compliance-engine-v2`, créée depuis `feat/compliance-architecture`
 > (`f71cfb9b`). Commits atomiques, poussés au fil de l'eau.
 >
-> Source des tâches : `docs/compliance/audit/11-FRANCE-RESTE-A-FAIRE.md` (branche
+> Source des tâches : `documentation/internal/audit/11-FRANCE-RESTE-A-FAIRE.md` (branche
 > `audit/compliance-truth`). Conception du déclencheur : `08-CORRIDOR-MODEL.md`. État de l'existant :
 > `10-ACQUIS.md`.
 >
@@ -192,11 +192,11 @@ conception, et les faire après reviendrait à concevoir sur une hypothèse.*
   et que l'art. 290 la place en e-reporting. **Vérifie en particulier l'articulation avec
   l'art. 289 bis V**, qui exclut aussi les livraisons intracommunautaires exonérées : ce cas pourrait
   relever de deux exclusions par deux chemins différents, ce qui changerait le prédicat.
-- **Fichiers** : `docs/compliance/audit/03-LEGAL-VERIFICATION.md` (ajout sourcé)
+- **Fichiers** : `documentation/internal/audit/03-LEGAL-VERIFICATION.md` (ajout sourcé)
 - **Dépend de** : rien
 - **Accepte si** : chaque affirmation porte URL + date. Si la source ne tranche pas, la question est
   écrite en `open_question` avec ce qui la trancherait — **aucune valeur plausible**.
-- **État** : ✅ **fait — `447eb2f3`**, dans `docs/compliance/FR-RATTACHEMENT.md`. Quatre résultats,
+- **État** : ✅ **fait — `447eb2f3`**, dans `documentation/internal/FR-RATTACHEMENT.md`. Quatre résultats,
   dont trois non anticipés :
   1. Le déclencheur bilatéral est confirmé **littéralement**, mais le critère est **triple** —
      « établis **ou** domicile **ou** résidence habituelle ». Le type se renomme `Attachment`.
@@ -344,7 +344,7 @@ consommation, deux endpoints entrants. **On l'étend, on ne le refait pas.***
 
 | # | Tâche | Dépend de | Accepte si |
 | --- | --- | --- | --- |
-| **P3-T01** | ✅ **fait** — `docs/compliance/CORRECTION-ROUTES.yaml`. 11 voies × 7 pays = 68 cases statuées, 17 questions ouvertes. Le vocabulaire du plan en listait 6 ; il en manquait **4** | feu vert | ✅ Table sourcée, chaque case avec sa référence légale |
+| **P3-T01** | ✅ **fait** — `documentation/internal/CORRECTION-ROUTES.yaml`. 11 voies × 7 pays = 68 cases statuées, 17 questions ouvertes. Le vocabulaire du plan en listait 6 ; il en manquait **4** | feu vert | ✅ Table sourcée, chaque case avec sa référence légale |
 | **P3-T02** | ✅ **fait** — `CorrectionRouteRule` sur `LifecyclePolicy`, 7 pivots peuplés, `correctionModel` **dérivé** et non plus écrit à la main | P3-T01 | ✅ `data-integrity` valide (4 gardes) ; les **sept** pivots expriment leurs voies |
 | **P3-T03** | ✅ **fait** — **D2, l'avoir interne français ET italien.** La règle « sur Refusée ou Rejetée » était de la prose ; `whenOriginalStatus` la rend lisible par le runtime. Garde à trois niveaux : la décision, le bouton, l'API | P3-T02 | ✅ Un test prouve qu'aucune transmission n'est possible depuis ces statuts, et il **échoue** quand on retire la garde (vérifié en la retirant) |
 | **P3-T04** | **D1 — sortie de `REJECTED`**, aujourd'hui terminal (`REJECTED: {}`). Le modèle porte la divergence : l'Italie renvoie de préférence sous **mêmes date et numéro** après un *scarto*, la Pologne sous le même **P_2**. La France suffit à démarrer | P3-T02 | Depuis `REJECTED`, la voie française est ouverte et exerçable ; les voies IT et PL sont exprimables dans le profil sans code par pays |

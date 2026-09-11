@@ -4,7 +4,7 @@
 > interrompu une fois par un plafond de crédit, au milieu de six recherches pays lancées en
 > parallèle ; quatre ont été perdues. Ce qui suit est ce qu'il faut pour repartir sans redemander.
 >
-> Livrable : **`docs/compliance/LEGAL-DOCUMENTS.yaml`**.
+> Livrable : **`documentation/internal/LEGAL-DOCUMENTS.yaml`**.
 
 ## La règle qui prime sur le reste
 
@@ -86,7 +86,7 @@ Termine par « ce que je n'ai pas pu établir ».
    `local`, `en`, `what`, `nature`, `obligation`, `source`, `note` optionnelle.
 2. Mettre les impasses dans `open_questions:` du pays, avec `settled_by`.
 3. Mettre à jour `meta.covered` et `meta.status`.
-4. Vérifier : `python3 -c "import yaml; yaml.safe_load(open('docs/compliance/LEGAL-DOCUMENTS.yaml'))"`
+4. Vérifier : `python3 -c "import yaml; yaml.safe_load(open('documentation/internal/LEGAL-DOCUMENTS.yaml'))"`
 
 ## Ce qui reste à faire APRÈS l'inventaire
 

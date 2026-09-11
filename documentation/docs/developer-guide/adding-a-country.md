@@ -157,7 +157,7 @@ genuinely couldn't reach in the time you had):
 }
 ```
 
-`correction-routes/data/*.json` additionally transcribes from `docs/compliance/CORRECTION-ROUTES.yaml`
+`correction-routes/data/*.json` additionally transcribes from `documentation/internal/CORRECTION-ROUTES.yaml`
 (a research document, not code) — a route's `notes` there should say which YAML row it came from
 and that document's own `meta.updated` date, so a stale transcription is easy to spot later.
 
@@ -179,7 +179,7 @@ up front:
   unresearched route gets an honest `"status": "unverified"` entry, never an omitted key. The
   vocabulary is closed: you may not invent a twelfth route. If your research genuinely surfaces a
   correction mechanism that doesn't fit any of the eleven, that is a change to
-  `docs/compliance/CORRECTION-ROUTES.yaml` first, not a new value in this schema.
+  `documentation/internal/CORRECTION-ROUTES.yaml` first, not a new value in this schema.
 - `transports/channel-policy/data/<cc>.json`'s `requirement: "mandated"` **requires** `legal`
   provenance and a `mandatedFrom` date — the schema throws at load if you mark something mandated
   on an `unverified` claim. If you're not yet confident the channel is genuinely *required* rather

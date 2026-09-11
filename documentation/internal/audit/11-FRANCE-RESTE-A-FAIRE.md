@@ -8,7 +8,7 @@
 >
 > ⚠️ **Ce document est daté du 2026-08-28 et n'est pas tenu à jour.** Il dit ce qui manquait *au
 > moment de l'audit* ; il ne dit pas où en est le chantier. L'état vivant, ligne par ligne, est dans
-> **`docs/compliance/PLAN-V2.md`** — plusieurs lignes ci-dessous (A1 à A6, B3, B4) y sont closes.
+> **`documentation/internal/PLAN-V2.md`** — plusieurs lignes ci-dessous (A1 à A6, B3, B4) y sont closes.
 > En cas de désaccord entre les deux, PLAN-V2 fait foi sur l'**état**, ce document sur le **constat**.
 
 ---
