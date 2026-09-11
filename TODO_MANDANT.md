@@ -56,27 +56,28 @@ peppol.sh est prouvé en test, **zéro secret**. Pour la prod :
 
 ---
 
-## B. Décisions produit à trancher (rien ne bouge sans toi)
+> **Clarification credentials (2026-09-11, mandant) :** aucun identifiant PAR-PAYS n'est une démarche
+> à TA main pour « implémenter » une feature. L'app est multi-tenant → chaque CLIENT saisit SES
+> credentials dans Settings → Channels. À ta main il ne reste QUE les 3 secrets de déploiement (§C/§E,
+> triviaux, pas par-pays). Les identifiants par-pays du tuto = soit les clients eux-mêmes, soit les
+> tests live CI (opt-in). Seule nuance : **SdI (IT) et PT-AT (PT)** sont `awaiting-accreditation` — le
+> code est au contrat officiel mais jamais éprouvé en réel ; ils seront prouvés (et éventuellement
+> retouchés) au premier vrai client. Tu n'as PAS à créer d'entité de test par pays.
 
-- [ ] **it-it, Check #1 d'assertCompliance** : asserter que le statut n'est pas
-      `TRANSMISSION_FAILED` red-ifierait it-it tant qu'il n'y a pas de creds SdI (SdI est le SEUL
-      canal IT, pas de repli email). Options : creds sandbox SdI dans le setup e2e, ou
-      special-case par profil. → mémoire de l'audit false-green (2026-07-14), TODO_ISSUES.md.
-- [ ] **Clé Mistral (OCR cloud)** : uniquement si tu veux l'OCR cloud pour le SaaS — créer la clé
-      sur console.mistral.ai, la poser dans l'env du service `ocr` (JAMAIS ailleurs), rejouer
-      `MISTRAL_OCR_LIVE=1`. Le self-host a maintenant l'OCR local sans clé (profil `ocr-local`).
-- [ ] **Langues Tika pol/nld** : l'image stock n'a pas le polonais/néerlandais (PL = marché
-      primaire !). Dockerfile 2 lignes documenté dans `docker-compose.yml` — décider si on
-      publie une image dérivée ou si on laisse l'opérateur le faire.
-- [ ] **Seconde vague de purge des WebhookEventType** : <15 valeurs vivantes sur 94 restantes.
-      Purge = seconde migration + audit de chaque abonnement existant en prod — décision produit.
-      → TODO_ISSUES.md (item T2bis).
-- [ ] **Doctrine fiscale des voies de correction `unverified`** : commander (ou non) une vague de
-      lectures par pays pour promouvoir les routes non sourcées. → TODO_DOCUMENTS.md (manques par lot).
-- [ ] **`e2e/demo-videos/run-complet/`** : dossier non versionné qui traîne — garder, déplacer ou
-      supprimer (je n'y touche pas sans toi).
-- [ ] **Ouvrir la PR vers main** : la branche porte 870+ commits ; décider du moment (et si tu veux
-      un `/code-review ultra` avant).
+## B. Décisions produit — TRANCHÉES (2026-09-11)
+
+- ✅ **OCR : full local, pas de cloud** (décision mandant). On bâtit NOTRE image + serveur
+      (`FROM jbarlow83/ocrmypdf` + packs Tesseract des principales langues, serveur `--sidecar`) —
+      remplace Tika (langues figées). La clé Mistral cloud est ABANDONNÉE ; l'item « langues Tika
+      pol/nld » est SANS OBJET (superseded par notre image multilingue). Chantier en cours.
+- ✅ **`e2e/demo-videos/run-complet/`** : SUPPRIMÉ (2026-09-11, 64 Mo de vidéos non versionnées).
+- ✅ **Doctrine voies de correction `unverified`** : vague de lectures légales COMMANDÉE (sous-agents,
+      sources primaires, discipline ⚖ texte brut) — chantier en file.
+- ⏸️ **Ouvrir la PR vers main** : PAS maintenant. On fera la PR + une revue de code d'ensemble quand
+      toutes les features et tous les tests seront bons.
+- ⏸️ **Seconde vague de purge des WebhookEventType** : reportée (nettoyage interne, faible urgence).
+- ◦ **it-it, Check #1 d'assertCompliance** : se résout dès que des creds SdI existent — rien à
+      trancher maintenant. → TODO_ISSUES.md.
 
 ---
 
@@ -141,10 +142,10 @@ Chacun exige une identité/entité locale réelle, sans chemin automatisable (d�
       `X-Forwarded-For` avec l'IP réelle) est bien la seule entrée — le backend fait maintenant
       confiance à 1 hop de proxy. Si tu ajoutes un proxy SUPPLÉMENTAIRE devant, ajuste le nombre de
       hops de confiance. (Finding #1.)
-- [ ] **Montées de dépendances majeures** (décision produit — je ne les fais pas sans ton aval, elles
-      peuvent casser) : `better-auth`, `nodemailer`, `prisma` (montée majeure à planifier). Je corrige
-      de mon côté `@xmldom/xmldom` (atteignable en anonyme, prioritaire) dans un chantier dédié. Les
-      ~31 autres alertes `npm audit` backend sont en majorité transitives non atteignables
+- **Montées de dépendances majeures** — TRANCHÉ (2026-09-11) : **`better-auth` + `nodemailer` OUI**
+      (un chantier par dépendance, sous-agent + batterie, commit séparé — en file). **`prisma` NON**
+      (pas de Prisma 8 pour l'instant, trop de changements — reporté). `@xmldom/xmldom` : correctif de
+      mon côté. Les ~31 autres alertes `npm audit` sont transitives non atteignables
       (multer/mysql2/puppeteer) — voir SECURITY_AUDIT.md § dépendances.
 
 ---
