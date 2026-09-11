@@ -32,6 +32,18 @@
   aucune install). jest : `sepa-qr.spec`+`render-html.spec`+`render-instance-pdf.spec` (62 tests,
   contenu EPC exact + gardes), e2e `48-payment-qr` (le PDF EUR+IBAN embarque le QR — prouvé par la
   taille —, absent sans IBAN ou en non-EUR).
+- **Rang 9 — taux de change automatiques (flux BCE)** : ✅ FAIT — sweep BullMQ quotidien (métronome,
+  même patron que `conformity-sweep` : `currency-rate-sweep.ts` pur + `currency-rate-sweep-runner.ts`
+  + repeatable enregistré dans le dispatcher, routé par le processor, provider dans le worker-module).
+  `ecb-rates-client.ts` récupère le flux BCE gratuit sans clé (`eurofxref-daily.xml`, timeout 10s,
+  parse `@xmldom/xmldom`), `computeCrossRate` calcule les paires en `Prisma.Decimal` (pas de float).
+  Le runner rafraîchit les paires `(from,to)` DÉJÀ présentes par société (jamais de paires inventées),
+  idempotent par `asOf` (pas de contrainte unique en base). `convert.ts` INCHANGÉ (résout déjà la
+  dernière ligne par `asOf`, sans filtre de source → les lignes `ecb` sont prises automatiquement).
+  jest 29 (dont `computeCrossRate` mordu par mutation, idempotence mordue) + test LIVE réel BCE
+  (`ECB_LIVE=1`, gate) ; validé bout-en-bout contre la vraie DB de test + le vrai flux BCE (écriture
+  ecb réelle → `convert` la résout → 2ᵉ passe no-op). Pas d'écran (job de fond) → preuve = round-trip
+  live + intégration DB réelle, pas Cypress.
 - **Rang 7 — référence client / n° de commande** : ✅ FAIT (champ descripteur `clientReference` sur
   devis/factures, `hideWhenEmpty`, rendu PDF + liste ; e2e 46-client-reference).
 - **Rang 10 — écran déclarations mydata/NAV** : ⚠️ ÉTUDE DE COMPATIBILITÉ FAITE (2026-09-11,
@@ -65,7 +77,7 @@
     événements de clearance, pas des déclarations vendeur→autorité), pas un détournement du mécanisme
     `reporting/`. **Décision produit en attente** (option A : provider PT complet ; option B : écran
     d'événements d'autorité génériques ; option C : abandonner).
-- Quick wins restants en file : rang 9 (taux de change auto).
+- Quick wins TOUS FAITS (rangs 6, 7, 8, 9). Rang 10 : décision produit en attente (voir plus haut).
 
 ## 1. Inventaire de l'existant (100 % code)
 

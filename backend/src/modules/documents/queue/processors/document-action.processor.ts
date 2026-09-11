@@ -29,12 +29,24 @@
  * `DocumentsService` and never sends a schedule-named job — Nest injects `undefined` for an omitted
  * optional dependency rather than throwing, so none of that had to change for this task. Production
  * wiring (documents-core.module.ts) always provides a real one.
+ *
+ * TODO_FEATURES.md rank 9 (automatic ECB exchange rates) adds a FOURTH job name the same way: ONE
+ * more repeatable (`currency-rate-sweep/currency-rate-sweep.ts`'s `CURRENCY_RATE_SWEEP_JOB_NAME`),
+ * routed to `CurrencyRateSweepRunner`, `@Optional()`-injected for the identical reason and provided
+ * for real by `document-queue-worker.module.ts` (not `documents-core.module.ts` — that runner has no
+ * Nest dependencies of its own, so it needs no home in the Core module at all; see that worker
+ * module's own header).
  */
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, Optional } from '@nestjs/common';
 import { Job } from 'bullmq';
 
 import { ActionResult } from '../../actions/action-registry';
+import {
+  CurrencyRateSweepRunner,
+  RunCurrencyRateSweepResult,
+} from '../../../company/currency-rates/currency-rate-sweep-runner';
+import { CURRENCY_RATE_SWEEP_JOB_NAME } from '../../../company/currency-rates/currency-rate-sweep';
 import {
   CONFORMITY_POLL_JOB_NAME,
   CONFORMITY_SWEEP_JOB_NAME,
@@ -94,13 +106,24 @@ export class DocumentActionProcessor extends WorkerHost {
     // into every file that imports it, breaking THIS class's own spec (and the four
     // `queue/__tests__/*.redis.spec.ts` integration suites that import it) under ts-jest.
     @Optional() @Inject(DOCUMENT_WEBHOOK_EMITTER) private readonly webhookDispatcher?: DocumentWebhookEmitter,
+    // TODO_FEATURES.md rank 9 (automatic ECB exchange rates) — same `@Optional()` reasoning as
+    // `conformitySweepRunner`/`reportingRunner` above: every EXISTING spec in this file constructs
+    // this processor without one and never sends a currency-rate-sweep-named job; production wiring
+    // (document-queue-worker.module.ts) always provides a real one.
+    @Optional() private readonly currencyRateSweepRunner?: CurrencyRateSweepRunner,
   ) {
     super();
   }
 
   async process(
     job: Job<DocumentActionJobData>,
-  ): Promise<ActionResult | RunSweepResult | RunConformitySweepResult | { journaled: number }> {
+  ): Promise<
+    | ActionResult
+    | RunSweepResult
+    | RunConformitySweepResult
+    | RunCurrencyRateSweepResult
+    | { journaled: number }
+  > {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
       this.logger.log(`Running the document-schedule sweep (job ${job.id})`);
       return this.requireSweepRunner().runSweep();
@@ -126,6 +149,11 @@ export class DocumentActionProcessor extends WorkerHost {
         `Running conformity poll for document ${poll.documentId} ("${poll.providerId}", job ${job.id})`,
       );
       return this.requireConformitySweepRunner().runPoll(poll);
+    }
+
+    if (job.name === CURRENCY_RATE_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the currency-rate sweep (job ${job.id})`);
+      return this.requireCurrencyRateSweepRunner().runSweep();
     }
 
     if (job.name === DOCUMENT_REPORT_JOB_NAME) {
@@ -183,6 +211,17 @@ export class DocumentActionProcessor extends WorkerHost {
       throw new Error('DocumentActionProcessor received a report job but has no ReportingRunner.');
     }
     return this.reportingRunner;
+  }
+
+  private requireCurrencyRateSweepRunner(): CurrencyRateSweepRunner {
+    if (!this.currencyRateSweepRunner) {
+      // Unreachable in production (document-queue-worker.module.ts always provides one) — a loud,
+      // named failure rather than a silent no-op if this is ever wired without it.
+      throw new Error(
+        'DocumentActionProcessor received a currency-rate-sweep job but has no CurrencyRateSweepRunner.',
+      );
+    }
+    return this.currencyRateSweepRunner;
   }
 
   /**
@@ -244,7 +283,11 @@ export class DocumentActionProcessor extends WorkerHost {
       // see conformity-sweep-runner.ts's own header), so reaching this branch for one at all would
       // already mean something unexpected happened above `runPoll`'s own try/catch.
       job.name === CONFORMITY_SWEEP_JOB_NAME ||
-      job.name === CONFORMITY_POLL_JOB_NAME
+      job.name === CONFORMITY_POLL_JOB_NAME ||
+      // Same reasoning again — `CurrencyRateSweepRunner.runSweep` never throws either (a failed ECB
+      // fetch is reported as `{ ok: false }`, never rethrown: see its own header), and this job's
+      // data (`{}`, no `documentId`/`actionId`) shares nothing with `markSendFailed`'s vocabulary.
+      job.name === CURRENCY_RATE_SWEEP_JOB_NAME
     )
       return;
 

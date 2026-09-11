@@ -22,6 +22,11 @@ import {
   ConformityPollJobData,
   readConformitySweepIntervalMs,
 } from '../conformity/conformity-sweep';
+import {
+  CURRENCY_RATE_SWEEP_JOB_ID,
+  CURRENCY_RATE_SWEEP_JOB_NAME,
+  readCurrencyRateSweepIntervalMs,
+} from '../../company/currency-rates/currency-rate-sweep';
 import { buildReportJobId, DOCUMENT_REPORT_JOB_NAME, ReportJobData } from '../reporting/report-job';
 import {
   readSweepIntervalMs,
@@ -167,6 +172,29 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     });
     this.logger.log(
       `Registered the document-conformity sweep repeatable (every ${readConformitySweepIntervalMs()}ms).`,
+    );
+  }
+
+  /**
+   * Registers the ONE currency-rate sweep repeatable (TODO_FEATURES.md rank 9 — automatic ECB
+   * exchange rates) — same idempotent-registration guarantee as `registerConformitySweepRepeatable`
+   * above (BullMQ dedups a repeatable definition by its own key across the whole cluster), same
+   * `attempts: 1` reasoning: a pass that itself throws is a real bug worth surfacing loudly now,
+   * never silently retried moments later — the next tick, `readCurrencyRateSweepIntervalMs()` (24h
+   * by default) away, is already the natural retry for "the sweep didn't run this time". Note this
+   * job carries no payload of its own (`{}`), exactly like the other two repeatables on this queue —
+   * `CurrencyRateSweepRunner.runSweep` takes no arguments, it always fetches the CURRENT ECB feed.
+   */
+  async registerCurrencyRateSweepRepeatable(): Promise<void> {
+    await this.queue.add(CURRENCY_RATE_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
+      jobId: CURRENCY_RATE_SWEEP_JOB_ID,
+      repeat: { every: readCurrencyRateSweepIntervalMs() },
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(
+      `Registered the currency-rate sweep repeatable (every ${readCurrencyRateSweepIntervalMs()}ms).`,
     );
   }
 
