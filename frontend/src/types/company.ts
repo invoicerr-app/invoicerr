@@ -56,6 +56,10 @@ export interface Company {
    *  never currency-converted — see backend's documents/approval/approval-gate.ts). Null/unset means
    *  no approval is ever required, for any role, at any amount. */
   approvalThresholdMinor?: number | null
+  /** Gates the daily reminder sweep (backend's `reminders/reminder-sweep-runner.ts`) — sends
+   *  escalating overdue-payment reminders (7/14/30 days) to clients. Off by default; see backend's
+   *  Company.remindersEnabled comment in schema.prisma. */
+  remindersEnabled?: boolean
 }
 
 /** A manually-entered exchange rate — GET/POST /api/company/currency-rates. See backend's

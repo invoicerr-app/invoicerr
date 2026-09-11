@@ -1635,6 +1635,10 @@
         "title": "Multi-currency",
         "description": "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged."
       },
+      "reminders": {
+        "title": "Payment reminders",
+        "description": "Automatically email clients about overdue invoices, escalating at 7, 14, and 30 days overdue. Off by default."
+      },
       "currencyRates": {
         "title": "Exchange rates",
         "description": "Manually-entered rates used to consolidate dashboard totals into your reference currency above. No rate is ever derived automatically — enter both directions if you need them.",
@@ -1861,6 +1865,10 @@
         "exemptVat": {
           "label": "TVA unapplicable",
           "description": "Display the legal notice 'VAT not applicable, art. 293 B of the CGI' on future documents when enabled and if the company's country is France."
+        },
+        "remindersEnabled": {
+          "label": "Send automatic payment reminders",
+          "description": "When enabled, clients with overdue invoices receive escalating reminder emails at 7, 14, and 30 days overdue. Off by default."
         },
         "identifiers": {
           "label": "Country-specific identifiers",

@@ -74,7 +74,8 @@
   cette passe (devis non signés = extension 1 fichier, notée). jest 31 (sélection de palier + idempotence
   mordues par mutation), **validé bout-en-bout contre la vraie DB de test** (envoi + ligne `DocumentReminder`
   + 2ᵉ passe no-op via la vraie contrainte unique). Pas d'écran (job de fond) — le flag `remindersEnabled`
-  sera exposé par le chemin admin que le produit décidera.
+  est désormais exposé par un interrupteur dans Settings → Company (`company-reminders-enabled`,
+  e2e `53-reminders-toggle` : round-trip API + reflet à l'écran).
 
 - **Rang 6 — relevé de compte client** : ✅ FAIT (endpoint company-scopé `GET /clients/:id/statement`
   → `settlement/client-statement.ts` : agrège les factures « sent » du client, réutilise

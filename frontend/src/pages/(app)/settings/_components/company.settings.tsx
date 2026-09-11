@@ -189,6 +189,10 @@ export default function CompanySettings() {
     // peppolEndpointId are synthesized from/folded back into `identifiers`. `undefined` (never "")
     // means "no threshold" — a plain number input has no empty-string state of its own to reuse.
     approvalThreshold: z.number().min(0, t("settings.company.form.approvalThreshold.errors.min")).optional(),
+    // TODO_FEATURES.md rank 2 — gates the daily reminder sweep (backend's
+    // reminders/reminder-sweep-runner.ts). Off by default; see Company.remindersEnabled's own
+    // schema.prisma comment.
+    remindersEnabled: z.boolean().optional(),
   })
 
   const { data } = useGet<Company>("/api/company/info")
@@ -230,6 +234,7 @@ export default function CompanySettings() {
       invoiceTransportId: "",
       referenceCurrency: "",
       approvalThreshold: undefined,
+      remindersEnabled: false,
     },
   })
 
@@ -249,6 +254,7 @@ export default function CompanySettings() {
         state: data.state ?? "",
         foundedAt: new Date(data.foundedAt),
         exemptVat: !!data.exemptVat,
+        remindersEnabled: !!data.remindersEnabled,
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
         referenceCurrency: data.referenceCurrency ?? "",
@@ -1218,6 +1224,35 @@ export default function CompanySettings() {
                     </FormControl>
                     <FormDescription>
                       {t("settings.company.form.approvalThreshold.description")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.company.reminders.title")}</CardTitle>
+              <CardDescription>{t("settings.company.reminders.description")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="remindersEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col space-y-3">
+                    <FormLabel>{t("settings.company.form.remindersEnabled.label")}</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={!!field.value}
+                        onCheckedChange={(val) => field.onChange(val)}
+                        data-cy="company-reminders-enabled"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("settings.company.form.remindersEnabled.description")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -98,4 +98,8 @@ export class EditCompanyDto {
    *  "no approval required, ever" — `undefined` would be dropped by `...rest` and leave the existing
    *  value untouched, which a blanked-out input must NOT do. */
   approvalThresholdMinor?: number | null;
+  /** Gates the daily reminder sweep (`reminders/reminder-sweep-runner.ts`) — see
+   *  Company.remindersEnabled's own schema.prisma comment. Off by default; a company left untouched
+   *  stays invisible to the sweep. */
+  remindersEnabled?: boolean;
 }
