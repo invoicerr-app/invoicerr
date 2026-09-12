@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import type React from "react"
 import { authClient } from "@/lib/auth"
+import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
 import { toast } from "sonner"
 import { useBackendHealth } from "@/hooks/use-backend-health"
 import { useNavigate } from "react-router"
@@ -38,11 +39,9 @@ export default function SignupPage() {
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
 
-  const getEnvVariable = (key: string): string | undefined => {
-    return (window as any).__APP_CONFIG__?.[key] || import.meta.env[key]
-  }
-
   const backendUrl = getEnvVariable("VITE_BACKEND_URL") || ""
+  const oidcOnly = isOidcOnly()
+  const envProviderId = envOidcProviderId()
 
   // Sign-up is open to everyone by default; an invitation code is only ever needed to
   // join an existing company, or when the operator has closed open sign-up (DISABLE_AUTH).
@@ -149,13 +148,45 @@ export default function SignupPage() {
   }
 
   const handleOIDCLogin = () => {
-    const oidcProviderId = getEnvVariable("VITE_OIDC_PROVIDER_ID")
+    // Same core social sign-in as the login page — see src/pages/auth/sign-in.tsx. The id comes from
+    // `envOidcProviderId()`, which is published only when the backend actually registered a provider.
+    if (!envProviderId) return
+    authClient.signIn.social({ provider: envProviderId, callbackURL: "/dashboard" })
+  }
 
-    // Same core social sign-in as the login page — see src/pages/auth/sign-in.tsx.
-    authClient.signIn.social({
-      provider: oidcProviderId || "oidc",
-      callbackURL: "/dashboard",
-    })
+  // On a single-sign-on-only instance there is nothing to sign up FOR: an account can only come into
+  // existence through an identity provider, and the backend refuses email sign-up outright. Say so
+  // instead of rendering a form that cannot succeed.
+  if (oidcOnly) {
+    return (
+      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              {t("auth.signup.oidcOnly.title", "Single sign-on only")}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {t(
+                "auth.signup.oidcOnly.description",
+                "This instance does not use passwords. Sign in with your organisation's identity provider.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {envProviderId && (
+              <Button className="w-full" onClick={handleOIDCLogin} data-cy="auth-oidc-btn">
+                {t("auth.login.oidcLink")}
+              </Button>
+            )}
+            <div className="text-center text-sm">
+              <a href="/auth/sign-in" className="underline hover:text-primary" data-cy="auth-signin-link">
+                {t("auth.signup.oidcOnly.backToSignIn", "Back to sign in")}
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (checkingRegistrationStatus) {
@@ -288,7 +319,7 @@ export default function SignupPage() {
                 {t("auth.signup.signInLink")}
               </a>
             </div>
-            {getEnvVariable("VITE_OIDC_PROVIDER_ID") && (
+            {envProviderId && (
               <div className="text-center text-sm">
                 {t("auth.login.oidc")}{" "}
                 <Button variant="link" onClick={handleOIDCLogin} className="underline hover:text-primary p-0">

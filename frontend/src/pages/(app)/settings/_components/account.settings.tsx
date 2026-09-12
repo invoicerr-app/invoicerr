@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth"
+import { isOidcOnly } from "@/lib/runtime-config"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -28,6 +29,11 @@ export default function AccountSettings() {
   const [updateUserLoading, setUpdateUserLoading] = useState(false)
   const [updatePasswordLoading, setUpdatePasswordLoading] = useState(false)
   const [hasCredentialAccount, setHasCredentialAccount] = useState<boolean | null>(null)
+
+  // On a single-sign-on-only instance there is no password to change or set: the backend refuses both
+  // `changePassword` and `set-password` outright, so the card below could only ever fail. Hiding it is
+  // a convenience — the refusal server-side is the actual control.
+  const oidcOnly = isOidcOnly()
 
   // Check if user has a credential account (email/password)
   useEffect(() => {
@@ -237,7 +243,7 @@ export default function AccountSettings() {
           </CardContent>
         </Card>
 
-        <Card className="h-fit">
+        <Card className={`h-fit${oidcOnly ? " hidden" : ""}`} hidden={oidcOnly}>
           <CardHeader>
             <CardTitle>{t("settings.account.password.title")}</CardTitle>
             <CardDescription>{t("settings.account.password.description")}</CardDescription>

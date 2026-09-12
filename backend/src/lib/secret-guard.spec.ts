@@ -1,8 +1,11 @@
 import {
   InsecureSecretFinding,
+  assertOidcOnlyHasProvider,
   assertSecretsConfiguredForBoot,
   findInsecureSecret,
+  findOidcOnlyLockout,
   insecureSecretMessage,
+  oidcOnlyLockoutMessage,
 } from '@/lib/secret-guard';
 
 describe('findInsecureSecret', () => {
@@ -141,5 +144,64 @@ describe('assertSecretsConfiguredForBoot', () => {
       assertSecretsConfiguredForBoot({ NODE_ENV: 'test', BETTER_AUTH_SECRET: 'your_better_auth_secret' }),
     ).not.toThrow();
     expect(() => assertSecretsConfiguredForBoot({})).not.toThrow(); // NODE_ENV unset (plain dev)
+  });
+});
+
+describe('findOidcOnlyLockout', () => {
+  it('is null when OIDC_ONLY is off, however many providers exist — the default instance', () => {
+    // The overwhelmingly common case, and the one the whole e2e suite runs in.
+    expect(
+      findOidcOnlyLockout({ oidcOnly: false, envProviderRegistered: false, companyProviderCount: 0 }),
+    ).toBeNull();
+  });
+
+  it('is null when OIDC_ONLY is on and the environment provider is registered', () => {
+    expect(
+      findOidcOnlyLockout({ oidcOnly: true, envProviderRegistered: true, companyProviderCount: 0 }),
+    ).toBeNull();
+  });
+
+  it('is null when OIDC_ONLY is on and at least one company registered its own provider', () => {
+    // A pure-SaaS instance with no environment provider at all is legitimate, as long as somebody's
+    // IdP can actually answer.
+    expect(
+      findOidcOnlyLockout({ oidcOnly: true, envProviderRegistered: false, companyProviderCount: 1 }),
+    ).toBeNull();
+  });
+
+  it('flags the lockout: OIDC_ONLY on with no provider anywhere', () => {
+    // Every authentication path on the instance would be closed, with no recovery through the product
+    // (registering the first SSO provider itself requires being signed in).
+    expect(
+      findOidcOnlyLockout({ oidcOnly: true, envProviderRegistered: false, companyProviderCount: 0 }),
+    ).toBe('no_provider');
+  });
+});
+
+describe('assertOidcOnlyHasProvider', () => {
+  it('throws, naming OIDC_ONLY, when nothing could ever authenticate', () => {
+    expect(() =>
+      assertOidcOnlyHasProvider({ oidcOnly: true, envProviderRegistered: false, companyProviderCount: 0 }),
+    ).toThrow(/OIDC_ONLY/);
+  });
+
+  it('does not throw for a default instance (mutation check: an always-throwing guard fails this)', () => {
+    expect(() =>
+      assertOidcOnlyHasProvider({ oidcOnly: false, envProviderRegistered: false, companyProviderCount: 0 }),
+    ).not.toThrow();
+  });
+
+  it('does not throw once a single provider exists', () => {
+    expect(() =>
+      assertOidcOnlyHasProvider({ oidcOnly: true, envProviderRegistered: false, companyProviderCount: 1 }),
+    ).not.toThrow();
+  });
+});
+
+describe('oidcOnlyLockoutMessage', () => {
+  it('names the flag and the variable that fixes it, rather than only stating a failure', () => {
+    const message = oidcOnlyLockoutMessage();
+    expect(message).toContain('OIDC_ONLY');
+    expect(message).toContain('OIDC_CLIENT_ID');
   });
 });

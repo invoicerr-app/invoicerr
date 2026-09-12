@@ -34,9 +34,17 @@ services:
       - OIDC_TOKEN_REVOKE_ENDPOINT="https://auth.chevrier.dev/revoke"
       - OIDC_END_SESSION_ENDPOINT="https://auth.chevrier.dev/end_session"
       - OIDC_JWKS_URI="https://auth.chevrier.dev/.well-known/jwks.json"
-      # Client ID and Secret for OIDC
+      # Client ID and Secret for OIDC. OIDC_CLIENT_ID is what decides whether the environment provider
+      # is registered at all; OIDC_NAME above is its id, which lands in a URL path segment
+      # (/api/auth/callback/<id>) and is sanitised to URL-safe characters, defaulting to "oidc".
       - OIDC_CLIENT_ID="your-client-id"
       - OIDC_CLIENT_SECRET="your-client-secret"
+
+      # OIDC_ONLY: "1"/"true" makes this instance SINGLE-SIGN-ON ONLY — no email/password sign-in or
+      # sign-up, and set-password is refused server-side. DEFAULT OFF. Works with the provider above
+      # and/or with the per-company ones customers register themselves (company settings -> SSO). The
+      # backend refuses to boot if it is set while NO provider exists, since nobody could then sign in.
+      # - OIDC_ONLY=true
 
       # REQUIRED. Generate a real value with: openssl rand -hex 32 — the backend now REFUSES to
       # boot in production (SECURITY_AUDIT.md finding #3) if this is left empty or set to an

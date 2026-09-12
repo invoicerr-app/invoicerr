@@ -45,12 +45,38 @@ ls -la /
 echo "[DEBUG] - Architecture info"
 uname -a
 
-# Create runtime config for frontend (populated from environment variables)
+# Create runtime config for frontend (populated from environment variables).
+#
+# This file is the ONLY env->browser channel: `import.meta.env` is baked at build time, and this image
+# is built once and run with different environments.
+#
+# VITE_OIDC_PROVIDER_ID mirrors backend/src/lib/sso-policy.ts's own `resolveEnvOidcProvider` and MUST
+# agree with it, because the page asks to sign in with this exact string and the IdP sends it back in a
+# URL path segment. Two bugs are closed here:
+#   - it is published only when OIDC_CLIENT_ID is set, i.e. only when the backend actually registered
+#     the provider (publishing the raw OIDC_NAME meant an instance with a name but no client id showed
+#     a button that led straight to PROVIDER_NOT_FOUND);
+#   - it falls back to "oidc" and is sanitised to URL-safe characters (the old default, "Generic OIDC",
+#     carried a SPACE into /api/auth/callback/..., where the id no longer matched the one registered).
+# The sanitisation is the same rule as the TypeScript: anything outside [A-Za-z0-9._~-] becomes "-",
+# leading/trailing whitespace is trimmed first, and a value with nothing alphanumeric left falls back.
 echo "[DEBUG] - Writing frontend runtime config to /usr/share/nginx/html/config.json"
 mkdir -p /usr/share/nginx/html
+
+OIDC_PROVIDER_ID=""
+if [ -n "${OIDC_CLIENT_ID:-}" ]; then
+  OIDC_PROVIDER_ID=$(printf '%s' "${OIDC_NAME:-}" |
+    sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[^A-Za-z0-9._~-]/-/g')
+  case "$OIDC_PROVIDER_ID" in
+    *[A-Za-z0-9]*) ;;
+    *) OIDC_PROVIDER_ID="oidc" ;;
+  esac
+fi
+
 cat > /usr/share/nginx/html/config.json <<EOF
 {
-  "VITE_OIDC_PROVIDER_ID": "${OIDC_NAME:-}"
+  "VITE_OIDC_PROVIDER_ID": "${OIDC_PROVIDER_ID}",
+  "VITE_OIDC_ONLY": "${OIDC_ONLY:-}"
 }
 EOF
 

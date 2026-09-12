@@ -7,6 +7,15 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { betterAuth } from 'better-auth';
 import { InvitationLookupResult, decideRegistration, registrationDenialMessage } from './registration-policy';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import {
+  SSO_PROVISIONED_ROLE,
+  companyForOAuthSignup,
+  deriveUserNames,
+  isOidcOnly,
+  resolveEnvOidcProvider,
+  trustedProviderIds,
+} from './sso-policy';
+import { registeredCompanyProviderIds } from './sso-registry';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -14,9 +23,20 @@ const prisma = new PrismaClient({ adapter });
 
 export const pendingInvitationCodes = new Map<string, string>();
 
+/**
+ * The instance-wide provider's identity and whether it is registered, resolved ONCE here — it cannot
+ * change without a restart, like every other env read in this file. Per-COMPANY providers are the
+ * opposite: they appear and disappear while the process runs, which is why they are read from
+ * `sso-registry` on every request instead (see `account.accountLinking.trustedProviders` below).
+ */
+const envOidcProvider = resolveEnvOidcProvider();
+
 const createOidcConfig = (): GenericOAuthConfig[] => {
   const config: GenericOAuthConfig = {
-    providerId: process.env.OIDC_NAME || 'Generic OIDC',
+    // `sso-policy.ts#resolveEnvOidcProvider` owns this id so the backend, `entrypoint.sh`'s
+    // config.json, and the sign-in page cannot disagree about it — and so the default is URL-safe
+    // (the old `'Generic OIDC'` default carried a SPACE into a callback path segment).
+    providerId: envOidcProvider.providerId,
     clientId: process.env.OIDC_CLIENT_ID || 'TEMP',
     scopes: ['openid', 'profile', 'email'],
   };
@@ -114,16 +134,60 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
   }
 };
 
-const userHookFunction = async (user) => {
-  const data = user;
+/**
+ * Attach a user who arrived through their OWN company's IdP to that company.
+ *
+ * `UserCompany` rows are otherwise created ONLY by `markInvitationAsUsed`, and an employee arriving
+ * through their employer's identity provider has no invitation — so without this they would land with
+ * zero memberships and drop straight into the company-creation wizard, inside a product their
+ * employer already pays for.
+ *
+ * The stored row is re-read rather than trusting the in-memory registration: the company id arrives
+ * inside a provider id off the wire, so it is untrusted input (the `findUnique` is what makes the
+ * foreign key safe), and a provider deactivated after this process registered it must stop minting
+ * memberships immediately.
+ */
+const attachSsoProvisionedMembership = async (companyId: string, userId: string) => {
+  const provider = await prisma.companySsoProvider.findUnique({
+    where: { companyId },
+    select: { isActive: true },
+  });
 
-  if (user.given_name && user.family_name) {
-    data['firstname'] = user.given_name;
-    data['lastname'] = user.family_name;
+  if (!provider?.isActive) {
+    console.warn(`SSO sign-up for company ${companyId}: no active SSO provider row, membership not created.`);
+    return;
   }
 
-  if (user.firstname && user.lastname) {
-    data['name'] = `${user.firstname} ${user.lastname}`;
+  // Upsert, for the same reason `markInvitationAsUsed` upserts: a user who somehow already belongs to
+  // the company must be a no-op, never a unique-constraint failure mid-callback.
+  await prisma.userCompany.upsert({
+    where: { userId_companyId: { userId, companyId } },
+    create: { userId, companyId, role: SSO_PROVISIONED_ROLE },
+    update: {},
+  });
+};
+
+const userHookFunction = async (user, context) => {
+  const data = user;
+
+  // `User.firstname`/`User.lastname` are NOT NULL with no default, and an IdP is under no obligation
+  // to send `given_name`/`family_name` — many send only `name`, some neither. Deriving them is what
+  // lets a federated user be inserted at all; supplied values are never overwritten, so
+  // email/password sign-up keeps exactly the names it posted. See `sso-policy.ts#deriveUserNames`.
+  const names = deriveUserNames(data);
+  data['firstname'] = names.firstname;
+  data['lastname'] = names.lastname;
+  if (names.name) {
+    data['name'] = names.name;
+  }
+
+  // A user arriving through their own company's IdP has no invitation and must not be asked for one:
+  // the provider id of the in-flight OAuth callback IS the authorization, since only a company that
+  // registered that IdP can produce a callback bearing its id. Deliberately does NOT consult
+  // `pendingInvitationCodes` — a stale code left there for the same address must neither be consumed
+  // by an SSO sign-in nor be able to refuse one.
+  if (companyForOAuthSignup(context)) {
+    return { data };
   }
 
   if (user.email) {
@@ -136,7 +200,13 @@ const userHookFunction = async (user) => {
   return { data };
 };
 
-const userAfterCreateHook = async (user) => {
+const userAfterCreateHook = async (user, context) => {
+  const ssoCompanyId = companyForOAuthSignup(context);
+  if (ssoCompanyId) {
+    await attachSsoProvisionedMembership(ssoCompanyId, user.id);
+    return user;
+  }
+
   if (user.email) {
     await markInvitationAsUsed(user.email, user.id);
   }
@@ -156,12 +226,25 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
   emailAndPassword: {
-    enabled: true,
+    // OIDC_ONLY (instance-wide, DEFAULT OFF — `sso-policy.ts#isOidcOnly`) turns this into a
+    // single-sign-on-only instance. better-auth does NOT gate `setPassword`/`changePassword` behind
+    // this flag, so `modules/auth-extended/auth-extended.controller.ts` refuses that route explicitly
+    // as well; without both halves the flag would merely hide a form rather than close a door.
+    enabled: !isOidcOnly(),
   },
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: [process.env.OIDC_NAME || 'Generic OIDC'],
+      // A FUNCTION, not the static one-element array this used to be. better-auth re-resolves this
+      // per request when given a function (`dist/context/helpers.mjs#getTrustedProviders`), which is
+      // the only reason a per-company provider registered AFTER boot can ever be trusted: as a static
+      // array it was evaluated once, at import time, when no company provider existed yet — so
+      // account linking silently failed for every tenant provider.
+      trustedProviders: async () =>
+        trustedProviderIds({
+          env: envOidcProvider,
+          companyProviderIds: registeredCompanyProviderIds(),
+        }),
     },
   },
   user: {
@@ -199,7 +282,10 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    ...(process.env.OIDC_CLIENT_ID ? [genericOAuth({ config: createOidcConfig() })] : []),
+    // The gate is unchanged — `OIDC_CLIENT_ID` still decides whether the environment provider is
+    // registered — but it is now expressed ONCE, as the same fact the frontend reads, instead of
+    // being re-derived here and again from `OIDC_NAME` in the browser.
+    ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
     // Enriches every session with the caller's company memberships and
     // resolves which one is active, so `AuthGuard` can thread a
     // companyId/role through every request without an extra query.

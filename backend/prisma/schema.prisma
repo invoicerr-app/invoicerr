@@ -418,6 +418,7 @@ model Company {
   channelConfigs          CompanyChannelConfig[]
   signingCertificates     CompanySigningCertificate[]
   signatures              Signature[]
+  ssoProvider             CompanySsoProvider?
 }
 
 // Manually entered exchange rates (item 9, root TODO — "le multi-devises"). The rule that governs
@@ -1710,6 +1711,62 @@ model CompanyChannelConfig {
 
   @@unique([companyId, providerId, environment])
   @@index([companyId])
+}
+
+// Per-company OIDC single sign-on — a large customer registering ITS OWN identity provider, without
+// the operator touching this instance's environment. Storage mirrors `CompanyChannelConfig` just
+// above: the secrets live in ONE opaque AES-256-GCM blob (`credentials`, `utils/secret-crypto.ts`,
+// key `CREDENTIALS_ENCRYPTION_KEY`) and every NON-secret knob is a plain column, so the settings
+// screen can show what is configured without ever decrypting anything — the same reason
+// `CompanySigningCertificate` below extracts notBefore/notAfter at upload time instead.
+//
+// There is no `providerId` column, deliberately: the provider id is DERIVED from the company id as
+// "c_<companyId>" (`lib/sso-policy.ts#companyProviderId`). better-auth resolves a provider by
+// matching one flat string `id` — `sign-in/social` against `c.body.provider`, `callback/:id` against
+// `c.params.id` — so the company must be recoverable from that single string, and the redirect URI a
+// customer registers at its own IdP is therefore /api/auth/callback/c_<companyId>. A stored id column
+// could drift from the company it names; a derived one cannot.
+//
+// `companyId` is UNIQUE for that same reason: the provider id carries nothing but the company, so two
+// rows for one company would be indistinguishable at resolution time. One company, one IdP.
+//
+// `emailDomains` backs the @Public() email-first lookup (GET /api/sso/lookup). It is NEVER trusted on
+// its own — see `domainsVerifiedAt`.
+model CompanySsoProvider {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // What the sign-in button says ("Acme SSO"). Non-secret, hence a plain column.
+  label String
+
+  // Either `discoveryUrl` alone — the ordinary OIDC case, where better-auth's generic-OAuth plugin
+  // fetches .well-known and derives the rest (including the JWKS it verifies id_tokens against) — or
+  // the endpoints spelled out. Never both sets required: `lib/sso-policy.ts#ssoEndpointsComplete` is
+  // the single place that decides whether a row is actually usable.
+  discoveryUrl     String?
+  authorizationUrl String?
+  tokenUrl         String?
+  userInfoUrl      String?
+
+  scopes String[] @default(["openid", "profile", "email"])
+
+  // AES-256-GCM encrypted JSON carrying clientId + clientSecret — ONE blob, never a column per
+  // secret and never a second crypto scheme (`CompanyChannelConfig.config`'s own discipline).
+  credentials String
+
+  // Domains this company CLAIMS, stored bare and lowercased ("acme.com", never "@acme.com").
+  emailDomains String[] @default([])
+
+  // When the domains above were PROVEN to belong to this company. This feature ships no verification
+  // challenge, so it only ever leaves this NULL — and the lookup refuses to match a row whose value is
+  // NULL, which is what stops an unverified claim from routing another company's users to this IdP. A
+  // future DNS-TXT or postmaster challenge is the only thing that may ever set it.
+  domainsVerifiedAt DateTime?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Root TODO item 13 ("Signature électronique — module supprimé") — a company's OPT-IN electronic

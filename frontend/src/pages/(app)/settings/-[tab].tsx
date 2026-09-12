@@ -3,6 +3,7 @@ import {
   Building2,
   FileSpreadsheet,
   FileText,
+  Fingerprint,
   KeyRound,
   Mail,
   Plug,
@@ -30,6 +31,7 @@ import PDFTemplatesSettings from "./_components/pdf.settings"
 import PluginsSettings from "./_components/plugins.settings"
 import RecurringSettings from "./_components/recurring.settings"
 import SigningCertificatesSettings from "./_components/signing-certificates.settings"
+import SsoSettings from "./_components/sso.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -57,6 +59,7 @@ export default function Settings() {
     "plugins",
     "channels",
     "signing",
+    "sso",
     "recurring",
     "accountingExport",
     "danger",
@@ -129,6 +132,11 @@ export default function Settings() {
       icon: ShieldCheck,
     },
     {
+      value: "sso",
+      label: t("settings.tabs.sso", "SSO"),
+      icon: Fingerprint,
+    },
+    {
       value: "recurring",
       label: t("settings.tabs.recurring"),
       icon: Repeat,
@@ -146,7 +154,10 @@ export default function Settings() {
   ].filter(
     (item) =>
       !isMember ||
-      !["invitations", "members", "apiKeys", "webhooks", "danger", "channels", "signing"].includes(
+      // "sso" joins the administrative tabs a MEMBER never sees: the identity provider decides who
+      // gets into the company at all, so it belongs with members/invitations rather than with the
+      // per-user account settings.
+      !["invitations", "members", "apiKeys", "webhooks", "danger", "channels", "signing", "sso"].includes(
         item.value,
       ),
   )
@@ -181,6 +192,8 @@ export default function Settings() {
         return <ChannelsSettings />
       case "signing":
         return <SigningCertificatesSettings />
+      case "sso":
+        return <SsoSettings />
       case "recurring":
         return <RecurringSettings />
       case "accountingExport":

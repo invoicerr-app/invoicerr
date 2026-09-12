@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react"
 
-export type BackendHealthStatus = "checking" | "ok" | "unavailable"
+import { getEnvVariable } from "@/lib/runtime-config"
 
-const getEnvVariable = (key: string): string | undefined => {
-  return (window as any).__APP_CONFIG__?.[key] || import.meta.env[key]
-}
+export type BackendHealthStatus = "checking" | "ok" | "unavailable"
 
 /**
  * Pings the backend health endpoint (which checks DB connectivity).

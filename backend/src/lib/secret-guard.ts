@@ -152,3 +152,67 @@ export function assertSecretsConfiguredForBoot(env: NodeJS.ProcessEnv = process.
     throw new Error(insecureSecretMessage(finding));
   }
 }
+
+// ---------------------------------------------------------------------------
+// OIDC_ONLY — refuse to boot an instance nobody could ever log into
+// ---------------------------------------------------------------------------
+
+/**
+ * `OIDC_ONLY` disables email/password entirely (`lib/auth.ts`'s `emailAndPassword.enabled`). If it is
+ * set while NO OIDC provider exists — neither the environment one nor any company's own — then every
+ * single authentication path on the instance is closed and nobody, operator included, can ever sign
+ * in again. There is no recovery through the product: creating the first company's SSO provider
+ * itself requires being signed in.
+ *
+ * So this is a refusal to boot, in the same spirit as `findInsecureSecret` above, and pure for the
+ * same reason: it takes the facts rather than discovering them, so a spec can drive it cold.
+ *
+ * Unlike `assertSecretsConfiguredForBoot`, this one is NOT gated to production — a developer or a CI
+ * job that sets the flag without a provider is locked out just as completely, and would otherwise
+ * spend the debugging time on a login screen that simply rejects everything.
+ *
+ * It also cannot be called from `main.ts` beside its sibling: answering "does any company have one?"
+ * means reading `CompanySsoProvider`, and the place that already reads exactly those rows at boot is
+ * `modules/company/sso/sso-registrar.service.ts`, which asserts this once it knows how many it
+ * registered.
+ */
+export interface OidcOnlyProviderFacts {
+  /** Whether `OIDC_ONLY` is set — `lib/sso-policy.ts#isOidcOnly` is the one place that decides. */
+  oidcOnly: boolean;
+  /** Whether the instance-wide environment provider is registered. */
+  envProviderRegistered: boolean;
+  /** How many per-company providers were successfully registered. */
+  companyProviderCount: number;
+}
+
+export type OidcOnlyLockoutReason = 'no_provider';
+
+/**
+ * Pure check. Returns `null` when the instance is fine (the flag is off, or at least one provider
+ * exists), otherwise the reason, so the caller can build an explicit message.
+ */
+export function findOidcOnlyLockout(facts: OidcOnlyProviderFacts): OidcOnlyLockoutReason | null {
+  if (!facts.oidcOnly) {
+    return null;
+  }
+  if (facts.envProviderRegistered || facts.companyProviderCount > 0) {
+    return null;
+  }
+  return 'no_provider';
+}
+
+export function oidcOnlyLockoutMessage(): string {
+  return (
+    '[secret-guard] Refusing to boot: OIDC_ONLY is set, which disables email/password sign-in, but ' +
+    'this instance has no OIDC provider at all — neither an environment one (set OIDC_CLIENT_ID, and ' +
+    'OIDC_NAME for its id) nor any company-registered one. Nobody, including you, would be able to ' +
+    'sign in. Unset OIDC_ONLY, or configure a provider first.'
+  );
+}
+
+/** Throws a named, explicit error when `OIDC_ONLY` would lock every user out of the instance. */
+export function assertOidcOnlyHasProvider(facts: OidcOnlyProviderFacts): void {
+  if (findOidcOnlyLockout(facts)) {
+    throw new Error(oidcOnlyLockoutMessage());
+  }
+}

@@ -1548,7 +1548,8 @@
       "signing": "Signing certs",
       "members": "Members",
       "recurring": "Recurrences",
-      "accountingExport": "Accounting export"
+      "accountingExport": "Accounting export",
+      "sso": "SSO"
     },
     "accountingExport": {
       "title": "Accounting export",
@@ -2412,6 +2413,59 @@
         "removeSuccess": "Member removed",
         "removeError": "Failed to remove member"
       }
+    },
+    "sso": {
+      "title": "Single sign-on (SSO)",
+      "description": "Let your team sign in with your own identity provider over OpenID Connect, instead of a password here.",
+      "emptyState": "No identity provider connected yet",
+      "issuer": "Issuer: {{host}}",
+      "status": {
+        "configured": "Active",
+        "inactive": "Inactive",
+        "notConfigured": "Not configured",
+        "domainsUnverified": "Your email domains are recorded but NOT verified, so they are not used to route anyone automatically. Share the direct sign-in link above instead."
+      },
+      "redirectUri": {
+        "label": "Redirect URI",
+        "hint": "Register this exact URL as the redirect/callback URI at your identity provider."
+      },
+      "directLink": {
+        "label": "Direct sign-in link",
+        "hint": "Share this link with your team: it offers your provider straight away, with no email lookup."
+      },
+      "fields": {
+        "label": "Display name",
+        "discoveryUrl": "Discovery URL (.well-known/openid-configuration)",
+        "discoveryUrlHint": "Recommended. With this, the endpoints below are discovered automatically.",
+        "authorizationUrl": "Authorization URL",
+        "tokenUrl": "Token URL",
+        "userInfoUrl": "User info URL",
+        "clientId": "Client ID",
+        "clientSecret": "Client secret",
+        "clientSecretHint": "Leave blank only for a public client using PKCE.",
+        "emailDomains": "Email domains (comma separated)"
+      },
+      "form": {
+        "createTitle": "Connect an identity provider",
+        "editTitle": "Update the identity provider",
+        "description": "Credentials are encrypted before they are stored and are never shown again, so re-enter them when you edit."
+      },
+      "actions": {
+        "save": "Save",
+        "edit": "Edit",
+        "cancel": "Cancel",
+        "remove": "Remove",
+        "copy": "Copy"
+      },
+      "messages": {
+        "saveSuccess": "SSO configuration saved",
+        "saveError": "Failed to save the SSO configuration",
+        "removeSuccess": "SSO configuration removed",
+        "removeError": "Failed to remove the SSO configuration",
+        "fieldsRequired": "{{field}} is required",
+        "endpointsRequired": "Provide a discovery URL, or both an authorization URL and a token URL.",
+        "copied": "Copied to clipboard"
+      }
     }
   },
   "sidebar": {
@@ -2481,6 +2535,11 @@
       "errors": {
         "invalidEmail": "Please enter a valid email address",
         "passwordRequired": "Password is required"
+      },
+      "sso": {
+        "button": "Sign in with {{label}}",
+        "direct": "Continue with single sign-on",
+        "oidcOnly": "This instance uses single sign-on only."
       }
     },
     "signup": {
@@ -2534,7 +2593,12 @@
         "accountCreated": "Account created successfully"
       },
       "oidc": "Sign up with OIDC.",
-      "oidcLink": "OIDC Signup"
+      "oidcLink": "OIDC Signup",
+      "oidcOnly": {
+        "title": "Single sign-on only",
+        "description": "This instance does not use passwords. Sign in with your organisation's identity provider.",
+        "backToSignIn": "Back to sign in"
+      }
     }
   },
   "unavailable": {
