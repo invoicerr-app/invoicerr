@@ -1,4 +1,9 @@
 FROM --platform=$BUILDPLATFORM node:22-bullseye AS backend-builder
+# Puppeteer's postinstall downloads a full Chrome (~750MB) into $HOME/.cache/puppeteer.
+# This stage only compiles TypeScript and its cache is never copied out, so the download is
+# pure build cost. The runtime stage uses the Chromium already present in the base image
+# (PUPPETEER_EXECUTABLE_PATH below).
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR /app
 

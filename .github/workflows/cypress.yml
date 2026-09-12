@@ -59,7 +59,10 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
-        run: cd backend && npm ci
+        # Puppeteer's postinstall pulls ~1.3GB of Chrome that this job never launches: no unit test
+        # renders a PDF (the live renderer spec is gated, and there is no render-pdf.spec.ts).
+        # The cypress job deliberately does NOT skip it — that one really does render.
+        run: cd backend && PUPPETEER_SKIP_DOWNLOAD=true npm ci
 
       - name: Generate Prisma client
         run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
@@ -111,7 +114,10 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
-        run: cd backend && npm ci
+        # Puppeteer's postinstall pulls ~1.3GB of Chrome that this job never launches: no unit test
+        # renders a PDF (the live renderer spec is gated, and there is no render-pdf.spec.ts).
+        # The cypress job deliberately does NOT skip it — that one really does render.
+        run: cd backend && PUPPETEER_SKIP_DOWNLOAD=true npm ci
 
       - name: Generate Prisma client
         run: cd backend && npx prisma generate
