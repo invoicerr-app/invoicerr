@@ -10,111 +10,71 @@ scope:
   - B2G
 progress: in-progress
 ---
-# 🇮🇹 Italy - Invoicing Specifications (Sistema di Interscambio)
+# 🇮🇹 Italy
 
-**Status:** 🔴 **Fully Mandatory** (B2G, B2B, B2C)
-**Authority:** AdE (Agenzia delle Entrate)
-**Platform:** **SdI** (Sistema di Interscambio)
+**Authority:** Agenzia delle Entrate (AdE) · **Channel:** SdI (Sistema di Interscambio).
 
----
+Italy's clearance system has required domestic e-invoicing since 2019. This app builds the national
+**FatturaPA** XML and has a client built directly from SdI's published WSDL/XSD — but that client has
+never exchanged a byte with the real service.
 
-## 1. Context & Roadmap
+## The channel mandate is not yet promoted in this app's own data
 
-Italy is the pioneer of the **Clearance Model** in Europe. The system is mature, stable, and strictly enforced.
-**Key 2026 Update:** The new VAT Code (*Testo Unico IVA*) consolidates regulations, and integration between POS terminals and tax registers is now mandatory for retail.
+This app's `channel-policy` catalog records the `sdi` channel as `requirement: "suggested"`, with
+provenance `unverified`. Its own resolution note is explicit about why, given how well known the real
+mandate is: the file has not yet been re-read against a primary legal text (D.Lgs. 127/2015 art. 1,
+Provvedimento AdE prot. 433608/2022) with its own verification date recorded in this file — an
+internal audit elsewhere in this repository already cites that article, but this catalog only
+promotes a fact once a primary source has been read directly for the file itself, not borrowed from
+an adjacent document. So: SdI is Italy's real, long-standing mandatory channel, but this app's own
+record for it is still marked unverified, by design, until that direct reading happens.
 
-| Date | Scope | Obligation |
-| --- | --- | --- |
-| **Active** | **B2B / B2G** | Mandatory e-invoicing for all domestic invoices via SdI. |
-| **Active** | **Cross-Border** | "Esterometro" abolished. Foreign invoices must be reported via SdI (TD17/18/19). |
-| **Active** | **B2C** | Mandatory issuance (even if the consumer just gets a PDF copy). |
+## Never run against the real service
 
----
+`transports/sdi/sdicoop.live.spec.ts` targets SdI's real `SdIRiceviFile.RiceviFile` endpoint but its
+own header states plainly: **implemented-awaiting-accreditation** — no environment available to this
+app holds a real Agenzia delle Entrate intermediary accreditation, so this spec has never been
+executed against the true endpoint. The `SdiCoopClient` was built by reading the published
+WSDL/XSD/instructions, not proven against them.
 
-## 2. Technical Workflow (Clearance)
+## Selling to a government, or any, client
 
-The SdI acts as a "postman" and "validator". You do not send the invoice to the client; you send it to SdI.
+The routing rule sends an Italian government client's invoice through **SdI**, in FatturaPA, and
+requires the client's 6-character **Codice Univoco Ufficio** (from IndicePA) — sourced (`legal`) to
+the Specifiche tecniche del formato FatturaPA v1.3.2, read directly 2026-09-01. The format builder
+correctly emits `FormatoTrasmissione: FPA12` for a government recipient and `FPR12` for a private one
+(the vendored XSD accepts both), and it validates against the official FatturaPA XSD rather than the
+generic EN 16931 Schematron — a national schema, judged by its own rules.
 
-```mermaid
-sequenceDiagram
-    participant S as Invoicerr
-    participant SdI as Sistema di Interscambio
-    participant C as Client
-    
-    Note over S: 1. Generate XML
-    S->>S: Sign XML (CAdES/XAdES) [Optional B2B / Mandatory B2G]
-    S->>SdI: Send FatturaPA XML
-    
-    alt Validation Success
-        SdI-->>S: Ricevuta di Consegna (Delivery Receipt)
-        SdI->>C: Deliver XML to Client (PEC / Code)
-    else Validation Failure
-        SdI-->>S: Notifica di Scarto (Rejection)
-        Note over S: Invoice does not exist fiscally. Fix & Resend.
-    end
+## Tax
 
-```
+VAT, standard rate **22%** — sourced to the EU's Taxes in Europe Database (TEDB), situation date
+2026-07-01. This app has no fuller Italian rate catalog (`vat-rates/`) yet, so reduced rates are not
+modeled; an earlier, unsourced set of reduced rates was deliberately dropped rather than carried
+forward under a provenance that never covered them.
 
-### 🧱 Key Components
+## Identifiers
 
-1. **FatturaPA (XML):** The only legal format.
-2. **SdI (The Hub):** Validates Tax IDs, calculations, and delivers the file.
-3. **Codice Destinatario:** The routing code (7 chars) to identify the recipient's software channel.
+No `country-identifiers` file exists for Italy in this app today — no Italian-specific identifier
+requirement (codice fiscale, partita IVA format, required/optional) is declared in this catalog.
 
----
+## Correcting or cancelling an invoice
 
-## 3. Data Standards & Document Types
+8 of the 11 correction routes are sourced to Italian law. A **credit note** is legally allowed, a
+**debit note** and an **internal credit note** are legally **required** for the cases they cover, a
+plain **corrective invoice is forbidden** (Italy fixes a mistake through a credit note or a new
+document, never by editing/reissuing the original under the same act), and a ledger-only annotation
+is allowed.
 
-### A. Document Types (`TipoDocumento`)
+Cancelling an already-sent invoice and reissuing it is implementable in this app for Italy, but only
+**after SdI has rejected it (scarto)** — once an invoice has actually reached the recipient, this app
+will not cancel it. This matches the descriptor's own `send_failed` status: SdI's own rejection is
+what that status represents here, and cancellation stays available only from it.
 
-Invoicerr must allow the user to select the correct type. Using `TD01` for everything is illegal.
+## Sources
 
-* `TD01`: Standard Invoice.
-* `TD04`: Credit Note.
-* `TD07`: Simplified Invoice.
-* **`TD17`:** Self-invoice for purchasing **Services** from abroad (Reverse Charge).
-* **`TD18`:** Self-invoice for purchasing **Goods** from EU (Intra-community).
-* **`TD19`:** Self-invoice for domestic Reverse Charge (e.g., Subcontracting).
-* **`TD29`:** (New 2026) Self-invoice to regularize a missing supplier invoice.
-
-### B. Tax Nature Codes (`Natura`)
-
-If VAT is 0%, a specific code is mandatory:
-
-* `N2.1`: Not subject to VAT (e.g., Lacking territoriality).
-* `N3.1`: Export (Non-taxable).
-* `N3.2`: Intra-community supply.
-* `N6.x`: Reverse Charge (e.g., `N6.3` Subcontracting).
-
----
-
-## 4. Transmission Channels
-
-Invoicerr can connect to SdI via:
-
-1. **SdICoop (Web Service):** The professional A2A method (SOAP/REST). Requires accreditation.
-2. **PEC (Certified Email):** For low volumes. Send XML to `sdi01@pec.fatturapa.it`.
-3. **Intermediary:** Most SaaS tools connect via a certified "Intermediario" (Provider) to avoid handling the raw SOAP complexity.
-
----
-
-## 5. Implementation Checklist
-
-* [ ] **XML Engine:** Generate `FatturaPA` XML (v1.8/1.9).
-* [ ] **Routing Logic:**
-* If Client has `Codice Destinatario` (7 chars) -> Use it.
-* If Client uses PEC -> Use `0000000` as Code + Fill `PECDestinatario`.
-* If Foreign Client -> Use `XXXXXXX` as Code + Fill Country ID.
-
-
-* [ ] **Type Selector:** Add a dropdown for `TipoDocumento` (TD01, TD04, etc.).
-* [ ] **Reverse Charge:** If user selects a Reverse Charge tax rate, force selection of `Natura` code (N6.x).
-* [ ] **Error Handling:** Handle `Notifica di Scarto`. The invoice must be flagged as "Rejected" in the UI so the user can fix and re-emit (using the **same** number is allowed if corrected within 5 days).
-
----
-
-## 6. Resources
-
-* **Official Portal:** [Fatture e Corrispettivi](https://ivaservizi.agenziaentrate.gov.it/portale/)
-* **Technical Specs:** [FatturaPA Documentation](https://www.fatturapa.gov.it/it/norme-e-regole/documentazione-fattura-elettronica/)
-* **Simulator:** [SdI Simulator](https://sdi.fatturapa.gov.it/SdI2FatturaPAWeb/AccediAlServizioAction.do?pagina=controlla_fattura)
+`backend/src/modules/documents/country-policy/data/it.json`, `correction-routes/data/it.json`,
+`correction-routes/cancel-policy.ts`, `b2g-routing/data/it.json`,
+`transports/channel-policy/data/it.json`, `tax/tax-systems/data/it.json`, plus
+`transports/sdi/sdicoop.live.spec.ts` and `formats/national/fatturapa-provider.ts` for the
+accreditation and FPA12/FPR12 claims above.

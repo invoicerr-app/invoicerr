@@ -21,7 +21,7 @@ interface CountryContent {
 
 /**
  * Scans compliance markdown files from documentation/compliance/ at build time.
- * Extracts country code from filename (FI-Finland.md → FI).
+ * Extracts country code from filename (DE-Germany.md → DE).
  * Generates routes /compliance/<country> dynamically.
  * Exposes content via global data for backward compatibility.
  */

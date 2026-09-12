@@ -1,6 +1,6 @@
 ---
 region: Europe
-status: phased
+status: mandatory
 priority: high
 formats:
   - EN 16931
@@ -11,171 +11,83 @@ scope:
   - B2G
 progress: in-progress
 ---
-# 🇫🇷 France - E-Invoicing Specifications (Réforme de la facturation électronique)
+# 🇫🇷 France
 
-**Status:** 🟢 **B2G Active** (Chorus Pro) | 🟡 **B2B/B2C Phased 2026-2027**
-**Authority:** DGFiP (Direction Générale des Finances Publiques)
-**Platform:** PPF (Portail Public de Facturation — annuaire) + PDP (Plateformes de Dématérialisation Partenaires)
+**Authority:** DGFiP (Direction Générale des Finances Publiques) · **Channel:** PDP (Plateforme de
+Dématérialisation Partenaire) for B2B, Chorus Pro for B2G.
 
----
+France is the only one of the five countries where this app's own data records the transmission
+channel as **legally mandated**, and the only channel that has been proven against a real platform.
 
-## 1. Context & Overview
+## Sending an invoice
 
-France is moving its entire B2B economy to mandatory structured e-invoicing plus transaction
-e-reporting, under a **Decentralized CTC ("Y" / 5-corner) Model**. B2G has been mandatory since
-2017-2020 via **Chorus Pro** (EU Directive 2014/55/EU). The B2B/B2C reform, established by Ordonnance
-n° 2021-1190 and rescheduled by the 2024 Finance Act (art. 91), introduces two parallel obligations:
-**e-invoicing** (structured invoices for domestic B2B) and **e-reporting** (transaction and payment
-data for B2C and cross-border flows). A key design choice (confirmed October 2024) is that the **PPF is
-not a free invoicing platform** — it acts as the central **annuaire** (directory) and data concentrator,
-while actual invoice exchange flows through **PDP** (state-registered private platforms).
+- From **2026-09-01**, a domestic B2B invoice must go through an accredited PDP — this app's
+  `channel-policy` catalog marks the `pdp` channel `requirement: "mandated"`, sourced to
+  *"Seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues"*
+  (impots.gouv.fr, checked 2026-08-27). Sending such an invoice by e-mail instead is not a lesser
+  channel, it is a sanctioned one under CGI art. 1737 III/IV bis. That date has already passed as of
+  this page's writing, so the mandate is in force.
+- **Proven live**: a real deposit against the superpdp sandbox reached the platform's own
+  conformity states in sequence — `fr:200` (déposée, validated) → `fr:201` (émise) → `fr:202` (reçue
+  par la plateforme) — deposit 375037, 2026-08-29, reproduced across two independent runs. This is
+  the one channel among all five countries this app has actually watched clear against a real
+  service, not just a mock.
+- The artifact sent is **Factur-X** — a PDF/A-3 file with an embedded EN 16931 CII XML — gated by the
+  vendored EN 16931 Schematron before anything is deposited.
 
-| Date | Scope | Obligation |
+## Selling to a government client (B2G)
+
+The routing rule (`b2g-routing`) sends a French government client's invoice through **Chorus Pro**,
+in Factur-X, and requires the client's **SIRET** on file — sourced to Code de la commande publique
+art. L. 2192-1/L. 2192-2/L. 2192-5. The transport itself is built and registered in this app
+(`transports/chorus-pro-transport.ts`), but it has **never been run against the real Chorus Pro
+service**: this checkout holds no PISTE OAuth application and no Chorus Pro "compte technique". The
+only independent confirmation is that the PISTE sandbox OAuth endpoint itself is reachable and
+answers a genuine rejection for a garbage credential — proof the host and path are correct, not that
+a real deposit would succeed. An optional `buyerReference` ("code service") is also read from the
+invoice if the client's own Chorus Pro account requires one.
+
+## Tax
+
+VAT, with a franchise-based small-business exemption. Every rate below is sourced to the Code
+général des impôts (CGI), read directly, 2026-09-01:
+
+| Rate | Category | Article |
 | --- | --- | --- |
-| **2017-2020** | B2G | Mandatory e-invoicing to the public sector via Chorus Pro (phased by size) |
-| **Sep 15, 2021** | Legal basis | Ordonnance 2021-1190 establishes the B2B/B2C reform |
-| **Oct 2024** | Architecture pivot | PPF refocused on the *annuaire* + e-reporting; exchange via PDP |
-| **Sep 1, 2026** | Reception (all) + Emission (large + ETI) | All must *receive*; large & mid-cap must *issue* + e-report |
-| **Sep 1, 2027** | Emission (PME + TPE) | SMEs & micro-enterprises must *issue* + e-report |
+| 20% | Standard | art. 278 |
+| 10% | Reduced | art. 278 bis / art. 279 |
+| 5.5% | Super-reduced | art. 278-0 bis |
+| 2.1% | Super-reduced | art. 281 quater / 281 octies / 298 septies |
+| 0% | Exempt — franchise en base | art. 293 B, I |
 
-> Note: the 2026/2027 dates are those set by the 2024 Finance Act; a decree may adjust by up to a few
-> months. Reception capability is required for **everyone** from the first wave (Sep 1, 2026).
+A business under the franchise threshold charges no VAT at all (art. 293 B, I) and its VAT number is
+correspondingly not required on its invoices (CGI ann. II art. 242 nonies A, I, 2° and II — the same
+dispensation also applies to any invoice ≤ 150 € excl. tax).
 
----
+## Identifiers
 
-## 2. Technical Workflow (Decentralized CTC — "Y" / 5-corner Model)
+- **SIREN or SIRET**, required on both parties — Code de commerce art. R.123-237 legally requires the
+  9-digit SIREN; this app also accepts the 14-digit SIRET (which contains the SIREN in its first 9
+  digits) and derives the SIREN from it automatically before building an invoice's XML.
+- **French VAT number**, not required at country level — whether it must appear depends on the
+  issuing company's own VAT regime (see Tax above), which this catalog does not track per company.
 
-Invoices never go directly to the tax authority. The supplier's PDP routes the invoice to the buyer's
-PDP using the **PPF annuaire**, while extracting e-reporting/lifecycle data for the DGFiP.
+## Correcting or cancelling an invoice
 
-```mermaid
-flowchart TD
-    S["Invoicerr (Supplier)"] -->|1. Factur-X / UBL / CII| PDP_S[Supplier PDP]
+10 of the 11 correction routes this app tracks are sourced to French law (only
+`COUNTERPARTY_OBJECTION` is unverified). In practice: credit notes, debit notes, corrective invoices
+and cancel-and-replace are all legally **allowed**; an internal credit note and an annotated
+duplicate are **required** in the situations French law reserves them for; an authority-side
+annulment, a ledger-only annotation, and skipping the document entirely are all **forbidden**.
 
-    subgraph "Routing via PPF"
-    PDP_S -->|2. Directory lookup| ANN[PPF Annuaire]
-    ANN -->|3. Buyer's PDP + routing code| PDP_S
-    end
+Cancelling an already-sent invoice and reissuing it is implementable in this app for France, with
+**no restriction** — the correction-routes data for `CANCEL_AND_REPLACE` names no authority step or
+transmission precondition.
 
-    PDP_S -->|4. Deliver e-invoice| PDP_B[Buyer PDP]
-    PDP_B -->|5. Make available| B[Client]
+## Sources
 
-    subgraph "Data to tax authority"
-    PDP_S -.->|6. e-reporting (B2C / cross-border / payment data)| DGFiP[DGFiP]
-    PDP_S -.->|7. Lifecycle statuses| DGFiP
-    end
-
-    B -->|8. Status: refusée / approuvée| PDP_B
-    PDP_B -->|9. Status back| PDP_S
-    B -->|10. Status: encaissée (on payment)| PDP_S
-```
-
-### 🧱 Key Components
-
-1. **PDP (Plateforme de Dématérialisation Partenaire):** State-registered platform that issues,
-   transmits, receives and converts invoices and pushes data to the DGFiP.
-2. **PPF (Portail Public de Facturation):** Central **annuaire** (directory) for recipient/PDP
-   discovery and the concentrator of e-reporting data. Not a free exchange platform.
-3. **OD (Opérateur de Dématérialisation):** Non-registered operator that connects to a PDP.
-4. **Annuaire:** Directory keyed by SIREN/SIRET (+ routing code) used to find the recipient's PDP.
-5. **Chorus Pro:** Existing B2G platform (still used for public-sector invoices).
-
----
-
-## 3. Data Standards & Formats
-
-### A. Accepted Formats (socle EN 16931)
-
-- **Factur-X:** Hybrid PDF/A-3 with embedded CII XML (human-readable + machine-readable)
-- **UBL 2.1:** EN 16931 syntax
-- **UN/CEFACT CII:** EN 16931 syntax
-- **Encoding:** UTF-8
-
-### B. Document Types
-
-| Type | Description |
-| --- | --- |
-| **Facture** | Standard invoice (B2B domestic = e-invoicing) |
-| **Avoir** | Credit note |
-| **Facture d'acompte** | Deposit / prepayment invoice |
-| **Facture rectificative** | Corrective invoice |
-| **e-reporting** | Transaction data (B2C, cross-border) + payment data (services) |
-
-### C. Critical Data Fields
-
-- **SIREN / SIRET:** Legal identifier (9 / 14 digits)
-- **N° TVA intracommunautaire:** French VAT number (FR + key + SIREN)
-- **Code routage:** Routing code for the recipient within the annuaire
-- **4 new mandatory mentions (reform):** client SIREN; delivery address (if ≠ billing);
-  nature of the operation (goods / services / mixed); option for VAT on debits (if applicable)
-- **TVA:** Rates 20% (standard), 10% / 5.5% / 2.1% (reduced); category & reason codes (EN 16931)
-
----
-
-## 4. Business Model & Compliance
-
-### A. Two Obligations
-
-1. **e-invoicing** — structured invoices for **domestic B2B** (both parties French VAT taxable),
-   exchanged PDP → annuaire → PDP.
-2. **e-reporting** — **transaction data** (B2C, and B2B with foreign parties where there is no domestic
-   e-invoice) and **payment data** (for services, tied to the "encaissée" status), pushed to the DGFiP.
-
-### B. Mandatory Invoice Lifecycle Statuses
-
-The reform mandates exchange of invoice statuses between platforms:
-
-- **Mandatory:** `déposée` (submitted), `rejetée` (rejected by platform), `refusée` (refused by
-  recipient), `encaissée` (cashed/paid — services, feeds payment e-reporting)
-- **Recommended:** `mise à disposition`, `prise en charge`, `approuvée`, `approuvée partiellement`,
-  `en litige`, `suspendue`, `complétée`
-- **Free:** operator-defined statuses
-
-### C. VAT Specifics
-
-- **Reverse charge (autoliquidation):** Intra-EU B2B services and certain domestic operations
-- **Franchise en base (art. 293 B CGI):** Small-business exemption — mention
-  *"TVA non applicable, art. 293 B du CGI"*, VAT rate 0 / category E
-- **Monaco:** Within the French VAT territory — follows the French regime
-
-### D. Archiving Requirements
-
-- **Retention Period:** 10 years (commercial documents)
-- **Format:** Original structured invoice (Factur-X / UBL / CII)
-- **Integrity:** Reliable audit trail (piste d'audit fiable) or qualified e-signature/seal
-
----
-
-## 5. Implementation Checklist
-
-- [ ] **PDP Selection:** Choose / connect to a registered PDP (or become an OD connected to one)
-- [ ] **Annuaire Integration:** Implement directory lookup (SIREN/SIRET + routing code)
-- [ ] **Factur-X Engine:** Generate EN 16931 (Factur-X / UBL / CII) — already covered by `@fin.cx/einvoice`
-- [ ] **Reception Capability:** Be able to *receive* e-invoices (mandatory for all from Sep 1, 2026)
-- [ ] **Lifecycle Statuses:** Emit/consume mandatory statuses (déposée, rejetée, refusée, encaissée)
-- [ ] **e-reporting:** Submit transaction data (B2C / cross-border) and payment data (services)
-- [ ] **New Mandatory Mentions:** Add client SIREN, delivery address, operation nature, VAT-on-debits
-- [ ] **293 B Handling:** Franchise-en-base exemption mention and tax treatment
-- [ ] **Archiving:** 10-year retention with reliable audit trail
-- [ ] **Chorus Pro:** Keep B2G flows via Chorus Pro
-
----
-
-## 6. Resources
-
-- **DGFiP / impots.gouv.fr:** [Facture électronique](https://www.impots.gouv.fr/professionnel/facturation-electronique)
-- **Réforme overview:** [La facturation électronique (impots.gouv.fr)](https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique)
-- **External specifications:** Spécifications externes de la facturation électronique (DGFiP)
-- **Chorus Pro (B2G):** [Chorus Pro](https://chorus-pro.gouv.fr)
-- **Factur-X / FNFE-MPE:** [fnfe-mpe.org](https://fnfe-mpe.org)
-- **Architecture mapping:** see [`COMPLIANCE_ARCHITECTURE.md` §16.0](COMPLIANCE_ARCHITECTURE.md) — France is the home-market reference flow
-
----
-
-## Note
-
-France combines almost every compliance axis at once (decentralized CTC, certified-platform
-transmission, central-directory routing, mandatory bidirectional statuses, simultaneous e-invoicing
-**and** e-reporting, hybrid Factur-X, franchise-base scheme). In the Invoicerr architecture it requires
-**no new engine code** beyond the generic mechanisms — it is fully expressed as a country profile
-(`compliance/profiles/data/fr.ts`) plus a PDP transmission provider.
+`backend/src/modules/documents/country-policy/data/fr.json`,
+`country-identifiers/data/fr.json`, `correction-routes/data/fr.json`, `b2g-routing/data/fr.json`,
+`transports/channel-policy/data/fr.json`, `tax/tax-systems/data/fr.json`, `vat-rates/data/fr.json`,
+plus `transports/pdp/pdp.live.spec.ts`, `transports/chorus-pro/choruspro-live.spec.ts` and
+`transports/chorus-pro-transport.ts` for the live-proof and implementation claims above.
