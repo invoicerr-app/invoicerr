@@ -85,7 +85,7 @@ function EmailPreview({
   const safeHtml = html?.trim() ? DOMPurify.sanitize(substitutePlaceholders(html, variables)) : null
 
   return (
-    <div className="bg-muted rounded-lg p-4">
+    <div className="bg-muted rounded-lg p-4" data-cy="email-template-preview">
       <div className="bg-white rounded-lg shadow-lg mx-auto max-w-2xl">
         <div className="border-b p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -105,12 +105,14 @@ function EmailPreview({
               <span className="font-medium text-gray-600">
                 {t("settings.emailTemplates.preview.subject")}:
               </span>
-              <span className="text-gray-900">{previewSubject}</span>
+              <span className="text-gray-900" data-cy="email-template-preview-subject">
+                {previewSubject}
+              </span>
             </div>
           </div>
         </div>
         <Separator className="bg-neutral-200" orientation="horizontal" />
-        <div className="p-4">
+        <div className="p-4" data-cy="email-template-preview-body">
           {safeHtml ? (
             <div
               className="prose prose-sm max-w-none [*]:text-black"
@@ -146,11 +148,11 @@ function PlaceholderHints({ variables }: { variables: Record<string, string> }) 
   const { t } = useTranslation()
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-cy="email-template-variables">
       <Label>{t("settings.emailTemplates.editor.availableVariables")}</Label>
       <div className="flex flex-wrap gap-2">
         {Object.keys(variables).map((name) => (
-          <Badge key={name} variant="secondary" className="font-mono">
+          <Badge key={name} variant="secondary" className="font-mono" data-cy="email-template-variable-badge">
             {`{${name}}`}
           </Badge>
         ))}
@@ -169,12 +171,14 @@ function PlaceholderWarnings({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null
 
   return (
-    <Alert>
+    <Alert data-cy="email-template-warnings">
       <TriangleAlert />
       <AlertTitle>{t("settings.emailTemplates.warningsTitle")}</AlertTitle>
       <AlertDescription>
         {warnings.map((warning) => (
-          <p key={warning}>{warning}</p>
+          <p key={warning} data-cy="email-template-warning-item">
+            {warning}
+          </p>
         ))}
       </AlertDescription>
     </Alert>
@@ -192,30 +196,39 @@ function TemplateRow({
   overridden,
   open,
   onToggle,
-  dataCy,
+  idSuffix,
   children,
 }: {
   name: string
   overridden: boolean
   open: boolean
   onToggle: () => void
-  dataCy: string
+  /** The family/type id this row is for ("SIGNATURE_REQUEST", "invoice", …) — every `data-cy` on this
+   *  row is built from it here, in ONE place, so a system row and a per-type row can never drift into
+   *  two different naming schemes for what is structurally the same row. */
+  idSuffix: string
   children: ReactNode
 }) {
   const { t } = useTranslation()
 
   return (
-    <Card>
+    <Card data-cy={`email-template-card-${idSuffix}`}>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>{name}</CardTitle>
-          <Badge variant={overridden ? "default" : "outline"}>
+          <Badge variant={overridden ? "default" : "outline"} data-cy={`email-template-source-${idSuffix}`}>
             {overridden
               ? t("settings.emailTemplates.source.customised")
               : t("settings.emailTemplates.source.shippedDefault")}
           </Badge>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={onToggle} dataCy={dataCy}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onToggle}
+          dataCy={`email-template-toggle-${idSuffix}`}
+        >
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           {open ? t("settings.emailTemplates.editor.close") : t("settings.emailTemplates.editor.edit")}
         </Button>
@@ -273,7 +286,7 @@ function SystemTemplateCard({
       overridden={template.source === "company"}
       open={open}
       onToggle={onToggle}
-      dataCy={`email-template-toggle-${template.id}`}
+      idSuffix={template.id}
     >
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-4">
@@ -395,7 +408,7 @@ function DocumentTemplateCard({
       overridden={template.source === "company"}
       open={open}
       onToggle={onToggle}
-      dataCy={`email-template-toggle-${template.typeId}`}
+      idSuffix={template.typeId}
     >
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-4">
@@ -405,6 +418,7 @@ function DocumentTemplateCard({
             </Label>
             <Input
               id={`subject-${template.typeId}`}
+              data-cy={`email-template-subject-${template.typeId}`}
               value={subject}
               readOnly={!canEdit}
               autoComplete="off"
@@ -420,6 +434,7 @@ function DocumentTemplateCard({
             <Label htmlFor={`body-${template.typeId}`}>{t("settings.emailTemplates.editor.body")}</Label>
             <Textarea
               id={`body-${template.typeId}`}
+              data-cy={`email-template-body-${template.typeId}`}
               value={body}
               readOnly={!canEdit}
               onChange={(e) => setBody(e.target.value)}
@@ -433,6 +448,7 @@ function DocumentTemplateCard({
             <Label htmlFor={`html-${template.typeId}`}>{t("settings.emailTemplates.editor.htmlBody")}</Label>
             <Textarea
               id={`html-${template.typeId}`}
+              data-cy={`email-template-html-${template.typeId}`}
               value={html}
               readOnly={!canEdit}
               onChange={(e) => setHtml(e.target.value)}
