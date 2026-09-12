@@ -44,36 +44,54 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  * None of this is asserted from memory: every rate/category below is traced to the exact JSON file or
  * `vat-syntax.ts` function that produces it, cited inline at the point of assertion.
  *
- * ## Two real defects this file's own run found (it-pt AND pl-de) — see each assertion for the citation
+ * ## Two real defects this file's own run found (it-pt AND pl-de) — both now FIXED, one residual gap
+ * remains and is asserted below rather than papered over — see each assertion for the citation
  *
- * Neither `it-pt` nor `pl-de` asserts a successful CII export. Two INDEPENDENT bugs, found running
- * this file, not predicted at design time:
+ * This file's initial run found two INDEPENDENT bugs, neither predicted at design time:
  *
  *  1. **Any seller whose country has no `country-identifiers/data/<cc>.json` file (today: Italy,
  *     Poland) loses its own LEGAL_ID identifier the moment company settings are saved** — a
  *     completely ordinary action this file's own `before()` hook takes for every leg (filling in
  *     phone/address/currency), not something contrived to trigger this. `company.settings.tsx`'s own
- *     "sync identifiers with the country catalog" effect deletes every identifier whose scheme is not
+ *     "sync identifiers with the country catalog" effect deleted every identifier whose scheme was not
  *     in `requiredIdentifiers` — WITH NO EXCEPTION. `onboarding.tsx`'s own near-identical effect
  *     protects `scheme === "LEGAL_ID"` from that exact removal (its own comment: "LEGAL_ID is always
  *     collected in Step 2 ... never drop it here just because that catalog stays silent") — the
- *     settings-page effect has no such guard, so a country with an EMPTY `requiredIdentifiers` (IT,
- *     PL) has its LEGAL_ID deleted on the very next save. Confirmed by hand against the running
- *     stack: a fresh onboarding + a direct `GET /api/company/info` shows the identifier stored; the
- *     SAME company re-read after the settings-page save this file's own `before()` hook always makes
- *     shows `partyIdentifiers: []`.
- *  2. **`build-semantic-invoice.ts` never builds a "Deliver to" country (BT-80) for ANY invoice** — a
+ *     settings-page effect had no such guard, so a country with an EMPTY `requiredIdentifiers` (IT,
+ *     PL) had its LEGAL_ID deleted on the very next save. FIXED: `company.settings.tsx`'s effect now
+ *     carries the identical `scheme !== "LEGAL_ID"` exemption, with the same rationale in its comment.
+ *  2. **`build-semantic-invoice.ts` never built a "Deliver to" country (BT-80) for ANY invoice** — a
  *     gap carried over, unfixed, from the old removed model (only `cac:Delivery/
- *     cbc:ActualDeliveryDate`, BT-72, is ever built). EN 16931's BR-IC-12 conditions this on the VAT
+ *     cbc:ActualDeliveryDate`, BT-72, was ever built). EN 16931's BR-IC-12 conditions this on the VAT
  *     category being "Intra-Community supply" (category K) specifically — `it-pt` is the only one of
- *     these six legs whose tax composition reaches that category, so it is the only leg BR-IC-12 fires
- *     for; it would fire for ANY country pair reaching category K, not just this one.
+ *     these six legs whose tax composition reaches that category, so it is the only leg BR-IC-12 ever
+ *     fired for; it would fire for ANY country pair reaching category K, not just this one. FIXED:
+ *     `build-semantic-invoice.ts` now builds `cac:Delivery/cac:DeliveryLocation` (BT-80) with the
+ *     buyer's own country whenever a line resolves to category K, and only then.
  *
- * Defect 1 alone is why `pl-de` (category S, standard-rated via OSS) fails BR-S-02/BR-CO-26 (seller
- * identification for a taxed line). `it-pt` (category K) fails on BOTH defects at once: BR-IC-02/
- * BR-CO-26 (defect 1) AND BR-IC-12 (defect 2). Each leg's own assertion pins TODAY's real, broken 400
- * response with its own exact Schematron citation — never a silently downgraded expectation. Reported
- * in full, with exact file/line evidence, alongside this spec's own run.
+ * ## A third, residual gap these same two legs exposed once 1 and 2 were fixed
+ *
+ * Re-running `it-pt` and `pl-de` against both fixes did NOT turn either leg green. Both still 400,
+ * now on a DIFFERENT, narrower rule than before — a real, distinct, PRE-EXISTING defect neither fix
+ * above touches: **a seller in a country with no `country-identifiers/data/<cc>.json` file (Italy,
+ * Poland — the exact same gap defect 1 lived in) has NO WAY AT ALL, in either onboarding or company
+ * settings, to record a `VAT`-scheme identifier for itself** — `onboarding.tsx` only ever renders the
+ * generic identifier field under `scheme: "LEGAL_ID"` (see `SELLER_IDENTIFIERS`'s own comment below),
+ * and its own VAT input is gated on `requiredIdentifiers` declaring one, which IT/PL never do; company
+ * settings offers no separate "add an identifier" affordance at all. `build-semantic-invoice.ts`'s
+ * BT-31 (`cac:PartyTaxScheme`, the Seller VAT Identifier) is populated ONLY from a `VAT`-scheme party
+ * identifier — a `LEGAL_ID` one (the only scheme these two sellers can ever get) instead populates
+ * BT-29/30 (`cac:PartyLegalEntity/cbc:CompanyID`), a DIFFERENT node that satisfies BR-CO-26 but not
+ * BR-S-02 (pl-de, category S) or BR-IC-02 (it-pt, category K), both of which name the Seller VAT
+ * Identifier specifically, never the legal registration id. Confirmed by hand against the running
+ * stack: adding a bare `VAT` party identifier directly via `POST /api/company/info` (there is no
+ * screen path to do this for these two countries) made the SAME it-pt invoice export successfully —
+ * 200, category K, 0%, the Art. 138 mention, and BT-80 present — proving the tax composition and both
+ * fixes above are correct, and narrowing this to exactly one missing capability. Giving these sellers
+ * a way to record a VAT identifier needs the same primary-source legal research (which schemes IT/PL
+ * actually use and require) that defect 1's own writeup already put out of scope — so this gap is
+ * reported here, not fixed, and each assertion below pins TODAY's real, narrower 400 with its own
+ * exact Schematron citation rather than a silently invented success.
  *
  * ## What this file deliberately does NOT re-prove
  *
@@ -503,17 +521,24 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			cy.get(`[data-cy="document-xml-cii-${id}"]`, { timeout: 10000 }).should("be.visible").click();
 			cy.wait("@cii", { timeout: 20000 }).then((x) => {
 				if (scenarioId === "it-pt") {
-					// DEFECTS 1 AND 2 TOGETHER — see this file's own header for the full writeup, and
-					// `pl-de`'s own branch below for defect 1 alone. The TAX resolution itself is genuinely
-					// correct — IT→PT, GOODS, buyer VAT "PT501442600" (Portugal has no dedicated checksum
-					// function in `vat-syntax.ts`, only FR/IT/DE/ES/PL do, so the dispatcher's default
-					// branch answers `valid: true` unconditionally → confirmed B2B) → same EU union, GOODS
-					// → intra-Community supply, category K, rate 0%, Art. 138 (never the seller's own 22%
-					// the fixture's comment assumed) — `tax-engine.ts` composed the right answer. What fails
-					// is turning THAT answer into a valid EN 16931 export.
-					expect(x.response?.statusCode, "a REAL defect — see this file's own header, not a spec mistake").to.eq(
-						400,
-					);
+					// DEFECTS 1 AND 2 BOTH FIXED — ONE RESIDUAL GAP REMAINS, see this file's own header for
+					// the full writeup and `pl-de`'s own branch below for the same gap on a category-S leg.
+					// The TAX resolution itself is genuinely correct — IT→PT, GOODS, buyer VAT
+					// "PT501442600" (Portugal has no dedicated checksum function in `vat-syntax.ts`, only
+					// FR/IT/DE/ES/PL do, so the dispatcher's default branch answers `valid: true`
+					// unconditionally → confirmed B2B) → same EU union, GOODS → intra-Community supply,
+					// category K, rate 0%, Art. 138 (never the seller's own 22% the fixture's comment
+					// assumed) — `tax-engine.ts` composed the right answer, unchanged by either fix.
+					// BR-IC-12 (defect 2) is GONE: `build-semantic-invoice.ts` now builds BT-80 for
+					// category K. What STILL 400s is BR-IC-02: it names the Seller VAT Identifier (BT-31)
+					// specifically, and Italy's seller has no way to ever record one (this file's header's
+					// own "third, residual gap") — its LEGAL_ID (defect 1, fixed) survives the settings
+					// save now, but a LEGAL_ID populates a different node (BT-29/30) that BR-IC-02 does not
+					// accept in place of BT-31.
+					expect(
+						x.response?.statusCode,
+						"a REAL, narrower defect than before — defect 2 is fixed, see this file's own header",
+					).to.eq(400);
 					// `documents.service.ts#downloadDocumentFormat`'s own gate: `message` is only the generic
 					// "failed EN 16931 validation" summary — the actual violated-rule citations (what makes
 					// this a NAMED, evidenced defect rather than an opaque 400) live in `errors`, one string
@@ -521,37 +546,43 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					const errors = ((x.response?.body as { errors?: string[] } | undefined)?.errors ?? []).join(
 						" | ",
 					);
-					expect(errors, "BR-IC-02 — defect 1: no seller VAT/legal identifier survives to send time").to.contain(
-						"BR-IC-02",
-					);
-					expect(errors, "BR-IC-12 — defect 2: no Deliver-to country, ever built, for category K").to.contain(
-						"BR-IC-12",
-					);
+					expect(
+						errors,
+						"BR-IC-02 — the residual gap: the seller has no VAT-scheme identifier at all, only LEGAL_ID",
+					).to.contain("BR-IC-02");
+					expect(
+						errors,
+						"BR-IC-12 is GONE — defect 2 is fixed, BT-80 is now built for category K",
+					).to.not.contain("BR-IC-12");
 					return;
 				}
 
 				if (scenarioId === "pl-de") {
-					// DEFECT 1 ALONE — see this file's own header for the full writeup, and `it-pt`'s own
-					// branch above for both defects together. The TAX resolution is genuinely correct —
-					// PL→DE, GOODS, buyer is an INDIVIDUAL with NO VAT at all → B2C from the very first
-					// check → GOODS, B2C, same union → OSS destination VAT, category S, Germany's own real
-					// 19% standard rate (`tax-systems/data/de.json`) — the one leg whose fixture comment
-					// already matched the engine's real behavior. What fails is turning THAT answer into a
-					// valid EN 16931 export: category S (standard-rated) ALSO requires the seller's own VAT
-					// identification (BR-S-02, the general-purpose sibling of BR-IC-02) — a Polish seller
-					// has the exact same "no country-identifiers file → settings-page save deletes the
-					// LEGAL_ID onboarding gave it" problem Italy has, with NO category-K/BT-80 gap involved
-					// this time (confirming defect 1 and defect 2 are genuinely independent: this leg trips
-					// ONLY defect 1).
-					expect(x.response?.statusCode, "a REAL defect — see this file's own header, not a spec mistake").to.eq(
-						400,
-					);
+					// DEFECT 1 FIXED — THE SAME RESIDUAL GAP AS it-pt REMAINS, see this file's own header
+					// for the full writeup and `it-pt`'s own branch above for the category-K twin of this
+					// same gap. The TAX resolution is genuinely correct — PL→DE, GOODS, buyer is an
+					// INDIVIDUAL with NO VAT at all → B2C from the very first check → GOODS, B2C, same
+					// union → OSS destination VAT, category S, Germany's own real 19% standard rate
+					// (`tax-systems/data/de.json`) — the one leg whose fixture comment already matched the
+					// engine's real behavior, unchanged by either fix. The seller's own LEGAL_ID now
+					// survives the settings-page save (defect 1, fixed) — BR-CO-26 no longer fires. What
+					// STILL 400s is BR-S-02: category S (standard-rated) ALSO requires the seller's own VAT
+					// identification specifically (BT-31, the general-purpose sibling of BR-IC-02) — a
+					// Polish seller has the exact same "no `country-identifiers` file → no way to EVER
+					// record a VAT-scheme identifier" gap Italy has (this file's header's own "third,
+					// residual gap"), with no category-K/BT-80 concern this time (confirming this residual
+					// gap, like the two fixed defects before it, is genuinely independent of category).
+					expect(
+						x.response?.statusCode,
+						"a REAL, narrower defect than before — defect 1 is fixed, see this file's own header",
+					).to.eq(400);
 					const errors = ((x.response?.body as { errors?: string[] } | undefined)?.errors ?? []).join(
 						" | ",
 					);
-					expect(errors, "BR-S-02 — defect 1: no seller VAT/legal identifier survives to send time").to.contain(
-						"BR-S-02",
-					);
+					expect(
+						errors,
+						"BR-S-02 — the residual gap: the seller has no VAT-scheme identifier at all, only LEGAL_ID",
+					).to.contain("BR-S-02");
 					expect(errors, "never the category-K-only BR-IC-12 — this leg is category S, not K").to.not.contain(
 						"BR-IC-12",
 					);

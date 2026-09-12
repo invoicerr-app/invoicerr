@@ -621,6 +621,9 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     buyerParty['cac:PartyTaxScheme'] = { 'cbc:CompanyID': buyerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } };
   }
 
+  // BT-80 (below, on `cac:Delivery`) is required the moment ANY line is category 'K' — tracked here,
+  // while each line's category is resolved anyway, instead of re-deriving it a second time later.
+  let hasIntraCommunitySupplyLine = false;
   const invoiceLines = input.lines.map((line, index) => {
     const computed = input.totals.lines[index];
     // A RESOLVED cross-border category (AE/K/G/O/E) always wins over the naive
@@ -628,6 +631,9 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     // own header, "VAT category"). `undefined` for every domestic line — behaviour there is
     // unchanged.
     const category = line.vatCategory ?? vatCategoryFor(computed.vatRatePercent, index);
+    if (category === 'K') {
+      hasIntraCommunitySupplyLine = true;
+    }
     return {
       'cbc:ID': String(index + 1),
       'cbc:InvoicedQuantity': String(line.quantity),
@@ -737,7 +743,32 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // separate delivery date is tracked, same category of technical default `vatCategoryFor`
       // above already makes — never a legal/fiscal claim, BT-72 has no tax consequence) is what
       // gives the wrapper real content to serialize.
-      'cac:Delivery': { 'cbc:ActualDeliveryDate': input.issueDate },
+      //
+      // BT-80 (Deliver to country code) — EN 16931's BR-IC-12 makes this MANDATORY the moment any
+      // line resolves to VAT category 'K' (Intra-Community supply): the vendored Schematron's own
+      // fatal rule fires without it (the `it-pt` scenario leg's real 400 body cites this exact rule).
+      // This descriptor has no distinct "ship to" address of its own (see this file's own header,
+      // "The line shape — written FROM France, for now") — there is only ever ONE address on the
+      // buyer side, `input.buyer`'s own postal address (already used for BT-50-BT-55 above via
+      // `buyerCountryCode`). For an intra-Community supply that address IS the delivery destination by
+      // definition — the goods/services moving to the buyer's own country is the entire reason the
+      // category applies — so reusing `buyerCountryCode` here is not a guess, it is the only country
+      // this model can mean. Emitted ONLY when a line is actually category K: adding the child
+      // conditionally, rather than restructuring `cac:Delivery` itself, keeps every non-K invoice's
+      // XML byte-for-byte identical to before this fix (an unconditional change here would be a much
+      // worse defect than the one being fixed). If this descriptor ever grows a genuine ship-to
+      // address distinct from the buyer's own billing address, BT-80 must be re-derived from THAT
+      // country instead of the buyer's.
+      'cac:Delivery': {
+        'cbc:ActualDeliveryDate': input.issueDate,
+        ...(hasIntraCommunitySupplyLine
+          ? {
+              'cac:DeliveryLocation': {
+                'cac:Address': { 'cac:Country': { 'cbc:IdentificationCode': buyerCountryCode } },
+              },
+            }
+          : {}),
+      },
       // BG-16/BG-17 — see `sellerPaymentMeans`'s own header. Absent entirely when the seller has no
       // IBAN on file, exactly the pre-existing behaviour (no such block was ever emitted before this).
       ...(paymentMeans ? { 'cac:PaymentMeans': paymentMeans as never } : {}),

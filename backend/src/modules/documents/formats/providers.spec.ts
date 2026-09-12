@@ -299,3 +299,71 @@ describe('SIREN (9 digits) is accepted and emits the identical SIREN as a SIRET 
     }, 30_000);
   });
 });
+
+/**
+ * BT-80 (Deliver to country) — `build-semantic-invoice.ts`'s own header (on `cac:Delivery`) records
+ * the real 400 (BR-IC-12) that motivated this: EN 16931 requires BT-80 the moment ANY line resolves
+ * to VAT category 'K' (Intra-Community supply). The fixture below injects `__crossBorderCategory`/
+ * `__crossBorderExemptionReason` directly onto a line — the EXACT sidecar convention
+ * `tax/resolve-invoice-tax.ts` writes onto a real cross-border invoice's `data` before this bridge
+ * ever sees it (see `shared-build.ts`'s own header) — rather than re-deriving a category from a bare
+ * rate, which this bridge structurally cannot do (see this file's own header, "VAT category"). Judged
+ * by the REAL vendored Schematron, exactly like the master proof above, never a hand-asserted opinion.
+ */
+describe('BT-80 (Deliver to country) — required, and only required, for an Intra-Community supply line', () => {
+  // Line 1 becomes an Intra-Community supply (0%, category K, VATEX-EU-IC reason — the exact code
+  // `tax-engine.ts` emits); line 2 stays the ordinary 20% standard-rated line the master proof already
+  // exercises, so this fixture is also a mixed-rate, mixed-category invoice (BR-IC-01/-08 both need
+  // exactly one 'K' entry in the VAT breakdown, not every line turned into one).
+  const INTRA_COMMUNITY_DOCUMENT = {
+    ...DOCUMENT,
+    data: {
+      ...DOCUMENT_DATA,
+      lines: [
+        {
+          ...DOCUMENT_DATA.lines[0],
+          vatRate: '0',
+          __crossBorderCategory: 'K',
+          __crossBorderExemptionReason: 'VATEX-EU-IC',
+        },
+        DOCUMENT_DATA.lines[1],
+      ],
+    },
+  };
+
+  describe.each([
+    [
+      'CII',
+      ciiFormatProvider,
+      /<ram:ShipToTradeParty>[\s\S]*?<ram:CountryID>([A-Z]+)<\/ram:CountryID>/,
+    ] as const,
+    [
+      'UBL',
+      ublFormatProvider,
+      /<cac:DeliveryLocation>[\s\S]*?<cbc:IdentificationCode>([A-Z]+)<\/cbc:IdentificationCode>/,
+    ] as const,
+  ])('%s', (_label, provider, deliveryCountryPattern) => {
+    it("an Intra-Community supply line (category K): BT-80 IS emitted, carries the buyer's own country, and the REAL Schematron accepts the document (BR-IC-12)", async () => {
+      const result = await provider.build(descriptor, INTRA_COMMUNITY_DOCUMENT, SELLER, BUYER);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+
+      // BUYER's own country (Germany) — this descriptor has no distinct ship-to address, so the
+      // buyer's billing country is the only delivery destination it can express (see this file's own
+      // header on `cac:Delivery`).
+      expect(deliveryCountryPattern.exec(xml)?.[1]).toBe('DE');
+
+      // A failing assertion here prints EVERY BR-* rule the vendored Schematron actually fired —
+      // never swallowed: this is a gate, not a report.
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
+    }, 30_000);
+
+    it('an ordinary (non-K) invoice: BT-80 is NOT emitted — the exact pre-existing XML shape this fix must leave untouched', async () => {
+      const result = await provider.build(descriptor, DOCUMENT, SELLER, BUYER);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+      expect(xml).not.toMatch(/ShipToTradeParty|DeliveryLocation/);
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
+    }, 30_000);
+  });
+});

@@ -335,7 +335,13 @@ export default function CompanySettings() {
       }
     }
     for (let i = next.length - 1; i >= 0; i--) {
-      if (next[i].scheme && !requiredSchemes.has(next[i].scheme)) {
+      // LEGAL_ID is always collected during onboarding (see onboarding.tsx's own identifier
+      // step), independent of whether the country-identifiers catalog declares anything for
+      // this country — the catalog covers only a handful of countries today. Without this
+      // exemption, saving settings for a company in an uncovered country (e.g. IT, PL) would
+      // silently splice out the legal identifier the user already typed, and the next invoice
+      // would fail EN 16931 validation for missing a seller identifier.
+      if (next[i].scheme && next[i].scheme !== "LEGAL_ID" && !requiredSchemes.has(next[i].scheme)) {
         next.splice(i, 1)
         changed = true
       }
