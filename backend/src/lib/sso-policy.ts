@@ -316,8 +316,21 @@ export function normalizeDomains(input: unknown): string[] {
   const out = new Set<string>();
   for (const entry of raw) {
     if (typeof entry !== 'string') continue;
-    // Tolerate "@acme.com" and "Acme.COM" — both are what a human actually types.
-    const domain = entry.trim().toLowerCase().replace(/^@+/, '');
+    // Tolerate "@acme.com" and "Acme.COM" — both are what a human actually types. Also tolerate a
+    // trailing dot ("acme.com."): that is the legal, fully-qualified form of a domain name (it means
+    // "resolve from the DNS root, not relative to a search suffix") and some tools — a zone file, a
+    // resolver's own output, `dig`'s ANSWER section — print domains that way, so a user copying from
+    // one of those would otherwise paste something that can never match the bare form stored
+    // everywhere else (`buildVerificationRecordName`, the `providerId_domain` unique index, the
+    // `lookupByEmail` query) even though it names the exact same domain. Only ONE trailing dot is
+    // meaningful in DNS and only at the very end, hence the anchored, non-repeating `\.$`.
+    //
+    // Deliberately NOT doing any IDNA/punycode normalisation here: an internationalised domain typed
+    // as Unicode versus as its "xn--" punycode form are different strings, and this function has no
+    // way to know they name the same DNS label. That fails CLOSED — the two spellings simply never
+    // match each other, so nobody can use a homoglyph or an alternate encoding to merge with or claim
+    // a domain someone else already verified — so it is left alone rather than reached for here.
+    const domain = entry.trim().toLowerCase().replace(/^@+/, '').replace(/\.$/, '');
     if (domain.length === 0 || /[\s@/]/.test(domain)) continue;
     out.add(domain);
   }
@@ -328,9 +341,15 @@ export function normalizeDomains(input: unknown): string[] {
 export interface SsoLookupCandidate {
   providerId: string;
   label: string;
-  emailDomains: string[];
   isActive: boolean;
-  domainsVerifiedAt: Date | null;
+  // Only the domains this row has PROVEN via the DNS TXT challenge (`lib/sso-domain-verification.ts`)
+  // — never the full claimed list. This used to be `emailDomains: string[]` plus a single
+  // `domainsVerifiedAt: Date | null` covering the WHOLE array, which could not express "acme.com is
+  // proven, gmail.com (added later) is not" — see `CompanySsoDomain`'s own schema comment for why that
+  // shape was replaced. The caller (`sso.service.ts#lookupByEmail`) is responsible for filtering
+  // `CompanySsoDomain` rows down to `verifiedAt != null` before building this list, so this function
+  // never has to know about an unverified claim to correctly refuse it.
+  verifiedDomains: string[];
 }
 
 /**
@@ -347,14 +366,15 @@ export interface SsoLookupResult {
 /**
  * Which provider (if any) an email address should be sent to.
  *
- * A row matches only when it is ACTIVE and its domains are VERIFIED. `domainsVerifiedAt` is never
- * set by this feature — it ships no verification challenge — so in practice this endpoint matches
- * nothing until a future challenge fills that column in. That is the deliberate choice: an
- * unverified domain list is a claim, and honouring a claim would let any company that can reach the
- * settings screen type "gmail.com" and have strangers' sign-ins routed at its own IdP, which is a
- * credential-phishing primitive. Shipping the lookup inert, behind a column nothing trusts, is
- * strictly better than shipping that hole — and the direct link
- * (/auth/sign-in?sso=c_<companyId>) is what actually gets a customer's users in today.
+ * A row matches only when it is ACTIVE and the SPECIFIC domain being looked up is among its VERIFIED
+ * domains (`lib/sso-domain-verification.ts`'s DNS TXT challenge, run from
+ * `modules/company/sso/sso.controller.ts`'s verify route — the only place a `CompanySsoDomain` ever
+ * gains a `verifiedAt`). This gate is exactly as strict as it was when verification did not exist at
+ * all: an unverified claim is still not a claim this function will act on, because honouring one would
+ * let any company that can reach the settings screen type "gmail.com" and have strangers' sign-ins
+ * routed at its own IdP — a credential-phishing primitive. The direct link
+ * (/auth/sign-in?sso=c_<companyId>) remains the only way to reach a provider whose domain is not (yet)
+ * verified.
  */
 export function resolveSsoLookup(
   candidates: readonly SsoLookupCandidate[],
@@ -365,8 +385,7 @@ export function resolveSsoLookup(
 
   for (const candidate of candidates) {
     if (!candidate.isActive) continue;
-    if (candidate.domainsVerifiedAt == null) continue;
-    if (!candidate.emailDomains.includes(domain)) continue;
+    if (!candidate.verifiedDomains.includes(domain)) continue;
     return { providerId: candidate.providerId, label: candidate.label };
   }
   return null;

@@ -344,6 +344,14 @@ describe('normalizeDomains', () => {
     expect(normalizeDomains(['acme.com', 'ACME.com'])).toEqual(['acme.com']);
   });
 
+  it('strips a trailing dot — the legal fully-qualified form a user may paste from a zone file or dig', () => {
+    expect(normalizeDomains(['acme.com.'])).toEqual(['acme.com']);
+  });
+
+  it('de-duplicates the fully-qualified and bare spellings of the same domain', () => {
+    expect(normalizeDomains(['acme.com.', 'acme.com'])).toEqual(['acme.com']);
+  });
+
   it('drops entries that are not domains rather than storing them', () => {
     expect(normalizeDomains(['', '   ', 'a b', 'http://acme.com', 42 as unknown as string])).toEqual([]);
   });
@@ -357,9 +365,8 @@ describe('resolveSsoLookup — the @Public() email-first lookup', () => {
   const verified = (overrides: Partial<SsoLookupCandidate> = {}): SsoLookupCandidate => ({
     providerId: companyProviderId(COMPANY_ID),
     label: 'Acme SSO',
-    emailDomains: ['acme.com'],
     isActive: true,
-    domainsVerifiedAt: new Date('2026-01-01T00:00:00Z'),
+    verifiedDomains: ['acme.com'],
     ...overrides,
   });
 
@@ -380,10 +387,18 @@ describe('resolveSsoLookup — the @Public() email-first lookup', () => {
     expect(JSON.stringify(result)).not.toContain(COMPANY_ID.slice(0, 8).concat('-never'));
   });
 
-  it('refuses a row whose domains were never VERIFIED — an unverified claim is not a claim', () => {
-    // The domain-claim hole this column exists to close: without it, any company could type
+  it('refuses a row whose domain was never VERIFIED — an unverified claim is not a claim', () => {
+    // The domain-claim hole this property exists to close: without it, any company could type
     // "gmail.com" and have strangers' sign-ins routed at its own IdP.
-    expect(resolveSsoLookup([verified({ domainsVerifiedAt: null })], 'alice@acme.com')).toBeNull();
+    expect(resolveSsoLookup([verified({ verifiedDomains: [] })], 'alice@acme.com')).toBeNull();
+  });
+
+  it('refuses a row that has OTHER verified domains but not the one being looked up', () => {
+    // The precise per-domain property this whole redesign exists for: verifying "acme.com" must never
+    // make "gmail.com", claimed later by the same row, verified too.
+    expect(
+      resolveSsoLookup([verified({ verifiedDomains: ['other-verified.com'] })], 'alice@acme.com'),
+    ).toBeNull();
   });
 
   it('refuses an inactive row', () => {
@@ -411,7 +426,7 @@ describe('resolveSsoLookup — the @Public() email-first lookup', () => {
 
   it('skips an unusable row and still finds a usable one behind it', () => {
     const result = resolveSsoLookup(
-      [verified({ domainsVerifiedAt: null }), verified({ providerId: 'c_other', label: 'Other' })],
+      [verified({ verifiedDomains: [] }), verified({ providerId: 'c_other', label: 'Other' })],
       'alice@acme.com',
     );
     expect(result).toEqual({ providerId: 'c_other', label: 'Other' });

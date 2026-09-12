@@ -1755,18 +1755,64 @@ model CompanySsoProvider {
   // secret and never a second crypto scheme (`CompanyChannelConfig.config`'s own discipline).
   credentials String
 
-  // Domains this company CLAIMS, stored bare and lowercased ("acme.com", never "@acme.com").
-  emailDomains String[] @default([])
-
-  // When the domains above were PROVEN to belong to this company. This feature ships no verification
-  // challenge, so it only ever leaves this NULL — and the lookup refuses to match a row whose value is
-  // NULL, which is what stops an unverified claim from routing another company's users to this IdP. A
-  // future DNS-TXT or postmaster challenge is the only thing that may ever set it.
-  domainsVerifiedAt DateTime?
+  // Per-domain ownership claims and their verification state — see CompanySsoDomain below. This used
+  // to be a single `emailDomains String[]` plus one `domainsVerifiedAt DateTime?` for the WHOLE array,
+  // which cannot be made safe: verify "acme.com", then append "gmail.com" to the same array, and
+  // "gmail.com" reads as verified too even though nothing ever checked it. Verification must be
+  // per-domain, hence its own table (see that model's header for the rest of the reasoning, including
+  // why there is deliberately no global unique index on `domain`).
+  domains CompanySsoDomain[]
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// One domain a company CLAIMS to own, and whether that claim has been PROVEN via a DNS TXT challenge
+// (see `lib/sso-domain-verification.ts`). Split out of `CompanySsoProvider` (which used to carry a bare
+// `emailDomains String[]` plus one `domainsVerifiedAt` for the whole array) because verification is
+// inherently a PER-DOMAIN fact — a single timestamp for an array cannot express "acme.com is proven but
+// gmail.com, added later, is not" without either lying about the second domain or invalidating the
+// first every time the array changes.
+//
+// `domain` is bare and lowercased ("acme.com", never "@acme.com") — see `normalizeDomains` in
+// `lib/sso-policy.ts`, the single normaliser both the provider row and this table go through.
+model CompanySsoDomain {
+  id String @id @default(cuid())
+
+  // The FK to the CompanySsoProvider ROW this claim belongs to. Named `providerId` because that is
+  // this table's own foreign key column, following ordinary Prisma convention for the relation field
+  // `provider` below — but be careful: everywhere ELSE in this feature "providerId" means the
+  // better-auth provider STRING id ("c_<companyId>", see `sso-policy.ts#companyProviderId`), which is
+  // NOT what this column holds. This column holds a `CompanySsoDomain`'s parent row's cuid.
+  providerId String
+  provider   CompanySsoProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  domain String
+
+  // The random value the caller must publish in DNS (see `buildVerificationRecordValue`). Re-minted
+  // every time an already-claimed-but-unverified domain is re-added, so a stale, possibly-leaked token
+  // from a previous attempt is never still accepted.
+  token String
+
+  // NULL until the DNS TXT challenge actually resolves — see `sso.controller.ts`'s verify route,
+  // the ONLY place this column is ever written. `resolveSsoLookup` (`lib/sso-policy.ts`) treats a null
+  // value here exactly as strictly as the old, whole-array `domainsVerifiedAt` did: no match without it.
+  verifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Deliberately scoped to (providerId, domain), NOT a bare `@@unique([domain])` on its own: a global
+  // unique index would let whichever company claims a domain FIRST — verified or not — permanently
+  // block every other company from even attempting to claim it, and the 409/constraint violation
+  // itself would leak the fact that some other tenant already typed that domain into their settings
+  // screen. Neither is acceptable for a claim that hasn't been proven yet. The actual security
+  // property — two companies cannot BOTH end up verified for the same domain — is enforced instead at
+  // VERIFICATION time (`sso.controller.ts#verifyDomain`, inside a transaction): whichever row is
+  // verified FIRST wins, and a later verification attempt for the same domain by a different provider
+  // is refused with a 409 that names only the domain, never the other company.
+  @@unique([providerId, domain])
 }
 
 // Root TODO item 13 ("Signature électronique — module supprimé") — a company's OPT-IN electronic

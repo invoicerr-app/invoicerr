@@ -26,7 +26,8 @@ export type CredentialAccessAction =
   | 'UPLOAD' // new credential or cert uploaded
   | 'DEACTIVATE' // credential or cert deactivated (soft-delete)
   | 'DELETE' // hard delete
-  | 'ROTATE'; // re-encrypt under new key / replace cert
+  | 'ROTATE' // re-encrypt under new key / replace cert
+  | 'VERIFY'; // DNS-TXT (or similar) ownership challenge attempted — see sso/sso.service.ts#verifyDomain
 
 /** Outcome of the action. */
 export type CredentialAccessOutcome = 'HIT' | 'MISS' | 'ERROR';

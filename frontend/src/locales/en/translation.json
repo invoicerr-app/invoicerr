@@ -2422,8 +2422,7 @@
       "status": {
         "configured": "Active",
         "inactive": "Inactive",
-        "notConfigured": "Not configured",
-        "domainsUnverified": "Your email domains are recorded but NOT verified, so they are not used to route anyone automatically. Share the direct sign-in link above instead."
+        "notConfigured": "Not configured"
       },
       "redirectUri": {
         "label": "Redirect URI",
@@ -2442,8 +2441,7 @@
         "userInfoUrl": "User info URL",
         "clientId": "Client ID",
         "clientSecret": "Client secret",
-        "clientSecretHint": "Leave blank only for a public client using PKCE.",
-        "emailDomains": "Email domains (comma separated)"
+        "clientSecretHint": "Leave blank only for a public client using PKCE."
       },
       "form": {
         "createTitle": "Connect an identity provider",
@@ -2456,6 +2454,29 @@
         "cancel": "Cancel",
         "remove": "Remove",
         "copy": "Copy"
+      },
+      "domains": {
+        "title": "Email domains",
+        "description": "Prove ownership of a domain via a DNS TXT record so matching sign-ins are routed here automatically. Until a domain is verified, the direct sign-in link above is the only way in.",
+        "empty": "No domain claimed yet.",
+        "addPlaceholder": "acme.com",
+        "instructions": "Publish this DNS TXT record, then click Verify.",
+        "status": {
+          "verified": "Verified",
+          "pending": "Pending"
+        },
+        "actions": {
+          "add": "Claim domain",
+          "verify": "Verify",
+          "remove": "Remove domain"
+        },
+        "messages": {
+          "addSuccess": "Domain claimed — publish the DNS record to verify it",
+          "addError": "Failed to claim the domain",
+          "verifySuccess": "Domain verified",
+          "verifyError": "Verification failed. Publish the DNS record below and try again.",
+          "removeError": "Failed to remove the domain"
+        }
       },
       "messages": {
         "saveSuccess": "SSO configuration saved",

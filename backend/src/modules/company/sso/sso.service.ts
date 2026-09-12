@@ -1,4 +1,18 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+
+// Namespace import, not a default one — see `modules/webhooks/webhook-url-guard.ts`'s own comment for
+// why: `import dns from 'node:dns'` compiles under `nest build`'s CommonJS interop helper but resolves
+// to `undefined` under this project's ts-jest config (no `esModuleInterop`), which would make
+// `dns.promises.resolveTxt` crash in every test rather than hit the `jest.mock('node:dns', ...)` this
+// file's own spec relies on. `import * as dns` behaves identically under both compilers.
+import * as dns from 'node:dns';
 
 import prisma from '@/prisma/prisma.service';
 import {
@@ -10,6 +24,12 @@ import {
   resolveSsoLookup,
   ssoEndpointsComplete,
 } from '@/lib/sso-policy';
+import {
+  buildVerificationRecordName,
+  buildVerificationRecordValue,
+  generateVerificationToken,
+  matchesVerificationToken,
+} from '@/lib/sso-domain-verification';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 
@@ -77,14 +97,14 @@ export interface SsoProviderStatus {
   isActive: boolean;
   redirectUri: string;
   /**
-   * Whether the claimed email domains have been PROVEN to belong to this company. Always false today:
-   * this feature ships no verification challenge, and the email-first lookup refuses to match an
-   * unverified row — see `sso-policy.ts#resolveSsoLookup`. Surfaced so the settings screen can say so
-   * out loud rather than implying the domain list does something it does not.
+   * Every domain this company has claimed, and its verification state — see `SsoDomainStatus` below.
+   * Replaces what used to be a single `domainsVerified: boolean` covering a WHOLE `emailDomains: []`
+   * array: that shape could not express "acme.com is proven, gmail.com (added later) is not" — see
+   * `CompanySsoDomain`'s own schema comment for the full reasoning. Not a secret list: the company
+   * typed every one of these domains itself, and the DNS record values are meant to be published in
+   * PUBLIC DNS by design.
    */
-  domainsVerified: boolean;
-  /** The domains this company claims. Not a secret: the company typed them itself. */
-  emailDomains: string[];
+  domains: SsoDomainStatus[];
 }
 
 export interface UpsertSsoProviderBody {
@@ -96,9 +116,35 @@ export interface UpsertSsoProviderBody {
   scopes?: string[] | string;
   clientId?: string;
   clientSecret?: string;
-  emailDomains?: string[] | string;
   isActive?: boolean;
 }
+
+/**
+ * One domain claim, reduced to what the settings screen needs: whether it is proven yet, and — for the
+ * "publish this in DNS" instructions — the exact record name and value to use, regardless of whether
+ * verification already succeeded (re-displaying them is harmless: both are meant to be public).
+ */
+export interface SsoDomainStatus {
+  id: string;
+  domain: string;
+  verified: boolean;
+  recordName: string;
+  recordValue: string;
+}
+
+/** A `CompanySsoDomain` row (or anything shaped like one) reduced to its `SsoDomainStatus`. */
+const toDomainStatus = (row: {
+  id: string;
+  domain: string;
+  token: string;
+  verifiedAt: Date | null;
+}): SsoDomainStatus => ({
+  id: row.id,
+  domain: row.domain,
+  verified: row.verifiedAt != null,
+  recordName: buildVerificationRecordName(row.domain),
+  recordValue: buildVerificationRecordValue(row.token),
+});
 
 /** Trim to undefined: a blank string from a form field means "not set", never an empty endpoint. */
 const blank = (value: string | undefined | null): string | undefined => {
@@ -143,7 +189,10 @@ export class SsoService {
 
   /** This company's SSO configuration — STATUS ONLY (see `SsoProviderStatus`), or null if none. */
   async getStatus(companyId: string): Promise<SsoProviderStatus | null> {
-    const row = await prisma.companySsoProvider.findUnique({ where: { companyId } });
+    const row = await prisma.companySsoProvider.findUnique({
+      where: { companyId },
+      include: { domains: { orderBy: { createdAt: 'asc' } } },
+    });
     if (!row) return null;
     return {
       providerId: companyProviderId(row.companyId),
@@ -151,8 +200,7 @@ export class SsoService {
       issuerHost: issuerHostOf(row),
       isActive: row.isActive,
       redirectUri: this.redirectUriFor(companyId),
-      domainsVerified: row.domainsVerifiedAt != null,
-      emailDomains: row.emailDomains,
+      domains: row.domains.map(toDomainStatus),
     };
   }
 
@@ -175,9 +223,11 @@ export class SsoService {
    * supplied the secret does not need it echoed back, which keeps "no response ever carries a
    * credential" true of every response this service hands a controller, not just the plain GET.
    *
-   * `domainsVerifiedAt` is NEVER written here — not even to `null` explicitly on update, so that a
-   * future verification challenge which sets it cannot be silently undone by an unrelated edit. See
-   * `sso-policy.ts#resolveSsoLookup` for why an unverified domain list must not route anyone.
+   * This write NEVER touches `CompanySsoDomain` — not to insert a row, not to clear one, not even to
+   * touch an unrelated column on an existing one. Domain claims and their verification live entirely
+   * behind the dedicated `/company/sso/domains` routes below, so that editing this provider's label or
+   * rotating its client secret can never, as a side effect, grant or revoke a domain's verified state.
+   * `sso.service.spec.ts` carries the mutation proof.
    */
   async upsert(companyId: string, body: UpsertSsoProviderBody): Promise<SsoProviderStatus> {
     if (!isEncryptionAvailable()) {
@@ -213,15 +263,15 @@ export class SsoService {
     }
 
     const scopes = normalizeScopes(body.scopes);
-    const emailDomains = normalizeDomains(body.emailDomains);
     const label = blank(body.label) ?? 'SSO';
     const isActive = body.isActive ?? true;
     const encrypted = encryptJson(credentials);
 
     const row = await prisma.companySsoProvider.upsert({
       where: { companyId },
-      create: { companyId, label, ...endpoints, scopes, credentials: encrypted, emailDomains, isActive },
-      update: { label, ...endpoints, scopes, credentials: encrypted, emailDomains, isActive },
+      create: { companyId, label, ...endpoints, scopes, credentials: encrypted, isActive },
+      update: { label, ...endpoints, scopes, credentials: encrypted, isActive },
+      include: { domains: { orderBy: { createdAt: 'asc' } } },
     });
 
     this.logger.log(`SSO provider upserted for company ${companyId} (active: ${isActive})`);
@@ -239,8 +289,7 @@ export class SsoService {
       issuerHost: issuerHostOf(row),
       isActive: row.isActive,
       redirectUri: this.redirectUriFor(companyId),
-      domainsVerified: row.domainsVerifiedAt != null,
-      emailDomains: row.emailDomains,
+      domains: row.domains.map(toDomainStatus),
     };
   }
 
@@ -265,9 +314,13 @@ export class SsoService {
    * Which provider an email address should be sent to — `{ providerId, label }` or null.
    *
    * Anonymous and rate-limited, so it reads only the columns the decision needs and hands them to the
-   * pure `resolveSsoLookup`, which matches exclusively on an ACTIVE row with VERIFIED domains. The
-   * query is already narrowed to rows claiming this exact domain, so a non-matching address cannot be
-   * used to enumerate anything.
+   * pure `resolveSsoLookup`, which matches exclusively on an ACTIVE row where the SPECIFIC domain
+   * asked for is VERIFIED. The query is already narrowed to `CompanySsoDomain` rows claiming this
+   * exact domain string, under an active provider, so a non-matching address cannot be used to
+   * enumerate anything — `resolveSsoLookup` still re-checks both `isActive` and verification itself,
+   * the same belt-and-suspenders structure this method held before the domain table existed, so the
+   * security property is provable from the pure function alone, without trusting this query to be
+   * exactly right.
    */
   async lookupByEmail(email: string): Promise<SsoLookupResult | null> {
     // `emailDomain` is the ONE place the "what counts as a domain" rule lives, and reusing it here is
@@ -277,17 +330,32 @@ export class SsoService {
     const domain = emailDomain(email);
     if (!domain) return null;
 
-    const rows = await prisma.companySsoProvider.findMany({
-      where: { isActive: true, emailDomains: { has: domain } },
-      select: { companyId: true, label: true, emailDomains: true, isActive: true, domainsVerifiedAt: true },
+    const rows = await prisma.companySsoDomain.findMany({
+      where: { domain, provider: { isActive: true } },
+      // Oldest verification wins. In the ordinary case there is at most one VERIFIED row for a given
+      // domain (see `verifyDomain`'s advisory lock, which is what actually enforces that), so this
+      // ordering changes nothing day to day — but if the database is ever in the pathological state
+      // where two rows are both verified for the same domain (a pre-existing race predating that
+      // lock, or a future bug), this is what makes routing a DETERMINISTIC, explainable pick — the
+      // earliest `verifiedAt` — rather than whatever order Postgres happens to return matching rows
+      // in, which is unspecified and can change between calls. Ties among unverified rows (null
+      // `verifiedAt`) don't matter: `resolveSsoLookup` never matches them.
+      orderBy: { verifiedAt: 'asc' },
+      select: {
+        domain: true,
+        verifiedAt: true,
+        provider: { select: { companyId: true, label: true, isActive: true } },
+      },
     });
 
     const candidates: SsoLookupCandidate[] = rows.map((row) => ({
-      providerId: companyProviderId(row.companyId),
-      label: row.label,
-      emailDomains: row.emailDomains,
-      isActive: row.isActive,
-      domainsVerifiedAt: row.domainsVerifiedAt,
+      providerId: companyProviderId(row.provider.companyId),
+      label: row.provider.label,
+      isActive: row.provider.isActive,
+      // Only ever ONE domain per candidate here (the query is already narrowed to `domain`), but the
+      // pure function's contract is "a row's verified domains", so the shape stays a list rather than
+      // adding a second, single-domain-only path just for this call site.
+      verifiedDomains: row.verifiedAt != null ? [row.domain] : [],
     }));
 
     return resolveSsoLookup(candidates, email);
@@ -393,6 +461,268 @@ export class SsoService {
       clientId: credentials.clientId,
       clientSecret: credentials.clientSecret,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Domain claims and their DNS TXT verification — GET/POST /company/sso/domains,
+  // POST /company/sso/domains/:id/verify, DELETE /company/sso/domains/:id
+  // ---------------------------------------------------------------------------
+
+  /** Every domain this company has claimed, verified or not — what the settings screen lists. */
+  async listDomains(companyId: string): Promise<SsoDomainStatus[]> {
+    const provider = await prisma.companySsoProvider.findUnique({
+      where: { companyId },
+      select: { domains: { orderBy: { createdAt: 'asc' } } },
+    });
+    // No provider row yet is not an error here (unlike `addDomain`, which must refuse it): a company
+    // that has configured nothing simply has no domains to list, the same way an empty list is not an
+    // error for `webhooks.service.ts#list`.
+    return provider ? provider.domains.map(toDomainStatus) : [];
+  }
+
+  /**
+   * Claim a domain: mints a verification token and returns the DNS record to publish. Requires an
+   * existing provider row (`CompanySsoDomain.providerId` is a foreign key to it, and a claim with no
+   * OIDC configuration behind it could never be signed into anyway) — configure the provider first via
+   * `upsert()`.
+   *
+   * Re-adding a domain that is already claimed but UNVERIFIED re-mints its token rather than erroring:
+   * the caller may simply have lost the original value, or be rotating it for hygiene, and refusing a
+   * harmless retry would only push them toward "remove, then re-add" for the exact same effect. A
+   * domain that is already VERIFIED is left untouched — see the branch below for why.
+   */
+  async addDomain(companyId: string, rawDomain: string): Promise<SsoDomainStatus> {
+    const [domain] = normalizeDomains(rawDomain);
+    if (!domain) {
+      throw new BadRequestException('A valid bare domain is required (e.g. "acme.com").');
+    }
+
+    const provider = await prisma.companySsoProvider.findUnique({ where: { companyId } });
+    if (!provider) {
+      throw new NotFoundException('Configure an SSO provider before claiming a domain.');
+    }
+
+    const existing = await prisma.companySsoDomain.findUnique({
+      where: { providerId_domain: { providerId: provider.id, domain } },
+    });
+
+    // An already-VERIFIED domain must not be handed a fresh, unpublished token just because the same
+    // claim was submitted again — that would silently downgrade a proven domain back to "not verified
+    // in practice" (the OLD token is still what the caller's DNS zone carries) until they notice and
+    // re-publish, for zero benefit.
+    const row =
+      existing?.verifiedAt != null
+        ? existing
+        : await prisma.companySsoDomain.upsert({
+            where: { providerId_domain: { providerId: provider.id, domain } },
+            create: { providerId: provider.id, domain, token: generateVerificationToken() },
+            update: { token: generateVerificationToken() },
+          });
+
+    credentialAudit.emit({
+      companyId,
+      credentialRef: `sso-domain:${companyProviderId(companyId)}:${domain}`,
+      action: 'UPLOAD',
+      outcome: 'HIT',
+      timestamp: new Date().toISOString(),
+    });
+
+    return toDomainStatus(row);
+  }
+
+  /** Removes a domain claim outright — an unverified claim is nobody's business to keep around. */
+  async removeDomain(companyId: string, id: string): Promise<{ deleted: boolean }> {
+    // Scoped through the relation, exactly like every other per-company lookup in this codebase: `id`
+    // arrives untrusted off the wire, and matching it against `provider.companyId` in the SAME query is
+    // what makes it impossible for company A to delete company B's claim by guessing or enumerating ids
+    // — there is no separate "does this belong to me" check to forget to add later.
+    const { count } = await prisma.companySsoDomain.deleteMany({ where: { id, provider: { companyId } } });
+    credentialAudit.emit({
+      companyId,
+      credentialRef: `sso-domain:${companyProviderId(companyId)}:${id}`,
+      action: 'DELETE',
+      outcome: count > 0 ? 'HIT' : 'MISS',
+      timestamp: new Date().toISOString(),
+    });
+    return { deleted: count > 0 };
+  }
+
+  /**
+   * Runs the DNS TXT challenge for one claimed domain and, on success, writes `verifiedAt` — the ONLY
+   * place in this codebase that column is ever written.
+   *
+   * Three distinct failure shapes, all surfaced as an actionable 4xx rather than a 500: the record does
+   * not exist yet (the ordinary "haven't published it yet" case), the record exists but does not carry
+   * the expected value (a typo, or a stale token from before a re-mint), and a genuine DNS failure
+   * (timeout, resolver outage) — none of these may ever be mistaken for a pass.
+   *
+   * Every branch — success, each failure shape above, the 409 conflict, and a transaction failure —
+   * calls `credentialAudit.emit(...)`, the same "log every reason, not just the win" discipline
+   * `resolveForRegistration`'s `miss()` helper holds elsewhere in this file. A domain-verification
+   * attempt is itself a security-relevant event (someone is trying to prove control of a domain to
+   * route sign-ins at it), so an operator investigating "why is our domain not verifying" or "who kept
+   * trying to claim this domain" needs the failed attempts in the log, not only the eventual success.
+   * None of these events carry a token, a client secret, or ciphertext — only `companyId`, an opaque
+   * `credentialRef` (built from the company's own provider id and the domain it typed in), and a short
+   * machine-readable `reason` string.
+   */
+  async verifyDomain(companyId: string, id: string): Promise<SsoDomainStatus> {
+    const claim = await prisma.companySsoDomain.findFirst({ where: { id, provider: { companyId } } });
+    if (!claim) {
+      // Audited like every other failure branch below (see this method's own header on why they all
+      // are now) — `id` is the only fact known at this point, since there is no row to read a domain
+      // off of; that alone is not a secret (it is the exact value the caller itself just supplied).
+      credentialAudit.emit({
+        companyId,
+        credentialRef: `sso-domain:${companyProviderId(companyId)}:${id}`,
+        action: 'VERIFY',
+        outcome: 'MISS',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'claim_not_found' },
+      });
+      throw new NotFoundException('No such domain claim for this company.');
+    }
+
+    // Idempotent: a caller re-clicking "Verify" on an already-proven domain should see the same
+    // success again, not pay for a fresh DNS round-trip and a fresh pass through the conflict
+    // transaction below for a fact that is already settled.
+    if (claim.verifiedAt != null) {
+      return toDomainStatus(claim);
+    }
+
+    const recordName = buildVerificationRecordName(claim.domain);
+    const expectedValue = buildVerificationRecordValue(claim.token);
+
+    // The credentialRef every audit event below for THIS claim shares — same shape as the success
+    // event at the bottom of this method, so a log search for one `sso-domain:...` ref surfaces every
+    // attempt, failed or not.
+    const credentialRef = `sso-domain:${companyProviderId(companyId)}:${claim.domain}`;
+
+    let records: string[][];
+    try {
+      records = await dns.promises.resolveTxt(recordName);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === 'ENOTFOUND' || code === 'ENODATA') {
+        // The ordinary "not published yet" case — actionable by the caller, and expected to happen on
+        // the very first attempt every time, so it is a 400 naming exactly what to do next, never a
+        // server error.
+        credentialAudit.emit({
+          companyId,
+          credentialRef,
+          action: 'VERIFY',
+          outcome: 'MISS',
+          timestamp: new Date().toISOString(),
+          context: { reason: 'record_not_published' },
+        });
+        throw new BadRequestException(
+          `No TXT record found at "${recordName}" yet. Publish the value "${expectedValue}" there and ` +
+            'try again.',
+        );
+      }
+      // Any OTHER DNS failure (timeout, SERVFAIL, a resolver outage on our side) is still a failure to
+      // verify — it must never be treated as a pass just because it isn't the "not published yet" case.
+      this.logger.warn(`DNS TXT lookup for ${recordName} failed: ${(err as Error).message}`);
+      credentialAudit.emit({
+        companyId,
+        credentialRef,
+        action: 'VERIFY',
+        outcome: 'ERROR',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'dns_lookup_failed' },
+      });
+      throw new BadRequestException('DNS verification failed. Please try again in a few minutes.');
+    }
+
+    if (!matchesVerificationToken(records, claim.token)) {
+      credentialAudit.emit({
+        companyId,
+        credentialRef,
+        action: 'VERIFY',
+        outcome: 'MISS',
+        timestamp: new Date().toISOString(),
+        context: { reason: 'value_mismatch' },
+      });
+      throw new BadRequestException(
+        `The TXT record at "${recordName}" does not carry the expected value "${expectedValue}" yet. ` +
+          'Publish it exactly and try again.',
+      );
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // First verified wins. There is deliberately no database constraint stopping two DIFFERENT
+        // providers from both holding an UNVERIFIED row for the same domain string (see
+        // `CompanySsoDomain`'s own schema comment for why a global unique index would itself be a
+        // hazard) — so this is the one place that actually enforces "at most one company may be
+        // VERIFIED for a given domain at a time", inside a transaction so the check-then-write is
+        // atomic. The refusal message names only the domain, never the other company: this route is
+        // reachable by anyone who can claim a domain, and confirming that some OTHER named tenant holds
+        // it would itself be information this endpoint has no business revealing.
+        //
+        // "Atomic" needs a lock, not just a transaction: `prisma.service.ts` opens this client with no
+        // isolation override, so this transaction runs at Postgres's default READ COMMITTED, under
+        // which a `findFirst` followed by an `update` is NOT atomic against another transaction doing
+        // the same thing concurrently — each can run its `findFirst` before the other's `update`
+        // commits, see no conflict, and both write `verifiedAt`. That is a real race: two DIFFERENT
+        // `CompanySsoDomain` rows (different `providerId`, i.e. different companies) can share the same
+        // `domain` string, since the unique index is `(providerId, domain)`, never a bare `domain` (see
+        // that index's own comment) — and both racers can only reach this code at all by having
+        // independently passed the real DNS TXT challenge above, so this is not a way to steal a domain
+        // without owning it, only a way to end the race with two "winners" instead of one.
+        //
+        // A transaction-scoped Postgres advisory lock keyed on the domain string closes the window:
+        // this call blocks the SECOND racer until the FIRST racer's transaction commits (releasing the
+        // lock automatically — `_xact_lock` variants always release at transaction end, never needing
+        // an explicit unlock) or rolls back, so by the time the second racer's `findFirst` below runs,
+        // the first racer's `update` has either landed or been undone. Scoped to THIS domain only:
+        // verifying "other.example" never waits on anyone verifying "acme.com".
+        //
+        // `hashtext()` is a 32-bit hash, so two unrelated domain strings can collide onto the same lock
+        // key. That is harmless and must stay harmless: a collision only ever makes two UNRELATED
+        // verification attempts briefly serialize against each other (one waits a moment longer than
+        // strictly necessary) — it can never make either of them SKIP the conflict check below, because
+        // that check still queries by the real `domain` string, not by the hash. Do not "improve" this
+        // into a wider hash or a two-key `pg_advisory_xact_lock(int, int)` form to chase the collision
+        // away: there is no correctness bug here for a wider key to fix, only a false sense that one
+        // exists. The alternative of a `Serializable` transaction plus an application-level retry loop
+        // on Postgres's `40001` serialization-failure error would be equally correct but strictly more
+        // code for no extra safety in this specific race (a single conflict-then-write, not a multi-step
+        // read pattern), so it is not used here.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${claim.domain}))`;
+
+        const conflict = await tx.companySsoDomain.findFirst({
+          where: { domain: claim.domain, verifiedAt: { not: null }, NOT: { id: claim.id } },
+        });
+        if (conflict) {
+          throw new ConflictException(
+            `"${claim.domain}" is already verified on a different account. If you believe this is a ` +
+              'mistake, contact support.',
+          );
+        }
+        await tx.companySsoDomain.update({ where: { id: claim.id }, data: { verifiedAt: new Date() } });
+      });
+    } catch (err) {
+      credentialAudit.emit({
+        companyId,
+        credentialRef,
+        action: 'VERIFY',
+        outcome: err instanceof ConflictException ? 'MISS' : 'ERROR',
+        timestamp: new Date().toISOString(),
+        context: { reason: err instanceof ConflictException ? 'domain_claimed_elsewhere' : 'write_failed' },
+      });
+      throw err;
+    }
+
+    credentialAudit.emit({
+      companyId,
+      credentialRef,
+      action: 'VERIFY',
+      outcome: 'HIT',
+      timestamp: new Date().toISOString(),
+    });
+
+    return toDomainStatus({ ...claim, verifiedAt: new Date() });
   }
 }
 

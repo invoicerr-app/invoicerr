@@ -1,6 +1,16 @@
 "use client"
 
-import { CheckCircle2, Copy, Fingerprint, Loader2, XCircle } from "lucide-react"
+import {
+  CheckCircle2,
+  Copy,
+  Fingerprint,
+  Loader2,
+  Plus,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  XCircle,
+} from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -10,8 +20,22 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useDelete, useGet, usePut } from "@/hooks/use-fetch"
+import { authenticatedFetch, useDelete, useGet, usePost, usePut } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+
+/**
+ * One claimed domain and its verification state — the exact shape
+ * `backend/src/modules/company/sso/sso.service.ts`'s `SsoDomainStatus` returns. `recordName`/
+ * `recordValue` are never secret: they are meant to be published in PUBLIC DNS by design, which is why
+ * they are returned (and safe to render) even for an already-verified domain.
+ */
+interface SsoDomainStatus {
+  id: string
+  domain: string
+  verified: boolean
+  recordName: string
+  recordValue: string
+}
 
 /**
  * Status only — the exact shape `backend/src/modules/company/sso/sso.service.ts`'s
@@ -24,8 +48,7 @@ interface SsoProviderStatus {
   issuerHost: string | null
   isActive: boolean
   redirectUri: string
-  domainsVerified: boolean
-  emailDomains: string[]
+  domains: SsoDomainStatus[]
 }
 
 interface SsoResponse {
@@ -102,14 +125,6 @@ const FIELDS: SsoFieldSpec[] = [
     hintKey: "settings.sso.fields.clientSecretHint",
     hintDefault: "Leave blank only for a public client using PKCE.",
   },
-  {
-    key: "emailDomains",
-    labelKey: "settings.sso.fields.emailDomains",
-    labelDefault: "Email domains (comma separated)",
-    type: "text",
-    placeholder: "acme.com, acme.fr",
-    optional: true,
-  },
 ]
 
 const emptyForm = () => Object.fromEntries(FIELDS.map((field) => [field.key, ""])) as Record<string, string>
@@ -143,6 +158,17 @@ export default function SsoSettings() {
   const { trigger: remove, loading: removing } = useMutationWithToast(
     useDelete("/api/company/sso"),
     t("settings.sso.messages.removeError", "Failed to remove the SSO configuration"),
+  )
+
+  const [newDomain, setNewDomain] = useState("")
+  // Per-row loading flags, keyed by domain claim id — several rows can be in flight independently
+  // (verifying one while removing another), unlike the single provider-wide `saving`/`removing` above.
+  const [verifyingId, setVerifyingId] = useState<string | null>(null)
+  const [removingDomainId, setRemovingDomainId] = useState<string | null>(null)
+
+  const { trigger: addDomain, loading: addingDomain } = useMutationWithToast(
+    usePost("/api/company/sso/domains"),
+    t("settings.sso.domains.messages.addError", "Failed to claim the domain"),
   )
 
   const isConfigured = Boolean(provider)
@@ -192,6 +218,83 @@ export default function SsoSettings() {
     } catch {
       // A clipboard permission refusal is not an error worth a red toast: the value is on screen and
       // selectable either way.
+    }
+  }
+
+  const handleAddDomain = async () => {
+    const domain = newDomain.trim()
+    if (!domain) return
+    const result = await addDomain({ domain })
+    if (!result) return // error already toasted by the wrapper
+    toast.success(
+      t("settings.sso.domains.messages.addSuccess", "Domain claimed — publish the DNS record to verify it"),
+    )
+    setNewDomain("")
+    mutate()
+  }
+
+  /** Extracts the backend's own actionable message (e.g. "publish this exact TXT record") when there
+   * is one, rather than a generic fallback — Nest's default exception filter body is
+   * `{ statusCode, message, error }`, and every 4xx this screen can receive was written to name
+   * exactly what the caller should do next (see `sso.service.ts#verifyDomain`). */
+  const messageFrom = async (res: Response, fallback: string): Promise<string> => {
+    try {
+      const body = await res.json()
+      return typeof body?.message === "string" ? body.message : fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  const handleVerifyDomain = async (id: string) => {
+    setVerifyingId(id)
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
+      const res = await authenticatedFetch(`${backendUrl}/api/company/sso/domains/${id}/verify`, {
+        method: "POST",
+      })
+      if (res.ok) {
+        toast.success(t("settings.sso.domains.messages.verifySuccess", "Domain verified"))
+        mutate()
+      } else {
+        toast.error(
+          await messageFrom(
+            res,
+            t(
+              "settings.sso.domains.messages.verifyError",
+              "Verification failed. Publish the DNS record below and try again.",
+            ),
+          ),
+        )
+      }
+    } catch {
+      toast.error(
+        t(
+          "settings.sso.domains.messages.verifyError",
+          "Verification failed. Publish the DNS record below and try again.",
+        ),
+      )
+    } finally {
+      setVerifyingId(null)
+    }
+  }
+
+  const handleRemoveDomain = async (id: string) => {
+    setRemovingDomainId(id)
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
+      const res = await authenticatedFetch(`${backendUrl}/api/company/sso/domains/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        mutate()
+      } else {
+        toast.error(t("settings.sso.domains.messages.removeError", "Failed to remove the domain"))
+      }
+    } catch {
+      toast.error(t("settings.sso.domains.messages.removeError", "Failed to remove the domain"))
+    } finally {
+      setRemovingDomainId(null)
     }
   }
 
@@ -316,19 +419,140 @@ export default function SsoSettings() {
               </p>
             </div>
           )}
-
-          {provider && provider.emailDomains.length > 0 && !provider.domainsVerified && (
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-sm text-muted-foreground" data-cy="sso-domains-unverified">
-                {t(
-                  "settings.sso.status.domainsUnverified",
-                  "Your email domains are recorded but NOT verified, so they are not used to route anyone automatically. Share the direct sign-in link above instead.",
-                )}
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {provider && (
+        <Card data-cy="sso-domains-card">
+          <CardHeader>
+            <CardTitle className="text-base">{t("settings.sso.domains.title", "Email domains")}</CardTitle>
+            <CardDescription>
+              {t(
+                "settings.sso.domains.description",
+                "Prove ownership of a domain via a DNS TXT record so matching sign-ins are routed here automatically. Until a domain is verified, the direct sign-in link above is the only way in.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {provider.domains.length === 0 && (
+              <p className="text-sm text-muted-foreground" data-cy="sso-domains-empty">
+                {t("settings.sso.domains.empty", "No domain claimed yet.")}
+              </p>
+            )}
+
+            {provider.domains.map((domainStatus) => (
+              <div key={domainStatus.id} className="rounded-md border p-3 space-y-2" data-cy="sso-domain-row">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {domainStatus.verified ? (
+                      <ShieldCheck className="h-4 w-4 text-green-500 shrink-0" />
+                    ) : (
+                      <ShieldAlert className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="font-medium" data-cy="sso-domain-name">
+                      {domainStatus.domain}
+                    </span>
+                    <Badge variant={domainStatus.verified ? "default" : "secondary"}>
+                      {domainStatus.verified
+                        ? t("settings.sso.domains.status.verified", "Verified")
+                        : t("settings.sso.domains.status.pending", "Pending")}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!domainStatus.verified && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleVerifyDomain(domainStatus.id)}
+                        disabled={verifyingId === domainStatus.id}
+                        data-cy="sso-domain-verify-button"
+                      >
+                        {verifyingId === domainStatus.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          t("settings.sso.domains.actions.verify", "Verify")
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveDomain(domainStatus.id)}
+                      disabled={removingDomainId === domainStatus.id}
+                      aria-label={t("settings.sso.domains.actions.remove", "Remove domain")}
+                      data-cy="sso-domain-remove-button"
+                    >
+                      {removingDomainId === domainStatus.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {!domainStatus.verified && (
+                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                    <p>
+                      {t(
+                        "settings.sso.domains.instructions",
+                        "Publish this DNS TXT record, then click Verify.",
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input readOnly value={domainStatus.recordName} className="font-mono text-xs" />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copy(domainStatus.recordName)}
+                        aria-label={t("settings.sso.actions.copy", "Copy")}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input readOnly value={domainStatus.recordValue} className="font-mono text-xs" />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copy(domainStatus.recordValue)}
+                        aria-label={t("settings.sso.actions.copy", "Copy")}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder={t("settings.sso.domains.addPlaceholder", "acme.com")}
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+                data-cy="sso-domain-add-input"
+              />
+              <Button
+                variant="outline"
+                onClick={handleAddDomain}
+                disabled={addingDomain || !newDomain.trim()}
+                data-cy="sso-domain-add-button"
+              >
+                {addingDomain ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    {t("settings.sso.domains.actions.add", "Claim domain")}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {showForm && (
         <Card data-cy="sso-form-card">

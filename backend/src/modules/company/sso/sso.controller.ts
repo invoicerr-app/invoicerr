@@ -1,12 +1,23 @@
-import { Body, Controller, Delete, Get, Put } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { SsoRegistrarService } from './sso-registrar.service';
-import { SsoService, UpsertSsoProviderBody } from './sso.service';
+import { SsoDomainStatus, SsoService, UpsertSsoProviderBody } from './sso.service';
 
 /**
  * Per-company single sign-on — the "SSO" company-settings screen. A large customer registers ITS OWN
@@ -73,7 +84,6 @@ export class SsoController {
         scopes: { type: 'array', items: { type: 'string' }, example: ['openid', 'profile', 'email'] },
         clientId: { type: 'string' },
         clientSecret: { type: 'string' },
-        emailDomains: { type: 'array', items: { type: 'string' }, example: ['acme.com'] },
         isActive: { type: 'boolean', default: true },
       },
       required: ['clientId'],
@@ -109,5 +119,86 @@ export class SsoController {
     const result = await this.sso.remove(companyId);
     await this.registrar.unregister(companyId);
     return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Domain ownership claims and their DNS TXT verification
+  // ---------------------------------------------------------------------------
+  //
+  // Every route below is scoped to the caller's ACTIVE company exactly like GET/PUT/DELETE above — the
+  // `:id` a caller supplies on verify/delete names a DOMAIN CLAIM, never a company, and `sso.service.ts`
+  // matches it against the active company's OWN provider row on every call, so an id belonging to
+  // another tenant's claim simply does not exist as far as this company is concerned (404, not 403 —
+  // the same "don't confirm it exists elsewhere" posture `verifyDomain`'s conflict message itself
+  // holds).
+
+  /**
+   * GET /api/company/sso/domains — every domain this company has claimed, verified or not. Readable by
+   * any member, matching the plain `GET /api/company/sso` above: nothing here is secret, the record
+   * value is meant to be published in PUBLIC DNS by design.
+   */
+  @Get('domains')
+  @ApiOperation({ summary: 'List claimed SSO domains and their verification status' })
+  @ApiResponse({ status: 200, description: 'Domain claims' })
+  listDomains(@ActiveCompany() companyId: string): Promise<SsoDomainStatus[]> {
+    return this.sso.listDomains(companyId);
+  }
+
+  /**
+   * POST /api/company/sso/domains — claim a domain and mint the DNS TXT record to publish. OWNER/ADMIN
+   * only: this is what eventually lets the ANONYMOUS `/api/sso/lookup` route send a stranger's sign-in
+   * at this company's IdP, once verified — the same sensitivity level as configuring the provider
+   * itself.
+   */
+  @Post('domains')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({
+    summary: 'Claim an email domain for SSO',
+    description:
+      'Mints (or re-mints, for an existing unverified claim) a DNS TXT verification token and returns ' +
+      'the record name/value to publish.',
+  })
+  @ApiBody({ schema: { type: 'object', properties: { domain: { type: 'string', example: 'acme.com' } } } })
+  @ApiResponse({ status: 201, description: 'Domain claimed' })
+  @ApiResponse({ status: 400, description: 'Not a valid bare domain' })
+  @ApiResponse({ status: 404, description: 'No SSO provider configured yet for this company' })
+  addDomain(@ActiveCompany() companyId: string, @Body() body: { domain?: string }): Promise<SsoDomainStatus> {
+    if (!body?.domain) {
+      throw new BadRequestException('domain is required.');
+    }
+    return this.sso.addDomain(companyId, body.domain);
+  }
+
+  /**
+   * POST /api/company/sso/domains/:id/verify — runs the DNS TXT lookup and, on success, marks the
+   * domain verified. Throttled tighter than the instance-wide default (`app.module.ts`'s
+   * `ThrottlerModule.forRoot`, 120/min): this route makes an OUTBOUND DNS query against a name derived
+   * from caller-chosen input on every call, and a bare-domain input (unlike a full URL) offers little
+   * for a generic SSRF-style guard to even inspect — rate limiting the endpoint itself is the
+   * containment here, the same reasoning `sso-lookup.controller.ts`'s own narrower-than-default
+   * `@Throttle` documents for its own outbound-lookup-shaped route.
+   */
+  @Post('domains/:id/verify')
+  @HttpCode(200)
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Verify a claimed domain via its DNS TXT record' })
+  @ApiParam({ name: 'id', type: String, description: 'Domain claim ID' })
+  @ApiResponse({ status: 200, description: 'Domain verified' })
+  @ApiResponse({ status: 400, description: 'TXT record missing, wrong, or a DNS failure' })
+  @ApiResponse({ status: 404, description: 'No such domain claim for this company' })
+  @ApiResponse({ status: 409, description: 'Already verified for a different account' })
+  verifyDomain(@ActiveCompany() companyId: string, @Param('id') id: string): Promise<SsoDomainStatus> {
+    return this.sso.verifyDomain(companyId, id);
+  }
+
+  /** DELETE /api/company/sso/domains/:id — removes a domain claim outright. */
+  @Delete('domains/:id')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({ summary: 'Remove a claimed SSO domain' })
+  @ApiParam({ name: 'id', type: String, description: 'Domain claim ID' })
+  @ApiResponse({ status: 200, description: 'Domain removed' })
+  removeDomain(@ActiveCompany() companyId: string, @Param('id') id: string): Promise<{ deleted: boolean }> {
+    return this.sso.removeDomain(companyId, id);
   }
 }
