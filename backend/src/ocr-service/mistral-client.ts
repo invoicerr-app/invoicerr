@@ -3,7 +3,7 @@
  * deliberately NOT added — no new npm dependency; `fetch` is native since Node 18, this backend's
  * own minimum). Every fact below is either VERIFIED (a real `curl`, or a verbatim quote off
  * `docs.mistral.ai`, both cited) or explicitly marked EXTRAPOLATED — the same "cite, don't invent"
- * discipline `nav-client.ts`'s own header holds.
+ * discipline every external API client's own header holds in this codebase.
  *
  * ## Lives here, not in `backend/src/plugins/`
  *

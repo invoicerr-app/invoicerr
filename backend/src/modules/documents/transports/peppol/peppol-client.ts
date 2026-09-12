@@ -121,22 +121,16 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  * own CustomizationID, which is all this client actually sends) was not read anywhere and is not
  * claimed here — a genuine, named remainder for whoever connects a REAL OZG-RE-facing AP account.
  *
- * `INVOICE_NLCIUS_UBL` is the THIRD (NLCIUS, vendored), the
- * SAME mirroring discipline as `INVOICE_XRECHNUNG_UBL`: its `<CustomizationID>` segment is COPIED
- * VERBATIM from `../../formats/nlcius-provider.ts`'s own `NLCIUS_CUSTOMIZATION_ID` constant
- * (`urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0`), itself read verbatim from the
- * vendored `si-ubl-2.0-nlcius-preprocessed.sch`'s own fatal `[SI-V20-INV-R000]` assert — see that
- * provider's own header. The SAME honest limit as `INVOICE_XRECHNUNG_UBL` above applies: this mirrors
- * the standard Peppol URN construction rule, but was not independently checked against a real SMP
- * registration for a Dutch government receiver's own onboarding.
+ * `INVOICE_NLCIUS_UBL` (NLCIUS, Netherlands) used to be a THIRD entry here, the same mirroring
+ * discipline as `INVOICE_XRECHNUNG_UBL`. Deleted along with the rest of the Netherlands' scope
+ * (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — `formats/nlcius-provider.ts` no longer
+ * exists to mirror.
  */
 export const PEPPOL_DOC_TYPES = {
   INVOICE_UBL:
     'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0::2.1',
   INVOICE_XRECHNUNG_UBL:
     'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0::2.1',
-  INVOICE_NLCIUS_UBL:
-    'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0::2.1',
 };
 
 // ---------------------------------------------------------------------------

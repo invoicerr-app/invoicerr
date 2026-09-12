@@ -45,8 +45,7 @@
   | `country-fields/` | DE, FR (2) |
   | `vat-rates/` | FR, PT (2) |
   | `mentions/`, `content-requirements/`, `archive/retention/` | FR (1) |
-  | `reporting/` (règles de déclenchement) | PT (1) — NAV/myDATA (§6) sont des fournisseurs
-    enregistrés directement, pas pilotés par un fichier pays |
+  | `reporting/` (règles de déclenchement) | PT (1) — seul fournisseur restant (§6) |
 
   Chaque catalogue **auto-découvre** ses fichiers (`readdirSync` sur son propre `data/`, motif
   `/^[a-z]{2}\.json$/`) — ajouter un pays à un mécanisme donné, c'est déposer un fichier, jamais
@@ -88,29 +87,29 @@ n'y figure pas n'existe plus dans ce dépôt.
   (téléphone/email vendeur, EndpointID acheteur) — champs absents du modèle company/client.
 - [x] **PEPPOL_BIS** — `formats/peppol-bis-provider.ts`, délta Schematron vendorisé
   (`formats/vendored/peppol/`).
-- [x] **NLCIUS** (NL) — `formats/nlcius-provider.ts`, délta vendorisé (`formats/vendored/nl/
-  si-ubl-2.0-nlcius-preprocessed.sch`, MIT, tag STABLE de peppolautoriteit-nl/validation). Le canal
-  qui l'utiliserait pour de vrai (`b2g-routing/data/nl.json`) a été retiré par le pivot 5-pays (§0.1)
-  — voir §3, note.
 - [x] Validation EN16931 — Schematron vendorisé (`formats/vendored/en16931/`) câblé via
   `formats/vendored/validate-schematron.ts`.
 
 ### 1.2 Formats nationaux (marchés prioritaires)
 - [x] **FA_VAT** (PL, FA(2)) — `formats/national/fa3-provider.ts` ✅ (prouvé via KSeF, §3).
 - [x] **FATTURAPA** (IT, 1.2) — `formats/national/fatturapa-provider.ts`.
-- [x] **ES_FACTURAE** — `formats/national/facturae-provider.ts`, XAdES câblé (`signing/`) — sert le
-  canal B2G espagnol FACe (§3) ; il n'y a pas de fichier `country-policy/data/es.json` (l'Espagne
-  n'est pas un pays vendeur couvert, seulement une destination B2G potentielle — voir §0.1/§9).
 
 > **Longue traîne supprimée.** CFDI (Mexique), KSA_UBL (Arabie saoudite) et les ~40 formats nationaux
 > LATAM/MENA/Afrique/Asie que ce document décrivait auparavant ont été supprimés avec le moteur de
-> conformité (`fffbae77`). Aucun n'existe dans `formats/`.
+> conformité (`fffbae77`). Aucun n'existe dans `formats/`. **NLCIUS** (NL, `formats/nlcius-provider.ts`)
+> et **ES_FACTURAE** (`formats/national/facturae-provider.ts`, servait le canal B2G espagnol FACe) —
+> tous deux déjà inatteignables depuis le pivot 5-pays du 2026-09-10 (leur `data/nl.json`/canal B2G
+> avaient été retirés) — ont été supprimés à leur tour le 2026-09-12 : ni NL ni ES ne sont dans le
+> périmètre produit, garder du code qui marche pour un pays que personne n'a demandé contredisait
+> cette décision. Voir `LIVE_TESTING.md`/`B2G_COVERAGE.md`.
 
 ---
 
 ## 2. SIGNATURE (`backend/src/modules/documents/signing/`)
 
-- [x] **XAdES-BES** (XML) — `xadesjs` + WebCrypto ; pour Facturae, option FatturaPA.
+- [x] **XAdES-BES** (XML) — `xadesjs` + WebCrypto ; implémenté et testé (`providers.spec.ts`), mais
+  sans appelant réel depuis la suppression de Facturae (§1.2, ES) — son seul consommateur. Prêt à
+  servir la prochaine fois qu'une vraie obligation de signature XML est sourcée, jamais réinventé.
 - [x] **CAdES-BES** (.p7m) — `node-forge` PKCS#7 ; pour SdI (FatturaPA `.p7m`).
 - [x] **PAdES-B** (PDF) — `@signpdf` + node-forge P12 ; Factur-X/PDF signés.
 - [x] Sélection algo→provider par type de document — `signing/registry.ts`, `signing/providers.ts` ;
@@ -119,8 +118,10 @@ n'y figure pas n'existe plus dans ce dépôt.
   (`modules/company/signing-certificates/`), résolution par (société, algo, environnement),
   vérification d'expiration.
 - [x] Horodatage TSA (RFC 3161) — `signing/tsa-client.ts`, gated `signing/tsa-live.spec.ts`.
-- [x] WS-Security SOAP (signature d'enveloppe) — `transports/face/wsse-sign.ts`, réutilisé pour FACe
-  transmission ET polling de statut (même certificat, résolu deux fois).
+
+> **WS-Security SOAP (signature d'enveloppe) supprimé.** `transports/face/wsse-sign.ts` réutilisait
+> `signing/providers.ts`'s XAdES engine setup pour signer l'enveloppe SOAP de FACe — supprimé avec le
+> reste du transport ES (2026-09-12, voir §3).
 
 ---
 
@@ -141,30 +142,31 @@ n'y figure pas n'existe plus dans ce dépôt.
   `transports/sdi/sdicoop.live.spec.ts`.
 - [~] **Chorus Pro** (FR, B2G) — `transports/chorus-pro/choruspro-client.ts`. Gated :
   `transports/chorus-pro/choruspro-live.spec.ts`.
-- [~] **FACe** (ES, B2G) — `transports/face/face-client.ts`, WS-Security (§2). Gated :
-  `transports/face/face.live.spec.ts`.
-- [ ] **ANAF e-Factura** (RO, B2B) — `transports/anaf/anaf-client.ts`, implémenté ; pas de spec live
-  dédiée dans cet arbre.
 - [x] **Email** — envoi SMTP réel par société (`transports/email-transport.ts`, `MailService`) ; pas
   de canal "print" ni de spec live dédiée dans cette arborescence.
 
-> **Note — capacité câblée mais non routée.** FACe (ES) et ANAF (RO) ci-dessus, et le format NLCIUS
-> (NL, §1.1), restent enregistrés dans le code (`documents-core.module.ts`) mais le pivot 5-pays
-> (§0.1) a retiré les fichiers `b2g-routing/data/{es,nl,ro}.json` qui les auraient effectivement
-> routés — aujourd'hui `b2g-routing/` ne couvre que DE/FR/IT/PL. Réactiver ES/NL/RO en B2G, c'est
-> déposer le fichier `data/xx.json` correspondant (§0.1) ; le code récepteur existe déjà.
+> **FACe (ES) et ANAF (RO) supprimés (2026-09-12), pas seulement laissés non routés.** Les deux
+> restaient enregistrés dans `documents-core.module.ts` après le pivot 5-pays du 2026-09-10 (qui
+> avait retiré `b2g-routing/data/{es,ro}.json` sans toucher au code transport/format) — pleinement
+> fonctionnels pour un pays que personne n'a demandé de supporter. Décision : les supprimer
+> franchement plutôt que les laisser dormants. Coût réel : myDATA/NAV (§6) et FACe étaient plus
+> aboutis face à de vraies API d'autorité que le propre fournisseur `pt-at` du Portugal (401 Azure
+> APIM réel, réponses `funcCode` réelles — voir `LIVE_TESTING.md`) ; ce travail est abandonné avec la
+> suppression. Le format **NLCIUS** (NL, §1.1) a été supprimé pour la même raison.
 >
 > **Longue traîne supprimée.** PAC/timbrado (MX), OSE (Pérou), PRINT, et la taxonomie des ~50
 > portails nationaux génériques (afip, sefaz, sii, dian, sri, uy-dgi, firs, ke-kra, in-irp, myinvois,
-> id-coretax…) ont été supprimés avec le moteur. `gr-aade` (Grèce) et `hu-nav` (Hongrie) survivent
-> mais reclassés : ce ne sont plus des canaux de TRANSMISSION, ce sont des fournisseurs de
-> DÉCLARATION (§6) — un changement d'architecture réel, pas un renommage.
+> id-coretax…) ont été supprimés avec le moteur. `gr-aade` (Grèce) et `hu-nav` (Hongrie) avaient
+> survécu, reclassés comme fournisseurs de DÉCLARATION plutôt que de TRANSMISSION (§6) — un
+> changement d'architecture réel, pas un renommage — mais ont eux aussi été supprimés le 2026-09-12
+> (voir §6).
 
 ### 3.3 Post-envoi (statuts entrants)
 - [x] `conformity/pollers/` — polling de statut post-envoi câblé par TRANSPORT : `pdp`, `ksef`,
-  `peppol` (poll générique AP), `chorus-pro` (`consulterCr`), `anaf` (`stareMesaj`), `face`
-  (`consultarFactura`). `sdi` reste push-only (notifiche SOAP), sans poller, par conception —
-  `conformity/authority-status-poller.ts` documente pourquoi c'est permanent.
+  `peppol` (poll générique AP), `chorus-pro` (`consulterCr`). `sdi` reste push-only (notifiche SOAP),
+  sans poller, par conception — `conformity/authority-status-poller.ts` documente pourquoi c'est
+  permanent. Les pollers `anaf` (`stareMesaj`) et `face` (`consultarFactura`) ont été supprimés avec
+  leur transport (2026-09-12).
 - [x] `conformity/conformity-sweep-runner.ts` — le runtime qui appelle ces pollers, câblé sur la
   queue BullMQ (`queue/processors/document-action.processor.ts`).
 
@@ -196,14 +198,19 @@ n'y figure pas n'existe plus dans ce dépôt.
   déclarée (jamais depuis un cache), et journalise le résultat dans `DocumentAuthorityEvent` (la
   même table que les événements de conformité, §3.3) — une déclaration EST un événement d'autorité,
   pas un transport.
-- [x] **NAV** (Hongrie, Online Számla 3.0) — `reporting/providers/nav-declaration-provider.ts`,
-  gated `nav.live.spec.ts`.
-- [x] **myDATA** (Grèce) — `reporting/providers/mydata-declaration-provider.ts`, gated
-  `mydata.live.spec.ts`.
 - [~] **AT** (Portugal, « comunicação de faturas ») — `reporting/providers/pt-at-client.ts`,
   implémenté, **en attente d'accréditation**. Gated `pt-declaration-provider.live.spec.ts`. Seul
-  fournisseur dont le déclenchement est piloté par un fichier pays (`reporting/data/pt.json`) ; NAV
-  et myDATA sont enregistrés directement, sans fichier pays.
+  fournisseur restant ; son déclenchement est piloté par un fichier pays (`reporting/data/pt.json`).
+
+> **NAV (Hongrie) et myDATA (Grèce) supprimés (2026-09-12).** `reporting/providers/
+> nav-declaration-provider.ts`/`mydata-declaration-provider.ts` étaient enregistrés directement (sans
+> fichier `reporting/data/xx.json`, donc déjà inatteignables depuis que le pivot 5-pays a retiré HU/GR
+> de ce mécanisme) mais pleinement fonctionnels. Coût réel de la suppression : les deux étaient
+> **prouvés plus loin contre de vraies API d'autorité** que `pt-at` ci-dessus — un vrai `401` Azure
+> APIM (myDATA) et de vrais `funcCode`/`errorCode` NAV (`api-test.onlineszamla.nav.gov.hu`), tous deux
+> le 2026-09-02 (voir l'ancien `LIVE_TESTING.md`) — alors que `pt-at` n'a jamais fait de round-trip du
+> tout, faute d'accréditation. Décision produit : HU/GR hors périmètre, donc supprimés malgré ce
+> travail plus abouti.
 
 ---
 
@@ -242,9 +249,10 @@ n'y figure pas n'existe plus dans ce dépôt.
   aujourd'hui).
 - **🇵🇹 PT** — [x] Email/Peppol · [~] déclaration AT (§6, accréditation en attente) · le seul des
   cinq à avoir `vat-rates/`/`country-identifiers/` renseignés en dehors de FR.
-- **Capacité existante, non routée aujourd'hui** — 🇪🇸 ES (FACe/Facturae), 🇳🇱 NL (Peppol/NLCIUS),
-  🇷🇴 RO (ANAF/UBL) : le code transport/format existe et fonctionne (§1, §3) mais aucun fichier
-  `b2g-routing/data/{es,nl,ro}.json` ne les active depuis le pivot 5-pays — voir la note du §3.2.
+- 🇪🇸 ES (FACe/Facturae), 🇳🇱 NL (Peppol/NLCIUS) et 🇷🇴 RO (ANAF/UBL) n'ont plus de code du tout —
+  ni fichier `b2g-routing/data/{es,nl,ro}.json` (retiré par le pivot 5-pays du 2026-09-10) ni
+  transport/format (supprimés le 2026-09-12, voir la note du §3.2) : aucun des trois n'est dans le
+  périmètre produit.
 
 > Le Mexique (CFDI/PAC), les États-Unis, Monaco et un profil "pays inconnu" générique que ce
 > document couvrait auparavant n'ont plus d'équivalent : il n'y a plus de repli générique par pays,
@@ -255,10 +263,10 @@ n'y figure pas n'existe plus dans ce dépôt.
 
 ## 10. VALIDATION & QUALITÉ
 
-- [x] Schematron EN16931 + deltas nationaux vendorisés (`formats/vendored/{en16931,de,peppol,nl}/`),
+- [x] Schematron EN16931 + deltas nationaux vendorisés (`formats/vendored/{en16931,de,peppol}/`),
   câblés via `formats/vendored/validate-schematron.ts`.
-- [x] XSD FA(2) (PL) / FatturaPA (IT) / Facturae (ES), vendorisés et câblés dans leurs providers
-  respectifs (`formats/vendored/validate-xsd.ts`).
+- [x] XSD FA(2) (PL) / FatturaPA (IT), vendorisés et câblés dans leurs providers respectifs
+  (`formats/vendored/validate-xsd.ts`).
 
 ---
 
@@ -266,7 +274,7 @@ n'y figure pas n'existe plus dans ce dépôt.
 
 - [x] Round-trips live prouvés : **KSeF**, **PDP**, **Peppol** (§3.1, dates ci-dessus).
 - [~] Harnais live prêts, preuve en attente de creds/accréditation : **SdI**, **Chorus Pro**,
-  **FACe**, **NAV**, **myDATA**, **AT (Portugal)**, **TSA**, **validation VAT**. Chaque spec
+  **AT (Portugal)**, **TSA**, **validation VAT**. Chaque spec
   `*-live.spec.ts` / `*.live.spec.ts` sous `backend/src/modules/documents/` est self-gated via
   `liveDescribe(FLAG, [ENV_VARS])` (`transports/live-gate.ts`) — voir `LIVE_TESTING.md` pour la
   liste des variables requises par canal.
@@ -299,11 +307,12 @@ n'y figure pas n'existe plus dans ce dépôt.
 ## Ordre conseillé
 
 1. **SdI live** (IT) — accréditation AdE + PFX qualifié (§3.2, §8).
-2. **Chorus Pro / FACe live** — creds par autorité (§3.2).
+2. **Chorus Pro live** — creds par autorité (§3.2).
 3. **AT Portugal** — accréditation (§6).
 4. **KSeF production** — clés MF de production (§13).
-5. Réactiver ES/NL/RO en B2G si le marché le justifie — déposer le fichier `b2g-routing/data/xx.json`
-   correspondant (§3.2, note) ; aucun code nouveau n'est nécessaire.
+5. Réactiver ES/NL/RO en B2G si le marché le justifie — leur code transport/format a été supprimé
+   (2026-09-12, §3.2/§1.2 note), donc il faudrait le reconstruire avant de pouvoir déposer le fichier
+   `b2g-routing/data/xx.json` correspondant.
 6. Étendre `country-policy/` à un sixième pays vendeur au besoin (§0.1, §9) — même principe : un
    fichier, pas un moteur.
 

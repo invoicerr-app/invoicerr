@@ -28,16 +28,12 @@ import { AuthorityStatusPollerRegistry } from './conformity/authority-status-pol
 import { CountryIdentifierRequirementsBootReseedService } from './country-identifiers/boot-reseed.service';
 import { CountryPolicyBootReseedService } from './country-policy/boot-reseed.service';
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
-import { buildAnafStatusPoller } from './conformity/pollers/anaf-status-poller';
 import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
-import { buildFaceStatusPoller } from './conformity/pollers/face-status-poller';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
 import { buildPeppolStatusPoller } from './conformity/pollers/peppol-status-poller';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { DeclarationProviderRegistry } from './reporting/declaration-provider';
-import { buildNavDeclarationProvider } from './reporting/providers/nav-declaration-provider';
-import { buildMyDataDeclarationProvider } from './reporting/providers/mydata-declaration-provider';
 import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
 import { ReportingRunner } from './reporting/reporting-runner';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
@@ -67,10 +63,8 @@ import { buildArticleReferenceProvider } from './references/article-reference.pr
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
-import { buildAnafTransport } from './transports/anaf-transport';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
-import { buildFaceTransport } from './transports/face-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
 import { buildPeppolTransport } from './transports/peppol-transport';
@@ -78,12 +72,10 @@ import { PEPPOL_DOC_TYPES } from './transports/peppol/peppol-client';
 import { buildSdiTransport } from './transports/sdi-transport';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
-import { buildFacturaeFormatProvider } from './formats/national/facturae-provider';
 import { buildFacturxFormatProvider } from './formats/facturx-provider';
 import { FormatProviderRegistry } from './formats/format-registry';
 import { fa3FormatProvider } from './formats/national/fa3-provider';
 import { fatturapaFormatProvider } from './formats/national/fatturapa-provider';
-import { nlciusFormatProvider } from './formats/nlcius-provider';
 import { peppolBisFormatProvider } from './formats/peppol-bis-provider';
 import { ublFormatProvider } from './formats/ubl-provider';
 import { xrechnungFormatProvider } from './formats/xrechnung-provider';
@@ -156,21 +148,13 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * delta (see each provider's own header for exactly which BR-DE-* / PEPPOL-EN16931-R* rules that
  * delta enforces and how). Neither needs a companyId either, so both are plain objects too.
  *
- * `facturae` (ES, `national/facturae-provider.ts`) is the EIGHTH — Spain's B2G channel FACe's own
- * payload (`transports/face-transport.ts`, `b2g-routing/data/es.json`). Unlike `fa3`/`fatturapa`, it
- * DOES need a dependency (`signingCertificates` — the XAdES signing port, the first real
- * consumer of the XAdES provider, see that provider's own header) so it is a factory, the same shape
- * `facturx`'s own `referenceRegistry` dependency already established here.
- *
- * `nlcius` (NL, `nlcius-provider.ts`) is the NINTH — (NLCIUS, vendored), the SAME UBL-syntax EN 16931
- * profile shape as `peppol-bis`/`xrechnung` above (its own
- * vendored delta, `formats/vendored/nl/si-ubl-2.0-nlcius-preprocessed.sch`, runs on top of the base
- * Schematron — see that provider's own header). No dependency either, so a plain object too.
+ * `facturae` (ES) and `nlcius` (NL) used to be the EIGHTH and NINTH entries here — Spain's FACe payload
+ * and the Netherlands' vendored NLCIUS delta. Both were deleted outright (never just left dormant) when
+ * the product's scope was reduced to five countries (FR/PL/IT/PT/DE, 2026-09-10): neither ES nor NL is
+ * in scope, and keeping fully-working code for a country nobody asked to support contradicted that
+ * decision — see `LIVE_TESTING.md`/`B2G_COVERAGE.md` for what that gave up.
  */
-function buildFormatProviderRegistry(
-  referenceRegistry: EntityReferenceRegistry,
-  signingCertificates: SigningCertificatesService,
-): FormatProviderRegistry {
+function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
   const registry = new FormatProviderRegistry();
   registry.register(ciiFormatProvider);
   registry.register(ublFormatProvider);
@@ -179,8 +163,6 @@ function buildFormatProviderRegistry(
   registry.register(fatturapaFormatProvider);
   registry.register(peppolBisFormatProvider);
   registry.register(xrechnungFormatProvider);
-  registry.register(buildFacturaeFormatProvider({ signingCredentials: signingCertificates }));
-  registry.register(nlciusFormatProvider);
   return registry;
 }
 
@@ -239,11 +221,10 @@ function buildFormatProviderRegistry(
  *
  * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`) is
  * threaded into "email" (the one transport that hands a human-readable PDF to
- * someone — see `EmailTransportDeps.signingCertificates`'s own header) AND, as of a 2026-09-02 task,
- * "face" (its own `buildFacturaeFormatProvider` call's XAdES cert AND, SEPARATELY, its
- * `signingCredentials` field for WS-Security SOAP-envelope signing — see `face-transport.ts`'s own
- * header, "THE WS-SECURITY CERTIFICATE", for why these are the SAME cert resolved twice, not two
- * different certs). "pdp"/"ksef"/"sdi"/"peppol" transmit XML/Factur-X formats built by
+ * someone — see `EmailTransportDeps.signingCertificates`'s own header). It used to be threaded into
+ * "face" (Spain's FACe channel) too, for XAdES/WS-Security signing — that transport was deleted
+ * outright along with Spain's scope (2026-09-10, see `B2G_COVERAGE.md`), so this dependency now serves
+ * "email" alone. "pdp"/"ksef"/"sdi"/"peppol" transmit XML/Factur-X formats built by
  * `formats/*-provider.ts`, which are deliberately NOT signed (see `sign-instance-pdf.ts`'s
  * own header on why Factur-X's raw-PDF material is exempt).
  *
@@ -253,21 +234,11 @@ function buildFormatProviderRegistry(
  * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
  * same "stateless, no reason to couple two registries" argument.
  *
- * "anaf" (`transports/anaf-transport.ts`) is the SEVENTH — Romania's e-Factura, the wave `channel-
- * policy/data/ro.json` names (a REAL, sourced B2B mandate, see that file's own citation). Its own
- * payload is `ublFormatProvider` — the SAME stateless plain object `buildFormatProviderRegistry`
- * already registers under "ubl" for `download-xml` (a second reference, not a second instance, the
- * identical reasoning "peppol"'s own `peppolBisFormatProvider` reference already holds above) — see
- * that transport's own header, "THE PAYLOAD, HONESTLY", for what the base EN 16931 Schematron gate
- * does NOT additionally cover (Romania's own CIUS-RO extension, not vendored anywhere in this
- * checkout).
- *
- * `formatOverrides.nlcius` — (NLCIUS, vendored): the SAME
- * mechanism as `formatOverrides.xrechnung` above, one entry per new national CIUS. The Netherlands'
- * own B2G routing rule (`b2g-routing/data/nl.json`) names `transportId: "peppol"` with
- * `formatSyntax: "nlcius"`; `documentTypeId` is `PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL`, and
- * `nlciusFormatProvider` is the SAME stateless plain object registered above under "nlcius" for
- * `download-xml` — a second reference, never a new instance, identical to every other entry here.
+ * "anaf" (Romania) and "face" (Spain, B2G) used to be the SEVENTH and EIGHTH transports here, and
+ * `formatOverrides.nlcius` (Netherlands) a third `peppol` override alongside `xrechnung`/`peppol-bis`
+ * above. All three were deleted outright — never left dormant — when the product's scope was reduced
+ * to five countries (FR/PL/IT/PT/DE, 2026-09-10): none of RO/ES/NL is in scope any more. See
+ * `LIVE_TESTING.md`/`B2G_COVERAGE.md` for exactly what capability that gave up.
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -322,12 +293,6 @@ function buildTransportRegistry(
           provider: peppolBisFormatProvider,
           documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL,
         },
-        // See this function's own header, "formatOverrides.nlcius" — the Netherlands' own B2G
-        // routing rule (`b2g-routing/data/nl.json`).
-        nlcius: {
-          provider: nlciusFormatProvider,
-          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_NLCIUS_UBL,
-        },
       },
     }),
   );
@@ -343,31 +308,9 @@ function buildTransportRegistry(
       facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
     }),
   );
-  // "anaf" (Romania, e-Factura) — the seventh transport. Own reference to the SAME stateless
-  // `ublFormatProvider` plain object `buildFormatProviderRegistry` already registers — see this
-  // function's own header.
-  registry.register(
-    'anaf',
-    'ANAF e-Factura (Romania)',
-    buildAnafTransport({ channelCredentials, ublFormatProvider }),
-  );
-  // "face" (Spain, B2G) — makes the channel the B2G ES routing rule (`b2g-routing/data/es.json`)
-  // names actually EXIST, the same "chorus-pro"/"anaf" precedent above. Own `facturaeFormatProvider`
-  // instance (needs `signingCertificates` — the XAdES signing port, see
-  // `formats/national/facturae-provider.ts`'s own header), same "stateless factory, no reason to
-  // couple two registries" reasoning every sibling transport above already holds.
-  registry.register(
-    'face',
-    'FACe (Spain, B2G)',
-    buildFaceTransport({
-      channelCredentials,
-      facturaeFormatProvider: buildFacturaeFormatProvider({ signingCredentials: signingCertificates }),
-      // WS-Security SOAP-envelope signing (2026-09-02 task) — see `face-transport.ts`'s own header,
-      // "THE WS-SECURITY CERTIFICATE", for why this is the SAME `signingCertificates` port/instance
-      // `facturaeFormatProvider` above already uses, not a second credential store.
-      signingCredentials: signingCertificates,
-    }),
-  );
+  // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
+  // along with the rest of their countries' scope (2026-09-10, see `LIVE_TESTING.md`/
+  // `B2G_COVERAGE.md`), never left dormant.
   return registry;
 }
 
@@ -375,15 +318,16 @@ function buildTransportRegistry(
  * Post-deposit conformity tracking (`conformity/`). Same
  * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
  * registry's own read-side twin: "pdp", "ksef", "peppol" (generic AP `getStatus()` —
- * `conformity/pollers/peppol-status-poller.ts`), "chorus-pro" (`consulterCr` —
- * `conformity/pollers/chorus-pro-status-poller.ts`), and "anaf" (`stareMesaj` —
- * `conformity/pollers/anaf-status-poller.ts`) all register a poller; "sdi" does not (push-only
+ * `conformity/pollers/peppol-status-poller.ts`) and "chorus-pro" (`consulterCr` —
+ * `conformity/pollers/chorus-pro-status-poller.ts`) all register a poller; "sdi" does not (push-only
  * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
- * permanent, not a gap to fill later).
+ * permanent, not a gap to fill later). "anaf" (Romania) and "face" (Spain) used to register pollers
+ * here too — both deleted outright along with the rest of their countries' scope (2026-09-10, see
+ * `LIVE_TESTING.md`/`B2G_COVERAGE.md`), which is also why this factory no longer needs
+ * `signingCertificates` (it was "face"'s own WS-Security dependency).
  */
 function buildAuthorityStatusPollerRegistry(
   channelCredentials: ChannelCredentialsService,
-  signingCertificates: SigningCertificatesService,
 ): AuthorityStatusPollerRegistry {
   const registry = new AuthorityStatusPollerRegistry();
   registry.register(buildPdpStatusPoller({ channelCredentials }));
@@ -393,26 +337,21 @@ function buildAuthorityStatusPollerRegistry(
   // carried (`chorus-pro/choruspro-client.ts`) — see `conformity/pollers/chorus-pro-status-poller.ts`'s
   // own header for what is, and is not, live-verified.
   registry.register(buildChorusProStatusPoller({ channelCredentials }));
-  // "anaf" — `stareMesaj`, the repère's own status-consultation endpoint
-  // (`anaf/anaf-client.ts`) — see `conformity/pollers/anaf-status-poller.ts`'s own header for what is,
-  // and is not, live-verified.
-  registry.register(buildAnafStatusPoller({ channelCredentials }));
-  // "face" — `consultarFactura`, the repère's own status-consultation endpoint
-  // (`face/face-client.ts`) — see `conformity/pollers/face-status-poller.ts`'s own header for what is,
-  // and is not, live-verified. `signingCertificates` — WS-Security signing (2026-09-02 task), the
-  // SAME port `buildTransportRegistry`'s own "face" registration above uses.
-  registry.register(buildFaceStatusPoller({ channelCredentials, signingCredentials: signingCertificates }));
   return registry;
 }
 
 /**
  * Declarative reporting (`reporting/`): a NEW concept, never a transport (see
  * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
- * as `buildAuthorityStatusPollerRegistry` just above — "nav" (Hungary, NAV Online Számla 3.0) and
- * "mydata" (Greece, AADE myDATA) were the first two shipped providers; "pt-at" (Portugal, AT
- * "comunicação de faturas") joined implemented-to-contract-but-credential-gated, the exact same
+ * as `buildAuthorityStatusPollerRegistry` just above. "nav" (Hungary, NAV Online Számla 3.0) and
+ * "mydata" (Greece, AADE myDATA) were the first two shipped providers, but both HU and GR fell outside
+ * the five-country scope decided 2026-09-10 — unlike the transports/formats deleted for the same
+ * reason, their underlying `reporting/data/*.json` obligation files had ALREADY been removed by that
+ * prune, so the providers were unreachable dead code even before this pass deleted them outright (see
+ * `LIVE_TESTING.md`/`B2G_COVERAGE.md` for what that gave up). "pt-at" (Portugal, AT "comunicação de
+ * faturas") is the only provider left, implemented-to-contract-but-credential-gated, the exact same
  * "awaiting accreditation" posture `transports/sdi/` already carries — see
- * `reporting/providers/pt-at-client.ts`'s own header. Every provider here is gated by the exact same
+ * `reporting/providers/pt-at-client.ts`'s own header. It is gated by the exact same
  * `ChannelCredentialsService` every transport/poller already shares (credentials are generic,
  * per-`providerId`, reusable for a declarative channel with zero changes — see
  * `modules/company/channels/channels.service.ts`'s own header).
@@ -421,8 +360,6 @@ function buildDeclarationProviderRegistry(
   channelCredentials: ChannelCredentialsService,
 ): DeclarationProviderRegistry {
   const registry = new DeclarationProviderRegistry();
-  registry.register(buildNavDeclarationProvider({ channelCredentials }));
-  registry.register(buildMyDataDeclarationProvider({ channelCredentials }));
   registry.register(buildPtAtDeclarationProvider({ channelCredentials }));
   return registry;
 }
@@ -631,10 +568,7 @@ function buildEntityReferenceRegistry(
     {
       provide: AuthorityStatusPollerRegistry,
       useFactory: buildAuthorityStatusPollerRegistry,
-      // SigningCertificatesService — WS-Security signing for "face"'s own poller (2026-09-02 task),
-      // the SAME instance TRANSPORT_REGISTRY's own factory below already injects. Both come from
-      // CompanyModule — no cycle (see TRANSPORT_REGISTRY's own inject comment).
-      inject: [ChannelCredentialsService, SigningCertificatesService],
+      inject: [ChannelCredentialsService],
     },
     // The `DOCUMENT_WEBHOOK_EMITTER` token (`queue/document-webhooks.ts`)
     // resolves to the SAME `WebhookDispatcherService` instance `buildActionRegistry` already injects
@@ -740,7 +674,7 @@ function buildEntityReferenceRegistry(
     {
       provide: FORMAT_PROVIDER_REGISTRY,
       useFactory: buildFormatProviderRegistry,
-      inject: [ENTITY_REFERENCE_REGISTRY, SigningCertificatesService],
+      inject: [ENTITY_REFERENCE_REGISTRY],
     },
   ],
   exports: [

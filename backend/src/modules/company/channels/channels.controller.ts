@@ -33,7 +33,7 @@ export class ChannelsController {
     description:
       "Returns this company's connected channels (status only — never a credential value), " +
       "this company's own country channel policy (suggested and/or mandated), and this " +
-      "company's own country DECLARATIVE-REPORTING obligations (nav/mydata — never a transport hint).",
+      "company's own country DECLARATIVE-REPORTING obligations (e.g. pt-at — never a transport hint).",
   })
   @ApiResponse({ status: 200, description: 'Channel status retrieved' })
   async list(@ActiveCompany() companyId: string) {

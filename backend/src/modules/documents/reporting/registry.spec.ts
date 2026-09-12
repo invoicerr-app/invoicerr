@@ -16,8 +16,10 @@ describe('reporting obligation files — loaded, not hard-coded', () => {
   // "implemented to the documented AT contract, awaiting accreditation" status. FR/DE/IT still have no
   // file at all, and the registry tolerates that cleanly: every lookup for one of THOSE countries
   // below behaves exactly like "a country with no file", never a crash or a permissive fallback. The
-  // `nav-client.ts`/`mydata-client.ts` PROVIDER implementations are left in place — they are
-  // reachable again the moment a country data file names their `providerId`.
+  // `nav-client.ts`/`mydata-client.ts` PROVIDER implementations, left in place after the data-only
+  // prune above, were DELETED OUTRIGHT by a later pass (2026-09-12, see `LIVE_TESTING.md`/
+  // `B2G_COVERAGE.md`): unreachable dead code for a country nobody asked to support is still a country
+  // nobody asked to support.
   it('the shipped catalog now carries exactly PT — GR/HU stay removed by the 5-country prune', () => {
     expect(ALL_REPORTING_OBLIGATION_FILES.map((f) => f.countryCode)).toEqual(['PT']);
   });

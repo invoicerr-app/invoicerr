@@ -90,8 +90,8 @@ const COMPANY_WITH_IBAN = {
   email: 'contact@muster.example',
   phone: '+49301234567',
   iban: TEST_IBAN,
-  // "un certificat rien-à-voir" — a signing certificate is FACe/Facturae's own concept
-  // entirely unrelated to Peppol/XRechnung; carried here only to prove its mere
+  // "un certificat rien-à-voir" — a signing certificate is a concept some other, XAdES-signed national
+  // formats need, entirely unrelated to Peppol/XRechnung; carried here only to prove its mere
   // PRESENCE on the company changes nothing about this path — `formats/xrechnung-provider.ts` never
   // reads it, `peppol-transport.ts` never reads it.
   signingCertificate: 'unrelated-cert-blob',

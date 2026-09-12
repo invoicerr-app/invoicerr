@@ -43,6 +43,25 @@
 > peppol connecté par l'écran, identifiants fictifs vers un port fermé, échec réseau réel nommé
 > "Peppol", jamais un envoi silencieux par email — même patron de preuve que BE). Aucun commit.
 
+> **MISE À JOUR 2026-09-10 (réduction à cinq pays)** : le périmètre produit a été réduit à
+> **FR/PL/IT/PT/DE**. Dix des onze règles listées en §2 ci-dessous (BE/CY/EE/GR/LT/LU/LV/MT/SE/NL) ont
+> été supprimées avec leur `data/<cc>.json` — seules fr/de/it/pl restent chargées
+> (`b2g-routing/data/all.spec.ts` fixe désormais cette liste à quatre). Cette mise à jour n'avait
+> jamais été consignée ici avant la présente entrée.
+>
+> **MISE À JOUR 2026-09-12 (suppression du code, pas seulement des données)** : au-delà des fichiers
+> `data/*.json` retirés le 2026-09-10, le code qui IMPLÉMENTAIT deux de ces canaux a maintenant été
+> supprimé purement et simplement plutôt que laissé inerte : l'Espagne (FACe/Facturae —
+> `transports/face-transport.ts`, `formats/national/facturae-provider.ts`,
+> `formats/vendored/es/`) et les Pays-Bas (NLCIUS — `formats/nlcius-provider.ts`,
+> `formats/vendored/nl/`). Le transport roumain `anaf`
+> (`transports/anaf-transport.ts`), cité en §1/§3 ci-dessous comme « déjà câblé » malgré son gap
+> RO_CIUS, a également été supprimé — la Roumanie n'a jamais eu de `data/ro.json` (jamais livrable,
+> voir §3), donc rien d'autre n'y change à part cette phrase devenant fausse. Les tables §1/§2/§3
+> ci-dessous restent le compte-rendu HISTORIQUE de l'audit du 2026-09-02/2026-09-05 (pages EC
+> Factsheet citées, dates de lecture) et ne sont plus une description du code livré aujourd'hui — voir
+> `LIVE_TESTING.md` et `COMPLIANCE_TODO.md` pour l'état courant.
+
 ---
 
 ## 1. Les 23 États membres restants — verdict, canal, source

@@ -234,8 +234,8 @@ function resolveB2gInvoiceTransport(
 
   try {
     // `formatOverride: rule.formatSyntax` — ALWAYS set here, regardless of which transport the rule
-    // names: a fixed-format transport (chorus-pro/facturx, sdi/fatturapa, face/facturae, anaf/ubl)
-    // never reads it at all, so setting it is inert for those (see `transport-registry.ts`'s own
+    // names: a fixed-format transport (chorus-pro/facturx, sdi/fatturapa) never reads it at all, so
+    // setting it is inert for those (see `transport-registry.ts`'s own
     // header); "peppol" is the one transport today that DOES honor it, for Germany's own rule
     // (`b2g-routing/data/de.json`, `formatSyntax: "xrechnung"`) — see `peppol-transport.ts`'s own
     // header, "THE FORMAT OVERRIDE".

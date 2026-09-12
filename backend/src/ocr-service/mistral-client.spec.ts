@@ -92,9 +92,8 @@ describe('mapMistralResponseToProposal', () => {
   });
 });
 
-/** A tiny real `node:http` server this file fully controls — the same pattern
- *  `nav-client.spec.ts` already established for a wire-level client (bind port 0, read the real
- *  assigned port, tear down in a `finally`). */
+/** A tiny real `node:http` server this file fully controls — the standard pattern this codebase uses
+ *  for a wire-level client (bind port 0, read the real assigned port, tear down in a `finally`). */
 async function withStubServer(
   handler: http.RequestListener,
   run: (baseUrl: string) => Promise<void>,

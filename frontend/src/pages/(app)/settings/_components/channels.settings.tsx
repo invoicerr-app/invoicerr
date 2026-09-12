@@ -40,10 +40,11 @@ interface SuggestedChannel {
   mandatedFrom?: string
   provenance: ChannelProvenance
 }
-// A NEW concept, never a transport: NAV/myDATA never carry an invoice to
-// its buyer, they require the SELLER to declare its data to a tax authority AFTER issuance. Kept as
-// its OWN array (`reportingObligations`), never folded into `suggested` above — see
-// `channels.service.ts#reportingObligations`'s own header for why that would misrepresent the fact.
+// A NEW concept, never a transport: a declaration provider (e.g. Portugal's AT "comunicação de
+// faturas") never carries an invoice to its buyer, it requires the SELLER to declare its data to a
+// tax authority AFTER issuance. Kept as its OWN array (`reportingObligations`), never folded into
+// `suggested` above — see `channels.service.ts#reportingObligations`'s own header for why that would
+// misrepresent the fact.
 interface ReportingObligation {
   providerId: string
   appliesTo: "invoice" | "credit-note"
@@ -64,18 +65,17 @@ const PROVIDER_LABELS: Record<string, string> = {
   sdi: "SdI",
   peppol: "Peppol",
   "chorus-pro": "Chorus Pro",
-  anaf: "ANAF e-Factura",
-  face: "FACe",
-  nav: "NAV Online Számla",
-  mydata: "AADE myDATA",
 }
 
 /** Every provider id this screen renders as a DECLARATION (never a delivery channel) — the visual
  *  distinction, unconditional on the badge (never dependent on
  *  whether `reportingObligations` actually named it for THIS company's country: a company that
  *  already connected one of these before moving its registered country elsewhere still sees it
- *  correctly labeled, never silently relabeled as an ordinary channel). */
-const REPORTING_PROVIDER_IDS = new Set(["nav", "mydata"])
+ *  correctly labeled, never silently relabeled as an ordinary channel). NAV (Hungary) and myDATA
+ *  (Greece) used to be the two entries here — both deleted outright along with the rest of their
+ *  countries' scope (2026-09-12, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`), leaving this set
+ *  temporarily empty until a future declaration provider ships. */
+const REPORTING_PROVIDER_IDS = new Set<string>([])
 
 /**
  * One provider's config field — the settings-screen half of what the PDP integration had hard-coded
@@ -94,11 +94,10 @@ interface ChannelFieldSpec {
   labelDefault: string
   type: "text" | "password"
   placeholder?: string
-  /** NAV/myDATA's own `baseUrl` override is the first field genuinely
-   *  optional at the BACKEND (`NavCredentials.baseUrl`/`MyDataCredentials.baseUrl`'s own header: left
-   *  blank, the provider falls back to the fixed per-environment host). Every OTHER field on every
-   *  OTHER provider leaves this unset — `handleConnect`'s own "every field required" check below
-   *  therefore keeps its exact pre-existing behavior for them. */
+  /** Lets a field's own backend credential shape mark itself as genuinely optional (left blank, the
+   *  provider falls back to a fixed default) — `handleConnect`'s own "every field required" check
+   *  below skips any field carrying this flag. No provider currently declares one; kept for the next
+   *  provider whose credential shape needs it. */
   optional?: boolean
 }
 
@@ -247,149 +246,14 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       type: "password",
     },
   ],
-  // ANAF e-Factura (RO) — Romania's national clearance channel (`channel-policy/data/ro.json`'s own
-  // sourced B2B mandate). Exactly the four fields `anaf-transport.ts#extractAnafCredentials` reads.
-  // `refreshToken`/`clientId`/`clientSecret` are the ONLY credential a company can actually paste here
-  // — the ANAF OAuth flow itself needs a qualified Romanian certificate presented interactively in a
-  // browser (see `anaf/anaf-client.ts`'s own header and CREDENTIALS_GUIDE.md §5), never something this
-  // screen could drive itself; a company obtains the refresh token once, elsewhere, then connects it
-  // here. The environment selector below (generic, already rendered for every provider) picks
-  // sandbox vs prod — `anaf-transport.ts`'s own `ANAF_URLS` targets the real, independently verified
-  // ANAF host for either.
-  anaf: [
-    {
-      key: "cif",
-      labelKey: "settings.channels.fields.anafCif",
-      labelDefault: 'CUI/CIF (Romanian tax ID, digits only — no "RO" prefix)',
-      type: "text",
-      placeholder: "12345678",
-    },
-    {
-      key: "clientId",
-      labelKey: "settings.channels.fields.anafClientId",
-      labelDefault: "OAuth2 client ID (ANAF SPV application)",
-      type: "text",
-    },
-    {
-      key: "clientSecret",
-      labelKey: "settings.channels.fields.anafClientSecret",
-      labelDefault: "OAuth2 client secret",
-      type: "password",
-    },
-    {
-      key: "refreshToken",
-      labelKey: "settings.channels.fields.anafRefreshToken",
-      labelDefault: "Refresh token (obtained once via the qualified-certificate flow)",
-      type: "password",
-    },
-  ],
-  // FACe (ES, B2G) — Spain's own general entry point for public-sector invoices
-  // (`b2g-routing/data/es.json`'s own Ley 25/2013 citation). Exactly the three fields
-  // `face-transport.ts#extractFaceCredentials` reads: `certificate`/`certificatePassword` are the
-  // FACe-registered PKCS#12 the SSPP web service authenticates with (see `face/face-client.ts`'s own
-  // header on why this is deferred to a real WS-Security signature, not yet implemented), and
-  // `notificationEmail` is the SSPP contract's own mandatory "correo". The DIR3 routing triad (órgano
-  // gestor/unidad tramitadora/oficina contable) is NOT a channel-connection field — it arrives per
-  // INVOICE, through the SAME `requiredDocumentFields` mechanism Germany's single Leitweg-ID field
-  // already proves for one field (this is the first B2G rule that proves it for three at once — see
-  // `client-upsert.tsx`'s own B2G hint and `documents.service.ts#applyB2gDocumentFieldHints`).
-  face: [
-    {
-      key: "certificate",
-      labelKey: "settings.channels.fields.faceCertificate",
-      labelDefault: "FACe-registered certificate (PKCS#12, base64)",
-      type: "password",
-    },
-    {
-      key: "certificatePassword",
-      labelKey: "settings.channels.fields.faceCertificatePassword",
-      labelDefault: "Certificate password",
-      type: "password",
-    },
-    {
-      key: "notificationEmail",
-      labelKey: "settings.channels.fields.faceNotificationEmail",
-      labelDefault: "Notification email (correo)",
-      type: "text",
-      placeholder: "facturacion@empresa.es",
-    },
-  ],
-  // NAV Online Számla 3.0 (HU) — a DECLARATIVE channel, never a delivery
-  // one (see `REPORTING_PROVIDER_IDS` above). Exactly the five fields
-  // `nav-declaration-provider.ts#extractNavCredentials` reads: `login`/`password`/`taxNumber` are the
-  // technical user's own authentication triad (spec §3, "Structure of the UserHeaderType element"),
-  // `signingKey`/`exchangeKey` are the two keys generated ALONGSIDE that technical user on the Online
-  // Invoice System's own web interface (spec's own "Conditions of use for taxpayers", point 3) — see
-  // `nav-client.ts`'s own header for what each one is used for (requestSignature vs the exchange
-  // token's AES-128 decode). `baseUrl` is OPTIONAL — see `NavCredentials.baseUrl`'s own header: leave
-  // it blank to use NAV's own fixed host for the environment selected below.
-  nav: [
-    {
-      key: "taxNumber",
-      labelKey: "settings.channels.fields.navTaxNumber",
-      labelDefault: "Tax number (first 8 digits)",
-      type: "text",
-      placeholder: "12345678",
-    },
-    {
-      key: "login",
-      labelKey: "settings.channels.fields.navLogin",
-      labelDefault: "Technical user login",
-      type: "text",
-    },
-    {
-      key: "password",
-      labelKey: "settings.channels.fields.navPassword",
-      labelDefault: "Technical user password",
-      type: "password",
-    },
-    {
-      key: "signingKey",
-      labelKey: "settings.channels.fields.navSigningKey",
-      labelDefault: "Signing key",
-      type: "password",
-    },
-    {
-      key: "exchangeKey",
-      labelKey: "settings.channels.fields.navExchangeKey",
-      labelDefault: "Exchange key (replacement key)",
-      type: "password",
-    },
-    {
-      key: "baseUrl",
-      labelKey: "settings.channels.fields.navBaseUrl",
-      labelDefault: "API base URL (override — leave blank for NAV's own host)",
-      type: "text",
-      placeholder: "https://api-test.onlineszamla.nav.gov.hu",
-      optional: true,
-    },
-  ],
-  // AADE myDATA (GR) — likewise DECLARATIVE, never a delivery channel.
-  // Exactly the two fields `mydata-declaration-provider.ts#extractMyDataCredentials` reads —
-  // AADE's own Azure APIM subscription pair (`aade-user-id` / `Ocp-Apim-Subscription-Key`, see
-  // `mydata-client.ts`'s own header). `baseUrl` is the same OPTIONAL override `nav` offers above.
-  mydata: [
-    {
-      key: "userId",
-      labelKey: "settings.channels.fields.mydataUserId",
-      labelDefault: "AADE user ID (aade-user-id)",
-      type: "text",
-    },
-    {
-      key: "subscriptionKey",
-      labelKey: "settings.channels.fields.mydataSubscriptionKey",
-      labelDefault: "Subscription key (Ocp-Apim-Subscription-Key)",
-      type: "password",
-    },
-    {
-      key: "baseUrl",
-      labelKey: "settings.channels.fields.mydataBaseUrl",
-      labelDefault: "API base URL (override — leave blank for AADE's own host)",
-      type: "text",
-      placeholder: "https://mydataapidev.aade.gr/",
-      optional: true,
-    },
-  ],
+  // ANAF (RO), FACe (ES), NAV (HU) and myDATA (GR) used to have their field specs here. All four
+  // channels/providers were deleted outright from the backend along with the rest of their
+  // countries' scope (2026-09-12, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — none of RO/ES/HU/GR is
+  // in this product's scope any more, so offering a configuration form for them here would be
+  // pure fiction: nothing on the backend would ever route through what a user typed in. A company
+  // that connected one of these before the deletion still sees its row (via `configuredMap` in
+  // `ChannelsSettings` below) so it can be disconnected cleanly — see `fields.length === 0`'s own
+  // "no configurable fields yet" fallback just below.
 }
 
 /**

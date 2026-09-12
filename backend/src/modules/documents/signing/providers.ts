@@ -74,13 +74,11 @@ export interface TimestampOptions {
 // Node.js 18+ provides globalThis.crypto; @xmldom/xmldom provides DOMParser.
 // ---------------------------------------------------------------------------
 let _engineInitialised = false;
-/** Exported so `transports/face/wsse-sign.ts` (WS-Security SOAP envelope signing) can reuse the SAME
- *  one-time DOM+WebCrypto engine setup rather than a second, drifting copy — that file needs
- *  `xmldsigjs`'s own `Parse()` (via `xml-core`'s `getNodeDependency('DOMParser')`) to hand
- *  `XmlDsigExcC14NTransform`/`SignedXml` DOM nodes typed as the AMBIENT global `Document`/`Element`
- *  (what those classes' own `.d.ts` declare), rather than `@xmldom/xmldom`'s own module-scoped
- *  `Document`/`Element` types — see that file's own header for why this specific type boundary
- *  matters here and nowhere else in this module. */
+/** One-time DOM+WebCrypto engine setup, called by the XAdES signing provider below before every DOM
+ *  operation — idempotent via `_engineInitialised`, so repeated calls across artifacts cost nothing.
+ *  Exported so any other DOM-based XML signing this codebase adds later (WS-Security SOAP-envelope
+ *  signing did, briefly, for Spain's now-deleted FACe channel — see `LIVE_TESTING.md`/
+ *  `B2G_COVERAGE.md`) can reuse the SAME one-time setup rather than a second, drifting copy. */
 export function ensureXmlCryptoEngine(): void {
   if (_engineInitialised) return;
 
@@ -107,14 +105,15 @@ export function ensureXmlCryptoEngine(): void {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-// RSA PKCS#1 v1.5 with SHA-256 — covers the majority of PKI certs in use. Exported: `wsse-sign.ts`
-// deliberately uses the SAME algorithm choice for its own RSA-SHA256 WS-Security signature (see that
-// file's own header on why SHA-256, not a fresh decision made twice).
+// RSA PKCS#1 v1.5 with SHA-256 — covers the majority of PKI certs in use. Exported so any other
+// DOM-based XML signing this codebase adds later can reuse the SAME algorithm choice rather than a
+// fresh decision made twice (WS-Security SOAP-envelope signing did, briefly, for Spain's now-deleted
+// FACe channel — see `LIVE_TESTING.md`/`B2G_COVERAGE.md`).
 export const RSA_ALGO: RsaHashedImportParams = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
 
 /**
  * Import a PKCS#8 PEM private key as a WebCrypto CryptoKey (RSASSA-PKCS1-v1_5/SHA-256).
- * Exported for `wsse-sign.ts` — see this file's own header, `RSA_ALGO`'s own comment.
+ * Exported so any other DOM-based XML signing added later can reuse it — see `RSA_ALGO`'s own header.
  */
 export async function importPrivateKeyPem(pem: string): Promise<CryptoKey> {
   const pemBody = pem.replace(/-----BEGIN[^-]*-----|-----END[^-]*-----|\r?\n/g, '');
@@ -124,9 +123,9 @@ export async function importPrivateKeyPem(pem: string): Promise<CryptoKey> {
 
 /**
  * Extract the SubjectPublicKeyInfo (SPKI) bytes from a DER-encoded X.509 certificate
- * using node-forge, then import as a WebCrypto CryptoKey. Exported for `wsse-sign.ts` — its own local
- * signature re-verification needs the SAME public-key extraction, from the certificate embedded in
- * the `wsse:BinarySecurityToken` itself, not a certificate handed to it out of band.
+ * using node-forge, then import as a WebCrypto CryptoKey. Exported for the same reason as
+ * `importPrivateKeyPem` above — a future consumer needing to re-verify a signature against a
+ * certificate embedded in its own payload, rather than one handed to it out of band.
  */
 export async function importPublicKeyFromCertDer(certDer: Buffer): Promise<CryptoKey> {
   const certAsn1 = forge.asn1.fromDer(forge.util.binary.raw.encode(new Uint8Array(certDer)));
