@@ -32,3 +32,6 @@ e2e/cypress/videos/*
 e2e/cypress/downloads/
 .claude/launch.json
 .dev/
+
+# Enregistrements de démonstration produits localement par Cypress : jamais versionnés.
+e2e/demo-videos/
