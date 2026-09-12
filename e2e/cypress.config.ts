@@ -67,8 +67,12 @@ export default defineConfig({
   // select, not a memory budget and not a defect in the specs. Running e2e on Firefox is the known
   // workaround:  ./scripts/e2e-worktree.sh --browser firefox
   //
-  // Left on Electron by default because that is what CI uses; changing the default is a CI
-  // decision, not a config tweak.
+  // CI now runs FIREFOX for exactly this reason — `.github/workflows/cypress.yml` and
+  // `scenarios.yml` both pass `--browser firefox`. Measured 2026-09-12: 18-onboarding-wizard,
+  // 25-document-settlement and 29-document-recurrence crash the Electron renderer even when each
+  // is run ALONE in a fresh process, and all four of the specs that were red under Electron pass
+  // on Firefox 154 with zero renderer crashes. Electron stays the default for a bare local
+  // `cypress run`; pass `--browser firefox` to reproduce what CI does.
   e2e: {
     video: true,
     baseUrl: process.env.FRONTEND_URL || "http://localhost:6284",

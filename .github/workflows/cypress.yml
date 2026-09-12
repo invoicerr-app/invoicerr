@@ -256,7 +256,9 @@ jobs:
           # Nest app itself finished booting — a slow boot or a startup crash used to
           # go unnoticed until 15 Cypress specs failed with confusing auth errors.
           npx wait-on http-get://localhost:4000/api/health --timeout 120000
-          (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run)
+          # Firefox, not Electron: the Electron renderer crashes on a Radix select inside a dialog
+          # (see e2e/cypress.config.ts's own analysis). The same specs pass on Firefox.
+          (cd $GITHUB_WORKSPACE/e2e && npm run e2e:run -- --browser firefox)
 
       - name: Upload backend logs
         if: always()

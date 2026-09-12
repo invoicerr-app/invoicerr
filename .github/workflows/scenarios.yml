@@ -95,7 +95,7 @@ jobs:
           # Nest app itself finished booting — a slow boot or a startup crash used to
           # go unnoticed until the scenario failed with a confusing auth error.
           npx wait-on http-get://localhost:4000/api/health --timeout 120000
-          (cd $GITHUB_WORKSPACE/e2e && CYPRESS_scenario=${{ matrix.scenario }} npx cypress run --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
+          (cd $GITHUB_WORKSPACE/e2e && CYPRESS_scenario=${{ matrix.scenario }} npx cypress run --browser firefox --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
 
       - name: Upload backend logs
         if: always()
