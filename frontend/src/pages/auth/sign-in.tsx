@@ -53,8 +53,11 @@ export default function LoginPage() {
   const handleOIDCLogin = () => {
     const oidcProviderId = getEnvVariable("VITE_OIDC_PROVIDER_ID")
 
-    authClient.signIn.oauth2({
-      providerId: oidcProviderId || "oidc",
+    // The generic OIDC provider is driven by the core social sign-in: since better-auth 1.7 the
+    // generic-OAuth plugin has no endpoints of its own. `provider` is the id the backend registers
+    // (OIDC_NAME, exposed to the frontend as VITE_OIDC_PROVIDER_ID by entrypoint.sh).
+    authClient.signIn.social({
+      provider: oidcProviderId || "oidc",
       callbackURL: "/dashboard",
     })
   }

@@ -15,6 +15,12 @@ Login is handled via the BetterAuth library (`backend/src/lib/auth.ts`), which s
 
 On login, a session cookie is created. `AuthGuard` reads it via `auth.api.getSession()` and attaches the resolved user to `request.user`.
 
+### OIDC redirect URI and PKCE
+
+The redirect URI to register at the identity provider is `/api/auth/callback/<OIDC_NAME>`. It used to be `/api/auth/oauth2/callback/<OIDC_NAME>`, which no longer exists: the generic OIDC flow is served by BetterAuth's core social endpoints. An instance upgrading from an older version must update that URI at the provider, otherwise the provider rejects the redirect and OIDC login stops working.
+
+PKCE is enabled by default and the OIDC configuration never turns it off, so the provider must accept an authorization request carrying a `code_challenge`.
+
 ### Invitation-gated signup
 
 The first user to sign up is always allowed. Subsequent signups require a valid invitation code, validated by the `invitations` module.

@@ -151,8 +151,9 @@ export default function SignupPage() {
   const handleOIDCLogin = () => {
     const oidcProviderId = getEnvVariable("VITE_OIDC_PROVIDER_ID")
 
-    authClient.signIn.oauth2({
-      providerId: oidcProviderId || "oidc",
+    // Same core social sign-in as the login page — see src/pages/auth/sign-in.tsx.
+    authClient.signIn.social({
+      provider: oidcProviderId || "oidc",
       callbackURL: "/dashboard",
     })
   }

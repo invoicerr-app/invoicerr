@@ -15,6 +15,12 @@ La connexion est gérée via la bibliothèque BetterAuth (`backend/src/lib/auth.
 
 À la connexion, un cookie de session est créé. `AuthGuard` le lit via `auth.api.getSession()` et attache l'utilisateur résolu à `request.user`.
 
+### URI de redirection OIDC et PKCE
+
+L'URI de redirection à déclarer auprès du fournisseur d'identité est `/api/auth/callback/<OIDC_NAME>`. C'était auparavant `/api/auth/oauth2/callback/<OIDC_NAME>`, qui n'existe plus : le flux OIDC générique est désormais servi par les points d'entrée sociaux du cœur de BetterAuth. Une instance mise à jour depuis une version antérieure doit corriger cette URI chez le fournisseur, sans quoi celui-ci refuse la redirection et la connexion OIDC cesse de fonctionner.
+
+PKCE est activé par défaut et la configuration OIDC ne le désactive jamais : le fournisseur doit donc accepter une requête d'autorisation portant un `code_challenge`.
+
 ### Inscription protégée par invitation
 
 Le premier utilisateur à s'inscrire est toujours autorisé. Les inscriptions suivantes nécessitent un code d'invitation valide, validé par le module `invitations`.
