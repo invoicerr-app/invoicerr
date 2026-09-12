@@ -132,8 +132,13 @@ describe('correction-routes/data/all.ts', () => {
 
   // A route the YAML never addresses for a given country (or explicitly marks "non recherchée")
   // transcribes to "unverified" — never silently promoted, never silently absent.
+  //
+  // FR's NO_DOCUMENT_BY_LAW used to be this test's French exemplar. It is no longer unverified: it was
+  // researched on the primary texts (2026-09-12) and promoted to "forbidden", as was FR's
+  // LEDGER_ANNOTATION — see data/fr.json's own entries. COUNTERPARTY_OBJECTION replaces it because it
+  // is still a route that YAML never mentions for France, which is what this test is about.
   it('a route the YAML never mentions for a country transcribes to "unverified", never a guess', () => {
-    expect(statusOf('FR', 'NO_DOCUMENT_BY_LAW')).toBe('unverified');
+    expect(statusOf('FR', 'COUNTERPARTY_OBJECTION')).toBe('unverified');
     expect(statusOf('DE', 'LEDGER_ANNOTATION')).toBe('unverified');
   });
 

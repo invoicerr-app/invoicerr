@@ -41,7 +41,7 @@ describe('resolveCorrectionRoutesForCountry', () => {
 
   it('an unverified route carries a plain "unverified — <note>" label, never a fabricated citation', () => {
     const decision = resolveCorrectionRoutesForCountry('FR')!;
-    const route = decision.routes.find((r) => r.routeId === 'NO_DOCUMENT_BY_LAW')!;
+    const route = decision.routes.find((r) => r.routeId === 'COUNTERPARTY_OBJECTION')!;
     expect(route.status).toBe('unverified');
     expect(route.label).toMatch(/^unverified — /);
   });
