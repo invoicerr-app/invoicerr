@@ -28,7 +28,7 @@ import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 
 interface OnBoardingProps {
@@ -113,7 +113,14 @@ export default function OnBoarding({
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
-  const requiredIdentifiers = requiredIdentifiersResult?.requirements
+  // Always offer a VAT field — see withVatIdentifier's own header for why this is a format
+  // requirement, not a country one, and is never duplicated for a country whose catalog (FR/DE/PT
+  // today) already declares its own VAT scheme.
+  const requiredIdentifiers = withVatIdentifier(
+    requiredIdentifiersResult?.requirements,
+    t("settings.company.form.vat.label", "VAT Number"),
+    t("settings.company.form.vat.description", "Your company's VAT identification number"),
+  )
 
   const {
     lookup: onCompanyLookup,
@@ -167,14 +174,22 @@ export default function OnBoarding({
       }
     }
     for (let i = next.length - 1; i >= 0; i--) {
+      const entry = next[i]
+      if (!entry.scheme || requiredSchemes.has(entry.scheme)) continue
       // LEGAL_ID is always collected in Step 2, independent of whether the
       // country-identifiers catalog declares anything for this country — never
       // drop it here just because that catalog stays silent (it covers only a
       // couple of countries today).
-      if (next[i].scheme && next[i].scheme !== "LEGAL_ID" && !requiredSchemes.has(next[i].scheme)) {
-        next.splice(i, 1)
-        changed = true
-      }
+      if (entry.scheme === "LEGAL_ID") continue
+      // Never silently discard a value the user already typed — e.g. a VAT number entered while a
+      // country with its own catalog VAT entry was selected, then the user goes back and picks a
+      // different country whose catalog stays silent on VAT (the synthetic entry from
+      // withVatIdentifier would still be there in that case, but a hypothetical future scheme might
+      // not be). Only an EMPTY placeholder row for a scheme this country no longer asks for is safe
+      // to prune here.
+      if (entry.value.trim() !== "") continue
+      next.splice(i, 1)
+      changed = true
     }
     if (changed) {
       form.setValue("identifiers", next)

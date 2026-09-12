@@ -32,7 +32,7 @@ import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
-import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
 import type { Company } from "@/types"
 
 export default function CompanySettings() {
@@ -316,9 +316,18 @@ export default function CompanySettings() {
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
-  const requiredIdentifiers = requiredIdentifiersResult?.requirements
+  // Always offer a VAT field — see withVatIdentifier's own header for why this is a format
+  // requirement, not a country one, and is never duplicated for a country whose catalog (FR/DE/PT
+  // today) already declares its own VAT scheme.
+  const requiredIdentifiers = withVatIdentifier(
+    requiredIdentifiersResult?.requirements,
+    t("settings.company.form.vat.label", "VAT Number"),
+    t("settings.company.form.vat.description", "Your company's VAT identification number"),
+  )
   // Present only when the country has NO identifier-requirements file at all — see
-  // use-required-identifiers.ts's own RequiredIdentifiersResult.
+  // use-required-identifiers.ts's own RequiredIdentifiersResult. Still shown as a caption below the
+  // block above (which, thanks to withVatIdentifier, is never actually empty any more) — it remains
+  // true that this country's OWN catalog has nothing to add beyond the universal VAT field.
   const requiredIdentifiersReason = requiredIdentifiersResult?.reason
 
   useEffect(() => {
@@ -335,16 +344,21 @@ export default function CompanySettings() {
       }
     }
     for (let i = next.length - 1; i >= 0; i--) {
-      // LEGAL_ID is always collected during onboarding (see onboarding.tsx's own identifier
-      // step), independent of whether the country-identifiers catalog declares anything for
-      // this country — the catalog covers only a handful of countries today. Without this
-      // exemption, saving settings for a company in an uncovered country (e.g. IT, PL) would
-      // silently splice out the legal identifier the user already typed, and the next invoice
-      // would fail EN 16931 validation for missing a seller identifier.
-      if (next[i].scheme && next[i].scheme !== "LEGAL_ID" && !requiredSchemes.has(next[i].scheme)) {
-        next.splice(i, 1)
-        changed = true
-      }
+      const entry = next[i]
+      if (!entry.scheme || requiredSchemes.has(entry.scheme)) continue
+      // Never silently discard an identifier that actually carries a value. This effect's job is to
+      // keep the FORM in sync with what the currently-selected country's catalog asks for — adding a
+      // blank row for a newly-required scheme, and pruning an empty placeholder row nobody ever typed
+      // into for a scheme that stopped being required. It must never go further than that: a scheme
+      // required today and dropped from a catalog tomorrow (or one — like VAT for Italy/Poland before
+      // withVatIdentifier existed — that was never in any catalog to begin with) would otherwise
+      // vanish from this company's record the moment someone opens Settings and clicks Save, with no
+      // warning and no way to notice before it's gone. Instead, keep it in the form (so the next
+      // submit still sends it back unchanged) and let the "identifiers on file" section below make it
+      // visible, so a user removes one on purpose rather than losing it by accident.
+      if (entry.value.trim() !== "") continue
+      next.splice(i, 1)
+      changed = true
     }
     if (changed) {
       form.setValue("identifiers", next)
@@ -353,6 +367,27 @@ export default function CompanySettings() {
 
   // The backend owns the per-country format rules; the button only needs a value.
   const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
+
+  // What the sync effect above keeps instead of deleting: a saved, non-empty identifier whose scheme
+  // the currently-selected country's requirements no longer name. Surfaced here — rather than left
+  // invisible in form state until the next submit re-sends it unchanged — so the user actually SEES
+  // what's on file and can remove one deliberately (see the sync effect's own comment for why deleting
+  // it automatically would be wrong).
+  const requiredSchemesForDisplay = new Set((requiredIdentifiers ?? []).map((r) => r.scheme))
+  const watchedIdentifiers = form.watch("identifiers") || []
+  const orphanedIdentifiers = watchedIdentifiers
+    .map((identifier, index) => ({ ...identifier, index }))
+    .filter(
+      (identifier) => identifier.value.trim() !== "" && !requiredSchemesForDisplay.has(identifier.scheme),
+    )
+
+  function removeIdentifierAt(index: number) {
+    const current = form.getValues("identifiers") || []
+    form.setValue(
+      "identifiers",
+      current.filter((_, i) => i !== index),
+    )
+  }
 
   async function onSubmit(values: z.infer<typeof companySchema>) {
     if (requiredIdentifiers) {
@@ -601,15 +636,65 @@ export default function CompanySettings() {
                       )
                     })}
                   </div>
-                </div>
-              ) : requiredIdentifiersReason ? (
-                <p className="text-xs text-muted-foreground" data-cy="company-identifiers-unknown-country">
-                  {t(
-                    "settings.company.form.identifiers.unknownCountry",
-                    "No identifier requirements are known for this country yet — you can save without one.",
+                  {requiredIdentifiersReason && (
+                    // `requiredIdentifiers` is never actually empty any more (withVatIdentifier always
+                    // adds a VAT field), but this reason is still worth surfacing: it says the
+                    // country's OWN catalog has nothing else to add beyond that universal field, which
+                    // is why only VAT (and no country-specific scheme) appears above.
+                    <p
+                      className="text-xs text-muted-foreground"
+                      data-cy="company-identifiers-unknown-country"
+                    >
+                      {t(
+                        "settings.company.form.identifiers.unknownCountry",
+                        "No identifier requirements are known for this country yet — you can save without one.",
+                      )}
+                    </p>
                   )}
-                </p>
+                </div>
               ) : null}
+
+              {orphanedIdentifiers.length > 0 && (
+                // Identifiers this company already has ON FILE whose scheme the currently-selected
+                // country no longer asks for — see the sync effect above for why these are kept
+                // instead of silently deleted. Shown explicitly, with a deliberate removal action, so
+                // the user decides their fate instead of an unattended effect.
+                <div
+                  className="space-y-3 border rounded-lg p-4 bg-muted/30"
+                  data-cy="company-identifiers-on-file"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t("settings.company.form.identifiers.onFile.label", "Other identifiers on file")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "settings.company.form.identifiers.onFile.description",
+                        "Saved on this company before, but not requested by the currently selected country. Kept as-is rather than removed automatically — remove one only if you're sure it's no longer needed.",
+                      )}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {orphanedIdentifiers.map((identifier) => (
+                      <div key={identifier.scheme} className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium">{identifier.scheme}</p>
+                          <p className="text-sm text-muted-foreground break-all">{identifier.value}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          data-cy={`company-identifier-remove-${identifier.scheme}`}
+                          onClick={() => removeIdentifierAt(identifier.index)}
+                        >
+                          {t("settings.company.form.identifiers.onFile.remove", "Remove")}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Peppol / Electronic routing section (seller) */}
               <div className="space-y-4 border rounded-lg p-4 bg-muted/30 mt-4">

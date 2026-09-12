@@ -1873,7 +1873,12 @@
         },
         "identifiers": {
           "label": "Country-specific identifiers",
-          "unknownCountry": "No identifier requirements are known for this country yet — you can save without one."
+          "unknownCountry": "No identifier requirements are known for this country yet — you can save without one.",
+          "onFile": {
+            "label": "Other identifiers on file",
+            "description": "Saved on this company before, but not requested by the currently selected country. Kept as-is rather than removed automatically — remove one only if you're sure it's no longer needed.",
+            "remove": "Remove"
+          }
         },
         "saving": "Saving...",
         "saveSettings": "Save Settings",
