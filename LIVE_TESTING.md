@@ -5,7 +5,7 @@ only when the channel-specific flag is set to `1` **AND** the required credentia
 are present does the suite actually run — otherwise `describe.skip` fires silently.
 
 The shared gate helper is at:
-`backend/src/compliance/providers/transmission/live-gate.ts`
+`backend/src/modules/documents/transports/live-gate.ts`
 
 Hard-success contract (enforced per-spec):
 - A `REJECTED` or `SKIPPED` transmission result **fails** the test (not tolerates it).
@@ -16,22 +16,28 @@ Hard-success contract (enforced per-spec):
 
 ## Channel summary
 
+**Status legend — three different claims, kept visually distinct:**
+- ✅ **Proven live (dated)** — a real round-trip against the real authority/network/sandbox, actually
+  run and verified by reading the platform's own response, not merely a green mocked test.
+- 🟡 **Implemented, awaiting credentials/accreditation** — the code exists and is ready to run, but the
+  full round-trip has never actually happened in this architecture (missing token, certificate, or
+  account). Where a *narrower* credential-free reachability check has been proven live, that is named
+  explicitly — it proves the host/path answer for real, never that the full flow would succeed.
+- 🔴 **Deferred / not implemented** — no working code path for the live leg yet, or the round-trip
+  requires an account this project does not have and has not attempted to obtain.
+
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
-| KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef-live.spec.ts` | ✅ Proven live |
-| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-live.spec.ts` | ✅ **Round-trip prouvé** — `fr:200 → fr:201 → fr:202`, dépôt 375037, 2026-08-29 |
-| PDP AFNOR (FR) | `PDP_AFNOR_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp-afnor-live.spec.ts` | ✅ Transport proven (content TBD) |
-| Email SMTP | `EMAIL_LIVE=1` | _(none — Ethereal auto-creates account)_ | `email-live.spec.ts` | ✅ Proven live |
+| KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef-live.spec.ts` | 🟡 Implemented, awaiting credentials — **no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets today.** The spec's own header records that the one historical proof of this flow used a token that has since expired/rotated, and this round-trip has not been re-run since — a real proof needs a fresh sandbox token before it can be claimed again. |
+| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip prouvé** — `fr:200 → fr:201 → fr:202`, dépôt 375037, 2026-08-29 |
+| Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `FR` reste cassé (`invalid_country`), mais `BE` (+ `peppol_id` explicite) marche : `doc_…` → `DELIVERED` en ~10 s, reproduit deux fois (voir ci-dessous) |
 | Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` en ~10 s ; voir l'encadré ci-dessous pour la LIMITE HONNÊTE de ce que ça prouve (peppol.sh n'accepte jamais de bytes UBL bruts — voir ce spec's own header) |
-| Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | `peppol/peppol-live.spec.ts` | 🔴 Deferred (connected AP required) |
-| Peppol via Storecove | _(mocked only)_ | `apProvider=storecove` config: `apiKey`, `legalEntityId` | `peppol/storecove-client.spec.ts` | 🔴 Deferred (30-day manual trial, no self-serve signup) |
-| National portals | `<PREFIX>_LIVE=1` (per portal) | `<PREFIX>_*` namespaced creds | `portal-live.spec.ts` | 🟡 Parametrized (per-portal namespaced creds) |
-| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `europe/choruspro-live.spec.ts` | 🔴 Deferred (PISTE account required) |
+| Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | _(no live spec exists yet — mocked coverage only, `peppol/peppol-client.spec.ts`)_ | 🔴 Deferred (connected AP required) |
+| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `chorus-pro/choruspro-live.spec.ts` | 🟡 Implemented, awaiting a PISTE account — **skipped, always, today** (no PISTE account in this checkout). Credential-free reachability **proven live 2026-09-02**: `sandbox-oauth.piste.gouv.fr` answers a genuine `400 {"error":"invalid_client"}` to a garbage client id/secret — the host/path are real, the deposit itself has never been attempted. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
-| ApplySignalService atomic transitions | `COMPLIANCE_LIVE_DB_TESTS=1` | `DATABASE_URL` only — **no external cred, no `CREDENTIALS_ENCRYPTION_KEY`** | `nest/apply-signal.live.spec.ts` | ✅ Proven creds-free — runs against the CI job's disposable Postgres |
 | Mistral OCR (received-invoice PDF extraction, T5(c)) ⚙ *not a channel — the dedicated `ROLE=ocr` service's own CLOUD engine, never the main backend* | `MISTRAL_OCR_LIVE=1` | `MISTRAL_API_KEY` | `ocr-service/mistral-client.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-03** (`api.mistral.ai/v1/ocr`, no/garbage auth → real `401 {"detail":"Invalid API Key"}`) — full round-trip 🔴 deferred, no Mistral API key provisioned for this task |
 | Local OCR engine (the `ocr-image` repo, our own `ocrmypdf`-based image) ⚙ *not a channel — the SAME `ROLE=ocr` service's LOCAL engine, `OCR_ENGINE=local`, running our own Docker image and server rather than depending on a third-party OCR provider* | `LOCAL_OCR_LIVE=1` | _(none — no cloud key, that is the entire point; the spec `docker pull`s + runs the published image (ghcr.io/invoicerr-app/ocr-image) via `docker`, gated on a usable local Docker daemon — `docker info` — checked at load time)_ | `ocr-service/local-client.live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-11** (engine switched from `apache/tika:latest-full` to our own image, same day) — the spec pulls and launches the real container, `POST`s a real `pdf-lib`-built invoice PDF to it, and the heuristic mapping correctly reads HT/TVA/TTC and the VAT id back; because this server force-OCRs every page (see `server.py`'s own header), this jest run now exercises REAL Tesseract recognition automatically, unlike the Tika era which needed a separate manual proof for that. A SEPARATE, MANUAL round-trip the same day against genuinely RASTERIZED (image-only) invoice PDFs — one French, one Polish (the new language pack Tika's own stock image never had) — proved the broader language coverage too; see `local-client.ts`'s own header for that citation |
 
@@ -161,7 +167,7 @@ Hard-success contract (enforced per-spec):
 
 > ### ✅ Peppol via peppol.sh — XRechnung (le trou allemand du B2G), tenté et RÉUSSI le 2026-09-02
 >
-> Root TODO "le trou allemand du B2G" : `b2g-routing/data/de.json` route désormais vers
+> "Le trou allemand du B2G" : `b2g-routing/data/de.json` route désormais vers
 > `transportId: "peppol"` avec `formatSyntax: "xrechnung"` (voir `peppol-transport.ts`'s own header,
 > "THE FORMAT OVERRIDE") — la question live posée par cette tâche était "la sandbox peppol.sh
 > accepte-t-elle un envoi construit avec `formats/xrechnung-provider.ts` (au lieu de
@@ -199,27 +205,27 @@ Hard-success contract (enforced per-spec):
 ## Running a single live spec
 
 ```bash
-# KSeF (PL) — proven live against ksef-test.mf.gov.pl
+# KSeF (PL) — implemented, awaiting credentials: no KSEF_AUTH_TOKEN/KSEF_NIP exist today (see the
+# summary table above for why the one historical proof no longer counts)
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
   npx jest ksef-live --no-coverage --runInBand
 
 # PDP superpdp (FR) — round-trip prouvé : déposée, validée, émise, reçue (voir l'encadré)
 set -a; . .env.pdp.local; set +a
-PDP_LIVE=1 npx jest pdp-live --no-coverage --runInBand
+PDP_LIVE=1 npx jest pdp.live --no-coverage --runInBand
 
-# PDP AFNOR (FR) — transport proven live (content validation TBD)
-PDP_AFNOR_LIVE=1 PDP_BASE_URL=<url> PDP_CLIENT_ID=<id> PDP_CLIENT_SECRET=<secret> \
-  npx jest pdp-afnor-live --no-coverage --runInBand
-
-# Email (Ethereal SMTP — no creds needed)
-EMAIL_LIVE=1 npx jest email-live --no-coverage
+# Email (document "send" SMTP delivery to the local Mailpit container — no external creds needed,
+# but needs Mailpit running on :1025/:8025 and a DATABASE_URL for one throwaway Company row)
+DOCUMENTS_MAIL_LIVE=1 SMTP_HOST=localhost SMTP_PORT=1025 \
+  DATABASE_URL=postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db \
+  npx jest send-quote.live --no-coverage
 
 # SdI (IT) — requires AdE accreditation + qualified PFX certificate (code implemented-awaiting-accreditation)
 SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_ENDPOINT=<accredited-SdIRiceviFile-url> \
   SDI_CERTIFICATE=<base64-pfx> SDI_CERT_PASSWORD=<pass> \
   npx jest sdicoop.live --no-coverage --runInBand
 
-# Peppol via peppol.sh — ZERO SECRETS (self-signup, like Ethereal email)
+# Peppol via peppol.sh — ZERO SECRETS (self-signup, like the Email leg above)
 PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
   npx jest peppol-sh-live --no-coverage --runInBand
 # Optional: reuse an existing sandbox account instead of self-signup
@@ -229,25 +235,16 @@ PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
 PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
   npx jest peppol-sh-xrechnung-live --no-coverage --runInBand
 
-# Peppol generic AP — requires a connected Access Point
-PEPPOL_LIVE=1 PEPPOL_PARTICIPANT_ID=0009:12345678900011 PEPPOL_AP_URL=https://ap.example.com \
-  PEPPOL_API_KEY=<key> PEPPOL_RECEIVER_ID=0009:98765432100022 [PEPPOL_ENV=TEST] \
-  npx jest peppol-live --no-coverage --runInBand
+# Peppol generic AP — deferred: no live spec exists yet (needs a connected Access Point first);
+# only mocked coverage exists today, in peppol/peppol-client.spec.ts
 
-# National portal — namespaced per-provider (see "National portals" section below)
-# Example: ANAF (RO)
-ANAF_LIVE=1 ANAF_AUTH_TOKEN=<token> ANAF_TAXPAYER_ID=<cui> \
-  npx jest portal-live --no-coverage --runInBand --testNamePattern=anaf
+# Chorus Pro (FR B2G) — implemented, awaiting a PISTE account (skipped, always, in this checkout)
+CHORUSPRO_LIVE=1 CHORUSPRO_CLIENT_ID=<id> CHORUSPRO_CLIENT_SECRET=<secret> \
+  npx jest choruspro-live --no-coverage --runInBand
 
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
   npx jest tsa-live --no-coverage --runInBand
-
-# ApplySignalService atomic transitions — DB-only, no external cred/encryption key.
-# NEVER point DATABASE_URL at a database you care about: it truncates the compliance
-# tables before/after every test (safe only on a disposable local/CI Postgres).
-COMPLIANCE_LIVE_DB_TESTS=1 DATABASE_URL=postgresql://user:pass@localhost:PORT/db \
-  npx jest src/compliance/nest/apply-signal.live.spec.ts --runInBand
 
 # Mistral OCR (cloud engine, ROLE=ocr's OWN client — real API key required)
 MISTRAL_OCR_LIVE=1 MISTRAL_API_KEY=<key> \
@@ -270,7 +267,7 @@ cd backend
 npx jest ksef-live --no-coverage
 # Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
 
-npx jest pdp-live pdp-afnor-live email-live sdicoop.live peppol-live portal-live tsa-live choruspro-live --no-coverage
+npx jest pdp.live send-quote.live sdicoop.live tsa-live choruspro-live --no-coverage
 # Expected: all suites skipped
 ```
 
@@ -282,7 +279,8 @@ npx jest pdp-live pdp-afnor-live email-live sdicoop.live peppol-live portal-live
 cd backend
 npx jest --no-coverage
 # Live specs appear in "skipped suites" count — no live call is made.
-# Baseline: ~1330 passed, live suites skipped.
+# Baseline (2026-09-13): 2740 passed / 58 skipped, 254 of 278 suites run — this number drifts as the
+# codebase grows; treat it as a sanity check, not a pinned target.
 ```
 
 ---
@@ -320,19 +318,17 @@ CHORUSPRO_LIVE=1 \
   CHORUSPRO_CLIENT_SECRET=<piste_client_secret> \
   CHORUSPRO_TECH_LOGIN=<compte_technique_login> \
   CHORUSPRO_TECH_PASSWORD=<compte_technique_password> \
-  [CHORUSPRO_ENV=SANDBOX] \
-  [CHORUSPRO_XML_PATH=/path/to/invoice.xml] \
+  [CHORUSPRO_ENVIRONMENT=SANDBOX] \
   npx jest choruspro-live --no-coverage --runInBand
 ```
 
 | Env var | Purpose |
 |---|---|
-| `CHORUSPRO_CLIENT_ID` | PISTE OAuth2 `client_id` (from PISTE developer portal) |
-| `CHORUSPRO_CLIENT_SECRET` | PISTE OAuth2 `client_secret` |
-| `CHORUSPRO_TECH_LOGIN` | Chorus Pro "compte technique" login (required for deposerFlux) |
-| `CHORUSPRO_TECH_PASSWORD` | Chorus Pro "compte technique" password |
-| `CHORUSPRO_ENV` | `SANDBOX` (default) or `PROD` |
-| `CHORUSPRO_XML_PATH` | Path to a pre-built Factur-X/UBL XML file (skips auto-generation) |
+| `CHORUSPRO_CLIENT_ID` | PISTE OAuth2 `client_id` (from PISTE developer portal) — required by the gate |
+| `CHORUSPRO_CLIENT_SECRET` | PISTE OAuth2 `client_secret` — required by the gate |
+| `CHORUSPRO_TECH_LOGIN` | Chorus Pro "compte technique" login (optional — the OAuth half runs without it; the deposit half is skipped when absent) |
+| `CHORUSPRO_TECH_PASSWORD` | Chorus Pro "compte technique" password (same optionality as above) |
+| `CHORUSPRO_ENVIRONMENT` | `SANDBOX` (default) or `PROD` |
 
 **How to obtain credentials:**
 1. Create an account on **[piste.gouv.fr](https://piste.gouv.fr)**.
@@ -345,113 +341,8 @@ CHORUSPRO_LIVE=1 \
 - Step 1: OAuth2 client_credentials → Bearer token reachable.
 - Step 2 (if compte technique provided): `POST /cpro/factures/v1/deposer/flux` → real `numeroFluxDepot` returned.
 - Step 3: `POST /cpro/factures/v1/consulter/cr` → statutFlux = DEPOSE/EN_COURS_DE_TRAITEMENT/VALIDE.
-
----
-
-# National portals (namespaced per-provider convention)
-
-## `portalPrefix` — how the prefix is derived
-
-```
-prefix = providerId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')
-```
-
-| Provider id | Derived prefix |
-|---|---|
-| `choruspro` | `CHORUSPRO` |
-| `anaf` | `ANAF` |
-| `zatca` | `ZATCA` |
-| `gib` | `GIB` |
-| `eg-eta` | `EG_ETA` |
-| `in-irp` | `IN_IRP` |
-| `myinvois` | `MYINVOIS` |
-| `id-coretax` | `ID_CORETAX` |
-| `firs` | `FIRS` |
-| `ke-kra` | `KE_KRA` |
-| `afip` | `AFIP` |
-| `sefaz` | `SEFAZ` |
-| `sii` | `SII` |
-| `sri` | `SRI` |
-| `uy-dgi` | `UY_DGI` |
-
-## Standard `<PREFIX>_*` variables
-
-Each portal self-gates on `<PREFIX>_LIVE=1` and reads its own namespaced creds.
-Empty vars are ignored — only those with values are passed to the provider.
-
-| Suffix | Full example | Purpose |
-|---|---|---|
-| `_LIVE` | `ANAF_LIVE=1` | Opt-in gate — must be exactly `1` |
-| `_BASE_URL` | `ANAF_BASE_URL=https://api.anaf.ro` | Portal API base URL |
-| `_ENVIRONMENT` | `ANAF_ENVIRONMENT=TEST` | `TEST` or `PROD` (default: `TEST`) |
-| `_API_KEY` | `ZATCA_API_KEY=<key>` | API key |
-| `_AUTH_TOKEN` | `ANAF_AUTH_TOKEN=<token>` | Bearer / session token |
-| `_CLIENT_ID` | `CHORUSPRO_CLIENT_ID=<id>` | OAuth2 client ID |
-| `_CLIENT_SECRET` | `CHORUSPRO_CLIENT_SECRET=<sec>` | OAuth2 client secret |
-| `_CERTIFICATE` | `SEFAZ_CERTIFICATE=<b64-pfx>` | PFX certificate, base64-encoded |
-| `_CERT_PASSWORD` | `SEFAZ_CERT_PASSWORD=<pass>` | Certificate password |
-| `_TAXPAYER_ID` | `ANAF_TAXPAYER_ID=<cui>` | Taxpayer / company identifier |
-| `_SELLER_VAT` | `ANAF_SELLER_VAT=RO12345678` | Seller VAT (fixture) |
-| `_BUYER_VAT` | `ANAF_BUYER_VAT=RO00000001` | Buyer VAT (fixture) |
-| `_SELLER_NAME` | `CHORUSPRO_SELLER_NAME=…` | Seller company name (fixture) |
-| `_BUYER_NAME` | `CHORUSPRO_BUYER_NAME=…` | Buyer company name (fixture) |
-| `_COUNTRY` | `ZATCA_COUNTRY=SA` | Seller country 2-letter ISO (fixture) |
-| `_BUYER_COUNTRY` | `ZATCA_BUYER_COUNTRY=SA` | Buyer country (fixture) |
-| `_CURRENCY` | `ZATCA_CURRENCY=SAR` | Invoice currency (default: `EUR`) |
-| `_XML_PATH` | `ANAF_XML_PATH=/path/to/invoice.xml` | Pre-built XML (skips auto-generation) |
-| `_SYNTAX` | `ZATCA_SYNTAX=EN16931_UBL` | Artifact syntax (default: `EN16931_UBL`) |
-
-Provider-specific extras (e.g. `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD`) are picked up
-automatically — any `<PREFIX>_*` key not listed above is also camelCased and forwarded.
-
-## Per-portal examples
-
-### Chorus Pro (FR B2G)
-
-```bash
-CHORUSPRO_LIVE=1 \
-  CHORUSPRO_CLIENT_ID=<piste_client_id> \
-  CHORUSPRO_CLIENT_SECRET=<piste_client_secret> \
-  CHORUSPRO_TECH_LOGIN=<compte_technique_login> \
-  CHORUSPRO_TECH_PASSWORD=<compte_technique_password> \
-  CHORUSPRO_ENVIRONMENT=SANDBOX \
-  npx jest portal-live --no-coverage --runInBand --testNamePattern=choruspro
-```
-
-### ZATCA (SA — FATOORA)
-
-```bash
-ZATCA_LIVE=1 \
-  ZATCA_API_KEY=<key> \
-  ZATCA_CERTIFICATE=<base64-pfx> \
-  ZATCA_CERT_PASSWORD=<pass> \
-  ZATCA_TAXPAYER_ID=<tin> \
-  ZATCA_ENVIRONMENT=TEST \
-  ZATCA_COUNTRY=SA \
-  ZATCA_CURRENCY=SAR \
-  npx jest portal-live --no-coverage --runInBand --testNamePattern=zatca
-```
-
-### ANAF (RO — SPV e-factura)
-
-```bash
-ANAF_LIVE=1 \
-  ANAF_AUTH_TOKEN=<token> \
-  ANAF_TAXPAYER_ID=<cui> \
-  ANAF_ENVIRONMENT=TEST \
-  ANAF_COUNTRY=RO \
-  ANAF_SELLER_VAT=RO12345678 \
-  ANAF_BUYER_VAT=RO00000001 \
-  npx jest portal-live --no-coverage --runInBand --testNamePattern=anaf
-```
-
-### Running multiple portals in one invocation
-
-```bash
-ZATCA_LIVE=1 ZATCA_API_KEY=<key> ZATCA_TAXPAYER_ID=<tin> \
-ANAF_LIVE=1  ANAF_AUTH_TOKEN=<tok> ANAF_TAXPAYER_ID=<cui> \
-  npx jest portal-live --no-coverage --runInBand
-```
+- With no compte technique set, only step 1 runs — this is the "skipped, always" state this checkout
+  is actually in today (see the summary table above).
 
 ---
 
@@ -474,15 +365,18 @@ remains is entirely OUTSIDE this codebase's control:
    collaudo may reveal envelope discrepancies reading the spec alone could not anticipate (see that
    spec's own header).
 
-## Peppol — multi-provider Access Point support
+## Peppol
 
-One port (`PeppolApPort`), several adapters, chosen per company via the `apProvider` channel
-config field (`peppol/ap-adapters.ts`): `generic` (default, backward-compatible REST gateway),
-`peppol-sh`, `storecove`.
+Production sends only through the **generic** Access Point adapter (`peppol/peppol-client.ts`) — this
+architecture has no per-company `apProvider` selector. The multi-vendor switch the compliance engine
+used to have (`ap-adapters.ts`), and the Storecove adapter it could dispatch to, were not carried over
+when that engine was deleted (`peppol-transport.ts`'s own header names this explicitly). `peppol-sh`
+(`peppol/peppol-sh-client.ts`) exists only as a separate, DB-free live-proof harness — it is never
+selectable in production and never called from `peppol-transport.ts`.
 
-### peppol.sh — ✅ PROVEN, zero secrets (the recommended sandbox path)
+### peppol.sh — ✅ PROVEN, zero secrets (the live-proof harness)
 
-The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (Ethereal pattern):
+The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (no pre-provisioned account needed):
 
 1. `POST https://api.peppol.sh/v1/signup {email}` → instant `ps_test_` API key (no KYC, no card).
 2. `POST https://sandbox.peppol.sh/v1/companies` → sending company (`com_…`).
@@ -493,7 +387,11 @@ The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (Ethereal pattern)
    `queued → sending → delivered` (sandbox delivers by email; statuses are real).
 
 Run: `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh npx jest peppol-sh-live --no-coverage --runInBand`
-Proven 2026-07-11: document `doc_2yb9TJka7US3hBwz4rnDW` → CLEARED in ~13 s.
+Proven live 2026-09-02 in this architecture (see the encadré earlier in this file for the full,
+raw result): `BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with
+`invalid_country`. An older 2026-07-11 proof (document `doc_2yb9TJka7US3hBwz4rnDW` → CLEARED in
+~13 s) predates this architecture and used a different sandbox behavior (`tax_id` alone was then
+enough to create a company) — superseded, kept here only as history.
 Production later: pass KYC → `ps_live_` key → `environment: PROD` (routes via their certified AP).
 
 ### Generic AP gateway (deferred)
@@ -501,27 +399,24 @@ Production later: pass KYC → `ps_live_` key → `environment: PROD` (routes vi
 1. Connect to a Peppol Access Point provider (e.g. Basware, Pagero, Qvalia, or self-hosted phase4/oxalis-ng).
 2. Obtain an AP certificate (C1/C2) registered with OpenPeppol or the national Peppol Authority.
 3. The receiver (`PEPPOL_RECEIVER_ID`) must be registered in the SMP/SML.
-4. Set `PEPPOL_LIVE=1` + creds and run `peppol-live.spec.ts`.
-
-### Storecove (deferred)
-
-Adapter implemented against the public API reference (`POST /api/v2/document_submissions` with
-base64 raw UBL + `parseStrategy: 'ubl'`; evidence endpoint for status) — mocked tests only.
-Live proof needs a trial account (manual request, 30-day sandbox; no self-serve signup API).
+4. No live spec exists yet for this path — only mocked coverage (`peppol/peppol-client.spec.ts`).
+   Set `PEPPOL_LIVE=1` + the four creds above once a live spec is written against a real connected AP.
 
 ---
 
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
-- The `live` job handles KSeF/PDP/Peppol/email/TSA (proven or gated) and SdI (implemented-awaiting-
-  accreditation, still deferred — see "SdI prerequisites" above) plus the
-  creds-free `apply-signal.live.spec.ts` DB test (`COMPLIANCE_LIVE_DB_TESTS=1`, set as a workflow
-  constant — needs only the job's own disposable Postgres, no secret).
-- The `national-portals-live` job runs `portal-live.spec.ts` with all namespaced `<PREFIX>_*`
-  secrets mapped. Each portal self-skips unless at least one real credential is present
-  (checked: `_CLIENT_ID`, `_CLIENT_SECRET`, `_API_KEY`, `_AUTH_TOKEN`, `_CERTIFICATE`, `_TOKEN`).
-  You can fill in one portal's credentials at a time.
+- The `live` job runs `npx jest live` against a disposable Postgres + Redis, which sweeps in every
+  `*.live.spec.ts` / `*-live.spec.ts` file matched above (KSeF, PDP, SdI, Peppol via peppol.sh, TSA,
+  Chorus Pro), each self-gating on its own flag and credentials.
+- **Not yet reconciled with this architecture, named honestly rather than fixed silently**: the
+  workflow file's own env block still sets flags this codebase no longer reads (`EMAIL_LIVE`,
+  `PDP_AFNOR_LIVE`, `COMPLIANCE_LIVE_DB_TESTS`) — harmless (nothing consumes them) rather than
+  wrong. Its separate `national-portals-live` job still runs `npx jest portal-live`, a pattern that
+  matches no file in this repository (`portal-live.spec.ts` no longer exists) — that job runs and
+  currently finds nothing to execute. This is a defect in the workflow file itself, out of scope for
+  this guide to fix.
 
 > **Cron caveat:** GitHub only fires the `schedule` trigger from the repository's **default branch**
 > (typically `main`). On a feature branch, the nightly `cron: '0 3 * * *'` entry above is inert —
@@ -529,19 +424,18 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 > starts firing automatically once the workflow file is merged to the default branch.
 >
 > **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI,
-> generic-AP Peppol, TSA, Chorus Pro, all national portals) self-skips via `liveDescribe`/the
-> two-tier portal gate — see the hard-success contract at the top of this file, enforced by each
-> spec, not by the gate. Only the genuinely creds-free specs actually run and must pass: Email
-> (Ethereal), Peppol via `peppol-sh` (zero-secret sandbox self-signup), and the
-> `apply-signal.live.spec.ts` DB test. A fully green *real-round-trip* matrix (KSeF CLEARED, PDP
-> PENDING/CLEARED, SdI CLEARED, national portals, …) additionally needs the repo secrets listed in
-> the table below — see also `CREDENTIALS_GUIDE.md` for the per-platform setup walkthrough.
+> generic-AP Peppol, TSA, Chorus Pro) self-skips via `liveDescribe` — see the hard-success contract
+> at the top of this file, enforced by each spec, not by the gate. Only the genuinely creds-free
+> specs actually run and must pass: Email/Mailpit (`DOCUMENTS_MAIL_LIVE`, though the workflow does
+> not currently set this flag — see the caveat above) and Peppol via `peppol-sh` (zero-secret sandbox
+> self-signup). A fully green *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED, SdI
+> CLEARED, …) additionally needs the repo secrets listed in the table below — see also
+> `CREDENTIALS_GUIDE.md` for the per-platform setup walkthrough.
 
 > **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
-> They are set as literal values directly in the YAML (`ANAF_LIVE: '1'`, `ANAF_ENVIRONMENT: 'SANDBOX'`, etc.).
-> Only real credentials (`*_CLIENT_ID`, `*_CLIENT_SECRET`, `*_API_KEY`, `*_AUTH_TOKEN`,
-> `*_CERTIFICATE`, `*_CERT_PASSWORD`, `*_TAXPAYER_ID`, `*_BASE_URL`,
-> `*_SELLER_VAT`, `*_BUYER_VAT`, `*_COUNTRY`) belong in secrets.
+> They are set as literal values directly in the YAML (`SDI_LIVE: '1'`, `CHORUSPRO_ENVIRONMENT:
+> 'SANDBOX'`, etc.). Only real credentials (`*_CLIENT_ID`, `*_CLIENT_SECRET`, `*_API_KEY`,
+> `*_AUTH_TOKEN`, `*_CERTIFICATE`, `*_CERT_PASSWORD`, `*_TAXPAYER_ID`, `*_BASE_URL`) belong in secrets.
 
 **Where to add the secrets:** repo → **Settings → Secrets and variables → Actions → New repository secret**.
 - GitLab equivalent: *Settings → CI/CD → Variables*.
@@ -562,17 +456,12 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | Secret(s) | Channel | Where to obtain |
 |---|---|---|
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
-| `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ `PDP_API_STYLE`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP + AFNOR | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. AFNOR uses the same creds + `PDP_API_STYLE=afnor`. |
+| `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ optional `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
 | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see `CREDENTIALS_GUIDE.md` §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
 | _(none)_ | Peppol via peppol.sh | Self-signup in the spec — no secret needed. `PEPPOL_AP_PROVIDER` is a constant (`'peppol-sh'`) in the workflow — not a secret. ✅ proven. |
-| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol generic AP | A connected **Access Point** (Storecove, Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. |
-| `<PREFIX>_CLIENT_ID`, `<PREFIX>_CLIENT_SECRET`, `<PREFIX>_API_KEY`, `<PREFIX>_AUTH_TOKEN`, `<PREFIX>_CERTIFICATE`, `<PREFIX>_CERT_PASSWORD`, `<PREFIX>_TAXPAYER_ID`, `<PREFIX>_BASE_URL`, `<PREFIX>_SELLER_VAT`, `<PREFIX>_BUYER_VAT`, `<PREFIX>_COUNTRY` (per portal) | National portals | Each authority's dev portal: AFIP (afip.gob.ar), SEFAZ (BR), SII (sii.cl), DIAN (dian.gov.co), **ZATCA Fatoora** (zatca.gov.sa), ANAF SPV (anaf.ro), **MyInvois** (myinvois.hasil.gov.my), India IRP (einvoice1.gst.gov.in)… `<PREFIX>_LIVE` and `<PREFIX>_ENVIRONMENT` are constants in the workflow YAML — **not secrets**. |
+| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol generic AP | A connected **Access Point** (Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. No live spec exists yet for this path (see "Peppol" above). |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
-| _(none)_ | Email | Ethereal auto-creates a throwaway account — no secret needed. ✅ proven. |
+| _(none)_ | Email (document "send" SMTP) | The local Mailpit container the dev/test stack already runs — no secret needed. ✅ proven (see the summary table above). |
 
-> CFDI/MX needs a **PAC** account (SAT-certified: Finkok, Facturama, SW Sapien…) + a **CSD** cert from
-> **sat.gob.mx** — wired through the `pac` provider, not the gated portal harness.
 > National **XSD** files (not secrets, e.g. PL FA(3)/IT FatturaPA) come from each authority directly.
-> Spain's own Facturae XSD/format provider was deleted outright along with the rest of its scope
-> (2026-09-12, see `B2G_COVERAGE.md`) — no longer applicable here.
