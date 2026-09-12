@@ -41,7 +41,15 @@
   crash. `experimentalMemoryManagement=true` est déjà activé. Ce qui le débloquerait : baisser
   `numTestsKeptInMemory`, découper ces specs, ou isoler une éventuelle fuite mémoire côté client sur
   ces écrans (à ne pas confondre avec un rouge de code — la base de rouges permanents reste vide).
-  À vérifier aussi si ça se produit en CI (machine différente, plus de RAM) ou seulement en local.
+  TRANCHÉ le 2026-09-12 : la reproduction spec par spec en isolation est confirmée (chaque spec lancée
+  seule dans son propre process Electron sort en code 1 ; `25` passe d'abord ses QUATRE assertions de
+  lettrage, puis plante en entrant sur son 5e test — celui dont le sujet est justement un SELECT de
+  devise dans une boîte de dialogue). Et les MÊMES quatre specs passent TOUTES sur Firefox 154
+  (`--browser firefox`), zéro crash renderer : cela confirme la conclusion déjà écrite dans
+  `e2e/cypress.config.ts` (bug Electron/Chromium-headless sur le select de Radix, ni budget mémoire,
+  ni défaut des specs). `05-clients` et `29-document-recurrence`, eux, sont de simples flakes : verts
+  au re-run sous Electron. Contournement retenu : `--browser firefox`. RESTE INCONNU : le
+  comportement en CI, qui ne joue que 15 specs sous Electron, jamais les 46.
 
 - ~~« Sent » avant l'envoi~~ (découvert à la tâche 4) — **RÉSOLU à l'item 22** (2026-08-31) : `send`
   déclare désormais `draft`/`send_failed` → `sending` → `sent` | `send_failed` (quote/invoice/
