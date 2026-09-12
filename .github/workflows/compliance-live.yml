@@ -15,8 +15,8 @@ name: Compliance live tests
 # "Run workflow" button (workflow_dispatch) instead, targeting that branch explicitly. The cron
 # starts firing automatically once this file is merged to main. See LIVE_TESTING.md for the full
 # list of repo secrets needed for a completely green (real round-trip) run — with none of them set,
-# every creds-gated spec below self-skips and only the creds-free specs (apply-signal DB test,
-# EMAIL/Ethereal, Peppol via peppol.sh) run and pass.
+# every creds-gated spec below self-skips and only the creds-free spec (Peppol via peppol.sh, which
+# self-signs-up on the sandbox) runs and passes.
 
 on:
   workflow_dispatch:        # manual button in the Actions tab
@@ -28,20 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
     environment: live-tests
-    # Real Postgres + Redis, mirroring cypress.yml's queue-integration
-    # job — needed by full-pipeline-peppol.live.spec.ts, which drives a document through the REAL
-    # BullMQ TransmitProcessor/PollProcessor + ApplySignalService (not just a provider call). Every
-    # other spec in this job is provider-level (no DB/queue) and simply ignores these services.
+    # Real Postgres only. pdp-conformity.live.spec.ts, sequence.live.spec.ts and send-quote.live.spec.ts
+    # create real Company/DocumentInstance rows through the `prisma` singleton (never a mocked client) —
+    # every other spec in this job is provider-level (no DB) and simply ignores this service. No Redis
+    # service: none of the spec files `npx jest live` below actually matches instantiates a BullMQ/ioredis
+    # connection or boots a Nest module that would (verified file-by-file, 2026-09-13) — it used to be
+    # needed by a queue-driven pipeline spec that no longer exists in this codebase (see below).
     services:
-      redis:
-        image: redis:7
-        ports:
-          - "6379:6379"
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
       postgres:
         image: postgres:16
         env:
@@ -60,23 +53,15 @@ jobs:
       # Flags ON — the per-spec credential gate decides what actually runs.
       KSEF_LIVE: '1'
       PDP_LIVE: '1'
-      PDP_AFNOR_LIVE: '1'
-      EMAIL_LIVE: '1'         # no creds needed (Ethereal)
       SDI_LIVE: '1'
       PEPPOL_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
+      CHORUSPRO_LIVE: '1'     # FR B2G (PISTE OAuth2) — see its own block below
 
-      # apply-signal.live.spec.ts (M-14): the atomic-transition suite against the real CI Postgres
-      # above. NO external cred, NO encryption key — only DATABASE_URL (already provisioned below).
-      # It truncates the compliance tables before/after each test; safe here because this Postgres
-      # service is a disposable, freshly-migrated CI container, never a real environment.
-      COMPLIANCE_LIVE_DB_TESTS: '1'
-
-      # --- full-pipeline-peppol.live.spec.ts (M-15): real Postgres + Redis for the queue-driven
-      # engine -> executor -> applySignal -> BullMQ pipeline. Same DB/Redis the queue-integration
-      # job (cypress.yml) uses — a fresh, empty, freshly-migrated DB is enough here too.
+      # --- Real Postgres for the specs that touch the `prisma` singleton directly (see the
+      # `services:` comment above for which ones and why) — a fresh, empty, freshly-migrated DB is
+      # enough; those specs create and clean up their own rows.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
-      REDIS_URL: redis://localhost:6379
 
       # --- TSA (RFC 3161) — e.g. https://freetsa.org/tsr ---
       TSA_URL: ${{ secrets.TSA_URL }}
@@ -85,30 +70,36 @@ jobs:
       KSEF_AUTH_TOKEN:   ${{ secrets.KSEF_AUTH_TOKEN }}
       KSEF_NIP:          ${{ secrets.KSEF_NIP }}
 
-      # --- FR PDP (superpdp + AFNOR share these) ---
+      # --- FR PDP (superpdp) ---
       PDP_BASE_URL:      ${{ secrets.PDP_BASE_URL }}
       PDP_CLIENT_ID:     ${{ secrets.PDP_CLIENT_ID }}
       PDP_CLIENT_SECRET: ${{ secrets.PDP_CLIENT_SECRET }}
-      PDP_API_STYLE: ${{ secrets.PDP_API_STYLE }}
-      PDP_SELLER_ROUTING: ${{ secrets.PDP_SELLER_ROUTING }}
-      PDP_BUYER_ROUTING: ${{ secrets.PDP_BUYER_ROUTING }}
+
+      # --- FR B2G — Chorus Pro (PISTE OAuth2) ---
+      # Still-live, still-wired channel (transports/chorus-pro/) — moved here from the now-deleted
+      # national-portals-live job, since its own live spec is matched by THIS job's `npx jest live`
+      # pattern already and only needed its flag/creds actually declared somewhere to ever fire.
+      # HONEST STATUS (see choruspro-live.spec.ts's own header): skipped, always, today — this repo
+      # holds no PISTE account of any kind. CHORUSPRO_TECH_LOGIN/PASSWORD are read too but are NOT part
+      # of the gate's required list: the spec runs the OAuth half alone and skips only the deposit half
+      # when the technical-account pair is absent.
+      CHORUSPRO_CLIENT_ID: ${{ secrets.CHORUSPRO_CLIENT_ID }}
+      CHORUSPRO_CLIENT_SECRET: ${{ secrets.CHORUSPRO_CLIENT_SECRET }}
+      CHORUSPRO_TECH_LOGIN: ${{ secrets.CHORUSPRO_TECH_LOGIN }}
+      CHORUSPRO_TECH_PASSWORD: ${{ secrets.CHORUSPRO_TECH_PASSWORD }}
+      CHORUSPRO_ENVIRONMENT: 'SANDBOX'
 
       # --- IT SdI (SDI_CERTIFICATE is the PFX encoded base64, passed directly — no file) ---
       SDI_ID_TRASMITTENTE: ${{ secrets.SDI_ID_TRASMITTENTE }}
+      SDI_ENDPOINT:        ${{ secrets.SDI_ENDPOINT }}
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
-      SDI_CHANNEL:         'SDICoop'
 
       # --- Peppol ---
       # peppol.sh path: ZERO secrets — the spec self-signs-up on the sandbox (Ethereal pattern).
       # PEPPOL_AP_PROVIDER is a constant, not a secret. Proven live 2026-07-11.
       PEPPOL_AP_PROVIDER:    'peppol-sh'
-      # Generic-AP path (peppol-live.spec.ts) still needs the secrets below; it self-skips without them.
-      PEPPOL_PARTICIPANT_ID: ${{ secrets.PEPPOL_PARTICIPANT_ID }}
-      PEPPOL_AP_URL:         ${{ secrets.PEPPOL_AP_URL }}
-      PEPPOL_API_KEY:        ${{ secrets.PEPPOL_API_KEY }}
       PEPPOL_RECEIVER_ID:    ${{ secrets.PEPPOL_RECEIVER_ID }}
-      PEPPOL_ENV:            'TEST'
 
       # Encryption key for any credential-store round-trip the specs may touch.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
@@ -129,222 +120,14 @@ jobs:
         run: cd backend && npx prisma generate
 
       # Apply the full migration chain to the empty CI Postgres — same as cypress.yml's
-      # queue-integration job. full-pipeline-peppol.live.spec.ts creates its own Company/Client/
-      # Invoice/ComplianceDocument fixtures against this schema and cleans them up in afterAll.
+      # queue-integration job. pdp-conformity.live.spec.ts, sequence.live.spec.ts and
+      # send-quote.live.spec.ts create their own Company/DocumentInstance fixtures against this
+      # schema and clean them up themselves (afterAll, or inline once done with them).
       - name: Apply migrations (empty dev DB)
         run: cd backend && npx prisma migrate deploy
 
-      # --forceExit: full-pipeline-peppol.live.spec.ts (like the queue-integration specs) leaves
-      # BullMQ/ioredis connections open past the last assertion — harmless once the job's own
-      # container teardown reclaims them, but forceExit keeps this step from hanging.
+      # --forceExit: a real Prisma connection pool — used directly by several specs above, never
+      # mocked — is an open handle jest would otherwise warn about; harmless once the job's own
+      # container teardown reclaims it, but forceExit keeps this step from hanging on it.
       - name: Run gated live specs
         run: cd backend && npx jest live --no-coverage --ci --forceExit
-
-  # National portals — namespaced per-provider convention.
-  # Each portal self-gates on <PREFIX>_LIVE=1 + its own <PREFIX>_* creds.
-  # A portal whose secrets are all empty self-skips silently — fill them in one at a time.
-  # Trigger manually (workflow_dispatch) or nightly; never on pull_request (secrets unavailable).
-  national-portals-live:
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
-    environment: live-tests
-    env:
-      # *_LIVE / *_ENVIRONMENT are constants set here, NOT secrets — only credentials are secrets.
-      CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
-
-      # ─── France B2G — Chorus Pro (PISTE OAuth2) ──────────────────────────
-      CHORUSPRO_LIVE: '1'
-      CHORUSPRO_CLIENT_ID: ${{ secrets.CHORUSPRO_CLIENT_ID }}
-      CHORUSPRO_CLIENT_SECRET: ${{ secrets.CHORUSPRO_CLIENT_SECRET }}
-      CHORUSPRO_TECH_LOGIN: ${{ secrets.CHORUSPRO_TECH_LOGIN }}
-      CHORUSPRO_TECH_PASSWORD: ${{ secrets.CHORUSPRO_TECH_PASSWORD }}
-      CHORUSPRO_ENVIRONMENT: 'SANDBOX'
-      CHORUSPRO_TAXPAYER_ID: ${{ secrets.CHORUSPRO_TAXPAYER_ID }}
-      CHORUSPRO_SELLER_VAT: ${{ secrets.CHORUSPRO_SELLER_VAT }}
-      CHORUSPRO_BUYER_VAT: ${{ secrets.CHORUSPRO_BUYER_VAT }}
-      CHORUSPRO_COUNTRY: ${{ secrets.CHORUSPRO_COUNTRY }}
-
-      # ─── Romania — ANAF SPV ───────────────────────────────────────────────
-      ANAF_LIVE: '1'
-      ANAF_BASE_URL: ${{ secrets.ANAF_BASE_URL }}
-      ANAF_AUTH_TOKEN: ${{ secrets.ANAF_AUTH_TOKEN }}
-      ANAF_CLIENT_ID: ${{ secrets.ANAF_CLIENT_ID }}
-      ANAF_CLIENT_SECRET: ${{ secrets.ANAF_CLIENT_SECRET }}
-      ANAF_TAXPAYER_ID: ${{ secrets.ANAF_TAXPAYER_ID }}
-      ANAF_ENVIRONMENT: 'SANDBOX'
-      ANAF_SELLER_VAT: ${{ secrets.ANAF_SELLER_VAT }}
-      ANAF_BUYER_VAT: ${{ secrets.ANAF_BUYER_VAT }}
-      ANAF_COUNTRY: ${{ secrets.ANAF_COUNTRY }}
-
-      # ─── Saudi Arabia — ZATCA FATOORA ────────────────────────────────────
-      ZATCA_LIVE: '1'
-      ZATCA_BASE_URL: ${{ secrets.ZATCA_BASE_URL }}
-      ZATCA_API_KEY: ${{ secrets.ZATCA_API_KEY }}
-      ZATCA_CLIENT_ID: ${{ secrets.ZATCA_CLIENT_ID }}
-      ZATCA_CLIENT_SECRET: ${{ secrets.ZATCA_CLIENT_SECRET }}
-      ZATCA_CERTIFICATE: ${{ secrets.ZATCA_CERTIFICATE }}
-      ZATCA_CERT_PASSWORD: ${{ secrets.ZATCA_CERT_PASSWORD }}
-      ZATCA_TAXPAYER_ID: ${{ secrets.ZATCA_TAXPAYER_ID }}
-      ZATCA_ENVIRONMENT: 'SANDBOX'
-      ZATCA_SELLER_VAT: ${{ secrets.ZATCA_SELLER_VAT }}
-      ZATCA_BUYER_VAT: ${{ secrets.ZATCA_BUYER_VAT }}
-      ZATCA_COUNTRY: ${{ secrets.ZATCA_COUNTRY }}
-
-      # ─── Turkey — GİB (e-fatura / e-arşiv) ──────────────────────────────
-      GIB_LIVE: '1'
-      GIB_BASE_URL: ${{ secrets.GIB_BASE_URL }}
-      GIB_API_KEY: ${{ secrets.GIB_API_KEY }}
-      GIB_CLIENT_ID: ${{ secrets.GIB_CLIENT_ID }}
-      GIB_CLIENT_SECRET: ${{ secrets.GIB_CLIENT_SECRET }}
-      GIB_CERTIFICATE: ${{ secrets.GIB_CERTIFICATE }}
-      GIB_CERT_PASSWORD: ${{ secrets.GIB_CERT_PASSWORD }}
-      GIB_TAXPAYER_ID: ${{ secrets.GIB_TAXPAYER_ID }}
-      GIB_ENVIRONMENT: 'SANDBOX'
-      GIB_SELLER_VAT: ${{ secrets.GIB_SELLER_VAT }}
-      GIB_BUYER_VAT: ${{ secrets.GIB_BUYER_VAT }}
-      GIB_COUNTRY: ${{ secrets.GIB_COUNTRY }}
-
-      # ─── Egypt — ETA (e-invoice) ──────────────────────────────────────────
-      EG_ETA_LIVE: '1'
-      EG_ETA_BASE_URL: ${{ secrets.EG_ETA_BASE_URL }}
-      EG_ETA_CLIENT_ID: ${{ secrets.EG_ETA_CLIENT_ID }}
-      EG_ETA_CLIENT_SECRET: ${{ secrets.EG_ETA_CLIENT_SECRET }}
-      EG_ETA_TAXPAYER_ID: ${{ secrets.EG_ETA_TAXPAYER_ID }}
-      EG_ETA_ENVIRONMENT: 'SANDBOX'
-      EG_ETA_CERTIFICATE: ${{ secrets.EG_ETA_CERTIFICATE }}
-      EG_ETA_CERT_PASSWORD: ${{ secrets.EG_ETA_CERT_PASSWORD }}
-      EG_ETA_SELLER_VAT: ${{ secrets.EG_ETA_SELLER_VAT }}
-      EG_ETA_BUYER_VAT: ${{ secrets.EG_ETA_BUYER_VAT }}
-      EG_ETA_COUNTRY: ${{ secrets.EG_ETA_COUNTRY }}
-
-      # ─── India — IRP (GST e-invoice) ──────────────────────────────────────
-      IN_IRP_LIVE: '1'
-      IN_IRP_BASE_URL: ${{ secrets.IN_IRP_BASE_URL }}
-      IN_IRP_CLIENT_ID: ${{ secrets.IN_IRP_CLIENT_ID }}
-      IN_IRP_CLIENT_SECRET: ${{ secrets.IN_IRP_CLIENT_SECRET }}
-      IN_IRP_API_KEY: ${{ secrets.IN_IRP_API_KEY }}
-      IN_IRP_TAXPAYER_ID: ${{ secrets.IN_IRP_TAXPAYER_ID }}
-      IN_IRP_ENVIRONMENT: 'SANDBOX'
-      IN_IRP_SELLER_VAT: ${{ secrets.IN_IRP_SELLER_VAT }}
-      IN_IRP_BUYER_VAT: ${{ secrets.IN_IRP_BUYER_VAT }}
-      IN_IRP_COUNTRY: ${{ secrets.IN_IRP_COUNTRY }}
-
-      # ─── Malaysia — MyInvois (LHDNM) ─────────────────────────────────────
-      MYINVOIS_LIVE: '1'
-      MYINVOIS_BASE_URL: ${{ secrets.MYINVOIS_BASE_URL }}
-      MYINVOIS_CLIENT_ID: ${{ secrets.MYINVOIS_CLIENT_ID }}
-      MYINVOIS_CLIENT_SECRET: ${{ secrets.MYINVOIS_CLIENT_SECRET }}
-      MYINVOIS_TAXPAYER_ID: ${{ secrets.MYINVOIS_TAXPAYER_ID }}
-      MYINVOIS_ENVIRONMENT: 'SANDBOX'
-      MYINVOIS_SELLER_VAT: ${{ secrets.MYINVOIS_SELLER_VAT }}
-      MYINVOIS_BUYER_VAT: ${{ secrets.MYINVOIS_BUYER_VAT }}
-      MYINVOIS_COUNTRY: ${{ secrets.MYINVOIS_COUNTRY }}
-
-      # ─── Indonesia — DGT Coretax (e-Faktur) ──────────────────────────────
-      ID_CORETAX_LIVE: '1'
-      ID_CORETAX_BASE_URL: ${{ secrets.ID_CORETAX_BASE_URL }}
-      ID_CORETAX_CLIENT_ID: ${{ secrets.ID_CORETAX_CLIENT_ID }}
-      ID_CORETAX_CLIENT_SECRET: ${{ secrets.ID_CORETAX_CLIENT_SECRET }}
-      ID_CORETAX_CERTIFICATE: ${{ secrets.ID_CORETAX_CERTIFICATE }}
-      ID_CORETAX_CERT_PASSWORD: ${{ secrets.ID_CORETAX_CERT_PASSWORD }}
-      ID_CORETAX_TAXPAYER_ID: ${{ secrets.ID_CORETAX_TAXPAYER_ID }}
-      ID_CORETAX_ENVIRONMENT: 'SANDBOX'
-      ID_CORETAX_SELLER_VAT: ${{ secrets.ID_CORETAX_SELLER_VAT }}
-      ID_CORETAX_BUYER_VAT: ${{ secrets.ID_CORETAX_BUYER_VAT }}
-      ID_CORETAX_COUNTRY: ${{ secrets.ID_CORETAX_COUNTRY }}
-
-      # ─── Nigeria — FIRS MBS ───────────────────────────────────────────────
-      FIRS_LIVE: '1'
-      FIRS_BASE_URL: ${{ secrets.FIRS_BASE_URL }}
-      FIRS_CLIENT_ID: ${{ secrets.FIRS_CLIENT_ID }}
-      FIRS_CLIENT_SECRET: ${{ secrets.FIRS_CLIENT_SECRET }}
-      FIRS_API_KEY: ${{ secrets.FIRS_API_KEY }}
-      FIRS_TAXPAYER_ID: ${{ secrets.FIRS_TAXPAYER_ID }}
-      FIRS_ENVIRONMENT: 'SANDBOX'
-      FIRS_SELLER_VAT: ${{ secrets.FIRS_SELLER_VAT }}
-      FIRS_BUYER_VAT: ${{ secrets.FIRS_BUYER_VAT }}
-      FIRS_COUNTRY: ${{ secrets.FIRS_COUNTRY }}
-
-      # ─── Kenya — KRA eTIMS ────────────────────────────────────────────────
-      KE_KRA_LIVE: '1'
-      KE_KRA_BASE_URL: ${{ secrets.KE_KRA_BASE_URL }}
-      KE_KRA_API_KEY: ${{ secrets.KE_KRA_API_KEY }}
-      KE_KRA_CLIENT_ID: ${{ secrets.KE_KRA_CLIENT_ID }}
-      KE_KRA_CLIENT_SECRET: ${{ secrets.KE_KRA_CLIENT_SECRET }}
-      KE_KRA_TAXPAYER_ID: ${{ secrets.KE_KRA_TAXPAYER_ID }}
-      KE_KRA_ENVIRONMENT: 'SANDBOX'
-      KE_KRA_SELLER_VAT: ${{ secrets.KE_KRA_SELLER_VAT }}
-      KE_KRA_BUYER_VAT: ${{ secrets.KE_KRA_BUYER_VAT }}
-      KE_KRA_COUNTRY: ${{ secrets.KE_KRA_COUNTRY }}
-
-      # ─── Argentina — ARCA/AFIP WSFE ──────────────────────────────────────
-      AFIP_LIVE: '1'
-      AFIP_BASE_URL: ${{ secrets.AFIP_BASE_URL }}
-      AFIP_CERTIFICATE: ${{ secrets.AFIP_CERTIFICATE }}
-      AFIP_CERT_PASSWORD: ${{ secrets.AFIP_CERT_PASSWORD }}
-      AFIP_TAXPAYER_ID: ${{ secrets.AFIP_TAXPAYER_ID }}
-      AFIP_ENVIRONMENT: 'SANDBOX'
-      AFIP_SELLER_VAT: ${{ secrets.AFIP_SELLER_VAT }}
-      AFIP_BUYER_VAT: ${{ secrets.AFIP_BUYER_VAT }}
-      AFIP_COUNTRY: ${{ secrets.AFIP_COUNTRY }}
-
-      # ─── Brazil — SEFAZ NF-e ─────────────────────────────────────────────
-      SEFAZ_LIVE: '1'
-      SEFAZ_BASE_URL: ${{ secrets.SEFAZ_BASE_URL }}
-      SEFAZ_CERTIFICATE: ${{ secrets.SEFAZ_CERTIFICATE }}
-      SEFAZ_CERT_PASSWORD: ${{ secrets.SEFAZ_CERT_PASSWORD }}
-      SEFAZ_TAXPAYER_ID: ${{ secrets.SEFAZ_TAXPAYER_ID }}
-      SEFAZ_ENVIRONMENT: 'SANDBOX'
-      SEFAZ_SELLER_VAT: ${{ secrets.SEFAZ_SELLER_VAT }}
-      SEFAZ_BUYER_VAT: ${{ secrets.SEFAZ_BUYER_VAT }}
-      SEFAZ_COUNTRY: ${{ secrets.SEFAZ_COUNTRY }}
-
-      # ─── Chile — SII DTE ──────────────────────────────────────────────────
-      SII_LIVE: '1'
-      SII_BASE_URL: ${{ secrets.SII_BASE_URL }}
-      SII_CLIENT_ID: ${{ secrets.SII_CLIENT_ID }}
-      SII_CLIENT_SECRET: ${{ secrets.SII_CLIENT_SECRET }}
-      SII_CERTIFICATE: ${{ secrets.SII_CERTIFICATE }}
-      SII_CERT_PASSWORD: ${{ secrets.SII_CERT_PASSWORD }}
-      SII_TAXPAYER_ID: ${{ secrets.SII_TAXPAYER_ID }}
-      SII_ENVIRONMENT: 'SANDBOX'
-      SII_SELLER_VAT: ${{ secrets.SII_SELLER_VAT }}
-      SII_BUYER_VAT: ${{ secrets.SII_BUYER_VAT }}
-      SII_COUNTRY: ${{ secrets.SII_COUNTRY }}
-
-      # ─── Ecuador — SRI comprobante ────────────────────────────────────────
-      SRI_LIVE: '1'
-      SRI_BASE_URL: ${{ secrets.SRI_BASE_URL }}
-      SRI_CERTIFICATE: ${{ secrets.SRI_CERTIFICATE }}
-      SRI_CERT_PASSWORD: ${{ secrets.SRI_CERT_PASSWORD }}
-      SRI_TAXPAYER_ID: ${{ secrets.SRI_TAXPAYER_ID }}
-      SRI_ENVIRONMENT: 'SANDBOX'
-      SRI_SELLER_VAT: ${{ secrets.SRI_SELLER_VAT }}
-      SRI_BUYER_VAT: ${{ secrets.SRI_BUYER_VAT }}
-      SRI_COUNTRY: ${{ secrets.SRI_COUNTRY }}
-
-      # ─── Uruguay — DGI CFE ────────────────────────────────────────────────
-      UY_DGI_LIVE: '1'
-      UY_DGI_BASE_URL: ${{ secrets.UY_DGI_BASE_URL }}
-      UY_DGI_CERTIFICATE: ${{ secrets.UY_DGI_CERTIFICATE }}
-      UY_DGI_CERT_PASSWORD: ${{ secrets.UY_DGI_CERT_PASSWORD }}
-      UY_DGI_CLIENT_ID: ${{ secrets.UY_DGI_CLIENT_ID }}
-      UY_DGI_CLIENT_SECRET: ${{ secrets.UY_DGI_CLIENT_SECRET }}
-      UY_DGI_TAXPAYER_ID: ${{ secrets.UY_DGI_TAXPAYER_ID }}
-      UY_DGI_ENVIRONMENT: 'SANDBOX'
-      UY_DGI_SELLER_VAT: ${{ secrets.UY_DGI_SELLER_VAT }}
-      UY_DGI_BUYER_VAT: ${{ secrets.UY_DGI_BUYER_VAT }}
-      UY_DGI_COUNTRY: ${{ secrets.UY_DGI_COUNTRY }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - run: cd backend && npm ci
-      - run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
-      - name: Run national portal live specs (namespaced — all portals; self-skip if no creds)
-        run: cd backend && npx jest portal-live --no-coverage --ci
