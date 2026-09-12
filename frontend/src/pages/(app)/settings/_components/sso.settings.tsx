@@ -501,7 +501,12 @@ export default function SsoSettings() {
                       )}
                     </p>
                     <div className="flex items-center gap-2">
-                      <Input readOnly value={domainStatus.recordName} className="font-mono text-xs" />
+                      <Input
+                        readOnly
+                        value={domainStatus.recordName}
+                        className="font-mono text-xs"
+                        data-cy="sso-domain-record-name"
+                      />
                       <Button
                         variant="outline"
                         size="icon"
@@ -512,7 +517,12 @@ export default function SsoSettings() {
                       </Button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Input readOnly value={domainStatus.recordValue} className="font-mono text-xs" />
+                      <Input
+                        readOnly
+                        value={domainStatus.recordValue}
+                        className="font-mono text-xs"
+                        data-cy="sso-domain-record-value"
+                      />
                       <Button
                         variant="outline"
                         size="icon"
