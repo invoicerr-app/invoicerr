@@ -70,12 +70,26 @@ export interface Scenario {
 //                   DESTINATION country's own standard rate, not the seller's.
 // de-fr and it-it are unaffected — both already resolve to kept countries.
 //
-// NOTE (2026-09-10): `e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts`, the spec this fixture file
-// feeds, is NOT present in this branch's working tree — removed by an earlier, unrelated commit
-// ("refactor!: suppression des documents légaux et du moteur de conformité"), predating and
-// independent of the 5-country prune. This mapping is prepared and internally consistent, but
-// `.github/workflows/scenarios.yml`'s "Business Scenarios" job cannot actually run until that spec
-// exists again — flagged here rather than silently left inconsistent.
+// NOTE (2026-09-12, phase 2 — supersedes the 2026-09-10 note below): `e2e/cypress/e2e/scenarios/
+// full-lifecycle.cy.ts`, the spec this fixture file feeds, is RESTORED and its own six legs all pass
+// (`CYPRESS_scenario=<leg> npx cypress run --browser firefox --spec
+// "cypress/e2e/scenarios/full-lifecycle.cy.ts"`). Two of the per-scenario comments below
+// (`de-fr`, `pt-de`) were WRONG about which tax treatment actually applies — written for the removed
+// compliance engine, never re-verified against `tax/tax-engine.ts` — corrected in place below, with
+// the real reason cited. The restored spec ALSO found two independent, real product defects while
+// running `it-pt`/`pl-de` (a seller in a country with no `country-identifiers/data/<cc>.json` file —
+// Italy, Poland — loses its own LEGAL_ID identifier the moment company settings are saved, an
+// ordinary action; and `build-semantic-invoice.ts` never builds a "Deliver to" country for ANY
+// invoice, which EN 16931's BR-IC-12 requires for category K) — see that spec's own header for the
+// full writeup and exact file/line evidence; neither is a fixture-data problem, so neither is
+// "fixed" here.
+//
+// NOTE (2026-09-10, superseded above): `e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts`, the spec
+// this fixture file feeds, is NOT present in this branch's working tree — removed by an earlier,
+// unrelated commit ("refactor!: suppression des documents légaux et du moteur de conformité"),
+// predating and independent of the 5-country prune. This mapping is prepared and internally
+// consistent, but `.github/workflows/scenarios.yml`'s "Business Scenarios" job cannot actually run
+// until that spec exists again — flagged here rather than silently left inconsistent.
 export const SCENARIOS: Record<string, Scenario> = {
   'fr-pl': {
     id: 'fr-pl',
@@ -92,14 +106,27 @@ export const SCENARIOS: Record<string, Scenario> = {
   },
   'de-fr': {
     id: 'de-fr',
-    // Standard-rated (20%, category "S") cross-border DE→FR B2B supply. EN16931 BR-S-02/BR-CO-26
-    // require a Seller VAT identifier (BT-31, cac:PartyTaxScheme/cbc:CompanyID) whenever a
-    // taxed/standard VAT category is used — a bare commercial-register id (cac:PartyLegalEntity/
-    // cbc:CompanyID) does NOT satisfy that. `identifierScheme: 'VAT'` routes `legalId` through the
-    // existing onboarding-vat-input/company-vat-input fields (see fillCompanyIdentifier() and the
-    // onboarding step in full-lifecycle.cy.ts) so the seller carries a real USt-IdNr end-to-end.
+    // CORRECTED (2026-09-12, phase 2 — see this file's own top-of-file NOTE): this was described as
+    // "standard-rated (20%, category S)" as a DELIBERATE B2B choice — it is not. The buyer's own VAT
+    // number below, "FR12345678901", FAILS its own French checksum (`tax/vat-syntax.ts#validateFrVat`
+    // — clé = (12 + 3 × (SIREN mod 97)) mod 97: SIREN 345678901 mod 97 = 1, expected key 15, given
+    // key 12) — `resolveBuyerRole` (`tax/resolve-invoice-tax.ts`) therefore treats this buyer as B2C
+    // BEFORE any VIES-style verdict is even consulted ("never a silent B2B"), which for a
+    // cross-border GOODS line, same EU union, routes through OSS destination VAT
+    // (`tax-engine.ts#ossDestinationVat`) at the BUYER's own country's rate — France's, 20%
+    // (`tax-systems/data/fr.json`, derived from `vat-rates/data/fr.json`'s "fr-standard" entry). The
+    // RESOLVED rate (20%) coincides with what is typed below only because France's own standard rate
+    // happens to also be 20% — never read this as proof the engine special-cased "standard-rated
+    // B2B": `full-lifecycle.cy.ts`'s own de-fr assertions decisively distinguish the two (the buyer's
+    // stored VAT `validationStatus` is asserted `INVALID`, never `VALID`).
+    // EN16931 BR-S-02/BR-CO-26 require a Seller VAT identifier (BT-31, cac:PartyTaxScheme/
+    // cbc:CompanyID) whenever a taxed/standard VAT category is used (OSS's own category S included) —
+    // a bare commercial-register id (cac:PartyLegalEntity/cbc:CompanyID) does NOT satisfy that.
+    // `identifierScheme: 'VAT'` routes `legalId` through the existing onboarding-vat-input/
+    // company-vat-input fields (see fillCompanyIdentifier() and the onboarding step in
+    // full-lifecycle.cy.ts) so the seller carries a real USt-IdNr end-to-end.
     // DE136695976 is a checksum-valid German VAT (ISO 7064 Mod 11,10 — the exact algorithm in
-    // backend/src/compliance/canonical/identifier-validator.ts's validateDeVat(); this value is
+    // backend/src/modules/documents/tax/vat-syntax.ts's validateDeVat(); this value is
     // SAP SE's long-published, publicly known USt-IdNr, not an invented number).
     company: { name: 'Berlin Tech GmbH', country: 'Germany', legalId: 'DE136695976', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Paris Media SAS', email: 'client-de-fr@mailpit.test', country: 'France', type: 'COMPANY', vat: 'FR12345678901', address: '15 Rue de Rivoli', postalCode: '75001', city: 'Paris', currency: 'EUR' },
@@ -107,10 +134,18 @@ export const SCENARIOS: Record<string, Scenario> = {
   },
   'it-it': {
     id: 'it-it',
-    // SdI is Italy's ONLY transmission channel — there is no EMAIL fallback for IT, and CI has
-    // no SdI credentials — so the compliance doc legitimately lands on TRANSMISSION_FAILED. This
-    // scenario still proves the rendered FatturaPA is a VALID format; it does not (and cannot, in
-    // CI) prove creds-gated transmission. See assertCompliance()'s strictStatus gate.
+    // CORRECTED (2026-09-12, phase 2 — see this file's own top-of-file NOTE): `noCiTransmission`,
+    // `assertCompliance()` and `strictStatus` below/above are ALL concepts of the REMOVED compliance
+    // engine (`ComplianceDocument.status`, `TRANSMISSION_FAILED`) — nothing in the restored
+    // `full-lifecycle.cy.ts` reads this field or those concepts any more, and no such status exists
+    // in `documents/descriptors/invoice.descriptor.ts`'s own lifecycle today. LEGALLY, SdI remains
+    // Italy's real, exclusive e-invoicing channel — but `transports/channel-policy/data/it.json`
+    // codes this as merely `suggested` (`provenance.kind: 'unverified'`), which arms NO gate: the
+    // restored spec sends this exact invoice via plain "email" and it reaches "Sent" with no block at
+    // all — a real, deliberately-asserted product gap (nothing stops a non-compliant channel choice
+    // for Italy today), not a CI-credentials limitation. `noCiTransmission` is left in place, unused,
+    // rather than deleted, so a reader comparing against pre-restoration git history isn't confused
+    // by its sudden disappearance.
     noCiTransmission: true,
     company: { name: 'Milano Servizi SRL', country: 'Italy', legalId: '12345678901', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Comune di Roma', email: 'client-it-it@mailpit.test', country: 'Italy', type: 'COMPANY', vat: 'IT98765432109', address: 'Via del Corso', postalCode: '00186', city: 'Rome', currency: 'EUR' },
@@ -118,20 +153,33 @@ export const SCENARIOS: Record<string, Scenario> = {
   },
   'pt-de': {
     id: 'pt-de',
-    // Cross-border B2B service at the SELLER's own standard rate (23%, Portugal's own — was
-    // Spain's 21%) — mirrors de-fr's own "standard-rated cross-border" shape rather than fr-pl's
-    // reverse-charge one, same as the es-pt scenario this replaces.
+    // CORRECTED (2026-09-12, phase 2 — see this file's own top-of-file NOTE): this was described as
+    // "at the SELLER's own standard rate (23%)" — it is not. The buyer's own German VAT number below,
+    // "DE812000006", IS checksum-valid (`tax/vat-syntax.ts#validateDeVat`, ISO 7064 Mod 11,10,
+    // verified by hand) — same EU union, SERVICES, confirmed B2B → Art. 196 reverse charge
+    // (`tax-engine.ts` §2), category AE, 0% — the SAME shape as `fr-pl`, for a different country
+    // pair, never the seller's domestic 23%. `item.vatRate` (23) below is only ever the DRAFT-time
+    // typed value; `resolve-invoice-tax.ts` always overwrites it for a cross-border line.
     company: { name: 'Porto Digital Lda', country: 'Portugal', legalId: '509442661', vat: 'PT509442661', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Hamburg Handel GmbH', email: 'client-pt-de@mailpit.test', country: 'Germany', type: 'COMPANY', vat: 'DE812000006', address: 'Mönckebergstraße 1', postalCode: '20095', city: 'Hamburg', currency: 'EUR' },
     item: { name: 'Web design', quantity: 3, unitPrice: 500, vatRate: 23, type: 'SERVICE' },
   },
   'it-pt': {
     id: 'it-pt',
-    // SdI is Italy's ONLY transmission channel — same "no EMAIL fallback, no CI credentials"
-    // situation it-it already documents, so this ALSO legitimately lands on TRANSMISSION_FAILED.
+    // CORRECTED (2026-09-12, phase 2 — see it-it's own note above for `noCiTransmission`/
+    // `assertCompliance()`/`strictStatus`, all removed-engine concepts unused by the restored spec).
     // Mexico's own RFC identifier scheme, MXN currency, and `expectsAuthorityNumbering` (the CFDI's
     // authority-stamped folio) have no equivalent among the kept countries and are dropped, not
     // reassigned to Italy/Portugal on a guess — see this file's own header.
+    // TAX (item.type 'PRODUCT' → GOODS): same EU union, buyer VAT "PT501442600" hits
+    // `vat-syntax.ts`'s DEFAULT branch (Portugal has no dedicated checksum function) which always
+    // answers `valid: true` → confirmed B2B → intra-Community supply, category K, 0%, Art. 138 —
+    // never the seller's own 22%. This IS the one leg among all six whose real, correctly-composed
+    // tax treatment (category K) cannot currently be exported as valid EN 16931 at all — see
+    // `full-lifecycle.cy.ts`'s own header for the two independent defects this restoration found
+    // (a seller identifier that does not survive a company-settings save for a country with no
+    // `country-identifiers` file, and `build-semantic-invoice.ts` never building a "Deliver to"
+    // country, which category K's own BR-IC-12 requires).
     noCiTransmission: true,
     company: { name: 'Torino Componenti SRL', country: 'Italy', legalId: '11223344554', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Porto Import Lda', email: 'client-it-pt@mailpit.test', country: 'Portugal', type: 'COMPANY', vat: 'PT501442600', address: 'Rua de Santa Catarina', postalCode: '4000-009', city: 'Porto', currency: 'EUR' },
@@ -144,7 +192,13 @@ export const SCENARIOS: Record<string, Scenario> = {
     // (tax-engine.ts#ossDestinationVat), which none of the other four scenarios reaches. `vatRate`
     // is the DESTINATION country's own standard rate (Germany, 19%), not the seller's — the real
     // tax resolution at issuance recomputes this from tax-systems/data/de.json regardless of what
-    // was typed here.
+    // was typed here. This tax resolution is correct AND (2026-09-12, phase 2) IS the one that
+    // reaches only DEFECT 1 of the two `full-lifecycle.cy.ts`'s own header describes — a Polish
+    // seller has no `country-identifiers/data/pl.json`, so its onboarding-time LEGAL_ID does not
+    // survive the routine company-settings save this spec's own `before()` hook makes, and category
+    // S (OSS's own destination category) needs it (BR-S-02) just as much as category K does
+    // (BR-IC-02) — this leg's own CII export currently 400s on that alone, never on the
+    // category-K-only BT-80/BR-IC-12 gap `it-pt` also hits.
     company: { name: 'Kraków Usługi Sp. z o.o.', country: 'Poland', legalId: 'PL7010018991', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Klaus Mueller', email: 'client-pl-de@mailpit.test', country: 'Germany', type: 'INDIVIDUAL', contactFirstname: 'Klaus', contactLastname: 'Mueller', address: 'Leopoldstraße 10', postalCode: '80802', city: 'Munich', currency: 'EUR' },
     item: { name: 'Widget', quantity: 2, unitPrice: 150, vatRate: 19, type: 'PRODUCT' },
