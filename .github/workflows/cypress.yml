@@ -59,10 +59,13 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
-        # Puppeteer's postinstall pulls ~1.3GB of Chrome that this job never launches: no unit test
-        # renders a PDF (the live renderer spec is gated, and there is no render-pdf.spec.ts).
-        # The cypress job deliberately does NOT skip it — that one really does render.
-        run: cd backend && PUPPETEER_SKIP_DOWNLOAD=true npm ci
+        # PDF rendering runs on `playwright-core`, which — unlike the `puppeteer` it replaced —
+        # bundles no browser and downloads nothing on install, so there is no multi-hundred-MB fetch
+        # to skip here any more. `render-pdf.spec.ts` does exercise the module in this job, but only
+        # against its jest manual mock (src/__mocks__/playwright-core.ts) — no real Chromium is ever
+        # launched here. The cypress job deliberately installs the same way — it's the one that
+        # really renders, against the base image's real Chromium.
+        run: cd backend && npm ci
 
       - name: Generate Prisma client
         run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
@@ -114,10 +117,13 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
-        # Puppeteer's postinstall pulls ~1.3GB of Chrome that this job never launches: no unit test
-        # renders a PDF (the live renderer spec is gated, and there is no render-pdf.spec.ts).
-        # The cypress job deliberately does NOT skip it — that one really does render.
-        run: cd backend && PUPPETEER_SKIP_DOWNLOAD=true npm ci
+        # PDF rendering runs on `playwright-core`, which — unlike the `puppeteer` it replaced —
+        # bundles no browser and downloads nothing on install, so there is no multi-hundred-MB fetch
+        # to skip here any more. `render-pdf.spec.ts` does exercise the module in this job, but only
+        # against its jest manual mock (src/__mocks__/playwright-core.ts) — no real Chromium is ever
+        # launched here. The cypress job deliberately installs the same way — it's the one that
+        # really renders, against the base image's real Chromium.
+        run: cd backend && npm ci
 
       - name: Generate Prisma client
         run: cd backend && npx prisma generate

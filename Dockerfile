@@ -1,9 +1,8 @@
 FROM --platform=$BUILDPLATFORM node:22-bullseye AS backend-builder
-# Puppeteer's postinstall downloads a full Chrome (~750MB) into $HOME/.cache/puppeteer.
-# This stage only compiles TypeScript and its cache is never copied out, so the download is
-# pure build cost. The runtime stage uses the Chromium already present in the base image
-# (PUPPETEER_EXECUTABLE_PATH below).
-ENV PUPPETEER_SKIP_DOWNLOAD=true
+# PDF rendering uses `playwright-core` (not the full `playwright` package), which — unlike the
+# `puppeteer` it replaced — bundles no browser at all and downloads nothing on `npm ci`, so there is
+# no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
+# points the app at the Chromium already present in the base image (CHROMIUM_EXECUTABLE_PATH below).
 
 WORKDIR /app
 
@@ -31,7 +30,11 @@ RUN npm run build
 
 FROM ghcr.io/invoicerr-app/server-image:latest
 
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# `playwright-core` ships no browser of its own — this points it at the Chromium already baked into
+# the base image (`ghcr.io/invoicerr-app/server-image`), the same binary the old PUPPETEER_EXECUTABLE_PATH
+# used to name (render-pdf.ts still honours that variable too, as a backward-compatibility alias, for
+# self-hosted operators whose own env/compose files still set it).
+ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
 
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
