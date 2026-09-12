@@ -2192,15 +2192,38 @@
     },
     "emailTemplates": {
       "title": "Email Templates",
-      "description": "Customize email templates for invoices and quotes",
+      "description": "Customize every email this company sends, per document type and for system emails",
+      "system": {
+        "title": "System emails",
+        "description": "The two emails that are not about a document",
+        "families": {
+          "SIGNATURE_REQUEST": "Signature request",
+          "VERIFICATION_CODE": "Verification code"
+        }
+      },
+      "documents": {
+        "title": "Document emails",
+        "description": "One template per document type, used when a document is sent",
+        "empty": "No document type is available for this company yet"
+      },
+      "source": {
+        "customised": "Customised",
+        "shippedDefault": "Default"
+      },
       "editor": {
+        "edit": "Edit",
+        "close": "Close",
         "subject": "Subject",
         "subjectPlaceholder": "Enter email subject",
         "body": "Email Body",
+        "bodyPlaceholder": "Enter the plain-text message...",
+        "textTip": "The plain-text part, shown to a recipient whose mail client displays no HTML",
+        "htmlBody": "HTML body (optional)",
         "htmlPlaceholder": "Enter HTML content...",
         "htmlTip": "You can use HTML tags for formatting",
+        "systemHtmlTip": "This email is stored as HTML; its plain-text version is derived from it when sent",
         "availableVariables": "Available Variables",
-        "variablesTip": "Use these variables in your template by wrapping them in double curly braces"
+        "variablesTip": "Use these variables in your template by wrapping them in single curly braces, like {placeholder}"
       },
       "preview": {
         "from": "From",
@@ -2211,9 +2234,14 @@
         "archive": "Archive"
       },
       "saveButton": "Save Template",
+      "resetButton": "Reset to default",
+      "warningsTitle": "Unknown placeholders",
+      "readOnlyNotice": "Only an owner or an admin can change email templates",
       "messages": {
         "saveSuccess": "{{name}} template saved successfully",
-        "saveError": "Failed to save template"
+        "saveError": "Failed to save template",
+        "resetSuccess": "{{name}} template reset to its default",
+        "resetError": "Failed to reset template"
       }
     },
     "webhooks": {

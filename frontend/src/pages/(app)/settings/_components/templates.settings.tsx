@@ -1,75 +1,92 @@
-// biome-ignore-all lint/security/noDangerouslySetInnerHtml: preview of the company's own email template (sanitized upstream into safePreviewBody)
-import { TabsContent } from "@radix-ui/react-tabs"
+// biome-ignore-all lint/security/noDangerouslySetInnerHtml: the html preview is sanitized into safeHtml
 import DOMPurify from "dompurify"
-import { Archive, Forward, Mail, Reply } from "lucide-react"
-import { useEffect, useState } from "react"
+import { ChevronDown, ChevronUp, Mail, RotateCcw, TriangleAlert } from "lucide-react"
+import { type ReactNode, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { UnavailablePlatform } from "@/components/unavailable-platform"
-import { useGet, usePut } from "@/hooks/use-fetch"
+import { useCompanies } from "@/hooks/queries"
+import { useDelete, useGet, usePut } from "@/hooks/use-fetch"
+import { descriptorTypeLabel } from "@/lib/descriptor-i18n"
 
-interface EmailTemplate {
-  id: string
+/**
+ * One SYSTEM email — the signature request and the verification code, the two emails that are not
+ * about a document (`GET /api/company/email-templates`). `body` is html: it is the only part stored,
+ * and the text/plain alternative is derived from it when the mail is sent.
+ */
+interface SystemEmailTemplateView {
   dbId: string
-  companyId: string
+  id: string
   name: string
   subject: string
   body: string
+  source: "company" | "default"
   variables: Record<string, string>
 }
 
-function HtmlEditor({
-  value,
-  onChange,
+/**
+ * One document type's email template (`GET /api/documents/email-templates`) — the template that
+ * CURRENTLY applies, where it came from, and the placeholders this type actually offers. `source`
+ * distinguishes this company's own text from the default it would revert to, so nothing here has to
+ * compare strings to find out.
+ */
+interface DocumentEmailTemplateView {
+  typeId: string
+  label: string
+  /** The text/plain part — empty for a template that deliberately carries html alone. */
+  body: string
+  html?: string
+  subject: string
+  source: "company" | "descriptor" | "generic"
+  variables: Record<string, string>
+}
+
+/** The server's own placeholder grammar (backend documents/actions/email-template.ts): SINGLE braces
+ *  around word characters. */
+const PLACEHOLDER_PATTERN = /\{([a-zA-Z0-9_]+)\}/g
+
+/**
+ * Fills in every `{placeholder}` the vocabulary knows, leaving an unknown one written out exactly as
+ * typed. Both halves matter: the substitution is what makes a preview look like the real mail, and
+ * leaving the unknown ones visible is what shows the author that a typo would travel to the
+ * recipient as literal braces — which is precisely what the server does at send time rather than
+ * blanking it or refusing to send.
+ */
+function substitutePlaceholders(text: string, variables: Record<string, string>): string {
+  return text.replace(PLACEHOLDER_PATTERN, (literal, key: string) =>
+    Object.hasOwn(variables, key) ? variables[key] : literal,
+  )
+}
+
+function EmailPreview({
+  subject,
+  text,
+  html,
+  variables,
 }: {
-  value: string
-  onChange: (value: string) => void
+  subject: string
+  text: string
+  html?: string
   variables: Record<string, string>
 }) {
   const { t } = useTranslation()
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Textarea
-          id="html-editor"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={t("settings.emailTemplates.editor.htmlPlaceholder")}
-          className="min-h-[400px] font-mono text-sm"
-          style={{ resize: "vertical" }}
-        />
-        <div className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.htmlTip")}</div>
-      </div>
-    </div>
-  )
-}
-
-function EmailPreview({ template }: { template: EmailTemplate }) {
-  const { t } = useTranslation()
-
-  const replaceVariables = (text: string, variables: Record<string, string>) => {
-    let result = text
-    Object.entries(variables).forEach(([key, value]) => {
-      result = result.replace(new RegExp(`{{${key}}}`, "g"), value)
-    })
-    return result
-  }
-
-  const previewSubject = replaceVariables(template.subject, template.variables)
-  const previewBody = replaceVariables(template.body, template.variables)
-  const safePreviewBody = DOMPurify.sanitize(previewBody)
+  const previewSubject = substitutePlaceholders(subject, variables)
+  // Sanitized even though the server filters every html body it STORES: what is previewed here is
+  // whatever is in the editor right now, which no server has seen yet.
+  const safeHtml = html?.trim() ? DOMPurify.sanitize(substitutePlaceholders(html, variables)) : null
 
   return (
-    <div className="bg-gray-100 p-4 rounded-lg h-full w-full">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl mx-auto">
+    <div className="bg-muted rounded-lg p-4">
+      <div className="bg-white rounded-lg shadow-lg mx-auto max-w-2xl">
         <div className="border-b p-4">
           <div className="flex items-center gap-2 mb-3">
             <Mail className="h-5 w-5 text-blue-600" />
@@ -94,23 +111,26 @@ function EmailPreview({ template }: { template: EmailTemplate }) {
         </div>
         <Separator className="bg-neutral-200" orientation="horizontal" />
         <div className="p-4">
-          <div
-            className="prose prose-sm max-w-none [*]:text-black"
-            style={{ fontFamily: "Arial, sans-serif" }}
-            dangerouslySetInnerHTML={{ __html: safePreviewBody }}
-          />
+          {safeHtml ? (
+            <div
+              className="prose prose-sm max-w-none [*]:text-black"
+              style={{ fontFamily: "Arial, sans-serif" }}
+              dangerouslySetInnerHTML={{ __html: safeHtml }}
+            />
+          ) : (
+            <pre className="whitespace-pre-wrap font-sans text-sm text-black">
+              {substitutePlaceholders(text, variables)}
+            </pre>
+          )}
         </div>
-        <div className="border-t p-4 flex gap-2">
-          <Button>
-            <Reply className="h-4 w-4" />
+        <div className="border-t p-4 flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm">
             {t("settings.emailTemplates.preview.reply")}
           </Button>
-          <Button>
-            <Forward className="h-4 w-4" />
+          <Button type="button" variant="outline" size="sm">
             {t("settings.emailTemplates.preview.forward")}
           </Button>
-          <Button>
-            <Archive className="h-4 w-4" />
+          <Button type="button" variant="outline" size="sm">
             {t("settings.emailTemplates.preview.archive")}
           </Button>
         </div>
@@ -119,149 +139,432 @@ function EmailPreview({ template }: { template: EmailTemplate }) {
   )
 }
 
-function TemplateEditor({
-  template,
-  onUpdate,
-}: {
-  template: EmailTemplate
-  onUpdate: (template: EmailTemplate) => void
-}) {
+/** The placeholders this ONE entry offers, straight from the API response — never a list written down
+ *  here, which is what keeps a type that has no client reference (or no money) from being offered a
+ *  placeholder its own sends would leave unsubstituted. */
+function PlaceholderHints({ variables }: { variables: Record<string, string> }) {
   const { t } = useTranslation()
 
   return (
-    <div className="w-full space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor={`subject-${template.id}`}>{t("settings.emailTemplates.editor.subject")}</Label>
-        <Input
-          id={`subject-${template.id}`}
-          value={template.subject}
-          autoComplete="off"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore
-          data-form-type="other"
-          onChange={(e) => onUpdate({ ...template, subject: e.target.value })}
-          placeholder={t("settings.emailTemplates.editor.subjectPlaceholder")}
-        />
+    <div className="space-y-2">
+      <Label>{t("settings.emailTemplates.editor.availableVariables")}</Label>
+      <div className="flex flex-wrap gap-2">
+        {Object.keys(variables).map((name) => (
+          <Badge key={name} variant="secondary" className="font-mono">
+            {`{${name}}`}
+          </Badge>
+        ))}
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor={`body-${template.id}`}>{t("settings.emailTemplates.editor.body")}</Label>
-        <HtmlEditor
-          value={template.body}
-          onChange={(body) => onUpdate({ ...template, body })}
-          variables={template.variables}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>{t("settings.emailTemplates.editor.availableVariables")}</Label>
-        <div className="flex flex-wrap gap-2">
-          {Object.keys(template.variables).map((variable) => (
-            <Badge key={variable} variant="secondary" className="font-mono">
-              {`{{${variable}}}`}
-            </Badge>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.variablesTip")}</p>
-      </div>
+      <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.variablesTip")}</p>
     </div>
   )
 }
 
-export default function EmailTemplatesSettings() {
+/** The server's placeholder warnings, shown verbatim: they are prose it composed about the template
+ *  just saved ("Unknown email template placeholder …"), not a condition this screen can re-derive. A
+ *  warning never means the save failed — an unknown placeholder is reported, never refused. */
+function PlaceholderWarnings({ warnings }: { warnings: string[] }) {
   const { t } = useTranslation()
-  const { data: templates } = useGet<EmailTemplate[]>("/api/company/email-templates")
-  const { trigger: updateTemplate, loading: updateLoading } = usePut<EmailTemplate>(
-    "/api/company/email-templates",
-  )
 
-  const [editedTemplate, setEditedTemplate] = useState<EmailTemplate | null>(null)
-  const [activeTab, setActiveTab] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (templates?.length && !activeTab) {
-      setActiveTab(templates[0].id)
-    }
-  }, [templates, activeTab])
-
-  useEffect(() => {
-    if (activeTab && templates) {
-      const current = templates.find((t) => t.id === activeTab)
-      setEditedTemplate(current ? { ...current } : null)
-    }
-  }, [activeTab, templates])
-
-  function saveEditing() {
-    if (!editedTemplate) return
-
-    updateTemplate({
-      ...editedTemplate,
-      companyId: editedTemplate.companyId,
-    })
-      .then(() => {
-        toast.success(
-          t("settings.emailTemplates.messages.saveSuccess", {
-            name: editedTemplate.name,
-          }),
-        )
-      })
-      .catch((_error) => {
-        toast.error(t("settings.emailTemplates.messages.saveError"))
-      })
-  }
-
-  if (!templates) return null
+  if (warnings.length === 0) return null
 
   return (
-    <div>
-      <div className="mb-4">
+    <Alert>
+      <TriangleAlert />
+      <AlertTitle>{t("settings.emailTemplates.warningsTitle")}</AlertTitle>
+      <AlertDescription>
+        {warnings.map((warning) => (
+          <p key={warning}>{warning}</p>
+        ))}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+/**
+ * The collapsed row every template shares, whichever family it belongs to: its name, whether what
+ * applies is this company's own text or the shipped default, and the toggle that reveals the editor.
+ * One editor is open at a time — a screen that expanded every entry at once would be a wall of
+ * textareas.
+ */
+function TemplateRow({
+  name,
+  overridden,
+  open,
+  onToggle,
+  dataCy,
+  children,
+}: {
+  name: string
+  overridden: boolean
+  open: boolean
+  onToggle: () => void
+  dataCy: string
+  children: ReactNode
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle>{name}</CardTitle>
+          <Badge variant={overridden ? "default" : "outline"}>
+            {overridden
+              ? t("settings.emailTemplates.source.customised")
+              : t("settings.emailTemplates.source.shippedDefault")}
+          </Badge>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onToggle} dataCy={dataCy}>
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {open ? t("settings.emailTemplates.editor.close") : t("settings.emailTemplates.editor.edit")}
+        </Button>
+      </CardHeader>
+      {open && <CardContent className="space-y-6">{children}</CardContent>}
+    </Card>
+  )
+}
+
+function SystemTemplateCard({
+  template,
+  canEdit,
+  open,
+  onToggle,
+  onSaved,
+}: {
+  template: SystemEmailTemplateView
+  canEdit: boolean
+  open: boolean
+  onToggle: () => void
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [subject, setSubject] = useState(template.subject)
+  const [body, setBody] = useState(template.body)
+  const [warnings, setWarnings] = useState<string[]>([])
+  const { trigger: save, loading: saving } = usePut<{ warnings?: string[] }>("/api/company/email-templates")
+
+  // Re-sync whenever the stored template changes under the editor (a save of its own, a refetch): the
+  // server sanitizes the html it accepts, so what was submitted is not necessarily what is now stored.
+  useEffect(() => {
+    setSubject(template.subject)
+    setBody(template.body)
+  }, [template])
+
+  const name = t(`settings.emailTemplates.system.families.${template.id}`, { defaultValue: template.name })
+  const incomplete = subject.trim() === "" || body.trim() === ""
+
+  async function handleSave() {
+    // `dbId` only exists once this company has actually stored an override; the family `id` is what
+    // identifies the template until then.
+    const saved = await save({ id: template.id, dbId: template.dbId || undefined, subject, body })
+    if (!saved) {
+      toast.error(t("settings.emailTemplates.messages.saveError"))
+      return
+    }
+    setWarnings(saved.warnings ?? [])
+    toast.success(t("settings.emailTemplates.messages.saveSuccess", { name }))
+    onSaved()
+  }
+
+  return (
+    <TemplateRow
+      name={name}
+      overridden={template.source === "company"}
+      open={open}
+      onToggle={onToggle}
+      dataCy={`email-template-toggle-${template.id}`}
+    >
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`subject-${template.id}`}>{t("settings.emailTemplates.editor.subject")}</Label>
+            <Input
+              id={`subject-${template.id}`}
+              value={subject}
+              readOnly={!canEdit}
+              autoComplete="off"
+              data-bwignore
+              data-1p-ignore
+              data-lpignore
+              data-form-type="other"
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder={t("settings.emailTemplates.editor.subjectPlaceholder")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`body-${template.id}`}>{t("settings.emailTemplates.editor.htmlBody")}</Label>
+            <Textarea
+              id={`body-${template.id}`}
+              value={body}
+              readOnly={!canEdit}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t("settings.emailTemplates.editor.htmlPlaceholder")}
+              className="min-h-[320px] font-mono text-sm"
+              style={{ resize: "vertical" }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.emailTemplates.editor.systemHtmlTip")}
+            </p>
+          </div>
+          <PlaceholderHints variables={template.variables} />
+        </div>
+        <EmailPreview subject={subject} text="" html={body} variables={template.variables} />
+      </div>
+
+      <PlaceholderWarnings warnings={warnings} />
+
+      {canEdit ? (
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSave}
+            loading={saving}
+            disabled={incomplete}
+            dataCy={`email-template-save-${template.id}`}
+          >
+            {t("settings.emailTemplates.saveButton")}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.readOnlyNotice")}</p>
+      )}
+    </TemplateRow>
+  )
+}
+
+function DocumentTemplateCard({
+  template,
+  canEdit,
+  open,
+  onToggle,
+  onSaved,
+}: {
+  template: DocumentEmailTemplateView
+  canEdit: boolean
+  open: boolean
+  onToggle: () => void
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [subject, setSubject] = useState(template.subject)
+  const [body, setBody] = useState(template.body)
+  const [html, setHtml] = useState(template.html ?? "")
+  const [warnings, setWarnings] = useState<string[]>([])
+  const url = `/api/documents/types/${template.typeId}/email-template`
+  const { trigger: save, loading: saving } = usePut<{ warnings?: string[] }>(url)
+  const { trigger: resetToDefault, loading: resetting } = useDelete(url)
+
+  // Same re-sync as the system card: after a save the server's stored html is the authority, and after
+  // a reset the editor must show the shipped default rather than the text that was just dropped.
+  useEffect(() => {
+    setSubject(template.subject)
+    setBody(template.body)
+    setHtml(template.html ?? "")
+  }, [template])
+
+  const name = descriptorTypeLabel(t, template.typeId, template.label)
+  // What the server refuses outright (no subject, or neither body): disabled here rather than sent and
+  // bounced as a 400.
+  const incomplete = subject.trim() === "" || (body.trim() === "" && html.trim() === "")
+
+  async function handleSave() {
+    const saved = await save({ subject, body, html })
+    if (!saved) {
+      toast.error(t("settings.emailTemplates.messages.saveError"))
+      return
+    }
+    setWarnings(saved.warnings ?? [])
+    toast.success(t("settings.emailTemplates.messages.saveSuccess", { name }))
+    onSaved()
+  }
+
+  async function handleReset() {
+    const restored = await resetToDefault()
+    if (!restored) {
+      toast.error(t("settings.emailTemplates.messages.resetError"))
+      return
+    }
+    setWarnings([])
+    toast.success(t("settings.emailTemplates.messages.resetSuccess", { name }))
+    onSaved()
+  }
+
+  return (
+    <TemplateRow
+      name={name}
+      overridden={template.source === "company"}
+      open={open}
+      onToggle={onToggle}
+      dataCy={`email-template-toggle-${template.typeId}`}
+    >
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`subject-${template.typeId}`}>
+              {t("settings.emailTemplates.editor.subject")}
+            </Label>
+            <Input
+              id={`subject-${template.typeId}`}
+              value={subject}
+              readOnly={!canEdit}
+              autoComplete="off"
+              data-bwignore
+              data-1p-ignore
+              data-lpignore
+              data-form-type="other"
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder={t("settings.emailTemplates.editor.subjectPlaceholder")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`body-${template.typeId}`}>{t("settings.emailTemplates.editor.body")}</Label>
+            <Textarea
+              id={`body-${template.typeId}`}
+              value={body}
+              readOnly={!canEdit}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t("settings.emailTemplates.editor.bodyPlaceholder")}
+              className="min-h-[200px] text-sm"
+              style={{ resize: "vertical" }}
+            />
+            <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.textTip")}</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`html-${template.typeId}`}>{t("settings.emailTemplates.editor.htmlBody")}</Label>
+            <Textarea
+              id={`html-${template.typeId}`}
+              value={html}
+              readOnly={!canEdit}
+              onChange={(e) => setHtml(e.target.value)}
+              placeholder={t("settings.emailTemplates.editor.htmlPlaceholder")}
+              className="min-h-[200px] font-mono text-sm"
+              style={{ resize: "vertical" }}
+            />
+            <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.htmlTip")}</p>
+          </div>
+          <PlaceholderHints variables={template.variables} />
+        </div>
+        <EmailPreview subject={subject} text={body} html={html} variables={template.variables} />
+      </div>
+
+      <PlaceholderWarnings warnings={warnings} />
+
+      {canEdit ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          {/* Only worth offering once there IS an override to drop: reverting a template that was
+              never customised is a server-side no-op, so the button would do nothing visible. */}
+          {template.source === "company" && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleReset}
+              loading={resetting}
+              dataCy={`email-template-reset-${template.typeId}`}
+            >
+              <RotateCcw className="h-4 w-4" />
+              {t("settings.emailTemplates.resetButton")}
+            </Button>
+          )}
+          <Button
+            onClick={handleSave}
+            loading={saving}
+            disabled={incomplete}
+            dataCy={`email-template-save-${template.typeId}`}
+          >
+            {t("settings.emailTemplates.saveButton")}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.readOnlyNotice")}</p>
+      )}
+    </TemplateRow>
+  )
+}
+
+/**
+ * Every email this company can send, on one screen: the two SYSTEM emails (signature request,
+ * verification code) and one entry per DOCUMENT TYPE, the latter driven by the type registry rather
+ * than a list of types named here — a type added by a plugin gets its own editor, with its own
+ * derived placeholder vocabulary, with nothing to register.
+ *
+ * The save and reset controls are offered to an OWNER/ADMIN only, mirroring the routes' own
+ * `@Roles(OWNER, ADMIN)`: a MEMBER reads the templates rather than being handed a button that could
+ * only ever come back 403.
+ */
+export default function EmailTemplatesSettings() {
+  const { t } = useTranslation()
+  const { activeRole } = useCompanies()
+  const canEdit = activeRole === "OWNER" || activeRole === "ADMIN"
+
+  const { data: systemData, mutate: refetchSystem } = useGet<SystemEmailTemplateView[]>(
+    "/api/company/email-templates",
+  )
+  const { data: documentData, mutate: refetchDocuments } = useGet<DocumentEmailTemplateView[]>(
+    "/api/documents/email-templates",
+  )
+
+  // One editor open at a time across BOTH sections. The keys are namespaced by family so a document
+  // type id can never collide with a system family name.
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const toggle = (key: string) => setOpenKey((current) => (current === key ? null : key))
+
+  // `GET /api/company/email-templates` replies `{}` rather than a list when there is no active
+  // company at all, so the shape is checked rather than assumed.
+  const systemTemplates = Array.isArray(systemData) ? systemData : []
+  const documentTemplates = Array.isArray(documentData) ? documentData : []
+
+  return (
+    <div className="space-y-8">
+      <div>
         <h1 className="text-3xl font-bold">{t("settings.emailTemplates.title")}</h1>
         <p className="text-muted-foreground">{t("settings.emailTemplates.description")}</p>
       </div>
 
-      <div className="lg:hidden">
-        <UnavailablePlatform />
-      </div>
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xl font-semibold">{t("settings.emailTemplates.system.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("settings.emailTemplates.system.description")}</p>
+        </div>
+        {systemData === null ? (
+          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+        ) : (
+          systemTemplates.map((template) => (
+            <SystemTemplateCard
+              key={template.id}
+              template={template}
+              canEdit={canEdit}
+              open={openKey === `system:${template.id}`}
+              onToggle={() => toggle(`system:${template.id}`)}
+              onSaved={refetchSystem}
+            />
+          ))
+        )}
+      </section>
 
-      <Tabs
-        value={activeTab || undefined}
-        onValueChange={setActiveTab}
-        className="hidden lg:block flex-1 min-h-0"
-      >
-        <TabsList className="w-full">
-          {templates.map((template) => (
-            <TabsTrigger key={template.id} value={template.id}>
-              {template.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value={activeTab || ""}>
-          {editedTemplate && (
-            <section className="flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-semibold">{editedTemplate.name}</h2>
-                <Button
-                  onClick={saveEditing}
-                  disabled={updateLoading}
-                  loading={updateLoading}
-                  variant="default"
-                >
-                  {t("settings.emailTemplates.saveButton")}
-                </Button>
-              </div>
-              <div className="space-y-6 flex gap-4">
-                <TemplateEditor
-                  template={editedTemplate}
-                  onUpdate={(updated) => setEditedTemplate(updated)}
-                />
-                <EmailPreview template={editedTemplate} />
-              </div>
-            </section>
-          )}
-        </TabsContent>
-      </Tabs>
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xl font-semibold">{t("settings.emailTemplates.documents.title")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t("settings.emailTemplates.documents.description")}
+          </p>
+        </div>
+        {documentData === null ? (
+          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+        ) : documentTemplates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("settings.emailTemplates.documents.empty")}</p>
+        ) : (
+          documentTemplates.map((template) => (
+            <DocumentTemplateCard
+              key={template.typeId}
+              template={template}
+              canEdit={canEdit}
+              open={openKey === `document:${template.typeId}`}
+              onToggle={() => toggle(`document:${template.typeId}`)}
+              onSaved={refetchDocuments}
+            />
+          ))
+        )}
+      </section>
     </div>
   )
 }
