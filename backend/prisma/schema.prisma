@@ -183,14 +183,20 @@ enum Currency {
   ZWL
 }
 
-// Email template types
+// The SYSTEM emails — the two this application sends that are not about a document at all. Both are
+// composed by the shared template engine (documents/actions/email-template.ts) from the copy shipped
+// in backend/src/mail/system-email-templates.ts; a MailTemplate row is only ever a company's OVERRIDE
+// of that copy.
+//
+// INVOICE, PAYMENT and RECEIPT were removed (20260912103000_unify_email_templates): rows of those
+// three families were seeded for every company and read by NOTHING — a document's email comes from
+// its own descriptor default or from `Company.documentEmailTemplates`, keyed by document type rather
+// than by a closed enum, which is the only keying a pluggable type registry can work with (see
+// documents/actions/company-email-templates.ts). Adding a member here would mean a new SYSTEM email,
+// never a new document type.
 enum MailTemplateType {
   SIGNATURE_REQUEST
   VERIFICATION_CODE
-  INVOICE
-  PAYMENT
-  /// @deprecated use PAYMENT instead
-  RECEIPT
 }
 
 // Quote status
@@ -346,12 +352,15 @@ model Company {
   // `{ "invoice": { "subject": "...", "body": "..." } }` (documents/descriptors/types.ts's own
   // `DocumentEmailTemplate` shape). Same pattern as `numberFormats` right above: a type absent here
   // falls back to that type's OWN descriptor default (documents/actions/email-template.ts's
-  // `resolveEmailTemplate`), never a hole. Deliberately NOT `MailTemplate`/`emailTemplates` below —
-  // that table is keyed by the CLOSED `MailTemplateType` enum (SIGNATURE_REQUEST, VERIFICATION_CODE,
-  // INVOICE, PAYMENT, RECEIPT) a pre-refonte module still owns (modules/company/company.service.ts),
-  // with no entry for "quote" at all and a different, double-brace interpolation vocabulary — see
-  // documents/actions/company-email-templates.ts's own header for the full reasoning. No settings
-  // screen writes this column yet (same "not yet built" state `numberFormats` was in when it shipped).
+  // `resolveEmailTemplate`), never a hole. An entry may carry an optional `html` part alongside `body`
+  // (the text one) — `{ "invoice": { "subject": "...", "body": "...", "html": "<p>...</p>" } }`; every
+  // value stored before that was possible stays valid, since `html` is optional. Stored html is
+  // sanitized on the way IN (mail/sanitize-email-html.ts), never merely on the way to a screen.
+  //
+  // Deliberately NOT `MailTemplate`/`emailTemplates` below: that table is keyed by the CLOSED
+  // `MailTemplateType` enum (the two SYSTEM emails), so a third-party document type could never gain a
+  // template there without a migration — see documents/actions/company-email-templates.ts's own header
+  // for which storage answers which keying problem. Both go through the SAME interpolation engine.
   documentEmailTemplates Json?
 
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
@@ -543,11 +552,18 @@ model PartyIdentifier {
   @@unique([clientId, scheme])
 }
 
-// Email templates
+// One company's OVERRIDE of a shipped system email (see MailTemplateType). A company with no row for a
+// family is a normal, fully functional state — the shipped default applies — never "unconfigured": the
+// copy lives in code (src/mail/system-email-templates.ts), so nothing has to be seeded for a signature
+// request or a verification code to be sendable, and improving the wording reaches every instance on
+// upgrade instead of only the companies whose rows predate it.
 model MailTemplate {
   id        String           @id @default(cuid())
   type      MailTemplateType
   subject   String
+  // The HTML part — what this column has always held, and what the settings screen editing it writes.
+  // The text/plain alternative is DERIVED from it at send time (email-template.ts's
+  // `deriveTextFromHtml`), so a customised row gains a text part without its markup being touched.
   body      String
   company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String

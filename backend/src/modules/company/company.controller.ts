@@ -37,9 +37,12 @@ export class CompanyController {
 
   @Get('email-templates')
   @ApiOperation({
-    summary: 'Get email templates',
+    summary: 'Get the system email templates',
     description:
-      'Returns all customizable email templates used for sending documents (invoices, quotes, receipts).',
+      'The two emails that are not about a document — the signature request and the verification ' +
+      "code — each resolved to what actually applies (this company's own override, else the copy " +
+      'shipped in code), with the `variables` that family offers mapped to sample values. A ' +
+      "DOCUMENT's email lives elsewhere, per document type: GET /api/documents/email-templates.",
   })
   @ApiResponse({ status: 200, description: 'Email templates retrieved' })
   async getEmailTemplates(@ActiveCompany() companyId: string) {
@@ -50,26 +53,33 @@ export class CompanyController {
   @Put('email-templates')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({
-    summary: 'Update an email template',
-    description: 'Updates the subject and body of a specific email template identified by its database ID.',
+    summary: 'Update a system email template',
+    description:
+      "Saves this company's override of one system email. The template is identified by `id` (the " +
+      'family: SIGNATURE_REQUEST or VERIFICATION_CODE) or, for a company that already has a stored ' +
+      'row, by `dbId`. `body` is html and is sanitized server-side before storage; the text/plain ' +
+      'alternative is derived from it at send time. An unknown `{placeholder}` comes back in ' +
+      '`warnings` rather than being rejected — a typo must never be what stops a verification code.',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        dbId: { type: 'string', description: 'Database ID of the email template' },
+        id: { type: 'string', description: 'Template family (SIGNATURE_REQUEST | VERIFICATION_CODE)' },
+        dbId: { type: 'string', description: 'Database ID of an already-stored override' },
         subject: { type: 'string' },
-        body: { type: 'string' },
+        body: { type: 'string', description: 'Html body' },
       },
-      required: ['dbId', 'subject', 'body'],
+      required: ['subject', 'body'],
     },
   })
-  @ApiResponse({ status: 200, description: 'Email template updated' })
+  @ApiResponse({ status: 200, description: 'Email template updated, with any placeholder warnings' })
+  @ApiResponse({ status: 400, description: 'Unidentifiable family, blank subject, or empty body' })
   async updateEmailTemplate(
     @ActiveCompany() companyId: string,
-    @Body() body: { dbId: string; subject: string; body: string },
+    @Body() body: { id?: string; dbId?: string; subject: string; body: string },
   ) {
-    const data = await this.companyService.updateEmailTemplate(companyId, body.dbId, body.subject, body.body);
+    const data = await this.companyService.updateEmailTemplate(companyId, body);
     return data || {};
   }
 }

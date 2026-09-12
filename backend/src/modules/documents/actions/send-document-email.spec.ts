@@ -312,5 +312,102 @@ describe('sendDocumentInstanceEmail', () => {
     expect(mailService.sendMail).toHaveBeenCalledWith(
       expect.objectContaining({ subject: 'OVERRIDDEN SUBJECT', text: 'OVERRIDDEN BODY' }),
     );
+    // A text-only template still sends a text-only email — no empty html part invented for it.
+    expect(mailService.sendMail.mock.calls[0][0]).not.toHaveProperty('html');
+  });
+
+  it('sends BOTH parts when the template carries html, escaping interpolated values into the html one', async () => {
+    (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
+      pdf: FAKE_PDF,
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 0,
+        vatMinor: 0,
+        grossMinor: 0,
+        vatBreakdown: [],
+        warnings: [],
+      },
+      referenceLabels: {},
+      // A company name that is legitimate data and also happens to contain markup.
+      companyName: 'Acme <Corp> & Co',
+    });
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+      quote: {
+        subject: '{typeLabel} from {companyName}',
+        body: 'Plain from {companyName}',
+        html: '<p>Rich from {companyName}</p>',
+      },
+    });
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'quote',
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        recipient: 'client@example.com',
+        label: 'Quote',
+      },
+    );
+
+    expect(mailService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Quote from Acme <Corp> & Co',
+        text: 'Plain from Acme <Corp> & Co',
+        html: '<p>Rich from Acme &lt;Corp&gt; &amp; Co</p>',
+        attachments: [expect.objectContaining({ contentType: 'application/pdf' })],
+      }),
+    );
+  });
+
+  it('derives a text part rather than sending html alone, for a template that carries only html', async () => {
+    mockSuccessfulRender();
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+      quote: { subject: 'Quote {displayNumber}', body: '', html: '<p>Hello,</p><p>See attached.</p>' },
+    });
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'quote',
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        recipient: 'client@example.com',
+        label: 'Quote',
+      },
+    );
+
+    // Never an html-only message: that is what a text-only client, a screen reader and most spam
+    // filters would see as empty.
+    expect(mailService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Quote QUOTE-2026-0001',
+        text: 'Hello,\nSee attached.',
+        html: '<p>Hello,</p><p>See attached.</p>',
+      }),
+    );
   });
 });

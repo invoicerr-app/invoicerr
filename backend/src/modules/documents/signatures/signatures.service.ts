@@ -3,8 +3,20 @@ import { BadRequestException, ConflictException, Inject, Injectable } from '@nes
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { MailService } from '@/mail/mail.service';
+import {
+  resolveSystemEmailTemplate,
+  SystemEmailFamily,
+  systemEmailFamilyLabel,
+} from '@/mail/system-email-templates';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+
+import { DocumentEmailTemplate } from '../descriptors/types';
+import {
+  buildOtpEmailParts,
+  buildSignatureRequestEmailParts,
+  renderEmailTemplate,
+} from '../actions/email-template';
 
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import {
@@ -255,12 +267,17 @@ export class SignaturesService {
   }
 
   /**
-   * Reuses the LEGACY `MailTemplate`/`MailTemplateType` table (`SIGNATURE_REQUEST`), never the newer
-   * `Company.documentEmailTemplates` mechanism — see `actions/company-email-templates.ts`'s own header
-   * on why the two are deliberately separate vocabularies. `company.service.ts#getCompanyInfo` already
-   * guarantees every company has a `SIGNATURE_REQUEST` row (upserted the moment its own info is first
-   * read), so a genuinely missing template here means the company record itself was never
-   * initialized — a real, if unusual, failure worth a clear message rather than a silent no-op.
+   * The company's own `MailTemplate` row for `SIGNATURE_REQUEST` when it has one, else the SHIPPED
+   * default (`mail/system-email-templates.ts`) — the same "company override, else the template this
+   * application ships" precedence `resolveEmailTemplate` applies to a document type. A missing row used
+   * to be a hard refusal here, which was only ever safe because `company.service.ts#getCompanyInfo`
+   * seeded one on every read of a company's own info; with the copy living in code instead, a company
+   * with no row is an ordinary, fully functional state and a signature request can no longer be blocked
+   * by a missing configuration row.
+   *
+   * `Company.documentEmailTemplates` is still a different mechanism, keyed by document type rather than
+   * by family — see `actions/company-email-templates.ts`'s own header for which storage answers which
+   * keying problem. The ENGINE below is the same one document sends use.
    */
   private async sendSignatureRequestEmail(input: {
     companyId: string;
@@ -269,38 +286,27 @@ export class SignaturesService {
     recipient: string;
     displayNumber: string;
   }): Promise<void> {
-    const mailTemplate = await prisma.mailTemplate.findFirst({
-      where: { type: MailTemplateType.SIGNATURE_REQUEST, companyId: input.companyId },
-      select: { subject: true, body: true },
+    const appUrl = process.env.APP_URL || '';
+    const template = await this.resolveSystemTemplate(MailTemplateType.SIGNATURE_REQUEST, input.companyId);
+    const parts = buildSignatureRequestEmailParts({
+      appUrl,
+      signatureUrl: `${appUrl}/signature/${input.token}`,
+      signatureId: input.signatureId,
+      signatureNumber: input.displayNumber,
     });
-    if (!mailTemplate) {
-      throw new BadRequestException('Email template for signature request not found.');
-    }
 
-    const vars: Record<string, string> = {
-      APP_URL: process.env.APP_URL || '',
-      SIGNATURE_URL: `${process.env.APP_URL || ''}/signature/${input.token}`,
-      SIGNATURE_ID: input.signatureId,
-      SIGNATURE_NUMBER: input.displayNumber,
-    };
-
-    await this.sendTemplatedMail(mailTemplate, vars, input.recipient, 'signature request');
+    await this.sendTemplatedMail(template, parts, input.recipient, MailTemplateType.SIGNATURE_REQUEST);
   }
 
-  /** Same legacy-template mechanism as above, for `VERIFICATION_CODE`. The "XXXX-XXXX" split is
-   *  purely cosmetic (easier for a human to read/type back), applied to the DISPLAYED code only —
-   *  never to what is hashed/compared (`otp.ts` always works on the raw 8-digit string). Resolves the
-   *  recipient fresh from `row`'s own `documentId` (rather than threading it through from
+  /** Same mechanism as above, for `VERIFICATION_CODE`. The "XXXX-XXXX" split is purely cosmetic (easier
+   *  for a human to read/type back), applied to the DISPLAYED code only — never to what is
+   *  hashed/compared (`otp.ts` always works on the raw 8-digit string), which is why the split happens
+   *  HERE, at the one point the code becomes prose, and never upstream of `mintOtpChallenge`. Resolves
+   *  the recipient fresh from `row`'s own `documentId` (rather than threading it through from
    *  `requestSignature`) so a re-armed OTP, long after the initial request, still reaches the right
    *  inbox even if the underlying `Client` row's own `contactEmail` changed in the meantime. */
   private async sendOtpEmail(row: SignatureRecord, code: string): Promise<void> {
-    const mailTemplate = await prisma.mailTemplate.findFirst({
-      where: { type: MailTemplateType.VERIFICATION_CODE, companyId: row.companyId },
-      select: { subject: true, body: true },
-    });
-    if (!mailTemplate) {
-      throw new BadRequestException('Email template for verification code not found.');
-    }
+    const template = await this.resolveSystemTemplate(MailTemplateType.VERIFICATION_CODE, row.companyId);
 
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
     const data = (document.data ?? {}) as Record<string, unknown>;
@@ -310,23 +316,58 @@ export class SignaturesService {
       throw new BadRequestException('Signature request has no reachable recipient.');
     }
 
-    const vars: Record<string, string> = { OTP_CODE: `${code.slice(0, 4)}-${code.slice(4, 8)}` };
-    await this.sendTemplatedMail(mailTemplate, vars, client.contactEmail, 'verification code');
+    const parts = buildOtpEmailParts({
+      appUrl: process.env.APP_URL || '',
+      otpCode: `${code.slice(0, 4)}-${code.slice(4, 8)}`,
+    });
+    await this.sendTemplatedMail(template, parts, client.contactEmail, MailTemplateType.VERIFICATION_CODE);
   }
 
+  private async resolveSystemTemplate(
+    family: SystemEmailFamily,
+    companyId: string,
+  ): Promise<DocumentEmailTemplate> {
+    const override = await prisma.mailTemplate.findFirst({
+      where: { type: family, companyId },
+      select: { subject: true, body: true },
+    });
+    return resolveSystemEmailTemplate(family, override);
+  }
+
+  /**
+   * Composes and sends one system email through the SHARED engine
+   * (`actions/email-template.ts#renderEmailTemplate`): `{placeholder}` interpolation, an unknown
+   * placeholder left exactly as written and WARNED about rather than thrown, and both parts on the
+   * wire — the html the template carries plus the text part the engine guarantees (derived from that
+   * html for a customised row, which only ever stored markup).
+   *
+   * Warnings are logged, never raised: a typo in a company's own signature-request subject must not be
+   * what prevents a signature request — or a verification code — from being delivered. That is the same
+   * contract the engine documents for document sends, applied here to the two emails where failing
+   * closed would be worst.
+   */
   private async sendTemplatedMail(
-    mailTemplate: { subject: string; body: string },
-    vars: Record<string, string>,
+    template: DocumentEmailTemplate,
+    parts: Record<string, string>,
     recipient: string,
-    label: string,
+    family: SystemEmailFamily,
   ): Promise<void> {
-    const interpolate = (text: string) => text.replace(/{{(\w+)}}/g, (_, key) => vars[key] ?? '');
+    const label = systemEmailFamilyLabel(family).toLowerCase();
+    const { subject, body, html, warnings } = renderEmailTemplate(template, parts);
+
+    for (const warning of warnings) {
+      logger.warn(`System email template: ${warning}`, {
+        category: 'documents',
+        details: { family, recipient },
+      });
+    }
 
     try {
       await this.mailService.sendMail({
         to: recipient,
-        subject: interpolate(mailTemplate.subject),
-        html: interpolate(mailTemplate.body),
+        subject,
+        text: body,
+        ...(html ? { html } : {}),
       });
     } catch (error) {
       logger.error(`Failed to send ${label} email`, {

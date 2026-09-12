@@ -1,21 +1,46 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EditCompanyDto, IdentifierEntry, PDFConfigDto } from '@/modules/company/dto/company.dto';
-import { MailTemplate, MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { createHash } from 'node:crypto';
 import { logger } from '@/logger/logger.service';
+import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
+import {
+  describeSystemEmailVocabulary,
+  resolveSystemEmailTemplate,
+  SYSTEM_EMAIL_FAMILIES,
+  SystemEmailFamily,
+  systemEmailFamilyLabel,
+} from '@/mail/system-email-templates';
+import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
 import prisma from '@/prisma/prisma.service';
-import { randomUUID } from 'node:crypto';
 
+/**
+ * One SYSTEM email template, as this module's settings routes hand it over — the signature request and
+ * the verification code only. A DOCUMENT type's email is a different mechanism, keyed by type rather
+ * than by a closed enum: see `documents/actions/company-email-templates.ts` and
+ * `GET /api/documents/email-templates`.
+ */
 export interface EmailTemplate {
+  /** The stored override's row id, or '' when this company has none and the shipped default applies —
+   *  which is what makes `source` below worth reporting rather than inferring from a string compare. */
   dbId: string;
-  id: string;
+  id: SystemEmailFamily;
   companyId: string;
   name: string;
   subject: string;
+  /** HTML — see `MailTemplate.body`'s own schema comment. The text/plain alternative is derived from it
+   *  at send time (`email-template.ts#deriveTextFromHtml`), never stored twice. */
   body: string;
+  source: 'company' | 'default';
   variables: Record<string, string>;
+}
+
+/** Where the sample `{appUrl}` in a preview points, and what the senders interpolate — one fallback,
+ *  spelled once. */
+function appUrl(): string {
+  return process.env.APP_URL || 'http://localhost:3000';
 }
 
 @Injectable()
@@ -37,62 +62,12 @@ export class CompanyService {
   async getCompanyInfo(companyId: string) {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      include: { emailTemplates: true, partyIdentifiers: true },
+      include: { partyIdentifiers: true },
     });
     if (!company) {
       logger.warn('No company found', { category: 'company', details: { companyId } });
       return null;
     }
-    await prisma.$transaction([
-      prisma.mailTemplate.upsert({
-        where: {
-          companyId_type: { companyId: company.id, type: MailTemplateType.SIGNATURE_REQUEST },
-        },
-        create: {
-          companyId: company.id,
-          type: MailTemplateType.SIGNATURE_REQUEST,
-          subject: 'Please sign document #{{SIGNATURE_NUMBER}}',
-          body: '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">  <strong>Document:</strong> {{SIGNATURE_NUMBER}}<br>  <strong>Signature ID:</strong> {{SIGNATURE_ID}}</div><p>Please click the button below to review and sign the document:</p><div style="text-align: center; margin: 30px 0;">  <a href="{{SIGNATURE_URL}}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please don\'t hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-        },
-        update: {},
-      }),
-      prisma.mailTemplate.upsert({
-        where: {
-          companyId_type: { companyId: company.id, type: MailTemplateType.VERIFICATION_CODE },
-        },
-        create: {
-          type: MailTemplateType.VERIFICATION_CODE,
-          subject: 'Your verification code',
-          body: '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{{OTP_CODE}}</div></div><p>This code will expire in 10 minutes. Please enter it in the application to complete your verification.</p><p>If you didn\'t request this code, please ignore this email.</p><p>Best regards,<br>The Invoicerr Team</p>',
-          companyId: company.id,
-        },
-        update: {},
-      }),
-      prisma.mailTemplate.upsert({
-        where: {
-          companyId_type: { companyId: company.id, type: MailTemplateType.INVOICE },
-        },
-        create: {
-          type: MailTemplateType.INVOICE,
-          subject: 'Invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}',
-          body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-          companyId: company.id,
-        },
-        update: {},
-      }),
-      prisma.mailTemplate.upsert({
-        where: {
-          companyId_type: { companyId: company.id, type: MailTemplateType.PAYMENT },
-        },
-        create: {
-          type: MailTemplateType.PAYMENT,
-          subject: 'Payment #{{PAYMENT_NUMBER}} from {{COMPANY_NAME}}',
-          body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the payment receipt #{{PAYMENT_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-          companyId: company.id,
-        },
-        update: {},
-      }),
-    ]);
     // Compute hash and log only on init or when company data changed
     const companyData = company;
     const hash = this.computeHash(companyData);
@@ -185,27 +160,6 @@ export class CompanyService {
         phone: '',
         email: '',
         ...data,
-        emailTemplates: {
-          createMany: {
-            data: [
-              {
-                type: 'SIGNATURE_REQUEST',
-                subject: 'Please sign document #{{SIGNATURE_NUMBER}}',
-                body: '<h2>Document Signature Required</h2><p>Hello,</p><p>You have been requested to sign the following document:</p><div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">  <strong>Document:</strong> {{SIGNATURE_NUMBER}}<br>  <strong>Signature ID:</strong> {{SIGNATURE_ID}}</div><p>Please click the button below to review and sign the document:</p><div style="text-align: center; margin: 30px 0;">  <a href="{{SIGNATURE_URL}}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign Document</a></div><p>If you have any questions, please don\'t hesitate to contact us.</p><p>Best regards,<br>The Invoicerr Team</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-              },
-              {
-                type: 'VERIFICATION_CODE',
-                subject: 'Your verification code',
-                body: '<p>Hello,</p><p>Here is your verification code:</p><div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">  <div style="font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 4px; font-family: monospace;">{{OTP_CODE}}</div></div><p>This code will expire in 10 minutes. Please enter it in the application to complete your verification.</p><p>If you didn\'t request this code, please ignore this email.</p><p>Best regards,<br>The Invoicerr Team</p>',
-              },
-              {
-                type: 'INVOICE',
-                subject: 'Invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}',
-                body: '<p>Dear {{CLIENT_NAME}},</p><p>Please find attached the invoice #{{INVOICE_NUMBER}} from {{COMPANY_NAME}}.</p><p>Thank you for your business!</p><p>Best regards,<br>{{COMPANY_NAME}}</p><hr><p style="font-size: 12px; color: #666;">This email was sent from {{APP_URL}}</p>',
-              },
-            ],
-          },
-        },
       },
     });
 
@@ -226,77 +180,94 @@ export class CompanyService {
     return newCompany;
   }
 
+  /**
+   * The two SYSTEM emails, each resolved to what ACTUALLY applies: this company's own `MailTemplate`
+   * override when it has one, else the copy shipped in code (`mail/system-email-templates.ts`). Driven by
+   * `SYSTEM_EMAIL_FAMILIES` rather than a list written down here, so a family added to the enum cannot
+   * be silently missing from this response.
+   *
+   * Nothing is seeded to make this work. A company whose rows were never created — or were deleted
+   * (`danger.service.ts`'s reset does exactly that) — still gets both templates here and can still send
+   * both emails: "no row" means "the shipped default applies", never "unconfigured". That is what
+   * replaced the upsert this method's own caller used to fire on every read of a company's info.
+   */
   async getEmailTemplates(companyId: string): Promise<EmailTemplate[]> {
-    const existingCompany = await prisma.company.findUnique({
+    const company = await prisma.company.findUnique({
       where: { id: companyId },
       include: { emailTemplates: true },
     });
-
-    if (!existingCompany?.emailTemplates) {
-      logger.error('No email templates found for the company', { category: 'company' });
-      throw new BadRequestException('No email templates found for the company');
+    if (!company) {
+      logger.warn('No company found for email templates', { category: 'company', details: { companyId } });
+      throw new NotFoundException('Company not found');
     }
 
-    return existingCompany.emailTemplates.map((template) => ({
-      id: template.type,
-      dbId: template.id,
-      companyId: existingCompany.id,
-      name: template.type
-        .replace('_', ' ')
-        .toLowerCase()
-        .split(' ')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' '),
-      subject: template.subject,
-      body: template.body,
-      variables: {
-        APP_URL: process.env.APP_URL || 'http://localhost:3000',
-        ...(template.type === MailTemplateType.SIGNATURE_REQUEST && {
-          SIGNATURE_ID: randomUUID(),
-          SIGNATURE_NUMBER: 'QUOTE-2025-0001',
-          SIGNATURE_URL: `${process.env.APP_URL || 'http://localhost:3000'}/signature/${randomUUID()}`,
-        }),
-        ...(template.type === MailTemplateType.VERIFICATION_CODE && {
-          OTP_CODE: '1234-5678',
-        }),
-        ...(template.type === MailTemplateType.INVOICE && {
-          INVOICE_NUMBER: 'INV-2025-0001',
-          CLIENT_NAME: 'Acme',
-          COMPANY_NAME: existingCompany.name,
-        }),
-        ...(template.type === MailTemplateType.PAYMENT && {
-          PAYMENT_NUMBER: 'PAY-2025-0001',
-          CLIENT_NAME: 'Acme',
-          COMPANY_NAME: existingCompany.name,
-        }),
-      },
-    }));
+    return SYSTEM_EMAIL_FAMILIES.map((family): EmailTemplate => {
+      const row = company.emailTemplates.find((candidate) => candidate.type === family) ?? null;
+      const template = resolveSystemEmailTemplate(family, row);
+
+      return {
+        dbId: row?.id ?? '',
+        id: family,
+        companyId: company.id,
+        name: systemEmailFamilyLabel(family),
+        subject: template.subject,
+        // The html part: this is the field the settings editor writes, and `MailTemplate.body` has held
+        // html since it existed. The text/plain alternative is never stored — it is derived from this at
+        // send time (`email-template.ts#deriveTextFromHtml`).
+        body: template.html ?? template.body,
+        source: row ? 'company' : 'default',
+        variables: describeSystemEmailVocabulary(family, appUrl()),
+      };
+    });
   }
 
-  async updateEmailTemplate(companyId: string, id: MailTemplate['id'], subject: string, body: string) {
-    let existingTemplate = await prisma.mailTemplate.findFirst({
-      where: { id, companyId },
-      include: { company: true },
-    });
-    if (!existingTemplate) {
-      logger.error(`Email template with id ${id} not found`, { category: 'company', details: { id } });
-      throw new BadRequestException(`Email template with id ${id} not found`);
+  /**
+   * Saves this company's override of one system email.
+   *
+   * The family is identified by `id` (the family name) or by `dbId`, the row id a screen holding an
+   * already-stored override will have — resolved TENANT-SCOPED, so a `dbId` belonging to another company
+   * is simply not found rather than updated. An upsert, not an update: the row IS the override, and a
+   * company overriding a shipped default for the first time has no row yet.
+   *
+   * Refused (400): an unidentifiable family, a blank subject, an empty body — none of those is a
+   * sendable email. REPORTED in `warnings`, never refused: an unknown `{placeholder}`, exactly as the
+   * engine documents (`renderEmailTemplate`). A typo in a verification-code template must never be what
+   * stops a code from reaching someone mid-signature.
+   */
+  async updateEmailTemplate(
+    companyId: string,
+    input: { id?: string; dbId?: string; subject: string; body: string },
+  ): Promise<EmailTemplate & { warnings: string[] }> {
+    const family = await this.resolveSystemEmailFamily(companyId, input);
+    const subject = input.subject ?? '';
+    // Sanitized BEFORE the emptiness check (`mail/sanitize-email-html.ts`), so markup that is nothing
+    // but a script tag is refused as an empty body rather than stored as one.
+    const body = sanitizeEmailHtml(input.body ?? '');
+    if (subject.trim() === '') {
+      throw new BadRequestException('An email template needs a subject.');
+    }
+    if (body.trim() === '') {
+      throw new BadRequestException('An email template needs a body.');
     }
 
-    existingTemplate = await prisma.mailTemplate.update({
-      where: { id },
-      data: {
-        subject,
-        body,
-      },
+    const row = await prisma.mailTemplate.upsert({
+      where: { companyId_type: { companyId, type: family } },
+      create: { companyId, type: family, subject, body },
+      update: { subject, body },
       include: { company: true },
     });
 
-    logger.info('Email template updated', { category: 'company', details: { templateId: id } });
+    const variables = describeSystemEmailVocabulary(family, appUrl());
+    const { warnings } = renderEmailTemplate(resolveSystemEmailTemplate(family, row), variables);
+
+    logger.info('Email template updated', {
+      category: 'company',
+      details: { templateId: row.id, family, warningCount: warnings.length },
+    });
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED, {
-        company: existingTemplate.company,
-        template: existingTemplate,
+        company: row.company,
+        template: { id: row.id, type: row.type, subject: row.subject, body: row.body },
       });
     } catch (error) {
       logger.error('Failed to dispatch COMPANY_EMAIL_TEMPLATE_UPDATED webhook', {
@@ -304,6 +275,40 @@ export class CompanyService {
         details: { error },
       });
     }
-    return existingTemplate;
+
+    return {
+      dbId: row.id,
+      id: family,
+      companyId,
+      name: systemEmailFamilyLabel(family),
+      subject: row.subject,
+      body: row.body,
+      source: 'company',
+      variables,
+      warnings,
+    };
+  }
+
+  /** Which family a write targets — by name when the caller knows it, else by the row id of an override
+   *  it already holds. The `dbId` lookup carries `companyId`, so it can only ever resolve a row this
+   *  tenant owns; an id from another company falls through to the same refusal as a missing one. */
+  private async resolveSystemEmailFamily(
+    companyId: string,
+    input: { id?: string; dbId?: string },
+  ): Promise<SystemEmailFamily> {
+    const named = SYSTEM_EMAIL_FAMILIES.find((family) => family === input.id);
+    if (named) return named;
+
+    if (input.dbId) {
+      const row = await prisma.mailTemplate.findFirst({
+        where: { id: input.dbId, companyId },
+        select: { type: true },
+      });
+      if (row) return row.type;
+    }
+
+    throw new BadRequestException(
+      `Unknown email template — identify it by id (${SYSTEM_EMAIL_FAMILIES.join(' | ')}) or by dbId.`,
+    );
   }
 }

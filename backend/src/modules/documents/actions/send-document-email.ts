@@ -141,7 +141,7 @@ export async function sendDocumentInstanceEmail(
     totals: rendered.totals,
     referenceLabels: rendered.referenceLabels,
   });
-  const { subject, body, warnings } = renderEmailTemplate(template, parts);
+  const { subject, body, html, warnings } = renderEmailTemplate(template, parts);
 
   for (const warning of warnings) {
     logger.warn(`Document email template: ${warning}`, {
@@ -163,10 +163,16 @@ export async function sendDocumentInstanceEmail(
     rendered.pdf,
   );
 
+  // BOTH parts whenever the resolved template has an html one: `text` is always sent (the engine
+  // guarantees a text part, deriving it from the html for a template that carries no prose of its own —
+  // see `renderEmailTemplate`), and `html` is added only when it genuinely exists, so a text-only
+  // template still produces the exact same text-only message it always did. MailOptions has supported
+  // both since before this mechanism existed (`mail/types.ts`), so no transport changes to carry it.
   await deps.mailService.sendMail({
     to: recipient,
     subject,
     text: body,
+    ...(html ? { html } : {}),
     attachments: [{ filename, content: pdf, contentType: 'application/pdf' }],
   });
 

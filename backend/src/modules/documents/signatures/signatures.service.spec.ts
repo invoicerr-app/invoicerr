@@ -91,19 +91,28 @@ jest.mock('@/prisma/prisma.service', () => {
     }),
   };
 
+  // A company that HAS customised both system emails — stored in the single-brace vocabulary the shared
+  // engine interpolates (`actions/email-template.ts`), and html, which is the only thing
+  // `MailTemplate.body` has ever held. Individual tests below override this to prove the no-row-at-all
+  // path (the shipped default applies) and the unknown-placeholder path; it is exported so `beforeEach`
+  // can REINSTATE it, because `jest.clearAllMocks()` clears recorded calls but NOT implementations — an
+  // overriding test would otherwise silently poison every test that runs after it.
+  const defaultMailTemplateFindFirst = async ({ where }: { where: { type: string } }) =>
+    where.type === 'SIGNATURE_REQUEST'
+      ? {
+          subject: 'Please sign {signatureNumber}',
+          body: '<p>Open <a href="{signatureUrl}">here</a> to sign.</p>',
+        }
+      : { subject: 'Your code', body: '<p>Code: {otpCode}</p>' };
+
   return {
     __esModule: true,
     default: {
       signature,
-      mailTemplate: {
-        findFirst: jest.fn(async ({ where }: { where: { type: string } }) =>
-          where.type === 'SIGNATURE_REQUEST'
-            ? { subject: 'Please sign {{SIGNATURE_NUMBER}}', body: 'Open {{SIGNATURE_URL}}' }
-            : { subject: 'Your code', body: 'Code: {{OTP_CODE}}' },
-        ),
-      },
+      mailTemplate: { findFirst: jest.fn(defaultMailTemplateFindFirst) },
     },
     __rows: rows,
+    __defaultMailTemplateFindFirst: defaultMailTemplateFindFirst,
   };
 });
 
@@ -136,6 +145,10 @@ describe('SignaturesService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     rows().length = 0;
+    // See the mock factory's own comment: implementations survive `clearAllMocks`, so the stored-template
+    // fixture is put back deliberately before every test.
+    const mock = jest.requireMock('@/prisma/prisma.service');
+    mock.default.mailTemplate.findFirst.mockImplementation(mock.__defaultMailTemplateFindFirst);
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(SENT_QUOTE);
     (persistence.updateDocumentStatus as jest.Mock).mockImplementation(
       async (_companyId: string, _typeId: string, id: string, status: string) => ({
@@ -419,6 +432,75 @@ describe('SignaturesService', () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({ ...SENT_QUOTE, status: 'draft' });
 
       await expect(service.verifyAndSign(token, code)).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('sends BOTH an html and a text part — never an html-only message', async () => {
+      const { service, mailService } = buildService();
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      const sent = mailService.sendMail.mock.calls[0][0];
+      expect(sent.html).toContain('<a href=');
+      // The company's stored template is html only; the text part is DERIVED from it — and carries the
+      // LINK ITSELF, not merely the word "here": the href lives in an attribute, so a plain tag-strip
+      // would hand a text-only reader a signature request with nothing to open.
+      expect(sent.text).toMatch(/Open here \(.*\/signature\/[0-9a-f]{64,}\) to sign\./);
+      expect(sent.subject).toBe('Please sign QUOTE-2026-0001');
+    });
+
+    it('falls back to the SHIPPED default when the company has no stored template — never a refusal', async () => {
+      const { service, mailService } = buildService();
+      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      // A company whose rows were never created, or were deleted by the app reset: no longer a failure.
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).resolves.toMatchObject({
+        message: expect.stringContaining('client@example.com'),
+      });
+
+      const sent = mailService.sendMail.mock.calls[0][0];
+      expect(sent.subject).toBe('Please sign document #QUOTE-2026-0001');
+      expect(sent.html).toContain('Document Signature Required');
+      expect(sent.html).toMatch(/\/signature\/[0-9a-f]{64,}/);
+      expect(sent.text).toMatch(/\/signature\/[0-9a-f]{64,}/);
+    });
+
+    it('still delivers the OTP on the shipped default, carrying the display-form code in both parts', async () => {
+      const { service, mailService } = buildService();
+      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      prisma.mailTemplate.findFirst.mockResolvedValue(null);
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+      const token = /\/signature\/([0-9a-f]{64,})/.exec(mailService.sendMail.mock.calls[0][0].html)![1];
+      mailService.sendMail.mockClear();
+
+      await service.requestOtp(token);
+
+      const sent = mailService.sendMail.mock.calls[0][0];
+      expect(sent.subject).toBe('Your verification code');
+      expect(sent.html).toMatch(/\d{4}-\d{4}/);
+      expect(sent.text).toMatch(/\d{4}-\d{4}/);
+      // Still only ever the DISPLAY form that travels; what is stored stays a hash.
+      expect(rows()[0].otpCodeHash).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("a typo in a company's own template is WARNED about, never thrown — the email still goes out", async () => {
+      const { service, mailService } = buildService();
+      const prisma = jest.requireMock('@/prisma/prisma.service').default;
+      prisma.mailTemplate.findFirst.mockResolvedValue({
+        subject: 'Sign {SIGNATURE_NUMBER}',
+        body: '<p>Open {{SIGNATURE_URL}}</p>',
+      });
+
+      await expect(service.requestSignature('company-1', 'quote', 'quote-1')).resolves.toBeDefined();
+
+      // Both tokens belong to the retired vocabulary, so neither resolves — and BOTH are left exactly as
+      // written rather than silently blanked, which is the whole point: a signature request that cannot
+      // be interpolated still reaches its recipient, visibly imperfect instead of invisibly broken.
+      const sent = mailService.sendMail.mock.calls[0][0];
+      expect(sent.subject).toBe('Sign {SIGNATURE_NUMBER}');
+      expect(sent.html).toContain('{SIGNATURE_URL}');
+      expect(mailService.sendMail).toHaveBeenCalledTimes(1);
     });
 
     it('still signs even when the DOCUMENT_SIGNED webhook dispatch fails — the sign itself must not roll back', async () => {

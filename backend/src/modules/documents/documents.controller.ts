@@ -1,14 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, Sse } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, Sse } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Observable } from 'rxjs';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { ActiveRole } from '@/decorators/active-role.decorator';
+import { Roles } from '@/decorators/roles.decorator';
 
 import { DocumentsService } from './documents.service';
-import { RunActionDto } from './dto/documents.dto';
+import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import { DocumentEventMessage } from './queue/document-events';
 import { DocumentEventsBridge } from './queue/document-events-bridge';
 import { CreateDocumentScheduleDto, UpdateDocumentScheduleDto } from './schedules/schedule.dto';
@@ -102,6 +103,86 @@ export class DocumentsController {
   @ApiResponse({ status: 200, description: 'Document types retrieved' })
   listTypes() {
     return this.documentsService.listTypes();
+  }
+
+  // Email templates, per document type. Declared HERE, among the other static segments, for the reason
+  // this controller's own header gives: 'email-templates' would otherwise be swallowed by the dynamic
+  // `@Get(':id')` route further down.
+
+  @Get('email-templates')
+  @ApiOperation({
+    summary: 'List every document type email template',
+    description:
+      "Each registered type's CURRENTLY APPLYING email template (the company's own override, else " +
+      "the type's descriptor default, else the generic fallback — `source` says which), plus the " +
+      '`variables` that type actually offers, mapped to sample values: the keys are the available- ' +
+      'placeholder list, the values make a preview. Derived per type, so `recipientName` is absent ' +
+      'for a type with no client reference and `totalGross` for a type with no money at all.',
+  })
+  @ApiResponse({ status: 200, description: 'Email templates retrieved' })
+  listEmailTemplates(@ActiveCompany() companyId: string) {
+    return this.documentsService.listEmailTemplates(companyId);
+  }
+
+  @Get('types/:typeId/email-template')
+  @ApiOperation({
+    summary: "One document type's email template",
+    description: 'The same resolved template and derived vocabulary as the list route, for one type.',
+  })
+  @ApiParam({ name: 'typeId', type: String })
+  @ApiResponse({ status: 200, description: 'Email template retrieved' })
+  @ApiResponse({ status: 404, description: 'Unknown document type' })
+  getEmailTemplate(@ActiveCompany() companyId: string, @Param('typeId') typeId: string) {
+    return this.documentsService.getEmailTemplate(companyId, typeId);
+  }
+
+  @Put('types/:typeId/email-template')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({
+    summary: "Save one document type's email template",
+    description:
+      "Stores this company's own template for the type (`Company.documentEmailTemplates`). The html " +
+      'part is sanitized server-side before storage. An unknown `{placeholder}` is REPORTED in ' +
+      '`warnings`, never rejected — the same contract the send path holds, so a typo can never be ' +
+      'what blocks a document from reaching a customer. A blank subject, or neither body nor html, ' +
+      'IS refused: there would be no message to send.',
+  })
+  @ApiParam({ name: 'typeId', type: String })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        subject: { type: 'string' },
+        body: { type: 'string', description: 'Plain-text part' },
+        html: { type: 'string', description: 'Optional html part, sent alongside the text one' },
+      },
+      required: ['subject'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Template saved, with any placeholder warnings' })
+  @ApiResponse({ status: 400, description: 'Blank subject, or neither a text body nor an html one' })
+  @ApiResponse({ status: 404, description: 'Unknown document type' })
+  updateEmailTemplate(
+    @ActiveCompany() companyId: string,
+    @Param('typeId') typeId: string,
+    @Body() body: UpdateDocumentEmailTemplateDto,
+  ) {
+    return this.documentsService.updateEmailTemplate(companyId, typeId, body);
+  }
+
+  @Delete('types/:typeId/email-template')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({
+    summary: "Revert one document type's email template to the shipped default",
+    description:
+      "Drops this company's own override for the type and returns what now applies. Reverting a " +
+      'template that was never overridden is a no-op, never an error.',
+  })
+  @ApiParam({ name: 'typeId', type: String })
+  @ApiResponse({ status: 200, description: 'Override removed; the applying template is returned' })
+  @ApiResponse({ status: 404, description: 'Unknown document type' })
+  resetEmailTemplate(@ActiveCompany() companyId: string, @Param('typeId') typeId: string) {
+    return this.documentsService.resetEmailTemplate(companyId, typeId);
   }
 
   @Get('types/:typeId')

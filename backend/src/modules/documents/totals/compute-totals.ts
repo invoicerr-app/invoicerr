@@ -233,6 +233,22 @@ export function computeDocumentTotals(
 }
 
 /**
+ * Whether `computeDocumentTotals` has any SOURCE of money on this type at all — i.e. whether a
+ * non-zero total is even reachable for it. A type with no line array (the credit note, the expense)
+ * always totals zero above, by construction, not because a particular instance happens to be empty.
+ *
+ * Exported for the email-template VOCABULARY (actions/email-template.ts's
+ * `describeDocumentEmailVocabulary`): advertising `{totalGross}` to someone editing a type's email
+ * would be advertising a placeholder whose value is permanently "0.00" for such a type. It deliberately
+ * does NOT gate `buildEmailTemplateParts`, which still substitutes `totalGross` for every type — an
+ * already-stored template that uses it (credit-note's own shipped default does) must keep rendering a
+ * number, never start emitting an "unknown placeholder" warning.
+ */
+export function descriptorHasLineTotals(descriptor: DocumentTypeDescriptor): boolean {
+  return findLineArrayFields(descriptor).length > 0;
+}
+
+/**
  * Find all array fields that have BOTH a 'money' and a 'number' subfield.
  * These are the fields we consider "line" fields.
  */

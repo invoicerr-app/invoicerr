@@ -28,6 +28,20 @@ import {
   listDocumentArchives,
   verifyDocumentArchive,
 } from './archive/persistence';
+import {
+  clearCompanyDocumentEmailTemplate,
+  getCompanyDocumentEmailTemplates,
+  setCompanyDocumentEmailTemplate,
+} from './actions/company-email-templates';
+import {
+  describeDocumentEmailVocabulary,
+  describeSendablePlaceholders,
+  DocumentEmailTemplate,
+  EmailTemplateSource,
+  renderEmailTemplate,
+  resolveEmailTemplate,
+  resolveEmailTemplateSource,
+} from './actions/email-template';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
 import { ActionRegistry, ActionResult } from './actions/action-registry';
@@ -147,6 +161,46 @@ export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor,
  *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
  *  `warnings` are new (item 8, "le lettrage" — settlement/credits.ts): empty arrays for any type that
  *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
+/**
+ * One document type's email template as a settings screen reads it — the template that CURRENTLY
+ * applies (never the raw override alone), where it came from, and the vocabulary this type offers.
+ *
+ * `variables` is a key -> SAMPLE VALUE map rather than a bare key list: the keys are the
+ * "available placeholders" hint, and the values make a preview without the screen having to invent
+ * plausible data of its own (`describeDocumentEmailVocabulary`).
+ */
+export interface DocumentEmailTemplateView {
+  typeId: string;
+  label: string;
+  subject: string;
+  /** The text/plain part — empty only for a template that deliberately carries html alone, in which
+   *  case the send derives the text part from it (see `renderEmailTemplate`). */
+  body: string;
+  html?: string;
+  source: EmailTemplateSource;
+  variables: Record<string, string>;
+}
+
+/** The ONE place a template view is assembled, so the list route, the single-type route and the write's
+ *  own response can never disagree about what applies or where it came from. */
+function buildEmailTemplateView(
+  descriptor: DocumentTypeDescriptor,
+  overrides: Record<string, DocumentEmailTemplate>,
+  companyName: string,
+): DocumentEmailTemplateView {
+  const template = resolveEmailTemplate(descriptor, overrides);
+
+  return {
+    typeId: descriptor.id,
+    label: descriptor.label,
+    subject: template.subject,
+    body: template.body,
+    ...(template.html ? { html: template.html } : {}),
+    source: resolveEmailTemplateSource(descriptor, overrides),
+    variables: describeDocumentEmailVocabulary({ descriptor, companyName }),
+  };
+}
+
 export interface DocumentSettlementView {
   totals: DocumentTotals;
   payments: DocumentPaymentResult[];
@@ -272,6 +326,112 @@ export class DocumentsService implements OnModuleInit {
    *  point is that the choice is the company's, not derived from where it is. */
   listTransports(): { id: string; label: string }[] {
     return this.transportRegistry.list();
+  }
+
+  /**
+   * Every document type's CURRENTLY APPLYING email template, with the vocabulary that type actually
+   * offers — one entry per registered type, including a type whose template is still the shipped
+   * default (`source` says which of the three resolution steps won, so a screen can tell "my own text"
+   * from "the default I would revert to" without comparing strings).
+   *
+   * Driven by the type REGISTRY, never a list of types written down here: a type added by a plugin
+   * appears with its own descriptor default and its own derived vocabulary, with nothing to register.
+   */
+  async listEmailTemplates(companyId: string): Promise<DocumentEmailTemplateView[]> {
+    const overrides = await getCompanyDocumentEmailTemplates(companyId);
+    const companyName = await this.resolveCompanyName(companyId);
+
+    return this.typeRegistry
+      .list()
+      .map((descriptor) => buildEmailTemplateView(descriptor, overrides, companyName));
+  }
+
+  /** One type's currently applying template — the same resolution and the same derived vocabulary
+   *  `listEmailTemplates` reports, for the single type a screen is editing. 404 for a type nobody
+   *  registered, exactly like every other per-type read on this service. */
+  async getEmailTemplate(companyId: string, typeId: string): Promise<DocumentEmailTemplateView> {
+    const descriptor = this.mergedDescriptor(typeId);
+    const overrides = await getCompanyDocumentEmailTemplates(companyId);
+    const companyName = await this.resolveCompanyName(companyId);
+
+    return buildEmailTemplateView(descriptor, overrides, companyName);
+  }
+
+  /**
+   * Stores ONE type's email template for this company (`Company.documentEmailTemplates` — see
+   * actions/company-email-templates.ts, which is also where the html part is sanitized on its way into
+   * the database).
+   *
+   * ## What is refused, and what is merely reported
+   *
+   * REFUSED (400): a blank subject, or a template with neither a text body nor an html one. Both are
+   * structurally unsendable — there is no message to deliver — and refusing at the write is the only
+   * moment a human is present to fix it.
+   *
+   * REPORTED, never refused: an unknown `{placeholder}`. That is the engine's documented contract (see
+   * `renderEmailTemplate`) and this write path must not contradict it — a subject mentioning
+   * `{clientName}` when the vocabulary calls it `{recipientName}` is a typo that should come back as a
+   * warning the editor can act on, not a rejection, and above all not something that silently becomes
+   * a send-time failure later. The warnings are produced by rendering the CANDIDATE template against
+   * this type's own derived vocabulary, so what the editor is warned about is exactly what a real send
+   * would warn about.
+   */
+  async updateEmailTemplate(
+    companyId: string,
+    typeId: string,
+    input: { subject: string; body?: string; html?: string },
+  ): Promise<{ template: DocumentEmailTemplateView; warnings: string[] }> {
+    const descriptor = this.mergedDescriptor(typeId);
+
+    const subject = input.subject ?? '';
+    const body = input.body ?? '';
+    const html = input.html ?? '';
+    if (subject.trim() === '') {
+      throw new BadRequestException('An email template needs a subject.');
+    }
+    if (body.trim() === '' && html.trim() === '') {
+      throw new BadRequestException('An email template needs a body — plain text, html, or both.');
+    }
+
+    const companyName = await this.resolveCompanyName(companyId);
+    const stored = await setCompanyDocumentEmailTemplate(companyId, typeId, {
+      subject,
+      body,
+      ...(html.trim() ? { html } : {}),
+    });
+
+    // Warnings come from rendering what was ACTUALLY STORED (sanitization may have changed the html)
+    // against every placeholder a SEND can substitute — `describeSendablePlaceholders`, not the narrower
+    // advertised `variables`: a warning here must mean "the send would leave this token as written",
+    // never merely "the editor does not offer this token".
+    const { warnings } = renderEmailTemplate(
+      stored,
+      describeSendablePlaceholders({ descriptor, companyName }),
+    );
+
+    return {
+      template: buildEmailTemplateView(descriptor, { [descriptor.id]: stored }, companyName),
+      warnings,
+    };
+  }
+
+  /** Drops this company's own template for one type, so the type's descriptor default applies again —
+   *  and returns what now applies, rather than leaving a screen to guess. Clearing a template a company
+   *  never set is a no-op, never an error (see `clearCompanyDocumentEmailTemplate`). */
+  async resetEmailTemplate(companyId: string, typeId: string): Promise<DocumentEmailTemplateView> {
+    const descriptor = this.mergedDescriptor(typeId);
+    await clearCompanyDocumentEmailTemplate(companyId, typeId);
+    const companyName = await this.resolveCompanyName(companyId);
+
+    return buildEmailTemplateView(descriptor, {}, companyName);
+  }
+
+  /** The company's own name — the one vocabulary sample value that is REAL data rather than a stand-in,
+   *  so a preview built from `variables` reads like the email the recipient will actually get. Empty
+   *  string for a company row that somehow has none: a sample value is never worth a failed read. */
+  private async resolveCompanyName(companyId: string): Promise<string> {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } });
+    return company?.name ?? '';
   }
 
   /**

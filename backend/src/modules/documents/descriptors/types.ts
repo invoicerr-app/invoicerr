@@ -96,7 +96,9 @@ export interface DocumentTypeDescriptor {
    * descriptor is data, not an i18n key, and every SHIPPED type (quote/invoice/credit-note/expense)
    * declares one so "no template configured" never actually happens for a core type.
    *
-   * `subject`/`body` are PLAIN TEXT with `{placeholder}` interpolation — see
+   * `subject`/`body` are PLAIN TEXT with `{placeholder}` interpolation (a company override MAY add an
+   * `html` part — no shipped type declares one, so what a type sends by default is text-only and
+   * unchanged by that capability existing) — see
    * actions/email-template.ts's `renderEmailTemplate` for the pure interpolation mechanism, and
    * `buildEmailTemplateParts` for the fixed vocabulary it fills in (`displayNumber`, `typeLabel`,
    * `companyName`, `totalGross`, `recipientName`). A company MAY override this per type — see
@@ -144,12 +146,37 @@ export interface DocumentTypeDescriptor {
   usesPaymentQr?: boolean;
 }
 
-/** One document type's default (or company-overriding) EMAIL template — see
- *  `DocumentTypeDescriptor.email` and `Company.documentEmailTemplates` (schema.prisma) for the two
- *  places this exact shape is used, and actions/email-template.ts for how it gets interpolated. */
+/**
+ * One document type's default (or company-overriding) EMAIL template — see
+ * `DocumentTypeDescriptor.email` and `Company.documentEmailTemplates` (schema.prisma) for the two
+ * places this exact shape is used, and actions/email-template.ts for how it gets interpolated.
+ *
+ * ALSO the shape of the two SYSTEM emails that are not about a document at all (the signature request
+ * and the verification code — `mail/system-email-templates.ts`): one template shape, one interpolation
+ * engine, one set of warn-and-pass-through semantics for every email this application composes.
+ */
 export interface DocumentEmailTemplate {
   subject: string;
+  /**
+   * The PLAIN-TEXT body — the part every mail client can render, and the only part a stored override
+   * was ever required to carry, which is what keeps every `{subject, body}` value already persisted in
+   * `Company.documentEmailTemplates` valid unchanged.
+   *
+   * May be empty for a template that carries only `html`: `renderEmailTemplate` then DERIVES the text
+   * part from the interpolated html rather than sending a message with no text alternative at all (see
+   * its own header).
+   */
   body: string;
+  /**
+   * The optional HTML body, sent ALONGSIDE `body` as the rich alternative (never instead of it) — see
+   * actions/send-document-email.ts for the send, and `mail/sanitize-email-html.ts` for the filter
+   * every stored html part passes through on the WRITE path.
+   *
+   * Absent means exactly what it meant before this field existed: a text-only email. No shipped
+   * descriptor declares one (see `DocumentTypeDescriptor.email`), so a type's DEFAULT email is
+   * text-only until a company writes an html part of its own for it.
+   */
+  html?: string;
 }
 
 /** One status a document TYPE's instances can be in — see `DocumentTypeDescriptor.statuses`. Plain
