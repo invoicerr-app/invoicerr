@@ -62,7 +62,7 @@
     "markdown-it": "^14.3.0",
     "node-forge": "^1.4.0",
     "node-schematron": "^2.1.0",
-    "nodemailer": "^9.0.1",
+    "nodemailer": "^10.0.9",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.1",
     "pg": "^8.16.3",

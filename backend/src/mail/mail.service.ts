@@ -6,6 +6,7 @@ import { BrevoMailProvider } from '@/mail/providers/brevo.provider';
 import { Injectable } from '@nestjs/common';
 import { SmtpMailProvider } from '@/mail/providers/smtp.provider';
 import { logger } from '@/logger/logger.service';
+import { toTransportAttachments } from '@/mail/attachments';
 
 export type { MailOptions, MailAttachment, SmtpOverrides } from '@/mail/types';
 
@@ -47,7 +48,7 @@ export class MailService {
           subject: options.subject,
           text: options.text,
           html: options.html,
-          attachments: options.attachments,
+          attachments: toTransportAttachments(options.attachments),
         });
       } catch (error) {
         // Log host+user only — never the password.

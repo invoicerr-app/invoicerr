@@ -2,6 +2,8 @@ import * as nodemailer from 'nodemailer';
 
 import { IMailProvider, MailOptions } from '@/mail/types';
 
+import { toTransportAttachments } from '@/mail/attachments';
+
 /**
  * SMTP transport based on nodemailer. Reads its configuration from the
  * SMTP_* environment variables (unchanged from the historical behaviour).
@@ -30,7 +32,7 @@ export class SmtpMailProvider implements IMailProvider {
       subject: options.subject,
       text: options.text,
       html: options.html,
-      attachments: options.attachments,
+      attachments: toTransportAttachments(options.attachments),
     });
   }
 }
