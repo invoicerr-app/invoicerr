@@ -21,7 +21,7 @@ export const API_KEY_SCOPES = [
   'quotes:read',
   'invoices:read',
   'clients:read',
-  // Root TODO item 23 ("serveur MCP") — the document engine grew two more shipped types
+  // The document engine grew two more shipped types
   // (credit-note, expense, received-invoice) since the scopes above were first declared; the MCP
   // module's generic, per-descriptor tools (list_documents/get_document/run_document_action) reach
   // every registered type, not just the original four, so every type needs its own read/write pair

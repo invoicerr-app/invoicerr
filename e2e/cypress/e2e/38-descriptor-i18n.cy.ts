@@ -1,6 +1,6 @@
 /**
- * Root TODO item 25's own reliquat : « l'i18n des libellés de descripteurs (données brutes
- * aujourd'hui) ». Le mécanisme (frontend/src/lib/descriptor-i18n.ts, branché dans
+ * i18n des libellés de descripteurs (données brutes aujourd'hui). Le mécanisme
+ * (frontend/src/lib/descriptor-i18n.ts, branché dans
  * hooks/queries/use-document-types.ts et use-widgets.ts) fait tenter au front une clé DÉRIVÉE
  * (`documents.descriptors.<typeId>...`) avec REPLI sur le libellé brut du descripteur quand elle
  * n'existe pas — jamais l'inverse. locales/en/translation.json ne porte les clés que pour les CINQ

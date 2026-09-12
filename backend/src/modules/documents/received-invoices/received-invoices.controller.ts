@@ -7,7 +7,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './received-invoices.service';
 
 /**
- * Root TODO item 18's own two bespoke routes — everything else about "received-invoice" (listing,
+ * Two bespoke routes — everything else about "received-invoice" (listing,
  * the "receive"/"approve"/"reject"/"delete" actions, the descriptor itself) goes through the fully
  * generic `documents.controller.ts`/`DocumentsService`, exactly like every other document type. Only
  * uploading a file and downloading it back are genuinely NEW operations with no generic-document

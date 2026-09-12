@@ -8,7 +8,6 @@
  * bridge, the REAL vendored EN 16931 Schematron, the REAL Factur-X embed — runs for real.
  */
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { decodePDFRawStream } = require('pdf-lib/cjs/core');
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';

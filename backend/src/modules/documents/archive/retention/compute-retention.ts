@@ -1,5 +1,5 @@
 /**
- * Root TODO item 14's own ⚖ — the delicate part. Turns a country's declared retention rules
+ * Legal archiving ⚖ — the delicate part. Turns a country's declared retention rules
  * (`schema.ts#CountryRetentionFile`) plus the moment an archive was actually written into a concrete
  * `retentionUntil` date and a `retentionBasis` string that CITES the rule(s) applied — never a bare
  * number with no way to check it.

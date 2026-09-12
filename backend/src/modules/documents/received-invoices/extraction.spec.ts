@@ -156,7 +156,6 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
 
   describe('Factur-X — the embedded CII is found and extracted out of a real PDF/A-3', () => {
     async function fakeRealPdf(): Promise<Buffer> {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { PDFDocument } = require('pdf-lib');
       const doc = await PDFDocument.create();
       doc.addPage([200, 200]);
@@ -211,7 +210,6 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
 
   describe('a plain PDF with no embedded XML — never a refusal, just nothing to pre-fill', () => {
     it('yields an empty extraction (syntax null, every field undefined) for a real, attachment-less PDF', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { PDFDocument } = require('pdf-lib');
       const plain = await PDFDocument.create();
       plain.addPage([200, 200]);

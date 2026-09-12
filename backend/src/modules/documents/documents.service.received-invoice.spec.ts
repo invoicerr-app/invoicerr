@@ -28,7 +28,7 @@ jest.mock('./country-policy/country-policy');
 jest.mock('./received-invoices/supplier-reconciliation');
 
 /**
- * Root TODO item 18 ("réception de factures") — the FIFTH document type written entirely as data.
+ * Received-invoice reception — the FIFTH document type written entirely as data.
  * Same wiring discipline as documents.service.credit-note.spec.ts (the THIRD): a real descriptor,
  * real core field kinds, real action registration, only persistence.ts and country-policy.ts mocked.
  */

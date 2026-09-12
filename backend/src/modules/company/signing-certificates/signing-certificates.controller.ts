@@ -12,7 +12,7 @@ import {
 } from './signing-certificates.service';
 
 /**
- * Root TODO item 13 ("Signature électronique") — the settings screen this backs is "Signing
+ * "Signature électronique" — the settings screen this backs is "Signing
  * certificates" (company settings). Every handler is scoped to the caller's ACTIVE company
  * (`@ActiveCompany()`) — never a URL parameter — the exact same discipline `channels.controller.ts`
  * already holds, and the fix for the cross-tenant IDOR the repère's own

@@ -82,7 +82,6 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
       const signup = await PeppolShApClient.signup(email, 'Invoicerr Live Test');
       apiKey = signup.apiKey;
       apCompanyId = undefined; // fresh account → fresh company
-      // eslint-disable-next-line no-console
       console.log(`peppol.sh self-signup OK: account ${signup.accountId} (${email})`);
       // The API key itself is never logged.
     }
@@ -91,7 +90,6 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
       const vat = syntheticVatFor(country);
       const eas = EAS_BY_COUNTRY[country];
       const peppolId = eas ? `${eas}:${vat}` : undefined;
-      // eslint-disable-next-line no-console
       console.log(`peppol.sh creating company with country=${country} peppol_id=${peppolId ?? '(none)'}`);
       const created = await PeppolShApClient.createCompany(apiKey!, {
         name: 'Invoicerr Live Test Co',
@@ -111,7 +109,6 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
         if (!message.includes('invalid_country') || firstCountry === fallbackCountry) {
           throw error; // a DIFFERENT failure — never silently swallowed into the fallback path
         }
-        // eslint-disable-next-line no-console
         console.log(
           `peppol.sh REJECTED country=${firstCountry} with invalid_country (same failure as ` +
             `LIVE_TESTING.md's own 2026-08-29 note) — retrying with fallback country=${fallbackCountry}`,
@@ -119,7 +116,6 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
         usedCountry = fallbackCountry;
         apCompanyId = await tryCreateCompany(fallbackCountry);
       }
-      // eslint-disable-next-line no-console
       console.log(`peppol.sh company created: ${apCompanyId} (country=${usedCountry})`);
     }
     expect(apiKey).toBeTruthy();
@@ -180,7 +176,6 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
         `Peppol BIS artifact failed validation before it could even be sent: ${build.validation.errors.join(' | ')}`,
       );
     }
-    // eslint-disable-next-line no-console
     console.log('Peppol BIS UBL length:', build.bytes.length);
 
     // ── Send through the REAL peppol.sh sandbox ──
@@ -199,8 +194,6 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
       documentBytes: build.bytes,
       idempotencyKey: document.displayNumber,
     });
-
-    // eslint-disable-next-line no-console
     console.log('peppol.sh send result:', JSON.stringify(sendResult, null, 2));
     expect(sendResult.messageId).toBeTruthy();
     expect(sendResult.messageId).toMatch(/^doc_/);
@@ -213,12 +206,9 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       status = await client.getStatus(sendResult.messageId);
-      // eslint-disable-next-line no-console
       console.log(`Poll ${i + 1}/${MAX_POLLS}:`, JSON.stringify(status));
       if (status.status === 'DELIVERED' || status.status === 'FAILED') break;
     }
-
-    // eslint-disable-next-line no-console
     console.log('Final peppol.sh status:', JSON.stringify(status, null, 2));
 
     if (status?.status === 'FAILED') {

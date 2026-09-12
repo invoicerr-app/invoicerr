@@ -71,7 +71,6 @@ describeLive(
         const signup = await PeppolShApClient.signup(email, 'Invoicerr Live Test (XRechnung)');
         apiKey = signup.apiKey;
         apCompanyId = undefined;
-        // eslint-disable-next-line no-console
         console.log(`peppol.sh self-signup OK: account ${signup.accountId} (${email})`);
       }
 
@@ -79,7 +78,6 @@ describeLive(
         const vat = syntheticVatFor(country);
         const eas = EAS_BY_COUNTRY[country];
         const peppolId = eas ? `${eas}:${vat}` : undefined;
-        // eslint-disable-next-line no-console
         console.log(`peppol.sh creating company with country=${country} peppol_id=${peppolId ?? '(none)'}`);
         const created = await PeppolShApClient.createCompany(apiKey!, {
           name: 'Invoicerr Live Test Co (XRechnung)',
@@ -99,7 +97,6 @@ describeLive(
           if (!message.includes('invalid_country') || firstCountry === fallbackCountry) {
             throw error;
           }
-          // eslint-disable-next-line no-console
           console.log(
             `peppol.sh REJECTED country=${firstCountry} with invalid_country — retrying with ` +
               `fallback country=${fallbackCountry}`,
@@ -107,7 +104,6 @@ describeLive(
           usedCountry = fallbackCountry;
           apCompanyId = await tryCreateCompany(fallbackCountry);
         }
-        // eslint-disable-next-line no-console
         console.log(`peppol.sh company created: ${apCompanyId} (country=${usedCountry})`);
       }
       expect(apiKey).toBeTruthy();
@@ -175,7 +171,6 @@ describeLive(
       // bytes this spec is about to send is XRechnung's, never Peppol BIS's.
       expect(xml).toContain('urn:xeinkauf.de:kosit:xrechnung_3.0');
       expect(xml).not.toContain('urn:fdc:peppol.eu:2017:poacc:billing:3.0');
-      // eslint-disable-next-line no-console
       console.log('XRechnung UBL length:', build.bytes.length);
 
       // ── Send through the REAL peppol.sh sandbox ──
@@ -195,8 +190,6 @@ describeLive(
         documentBytes: build.bytes,
         idempotencyKey: document.displayNumber,
       });
-
-      // eslint-disable-next-line no-console
       console.log('peppol.sh send result (XRechnung):', JSON.stringify(sendResult, null, 2));
       expect(sendResult.messageId).toBeTruthy();
       expect(sendResult.messageId).toMatch(/^doc_/);
@@ -209,12 +202,9 @@ describeLive(
       for (let i = 0; i < MAX_POLLS; i++) {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         status = await client.getStatus(sendResult.messageId);
-        // eslint-disable-next-line no-console
         console.log(`Poll ${i + 1}/${MAX_POLLS}:`, JSON.stringify(status));
         if (status.status === 'DELIVERED' || status.status === 'FAILED') break;
       }
-
-      // eslint-disable-next-line no-console
       console.log('Final peppol.sh status (XRechnung):', JSON.stringify(status, null, 2));
 
       if (status?.status === 'FAILED') {

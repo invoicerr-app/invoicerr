@@ -5,7 +5,7 @@
  * l'écran (le bouton « Corriger », le dialogue des voies) arrive dans le describe « Corriger » plus
  * bas, PAS ici.
  *
- * Le mandant par défaut (`cy.resetAndSeed()`) est déjà une société FRANÇAISE (SIRET/VAT sur le
+ * La société par défaut (`cy.resetAndSeed()`) est déjà une société FRANÇAISE (SIRET/VAT sur le
  * dossier) — exactement le pays canonique dont l'avoir interne est `required` dans
  * `documentation/internal/CORRECTION-ROUTES.yaml`. Les deux premiers describe ci-dessous ne basculent donc JAMAIS
  * le pays de la société : le contenu épinglé pays par pays (l'inversion FR/PL, l'échantillon par
@@ -154,7 +154,7 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 		cy.login();
 	});
 
-	it('société FR (le mandant par défaut) sur une facture DRAFT — 409, "a correction corrects an ISSUED document"', () => {
+	it('société FR (la société par défaut) sur une facture DRAFT — 409, "a correction corrects an ISSUED document"', () => {
 		createClient("Client Draft SARL").then((clientId) => {
 			createInvoiceDraft(clientId).then((invoiceId) => {
 				cy.request({
@@ -170,7 +170,7 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 		});
 	});
 
-	it("société FR (le mandant par défaut) sur une facture ÉMISE — l'avoir interne (INTERNAL_CREDIT_NOTE) est `required` ET `implemented: true` ; toute autre voie reste honnêtement non implémentée ; la limitation vendeur×acheteur est toujours présente", () => {
+	it("société FR (la société par défaut) sur une facture ÉMISE — l'avoir interne (INTERNAL_CREDIT_NOTE) est `required` ET `implemented: true` ; toute autre voie reste honnêtement non implémentée ; la limitation vendeur×acheteur est toujours présente", () => {
 		// "email" (Mailpit) suffit à atteindre "sending" — voir `invoiceData`'s own header sur la
 		// date choisie (avant le mandat PDP français du 2026-09-01, sans quoi le préflight bloque
 		// AVANT même de tenter un envoi, quel que soit le transport choisi ici).

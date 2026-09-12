@@ -1,7 +1,7 @@
 /**
  * Tiny, dependency-free logger for the signing providers — reprised verbatim from the repère's
  * `compliance/execution/logger.ts` (renamed: this module is not the "compliance engine", there is no
- * such thing anymore — see TODO.md's own header). Kept separate from the NestJS `logger` singleton
+ * such thing anymore in this codebase). Kept separate from the NestJS `logger` singleton
  * (`@/logger/logger.service`) so `providers.ts`/`registry.ts`/`tsa-client.ts` stay pure and
  * unit-testable without booting Nest — the same reasoning the repère's own header gave, still true
  * here. `RecordingSigningLogger` is what `providers.spec.ts`/`signing-registry.spec.ts` assert

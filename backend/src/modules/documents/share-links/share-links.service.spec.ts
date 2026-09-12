@@ -129,7 +129,6 @@ const SENT_INSTANCE = {
 describe('ShareLinksService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     (jest.requireMock('@/prisma/prisma.service').__rows as unknown[]).length = 0;
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
   });

@@ -5,7 +5,7 @@ import { defineConfig } from "cypress";
 import { Client } from "pg";
 
 /**
- * TODO_PRODUIT.md T2 / PLAN-V2 R9 — the "receiver" side for `42-webhooks.cy.ts`. A vanilla
+ * The "receiver" side for `42-webhooks.cy.ts`. A vanilla
  * `node:http` server, started ONCE for the whole run (module-level state in this Node plugin
  * process — the same process every `on("task", ...)` handler already runs in, see the file's other
  * tasks above), because the backend under test needs a REAL, network-reachable URL to POST to: a
@@ -290,7 +290,7 @@ export default defineConfig({
           }
         },
 
-        // TODO_PRODUIT.md T2 / PLAN-V2 R9 — see this file's own header just above for why a real
+        // See this file's own header just above for why a real
         // `node:http` server, not a `cy.intercept`, is what a server-to-server webhook needs.
         startWebhookReceiver() {
           return startWebhookReceiver();

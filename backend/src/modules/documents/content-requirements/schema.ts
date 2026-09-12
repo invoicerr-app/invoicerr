@@ -18,9 +18,10 @@
  * every existing mentions/ file, test, and caller for a concept that does not actually need any of
  * mentions/'s own text-interpolation machinery. Lowest cost: a new file of the same MOLD.
  *
- * Root TODO item 15's own remainder: a real superpdp deposit's conformity POLL (never the deposit
+ * A real superpdp deposit's conformity POLL (never the deposit
  * ACCEPTANCE gate itself — see `../transports/pdp/pdp.live.spec.ts`'s own header on why that
- * distinction matters) kept citing exactly one cause after items 15/A4 landed —
+ * distinction matters) kept citing exactly one cause after the initial mandatory-mentions work
+ * landed —
  *
  *   "BR-FR-08/BT-23 : La valeur du mode de facturation (ram:ID) est absente ou n'est pas autorisée."
  *

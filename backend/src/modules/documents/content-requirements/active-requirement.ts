@@ -1,5 +1,5 @@
 /**
- * Root TODO item 15's own remainder — evaluates whether a country's CONTENT requirement (schema.ts's
+ * Evaluates whether a country's CONTENT requirement (schema.ts's
  * `ContentRequirementFact`) has come into force for one particular invoice. Deliberately kept as
  * small and focused as `channel-policy/mandate.ts` (which this file's own date arithmetic is a
  * verbatim port of, adapted to `ContentRequirementFact` — see that file's header for the full

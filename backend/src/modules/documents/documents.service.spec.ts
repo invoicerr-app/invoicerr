@@ -26,7 +26,7 @@ jest.mock('./persistence');
 // unmocked would make a "send" test here hit a real database AND launch a real headless browser.
 jest.mock('./rendering/render-instance-pdf');
 jest.mock('./actions/company-email-templates');
-// Root TODO item 14 ("archivage légal") — `actions/async-send.ts`'s phase-2 delivery now calls
+// Legal archiving — `actions/async-send.ts`'s phase-2 delivery now calls
 // `archiveDeliveredArtifactsIfAny` (archive/archive-on-send.ts) once "sent" is persisted, which
 // reaches PAST persistence.ts straight to Prisma (`archive/persistence.ts`, `country-policy/
 // country-policy.ts#resolveCompanyCountryCode`) — the EXACT same reason `./numbering/take-number`

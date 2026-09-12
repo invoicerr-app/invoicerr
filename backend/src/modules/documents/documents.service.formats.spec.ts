@@ -33,11 +33,10 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: { company: { findUnique: jest.fn() }, client: { findUnique: jest.fn() } },
 }));
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const prismaMock = jest.requireMock('@/prisma/prisma.service').default;
 
 /**
- * Proves item 12 ("formats normalisés EN 16931") at the SERVICE layer — the four gates
+ * Proves normalized-format downloads (EN 16931) at the SERVICE layer — the four gates
  * (country 403 → status 409 → implementation 501 → validation 400) composed exactly the way
  * `invoice.descriptor.ts`'s own "download-xml" comment and `documents.service.ts
  * #downloadDocumentFormat`'s own header describe. `formats/providers.spec.ts` and

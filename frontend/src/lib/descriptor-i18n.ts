@@ -7,8 +7,8 @@ import type {
 import type { Widget } from "@/components/widgets/types"
 
 /**
- * Root TODO item 25's own reliquat: "l'i18n des libellés de descripteurs (données brutes
- * aujourd'hui)". A document-type descriptor's `label` (backend, descriptors/*.descriptor.ts) is
+ * Descriptor-label i18n: today, a document-type descriptor's `label` is data, never translated
+ * on its own. A document-type descriptor's `label` (backend, descriptors/*.descriptor.ts) is
  * PLAIN DATA, not an i18n key — deliberately, so a THIRD-PARTY plugin can label its own type,
  * field, action, status or widget in whatever language it wants (see the backend's
  * `DocumentTypeDescriptor.label` comment, and `WidgetBase.label` in contributions/widgets.ts). That

@@ -57,8 +57,8 @@ services:
       # deployments that already set JWT_SECRET separately. Same rule applies if you do set it.
       # - JWT_SECRET=CHANGE_ME_generate_with_openssl_rand_hex_32
 
-      # Document-action async queue (BullMQ/Redis, TODO.md item 22 — an async "send" and, later,
-      # recurring documents both go through it). Redis is REQUIRED for the backend to boot at all,
+      # Document-action async queue (BullMQ/Redis) — an async "send" and, later, recurring documents
+      # both go through it. Redis is REQUIRED for the backend to boot at all,
       # never an optional extra. WORKER_INLINE=true (default here) makes this single container also
       # consume its own queue jobs (mono/self-host deployment). For a scaled deployment with a
       # dedicated worker service, see docker-compose.scale.yml.
@@ -67,7 +67,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - WORKER_INLINE=true
 
-      # TODO_PRODUIT.md T5(c) — OCR of unstructured received-invoice PDFs. OPTIONAL: absent (the
+      # OCR of unstructured received-invoice PDFs. OPTIONAL: absent (the
       # default) means this instance runs full-local, self-host — a plain scanned PDF stores with
       # empty fields for a human to fill in, exactly as before this feature existed. This backend
       # NEVER sees a Mistral API key, and never talks to the local engine directly either — it only
@@ -79,9 +79,9 @@ services:
       #   `docker compose --profile ocr up`.
       # - OCR_SERVICE_URL=http://ocr:3002
       #
-      #   LOCAL — MANDANT DECISION (verbatim, follow-up to the above): "J'ai pas de clé Mistral,
-      #   pour moi en local faut lancer un service Docker qui fait ça." Zero API key, zero data ever
-      #   leaving this machine — a heuristic text-scrape, meaningfully weaker than the cloud path
+      #   LOCAL — for a self-hoster with no Mistral API key: a local Docker service performs the same
+      #   extraction instead. Zero API key, zero data ever leaving this machine — a heuristic
+      #   text-scrape, meaningfully weaker than the cloud path
       #   (see `backend/src/ocr-service/local-client.ts`'s own header for the full, honest account
       #   of what that costs). Uncomment this line + BOTH the "ocr-local" and "ocr-local-engine"
       #   services below, then `docker compose --profile ocr-local up`.
@@ -99,17 +99,17 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  # TODO_PRODUIT.md T5(c) — OPT-IN, CLOUD mode (Compose `profiles`: only starts with
+  # OPT-IN, CLOUD mode (Compose `profiles`: only starts with
   # `docker compose --profile ocr up`, never with a plain `docker compose up`). The ONLY process in
   # this whole deployment that ever holds a real Mistral API key — the main "invoicerr" service above
   # only ever knows OCR_SERVICE_URL. Same image, third ROLE (see entrypoint.sh's own "one image, N
   # roles" switch) — no new Dockerfile, no new dependency.
   #
   # SaaS mode: an operator enables this ONE service, ONCE, with THEIR OWN Mistral key — every company
-  # on the instance then gets OCR with nothing further to configure ("personne a besoin de le
-  # configurer" — the mandant's own wording). Self-host mode: leave this service (and
-  # OCR_SERVICE_URL above) commented out — full local, no data ever leaves the instance for OCR — or
-  # use the "ocr-local"/"ocr-local-engine" pair below for full-local OCR instead of no OCR at all.
+  # on the instance then gets OCR with nothing further to configure. Self-host mode: leave this
+  # service (and OCR_SERVICE_URL above) commented out — full local, no data ever leaves the instance
+  # for OCR — or use the "ocr-local"/"ocr-local-engine" pair below for full-local OCR instead of no
+  # OCR at all.
   ocr:
     image: ghcr.io/invoicerr-app/invoicerr:latest
     profiles: ["ocr"]
@@ -119,8 +119,8 @@ services:
       - MISTRAL_API_KEY=your_mistral_api_key # https://console.mistral.ai — NEVER commit a real value
     restart: unless-stopped
 
-  # TODO_PRODUIT.md T5(c) follow-up — MANDANT DECISION (verbatim): "J'ai pas de clé Mistral, pour moi
-  # en local faut lancer un service Docker qui fait ça." OPT-IN, LOCAL mode (Compose profile
+  # For a self-hoster with no Mistral API key, this is the alternative: a locally-run Docker
+  # service performs the extraction instead. OPT-IN, LOCAL mode (Compose profile
   # "ocr-local": only starts with `docker compose --profile ocr-local up`, together with the
   # "ocr-local-engine" service right below it). ZERO API key anywhere, ZERO data leaving this
   # machine — every byte of every received PDF stays on this instance, reaching only the
@@ -140,11 +140,10 @@ services:
       - ocr-local-engine
     restart: unless-stopped
 
-  # The local OCR engine itself — MANDANT DECISION (verbatim): "pour l'OCR on peut faire notre propre
-  # image et notre propre serveur: FROM jbarlow83/ocrmypdf:latest + RUN apt-get install
-  # tesseract-ocr-{ita,nld,rus,equ}…" — OUR OWN image (`docker/ocr-local/Dockerfile` + `server.py`,
-  # this repo, not a third party), replacing the `apache/tika:latest-full` this service originally
-  # ran. Tika's own disqualifying limit — a language set BAKED IN at build time, not
+  # The local OCR engine itself runs OUR OWN image (`docker/ocr-local/Dockerfile` + `server.py`,
+  # this repo, not a third party) — built FROM jbarlow83/ocrmypdf:latest plus the extra Tesseract
+  # language packs this product needs — replacing the `apache/tika:latest-full` this service
+  # originally ran. Tika's own disqualifying limit — a language set BAKED IN at build time, not
   # operator-configurable without a custom image anyway (verified: Polish/Dutch silently
   # mis-recognized on the stock image) — is exactly what this switch fixes: `docker/ocr-local/
   # Dockerfile`'s own comment block installs this app's primary markets plus major world languages,

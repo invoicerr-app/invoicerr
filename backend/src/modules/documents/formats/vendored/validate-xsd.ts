@@ -16,8 +16,6 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { validateXML } = require('xmllint-wasm');
 
 export interface XsdResult {

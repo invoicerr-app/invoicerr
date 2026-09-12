@@ -64,11 +64,11 @@ main backend never knows or cares which one is behind `OCR_SERVICE_URL`:
 
 - `OCR_ENGINE=mistral` (the default) — Mistral Document AI, a cloud API, needs `MISTRAL_API_KEY`.
   Structured extraction: the model itself answers a JSON schema (`ocr-service/mistral-client.ts`).
-- `OCR_ENGINE=local` — MANDANT DECISION (verbatim): *"J'ai pas de clé Mistral, pour moi en local
-  faut lancer un service Docker qui fait ça."* No API key, no data ever leaves the instance. Calls
+- `OCR_ENGINE=local` — for a self-hoster with no Mistral API key: no API key, no data ever leaves
+  the instance. Calls
   a second, self-hosted container — OUR OWN image (the `ocr-image` repo, repo root, built from
   `jbarlow83/ocrmypdf:latest` + a broad Tesseract language-pack set, `docker-compose.yml`'s own
-  `ocr-local`/`ocr-local-engine` services), a follow-up MANDANT DECISION replacing this service's
+  `ocr-local`/`ocr-local-engine` services), replacing this service's
   original `apache/tika:latest-full` engine specifically to fix Tika's own frozen, non-configurable
   language set — that reads the PDF and OCRs it itself, then maps the resulting PLAIN TEXT to the
   same proposal shape with regex heuristics (amount/date/VAT-id/invoice-number keyword proximity —
@@ -91,7 +91,7 @@ company-agnostic, like signing or storage are.
 
 Earlier, a second mechanism let a user install a plugin from a Git URL at runtime
 (`POST /api/plugins` cloned the repository and dynamically `import()`ed its entrypoint). It was
-**removed** (TODO_SUITE.md P2): its `IPlugin` shape (`{__uuid, __filepath, name, description}`) had
+**removed**: its `IPlugin` shape (`{__uuid, __filepath, name, description}`) had
 no real extension point behind it — the only two generic consumers a loaded plugin could reach
 (`canGenerateXml`/`generateXml`) were permanent stubs (`return false` / `throw`), so an externally
 installed plugin could not actually do anything. Keeping a code-loading endpoint alive with no

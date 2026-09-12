@@ -1,5 +1,5 @@
 /**
- * Root TODO item 16 ("transfrontalier") — the REAL European Commission VIES round-trip. No
+ * Cross-border VAT validation — the REAL European Commission VIES round-trip. No
  * credentials needed (the checkVatService SOAP/REST endpoint is public) — gated purely on the flag,
  * same `liveDescribe` mechanism every other `*.live.spec.ts` in this module already uses. Run with:
  *

@@ -645,7 +645,7 @@ export class DocumentsController {
   @ApiOperation({
     summary: 'List the legal archives of a document instance',
     description:
-      'Root TODO item 14 ("archivage légal ⚖") — every archive written for this document, most ' +
+      'Every legal archive written for this document, most ' +
       'recent first: DELIVERY rows (one per successful send that produced at least one artifact) ' +
       "and, since 2026-09-06, VERDICT rows (the authority's own terminal verdict on a deposit — " +
       'see `DocumentArchive`’s own schema comment). Distinguish them via `kind`.',
@@ -666,7 +666,7 @@ export class DocumentsController {
   @ApiOperation({
     summary: 'List the post-deposit conformity events of a document instance',
     description:
-      "Root TODO item 10's own named remainder — every event the ISSUING PLATFORM itself reported " +
+      'Every event the ISSUING PLATFORM itself reported ' +
       "(e.g. PDP's fr:200/201/202/213), most recent first, append-only. Empty for a document sent " +
       'by a channel with no conformity poller (e.g. "email", or "sdi" — push-only notifiche).',
   })
@@ -711,7 +711,7 @@ export class DocumentsController {
   @ApiOperation({
     summary: 'Create a public share link',
     description:
-      'Root TODO item 24. Mints a new, high-entropy token (see share-links/share-link-token.ts) and ' +
+      'Mints a new, high-entropy token (see share-links/share-link-token.ts) and ' +
       'returns the PUBLIC url ONCE — the raw token is never stored (only its hash) and this ' +
       'response is the only time this API ever hands it back; GET .../share-links afterwards shows ' +
       'only metadata (createdAt/expiresAt/revokedAt), never the token itself. Same four-gate story ' +

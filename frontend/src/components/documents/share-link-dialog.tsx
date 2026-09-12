@@ -25,7 +25,7 @@ interface ShareLinkDialogProps {
 }
 
 /**
- * Root TODO item 24 ("liens publics de téléchargement"). `path` (from `POST .../share-link`) is
+ * Public download links. `path` (from `POST .../share-link`) is
  * API-relative — the backend deliberately never guesses which origin externally reaches it (see
  * `ShareLinksService`'s own header: `APP_URL` is the FRONTEND's own origin in dev/test, not the
  * backend's, and there is no reverse proxy locally to paper over that). Resolving it here reuses the

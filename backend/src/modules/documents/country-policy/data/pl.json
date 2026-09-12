@@ -73,7 +73,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Demander à un client de signer électroniquement un devis (lien + code OTP par email — root TODO item 13 REDONE, signatures/signatures.service.ts) est une commodité produit — signer un devis n'est pas un acte juridiquement encadré, c'est une marque d'acceptation commerciale. Le mécanisme reste au niveau eIDAS le plus bas (signature électronique SIMPLE), jamais un certificat, donc aucun texte polonais sur la signature électronique avancée/qualifiée ne s'applique ici. À confirmer par une revue dédiée le cas échéant."
+        "resolutionNote": "Demander à un client de signer électroniquement un devis (lien + code OTP par email — signatures/signatures.service.ts) est une commodité produit — signer un devis n'est pas un acte juridiquement encadré, c'est une marque d'acceptation commerciale. Le mécanisme reste au niveau eIDAS le plus bas (signature électronique SIMPLE), jamais un certificat, donc aucun texte polonais sur la signature électronique avancée/qualifiée ne s'applique ici. À confirmer par une revue dédiée le cas échéant."
       }
     },
     {

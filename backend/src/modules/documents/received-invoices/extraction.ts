@@ -77,7 +77,6 @@
  * field it produces.
  */
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { decodePDFRawStream } = require('pdf-lib/cjs/core');
 
 /** One BG-25 line, as read off a structured deposit — see this file's own header, "Line extraction",

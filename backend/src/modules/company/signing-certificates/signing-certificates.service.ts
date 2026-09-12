@@ -33,8 +33,8 @@
  *    "upload/list/deactivate" verb set: a signing certificate is audit-relevant history (which
  *    document was signed under which cert), unlike a channel connection's credentials, which
  *    `channels.service.ts#deleteChannelConfig` really does erase.
- *  - `rotate()` is dropped — out of scope (TODO.md's own "chaîne/renouvellement" remainder, already
- *    flagged as not done at the repère either).
+ *  - `rotate()` is dropped — certificate renewal/chain rollover is out of scope for this pass; it
+ *    was not implemented at the repère either.
  *
  * Security rules (unchanged):
  *  - encryptedPfx and encryptedPass are stored with AES-256-GCM (secret-crypto), as two SEPARATE

@@ -182,7 +182,7 @@ export interface RenderDocumentHtmlInput {
   referenceLabels: Record<string, string>;
   totals?: DocumentTotals;
   /**
-   * Root TODO item 15 ("mentions obligatoires") — the country-mandated mentions to print in their
+   * The country-mandated mentions to print in their
    * OWN footer block, resolved by the caller (`render-instance-pdf.ts`, gated on
    * `descriptor.usesLegalMentions`) from the seller's country and this instance's own issue date.
    * Absent or empty prints NO block at all — not an empty framed section, nothing (see this file's
@@ -531,7 +531,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 `;
   }
 
-  // Root TODO item 15 ("mentions obligatoires") — its OWN footer block, never mixed into the fields
+  // Mandatory mentions get their OWN footer block, never mixed into the fields
   // loop above (see this parameter's own doc comment on `RenderDocumentHtmlInput.legalMentions`). A
   // country with no mentions, or a document type that never opts in, gets NOTHING here — not an
   // empty framed section, no `<div class="legal-mentions">` at all.

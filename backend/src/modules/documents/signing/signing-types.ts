@@ -4,7 +4,7 @@
  * The repère (`avant-refonte-documents`, `compliance/execution/types.ts`) had `RenderedArtifact`/
  * `SignedArtifact` carry a `role` (AUTHORITATIVE/…) and a closed `DocumentSyntax` enum, because the
  * whole compliance engine reasoned about a PLAN of several artifacts per jurisdiction. That engine is
- * gone (see TODO.md's own header) — this module signs exactly ONE thing today, a rendered PDF (see
+ * gone from this codebase — this module signs exactly ONE thing today, a rendered PDF (see
  * `sign-instance-pdf.ts`), so those two fields are dropped rather than carried over unused. `mime`
  * stays (a provider still needs to know/declare what it produced — CAdES turns a PDF/XML into
  * `application/pkcs7-mime`) and an optional `label` replaces `syntax` for log messages only — never

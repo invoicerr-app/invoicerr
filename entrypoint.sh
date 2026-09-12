@@ -4,17 +4,15 @@
 cd /usr/share/nginx/backend/src
 
 # ROLE switch: same image, different process. ROLE=worker runs ONLY the dedicated
-# document-action queue worker (dist/src/worker.js, TODO.md item 22 — the compliance engine this
-# comment used to reference was removed by the pre-refonte demolition; this is its documents-module
-# equivalent) — no nginx, no frontend config, no migrations (those are API-only, handled inside
-# main.js via syncDatabaseSchema()). Default (unset or "api") keeps the existing combined
-# nginx+node backend below.
+# document-action queue worker (dist/src/worker.js) — no nginx, no frontend config, no migrations
+# (those are API-only, handled inside main.js via syncDatabaseSchema()). Default (unset or "api")
+# keeps the existing combined nginx+node backend below.
 if [ "${ROLE:-api}" = "worker" ]; then
   echo "Starting document-action worker..."
   exec node worker.js
 fi
 
-# ROLE=ocr — TODO_PRODUIT.md T5(c). A THIRD, single-purpose role: a small HTTP service
+# ROLE=ocr — a THIRD, single-purpose role: a small HTTP service
 # (dist/src/ocr-server.js) that alone holds MISTRAL_API_KEY and does the actual OCR call for
 # unstructured received-invoice PDFs. Never nginx, never migrations, never the main backend's own
 # database — the main backend (api role) only ever knows OCR_SERVICE_URL (see docker-compose.yml's

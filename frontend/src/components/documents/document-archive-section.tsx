@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import type { DocumentArchive } from "./types"
 
 /**
- * Root TODO item 14 ("archivage légal ⚖") — shown inside the document edit dialog, next to the
+ * Legal archiving ⚖ — shown inside the document edit dialog, next to the
  * settlement section (document-settlement.tsx), for ANY document type that has at least one archive:
  * nothing here names "invoice" — a quote sent by email archives its own PDF exactly the same way.
  * Renders NOTHING at all for a document with zero archives yet (a draft, or a type whose "send"

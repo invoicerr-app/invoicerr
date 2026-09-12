@@ -3,8 +3,6 @@
 /node_modules
 /build
 
-prisma/*.sqlite
-
 # Logs
 logs
 *.log
@@ -64,8 +62,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # compliance local archive provider default output dir (COMPLIANCE_ARCHIVE_DIR)
 /.compliance-archive/
 
-# documents legal-archive default output dir (DOCUMENTS_ARCHIVE_DIR) — root TODO item 14
+# documents legal-archive default output dir (DOCUMENTS_ARCHIVE_DIR)
 /.documents-archive/
 
-# received-invoices inbound-file default output dir (DOCUMENTS_INBOUND_DIR) — root TODO item 18
+# received-invoices inbound-file default output dir (DOCUMENTS_INBOUND_DIR)
 /.documents-inbound/

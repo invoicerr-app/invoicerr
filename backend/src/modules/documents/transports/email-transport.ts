@@ -14,7 +14,7 @@ export interface EmailTransportDeps {
   mailService: MailService;
   typeRegistry: DocumentTypeRegistry;
   referenceRegistry: EntityReferenceRegistry;
-  /** Root TODO item 13 — threaded straight through to `sendDocumentInstanceEmail`; see
+  /** Threaded straight through to `sendDocumentInstanceEmail`; see
    *  `SendDocumentEmailDeps.signingCertificates`'s own header for the "optional, no-cert-is-a-no-op"
    *  contract this preserves. */
   signingCertificates?: SigningCredentialsPort;

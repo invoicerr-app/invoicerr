@@ -194,7 +194,7 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
   let documentsService: DocumentsService;
   let queue: Queue;
   let companyId: string;
-  // Root TODO item 14 ("archivage légal") — a real "send" now really archives (archive/archive-on-send.ts).
+  // A real "send" now really archives (archive/archive-on-send.ts).
   // Pointed at a real os.tmpdir() subdir, NEVER this project's own cwd default (`<cwd>/.documents-archive`)
   // — the same discipline every archive-writing jest spec in this codebase holds (see e.g.
   // archive/storage.spec.ts), just applied here because this file is the one pre-existing spec that

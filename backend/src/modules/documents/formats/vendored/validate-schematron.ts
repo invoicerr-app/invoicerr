@@ -22,8 +22,6 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { Schema } = require('node-schematron');
 
 /**
@@ -35,7 +33,6 @@ const { Schema } = require('node-schematron');
  * Idempotent (même clé → no-op au réimport via le cache de modules).
  */
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fontoxpath = require('fontoxpath');
   fontoxpath.registerCustomXPathFunction(
     { localName: 'slack', namespaceURI: 'utils' },

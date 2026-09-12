@@ -1,5 +1,5 @@
 /**
- * Root TODO item 24 ("liens publics de téléchargement") — prouvé PAR L'ÉCRAN, même discipline que
+ * Public download links — prouvé PAR L'ÉCRAN, même discipline que
  * 28/34 : l'envoi de la facture et la création/révocation du lien passent par de VRAIS clics, les
  * assertions qui comptent relisent soit l'API, soit — pour le lien public lui-même — une requête
  * HTTP réelle, SANS AUCUN cookie de session, exactement le scénario qu'un client recevant ce lien

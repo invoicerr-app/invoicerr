@@ -5,7 +5,7 @@
  * version's own header): nobody hand-writes "Poland allows X" in a markdown file that can silently
  * rot the day someone edits `backend/src/modules/documents/**\/data/pl.json` and forgets the doc.
  *
- * THIS REWRITE (feedback mandant, TODO_DOCUMENTS.md "Vague A") fixes six things the previous
+ * THIS REWRITE fixes six things the previous
  * version got wrong, all at once, because they are the same underlying bug wearing six hats: THE
  * SCRIPT WAS NOT LOCALE-AWARE, so English page and French data prose ended up mixed on both sides
  * of the fence.

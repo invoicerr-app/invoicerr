@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
     environment: live-tests
-    # M-15 (COMPLIANCE_AUDIT.md): real Postgres + Redis, mirroring cypress.yml's queue-integration
+    # Real Postgres + Redis, mirroring cypress.yml's queue-integration
     # job — needed by full-pipeline-peppol.live.spec.ts, which drives a document through the REAL
     # BullMQ TransmitProcessor/PollProcessor + ApplySignalService (not just a provider call). Every
     # other spec in this job is provider-level (no DB/queue) and simply ignores these services.

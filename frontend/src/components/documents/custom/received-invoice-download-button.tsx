@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 
 /**
- * Root TODO item 18's own "download the original file" button — registered at "list-row-extra"
+ * The "download the original file" button — registered at "list-row-extra"
  * (custom-slots.ts), the SAME slot custom/invoice-preview-button.tsx already uses for "invoice", next
  * to the generic edit/pdf icons every row already renders. `GET /api/documents/received-invoices/:id/
  * file` (received-invoices.controller.ts) streams back the ORIGINAL uploaded bytes, verbatim, with

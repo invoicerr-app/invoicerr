@@ -145,7 +145,7 @@ jobs:
       - name: Seed reference data (country policy, ...)
         run: cd backend && npx prisma db seed
 
-      # The document-action queue's real end-to-end proof (TODO.md item 22): enqueue -> a REAL BullMQ
+      # The document-action queue's real end-to-end proof: enqueue -> a REAL BullMQ
       # worker consumes -> the email genuinely lands in Mailpit -> the document reaches "sent"; a
       # forced failure (SMTP pointed nowhere) exhausts retries and lands on "send_failed" with the
       # error recorded, then a re-`send` succeeds. Self-gated on REDIS_URL (same pattern the
@@ -173,7 +173,7 @@ jobs:
           CREDENTIALS_ENCRYPTION_KEY: e2896d60a5fe20415931030ea7eadb3352f2698948ba29948a9f2e04b8840e6d
         run: cd backend && npx jest --ci --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 
-      # The migration-vs-schema enum tripwire (TODO_LIBRE.md L3): deploys the FULL migration chain on
+      # The migration-vs-schema enum tripwire: deploys the FULL migration chain on
       # its own disposable database (never `invoicerr_test`, the one this job already migrated above)
       # and compares the resulting `pg_enum` against the generated client's enum exports, for every
       # enum either side has. Rides along in THIS job rather than getting one of its own because it
@@ -206,7 +206,7 @@ jobs:
         ports:
           - "8025:8025"
           - "1025:1025"
-      # The backend requires Redis (BullMQ) to boot at all — TODO.md item 22's document-action
+      # The backend requires Redis (BullMQ) to boot at all — the document-action
       # queue's own DocumentQueueRedisRequiredGuard fails the whole boot loudly without it, and
       # WORKER_INLINE defaults to true, so the inline document-action processor connects at startup
       # too. Without this service the Nest app fails to boot and every e2e times out on a hung /api.
