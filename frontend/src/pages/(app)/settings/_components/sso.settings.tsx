@@ -1,16 +1,6 @@
 "use client"
 
-import {
-  CheckCircle2,
-  Copy,
-  Fingerprint,
-  Loader2,
-  Plus,
-  ShieldAlert,
-  ShieldCheck,
-  Trash2,
-  XCircle,
-} from "lucide-react"
+import { CheckCircle2, Copy, Loader2, Plus, ShieldAlert, ShieldCheck, Trash2, XCircle } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -621,17 +611,6 @@ export default function SsoSettings() {
                 )}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isConfigured && !showForm && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <Fingerprint className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
-              {t("settings.sso.emptyState", "No identity provider connected yet")}
-            </p>
           </CardContent>
         </Card>
       )}

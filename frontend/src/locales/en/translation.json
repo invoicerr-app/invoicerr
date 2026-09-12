@@ -2417,7 +2417,6 @@
     "sso": {
       "title": "Single sign-on (SSO)",
       "description": "Let your team sign in with your own identity provider over OpenID Connect, instead of a password here.",
-      "emptyState": "No identity provider connected yet",
       "issuer": "Issuer: {{host}}",
       "status": {
         "configured": "Active",

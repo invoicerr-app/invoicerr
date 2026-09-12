@@ -105,12 +105,13 @@ describe("SSO par société — écran de configuration", () => {
 
 		// `showForm` vaut `editing || !isConfigured`, ce qui est inconditionnellement vrai tant que
 		// rien n'est configuré — le formulaire "Connect an identity provider" est donc bien ce
-		// qu'une société toute neuve voit réellement, jamais un état vide séparé. La carte dédiée à
-		// l'état vide (icône Fingerprint, "No identity provider connected yet") que le composant
-		// rend aussi n'est en réalité JAMAIS atteignable : sa condition est
-		// `!isConfigured && !showForm`, et `showForm` vaut déjà `true` chaque fois que
-		// `!isConfigured` l'est — donc les deux ne peuvent jamais être vrais en même temps. Ce test
-		// vérifie le comportement réel plutôt qu'une branche morte.
+		// qu'une société toute neuve voit réellement, jamais un état vide séparé. Le composant a
+		// longtemps rendu aussi une carte dédiée à l'état vide (icône Fingerprint, "No identity
+		// provider connected yet") sous la condition `!isConfigured && !showForm` — inatteignable,
+		// puisque `showForm` vaut déjà `true` chaque fois que `!isConfigured` l'est, donc les deux ne
+		// pouvaient jamais être vrais en même temps. Cette carte morte a été retirée ; ce test
+		// vérifie le comportement réel (le formulaire) plutôt qu'une branche qui ne s'exécutait
+		// jamais.
 		cy.get('[data-cy="sso-form-card"]').should("exist");
 	});
 
