@@ -1,312 +1,324 @@
-# Invoicerr — Compliance / E‑Invoicing — ÉTAT COMPLET (fait + à faire)
+# Invoicerr — Compliance / E-Invoicing — ÉTAT COMPLET (fait + à faire)
 
-> Tableau de bord exhaustif : tout ce qui est **fait** (coché) et tout ce qu'il **reste** (décoché),
-> pour montrer où on en est. Statut au 2026‑06‑29. Branche `feat/compliance-architecture`.
+> Tableau de bord exhaustif : ce qui est **fait** (coché) et ce qui **reste** (décoché).
 >
-> **Légende :** `[x]` fait · `[~]` scaffoldé (structurel + mocké, non validé autorité, live‑deferred) · `[ ]` à faire. Suffixes : ✅ prouvé live · 🟢 implémenté+testé (mocké),
-> preuve live en attente de creds · 🟡 partiel/échafaudé · 🔴 stub (log.todo) · ⛔ absent.
+> **Légende :** `[x]` fait · `[~]` implémenté, preuve live en attente (creds/accréditation) · `[ ]` à
+> faire. Suffixes : ✅ prouvé live · 🟢 implémenté+testé (mocké/offline).
 >
-> **Principe :** « a country is data ». Un profil (`profiles/data/*.ts`) déclare format(s), canal(aux),
-> signature, lifecycle, numbering, archival, reporting *par date*. Le moteur exécute
-> `build → sign → transmit → archive → report`.
+> **Mise à jour architecture — 2026-09-12.** Les versions antérieures de ce document décrivaient un
+> moteur de conformité (`ComplianceExecutor`, `ComplianceModule`, un `CountryComplianceProfile` par
+> pays sous `profiles/data/*.ts`, ~106 juridictions câblées). Ce moteur — `backend/src/compliance/`
+> en entier — a été supprimé par le commit `fffbae77` ("refactor!: suppression des documents légaux
+> et du moteur de conformité", 2026-08-29, ~298k lignes retirées, tag `avant-refonte-documents`).
+> Un pivot produit ultérieur (commit `b68685e5`, 2026-09-10) a réduit le périmètre pays à cinq
+> (FR/DE/IT/PL/PT) et pruné en conséquence les catalogues qui couvraient davantage de pays (voir
+> §0.1). Ce document est réécrit pour ne citer que des chemins et un état réellement présents dans
+> `backend/src/modules/documents/` aujourd'hui. L'inventaire détaillé de ce qui a été supprimé avec
+> le moteur, et pourquoi, reste dans `documentation/internal/audit/12-SUPPRESSION.md` (établi la
+> veille de la suppression) — utile pour l'archéologie, pas pour l'état courant.
+>
+> **Principe (inchangé) :** « a country is data ». Il n'y a cependant plus un profil unique par pays
+> ni un moteur unique qui le résout : voir `CLAUDE.md`, section « The documents module », pour
+> l'architecture à jour (une dizaine de catalogues indépendants, une machine à états de document
+> générique, pas de graphe de cycle de vie par pays).
 
 ---
 
-## 0. Socle (déjà en place)
+## 0. Socle
 
-- [x] Moteur + lifecycle + 3 drivers (poll/timer/inbound), event‑sourced.
-- [x] `ComplianceExecutor.process()` : `totals → number → build → sign → regime → transmit → archive → report`.
-- [x] Wiring NestJS (`ComplianceModule`), cron `@Interval(30s)` poll + `@Interval(60s)` timer.
-- [x] Persistance Prisma : `ComplianceDocument`, `ScheduledJob`, `CallbackRegistration`, `InboundMessage`.
-- [x] Câblé dans le flux facture : `createDraft` / `issueInvoice` / `sendInvoiceByEmail`(=`send`) / `correct` /
-  `cancel` / `cancelAndReplace` / `markPaid`.
-- [x] `getAvailableActions` + `flow` (FlowDescriptor) exposés ; UI lifecycle (badges, pipeline, timeline).
-- [x] Config de canaux **par société chiffrée** (AES‑256‑GCM, `CREDENTIALS_ENCRYPTION_KEY`), une seule
-  config active par (société, provider) sinon SKIP.
-- [x] Réglages canaux **pilotés par pays** : endpoint `GET …/companies/:id/required-channels` (canaux
-  actuels + à venir, `availableFrom`) + UI `channels.settings.tsx` (Connect/Edit, secrets masqués, erreurs surfacées).
-- [x] Refactor `Controller → Service → PrismaService` (pas de Prisma/`any` dans les controllers) ; DI vérifiée au boot.
-- [x] Hygiène libs : builder `@fin.cx/einvoice` → `@e-invoice-eu/core` ; validateur saxon/compilateur maison
-  → `node-schematron` ; XSD `xmllint` subprocess → `xmllint-wasm` ; `pdf-lib` déclarée ; Prisma singleton + `$transaction`.
-- [x] **Reconcile au boot + sweep 12h** (cf. §4) — fait (`onApplicationBootstrap` + `@Interval(12h)`).
-- [x] **Nettoyage duplication** (2026‑07‑04) : les 5 factories régionales `smaller-portals` (copies quasi identiques
-  écrites par des agents indépendants) fusionnées en **`generic-portal.ts`** (spec data + heuristiques par région
-  préservées verbatim) — **−906 lignes**, comportement identique, couverture approfondie (`generic-portal.spec.ts`).
+### 0.1 Architecture actuelle
+- [x] Une dizaine de catalogues indépendants sous `backend/src/modules/documents/` —
+  `country-policy/`, `country-identifiers/`, `correction-routes/`, `b2g-routing/`,
+  `transports/channel-policy/`, `tax/tax-systems/`, `vat-rates/`, `country-fields/`,
+  `content-requirements/`, `mentions/`, `archive/retention/`, `reporting/` — chacun avec son propre
+  `data/<pays>.json`, son propre schéma et sa propre provenance (`legal`, sourcée à un texte cité, ou
+  `unverified`, avec une note de résolution), vérifiée au chargement ET au moment du seed.
+- [x] **La couverture pays diffère par mécanisme** (le pivot 5-pays n'a pas gardé le même périmètre
+  partout) :
 
----
+  | Mécanisme | Pays couverts (fichiers réels) |
+  | --- | --- |
+  | `country-policy/`, `correction-routes/`, `tax/tax-systems/` | DE, FR, IT, PL, PT (5) |
+  | `b2g-routing/` | DE, FR, IT, PL (4) |
+  | `country-identifiers/` | DE, FR, PT (3) |
+  | `transports/channel-policy/` | FR, IT, PL (3) |
+  | `country-fields/` | DE, FR (2) |
+  | `vat-rates/` | FR, PT (2) |
+  | `mentions/`, `content-requirements/`, `archive/retention/` | FR (1) |
+  | `reporting/` (règles de déclenchement) | PT (1) — NAV/myDATA (§6) sont des fournisseurs
+    enregistrés directement, pas pilotés par un fichier pays |
 
-## 1. FORMATS (`providers/format/`, `modules/invoice-rendering/`)
+  Chaque catalogue **auto-découvre** ses fichiers (`readdirSync` sur son propre `data/`, motif
+  `/^[a-z]{2}\.json$/`) — ajouter un pays à un mécanisme donné, c'est déposer un fichier, jamais
+  toucher au code de chargement.
+- [x] Une seule machine à états de document, générique et non spécifique à un pays
+  (`descriptors/lifecycle.ts`) — pas de graphe de cycle de vie composé par pays. La nuance pays
+  survit à trois endroits seulement : `correction-routes/` (quelle voie de correction), `conformity/
+  pollers/` (polling de statut post-envoi, câblé par TRANSPORT, pas par pays), `archive/retention/`
+  (durée de conservation, France uniquement).
+- [x] `tax/tax-engine.ts` — détermination fiscale transfrontalière par composition des systèmes de
+  taxe vendeur et acheteur (`tax/tax-systems/`), jamais une matrice N×N ; `tax/
+  resolve-invoice-tax.ts` la câble dans "send" et bloque dur sur un pays vendeur OU acheteur non
+  résolu plutôt que de deviner un traitement.
+- [x] Wiring NestJS : `DocumentsCoreModule` (providers) + `DocumentsModule` (contrôleur HTTP, ré-
+  exporte Core) + `DocumentsQueueWorkerModule` (processors BullMQ) — la même scission que l'ancien
+  `ComplianceCoreModule`/`ComplianceModule`/`ComplianceWorkerModule`.
+- [x] `documents.service.ts#runAction` — point d'orchestration générique unique, quel que soit le
+  type de document (facture, devis, avoir, note de frais, facture reçue). Il n'y a plus de
+  `InvoicesService` séparé : la facture est un `DocumentTypeDescriptor` comme les autres
+  (`descriptors/invoice.descriptor.ts`).
 
-### 1.1 Famille EN 16931 (`@e-invoice-eu/core`)
-- [x] **EN16931_CII** — `exportXml('cii')` ✅ (FR→PDP prouvé).
-- [x] **FACTURX / PDF_A3** — PDF/A‑3 hybride (`renderPdfFormat`) ✅ (copie humaine FR).
-- [x] **EN16931_UBL** — `exportXml('ubl')`.
-- [x] Validation EN16931 Schematron (`node-schematron`) + XSD CII/FA(2) (`xmllint-wasm`).
-- [x] `cii-post-process.ts` réduit au strict (namespaces + routing PDP).
-- [x] **XRECHNUNG** — BR‑DE‑11/12 `cac:Contact` + BR‑DE‑14 `PaymentMeans` ; **code UNCL4461** complet (BANK_TRANSFER→58, DIRECT_DEBIT→59 + `PaymentMandate`, CARD→48, PSP→97) + IBAN (`PayeeFinancialAccount`).
-- [x] **ZUGFERD** — alias no‑op retiré ; ZUGFeRD 2.x = même profil CII/EN16931 + PDF/A‑3 + CustomizationID que Factur‑X (pas de profil divergent dans `@e-invoice-eu/core`) — alignement documenté.
-- [x] **PEPPOL_BIS** — `CustomizationID`/`ProfileID` BIS Billing 3.0 réels injectés (au lieu d'UBL générique).
-
-### 1.2 Formats nationaux majeurs
-- [x] **FA_VAT** (PL, FA(2)) — `buildFaVat()` ✅ (prouvé KSeF).
-- [x] **FATTURAPA** (IT, 1.2) — build + **XSD validé** (`Schema_VFPR12.xsd`) — transmission SdI à finir (§3).
-- [x] **ES_FACTURAE** (3.2.2) — builder XSD-valide (namespace corrigé `facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml`, FileHeader/Batch/Parties/Invoice complets) + **XAdES câblé** + **XSD officiel vendorisé** (`Facturaev3_2_2.xsd` depuis facturae.gob.es, 2026-07-04) + 2 tests XSD activés. [ ] SII/Verifactu.
-- [~] **KSA_UBL** (ZATCA FATOORA) — UBL 2.1 + QR TLV 5 champs + CustomizationID + **invoice hash SHA‑256 (base64) + chaîne PIH** (BR‑KSA‑26, `ZATCA_PIH_INIT`) offline, 8 tests. [ ] sceau tag‑6 + clearance (live) + XSD.
-- [ ] 🟡 **CFDI** (MX 4.0) — ns `cfd/4` + seam Sello/Certificado (faux NoCertificado retiré). [ ] timbrado PAC (UUID/TimbreFiscalDigital) + sceau CSD + complément/addenda + XSD.
-
-### 1.3 Formats nationaux 🔴 (stubs `national-formats.ts`) — build + validation + signature + champs + profil + preuve
-- [~] LATAM **scaffoldé** (builders structurés + tests structurels, **non validé autorité, live‑deferred**) :
-  `AR_FE` · `BO_FE` · `NFE`(BR) · `CL_DTE` · `CR_FE` · `DO_ECF` · `EC_FE` · `GT_FEL` · `PA_FE` · `PY_DE` ·
-  `SV_DTE`(JSON) · `UY_CFE` · `VE_FE`. Reste par pays : champs obligatoires manquants + XSD + sceau/clearance (CAE/CUFE/claveAcceso).
-- [~] MENA **scaffoldé** (builders + clients, mockés, live‑deferred) : `TR_EFATURA`(gib UBL‑TR), `EG_ETA`(UUID+hash) profonds ; `JO_JOFOTARA`(UBL+ISTD)·`TN_TEIF` génériques.
-- [~] Afrique **scaffoldé** (builders + clients, mockés, live‑deferred) : `NG_FIRS`(IRN SHA‑256+QR), `KE_ETIMS`(VSCU+QR)
-  profonds ; `GH_EVAT`·`RW_EBM`·`TZ_VFD`·`UG_EFRIS`·`ZM_SMARTINVOICE`·`ZW_FDMS`·`CI_FNE`·`BJ_MECEF` génériques. Reste : champs + device/OSCU + sceau + clearance.
-- [~] Asie **scaffoldé** (builders + clients, mockés, live‑deferred) : `IN_IRP`(IRN SHA‑256), `MY MyInvois`(UBL+OAuth2),
-  `ID_EFAKTUR`(Coretax) profonds ; `TW_EGUI`·`KZ_ESF`·`PH_EIS`·`TH_ETAX`·`NP_CBMS`·`BD_NBR`·`PK_FBR`·`CN_EFAPIAO`·`VN_TT78` génériques. Reste : champs obligatoires + XSD + sceau DSC/PKCS#7 + clearance.
-- [~] Europe (national) **scaffoldé** (builders + clients, mockés, live‑deferred) : `HR_ERACUN`(UBL CIUS‑HR) profond ;
-  `UA_TAXINVOICE`·`ME_FISCAL`·`AL_FISCALIZATION` génériques (+ portail `anaf` RO e‑Factura profond).
-- [x] `NATIONAL_XML` placeholder → builders dédiés par pays (LATAM/Asie/Afrique/MENA/Europe) via `buildNationalXml()`.
-
-### 1.4 Transverse formats
-- [x] Validation **XSD FatturaPA 1.2** (`Schema_VFPR12.xsd`) + **XSD CFDI 4.0** (`cfdv40.xsd`+catalogues) + **XSD Facturae 3.2.2** (`Facturaev3_2_2.xsd`) + **Schematron Peppol BIS** (`PEPPOL-EN16931-UBL.sch`) vendorisés + câblés (xmllint‑wasm/node‑schematron), tests positifs+négatifs. Builders FatturaPA/CFDI/UBL/Facturae corrigés pour passer le XSD réel.
-- [x] **Allowances document + ligne** — `discountRate`/items négatifs → `AllowanceCharge` doc (BG‑20) + `allowances[]` par ligne (BG‑27) ; **`BR‑27` fermé** (plus de prix net négatif ; `CII_KNOWN_SCHEMATRON_GAPS` vide).
-- [x] **Facturae XSD** — `Facturaev3_2_2.xsd` vendorisé depuis `https://www.facturae.gob.es/content/dam/facturae/formato/versiones/Facturaev3_2_2.xml` (2026-07-04) ; câblé dans `FacturaeFormatProvider.validate()` via `xmllint-wasm` ; 2 tests `todo` activés (positif + négatif). [ ] XSD/Schematron autres formats nationaux.
+### 0.2 Ce qui a été supprimé (ne pas chercher à le "finir")
+Le moteur de conformité et l'essentiel des formats/canaux nationaux pour la longue traîne (Amérique
+latine, MENA, Afrique, Asie, Mexique/CFDI, Arabie saoudite/ZATCA — environ 90 fichiers, ~2000 lignes
+de stubs) ont été supprimés avec `backend/src/compliance/`. Ce qui en survit dans
+`backend/src/modules/documents/` aujourd'hui est listé section par section ci-dessous ; tout ce qui
+n'y figure pas n'existe plus dans ce dépôt.
 
 ---
 
-## 2. SIGNATURE (`providers/signing/`) — signatures réelles en place
+## 1. FORMATS (`backend/src/modules/documents/formats/`)
 
-- [x] **XAdES‑BES** (XML) — `xadesjs` + WebCrypto ; **vérifié offline** (signature valide, références résolues). Pour Facturae, FatturaPA option, LATAM, TR.
-- [x] **CAdES‑BES** (.p7m) — `node-forge` PKCS#7 ; **vérifié offline**. Pour **SdI** (FatturaPA `.p7m`).
-- [x] **PAdES‑B** (PDF) — `@signpdf` + node-forge P12 ; **vérifié offline**. Factur‑X/PDF signés.
-- [x] **Algo→provider par profil** : `executor` sélectionne l'algo ; `none` = pass‑through réel ; `SigningCredentialsPort` (mirroir du port creds) ; sans cert → renvoie non signé avec note (testé). 18 tests (cert auto‑signé in‑memory).
-- [x] **Stockage cert en DB** : `SigningCertificatesService implements SigningCredentialsPort` (PFX/PKCS#12 + mdp chiffrés AES‑256‑GCM), résolution active par (société, algo, env), check d'expiration, → wiré dans `SigningProviderRegistry` (remplace `NullSigningCredentials`). Modèle `CompanySigningCertificate` + migration + UI upload. 8 tests. [ ] chaîne/renouvellement.
-- [x] **Horodatage TSA + niveau ‑T** réels (XAdES `SignatureTimeStamp` ETSI EN 319 132 + CAdES `signature-time-stamp` EN 319 122) via `TsaPort` RFC 3161 (`HttpTsaClient`/`NullTsaClient` défaut offline) ; BES inchangé (byte‑identique). 16 tests + **✅ prouvé live** (FreeTSA `https://freetsa.org/tsr` : TST DER réel + `SignatureTimeStamp` XAdES‑T, 2026-06-30). [ ] ‑LT/‑LTA (CRL/OCSP) + PAdES‑T = seams.
-- [x] (réf.) KSeF scelle/chiffre lui‑même côté client ; clés MF vendorisées `certs/ksef/{test,prod}`.
+### 1.1 Famille EN 16931 (`@fin.cx/einvoice`)
+- [x] **EN16931_CII** — `formats/cii-provider.ts` ✅ (FR→PDP prouvé).
+- [x] **FACTURX / PDF_A3** — PDF/A-3 hybride, `formats/facturx-provider.ts` ✅.
+- [x] **EN16931_UBL** — `formats/ubl-provider.ts`.
+- [x] **XRECHNUNG** (DE) — `formats/xrechnung-provider.ts`, délta Schematron vendorisé
+  (`formats/vendored/de/`). Écart data connu, documenté dans le fichier lui-même : BR-DE-11/12/13
+  (téléphone/email vendeur, EndpointID acheteur) — champs absents du modèle company/client.
+- [x] **PEPPOL_BIS** — `formats/peppol-bis-provider.ts`, délta Schematron vendorisé
+  (`formats/vendored/peppol/`).
+- [x] **NLCIUS** (NL) — `formats/nlcius-provider.ts`, délta vendorisé (`formats/vendored/nl/
+  si-ubl-2.0-nlcius-preprocessed.sch`, MIT, tag STABLE de peppolautoriteit-nl/validation). Le canal
+  qui l'utiliserait pour de vrai (`b2g-routing/data/nl.json`) a été retiré par le pivot 5-pays (§0.1)
+  — voir §3, note.
+- [x] Validation EN16931 — Schematron vendorisé (`formats/vendored/en16931/`) câblé via
+  `formats/vendored/validate-schematron.ts`.
 
----
+### 1.2 Formats nationaux (marchés prioritaires)
+- [x] **FA_VAT** (PL, FA(2)) — `formats/national/fa3-provider.ts` ✅ (prouvé via KSeF, §3).
+- [x] **FATTURAPA** (IT, 1.2) — `formats/national/fatturapa-provider.ts`.
+- [x] **ES_FACTURAE** — `formats/national/facturae-provider.ts`, XAdES câblé (`signing/`) — sert le
+  canal B2G espagnol FACe (§3) ; il n'y a pas de fichier `country-policy/data/es.json` (l'Espagne
+  n'est pas un pays vendeur couvert, seulement une destination B2G potentielle — voir §0.1/§9).
 
-## 3. TRANSMISSION (`providers/transmission/`)
-
-### 3.1 Faits / prouvés
-- [x] **KSeF** (PL) ✅ round‑trip prouvé (CLEARED + ksefNumber).
-- [x] KSeF : **référence UPO** persistée sur CLEARED (`upoDownloadUrl`→`ComplianceAuthorityId{scheme:UPO}` + ksefNumber). [ ] chemin **prod** (clés MF prod) + télécharger/stocker les **octets UPO** ; `sendStatus` si requis.
-- [x] **PDP** (FR, superpdp propriétaire) ✅ facture acceptée (89xxx).
-- [x] **PDP‑AFNOR** (`apiStyle: afnor`) — **transport prouvé live** : `POST /afnor-flow/v1/flows` accepte la soumission, flowId réel `i_90103` assigné, transmit→PENDING (fix : `processingRule` omis, sinon superpdp renvoie 501). [ ] validation **contenu** du flow (le sandbox rejette la facture de test — diagnostiquer le motif de rejet AFNOR).
-- [x] PDP : `sendStatus` (déposée/refusée/encaissée → fr:205/210/211/212) implémenté (mocké, live deferred).
-- [ ] PDP : **API Annuaire** (résoudre `buyerEndpointId` du client).
-- [x] **Email SMTP par société** 🟢 (`MailService.sendMail(opts, smtpOverrides?)`, fallback global).
-- [x] Email : **preuve réelle SMTP** via Ethereal (`EMAIL_LIVE=1` email-live.spec) — vrai messageId + preview URL à travers `MailService.sendMail`. [ ] vrai contenu i18n soigné (sujet/corps + PDF + XML).
-
-### 3.2 Implémentés (mocké) — preuve live en attente
-- [x] **SdI** (IT) 🟢 — client + mapping des 6 notifiche (RC/NS/MC/NE/DT/AT) + tests.
-- [ ] SdI : transport réel **SDICoop (SOAP)**/**SFTP** + **accréditation AdE** + **PFX qualifié** ; signature **CAdES .p7m** ; entrant ; preuve live.
-- [x] **Peppol** 🟢 — lookup SMP/SML + envoi passerelle AP + mapping + tests.
-- [x] Peppol : **✅ PROUVÉ LIVE via peppol.sh** (2026‑07‑11 : self‑signup sandbox zéro secret → envoi UBL BIS 3.0 → poll `queued→sending→delivered` → CLEARED en ~13 s). **Multi‑AP** : registre d'adaptateurs `apProvider` (generic | peppol-sh | storecove) choisi par config société ; Storecove mocké (trial 30 j, live‑deferred) ; le nightly CI prouve Peppol **sans aucun secret**. [ ] AP générique/cert AP propre (option OpenPeppol) ; [ ] MLR/Invoice Response → lifecycle ; [ ] prod peppol.sh (0,10 €/facture).
-
-### 3.3 PRINT réel · PAC/OSE scaffoldés
-- [x] **PRINT** — **réel** : PDF A4 (pdfkit) + QR (qrcode) embarqué, offline ; `transmit`→SENT, fallback universel. Test : magic `%PDF` + QR décodé (jsQR round‑trip).
-- [~] **PAC** (MX) — client `timbrar`/`consultaEstado` (mocké) → CLEARED + UUID ; configSchema ; SKIP si non configuré. [ ] PAC réel + sceau SAT.
-- [~] **OSE** (PE) — client `enviarComprobante`/`obtenerCdr` (mocké, codes SUNAT) ; `PE_UBL` ajouté. [ ] OSE réel + CDR signé.
-
-### 3.4 Taxonomie portails
-- [x] Suppression du `gov-portal` générique ; `GOV_PORTAL_API` **exige un `providerId`** (sinon SKIPPED explicite) + test garde.
-- [x] Ajout des providers nommés `choruspro` (FR B2G), `gr-aade` (GR), `hu-nav` (HU) ; ~50 portails nommés présents.
-- [ ] Implémenter chaque portail 🔴 (auth + build + submit + poll/`sendStatus` + mapping) :
-  - [~] LATAM **scaffoldé** (clients auth/submit/poll, HTTP mocké, live‑deferred) : `afip`(WSAA→WSFE→CAE) ·
-    `sefaz`(lote→protocolo) · `sii`(seed→token→EnvioDTE) · `sri`(claveAcceso) · `uy-dgi`(CAE) profonds ;
-    `bo-sin`/`cr-hacienda`/`dgii`/`gt-sat`/`pa-dgi`/`sifen`/`sv-mh`/`seniat` génériques ; `dian`(CO) scaffoldé (OAuth2+UBL+CUFE poll). [ ] endpoints/auth réels par autorité.
-  - [~] MENA **scaffoldé** : `gib`(TR)·`eg-eta`(EG) profonds ; `jofotara`·`tn-ttn` génériques ; `zatca` (KSA, voir §1.2).
-  - [~] Afrique **scaffoldé** (clients mockés, live‑deferred) : `firs`·`ke-kra` profonds ;
-    `gh-gra`·`rw-rra`·`tz-tra`·`ug-ura`·`zm-zra`·`zw-zimra`·`ci-dgi`·`bj-dgi` génériques. [ ] auth/endpoints/device réels.
-  - [~] Asie **scaffoldé** (clients mockés, live‑deferred) : `in-irp`·`myinvois`·`id-coretax` profonds ;
-    `tw-mof`·`kz-isesf`·`ph-bir`·`th-rd`·`np-ird`·`bd-nbr`·`pk-fbr`·`cn-sta`·`vn-gdt` génériques. [ ] auth/endpoints réels.
-  - [~] Europe **scaffoldé** (clients mockés, configSchema, live‑deferred) : `anaf`(RO) profond ; `ua-dps`·`me-fiscal`·
-    `hr-fiskalizacija`·`al-cis`·`lv-vid`·`sk-financnasprava`·`rs-sef`·`es-aeat`·`gr-aade`·`hu-nav` génériques ; `choruspro` (FR B2G). [ ] auth/cert/endpoints réels.
-
-### 3.5 Transverse transmission
-- [x] **`sendStatus` sortant** réel PDP (`/lifecycle_events`) / SdI (esito EC01/EC02) / Peppol (Invoice Response AB/RE/UQ/AP) — config par société, mappage statut→code, erreurs→QUEUED ; tests mockés. Live deferred.
-- [ ] **`poll()`** réel pour tous les `ASYNC_POLL` (KSeF/PDP ok ; reste à finir).
-- [x] **Idempotence des envois** — clé `${base}:${providerId}:${idx}` dédupliquée (TTL 5 min) dans `transmitAll` (duplicate→SKIPPED) + clé executor en `randomUUID`.
+> **Longue traîne supprimée.** CFDI (Mexique), KSA_UBL (Arabie saoudite) et les ~40 formats nationaux
+> LATAM/MENA/Afrique/Asie que ce document décrivait auparavant ont été supprimés avec le moteur de
+> conformité (`fffbae77`). Aucun n'existe dans `formats/`.
 
 ---
 
-## 4. LIFECYCLE — fraîcheur des statuts (PRIORITÉ)
+## 2. SIGNATURE (`backend/src/modules/documents/signing/`)
 
-- [x] Drivers poll(30s)/timer(60s) ; inbound‑router (pur) ; webhook `/compliance/inbound/:channel` ; `applySignal`.
-- [x] PollJob/TimerJob persistés (les polls dus reprennent au prochain tick après un downtime).
-- [x] **Reconcile au boot** — `ComplianceCron.onApplicationBootstrap` (fire‑and‑forget, non bloquant) →
-  `PollScheduler.reconcile()` poll **tous** les jobs en cours (rattrape downtime + push manqués) + tick timers.
-- [x] **Sweep 12h** — `@Interval(COMPLIANCE_RECONCILE_HOURS|12 h)` `reconcile()` (filet anti‑webhook‑manqué),
-  garde anti‑chevauchement, erreurs catchées. `PollJobStore.pending()` ajouté (jobs en cours, hors filtre due).
-- [x] Rejouer les `InboundMessage` reçus mais non appliqués au boot — `InboundRouter.replayUnapplied()` (idempotent, NOOP si déjà appliqué) appelé dans `onApplicationBootstrap` (fire‑and‑forget).
-- [x] Câbler les sources de statut : poll (pull) ✅, **webhook push par canal** 🟢 (parsers PDP/SdI/Peppol +
-  endpoints typés `/compliance/inbound/{pdp/webhook,sdi/notifica,peppol/mlr}`, secret partagé).
-- [x] **Polling d'inbox** — `InboxPoller` (`@Interval(60s)` + cron‑lock) via `InboxPort` (défaut `NullInboxPort` offline‑safe) → `InboundRouter.receive` (dedup) ; seam SdI SFTP/IMAP. 7 tests.
-- [x] Action UI « rafraîchir » (cf. §12).
-- [x] Lifecycle par juridiction complété : FR `markPaid`→push `encaissée` (PDP, mocké) ; **MX bloquant** (PENDING_CLEARANCE bloque DELIVER/ACCEPT/REPORT, REJECTED terminal) ; cohérence profils FR/PL/IT/DE/ES/MX (BFS sans état orphelin, `CANCELLED` retiré si non atteignable, entrées pré‑mandat PL/IT). 22 tests.
+- [x] **XAdES-BES** (XML) — `xadesjs` + WebCrypto ; pour Facturae, option FatturaPA.
+- [x] **CAdES-BES** (.p7m) — `node-forge` PKCS#7 ; pour SdI (FatturaPA `.p7m`).
+- [x] **PAdES-B** (PDF) — `@signpdf` + node-forge P12 ; Factur-X/PDF signés.
+- [x] Sélection algo→provider par type de document — `signing/registry.ts`, `signing/providers.ts` ;
+  `none` = pass-through documenté et testé.
+- [x] Certificats de signature stockés en DB, chiffrés — `SigningCertificatesService`
+  (`modules/company/signing-certificates/`), résolution par (société, algo, environnement),
+  vérification d'expiration.
+- [x] Horodatage TSA (RFC 3161) — `signing/tsa-client.ts`, gated `signing/tsa-live.spec.ts`.
+- [x] WS-Security SOAP (signature d'enveloppe) — `transports/face/wsse-sign.ts`, réutilisé pour FACe
+  transmission ET polling de statut (même certificat, résolu deux fois).
+
+---
+
+## 3. TRANSMISSION (`backend/src/modules/documents/transports/`)
+
+### 3.1 Prouvés live
+- [x] **KSeF** (PL) ✅ — round-trip réel (CLEARED + `ksefNumber`), 2026-06-28. Gated :
+  `transports/ksef/ksef-live.spec.ts`, `conformity/pollers/ksef-status-poller.live.spec.ts`.
+- [x] **PDP** (FR) ✅ — round-trip réel (fr:200→201→202, dépôt 375037), 2026-08-29. Gated :
+  `transports/pdp/pdp.live.spec.ts`, `transports/pdp/pdp-conformity.live.spec.ts`.
+- [x] **Peppol** ✅ — round-trip réel via peppol.sh (self-signup sandbox, zéro secret), 2026-07-11.
+  Gated : `transports/peppol/peppol-sh-live.spec.ts`,
+  `transports/peppol/peppol-sh-xrechnung-live.spec.ts`.
+
+### 3.2 Implémentés, harnais live prêt (preuve en attente de creds/accréditation)
+- [~] **SdI** (IT) — `transports/sdi/sdicoop-client.ts` + notifiche entrant
+  (`transports/sdi/sdi-notifiche.*`, push-only, pas de poller par conception). Gated :
+  `transports/sdi/sdicoop.live.spec.ts`.
+- [~] **Chorus Pro** (FR, B2G) — `transports/chorus-pro/choruspro-client.ts`. Gated :
+  `transports/chorus-pro/choruspro-live.spec.ts`.
+- [~] **FACe** (ES, B2G) — `transports/face/face-client.ts`, WS-Security (§2). Gated :
+  `transports/face/face.live.spec.ts`.
+- [ ] **ANAF e-Factura** (RO, B2B) — `transports/anaf/anaf-client.ts`, implémenté ; pas de spec live
+  dédiée dans cet arbre.
+- [x] **Email** — envoi SMTP réel par société (`transports/email-transport.ts`, `MailService`) ; pas
+  de canal "print" ni de spec live dédiée dans cette arborescence.
+
+> **Note — capacité câblée mais non routée.** FACe (ES) et ANAF (RO) ci-dessus, et le format NLCIUS
+> (NL, §1.1), restent enregistrés dans le code (`documents-core.module.ts`) mais le pivot 5-pays
+> (§0.1) a retiré les fichiers `b2g-routing/data/{es,nl,ro}.json` qui les auraient effectivement
+> routés — aujourd'hui `b2g-routing/` ne couvre que DE/FR/IT/PL. Réactiver ES/NL/RO en B2G, c'est
+> déposer le fichier `data/xx.json` correspondant (§0.1) ; le code récepteur existe déjà.
+>
+> **Longue traîne supprimée.** PAC/timbrado (MX), OSE (Pérou), PRINT, et la taxonomie des ~50
+> portails nationaux génériques (afip, sefaz, sii, dian, sri, uy-dgi, firs, ke-kra, in-irp, myinvois,
+> id-coretax…) ont été supprimés avec le moteur. `gr-aade` (Grèce) et `hu-nav` (Hongrie) survivent
+> mais reclassés : ce ne sont plus des canaux de TRANSMISSION, ce sont des fournisseurs de
+> DÉCLARATION (§6) — un changement d'architecture réel, pas un renommage.
+
+### 3.3 Post-envoi (statuts entrants)
+- [x] `conformity/pollers/` — polling de statut post-envoi câblé par TRANSPORT : `pdp`, `ksef`,
+  `peppol` (poll générique AP), `chorus-pro` (`consulterCr`), `anaf` (`stareMesaj`), `face`
+  (`consultarFactura`). `sdi` reste push-only (notifiche SOAP), sans poller, par conception —
+  `conformity/authority-status-poller.ts` documente pourquoi c'est permanent.
+- [x] `conformity/conformity-sweep-runner.ts` — le runtime qui appelle ces pollers, câblé sur la
+  queue BullMQ (`queue/processors/document-action.processor.ts`).
+
+---
+
+## 4. LIFECYCLE — statuts de document
+
+- [x] Une seule machine à états, générique, aucune spécificité pays (`descriptors/lifecycle.ts`,
+  voir §0.1). Il n'y a plus de runtime événementiel séparé (pas de `ComplianceEvent`, pas de drivers
+  poll/timer/inbound dédiés) : le polling post-envoi (§3.3) et la queue BullMQ (`queue/`) jouent ce
+  rôle aujourd'hui, pour chaque type de document.
+- [x] Voies de correction par pays — `correction-routes/` (§0.1), source
+  `documentation/internal/CORRECTION-ROUTES.yaml` (recherche, pas elle-même une source de droit —
+  chaque route porte sa propre provenance `legal`/`unverified`).
 
 ---
 
 ## 5. ENTRANT (réception)
 
-- [x] `InboundRouter.receive()` (pur) + webhook controller + corrélation/dedup de base.
-- [x] **Recevoir des factures** (fournisseurs) — modèle `InboundInvoice` (migration) ; parsers CII/UBL/FatturaPA/FA_VAT (structurels) → champs canoniques ; dedup `(channel, externalId)` ; endpoints list/get/accept/reject + `receive/:channel` ; UI page `/received-invoices` + détail + download raw. 8 tests.
-- [x] **Statuts entrants** par canal → `INBOUND_STATUS` (parsers PDP webhook / SdI notifica RC‑NS‑MC‑NE‑DT‑AT /
-  Peppol MLR → `InboundInput`, corrélation par ref externe + dedup ; 21 tests). Reste : re‑armer le callback avec le ref transmit après envoi (corrélation auto, cf. note code).
-- [x] **Acks à émettre** — Peppol Invoice Response + SdI esito committente câblés via `sendStatus` (mockés).
-- [x] Authenticité des webhooks — **HMAC‑SHA256** sur le corps brut (`X-Signature`, `timingSafeEqual`) par canal (`WEBHOOK_SECRET_{PDP,SDI,PEPPOL}`) + **IP allowlist** + fallback secret partagé ; appliqué aux 4 endpoints. 12 tests. [ ] mTLS.
+- [x] `received-invoices/` — factures fournisseurs reçues : extraction
+  (`received-invoices/extraction.ts`, `received-invoices/ocr/`), page `/received-invoices`.
+- [x] `transports/sdi/sdi-notifiche.*` — notifiche SdI entrantes (RC/NS/MC/NE/DT/AT).
 
 ---
 
-## 6. REPORTING (`reporting/reporting-handler.ts`, `ReportingKind`)
+## 6. REPORTING (`backend/src/modules/documents/reporting/`)
 
-- [x] `reportAll()` câblé + **8 générateurs purs** (E_REPORTING, SAF‑T, OSS, IOSS, EC_SALES_LIST, INTRASTAT, SALES_PURCHASE_LEDGER, CUSTOMS_EXPORT) ; modèle Prisma `ComplianceReport` (migration) ; 30 tests.
-- [x] **E_REPORTING** (FR B2C + transfrontalier) — payload structuré (classification du plan). [ ] soumission réelle PDP/PPF (mockée).
-- [x] **SAF‑T** — XML OECD SAF‑T 1.04 (xmlbuilder2), structurellement valide. [ ] variantes pays (PL/NO) + XSD.
-- [x] **OSS/IOSS/EC_SALES_LIST/INTRASTAT/SALES_PURCHASE_LEDGER/CUSTOMS_EXPORT** — agrégation structurée. [ ] Intrastat `commodityCode` (catalogue produits).
-- [x] **Idempotence** (kind, period, company, invoiceRef) — 2e run = no‑op + preuve de dépôt (`markSubmitted` ref). Period key mensuel/trimestriel par kind.
-- [x] **Planification batch** — `@Cron('0 2 * * *')` `tickReportingClose` : clôture les périodes échues, soumet les `ComplianceReport` PENDING (idempotent, comparaison lexicographique periodKey), sous cron‑lock. [ ] soumission autorité réelle (mockée).
+- [x] `reporting/reporting-runner.ts` — résout un fournisseur de déclaration, reconstruit la facture
+  déclarée (jamais depuis un cache), et journalise le résultat dans `DocumentAuthorityEvent` (la
+  même table que les événements de conformité, §3.3) — une déclaration EST un événement d'autorité,
+  pas un transport.
+- [x] **NAV** (Hongrie, Online Számla 3.0) — `reporting/providers/nav-declaration-provider.ts`,
+  gated `nav.live.spec.ts`.
+- [x] **myDATA** (Grèce) — `reporting/providers/mydata-declaration-provider.ts`, gated
+  `mydata.live.spec.ts`.
+- [~] **AT** (Portugal, « comunicação de faturas ») — `reporting/providers/pt-at-client.ts`,
+  implémenté, **en attente d'accréditation**. Gated `pt-declaration-provider.live.spec.ts`. Seul
+  fournisseur dont le déclenchement est piloté par un fichier pays (`reporting/data/pt.json`) ; NAV
+  et myDATA sont enregistrés directement, sans fichier pays.
 
 ---
 
 ## 7. IDENTIFIANTS & DONNÉES DE RÉFÉRENCE
 
-- [x] **SIREN ← SIRET** (schemeID 0002 = 9 premiers chiffres du SIRET 14).
-- [x] **Routing acheteur via annuaire** — `BuyerDirectoryPort` : `AfnorDirectoryLookup` (PDP `searchDirectoryLines`, SIREN/SIRET→addressingIdentifier) + `SmpBuyerDirectory` (DnsSmpLookup→AP endpoint) ; PDP transmit résout le buyer si absent de la config (non bloquant) ; défaut `Null` offline‑safe. 18 tests. [ ] table/cache annuaire.
-- [x] **Validation identifiants — checksums offline** : SIREN/SIRET (Luhn), NIP (mod‑11), VAT FR (mod‑97)/IT/DE (ISO 7064)/ES NIF‑NIE (mod‑23)/PL, Codice Fiscale (mod‑26). `validateContextIdentifiers` câblé en step 0 de l'executor (warnings, non bloquant). 74 tests (valides+invalides cités). RFC/CIF/clé alpha FR = structurel.
-- [x] **Existence distante (port)** : `ViesExistenceClient` (VIES REST, sans creds) + `SireneExistenceClient` (INSEE, Bearer) derrière `IdentifierExistencePort` ; défaut `Null` (offline‑safe), tests mockés. Live deferred.
-- [x] Existence VIES/SIRENE branchée (executor step 0b, warnings `[existence]` non bloquants) + `CachedExistenceClient` (TTL 24h) ; défaut `Null` (offline‑safe).
-- [x] Checksums durcis : **clé alpha FR VAT** (base‑34) + **CIF ES** (algo officiel, routage type d'org) avec vecteurs cités.
-- [x] **Identifiants de routage** : `PEPPOL_ENDPOINT` (`schemeId:endpointId`) par client/société via `PartyIdentifier` (sans migration) → `cac:EndpointID schemeID` UBL Peppol BIS + XRechnung (acheteur+vendeur), fallback inchangé ; UI client+société (select scheme 0088/0192/0009/9925…). NIC dérivé du SIRET. tel/email vendeur + code paiement déjà faits. 5 tests rendering.
-- [x] **Annuaire** : lookup (Peppol SMP + AFNOR) déjà présent ; **`CachedBuyerDirectory`** (TTL + dédup in‑flight + éviction) wiré dans Peppol/PDP — résout l'endpoint acheteur quand absent. 9 tests. [ ] preuve SMP/AFNOR live.
+- [x] `country-identifiers/` — schémas d'identifiants requis par pays et type de tiers (DE/FR/PT,
+  §0.1).
+- [x] Validation d'identifiants — checksums + existence VIES/SIRENE dans `tax/vat-validation.ts`
+  (gated `tax/vat-validation.live.spec.ts`) ; écrite à la SAISIE du numéro de TVA
+  (`modules/clients/clients.service.ts`), jamais recalculée au moment de l'envoi.
 
 ---
 
 ## 8. CREDENTIALS & CERTIFICATS
 
-- [x] Config canal par société chiffrée ; `CREDENTIALS_ENCRYPTION_KEY` requise (sinon 503) — à documenter en déploiement.
-- [x] **Stockage des certificats de signature** (PFX/PKCS#12 + mdp) par société, chiffré + validité (cf. §2) ; UI upload. [ ] chaîne/renouvellement.
-- [ ] Certificats canal : SdI (PFX qualifié), Peppol (cert AP) ; KSeF token ✅ ; PDP OAuth ✅.
-- [x] **Audit d'accès** aux credentials (`CredentialAccessAudit` : companyId/ref/action/outcome, jamais de secret — test garde) émis aux points de résolution config+cert ; **seams de rotation** (`reEncrypt` config, `rotate` cert) sans migration. 7 tests.
+- [x] Config de canal par société, chiffrée AES-256-GCM — `ChannelCredentialsService`
+  (`modules/company/channels/`) ; `CREDENTIALS_ENCRYPTION_KEY` requise au boot (503 sinon).
+- [x] Certificats de signature en DB, chiffrés — `SigningCertificatesService`
+  (`modules/company/signing-certificates/`).
+- [ ] Certificats canal restants : PFX qualifié SdI, certificat AP Peppol dédié (KSeF/PDP déjà
+  opérationnels sans cette dépendance).
 
 ---
 
-## 9. MATRICE PAR PAYS (profils complets : FR, PL, IT, MX, US, MC, XX)
+## 9. MATRICE PAR PAYS
 
-- **🇫🇷 FR** — [x] EN16931_CII(→PDP) + Factur‑X · [x] PDP(superpdp) · [ ] AFNOR preuve · [ ] ChorusPro B2G ·
-  [x] Peppol(mocké) · [x] Email · [ ] signature · [ ] push PDP `encaissée` · [ ] e‑reporting B2C.
-- **🇵🇱 PL** — [x] FA(2) · [x] KSeF(test) · [x] réf UPO sur CLEARED · [ ] KSeF prod · [ ] octets UPO.
-- **🇮🇹 IT** — [x] FatturaPA(build) · [x] SdI(mocké) · [x] CAdES .p7m (réel) · [x] notifiche entrant (parser) · [ ] SdI live.
-- **🇲🇽 MX** — [ ] CFDI(finir) · [ ] PAC/timbrado · [ ] sceau SAT · [ ] folios bloquants.
-- **🇺🇸 US** — [x] post‑audit Email/Peppol (vérifier le profil).
-- **🇲🇨 MC** — [x] délègue à FR.
-- **XX** — [x] Email/print fallback (vérifier).
-- [x] **DE** profil (XRechnung 3.0 + Peppol/Email, POST_AUDIT, GoBD 10 ans, LEITWEG_ID B2G) + **ES** profil (Facturae 3.2.2 + XAdES + SII REAL_TIME_REPORTING + Verifactu E_REPORTING daté). [ ] nouveaux pays archétype→profil.
+- **🇫🇷 FR** — [x] Factur-X/EN16931_CII (→PDP) ✅ · [~] Chorus Pro (B2G) · [x] Peppol ✅ · [x] Email ·
+  couvert par tous les mécanismes du §0.1.
+- **🇵🇱 PL** — [x] FA(2) · [x] KSeF ✅ · couvert par country-policy/correction-routes/tax-systems/
+  b2g-routing/channel-policy ; pas de fichier `country-identifiers`/`vat-rates`/`country-fields`
+  dédié (retombe sur le comportement par défaut de ces catalogues).
+- **🇮🇹 IT** — [x] FatturaPA · [~] SdI (harnais live prêt, accréditation AdE en attente) · même
+  couverture que PL pour les catalogues annexes.
+- **🇩🇪 DE** — [x] XRechnung (écart data BR-DE-11/12/13 documenté) · Peppol/Email · pas de fichier
+  `transports/channel-policy/data/de.json` (pas de mandat de canal recensé pour l'Allemagne
+  aujourd'hui).
+- **🇵🇹 PT** — [x] Email/Peppol · [~] déclaration AT (§6, accréditation en attente) · le seul des
+  cinq à avoir `vat-rates/`/`country-identifiers/` renseignés en dehors de FR.
+- **Capacité existante, non routée aujourd'hui** — 🇪🇸 ES (FACe/Facturae), 🇳🇱 NL (Peppol/NLCIUS),
+  🇷🇴 RO (ANAF/UBL) : le code transport/format existe et fonctionne (§1, §3) mais aucun fichier
+  `b2g-routing/data/{es,nl,ro}.json` ne les active depuis le pivot 5-pays — voir la note du §3.2.
+
+> Le Mexique (CFDI/PAC), les États-Unis, Monaco et un profil "pays inconnu" générique que ce
+> document couvrait auparavant n'ont plus d'équivalent : il n'y a plus de repli générique par pays,
+> et aucun catalogue ne les couvre. Un pays vendeur hors des cinq ci-dessus n'est aujourd'hui pas
+> supporté par ce module.
 
 ---
 
 ## 10. VALIDATION & QUALITÉ
 
-- [x] Validateur EN16931 (`node-schematron`) + XSD (`xmllint-wasm`).
-- [x] XSD/Schematron : **FatturaPA + CFDI + Facturae 3.2.2 + Peppol BIS** vendorisés+câblés (cf. §1.4) ; FA(2) PL + EN16931 CII déjà. [ ] XSD autres formats nationaux.
-- [x] Gap `BR‑27` (allowances EN16931) **fermé** (cf. §1.4).
-- [x] Harnais de validation par format (XSD/Schematron via lib, docs construits par les vrais builders) : EN16931 CII + FA(2) + FatturaPA + CFDI + Peppol BIS couverts (positif + négatif).
+- [x] Schematron EN16931 + deltas nationaux vendorisés (`formats/vendored/{en16931,de,peppol,nl}/`),
+  câblés via `formats/vendored/validate-schematron.ts`.
+- [x] XSD FA(2) (PL) / FatturaPA (IT) / Facturae (ES), vendorisés et câblés dans leurs providers
+  respectifs (`formats/vendored/validate-xsd.ts`).
 
 ---
 
 ## 11. PREUVE LIVE & TESTS
 
-- [x] Round‑trips live : **KSeF** ✅, **PDP‑superpdp** ✅.
-- [x] Round‑trips live : **Email** (Ethereal SMTP, messageId réel) ✅ · **PDP‑AFNOR transport** (flowId i_90103) ✅.
-- [ ] Round‑trips live restants : PDP‑AFNOR contenu (ack=Error), SdI, KSeF prod, chaque portail national (creds). **Peppol ✅ prouvé** (peppol.sh sandbox, zéro secret, dans le nightly).
-- [x] Tests d'intégration mockés (filets) : PDP, KSeF, Email, SdI, Peppol, executor‑e2e. **635 tests verts.**
-- [x] Discipline « boot test » (l'app démarre, DI/routes OK).
-- [x] Tests gated `*_LIVE=1` par canal, assertions dures (pas de REJECTED/SKIPPED toléré) — `live-gate.ts` + 7 specs (KSeF✅/PDP✅/AFNOR✅/Email✅/SdI🔴/Peppol🔴/Portal🟡), tous skippés par défaut.
-- [x] CI : jest backend + cypress e2e (workflow « Tests »).
+- [x] Round-trips live prouvés : **KSeF**, **PDP**, **Peppol** (§3.1, dates ci-dessus).
+- [~] Harnais live prêts, preuve en attente de creds/accréditation : **SdI**, **Chorus Pro**,
+  **FACe**, **NAV**, **myDATA**, **AT (Portugal)**, **TSA**, **validation VAT**. Chaque spec
+  `*-live.spec.ts` / `*.live.spec.ts` sous `backend/src/modules/documents/` est self-gated via
+  `liveDescribe(FLAG, [ENV_VARS])` (`transports/live-gate.ts`) — voir `LIVE_TESTING.md` pour la
+  liste des variables requises par canal.
+- [x] Discipline « boot test » — l'app démarre, DI/routes OK (`cd backend && npm run build` =
+  `nest build`, jamais `tsc --noEmit` seul).
+- [x] CI : jest backend + queue-integration (Redis/Postgres réels) + Cypress e2e (workflow
+  « Tests ») — voir `CLAUDE.md`.
 
 ---
 
 ## 12. FRONTEND
 
-- [x] Réglages canaux par pays (cartes Connect/Edit, secrets masqués, erreurs surfacées, auto‑fill).
-- [x] Flow lifecycle (badges, available‑actions, pipeline, timeline).
-- [x] Affichage des **factures entrantes** — page `/received-invoices` (table date/n°/expéditeur/montant/canal/statut, détail, accept/reject, download raw) + entrée sidebar.
-- [x] Étiquette « disponible à partir du {date} » — badge ambre `availableFrom` futur dans channels.settings.
-- [x] Gestion des **certificats de signature** dans les réglages société (onglet « Signing certs » : upload PFX+mdp, sujet/expiry/statut, delete ; secrets write‑only).
-- [x] Action « rafraîchir le statut » — bouton dans la timeline compliance → `POST /compliance/documents/:id/refresh` (reconcile one‑off).
+- [x] Réglages canaux par pays (cartes Connect/Edit, secrets masqués, erreurs surfacées).
+- [x] Certificats de signature dans les réglages société (upload PFX+mot de passe, sujet/expiration/
+  statut).
+- [x] Statuts de document et actions disponibles pilotés par `descriptors/lifecycle.ts` (§0.1/§4).
+- [x] Page `/received-invoices` (§5).
 
 ---
 
 ## 13. INFRA / DÉPLOIEMENT
 
-- [x] `CREDENTIALS_ENCRYPTION_KEY` (générée localement, gitignored) ; PEM KSeF copiés au build (`**/*.pem`).
-- [x] `xmllint-wasm` + `maxWorkers:4` jest.
-- [x] Env : `COMPLIANCE_RECONCILE_HOURS` (défaut 12) — câblé au sweep périodique.
-- [ ] Env : PEM KSeF **prod**, clés/URL par défaut.
-- [x] Verrou cron multi‑instances — **lease table** `CronLock` (upsert atomique `ON CONFLICT … WHERE lockedUntil < NOW()`), TTL par tick, fail‑open ; enveloppe poll/timer/reconcile/reporting‑close. Migration `add_cron_lock`.
+- [x] `CREDENTIALS_ENCRYPTION_KEY` requise au boot (503 sinon).
+- [x] Clés publiques KSeF vendorisées sous `transports/ksef/certs/` (environnement de test).
+- [ ] Clés KSeF **production** — celles vendorisées aujourd'hui sont celles de l'environnement de
+  test du Ministère des Finances polonais.
 
 ---
 
 ## Ordre conseillé
-1. [x] **Lifecycle freshness** (§4 : boot + sweep 12h) — fait (reste : replay inbound + webhooks push par canal).
-2. [x] **Signature réelle** (§2) — XAdES/CAdES/PAdES réels + vérifiés offline (reste : store cert DB + TSA).
-3. [x] **PDP‑AFNOR transport prouvé** (flowId i_90103) ; [ ] validation contenu AFNOR + **Email réel** (§3.1).
-4. [ ] **SdI live** puis **Peppol live** (§3.2) — dès creds/AP.
-5. [x] **Entrant statuts** (§5) + **sendStatus** (§3.5) — boucle de statut complète (mockée). Reste : réception de factures fournisseurs + inbox SdI + durcissement webhook.
-6. [ ] **Reporting** (§6) + élargissement formats/portails nationaux (§1.3, §3.4) par marché.
+
+1. **SdI live** (IT) — accréditation AdE + PFX qualifié (§3.2, §8).
+2. **Chorus Pro / FACe live** — creds par autorité (§3.2).
+3. **AT Portugal** — accréditation (§6).
+4. **KSeF production** — clés MF de production (§13).
+5. Réactiver ES/NL/RO en B2G si le marché le justifie — déposer le fichier `b2g-routing/data/xx.json`
+   correspondant (§3.2, note) ; aucun code nouveau n'est nécessaire.
+6. Étendre `country-policy/` à un sixième pays vendeur au besoin (§0.1, §9) — même principe : un
+   fichier, pas un moteur.
 
 ---
 
-## 14. BLOCAGES & REPRISE (handoff)
+## 14. Historique — l'ancien moteur (pour archéologie)
 
-> **Tout le travail implémentable hors‑ligne est fait** (build back+front clean, **1330 tests verts**, boot OK,
-> tout poussé sur `feat/compliance-architecture`). Les **10 items `[ ]` restants sont TOUS bloqués sur du
-> externe** : credentials/accréditation autorité, endpoint live, ou XSD officiel introuvable hors‑ligne.
-> Aucun n'est faisable sans apport extérieur — ne pas les « simuler » (cf. leçon mock = fausse confiance).
->
-> **Pour reprendre depuis un nouveau Claude Code :** ce fichier est la source de vérité. Le harnais de preuve
-> live est prêt (`LIVE_TESTING.md`), gated par `<CANAL>_LIVE=1` + creds en env/`.env*` (gitignored). Fournir
-> les creds ci‑dessous puis lancer le spec live correspondant ; il **échoue dur** sur REJECTED/SKIPPED.
-> (Le §5 réception avait été fait en double avec la session concurrente ; ma version est sauvegardée dans un
-> ref local `backup-local-receiving-*` — non nécessaire, la version distante a été retenue.)
+Les sections ci-dessus décrivent l'état du dépôt après le commit `fffbae77` (suppression du moteur
+de conformité, 2026-08-29) et le pivot 5-pays (commit `b68685e5`, 2026-09-10). Les versions
+antérieures de ce document décrivaient un moteur complet (`ComplianceExecutor`, `ComplianceModule`,
+un `CountryComplianceProfile` par pays, ~106 juridictions câblées, ~90 formats/portails nationaux
+pour la longue traîne, un runtime de cycle de vie événementiel avec pollers/timers/inbox) qui
+n'existe plus dans ce dépôt.
 
-### Ce qu'il faut fournir, item par item
-
-| # | Item (§) | Blocage exact | Requis pour débloquer | Action + env quand dispo |
-|---|---|---|---|---|
-| 1 | **CFDI timbrado** (§1.2/§52, MX) | Pas de compte PAC ni de CSD | **Compte PAC** (provider certifié SAT) + **CSD** (`.cer`/`.key` SAT + mot de passe) + URL/clé API PAC | Implémenter l'appel timbrado → `UUID`/`TimbreFiscalDigital` + sceau CSD ; câbler au provider `pac` (configSchema déjà là) |
-| 2 | **XSD nationaux restants** (§1.4/§70) | ~~Facturae XSD 404~~ → **✅ résolu** (facturae.gob.es accessible, 2026-07-04) | XSD/Schematron des autres formats nationaux (KSA, CFDI complet, etc.) | Vendoriser sous `backend/.../schemas/` + câbler `xmllint-wasm`/`node-schematron` |
-| 3 | **PDP API Annuaire** (§3.1/§94, FR) | Pas d'accès live à l'annuaire AFNOR/PDP | **Mêmes creds PDP** (`PDP_BASE_URL`/`PDP_CLIENT_ID`/`PDP_CLIENT_SECRET`) + endpoint annuaire actif | Le lookup (`afnor-directory-lookup.ts` + `CachedBuyerDirectory`) existe ; brancher l'appel réel pour résoudre `buyerEndpointId` |
-| 4 | **SdI transport live** (§3.2/§100, IT) | Pas d'accréditation ni de cert | **Accréditation intermédiaire AdE** + **PFX qualifié** (SDICoop SOAP / SFTP) | `SDI_LIVE=1` + `SDI_ID_TRASMITTENTE`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD` ; signature **CAdES .p7m déjà faite** (§2) |
-| 5 | **Peppol live** (§3.2/§102) | Pas d'Access Point connecté | **Access Point Peppol** hébergé (participant ID, URL AP, clé API) + **cert AP** | `PEPPOL_LIVE=1` + `PEPPOL_PARTICIPANT_ID`/`PEPPOL_AP_URL`/`PEPPOL_API_KEY`/`PEPPOL_RECEIVER_ID` ; câbler MLR/Invoice Response → lifecycle |
-| 6 | **Portails nationaux — auth réelle** (§3.4/§112) | Scaffolds mockés, pas de creds par autorité | **Creds par pays** (afip/sefaz/sii/dian/zatca/anaf/myinvois/in‑irp… : clé API, cert, taxpayer ID, OAuth) | `PORTAL_LIVE=1` + `PORTAL_ID=<id>` + `PORTAL_*` (api/clé/cert/IDs) — spec live paramétré prêt |
-| 7 | **`poll()` réel pour tous les ASYNC_POLL** (§3.5/§126) | Endpoints live indisponibles | Creds live des canaux concernés (cf. lignes 4‑6) | Structurellement présent ; le poll réel s'active avec les creds par canal |
-| 8 | **Certificats canal** (§8/§187) | Certs non fournis | **PFX qualifié SdI** + **cert AP Peppol** (KSeF token ✅ / PDP OAuth ✅ déjà ok) | Charger via le store cert chiffré (UI « Signing certs » / config canal) |
-| 9 | **Round‑trips live restants** (§11/§219) | Creds + (AFNOR) contenu | **PDP‑AFNOR** : transport prouvé (`flowId i_90103`) mais **ack=Error** → itérer le **payload AFNOR** contre le live (creds PDP + spec Flux) ; SdI/Peppol/KSeF prod/portails : creds | Lancer le `*_LIVE` du canal ; pour AFNOR : `PDP_AFNOR_LIVE=1` + corriger le mapping jusqu'à `ack=OK` |
-| 10 | **KSeF prod** (§13/§243) | Clés MF prod absentes | **PEM publics MF KSeF prod** + URLs prod | Vendoriser `certs/ksef/prod/*.pem` + `KSEF_*` prod ; `KSEF_LIVE=1` sur l'env prod |
-
-### Ce que l'absence de creds coûte, mesuré à l'écran (2026-08-29)
-
-Relevé par `e2e/cypress/e2e/22-country-flow-ui.cy.ts`, sur la même fixture dans quatre pays :
-
-| Pays | Canal | Statut après envoi | Ce que l'écran offre |
-| --- | --- | --- | --- |
-| FR | e-mail | `DELIVERED` | correction, avoir, facture corrective, annulation — **pas** de modification |
-| US | e-mail | `DELIVERED` | idem **+ modification** (rien n'y gèle la facture) |
-| IT | SdI | `ISSUED` (en file, rien n'acquittera) | rien à corriger |
-| MX | PAC | `TRANSMISSION_FAILED` | bannière d'échec + bouton de réessai |
-
-Conséquence directe : **le parcours de correction italien et mexicain ne peut pas être démontré de
-bout en bout aujourd'hui**, non parce que leurs profils sont incomplets — ils déclarent bien leurs
-voies — mais parce que le document ne part jamais. Les deux échouent différemment, et c'est le
-canal qui fait la différence, pas les documents.
-
-Le test 03 de la spec 22 est écrit comme un **canari** : il échouera le jour où les creds
-existeront. C'est à ce moment-là qu'il faudra écrire les démonstrations complètes IT et MX.
-
-### Récap creds à demander à l'utilisateur (par priorité marché FR/PL/IT)
-- **FR** : creds PDP (annuaire + AFNOR contenu) — *le plus proche d'être bouclé* (transport déjà prouvé).
-- **PL** : clés MF **KSeF prod** (test déjà prouvé).
-- **IT** : accréditation **AdE** + **PFX qualifié** (SdI).
-- **Transverse** : Access Point **Peppol** ; **PAC + CSD** (MX) ; XSD officiels (Facturae ✅ ; autres formats nationaux).
+Pour consulter ce code : `git show avant-refonte-documents:backend/src/compliance/...`. L'inventaire
+détaillé de ce qui a été supprimé et pourquoi est dans
+`documentation/internal/audit/12-SUPPRESSION.md` (établi le 2026-08-28, la veille de la
+suppression) ; il ne décrit pas l'état courant, seulement la décision de suppression elle-même.
