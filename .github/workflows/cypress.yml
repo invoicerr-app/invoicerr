@@ -63,8 +63,10 @@ jobs:
         # bundles no browser and downloads nothing on install, so there is no multi-hundred-MB fetch
         # to skip here any more. `render-pdf.spec.ts` does exercise the module in this job, but only
         # against its jest manual mock (src/__mocks__/playwright-core.ts) — no real Chromium is ever
-        # launched here. The cypress job deliberately installs the same way — it's the one that
-        # really renders, against the base image's real Chromium.
+        # launched here, so unlike `cypress-run` below, this job needs no browser-provisioning step of
+        # its own. `cypress-run` (and `scenarios.yml`'s job) DO render real PDFs — the e2e/scenario
+        # specs actually send a document — and provision a matched Chromium explicitly
+        # (`npx playwright-core install chromium`) before booting the backend; see that job's own step.
         run: cd backend && npm ci
 
       - name: Generate Prisma client
@@ -121,8 +123,10 @@ jobs:
         # bundles no browser and downloads nothing on install, so there is no multi-hundred-MB fetch
         # to skip here any more. `render-pdf.spec.ts` does exercise the module in this job, but only
         # against its jest manual mock (src/__mocks__/playwright-core.ts) — no real Chromium is ever
-        # launched here. The cypress job deliberately installs the same way — it's the one that
-        # really renders, against the base image's real Chromium.
+        # launched here, so unlike `cypress-run` below, this job needs no browser-provisioning step of
+        # its own. `cypress-run` (and `scenarios.yml`'s job) DO render real PDFs — the e2e/scenario
+        # specs actually send a document — and provision a matched Chromium explicitly
+        # (`npx playwright-core install chromium`) before booting the backend; see that job's own step.
         run: cd backend && npm ci
 
       - name: Generate Prisma client
@@ -236,6 +240,30 @@ jobs:
           # everything for a country with no rows). `npm run start:test` doesn't call
           # syncDatabaseSchema() either (production-only, see main.ts), so nothing else seeds it here.
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
+
+      # This job renders REAL PDFs (documents.controller -> render-instance-pdf -> render-pdf.ts),
+      # exercised by the e2e specs that send a document — e.g. 23-document-email.cy.ts. Unlike the
+      # Docker image, this runner has no browser baked in by us, and depending on it to already have
+      # one is not a guarantee: `actions/runner-images` documents that `ubuntu-latest` currently ships
+      # Google Chrome and Chromium but names no install path for either, so the `/usr/bin/google-chrome*`
+      # entries render-pdf.ts falls back to work today by Debian packaging convention only, not by any
+      # contract this workflow controls, and `chromium` itself is commonly a snap on newer Ubuntu (not
+      # at `/usr/bin/chromium` at all). Provisioning playwright-core's own matched Chromium here makes
+      # this deterministic instead of lucky — render-pdf.ts's own resolution chain then picks it up via
+      # `chromium.executablePath()` with no env var needed (see that file's own comment for why that
+      # rule exists and why it is checked before the conventional system paths).
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        # `install chromium` only — NOT `--with-deps`, which asks for sudo and apt-installs system
+        # libraries this runner already ships. If a real shared-library gap ever surfaces here, the
+        # browser launch fails with a distinct missing-library error and THAT is the signal to add
+        # `--with-deps`, rather than paying its cost on every run pre-emptively.
+        run: cd backend && npx playwright-core install chromium
 
       - name: Install frontend dependencies
         run: |

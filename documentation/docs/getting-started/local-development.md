@@ -28,6 +28,11 @@ sidebar_position: 3
    npm run start
    ```
 
+   PDF generation (invoices, quotes, receipts, credit notes) needs a Chromium/Chrome binary. Outside
+   the Docker image nothing provides one automatically, so run `npx playwright-core install chromium`
+   once to fetch a matching build — or point `CHROMIUM_EXECUTABLE_PATH` at a browser you already have
+   (see `backend/.env.example`).
+
 3. Frontend setup, in a new terminal:
 
    ```bash

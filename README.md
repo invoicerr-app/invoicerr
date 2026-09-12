@@ -197,6 +197,10 @@ Make sure port 80 is available on your host machine, or change the mapping.
    npx prisma generate
    npm run start
    ```
+   PDF generation (invoices, quotes, receipts, credit notes) needs a Chromium/Chrome binary; outside
+   the Docker image nothing provides one automatically, so run `npx playwright-core install chromium`
+   once to fetch a matching build (see `.env.example`'s `CHROMIUM_EXECUTABLE_PATH` for other ways to
+   point at one).
 
 3. Frontend setup (in a new terminal):  
    ```bash

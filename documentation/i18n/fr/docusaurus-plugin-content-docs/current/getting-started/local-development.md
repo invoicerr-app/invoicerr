@@ -28,6 +28,11 @@ sidebar_position: 3
    npm run start
    ```
 
+   La génération de PDF (factures, devis, reçus, avoirs) a besoin d'un binaire Chromium/Chrome. En
+   dehors de l'image Docker, rien ne le fournit automatiquement : lancez une fois
+   `npx playwright-core install chromium` pour récupérer une version compatible, ou pointez
+   `CHROMIUM_EXECUTABLE_PATH` vers un navigateur déjà présent (voir `backend/.env.example`).
+
 3. Configuration du frontend, dans un nouveau terminal :
 
    ```bash

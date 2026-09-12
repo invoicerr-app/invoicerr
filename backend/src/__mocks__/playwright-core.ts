@@ -94,6 +94,16 @@ function createBrowser(connected = true): MockBrowser {
 
 export const chromium = {
   launch: jest.fn().mockImplementation(async () => createBrowser(true)),
+  // Real `playwright-core` does NOT throw here when it has no managed browser to report (the common
+  // case in this test run — nothing under this repo's jest install ever runs `playwright-core
+  // install`) — measured directly, see `resolvePlaywrightManagedExecutablePath`'s own header in
+  // `render-pdf.ts`. It instead returns a COMPUTED path for a browser that was never downloaded, so
+  // the default here returns a path that does not exist on disk, matching that real mechanism and
+  // exercising the same "no match, fall through" behaviour the guard in `render-pdf.ts` is written to
+  // handle via `existsSync()`. A spec that needs the OTHER branch (an existing path, or a throw) calls
+  // `chromium.executablePath.mockReturnValue(...)` (or `.mockImplementation(...)`) itself, same as it
+  // would for `launch`.
+  executablePath: jest.fn().mockReturnValue('/mock/does-not-exist/chromium-1243/chrome-linux64/chrome'),
 };
 
 /**

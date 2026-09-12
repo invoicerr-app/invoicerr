@@ -187,6 +187,62 @@ describe('renderPdf', () => {
       expect(thrown).toBeDefined();
       expect(thrown?.message).toContain('CHROMIUM_EXECUTABLE_PATH');
       expect(thrown?.message).toContain('PUPPETEER_EXECUTABLE_PATH');
+      // The regression this whole file exists to close: outside Docker, neither env var nor a system
+      // package is a given, so the error must also name the one command that actually gets someone
+      // unstuck — installing playwright-core's own matched browser.
+      expect(thrown?.message).toContain('playwright-core install chromium');
+    });
+
+    it("consults playwright-core's own browser store (chromium.executablePath()) when both env vars are unset, no conventional system path exists, and the reported path actually exists on disk", async () => {
+      delete process.env.CHROMIUM_EXECUTABLE_PATH;
+      const managedPath = '/mock/ms-playwright/chromium-1243/chrome-linux64/chrome';
+      // Only the managed path "exists" — conventional paths must still miss, so this spec proves the
+      // managed-browser rule is what matched, not an accidental fall-through.
+      jest.spyOn(fs, 'existsSync').mockImplementation((candidate) => candidate === managedPath);
+      const { renderPdf, chromium } = load();
+      chromium.executablePath.mockReturnValue(managedPath);
+
+      await renderPdf('<html></html>');
+
+      expect(chromium.launch).toHaveBeenCalledWith(expect.objectContaining({ executablePath: managedPath }));
+    });
+
+    it('ignores chromium.executablePath() when it returns a path that does not exist on disk, and falls through to a conventional system path instead — the regression this existence check exists to prevent', async () => {
+      // Real `playwright-core` computes and returns this kind of path unconditionally, whether or not
+      // `npx playwright-core install chromium` was ever run — it does NOT throw for "not installed"
+      // (see `resolvePlaywrightManagedExecutablePath`'s header in `render-pdf.ts`, and the manual
+      // mock's default, which already returns exactly this shape of never-installed path). A host with
+      // a system Chrome but no playwright-core install must still resolve to that system browser
+      // instead of trying to launch a file that was never downloaded.
+      delete process.env.CHROMIUM_EXECUTABLE_PATH;
+      jest
+        .spyOn(fs, 'existsSync')
+        .mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
+      const { renderPdf, chromium } = load();
+      chromium.executablePath.mockReturnValue('/mock/ms-playwright/chromium-1243/chrome-linux64/chrome');
+
+      await renderPdf('<html></html>');
+
+      expect(chromium.launch).toHaveBeenCalledWith(
+        expect.objectContaining({ executablePath: '/usr/bin/chromium-browser' }),
+      );
+    });
+
+    it('treats a throwing chromium.executablePath() as "no match" and falls through to the conventional system paths, rather than propagating — a secondary possibility, kept handled even though the common "not installed" case is the non-existent-path one above', async () => {
+      delete process.env.CHROMIUM_EXECUTABLE_PATH;
+      jest
+        .spyOn(fs, 'existsSync')
+        .mockImplementation((candidate) => candidate === '/usr/bin/chromium-browser');
+      const { renderPdf, chromium } = load();
+      chromium.executablePath.mockImplementation(() => {
+        throw new Error("Executable doesn't exist");
+      });
+
+      await renderPdf('<html></html>');
+
+      expect(chromium.launch).toHaveBeenCalledWith(
+        expect.objectContaining({ executablePath: '/usr/bin/chromium-browser' }),
+      );
     });
   });
 });

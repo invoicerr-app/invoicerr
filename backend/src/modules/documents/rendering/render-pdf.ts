@@ -68,7 +68,10 @@ const CONVENTIONAL_CHROMIUM_PATHS = [
  *     engine (`Dockerfile` used to export exactly this var). Dropping this branch on an engine swap
  *     would silently break their PDFs on the next image pull, with no diagnostic pointing at why —
  *     so it keeps being honoured for as long as puppeteer's name might still appear in someone's env.
- *  3. The conventional system paths above.
+ *  3. Playwright's own browser store (`chromium.executablePath()`) — see
+ *     `resolvePlaywrightManagedExecutablePath` below for why this rule exists and why it runs BEFORE
+ *     the conventional system paths, not after.
+ *  4. The conventional system paths above.
  */
 function resolveChromiumExecutablePath(): string {
   const explicit = process.env.CHROMIUM_EXECUTABLE_PATH;
@@ -90,6 +93,15 @@ function resolveChromiumExecutablePath(): string {
     return legacy;
   }
 
+  const managed = resolvePlaywrightManagedExecutablePath();
+  if (managed) {
+    logger.debug("Chromium resolved via playwright-core's own browser store", {
+      category: 'documents',
+      details: { path: managed },
+    });
+    return managed;
+  }
+
   for (const candidate of CONVENTIONAL_CHROMIUM_PATHS) {
     if (existsSync(candidate)) {
       logger.debug('Chromium resolved via conventional system path', {
@@ -102,9 +114,55 @@ function resolveChromiumExecutablePath(): string {
 
   throw new Error(
     'PDF renderer unavailable: no Chromium executable found. Set CHROMIUM_EXECUTABLE_PATH (or the ' +
-      'legacy PUPPETEER_EXECUTABLE_PATH) to a Chromium/Chrome binary, or install one at one of the ' +
-      `conventional paths (${CONVENTIONAL_CHROMIUM_PATHS.join(', ')}).`,
+      'legacy PUPPETEER_EXECUTABLE_PATH) to a Chromium/Chrome binary, run ' +
+      '`npx playwright-core install chromium` to provision one playwright-core already knows how to ' +
+      `find, or install a system browser at one of the conventional paths ` +
+      `(${CONVENTIONAL_CHROMIUM_PATHS.join(', ')}).`,
   );
+}
+
+/**
+ * Asks `playwright-core` itself where its own managed Chromium lives — the browser a maintainer or a
+ * self-hoster gets by running `npx playwright-core install chromium`, downloaded into
+ * `~/.cache/ms-playwright` (or wherever `PLAYWRIGHT_BROWSERS_PATH` relocates that store; honouring
+ * that env var is exactly what makes this one rule cover a whole family of setups — a custom cache
+ * dir, a CI-restored cache, a container image that pre-fetched browsers — that no number of hard-coded
+ * paths below could enumerate). This exists because outside the Docker image (which bakes in a system
+ * Chromium and sets `CHROMIUM_EXECUTABLE_PATH` itself, see the Dockerfile) there is no browser at all
+ * unless something puts one there: unlike the `puppeteer` this module replaced, `playwright-core`
+ * downloads nothing on `npm install`, and a bare-metal/dev checkout has neither env var set nor
+ * necessarily a `/usr/bin/chromium`.
+ *
+ * Placed BEFORE the conventional system-path checks, not after: `chromium.executablePath()` names the
+ * exact revision this installed `playwright-core` version was built and tested against, so launching
+ * it can never hit the protocol-version mismatch that launching an arbitrary system browser through a
+ * raw `executablePath` risks (see this module's own header on why `playwright-core` is pinned in the
+ * first place). A system browser is checked only once this more-precise, version-matched answer has
+ * come up empty.
+ *
+ * `executablePath()` does NOT throw when no browser was ever downloaded — measured directly: with
+ * `PLAYWRIGHT_BROWSERS_PATH` pointed at an empty directory, it still returns a fully-formed path for
+ * the revision this installed `playwright-core` version expects (e.g.
+ * `.../chromium-1243/chrome-linux64/chrome`), and that file does not exist on disk. It computes the
+ * path from its own bundled revision metadata unconditionally, whether or not
+ * `npx playwright-core install chromium` was ever run — so THIS function has to check `existsSync()`
+ * on whatever comes back before trusting it, treating a merely-computed-but-absent path as "this rule
+ * didn't match" exactly like the conventional paths below reporting `existsSync() === false` rather
+ * than the caller crashing on a missing file. That check is what actually keeps the fall-through to a
+ * system browser working — without it, this rule would "win" with a dead path on any host that has a
+ * system Chrome but has never run the playwright-core install step, and the caller would try to launch
+ * a file that isn't there instead of ever reaching the conventional paths below. A throw is a second,
+ * narrower possibility (e.g. a `PLAYWRIGHT_BROWSERS_PATH` value it cannot even parse) — kept handled by
+ * the `try`/`catch` below, but it is not the common "not installed" case. Either way — non-existent
+ * computed path, or a throw — the remaining rules keep running.
+ */
+function resolvePlaywrightManagedExecutablePath(): string | null {
+  try {
+    const managedPath = chromium.executablePath();
+    return existsSync(managedPath) ? managedPath : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

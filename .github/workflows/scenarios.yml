@@ -64,6 +64,22 @@ jobs:
           # 403s for the whole scenario.
           DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" npx prisma db seed
 
+      # See the same step in cypress.yml's `cypress-run` job: `full-lifecycle.cy.ts` sends real
+      # documents, so this job renders real PDFs and needs a real Chromium — `ubuntu-latest` shipping
+      # Google Chrome/Chromium is not a guaranteed install path (`actions/runner-images` documents no
+      # path for either, and `chromium` is commonly a snap on newer Ubuntu), so this provisions
+      # playwright-core's own matched browser explicitly rather than relying on that convention holding.
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        # `install chromium` only — NOT `--with-deps` (sudo + apt system libraries this runner already
+        # has); see cypress.yml's own step for why.
+        run: cd backend && npx playwright-core install chromium
+
       - name: Install frontend dependencies
         run: |
           cd frontend
