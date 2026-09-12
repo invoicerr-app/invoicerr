@@ -242,9 +242,17 @@ prouvé par des specs dédiées (hors périmètre de ce document, non reproduit 
 - Rendu PDF par template Handlebars/HTML **édité en code brut** dans
   `settings/_components/pdf.settings.tsx` (éditeur texte + prévisualisation), pas de galerie de
   thèmes ni d'éditeur WYSIWYG — e2e `19-document-pdf`.
-- Templates email par type de document + par défaut plateforme
-  (`actions/email-template.ts`, `actions/company-email-templates.ts`) — écran
-  `settings/_components/templates.settings.tsx`.
+- Gabarits e-mail : UN SEUL moteur pour tout ce que le back envoie (`actions/email-template.ts`) —
+  jetons `{placeholder}` à accolade simple, un jeton inconnu laissé verbatim et SIGNALÉ plutôt que
+  levé (un e-mail ne doit jamais être bloqué par une faute de frappe), une partie HTML et une partie
+  texte (dérivée du HTML quand le gabarit n'en fournit pas, liens compris). Trois niveaux : défaut du
+  descripteur par type, surcharge par entreprise (`Company.documentEmailTemplates`, écrite par
+  `actions/company-email-templates.ts`), repli générique. Les deux e-mails SYSTÈME (demande de
+  signature, code de vérification) partagent ce moteur depuis l'unification ; leur table ne garde que
+  ces deux familles. Le HTML stocké est assaini à l'ÉCRITURE (`mail/sanitize-email-html.ts`), les
+  valeurs interpolées échappées au rendu. Écran unique `settings/_components/templates.settings.tsx`
+  (variables offertes par l'API, dérivées par type — jamais une liste en dur ; écriture réservée
+  OWNER/ADMIN). **Aucun spec e2e ne couvre cet écran.**
 - i18n : UI entièrement `t()`-isée, gérée par Weblate, `npm run i18n:check` en CI ; les libellés de
   descripteurs de documents suivent le même mécanisme avec repli sur le texte brut
   (`descriptor-i18n`, e2e `38-descriptor-i18n`). **Pas de langue de document par client** (le
