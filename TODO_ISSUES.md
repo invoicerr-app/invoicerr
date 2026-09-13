@@ -74,8 +74,16 @@ Or l'autoliquidation domestique existe bel et bien, établie sur les textes brut
 - **Pologne** — ustawa o VAT art. 106e ust. 1 pkt 18 vise toute livraison ou prestation « dla których
   obowiązanym do rozliczenia podatku […] jest nabywca towaru lub usługi », sans restriction au
   transfrontalier, et impose les mots « odwrotne obciążenie ».
-- **Italie** — le régime domestique relève de l'art. 17 du DPR 633/1972, qui n'a PAS été lu : à
-  établir avant tout encodage.
+- **Italie** — DPR 633/1972 art. 17. Le cinquième comma pose la forme : « La fattura, emessa dal
+  cedente senza addebito d'imposta, con l'osservanza delle disposizioni di cui agli articoli 21 e
+  seguenti e con l'annotazione "inversione contabile" e l'eventuale indicazione della norma di cui
+  al presente comma, deve essere integrata dal cessionario […] ». Le sixième l'étend : « Le
+  disposizioni di cui al quinto comma si applicano anche: a) alle prestazioni di servizi […] rese
+  nel settore edile da soggetti subappaltatori nei confronti delle imprese che svolgono l'attività
+  di costruzione o ristrutturazione di immobili […]; a-ter) alle prestazioni di servizi di pulizia,
+  di demolizione, di installazione di impianti e di completamento relative ad edifici; […] » — plus
+  les cessions de bâtiments avec option, les consortiums, la logistique et les terminaux
+  radiomobiles. La sous-traitance du bâtiment est donc nommément visée.
 
 Conséquence : une facture de sous-traitance du bâtiment entre deux entreprises du même pays — un cas
 courant, pas un cas limite — sort avec le taux que l'utilisateur a choisi à la main et **sans aucune
