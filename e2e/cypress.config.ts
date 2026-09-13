@@ -71,8 +71,14 @@ export default defineConfig({
   // `scenarios.yml` both pass `--browser firefox`. Measured 2026-09-12: 18-onboarding-wizard,
   // 25-document-settlement and 29-document-recurrence crash the Electron renderer even when each
   // is run ALONE in a fresh process, and all four of the specs that were red under Electron pass
-  // on Firefox 154 with zero renderer crashes. Electron stays the default for a bare local
-  // `cypress run`; pass `--browser firefox` to reproduce what CI does.
+  // on Firefox 154 with zero renderer crashes.
+  //
+  // `npm run e2e:run` therefore passes `--browser firefox` itself. It used to leave Electron as the
+  // default, which meant the one command a developer actually types could never go green: measured
+  // 2026-09-13, a full 48-spec battery on Electron lost 14-articles, 18-onboarding-wizard,
+  // 25-document-settlement and 29-document-recurrence to renderer crashes -- the exact four named
+  // above -- while the same specs pass on Firefox. A default that cannot be green teaches people to
+  // ignore the suite. Pass `--browser electron` explicitly if you want to reproduce the crash.
   e2e: {
     video: true,
     baseUrl: process.env.FRONTEND_URL || "http://localhost:6284",
