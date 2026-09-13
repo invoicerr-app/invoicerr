@@ -39,6 +39,11 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   backend** : 404 constaté sur la pile qui tourne, là où `/api/company/info` rend 401. En outre
   `PDFConfigDto` (police, logo, couleurs, marges, ~20 libellés) est un champ **requis** de
   `EditCompanyDto`, déstructuré puis jeté sans être relu, sans colonne correspondante en base.
+  Pourquoi personne ne l'a vu : **aucune spec e2e ne touche cet onglet**. Un `grep` sur les 53
+  fichiers de `e2e/cypress/` ne trouve ni `pdf-template`, ni `PDFTemplates`, ni `tab=template`. La
+  batterie couvre les flux (devis, facture, relances) et les autres onglets de réglages, pas
+  celui-ci. C'est la même leçon que la restauration de `full-lifecycle.cy.ts`, qui avait révélé trois
+  défauts produit invisibles aux tests unitaires : ce qu'aucun écran ne traverse n'est pas vérifié.
 
 - **Une facture italienne B2B domestique part avec le code destinataire des étrangers.**
   `formats/national/fatturapa-provider.ts` ~206-236 route sur trois identifiants du client :
