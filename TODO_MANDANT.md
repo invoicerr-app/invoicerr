@@ -34,20 +34,24 @@ mode 600) : ils n'ont transité par aucun log ni par aucune conversation. Le com
 
 Ces trois cases ne valent **que pour cette instance-là**. Un autre déploiement repart de zéro.
 
+- [x] Compte propriétaire créé sur l'instance — l'inscription du premier utilisateur est refermée.
+- [ ] **Courriel sortant** : la clé SMTP Brevo de l'ancien déploiement `invoicerr-pr-363` était en
+      clair dans son compose et doit être considérée comme compromise. Bascule vers Resend envisagée ;
+      d'ici là, aucun envoi n'est configuré sur la nouvelle instance (pas d'invitation, pas de
+      relance). Dis-moi quand tu tranches, le câblage du fournisseur est un chantier à moi.
+
 ---
 
-## 2. Des décisions — gratuites, immédiates, et ce sont elles qui débloquent le plus
+## 2. Décisions — TRANCHÉES le 2026-09-13
 
-- [ ] **M'autoriser explicitement à jouer `prisma db push` sur une base legacy.** C'est le plus
-      important de cette page et ça ne coûte rien. Les installs auto-hébergées ont tourné sous
-      `db push` jusqu'à v1.4.4a ; `sync-schema.ts` est censé les remettre à niveau au démarrage, et
-      **ce chemin n'a jamais été prouvé**. Prisma refuse cette commande quand c'est un agent qui
-      l'invoque, et je ne contourne pas ce refus. Sans ton feu vert, chaque release fait courir aux
-      installs existantes un risque que personne n'a mesuré.
-- [ ] **Go / no-go sur un transport PEC italien.** L'accréditation SdI t'est fermée (elle exige une
-      Partita IVA inscrite sur Entratel). La voie PEC, elle, n'exige **aucune accréditation** — et il
-      n'existe aucun transport PEC dans le code. L'écrire ne demande aucun credential ; le prouver
-      demande une boîte PEC italienne, ce qui engage de l'argent. Donc : à toi.
+- [x] **`prisma db push` sur une base legacy : FEU VERT.** Le chemin de mise à niveau de toutes les
+      installs auto-hébergées (`sync-schema.ts`, qui ramène une base d'avant v1.4.4a au schéma figé
+      puis rejoue les migrations) n'avait jamais été prouvé. Il va l'être, sur une base jetable —
+      jamais sur des données réelles.
+- [x] **Transport PEC italien : GO.** L'accréditation SdI reste fermée (Partita IVA sur Entratel),
+      mais la voie PEC n'en exige aucune, et aucun transport PEC n'existe dans le code. L'écrire ne
+      demande aucun credential ; le prouver en réel demandera une boîte PEC italienne, ce qui engage
+      de l'argent et reste à ta main.
 
 ---
 
