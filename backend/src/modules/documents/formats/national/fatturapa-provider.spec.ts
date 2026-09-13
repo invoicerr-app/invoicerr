@@ -8,6 +8,8 @@
  */
 import { create } from 'xmlbuilder2';
 
+import { ALL_COUNTRY_IDENTIFIER_FILES } from '@/modules/documents/country-identifiers/data/all';
+
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { DocumentFormatParty } from '../format-provider';
@@ -280,6 +282,53 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
       const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, BUYER);
       const xml = new TextDecoder().decode(result.bytes);
       expect(xml).toContain('<Descrizione>Consulenza strategica</Descrizione>');
+    });
+  });
+
+  // ── The routing is only as good as the data it is given ────────────────────────────────────────
+  // The routing below has always been correct: the tests above prove `IT_SDI`/`PEC`/`IT_PA_CODE` are
+  // read and routed properly once present on a `DocumentFormatParty`. What was missing sat one layer
+  // up. `client-upsert.tsx` renders ONE `<Input>` per scheme `country-identifiers/data/it.json`
+  // declares for the party's country, and that file long declared only `VAT`/`LEGAL_ID` — so no
+  // screen could ever put an `IT_SDI` (or `IT_PA_CODE`, or `PEC`) on a real client record, and a
+  // genuinely domestic Italian B2B client fell through EVERY branch to the last one:
+  // `CodiceDestinatario: 'XXXXXXX'`, the placeholder this same specification reserves for "soggetti
+  // non residenti, non stabiliti, non identificati in Italia" (quoted in full in this provider's own
+  // header). A domestic recipient was announced to SdI as a foreign one.
+  //
+  // Both halves are pinned here, because either alone would let it regress: the catalog declares the
+  // schemes (without which the form cannot collect them), and a collected value still routes.
+  describe('Italian recipient codes are declared by the catalog, and route once collected', () => {
+    it('country-identifiers/data/it.json declares IT_SDI, IT_PA_CODE and PEC — without which client-upsert.tsx renders no field for them at all', () => {
+      const itFile = ALL_COUNTRY_IDENTIFIER_FILES.find((f) => f.countryCode === 'IT');
+      expect(itFile).toBeDefined();
+      const schemes = (itFile?.schemes ?? []).map((s) => s.scheme);
+      expect(schemes).toContain('IT_SDI');
+      expect(schemes).toContain('IT_PA_CODE');
+      expect(schemes).toContain('PEC');
+    });
+
+    it('a domestic Italian B2B client carrying the now-collectable IT_SDI identifier produces FormatoTrasmissione = FPR12 and that code as CodiceDestinatario — NEVER XXXXXXX (the foreign-recipient placeholder)', async () => {
+      const domesticBuyer: DocumentFormatParty = {
+        ...BUYER,
+        country: 'Italy',
+        partyIdentifiers: [
+          { scheme: 'VAT', value: 'IT98765432109' },
+          { scheme: 'IT_SDI', value: 'ABCDEFG' },
+        ],
+      };
+      const result = await fatturapaFormatProvider.build(
+        descriptor,
+        document(VALID_DATA),
+        SELLER,
+        domesticBuyer,
+      );
+      const xml = new TextDecoder().decode(result.bytes);
+
+      expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPR12');
+      expect(extractTag(xml, 'CodiceDestinatario')).toBe('ABCDEFG');
+      expect(extractTag(xml, 'CodiceDestinatario')).not.toBe('XXXXXXX');
+      expect(result.validation.valid).toBe(true);
     });
   });
 });

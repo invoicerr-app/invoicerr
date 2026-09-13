@@ -84,13 +84,67 @@ describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files',
     expect(fr).not.toEqual(de);
   });
 
-  it('every `scheme` used by a shipped file is one of the two the frontend actually special-cases ("LEGAL_ID", "VAT") — a third scheme would silently render with no dedicated data-cy', () => {
-    const knownSchemes = new Set(['LEGAL_ID', 'VAT']);
+  // Widened 2026-09-13 (IT_PA_CODE/IT_SDI/PEC, see it.json's own file-level `notes` for the full
+  // reversal): this guard used to allow ONLY "LEGAL_ID"/"VAT", on the theory that a third scheme name
+  // "would silently render with no dedicated data-cy". Re-reading `client-upsert.tsx` and
+  // `company.settings.tsx` before widening this set showed that theory was wrong for the form this
+  // catalog actually exists to feed — `client-upsert.tsx` renders `data-cy={`client-identifier-${req.scheme}`}`
+  // generically off WHATEVER scheme this catalog declares, no allowlist at all, so a new scheme gets a
+  // working, targetable field for free. `company.settings.tsx` (seller's own identifiers) also renders
+  // every scheme generically; only its OWN convenience data-cy naming special-cases LEGAL_ID/VAT — a
+  // third scheme still renders there, just without that one dedicated e2e hook, which is a testability
+  // nicety, not a functional gap. This guard now exists to keep a scheme name from being introduced
+  // ACCIDENTALLY (a typo, a copy-paste of another country's scheme under a new name) — every legitimate
+  // scheme must be added here explicitly, with the fact that names it.
+  it("every `scheme` used by a shipped file is one this test explicitly names as legitimate — a typo'd or accidental new scheme name goes red here, not silently", () => {
+    const knownSchemes = new Set(['LEGAL_ID', 'VAT', 'IT_PA_CODE', 'IT_SDI', 'PEC']);
     for (const file of ALL_COUNTRY_IDENTIFIER_FILES) {
       for (const fact of file.schemes) {
         expect(knownSchemes.has(fact.scheme)).toBe(true);
       }
     }
+  });
+
+  it('IT declares three additional identifiers — IT_PA_CODE (Codice Univoco Ufficio, PA-only, 6 chars), IT_SDI (Codice Destinatario, 7 chars) and PEC — none required, all sourced to the FatturaPA Specifiche tecniche v1.3.2 par. 1.1', () => {
+    const it = fileFor('IT');
+
+    const paCode = it.schemes.find((s) => s.scheme === 'IT_PA_CODE')!;
+    expect(paCode.appliesTo).toBe('COMPANY');
+    expect(paCode.required).toBe(false);
+    expect(paCode.pattern).toBe('^[A-Za-z0-9]{6}$');
+    expect(paCode.provenance.kind).toBe('legal');
+    if (paCode.provenance.kind === 'legal') {
+      expect(paCode.provenance.sourceText).toMatch(/Codice Ufficio/);
+      expect(paCode.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+
+    const sdi = it.schemes.find((s) => s.scheme === 'IT_SDI')!;
+    expect(sdi.appliesTo).toBe('BOTH');
+    expect(sdi.required).toBe(false);
+    expect(sdi.pattern).toBe('^[A-Za-z0-9]{7}$');
+    expect(sdi.provenance.kind).toBe('legal');
+    if (sdi.provenance.kind === 'legal') {
+      expect(sdi.provenance.sourceText).toMatch(/Richiesta codici destinatario B2B/);
+      expect(sdi.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+
+    const pec = it.schemes.find((s) => s.scheme === 'PEC')!;
+    expect(pec.appliesTo).toBe('BOTH');
+    expect(pec.required).toBe(false);
+    expect(pec.pattern).toBeUndefined(); // length-only in the source text, no character-class claim
+    expect(pec.provenance.kind).toBe('legal');
+    if (pec.provenance.kind === 'legal') {
+      expect(pec.provenance.sourceText).toMatch(/Posta Elettronica Certificata/);
+      expect(pec.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+
+    expect(it.schemes.map((s) => s.scheme).sort()).toEqual([
+      'IT_PA_CODE',
+      'IT_SDI',
+      'LEGAL_ID',
+      'PEC',
+      'VAT',
+    ]);
   });
 });
 
@@ -245,7 +299,8 @@ describe('country-identifiers/data — the shipped IT and PL files', () => {
     const plLegalId = pl.schemes[0];
     expect(itVat.label).not.toBe(plLegalId.label);
     expect(it).not.toEqual(pl);
-    expect(it.schemes.map((s) => s.scheme).sort()).toEqual(['LEGAL_ID', 'VAT']);
+    // IT's full scheme list (VAT/LEGAL_ID plus IT_PA_CODE/IT_SDI/PEC) is pinned by its own dedicated
+    // describe block above ("IT declares three additional identifiers…") — not repeated here.
     expect(pl.schemes.map((s) => s.scheme).sort()).toEqual(['LEGAL_ID']);
   });
 });
