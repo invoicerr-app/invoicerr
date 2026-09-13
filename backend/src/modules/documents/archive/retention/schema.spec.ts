@@ -1,6 +1,6 @@
 import { assertValidRetentionRule, InvalidRetentionRuleError, RetentionRule } from './schema';
 
-const base: Omit<RetentionRule, 'legalRef'> = { label: 'fiscale', years: 6 };
+const base: Omit<RetentionRule, 'legalRef'> = { label: 'fiscale', years: 6, origin: 'issueDate' };
 
 describe('assertValidRetentionRule', () => {
   it('accepts a well-formed rule with a legalRef', () => {
@@ -25,7 +25,10 @@ describe('assertValidRetentionRule', () => {
 
   it('rejects a rule with no label', () => {
     expect(() =>
-      assertValidRetentionRule({ label: '', years: 6, legalRef: 'LPF art. L102 B' }, 'test'),
+      assertValidRetentionRule(
+        { label: '', years: 6, origin: 'issueDate', legalRef: 'LPF art. L102 B' },
+        'test',
+      ),
     ).toThrow(/no "label"/);
   });
 
@@ -45,5 +48,43 @@ describe('assertValidRetentionRule', () => {
         'test',
       ),
     ).toThrow(/positive numeric "years"/);
+  });
+
+  // The origin axis (2026-09-13) — the mutation this rehearses: a duration silently defaulting to
+  // "count from archivedAt" is exactly the defect this axis exists to fix, so a rule that omits its
+  // origin (or names something outside the known list) must NEVER load.
+  it('rejects a rule with no origin at all', () => {
+    const { origin: _omitted, ...withoutOrigin } = { ...base, legalRef: 'LPF art. L102 B' };
+    expect(() => assertValidRetentionRule(withoutOrigin as unknown as RetentionRule, 'test')).toThrow(
+      InvalidRetentionRuleError,
+    );
+    expect(() => assertValidRetentionRule(withoutOrigin as unknown as RetentionRule, 'test')).toThrow(
+      /no valid "origin"/,
+    );
+  });
+
+  it('rejects a rule whose origin is not one of the known RetentionOrigin values', () => {
+    expect(() =>
+      assertValidRetentionRule(
+        {
+          ...base,
+          origin: 'whenever-someone-remembers' as unknown as RetentionRule['origin'],
+          legalRef: 'LPF art. L102 B',
+        },
+        'test',
+      ),
+    ).toThrow(/no valid "origin"/);
+  });
+
+  it.each([
+    'archivedAt',
+    'issueDate',
+    'issueDateYearEnd',
+    'fiscalYearEndUnknownSafe',
+    'taxDeadlineYearEndUnknownSafe',
+  ] as const)('accepts the known origin %s', (origin) => {
+    expect(() =>
+      assertValidRetentionRule({ ...base, origin, legalRef: 'LPF art. L102 B' }, 'test'),
+    ).not.toThrow();
   });
 });

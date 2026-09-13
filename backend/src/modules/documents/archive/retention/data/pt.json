@@ -1,0 +1,13 @@
+{
+  "countryCode": "PT",
+  "rules": [
+    {
+      "label": "IVA",
+      "years": 10,
+      "origin": "issueDateYearEnd",
+      "legalRef": "CIVA art. 52.º n.º 1",
+      "notes": "Texte brut récupéré le 2026-09-13 via curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 octets, 188 pages), puis pdftotext -layout. Art. 52.º n.º 1 (rédaction du Decreto-Lei n.º 49/2025, du 27 mars, en vigueur depuis le 1er juillet 2025) : « Os sujeitos passivos são obrigados a arquivar e conservar em boa ordem durante os 10 anos civis subsequentes todos os registos e respetivos documentos de suporte, incluindo, quando a contabilidade é estabelecida por meios informáticos, os relativos à análise, programação e execução dos tratamentos. » — les DIX années CIVILES SUBSÉQUENTES (subsequentes) : la lecture retenue ici est celle, constante, de la doctrine fiscale portugaise — les dix années civiles qui suivent l'année à laquelle le document/registre se rapporte, donc comptées à partir de la FIN de l'année civile d'émission, jamais de l'instant d'archivage (le texte ne dit à aucun moment 'a partir do arquivamento'). n.º 2 du même article a été lu et NE change rien pour une facture ordinaire : « Para os registos previstos no artigo 51.º e documentos anexos, o prazo de 10 anos referido no número anterior deve ser contado a partir da data em que for efetuada a última das regularizações previstas nos artigos 24.º e 25.º » — ce n.º 2 fixe un point de départ DIFFÉRENT (la dernière régularisation TVA), mais UNIQUEMENT pour les registres visés à l'art. 51.º (les registres de régularisations de déduction) et leurs pièces annexes ; une facture ordinaire relève du n.º 1 seul, sans ce correctif."
+    }
+  ],
+  "notes": "Une seule obligation identifiée à ce jour pour le Portugal (CIVA art. 52.º, dix ans). Établi par le coordinateur le 2026-09-13 (citation reprise mot pour mot depuis le PDF consolidé de l'autorité fiscale) ; l'axe d'origine (fin d'année civile d'émission) a été ajouté cette même session à partir de la lecture normale de « anos civis subsequentes » — aucune autre obligation de conservation propre à la facture n'a été recherchée au-delà de cet article."
+}

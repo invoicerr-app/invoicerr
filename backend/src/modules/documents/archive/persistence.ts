@@ -57,6 +57,28 @@ function toArtifactMetas(artifacts: ArchivedArtifactInput[]): StoredArtifactMeta
   }));
 }
 
+/**
+ * The document's own `data.issueDate`, parsed — the SAME field name `formats/shared-build.ts` and
+ * `rendering/render-instance-pdf.ts#legalMentionsFor` already read for this exact purpose (BT-2 /
+ * the mentions freeze date). Never `archivedAt`: using the moment this archive happens to be written
+ * as a stand-in for when the document was ISSUED is precisely the defect `compute-retention.ts`'s own
+ * header exists to fix. Returns `undefined` — never "now", never a throw — for a document with no
+ * parseable `issueDate` at all (a type with no such field, or a genuinely malformed one):
+ * `computeRetention` already treats a missing issue date as "cannot resolve this rule" rather than a
+ * license to guess, the same posture `transports/channel-policy/mandate.ts#isOnOrAfter` holds for the
+ * very same field.
+ */
+async function resolveDocumentIssueDate(companyId: string, documentId: string): Promise<Date | undefined> {
+  const document = await prisma.documentInstance.findFirst({
+    where: { id: documentId, companyId },
+    select: { data: true },
+  });
+  const rawIssueDate = (document?.data as Record<string, unknown> | undefined)?.issueDate;
+  if (typeof rawIssueDate !== 'string' && typeof rawIssueDate !== 'number') return undefined;
+  const issueDate = new Date(rawIssueDate);
+  return Number.isNaN(issueDate.getTime()) ? undefined : issueDate;
+}
+
 function toResult(row: {
   id: string;
   companyId: string;
@@ -95,7 +117,10 @@ function toResult(row: {
  * La rétention (⚖, item 14) est résolue ICI, au moment de l'écriture, pour le pays de la société
  * ÉMETTRICE — jamais recalculée plus tard : une archive garde la règle qui s'appliquait au moment où
  * elle a été faite, la même discipline que `mentions/invoice-notes.ts` applique aux mentions figées à
- * l'émission.
+ * l'émission. La durée elle-même compte à partir de la date d'ÉMISSION du document (`data.issueDate`,
+ * voir `resolveDocumentIssueDate` ci-dessus) selon l'axe déclaré par chaque règle
+ * (`retention/schema.ts#RetentionOrigin`) — jamais à partir de `archivedAt`, qui n'est que l'instant où
+ * CE code a tourné et n'a aucune valeur légale propre (voir `retention/compute-retention.ts`).
  */
 export async function createDocumentArchive(
   input: {
@@ -119,7 +144,8 @@ export async function createDocumentArchive(
 
   const countryCode = await resolveCompanyCountryCode(companyId);
   const retentionFile = retentionCatalog.fileFor(countryCode);
-  const { retentionUntil, retentionBasis } = computeRetention(retentionFile, archivedAt);
+  const issueDate = await resolveDocumentIssueDate(companyId, documentId);
+  const { retentionUntil, retentionBasis } = computeRetention(retentionFile, archivedAt, issueDate);
 
   const created = await prisma.documentArchive.create({
     data: {

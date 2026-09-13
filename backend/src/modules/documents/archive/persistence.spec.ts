@@ -19,6 +19,10 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
+    // Read by `resolveDocumentIssueDate` (persistence.ts) — not exercised by name in most tests below
+    // (they use `origin: 'archivedAt'` synthetic rules precisely so this fixture never has to matter),
+    // but still needs a callable mock or `createDocumentArchive` throws on the unconditional lookup.
+    documentInstance: { findFirst: jest.fn().mockResolvedValue(null) },
     documentArchive: {
       create: jest.fn(),
       createMany: jest.fn(),
@@ -29,17 +33,23 @@ jest.mock('@/prisma/prisma.service', () => ({
 }));
 
 const findCompany = prisma.company.findUnique as jest.Mock;
+const findDocumentInstance = prisma.documentInstance.findFirst as jest.Mock;
 const createArchive = prisma.documentArchive.create as jest.Mock;
 const createManyArchives = prisma.documentArchive.createMany as jest.Mock;
 const findManyArchives = prisma.documentArchive.findMany as jest.Mock;
 const findFirstArchive = prisma.documentArchive.findFirst as jest.Mock;
 
+// `origin: 'archivedAt'` deliberately, in every rule below — this suite tests PERSISTENCE wiring (hash
+// storage, re-send behaviour, the no-country-file null case), not any one country's real legal origin
+// (that discipline is `retention/compute-retention.spec.ts` and the real `data/fr.json`'s own job).
+// Counting from `archivedAt` keeps this file's pre-existing "archivedAt + Ny" arithmetic meaningful
+// without also having to mock a `data.issueDate` on `documentInstance` for every test below.
 const FR_CATALOG = new RetentionCatalog([
   {
     countryCode: 'FR',
     rules: [
-      { label: 'fiscale', years: 6, legalRef: 'LPF art. L102 B' },
-      { label: 'commerciale', years: 10, legalRef: 'C. com. art. L123-22' },
+      { label: 'fiscale', years: 6, origin: 'archivedAt', legalRef: 'LPF art. L102 B' },
+      { label: 'commerciale', years: 10, origin: 'archivedAt', legalRef: 'C. com. art. L123-22' },
     ],
   },
 ]);
@@ -87,6 +97,40 @@ describe('archive/persistence', () => {
       expect(written.retentionUntil.toISOString()).toBe(expectedUntil.toISOString());
 
       expect(result.id).toBe('archive-1');
+    });
+
+    it('reads the document’s own data.issueDate and threads it into computeRetention — never archivedAt', async () => {
+      // A German-shaped rule (UStG § 14b Abs. 1: 8 years from the END of the calendar year of issue)
+      // proves this end-to-end through persistence.ts, not just compute-retention.ts in isolation: an
+      // invoice issued 2026-03-15, archived on a DIFFERENT day entirely, must resolve from
+      // 2026-12-31 — never from whatever `archivedAt` happens to be.
+      const DE_CATALOG = new RetentionCatalog([
+        {
+          countryCode: 'DE',
+          rules: [
+            {
+              label: 'umsatzsteuerlich',
+              years: 8,
+              origin: 'issueDateYearEnd',
+              legalRef: 'UStG § 14b Abs. 1',
+            },
+          ],
+        },
+      ]);
+      findCompany.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
+      findDocumentInstance.mockResolvedValue({ data: { issueDate: '2026-03-15' } });
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-de', ...data }));
+
+      const artifacts = [{ role: 'pdf', mime: 'application/pdf', bytes: new TextEncoder().encode('DE') }];
+      await createDocumentArchive({ companyId: 'company-de', documentId: 'doc-de', artifacts }, DE_CATALOG);
+
+      expect(findDocumentInstance).toHaveBeenCalledWith({
+        where: { id: 'doc-de', companyId: 'company-de' },
+        select: { data: true },
+      });
+      const written = createArchive.mock.calls[0][0].data;
+      // 2026-12-31 (end of the ISSUE year) + 8 — not the archivedAt-based date the old defect produced.
+      expect(written.retentionUntil.toISOString()).toBe('2034-12-31T00:00:00.000Z');
     });
 
     it('archives even a country with no declared retention rule — null retentionUntil, honest basis', async () => {

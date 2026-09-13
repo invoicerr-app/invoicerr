@@ -3,7 +3,7 @@ import { CountryRetentionFile } from './schema';
 
 const FR: CountryRetentionFile = {
   countryCode: 'FR',
-  rules: [{ label: 'fiscale', years: 6, legalRef: 'LPF art. L102 B' }],
+  rules: [{ label: 'fiscale', years: 6, origin: 'issueDate', legalRef: 'LPF art. L102 B' }],
 };
 
 describe('RetentionCatalog', () => {
