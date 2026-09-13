@@ -55,6 +55,37 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
+## L'autoliquidation DOMESTIQUE n'existe pas dans le produit, alors que trois pays du périmètre la pratiquent (2026-09-13)
+
+Le moteur fiscal ne traite l'autoliquidation que **transfrontalière**. Deux constats de lecture :
+`resolve-invoice-tax.ts` rend la main dès que `sellerCC === buyerCC` (le moteur n'est donc jamais
+consulté pour une facture domestique), et `tax-engine.ts#domesticVat` n'a que deux branches
+spéciales — franchise et exonération — sans aucune branche d'autoliquidation ;
+`MENTION.reverseCharge` n'est référencée qu'une seule fois, dans le chemin transfrontalier.
+
+Or l'autoliquidation domestique existe bel et bien, établie sur les textes bruts récupérés le
+2026-09-13 :
+- **Allemagne** — UStG § 14a Abs. 5 vise explicitement « eine Leistung im Sinne des § 13b Absatz 2
+  […] für die der Leistungsempfänger nach § 13b Absatz 5 die Steuer schuldet », et impose alors
+  l'indication « Steuerschuldnerschaft des Leistungsempfängers ».
+- **Portugal** — CIVA art. 36.º n.º 13 vise « as situações previstas nas alíneas i), j), l), m) e n)
+  do n.º 1 do artigo 2.º » — déchets, sous-traitance de construction, quotas de gaz à effet de serre,
+  téléphones et circuits intégrés, liège et bois — et impose « IVA - autoliquidação ».
+- **Pologne** — ustawa o VAT art. 106e ust. 1 pkt 18 vise toute livraison ou prestation « dla których
+  obowiązanym do rozliczenia podatku […] jest nabywca towaru lub usługi », sans restriction au
+  transfrontalier, et impose les mots « odwrotne obciążenie ».
+- **Italie** — le régime domestique relève de l'art. 17 du DPR 633/1972, qui n'a PAS été lu : à
+  établir avant tout encodage.
+
+Conséquence : une facture de sous-traitance du bâtiment entre deux entreprises du même pays — un cas
+courant, pas un cas limite — sort avec le taux que l'utilisateur a choisi à la main et **sans aucune
+mention**. Ni le taux ni la mention ne sont ceux que la loi impose.
+
+Ce qu'il faudrait : une notion de « l'acquéreur est redevable » que le moteur puisse évaluer en
+domestique, ce qui suppose de savoir de quelle catégorie d'opération relève la ligne. Aucun champ ne
+porte cette information aujourd'hui. C'est un chantier à part entière, plus grand que la
+localisation des mentions, et il doit être arbitré avant fusion plutôt que découvert après.
+
 ## Le B2G portugais : l'obligation est établie, le canal ne l'est pas (2026-09-13)
 
 `b2g-routing/data/` couvre de, fr, it, pl — **pas pt**, et la matrice publique affiche donc « — »
