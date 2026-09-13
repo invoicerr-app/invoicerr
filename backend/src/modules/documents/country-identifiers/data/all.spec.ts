@@ -236,7 +236,7 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
   });
 });
 
-// BE's country-identifiers/data/be.json was removed by the 5-country prune (2026-09-10) along with
+// BE's own country-identifiers data file was removed by the 5-country prune (2026-09-10) along with
 // every other country outside FR/PL/IT/PT/DE — it was never registered in data/all.ts to begin with,
 // so nothing here re-anchors it.
 

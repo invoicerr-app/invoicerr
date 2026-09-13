@@ -115,7 +115,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
       );
     });
 
-    // US used to pair with DE here — data/us.json (correction-routes) was removed by the 5-country
+    // US used to pair with DE here — its own correction-routes data file was removed by the 5-country
     // prune (2026-09-10), and with it US's own entry in cancel-policy.ts's
     // whitelist (now dead code, removed too — see that file's own header). DE alone still proves the
     // point: FR is not the only country with an unrestricted local cancel.

@@ -415,7 +415,7 @@ export class CadesSigningProvider implements SigningProvider {
 
 // ---------------------------------------------------------------------------
 // PAdES provider — PAdES-B signature embedded in PDF. THE ONE ALGORITHM WIRED TO A LIVE FLOW
-// (rendering/sign-instance-pdf.ts) — see this class's own error-handling contract below, which is
+// (this module's own sign-instance-pdf.ts) — see this class's own error-handling contract below, which is
 // the one deliberate departure from the repère (see this file's own top-of-file header).
 // ---------------------------------------------------------------------------
 

@@ -30,7 +30,7 @@
  * wiring (documents-core.module.ts) always provides a real one.
  *
  * Automatic ECB exchange rates add a FOURTH job name the same way: ONE
- * more repeatable (`currency-rate-sweep/currency-rate-sweep.ts`'s `CURRENCY_RATE_SWEEP_JOB_NAME`),
+ * more repeatable (`currency-rates/currency-rate-sweep.ts`'s `CURRENCY_RATE_SWEEP_JOB_NAME`),
  * routed to `CurrencyRateSweepRunner`, `@Optional()`-injected for the identical reason and provided
  * for real by `document-queue-worker.module.ts` (not `documents-core.module.ts` — that runner has no
  * Nest dependencies of its own, so it needs no home in the Core module at all; see that worker

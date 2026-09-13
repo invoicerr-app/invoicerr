@@ -41,7 +41,7 @@
  * fails LOUDLY at the moment it is READ, never silently drifts into a wrong answer.
  *
  * (Mexico and Spain used to illustrate the same two shapes — MX's own authority-side "required" trap
- * and ES's plain "forbidden" — but both data/mx.json and data/es.json were removed by the 5-country
+ * and ES's plain "forbidden" — but both countries' own data files were removed by the 5-country
  * prune, 2026-09-10; PL and PT alone now carry the two documented "not implementable" shapes above.)
  *
  * Italy is the one exception with a REAL local mechanism but a NARROWER scope than the other three:
@@ -63,7 +63,7 @@
  * way through NO_DOCUMENT_BY_LAW, `allowed`, Germany's own DEFAULT correction route, "aucune correction
  * de facture n'est requise" — not read by this module since CANCEL_AND_REPLACE alone already suffices).
  * (US used to ground the same conclusion a third way — "Rien à annuler auprès de personne [...]
- * Réémettre est un acte purement privé" — but data/us.json was removed by the 5-country prune,
+ * Réémettre est un acte purement privé" — but its own data file was removed by the 5-country prune,
  * 2026-09-10, and the "US" entry below with it: `findCancelAndReplaceRoute` can never resolve a file
  * for "US" any more, so keeping it in the whitelist would have been dead, unreachable code.)
  */

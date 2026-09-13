@@ -3,7 +3,7 @@
  * (backend/src/modules/documents/country-identifiers/) — the WRITE side is
  * `seedCountryIdentifierRequirements()` (seed.ts), the only thing that ever creates/updates/deletes
  * a `CountryIdentifierRequirement` row. This module never writes: the table is a mirror of the
- * reference files (data/fr.json, data/us.json, …), not user-editable data — same split as
+ * reference files (data/fr.json, data/de.json, …), not user-editable data — same split as
  * country-policy/country-policy.ts, for the same reason.
  *
  * A plain function reading the Prisma singleton directly, not an injectable class — see

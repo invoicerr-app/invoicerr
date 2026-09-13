@@ -66,34 +66,32 @@
  *    deliberately set to "email" (a channel that WOULD succeed) to prove precedence for real: the
  *    invoice still fails via SdI (a fake, unreachable endpoint — same fixture as 31's own SdI wave),
  *    never silently through email.
- *  - ES (FACe): a SECOND rule whose channel is ALREADY implemented (added by a later task — XAdES
- *    wiring + Ley 25/2013) — same "email" precedence proof as IT/FR, but a
- *    DIFFERENT shape of failure: FACe additionally requires a
- *    Facturae SIGNED with XAdES, and this suite never configures a signing certificate —
- *    so the send fails at that LOCAL signature gate (`FacturaeSigningRequiredError`), before any
- *    network attempt, never against the real `se-face-webservice.redsara.es` sandbox (that live
- *    rejection is proven separately, credential-free, by `31`'s own header pointer to
- *    `face/face.live.spec.ts`). This is still a REAL, meaningful proof — arguably the more relevant
- *    one for the XAdES thesis: the first real consumer of the XAdES provider is wired
- *    end-to-end, through the actual screen, all the way to a company that never set up a certificate
- *    correctly being refused rather than silently sent unsigned. ES is also the FIRST rule in this
- *    file whose `requiredDocumentFields` names THREE fields at once (the DIR3 triad: órgano gestor/
- *    unidad tramitadora/oficina contable) rather than DE's single Leitweg-ID — a SEPARATE test below
- *    proves the reactive on-screen field mechanism scales to three without any code change
- *    (`applyB2gDocumentFieldHints`'s own generic `requiredDocumentFields.map(...)` bridge).
- *  - NL (Peppol, NLCIUS content — vendored): structurally
- *    closer to BE than to DE at the SCREEN level — the "peppol" channel is ALREADY implemented, so
- *    (like BE) this test CONNECTS it (fictitious credentials, closed port — same fixture as BE/31's own
- *    Peppol wave) and proves the B2G precedence over the company's free "email" choice with a REAL
- *    network failure, never a preflight block the way DE stays in this suite. Content-wise it mirrors
- *    DE instead — a vendored NATIONAL CIUS (`formats/nlcius-provider.ts`, `formats/vendored/nl/si-
- *    ubl-2.0-nlcius-preprocessed.sch`) carried via the SAME `formatOverride` mechanism
- *    (`documents-core.module.ts`'s own `formatOverrides.nlcius`), never a generic Peppol BIS
- *    substitute. The KVK-nummer (LEGAL_ID) is ALREADY required by `country-identifiers/data/nl.json`
- *    for every Dutch client — same "nothing new to add on screen for this field" precedent as FR's
- *    own SIRET. EAS 0106/0190 themselves stay a JEST-only proof (`formats/nlcius-provider.spec.ts`,
- *    `transports/peppol-transport.spec.ts`'s own NLCIUS format-override block) — same "not the point
- *    of THIS screen test" precedent BE's own header already sets for its own EAS 0208.
+ *  - ES (FACe): a SECOND rule whose channel was ALREADY implemented (XAdES wiring + Ley 25/2013) — same
+ *    "email" precedence proof as IT/FR, but a DIFFERENT shape of failure: FACe additionally required a
+ *    Facturae SIGNED with XAdES, and this suite never configured a signing certificate, so the send
+ *    failed at that LOCAL signature gate, before any network attempt against the real FACe sandbox —
+ *    still a REAL, meaningful proof, arguably the more relevant one for the XAdES thesis: the first
+ *    real consumer of the XAdES provider was wired end-to-end, through the actual screen, all the way
+ *    to a company that never set up a certificate correctly being refused rather than silently sent
+ *    unsigned. ES was also the FIRST rule in this file whose `requiredDocumentFields` named THREE
+ *    fields at once (the DIR3 triad: órgano gestor/unidad tramitadora/oficina contable) rather than
+ *    DE's single Leitweg-ID, proving the reactive on-screen field mechanism scales to three without any
+ *    code change (`applyB2gDocumentFieldHints`'s own generic `requiredDocumentFields.map(...)` bridge).
+ *    The FACe channel, its XAdES signing gate, and this DIR3 field set were deleted outright along with
+ *    the rest of Spain's scope (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — nothing above is
+ *    exercised by code any more; this paragraph stays only for the model's thesis.
+ *  - NL (Peppol, NLCIUS content — vendored): structurally closer to BE than to DE at the SCREEN level —
+ *    the "peppol" channel was ALREADY implemented, so (like BE) this test CONNECTED it (fictitious
+ *    credentials, closed port — same fixture as BE/31's own Peppol wave) and proved the B2G precedence
+ *    over the company's free "email" choice with a REAL network failure, never a preflight block the
+ *    way DE stays in this suite. Content-wise it mirrored DE instead — a vendored NATIONAL CIUS carried
+ *    via the SAME `formatOverride` mechanism, never a generic Peppol BIS substitute. The KVK-nummer
+ *    (LEGAL_ID) was required for every Dutch client — same "nothing new to add on screen for this
+ *    field" precedent as FR's own SIRET. The provider, its vendored Schematron delta, the format
+ *    override, and the KVK requirement were all deleted outright along with the rest of the
+ *    Netherlands' scope (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — nothing above is
+ *    exercised by code any more; this paragraph stays only for the model's thesis, exactly like ES
+ *    above.
  *
  * `cy.resetAndSeed()` seeds a FRENCH company (Acme Corp, SIRET/VAT already on file) — this file adds
  * an IBAN to it via the API before the DE case (BR-DE-1/23-a/23-b's own requirement, see

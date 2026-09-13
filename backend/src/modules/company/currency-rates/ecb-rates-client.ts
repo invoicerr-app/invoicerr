@@ -6,7 +6,7 @@
  * shape `transports/*-client.ts` already holds throughout this codebase.
  *
  * This URL is FIXED, ECB-owned, and never influenced by user input — unlike an operator-supplied
- * webhook destination (`webhooks/url-guard.ts`), there is no SSRF surface here to guard against, so
+ * webhook destination (`webhooks/webhook-url-guard.ts`), there is no SSRF surface here to guard against, so
  * this deliberately does NOT go through that guard.
  */
 import { DOMParser, Document as XmlDocument, Element as XmlElement } from '@xmldom/xmldom';

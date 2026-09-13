@@ -47,7 +47,7 @@ export interface CreditNoteActionDeps {
  * still has no "client" field, no transport, and no policy on who a credit note goes to, exactly the
  * gap this file's own history already refused to invent. What DOES need this transition to exist:
  * settlement/credits.ts only counts a credit note that is "sent" — a draft settles nothing (its own
- * comment, carried over from the removed `invoices/settlement.ts`), so lettrage needed SOME way out of
+ * comment, carried over from the removed pre-refactor settlement module), so lettrage needed SOME way out of
  * "draft" to mean anything at all.
  *
  * This goes through `runAsyncSendAction` (actions/async-send.ts) like every

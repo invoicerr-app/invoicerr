@@ -30,7 +30,7 @@ import { ExtractorNotReadyError, receivedDocumentExtractorRegistry } from './ext
  *  - `failed`: an extractor was tried and THREW something other than `ExtractorNotReadyError` — a
  *    real provider error (quota, invalid key, timeout, a malformed response). NEVER swallowed: the
  *    message is the provider's own (or this client's own named wrapper around it — see
- *    `plugins/ocr/providers/mistral/client.ts`), always surfaced to the screen.
+ *    `plugins/ocr/providers/mistral/mistral.ts`), always surfaced to the screen.
  */
 export type OcrOutcome =
   | { outcome: 'not-attempted' }

@@ -1,5 +1,5 @@
 /**
- * PT — direct-load content spec. Same rationale as vat-rates/data/hr.spec.ts: reads `pt.json`
+ * PT — direct-load content spec: reads `pt.json`
  * straight off disk rather than through `data/all.ts` (wiring "pt" in is a separate decision, made
  * in `data/all.ts`), and re-runs the exact load-time gate (`assertValidVatRateProvenance`)
  * independently.

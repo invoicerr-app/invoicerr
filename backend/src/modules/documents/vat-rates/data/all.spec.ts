@@ -67,7 +67,7 @@ describe('vat-rates/data — the shipped FR/PT catalog', () => {
   });
 });
 
-// BE's vat-rates/data/be.json was removed by the 5-country prune (2026-09-10)
+// BE's own vat-rates data file was removed by the 5-country prune (2026-09-10)
 // along with every other country outside FR/PL/IT/PT/DE — it was never
 // registered in data/all.ts to begin with, so nothing here re-anchors it. PT's own equivalent content
 // is pinned instead by this same directory's dedicated data/pt.spec.ts.

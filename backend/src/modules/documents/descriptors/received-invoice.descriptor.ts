@@ -113,7 +113,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * Declared `from: 'always'` (covers both "brand new, no status yet" and "editing an existing
  * received-invoice's fields") the same way `expense.descriptor.ts`'s own "save-draft" is — country
  * policy is what actually narrows re-editing to the "received" status only (see country-policy's
- * `data/fr.json`/`data/us.json`), the same composition `invoice.descriptor.ts`'s "save-draft" already
+ * `data/fr.json`/`data/de.json`), the same composition `invoice.descriptor.ts`'s "save-draft" already
  * relies on for its own, stricter, "draft" narrowing.
  *
  * "approve"/"reject": plain, terminal status transitions, `['received'] -> 'approved'` /

@@ -150,7 +150,7 @@ describe('correction-routes/data/all.ts', () => {
   });
 });
 
-// BE's correction-routes/data/be.json (agent pays Belgique) was removed by the 5-country prune
+// BE's own correction-routes data file (agent pays Belgique) was removed by the 5-country prune
 // (2026-09-10) along with every other country outside FR/PL/IT/PT/DE —
 // it was never registered in data/all.ts to begin with, so nothing here re-anchors it.
 

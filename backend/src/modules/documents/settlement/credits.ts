@@ -114,7 +114,7 @@ async function listCreditNotes(companyId: string): Promise<DocumentInstanceResul
  *  - a credit note pointing at a DIFFERENT invoice (or none at all) is simply not this invoice's —
  *    skipped, no warning (it belongs to someone else's settlement).
  *  - a DRAFT is a document the user has not finished — see credit-note.descriptor.ts's own lifecycle
- *    comment, carried over verbatim from the removed `invoices/settlement.ts`'s identical rule: it
+ *    comment, carried over verbatim from the removed pre-refactor settlement module's identical rule: it
  *    settles nothing, silently (an unfinished draft is normal, not a data problem).
  *  - a credit note whose OWN `currency` field differs from the invoice's is still COUNTED, at the
  *    exact same `computeCreditedAmountMinor` result every OTHER credit note gets (this file's own

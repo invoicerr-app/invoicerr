@@ -62,13 +62,10 @@
  *    SIRET→SIREN derivation (schemeID '0002') is REPRISED VERBATIM from the old code's own
  *    `toSiren`: FR is this product's primary market (see `documentation`'s own priority notes) and
  *    this exact derivation was proven against a real PDP deposit. `LEGAL_ID_SCHEME_BY_COUNTRY` below
- *    (added for NLCIUS) extends the SAME "country is data" mapping to
- *    NL's own KVK-nummer (ISO 6523 '0106'), read from `country-identifiers/data/nl.json`'s own LEGAL_ID
- *    scheme — never a derived/reshaped value the way SIRET→SIREN is, since a KVK number is already the
- *    exact 8-digit form both `BR-NL-1`/`BR-NL-10` (`formats/vendored/nl/si-ubl-2.0-nlcius-
- *    preprocessed.sch`) and the GENERIC Peppol BIS delta's own `NL-R-003`/`NL-R-005`
- *    (`formats/vendored/peppol/PEPPOL-EN16931-UBL.sch:880-894` — flagged as a pre-existing gap by
- *    `country-identifiers/data/nl.json`'s own note before it was closed) expect. A `LEGAL_ID` for
+ *    extends the SAME "country is data" mapping to NL's own KVK-nummer (ISO 6523 '0106') — never a
+ *    derived/reshaped value the way SIRET→SIREN is, since a KVK number is already the exact 8-digit
+ *    form the GENERIC Peppol BIS delta's own `NL-R-003`/`NL-R-005`
+ *    (`formats/vendored/peppol/PEPPOL-EN16931-UBL.sch:880-894`) expects. A `LEGAL_ID` for
  *    any OTHER country is still emitted as a bare `cbc:CompanyID` with NO schemeID — asserting a
  *    registry membership (French SIREN, Dutch KVK, or otherwise) nobody claimed would be inventing one.
  *  - BT-31 Seller VAT identifier       → `cac:PartyTaxScheme/cbc:CompanyID` + `cac:TaxScheme/cbc:ID`='VAT',
@@ -128,7 +125,7 @@
  * ## VAT category — the one real, documented simplification (not an invention)
  *
  * EN 16931 defines six BT-151 category codes (S, Z, E, AE, K, G, O), each demanding CONTRADICTORY
- * things of the document (see `../pitfalls/e-o-category.spec.ts`'s own header for the three real
+ * things of the document (see `../pitfalls.spec.ts`'s own header for the three real
  * ones this codebase's OLD, removed cross-border tax engine used to resolve). Today's descriptor
  * carries only a per-line `vatRate` PERCENTAGE — no category. Deriving one from the rate ALONE is
  * therefore honestly limited to the only two cases a bare percentage can support without inventing a
@@ -317,8 +314,8 @@ function toSiren(legalId: string | undefined, isFrenchSeller: boolean): string |
  * reasoning). `'FR': '0002'` is the PRE-EXISTING mapping, unchanged (this map's value for 'FR' is
  * exactly the literal `isFrenchSeller ? '0002' : undefined` branch it replaces below — verified by
  * every EXISTING French-seller test, none of which changes). `'NL': '0106'` is NEW:
- * `country-identifiers/data/nl.json`'s only NL `LEGAL_ID` scheme is the
- * KVK-nummer, so `0106` (KVK) is the only value this map ever emits for NL — a Dutch OIN
+ * NL's only `LEGAL_ID` scheme is the KVK-nummer, so `0106` (KVK) is the only value this map
+ * ever emits for NL — a Dutch OIN
  * (schemeID `0190`, the alternative both `BR-NL-1`/`BR-NL-10` and Peppol's own `NL-R-003`/`NL-R-005`
  * also accept) is a SEPARATE identifier this catalog does not collect, and is not modeled here.
  * A country absent from this map (every other one) keeps the pre-existing behaviour: a bare

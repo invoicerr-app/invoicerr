@@ -57,7 +57,7 @@ export function readCurrencyRateSweepIntervalMs(): number {
  * consumer of the generated client in this codebase uses — repo CLAUDE.md), NOT from
  * `@prisma/client/runtime/client` directly: that subpath's own `.d.ts` re-export of `Decimal`
  * type-checks fine INSIDE Prisma's generated files only because they carry `// @ts-nocheck`
- * (`internal/prismaNamespace.ts`) — importing it the same way from a normally-checked file in this
+ * (`prisma/generated/prisma/internal/prismaNamespace.ts`) — importing it the same way from a normally-checked file in this
  * repo fails to compile (`TS2305: has no exported member 'Decimal'`), verified directly with `tsc`
  * against this exact `@prisma/client` version while writing this file. Going through the generated
  * client's own `Prisma` namespace re-export sidesteps that and matches how the rest of the app

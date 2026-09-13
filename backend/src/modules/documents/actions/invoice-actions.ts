@@ -54,10 +54,12 @@ export interface InvoiceActionDeps {
  * "canal imposé par pays" — resolves the issuing company's own COUNTRY and asks
  * whether it MANDATES a channel for an invoice issued on `issueDate` (`channel-policy/mandate.ts`,
  * evaluated against the invoice's own issue date, never the server's clock — see that file's own
- * header). Undefined for the overwhelming majority of companies today (only FR/pdp ships a mandate,
- * see `channel-policy/data/fr.json`) and for any company whose country cannot even be resolved —
- * exactly the same "no permissive fallback, but also no invented block" posture
- * `country-policy.ts`'s own `resolveCompanyCountryCode` callers already hold elsewhere in this module.
+ * header). Undefined for any company whose country's own channel-policy fact does not (yet) declare
+ * a `requirement: 'mandated'` — see `channel-policy/data/*.json` for which countries currently do, a
+ * set this function never enumerates itself so that arming a new one stays a data change, never a
+ * code change here — and for any company whose country cannot even be resolved — exactly the same
+ * "no permissive fallback, but also no invented block" posture `country-policy.ts`'s own
+ * `resolveCompanyCountryCode` callers already hold elsewhere in this module.
  */
 async function resolveActiveInvoiceMandate(
   companyId: string,
@@ -489,13 +491,15 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
  *    `invoice.save-draft` rule narrows `statuses` to `["draft"]` (CGI art. 289, I.5 — an issued
  *    invoice is corrected by a DISTINCT document, never rewritten), so `documents.service.ts#runAction`
  *    409s before this handler is ever called.
- *  - `country-policy/data/us.json`'s own `invoice.save-draft` rule carries NO such `statuses`
- *    narrowing — deliberately, per its own `resolutionNote` ("no US text identified" prohibiting it).
- *    So for the US (and any other country whose policy file permits "save-draft" unconditionally),
- *    the SAME under-charge shape as the old `editInvoice()` residual is reachable again: edit an
+ *  - Nothing in `country-policy` itself closes this generally: ANY country whose own policy file
+ *    permits "save-draft" unconditionally (no `statuses` narrowing on it, unlike FR's own rule
+ *    above) reopens the SAME under-charge shape as the old `editInvoice()` residual: edit an
  *    already-"sent" invoice's client to one whose country cannot be resolved (or simply to a
  *    different country the resolved data no longer matches) and click Save — the record demotes to
- *    "draft" carrying WHATEVER the form submitted, no re-resolution, no block.
+ *    "draft" carrying WHATEVER the form submitted, no re-resolution, no block. (US's own policy file
+ *    used to be exactly that missing-narrowing case, until the 5-country prune removed it,
+ *    2026-09-10 — every country shipped today narrows this the same way FR does, per its own data
+ *    file, but nothing enforces that a future one must.)
  *
  * The fix reuses `runInvoiceCrossBorderTaxPreflight` VERBATIM — the exact same resolution path
  * "send"'s own preflight/deliver already call — rather than inventing a second buyer-country check:

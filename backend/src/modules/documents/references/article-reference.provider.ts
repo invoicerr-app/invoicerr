@@ -23,7 +23,7 @@ import { EntityReferenceOption, EntityReferenceProvider } from './reference-regi
  *
  * Also returns `id` — "gestion de stock basique": `resolve`/`search` above
  * already hand a picker the article's id, but `getFields` is the ONLY thing `prefillFrom`'s `map`
- * (invoice/quote.descriptor.ts's line shape) can copy from, and the line needs its OWN copy of that
+ * (`invoice.descriptor.ts`'s/`quote.descriptor.ts`'s line shape) can copy from, and the line needs its OWN copy of that
  * same id (`articleId`, a 'hiddenReference' field) so `documents/stock/apply-stock-on-issuance.ts` can
  * later find which Article a given line consumed — see that field's own descriptor comment. `id` is
  * simply `article.id` echoed back, never a second lookup.

@@ -2,7 +2,7 @@
  * The READ side of the document-action policy (backend/src/modules/documents/country-policy/) — the
  * WRITE side is `seedCountryPolicies()` (seed.ts), the only thing that ever creates/updates/deletes a
  * `DocumentCountryActionRule` row. This module never writes: the table is a mirror of the reference
- * files (data/fr.json, data/us.json, …), not user-editable data.
+ * files (data/fr.json, data/de.json, …), not user-editable data.
  *
  * A plain function reading the Prisma singleton directly, not an injectable class — the same
  * convention `company-transport.ts`'s `getCompanyInvoiceTransportId` already established for "read

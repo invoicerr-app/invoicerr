@@ -1,5 +1,5 @@
 /**
- * PT — direct-load content spec. Same rationale as correction-routes/data/hr.spec.ts: reads `pt.json` straight off
+ * PT — direct-load content spec: reads `pt.json` straight off
  * disk rather than through `data/all.ts` (wiring "pt" in is a product decision), and re-runs the
  * exact load-time gate (`assertValidCorrectionRouteFact`) independently.
  *

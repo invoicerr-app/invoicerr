@@ -2,7 +2,7 @@
  * The country DOCUMENT-ACTION POLICY — the file format for "which country may run which document
  * action" (documents/, this branch's own concern — not the removed compliance engine, which used to
  * own tax/format/transmission rules under a similarly-shaped "a country is data" principle). See
- * data/fr.json and data/us.json for worked examples, and country-policy.ts for how a rule is read
+ * data/fr.json and data/de.json for worked examples, and country-policy.ts for how a rule is read
  * back at request time.
  *
  * Every rule MUST carry its own PROVENANCE — nothing here is allowed to exist without saying where

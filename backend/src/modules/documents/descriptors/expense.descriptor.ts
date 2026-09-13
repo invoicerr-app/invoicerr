@@ -14,7 +14,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * for how the OLD `Expense` table's rows became `DocumentInstance` rows with `typeId: "expense"`.
  *
  * Fields are a 1:1 carry-over of the old `CreateExpenseDto`/`EditExpenseDto`
- * (modules/expenses/expenses.service.ts, removed): description, amount, currency, date, notes. No
+ * (the removed expense module's own service): description, amount, currency, date, notes. No
  * field kind needed to grow to describe it — same outcome invoice.descriptor.ts's header already
  * states for the invoice.
  *

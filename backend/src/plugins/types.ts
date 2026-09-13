@@ -44,8 +44,8 @@ export interface IPdfPreviewProvider {
 /**
  * Types de FORMULAIRE de plugin — génériques, malgré leur adresse d'origine.
  *
- * Ils vivaient dans `signing/types.ts`, aux côtés de l'interface de signature de devis. La
- * signature est partie avec les documents ; ces trois-là décrivent le formulaire de configuration
+ * Ils vivaient auparavant aux côtés de l'interface de signature de devis, dans le module retiré qui
+ * la portait. La signature est partie avec les documents ; ces trois-là décrivent le formulaire de configuration
  * de N'IMPORTE quel plugin et n'ont rien à voir avec un document légal.
  */
 export interface IPluginForm {

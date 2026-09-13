@@ -32,7 +32,7 @@ jest.mock('./stock/apply-stock-on-issuance');
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
 
-/** A "widget" numbered on entering "sent" — mirrors quote/invoice.descriptor.ts's own
+/** A "widget" numbered on entering "sent" — mirrors `quote.descriptor.ts`'s/`invoice.descriptor.ts`'s own
  *  `numbering: { onEnterStatus: 'sent' }`, on a synthetic type never named "quote"/"invoice"/
  *  "article" — proving the stock effect never keys off a type name, only off lines/articleId. */
 function numberedWidgetDescriptor(overrides: Partial<DocumentTypeDescriptor> = {}): DocumentTypeDescriptor {

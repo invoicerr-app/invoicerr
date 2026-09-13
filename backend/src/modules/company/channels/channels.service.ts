@@ -293,7 +293,7 @@ export class ChannelCredentialsService {
   }
 
   // ---------------------------------------------------------------------------
-  // The CONTROLLER surface — company/channels.controller.ts's settings screen.
+  // The CONTROLLER surface — this module's own channels.controller.ts's settings screen.
   // ---------------------------------------------------------------------------
 
   /** Existing channel configs for a company — STATUS ONLY, see `ChannelConfigStatus`'s own header. */

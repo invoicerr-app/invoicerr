@@ -3,7 +3,7 @@
  * country-policy/schema.ts, for a genuinely different concern: not which document ACTIONS a
  * country allows (country-policy/), not which FIELDS a document type has (country-fields/), but
  * which national identifier SCHEMES (SIRET, EIN, VAT…) a party of a given type must supply before
- * an invoice can be issued to or by it. See data/fr.json and data/us.json for worked examples, and
+ * an invoice can be issued to or by it. See data/fr.json and data/de.json for worked examples, and
  * country-identifiers.ts for how a fact is read back at request time.
  *
  * This module is what used to be the removed compliance engine's `CountryComplianceProfile.
@@ -21,7 +21,7 @@
  *    last checked against that text.
  *  - `unverified`: not sourced that way — `resolutionNote` says PLAINLY what would have to be
  *    checked to turn this into a `legal` entry. An `unverified` entry is not a lesser citizen: see
- *    data/fr.json and data/us.json in this same directory for how far a real research pass got
+ *    data/fr.json and data/de.json in this same directory for how far a real research pass got
  *    before hitting a real access limit (legifrance.gouv.fr, economie.gouv.fr and
  *    impots.gouv.fr all refused automated requests on 2026-08-30 — the same wall
  *    country-policy/data/fr.json already documents for Légifrance specifically).

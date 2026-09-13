@@ -19,7 +19,7 @@ import { liveDescribe } from '../documents/transports/live-gate';
  * no-op unless `MCP_HTTP_LIVE=1`, so a normal `npm test` (and CI's backend-jest job, which never
  * boots a live server) never depends on `npm run start:test` actually being up. Run explicitly:
  *
- *   MCP_HTTP_LIVE=1 npx jest src/modules/mcp/mcp.http.spec.ts
+ *   MCP_HTTP_LIVE=1 npx jest src/modules/mcp/mcp-http-integration.live.spec.ts
  *
  * No credential env vars are required (`live-gate.ts`'s second parameter) — this hits our OWN test
  * backend, not a third-party API — but the flag keeps it from silently running (and depending on a

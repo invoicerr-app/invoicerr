@@ -44,7 +44,7 @@ try {
 
   /**
    * The SIX identifier-checksum functions below (2026-09-02, the B2G audit wave, `B2G_COVERAGE.md`
-   * at the repo root) — found MISSING while proving `b2g-routing/data/be.json` end-to-end in Cypress:
+   * at the repo root) — found MISSING while proving Belgium's B2G routing end-to-end in Cypress:
    * `PEPPOL-EN16931-UBL.sch` declares u:gln/u:mod11/u:mod97-0208/u:abn/u:TinVerification/
    * u:checkSEOrgnr as `xsl:function`s (same mechanism as `u:slack` above), but — unlike `u:slack` —
    * NONE of them had ever been registered here. fontoxpath does not read `xsl:function` declarations
@@ -420,6 +420,6 @@ export const EN16931_UBL_SCH = 'en16931/EN16931-UBL-validation-preprocessed.sch'
 export const PEPPOL_BIS_UBL_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
 /** Le delta KoSIT XRechnung 3.0.x — idem, branché par `../xrechnung-provider.ts`. */
 export const XRECHNUNG_UBL_SCH = 'de/XRechnung-UBL-validation-preprocessed.sch';
-// Le delta SI-UBL 2.0 / NLCIUS (Pays-Bas) branchait ici `nl/si-ubl-2.0-nlcius-preprocessed.sch` —
+// Le delta SI-UBL 2.0 / NLCIUS (Pays-Bas) branchait ici son propre fichier Schematron vendoré —
 // supprimé avec le reste du périmètre néerlandais (réduction à cinq pays, 2026-09-10) : voir
 // `LIVE_TESTING.md`/`B2G_COVERAGE.md` pour ce que cela abandonne.

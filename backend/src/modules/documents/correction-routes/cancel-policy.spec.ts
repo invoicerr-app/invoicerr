@@ -8,7 +8,7 @@ import { defaultCorrectionRoutesCatalog } from './registry';
  * "required" mais AUCUN mécanisme réel derrière).
  */
 describe('resolveCancelPolicyForCountry — the per-country map', () => {
-  // US used to ground this same conclusion a third way, but data/us.json was removed by the
+  // US used to ground this same conclusion a third way, but its own data file was removed by the
   // 5-country prune (2026-09-10) — see cancel-policy.ts's own header.
   it('FR, DE: unrestricted local cancel — allowed, no status narrowing', () => {
     for (const countryCode of ['FR', 'DE']) {
@@ -32,8 +32,8 @@ describe('resolveCancelPolicyForCountry — the per-country map', () => {
   });
 
   // MX ('required', authority-side SAT step) and ES ('forbidden') both illustrated the same two
-  // "not implementable" shapes PL and PT alone now carry — but data/mx.json and data/es.json were
-  // both removed by the 5-country prune (2026-09-10). PT re-anchors the "not whitelisted" refusal
+  // "not implementable" shapes PL and PT alone now carry — but both countries' own data files were
+  // removed by the 5-country prune (2026-09-10). PT re-anchors the "not whitelisted" refusal
   // below, sourced this time on a genuine structural absence rather than an authority step.
   it('PT: refused — CANCEL_AND_REPLACE stays honestly "unverified", no clearance/refusal-then-reissue mechanism was found', () => {
     const decision = resolveCancelPolicyForCountry('PT');

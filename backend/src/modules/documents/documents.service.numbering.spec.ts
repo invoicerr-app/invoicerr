@@ -28,7 +28,7 @@ jest.mock('./numbering/take-number');
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
 const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'sent' }];
 
-/** A "widget" numbered on entering "sent" — mirrors quote/invoice.descriptor.ts's own
+/** A "widget" numbered on entering "sent" — mirrors `quote.descriptor.ts`'s/`invoice.descriptor.ts`'s own
  *  `numbering: { onEnterStatus: 'sent' }`, on a synthetic type never named "quote"/"invoice". */
 function numberedWidgetDescriptor(overrides: Partial<DocumentTypeDescriptor> = {}): DocumentTypeDescriptor {
   return {

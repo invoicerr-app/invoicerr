@@ -703,7 +703,7 @@ enum WebhookEvent {
   // Purge (2026-09-03) of the remaining dead vocabulary flagged by T2bis's own
   // TODO_ISSUES entry ("une soixantaine de valeurs supplémentaires tout aussi mortes"): the
   // RECURRING_INVOICE_* family (7 + 3 item events — the feature itself has no `RecurringInvoice`
-  // Prisma model any more, superseded by the generic document `schedule/cadence.ts`), every PLUGIN_*
+  // Prisma model any more, superseded by the generic document `schedules/cadence.ts`), every PLUGIN_*
   // member (9 — P2's own removal of the external plugin mechanism took the only thing that could
   // ever have dispatched PLUGIN_WEBHOOK_RECEIVED with it; `plugins.controller.ts` exposes no inbound
   // webhook route at all), USER_*/OTP_*/APP_*(7 + 3 + 2 — auth and OTP never dispatched through this
@@ -1857,7 +1857,7 @@ model CompanySigningCertificate {
 // ======= END OF DOCUMENT DESCRIPTOR SYSTEM ======= //
 
 // ======= START OF COMPLIANCE LIFECYCLE PERSISTENCE ======= //
-// See COMPLIANCE_ARCHITECTURE.md §13 + TODO_PRISMA.md §4. Additive only.
+// See COMPLIANCE_ARCHITECTURE.md §13. Additive only.
 
 enum ComplianceStatus {
   DRAFT
