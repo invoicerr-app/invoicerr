@@ -1,0 +1,61 @@
+{
+  "countryCode": "PT",
+  "categories": [
+    {
+      "key": "waste-and-scrap-materials",
+      "label": "Waste, scrap and recyclable materials listed in Anexo E",
+      "legalRef": "CIVA art. 2.º n.º 1 alínea i)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "i) As pessoas singulares ou colectivas referidas na alínea a) que, no território nacional, sejam adquirentes dos bens ou dos serviços mencionados no anexo E ao presente Código e tenham direito à dedução total ou parcial do imposto, desde que os respectivos transmitentes ou prestadores sejam sujeitos passivos do imposto;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Retrieved curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 bytes, 188 pages), pdftotext -layout — the AT's own consolidated CIVA PDF, edition carrying 'Decreto-Lei n.º 97/2026, de 20/05' as its last update. Anexo E's own item list (the specific waste/scrap/recyclable goods and services it names) is NOT reproduced here — only the triggering category itself (alínea i) is sourced; enumerating Anexo E is its own retrieval, not attempted this wave. Conditions NOT modeled: the buyer must have full-or-partial deduction rights, and the seller/service-provider must itself be a taxable person — buyer/seller-status tests this catalog does not evaluate. Shares the `waste-and-scrap-materials` key with DE (§ 13b Abs. 2 Nr. 7) and FR (CGI art. 283, 2 sexies) — Italy has NO equivalent category under art. 17 (its own scrap-metal reverse charge is a different article, art. 74 commi 7-8 — see `data/it.json`'s own file-level notes)."
+    },
+    {
+      "key": "construction-subcontracting",
+      "label": "Construction, remodelling, repair, maintenance, conservation or demolition of real property, in an empreitada/subempreitada regime",
+      "legalRef": "CIVA art. 2.º n.º 1 alínea j)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "j) (**) As pessoas singulares ou coletivas referidas na alínea a) que disponham de sede, estabelecimento estável ou domicílio em território nacional e que pratiquem operações que confiram o direito à dedução total ou parcial do imposto, quando sejam adquirentes de serviços de construção civil, incluindo a remodelação, reparação, manutenção, conservação e demolição de bens imóveis, em regime de empreitada ou subempreitada, bem como aquelas que apenas pratiquem operações que não confiram direito à dedução do imposto quando sejam adquirentes de empreitadas de construção ou reabilitação previstas na verba 2.42 da lista I anexa ao presente Código; (Redação do Decreto-Lei n.º 97/2026, de 20/05)-Nota(**) Produz efeitos em 1 de julho de 2026, nos termos do n.º 4 do artigo 18.º do Decreto-Lei n.º 97/2026, de 20/05, podendo aplicar-se a partir de 1 de janeiro de 2026, caso exista opção conjunta do prestador e do adquirente, conforme previsto no n.º 7 do mesmo artigo.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `waste-and-scrap-materials` above. The quoted text's OWN 'Nota(**)' says this wording (as redrafted by Decreto-Lei n.º 97/2026) is effective from 1 July 2026 — already in force as of this catalog's 2026-09-13 retrieval date, optionally back to 1 January 2026 by the provider's and buyer's own joint election. Conditions NOT modeled: the buyer's own establishment-in-Portugal and deduction-rights tests the quote's own text carries. Shares the `construction-subcontracting` key with IT (DPR 633/1972 art. 17 comma 6 lett. a), DE (§ 13b Abs. 2 Nr. 4) and FR (CGI art. 283, 2 nonies)."
+    },
+    {
+      "key": "greenhouse-gas-and-energy-certificates",
+      "label": "Greenhouse-gas emission rights, certified emission reductions and emission-reduction units",
+      "legalRef": "CIVA art. 2.º n.º 1 alínea l)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "l) As pessoas singulares ou colectivas referidas na alínea a) que disponham de sede, estabelecimento estável ou domicílio em território nacional e que pratiquem operações que confiram o direito à dedução total ou parcial do imposto, quando sejam adquirentes de prestações de serviços que tenham por objecto direitos de emissão, reduções certificadas de emissões ou unidades de redução de emissões de gases com efeito de estufa, aos quais se refere o Decreto-Lei n.º 233/2004, de 14 de dezembro. (Aditado pela Lei n.º 3-B/2010, de 28 de abril)",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `waste-and-scrap-materials` above. Deliberately keyed the SAME as IT's own `greenhouse-gas-and-energy-certificates` (DPR 633/1972 art. 17 comma 6 lett. d-bis/d-ter) and shared with DE (§ 13b Abs. 2 Nr. 6) and FR (CGI art. 283, 2 septies), all four ultimately traceable to Directive 2006/112/EC art. 199a — but PT's OWN retrieved text covers only emission rights/certified reductions/reduction units, NOT the broader gas-and-electricity CERTIFICATES IT/DE/FR's own texts also name; this narrower scope is recorded here rather than silently assumed identical (see `schema.ts`'s own header on why a shared key is never itself an equivalence claim)."
+    },
+    {
+      "key": "pt-cork-and-wood",
+      "label": "Cork, wood, pine cones and pine nuts with shell",
+      "legalRef": "CIVA art. 2.º n.º 1 alínea m)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "m) As pessoas singulares ou coletivas referidas na alínea a) que disponham de sede, estabelecimento estável ou domicílio em território nacional e que pratiquem operações que confiram o direito à dedução total ou parcial do imposto, quando sejam adquirentes de cortiça, madeira, pinhas e pinhões com casca. (Aditada pelo Decreto-Lei n.º 165/2019, de 30 de outubro) *- ver nota",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `waste-and-scrap-materials` above. The retrieved text itself carries a '*- ver nota' marker pointing to a footnote elsewhere in the consolidated PDF not chased down for this wave — recorded here rather than silently dropped; a future re-check should read that footnote before treating this fact as complete. No equivalent found in FR/IT/DE's own retrieved text; Portugal-only key."
+    },
+    {
+      "key": "pt-self-consumption-electricity",
+      "label": "Electricity from small self-consumption production units (≤ 1 MW)",
+      "legalRef": "CIVA art. 2.º n.º 1 alínea n)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "n) As pessoas singulares ou coletivas referidas na alínea i) do artigo 1.º que disponham de sede, estabelecimento estável ou domicílio em território nacional, quando sejam adquirentes de eletricidade produzida em unidades de produção para autoconsumo, com potência instalada igual ou inferior a 1 MW, nos termos definidos nas alíneas f) e vvv) do artigo 3.º do Decreto-Lei n.º 15/2022, de 14 de janeiro, na sua redação atual, a autoconsumidores cujo enquadramento no regime normal do imposto resulte unicamente da prática destas transmissões. (Aditada pelo Decreto-Lei n.º 85/2022, de 21 de dezembro - Produz efeitos a partir de 1 de janeiro de 2023)",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `waste-and-scrap-materials` above. Threshold NOT modeled: the ≤ 1 MW installed-capacity ceiling named in the quote's own text is a numeric fact this catalog's category list does not itself evaluate (same discipline as the brief's own instruction not to model thresholds). Buyer is further restricted to the class defined by art. 1.º alínea i) (not itself retrieved here) — a buyer-status test also not modeled. No equivalent found in FR/IT/DE's own retrieved text; Portugal-only key."
+    }
+  ],
+  "notes": "Retrieved curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 bytes, 188 pages), pdftotext -layout, 2026-09-13. All five categories are read from the CURRENT consolidated text of CIVA art. 2.º n.º 1 (the article's own 'Incidência subjectiva' body starting mid-document, NOT the earlier reproduction of the 1984 enacting Decreto-Lei's own amendment excerpt that appears near the front of the same PDF and uses '...' placeholders for unchanged text — reading that earlier excerpt instead would have been the same 'a 200 is not the document' trap this brief warned about, one directory up). CIVA art. 36.º n.º 13 (already sourced in `tax/tax-engine.ts#LOCALIZED_MENTION.reverseCharge.PT`) names these same five alíneas by cross-reference ('Nas situações previstas nas alíneas i), j), l), m) e n) do n.º 1 do artigo 2.º') — re-grepped against this file's own retrieval and matches at line 7524 of the extracted text. DELIBERATELY NOT MODELED: buyer establishment/deduction-rights tests common to alíneas i)/j)/l)/m), the ≤1MW threshold on alínea n), and the Anexo E item list behind alínea i) — see each category's own `notes` above."
+}

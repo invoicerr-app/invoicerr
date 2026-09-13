@@ -1,0 +1,127 @@
+{
+  "countryCode": "DE",
+  "categories": [
+    {
+      "key": "de-secured-goods-transfer",
+      "label": "Transfer of goods held as security, outside insolvency proceedings",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 2",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "2. Lieferungen sicherungsübereigneter Gegenstände durch den Sicherungsgeber an den Sicherungsnehmer außerhalb des Insolvenzverfahrens;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Retrieved curl -sL -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__13b.html (HTTP 200). Narrow and idiosyncratic to German insolvency/security law; no equivalent found in FR/IT/PT's own retrieved text — kept as a Germany-only key."
+    },
+    {
+      "key": "de-real-estate-transfer-tax-transactions",
+      "label": "Transactions falling under the Real Estate Transfer Tax Act",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 3",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "3. Umsätze, die unter das Grunderwerbsteuergesetz fallen;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. No equivalent found in FR/IT/PT's own retrieved text; Germany-only key."
+    },
+    {
+      "key": "construction-subcontracting",
+      "label": "Construction work (Bauleistungen)",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 4",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "4. Bauleistungen, einschließlich Werklieferungen und sonstigen Leistungen im Zusammenhang mit Grundstücken, die der Herstellung, Instandsetzung, Instandhaltung, Änderung oder Beseitigung von Bauwerken dienen, mit Ausnahme von Planungs- und Überwachungsleistungen. Als Grundstücke gelten insbesondere auch Sachen, Ausstattungsgegenstände und Maschinen, die auf Dauer in einem Gebäude oder Bauwerk installiert sind und die nicht bewegt werden können, ohne das Gebäude oder Bauwerk zu zerstören oder zu verändern. Nummer 1 bleibt unberührt;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the BUYER to be a business that sustainably performs construction work itself (evidenced by a tax-office certificate) for this to bind by default outside the parties' own good-faith agreement — a buyer-status test this catalog does not evaluate. Shares the `construction-subcontracting` key with IT (DPR 633/1972 art. 17 comma 6 lett. a), FR (CGI art. 283, 2 nonies) and PT (CIVA art. 2.º n.º 1 alínea j))."
+    },
+    {
+      "key": "gas-and-electricity-to-reseller",
+      "label": "Supply of gas via the natural-gas network, or electricity, other than under Buchst. a)",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 5 Buchst. b)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "b) von Gas über das Erdgasnetz und von Elektrizität, die nicht unter Buchstabe a fallen;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. § 13b Abs. 5 further conditions this on the BUYER itself being a reseller of gas/electricity within the meaning of § 3g — a buyer-status test this catalog does not evaluate. Shares the `gas-and-electricity-to-reseller` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-quater) and FR (CGI art. 283, 2 quinquies, second sentence)."
+    },
+    {
+      "key": "greenhouse-gas-and-energy-certificates",
+      "label": "Transfer of greenhouse-gas emission allowances and gas/electricity certificates",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 6",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "6. Übertragung von Berechtigungen nach § 3 Nummer 3 des Treibhausgas-Emissionshandelsgesetzes, Emissionsreduktionseinheiten nach § 2 Nummer 20 des Projekt-Mechanismen-Gesetzes, zertifizierten Emissionsreduktionen nach § 2 Nummer 21 des Projekt-Mechanismen-Gesetzes, Emissionszertifikaten nach § 3 Nummer 2 des Brennstoffemissionshandelsgesetzes sowie von Gas- und Elektrizitätszertifikaten;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Shares the `greenhouse-gas-and-energy-certificates` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-bis/d-ter), FR (CGI art. 283, 2 septies) and PT (CIVA art. 2.º n.º 1 alínea l) — PT's own scope is narrower, GHG allowances only; see PT's own fact)."
+    },
+    {
+      "key": "waste-and-scrap-materials",
+      "label": "Goods listed in Anlage 3 to the UStG",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 7",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "7. Lieferungen der in der Anlage 3 bezeichneten Gegenstände;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Anlage 3's own item list (scrap, waste and recyclable-material categories — Schrott, Altmetalle and the like) is NOT reproduced here — only the triggering category itself (Nr. 7) is sourced; enumerating Anlage 3 is its own retrieval, not attempted this wave, same posture as PT's own Anexo E (see `data/pt.json`). Shares the `waste-and-scrap-materials` key with PT (CIVA art. 2.º n.º 1 alínea i)) and FR (CGI art. 283, 2 sexies) — Italy has no equivalent under DPR 633/1972 art. 17 (see `data/it.json`'s own file-level notes)."
+    },
+    {
+      "key": "de-building-cleaning",
+      "label": "Cleaning of buildings and parts of buildings",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 8",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "8. Reinigen von Gebäuden und Gebäudeteilen. Nummer 1 bleibt unberührt;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the buyer to itself sustainably perform building-cleaning services (a certified buyer-status test), or the parties' own good-faith agreement. NOT keyed the same as IT's own `it-building-services` (DPR 633/1972 art. 17 comma 6 lett. a-ter): the Italian lettera additionally covers demolition, plant installation and completion works on buildings, a wider scope than this German Nummer's cleaning-only text — see IT's own file for why that key is kept separate."
+    },
+    {
+      "key": "investment-gold",
+      "label": "Gold of at least 325‰ fineness, raw or semi-finished, and gold-plated goods of the same fineness",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 9",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "9. Lieferungen von Gold mit einem Feingehalt von mindestens 325 Tausendstel, in Rohform oder als Halbzeug (aus Position 7108 des Zolltarifs) und von Goldplattierungen mit einem Goldfeingehalt von mindestens 325 Tausendstel (aus Position 7109);",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Shares the `investment-gold` key with IT (DPR 633/1972 art. 17 comma 5) and FR (CGI art. 283, 2 quater)."
+    },
+    {
+      "key": "consumer-electronics-preretail",
+      "label": "Mobile phones, tablets, laptops, game consoles and integrated circuits before retail installation",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 10",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "10. Lieferungen von Mobilfunkgeräten, Tablet-Computern und Spielekonsolen sowie von integrierten Schaltkreisen vor Einbau in einen zur Lieferung auf der Einzelhandelsstufe geeigneten Gegenstand, wenn die Summe der für sie in Rechnung zu stellenden Entgelte im Rahmen eines wirtschaftlichen Vorgangs mindestens 5 000 Euro beträgt; nachträgliche Minderungen des Entgelts bleiben dabei unberücksichtigt;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Threshold NOT modeled: the quoted text's own EUR 5 000 per-transaction floor is a numeric fact this catalog's category list does not itself evaluate (the brief's own instruction not to model thresholds). Shares the `consumer-electronics-preretail` key with IT's own lettera c) (DPR 633/1972 art. 17 comma 6 lett. c) — but this German Nummer explicitly includes 'Mobilfunkgeräte' (mobile phones), which IT's lettera c) does NOT; Italian mobile-phone terminal equipment sits under IT's own separate `it-mobile-network-terminal-equipment` key (lett. b), an older, narrower provision tied to a telecoms-concession tax cross-reference — see IT's own file for that boundary."
+    },
+    {
+      "key": "de-anlage-4-goods",
+      "label": "Goods listed in Anlage 4 to the UStG",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 11",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "11. Lieferungen der in der Anlage 4 bezeichneten Gegenstände, wenn die Summe der für sie in Rechnung zu stellenden Entgelte im Rahmen eines wirtschaftlichen Vorgangs mindestens 5 000 Euro beträgt; nachträgliche Minderungen des Entgelts bleiben dabei unberücksichtigt;",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Anlage 4's own item list (certain base metals) is NOT reproduced here, same posture as Nr. 7's own Anlage 3 above. Threshold NOT modeled (same EUR 5 000 floor as `consumer-electronics-preretail`). No equivalent found in FR/IT/PT's own retrieved text; Germany-only key."
+    },
+    {
+      "key": "telecommunications-services",
+      "label": "Telecommunications services",
+      "legalRef": "UStG § 13b Abs. 2 Nr. 12",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "12. sonstige Leistungen auf dem Gebiet der Telekommunikation. Nummer 1 bleibt unberührt.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the buyer to itself be a business whose main activity in acquiring these services consists of reselling them, with only incidental own consumption (a certified buyer-status test). Shares the `telecommunications-services` key with FR (CGI art. 283, 2 octies)."
+    }
+  ],
+  "notes": "Retrieved curl -sL -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__13b.html (HTTP 200), 2026-09-13 — the same host and article family already used for `tax/tax-engine.ts#LOCALIZED_MENTION.reverseCharge.DE` (§ 14a Abs. 1/Abs. 5). DELIBERATELY EXCLUDED, whole: § 13b Abs. 2 Nr. 1 ('Werklieferungen und nicht unter Absatz 1 fallende sonstige Leistungen eines im Ausland ansässigen Unternehmers') and Nr. 5 Buchst. a) ('der in § 3g Absatz 1 Satz 1 genannten Gegenstände eines im Ausland ansässigen Unternehmers unter den Bedingungen des § 3g') are NOT declared as categories at all, even though both are part of the same Abs. 2 list every other fact in this file is drawn from: both explicitly hinge on the SUPPLIER being established ABROAD ('im Ausland ansässiger Unternehmer'), which is a cross-border fact this product's own seller-country/buyer-country model already routes through `resolve-invoice-tax.ts`'s CROSS-BORDER branch — declaring them here would double-cover a case the engine already handles differently under a DOMESTIC-only catalog. DELIBERATELY NOT MODELED, for every category that IS declared above: the buyer-status tests § 13b Abs. 5 layers onto Abs. 2's own list (an 'Unternehmer' test, a sustained-activity test evidenced by a tax-office certificate for Nr. 4/8/12, a reseller test for Nr. 5 Buchst. b, a juristische-Person-des-öffentlichen-Rechts exclusion for several) — Abs. 5 is a single long paragraph conditioning ALL of Abs. 2's Nummern on facts (the buyer's own status, sometimes evidenced by a certificate) this catalog's flat category list has no field for; and the EUR 5 000 per-transaction threshold on Nr. 10/11. Anlage 3 (Nr. 7) and Anlage 4 (Nr. 11)'s own item lists are not reproduced — see each fact's own notes."
+}
