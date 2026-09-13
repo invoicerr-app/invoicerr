@@ -56,8 +56,10 @@ describe('tax-systems/data — the kept standard rates read from TEDB, content-p
     expect(byCode('DE')?.standardRate).toBe(19);
   });
 
-  // Spot-checks across the kept set — each value is the one the TEDB reading returned
-  // (see each file's own `provenance.sourceText`), not a value recalled from memory.
+  // Spot-checks across the kept set — each value is the one the underlying reading returned
+  // (see each file's own `provenance.sourceText`), not a value recalled from memory. DE's citation
+  // was replaced 2026-09-13 (TEDB JSON body → UStG § 12 Abs. 1, see the dedicated test below), but
+  // the figure itself (19%) is unchanged — both sources always agreed on it.
   it.each([
     ['DE', 19],
     ['IT', 22],
@@ -97,8 +99,8 @@ describe('tax-systems/data — the kept standard rates read from TEDB, content-p
     }
   });
 
-  it('every one of the TEDB-sourced files (DE/IT/PL/PT) claims "legal" provenance citing the actual TEDB HTTP response, checked 2026-09-01', () => {
-    for (const cc of ['DE', 'IT', 'PL', 'PT']) {
+  it('IT/PL/PT still claim "legal" provenance citing the actual TEDB HTTP response, checked 2026-09-01', () => {
+    for (const cc of ['IT', 'PL', 'PT']) {
       const file = byCode(cc);
       expect(file?.provenance.kind).toBe('legal');
       if (file?.provenance.kind === 'legal') {
@@ -107,6 +109,20 @@ describe('tax-systems/data — the kept standard rates read from TEDB, content-p
         expect(file.provenance.sourceCheckedAt).toBe('2026-09-01');
         expect(file.notes).toContain('tedb/rest-api/vatSearch');
       }
+    }
+  });
+
+  it("DE is PROMOTED off the TEDB HTTP body onto the statute itself — the same UStG § 12 Abs. 1 quote already `legal` on vat-rates/data/de.json's own 'de-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
+    const de = byCode('DE');
+    const deVatStandard = require('../../../vat-rates/data/de.json').rates.find(
+      (r: { id: string }) => r.id === 'de-standard',
+    );
+    expect(de?.provenance.kind).toBe('legal');
+    if (de?.provenance.kind === 'legal') {
+      expect(de.provenance.sourceText).not.toMatch(/"isoCode"/); // no longer the TEDB JSON body
+      expect(de.provenance.sourceText).toBe(deVatStandard.provenance.sourceText);
+      expect(de.provenance.sourceCheckedAt).toBe(deVatStandard.provenance.sourceCheckedAt);
+      expect(de.provenance.sourceCheckedAt).toBe('2026-09-13');
     }
   });
 });
