@@ -1,28 +1,24 @@
-# TODO_ISSUES — ce qui n'a pas pu être fait, et pourquoi
+# TODO_ISSUES — mon carnet de bord technique
 
-> Tenu au fil de l'exécution du `TODO.md`. Chaque entrée dit ce qui bloque et ce qui le
-> débloquerait — jamais un simple « échoué ».
+> **Ce fichier n'est pas pour le propriétaire du produit.** Ce qui relève de lui est dans
+> `TODO_MANDANT.md`, tenu court exprès. Ici je consigne ce que je n'ai pas pu faire et pourquoi —
+> chaque entrée dit ce qui bloque et ce qui le débloquerait, jamais un simple « échoué ».
+>
+> Une entrée réglée est **supprimée**, pas barrée : le commit qui la ferme la documente mieux que sa
+> dépouille. Ce fichier ne doit contenir que de l'ouvert.
 
-## Où en sont les constats du 2026-09-13
-
-**Encore ouverts, par ordre d'enjeu :**
+## Ce qui reste ouvert, par ordre d'enjeu (2026-09-13)
 
 | Constat | Ce qui bloque |
 | --- | --- |
-| ~~L'autoliquidation **domestique**~~ | **TRANCHÉ : non câblé** (décision du propriétaire, 2026-09-13). Le catalogue reste, dormant. Voir la section pour la frontière de cette décision. |
-| L'onglet **PDF templates** est cassé (404) | Décision de périmètre : restaurer la fonctionnalité, ou retirer l'onglet. |
+| La **mise à niveau** d'une installation ancienne n'est pas prouvée | Prisma refuse `db push` depuis un agent sans accord explicite du propriétaire, et je ne contourne pas ce refus. Demandé en `TODO_MANDANT.md` §2. |
 | Le **code destinataire italien** n'a pas d'écran | Une facture B2B domestique part avec la valeur de repli des étrangers. |
-| Les **archives déjà écrites** portent une date trop précoce | Recalculer réécrirait des lignes enregistrées, y compris chez des tiers. À trancher. |
-| La **mise à niveau** d'une installation ancienne n'est pas prouvée | Prisma refuse `db push` depuis un agent sans accord explicite du propriétaire. |
 | Le **B2G portugais** | Le canal est délégué à une portaria non retrouvée. |
-| Le catalogue **déclaratif** | L'obligation française est établie mais transite par la PDP : le schéma ne sait pas exprimer « acquittée par un transport déjà implémenté ». |
-| Les **jambes de scénarios** ne tournent que sur une PR | Trois étaient rouges depuis des semaines sans que rien ne le dise. Corrigées, mais le procédé reste à trancher. |
-| Deux pages **françaises** sont périmées | `plugin-system.md` décrit un mécanisme supprimé ; `authentication.md` a perdu un paragraphe. Dérive de traduction, sans rapport avec les liens morts, désormais tous réparés. |
-
-**Fermés le même jour** (les entrées restent, barrées, parce qu'elles documentent la FORME du
-défaut) : la franchise de TVA, les mentions fiscales génériques, l'injection XML italienne, la carte
-des formats de numéro, et les deux portes d'écriture de masse. La rétention d'archives, qui comptait
-depuis le mauvais jour, a été corrigée sans avoir jamais figuré ici.
+| Le catalogue **déclaratif** | L'obligation française est établie (CGI art. 290) mais transite par la PDP : le schéma ne sait pas exprimer « acquittée par un transport déjà implémenté ». |
+| Cinq catégories d'**autoliquidation italienne expirent le 2026-12-31** | Le catalogue n'a aucun axe temporel. Daté, à ne pas laisser passer. |
+| Les **jambes de scénarios** ne tournent que sur une PR | Corrigé par un déclencheur `push` filtré (`59beaa50`), mais le procédé mérite d'être retranché. |
+| Le **français dans le code** | 310 fichiers mesurés portent un commentaire français ; balayage en cours, lot par lot. |
+| `local-form.json` **orphelin** | Un `"type": "folder"` que plus aucun lecteur ne consomme. |
 
 ## Réglages sans effet — la refonte a retiré le back, les écrans sont restés (2026-09-13)
 
@@ -86,16 +82,11 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   refonte (`prisma.service.ts` ~12) ; elle a été supprimée avec elle. La branche n'étant pas
   fusionnée, restaurer la valeur héritée est une correction, pas une rupture.
 
-- **L'onglet « PDF templates » des réglages est cassé** — deuxième onglet de la navigation,
-  1270 lignes, dont les deux seuls appels visent `/api/company/pdf-template`, **route absente du
-  backend** : 404 constaté sur la pile qui tourne, là où `/api/company/info` rend 401. En outre
-  `PDFConfigDto` (police, logo, couleurs, marges, ~20 libellés) est un champ **requis** de
-  `EditCompanyDto`, déstructuré puis jeté sans être relu, sans colonne correspondante en base.
-  Pourquoi personne ne l'a vu : **aucune spec e2e ne touche cet onglet**. Un `grep` sur les 53
-  fichiers de `e2e/cypress/` ne trouve ni `pdf-template`, ni `PDFTemplates`, ni `tab=template`. La
-  batterie couvre les flux (devis, facture, relances) et les autres onglets de réglages, pas
-  celui-ci. C'est la même leçon que la restauration de `full-lifecycle.cy.ts`, qui avait révélé trois
-  défauts produit invisibles aux tests unitaires : ce qu'aucun écran ne traverse n'est pas vérifié.
+La leçon que cet ensemble laisse — et la seule chose à en retenir ici : **ce qu'aucun écran ne
+traverse n'est pas vérifié.** L'onglet « PDF templates » a vécu 1270 lignes avec ses deux seuls
+appels sur une route absente du backend, sans qu'aucune spec e2e ne le touche (supprimé en
+`0a4f850a`) ; la restauration de `full-lifecycle.cy.ts` avait révélé trois autres défauts produit
+qu'aucun test unitaire ne voyait. Les tests unitaires prouvent le back, pas le produit.
 
 - **Une facture italienne B2B domestique part avec le code destinataire des étrangers.**
   `formats/national/fatturapa-provider.ts` ~206-236 route sur trois identifiants du client :
@@ -253,124 +244,6 @@ de ces quatre n'a été lue sur son texte brut. Une tentative d'accès au PDF de
 **200 qui n'était pas le document** (une page HTML servie à la place), ce qui rappelle qu'un code de
 statut ne prouve rien : c'est le corps qu'il faut inspecter.
 
-## ~~Les mentions fiscales sont en anglais générique~~ — RÉSOLU (`c99df594`, 2026-09-13)
-
-Une table d'overrides par (situation, pays) a remplacé le ternaire, avec repli octet pour octet sur la
-formulation générique pour tout pays sans entrée. Encodé : `IVA - autoliquidação`, `inversione
-contabile`, `odwrotne obciążenie`, `Steuerschuldnerschaft des Leistungsempfängers`, et pour l'Italie
-`operazione non imponibile` sous DEUX codes distincts — l'export relevant de l'art. 21 comma 6 lett.
-b) et l'intracommunautaire du D.L. 331/1993 art. 46 comma 2. Deux jambes de scénarios ont été mises à
-jour en conséquence (`13a27f39`), la jambe française gardant exprès le texte générique puisque la
-France n'impose aucune formulation — c'est ce contraste qui prouve que le moteur suit la loi du
-vendeur. Le constat d'origine est conservé ci-dessous : il documente le raisonnement et le piège de
-correspondance, qui resservira pour l'autoliquidation domestique.
-
-### Le constat d'origine (2026-09-13)
-
-`tax/tax-engine.ts` ouvre sur une table `MENTION` plate, **aveugle au pays** : une seule formulation
-par situation fiscale, la même pour tous. `Autoliquidation / Reverse charge — Art. 196 Directive
-2006/112/EC`, `Intra-Community supply — Art. 138…`, `VAT exempt — small business scheme`. Seule la
-France a sa formulation propre (`fr293b`), atteinte par l'unique test
-`supplier.countryCode === 'FR' ? MENTION.fr293b : MENTION.franchise`.
-
-Or quatre des cinq pays du périmètre **nomment les mots dans la loi**. Établi par récupération directe
-des sources primaires et `grep -F`, le 2026-09-13 :
-
-- **Portugal** — CIVA art. 36.º n.º 13 : les factures « devem conter a expressão 'IVA -
-  autoliquidação' » ; art. 57.º n.º 2 : « devem sempre conter a menção ‘IVA - regime de isenção’ ».
-  Source : le PDF consolidé de l'AT sur `info.portaldasfinancas.gov.pt`.
-- **Italie** — DPR 633/1972 art. 21 : comma 6 impose « con l'annotazione » suivie de «operazione non
-  soggetta», «operazione non imponibile», «operazione esente» ou les trois variantes du «regime del
-  margine» ; comma 6-bis lett. a) impose «inversione contabile» ; comma 6-ter impose
-  «autofatturazione». Source : `normattiva.it`, qui rend bien cet article en texte brut.
-- **Pologne** — ustawa o VAT art. 106e ust. 1 : le texte dit *wyrazy* (les mots) et les cite —
-  pkt 16 „metoda kasowa”, pkt 17 „samofakturowanie”, pkt 18 „odwrotne obciążenie”, pkt 18a
-  „mechanizm podzielonej płatności”. Source : `dziennikustaw.gov.pl`, Dz.U. 2024 poz. 361.
-- **Allemagne** — UStG § 14a Abs. 1 et Abs. 5 imposent « die Angabe „Steuerschuldnerschaft des
-  Leistungsempfängers“ ». En revanche § 14 Abs. 4 Nr. 8 n'exige pour une EXONÉRATION qu'« einen
-  Hinweis darauf, dass … eine Steuerbefreiung gilt » — une référence, sans formulation imposée : sur
-  ce point précis la mention générique suffit.
-
-Conséquence : une facture italienne en autoliquidation passant par le SdI, ou une facture allemande
-intra-UE, porte aujourd'hui un texte anglais là où le statut nomme l'expression. Ce n'est pas
-cosmétique — c'est la mention qui décharge l'obligation.
-
-Le piège de mise en œuvre, à ne pas sous-estimer : la table `MENTION` est indexée par SITUATION
-FISCALE, les annotations nationales par CATÉGORIE STATUTAIRE, et les deux ne se recouvrent pas. Le
-cas intracommunautaire italien en particulier relève de l'art. 41 du D.L. 331/1993, pas des articles
-8/8-bis/9 que le comma 6 lett. b) énumère — donc la correspondance évidente y est probablement
-fausse.
-
-## ~~Le XML italien est construit par une bibliothèque vulnérable~~ — EXPOSITION FERMÉE (`c73bc492`, 2026-09-13)
-
-La bibliothèque reste celle qu'elle était — aucune montée de version ne la retire, elle est épinglée
-par `@digitalia/fatturapa` — mais plus aucun texte utilisateur ne l'atteint sans échappement. Tout
-l'objet passe désormais par un échappement récursif au point unique où il est remis au constructeur,
-si bien qu'un champ ajouté demain est couvert par construction. L'exposition a été prouvée avant
-correction (le constructeur n'échappe aucun des cinq caractères) et le test de sécurité échoue si
-l'on retire le garde-fou. Le texte ordinaire est inchangé, et un texte contenant un délimiteur se
-relit identique — vérifié avec un second moteur XML indépendant. Les cinq autres fournisseurs de
-format passent par `xmlbuilder2`, qui échappe correctement : ils ne partagent pas cette exposition.
-La limite honnête, écrite dans le code : la garantie tient au point d'appel, pas au type — un futur
-appel direct au constructeur la contournerait.
-
-Restent les cinq avis corrigibles par montée de version (`mysql2`, `deepmerge-ts`, `@prisma/config`,
-`prisma`, `sanitize-html`), délibérément laissés : une montée de dépendance sur une branche de cette
-taille mérite son propre changement et sa propre batterie.
-
-### Le constat d'origine (2026-09-13)
-
-`npm audit` dans `backend/` : 9 vulnérabilités (6 hautes, 3 modérées). Une seule touche un chemin
-métier de ce produit, et c'est celle qui n'a **pas** de correctif.
-
-`fast-xml-parser@3.21.1` porte un avis « XMLBuilder: XML Comment and CDATA Injection via Unescaped
-Delimiters ». Le code du dépôt ne l'importe jamais : elle arrive par `@digitalia/fatturapa@1.3.1`,
-qui l'épingle en v3 — d'où `fixAvailable: false`, aucune montée de version ne la retire.
-
-Exposition constatée : `formats/national/fatturapa-provider.ts` ligne ~160 passe
-`Descrizione: line.description` — du texte libre saisi par l'utilisateur — directement à cette
-bibliothèque, qui en construit le XML FatturaPA envoyé au SdI. Une description contenant les
-séquences de délimiteur XML que l'avis vise peut donc produire un document malformé ou altéré. Le
-risque est une facture italienne invalide ou trafiquée, pas une exécution de code.
-
-Deux voies pour le fermer, à trancher : rejeter ou neutraliser ces séquences dans les champs de texte
-libre avant de les remettre au fournisseur (petit, local, vérifiable par un test) ; ou remplacer
-`@digitalia/fatturapa`, ce qui est un chantier. La première suffit à supprimer l'exposition.
-
-Les huit autres avis : `mysql2`, `deepmerge-ts`, `@prisma/config`, `prisma` et `sanitize-html` sont
-corrigibles par montée de version ; `@nestjs/platform-express`, `multer` et `@digitalia/fatturapa`
-lui-même ne le sont pas. Le frontend n'en porte aucune.
-
-**Correction d'une affirmation que j'avais écrite ici et qui était fausse** : j'avais présenté
-l'avis `multer` comme atteignable, « le produit exposant un téléversement de factures reçues ».
-Vérifié depuis : il n'y a **aucun `FileInterceptor` ni multipart entrant** dans tout `backend/src`
-— `received-invoices.service.ts` le dit dans son propre commentaire, les téléversements passent en
-base64 comme `pfxBase64`, et le seul multipart du dépôt est SORTANT, vers la PDP. `SECURITY_AUDIT.md`
-(2026-09-10) avait donc raison de classer `multer` non atteignable, et moi tort.
-
-Ce qu'il faut en retenir n'est pas que l'audit se trompait, mais qu'il avait une **lacune** : la
-table de ses dépendances ne mentionne pas `fast-xml-parser`, qui, lui, était bel et bien atteignable
-par du texte utilisateur. La règle « transitive donc inatteignable » vaut pour celles qui y ont été
-examinées, pas pour celles qui n'y figurent pas.
-
-## Les archives déjà écrites gardent une date de conservation trop précoce (2026-09-13)
-
-La correction de l'origine de comptage (`cf2e7323`) ne vaut que pour les archives écrites À PARTIR de
-maintenant : `DocumentArchive.retentionUntil` est calculée une fois, à la création de l'archive, et
-aucune migration ne recalcule les lignes existantes. Une archive française créée avant ce correctif
-porte donc une date jusqu'à un an trop TÔT — la direction dangereuse, puisqu'elle dit à l'entreprise
-qu'elle peut détruire un document que la loi l'oblige encore à garder.
-
-La portée réelle reste mesurée : cette valeur est **affichée** (`components/documents/
-document-archive-section.tsx`), rien ne supprime quoi que ce soit sur sa foi. C'est donc un conseil
-faux à l'écran, pas une perte de données.
-
-Ce n'est pas une décision de coordination : recalculer réécrirait une colonne de lignes déjà
-enregistrées, y compris sur des installations tierces. Deux options, à trancher par le propriétaire :
-une migration qui recalcule (la valeur devient juste partout, mais l'historique d'archivage est
-réécrit), ou un affichage qui signale que les archives antérieures à cette date portent un calcul
-périmé (rien n'est réécrit, mais le produit doit savoir distinguer les deux).
-
 ## Migrations avant fusion : l'installation neuve est prouvée, la mise à niveau ne l'est pas (2026-09-13)
 
 La branche porte **969 commits d'avance sur `main` et 78 migrations nouvelles** (100 contre 22).
@@ -397,49 +270,6 @@ Ce qui le débloquerait : un accord explicite pour rejouer ce chemin sur une bas
 la vérification qui manque avant la fusion, parce qu'elle est la seule qui porte sur les installations
 déjà déployées.
 
-## ~~Aucun corps de requête n'est validé au runtime~~ — LES DEUX PORTES SONT FERMÉES (`81f0ef37`, 2026-09-13)
-
-L'écriture de masse est fermée : les deux seuls services qui versaient le corps de requête dans
-Prisma écrivent désormais une liste blanche explicite de colonnes, et des tests prouvent que `id`,
-`createdAt`, `numberFormats` (Company) et `companyId` (Client) sont ignorés au lieu d'être écrits.
-L'invariant du motif de numérotation n'est donc plus contournable : la validation est la seule porte.
-
-**Ce qui reste vrai, et n'a pas changé** : il n'y a toujours AUCUNE validation de corps de requête au
-runtime dans cette API — ni `ValidationPipe`, ni `class-validator` (pas même en dépendance), et les
-DTO restent des `interface` effacées à la compilation. Une entrée malformée rend donc toujours 500 là
-où elle devrait rendre 400, et tout autre point d'écriture futur devra penser à sa propre liste
-blanche. Passer les DTO en classes décorées reste un chantier ouvert, qui touche tous les contrôleurs.
-
-### Le constat d'origine (2026-09-13)
-
-Mesuré, pas supposé : `grep` sur tout `backend/src` ne trouve **aucun** `ValidationPipe`, aucun
-décorateur `class-validator`, et ni `class-validator` ni `class-transformer` ne figurent dans
-`package.json`. Les DTO sont des `interface` TypeScript, effacées à la compilation. Donc `@Body()
-body: EditCompanyDto` ne contraint rien à l'exécution : c'est une annotation, pas un contrôle.
-
-Deux services versent ce corps non validé directement dans Prisma :
-`company.service.ts` ~128 (`data: { ...rest }`) et `clients.service.ts` ~294
-(`data: { ...dataFields, isActive: true }`).
-
-**Ce que ce n'est PAS** — vérifié, pour ne pas surestimer : il n'y a ni fuite entre locataires ni
-élévation de privilège. `POST /api/company/info` fixe son `where` sur `@ActiveCompany()` et est
-réservé aux rôles OWNER/ADMIN ; `editClientsInfo` vérifie d'abord l'appartenance par un
-`findFirst({ where: { id, companyId } })` et rend 404 sinon. Ces deux gardes sont corrects.
-
-**Ce que c'est** — une écriture de masse sur les colonnes hors DTO du même locataire :
-- `Company` a 30 colonnes scalaires, dont `id`, `createdAt` et `numberFormats` ; aucune n'est
-  protégée par le spread.
-- `Client` a `companyId` et `id`, absents d'`EditClientsDto` : un corps qui les porte les écrit.
-- Conséquence concrète et la plus vraisemblable : l'invariant du **format de numéro** est
-  contournable. `PUT /api/company/number-format` valide le motif (`assertValidNumberPattern`) ;
-  `POST /api/company/info` écrit `numberFormats` sans aucun contrôle. Un motif invalide stocké par
-  cette porte n'échoue qu'à l'émission d'une facture, loin de sa cause.
-- Et une entrée malformée rend 500 (erreur Prisma) là où elle devrait rendre 400.
-
-Ce qui le réglerait : soit une liste blanche explicite des colonnes écrites dans ces deux services
-(plutôt qu'un spread), soit une validation de bordure réelle — ce qui suppose de passer les DTO
-d'`interface` à `class` décorée, un chantier qui touche tous les contrôleurs.
-
 ## Trois jambes de scénarios étaient rouges depuis des semaines, sans que rien ne le dise (2026-09-13)
 
 `scenarios.yml` ne s'exécute que **sur une pull request**, et cette branche n'en a jamais ouvert. Les
@@ -456,33 +286,6 @@ trouvaille** : une suite qui ne s'exécute qu'à l'ouverture d'une PR est une su
 Sur une branche de 800 commits, cela veut dire des semaines de rouge invisible. Soit ces jambes
 tournent aussi sur `push`, soit quelqu'un les lance à la main à chaque vague qui touche un catalogue
 pays — la première option coûte du temps machine, la seconde de la discipline.
-
-## ~~Le site public a neuf pages à liens morts, toutes en français~~ — RÉSOLU (`31289771`, 2026-09-13)
-
-Zéro lien mort, zéro ancre cassée, build EXIT=0. Cinq pages traduites (817 lignes). La cause n'était
-pas celle qu'on supposait : les pages générées existent bien dans les deux langues, mais Docusaurus
-rend une page non traduite sous `/fr/` avec le contenu anglais et résout les liens relatifs en
-comparant les chemins de fichiers SOURCE — une page de repli ne peut donc jamais atteindre une page
-réellement traduite. Le générateur n'était pour rien dans l'affaire.
-
-Restent signalées, non corrigées : la page française `plugin-system.md` décrit encore un mécanisme de
-plugins externes que l'anglaise dit supprimé, et la page `authentication.md` française a perdu un
-paragraphe sur la portée des clés d'API. Deux dérives de traduction préexistantes, sans rapport avec
-les liens morts.
-
-### Le constat d'origine (2026-09-13)
-
-`cd documentation && npm run build` réussit (EXIT=0, les deux locales sont générées), mais Docusaurus
-signale **9 pages porteuses de liens morts, toutes dans la locale `fr`, aucune en `en`**. Quatre
-cibles distinctes, toutes des pages du guide développeur qui existent en anglais et n'ont pas de
-traduction française : `adding-a-country.md` (6 liens), `country-support/index.md` (2),
-`plugin-system.md` (1), `authentication.md#api-key-authentication` (1).
-
-Six des neuf viennent des pages pays **générées** : `scripts/generate-country-matrix.mjs` émet
-`[Adding a country](../adding-a-country.md)` à l'identique dans les deux locales, sans vérifier que
-la cible existe dans celle qu'il écrit. Ce qui le réglerait, sans trahir la règle « la doc suit sa
-locale strictement » : que le générateur teste l'existence de la cible dans la locale qu'il produit
-et, à défaut, n'émette pas de lien plutôt qu'un lien vers une page d'une autre langue.
 
 ## Balayage front → Swagger
 
