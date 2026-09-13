@@ -212,6 +212,24 @@ corrigibles par montée de version ; `@nestjs/platform-express`, `multer` (déni
 noms de champs multipart forgés — le produit expose un téléversement de factures reçues) et
 `@digitalia/fatturapa` lui-même ne le sont pas. Le frontend n'en porte aucune.
 
+## Les archives déjà écrites gardent une date de conservation trop précoce (2026-09-13)
+
+La correction de l'origine de comptage (`cf2e7323`) ne vaut que pour les archives écrites À PARTIR de
+maintenant : `DocumentArchive.retentionUntil` est calculée une fois, à la création de l'archive, et
+aucune migration ne recalcule les lignes existantes. Une archive française créée avant ce correctif
+porte donc une date jusqu'à un an trop TÔT — la direction dangereuse, puisqu'elle dit à l'entreprise
+qu'elle peut détruire un document que la loi l'oblige encore à garder.
+
+La portée réelle reste mesurée : cette valeur est **affichée** (`components/documents/
+document-archive-section.tsx`), rien ne supprime quoi que ce soit sur sa foi. C'est donc un conseil
+faux à l'écran, pas une perte de données.
+
+Ce n'est pas une décision de coordination : recalculer réécrirait une colonne de lignes déjà
+enregistrées, y compris sur des installations tierces. Deux options, à trancher par le propriétaire :
+une migration qui recalcule (la valeur devient juste partout, mais l'historique d'archivage est
+réécrit), ou un affichage qui signale que les archives antérieures à cette date portent un calcul
+périmé (rien n'est réécrit, mais le produit doit savoir distinguer les deux).
+
 ## Migrations avant fusion : l'installation neuve est prouvée, la mise à niveau ne l'est pas (2026-09-13)
 
 La branche porte **969 commits d'avance sur `main` et 78 migrations nouvelles** (100 contre 22).
