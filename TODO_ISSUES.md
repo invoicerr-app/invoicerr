@@ -130,6 +130,32 @@ domestique, ce qui suppose de savoir de quelle catégorie d'opération relève l
 porte cette information aujourd'hui. C'est un chantier à part entière, plus grand que la
 localisation des mentions, et il doit être arbitré avant fusion plutôt que découvert après.
 
+## Le catalogue `reporting/` ne connaît que le Portugal — et l'obligation FRANÇAISE est établie (2026-09-13)
+
+`reporting/data/` ne porte que `pt.json`. La France en a pourtant une, et elle est sourcée : **CGI
+art. 290 I**, première phrase, lue dans le CGI intégral (`codes.droit.org`, PDF daté, `pdftotext`) :
+
+> I. - Les assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France
+> communiquent à l'administration sous forme électronique, selon des normes de transmission définies
+> par arrêté du ministre chargé du budget, les données relatives aux opérations suivantes lorsqu'elles
+> ne sont pas exonérées en application des articles 261 à 261 E : […]
+
+(L'énumération qui suit est abrégée par des « … » dans le PDF lui-même : le détail des opérations
+visées n'a donc PAS été établi ici, et devra l'être avant tout encodage.)
+
+**Ce qui change la nature du travail** : l'art. 290 A dit que ces données sont communiquées « par la
+plateforme agréée choisie par l'assujetti », et l'art. 290 B identifie ces plateformes comme celles
+inscrites à l'annuaire central de l'art. 289 bis. Autrement dit, le e-reporting français transite par
+la **PDP** — un transport que ce produit implémente déjà et a prouvé en réel. Il ne s'agit donc pas
+d'écrire un fournisseur de déclaration comme pour le Portugal, mais de déterminer ce que la PDP
+transmet d'office et ce qui resterait à la charge du produit (typiquement les opérations hors champ de
+la facturation électronique : B2C et clients étrangers).
+
+Le catalogue ne peut pas, en l'état, exprimer « obligation réelle, acquittée par un transport déjà
+implémenté » : un fait y désigne un `providerId`. C'est ce décalage qu'il faut trancher avant
+d'ajouter la France. L'Allemagne, l'Italie et la Pologne n'ont, elles, jamais été évaluées sur ce
+point — c'est une lacune de recherche, pas un constat.
+
 ## Le B2G portugais : l'obligation est établie, le canal ne l'est pas (2026-09-13)
 
 `b2g-routing/data/` couvre de, fr, it, pl — **pas pt**, et la matrice publique affiche donc « — »
