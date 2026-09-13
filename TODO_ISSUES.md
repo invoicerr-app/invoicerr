@@ -55,6 +55,42 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
+## Les mentions fiscales sont en anglais générique, alors que quatre lois sur cinq imposent les mots (2026-09-13)
+
+`tax/tax-engine.ts` ouvre sur une table `MENTION` plate, **aveugle au pays** : une seule formulation
+par situation fiscale, la même pour tous. `Autoliquidation / Reverse charge — Art. 196 Directive
+2006/112/EC`, `Intra-Community supply — Art. 138…`, `VAT exempt — small business scheme`. Seule la
+France a sa formulation propre (`fr293b`), atteinte par l'unique test
+`supplier.countryCode === 'FR' ? MENTION.fr293b : MENTION.franchise`.
+
+Or quatre des cinq pays du périmètre **nomment les mots dans la loi**. Établi par récupération directe
+des sources primaires et `grep -F`, le 2026-09-13 :
+
+- **Portugal** — CIVA art. 36.º n.º 13 : les factures « devem conter a expressão 'IVA -
+  autoliquidação' » ; art. 57.º n.º 2 : « devem sempre conter a menção ‘IVA - regime de isenção’ ».
+  Source : le PDF consolidé de l'AT sur `info.portaldasfinancas.gov.pt`.
+- **Italie** — DPR 633/1972 art. 21 : comma 6 impose « con l'annotazione » suivie de «operazione non
+  soggetta», «operazione non imponibile», «operazione esente» ou les trois variantes du «regime del
+  margine» ; comma 6-bis lett. a) impose «inversione contabile» ; comma 6-ter impose
+  «autofatturazione». Source : `normattiva.it`, qui rend bien cet article en texte brut.
+- **Pologne** — ustawa o VAT art. 106e ust. 1 : le texte dit *wyrazy* (les mots) et les cite —
+  pkt 16 „metoda kasowa”, pkt 17 „samofakturowanie”, pkt 18 „odwrotne obciążenie”, pkt 18a
+  „mechanizm podzielonej płatności”. Source : `dziennikustaw.gov.pl`, Dz.U. 2024 poz. 361.
+- **Allemagne** — UStG § 14a Abs. 1 et Abs. 5 imposent « die Angabe „Steuerschuldnerschaft des
+  Leistungsempfängers“ ». En revanche § 14 Abs. 4 Nr. 8 n'exige pour une EXONÉRATION qu'« einen
+  Hinweis darauf, dass … eine Steuerbefreiung gilt » — une référence, sans formulation imposée : sur
+  ce point précis la mention générique suffit.
+
+Conséquence : une facture italienne en autoliquidation passant par le SdI, ou une facture allemande
+intra-UE, porte aujourd'hui un texte anglais là où le statut nomme l'expression. Ce n'est pas
+cosmétique — c'est la mention qui décharge l'obligation.
+
+Le piège de mise en œuvre, à ne pas sous-estimer : la table `MENTION` est indexée par SITUATION
+FISCALE, les annotations nationales par CATÉGORIE STATUTAIRE, et les deux ne se recouvrent pas. Le
+cas intracommunautaire italien en particulier relève de l'art. 41 du D.L. 331/1993, pas des articles
+8/8-bis/9 que le comma 6 lett. b) énumère — donc la correspondance évidente y est probablement
+fausse.
+
 ## Le XML italien est construit par une bibliothèque vulnérable, sans correctif amont (2026-09-13)
 
 `npm audit` dans `backend/` : 9 vulnérabilités (6 hautes, 3 modérées). Une seule touche un chemin
