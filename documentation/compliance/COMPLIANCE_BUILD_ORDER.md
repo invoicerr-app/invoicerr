@@ -12,8 +12,8 @@
 - L'architecture actuelle (les catalogues qui remplacent le moteur, ce qui subsiste — ou non — du
   cycle de vie) est décrite dans la section « The documents module » de `CLAUDE.md`.
 - L'état réel par canal et par format (quel canal est prouvé en live, lequel est implémenté en
-  attente d'identifiants, lequel est un stub) est suivi dans `COMPLIANCE_TODO.md`, à la racine du
-  dépôt.
+  attente d'identifiants, lequel est un stub) est suivi dans
+  `documentation/docs/developer-guide/live-testing.md`.
 
 Le tag `avant-refonte-documents` (`git show avant-refonte-documents:...`) permet de retrouver le
 code source du moteur supprimé pour qui ferait de l'archéologie.

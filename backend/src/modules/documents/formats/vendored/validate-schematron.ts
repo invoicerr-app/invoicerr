@@ -43,8 +43,8 @@ try {
   );
 
   /**
-   * The SIX identifier-checksum functions below (2026-09-02, the B2G audit wave, `B2G_COVERAGE.md`
-   * at the repo root) — found MISSING while proving Belgium's B2G routing end-to-end in Cypress:
+   * The SIX identifier-checksum functions below (2026-09-02, the B2G audit wave) — found MISSING
+   * while proving Belgium's B2G routing end-to-end in Cypress:
    * `PEPPOL-EN16931-UBL.sch` declares u:gln/u:mod11/u:mod97-0208/u:abn/u:TinVerification/
    * u:checkSEOrgnr as `xsl:function`s (same mechanism as `u:slack` above), but — unlike `u:slack` —
    * NONE of them had ever been registered here. fontoxpath does not read `xsl:function` declarations
@@ -74,7 +74,7 @@ try {
    * Codice Fiscale/Partita IVA/Codice IPA checks on PARTY fields, never on the Peppol electronic
    * address itself) were deliberately left out of THIS wave's scope (Italy already has its own
    * dedicated, real SdI/FatturaPA B2G channel in this repo, `b2g-routing/data/it.json`, not Peppol
-   * BIS) — named honestly in `B2G_COVERAGE.md` as a known, separate remaining gap at the time. That
+   * BIS) — named honestly as a known, separate remaining gap at the time. That
    * gap is closed by the next comment block below (2026-09-04): all twelve of the .sch's declared
    * functions are now registered.
    */
@@ -422,4 +422,4 @@ export const PEPPOL_BIS_UBL_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
 export const XRECHNUNG_UBL_SCH = 'de/XRechnung-UBL-validation-preprocessed.sch';
 // Le delta SI-UBL 2.0 / NLCIUS (Pays-Bas) branchait ici son propre fichier Schematron vendoré —
 // supprimé avec le reste du périmètre néerlandais (réduction à cinq pays, 2026-09-10) : voir
-// `LIVE_TESTING.md`/`B2G_COVERAGE.md` pour ce que cela abandonne.
+// `documentation/docs/developer-guide/live-testing.md` pour ce que cela abandonne.

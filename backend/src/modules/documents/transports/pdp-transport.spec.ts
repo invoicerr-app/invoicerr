@@ -177,7 +177,7 @@ describe('buildPdpTransport', () => {
 
     // An accepted upload with an EMPTY deposit id must be a FAILURE, never a silent success — a
     // reference nobody can look up on the platform is not a reference at all (the hard-success
-    // contract, LIVE_TESTING.md).
+    // contract, documentation/docs/developer-guide/live-testing.md).
     it('treats an EMPTY deposit id as a FAILURE, never a success', async () => {
       mockAuthenticate.mockResolvedValue('bearer-token');
       mockSendInvoice.mockResolvedValue({ id: undefined });

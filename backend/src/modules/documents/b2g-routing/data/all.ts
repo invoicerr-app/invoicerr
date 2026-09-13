@@ -7,18 +7,18 @@
  * HISTORY (kept for context — see the "DISCOVERED, not maintained" paragraph below for what actually
  * governs today's list, never this prose): shipped fr/de/it, then es (Spain, FACe) and pl. A 2026-09-02
  * audit of the remaining 23 EU member states (European Commission eInvoicing Country Factsheets, plus
- * the Polish Ministry of Finance's own KSeF portal for pl — see `B2G_COVERAGE.md` at the repo root for
- * the full 27-row audit table) then added TEN more: be/cy/ee/gr/lt/lu/lv/mt/se (generic Peppol BIS, no
- * national CIUS) and, once its NLCIUS blocker was closed by vendoring the delta, nl. AT/HR/DK/FI/IE/PT/
- * RO/SI/SK/BG/CZ/HU were read at the time and deliberately left unshipped (no vendorable national CIUS,
- * or no confirmed Peppol reachability) — see `B2G_COVERAGE.md` for the citation behind each one.
+ * the Polish Ministry of Finance's own KSeF portal for pl) then added TEN more: be/cy/ee/gr/lt/lu/lv/
+ * mt/se (generic Peppol BIS, no national CIUS) and, once its NLCIUS blocker was closed by vendoring
+ * the delta, nl. AT/HR/DK/FI/IE/PT/RO/SI/SK/BG/CZ/HU were read at the time and deliberately left
+ * unshipped (no vendorable national CIUS, or no confirmed Peppol reachability — the per-country
+ * citation behind each one lived in this repo's now-deleted B2G coverage audit).
  *
  * The product's scope was then reduced to five countries (FR/PL/IT/PT/DE, 2026-09-10): every rule
  * outside that set was deleted along with its `data/xx.json` (`b2g-routing/data/all.spec.ts`'s own
  * header has the exact list). For es and nl specifically, a LATER pass (2026-09-12) went further and
  * deleted the transport/format code that had implemented their channel outright — Spain's FACe/
  * Facturae channel and the Netherlands' NLCIUS provider — rather than leaving fully-working code
- * registered for a country nobody asked to support; see `LIVE_TESTING.md`/`B2G_COVERAGE.md` for exactly
+ * registered for a country nobody asked to support; see `documentation/docs/developer-guide/live-testing.md` for exactly
  * what that gave up. A country with no entry here has NO B2G rule at all: `b2g-routing.ts`'s own read
  * side (which reads the DATABASE, not this file — see that module's own header) surfaces that as an
  * HONEST refusal ("no B2G rule declared for XX"), never a silent B2B fallback — the entire point of

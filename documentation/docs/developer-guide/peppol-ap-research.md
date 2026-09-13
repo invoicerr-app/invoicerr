@@ -1,7 +1,11 @@
-# Peppol Access Point Research — Invoicerr
+---
+sidebar_position: 12
+---
 
-**Date:** 2026-06-30  
-**Branch:** feat/compliance-architecture  
+# Peppol Access Point Research
+
+**Date:** 2026-06-30
+**Branch:** feat/compliance-architecture
 **Scope:** How to make the `PeppolApPort` real — self-hosted vs vendor-REST, free sandbox, certification constraints.
 
 ---
@@ -152,7 +156,10 @@ The "free unlimited self-hosted sandbox against test SML with free test cert" pa
 > and `ps_test_` keys only work on `https://sandbox.peppol.sh` (403 `wrong_environment` on
 > api.peppol.sh). Statuses: `queued → sending → delivered | failed`. Raw UBL is NOT accepted on
 > send (JSON model only; UBL upload exists only on `POST /v1/validate`). See
-> `backend/src/compliance/providers/transmission/peppol/peppol-sh-client.ts` + LIVE_TESTING.md.
+> `backend/src/compliance/providers/transmission/peppol/peppol-sh-client.ts` (the pre-rewrite
+> module tree, tag `avant-refonte-documents` — the current equivalent is
+> `backend/src/modules/documents/transports/peppol/peppol-sh-client.ts`) and
+> [Live Testing](./live-testing.md).
 
 - **Sandbox:** Free, unlimited test invoices. Every account starts in sandbox mode. No time limit, no credit card, no KYC required for sandbox.
 - **Sign-up:** `POST https://api.peppol.sh/v1/signup` → returns `ps_test_*` API key immediately. No UI.
@@ -325,7 +332,7 @@ The "free unlimited self-hosted sandbox against test SML with free test cert" pa
 
 ## Wiring into PeppolApPort
 
-The existing `PeppolApHttpClient` in `backend/src/compliance/providers/transmission/peppol/peppol-client.ts` already models the correct port abstraction. Per-vendor adapter changes:
+The existing `PeppolApHttpClient` (originally `backend/src/compliance/providers/transmission/peppol/peppol-client.ts` — the pre-rewrite module tree, tag `avant-refonte-documents`; the current equivalent is `backend/src/modules/documents/transports/peppol/peppol-client.ts`) already models the correct port abstraction. Per-vendor adapter changes:
 
 ### peppol.sh adapter (recommended NOW)
 
@@ -407,7 +414,3 @@ All claims below include a verified/unverified marker.
 | Recommand: `POST https://peppol.recommand.eu/api/peppol/{companyId}/sendDocument`, Basic auth | [recommand.eu/en/docs](https://recommand.eu/en/docs) via search | **PARTIALLY VERIFIED** (status endpoint: **UNVERIFIED**) |
 | Tickstar: OAuth2, sandbox with separate credentials, Transaction REST API | [tickstar.com/developers-tools/](https://www.tickstar.com/developers-tools/) | **PARTIALLY VERIFIED** |
 | Pagero/Tradeshift sandbox, endpoints, pricing | (various) | **UNVERIFIED** |
-
----
-
-*Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>*

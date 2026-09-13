@@ -6,7 +6,7 @@
  *
  *  1. Without a fully-connected channel (missing ANY of idTrasmittente/certificate/`endpoint`) —
  *     today's honest default for every company, since none holds real AdE accreditation — `preflight()`
- *     throws, pointing at `CREDENTIALS_GUIDE.md` §4.
+ *     throws, pointing at `documentation/docs/developer-guide/credentials-guide.md` §4.
  *  2. The REAL production wiring (no `httpPort` override), WITH a fully-connected (but necessarily
  *     unaccredited-in-reality) config, genuinely reaches a REAL `SdiCoopClient` and genuinely fails —
  *     against a local, unroutable endpoint (`127.0.0.1:1`, connection refused — no real network
@@ -130,7 +130,7 @@ describe('buildSdiTransport', () => {
     });
 
     it(
-      'throws, pointing at CREDENTIALS_GUIDE.md §4, when connected but missing `endpoint` — ' +
+      'throws, pointing at documentation/docs/developer-guide/credentials-guide.md §4, when connected but missing `endpoint` — ' +
         "today's honest default: nobody holds real AdE accreditation yet",
       async () => {
         const deps = buildDeps({
@@ -141,7 +141,7 @@ describe('buildSdiTransport', () => {
         });
         const transport = buildSdiTransport(deps);
         await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
-        await expect(transport.preflight!('company-1')).rejects.toThrow(/CREDENTIALS_GUIDE\.md §4/);
+        await expect(transport.preflight!('company-1')).rejects.toThrow(/credentials-guide\.md §4/);
         await expect(transport.preflight!('company-1')).rejects.toThrow(/AdE|accreditation/i);
       },
     );

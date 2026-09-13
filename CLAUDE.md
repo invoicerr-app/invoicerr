@@ -72,7 +72,8 @@ cypress run --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts"` command to run.
   `e2e/cypress/fixtures/scenarios.ts`'s own header for the mapping). Its only step drives
   `cypress/e2e/scenarios/full-lifecycle.cy.ts` — that spec is currently absent (see above), so this
   job cannot pass until it is restored.
-- `compliance-live.yml` — real-API round-trips, `workflow_dispatch` only. See `LIVE_TESTING.md`.
+- `compliance-live.yml` — real-API round-trips, `workflow_dispatch` only. See
+  `documentation/docs/developer-guide/live-testing.md`.
 
 ## Architecture
 
@@ -210,7 +211,8 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
 - Tests are colocated `*.spec.ts` next to the code. `*.live.spec.ts` hit real external APIs and
   self-gate via `liveDescribe(FLAG, [ENV_VARS])` (`modules/documents/transports/live-gate.ts`):
   skipped unless the flag is `1` **and** every credential var is set. A gated spec that passes with
-  mocks proves nothing about the integration — see `LIVE_TESTING.md` before claiming a channel works.
+  mocks proves nothing about the integration — see `documentation/docs/developer-guide/live-testing.md`
+  before claiming a channel works.
 - Path alias `@/` → `src/` in both projects (backend also in the jest `moduleNameMapper`).
 - Comments in this codebase carry decisions and their rationale (why a guard exists, why a module is
   split). Preserve them when refactoring; match that density when adding non-obvious code.
@@ -221,7 +223,8 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
   `COMPLIANCE_STATUS.md`, `COMPLIANCE_BUILD_ORDER.md` — retired 2026-08-29: each is now a short
   pointer noting the v1 engine they described was removed, and referring back to the catalogs
   documented above plus tag `avant-refonte-documents` for anyone doing archaeology.
-- `COMPLIANCE_TODO.md` (FR) — exhaustive done/remaining board per channel and format.
-- `LIVE_TESTING.md` — required secrets and how to run each real round-trip.
-- `CREDENTIALS_GUIDE.md`, `PEPPOL_AP_RESEARCH.md` — per-authority onboarding notes.
+- `documentation/docs/developer-guide/live-testing.md` — required secrets and how to run each real
+  round-trip.
+- `documentation/docs/developer-guide/credentials-guide.md`,
+  `documentation/docs/developer-guide/peppol-ap-research.md` — per-authority onboarding notes.
 - `documentation/docs/developer-guide/` — plugin system, webhooks, MCP server, auth.

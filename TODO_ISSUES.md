@@ -695,7 +695,7 @@ deux littéraux de gabarit).
      enjolivement : `sdi/sdi-client.ts#UNACCREDITED_SDI_HTTP_PORT` documente toujours l'échec honnête
      par défaut (canal non connecté) ; et surtout, **ce client n'a JAMAIS tourné contre le vrai
      endpoint AdE** — aucune accréditation n'existe dans cet environnement (voir
-     `LIVE_TESTING.md`'s own "SdI prerequisites (currently deferred)"), donc `sdi-transport.ts#send()`
+     `documentation/docs/developer-guide/live-testing.md`'s own "SdI prerequisites (currently deferred)"), donc `sdi-transport.ts#send()`
      échoue TOUJOURS en production aujourd'hui, quels que soient les identifiants saisis — plus
      jamais par un stub figé, mais par une vraie tentative réseau/SOAP qui ne trouve personne en face.
      Le premier vrai collaudo peut révéler des écarts d'enveloppe que la seule lecture des specs ne
@@ -951,7 +951,7 @@ deux littéraux de gabarit).
   du B2G pour des pays ») a lu les 23 États membres restants sur les eInvoicing Country Factsheets
   de la Commission (toutes les fiches se sont chargées — aucun pays illisible) et livré 10 règles
   (`b2g-routing/data/{be,cy,ee,gr,lt,lu,lv,mt,se,pl}.json` — 9 en peppol/peppol-bis, PL en ksef/fa3).
-  Le tableau complet, sourcé pays par pays, est dans `B2G_COVERAGE.md` à la racine. Les 13 restants
+  Le tableau complet, sourcé pays par pays, vit dans les catalogues `b2g-routing/data/`. Les 13 restants
   sont consignés là-bas, chacun avec sa raison LUE : un CIUS national non vendoré (AT ebInterface,
   DK OIOUBL, FI, HR, IE — trois CIUS distincts !, NL NLCIUS, PT CIUS-PT, RO RO_CIUS, SI e-SLOG, SK
   jusqu'en 2027) ou un canal fermé sans joignabilité Peppol confirmée (BG CAIS EPP, CZ NEN, HU NAV).
@@ -969,7 +969,7 @@ deux littéraux de gabarit).
   fonctions déclarées par le `.sch` (hors `u:slack`, déjà au repère) sont désormais les 12
   enregistrées. `validate-schematron.spec.ts` porte 10 tests verts (6 + 4 nouveaux — `u:checkCF16` et
   `u:checkPIVA`/`u:addPIVA` exercés transitivement via `u:checkCF`/`u:checkPIVAseIT`, jamais
-  référencés directement par une règle du `.sch`). Voir `B2G_COVERAGE.md` §2/§6 pour le détail.
+  référencés directement par une règle du `.sch`). Voir `b2g-routing/data/` pour le détail.
 
 - ~~**Écran client — le sélecteur de schéma Peppol n'offre pas les EAS des pays nouvellement couverts,
   et une option préexistante est mal étiquetée**~~ — **RÉSOLU à T4-b** (vérifié 2026-09-06 :
@@ -1053,7 +1053,7 @@ deux littéraux de gabarit).
 - **OCR Mistral : le round-trip réel attend une clé** (T5c, 2026-09-03) : tout est prouvé jusqu'au
   mur de credentials (boot ROLE=ocr, 401 réel de api.mistral.ai traversé de bout en bout) ; le
   live spec mistral-client.live.spec.ts est gaté MISTRAL_OCR_LIVE=1 + MISTRAL_API_KEY
-  (LIVE_TESTING.md mis à jour). Démarche mandant : créer la clé sur console.mistral.ai, la poser
+  (live-testing.md mis à jour). Démarche mandant : créer la clé sur console.mistral.ai, la poser
   dans l'env du service ocr (jamais ailleurs), rejouer le live.
 
 - **Restes consignés à la clôture de TODO_CORRECTION.md (C1/C2/C3, 2026-09-03)** :

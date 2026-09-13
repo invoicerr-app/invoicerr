@@ -117,7 +117,7 @@ describe('PT — country-policy/data/pt.json', () => {
     expect(rule.notes).toMatch(/SIGNATURE CHAÎNÉE/);
     expect(rule.notes).toMatch(/Portaria n\.º 195\/2020/);
     expect(rule.notes).toMatch(/Portaria n\.º 363\/2010/);
-    expect(rule.notes).toMatch(/B2G_COVERAGE\.md/);
+    expect(rule.notes).toMatch(/déjà audité \(2026-09-02\)/);
   });
 
   it('credit-note.send documents the CIVA art. 78.º base-reduction mechanism as the legal fact of substance, distinct from the product-level status transition', () => {
@@ -138,10 +138,10 @@ describe('PT — country-policy/data/pt.json', () => {
     expect(rule.notes).toMatch(/HTTP 200/);
   });
 
-  it('the file-level notes documents the CIVA + Decreto-Lei n.º 28/2019 + Portarias sources, the SPA-contournée-par-miroir-officiel method, and the B2G_COVERAGE.md cross-check', () => {
+  it('the file-level notes documents the CIVA + Decreto-Lei n.º 28/2019 + Portarias sources, the SPA-contournée-par-miroir-officiel method, and the B2G audit cross-check', () => {
     expect(pt.notes ?? '').toMatch(/Código do IVA/);
     expect(pt.notes ?? '').toMatch(/Decreto-Lei n\.º 28\/2019/);
-    expect(pt.notes ?? '').toMatch(/B2G_COVERAGE\.md/);
+    expect(pt.notes ?? '').toMatch(/audit B2G-routing déjà livré/);
     expect(pt.notes ?? '').toMatch(/diariodarepublica\.pt/);
   });
 });

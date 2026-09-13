@@ -196,7 +196,7 @@ before deploying. It does not repeat every variable in that file; when the two d
 - `ROLE` — `api` (default: nginx + the main backend), `worker` (dedicated queue-worker process, no nginx, no migrations), or `ocr` (a separate, single-purpose OCR service — the only role that ever sees a real OCR API key). `entrypoint.sh` switches on it.
 - `WORKER_INLINE` — default `true`: the API container also consumes its own queue jobs (single-container self-host). Set to `false` only when running dedicated `ROLE=worker` container(s) elsewhere — see [`docker-compose.scale.yml`](./docker-compose.scale.yml).
 
-**Opt-in live-test credentials** (KSeF, PDP, SdI, Chorus Pro, Peppol, …): these are development-only flags for this repository's own opt-in integration tests against real external APIs — never something an end user or a self-hosted deployment sets. See [`LIVE_TESTING.md`](./LIVE_TESTING.md) for the full list and how to run one.
+**Opt-in live-test credentials** (KSeF, PDP, SdI, Chorus Pro, Peppol, …): these are development-only flags for this repository's own opt-in integration tests against real external APIs — never something an end user or a self-hosted deployment sets. See the [Live Testing guide](./documentation/docs/developer-guide/live-testing.md) for the full list and how to run one.
 
 Make sure port 80 is available on your host machine, or change the mapping.
 

@@ -22,7 +22,7 @@
  *   - An empty authority ref/id must fail the test.
  *   - This file only controls WHETHER the block runs, not how it asserts.
  *
- * Env vars summary (see LIVE_TESTING.md for full list):
+ * Env vars summary (see documentation/docs/developer-guide/live-testing.md for full list):
  *   KSEF_LIVE=1         KSeF (PL) round-trip
  *   PDP_LIVE=1          PDP superpdp (FR) round-trip
  *   PDP_AFNOR_LIVE=1    PDP AFNOR-style flow (FR) round-trip

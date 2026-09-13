@@ -1,7 +1,8 @@
 name: Compliance live tests
 
 # Live (real-API) e-invoicing round-trips. SKIPPED by default everywhere — each spec self-gates on
-# its <CHANNEL>_LIVE flag AND the presence of its credential env vars (see live-gate.ts / LIVE_TESTING.md).
+# its <CHANNEL>_LIVE flag AND the presence of its credential env vars (see live-gate.ts /
+# documentation/docs/developer-guide/live-testing.md).
 #
 # NOT run on pull_request: GitHub does NOT expose repository secrets to workflows triggered by PRs from
 # forks, so live secrets would be empty there. Run it manually (workflow_dispatch) or on a schedule.
@@ -13,7 +14,8 @@ name: Compliance live tests
 # CRON CAVEAT: GitHub only fires `schedule` triggers from the repository's DEFAULT branch (main).
 # While this workflow lives on a feature branch, the nightly cron below is inert — use the
 # "Run workflow" button (workflow_dispatch) instead, targeting that branch explicitly. The cron
-# starts firing automatically once this file is merged to main. See LIVE_TESTING.md for the full
+# starts firing automatically once this file is merged to main. See
+# documentation/docs/developer-guide/live-testing.md for the full
 # list of repo secrets needed for a completely green (real round-trip) run — with none of them set,
 # every creds-gated spec below self-skips and only the creds-free spec (Peppol via peppol.sh, which
 # self-signs-up on the sandbox) runs and passes.

@@ -21,7 +21,7 @@
  * "the client speaks the platform's wire protocol" and "the transport resolves credentials, builds the
  * payload, and enforces the hard-success contract".
  *
- * Credentials — TWO layers, both required to be "connected" (see `CREDENTIALS_GUIDE.md` §3, read at
+ * Credentials — TWO layers, both required to be "connected" (see `documentation/docs/developer-guide/credentials-guide.md` §3, read at
  * the repère, unchanged): a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
  * Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`) — PISTE alone
  * authenticates the CALLING APPLICATION, never a specific Chorus Pro structure; without the compte
@@ -60,7 +60,7 @@
  *    to run before this ever becomes `send_failed`.
  * An accepted deposit with an EMPTY `numeroFluxDepot` is the SECOND kind of failure, never a success —
  * the same hard-success contract every transport in this directory
- * already enforces (LIVE_TESTING.md: "a reference nobody can look up is not a reference at all").
+ * already enforces (documentation/docs/developer-guide/live-testing.md: "a reference nobody can look up is not a reference at all").
  *
  * Post-deposit conformity: `consulterCr` is exactly the kind of pull endpoint
  * `conformity/authority-status-poller.ts` exists for — `conformity/pollers/chorus-pro-status-poller.ts`
@@ -163,7 +163,7 @@ async function requireConnectedChorusPro(
       'The Chorus Pro channel is not connected for this company (a PISTE client id/secret AND a ' +
         'Chorus Pro technical account login/password are all required). Connect it in company ' +
         'settings (Channels → Chorus Pro) before sending an invoice through it — there is no default ' +
-        'channel. See CREDENTIALS_GUIDE.md §3 for how to obtain both.',
+        'channel. See documentation/docs/developer-guide/credentials-guide.md §3 for how to obtain both.',
     );
   }
   return credentials;
@@ -276,7 +276,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
       }
 
       if (!numeroFluxDepot) {
-        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md): PISTE
+        // THE HARD-SUCCESS CONTRACT (documentation/docs/developer-guide/live-testing.md): PISTE
         // answering OK with no usable numeroFluxDepot is a FAILURE, never a silent success — a
         // reference nobody can look up is not a reference at all.
         throw new BadRequestException(

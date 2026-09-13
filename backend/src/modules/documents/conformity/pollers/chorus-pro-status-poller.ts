@@ -10,7 +10,7 @@
  * ## HONESTY NOTE — what is, and is NOT, verified here
  *
  * Same posture as `ksef-status-poller.ts`'s own header: this checkout holds no PISTE account
- * (`CREDENTIALS_GUIDE.md` §3, "Repo status: 🔴 missing"), so `consulterCr`'s own response shape has
+ * (`documentation/docs/developer-guide/credentials-guide.md` §3, "Repo status: 🔴 missing"), so `consulterCr`'s own response shape has
  * NEVER been observed live — the field names (`statutFlux`, the vocabulary VALIDE/REJETE/
  * EN_COURS_DE_TRAITEMENT/DEPOSE/SUSPENDU/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) come from the
  * repère's own client, which itself cites the "API Dépôt flux G2B" v5.2.0 documentation rather than a

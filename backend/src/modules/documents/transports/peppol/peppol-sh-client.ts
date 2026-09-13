@@ -15,7 +15,7 @@
  *
  * API surface (as documented at the repère, VERIFIED against the live OpenAPI at
  * https://api.peppol.sh/v1/openapi.json and a real sandbox round-trip on 2026-07-11 —
- * `PEPPOL_AP_RESEARCH.md` / `LIVE_TESTING.md`; RE-VERIFIED (or found broken) by the 2026-09-02 retry
+ * `documentation/docs/developer-guide/peppol-ap-research.md` / `documentation/docs/developer-guide/live-testing.md`; RE-VERIFIED (or found broken) by the 2026-09-02 retry
  * — see `peppol-sh-live.spec.ts`'s own header for the raw, current result):
  *
  *   - POST https://api.peppol.sh/v1/signup           {email,name?} → 201 {id, api_key: ps_test_…}
@@ -276,7 +276,7 @@ export class PeppolShApClient implements PeppolApPort {
       /** Explicit Peppol participant id (scheme:value) — the repère's own 2026-07-11 proof never
        *  needed this (tax_id alone was enough); the 2026-09-02 live retry found the
        *  sandbox now REJECTS a company creation with no `peppol_id` at all for at least one country
-       *  (BE) — see `peppol-sh-live.spec.ts`'s own header / `LIVE_TESTING.md` for the raw response. */
+       *  (BE) — see `peppol-sh-live.spec.ts`'s own header / `documentation/docs/developer-guide/live-testing.md` for the raw response. */
       peppolId?: string;
     },
     baseUrl = PEPPOL_SH_SANDBOX_URL,

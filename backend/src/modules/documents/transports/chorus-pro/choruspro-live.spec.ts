@@ -8,14 +8,14 @@
  * technical-account pair is absent, rather than gating the whole file on all four.
  *
  * HONEST STATUS: **skipped, always** — this checkout holds no PISTE account of
- * any kind (see `CREDENTIALS_GUIDE.md` §3, "Repo status: 🔴 missing"). Nobody
+ * any kind (see `documentation/docs/developer-guide/credentials-guide.md` §3, "Repo status: 🔴 missing"). Nobody
  * has run this file's own `describeLive` block for real. What IS independently verified, live
  * (2026-09-02, recorded in `choruspro-client.ts`'s own header): the OAuth endpoint this spec would
  * hit (`https://sandbox-oauth.piste.gouv.fr/api/oauth/token`) is reachable and answers a genuine
  * `HTTP 400 {"error":"invalid_client"}` for a garbage client_id/secret — proof the HOST/PATH are
  * correct, never a claim that a real PISTE application's own credentials would succeed here (that
  * needs the account this checkout does not have). Do not read a future green run of THIS file as more than
- * what it actually checks — see this module's own README-level discipline (`LIVE_TESTING.md`, and the
+ * what it actually checks — see this module's own README-level discipline (`documentation/docs/developer-guide/live-testing.md`, and the
  * project memory entry "KSeF mock tests = false confidence": a gated spec that passes with mocks proves
  * nothing about the integration).
  *
@@ -156,7 +156,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     );
     console.log('[choruspro-live] deposit result:', JSON.stringify(depositResult, null, 2));
 
-    // HARD-SUCCESS CONTRACT (LIVE_TESTING.md) — an empty numeroFluxDepot is a hard failure, never a
+    // HARD-SUCCESS CONTRACT (documentation/docs/developer-guide/live-testing.md) — an empty numeroFluxDepot is a hard failure, never a
     // soft assertion that could quietly pass on a shrugging response.
     if (!depositResult.numeroFluxDepot) {
       throw new Error(

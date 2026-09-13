@@ -47,15 +47,15 @@
  * VERIFIED LIVE (2026-09-02): the OAuth endpoint at
  * `https://sandbox-oauth.piste.gouv.fr/api/oauth/token` (the repère's own hostname) resolves and
  * answers a REAL `HTTP 400 {"error":"invalid_client", ...}` for a garbage client_id/secret — a real,
- * deterministic rejection, not a network-level guess. `CREDENTIALS_GUIDE.md` §3 names a DIFFERENT
+ * deterministic rejection, not a network-level guess. `documentation/docs/developer-guide/credentials-guide.md` §3 names a DIFFERENT
  * sandbox OAuth hostname (`sandbox-oauth.aife.economie.gouv.fr`), which does NOT resolve from here at
  * all (`curl`: "Could not resolve host") — the repère's own hostname is the one this file keeps, being
- * the one actually reachable and answering the expected OAuth error shape; `CREDENTIALS_GUIDE.md`'s
+ * the one actually reachable and answering the expected OAuth error shape; `documentation/docs/developer-guide/credentials-guide.md`'s
  * name is flagged, not silently trusted or silently overwritten (a real PISTE account is still needed
  * to know for certain which one a production application should target).
  *
  * NOT independently re-verified: `deposerFlux`/`consulterCr` themselves (both need a real PISTE
- * application + a Chorus Pro compte technique — neither obtained, see `CREDENTIALS_GUIDE.md` §3 and
+ * application + a Chorus Pro compte technique — neither obtained, see `documentation/docs/developer-guide/credentials-guide.md` §3 and
  * `choruspro-live.spec.ts`'s own header for the honest gap this leaves).
  *
  * References:

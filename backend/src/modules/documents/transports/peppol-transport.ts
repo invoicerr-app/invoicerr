@@ -11,7 +11,7 @@
  * file's own header for exactly what was kept, adapted, and dropped. Its own live status is
  * "live-deferred" (needs a real connected AP vendor); the ACTUAL live attempt went
  * through a DIFFERENT adapter, peppol.sh (`peppol/peppol-sh-client.ts` + `peppol/peppol-sh-live.
- * spec.ts`, zero-secret sandbox self-signup) — see that file's own header and `LIVE_TESTING.md` for
+ * spec.ts`, zero-secret sandbox self-signup) — see that file's own header and `documentation/docs/developer-guide/live-testing.md` for
  * the raw, honest result. This PRODUCTION transport uses ONLY the generic adapter: the settings
  * screen's own `PROVIDER_FIELDS.peppol` (AP URL, API key, participant id, environment) has no
  * `apProvider` selector the way the repère's own `ap-adapters.ts` did — a company connects ONE real
@@ -80,7 +80,7 @@
  *    becomes `send_failed`.
  * An accepted send with an EMPTY message id is the SECOND kind of failure, never a success — this
  * task's own mutation #1 target, the same hard-success contract every transport in this directory
- * already enforces (LIVE_TESTING.md: "a reference nobody can look up is not a reference at all").
+ * already enforces (documentation/docs/developer-guide/live-testing.md: "a reference nobody can look up is not a reference at all").
  *
  * Post-send conformity: the generic AP port's own `getStatus()` is exactly the kind of pull endpoint
  * `conformity/authority-status-poller.ts` exists for — `conformity/pollers/peppol-status-poller.ts`
@@ -298,7 +298,7 @@ export function buildPeppolTransport(deps: PeppolTransportDeps): DocumentTranspo
       }
 
       if (!messageId) {
-        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md): an AP that
+        // THE HARD-SUCCESS CONTRACT (documentation/docs/developer-guide/live-testing.md): an AP that
         // answers OK with no usable message id is a FAILURE, never a silent success.
         throw new BadRequestException(
           'Peppol accepted the request but returned no message id — treating this as a failed send, ' +

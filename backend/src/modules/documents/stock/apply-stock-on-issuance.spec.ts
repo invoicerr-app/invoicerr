@@ -2,7 +2,7 @@ import { applyStockOnIssuance, computeStockDecrements } from './apply-stock-on-i
 
 // Mocked wholesale, same discipline `documents.service.*.spec.ts` already holds for `./persistence`/
 // `./numbering/take-number` — this is a unit test of the WIRING (which articles get read/written),
-// never a proof of real Postgres behavior (that would be a `.live.spec.ts`, per LIVE_TESTING.md, and
+// never a proof of real Postgres behavior (that would be a `.live.spec.ts`, per documentation/docs/developer-guide/live-testing.md, and
 // there is no external API here to prove live in the first place).
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,

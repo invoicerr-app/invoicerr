@@ -23,7 +23,7 @@ import * as ts from 'typescript';
  *    string literal or a URL is never mistaken for a comment start. An import path is already
  *    checked by `tsc` itself and would fail the build long before this test runs.
  *  - Only a candidate containing at least one "/" counts as a path. A bare filename
- *    ("LIVE_TESTING.md", "CLAUDE.md") is how this codebase deliberately cites its own root-level
+ *    ("TODO_ISSUES.md", "CLAUDE.md") is how this codebase deliberately cites its own root-level
  *    docs from inside source comments, and is not "unambiguously" one specific file the way a
  *    multi-segment path is — treating it as one would flag dozens of legitimate citations for every
  *    real one.

@@ -152,7 +152,7 @@ function buildFieldKindRegistry(): FieldKindRegistry {
  * and the Netherlands' vendored NLCIUS delta. Both were deleted outright (never just left dormant) when
  * the product's scope was reduced to five countries (FR/PL/IT/PT/DE, 2026-09-10): neither ES nor NL is
  * in scope, and keeping fully-working code for a country nobody asked to support contradicted that
- * decision — see `LIVE_TESTING.md`/`B2G_COVERAGE.md` for what that gave up.
+ * decision — see `documentation/docs/developer-guide/live-testing.md` for what that gave up.
  */
 function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry): FormatProviderRegistry {
   const registry = new FormatProviderRegistry();
@@ -223,7 +223,7 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * threaded into "email" (the one transport that hands a human-readable PDF to
  * someone — see `EmailTransportDeps.signingCertificates`'s own header). It used to be threaded into
  * "face" (Spain's FACe channel) too, for XAdES/WS-Security signing — that transport was deleted
- * outright along with Spain's scope (2026-09-10, see `B2G_COVERAGE.md`), so this dependency now serves
+ * outright along with Spain's scope (2026-09-10), so this dependency now serves
  * "email" alone. "pdp"/"ksef"/"sdi"/"peppol" transmit XML/Factur-X formats built by
  * `formats/*-provider.ts`, which are deliberately NOT signed (see `sign-instance-pdf.ts`'s
  * own header on why Factur-X's raw-PDF material is exempt).
@@ -238,7 +238,7 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * `formatOverrides.nlcius` (Netherlands) a third `peppol` override alongside `xrechnung`/`peppol-bis`
  * above. All three were deleted outright — never left dormant — when the product's scope was reduced
  * to five countries (FR/PL/IT/PT/DE, 2026-09-10): none of RO/ES/NL is in scope any more. See
- * `LIVE_TESTING.md`/`B2G_COVERAGE.md` for exactly what capability that gave up.
+ * `documentation/docs/developer-guide/live-testing.md` for exactly what capability that gave up.
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -309,8 +309,8 @@ function buildTransportRegistry(
     }),
   );
   // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright
-  // along with the rest of their countries' scope (2026-09-10, see `LIVE_TESTING.md`/
-  // `B2G_COVERAGE.md`), never left dormant.
+  // along with the rest of their countries' scope (2026-09-10, see
+  // `documentation/docs/developer-guide/live-testing.md`), never left dormant.
   return registry;
 }
 
@@ -323,7 +323,7 @@ function buildTransportRegistry(
  * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
  * permanent, not a gap to fill later). "anaf" (Romania) and "face" (Spain) used to register pollers
  * here too — both deleted outright along with the rest of their countries' scope (2026-09-10, see
- * `LIVE_TESTING.md`/`B2G_COVERAGE.md`), which is also why this factory no longer needs
+ * `documentation/docs/developer-guide/live-testing.md`), which is also why this factory no longer needs
  * `signingCertificates` (it was "face"'s own WS-Security dependency).
  */
 function buildAuthorityStatusPollerRegistry(
@@ -348,7 +348,7 @@ function buildAuthorityStatusPollerRegistry(
  * the five-country scope decided 2026-09-10 — unlike the transports/formats deleted for the same
  * reason, their underlying `reporting/data/*.json` obligation files had ALREADY been removed by that
  * prune, so the providers were unreachable dead code even before this pass deleted them outright (see
- * `LIVE_TESTING.md`/`B2G_COVERAGE.md` for what that gave up). "pt-at" (Portugal, AT "comunicação de
+ * `documentation/docs/developer-guide/live-testing.md` for what that gave up). "pt-at" (Portugal, AT "comunicação de
  * faturas") is the only provider left, implemented-to-contract-but-credential-gated, the exact same
  * "awaiting accreditation" posture `transports/sdi/` already carries — see
  * `reporting/providers/pt-at-client.ts`'s own header. It is gated by the exact same

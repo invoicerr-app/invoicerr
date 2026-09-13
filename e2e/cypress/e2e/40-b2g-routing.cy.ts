@@ -78,7 +78,7 @@
  *    DE's single Leitweg-ID, proving the reactive on-screen field mechanism scales to three without any
  *    code change (`applyB2gDocumentFieldHints`'s own generic `requiredDocumentFields.map(...)` bridge).
  *    The FACe channel, its XAdES signing gate, and this DIR3 field set were deleted outright along with
- *    the rest of Spain's scope (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — nothing above is
+ *    the rest of Spain's scope (2026-09-10, see `documentation/docs/developer-guide/live-testing.md`) — nothing above is
  *    exercised by code any more; this paragraph stays only for the model's thesis.
  *  - NL (Peppol, NLCIUS content — vendored): structurally closer to BE than to DE at the SCREEN level —
  *    the "peppol" channel was ALREADY implemented, so (like BE) this test CONNECTED it (fictitious
@@ -89,7 +89,7 @@
  *    (LEGAL_ID) was required for every Dutch client — same "nothing new to add on screen for this
  *    field" precedent as FR's own SIRET. The provider, its vendored Schematron delta, the format
  *    override, and the KVK requirement were all deleted outright along with the rest of the
- *    Netherlands' scope (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — nothing above is
+ *    Netherlands' scope (2026-09-10, see `documentation/docs/developer-guide/live-testing.md`) — nothing above is
  *    exercised by code any more; this paragraph stays only for the model's thesis, exactly like ES
  *    above.
  *

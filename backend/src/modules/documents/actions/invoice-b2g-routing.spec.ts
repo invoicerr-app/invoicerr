@@ -49,7 +49,7 @@ const IT_RULE_READY = {
 // ES/FACe used to have a fixture and a service-level test right here, the SAME "IMPLEMENTED AND
 // CONNECTED, overrides the company's own free choice" shape as IT_RULE_READY above. Both the fixture
 // and the test were removed along with the "face" transport itself, when Spain's B2G channel was
-// deleted outright (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — the routing PRECEDENCE this
+// deleted outright (2026-09-10, see `documentation/docs/developer-guide/live-testing.md`) — the routing PRECEDENCE this
 // file proves is already covered by the IT/DE/FR cases that remain.
 
 // A FICTITIOUS still-unimplemented-transport fixture — NOT the real, shipped DE rule any more (that

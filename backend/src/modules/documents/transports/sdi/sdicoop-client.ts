@@ -4,7 +4,7 @@
  * the real client NOW, gated on AdE (Agenzia delle Entrate) intermediary
  * accreditation being complete, rather than waiting for accreditation to exist first — status
  * **implemented-awaiting-accreditation**: this file is never run against the true AdE endpoint until
- * that accreditation lands (see `sdicoop.live.spec.ts`'s own header, and `CREDENTIALS_GUIDE.md` §4
+ * that accreditation lands (see `sdicoop.live.spec.ts`'s own header, and `documentation/docs/developer-guide/credentials-guide.md` §4
  * for the accreditation procedure itself, re-verified 2026-09-01). The first real collaudo submission
  * MAY reveal envelope discrepancies this file could not anticipate — every fact below is either READ
  * from a cited source or EXPLICITLY marked as an inference, never silently invented.
@@ -52,7 +52,7 @@
  *    standard SOAP 1.1/HTTP convention (quoted SOAPAction, `text/xml; charset=utf-8`) is used, same as
  *    `TrasmissioneFatture_v1.1.wsdl`'s sibling operations. The client certificate mechanics themselves
  *    (PKCS#12 + password → `https.request`'s native `pfx`/`passphrase`) come from
- *    `CREDENTIALS_GUIDE.md` §4 ("AdE's own PKI issuing an X.509 client cert for mutual-TLS
+ *    `documentation/docs/developer-guide/credentials-guide.md` §4 ("AdE's own PKI issuing an X.509 client cert for mutual-TLS
  *    authentication against the SDICoop web-service endpoint"), re-verified 2026-09-01.
  *
  * `getStatus`/`sendEsito` (the rest of `SdiHttpPort`) are NOT part of what a trasmittente's

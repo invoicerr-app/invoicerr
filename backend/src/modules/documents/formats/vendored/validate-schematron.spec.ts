@@ -1,6 +1,6 @@
 /**
  * The SIX identifier-checksum XPath functions registered in `validate-schematron.ts`'s own header
- * comment (2026-09-02, the B2G audit wave, `B2G_COVERAGE.md` at the repo root) — found MISSING while
+ * comment (2026-09-02, the B2G audit wave) — found MISSING while
  * proving Belgium's B2G routing end-to-end in Cypress: `PEPPOL-EN16931-UBL.sch` declares
  * `u:gln`/`u:mod11`/`u:mod97-0208`/`u:abn`/`u:TinVerification`/`u:checkSEOrgnr` as `xsl:function`s,
  * but only `u:slack` had ever been registered against fontoxpath — an unregistered one is a THROWN

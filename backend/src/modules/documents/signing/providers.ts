@@ -77,8 +77,9 @@ let _engineInitialised = false;
 /** One-time DOM+WebCrypto engine setup, called by the XAdES signing provider below before every DOM
  *  operation — idempotent via `_engineInitialised`, so repeated calls across artifacts cost nothing.
  *  Exported so any other DOM-based XML signing this codebase adds later (WS-Security SOAP-envelope
- *  signing did, briefly, for Spain's now-deleted FACe channel — see `LIVE_TESTING.md`/
- *  `B2G_COVERAGE.md`) can reuse the SAME one-time setup rather than a second, drifting copy. */
+ *  signing did, briefly, for Spain's now-deleted FACe channel — see
+ *  `documentation/docs/developer-guide/live-testing.md`) can reuse the SAME one-time setup rather
+ *  than a second, drifting copy. */
 export function ensureXmlCryptoEngine(): void {
   if (_engineInitialised) return;
 
@@ -108,7 +109,7 @@ export function ensureXmlCryptoEngine(): void {
 // RSA PKCS#1 v1.5 with SHA-256 — covers the majority of PKI certs in use. Exported so any other
 // DOM-based XML signing this codebase adds later can reuse the SAME algorithm choice rather than a
 // fresh decision made twice (WS-Security SOAP-envelope signing did, briefly, for Spain's now-deleted
-// FACe channel — see `LIVE_TESTING.md`/`B2G_COVERAGE.md`).
+// FACe channel — see `documentation/docs/developer-guide/live-testing.md`).
 export const RSA_ALGO: RsaHashedImportParams = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
 
 /**

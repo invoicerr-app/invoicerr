@@ -9,11 +9,11 @@
  * `peppol/peppol-sh-client.ts` (REPRISED) directly, never through
  * `peppol-transport.ts` itself (which needs `Company`/`Client` DB rows this DB-free run never has).
  *
- * THE 2026-09-02 RETRY — RAW RESULT, not a guess (see `LIVE_TESTING.md` for the full
+ * THE 2026-09-02 RETRY — RAW RESULT, not a guess (see `documentation/docs/developer-guide/live-testing.md` for the full
  * write-up):
  *   1. Signup: WORKS (a real `acc_…` account + `ps_test_…` key every run).
  *   2. Company creation with `country: 'FR'`: STILL `HTTP 400 invalid_country` — the SAME failure
- *      `LIVE_TESTING.md` recorded on 2026-08-29. Not fixed.
+ *      `documentation/docs/developer-guide/live-testing.md` recorded on 2026-08-29. Not fixed.
  *   3. Company creation with `country: 'BE'`: initially ALSO failed, with a DIFFERENT, NEW error —
  *      `missing_peppol_id` ("peppol_id is required and must be a valid <scheme>:<value> Peppol
  *      participant identifier") — a stricter validation than the repère's own 2026-07-11 proof ever
@@ -111,7 +111,7 @@ describeLive('Peppol live round-trip via peppol.sh (zero-secret sandbox)', () =>
         }
         console.log(
           `peppol.sh REJECTED country=${firstCountry} with invalid_country (same failure as ` +
-            `LIVE_TESTING.md's own 2026-08-29 note) — retrying with fallback country=${fallbackCountry}`,
+            `documentation/docs/developer-guide/live-testing.md's own 2026-08-29 note) — retrying with fallback country=${fallbackCountry}`,
         );
         usedCountry = fallbackCountry;
         apCompanyId = await tryCreateCompany(fallbackCountry);

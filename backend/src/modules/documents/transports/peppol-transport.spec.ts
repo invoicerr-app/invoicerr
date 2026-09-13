@@ -621,7 +621,7 @@ describe('buildPeppolTransport', () => {
 
     // NLCIUS (Netherlands) used to have its own "wired as the override" describe block here, the SAME
     // `formatOverride` mechanism as XRechnung above. Deleted along with the rest of the Netherlands'
-    // scope (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — the provider and its vendored
+    // scope (2026-09-10, see `documentation/docs/developer-guide/live-testing.md`) — the provider and its vendored
     // Schematron delta no longer exist.
 
     // A fixed-format transport (email/pdp/ksef/sdi/chorus-pro — every OTHER transport in this

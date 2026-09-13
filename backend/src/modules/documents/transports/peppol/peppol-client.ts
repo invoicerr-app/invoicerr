@@ -26,9 +26,9 @@
  *
  * LIVE STATUS: this generic gateway remains what the repère already called it — "live-deferred": it
  * models the common REST denominator and needs a concrete connected AP (Basware, Pagero, Qvalia, or a
- * self-hosted phase4/oxalis-ng — see `PEPPOL_AP_RESEARCH.md`). The ACTUAL live attempt
+ * self-hosted phase4/oxalis-ng — see `documentation/docs/developer-guide/peppol-ap-research.md`). The ACTUAL live attempt
  * went through the peppol.sh adapter instead (`peppol-sh-client.ts`, zero-secret sandbox) — see that
- * file's own header and `LIVE_TESTING.md` for the raw result.
+ * file's own header and `documentation/docs/developer-guide/live-testing.md` for the raw result.
  */
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  *
  * `INVOICE_NLCIUS_UBL` (NLCIUS, Netherlands) used to be a THIRD entry here, the same mirroring
  * discipline as `INVOICE_XRECHNUNG_UBL`. Deleted along with the rest of the Netherlands' scope
- * (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — the provider it mirrored no longer exists.
+ * (2026-09-10, see `documentation/docs/developer-guide/live-testing.md`) — the provider it mirrored no longer exists.
  */
 export const PEPPOL_DOC_TYPES = {
   INVOICE_UBL:

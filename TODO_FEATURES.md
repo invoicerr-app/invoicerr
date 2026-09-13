@@ -8,7 +8,7 @@
 > test devrait prouver le jour où l'item est implémenté — **rien n'est implémenté ici**.
 >
 > Ce fichier est complémentaire à `TODO_MANDANT.md` (credentials/démarches de conformité e-invoicing)
-> et à `COMPLIANCE_TODO.md`/`TODO_ISSUES.md` (le moteur de conformité pays). Il ne les recoupe pas :
+> et à `TODO_ISSUES.md` (le moteur de conformité pays). Il ne les recoupe pas :
 > il couvre les fonctionnalités "métier" génériques (paiement, relances, portail, stock, temps…) que
 > la quasi-totalité des concurrents proposent et qu'invoicerr n'a pas encore, indépendamment de la
 > conformité e-invoicing par pays (déjà très avancée, voir §1.7).
@@ -191,7 +191,7 @@ prouvé par des specs dédiées (hors périmètre de ce document, non reproduit 
 - Formats nationaux + sémantiques (`formats/national`, `formats/semantic`, `formats/vendored/{en16931,peppol,pl,es,nl,de,it}`) — e2e `30-document-xml-format`.
 - Canaux/transports (`transports/{pdp,ksef,sdi,chorus-pro,face,peppol,anaf}`) — e2e
   `31-national-channels`, `32-channel-mandate`.
-- B2G (`b2g-routing/`, 15 pays livrables selon `B2G_COVERAGE.md`) — e2e `40-b2g-routing`.
+- B2G (`b2g-routing/`, 15 pays livrables — voir les catalogues eux-mêmes) — e2e `40-b2g-routing`.
 - Politique pays (types de documents disponibles, mentions obligatoires, identifiants requis,
   routes de correction/annulation) : `country-policy/`, `mentions/`, `country-identifiers/`,
   `correction-routes/` — e2e `39-document-conformity`, `43-correction-routes`, `44-country-policy`.

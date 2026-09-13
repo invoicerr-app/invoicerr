@@ -220,7 +220,7 @@ describe('buildChorusProTransport', () => {
     });
 
     // MUTATION GUARD #1 — "identifiant de dépôt vide accepté" — the hard-success
-    // contract (LIVE_TESTING.md): an accepted deposit with an EMPTY numeroFluxDepot must be a
+    // contract (documentation/docs/developer-guide/live-testing.md): an accepted deposit with an EMPTY numeroFluxDepot must be a
     // FAILURE, never a silent success — a reference nobody can look up is not a reference at all.
     it('MUTATION GUARD #1 — treats an EMPTY numeroFluxDepot as a FAILURE, never a success', async () => {
       mockDeposerFlux.mockResolvedValue({ numeroFluxDepot: '', statut: 'DEPOSE', httpStatus: 200, raw: {} });

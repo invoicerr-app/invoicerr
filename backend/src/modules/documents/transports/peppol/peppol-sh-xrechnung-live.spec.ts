@@ -8,7 +8,7 @@
  * proof for the same fixture shape.
  *
  * THE 2026-09-02 RUN — RAW RESULT recorded here VERBATIM once obtained (never rounded up
- * to "it works" from a partial signal) — see `LIVE_TESTING.md` for the canonical write-up this file's
+ * to "it works" from a partial signal) — see `documentation/docs/developer-guide/live-testing.md` for the canonical write-up this file's
  * own header points back to.
  *
  * ## HONEST LIMIT OF WHAT THIS PROVES — read `peppol-sh-client.ts#ublToPeppolShDocument`'s own header

@@ -73,7 +73,7 @@ const PROVIDER_LABELS: Record<string, string> = {
  *  already connected one of these before moving its registered country elsewhere still sees it
  *  correctly labeled, never silently relabeled as an ordinary channel). NAV (Hungary) and myDATA
  *  (Greece) used to be the two entries here — both deleted outright along with the rest of their
- *  countries' scope (2026-09-12, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`), leaving this set
+ *  countries' scope (2026-09-12, see `documentation/docs/developer-guide/live-testing.md`), leaving this set
  *  temporarily empty until a future declaration provider ships. */
 const REPORTING_PROVIDER_IDS = new Set<string>([])
 
@@ -211,7 +211,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
   // Chorus Pro (FR, B2G) — makes the channel the B2G FR routing rule (`b2g-routing/data/fr.json`)
   // has named since 3cb39f91 actually connectable. Exactly the four fields
   // `chorus-pro-transport.ts#extractChorusProCredentials` reads: TWO independent credential layers
-  // (see CREDENTIALS_GUIDE.md §3) — a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
+  // (see documentation/docs/developer-guide/credentials-guide.md, PISTE section) — a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
   // Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`), both required
   // to be "connected". The environment selector below (generic, already rendered for every provider)
   // picks sandbox vs prod — `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS` targets the PISTE
@@ -248,7 +248,7 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
   ],
   // ANAF (RO), FACe (ES), NAV (HU) and myDATA (GR) used to have their field specs here. All four
   // channels/providers were deleted outright from the backend along with the rest of their
-  // countries' scope (2026-09-12, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — none of RO/ES/HU/GR is
+  // countries' scope (2026-09-12, see `documentation/docs/developer-guide/live-testing.md`) — none of RO/ES/HU/GR is
   // in this product's scope any more, so offering a configuration form for them here would be
   // pure fiction: nothing on the backend would ever route through what a user typed in. A company
   // that connected one of these before the deletion still sees its row (via `configuredMap` in

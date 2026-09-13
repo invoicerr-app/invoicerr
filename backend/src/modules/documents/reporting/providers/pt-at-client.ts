@@ -8,7 +8,7 @@
  * endpoint (no "subutilizador" credential or AT public key was available) — every fact
  * below is either VERIFIED against the primary manuals (cited, quoted) or explicitly marked
  * EXTRAPOLATED/⚠ UNVERIFIED. A green `pt-at-client.spec.ts` proves the STRUCTURE this file builds,
- * never that AT accepts it — see `LIVE_TESTING.md`'s own standing warning about mocked-green ≠ live.
+ * never that AT accepts it — see `documentation/docs/developer-guide/live-testing.md`'s own standing warning about mocked-green ≠ live.
  *
  * ## Sources actually read for this file (2026-09-11), both from the OFFICIAL `info.portaldasfinancas.gov.pt` domain
  *

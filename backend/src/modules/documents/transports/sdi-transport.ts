@@ -7,7 +7,7 @@
  * see `sdi/sdicoop-client.ts`'s own header for the full "what was read vs extrapolated" account). SdI
  * access for a real Sistema di Interscambio submission requires AdE (Agenzia delle Entrate)
  * intermediary accreditation and a qualified PFX certificate, NEITHER obtained (see
- * `CREDENTIALS_GUIDE.md` §4) — so a REAL SOAP client now exists (`sdi/sdicoop-client.ts`,
+ * `documentation/docs/developer-guide/credentials-guide.md` §4) — so a REAL SOAP client now exists (`sdi/sdicoop-client.ts`,
  * `SdiCoopClient`, built from the published SdICoop WSDL/XSD/instructions, read and cited), but it has
  * NEVER been run against the true AdE endpoint: this transport is, by construction, unproven live
  * until accreditation lands. Previously `send()` reached
@@ -17,7 +17,7 @@
  * SdIRiceviFile URL AdE's own accreditation process assigns, never hardcoded, see
  * `sdicoop-client.ts`'s own header) gets a REAL attempt via `SdiCoopClient`; a company that has not
  * (today: everyone, since accreditation itself is the blocker) gets the SAME honest
- * `NotImplementedException` at `preflight()`, now pointing at `CREDENTIALS_GUIDE.md` §4.
+ * `NotImplementedException` at `preflight()`, now pointing at `documentation/docs/developer-guide/credentials-guide.md` §4.
  * `SdiTransportDeps.httpPort` remains the seam a jest spec injects a mock into (see that spec's own
  * header), the same DI shape `facturx-provider.ts`'s factory already holds for an unrelated reason.
  *
@@ -112,7 +112,7 @@ async function requireConnectedSdi(
       'The SdI channel is not connected for this company (idTrasmittente/certificate/endpoint are ' +
         'all required). Connect it in company settings (Channels → SdI) before sending an invoice ' +
         'through it — there is no default channel. Connecting it for real requires AdE (Agenzia ' +
-        'delle Entrate) intermediary accreditation first: see CREDENTIALS_GUIDE.md §4 for the ' +
+        'delle Entrate) intermediary accreditation first: see documentation/docs/developer-guide/credentials-guide.md §4 for the ' +
         'full procedure (SDICoop channel type, client/server CSRs, collaudo interoperability tests).',
     );
   }

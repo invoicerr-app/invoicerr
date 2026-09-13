@@ -30,7 +30,7 @@
  * DOES matter to conformity — the semantic bridge, the vendored Schematron gate, the actual Factur-X
  * PDF/A-3 embedder, the actual HTTP round-trip — runs for REAL, unmocked, against the real sandbox.
  *
- * HARD-SUCCESS CONTRACT (LIVE_TESTING.md): a REJECTED/SKIPPED
+ * HARD-SUCCESS CONTRACT (documentation/docs/developer-guide/live-testing.md): a REJECTED/SKIPPED
  * outcome or an EMPTY deposit id is a FAILURE, never tolerated — this spec throws rather than assert
  * a soft `expect().toBeFalsy()` that could quietly pass on a shrugging response. The original
  * contract stopped at "the deposit was ACCEPTED" (a non-empty id back from `POST /v1.beta/invoices`),

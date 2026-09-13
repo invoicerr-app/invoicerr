@@ -2,7 +2,7 @@
  * REAL round-trip against SdI's `SdIRiceviFile.RiceviFile`.
  * Status: **implemented-awaiting-accreditation** — this spec has NEVER been executed against the true
  * AdE endpoint: no environment available in this checkout holds real AdE (Agenzia delle Entrate)
- * intermediary accreditation (see `sdicoop-client.ts`'s own header, and `CREDENTIALS_GUIDE.md` §4 for
+ * intermediary accreditation (see `sdicoop-client.ts`'s own header, and `documentation/docs/developer-guide/credentials-guide.md` §4 for
  * the accreditation procedure, re-verified 2026-09-01). `SdiCoopClient` was built directly from the
  * published WSDL/XSD/instructions (cited in full in that file's own header) — the FIRST real
  * collaudo run against this spec MAY reveal envelope discrepancies this codebase could not anticipate
@@ -18,7 +18,7 @@
  *
  * Skips cleanly (silently unless the flag is set, then one stderr line) whenever the flag or any
  * credential is absent — which is EVERY run today. No sandbox or fake SOAP endpoint is fabricated to
- * force a green run; see `CREDENTIALS_GUIDE.md` §4 for how to actually obtain collaudo access.
+ * force a green run; see `documentation/docs/developer-guide/credentials-guide.md` §4 for how to actually obtain collaudo access.
  *
  * HARD-SUCCESS CONTRACT (the same discipline `ksef-live.spec.ts`/the old `sdi-live.spec.ts` already
  * enforced): a response with no usable `IdentificativoSdI`, a `soap:Fault`, or a business `<Errore>`

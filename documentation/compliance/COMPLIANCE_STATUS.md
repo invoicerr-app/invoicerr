@@ -12,8 +12,8 @@
 - The current architecture (the catalogs that replaced the engine, and what does — and does not —
   survive of the old lifecycle) is described in `CLAUDE.md`'s "The documents module" section.
 - Per-channel and per-format implementation status (which transmission channels are proven live,
-  which are implemented-awaiting-credentials, which are stubs) is tracked in the root
-  `COMPLIANCE_TODO.md`.
+  which are implemented-awaiting-credentials, which are stubs) is tracked in
+  `documentation/docs/developer-guide/live-testing.md`.
 - The NF-525 compliance posture (inalterability, audit trail, hash-chaining, retention, archival,
   gapless numbering) is now a property of the documents module directly — see the modules listed in
   `CLAUDE.md` (`descriptors/lifecycle.ts`, `archive/`, `numbering/`) rather than of a separate

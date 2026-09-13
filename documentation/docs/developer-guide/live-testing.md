@@ -1,3 +1,7 @@
+---
+sidebar_position: 10
+---
+
 # Live Testing Guide
 
 All live tests are **SKIPPED by default** in CI and in any offline run. They are opt-in:
@@ -29,178 +33,179 @@ Hard-success contract (enforced per-spec):
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef-live.spec.ts` | 🟡 Implemented, awaiting credentials — **no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets today.** The spec's own header records that the one historical proof of this flow used a token that has since expired/rotated, and this round-trip has not been re-run since — a real proof needs a fresh sandbox token before it can be claimed again. |
-| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip prouvé** — `fr:200 → fr:201 → fr:202`, dépôt 375037, 2026-08-29 |
+| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
-| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `FR` reste cassé (`invalid_country`), mais `BE` (+ `peppol_id` explicite) marche : `doc_…` → `DELIVERED` en ~10 s, reproduit deux fois (voir ci-dessous) |
-| Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung-live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` en ~10 s ; voir l'encadré ci-dessous pour la LIMITE HONNÊTE de ce que ça prouve (peppol.sh n'accepte jamais de bytes UBL bruts — voir ce spec's own header) |
+| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `FR` remains broken (`invalid_country`), but `BE` (+ explicit `peppol_id`) works: `doc_…` → `DELIVERED` in ~10s, reproduced twice (see below) |
+| Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung-live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` in ~10s; see the box below for the HONEST LIMIT of what this proves (peppol.sh never accepts raw UBL bytes — see that spec's own header) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | _(no live spec exists yet — mocked coverage only, `peppol/peppol-client.spec.ts`)_ | 🔴 Deferred (connected AP required) |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `chorus-pro/choruspro-live.spec.ts` | 🟡 Implemented, awaiting a PISTE account — **skipped, always, today** (no PISTE account in this checkout). Credential-free reachability **proven live 2026-09-02**: `sandbox-oauth.piste.gouv.fr` answers a genuine `400 {"error":"invalid_client"}` to a garbage client id/secret — the host/path are real, the deposit itself has never been attempted. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Mistral OCR (received-invoice PDF extraction, T5(c)) ⚙ *not a channel — the dedicated `ROLE=ocr` service's own CLOUD engine, never the main backend* | `MISTRAL_OCR_LIVE=1` | `MISTRAL_API_KEY` | `ocr-service/mistral-client.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-03** (`api.mistral.ai/v1/ocr`, no/garbage auth → real `401 {"detail":"Invalid API Key"}`) — full round-trip 🔴 deferred, no Mistral API key provisioned for this task |
-| Local OCR engine (the `ocr-image` repo, our own `ocrmypdf`-based image) ⚙ *not a channel — the SAME `ROLE=ocr` service's LOCAL engine, `OCR_ENGINE=local`, running our own Docker image and server rather than depending on a third-party OCR provider* | `LOCAL_OCR_LIVE=1` | _(none — no cloud key, that is the entire point; the spec `docker pull`s + runs the published image (ghcr.io/invoicerr-app/ocr-image) via `docker`, gated on a usable local Docker daemon — `docker info` — checked at load time)_ | `ocr-service/local-client.live.spec.ts` | ✅ **Round-trip prouvé le 2026-09-11** (engine switched from `apache/tika:latest-full` to our own image, same day) — the spec pulls and launches the real container, `POST`s a real `pdf-lib`-built invoice PDF to it, and the heuristic mapping correctly reads HT/TVA/TTC and the VAT id back; because this server force-OCRs every page (see `server.py`'s own header), this jest run now exercises REAL Tesseract recognition automatically, unlike the Tika era which needed a separate manual proof for that. A SEPARATE, MANUAL round-trip the same day against genuinely RASTERIZED (image-only) invoice PDFs — one French, one Polish (the new language pack Tika's own stock image never had) — proved the broader language coverage too; see `local-client.ts`'s own header for that citation |
+| Local OCR engine (the `ocr-image` repo, our own `ocrmypdf`-based image) ⚙ *not a channel — the SAME `ROLE=ocr` service's LOCAL engine, `OCR_ENGINE=local`, running our own Docker image and server rather than depending on a third-party OCR provider* | `LOCAL_OCR_LIVE=1` | _(none — no cloud key, that is the entire point; the spec `docker pull`s + runs the published image (ghcr.io/invoicerr-app/ocr-image) via `docker`, gated on a usable local Docker daemon — `docker info` — checked at load time)_ | `ocr-service/local-client.live.spec.ts` | ✅ **Round-trip proven on 2026-09-11** (engine switched from `apache/tika:latest-full` to our own image, same day) — the spec pulls and launches the real container, `POST`s a real `pdf-lib`-built invoice PDF to it, and the heuristic mapping correctly reads HT/TVA/TTC and the VAT id back; because this server force-OCRs every page (see `server.py`'s own header), this jest run now exercises REAL Tesseract recognition automatically, unlike the Tika era which needed a separate manual proof for that. A SEPARATE, MANUAL round-trip the same day against genuinely RASTERIZED (image-only) invoice PDFs — one French, one Polish (the new language pack Tika's own stock image never had) — proved the broader language coverage too; see `local-client.ts`'s own header for that citation |
 
 ---
 
-> ### ✅ Round-trip prouvé le 2026-08-29 — après deux faux verts corrigés le même jour
+> ### ✅ Round-trip proven on 2026-08-29 — after two false-greens fixed the same day
 >
-> **Le résultat**, vérifié en interrogeant la plateforme et non en croyant le spec :
+> **The result**, verified by querying the platform rather than trusting the spec:
 > `api:uploaded → fr:200 Déposée (validée) → fr:201 Émise par la plateforme → fr:202 Reçue par la
-> plateforme`. Dépôt **375037** pour la facture, **375061** pour l'AVOIR. Le contrôle de conformité
-> française passe pour les deux.
+> plateforme`. Deposit **375037** for the invoice, **375061** for the credit note. The French
+> conformity check passes for both.
 >
-> **L'avoir a demandé deux correctifs de plus**, chacun nommé par la plateforme :
-> 1. `BR-FR-CO-05/BT-3` — « Si le type de facture est un avoir […] au moins une référence à une
+> **The credit note needed two more fixes**, each one named by the platform itself:
+> 1. `BR-FR-CO-05/BT-3` — «Si le type de facture est un avoir […] au moins une référence à une
 >    facture antérieure (BT-25) avec sa date (BT-26) doit être présente au niveau entête.
->    Références entête trouvées : 0. » Le lien était en base depuis toujours
->    (`Invoice.correctsInvoiceId`) ; rien ne le portait dans le document.
-> 2. `Element 'qdt:DateTimeString': This element is not expected` — le normaliseur d'espaces de noms
->    SUPPRIMAIT la déclaration `xmlns:qdt` sans jamais réécrire les éléments, qui partaient donc avec
->    un préfixe non déclaré. Invisible tant qu'aucun document n'en utilisait : BT-26 est le premier.
+>    Références entête trouvées : 0.» ("If the invoice type is a credit note […] at least one
+>    reference to a prior invoice (BT-25) with its date (BT-26) must be present at header level.
+>    Header references found: 0.") The link had always existed in the database
+>    (`Invoice.correctsInvoiceId`); nothing carried it into the document.
+> 2. `Element 'qdt:DateTimeString': This element is not expected` — the namespace normalizer was
+>    DROPPING the `xmlns:qdt` declaration without ever rewriting the elements, which then went out
+>    with an undeclared prefix. Invisible as long as no document used it: BT-26 was the first.
 >
-> **Ce qui manquait** : les trois mentions de C. com. art. L441-9 I al. 5. Une fois ajoutées, le
-> rejet `BR-FR-05` a disparu — remplacé par un défaut purement structurel que la plateforme a
-> nommé pour nous : « Element 'ram:Content' must occur exactly 1 times ». Le générateur empilait
-> trois `ram:Content` dans une seule `IncludedNote`, ce qui est invalide en CII. Corrigé dans le
-> post-traitement, qui répartit une note par mention et récupère BT-21 depuis le préfixe `#CODE#`.
+> **What was missing**: the three mandatory mentions of C. com. art. L441-9 I al. 5. Once added, the
+> `BR-FR-05` rejection disappeared — replaced by a purely structural defect the platform named for
+> us: «Element 'ram:Content' must occur exactly 1 times». The generator was stacking three
+> `ram:Content` elements inside a single `IncludedNote`, which is invalid in CII. Fixed in
+> post-processing, which now splits one note per mention and recovers BT-21 from the `#CODE#` prefix.
 >
-> **DEUX faux verts, pas un.** Le premier : le spec assertait `PENDING` juste après le dépôt, avant
-> que le verdict existe — asserter un état transitoire, c'est asserter que la requête est partie,
-> pas qu'elle a abouti. Le second, plus profond : **`poll()` ne pouvait rien renvoyer d'autre que
-> `PENDING`**. Il lisait `invoice.status_code`, un champ que l'API ne renvoie pas ; le cycle de vie
-> arrive dans `events[]`. Le poll répondait donc « no status codes » à chaque appel, depuis toujours.
-> Et le mappage écrasait `fr:200`, `fr:201` et `fr:202` sur `PENDING`, confondant « pas encore
-> jugée » avec « validée et reçue par le destinataire ».
+> **TWO false-greens, not one.** The first: the spec asserted `PENDING` right after the deposit,
+> before the verdict even existed — asserting a transient state is asserting that the request went
+> out, not that it succeeded. The second, deeper one: **`poll()` could never return anything other
+> than `PENDING`**. It read `invoice.status_code`, a field the API does not return; the lifecycle
+> arrives in `events[]` instead. The poll therefore answered "no status codes" on every call, and had
+> from the start. And the mapping collapsed `fr:200`, `fr:201` and `fr:202` onto `PENDING`, conflating
+> "not yet judged" with "validated and received by the recipient".
 >
-> Le spec **échoue désormais si le document reste `PENDING`** : un état transitoire n'est plus un
-> succès.
+> The spec now **fails if the document stays `PENDING`**: a transient state is no longer a success.
 >
-> **Deux contraintes du bac à sable**, vérifiées le même jour. superpdp refuse tout dépôt dont la
-> BT-2 dépasse le jour courant — mais cela n'empêche PAS de tester : il suffit de dater la facture
-> du jour. Et le bac à sable contient déjà Burger Queen (`000000002`) et Tricatel (`000000001`).
+> **Two sandbox constraints**, verified the same day. superpdp refuses any deposit whose BT-2 is
+> later than the current day — but that does NOT prevent testing: just date the invoice today. And
+> the sandbox already contains Burger Queen (`000000002`) and Tricatel (`000000001`).
 >
-> ### Note historique — le diagnostic intermédiaire, conservé
+> ### Historical note — the intermediate diagnosis, kept for the record
 >
-> Le transport marche : OAuth, XSD, espaces de noms, routage, et superpdp **accepte le dépôt**. Puis
-> il **rejette le document**. Vérifié en interrogeant la plateforme, `GET /v1.beta/invoices/374891` :
+> The transport works: OAuth, XSD, namespaces, routing, and superpdp **accepts the deposit**. Then
+> it **rejects the document**. Verified by querying the platform, `GET /v1.beta/invoices/374891`:
 >
-> > événement `fr:213 Rejetée` — « BR-FR-05/BT-22 : La mention relative aux frais de recouvrement
-> > (code PMT) est absente. Elle est obligatoire dans les notes (BG-1). »
+> > event `fr:213 Rejetée` — «BR-FR-05/BT-22 : La mention relative aux frais de recouvrement
+> > (code PMT) est absente. Elle est obligatoire dans les notes (BG-1).» ("The mention relating to
+> > recovery costs (PMT code) is missing. It is mandatory in the notes (BG-1).")
 >
-> Idem pour **PMD** (pénalités de retard) et **AAB** (escompte). Invoicerr n'émet aucune des trois :
-> **toute facture française qu'il produit est refusée par le contrôle de conformité.** C'est un
-> manque produit, pas un problème d'identifiants — et le libellé de ces mentions relève des
-> conditions commerciales du vendeur, donc il ne s'invente pas.
+> Same for **PMD** (late-payment penalties) and **AAB** (early-payment discount). Invoicerr emits
+> none of the three: **every French invoice it produces is rejected by the conformity check.** This
+> is a product gap, not a credentials problem — and the wording of these mentions comes from the
+> seller's own commercial terms, so it cannot be invented.
 >
-> **Pourquoi personne ne l'a vu**, et c'est la leçon transposable : le spec assertait `PENDING` juste
-> après le dépôt et ne sondait qu'une fois, avant que le verdict existe. `PENDING` est un état réel,
-> mais transitoire — asserter un état transitoire, c'est asserter que la requête est partie, pas
-> qu'elle a abouti. Et le spec avait en outre cessé de compiler (fixture sans `vatCategory`, devenu
-> obligatoire quand BT-151 est passé sous la résolution du moteur) : il levait avant d'atteindre le
-> réseau, et le gate live gardait le silence.
+> **Why nobody caught it**, and this is the transposable lesson: the spec asserted `PENDING` right
+> after the deposit and polled only once, before the verdict even existed. `PENDING` is a real state,
+> but a transient one — asserting a transient state is asserting that the request went out, not that
+> it succeeded. The spec had also, separately, stopped compiling (a fixture missing `vatCategory`,
+> which became mandatory once BT-151 moved under the engine's own resolution): it threw before ever
+> reaching the network, and the live gate stayed silent.
 >
-> **Deux contraintes du bac à sable**, vérifiées le même jour. superpdp refuse tout dépôt dont la
-> BT-2 dépasse le jour courant, donc décaler l'horloge ne sert à rien : la France ne route vers un
-> PDP qu'à partir du 2026-09-01, et les deux fenêtres ne se recouvrent que ce jour-là. Et le bac à
-> sable contient déjà Burger Queen (`000000002`) et Tricatel (`000000001`) — utiliser un autre SIREN
-> suppose de créer l'entreprise côté superpdp.
+> **Two sandbox constraints**, verified the same day. superpdp refuses any deposit whose BT-2 is
+> later than the current day, so shifting the clock is useless: France only routes to a PDP starting
+> 2026-09-01, and the two windows only overlap on that exact day. And the sandbox already contains
+> Burger Queen (`000000002`) and Tricatel (`000000001`) — using a different SIREN means creating the
+> company on superpdp's side first.
 
-> ### 🔴 Peppol via peppol.sh — cassé le 2026-08-29, et c'est un rappel utile
+> ### 🔴 Peppol via peppol.sh — broken on 2026-08-29, and a useful reminder
 >
-> Le spec échoue AVANT toute transmission, à la création de la société :
+> The spec fails BEFORE any transmission, at company creation:
 >
 > > `HTTP 400 — {"error":{"code":"invalid_country","message":"country must be an active Peppol
 > > country code","param":"country"}}`
 >
-> Il envoie `country: 'FR'`. La plateforme ne l'accepte plus — hypothèse plausible, NON vérifiée :
-> la France est passée au mandat PDP et peppol.sh l'aurait retirée de ses destinations actives.
-> **Ce qui le trancherait** : la liste des pays actifs publiée par peppol.sh, ou leur support.
+> It sends `country: 'FR'`. The platform no longer accepts it — a plausible hypothesis, NOT verified:
+> France moved to the PDP mandate and peppol.sh may have removed it from its active destinations.
+> **What would settle this**: peppol.sh's own published list of active countries, or their support.
 >
-> Le spec lui-même est bien construit — il exige `CLEARED` et dit explicitement que `PENDING` est
-> un échec, ce qui est exactement la discipline qui manquait au PDP. Ce n'est donc pas un faux vert
-> mais une **preuve périmée** : « Proven live (2026-07-11) » décrivait un monde qui a changé
-> depuis, sans que personne ne rejoue le test. Un canal live non rejoué n'est pas un canal prouvé.
+> The spec itself is well built — it requires `CLEARED` and explicitly treats `PENDING` as a
+> failure, which is exactly the discipline the PDP spec was missing. So this is not a false-green
+> but **stale proof**: "Proven live (2026-07-11)" described a world that has since changed, and
+> nobody re-ran the test since. A live channel that isn't re-run is not a proven channel.
 >
-> Non corrigé : changer le pays de la fixture ferait repasser le test, mais prouverait autre chose
-> que ce qu'il prétend prouver. La question à trancher d'abord est de savoir si la France est
-> encore une destination Peppol.
+> Not fixed: changing the fixture's country would make the test pass again, but would prove
+> something other than what it claims to prove. The question to settle first is whether France is
+> still a Peppol destination at all.
 
-> ### ✅ Peppol via peppol.sh — RETENTÉ le 2026-09-02, round-trip réel obtenu (transport `peppol`
-> reconstruit dans `documents/transports/`)
+> ### ✅ Peppol via peppol.sh — RETRIED on 2026-09-02, real round-trip obtained (`peppol` transport
+> rebuilt under `documents/transports/`)
 >
-> Le nouveau transport (`transports/peppol-transport.ts` + `transports/peppol/peppol-client.ts`,
-> l'adaptateur AP générique) est câblé et testé (jest, `peppol-transport.spec.ts`). Pour la tentative
-> live elle-même, le spec `peppol/peppol-sh-live.spec.ts` a été repris quasi verbatim du repère, puis
-> RE-EXÉCUTÉ en vrai (`PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`), avec trois résultats bruts,
-> aucun deviné :
+> The new transport (`transports/peppol-transport.ts` + `transports/peppol/peppol-client.ts`, the
+> generic AP adapter) is wired and tested (jest, `peppol-transport.spec.ts`). For the live attempt
+> itself, the `peppol/peppol-sh-live.spec.ts` spec was carried over almost verbatim from the
+> pre-rewrite reference, then RE-RUN for real (`PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`), with
+> three raw results, none guessed:
 >
-> 1. **`country: 'FR'` — TOUJOURS cassé.** Réponse brute, identique à celle du 29/08 :
+> 1. **`country: 'FR'` — STILL broken.** Raw response, identical to the one on 08/29:
 >    `HTTP 400 — {"error":{"code":"invalid_country","message":"country must be an active Peppol
->    country code","param":"country"}}`. Ni corrigé côté peppol.sh, ni une panne passagère — reproduit
->    à l'identique quatre jours plus tard.
-> 2. **`country: 'BE'` — une NOUVELLE panne d'abord, différente, puis un succès.** Le premier essai
->    (sans `peppol_id` explicite, exactement le payload du repère de 2026-07-11) échoue avec
+>    country code","param":"country"}}`. Neither fixed on peppol.sh's side nor a transient outage —
+>    reproduced identically four days later.
+> 2. **`country: 'BE'` — a NEW, different failure first, then success.** The first attempt (with no
+>    explicit `peppol_id`, exactly the 2026-07-11 reference's payload) fails with
 >    `HTTP 400 — {"error":{"code":"missing_peppol_id","message":"peppol_id is required and must be a
->    valid <scheme>:<value> Peppol participant identifier"}}` — l'API a donc changé depuis la preuve
->    du repère : `tax_id` seul ne suffit plus à créer une société sandbox. Une fois un `peppol_id`
->    explicite fourni (`createCompany` a gagné ce paramètre optionnel), la création réussit :
->    `com_IO3upwIDxk45Daf8y41h7` (puis `com_…` à nouveau au second run).
-> 3. **Le round-trip complet, jusqu'au bout, RÉUSSIT — deux fois.** Un vendeur ALLEMAND (jamais
->    français, exprès — un vendeur français aurait trébuché sur PEPPOL-EN16931-R002, la limitation
->    déjà documentée de `peppol-bis-provider.ts`, avant même d'atteindre le réseau) construit un
->    Peppol BIS UBL réel et VALIDE (le vrai Schematron vendu, base + delta), envoyé via
->    `PeppolShApClient.send()` :
->    - Run 1 : `{"messageId":"doc_tSynOlxg9LaKv4mTJVnxI","status":"QUEUED"}` → poll 2/24 →
+>    valid <scheme>:<value> Peppol participant identifier"}}` — so the API has changed since the
+>    original proof: `tax_id` alone is no longer enough to create a sandbox company. Once an explicit
+>    `peppol_id` is supplied (`createCompany` gained this optional parameter), creation succeeds:
+>    `com_IO3upwIDxk45Daf8y41h7` (then `com_…` again on the second run).
+> 3. **The full round-trip, end to end, SUCCEEDS — twice.** A GERMAN seller (never French, on
+>    purpose — a French seller would have tripped on PEPPOL-EN16931-R002, `peppol-bis-provider.ts`'s
+>    already-documented limitation, before even reaching the network) builds a real, VALID Peppol BIS
+>    UBL document (the real vendored Schematron, base + delta), sent via `PeppolShApClient.send()`:
+>    - Run 1: `{"messageId":"doc_tSynOlxg9LaKv4mTJVnxI","status":"QUEUED"}` → poll 2/24 →
 >      `DELIVERED` (~10 s).
->    - Run 2 : `{"messageId":"doc_t477L6zcVzFbp7IguAIi7","status":"QUEUED"}` → poll 2/24 →
+>    - Run 2: `{"messageId":"doc_t477L6zcVzFbp7IguAIi7","status":"QUEUED"}` → poll 2/24 →
 >      `DELIVERED` (~10 s).
 >
-> **Conclusion, honnête** : peppol.sh lui-même fonctionne bien aujourd'hui (signup, société, envoi,
-> statut, tout est réel) — l'hypothèse du 29/08 ("la France est passée au mandat PDP et peppol.sh
-> l'aurait retirée") reste NON tranchée à sa cause exacte (la BELGIQUE, elle, est acceptée — ce
-> n'est donc pas un retrait total du sandbox), mais l'observation elle-même (FR rejeté) est
-> confirmée, reproduite, et contournée avec un pays alternatif comme demandé. C'est le PREMIER envoi
-> Peppol réel de cette nouvelle architecture `documents/` — voir `peppol-sh-live.spec.ts`'s own
-> header pour le détail et le knob `PEPPOL_SH_FALLBACK_COUNTRY` qui automatise ce contournement pour
-> une future ré-exécution.
+> **Conclusion, honestly stated**: peppol.sh itself works fine today (signup, company, send, status —
+> all real) — the 08/29 hypothesis ("France moved to the PDP mandate and peppol.sh removed it") is
+> still NOT settled as to its exact cause (BELGIUM, for its part, is accepted — so this is not a
+> blanket sandbox removal), but the observation itself (FR rejected) is confirmed, reproduced, and
+> worked around with an alternative country as required. This is the FIRST real Peppol send of this
+> new `documents/` architecture — see `peppol-sh-live.spec.ts`'s own header for the detail and the
+> `PEPPOL_SH_FALLBACK_COUNTRY` knob that automates this workaround for a future re-run.
 
-> ### ✅ Peppol via peppol.sh — XRechnung (le trou allemand du B2G), tenté et RÉUSSI le 2026-09-02
+> ### ✅ Peppol via peppol.sh — XRechnung (the German B2G gap), attempted and SUCCEEDED on 2026-09-02
 >
-> "Le trou allemand du B2G" : `b2g-routing/data/de.json` route désormais vers
-> `transportId: "peppol"` avec `formatSyntax: "xrechnung"` (voir `peppol-transport.ts`'s own header,
-> "THE FORMAT OVERRIDE") — la question live posée par cette tâche était "la sandbox peppol.sh
-> accepte-t-elle un envoi construit avec `formats/xrechnung-provider.ts` (au lieu de
-> `peppol-bis-provider.ts`) vers son propre receiver de test ?". Même motif EXACT que le round-trip
-> ci-dessus (société BE + `peppol_id` explicite, vendeur allemand, receveur `sandbox.peppol.sh`) —
-> voir `peppol/peppol-sh-xrechnung-live.spec.ts`.
+> "The German B2G gap": `b2g-routing/data/de.json` now routes to `transportId: "peppol"` with
+> `formatSyntax: "xrechnung"` (see `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE") — the
+> live question this task asked was "does the peppol.sh sandbox accept a send built with
+> `formats/xrechnung-provider.ts` (instead of `peppol-bis-provider.ts`) to its own test receiver?".
+> Same EXACT setup as the round-trip above (BE company + explicit `peppol_id`, German seller,
+> `sandbox.peppol.sh` receiver) — see `peppol/peppol-sh-xrechnung-live.spec.ts`.
 >
-> **Résultat brut, un seul run, non deviné** :
-> 1. Signup : `acc_qz9uV6XuSnda0fpFOIa1s`.
-> 2. `country: 'FR'` : rejeté, `invalid_country` — même panne que le round-trip Peppol BIS. Fallback
->    `country: 'BE'` (+ `peppol_id: '9925:BE999999999'`) : `com_h0t5I7orCSKUrK48C2770`.
-> 3. `xrechnungFormatProvider.build()` (vendeur allemand AVEC IBAN — `formats/xrechnung-provider.ts`'s
->    own BR-DE-1) : `validation.valid: true`, 0 erreur, UBL de 4012 octets. Vérifié LOCALEMENT, avant
->    tout envoi : `urn:xeinkauf.de:kosit:xrechnung_3.0` présent dans le XML, `urn:fdc:peppol.eu:2017:
->    poacc:billing:3.0` ABSENT — c'est bien un XRechnung, jamais un Peppol BIS, qui part sur le réseau.
-> 4. `PeppolShApClient.send()` : `{"messageId":"doc_v37PTxYOQGn78bPAnMiI0","status":"QUEUED"}`.
-> 5. Poll 1/24 : `QUEUED`. Poll 2/24 : `DELIVERED` (~10 s, un seul palier d'attente — identique au
->    timing du round-trip Peppol BIS).
+> **Raw result, a single run, nothing guessed**:
+> 1. Signup: `acc_qz9uV6XuSnda0fpFOIa1s`.
+> 2. `country: 'FR'`: rejected, `invalid_country` — same failure as the Peppol BIS round-trip.
+>    Fallback `country: 'BE'` (+ `peppol_id: '9925:BE999999999'`): `com_h0t5I7orCSKUrK48C2770`.
+> 3. `xrechnungFormatProvider.build()` (German seller WITH an IBAN — `formats/xrechnung-provider.ts`'s
+>    own BR-DE-1): `validation.valid: true`, 0 errors, a 4012-byte UBL document. Verified LOCALLY,
+>    before any send: `urn:xeinkauf.de:kosit:xrechnung_3.0` present in the XML,
+>    `urn:fdc:peppol.eu:2017:poacc:billing:3.0` ABSENT — this really is an XRechnung, never a Peppol
+>    BIS, going out on the network.
+> 4. `PeppolShApClient.send()`: `{"messageId":"doc_v37PTxYOQGn78bPAnMiI0","status":"QUEUED"}`.
+> 5. Poll 1/24: `QUEUED`. Poll 2/24: `DELIVERED` (~10 s, a single poll wait — identical timing to the
+>    Peppol BIS round-trip).
 >
-> **Conclusion, honnête, avec sa propre limite nommée** : le canal ACCEPTE et LIVRE un document
-> construit par `xrechnung-provider.ts` exactement comme il accepte et livre un document construit
-> par `peppol-bis-provider.ts` — aucune régression, aucun comportement différent côté transport. Mais
-> lire `peppol-sh-xrechnung-live.spec.ts`'s own header avant de sur-interpréter ce vert :
-> `PeppolShApClient#send()` (`peppol-sh-client.ts#ublToPeppolShDocument`) n'accepte JAMAIS de bytes
-> UBL bruts — il EXTRAIT une poignée de champs génériques EN 16931 (nom de partie, VAT, devise, dates,
-> lignes) et peppol.sh RE-SÉRIALISE son propre document côté serveur pour la livraison réelle ; cette
-> extraction ne lit ni `cbc:CustomizationID` ni aucun élément spécifique à XRechnung
-> (BuyerReference/Contact/PaymentMeans). Un `DELIVERED` ici prouve donc que l'artefact XRechnung de ce
-> dépôt (déjà jugé valide par le VRAI Schematron KoSIT vendored, base + delta, avant même l'envoi) est
-> structurellement compatible avec le MÊME chemin d'extraction UBL générique que Peppol BIS — pas que
-> peppol.sh transmet, juge ou conserve le contenu comme étant spécifiquement du XRechnung. La preuve
-> proprement XRechnung — le CustomizationID réellement dans les octets envoyés — est celle jugée
-> LOCALEMENT au point 3 ci-dessus, avant le réseau, jamais celle du réseau lui-même.
+> **Conclusion, honest, with its own named limit**: the channel ACCEPTS and DELIVERS a document built
+> by `xrechnung-provider.ts` exactly as it accepts and delivers one built by
+> `peppol-bis-provider.ts` — no regression, no different behavior on the transport side. But read
+> `peppol-sh-xrechnung-live.spec.ts`'s own header before over-interpreting this green:
+> `PeppolShApClient#send()` (`peppol-sh-client.ts#ublToPeppolShDocument`) NEVER accepts raw UBL
+> bytes — it EXTRACTS a handful of generic EN 16931 fields (party name, VAT, currency, dates, lines)
+> and peppol.sh RE-SERIALIZES its own document server-side for the actual delivery; that extraction
+> reads neither `cbc:CustomizationID` nor any XRechnung-specific element
+> (BuyerReference/Contact/PaymentMeans). A `DELIVERED` here therefore proves that this deposit's
+> XRechnung artifact (already judged valid by the REAL vendored KoSIT Schematron, base + delta,
+> before it was even sent) is structurally compatible with the SAME generic UBL extraction path as
+> Peppol BIS — not that peppol.sh transmits, judges, or retains the content as specifically being
+> XRechnung. The properly XRechnung-specific proof — the CustomizationID actually present in the
+> bytes sent — is the one judged LOCALLY at point 3 above, before the network, never the network's
+> own.
 
 ## Running a single live spec
 
@@ -210,7 +215,7 @@ Hard-success contract (enforced per-spec):
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
   npx jest ksef-live --no-coverage --runInBand
 
-# PDP superpdp (FR) — round-trip prouvé : déposée, validée, émise, reçue (voir l'encadré)
+# PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx jest pdp.live --no-coverage --runInBand
 
@@ -350,9 +355,9 @@ CHORUSPRO_LIVE=1 \
 
 Status (2026-09-01): step 3 below is DONE — a real `SdiHttpPort` (`SdiCoopClient`,
 `backend/src/modules/documents/transports/sdi/sdicoop-client.ts`) exists, built from the published
-SdICoop WSDL/XSD/instructions (see `CREDENTIALS_GUIDE.md` §4's own citation list), and
-`sdi-transport.ts` already uses it whenever a company's "sdi" channel credentials are complete. What
-remains is entirely OUTSIDE this codebase's control:
+SdICoop WSDL/XSD/instructions (see [Credentials Guide](./credentials-guide.md) §4's own citation
+list), and `sdi-transport.ts` already uses it whenever a company's "sdi" channel credentials are
+complete. What remains is entirely OUTSIDE this codebase's control:
 
 1. Register as an intermediary (*intermediario*) with AdE.
 2. Obtain a qualified digital certificate (PFX/P12) from an accredited CA (client cert; a distinct-key
@@ -387,7 +392,7 @@ The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (no pre-provisione
    `queued → sending → delivered` (sandbox delivers by email; statuses are real).
 
 Run: `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh npx jest peppol-sh-live --no-coverage --runInBand`
-Proven live 2026-09-02 in this architecture (see the encadré earlier in this file for the full,
+Proven live 2026-09-02 in this architecture (see the box earlier in this file for the full,
 raw result): `BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with
 `invalid_country`. An older 2026-07-11 proof (document `doc_2yb9TJka7US3hBwz4rnDW` → CLEARED in
 ~13 s) predates this architecture and used a different sandbox behavior (`tax_id` alone was then
@@ -430,7 +435,7 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 > not currently set this flag — see the caveat above) and Peppol via `peppol-sh` (zero-secret sandbox
 > self-signup). A fully green *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED, SdI
 > CLEARED, …) additionally needs the repo secrets listed in the table below — see also
-> `CREDENTIALS_GUIDE.md` for the per-platform setup walkthrough.
+> [Credentials Guide](./credentials-guide.md) for the per-platform setup walkthrough.
 
 > **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
 > They are set as literal values directly in the YAML (`SDI_LIVE: '1'`, `CHORUSPRO_ENVIRONMENT:
@@ -457,7 +462,7 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 |---|---|---|
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ optional `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
-| `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see `CREDENTIALS_GUIDE.md` §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
+| `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see [Credentials Guide](./credentials-guide.md) §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
 | _(none)_ | Peppol via peppol.sh | Self-signup in the spec — no secret needed. `PEPPOL_AP_PROVIDER` is a constant (`'peppol-sh'`) in the workflow — not a secret. ✅ proven. |
 | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol generic AP | A connected **Access Point** (Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. No live spec exists yet for this path (see "Peppol" above). |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |

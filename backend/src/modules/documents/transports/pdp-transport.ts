@@ -19,7 +19,7 @@
  *    with no usable deposit id) — thrown from inside `deliver()`, so BullMQ's own retries get a
  *    chance to run before `send_failed` is ever recorded (see `actions/async-send.ts`'s own header).
  * An accepted deposit with an EMPTY id is treated as the SECOND kind of failure, never a success —
- * the hard-success contract (LIVE_TESTING.md): a reference nobody can look up is not a
+ * the hard-success contract (documentation/docs/developer-guide/live-testing.md): a reference nobody can look up is not a
  * reference at all.
  */
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
@@ -158,7 +158,7 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
       }
 
       if (!depositId) {
-        // THE HARD-SUCCESS CONTRACT (LIVE_TESTING.md): an accepted
+        // THE HARD-SUCCESS CONTRACT (documentation/docs/developer-guide/live-testing.md): an accepted
         // upload with no usable deposit id is a FAILURE, never a silent success — a reference nobody
         // can look up on the platform is not a reference at all.
         throw new BadRequestException(

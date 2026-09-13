@@ -11,7 +11,7 @@
  * Real SdI access for intermediaries requires:
  *   - AdE (Agenzia delle Entrate) accreditation
  *   - A PKCS#12 client certificate AdE's own CA issues on a CSR submitted during accreditation
- *     (`CREDENTIALS_GUIDE.md` §4 — NOT a commercially-purchased "qualified" certificate)
+ *     (`documentation/docs/developer-guide/credentials-guide.md` §4 — NOT a commercially-purchased "qualified" certificate)
  *   - A dedicated channel: SDICoop (SOAP web service) or SDIFTP
  *
  * CORRECTION (2026-09-01): the SDICoop endpoint this header used to state

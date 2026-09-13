@@ -13,7 +13,7 @@
   l'ancien cycle de vie) est décrite dans la section « The documents module » de `CLAUDE.md`.
 - L'état d'implémentation par canal et par format (quels canaux de transmission sont prouvés en
   réel, lesquels sont implémentés en attente d'identifiants, lesquels restent des stubs) est suivi
-  dans `COMPLIANCE_TODO.md`, à la racine du dépôt.
+  dans `documentation/docs/developer-guide/live-testing.md`.
 - La posture de conformité NF-525 (inaltérabilité, piste d'audit, chaînage de hachage, rétention,
   archivage, numérotation sans trou) est désormais une propriété directe du module documents — voir
   les modules listés dans `CLAUDE.md` (`descriptors/lifecycle.ts`, `archive/`, `numbering/`) plutôt

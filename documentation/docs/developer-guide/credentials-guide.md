@@ -1,4 +1,8 @@
-# E-Invoicing Credentials — Setup Guide
+---
+sidebar_position: 11
+---
+
+# E-Invoicing Credentials Guide
 
 > Step-by-step guide for obtaining the credentials of every e-invoicing platform the
 > project can transmit to. **The deployed app takes these per-tenant in each company's
@@ -20,7 +24,8 @@
   credential secrets are both present. Missing secrets ⇒ that leg is **skipped**, never failed.
   So you can add secrets **one country at a time** — you never need the whole list.
 - **Priority:** the project's real markets are **France, Poland, Italy** (+ Peppol for
-  cross-border, which also carries Germany's XRechnung B2G content — see `LIVE_TESTING.md`).
+  cross-border, which also carries Germany's XRechnung B2G content — see
+  [Live Testing](./live-testing.md)).
 
 ## Two separate credential paths — the deployed app vs the CI tests
 
@@ -180,7 +185,7 @@ Note: superpdp.tech's own pages are a client-rendered SPA — automated fetches 
 1. Consult the official DGFiP registry of registered platforms: `https://www.impots.gouv.fr/je-consulte-la-liste-des-plateformes-agreees` (also referenced as `https://www.impots.gouv.fr/liste-des-plateformes-de-dematerialisation-partenaires-pdp-immatriculees-sous-reserve`), reached from `https://www.impots.gouv.fr/facturation-electronique-et-plateformes-agreees`. As of ~July 2026 there are ~137 registered PAs (status "sous réserve" = provisional pending conformance tests, or "définitif" once conformance tests are passed and reported to the DGFiP).
 2. Pick a PA that offers the API style you need (proprietary vs AFNOR/XP Z12-013) and supports the invoice formats you produce (Factur-X, UBL, CII). SuperPDP is one option and is itself DGFiP-registered (positions itself as "the simplest and cheapest PA").
 3. Sign a contract / onboarding agreement with that PA (each vendor's own commercial process — not a government step). Registration is valid 3 years, renewable.
-4. If instead your own product wants to *become* a PA (not applicable here, but for completeness): apply via `https://demarche.numerique.gouv.fr/commencer/immatpdp` (Démarches Simplifiées), submitting SIREN + Kbis extract (<3 months), legal representative ID, a valid ISO/IEC 27001 certificate covering the relevant systems, GDPR compliance docs, and technical specs for transmission/security. Contact: `immat.pdp@dgfip.finances.gouv.fr`.
+4. If instead your own product wants to *become* a PA (not applicable here, but for completeness): apply via `https://demarche.numerique.gouv.fr/commencer/immatpdp` (Démarches Simplifiées), submitting SIREN + Kbis extract (less than 3 months old), legal representative ID, a valid ISO/IEC 27001 certificate covering the relevant systems, GDPR compliance docs, and technical specs for transmission/security. Contact: `immat.pdp@dgfip.finances.gouv.fr`.
 5. For AFNOR/interop testing specifically: confirm both counterparties' PAs support XP Z12-013 (`https://norminfo.afnor.org/norme/xp-z12-013/...`); the standard purposefully lets a client that speaks the AFNOR API connect to *any* conformant PA without per-vendor integration work.
 
 **Cost, lead time & blockers**
@@ -314,12 +319,13 @@ fixed constant the way KSeF's base URLs are.
 
 **Official sources**
 - https://www.fatturapa.gov.it/it/SistemaAccreditamento/
-- Re-vérifié le 2026-09-01 contre https://www.fatturapa.gov.it/it/sistemainterscambio/ (sections
-  « Accreditamento al Sistema di Interscambio » et « sperimentazione ») : la procédure ci-dessus est
-  toujours exacte — portail d'accréditation https://accreditamento.fatturapa.gov.it/, l'ambiente di
-  test « rimane disponibile permettendo la trasmissione e/o la ricezione dei file come se fosse in
-  produzione ma privi di valore legale », codici destinatario de test sous « Test di
-  interoperabilità - Gestione test interoperabilità », limite quotidienne de fichiers en test.
+- Re-verified on 2026-09-01 against https://www.fatturapa.gov.it/it/sistemainterscambio/ (sections
+  «Accreditamento al Sistema di Interscambio» and «sperimentazione»): the procedure above is still
+  accurate — accreditation portal https://accreditamento.fatturapa.gov.it/, the test environment
+  «rimane disponibile permettendo la trasmissione e/o la ricezione dei file come se fosse in
+  produzione ma privi di valore legale» (remains available, allowing files to be sent and/or
+  received as if in production but without legal value), test recipient codes under «Test di
+  interoperabilità - Gestione test interoperabilità», and a daily file limit in test.
 - https://www.fatturapa.gov.it/it/SistemaAccreditamento/cose-il-sistema-di-accreditamento/
 - https://www.fatturapa.gov.it/it/SistemaAccreditamento/processo-per-nuovo-accreditamento/
 - https://www.fatturapa.gov.it/it/sistemainterscambio/sperimentazione/
@@ -363,7 +369,7 @@ fixed constant the way KSeF's base URLs are.
 3. Sandbox calls must hit `sandbox.peppol.sh` (not `api.peppol.sh` — sandbox keys get `403 wrong_environment` there); invoices are delivered by email instead of the real network, same code path (`ublToPeppolShDocument` → `POST /v1/documents` → poll `GET /v1/documents/:id`).
 4. To go live: `POST /v1/account/kyc` with company/identity details; once approved you can mint a `ps_live_` key, and `api.peppol.sh` then routes onto the real Peppol network.
 5. Pricing (peppol.sh site): pay-per-document, from €0.10/invoice, no monthly minimum; sandbox is free forever.
-6. Repo proof: `backend/src/modules/documents/transports/peppol/peppol-sh-live.spec.ts`, gated by `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`, self-signs-up when `PEPPOL_SH_API_KEY`/`PEPPOL_SH_COMPANY_ID` are absent — proven live 2026-09-02 in this architecture (`BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with `invalid_country` — see `LIVE_TESTING.md` for the full raw result). An older 2026-07-11 proof predates this architecture and is kept there only as superseded history. Wired in `.github/workflows/compliance-live.yml` with `PEPPOL_AP_PROVIDER: 'peppol-sh'` set as a plain env constant, not a secret.
+6. Repo proof: `backend/src/modules/documents/transports/peppol/peppol-sh-live.spec.ts`, gated by `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`, self-signs-up when `PEPPOL_SH_API_KEY`/`PEPPOL_SH_COMPANY_ID` are absent — proven live 2026-09-02 in this architecture (`BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with `invalid_country` — see [Live Testing](./live-testing.md) for the full raw result). An older 2026-07-11 proof predates this architecture and is kept there only as superseded history. Wired in `.github/workflows/compliance-live.yml` with `PEPPOL_AP_PROVIDER: 'peppol-sh'` set as a plain env constant, not a secret.
 
 **Route B — connecting through a real/commercial Access Point**
 
@@ -400,7 +406,7 @@ live-proof harness Route A above describes.
 
 ---
 
-_Guide généré via recherche par plateforme (sources officielles citées par section). Statuts secrets
-vérifiés le 2026-07-12. Révisé le 2026-09-13 : sections KSeF/PDP/Chorus Pro/SdI/Peppol seules
-conservées, à jour du périmètre à cinq pays (FR/PL/IT/PT/DE) — voir `LIVE_TESTING.md` et
-`B2G_COVERAGE.md` pour l'état courant des canaux._
+_Guide generated via per-platform research (official sources cited per section). Secret statuses
+verified 2026-07-12. Revised 2026-09-13: only the KSeF/PDP/Chorus Pro/SdI/Peppol sections were
+kept, updated to the five-country scope (FR/PL/IT/PT/DE) — see [Live Testing](./live-testing.md)
+for the current channel status._

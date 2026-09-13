@@ -113,6 +113,6 @@ describe('PT — correction-routes/data/pt.json', () => {
     expect(pt.notes ?? '').toMatch(/Código do IVA/);
     expect(pt.notes ?? '').toMatch(/Decreto-Lei n\.º 28\/2019/);
     expect(pt.notes ?? '').toMatch(/ASYMÉTRIQUE/);
-    expect(pt.notes ?? '').toMatch(/B2G_COVERAGE\.md/);
+    expect(pt.notes ?? '').toMatch(/audit B2G déjà réalisé/);
   });
 });

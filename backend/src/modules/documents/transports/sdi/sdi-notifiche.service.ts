@@ -11,7 +11,7 @@
  * ## What accreditation will still need to add (NOT built here, said plainly)
  *
  *  - Server-side mTLS: AdE's own Sistema di Accreditamento issues a SEPARATE server certificate/key
- *    pair (distinct RSA key from the client one — `CREDENTIALS_GUIDE.md` §4) that this endpoint would
+ *    pair (distinct RSA key from the client one — `documentation/docs/developer-guide/credentials-guide.md` §4) that this endpoint would
  *    need to terminate TLS with, so SdI's OWN client certificate can be verified on our side. This
  *    server (nginx in front of `main.ts`, see `entrypoint.sh`) does not do per-route mTLS today — this
  *    endpoint is reachable exactly like any other `@Public()` route until that is wired.
