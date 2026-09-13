@@ -1,8 +1,8 @@
 /*
   TODO_PRODUIT.md T3 (2026-09-03) — closes the TODO_ISSUES.md entry "les taux existent, mais
   paiements et avoirs ne convertissent toujours pas", per that entry's own recorded WHY: a lettrage
-  needs "un taux PAR OPÉRATION (saisi au moment du paiement, stocké sur lui), pas le taux ambiant de
-  la société" — exactly what `documentAmountMinor`/`conversionRate`/`conversionRateAsOf`/
+  needs a rate PER TRANSACTION -- entered when the payment is recorded and stored on it -- not the
+  company's ambient rate, which is exactly what `documentAmountMinor`/`conversionRate`/`conversionRateAsOf`/
   `conversionSource` below are (see `DocumentPayment`'s own schema.prisma comment for the full
   reasoning, and `settlement/convert-payment.ts` for the arithmetic that fills them in).
 

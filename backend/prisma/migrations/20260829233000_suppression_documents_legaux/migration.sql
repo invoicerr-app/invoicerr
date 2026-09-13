@@ -1,10 +1,12 @@
--- Suppression des documents légaux et du moteur de conformité.
+-- Removal of the legal documents and the compliance engine.
 --
--- Décision explicite de l'utilisateur après avoir vu le coût : devis, factures, paiements, reçus,
--- ainsi que les 72 000 lignes du moteur (profils pays, machine à états, canaux, formats, archivage)
--- qui n'existaient que pour eux. Le repère git `avant-refonte-documents` conserve l'état antérieur.
+-- A deliberate decision taken once the cost was visible: quotes, invoices, payments, receipts, and
+-- the 72 000 lines of engine that existed only for them -- country profiles, state machine,
+-- channels, formats, archiving. Git tag `avant-refonte-documents` preserves the prior state for
+-- anyone doing archaeology.
 --
--- CASCADE parce que ces tables se référencent entre elles ; l'ordre n'a donc pas à être deviné.
+-- CASCADE because these tables reference one another, so the drop order does not have to be guessed
+-- correctly.
 
 DROP TABLE IF EXISTS "InboundInvoice" CASCADE;
 DROP TABLE IF EXISTS "CompanySigningCertificate" CASCADE;

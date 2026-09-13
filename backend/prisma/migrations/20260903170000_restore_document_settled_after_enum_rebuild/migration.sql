@@ -1,20 +1,20 @@
--- Réparation d'une MINE D'ORDRE trouvée par la validation T5(c) (2026-09-03), introduite par le
--- croisement de deux migrations écrites en parallèle de tâches successives :
---   * 20260902234040_payment_conversion_and_document_settled (T3) fait
---     `ALTER TYPE "WebhookEvent" ADD VALUE 'DOCUMENT_SETTLED'` — horodatée 23:40 le 2.
---   * 20260903000000_generic_document_webhook_events (T2bis) RECONSTRUIT le type WebhookEvent
---     (CREATE TYPE _new / cast / rename — le seul moyen de retirer des valeurs en Postgres) avec la
---     liste des valeurs TELLE QU'ELLE EXISTAIT au moment de T2bis — SANS DOCUMENT_SETTLED, qui
---     n'existait pas encore quand ce fichier a été écrit.
--- Sur les deux bases vivantes de ce dépôt, T2bis a RÉELLEMENT tourné avant T3 (l'ordre des commits)
--- et tout est sain. Mais sur une base FRAÎCHE (CI, nouvelle installation, la base que
--- sync-schema.ts amène à jour), `migrate deploy` rejoue les répertoires dans l'ordre LEXICOGRAPHIQUE
--- des horodatages : T3 d'abord (ajoute la valeur), T2bis ensuite (la DÉTRUIT en reconstruisant le
--- type sans elle) — prouvé le 2026-09-03 sur une base jetable : déploiement intégral « successful »,
--- et pg_enum sans DOCUMENT_SETTLED à l'arrivée. Le premier document soldé aurait crashé le dispatch.
+-- Repairs an ORDERING MINE laid by two migrations written in parallel:
+--   * 20260902234040_payment_conversion_and_document_settled runs
+--     `ALTER TYPE "WebhookEvent" ADD VALUE 'DOCUMENT_SETTLED'` -- timestamped 23:40 on the 2nd.
+--   * 20260903000000_generic_document_webhook_events REBUILDS the WebhookEvent type
+--     (CREATE TYPE _new / cast / rename, the only way to remove values in Postgres) from the value
+--     list AS IT STOOD when that file was written -- WITHOUT DOCUMENT_SETTLED, which did not exist
+--     yet.
+-- On this repository's two live databases the rebuild really did run before the ADD VALUE, in commit
+-- order, and everything is sound. But on a FRESH database -- CI, a new install, or the one
+-- sync-schema.ts brings up to date -- `migrate deploy` replays the directories in LEXICOGRAPHIC
+-- timestamp order: the ADD VALUE first, then the rebuild, which DESTROYS the value by recreating the
+-- type without it. Proven on a throwaway database on 2026-09-03: the whole deploy reported
+-- "successful", and pg_enum came out with no DOCUMENT_SETTLED. The first settled document would have
+-- crashed the webhook dispatch.
 --
--- Pourquoi CE correctif et pas un autre : renommer le répertoire de T3 casserait la vérification des
--- checksums sur les bases où il est déjà appliqué sous son nom ; éditer le CREATE TYPE de T2bis
--- pareil. Une migration ADDITIVE et IDEMPOTENTE (IF NOT EXISTS) est la seule forme qui est un no-op
--- exact sur les bases saines ET une réparation complète sur les bases fraîches.
+-- Why THIS fix and not another: renaming the earlier directory would break checksum verification on
+-- databases where it is already applied under its current name, and editing the rebuild's CREATE
+-- TYPE would do the same. An ADDITIVE, IDEMPOTENT migration (IF NOT EXISTS) is the only shape that
+-- is an exact no-op on healthy databases AND a complete repair on fresh ones.
 ALTER TYPE "WebhookEvent" ADD VALUE IF NOT EXISTS 'DOCUMENT_SETTLED';
