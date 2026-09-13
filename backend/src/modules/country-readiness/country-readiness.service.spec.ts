@@ -74,15 +74,30 @@ describe('CountryReadinessService', () => {
   it(
     'reports complete=false with the EXACT missing mechanisms for a country kept in the product ' +
       'but only partially wired (present in some core mechanisms, not all) — found by scanning the ' +
-      'files, not asserted to be any particular country',
+      'files, not asserted to be any particular country — or, once every shipped country has reached ' +
+      'full 5-mechanism coverage, documents that explicitly instead of failing on a stale assumption',
     () => {
       const partial = [...allKnownCountryCodes()].filter((code) => {
         const covering = mechanismsCovering(code).length;
         return covering > 0 && covering < MECHANISM_IDS.length;
       });
-      // Sanity: today's prune (FR complete; PL/IT/DE each missing something) must leave at least one
-      // partial country for this test to actually exercise the "some missing" branch.
-      expect(partial.length).toBeGreaterThan(0);
+
+      if (partial.length === 0) {
+        // country-identifiers/data/it.json and pl.json (added alongside DE/FR/PT's own files)
+        // closed the last remaining gap: every one of the 5 shipped countries (DE, FR, IT, PL, PT)
+        // now has a data/xx.json file in all 5 core mechanisms, so there is currently no
+        // "partially wired" country left for this branch to exercise against real data — the
+        // product reaching completeness, not a broken test. Asserting that explicitly here (rather
+        // than skipping silently) means the day a mechanism gap reopens for any shipped country —
+        // a new mechanism added, a country's file removed from one of them — this branch starts
+        // exercising itself again with NO code change needed here.
+        expect(
+          [...allKnownCountryCodes()].every(
+            (code) => mechanismsCovering(code).length === MECHANISM_IDS.length,
+          ),
+        ).toBe(true);
+        return;
+      }
 
       for (const code of partial) {
         const expectedPresent = mechanismsCovering(code);

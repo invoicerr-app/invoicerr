@@ -10,13 +10,17 @@ function fileFor(countryCode: string) {
   return file;
 }
 
-describe('country-identifiers/data — the shipped FR, DE and PT files', () => {
-  // Re-pinned by the 5-country prune (2026-09-10): this mechanism ships identifier requirements
-  // for DE, FR and PT only — PL and IT never had a country-identifiers file. US, GB and BE (below)
-  // were removed by the prune along with every other country outside FR/PL/IT/PT/DE.
-  it('loads exactly the three countries this mechanism ships', () => {
+describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files', () => {
+  // Re-pinned by the 5-country prune (2026-09-10): this mechanism shipped identifier requirements
+  // for DE, FR and PT only at first — PL and IT had no country-identifiers file yet. IT and PL were
+  // added afterwards (see it.json/pl.json's own file-level `notes` for the research and the
+  // deliberate `required: false` grading on every fact — this catalog has no seller/buyer axis, see
+  // those notes for why an unconditional seller-side rule still can't be encoded as `required: true`
+  // without also wrongly gating a buyer-side client record). US, GB and BE (below) were removed by
+  // the prune along with every other country outside FR/PL/IT/PT/DE.
+  it('loads exactly the five countries this mechanism ships', () => {
     const codes = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'FR', 'PT']);
+    expect(codes).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every fact in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit here)', () => {
@@ -173,6 +177,76 @@ describe('country-identifiers/data — the shipped DE and PT files', () => {
     expect(de.schemes.find((s) => s.scheme === 'VAT')!.provenance.kind).not.toBe(
       pt.schemes.find((s) => s.scheme === 'VAT')!.provenance.kind,
     ); // DE VAT is "unverified", PT VAT is "legal"
+  });
+});
+
+// IT and PL, added by researching primary law (DPR 633/1972 arts. 21/21-bis via normattiva.it, the
+// FatturaPA technical specification, ustawa o VAT art. 106e via dziennikustaw.gov.pl) — see
+// it.json/pl.json's own file-level `notes` for the full research and, critically, for WHY every
+// fact in both files stays `required: false` despite each country's SELLER-side rule (Partita IVA /
+// NIP) being established as unconditional: this catalog's `appliesTo` axis (COMPANY/INDIVIDUAL/BOTH)
+// has no notion of transactional role, and the exact same per-country array is read by the SELLER
+// call-sites (onboarding.tsx/company.settings.tsx, always partyType "COMPANY") and the BUYER
+// call-site (client-upsert.tsx, partyType from the client's own record type) — with `required: true`
+// enforced as a real, hard save-block in all three (confirmed by reading each screen's own
+// onSubmit). Setting `required: true` would therefore ALSO hard-block a lawful Italian/Polish
+// buyer/client record that this research does NOT establish as needing that identifier (the buyer's
+// correct identifier depends on taxable-person status, an axis this catalog does not track) — so
+// `required: false` here is a deliberate, documented choice, not an oversight.
+describe('country-identifiers/data — the shipped IT and PL files', () => {
+  it('IT declares a VAT scheme (Partita IVA) and a LEGAL_ID scheme (Codice Fiscale), both COMPANY/BOTH and NOT required', () => {
+    const it = fileFor('IT');
+    const vat = it.schemes.find((s) => s.scheme === 'VAT')!;
+    expect(vat.appliesTo).toBe('COMPANY');
+    expect(vat.required).toBe(false); // seller-side is unconditional (DPR 633/1972 art. 21 co. 2
+    // lett. d) — see this fact's own `notes` for why `required` still stays false at country level.
+    expect(vat.provenance.kind).toBe('legal');
+    if (vat.provenance.kind === 'legal') {
+      expect(vat.provenance.sourceText).toMatch(/partita IVA del soggetto cedente o prestatore/);
+      expect(vat.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+    expect(vat.pattern).toBeUndefined(); // 11-digit format not found in either primary source read
+
+    const legalId = it.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
+    expect(legalId.label).toBe('Codice Fiscale');
+    expect(legalId.appliesTo).toBe('BOTH');
+    expect(legalId.required).toBe(false);
+    expect(legalId.provenance.kind).toBe('unverified'); // known law, not yet safely enforceable —
+    // see this fact's own resolutionNote and its own `notes` (which embeds the actual DPR 633/1972
+    // art. 21 co. 2 lett. f) quote verbatim, not merely a paraphrase).
+    if (legalId.provenance.kind === 'unverified') {
+      expect(legalId.provenance.resolutionNote.length).toBeGreaterThan(40);
+    }
+    expect(legalId.notes).toMatch(/numero di partita IVA del soggetto cessionario o committente/);
+  });
+
+  it('PL declares a single LEGAL_ID scheme (NIP), COMPANY-only (not BOTH — PESEL is a distinct, unmodeled case for individual sellers), NOT required', () => {
+    const pl = fileFor('PL');
+    expect(pl.schemes).toHaveLength(1);
+    const legalId = pl.schemes[0];
+    expect(legalId.scheme).toBe('LEGAL_ID');
+    expect(legalId.label).toBe('NIP');
+    expect(legalId.appliesTo).toBe('COMPANY');
+    expect(legalId.required).toBe(false);
+    expect(legalId.provenance.kind).toBe('legal');
+    if (legalId.provenance.kind === 'legal') {
+      expect(legalId.provenance.sourceText).toMatch(/zidentyfikowany na potrzeby podatku/);
+      expect(legalId.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+    expect(legalId.pattern).toBeUndefined(); // NIP digit count not chased to a primary-text statement
+    expect(legalId.notes).toMatch(/pomocą którego nabywca towarów lub usług/); // the buyer-side
+    // conditional half (art. 106e ust. 1 pkt 5) is documented in this fact's own `notes`, not encoded
+  });
+
+  it('IT and PL genuinely differ from each other and from DE/FR/PT — not a copy with labels swapped', () => {
+    const it = fileFor('IT');
+    const pl = fileFor('PL');
+    const itVat = it.schemes.find((s) => s.scheme === 'VAT')!;
+    const plLegalId = pl.schemes[0];
+    expect(itVat.label).not.toBe(plLegalId.label);
+    expect(it).not.toEqual(pl);
+    expect(it.schemes.map((s) => s.scheme).sort()).toEqual(['LEGAL_ID', 'VAT']);
+    expect(pl.schemes.map((s) => s.scheme).sort()).toEqual(['LEGAL_ID']);
   });
 });
 
