@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Entreprise
+# Réglages de l'entreprise
 
 ## Entreprise
 

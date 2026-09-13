@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Company
+# Company settings
 
 ## Company
 

@@ -20,7 +20,7 @@ Remplissez-la avant toute autre chose : le nom, l'adresse, la devise et la numé
 
 Un ordre recommandé pour bien démarrer :
 
-1. **[Settings → Company](settings/company-branding.md#company)** — votre identité commerciale et la numérotation
+1. **[Réglages → Entreprise](settings/company-branding.md)** — votre identité commerciale et la numérotation
 2. **[Clients](clients.md)** — les personnes et entreprises que vous facturez
 3. **[Articles](articles.md)** — éléments de catalogue réutilisables pour vos lignes (optionnel)
 4. **[Moyens de paiement](billing/payment-methods.md)** — comment vos clients vous paient
