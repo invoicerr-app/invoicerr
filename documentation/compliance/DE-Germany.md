@@ -18,12 +18,23 @@ Germany has no general transmission-channel data in this app — no `channel-pol
 German seller at all. What this app does have, and has proven live once, is a route for selling to a
 German government client.
 
-## No general channel mandate on file
+## No channel mandate — because German law imposes a FORMAT, never a channel
 
-`transports/channel-policy/data/de.json` does not exist. This app records no fact — mandated or
-suggested — about which channel a German seller should use for an ordinary invoice. (Germany's own
-well-known federal reception mandate from 2025, and the phased emission mandate for 2027/2028, are
-not modeled as a channel-policy fact in this catalog.)
+`transports/channel-policy/data/de.json` **exists and deliberately declares no fact** (2026-09-13).
+That is a sourced conclusion, not a gap.
+
+UStG § 14 Abs. 1 defines an *elektronische Rechnung* by its **format** — one issued, transmitted and
+received in a structured electronic format allowing electronic processing — as against a *sonstige
+Rechnung*. § 14 Abs. 2 Satz 2 Nr. 1 carries the domestic B2B obligation, again in terms of format
+alone, and § 27 Abs. 38 phases it in: every business free until 2026-12-31, those with turnover at or
+below 800 000 € (and EDI users) until 2027-12-31, full effect 2028-01-01. **No provision names a
+platform**, at any stage. So there is no channel to mandate, and none was invented to look symmetrical
+with France or Italy.
+
+This is precisely why Germany's obligation is real and yet absent from this catalog: the catalog
+answers "which delivery channel does the law force", and German law answers "none — but the document
+must be structured". The format side is handled where it belongs, in the B2G routing rule below and
+in the format providers.
 
 ## Selling to a government client (B2G) — proven live
 
@@ -86,4 +97,7 @@ and Germany's own default correction route, which states no correction is requir
 `correction-routes/data/de.json`, `correction-routes/cancel-policy.ts`, `b2g-routing/data/de.json`,
 `tax/tax-systems/data/de.json`, `country-fields/data/de.json`, plus
 `transports/peppol-transport.ts` and `transports/peppol/peppol-sh-xrechnung-live.spec.ts` for the
-live-proof claim above. No `transports/channel-policy/data/de.json` file exists.
+live-proof claim above, `vat-rates/data/de.json` for the rate ladder, and
+`archive/retention/data/de.json` for the two simultaneous eight-year retention obligations (UStG
+§ 14b and AO § 147). `transports/channel-policy/data/de.json` exists but declares no fact, for the
+sourced reason given above.

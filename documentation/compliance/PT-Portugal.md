@@ -46,8 +46,17 @@ document in its series (Portaria n.º 363/2010 art. 6.º).
 
 ## No transmission channel, no B2G
 
-- No `channel-policy` file exists for Portugal — this app records no transmission-channel mandate or
-  suggestion for a Portuguese seller.
+- `transports/channel-policy/data/pt.json` **exists and deliberately declares no fact** (2026-09-13).
+  That is a sourced conclusion, not a gap: Decreto-Lei n.º 28/2019 art. 12.º n.º 1 makes electronic
+  transmission itself optional and consent-based — *"As faturas e demais documentos fiscalmente
+  relevantes podem, mediante aceitação pelo destinatário, ser emitidos por via eletrónica"* — the verb
+  being *podem* (may), not *devem* (must). Portuguese law names no platform, unlike France's PDP or
+  Italy's SdI, so nothing here constrains which channel a Portuguese seller uses. The file's own notes
+  carry the retrieval and the quotations.
+- What Portuguese law *does* impose at this level is a **certified invoicing software** obligation
+  above a turnover threshold (same decree, art. 4.º) — a fact about the software, not about the
+  transport, and one this app does not satisfy today (it is not AT-certified). The two must not be
+  conflated.
 - No `b2g-routing` file exists either — selling to a Portuguese government client (which requires
   CIUS-PT) is not implemented. This app's own country-policy notes record why: CIUS-PT could not be
   vendored, the third-party portals that carry it vary, and no Peppol coverage was found for Portugal
@@ -104,5 +113,7 @@ locally is not implementable in this app for Portugal today**; an attempt is ref
 `backend/src/modules/documents/country-policy/data/pt.json`, `country-identifiers/data/pt.json`,
 `correction-routes/data/pt.json`, `correction-routes/cancel-policy.ts`,
 `tax/tax-systems/data/pt.json`, `vat-rates/data/pt.json`, `reporting/data/pt.json`, plus
-`reporting/providers/pt-declaration-provider.ts` for the ATCUD placeholder quoted above. No
-`transports/channel-policy/data/pt.json` or `b2g-routing/data/pt.json` file exists.
+`reporting/providers/pt-declaration-provider.ts` for the ATCUD placeholder quoted above, and
+`archive/retention/data/pt.json` for the ten-year retention (CIVA art. 52.º n.º 1).
+`transports/channel-policy/data/pt.json` exists but declares no fact, for the sourced reason given
+above. No `b2g-routing/data/pt.json` file exists.
