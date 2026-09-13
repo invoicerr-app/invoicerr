@@ -227,8 +227,8 @@ time from the DB, not from the JSON files directly) — `DocumentCountryActionRu
 mirror was only refreshed by `prisma/seed.ts`, which runs on `migrate dev`/`migrate reset`/an
 explicit `db seed` — **not** on an ordinary restart of an already-migrated database, which is
 exactly the gap that let a JSON-only edit silently 403 every document action until someone
-remembered to reseed by hand (`TODO_ISSUES.md`'s own "`resetAndSeed` ne re-sème pas la politique
-pays" note).
+remembered to reseed by hand — the gap `TODO_ISSUES.md` records as "`resetAndSeed` does not
+reseed the country policy".
 
 Both tables now also self-correct on **every single backend boot**, in every environment including
 production (`country-policy/boot-reseed.service.ts` and `country-identifiers/boot-reseed.service.ts`,
@@ -326,8 +326,8 @@ Some countries genuinely need code, not just data:
   (the EU Commission's own Poland factsheet *and* the Polish Ministry of Finance's KSeF portal),
   which turned up **two** viable B2G channels (KSeF and PEF) and chose the one this repo can
   actually deliver — not the one that looked more "European". Read its `notes` field for the full
-  reasoning: this is what "tranchée par la lecture, pas la plus évidente" looks like in a real
-  file.
+  reasoning: this is what "settled by reading the source, not by picking the obvious one" looks
+  like in a real file.
 - **`b2g-routing/data/de.json`** — the opposite journey on the SAME axis: reading the actual German
   federal text (§ 4 ERechV) turned up a channel this repo did not implement at all
   (`zre-ozgre`), so sending was correctly BLOCKED, by name, rather than silently routed to email —
