@@ -30,32 +30,26 @@ services:
       # - BREVO_API_KEY="your_brevo_api_key"
       # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
 
-      # OIDC Configuration (example for Authentik). createOidcConfig() (backend/src/lib/auth.ts, via
-      # sso-policy.ts's resolveOidcEndpoints()) resolves endpoints EITHER by discovery OR from the
-      # manual *_ENDPOINT variables below — NEVER both: it checks OIDC_DISCOVERY_URL first, and when
-      # that is set the three manual endpoints are never even read. Pick ONE of the two options
-      # below; the other is commented out here on purpose so copy-pasting this file cannot silently
-      # set variables that get dropped.
+      # OIDC. Endpoints come EITHER from discovery OR from the manual variables, never both:
+      # OIDC_DISCOVERY_URL is checked first, and when it is set the three manual endpoints are not
+      # read at all. Pick one option; the other stays commented so a copy-paste cannot silently set
+      # variables that get dropped.
       - OIDC_NAME="Pocket ID"
 
-      # Option A (active below) — discovery: the IdP's discovery document supplies the
-      # authorization, token and userinfo endpoints on its own. (OIDC_JWKS_URI is still accepted as
-      # a legacy alias for this variable — but it took a discovery-DOCUMENT URL, never a JWKS one, so
-      # the name was renamed to say what it actually is.)
-      - OIDC_DISCOVERY_URL="https://auth.chevrier.dev/.well-known/openid-configuration"
+      # Option A — discovery.
+      - OIDC_DISCOVERY_URL="https://auth.example.com/.well-known/openid-configuration"
 
-      # Option B — manual endpoints, for an IdP with no discovery document. To use this instead,
-      # uncomment the three lines below AND comment out OIDC_DISCOVERY_URL above.
-      # - OIDC_AUTHORIZATION_ENDPOINT="https://auth.chevrier.dev/authorize"
-      # - OIDC_TOKEN_ENDPOINT="https://auth.chevrier.dev/token"
-      # - OIDC_USERINFO_ENDPOINT="https://auth.chevrier.dev/userinfo"
+      # Option B — manual, for an IdP with no discovery document: uncomment these three AND comment
+      # out OIDC_DISCOVERY_URL above.
+      # - OIDC_AUTHORIZATION_ENDPOINT="https://auth.example.com/authorize"
+      # - OIDC_TOKEN_ENDPOINT="https://auth.example.com/token"
+      # - OIDC_USERINFO_ENDPOINT="https://auth.example.com/userinfo"
 
-      # RP-Initiated Logout: when set, signing out of this app also signs out at the IdP. Without it,
-      # sign-out clears only the local session and the user stays signed in at the IdP.
-      - OIDC_END_SESSION_ENDPOINT="https://auth.chevrier.dev/end_session"
-      # Client ID and Secret for OIDC. OIDC_CLIENT_ID is what decides whether the environment provider
-      # is registered at all; OIDC_NAME above is its id, which lands in a URL path segment
-      # (/api/auth/callback/<id>) and is sanitised to URL-safe characters, defaulting to "oidc".
+      # Signs the user out at the IdP too. Without it, sign-out clears only the local session.
+      - OIDC_END_SESSION_ENDPOINT="https://auth.example.com/end_session"
+      # OIDC_CLIENT_ID is what decides whether this provider is registered at all. OIDC_NAME is its
+      # id and lands in a URL path segment (/api/auth/callback/<id>), sanitised to URL-safe
+      # characters, defaulting to "oidc".
       - OIDC_CLIENT_ID="your-client-id"
       - OIDC_CLIENT_SECRET="your-client-secret"
 
@@ -65,54 +59,31 @@ services:
       # backend refuses to boot if it is set while NO provider exists, since nobody could then sign in.
       # - OIDC_ONLY=true
 
-      # REQUIRED. Put the VALUE in a .env file next to this one — NEVER here. This file is committed
-      # to the open-source repository: a secret typed on this line is a secret published to everyone,
-      # and `git add -A` will happily stage it. `.env` is gitignored (see the repository root
-      # .gitignore) and Docker Compose reads it automatically for the ${...} substitutions below;
-      # copy .env.example to .env and fill it in. If your orchestrator has its own secrets mechanism
-      # (Swarm/Kubernetes secrets, a vault), use that instead and keep the variable names.
+      # SECRETS — the values go in a .env file next to this one, NEVER on these lines. This file is
+      # committed to a public repository. `cp .env.example .env` and fill it in; Compose reads it
+      # automatically for the ${...} below. An orchestrator's own secrets mechanism works too, same
+      # variable names. Generate each with: openssl rand -hex 32.
       #
-      # Generate the value with: openssl rand -hex 32 — the backend REFUSES to boot in production
-      # (SECURITY_AUDIT.md finding #3) if it is empty or an obvious placeholder. The `:?` below makes
-      # Compose refuse even earlier, with this message, rather than starting a container that will
-      # die on its own guard. BETTER_AUTH_SECRET signs every session cookie/JWT; a deployment running
-      # on a known secret lets anyone forge a valid session for any userId.
+      # BETTER_AUTH_SECRET signs every session cookie/JWT — on a known value anyone can forge a
+      # session for any userId. The backend already refuses to boot in production without it; the
+      # `:?` just moves that refusal earlier, with a message that says what to do.
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to docker-compose.yml — see .env.example}
-      # Optional: falls back to BETTER_AUTH_SECRET's value above if unset, kept only for
-      # deployments that already set JWT_SECRET separately. ONE of the two is enough — the boot guard
-      # checks the effective value (BETTER_AUTH_SECRET || JWT_SECRET), not each variable. Same rule
-      # applies if you do set it, and the same rule about where the value lives.
+      # Legacy alias, for deployments that already set it. ONE of the two suffices: the guard checks
+      # the effective value (BETTER_AUTH_SECRET || JWT_SECRET), not each variable.
       # - JWT_SECRET=${JWT_SECRET:-}
 
-      # REQUIRED for per-company channel credentials. Generate with: openssl rand -hex 32 (32 bytes,
-      # so 64 hex characters — base64's 44 characters is also accepted).
-      #
-      # Unlike BETTER_AUTH_SECRET above, leaving this unset does NOT stop the backend booting: it
-      # fails SILENTLY. `utils/secret-crypto.ts#isEncryptionAvailable()` simply returns false, and
-      # the whole per-company credentials feature switches itself off — no client can save the
-      # credentials for their own KSeF/PDP/SdI channel, with no error, no log and nothing on screen
-      # to explain it. That silence is exactly why it is listed here rather than left to the
-      # documentation: this file was the only place a self-hoster would look, and it never mentioned
-      # the variable at all.
-      #
-      # It encrypts those credentials at rest with AES-256-GCM. Changing it later makes every
-      # already-stored credential undecryptable — treat it like a database password, not a toggle.
-      #
-      # Same rule as BETTER_AUTH_SECRET: the value goes in .env, never on this line. Unset here
-      # (rather than `:?`) on purpose — an instance that never stores channel credentials runs
-      # perfectly well without it, and an existing deployment must not stop booting because it
-      # pulled this file.
+      # Encrypts each company's channel credentials at rest (AES-256-GCM). Left empty it fails
+      # SILENTLY — isEncryptionAvailable() returns false, no client can save the credentials for
+      # their KSeF/PDP/SdI channel, and there is no error, no log and nothing on screen to say why.
+      # Optional rather than `:?` on purpose: an instance that stores no channel credentials runs
+      # fine without it. Changing it later makes everything already stored undecryptable — treat it
+      # like a database password, not a toggle.
       - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
 
-      # WHERE THE ARCHIVED DOCUMENTS LIVE. Both default, in code, to a directory under the process's
-      # own working directory (`<cwd>/.documents-archive`, `<cwd>/.documents-inbound`) — a default
-      # chosen for a developer's checkout. In a container that directory is INSIDE the container's
-      # writable layer, which is destroyed every time the image is pulled and the service recreated.
-      # Left unset, this file therefore threw away, on each upgrade, exactly the documents a company
-      # is required by law to keep for six to eleven years (see the retention catalog in
-      # `archive/retention/`) along with every received invoice. Hence the explicit paths below and
-      # the named volume at the bottom of this file: the code default is untouched, the deployment
-      # simply stops relying on it.
+      # Where the archived documents live. Both default IN CODE to `<cwd>/...`, which inside a
+      # container is the writable layer — destroyed on every image pull. Unset, this file therefore
+      # discarded, at each upgrade, the documents the law requires keeping for six to eleven years
+      # plus every received invoice. Hence these paths and the named volume at the bottom of the file.
       - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
       - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
 
@@ -126,24 +97,10 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - WORKER_INLINE=true
 
-      # OCR of unstructured received-invoice PDFs. OPTIONAL: absent (the
-      # default) means this instance runs full-local, self-host — a plain scanned PDF stores with
-      # empty fields for a human to fill in, exactly as before this feature existed. This backend
-      # NEVER sees a Mistral API key, and never talks to the local engine directly either — it only
-      # ever knows this ONE URL; the real engine's own credential/container lives entirely in
-      # whichever service below is actually enabled. Pick EXACTLY ONE of the two modes:
-      #
-      #   CLOUD — Mistral Document AI (needs YOUR OWN Mistral API key, structured extraction, the
-      #   more accurate of the two): uncomment this line + the "ocr" service below, then
-      #   `docker compose --profile ocr up`.
-      # - OCR_SERVICE_URL=http://ocr:3002
-      #
-      #   LOCAL — for a self-hoster with no Mistral API key: a local Docker service performs the same
-      #   extraction instead. Zero API key, zero data ever leaving this machine — a heuristic
-      #   text-scrape, meaningfully weaker than the cloud path
-      #   (see `backend/src/ocr-service/local-client.ts`'s own header for the full, honest account
-      #   of what that costs). Uncomment this line + BOTH the "ocr-local" and "ocr-local-engine"
-      #   services below, then `docker compose --profile ocr-local up`.
+      # OCR of scanned received invoices. OPTIONAL and OFF by default: without it a scanned PDF is
+      # stored with empty fields for a human to fill in. To enable it, uncomment this line and start
+      # with `docker compose --profile ocr-local up`. Everything stays on this machine — no API key,
+      # no third party, the PDF never leaves the internal compose network.
       # - OCR_SERVICE_URL=http://ocr-local:3002
     depends_on:
       - invoicerr_db
@@ -158,36 +115,10 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  # OPT-IN, CLOUD mode (Compose `profiles`: only starts with
-  # `docker compose --profile ocr up`, never with a plain `docker compose up`). The ONLY process in
-  # this whole deployment that ever holds a real Mistral API key — the main "invoicerr" service above
-  # only ever knows OCR_SERVICE_URL. Same image, third ROLE (see entrypoint.sh's own "one image, N
-  # roles" switch) — no new Dockerfile, no new dependency.
-  #
-  # SaaS mode: an operator enables this ONE service, ONCE, with THEIR OWN Mistral key — every company
-  # on the instance then gets OCR with nothing further to configure. Self-host mode: leave this
-  # service (and OCR_SERVICE_URL above) commented out — full local, no data ever leaves the instance
-  # for OCR — or use the "ocr-local"/"ocr-local-engine" pair below for full-local OCR instead of no
-  # OCR at all.
-  ocr:
-    image: ghcr.io/invoicerr-app/invoicerr:latest
-    profiles: ["ocr"]
-    environment:
-      - ROLE=ocr
-      - OCR_ENGINE=mistral # the default even if omitted — explicit here for symmetry with "ocr-local" below
-      - MISTRAL_API_KEY=your_mistral_api_key # https://console.mistral.ai — NEVER commit a real value
-    restart: unless-stopped
-
-  # For a self-hoster with no Mistral API key, this is the alternative: a locally-run Docker
-  # service performs the extraction instead. OPT-IN, LOCAL mode (Compose profile
-  # "ocr-local": only starts with `docker compose --profile ocr-local up`, together with the
-  # "ocr-local-engine" service right below it). ZERO API key anywhere, ZERO data leaving this
-  # machine — every byte of every received PDF stays on this instance, reaching only the
-  # "ocr-local-engine" container over the internal compose network. Meaningfully WEAKER than the
-  # cloud "ocr" service above: a heuristic text-scrape, not a model reading the invoice —
-  # `backend/src/ocr-service/local-client.ts`'s own header documents exactly what that can and cannot
-  # get right (a wrong/missing field only ever lands on an EDITABLE proposal, never silently accepted
-  # downstream).
+  # The OCR adapter: same image as the app, a third ROLE (entrypoint.sh's "one image, N roles"
+  # switch), started only by `--profile ocr-local`. It reads the PDF through the engine below and
+  # returns a PROPOSAL the user edits — a field it gets wrong or misses is never silently accepted
+  # downstream. `backend/src/ocr-service/local-client.ts` documents what it can and cannot get right.
   ocr-local:
     image: ghcr.io/invoicerr-app/invoicerr:latest
     profiles: ["ocr-local"]
@@ -199,24 +130,8 @@ services:
       - ocr-local-engine
     restart: unless-stopped
 
-  # The local OCR engine itself runs OUR OWN image (`docker/ocr-local/Dockerfile` + `server.py`,
-  # this repo, not a third party) — built FROM jbarlow83/ocrmypdf:latest plus the extra Tesseract
-  # language packs this product needs — replacing the `apache/tika:latest-full` this service
-  # originally ran. Tika's own disqualifying limit — a language set BAKED IN at build time, not
-  # operator-configurable without a custom image anyway (verified: Polish/Dutch silently
-  # mis-recognized on the stock image) — is exactly what this switch fixes: `docker/ocr-local/
-  # Dockerfile`'s own comment block installs this app's primary markets plus major world languages,
-  # and adding one more is a single `RUN apt-get install tesseract-ocr-<code>` line in that file, not
-  # a new image entirely. `jbarlow83/ocrmypdf:latest` (the `ocrmypdf` tool's own official image)
-  # reads the PDF NATIVELY the same way Tika did — it rasterizes any page and OCRs it with its own
-  # bundled Tesseract, zero extra code either side of this HTTP call — see `local-client.ts`'s and
-  # `docker/ocr-local/server.py`'s own headers for the full account, including a real, verified
-  # finding on why the server force-OCRs every page rather than skipping pages that already have
-  # text.
-  # NOTE (2026-09-11) : l'image vit désormais dans SON PROPRE repo — github.com/invoicerr-app/ocr-image —
-  # et est publiée sur GHCR. Les chemins `docker/ocr-local/...` du commentaire ci-dessus sont
-  # HISTORIQUES : le Dockerfile + server.py ont été déplacés là-bas (le raisonnement Tika→ocrmypdf,
-  # langues et force-OCR reste valable). Ce service ne fait que TIRER l'image publiée.
+  # The engine: our own image (github.com/invoicerr-app/ocr-image), ocrmypdf plus the Tesseract
+  # language packs this product's markets need. Adding a language is one apt line in that repo.
   ocr-local-engine:
     image: ghcr.io/invoicerr-app/ocr-image:latest
     profiles: ["ocr-local"]
