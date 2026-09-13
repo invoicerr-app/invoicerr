@@ -9,7 +9,7 @@
 
 | Constat | Ce qui bloque |
 | --- | --- |
-| L'autoliquidation **domestique** n'existe pas | Manque de CAPACITÉ, pas de câblage. Quatre lois sur cinq la nomment. Le catalogue des catégories est livré et sourcé (32 citations), mais aucun appelant ne le lit encore. |
+| ~~L'autoliquidation **domestique**~~ | **TRANCHÉ : non câblé** (décision du propriétaire, 2026-09-13). Le catalogue reste, dormant. Voir la section pour la frontière de cette décision. |
 | L'onglet **PDF templates** est cassé (404) | Décision de périmètre : restaurer la fonctionnalité, ou retirer l'onglet. |
 | Le **code destinataire italien** n'a pas d'écran | Une facture B2B domestique part avec la valeur de repli des étrangers. |
 | Les **archives déjà écrites** portent une date trop précoce | Recalculer réécrirait des lignes enregistrées, y compris chez des tiers. À trancher. |
@@ -112,7 +112,29 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
-## L'autoliquidation DOMESTIQUE n'existe pas dans le produit, alors que quatre pays du périmètre la pratiquent (2026-09-13)
+## L'autoliquidation DOMESTIQUE — TRANCHÉ le 2026-09-13 : le catalogue reste dormant, non câblé
+
+**Décision du propriétaire** : ne pas câbler, Invoicerr visant surtout des sociétés du secteur tech.
+Le catalogue (`documents/domestic-reverse-charge/`, 32 catégories sourcées) est conservé tel quel,
+chargé et validé au démarrage, lu par personne — il coûte zéro comportement et documente le droit des
+quatre pays pour le jour où la question se reposera.
+
+**La frontière de cette décision, à connaître avant de s'y fier.** Le raisonnement tient pour un
+éditeur SaaS, une agence ou un cabinet de conseil : aucune des 32 catégories ne les concerne. Il ne
+tient plus pour trois profils qui se disent aussi « tech » :
+- un **opérateur ou hébergeur de communications électroniques** — le CGI art. 283, 2 octies vise
+  nommément « les services de communications électroniques », et l'UStG § 13b Abs. 2 Nr. 12 fait de
+  même côté allemand ;
+- un **revendeur de matériel** — l'électronique grand public avant vente au détail est visée par le
+  DPR 633/1972 art. 17 comma 6 lett. c) et le § 13b Abs. 2 Nr. 10 ;
+- un **fournisseur d'énergie ou négociant de quotas** — gaz, électricité revendue, certificats
+  d'émission, dans les quatre pays.
+
+Ce qui rouvrirait la question : un client relevant d'un de ces trois profils. Le travail restant
+serait alors celui que `DESIGN.md` décrit — un axe de condition sur la ligne, une branche dans
+`domesticVat`, et la table `LOCALIZED_MENTION` qui porte déjà les formulations statutaires.
+
+### Le constat d'origine (2026-09-13)
 
 Le moteur fiscal ne traite l'autoliquidation que **transfrontalière**. Deux constats de lecture :
 `resolve-invoice-tax.ts` rend la main dès que `sellerCC === buyerCC` (le moteur n'est donc jamais
