@@ -153,8 +153,21 @@ la facturation électronique : B2C et clients étrangers).
 
 Le catalogue ne peut pas, en l'état, exprimer « obligation réelle, acquittée par un transport déjà
 implémenté » : un fait y désigne un `providerId`. C'est ce décalage qu'il faut trancher avant
-d'ajouter la France. L'Allemagne, l'Italie et la Pologne n'ont, elles, jamais été évaluées sur ce
-point — c'est une lacune de recherche, pas un constat.
+d'ajouter la France.
+
+**Italie et Pologne : une explication structurelle, déjà établie ailleurs dans ce dépôt.** Toutes deux
+sont en modèle de DÉDOUANEMENT — le SdI et le KSeF valident la facture avant ou au moment où elle
+atteint l'acheteur, ce que la matrice publique énonce déjà et que les politiques de canal encodent
+(SdI obligatoire depuis 2019, KSeF sourcé). Dans ce modèle, l'administration a la donnée du fait même
+de la transmission : une déclaration séparée n'aurait rien à déclarer. Leur absence de ce catalogue
+est donc cohérente, contrairement à celle de la France, dont le modèle laisse hors champ tout ce que
+la facturation électronique ne couvre pas. Cette lecture découle de faits déjà sourcés dans le dépôt,
+mais n'a PAS été confrontée aux textes italien et polonais sur ce point précis — à faire avant d'en
+tirer une ligne de catalogue.
+
+**Allemagne** : jamais évaluée sur ce point. Son obligation est de FORMAT et non de canal (voir la
+politique de canal allemande), ce qui n'implique rien quant à une obligation déclarative distincte.
+Lacune de recherche, pas constat.
 
 ## Le B2G portugais : l'obligation est établie, le canal ne l'est pas (2026-09-13)
 
