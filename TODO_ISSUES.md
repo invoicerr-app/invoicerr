@@ -10,7 +10,18 @@ Le point commun : la suppression du moteur de conformité (`fffbae77`) a emport�
 backend sans que les écrans qui les pilotaient soient retirés ou rebranchés. Aucun n'est visible
 depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le câblage.
 
-- **Une entreprise en franchise de TVA est quand même facturée avec TVA.** `Company.exemptVat` est
+- ~~**Une entreprise en franchise de TVA est quand même facturée avec TVA.**~~ — **RÉSOLU**
+  (`cd9ddb0d`, 2026-09-13). Les trois ruptures fermées : `exemptVat` est chargé par
+  `load-and-resolve`, mappé sur `FRANCHISE_BASE`, et le chemin domestique appelle désormais le moteur
+  quand le vendeur porte un régime non standard — une facture ordinaire rendant toujours le MÊME
+  objet, prouvé par un test d'identité. Une QUATRIÈME rupture a été trouvée en chemin :
+  `legalMentionsFor`, qui alimente le pied de page du PDF, ne lisait pas `__crossBorderMentions`, si
+  bien qu'une mention d'autoliquidation n'apparaissait que dans le XML téléchargé et jamais sur le
+  PDF envoyé au client. La mention portugaise est sourcée (CIVA art. 57.º n.º 2). Prouvé sur la pile
+  qui tourne par bascule, vérification et bascule inverse. Le constat d'origine est conservé ci-dessous
+  parce qu'il documente la FORME du défaut, qui reste le motif à chercher ailleurs.
+
+  `Company.exemptVat` est
   une colonne persistée (`schema.prisma` ~303) que **rien** ne lit côté backend. Le moteur fiscal
   sait pourtant traiter l'exonération : `tax-engine.ts#domesticVat` branche sur
   `supplier.taxScheme` et produit catégorie `E`, taux 0 et la mention art. 293 B. Mais `taxScheme`
