@@ -3,6 +3,12 @@ services:
     image: ghcr.io/invoicerr-app/invoicerr:latest
     ports:
       - "80:80"
+    volumes:
+      # Legal archives and received invoices — see DOCUMENTS_ARCHIVE_DIR below for why this is not
+      # optional. Swap it for a bind mount to a real backed-up path if you have one; a named volume
+      # is only the safe default, and it survives `docker compose up` after an image pull, not a
+      # `docker compose down -v`.
+      - documents_data:/data
     environment:
       - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
 
@@ -97,6 +103,18 @@ services:
       # perfectly well without it, and an existing deployment must not stop booting because it
       # pulled this file.
       - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
+
+      # WHERE THE ARCHIVED DOCUMENTS LIVE. Both default, in code, to a directory under the process's
+      # own working directory (`<cwd>/.documents-archive`, `<cwd>/.documents-inbound`) — a default
+      # chosen for a developer's checkout. In a container that directory is INSIDE the container's
+      # writable layer, which is destroyed every time the image is pulled and the service recreated.
+      # Left unset, this file therefore threw away, on each upgrade, exactly the documents a company
+      # is required by law to keep for six to eleven years (see the retention catalog in
+      # `archive/retention/`) along with every received invoice. Hence the explicit paths below and
+      # the named volume at the bottom of this file: the code default is untouched, the deployment
+      # simply stops relying on it.
+      - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
+      - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
 
       # Document-action async queue (BullMQ/Redis) — an async "send" and, later, recurring documents
       # both go through it. Redis is REQUIRED for the backend to boot at all,
@@ -226,4 +244,8 @@ volumes:
   db_data:
     driver: local
   redis-data:
+    driver: local
+  # Archived documents + received invoices. Losing this volume loses the archive itself, which the
+  # database cannot rebuild: the rows carry the hashes and the retention dates, the files are here.
+  documents_data:
     driver: local

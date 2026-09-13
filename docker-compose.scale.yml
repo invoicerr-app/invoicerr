@@ -29,8 +29,16 @@ services:
 
   worker:
     image: ghcr.io/invoicerr-app/invoicerr:latest
+    volumes:
+      # THE SAME volume the API mounts in docker-compose.yml, at the same path. A queued "send" is
+      # archived by whichever process ran it, and a verify/download is served by whichever process
+      # answers the HTTP call — so if the two do not share this directory, a document archived by a
+      # worker is simply not found by the API, and the integrity check on it reports a missing file.
+      - documents_data:/data
     environment:
       - ROLE=worker
+      - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
+      - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
       - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to docker-compose.yml — see .env.example}
       # MUST be byte-for-byte the same value as the `invoicerr` service above — which is exactly what
