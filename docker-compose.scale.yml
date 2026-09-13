@@ -15,7 +15,9 @@ services:
   invoicerr:
     environment:
       - WORKER_INLINE=false
-      - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
+      - BETTER_AUTH_SECRET=CHANGE_ME_generate_with_openssl_rand_hex_32 # Required; the backend refuses to boot in production on a placeholder. Falls back to JWT_SECRET if unset.
+      # Same value as the worker below — see that service's own comment for why it must match.
+      - CREDENTIALS_ENCRYPTION_KEY=CHANGE_ME_generate_with_openssl_rand_hex_32
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "80"]
       interval: 5s
@@ -28,7 +30,13 @@ services:
     environment:
       - ROLE=worker
       - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
-      - BETTER_AUTH_SECRET="your_better_auth_secret" # Required, generate with: openssl rand -base64 32, falls back to JWT_SECRET if unset
+      - BETTER_AUTH_SECRET=CHANGE_ME_generate_with_openssl_rand_hex_32 # Required; falls back to JWT_SECRET if unset.
+      # MUST be byte-for-byte the same value as the `invoicerr` service above. This container is the
+      # one that actually runs a queued "send", and a send reads the company's own channel
+      # credentials — which are encrypted at rest with this key. A worker without it, or with a
+      # different one, cannot decrypt them: the API would accept the credentials and the worker
+      # would fail to use them, which is the worst place for the two halves to disagree.
+      - CREDENTIALS_ENCRYPTION_KEY=CHANGE_ME_generate_with_openssl_rand_hex_32
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}

@@ -70,6 +70,21 @@ services:
       # deployments that already set JWT_SECRET separately. Same rule applies if you do set it.
       # - JWT_SECRET=CHANGE_ME_generate_with_openssl_rand_hex_32
 
+      # REQUIRED for per-company channel credentials. Generate with: openssl rand -hex 32 (32 bytes,
+      # so 64 hex characters — base64's 44 characters is also accepted).
+      #
+      # Unlike BETTER_AUTH_SECRET above, leaving this unset does NOT stop the backend booting: it
+      # fails SILENTLY. `utils/secret-crypto.ts#isEncryptionAvailable()` simply returns false, and
+      # the whole per-company credentials feature switches itself off — no client can save the
+      # credentials for their own KSeF/PDP/SdI channel, with no error, no log and nothing on screen
+      # to explain it. That silence is exactly why it is listed here rather than left to the
+      # documentation: this file was the only place a self-hoster would look, and it never mentioned
+      # the variable at all.
+      #
+      # It encrypts those credentials at rest with AES-256-GCM. Changing it later makes every
+      # already-stored credential undecryptable — treat it like a database password, not a toggle.
+      - CREDENTIALS_ENCRYPTION_KEY=CHANGE_ME_generate_with_openssl_rand_hex_32
+
       # Document-action async queue (BullMQ/Redis) — an async "send" and, later, recurring documents
       # both go through it. Redis is REQUIRED for the backend to boot at all,
       # never an optional extra. WORKER_INLINE=true (default here) makes this single container also
