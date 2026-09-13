@@ -44,6 +44,12 @@ export interface ActiveChannelMandate {
   providerId: string;
   mandatedFrom: string;
   provenance: LegalProvenance;
+  /** Passed through verbatim from `ChannelPolicyFact.equivalentProviderIds` (schema.ts's own header) —
+   *  other transport ids that ALSO satisfy this mandate. Absent for every mandate that has exactly one
+   *  satisfying transport (still the overwhelming majority, e.g. FR/pdp). This file only carries the
+   *  fact through; `invoice-actions.ts`'s own preflight is what actually treats a listed id as
+   *  equally compliant with `providerId` itself. */
+  equivalentProviderIds?: string[];
 }
 
 /**
@@ -98,6 +104,7 @@ export function activeChannelMandateFor(
         providerId: fact.providerId,
         mandatedFrom: fact.mandatedFrom!,
         provenance: fact.provenance as LegalProvenance,
+        equivalentProviderIds: fact.equivalentProviderIds,
       };
     }
   }

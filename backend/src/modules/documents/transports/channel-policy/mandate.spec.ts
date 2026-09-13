@@ -99,6 +99,14 @@ describe('activeChannelMandateFor — the real, shipped IT/SdI mandate (armed 20
       expect(activeChannelMandateFor('IT', '2026-09-01')?.providerId).toBe('sdi');
     },
   );
+
+  it(
+    'carries "sdi-pec" as an equivalentProviderId — the PEC route discharges the SAME mandate as the ' +
+      'accredited SDICoop one (see data/it.json\'s own added note)',
+    () => {
+      expect(activeChannelMandateFor('IT', '2026-09-13')?.equivalentProviderIds).toEqual(['sdi-pec']);
+    },
+  );
 });
 
 describe('activeChannelMandateFor — date arithmetic, on an injected fixture catalog', () => {
@@ -150,5 +158,30 @@ describe('activeChannelMandateFor — date arithmetic, on an injected fixture ca
 
   it('an unparseable issueDate never activates a mandate either', () => {
     expect(activeChannelMandateFor('ZZ', 'not-a-date', catalog)).toBeUndefined();
+  });
+
+  it('a fact with no equivalentProviderIds at all carries the field through as undefined, not an empty array', () => {
+    expect(activeChannelMandateFor('ZZ', '2030-06-15', catalog)?.equivalentProviderIds).toBeUndefined();
+  });
+
+  it('a fact WITH equivalentProviderIds carries the exact list through, unmodified', () => {
+    const withEquivalents = new ChannelPolicyCatalog([
+      {
+        countryCode: 'YY',
+        facts: [
+          {
+            providerId: 'primary-channel',
+            requirement: 'mandated',
+            mandatedFrom: '2030-01-01',
+            equivalentProviderIds: ['alt-channel-a', 'alt-channel-b'],
+            provenance: { kind: 'legal', sourceText: 'Fixture legal text.', sourceCheckedAt: '2026-08-27' },
+          },
+        ],
+      },
+    ]);
+    expect(activeChannelMandateFor('YY', '2030-06-01', withEquivalents)?.equivalentProviderIds).toEqual([
+      'alt-channel-a',
+      'alt-channel-b',
+    ]);
   });
 });

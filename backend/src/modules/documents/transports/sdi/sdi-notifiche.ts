@@ -24,7 +24,7 @@
  *   NotificaScarto              → `notificaScarto`                 → NS (rejected — schema/checks)
  *   NotificaEsito               → `notificaEsito`                  → NE (buyer's own esito, relayed)
  *   NotificaDecorrenzaTermini   → `notificaDecorrenzaTermini`      → DT (15-day term elapsed)
- *   AttestazioneTrasmissioneFattura → `attestazioneTrasmissioneFattura` → AT (definitive non-delivery)
+ *   AttestazioneTrasmissioneFattura → `attestazioneTrasmissioneFattura` → AT (received by SdI, not delivered to the buyer)
  *
  * (Meanings above match `sdi-client.ts`'s own pre-existing header — that file's RC/NS/MC/NE/DT/AT
  * vocabulary, reprised from the reference, is confirmed by what this file actually reads from the WSDL —

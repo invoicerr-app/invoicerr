@@ -58,6 +58,19 @@ export interface ChannelPolicyFact {
    * reaches it", never an error and never a no-op waiting to be "activated" later by a code change.
    */
   mandatedFrom?: string;
+  /**
+   * Other `transport-registry.ts` ids that satisfy this SAME mandate — a country's law mandates a
+   * legal channel (e.g. "use the Sistema di Interscambio"), not necessarily one specific piece of
+   * code in this repository, and a single legal channel can have more than one lawful sub-channel
+   * this codebase implements as SEPARATE transports: Italy's SdI accepts both the accredited
+   * SDICoop web service (`transportId: "sdi"`) and, requiring no accreditation at all, a PEC mailbox
+   * (`transportId: "sdi-pec"`) — see `transports/sdi-pec-transport.ts`'s own header for the primary
+   * source. Absent (or empty) means the mandate has exactly one satisfying transport, `providerId`
+   * itself — the ordinary case for every mandate shipped before this field existed (FR/pdp has no
+   * PEC-shaped equivalent). `mandate.ts#activeChannelMandateFor` passes this through unchanged;
+   * `invoice-actions.ts`'s own preflight is what actually treats a listed id as equally compliant.
+   */
+  equivalentProviderIds?: string[];
   /** Free-form, e.g. `{ role: 'B2B' }` — an explicit extension point, deliberately UNUSED by this
    *  task's own mechanism (every shipped mandate today applies unconditionally to every invoice the
    *  issuing company sends): a future mandate that only binds a subset of invoices (a role, a buyer
@@ -95,6 +108,21 @@ export function assertValidChannelPolicyFact(fact: ChannelPolicyFact, context: s
       `${context}: fact "${fact.providerId}" has no valid "requirement" (must be "suggested" or ` +
         '"mandated").',
     );
+  }
+
+  if (fact.equivalentProviderIds !== undefined) {
+    if (fact.equivalentProviderIds.length === 0 || fact.equivalentProviderIds.some((id) => !id?.trim())) {
+      throw new InvalidChannelPolicyProvenanceError(
+        `${context}: fact "${fact.providerId}" declares "equivalentProviderIds" but it is empty or ` +
+          'contains a blank entry — omit the field entirely rather than listing nothing.',
+      );
+    }
+    if (fact.equivalentProviderIds.includes(fact.providerId)) {
+      throw new InvalidChannelPolicyProvenanceError(
+        `${context}: fact "${fact.providerId}" lists itself in "equivalentProviderIds" — a provider ` +
+          'never needs to be declared equivalent to itself.',
+      );
+    }
   }
 
   const provenance = fact.provenance as { kind?: unknown } | null | undefined;

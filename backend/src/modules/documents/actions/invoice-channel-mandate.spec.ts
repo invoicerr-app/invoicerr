@@ -231,6 +231,45 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
     expect(result.document).toMatchObject({ status: 'sending' });
   });
 
+  it(
+    'ALLOWS a transport listed in equivalentProviderIds — the mandate names "sdi" but this company ' +
+      'chose "sdi-pec", the SAME legal channel over a different sub-channel (see ' +
+      'channel-policy/schema.ts\'s own "equivalentProviderIds" header)',
+    async () => {
+      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('IT');
+      (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue({
+        providerId: 'sdi',
+        mandatedFrom: '2019-01-01',
+        equivalentProviderIds: ['sdi-pec'],
+        provenance: {
+          kind: 'legal' as const,
+          sourceText: 'Sono emesse esclusivamente fatture elettroniche utilizzando il Sistema di Interscambio.',
+          sourceCheckedAt: '2026-09-13',
+        },
+      });
+      (companyTransport.getCompanyInvoiceTransportId as jest.Mock).mockResolvedValue('sdi-pec');
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument());
+      (persistence.upsertDocument as jest.Mock).mockResolvedValue(sendingDocument());
+
+      const transportRegistry = new TransportRegistry();
+      const fakePreflight = jest.fn().mockResolvedValue(undefined);
+      transportRegistry.register('sdi-pec', 'SdI via PEC', { send: jest.fn(), preflight: fakePreflight });
+      const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
+
+      const result = await handler!({
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        data: documentData,
+        params: {},
+      });
+
+      expect(fakePreflight).toHaveBeenCalledWith('company-1');
+      expect(result.changed).toBe(true);
+      expect(result.document).toMatchObject({ status: 'sending' });
+    },
+  );
+
   it("deliver() (the worker's replay, phase 2) ALSO respects the mandate — a mismatch is refused even if the preflight somehow let it through", async () => {
     (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
     (mandate.activeChannelMandateFor as jest.Mock).mockReturnValue(FR_MANDATE);

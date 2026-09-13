@@ -58,6 +58,7 @@
     "dotenv": "^17.2.3",
     "fontoxpath": "^3.34.0",
     "handlebars": "^4.7.9",
+    "imapflow": "^2.0.2",
     "ioredis": "^5.11.1",
     "markdown-it": "^14.3.0",
     "node-forge": "^1.4.0",

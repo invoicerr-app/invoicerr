@@ -36,6 +36,7 @@ Hard-success contract (enforced per-spec):
 | PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
+| SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
 | Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `FR` remains broken (`invalid_country`), but `BE` (+ explicit `peppol_id`) works: `doc_…` → `DELIVERED` in ~10s, reproduced twice (see below) |
 | Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung-live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` in ~10s; see the box below for the HONEST LIMIT of what this proves (peppol.sh never accepts raw UBL bytes — see that spec's own header) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | _(no live spec exists yet — mocked coverage only, `peppol/peppol-client.spec.ts`)_ | 🔴 Deferred (connected AP required) |
@@ -230,6 +231,13 @@ SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 SDI_ENDPOINT=<accredited-SdIRiceviF
   SDI_CERTIFICATE=<base64-pfx> SDI_CERT_PASSWORD=<pass> \
   npx jest sdicoop.live --no-coverage --runInBand
 
+# SdI via PEC (IT) — NO accreditation needed, only a real PEC mailbox (code implemented-awaiting-credentials)
+PEC_LIVE=1 PEC_ID_TRASMITTENTE=IT01234567890 PEC_ADDRESS=fatture@example.pec.it \
+  PEC_SMTP_HOST=smtps.pec-provider.it PEC_SMTP_PORT=465 \
+  PEC_IMAP_HOST=imaps.pec-provider.it PEC_IMAP_PORT=993 \
+  PEC_USERNAME=fatture@example.pec.it PEC_PASSWORD=<pass> \
+  npx jest pec.live --no-coverage --runInBand
+
 # Peppol via peppol.sh — ZERO SECRETS (self-signup, like the Email leg above)
 PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
   npx jest peppol-sh-live --no-coverage --runInBand
@@ -369,6 +377,26 @@ complete. What remains is entirely OUTSIDE this codebase's control:
 5. Set `SDI_LIVE=1` + all four creds and run `sdicoop.live.spec.ts` — the first real run against
    collaudo may reveal envelope discrepancies reading the spec alone could not anticipate (see that
    spec's own header).
+
+## SdI via PEC prerequisites (currently deferred — code is implemented-awaiting-credentials)
+
+Status (2026-09-13): the "sdi-pec" transport (`sdi-pec-transport.ts`), the receipt-handling logic
+(`transports/sdi-pec/pec-notifiche.service.ts`) and a real IMAP adapter
+(`transports/sdi-pec/imapflow-pec-inbox-port.ts`) all exist and are unit-tested against mocked ports —
+see [Credentials Guide](./credentials-guide.md) §4bis for the full citation list this was built from.
+Unlike SdI's SDICoop channel, NOTHING here needs AdE accreditation. What remains:
+
+1. Provision any PEC (Posta Elettronica Certificata) mailbox from an AgID-listed provider — a same-day
+   commercial purchase, no government relationship required.
+2. Declare that mailbox's SMTP + IMAP connection details as this company's "sdi-pec" channel
+   credentials (`PEC_ADDRESS`/`PEC_SMTP_*`/`PEC_IMAP_*`/`PEC_USERNAME`/`PEC_PASSWORD`/
+   `PEC_ID_TRASMITTENTE`).
+3. Set `PEC_LIVE=1` + those credentials and run `pec.live.spec.ts` — the first real run would prove:
+   the FatturaPA XML actually reaches `sdi01@pec.fatturapa.it` over real SMTP, SdI's own first reply
+   (a notifica di scarto/errore, ricevuta di consegna/mancata consegna, or attestazione) actually
+   arrives in the mailbox's IMAP inbox, that reply's `NomeFile` actually matches the filename this
+   codebase chose, and (implicitly, by never needing a second PEC address) that the two-step
+   addressing rule was read correctly. None of this has been observed for real yet.
 
 ## Peppol
 

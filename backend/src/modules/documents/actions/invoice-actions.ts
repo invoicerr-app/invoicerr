@@ -327,7 +327,16 @@ async function resolveInvoiceTransport(
   const transportId = await getCompanyInvoiceTransportId(companyId);
 
   const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate);
-  if (activeMandate && transportId !== activeMandate.mandate.providerId) {
+  // A mandate is satisfied by its own `providerId` OR by any of its `equivalentProviderIds`
+  // (`channel-policy/schema.ts`'s own header) — e.g. Italy's "sdi" mandate is equally discharged by
+  // "sdi-pec" (`transports/sdi-pec-transport.ts`), a different transport implementing the SAME legal
+  // channel over a different sub-channel. `?? false` keeps every pre-existing mandate (no
+  // `equivalentProviderIds` at all) behaving exactly as before: a strict `providerId` match.
+  const mandateSatisfied =
+    !!activeMandate &&
+    (transportId === activeMandate.mandate.providerId ||
+      (!!transportId && (activeMandate.mandate.equivalentProviderIds?.includes(transportId) ?? false)));
+  if (activeMandate && !mandateSatisfied) {
     logger.warn('Invoice "send" blocked: overridden by a country channel mandate', {
       category: 'documents',
       details: {

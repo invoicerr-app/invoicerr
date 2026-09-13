@@ -79,12 +79,14 @@ Legend — **Repo:** ✅ set · 🟡 partial · 🔴 missing
 | 1 | KSeF | 🇵🇱 Poland | ✅ | Already set. Token auth sunsets end-2026 → certificate path later |
 | 2 | PDP (superpdp) | 🇫🇷 France | 🟡 | Sandbox set; routing IDs optional; prod = commercial PDP contract |
 | 3 | Chorus Pro (PISTE) | 🇫🇷 France | 🔴 | Needs a SIRET structure + "Gestionnaire principal" to create the tech account |
-| 4 | SdI | 🇮🇹 Italy | 🔴 | Partita IVA on Entratel + channel accreditation (collaudo) |
+| 4 | SdI (SDICoop/SDIFTP) | 🇮🇹 Italy | 🔴 | Partita IVA on Entratel + channel accreditation (collaudo) |
+| 4bis | SdI via PEC | 🇮🇹 Italy | 🔴 | No accreditation at all — only blocker is provisioning a PEC mailbox |
 | 5 | Peppol | 🌍 cross-border | ✅/🔴 | peppol.sh live-proof harness proven zero-secret; generic AP (the only one production sends through) = commercial AP account + SMP |
 
-This project's channels are exactly the five above, matching the five countries it supports
-(FR/PL/IT/PT/DE) plus cross-border Peppol — see `backend/src/modules/documents/transports/` and
-`reporting/providers/` on disk.
+This project's channels are the five numbered above, matching the five countries it supports
+(FR/PL/IT/PT/DE) plus cross-border Peppol, plus #4bis — the SAME Italian Sistema di Interscambio as #4,
+reached over a certified-email mailbox instead of the accredited web service — see
+`backend/src/modules/documents/transports/` and `reporting/providers/` on disk.
 
 ---
 
@@ -348,6 +350,53 @@ fixed constant the way KSeF's base URLs are.
   https://www.fatturapa.gov.it/export/documenti/ws/ricezione/v3.x/Istruzioni-per-il-servizio-SDICoop-Ricezione-versione3.3.pdf
   (fetched too, for completeness — this is the RECEPTION direction, us-as-buyer, NOT built by this
   task; see `sdicoop-client.ts`'s own header)
+
+---
+
+## 4bis. SdI via PEC — Italy (no accreditation required)
+
+> **GitHub secrets:** none — connected per company through the settings screen ("sdi-pec" channel), the same encrypted `CompanyChannelConfig` mechanism every other transport uses &nbsp;•&nbsp; **Live flag:** `PEC_LIVE=1` &nbsp;•&nbsp; **Sandbox:** no — any real PEC mailbox works &nbsp;•&nbsp; **Repo status:** 🔴 missing (no PEC mailbox provisioned) &nbsp;•&nbsp; **Code status:** implemented-awaiting-credentials
+
+**Why this exists, distinct from section 4 above**: SDICoop/SDIFTP need the FULL accreditation
+procedure in section 4 (Entratel/Fisconline, CSRs, AdE-issued client certificate). The PEC route needs
+NONE of it — confirmed on fatturapa.gov.it's own "Inviare la FatturaPA" page: «L'utilizzo del canale
+PEC non presuppone alcun tipo di accreditamento preventivo presso il Sistema di Interscambio.» Any
+sender with a PEC (Posta Elettronica Certificata) mailbox — obtainable from any AgID-listed PEC
+provider, an ordinary commercial purchase, no government relationship required — can email the
+FatturaPA XML straight to SdI. See `backend/src/modules/documents/transports/sdi-pec/pec-protocol.ts`'s
+own header for the full citation trail (exact URLs, dates read, verbatim Italian quotes) this section
+summarizes.
+
+**What connecting the "sdi-pec" channel requires** (company settings → Channels → SdI via PEC, or the
+GitHub secrets above for the live spec):
+
+- `PEC_ADDRESS` — this company's own PEC mailbox address (used as the SMTP envelope/header From).
+- `PEC_SMTP_HOST`/`PEC_SMTP_PORT`/`PEC_SMTP_SECURE` — the PEC provider's own SMTP submission endpoint.
+- `PEC_IMAP_HOST`/`PEC_IMAP_PORT`/`PEC_IMAP_SECURE` — the same mailbox's IMAP endpoint, drained for
+  SdI's own replies (`transports/sdi-pec/pec-inbox-poller.service.ts`).
+- `PEC_USERNAME`/`PEC_PASSWORD` — the mailbox's own SMTP/IMAP credentials (commonly the PEC address
+  itself as username).
+- `PEC_ID_TRASMITTENTE` — same concept, same shape, as `SDI_ID_TRASMITTENTE` above (the `IdPaese`+fiscal
+  id stamped in the FatturaPA header and used to build the PEC attachment's own filename).
+
+There is no `sdiReplyAddress` to configure by hand: the two-step addressing rule fatturapa.gov.it
+documents (first submission to `sdi01@pec.fatturapa.it`, every later one to whatever address SdI
+replies from) is LEARNED automatically once a first reply has been observed — see
+`pec-notifiche.service.ts`'s own header.
+
+**Cost, lead time & blockers**: a PEC mailbox is a same-day, low-cost commercial purchase from any
+AgID-listed provider — no accreditation, no CSR, no waiting on Agenzia delle Entrate. The only real
+blocker for THIS project today is that no PEC mailbox has actually been provisioned yet — see
+`documentation/docs/developer-guide/live-testing.md`'s own PEC row for the current live-testing status.
+
+**Official sources** — see `pec-protocol.ts`'s own header for the full verbatim citations; summarized
+here:
+- https://www.fatturapa.gov.it/it/comefare/operatori-economici/inviare-la-fatturapa/ (the PEC address,
+  the 30 MB size limit, the two-step addressing rule, "no accreditation" statement)
+- https://www.fatturapa.gov.it/export/documenti/Specifiche_tecniche_SdI_v1.8.1.pdf (§2.2 filename
+  convention, §3.1.1 PEC channel rules, §5.1.1 malformed/duplicate-name rejection codes)
+- https://www.fatturapa.gov.it/it/sistemainterscambio/file-fatture-e-messaggi/ (the eight message
+  kinds SdI sends back, channel-agnostic)
 
 ---
 

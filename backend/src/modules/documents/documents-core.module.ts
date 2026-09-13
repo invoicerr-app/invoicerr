@@ -70,6 +70,9 @@ import { buildPdpTransport } from './transports/pdp-transport';
 import { buildPeppolTransport } from './transports/peppol-transport';
 import { PEPPOL_DOC_TYPES } from './transports/peppol/peppol-client';
 import { buildSdiTransport } from './transports/sdi-transport';
+import { buildSdiPecTransport } from './transports/sdi-pec-transport';
+import { PecInboxPollerService } from './transports/sdi-pec/pec-inbox-poller.service';
+import { PecNotificheService } from './transports/sdi-pec/pec-notifiche.service';
 import { TransportRegistry } from './transports/transport-registry';
 import { ciiFormatProvider } from './formats/cii-provider';
 import { buildFacturxFormatProvider } from './formats/facturx-provider';
@@ -270,6 +273,19 @@ function buildTransportRegistry(
   );
   registry.register('ksef', 'KSeF (Poland)', buildKsefTransport({ channelCredentials, fa3FormatProvider }));
   registry.register('sdi', 'SdI (Italy)', buildSdiTransport({ channelCredentials, fatturapaFormatProvider }));
+  // "sdi-pec" — the SAME Sistema di Interscambio as "sdi" above, reached over a certified-email (PEC)
+  // mailbox instead of the accredited SDICoop web service — see `transports/sdi-pec-transport.ts`'s
+  // own header for why this exists (SDICoop needs AdE accreditation this project cannot obtain; PEC
+  // needs none). `channel-policy/data/it.json`'s own "sdi" mandate names this id in its
+  // `equivalentProviderIds` so choosing THIS transport for Italy is treated as satisfying the SAME
+  // legal mandate as "sdi" itself (see `channel-policy/schema.ts`'s own header on that field, and
+  // `actions/invoice-actions.ts`'s own mandate-satisfaction check). Own `fatturapaFormatProvider`
+  // instance, same "stateless, no reason to couple two registries" reasoning "sdi" above already holds.
+  registry.register(
+    'sdi-pec',
+    'SdI via PEC (Italy)',
+    buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
+  );
   registry.register(
     'peppol',
     'Peppol',
@@ -559,6 +575,16 @@ function buildEntityReferenceRegistry(
     // these two tables when it first shipped (see `schema.prisma`'s own comment on `B2gRoutingRule`).
     CountryPolicyBootReseedService,
     CountryIdentifierRequirementsBootReseedService,
+    // The "sdi-pec" RECEIVE side — parses/journals SdI's own notifiche once drained from a company's
+    // PEC mailbox (`transports/sdi-pec/pec-notifiche.service.ts`) and the drain loop itself
+    // (`pec-inbox-poller.service.ts`). Plain classes, resolved by Nest the same way
+    // `DocumentSchedulesService`/`ShareLinksService` above already are — both constructor-inject only
+    // tokens already available in this module's own graph (`ChannelCredentialsService` from
+    // `CompanyModule`, `DocumentEventsPublisher`/`DOCUMENT_WEBHOOK_EMITTER` provided elsewhere in it).
+    // NOT YET wired to a schedule — see `pec-inbox-poller.service.ts`'s own header on why that is a
+    // deliberate, named gap rather than a blind cron.
+    PecNotificheService,
+    PecInboxPollerService,
     // Post-deposit conformity tracking (`conformity/`) —
     // `AuthorityStatusPollerRegistry` is this mechanism's read-side twin of `TRANSPORT_REGISTRY`
     // (registered as a plain class token, not a string one, the same choice `DocumentScheduleSweepRunner`
@@ -682,6 +708,8 @@ function buildEntityReferenceRegistry(
     DocumentsService,
     DocumentSchedulesService,
     DocumentScheduleSweepRunner,
+    PecNotificheService,
+    PecInboxPollerService,
     ShareLinksService,
     SignaturesService,
     AuthorityStatusPollerRegistry,
