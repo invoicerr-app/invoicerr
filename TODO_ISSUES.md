@@ -140,7 +140,19 @@ de ces quatre n'a été lue sur son texte brut. Une tentative d'accès au PDF de
 **200 qui n'était pas le document** (une page HTML servie à la place), ce qui rappelle qu'un code de
 statut ne prouve rien : c'est le corps qu'il faut inspecter.
 
-## Les mentions fiscales sont en anglais générique, alors que quatre lois sur cinq imposent les mots (2026-09-13)
+## ~~Les mentions fiscales sont en anglais générique~~ — RÉSOLU (`c99df594`, 2026-09-13)
+
+Une table d'overrides par (situation, pays) a remplacé le ternaire, avec repli octet pour octet sur la
+formulation générique pour tout pays sans entrée. Encodé : `IVA - autoliquidação`, `inversione
+contabile`, `odwrotne obciążenie`, `Steuerschuldnerschaft des Leistungsempfängers`, et pour l'Italie
+`operazione non imponibile` sous DEUX codes distincts — l'export relevant de l'art. 21 comma 6 lett.
+b) et l'intracommunautaire du D.L. 331/1993 art. 46 comma 2. Deux jambes de scénarios ont été mises à
+jour en conséquence (`13a27f39`), la jambe française gardant exprès le texte générique puisque la
+France n'impose aucune formulation — c'est ce contraste qui prouve que le moteur suit la loi du
+vendeur. Le constat d'origine est conservé ci-dessous : il documente le raisonnement et le piège de
+correspondance, qui resservira pour l'autoliquidation domestique.
+
+### Le constat d'origine (2026-09-13)
 
 `tax/tax-engine.ts` ouvre sur une table `MENTION` plate, **aveugle au pays** : une seule formulation
 par situation fiscale, la même pour tous. `Autoliquidation / Reverse charge — Art. 196 Directive
