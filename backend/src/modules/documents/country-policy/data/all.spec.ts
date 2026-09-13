@@ -70,10 +70,10 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
     expect(forbidden).toEqual([]);
   });
 
-  // US used to be the one shipped file with a real, documented gap here (no quote.duplicate rule) —
-  // data/us.json was removed by the 5-country prune (2026-09-10), and every one of the five kept
-  // files (DE/FR/IT/PL/PT) declares quote.duplicate, so there is no honest gap left to re-anchor
-  // this test on; deleted rather than weakened.
+  // US used to be the one shipped file with a real, documented gap here (no quote.duplicate rule),
+  // but it was removed by the 5-country prune (2026-09-10), and every one of the five kept files
+  // (DE/FR/IT/PL/PT) declares quote.duplicate, so there is no honest gap left to re-anchor this test
+  // on; deleted rather than weakened.
 
   it('every rule in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit here)', () => {
     for (const file of ALL_COUNTRY_POLICY_FILES) {
@@ -107,8 +107,8 @@ describe('country-policy/data — the shipped FR/DE/IT/PL/PT files', () => {
   // read directly — see its own `notes`); DE/IT/PL were promoted the same way on 2026-09-03, and PT
   // on 2026-09-04 (see each file's own `notes` on invoice.save-draft). Every one of the five kept
   // files sources this narrowing today —
-  // US used to be the one shipped file with NO narrowing here at all, but data/us.json was removed by
-  // the 5-country prune (2026-09-10). received-invoice.receive stays `unverified` in every file (no
+  // US used to be the one shipped file with NO narrowing here at all, but it was removed by the
+  // 5-country prune (2026-09-10). received-invoice.receive stays `unverified` in every file (no
   // rule's own resolutionNote named a checkable text for the STATUS narrowing itself, as opposed to
   // the separate, already-sourced reception-channel mandate FR's own rule documents).
   it('invoice.save-draft and received-invoice.receive restrict to their own "still editable" status, in every shipped file', () => {
@@ -187,9 +187,9 @@ describe('country-policy/data — FR rules promoted to "legal" (2026-09-01)', ()
     expect(rule.statuses).toEqual(['draft']); // the underlying restriction this citation now grounds
   });
 
-  // US's own quote.send/invoice.send E-SIGN (govinfo.gov) citation was re-verified 2026-09-01, but
-  // data/us.json was removed by the 5-country prune (2026-09-10) — no kept country cites the US
-  // federal E-SIGN act, so this case has no honest re-anchor and is deleted rather than weakened.
+  // US's own quote.send/invoice.send E-SIGN (govinfo.gov) citation was re-verified 2026-09-01, but US
+  // was removed by the 5-country prune (2026-09-10) — no kept country cites the US federal E-SIGN
+  // act, so this case has no honest re-anchor and is deleted rather than weakened.
 });
 
 // Before the 2026-09-03 sourcing pass, only FR/US/HU had a policy file at all — every OTHER country,
@@ -232,7 +232,7 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
   });
 
   it('DE invoice.save-draft is ALSO sourced "legal" with the same draft-only restriction (the immutability fact generalizes, not just PL/IT)', () => {
-    // ES used to pair with DE here — data/es.json was removed by the 5-country prune (2026-09-10).
+    // ES used to pair with DE here, but it was removed by the 5-country prune (2026-09-10).
     const rule = fileFor('DE').rules.find((r) => r.typeId === 'invoice' && r.actionId === 'save-draft')!;
     expect(rule.provenance.kind).toBe('legal');
     expect(rule.statuses).toEqual(['draft']);
@@ -246,7 +246,7 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
   });
 
   it('invoice.send is grounded "legal" for DE/IT/PL — a national electronic-invoicing text read live on 2026-09-03', () => {
-    // MX used to be the honestly-unverified counterexample here — data/mx.json was removed by the
+    // MX used to be the honestly-unverified counterexample here, but it was removed by the
     // 5-country prune (2026-09-10).
     for (const code of ['DE', 'IT', 'PL']) {
       const rule = fileFor(code).rules.find((r) => r.typeId === 'invoice' && r.actionId === 'send')!;
@@ -306,9 +306,9 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
   });
 });
 
-// BE's country-policy/data/be.json was removed by the 5-country prune (2026-09-10) along with every
-// other country outside FR/PL/IT/PT/DE — it was never registered in data/all.ts to begin with, so
-// nothing here re-anchors it.
+// BE was removed by the 5-country prune (2026-09-10) along with every other country outside
+// FR/PL/IT/PT/DE — it was never registered in data/all.ts to begin with, so nothing here re-anchors
+// it.
 
 // Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
 // really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory

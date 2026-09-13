@@ -19,10 +19,6 @@ import * as ts from 'typescript';
  *    test has not been checked against. `e2e/` and `frontend/` were added the same day this guard
  *    itself was: the very first dangling reference this whole effort found lived in a Cypress spec
  *    under `e2e/`, and this test would not have caught it until this addition.
- *  - Nor `country-policy/data/` (see `OUT_OF_SCOPE_DIR_NAMES` below) — TEMPORARY, not structural: a
- *    separate, concurrent workstream owns its sourced legal content (including the test file
- *    colocated with it), so this sweep left its own handful of stale examples for that workstream to
- *    fix rather than editing out of turn. Lift it once that workstream lands.
  *  - Only looks INSIDE comments — via the TypeScript parser's own token trivia, so a `//` inside a
  *    string literal or a URL is never mistaken for a comment start. An import path is already
  *    checked by `tsc` itself and would fail the build long before this test runs.
@@ -118,23 +114,10 @@ interface Finding {
   candidate: string;
 }
 
-// TEMPORARY — `country-policy/data/` is off-limits for this sweep only because a separate, concurrent
-// workstream owns its sourced legal content, including the test file colocated with it:
-// `country-policy/data/all.spec.ts` carries a handful of stale examples from the same 5-country prune
-// everything else here was fixed for, left for that workstream to fix rather than edited out of turn.
-// (`transports/channel-policy/data/` carried the same exclusion originally but turned out to have no
-// stale citations at all once checked — lifted, not just narrowed.) Skipped by directory name, not
-// silenced by suppressing the finding, so lifting this exclusion once that workstream lands is a
-// one-line diff, not a rediscovery.
-const OUT_OF_SCOPE_DIR_NAMES = new Set(['country-policy']);
-
 function listSourceFiles(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      const isOutOfScopeData =
-        entry.name === 'data' && OUT_OF_SCOPE_DIR_NAMES.has(dir.split('/').pop() ?? '');
-      if (isOutOfScopeData) continue;
       listSourceFiles(full, out);
     } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
       out.push(full);
