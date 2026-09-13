@@ -8,8 +8,8 @@
  * and deletes nothing. Editing a rule's `allowed`/provenance in the file and reseeding updates the
  * row in place. Adding a new (typeId, actionId) pair to a country's file makes a new row appear on
  * the next reseed; removing one makes its row disappear — the file is the ongoing source of truth,
- * not a one-time fixture, exactly the property "ajouter une règle dans le fichier suffit à la faire
- * exister" asks for.
+ * not a one-time fixture, exactly the property "adding a rule to the file is enough to make it
+ * exist" asks for.
  *
  * Deliberately loosely typed (`PrismaCountryPolicyClient` below, not the generated Prisma Client
  * type): this is an internal seeding utility, not a public API, and the loose shape makes it trivial
@@ -114,8 +114,8 @@ export async function seedCountryPolicies(
   // Second, independent gate — data/all.ts already validates every rule when a JSON file is loaded,
   // but this function takes a `CountryPolicyCatalog`, not a file path: a catalog built by hand (a
   // test, a future caller) must be refused here too, never trusted just because it made it this far.
-  // Validated for EVERY country, BEFORE writing a single row for ANY of them: "fais échouer le
-  // semis" means the whole seed, not just the one country whose file happens to be broken — a
+  // Validated for EVERY country, BEFORE writing a single row for ANY of them: "fail the whole
+  // seed" means the whole seed, not just the one country whose file happens to be broken — a
   // country later in iteration order failing must never leave an earlier one half-seeded.
   for (const countryCode of countries) {
     for (const rule of catalog.rulesFor(countryCode)) {

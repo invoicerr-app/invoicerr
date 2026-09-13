@@ -165,8 +165,8 @@ describe('resolveInvoiceCrossBorderTax — unresolved buyer country: hard block,
   });
 });
 
-// USER DECISION (2026-09-01, "le pays vendeur irrésolu retombait sur 'FR'
-// silencieusement", now RÉSOLU) — symmetric to the buyer block above: this function used to fall
+// USER DECISION (2026-09-01, "the seller's own unresolved country used to silently fall back to
+// 'FR'", now RESOLVED) — symmetric to the buyer block above: this function used to fall
 // back to `'FR'` for an unresolvable SELLER country, the SAME class of bug the buyer block already
 // exists to prevent. MUTATION TARGET: reinstating `?? 'FR'` on `sellerCC`
 // makes every test in this block pass with the OLD, silent behaviour instead of throwing — this is

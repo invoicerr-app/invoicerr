@@ -1,8 +1,8 @@
 /**
- * REPRISE quasi verbatim de `compliance/engine/classification.ts` (git tag `avant-refonte-documents`)
- * — seuls les chemins d'import changent (les types viennent de `./types`, propres à ce module). Le
- * contenu (listes de pays, cascade de composition) est repris TEL QUEL : voir `tax-engine.ts`'s own
- * header pour ce qui a changé autour, et le rapport de cette tâche pour la liste exacte.
+ * CARRIED OVER almost verbatim from `compliance/engine/classification.ts` (git tag
+ * `avant-refonte-documents`) — only the import paths change (types come from `./types`, specific to
+ * this module). The content (country lists, composition cascade) is carried over AS-IS: see
+ * `tax-engine.ts`'s own header for what changed around it.
  */
 import { ISO3166Alpha2, PartyRole, PartyTaxProfile, SupplyType } from './types';
 

@@ -1,10 +1,10 @@
 /**
- * LA MATRICE — reprise, adaptée, des DIX cas de `compliance/engine/tax-matrix.spec.ts` (git tag
- * `avant-refonte-documents`): GCC union, GST domestic, un fournisseur NONE, l'OSS avec un vrai profil
- * acheteur, les régimes exempt/zéro, et les deux helpers de classification. Seuls les imports
- * changent (types/`../tax-systems/registry` de ce module plutôt que les profils pays complets
- * supprimés) — chaque assertion est CHIFFRÉE, pas seulement
- * qualitative, là où le repère ne l'était pas déjà.
+ * THE MATRIX — carried over, adapted, from the TEN cases in `compliance/engine/tax-matrix.spec.ts`
+ * (git tag `avant-refonte-documents`): GCC union, GST domestic, a NONE supplier, OSS with a real
+ * buyer profile, the exempt/zero schemes, and the two classification helpers. Only the imports
+ * change (types/`../tax-systems/registry` from this module rather than the removed full country
+ * profiles) — every assertion is QUANTIFIED, not merely qualitative, where the reference was not
+ * already.
  *
  * Re-anchored by the 5-country prune (2026-09-10): SA/AE/IN/QA/HU's own
  * `tax-systems/data/xx.json` files were removed along with every country outside FR/PL/IT/PT/DE. The

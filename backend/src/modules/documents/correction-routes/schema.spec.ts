@@ -51,9 +51,9 @@ describe('assertValidCorrectionRouteFact', () => {
     expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(InvalidCorrectionRouteProvenanceError);
   });
 
-  // THE GATE this whole module exists to enforce — in its original wording: "une voie au
-  // statut required/allowed/forbidden SANS provenance légale -> le chargement ÉCHOUE". One test per
-  // status, each a candidate mutation (flip the coupling check and one of these three starts passing).
+  // THE GATE this whole module exists to enforce — in its original wording: "a route with status
+  // required/allowed/forbidden WITHOUT legal provenance -> loading FAILS". One test per status, each
+  // a candidate mutation (flip the coupling check and one of these three starts passing).
   it.each([
     'required',
     'allowed',

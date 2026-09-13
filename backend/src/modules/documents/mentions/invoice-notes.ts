@@ -1,10 +1,10 @@
 /**
  * The mentions a country requires on every invoice (BG-1), resolved for a date.
  *
- * REPRISE quasi verbatim de `compliance/profiles/invoice-notes.ts` (git tag `avant-refonte-documents`)
- * — la logique n'a pas changé ; seul le type d'entrée devient un `CountryMentionsFile` de ce module
- * (`schema.ts`) plutôt qu'un `CountryComplianceProfile` de l'ancien moteur, puisque ce module ne
- * connaît que les mentions, pas tout un profil pays.
+ * CARRIED OVER almost verbatim from `compliance/profiles/invoice-notes.ts` (git tag
+ * `avant-refonte-documents`) — the logic has not changed; only the input type becomes a
+ * `CountryMentionsFile` from this module (`schema.ts`) rather than a `CountryComplianceProfile` from
+ * the old engine, since this module knows only about mentions, not a whole country profile.
  *
  * Data in, text out. The engine names no jurisdiction: it renders whatever the country's file lists,
  * and a country that requires nothing lists nothing. France is the only file carrying any today —

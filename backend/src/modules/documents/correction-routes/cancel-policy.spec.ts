@@ -2,10 +2,10 @@ import { countriesWithLocalCancel, resolveCancelPolicyForCountry } from './cance
 import { defaultCorrectionRoutesCatalog } from './registry';
 
 /**
- * The country-by-country cancel MAP pinned, contre le vrai catalogue
- * correction-routes (jamais mocké — cf. correction-routes.spec.ts's own discipline). C'est LE
- * livrable central : qui a `cancel` fondée, qui ne l'a pas, et l'inversion PL/MX (statut
- * "required" mais AUCUN mécanisme réel derrière).
+ * The country-by-country cancel MAP pinned against the real correction-routes catalog (never
+ * mocked — see correction-routes.spec.ts's own discipline). This is THE central deliverable: who
+ * has `cancel` grounded, who doesn't, and the PL/MX inversion (status "required" but NO real
+ * mechanism behind it).
  */
 describe('resolveCancelPolicyForCountry — the per-country map', () => {
   // US used to ground this same conclusion a third way, but its own data file was removed by the

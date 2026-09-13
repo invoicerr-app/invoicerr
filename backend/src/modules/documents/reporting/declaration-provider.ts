@@ -55,8 +55,8 @@ export interface DeclaredParty {
 /**
  * One invoice, ready to be declared — built ONCE by `build-declared-invoice.ts` from
  * `totals/compute-totals.ts` and the document's own data, handed identically to whichever provider
- * `reporting-runner.ts` resolves. Never re-derived by a provider itself: "mappe depuis compute-
- * totals/le document, jamais recalculé" is enforced by construction — a provider that wanted a
+ * `reporting-runner.ts` resolves. Never re-derived by a provider itself: "maps from compute-totals/
+ * the document, never recalculated" is enforced by construction — a provider that wanted a
  * different number would have to lie about what is actually on the invoice.
  */
 export interface DeclaredInvoice {

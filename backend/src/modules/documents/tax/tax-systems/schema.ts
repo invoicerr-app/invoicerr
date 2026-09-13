@@ -6,17 +6,17 @@
  * assumes about a country's rate structure — its kind (VAT/GST/SALES_TAX/NONE), its standard/reduced
  * rates, and (France only, sourced) whether it has a domestic zero rate at all.
  *
- * REPRISE, not a fresh guess: every value here is read from the removed compliance engine's own
+ * CARRIED OVER, not a fresh guess: every value here is read from the removed compliance engine's own
  * `CountryComplianceProfile.taxSystem` (git tag `avant-refonte-documents:backend/src/compliance/
  * profiles/data/{fr,us,it}.ts` and `.../archetypes.ts` for SA/AE/IN/QA, all built from the same
  * `vat()`/`gst()`/`noTax()` helpers) — see each `data/*.json` file's own `provenance` for exactly
- * which repère line it was read from and what a real citation would still need.
+ * which reference line it was read from and what a real citation would still need.
  *
  * DELIBERATE NON-DUPLICATION: France's own rate LADDER (20/10/5.5/2.1) is not re-typed here — it is
- * DERIVED from `vat-rates/registry.ts` at load time (`from-vat-rates.ts`), the same way the repère's
- * OWN `tax-rates/consistency.spec.ts` existed only to catch the two catalogs drifting apart. Deriving
- * instead of duplicating makes that whole category of drift structurally impossible for any country
- * whose vat-rates catalog is the primary source. `hasDomesticZeroRate` and `schemes` are the two facts
+ * DERIVED from `vat-rates/registry.ts` at load time (`from-vat-rates.ts`), the same way the removed compliance
+ * engine's OWN `tax-rates/consistency.spec.ts` existed only to catch the two catalogs drifting apart.
+ * Deriving instead of duplicating makes that whole category of drift structurally impossible for any
+ * country whose vat-rates catalog is the primary source. `hasDomesticZeroRate` and `schemes` are the two facts
  * `vat-rates/` cannot derive (a rate ladder does not say whether ONE of its own entries constitutes a
  * true zero-RATED (not exempt) supply, nor which VAT SCHEMES — franchise-en-base, standard — a seller
  * in that country can hold) — those stay in this catalog's own JSON, sourced independently.

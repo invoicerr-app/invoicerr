@@ -6,8 +6,8 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
 
 /**
- * The RECEIVED INVOICE document type — the D — L'entrée
- * category's first (and only) type. Unlike every OUTBOUND type this core has
+ * The RECEIVED INVOICE document type — the Inbound category's first (and only) type. Unlike every
+ * OUTBOUND type this core has
  * (quote/invoice/credit-note), this one is never numbered by US, never sent, and never signed: it
  * records a fact about something a THIRD PARTY (a supplier) already issued, which this company is
  * merely bookkeeping.
@@ -20,7 +20,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    a typo, a different legal entity in the same group), the other is THIS company's own bookkeeping
  *    link. Neither ever overwrites the other.
  *  - `supplierClient` (`reference`, entity "supplier") — the persistent
- *    fournisseur this invoice is linked to, reusing `Client` (a role, not a
+ *    supplier this invoice is linked to, reusing `Client` (a role, not a
  *    dedicated entity — see `Client.isSupplier`'s own schema comment for the full "why a separate
  *    boolean, never `kind`"). Registered under its OWN entity id ("supplier",
  *    `documents-core.module.ts`), NOT "client": the invoice's/quote's own `client` field is the
@@ -44,8 +44,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    the supplier's own document says, taken (extracted or typed) as-is, never re-priced or
  *    re-computed by this company.
  *  - `lines` (superseding this file's own former "deliberately NOT an array"
- *    stance — see the superseded reasoning preserved at this file's own tail comment): désignation,
- *    quantité, prix unitaire HT, taux de TVA, the SAME `kind: 'array'` mechanism
+ *    stance — see the superseded reasoning preserved at this file's own tail comment): description,
+ *    quantity, unit price excl. VAT, VAT rate, the SAME `kind: 'array'` mechanism
  *    `invoice.descriptor.ts`'s own `lines` field already uses (field-kinds.ts's 'array', validate.ts's
  *    recursion, `totals/compute-totals.ts`'s generic money+number line detection, the frontend's
  *    generic `field-renderers/array-field.tsx`) — reused verbatim, not a second line shape invented
@@ -77,9 +77,9 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    are never overwritten by what the lines add up to — see that file's header for why).
  *
  * Every one of the nine fields above is `required: false` — DELIBERATELY, unlike every outbound
- * type here (an invoice needs a client, a credit note needs the invoice it corrects). Recevoir un
- * PDF papier scanné est le cas de base d'un artisan — a
- * plain scanned PDF carries NO machine-extractable field at all, and the whole point of this type is
+ * type here (an invoice needs a client, a credit note needs the invoice it corrects). Receiving a
+ * scanned paper PDF is the base case for a sole trader — a plain scanned PDF carries NO
+ * machine-extractable field at all, and the whole point of this type is
  * that such a document still gets recorded, with an attached file and empty fields to fill in later,
  * rather than being refused. Making any field required here would turn that base case into a wall.
  * The one thing this type always insists on is the FILE itself — see `fileRef`'s own note below.

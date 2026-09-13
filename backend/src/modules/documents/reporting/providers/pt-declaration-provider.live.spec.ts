@@ -1,6 +1,6 @@
 /**
  * REAL round-trip against the AT (Autoridade Tributária e Aduaneira) "comunicação de faturas" test
- * webservice — PT "déclaration".
+ * webservice — PT "declaration".
  *
  * Gated `PT_AT_LIVE=1` + `PT_AT_USERNAME`/`PT_AT_PASSWORD`/`PT_AT_PUBLIC_KEY_PEM`/
  * `PT_AT_CLIENT_CERTIFICATE_BASE64`/`PT_AT_CLIENT_CERTIFICATE_PASSWORD` (`../../transports/live-gate.ts`,

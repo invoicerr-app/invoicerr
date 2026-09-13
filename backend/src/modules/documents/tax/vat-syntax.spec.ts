@@ -1,15 +1,15 @@
 /**
- * Reprise ciblée du contrat syntaxique du repère (`identifier-validator.spec.ts`,
- * `avant-refonte-documents`) — quelques cas par pays plutôt que la suite exhaustive : prouver que le
- * dispatcher marche pour les pays réellement en jeu (FR, DE, IT), et
- * que le comportement PERMISSIF pour un pays non couvert est bien celui documenté (jamais un blocage
- * sur un pays qu'on ne sait pas vérifier hors ligne).
+ * Targeted carry-over of the reference's own syntax contract (`identifier-validator.spec.ts`,
+ * `avant-refonte-documents`) — a few cases per country rather than the exhaustive suite: prove that
+ * the dispatcher works for the countries actually in play (FR, DE, IT), and
+ * that the PERMISSIVE behavior for an uncovered country is indeed the documented one (never a block
+ * on a country this cannot verify offline).
  */
 import { validateDeVat, validateFrVat, validateItVat, validateVat } from './vat-syntax';
 
 describe('vat-syntax — validateFrVat', () => {
   it('accepts a real, checksum-valid FR VAT number (FR83404833048 — SIREN 404833048)', () => {
-    // clé = (12 + 3 × (404833048 mod 97)) mod 97 — computed once, then locked in as a fixture.
+    // key = (12 + 3 × (404833048 mod 97)) mod 97 — computed once, then locked in as a fixture.
     const r = validateFrVat(`FR${String((12 + 3 * (404833048 % 97)) % 97).padStart(2, '0')}404833048`);
     expect(r.valid).toBe(true);
     expect(r.checksumValidated).toBe(true);

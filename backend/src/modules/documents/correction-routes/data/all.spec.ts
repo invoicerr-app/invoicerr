@@ -131,7 +131,7 @@ describe('correction-routes/data/all.ts', () => {
     expect(statusOf('FR', 'ANNOTATED_DUPLICATE')).toBe('required');
   });
 
-  // A route the YAML never addresses for a given country (or explicitly marks "non recherchée")
+  // A route the YAML never addresses for a given country (or explicitly marks "not researched")
   // transcribes to "unverified" — never silently promoted, never silently absent.
   //
   // FR's NO_DOCUMENT_BY_LAW used to be this test's French exemplar. It is no longer unverified: it was
@@ -144,14 +144,14 @@ describe('correction-routes/data/all.ts', () => {
   });
 
   // THE LOAD-TIME GATE, proven against an INVENTED eighth country — the acceptance criterion:
-  // "un 8e pays inventé sans provenance refuse de charger".
+  // "an invented 8th country with no provenance refuses to load".
   it('an eighth, invented country with a "required" route but no legal provenance REFUSES to load', () => {
     expect(() => loadCountryFile('zz')).toThrow(InvalidCorrectionRouteProvenanceError);
     expect(() => loadCountryFile('zz')).toThrow(/legal citation/);
   });
 });
 
-// BE's own correction-routes data file (agent pays Belgique) was removed by the 5-country prune
+// BE's own correction-routes data file (Belgium) was removed by the 5-country prune
 // (2026-09-10) along with every other country outside FR/PL/IT/PT/DE —
 // it was never registered in data/all.ts to begin with, so nothing here re-anchors it.
 

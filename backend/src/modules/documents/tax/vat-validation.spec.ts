@@ -1,7 +1,8 @@
 /**
- * Reprise, adaptée, des vérités "C4" du repère (`compliance/canonical/vat-validation.spec.ts`) — les
- * trois verdicts et leur non-collapse, avec un DOUBLE de `ViesProvider` plutôt que le vrai réseau
- * (le VRAI service est prouvé par `vat-validation.live.spec.ts`, live-gaté).
+ * CARRIED OVER, adapted, from the reference's own "C4" truths (`compliance/canonical/
+ * vat-validation.spec.ts`) — the three verdicts and their non-collapse, with a TEST DOUBLE of
+ * `ViesProvider` rather than the real network (the REAL service is proven by
+ * `vat-validation.live.spec.ts`, live-gated).
  */
 import {
   FakeSyntaxOnlyVatValidationClient,

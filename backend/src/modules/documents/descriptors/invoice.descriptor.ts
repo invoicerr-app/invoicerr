@@ -27,7 +27,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * a one-line flag for whichever second country's pass has to decide whether it moves into
  * country-fields/, not a claim that it definitely will.
  *
- * A line now carries SIX fields — désignation, quantité, unité, prix unitaire, taux de TVA, remise —
+ * A line now carries SIX fields — description, quantity, unit, unit price, VAT rate, discount —
  * the minimum the business itself imposes everywhere.
  * Two of them (`unit`, `vatRate`) were new at that pass; `discountPercent` was added in a LATER one
  * (see below).
@@ -72,8 +72,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    recurses with the SAME registry per row). This is the bullet that used to say "deliberately NOT
  *    added" for exactly this reason ("no concrete need yet"); the need arrived, so the field did.
  *
- *  - `articleId` (kind: 'hiddenReference', OPTIONAL) — basic stock management ("gestion de stock
- *    basique"), added alongside the SIX business fields above, not a seventh one of them: it carries
+ *  - `articleId` (kind: 'hiddenReference', OPTIONAL) — basic stock management, added alongside the
+ *    SIX business fields above, not a seventh one of them: it carries
  *    no designation/price/tax fact of its own, only WHICH catalog article (if any) this line came
  *    from, so `documents/stock/apply-stock-on-issuance.ts` can find it again at issuance. Filled by
  *    the SAME `prefillFrom` mechanism as `description`/`unitPrice`/`vatRate` below (see `map`) — never
@@ -167,7 +167,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * before it was built, and "convert-to-invoice" held for the quote before it was implemented. The 501
  * mechanism this proves lives on THIS action now — see documents.service.invoice.spec.ts.
  *
- * "download-xml" ("formats normalisés") is declared here but, unlike every other
+ * "download-xml" (normalized formats) is declared here but, unlike every other
  * action above, is NOT run through `ActionRegistry`/`runAction` at all — it produces BINARY bytes
  * (an XML document), not the JSON `ActionResult` every registered handler returns, so it has no
  * business pretending to fit that shape. It exists on THIS descriptor purely so the same four gates
@@ -336,11 +336,11 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
-    // "mentions obligatoires" — see types.ts's own comment on this flag. BG-1
+    // "mandatory mentions" — see types.ts's own comment on this flag. BG-1
     // (EN 16931's mentions block) is an invoice concept; the invoice is the first, and today the
     // only, type that opts in.
     usesLegalMentions: true,
-    // "QR SEPA / GiroCode" — see types.ts's own comment on this flag. An
+    // "SEPA QR / GiroCode" — see types.ts's own comment on this flag. An
     // invoice is the one document type that actually REQUESTS payment; quote/credit-note/expense/
     // received-invoice each have their own reason NOT to opt in (see that comment).
     usesPaymentQr: true,
@@ -396,7 +396,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         label: 'Notes',
         required: false,
       },
-      // "référence client / n° de commande" — see quote.descriptor.ts's own
+      // "client reference / PO number" — see quote.descriptor.ts's own
       // comment on this exact field for the full reasoning, including why this is deliberately NOT
       // the same key as the DE country-fields overlay's own `buyerReference` (BT-10/Leitweg-ID/Chorus
       // Pro "code service" — a compliance-wired field this descriptor must not touch or collide with).
@@ -520,7 +520,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         id: 'record-payment',
         label: 'Record payment',
         // Recording a payment only makes sense once the invoice has actually been sent — one cannot
-        // encash a brouillon. NO `transitions`: see this file's own lifecycle comment above for why —
+        // cash a draft. NO `transitions`: see this file's own lifecycle comment above for why —
         // now IMPLEMENTED (actions/invoice-actions.ts), but its effect lands on a NEW DocumentPayment
         // row and the projected balance, never on this record's own declared status.
         availableWhen: ['sent'],

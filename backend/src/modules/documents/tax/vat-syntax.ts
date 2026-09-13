@@ -1,11 +1,11 @@
 /**
- * Pure, offline VAT-number SYNTAX validators — REPRISE quasi verbatim of the `validateVat` dispatcher
- * and its per-country checksum functions from `compliance/canonical/identifier-validator.ts` (git
- * tag `avant-refonte-documents`). Only the SIREN/SIRET/Codice-Fiscale/RFC validators were dropped —
- * this module cares only about VAT numbers (the "syntaxique par pays" contract);
- * `validateNip` is kept because the repère's own `validateVat` calls it internally for PL.
+ * Pure, offline VAT-number SYNTAX validators — CARRIED OVER almost verbatim from the `validateVat`
+ * dispatcher and its per-country checksum functions in `compliance/canonical/identifier-validator.ts`
+ * (git tag `avant-refonte-documents`). Only the SIREN/SIRET/Codice-Fiscale/RFC validators were
+ * dropped — this module cares only about VAT numbers (the "per-country syntax" contract);
+ * `validateNip` is kept because the reference's own `validateVat` calls it internally for PL.
  *
- * No network I/O. Each algorithm cites its authoritative reference, copied from the repère.
+ * No network I/O. Each algorithm cites its authoritative source, copied from the reference.
  *
  * References
  *  NIP (PL)    : https://pl.wikipedia.org/wiki/Numer_identyfikacji_podatkowej
@@ -15,8 +15,8 @@
  *  ES VAT/NIF  : https://en.wikipedia.org/wiki/VAT_identification_number#Spain
  *
  * `resolve-invoice-tax.ts` is the consumer that turns `valid: false` into "treat this buyer as B2C,
- * with a named warning — never a silent B2B" ("un numéro TVA invalide
- * syntaxiquement → l'acheteur est B2C").
+ * with a named warning — never a silent B2B" ("a syntactically invalid
+ * VAT number -> the buyer is B2C").
  */
 
 export interface IdentifierValidationResult {
@@ -67,7 +67,7 @@ export function validateNip(value: string): IdentifierValidationResult {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // French VAT (TVA intracommunautaire) — FR + 2-char key + 9-digit SIREN
-// clé = (12 + 3 × (SIREN mod 97)) mod 97
+// key = (12 + 3 × (SIREN mod 97)) mod 97
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FR_VAT_B34 = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 34 chars, excludes I and O

@@ -1,9 +1,8 @@
 /**
- * REPRISE VERBATIM de `compliance/profiles/temporal.ts` (git tag `avant-refonte-documents`), adaptée
- * au `Temporal<T>` de ce module (`schema.ts`) plutôt qu'à celui, alors plus large, de l'ancien moteur
- * de conformité. La logique de sélection elle-même — fenêtres `[validFrom, validTo)`, la plus
- * spécifique (le `validFrom` le plus tardif) l'emporte en cas de recouvrement — n'a pas changé d'une
- * ligne.
+ * CARRIED OVER VERBATIM from `compliance/profiles/temporal.ts` (git tag `avant-refonte-documents`),
+ * adapted to this module's own `Temporal<T>` (`schema.ts`) rather than the old compliance engine's
+ * own, then wider, one. The selection logic itself — `[validFrom, validTo)` windows, the most
+ * specific one (the latest `validFrom`) wins on overlap — has not changed by a single line.
  */
 import { Temporal } from './schema';
 

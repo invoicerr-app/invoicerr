@@ -180,7 +180,7 @@ describe('ReportingRunner.runReport', () => {
     expect(mockedJournalSynthetic).not.toHaveBeenCalled();
   });
 
-  // ⚖ "MARK/transactionId non vides" — the hard contract this whole mechanism refuses to relax.
+  // ⚖ "MARK/transactionId not empty" — the hard contract this whole mechanism refuses to relax.
   it('a provider returning an empty authorityId is REFUSED — never journaled as a success', async () => {
     const declare = jest.fn().mockResolvedValue({ ...SUCCESS_RESULT, authorityId: '' });
     const runner = buildRunner({ providerId: 'nav', declare });
@@ -197,7 +197,7 @@ describe('ReportingRunner.runReport', () => {
     expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
   });
 
-  // Dédup — re-running the SAME successful declaration journals it through the SAME persistence call
+  // Dedup — re-running the SAME successful declaration journals it through the SAME persistence call
   // a second time; `DocumentAuthorityEvent`'s own `@@unique([documentId, providerId, statusCode])`
   // (proven directly in `conformity/authority-events.persistence.spec.ts` and the real-Redis
   // integration spec) is what turns the SECOND call into zero newly-created rows — this test proves

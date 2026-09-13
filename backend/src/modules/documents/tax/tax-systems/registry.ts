@@ -13,7 +13,7 @@ function buildIndex(files: CountryTaxSystemFact[]): Record<string, CountryTaxSys
  * Derives `standardRate`/`reducedRates` from `vat-rates/registry.ts` for a country whose fact did not
  * declare them explicitly — see `schema.ts`'s own header, "DELIBERATE NON-DUPLICATION". A `STANDARD`
  * category entry becomes `standardRate`; every `REDUCED`/`SUPER_REDUCED` entry becomes a member of
- * `reducedRates` (descending, matching the repère's own `[10, 5.5, 2.1]` ordering for France).
+ * `reducedRates` (descending, matching the reference's own `[10, 5.5, 2.1]` ordering for France).
  * Returns `undefined` when no `STANDARD` entry exists in the vat-rates catalog for this country — the
  * caller then has nothing to fall back to beyond an EXPLICIT rate on the fact itself.
  */

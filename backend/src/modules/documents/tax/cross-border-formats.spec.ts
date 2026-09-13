@@ -1,5 +1,5 @@
 /**
- * Cross-border tax ("transfrontalier") — the END-TO-END proof: a real
+ * Cross-border tax — the END-TO-END proof: a real
  * CII export, built through the REAL pipeline (`resolveInvoiceCrossBorderTax` →
  * `computeDocumentTotals` → `formats/cii-provider.ts`), JUDGED by the real vendored EN 16931
  * Schematron (`formats/vendored/validate-schematron.ts`) — never a hand-asserted opinion of the XML.
@@ -93,7 +93,7 @@ describe('FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schema
     // BT-152/BT-151 — 0% rate, AE category, on the line itself.
     expect(xml).toMatch(/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/);
     expect(xml).toMatch(/<ram:CategoryCode>AE<\/ram:CategoryCode>/);
-    // BG-1 (BT-22) — the reverse-charge mention, verbatim from the repère.
+    // BG-1 (BT-22) — the reverse-charge mention, verbatim from the reference.
     expect(xml).toContain('Autoliquidation / Reverse charge — Art. 196 Directive 2006/112/EC');
     // Totals actually reflect the resolved 0% treatment, not the originally-typed 20%.
     expect(xml).toMatch(/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/);

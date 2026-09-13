@@ -1,5 +1,5 @@
 /**
- * The tax-engine's own canonical types — cross-border tax ("transfrontalier"), REPRISE of the
+ * The tax-engine's own canonical types — cross-border tax, CARRIED OVER from the
  * removed compliance engine's `compliance/canonical/canonical-document.ts` and `compliance/types.ts`
  * (git tag `avant-refonte-documents`), narrowed to exactly what `tax-engine.ts`/`classification.ts`
  * consume. The old files carried a much larger canonical DOCUMENT model (formats, transmission,
@@ -7,7 +7,7 @@
  * have — see `documents/tax/tax-engine.ts`'s own header for why only the TAX slice survives, ported
  * rather than reinvented, into types this module actually uses.
  *
- * Kept field-for-field identical in spirit to the repère so `tax-engine.ts`/`classification.ts` could
+ * Kept field-for-field identical in spirit to the reference so `tax-engine.ts`/`classification.ts` could
  * be pasted across with only import paths changing — never re-derived from memory.
  */
 
@@ -16,7 +16,7 @@ export type ISO3166Alpha2 = string;
 export type PartyRole = 'B2B' | 'B2C';
 
 /** The invoice descriptor only ever produces 'GOODS' | 'SERVICES' today (see
- *  `formats/semantic/supply-type.ts`) — 'DIGITAL' is kept from the repère's own type because the
+ *  `formats/semantic/supply-type.ts`) — 'DIGITAL' is kept from the reference's own type because the
  *  engine's OSS branch treats it identically to 'GOODS' (see `tax-engine.ts`), and a future digital
  *  supply overlay should not need this type widened again. Nothing in this branch's wiring produces
  *  'DIGITAL' today; it is unreachable, not unused. */
@@ -29,7 +29,7 @@ export type TaxSystemKind = 'VAT' | 'GST' | 'SALES_TAX' | 'NONE';
 
 export type TaxScheme = 'STANDARD' | 'FRANCHISE_BASE' | 'EXEMPT';
 
-/** A narrowed `ReportingKind` — only the flags the tax engine itself ever emits. The repère's own
+/** A narrowed `ReportingKind` — only the flags the tax engine itself ever emits. The reference's own
  *  enum carried many more (e-invoicing/e-reporting transmission flags) that belonged to the removed
  *  lifecycle engine, not to tax determination. */
 export type ReportingKind = 'EC_SALES_LIST' | 'INTRASTAT' | 'OSS' | 'CUSTOMS_EXPORT';
@@ -107,10 +107,10 @@ export interface VatSystemSpec {
   standardRate: number;
   reducedRates: number[];
   schemes: TaxScheme[];
-  /** See `profiles/data/fr.ts` at the repère (verbatim source of this field) — `false` means the
-   *  country levies NO zero rate today, so a 0% domestic line cannot be category `Z` (see
+  /** See `profiles/data/fr.ts` in the removed compliance engine (verbatim source of this field) —
+   *  `false` means the country levies NO zero rate today, so a 0% domestic line cannot be category `Z` (see
    *  `tax-engine.ts#domesticCategoryFor`). Absent/`undefined` (not established) behaves like the
-   *  repère's own default: `Z` stays the answer, never re-classified on a guess. */
+   *  reference's own default: `Z` stays the answer, never re-classified on a guess. */
   hasDomesticZeroRate?: boolean;
 }
 

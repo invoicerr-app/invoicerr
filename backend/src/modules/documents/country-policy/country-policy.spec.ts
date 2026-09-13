@@ -50,10 +50,10 @@ describe('evaluateCountryPolicy', () => {
     expect(decision.reason).toMatch(/country-policy\/data\/jp\.json/);
   });
 
-  // Received invoices ("réception de factures") — the SAME mechanism, proven again against the new
-  // type/action pair, for the exact case to prove directly: "approve refusé pour un
-  // pays sans règle → 403 nommé" (the 403 itself is documents.service.received-invoice.spec.ts's own
-  // wiring proof; THIS is the real, unmocked decision the service call above is proven to relay).
+  // Received invoices — the SAME mechanism, proven again against the new type/action pair, for the
+  // exact case to prove directly: "approve refused for a country with no rule -> named 403" (the 403
+  // itself is documents.service.received-invoice.spec.ts's own wiring proof; THIS is the real,
+  // unmocked decision the service call above is proven to relay).
   it('blocks "received-invoice"/"approve" for a country with no policy rows at all, and NAMES the country', async () => {
     findCompany.mockResolvedValue({ country: 'Japan', countryCode: 'JP' });
     findRules.mockResolvedValue([]);
@@ -253,8 +253,8 @@ describe('resolveAvailableDocumentTypes', () => {
 
   // A country with NO policy file at all (e.g. Japan — see the COUNTRY_FILES list in data/all.ts,
   // which covers FR/US/HU/DE/IT/PL/ES/MX only) must say so BY NAME, never render a
-  // silently empty group — this is the "un pays sans règles n'a aucun type, et son groupe Documents
-  // doit le DIRE" requirement, proven against the real catalog rather than a mock of it. Germany used
+  // silently empty group — this is the "a country with no rules has no type, and its Documents
+  // group must SAY so" requirement, proven against the real catalog rather than a mock of it. Germany used
   // to be this test's placeholder "uncovered" country; it then got a real, sourced policy
   // file, so this fixture moved to Belgium (still genuinely absent from COUNTRY_FILES) rather than
   // weakening what this test proves.

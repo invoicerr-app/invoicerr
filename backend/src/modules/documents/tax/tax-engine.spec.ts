@@ -1,13 +1,13 @@
 /**
- * Reprise, adaptée et CHIFFRÉE, de `compliance/engine/tax-engine.spec.ts` (git tag
- * `avant-refonte-documents`) — le reste de la couverture du moteur pur, au-delà des dix cas de
- * `tax-matrix.spec.ts`: le domestique français, le franchissement de frontière intra-UE (B2B validé/
- * non validé), l'export hors UE, la sales tax américaine, et l'agrégation document-level. La branche
- * OSS "FR→DE, DE has no full profile yet" (avant-dernier bloc) est un test du MOTEUR PUR — il exerce
- * le fallback historique du repère quand `buyerProfile` est absent, un chemin `resolve-invoice-tax.ts`
- * (la couche de câblage, testée séparément) empêche délibérément d'atteindre en production — voir ce
- * fichier's own header pour pourquoi ce fallback reste correct à tester ici, sans jamais être exécuté
- * par le vrai flux d'envoi.
+ * CARRIED OVER, adapted and QUANTIFIED, from `compliance/engine/tax-engine.spec.ts` (git tag
+ * `avant-refonte-documents`) — the rest of the pure engine's coverage, beyond the ten cases in
+ * `tax-matrix.spec.ts`: French domestic, intra-EU border-crossing (B2B validated/not validated),
+ * export outside the EU, US sales tax, and document-level aggregation. The OSS branch "FR→DE, DE has
+ * no full profile yet" (second-to-last block) is a test of the PURE ENGINE — it exercises the
+ * reference's own historic fallback when `buyerProfile` is absent, a path `resolve-invoice-tax.ts`
+ * (the wiring layer, tested separately) deliberately prevents from being reached in production — see
+ * this file's own header for why this fallback remains correct to test here, without ever being
+ * executed by the real send flow.
  *
  * Re-anchored by the 5-country prune (2026-09-10): `tax-systems/data/
  * us.json` was removed along with every country outside FR/PL/IT/PT/DE, so `defaultTaxSystemRegistry.
@@ -426,7 +426,7 @@ describe('TaxEngine — intra-EU B2C distance sales (OSS) — PURE ENGINE fallba
     expect(t.components[0].jurisdiction).toBe('DE');
     expect(t.reportingFlags).toContain('OSS');
     expect(t.buyerSelfAssess).toBe(false);
-    // The repère's own historic fallback (destination unknown → seller's own standard rate) — kept
+    // The reference's own historic fallback (destination unknown → seller's own standard rate) — kept
     // here, verbatim, as a property of the PURE engine only. `resolve-invoice-tax.ts` (the wiring)
     // never calls `determineLineTax` this way in production: see its own
     // "OSS destination unknown" guard, exercised by resolve-invoice-tax.spec.ts instead.

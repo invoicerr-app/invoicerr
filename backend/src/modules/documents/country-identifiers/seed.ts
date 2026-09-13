@@ -110,7 +110,7 @@ export async function seedCountryIdentifierRequirements(
   // loaded, but this function takes a `CountryIdentifierRequirementsCatalog`, not a file path: a
   // catalog built by hand (a test, a future caller) must be refused here too, never trusted just
   // because it made it this far. Validated for EVERY country, BEFORE writing a single row for ANY
-  // of them — same "fais échouer le semis entier" discipline as country-policy/seed.ts.
+  // of them — same "fail the whole seed" discipline as country-policy/seed.ts.
   for (const countryCode of countries) {
     for (const fact of catalog.schemesFor(countryCode)) {
       assertValidProvenance(fact, `seedCountryIdentifierRequirements(${countryCode})`);

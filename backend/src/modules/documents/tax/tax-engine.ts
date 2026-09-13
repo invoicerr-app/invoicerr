@@ -1,5 +1,5 @@
 /**
- * The Tax Determination Engine (cross-border tax). REPRISE quasi verbatim de
+ * The Tax Determination Engine (cross-border tax). CARRIED OVER almost verbatim from
  * `compliance/engine/tax-engine.ts` (git tag `avant-refonte-documents`, `COMPLIANCE_ARCHITECTURE.md`
  * §9 in that lineage) — a pure, deterministic cascade over (supplier tax system, buyer, same
  * country?, same union?, role, supply type, VAT validity) producing a per-line `TaxTreatment`. This
@@ -8,15 +8,15 @@
  *
  * ONLY the import paths changed (this module's own `./types`/`./classification` rather than the
  * removed `../canonical/canonical-document`/`../profiles/schema`) — every mention TEXT, every branch,
- * every comment below is the repère's own, unedited. `resolve-invoice-tax.ts` is the wiring that
+ * every comment below is the reference's own, unedited. `resolve-invoice-tax.ts` is the wiring that
  * calls this pure engine from the actual "send" flow, decides roles from a
  * REAL stored VAT-validation verdict, and adds the stricter no-silent-fallback guards (unresolved
  * buyer country, OSS with no destination rate table) the product's own history required — see that
- * file's own header. This file stays exactly what it was at the repère: a pure function of its
+ * file's own header. This file stays exactly what it was at the reference: a pure function of its
  * inputs, never aware of Prisma, of "sending", or of any HTTP call.
  *
- * TWO amendments, post-repère, both additive (every existing branch, mention and comment not
- * mentioned below is still the repère's own, unedited):
+ * TWO amendments, since the reference, both additive (every existing branch, mention and comment not
+ * mentioned below is still the reference's own, unedited):
  *
  * 1. (2026-09-13) `domesticVat`'s FRANCHISE_BASE branch below used to pick between exactly two
  *    mentions (FR's own art. 293 B wording, or the generic small-business one for every other
@@ -406,7 +406,7 @@ function zeroByHint(line: DocumentLine): boolean {
   return !!line.taxCategoryHint && UNTAXED_HINTS.has(line.taxCategoryHint);
 }
 
-/** The category of a DOMESTIC line, when nobody has declared one — see the repère's own, much
+/** The category of a DOMESTIC line, when nobody has declared one — see the reference's own, much
  *  longer comment here (git tag `avant-refonte-documents:backend/src/compliance/engine/
  *  classification.ts`) for the full reasoning on why a bare 0 rate cannot pick between Z/E/O on its
  *  own, and why `hasDomesticZeroRate === false` answers `E` (fails loud) rather than `O` (sails
@@ -422,7 +422,7 @@ function ossDestinationVat(
   buyerProfile?: CountryTaxSystemProfile,
 ): TaxTreatment {
   // Charge the destination country's standard rate when we know it; otherwise fall back to the
-  // supplier's standard rate (placeholder) — see this repère-ported branch's OWN limitation, and
+  // supplier's standard rate (placeholder) — see this reference-ported branch's OWN limitation, and
   // `resolve-invoice-tax.ts`'s header for why the WIRING never lets an invoice reach this fallback in
   // production: it blocks, named, before ever calling this function without a real `buyerProfile`.
   const dest = buyerProfile?.taxSystem;

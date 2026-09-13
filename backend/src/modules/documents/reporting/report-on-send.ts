@@ -1,7 +1,7 @@
 /**
- * The point of accroche of declarative reporting onto `actions/async-send.ts`'s own "sent" write —
+ * The hook point of declarative reporting onto `actions/async-send.ts`'s own "sent" write —
  * called right after `archiveDeliveredArtifactsIfAny` (never before it, and never before "sent" is
- * persisted): the SAME "après le fait acquis, jamais avant" principle that file's own header
+ * persisted): the SAME "after the fact is settled, never before" principle that file's own header
  * documents at length, applied to a genuinely DIFFERENT concept.
  *
  * ## Why this is architecturally a COUSIN of archiving, never a transport
@@ -16,7 +16,7 @@
  * (seller country, document TYPE) — `reporting/data/*.json`'s own `appliesTo` — never on which
  * transport happened to carry the invoice.
  *
- * ## "Jamais silencieux" — see `report-job.ts`'s own header for the full failure vocabulary
+ * ## "Never silent" — see `report-job.ts`'s own header for the full failure vocabulary
  *
  * This function itself NEVER throws (mirrors `archiveDeliveredArtifactsIfAny`'s own guarantee) — it
  * only ever ENQUEUES a job; the job itself is what can fail, and it fails LOUD (see
@@ -25,7 +25,7 @@
  * `DocumentInstance.lastActionError` (a reporting failure is not a "the send action itself failed"
  * fact — the invoice genuinely left; see `report-job.ts`'s own header on `REPORT_FAILED_STATUS_CODE`).
  *
- * ## A country with no obligation — "RIEN ne change"
+ * ## A country with no obligation — "NOTHING changes"
  *
  * `ReportingObligationCatalog.obligationFor` returns `undefined` for every country with no
  * `reporting/data/*.json` file (which is every country except HU and GR today) — this function
@@ -65,7 +65,7 @@ export async function reportOnSendIfObligated(
     if (!countryCode) return;
 
     const obligation = catalog.obligationFor(countryCode, typeId);
-    if (!obligation) return; // "pays sans obligation : RIEN ne change" — the governing rule.
+    if (!obligation) return; // "a country with no obligation: NOTHING changes" — the governing rule.
 
     await queueDispatcher.enqueueReport({
       companyId,

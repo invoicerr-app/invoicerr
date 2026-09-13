@@ -1,10 +1,10 @@
 /**
- * REPRISE quasi verbatim of `compliance/canonical/vat-validation.port.ts` +
+ * CARRIED OVER almost verbatim from `compliance/canonical/vat-validation.port.ts` +
  * `vies-vat-validation.client.ts` (git tag `avant-refonte-documents`) — the seam that decides whether
- * a VAT number has been VERIFIED, not merely typed. The cross-border contract: "syntaxique par
- * pays (vat-syntax.ts) + un port VIES optionnel" — this file is that port.
+ * a VAT number has been VERIFIED, not merely typed. The cross-border contract: "per-country syntax
+ * (vat-syntax.ts) + an optional VIES port" — this file is that port.
  *
- * The defect this exists to fix, verbatim from the repère's own header: hardcoding `validated: false`
+ * The defect this exists to fix, verbatim from the reference's own header: hardcoding `validated: false`
  * for every VAT number would let an intra-EU B2B service come out at full domestic VAT instead of
  * reverse-charged — a tax the customer does not owe. Hardcoding `true` would trade one error for the
  * opposite one: trusting a free-text field would let anyone type a fake number and get 0%, an
@@ -47,7 +47,7 @@ export class NullVatValidationClient implements VatValidationPort {
 }
 
 /**
- * Cross-border ("transfrontalier") support — a SECOND offline, deterministic, network-free client,
+ * Cross-border support — a SECOND offline, deterministic, network-free client,
  * distinct from `NullVatValidationClient` above: it answers `VALID` for a number that PASSES its own
  * syntax check (`vat-syntax.ts`), `INVALID` otherwise. Never touches a network — the exact same "CI
  * job must never depend on... VIES being up" contract `NullVatValidationClient`'s own module wiring
@@ -63,9 +63,9 @@ export class NullVatValidationClient implements VatValidationPort {
  */
 export class FakeSyntaxOnlyVatValidationClient implements VatValidationPort {
   async validate(countryCode: string, vatNumber: string): Promise<VatValidationResult> {
-    // The exact same reprised repère syntax dispatcher `resolve-invoice-tax.ts` itself already runs
-    // before ever consulting a real (or fake) validator — imported here directly rather than
-    // assuming the caller already ran it, so this class means the same thing standalone.
+    // The exact same syntax dispatcher (carried over from the reference) `resolve-invoice-tax.ts`
+    // itself already runs before ever consulting a real (or fake) validator — imported here directly
+    // rather than assuming the caller already ran it, so this class means the same thing standalone.
     const syntax = validateVat(vatNumber, countryCode);
     return {
       status: syntax.valid ? 'VALID' : 'INVALID',
@@ -76,9 +76,9 @@ export class FakeSyntaxOnlyVatValidationClient implements VatValidationPort {
 }
 
 /**
- * The EU VIES service — REPRISE, adapted to wrap THIS branch's own `ViesProvider`
+ * The EU VIES service — CARRIED OVER, adapted to wrap THIS branch's own `ViesProvider`
  * (`modules/company-lookup/providers/vies.provider.ts`, which survived the demolition unchanged)
- * rather than the removed repère's own bespoke VIES HTTP client: same public endpoint, same "no
+ * rather than the reference's own, now-removed, bespoke VIES HTTP client: same public endpoint, same "no
  * credentials, a saturated member state is an error not a not-found" behaviour, one fewer HTTP client
  * to maintain. `ViesProvider.lookup` already turns "the number IS valid" into a non-null result and
  * "the member state says INVALID" into `null` — this class only needs to translate those two (plus

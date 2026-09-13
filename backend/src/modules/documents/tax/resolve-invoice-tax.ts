@@ -1,6 +1,6 @@
 /**
- * The WIRING for cross-border tax ("transfrontalier") — the ONE place the pure `tax-engine.ts`
- * (reprise du repère) meets an actual invoice, at the moment it enters "sending" (`actions/
+ * The WIRING for cross-border tax — the ONE place the pure `tax-engine.ts`
+ * (carried over from the reference) meets an actual invoice, at the moment it enters "sending" (`actions/
  * async-send.ts` phase 1, before numbering/enqueue — see `invoice-actions.ts`'s own `preflight`) and
  * again whenever the ACTUAL delivery/export is built (`invoice-actions.ts#deliver`,
  * `documents.service.ts#downloadDocumentFormat`) — deterministic and cheap enough to simply
@@ -35,14 +35,14 @@
  * (`PartyIdentifier.validationStatus`, written by `modules/clients/clients.service.ts` — see that
  * file's own header for why validation happens when the VAT number is entered, never at send time),
  * never from the client's own `type` field and never from a value typed into this call — the exact
- * "TrustFlagVatValidator" contract the repère's own engine holds: only `validationStatus === 'VALID'`
- * unlocks B2B. A VAT number that fails ITS OWN SYNTAX CHECK (`vat-syntax.ts`, reprised from the
- * repère) is treated as B2C before VIES is even consulted, with a NAMED warning — never a silent B2B.
+ * "TrustFlagVatValidator" contract the reference's own engine holds: only `validationStatus === 'VALID'`
+ * unlocks B2B. A VAT number that fails ITS OWN SYNTAX CHECK (`vat-syntax.ts`, carried over from the
+ * reference) is treated as B2C before VIES is even consulted, with a NAMED warning — never a silent B2B.
  *
  * ## The three hard blocks this product's own history required
  *
- * - **Unresolved buyer country**: this is the exact bug the product paid for once — "B2C pays inconnu
- *   → 0% de TVA silencieux" (see `vat-unknown-country-undercharge`
+ * - **Unresolved buyer country**: this is the exact bug the product paid for once — "B2C unknown
+ *   country -> silent 0% VAT" (see `vat-unknown-country-undercharge`
  *   in this codebase's own project memory). `buildSemanticInvoice`'s own `guessCountryCode(...) ??
  *   'FR'` fallback is FINE for a document that merely needs SOME jurisdiction to print an address
  *   under — it would be catastrophic here, where an unresolved buyer country would silently look
@@ -50,7 +50,7 @@
  *   applies that fallback to the BUYER: unresolved buyer country is `UnresolvedBuyerCountryError`,
  *   always, before anything else runs.
  * - **Unresolved SELLER country** (USER DECISION, 2026-09-01, symmetric to the buyer block above —
- *   "le pays vendeur irrésolu retombait sur 'FR' silencieusement", now RÉSOLU):
+ *   "the seller's own unresolved country used to silently fall back to 'FR'", now RESOLVED):
  *   this function used to fall back to `'FR'` for an unresolvable seller country — the SAME class of
  *   silent-wrong-tax bug the buyer block above already exists to prevent, just on the other party. A
  *   company whose own country cannot be resolved (never configured, or a free-text value
@@ -61,7 +61,7 @@
  *   buyer's own block, always before anything else runs. `formats/semantic/build-semantic-invoice.ts`
  *   holds the exact same block independently (see that file's own header) for the one path that can
  *   reach it without going through this function first.
- * - **OSS with no destination rate table**: the repère's own `ossDestinationVat` silently fell back to
+ * - **OSS with no destination rate table**: the reference's own `ossDestinationVat` silently fell back to
  *   the SELLER's own rate when the destination profile was unknown (kept, verbatim, in
  *   `tax-engine.ts` — a PURE-ENGINE property `tax-engine.spec.ts` still tests). This wiring never lets
  *   a real send reach that fallback: an EU-union B2C sale of goods to a country with no known
@@ -203,7 +203,7 @@ function assertDomesticRatesKnown(
   });
 }
 
-/** Buyer role derivation — "numéro TVA valide → B2B ; sinon B2C" (the repère's
+/** Buyer role derivation — "valid VAT number -> B2B; otherwise B2C" (the reference's
  *  `TrustFlagVatValidator`). A syntactically invalid number never even reaches the
  *  stored VIES verdict: it is B2C immediately, with a named warning. */
 function resolveBuyerRole(

@@ -5,8 +5,7 @@ import { detectCountryPolicyDrift } from './drift';
 
 /**
  * `detectCountryPolicyDrift` proven with plain in-memory fixtures — no fake Prisma client, no DB, no
- * `async` at all, per the task's own explicit ask ("teste la fonction de comparaison à froid avec
- * des fixtures en mémoire"). `existingRows` below stands in for "whatever `findMany` just returned",
+ * `async` at all. `existingRows` below stands in for "whatever `findMany` just returned",
  * built by hand from `rowFor` — the SAME transform `seedCountryPolicies` itself uses — so a fixture
  * that matches the catalog is genuinely indistinguishable from "the DB is actually in sync",  not a
  * hand-typed guess at the row shape.

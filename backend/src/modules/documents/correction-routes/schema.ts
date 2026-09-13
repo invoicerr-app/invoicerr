@@ -53,7 +53,7 @@ export type CorrectionRouteId = (typeof CORRECTION_ROUTE_IDS)[number];
  * `required`/`allowed`/`forbidden` are the three the YAML itself uses (as `required`/`open`/
  * `forbidden` — renamed to `allowed` here only to read naturally next to `required`/`forbidden`,
  * never a change of meaning). `unverified` is a FOURTH, honest state: the YAML explicitly marks a
- * route `unverified` for a country ("settled_by: Non recherchée pour ..."), or simply never mentions
+ * route `unverified` for a country ("settled_by: Not researched for ..."), or simply never mentions
  * it for that country at all — both transcribe to `unverified` here, never promoted to a guess (see
  * `assertValidCorrectionRouteFact`'s own coupling of this field to `provenance.kind`).
  */

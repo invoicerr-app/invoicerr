@@ -110,7 +110,7 @@ export interface DocumentTypeDescriptor {
    */
   email?: DocumentEmailTemplate;
   /**
-   * "mentions obligatoires" — opts this type into the country-mandated-mentions
+   * "mandatory mentions" — opts this type into the country-mandated-mentions
    * mechanism (`mentions/`): `rendering/render-instance-pdf.ts` resolves the seller's own country and
    * this instance's own `issueDate` field ONLY when this flag is set, and passes the result to
    * `rendering/render-html.ts`'s own `legalMentions` block. EN 16931's BG-1 (the mentions' natural
@@ -128,7 +128,7 @@ export interface DocumentTypeDescriptor {
    */
   usesLegalMentions?: boolean;
   /**
-   * "QR SEPA / GiroCode" — opts this type into the SEPA-credit-transfer QR
+   * "SEPA QR / GiroCode" — opts this type into the SEPA-credit-transfer QR
    * mechanism (`rendering/sepa-qr.ts`): `rendering/render-instance-pdf.ts` builds and renders an
    * EPC069-12 payload ONLY when this flag is set (and its own further gates — an IBAN on file, a EUR
    * amount, a positive total — all hold too), and passes the result to `rendering/render-html.ts`'s
@@ -213,7 +213,7 @@ export interface DocumentFieldDescriptor {
   required?: boolean;
   helpText?: string;
   /**
-   * "référence client / n° de commande" — ANY kind, not just this field's
+   * "client reference / PO number" — ANY kind, not just this field's
    * own 'text': skips this field ENTIRELY (never a label + em-dash placeholder) wherever a consumer
    * honors the hint, when its value is missing on this instance. Every other field in this core shows
    * its row unconditionally (see render-html.ts's own fields loop, field-value.tsx) — including one
@@ -295,7 +295,7 @@ export interface DocumentFieldDescriptor {
    * field on both the quote and the invoice) keeps this exact shape.
    *
    * ALSO the target hint for 'hiddenReference' (below the closed kind list) — basic stock
-   * management ("gestion de stock basique"): a ROW-scoped bookkeeping pointer, e.g. an invoice/quote line's
+   * management: a ROW-scoped bookkeeping pointer, e.g. an invoice/quote line's
    * `articleId`. Same stored shape as above (a plain, optional, non-empty id string) but never a
    * second, user-facing picker — it is normally populated by a SIBLING field's own `prefillFrom` (add
    * its key to that field's `map`, e.g. `{ articleId: 'id', description: 'name', ... }` — the

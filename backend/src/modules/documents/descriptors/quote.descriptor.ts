@@ -140,7 +140,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         label: 'Notes',
         required: false,
       },
-      // "référence client / n° de commande" — a free-text slot for the
+      // "client reference / PO number" — a free-text slot for the
       // BUYER's own internal reference (their purchase order, a file/dossier number): quasi-universal
       // on a competitor's quote/invoice form, and required in practice by most B2G/B2B buyers for
       // their OWN reconciliation, even though nothing in French or EU law forces a seller to carry it.
@@ -182,7 +182,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         // form used to have — see the 14-articles.cy.ts spec this was built to make pass again.
         prefillFrom: {
           entity: 'article',
-          // `articleId: 'id'` ("gestion de stock basique") — see
+          // `articleId: 'id'` (basic stock management) — see
           // article-reference.provider.ts's own `getFields` comment for why `id` is there to map
           // from, and invoice.descriptor.ts's identical `articleId` field for the full "why".
           map: { articleId: 'id', description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
@@ -223,10 +223,10 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             currencyField: 'currency',
           },
           {
-            // Même champ que sur la facture (invoice.descriptor.ts) : un devis annonce un prix, et
-            // un prix sans son taux de TVA ne dit pas ce que le client paiera. OPTIONNEL ici, là où
-            // la facture l'exige : chiffrer sans détailler la taxe reste un devis valable — c'est un
-            // choix produit, pas une règle de droit.
+            // Same field as on the invoice (invoice.descriptor.ts): a quote states a price, and a
+            // price without its VAT rate does not say what the client will pay. OPTIONAL here, where
+            // the invoice requires it: pricing without detailing the tax remains a valid quote — this
+            // is a product choice, not a legal rule.
             key: 'vatRate',
             kind: 'select',
             label: 'VAT rate',
@@ -236,15 +236,14 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             helpText: 'The VAT rate that applies to this line.',
           },
           {
-            // Une remise PAR LIGNE — arithmétique de facturation universelle (elle réduit la base
-            // HT avant que la TVA ne s'applique dessus, voir totals/compute-totals.ts), pas une
-            // règle fiscale d'un pays en particulier : aucune citation à porter ici, contrairement à
-            // `vatRate` ci-dessus dont le TAUX, lui, est bien un fait national. Optionnelle (une
-            // ligne sans remise reste la ligne ordinaire d'avant) ; `min`/`max` sont ce qui empêche
-            // un -20 % de tourner en majoration de prix côté calcul — voir field-kinds.ts's 'number'
-            // validator (numberRangeError), qui s'applique déjà à un sous-champ de 'array' au même
-            // titre qu'à n'importe quel champ de premier niveau (validate.ts recurse avec le MÊME
-            // registre pour chaque ligne).
+            // A PER-LINE discount — universal invoicing arithmetic (it reduces the pre-tax base
+            // before VAT applies to it, see totals/compute-totals.ts), not a particular country's
+            // fiscal rule: no citation to carry here, unlike `vatRate` above whose RATE genuinely is
+            // a national fact. Optional (a line with no discount stays the ordinary line as before);
+            // `min`/`max` are what prevents a -20% from turning into a price markup on the
+            // calculation side — see field-kinds.ts's 'number' validator (numberRangeError), which
+            // already applies to an 'array' subfield the same way it does to any top-level field
+            // (validate.ts recurses with the SAME registry for each row).
             key: 'discountPercent',
             kind: 'number',
             label: 'Discount %',
@@ -290,7 +289,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         id: 'request-deposit',
         label: 'Request deposit',
         // Only once the quote has actually been SENT — the same reasoning invoice.descriptor.ts's
-        // own "record-payment" already holds ("one cannot encash a brouillon"): asking a client for
+        // own "record-payment" already holds ("one cannot cash a draft"): asking a client for
         // a deposit on a quote they have not even received yet makes no sense. This is also the
         // quote's own `numbering.onEnterStatus`, so a quote this action can run against is always
         // already numbered — see actions/request-deposit.ts's own header.
@@ -312,12 +311,12 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       {
         id: 'request-installments',
         label: 'Generate installment invoices',
-        // Acceptance criterion: "un devis à 3 échéances génère 3 factures draft aux dates
-        // prévues, somme = TTC du devis". Same "only once actually sent" reasoning as
-        // "request-deposit" right above (a quote the client hasn't received yet has no installment
-        // plan to honor), and the same reason it needs no `transitions`: this action's entire effect
-        // is N brand-new INVOICES elsewhere (actions/request-installments.ts) — it never changes THIS
-        // quote's own status.
+        // Acceptance criterion: "a quote with 3 installments generates 3 draft invoices on the
+        // planned dates, summing to the quote's own gross total". Same "only once actually sent"
+        // reasoning as "request-deposit" right above (a quote the client hasn't received yet has no
+        // installment plan to honor), and the same reason it needs no `transitions`: this action's
+        // entire effect is N brand-new INVOICES elsewhere (actions/request-installments.ts) — it
+        // never changes THIS quote's own status.
         availableWhen: ['sent'],
         params: [
           {

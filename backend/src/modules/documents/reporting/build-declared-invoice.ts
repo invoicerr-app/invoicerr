@@ -4,8 +4,7 @@
  * composes for the CII/UBL exports, rather than a second, parallel derivation:
  *
  *  - `totals/compute-totals.ts#computeDocumentTotals` for every arithmetic figure (net/VAT/gross,
- *    per line AND aggregated) — NEVER recomputed here, the task's own hard rule ("mappe depuis
- *    compute-totals/le document, jamais recalculé").
+ *    per line AND aggregated) — NEVER recomputed here.
  *  - `formats/shared-build.ts#extractLines` for each line's DESCRIPTIVE facts (description/quantity/
  *    unitPrice) — the SAME "which array field is the line array" detection the CII/UBL bridge relies
  *    on, matched to `totals.lines` by array index, the same convention `SemanticLineInput`'s own

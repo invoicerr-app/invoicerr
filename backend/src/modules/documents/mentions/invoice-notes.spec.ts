@@ -1,5 +1,5 @@
 /**
- * Temporal interpolation, chiffrée, and the FREEZE property — a
+ * Temporal interpolation of rates, and the FREEZE property — a
  * document re-resolved later than its own issue date must keep the rate that was in force WHEN IT
  * WAS ISSUED, never the one in force today. Against the REAL shipped `data/fr.json`, not a synthetic
  * fixture — the numbers below are the actual rates a French invoice prints.

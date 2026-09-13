@@ -23,8 +23,8 @@ describe('resolveRequiredIdentifiers', () => {
   beforeEach(() => jest.clearAllMocks());
 
   // DECISION, proven directly: a country with NO rows at all declares NO requirements — no
-  // invented default — but SAYS so, exactly the "un pays sans fichier n'a aucune exigence déclarée,
-  // et le dit" requirement this whole module exists to satisfy. If someone changes the
+  // invented default — but SAYS so, exactly the "a country with no file has no declared
+  // requirement, and says so" requirement this whole module exists to satisfy. If someone changes the
   // `rows.length === 0` branch to silently return an empty list with no reason (the exact mutation
   // rehearsed here), this test goes red.
   it('a country with no rows at all declares NO requirements, and SAYS so by name — never a silently empty form', async () => {
