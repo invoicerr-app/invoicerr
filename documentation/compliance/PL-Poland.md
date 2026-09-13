@@ -58,8 +58,14 @@ modeled — only this standard rate is available when composing cross-border tax
 
 ## Identifiers
 
-No `country-identifiers` file exists for Poland in this app today — no Polish-specific identifier
-requirement (NIP format, required/optional) is declared in this catalog.
+`country-identifiers/data/pl.json` declares one scheme: **LEGAL_ID** (the NIP), sourced `legal`, with
+`required: false`.
+
+As for Italy, the `required: false` is a limit of the catalog rather than of the law. This catalog's
+only axis is the PARTY TYPE (company/individual), not the ROLE, and one declaration feeds both the
+seller screens and the client screen; `required: true` is a hard save-block on all of them, so it
+would also refuse a lawful Polish CLIENT record in the cases where the buyer's identifier is not
+required. The fact's own `notes` carries the real position.
 
 ## Correcting or cancelling an invoice
 

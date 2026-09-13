@@ -55,8 +55,25 @@ forward under a provenance that never covered them.
 
 ## Identifiers
 
-No `country-identifiers` file exists for Italy in this app today — no Italian-specific identifier
-requirement (codice fiscale, partita IVA format, required/optional) is declared in this catalog.
+`country-identifiers/data/it.json` declares two schemes: **VAT** (the *partita IVA*, sourced `legal`
+to DPR 633/1972 art. 21 comma 2 lettera d) and **LEGAL_ID**, both with `required: false`.
+
+The `required: false` is deliberate and worth understanding, because it is not a statement that the
+partita IVA is optional. Italy's seller-side rule IS unconditional — no seller entitled to issue an
+Italian VAT invoice is exempt from it. But this catalog's only axis is the PARTY TYPE
+(company/individual), not the ROLE, and the same declaration feeds the seller screens and the client
+screen alike. Marking a scheme `required` is a hard save-block on all of them, so `required: true`
+would also refuse a lawful Italian CLIENT record — the buyer-side rule (same article, lettera f)
+being conditional on whether the buyer is a taxable person, a distinction this catalog cannot carry.
+Each fact's own `notes` states the true, asymmetric position rather than encoding a boolean that
+cannot represent both roles at once.
+
+**Not declared here, deliberately**: the *Codice Destinatario* / PEC (the recipient's SdI routing
+code). It is transmission data, not party identity, and it is established by the FatturaPA technical
+specifications rather than by DPR 633/1972's own invoice-content article. A consequence worth knowing
+is recorded in the repository's `TODO_ISSUES.md`: there is currently no screen on which to enter it
+for an ordinary business client, so a domestic Italian B2B invoice routes with the placeholder
+reserved for recipients with no Italian code.
 
 ## Correcting or cancelling an invoice
 
