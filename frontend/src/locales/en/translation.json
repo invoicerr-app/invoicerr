@@ -3567,6 +3567,7 @@
       "title": "Legal archive",
       "retentionUntil": "Retain until {{date}} — {{basis}}",
       "retentionNone": "No retention duration applies — {{basis}}",
+      "retentionStale": "This date was calculated by an earlier version of the retention rule, which counted every duration from the archiving instant instead of the date the statute counts from. The real date can be up to a year later, so keep the document past the one shown above.",
       "verify": "Verify",
       "resultIntact": "Intact",
       "resultCorrupted": "Corrupted",

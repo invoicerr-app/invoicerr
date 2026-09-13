@@ -308,6 +308,13 @@ export interface DocumentArchive {
   archivedAt: string
   retentionUntil: string | null
   retentionBasis: string | null
+  /** Mirrors the backend's `retentionCalcVersion` column (see `schema.prisma`'s own comment and the
+   *  backend's `archive/retention/calc-version.ts`). NULL for a row written before that column
+   *  existed — which includes every row computed by the pre-`cf2e7323` bug that counted every
+   *  retention duration from the archiving instant instead of the statute's own origin, up to a year
+   *  too EARLY. `document-archive-section.tsx#isRetentionCalcStale` reads this to show a warning
+   *  next to `retentionUntil` rather than presenting it as certain. */
+  retentionCalcVersion: number | null
 }
 
 /** What `POST /documents/:id/archives/:archiveId/verify` returns — mirrors the backend's

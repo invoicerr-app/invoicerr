@@ -72,7 +72,7 @@ function isIssued(status: string): boolean {
 
 /** Whether the seller's own country PERMITS attempting this route at all — `required`/`allowed`
  *  only. `unverified` is deliberately NOT choosable: "nobody has settled this for this country" is
- *  not the same fact as "this country allows it" ("« non établi » n'est pas « permis »"), and
+ *  not the same fact as "this country allows it" ("not established" is not "permitted"), and
  *  `forbidden` obviously never is either. This is INDEPENDENT of
  *  `implemented` — a required route with no real mechanism behind it is still choosable (it leads to
  *  the honest "not implemented" panel), a forbidden route is never choosable even for the one routeId
@@ -244,7 +244,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   if (error) {
     // The backend's OWN named refusal (a 404 with no correction-routes file for this seller country,
     // or the unresolved-country variant — see correction-routes.ts's own header) shown VERBATIM: a
-    // pays sans fichier gets exactly what the API said, never a blank dialog and never a paraphrase.
+    // country with no file gets exactly what the API said, never a blank dialog and never a paraphrase.
     return (
       <Alert variant="destructive" data-cy="document-correction-error">
         <AlertTitle>{t("documents.correction.errorTitle")}</AlertTitle>

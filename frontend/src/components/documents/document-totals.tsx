@@ -20,9 +20,9 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
 
   const arrayFields = useMemo(() => findLineArrayFields(descriptor), [descriptor])
 
-  // TOUS les hooks avant le moindre retour anticipé : un `return null` placé entre deux hooks les
-  // rend conditionnels, et React plante à la première variation du nombre de hooks entre deux
-  // rendus — précisément quand le descripteur change de forme, c'est-à-dire au pire moment.
+  // ALL hooks before any early return: a `return null` placed between two hooks makes them
+  // conditional, and React crashes on the very first variation in hook count between two
+  // renders — precisely when the descriptor changes shape, i.e. at the worst possible moment.
   const formValues = useWatch()
 
   // Memoize totals computation (changes only when relevant fields change)
@@ -85,7 +85,7 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
   const grossDisplay = fromMinor(totals.grossMinor, currency).toFixed(decimals)
 
   if (arrayFields.length === 0) {
-    return null // Pas de champ « lignes » : rien à totaliser
+    return null // No "lines" field: nothing to total
   }
 
   return (

@@ -16,6 +16,7 @@ import { DocumentArchiveKind, Prisma } from '../../../../prisma/generated/prisma
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { ArchivedArtifactInput, computeArtifactHash, computeContentHash } from './hashing';
 import { persistArtifacts, readArchivedArtifact } from './storage';
+import { CURRENT_RETENTION_CALC_VERSION } from './retention/calc-version';
 import { computeRetention } from './retention/compute-retention';
 import { defaultRetentionCatalog, RetentionCatalog } from './retention/registry';
 import { AttestedDeposit, buildVerdictArtifact, TerminalAuthorityVerdict } from './verdict-artifact';
@@ -46,6 +47,10 @@ export interface DocumentArchiveResult {
   archivedAt: Date;
   retentionUntil: Date | null;
   retentionBasis: string | null;
+  /** See `retention/calc-version.ts` and `schema.prisma`'s own comment on this column. NULL for any
+   *  row written before this column existed — the UI (`document-archive-section.tsx`) shows a
+   *  "may be stale" notice for those rather than trusting `retentionUntil` at face value. */
+  retentionCalcVersion: number | null;
 }
 
 function toArtifactMetas(artifacts: ArchivedArtifactInput[]): StoredArtifactMeta[] {
@@ -91,6 +96,10 @@ function toResult(row: {
   archivedAt: Date;
   retentionUntil: Date | null;
   retentionBasis: string | null;
+  // Optional for the same reason `kind`/`parentArchiveId` above are: offline test mocks constructing
+  // a row by hand without this column (real Prisma rows always carry it once `prisma generate` has
+  // run against the migrated schema).
+  retentionCalcVersion?: number | null;
 }): DocumentArchiveResult {
   return {
     id: row.id,
@@ -106,6 +115,7 @@ function toResult(row: {
     archivedAt: row.archivedAt,
     retentionUntil: row.retentionUntil,
     retentionBasis: row.retentionBasis,
+    retentionCalcVersion: row.retentionCalcVersion ?? null,
   };
 }
 
@@ -157,6 +167,11 @@ export async function createDocumentArchive(
       archivedAt,
       retentionUntil,
       retentionBasis,
+      // See `retention/calc-version.ts` — names WHICH version of the algorithm above produced the two
+      // fields just written, so a future fix to that algorithm (or today's UI reading rows from
+      // before this column existed) can tell a stale calculation from a current one without ever
+      // rewriting this row again.
+      retentionCalcVersion: CURRENT_RETENTION_CALC_VERSION,
     },
   });
 
@@ -250,9 +265,12 @@ export async function createAuthorityVerdictArchive(
         archivedAt: receivedAt,
         // Copied VERBATIM from the parent DELIVERY archive — never recomputed. See this model's own
         // schema comment: a verdict proves the fate of its deposit, it has no retention life of its
-        // own.
+        // own. `retentionCalcVersion` travels with them for the same reason: the UI's "possibly
+        // stale" notice must track the DEPOSIT's own calculation, not silently read as "current"
+        // just because the verdict itself was archived today.
         retentionUntil: parent.retentionUntil,
         retentionBasis: parent.retentionBasis,
+        retentionCalcVersion: parent.retentionCalcVersion,
       },
     ],
     skipDuplicates: true,

@@ -22,6 +22,26 @@ function abbreviateHash(hash: string): string {
   return `${hash.slice(0, 12)}…`
 }
 
+/**
+ * True when `retentionUntil` is shown as a real date but this row predates the backend's
+ * `retentionCalcVersion` column (`schema.prisma`) — meaning it may have been computed by the
+ * pre-`cf2e7323` bug that counted every retention duration from the archiving instant instead of the
+ * statute's own origin, up to a year too EARLY (see the backend's `archive/retention/
+ * compute-retention.ts` and `calc-version.ts`). Exported for the same "pure logic, unit-tested
+ * separately from render" split `document-conformity-section.tsx#computeConformityVerdict` already
+ * uses in this module.
+ *
+ * Deliberately conservative: a null `retentionUntil` (no declared rule for that country) is NEVER
+ * flagged — the OLD and NEW algorithms produce the exact same honest "no duration" text in that case
+ * (see `calc-version.ts`'s own header), so there is nothing stale to warn about, and a document with
+ * no retention date has no "too early" reading to correct in the first place.
+ */
+export function isRetentionCalcStale(
+  archive: Pick<DocumentArchive, "retentionUntil" | "retentionCalcVersion">,
+): boolean {
+  return archive.retentionUntil !== null && archive.retentionCalcVersion === null
+}
+
 interface DocumentArchiveRowProps {
   typeId: string
   documentId: string
@@ -55,6 +75,21 @@ function DocumentArchiveRow({ typeId, documentId, archive }: DocumentArchiveRowP
             })
           : t("documents.archive.retentionNone", { basis: archive.retentionBasis })}
       </p>
+
+      {isRetentionCalcStale(archive) && (
+        <p
+          className="rounded bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300"
+          data-cy="document-archive-retention-stale"
+        >
+          {/* No date is interpolated on purpose. The only date this row holds IS the suspect one,
+              already rendered just above — repeating it inside a sentence that says "keep it at
+              least until …" would name the too-early value as the safe floor, which is the exact
+              mistake the notice exists to warn about. Nothing here can compute the corrected date:
+              that would mean recomputing the row, which is refused (see the backend's
+              `archive/retention/calc-version.ts`). */}
+          {t("documents.archive.retentionStale")}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button

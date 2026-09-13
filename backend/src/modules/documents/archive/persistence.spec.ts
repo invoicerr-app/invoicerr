@@ -13,6 +13,7 @@ import {
   listDocumentArchives,
   verifyDocumentArchive,
 } from './persistence';
+import { CURRENT_RETENTION_CALC_VERSION } from './retention/calc-version';
 import { RetentionCatalog } from './retention/registry';
 
 jest.mock('@/prisma/prisma.service', () => ({
@@ -91,6 +92,11 @@ describe('archive/persistence', () => {
       ]);
       expect(written.retentionBasis).toMatch(/10y/);
       expect(written.retentionBasis).toMatch(/6y/);
+      // The discriminator `TODO_ISSUES.md`'s "les archives déjà écrites gardent une date de
+      // conservation trop précoce" entry asked for: every NEW archive stamps the version of the
+      // algorithm that computed it, so a future reader (`document-archive-section.tsx#
+      // isRetentionCalcStale`) can tell it apart from a row written before this column existed.
+      expect(written.retentionCalcVersion).toBe(CURRENT_RETENTION_CALC_VERSION);
 
       const expectedUntil = new Date(written.archivedAt);
       expectedUntil.setUTCFullYear(expectedUntil.getUTCFullYear() + 10);
@@ -190,6 +196,7 @@ describe('archive/persistence', () => {
       archivedAt: new Date('2026-09-01T00:00:00Z'),
       retentionUntil: new Date('2036-09-01T00:00:00Z'),
       retentionBasis: 'commerciale 10y (C. com. art. L123-22).',
+      retentionCalcVersion: CURRENT_RETENTION_CALC_VERSION,
     };
 
     const EVENT = {
@@ -223,10 +230,27 @@ describe('archive/persistence', () => {
       // fresh one resolved for "now" — mutating either of these two lines must fail this test.
       expect(written.retentionUntil).toBe(PARENT.retentionUntil);
       expect(written.retentionBasis).toBe(PARENT.retentionBasis);
+      // Same discipline for the discriminator: a verdict never gets its OWN "current" stamp just
+      // because it was archived today — it inherits the DEPOSIT's own, so the UI's staleness notice
+      // tracks the deposit, never the (irrelevant) freshness of the verdict poll itself.
+      expect(written.retentionCalcVersion).toBe(PARENT.retentionCalcVersion);
       expect(written.artifacts).toEqual([
         expect.objectContaining({ role: 'authority-verdict', mime: 'application/json' }),
       ]);
       expect(createManyArchives).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicates: true }));
+    });
+
+    it('a verdict on an OLD (pre-calc-version) deposit stays flagged too — null propagates, never upgraded', async () => {
+      // A deposit archived before `retentionCalcVersion` existed at all (the exact shape a real
+      // pre-migration row, or `persistence.spec.ts`'s own `toResult` default, produces) must not be
+      // "repaired" into looking current just because a verdict happens to arrive on it today.
+      findFirstArchive.mockResolvedValue({ ...PARENT, retentionCalcVersion: null });
+      createManyArchives.mockResolvedValue({ count: 1 });
+
+      await createAuthorityVerdictArchive(EVENT);
+
+      const written = createManyArchives.mock.calls[0][0].data[0];
+      expect(written.retentionCalcVersion).toBeNull();
     });
 
     it('embeds the parent’s own contentHash in the archived bytes — self-contained even without the database', async () => {
@@ -308,6 +332,44 @@ describe('archive/persistence', () => {
     it('findOwnedArchive 404s for an archive that does not belong to this company/document', async () => {
       findFirstArchive.mockResolvedValue(null);
       await expect(findOwnedArchive('c', 'd', 'missing')).rejects.toThrow(/not found/i);
+    });
+
+    it('a row from before retentionCalcVersion existed surfaces as null — never defaulted to "current"', async () => {
+      // No `retentionCalcVersion` key at all — exactly the shape a row written before the migration
+      // that added this column has (see `schema.prisma`'s own comment: no `@default`, so Prisma
+      // itself returns `null` for it once the column exists; this fixture instead models a caller
+      // that never even selected the column, the same defensive case `kind`'s own `?? DELIVERY`
+      // fallback above already covers).
+      findFirstArchive.mockResolvedValue({
+        id: 'archive-old',
+        companyId: 'c',
+        documentId: 'd',
+        contentHash: 'h1',
+        uri: 'file:///x',
+        artifacts: [],
+        archivedAt: new Date(),
+        retentionUntil: new Date('2030-01-01T00:00:00Z'),
+        retentionBasis: 'unique 5y (Some Act §1).',
+      });
+      const archive = await findOwnedArchive('c', 'd', 'archive-old');
+      expect(archive.retentionCalcVersion).toBeNull();
+    });
+
+    it('a row that DOES carry retentionCalcVersion surfaces it verbatim — never dropped', async () => {
+      findFirstArchive.mockResolvedValue({
+        id: 'archive-new',
+        companyId: 'c',
+        documentId: 'd',
+        contentHash: 'h1',
+        uri: 'file:///x',
+        artifacts: [],
+        archivedAt: new Date(),
+        retentionUntil: new Date('2030-01-01T00:00:00Z'),
+        retentionBasis: 'unique 5y (Some Act §1).',
+        retentionCalcVersion: CURRENT_RETENTION_CALC_VERSION,
+      });
+      const archive = await findOwnedArchive('c', 'd', 'archive-new');
+      expect(archive.retentionCalcVersion).toBe(CURRENT_RETENTION_CALC_VERSION);
     });
   });
 

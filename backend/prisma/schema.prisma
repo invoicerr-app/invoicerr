@@ -1318,6 +1318,22 @@ model DocumentArchive {
   retentionUntil DateTime?
   retentionBasis String?
 
+  // Which version of the retention CALCULATION (`retention/calc-version.ts`) produced the two fields
+  // above, at the moment THIS row was written — never touched again afterwards, same WORM discipline
+  // as every other column here. NULL for every row written before this column existed, which includes
+  // every row from before the origin-axis fix (`cf2e7323`: `retentionUntil` used to be counted from
+  // `archivedAt` alone, up to a year too EARLY — see `retention/compute-retention.ts`'s own header)
+  // but is not proven to be LIMITED to those: see `retention/calc-version.ts`'s own header for why
+  // `retentionBasis`'s TEXT cannot tell the two apart, which is the reason this column exists at all.
+  // Deliberately NO `@default` — a migration that adds this column must never backfill a value for a
+  // row it did not itself write. Recomputing an already-written archive record is refused outright,
+  // so this column NAMES the gap rather than closing it. Read by
+  // `document-archive-section.tsx`: NULL renders a "this date may be stale" notice next to
+  // `retentionUntil`, never the reverse (a set value never claims certainty this row is CORRECT,
+  // only that it was computed by the version named — see calc-version.ts for why unmarked rows are
+  // still treated as possibly-stale rather than silently trusted).
+  retentionCalcVersion Int?
+
   @@index([companyId, documentId])
 }
 
