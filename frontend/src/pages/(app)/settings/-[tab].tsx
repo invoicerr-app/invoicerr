@@ -29,7 +29,6 @@ import DangerZoneSettings from "./_components/danger.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
 import InvitationsSettings from "./_components/invitations.settings"
 import MembersSettings from "./_components/members.settings"
-import PDFTemplatesSettings from "./_components/pdf.settings"
 import PluginsSettings from "./_components/plugins.settings"
 import RecurringSettings from "./_components/recurring.settings"
 import SigningCertificatesSettings from "./_components/signing-certificates.settings"
@@ -61,7 +60,6 @@ export default function Settings() {
 
   const validTabs = [
     "company",
-    "template",
     "email",
     "webhooks",
     "apiKeys",
@@ -89,11 +87,6 @@ export default function Settings() {
       value: "company",
       label: t("settings.tabs.company"),
       icon: Building2,
-    },
-    {
-      value: "template",
-      label: t("settings.tabs.pdfTemplates"),
-      icon: FileText,
     },
     {
       value: "email",
@@ -204,8 +197,6 @@ export default function Settings() {
     switch (currentTab) {
       case "company":
         return <CompanySettings />
-      case "template":
-        return <PDFTemplatesSettings />
       case "email":
         return <EmailTemplatesSettings />
       case "webhooks":

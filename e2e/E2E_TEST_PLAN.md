@@ -30,10 +30,8 @@ Invoicerr est une application de gestion de facturation comprenant:
 | Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/info` | Informations entreprise |
-| GET | `/info/sse` | SSE infos entreprise |
 | POST | `/info` | Modifier infos entreprise |
-| GET | `/pdf-template` | Config template PDF |
-| POST | `/pdf-template` | Modifier template PDF |
+| PUT | `/number-format` | Modifier les formats de numérotation |
 | GET | `/email-templates` | Templates email |
 | PUT | `/email-templates` | Modifier template email |
 

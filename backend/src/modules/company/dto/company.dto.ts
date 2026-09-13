@@ -1,59 +1,3 @@
-export interface PDFConfigDto {
-  fontFamily: string;
-  includeLogo: boolean;
-  logoB64: string | null;
-  padding: number;
-  primaryColor: string;
-  secondaryColor: string;
-  labels: {
-    // Generic labels
-    payment: string;
-    billTo: string;
-    receivedFrom: string;
-    invoiceRefer: string;
-    paymentDate: string;
-    totalReceived: string;
-
-    // Common fields
-    description: string;
-    dueDate: string;
-    date: string;
-    grandTotal: string;
-    invoice: string;
-    quantity: string;
-    quote: string;
-    quoteFor: string;
-    subtotal: string;
-    discount: string;
-    total: string;
-    unitPrice: string;
-    validUntil: string;
-    vat: string;
-    vatRate: string;
-    notes: string;
-    paymentMethod: string;
-    paymentDetails: string;
-
-    type: string;
-    hour: string;
-    day: string;
-    deposit: string;
-    service: string;
-    product: string;
-
-    // Payment method labels (for mapping enum types to display text)
-    paymentMethodBankTransfer: string;
-    paymentMethodPayPal: string;
-    paymentMethodCash: string;
-    paymentMethodCheck: string;
-    paymentMethodOther: string;
-
-    // Legal fields
-    legalId: string;
-    VATId: string;
-  };
-}
-
 export interface IdentifierEntry {
   scheme: string;
   value: string;
@@ -77,7 +21,6 @@ export class EditCompanyDto {
   /** BT-84 (Payment account identifier) — see Company.iban's own schema.prisma comment. Null/absent
    *  clears it; never validated/fabricated here, the vendored XRechnung Schematron is the real gate. */
   iban?: string | null;
-  pdfConfig: PDFConfigDto;
   // The six `quote/invoice/paymentStartingNumber`/`*NumberFormat` fields that used to live here are
   // gone: they belonged to a Prisma query extension removed on this branch (see Company.numberFormats'
   // own schema.prisma comment and the `20260913120000_migrate_legacy_number_formats` migration that

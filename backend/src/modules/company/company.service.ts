@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EditCompanyDto, IdentifierEntry, PDFConfigDto } from '@/modules/company/dto/company.dto';
+import { EditCompanyDto, IdentifierEntry } from '@/modules/company/dto/company.dto';
 import { MailTemplateType, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -115,7 +115,9 @@ export class CompanyService {
   }
 
   async editCompanyInfo(companyId: string, editCompanyDto: EditCompanyDto) {
-    const { pdfConfig, identifiers, ...rest } = editCompanyDto;
+    // `rest` below is never spread wholesale — see the explicit allow-list a few lines down — so
+    // `identifiers` only needs pulling out here because it is written through its own upsert instead.
+    const { identifiers, ...rest } = editCompanyDto;
 
     const existingCompany = await prisma.company.findUnique({ where: { id: companyId } });
     if (!existingCompany) {
