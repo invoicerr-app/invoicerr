@@ -130,8 +130,16 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
 - `vat-rates/` — the seller's own sourced VAT rate catalog (a dropdown's options, not a tax authority).
 - `country-fields/` — per-country add/modify/remove overlays on a document type's fields.
 - `content-requirements/` — country law requiring a specific EN 16931 field to carry a derivable value.
-- `mentions/` — country-mandated free-text legal mentions (BG-1), frozen at issue date.
-- `archive/retention/` — retention duration — **France only** today.
+- `mentions/` — country-mandated free-text legal mentions (BG-1), frozen at issue date. **France only,
+  and that is a researched conclusion, not a gap** — the other four countries' statutes were read and
+  every mention they require is either a structured field or conditioned on the transaction, which
+  this resolver (country + date, nothing else) cannot express. Read `mentions/data/all.ts`'s header
+  before assuming there is a hole to fill. Distinct from the per-country wordings the TAX engine
+  emits, which live in `tax/tax-engine.ts`'s own `LOCALIZED_MENTION` table.
+- `archive/retention/` — how long an archived document must be kept, and **what that duration is
+  counted from** (`origin`, mandatory per rule, never defaulted). DE/FR/PL/PT today; Italy is
+  deliberately absent because DPR 600/1973 art. 22 makes the obligation run until tax assessments
+  close, which has no computable terminus this schema can express.
 - `reporting/` — declarative post-send declaration providers. **Portugal (AT) only** today; the
   Hungarian (NAV) and Greek (myDATA) providers were deleted with the five-country prune, so this
   catalog is now the thinnest of the twelve rather than the broadest.
@@ -149,7 +157,7 @@ three disconnected places — do not describe a phases/clearance/reporting graph
 - `correction-routes/` — which correction path a country allows;
 - `conformity/pollers/` — post-send authority status polling, wired per **transport** (pdp, ksef,
   peppol, chorus-pro), not per country;
-- `archive/retention/` — retention duration, France only.
+- `archive/retention/` — retention duration and its counting origin, DE/FR/PL/PT.
 
 `documents.service.ts` is the generic orchestrator every document type shares: `runAction` resolves
 the type's descriptor, runs the action's handler, then enforces the lifecycle above. There is no
