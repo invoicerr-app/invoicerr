@@ -85,6 +85,20 @@ Ce qui le réglerait : soit une liste blanche explicite des colonnes écrites da
 (plutôt qu'un spread), soit une validation de bordure réelle — ce qui suppose de passer les DTO
 d'`interface` à `class` décorée, un chantier qui touche tous les contrôleurs.
 
+## Le site public a neuf pages à liens morts, toutes en français (2026-09-13)
+
+`cd documentation && npm run build` réussit (EXIT=0, les deux locales sont générées), mais Docusaurus
+signale **9 pages porteuses de liens morts, toutes dans la locale `fr`, aucune en `en`**. Quatre
+cibles distinctes, toutes des pages du guide développeur qui existent en anglais et n'ont pas de
+traduction française : `adding-a-country.md` (6 liens), `country-support/index.md` (2),
+`plugin-system.md` (1), `authentication.md#api-key-authentication` (1).
+
+Six des neuf viennent des pages pays **générées** : `scripts/generate-country-matrix.mjs` émet
+`[Adding a country](../adding-a-country.md)` à l'identique dans les deux locales, sans vérifier que
+la cible existe dans celle qu'il écrit. Ce qui le réglerait, sans trahir la règle « la doc suit sa
+locale strictement » : que le générateur teste l'existence de la cible dans la locale qu'il produit
+et, à défaut, n'émette pas de lien plutôt qu'un lien vers une page d'une autre langue.
+
 ## Balayage front → Swagger
 
 Balayage associé (front → Swagger, 54 chemins appelés contre 94 routes exposées) : le seul autre
