@@ -361,6 +361,14 @@ et, à défaut, n'émette pas de lien plutôt qu'un lien vers une page d'une aut
 
 ## Balayage front → Swagger
 
+Deuxième artefact mort, trouvé en supprimant le premier :
+`backend/src/plugins/storage/providers/local/local-form.json` déclare un champ `"type": "folder"`,
+mais ce fichier n'est jamais `import`é ni lu nulle part, `LocalStorageProvider` ne pose aucune
+propriété `form`, et l'union `IPluginFormField.type` de `plugins/types.ts` ne connaît que
+`text|number|switch|select`. Il ne change donc rien à la conclusion ci-dessus, mais il mérite sa
+propre passe de nettoyage. À noter pour la méthode : mon brief affirmait qu'un grep de `backend/src`
+ne trouvait aucune occurrence du littéral — c'était faux, et c'est l'agent qui l'a relevé.
+
 Balayage associé (front → Swagger, 54 chemins appelés contre 94 routes exposées) : le seul autre
 écart réel est `/api/directories`, appelé par `components/folder-select.tsx`, lui-même atteignable
 uniquement par un champ de type `folder` qu'aucun descripteur ne déclare — code mort, sans effet
