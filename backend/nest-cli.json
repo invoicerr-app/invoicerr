@@ -5,6 +5,7 @@
   "compilerOptions": {
     "builder": "tsc",
     "deleteOutDir": true,
+    "watchAssets": true,
     "assets": [
       { "include": "**/*.json", "outDir": "dist/src" },
       { "include": "**/*.pem", "outDir": "dist/src" },
