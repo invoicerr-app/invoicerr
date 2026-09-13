@@ -1,0 +1,42 @@
+{
+  "countryCode": "DE",
+  "rates": [
+    {
+      "id": "de-standard",
+      "rate": 19,
+      "label": "Regelsteuersatz",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(1) Die Steuer beträgt für jeden steuerpflichtigen Umsatz 19 Prozent der Bemessungsgrundlage (§§ 10, 11, 25 Abs. 3 und § 25a Abs. 3 und 4).",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "UStG § 12 Abs. 1. Lu en direct le 2026-09-13 sur https://www.gesetze-im-internet.de/ustg_1980/__12.html (texte consolidé non officiel du Bundesministerium der Justiz — en-tête Last-Modified daté du jour même de la lecture, donc un miroir régénéré en continu, pas un instantané figé), curl direct puis décodage iso-8859-1 (le site sert du Latin-1, pas de l'UTF-8) et dépouillement HTML par script Python. § 28 UStG (les dérogations temporaires au taux) a également été lu en direct : toutes les dérogations qu'il liste (baisse COVID à 16 %, 2020-07-01 au 2020-12-31 ; ancien libellé du transport de voyageurs par bateau jusqu'au 2011-12-31 ; taux crise énergétique de 7 % sur le gaz/chauffage urbain, 2022-10-01 au 2024-03-31) sont EXPIRÉES au 2026-09-13, aucune n'est en vigueur aujourd'hui et aucun changement futur du taux normal n'a été trouvé annoncé ou programmé."
+    },
+    {
+      "id": "de-reduced",
+      "rate": 7,
+      "label": "Ermäßigter Steuersatz",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(2) Die Steuer ermäßigt sich auf sieben Prozent für die folgenden Umsätze: 1. die Lieferungen, die Einfuhr und der innergemeinschaftliche Erwerb der in Anlage 2 bezeichneten Gegenstände; [...] 11. die Vermietung von Wohn- und Schlafräumen, die ein Unternehmer zur kurzfristigen Beherbergung von Fremden bereithält, sowie die kurzfristige Vermietung von Campingflächen. [...] 15. die Restaurant- und Verpflegungsdienstleistungen, mit Ausnahme der Abgabe von Getränken.",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "UStG § 12 Abs. 2 (Nr. 1 pour les biens listés à l'Anlage 2 ; Nr. 11 pour l'hébergement hôtelier/camping de courte durée ; Nr. 15 pour la restauration hors boissons — la liste complète Nr. 1 à 15 couvre aussi les entrées culturelles (Nr. 7), les prestations d'organismes caritatifs (Nr. 8), le transport de voyageurs local/courte distance (Nr. 10), les livres/périodiques numériques (Nr. 14), etc., non reproduites ici). Même lecture directe et même méthode que l'entrée de-standard ci-dessus, même URL (https://www.gesetze-im-internet.de/ustg_1980/__12.html), même date. Anlage 2 elle-même (la liste de biens visée par le Nr. 1), également lue en direct le même jour à https://www.gesetze-im-internet.de/ustg_1980/anlage_2.html, porte l'en-tête suivant : « Anlage 2 (zu § 12 Absatz 2 Nummer 1, 2 und 14) Liste der dem ermäßigten Steuersatz unterliegenden Gegenstände », suivi d'une liste de biens repérés par code douanier (animaux vivants, viande, poisson, produits laitiers, légumes, fruits, céréales, livres/journaux, etc. — non reproduite en entier ici). L'Anlage 1 (ancienne liste d'avant 2007) est formellement vide, sa page ne renvoyant que « (weggefallen) » (mot à mot : \"caduque\"/\"devenu sans objet\") — seule l'Anlage 2 est effectivement référencée par le § 12 actuel. CHANGEMENT RÉCENT digne de mention : le Nr. 15 (restauration à 7 %, hors boissons) était une mesure COVID temporaire jusqu'au 2023-12-31, rendue PERMANENTE à partir du 2024-01-01 par la Wachstumschancengesetz — le texte consolidé actuel la porte sans clause d'extinction, ce qui est cohérent avec cela ; la date exacte d'entrée en vigueur de cette loi elle-même n'a pas été vérifiée indépendamment dans cette recherche (connaissance générale, non re-dérivée d'un texte primaire de cette loi spécifique)."
+    },
+    {
+      "id": "de-zero-pv",
+      "rate": 0,
+      "label": "Nullsteuersatz (Photovoltaikanlagen)",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "(3) Die Steuer ermäßigt sich auf 0 Prozent für die folgenden Umsätze: 1. die Lieferungen von Solarmodulen an den Betreiber einer Photovoltaikanlage, einschließlich der für den Betrieb einer Photovoltaikanlage wesentlichen Komponenten und der Speicher, die dazu dienen, den mit Solarmodulen erzeugten Strom zu speichern, wenn die Photovoltaikanlage auf oder in der Nähe von Privatwohnungen, Wohnungen sowie öffentlichen und anderen Gebäuden, die für dem Gemeinwohl dienende Tätigkeiten genutzt werden, installiert wird. Die Voraussetzungen des Satzes 1 gelten als erfüllt, wenn die installierte Bruttoleistung der Photovoltaikanlage laut Marktstammdatenregister nicht mehr als 30 Kilowatt (peak) beträgt oder betragen wird[.]",
+        "sourceCheckedAt": "2026-09-13"
+      },
+      "notes": "UStG § 12 Abs. 3 Nr. 1 (les Nr. 2 à 4, non reproduits ici, étendent le même taux de 0 % à l'acquisition intracommunautaire, l'importation et l'installation des mêmes installations/systèmes de stockage — même règle répétée, pas retranscrite). Même lecture directe, même URL, même date que de-standard ci-dessus. CE N'EST PAS UNE EXONÉRATION mais un véritable TAUX ZÉRO au sens EN 16931 (catégorie ZERO, pas EXEMPT) : cette disposition se trouve dans le § 12, intitulé « Steuersätze » (taux d'imposition), rédigée exactement comme les alinéas 19 %/7 % (« Die Steuer ermäßigt sich auf … Prozent »), et NON dans le § 4 UStG (« Steuerbefreiungen », les exonérations) — un assujetti vendant sous ce régime facture toujours de la TVA (à 0 %) et conserve son plein droit à déduction de la TVA d'amont, ce qui est le comportement du taux zéro EN 16931, pas celui d'une exonération. Cette conclusion repose sur la structure et le titre du § 12 lui-même (lus en direct ci-dessus) ; le texte du § 4 UStG n'a PAS été lu indépendamment pour contraster la formulation dans cette recherche. Portée ÉTROITE : limité aux modules solaires et équipements associés pour une installation photovoltaïque installée sur ou à proximité de logements/bâtiments d'intérêt général, avec une puissance brute installée (Marktstammdatenregister) ne dépassant pas 30 kilowatts-crête — pas un taux zéro général. Date d'entrée en vigueur (comprise comme le 2023-01-01, via la Jahressteuergesetz 2022) NON vérifiée indépendamment dans cette recherche : le § 28 UStG, qui est là où vivent les propres règles transitoires de l'UStG, est muet sur l'Abs. 3 — sa date d'entrée en vigueur vit dans la loi promulgante elle-même, non lue ici."
+    }
+  ],
+  "notes": "Allemagne (2026-09-13). Trois taux, tous 'legal', SOURCÉS AU TEXTE PRIMAIRE DE LOI tel que servi par le Bundesministerium der Justiz sur gesetze-im-internet.de (texte consolidé non officiel mais régénéré en continu), curl direct + dépouillement HTML, jamais un fetch-résumé : UStG § 12 Abs. 1 — 19 % (Regelsteuersatz), Abs. 2 — 7 % (ermäßigter Steuersatz), Abs. 3 Nr. 1 — 0 % (Nullsteuersatz, photovoltaïque résidentiel/bâtiments d'intérêt général, portée étroite détaillée sur l'entrée de-zero-pv). AUCUN PALIER SUPER_REDUCED n'existe pour l'Allemagne (seulement ces deux paliers ordinaires plus le taux zéro étroit) — ne pas en inventer un. MISE EN GARDE SUR LES LIBELLÉS : contrairement à la France (« taux normal » figure littéralement à l'art. 278 du CGI) ou au Portugal (« taxa normal »/« taxa reduzida » sur la propre page de l'AT), le § 12 UStG NE NOMME JAMAIS lui-même ses propres taux — il ne donne que des nombres (« ermäßigt sich auf sieben Prozent », « ermäßigt sich auf 0 Prozent »). « Regelsteuersatz » / « ermäßigter Steuersatz » / « Nullsteuersatz » sont des termes administratifs/doctrinaux usuels (BMF, UStAE) et non des mots cités du § 12 lui-même — ce champ `label` porte donc une convention, pas un terme officiel littéral du texte de loi (vérifié en confirmant qu'aucune de ces étiquettes n'apparaît dans les citations elles-mêmes ci-dessus). Ce catalogue ne modélise toujours pas la temporalité des taux (pas de validFrom/validTo dans schema.ts) : seuls les taux ACTUELLEMENT en vigueur sont listés. Aucune entrée EXEMPT n'est ajoutée pour l'Allemagne : le régime des petits entrepreneurs (Kleinunternehmerregelung, § 19 UStG) n'a pas été lu au texte primaire par cette recherche et n'est donc pas encodé ici, par la même discipline que le reste de ce fichier."
+}

@@ -5,13 +5,20 @@
  */
 import { ALL_VAT_RATE_FILES } from './all';
 
-describe('vat-rates/data — the shipped FR/PT catalog', () => {
-  // Re-pinned by the 5-country prune (2026-09-10): this mechanism now
-  // ships FR and PT only — DE/PL/IT never had a vat-rates file (they derive their standard rate from
-  // tax-systems/ instead, see tax-systems/schema.ts's own header), and every lot-1/lot-2 country
-  // (BE/NL/AT/EE/GR/CY/…) was `git rm`'d along with its data/xx.json.
-  it('loads exactly FR and PT', () => {
-    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['FR', 'PT']);
+describe('vat-rates/data — the shipped DE/FR/IT/PL/PT catalog', () => {
+  // Re-pinned by the 5-country prune (2026-09-10): every lot-1/lot-2 country (BE/NL/AT/EE/GR/CY/…)
+  // was `git rm`'d along with its data/xx.json, leaving only the 5 kept countries as CANDIDATES —
+  // FR and PT already had a vat-rates file at that point, while DE/PL/IT temporarily had none (their
+  // standard rate was derived from tax-systems/ instead, see tax-systems/schema.ts's own header).
+  // RE-PINNED AGAIN (2026-09-13): DE/IT/PL each gained a real `data/xx.json`, sourced to primary law
+  // (UStG § 12 for DE, DPR 633/1972 art. 16 + Tabella A for IT, ustawa o VAT art. 41/146ef for PL —
+  // see each file's own `notes` and data/de.spec.ts / data/it.spec.ts / data/pl.spec.ts for the
+  // content pins), so this mechanism now ships all 5 kept countries. tax-systems/'s own DE/IT/PL
+  // facts keep their EXPLICIT `standardRate` regardless (see tax-systems/registry.ts#toTaxSystemSpec:
+  // an explicit rate always wins over a derived one), so this addition changes nothing there — it
+  // only populates the vat-rates dropdown these three countries lacked until now.
+  it('loads exactly DE, FR, IT, PL and PT', () => {
+    expect(ALL_VAT_RATE_FILES.map((f) => f.countryCode).sort()).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every rate in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit)', () => {
@@ -69,8 +76,9 @@ describe('vat-rates/data — the shipped FR/PT catalog', () => {
 
 // BE's own vat-rates data file was removed by the 5-country prune (2026-09-10)
 // along with every other country outside FR/PL/IT/PT/DE — it was never
-// registered in data/all.ts to begin with, so nothing here re-anchors it. PT's own equivalent content
-// is pinned instead by this same directory's dedicated data/pt.spec.ts.
+// registered in data/all.ts to begin with, so nothing here re-anchors it. DE/IT/PL/PT's own content
+// is pinned instead by this same directory's dedicated data/de.spec.ts, data/it.spec.ts,
+// data/pl.spec.ts and data/pt.spec.ts — only FR's content stays pinned inline above.
 
 // Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
 // really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory
