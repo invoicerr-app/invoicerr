@@ -40,6 +40,21 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   `PDFConfigDto` (police, logo, couleurs, marges, ~20 libellés) est un champ **requis** de
   `EditCompanyDto`, déstructuré puis jeté sans être relu, sans colonne correspondante en base.
 
+- **Une facture italienne B2B domestique part avec le code destinataire des étrangers.**
+  `formats/national/fatturapa-provider.ts` ~206-236 route sur trois identifiants du client :
+  `IT_PA_CODE` (6 car., administrations), `IT_SDI` (7 car., B2B) et `PEC`. Le premier est proposé à
+  la saisie — `b2g-routing/data/it.json` le déclare et `client-upsert.tsx` ~266-280 fusionne les
+  exigences B2G dans la liste des identifiants **pour un client de type GOVERNMENT**. Les deux
+  autres ne le sont nulle part : `country-identifiers/data/it.json` ne déclare que `VAT` et
+  `LEGAL_ID`, et le formulaire client rend exactement un champ par exigence du catalogue (ligne
+  ~591), sans saisie libre. Un client italien ordinaire tombe donc dans la dernière branche, qui
+  pose `codiceDestinatario = 'XXXXXXX'` — la valeur que le commentaire du provider qualifie
+  lui-même de « least-wrong fallback ». Ce n'est pas un oubli : les notes de
+  `country-identifiers/data/it.json` expliquent pourquoi ce code n'a pas été encodé comme identité
+  de partie (c'est une donnée de routage, pas d'identité). Ce qui manque est le chemin de saisie,
+  côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
+  branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
+
 Balayage associé (front → Swagger, 54 chemins appelés contre 94 routes exposées) : le seul autre
 écart réel est `/api/directories`, appelé par `components/folder-select.tsx`, lui-même atteignable
 uniquement par un champ de type `folder` qu'aucun descripteur ne déclare — code mort, sans effet
