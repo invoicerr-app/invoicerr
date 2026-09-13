@@ -14,23 +14,25 @@ pays sont l'affaire des clients, ou des tests live CI qui sont opt-in.
 
 ---
 
-## 1. À poser toi-même — cinq minutes, et je ne dois pas les voir
+## 1. Secrets de déploiement — FAITS le 2026-09-13 sur `invoicerr.chevrier.dev`
 
-```bash
-cp .env.example .env        # .env est gitignoré depuis d0b89f01
-openssl rand -hex 32        # deux fois, deux valeurs DIFFÉRENTES
-```
+Générés sur esteban même (`openssl rand -hex 32` écrit directement dans `/DATA/AppData/invoicerr/.env`,
+mode 600) : ils n'ont transité par aucun log ni par aucune conversation. Le compose ne porte que des
+`${...}`.
 
-- [ ] `BETTER_AUTH_SECRET` — sans lui le backend refuse de démarrer, et depuis `d0b89f01` Docker
-      Compose refuse encore avant. **Un seul secret de session suffit** : la garde vérifie la valeur
-      effective `BETTER_AUTH_SECRET || JWT_SECRET`, pas chaque variable. `JWT_SECRET` n'est qu'un
-      alias pour les déploiements qui l'avaient déjà.
-- [ ] `CREDENTIALS_ENCRYPTION_KEY` — sans elle, aucun client ne peut enregistrer les credentials de
-      son canal, **en silence** : pas d'erreur, pas de log, rien à l'écran. La changer plus tard rend
-      indéchiffrable tout ce qui est déjà stocké. Sauvegarde-la comme un mot de passe de base.
-- [ ] Servir en `https://`, poser `APP_URL` en `https://…`, et t'assurer que ton proxy de tête est
-      la seule entrée — le backend fait confiance à 1 hop. Si tu en ajoutes un deuxième devant,
-      dis-le-moi, le nombre de hops est à ajuster côté code.
+- [x] `BETTER_AUTH_SECRET` — posé, 64 caractères. **Un seul secret de session suffit** : la garde
+      vérifie la valeur effective `BETTER_AUTH_SECRET || JWT_SECRET` (`src/lib/secret-guard.ts`), pas
+      chaque variable. `JWT_SECRET` n'est qu'un alias pour les déploiements qui l'avaient déjà.
+- [x] `CREDENTIALS_ENCRYPTION_KEY` — posée, 64 caractères. Sans elle, aucun client n'enregistre les
+      credentials de son canal, **en silence** : pas d'erreur, pas de log, rien à l'écran. La changer
+      plus tard rend indéchiffrable tout ce qui est déjà stocké : sauvegarde-la comme un mot de passe
+      de base.
+- [x] TLS et `APP_URL` en `https://` — servi par ton tunnel Cloudflare, `APP_URL:
+      https://invoicerr.chevrier.dev` confirmé dans la configuration résolue du conteneur. Le backend
+      fait confiance à 1 hop de proxy ; si tu en ajoutes un deuxième devant, dis-le-moi, le nombre est
+      à ajuster côté code.
+
+Ces trois cases ne valent **que pour cette instance-là**. Un autre déploiement repart de zéro.
 
 ---
 
