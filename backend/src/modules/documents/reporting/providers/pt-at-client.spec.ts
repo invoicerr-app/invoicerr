@@ -44,12 +44,12 @@ const CREDENTIALS: PtAtCredentials = {
   clientCertificatePassword: 'fake-passphrase',
 };
 
-/** Decrypts what THIS client encrypted, using the matching private key — the same "the stub
- *  independently re-derives and checks" discipline `nav-declaration-provider.spec.ts#startNavStub`
- *  already holds for NAV's own `requestSignature`. Proves the round-trip is internally consistent
- *  (client encrypts with the public key exactly the way a real server would decrypt with the private
- *  half), never that AT's OWN key/padding expectations match — see `pt-at-client.ts`'s own header on
- *  the RSA padding scheme being ⚠ UNVERIFIED against a real AT key. */
+/** Decrypts what THIS client encrypted, using the matching private key — independently re-deriving
+ *  the plaintext rather than merely re-reading what the client already believes it produced. Proves
+ *  the round-trip is internally consistent (client encrypts with the public key exactly the way a real
+ *  server would decrypt with the private half), never that AT's OWN key/padding expectations match —
+ *  see `pt-at-client.ts`'s own header on the RSA padding scheme being ⚠ UNVERIFIED against a real AT
+ *  key. */
 function decryptNonce(nonceBase64: string): Buffer {
   return privateDecrypt(
     { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_PKCS1_PADDING },

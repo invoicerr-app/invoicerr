@@ -16,8 +16,8 @@
  *
  * This vehicle used to be "nav" (Hungary, NAV Online Számla) — the REAL production provider this file
  * originally proved the queue traversal against. When Hungary's scope was deleted outright
- * (2026-09-12, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`), `nav-declaration-provider.ts` went with it, so
- * this spec was re-pointed at "pt-at" (Portugal, the one declaration provider still in scope) instead
+ * (2026-09-12, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`), that provider went with it, so this spec was
+ * re-pointed at "pt-at" (Portugal, the one declaration provider still in scope) instead
  * of being deleted: the thing this file actually proves — a declarative-report job traverses the REAL
  * BullMQ queue end-to-end and journals a REAL `DocumentAuthorityEvent`, deduplicated by jobId — has
  * nothing to do with which provider carries it, and PT-AT's own webservice (a single plain-`fetch()`

@@ -276,10 +276,9 @@ export function buildMistralOcrClient(config: MistralOcrClientConfig): MistralOc
     }
   }
 
-  /** Named per HTTP status where a distinct, actionable message earns its keep (401/429 — this
-   *  task's own required cases); every other non-2xx falls back to a generic, still-NAMED message
-   *  carrying the real status and a truncated body, exactly the pattern `nav-client.ts`'s own
-   *  `postNavXml` already uses for its own "malformed/misrouted request" case. */
+  /** Named per HTTP status where a distinct, actionable message earns its keep (401 invalid API key,
+   *  429 rate limit exceeded); every other non-2xx falls back to a generic, still-NAMED message
+   *  carrying the real status and a truncated body, rather than swallowing the detail. */
   async function throwForStatus(status: number, bodyText: string): Promise<never> {
     if (status === 401) {
       throw new MistralOcrError(`Invalid Mistral API key (401): ${bodyText.slice(0, 200)}`, 401);

@@ -1,8 +1,9 @@
 /**
  * The Portuguese AT (Autoridade Tributária e Aduaneira) "comunicação de faturas" SOAP webservice
  * client — HTTP + cryptography ONLY, no `DeclaredInvoice` knowledge (that lives in
- * `pt-declaration-provider.ts`, the same split `nav-client.ts`/`nav-declaration-provider.ts` already
- * hold). Status: **implemented to the documented AT contract, awaiting accreditation** — exactly
+ * `pt-declaration-provider.ts`) — keeping the wire protocol and the business-field mapping in
+ * separate files so either can be tested, or swapped, without touching the other. Status:
+ * **implemented to the documented AT contract, awaiting accreditation** — exactly
  * `transports/sdi/sdicoop-client.ts`'s own posture. This has NEVER been run against a real AT
  * endpoint (no "subutilizador" credential or AT public key was available) — every fact
  * below is either VERIFIED against the primary manuals (cited, quoted) or explicitly marked
@@ -74,8 +75,7 @@
  *     possível decifrar o campo Created/Password"), it does not silently corrupt data.
  *  3. **H.2 Password**: `Base64(AES_Ks,ECB,PKCS5Padding(SenhaPF))` — the subutilizador's OWN Portal
  *     das Finanças password, AES-encrypted (ECB mode, PKCS5 padding — Node's `createCipheriv` applies
- *     PKCS#7 padding by default, IDENTICAL to PKCS5 for a 16-byte block size, the same equivalence
- *     `nav-client.ts`'s own header already establishes for NAV's AES step) with the Nonce's OWN
+ *     PKCS#7 padding by default, IDENTICAL to PKCS5 for a 16-byte block size) with the Nonce's OWN
  *     symmetric key (`Ks`, NOT the RSA-encrypted form), then base64'd. VERIFIED, formula quoted
  *     directly.
  *  4. **H.4 Created**: `Base64(AES_Ks,ECB,PKCS5Padding(Timestamp))` — same cipher/key as H.2, over the
@@ -95,24 +95,20 @@
  *  - `1`-`99` (positive) — AUTHENTICATION-layer rejections (the SOAP Header itself: bad Username,
  *    Base64, RSA/AES decryption failure, expired credential, wrong password, …) — this client throws
  *    `PtAtApiError` for these (see `registerInvoice` below): the request itself could not even be
- *    authenticated, the same "platform/protocol failure, not a business decision about THIS invoice"
- *    posture `nav-client.ts#NavApiError`/`mydata-client.ts#MyDataApiError` already hold for their own
- *    non-OK responses.
+ *    authenticated, a platform/protocol failure rather than a business decision about THIS invoice.
  *  - negative — DOCUMENT-level rejections (e.g. `-7` "Documento inválido por valores anómalos") — a
  *    genuine, permanent verdict about THIS invoice's own data, deliberately NOT thrown here — see
  *    `pt-declaration-provider.ts`'s own header for why these are returned as a normal, journalable
- *    `DeclarationResult` instead (retrying an anomalous-values rejection achieves nothing, the same
- *    "honest, non-terminal-but-real outcome" posture `nav-declaration-provider.ts`'s own header holds
- *    for a non-DONE `invoiceStatus`).
+ *    `DeclarationResult` instead: retrying an anomalous-values rejection achieves nothing, so it is
+ *    surfaced as an honest, non-terminal-but-real outcome rather than an error.
  *
  * `Mensagem` (String, REQUIRED) and `DataOperacao` (DateTime, REQUIRED) are also field-table VERIFIED
  * — their exact XML tag name/casing is EXTRAPOLATED by symmetry with the request's own field-name
  * convention (every request field's XML tag is EXACTLY its parenthesized name, e.g. "(InvoiceNo)" →
  * `<doc:InvoiceNo>`) since neither manual includes a worked RESPONSE example (only the request one,
  * §2.1.1.3) — `parsePtAtRegisterInvoiceResponse` below reads them namespace-AGNOSTIC
- * (`firstByLocalName`, the same defensive stance `nav-client.ts`/`mydata-client.ts` already hold for
- * their own response parsing) specifically so a different namespace/prefix choice on AT's real wire
- * response would not break this client.
+ * (`firstByLocalName`) specifically so a different namespace/prefix choice on AT's real wire response
+ * would not break this client.
  *
  * ## EXTRAPOLATED / not wired
  *
@@ -123,8 +119,8 @@
  *    Genéricos §2.1: "A comunicação de dados apenas será estabelecida se o programa de faturação
  *    enviar o Certificado Digital correspondente" — an AT-signed X.509 client certificate (§2.3, CSR
  *    process) is mandatory for the HTTPS connection itself, on top of the WS-Security header. This
- *    client uses the plain global `fetch()` (matching `nav-client.ts`/`mydata-client.ts`'s own
- *    transport, neither of which needs mTLS) rather than `node:https` with a `pfx`/`passphrase`
+ *    client uses the plain global `fetch()` (a channel that needs no mTLS of its own has no reason to
+ *    reach for `node:https` directly) rather than `node:https` with a `pfx`/`passphrase`
  *    secure context (the pattern `transports/sdi/sdicoop-client.ts#postSoap` already establishes in
  *    this codebase for a channel that DOES need it) — a real production call would fail the TLS
  *    handshake before ever reaching the WS-Security layer this client builds. Named here,
@@ -167,9 +163,8 @@ export interface PtAtCredentials {
    *  never a channel-config/schema one. */
   clientCertificateBase64?: string;
   clientCertificatePassword?: string;
-  /** OPTIONAL override of the fixed per-environment host — same escape hatch
-   *  `nav-client.ts#NavCredentials.baseUrl`/`mydata-client.ts#MyDataCredentials.baseUrl` already
-   *  offer, for the identical reason (a local stub in jest, never touching the real AT host). */
+  /** OPTIONAL override of the fixed per-environment host, purely so a jest spec can point this client
+   *  at a local stub instead of the real AT host. */
   baseUrl?: string;
 }
 
@@ -249,8 +244,7 @@ export function resolvePtAtBaseUrl(environment: 'TEST' | 'PROD', override?: stri
 // ---------------------------------------------------------------------------
 // WS-Security header construction — see this file's own header for the full, field-by-field
 // VERIFIED/⚠ UNVERIFIED breakdown. Every function below is pure and independently exported so
-// `pt-at-client.spec.ts` can assert on each step in isolation, the same discipline
-// `nav-client.ts#computeNavRequestSignature` already established for its own signature algorithm.
+// `pt-at-client.spec.ts` can assert on each step in isolation.
 // ---------------------------------------------------------------------------
 
 /** H.3's own `Ks` — a fresh, random 128-bit AES key. Exported (rather than only used internally) so a
@@ -343,8 +337,7 @@ export function buildPtAtEnvelope(
 }
 
 // ---------------------------------------------------------------------------
-// Response parsing — pure, exported for direct unit testing (same convention as
-// `nav-client.ts#parseNavFunctionResult`/`mydata-client.ts#parseMyDataResponse`).
+// Response parsing — pure, exported for direct unit testing.
 // ---------------------------------------------------------------------------
 
 export interface PtAtRegisterInvoiceResult {
@@ -379,9 +372,8 @@ export function parsePtAtRegisterInvoiceResponse(xml: string): PtAtRegisterInvoi
 }
 
 // ---------------------------------------------------------------------------
-// HTTP transport — plain `fetch()`, matching `nav-client.ts`/`mydata-client.ts` (NEITHER of which
-// needs mTLS); see this file's own header for why the REAL endpoint's mTLS requirement is
-// deliberately NOT wired here yet.
+// HTTP transport — plain `fetch()`; see this file's own header for why the REAL endpoint's mTLS
+// requirement is deliberately NOT wired here yet.
 // ---------------------------------------------------------------------------
 
 export interface PtAtClient {

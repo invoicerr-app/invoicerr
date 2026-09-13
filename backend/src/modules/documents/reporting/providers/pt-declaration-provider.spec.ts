@@ -1,12 +1,10 @@
 /**
  * `buildPtAtDeclarationProvider` against a REAL local HTTP stub standing in for the AT webservice —
- * same "never an in-process mock of the HTTP layer" discipline `nav-declaration-provider.spec.ts`/
- * `mydata-declaration-provider.spec.ts` already hold: this proves the FULL flow (WS-Security header
+ * never an in-process mock of the HTTP layer, so this proves the FULL flow (WS-Security header
  * construction → HTTP POST → response parsing → `DeclarationResult` shaping), with the stub itself
- * independently RE-DECRYPTING the Nonce/Password/Created fields server-side (the same "the stub
- * checks it, not just the client's own internal consistency" discipline `nav-declaration-provider.
- * spec.ts#startNavStub` already holds for NAV's own requestSignature) — never that AT itself accepts
- * any of this, see `pt-at-client.ts`'s own header.
+ * independently RE-DECRYPTING the Nonce/Password/Created fields server-side — proving the stub checks
+ * the cryptography, not just that the client is internally consistent with itself — never that AT
+ * itself accepts any of this, see `pt-at-client.ts`'s own header.
  */
 import * as http from 'node:http';
 import {

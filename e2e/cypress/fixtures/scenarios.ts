@@ -70,26 +70,19 @@ export interface Scenario {
 //                   DESTINATION country's own standard rate, not the seller's.
 // de-fr and it-it are unaffected — both already resolve to kept countries.
 //
-// NOTE (2026-09-12, phase 2 — supersedes the 2026-09-10 note below): `e2e/cypress/e2e/scenarios/
-// full-lifecycle.cy.ts`, the spec this fixture file feeds, is RESTORED and its own six legs all pass
-// (`CYPRESS_scenario=<leg> npx cypress run --browser firefox --spec
-// "cypress/e2e/scenarios/full-lifecycle.cy.ts"`). Two of the per-scenario comments below
-// (`de-fr`, `pt-de`) were WRONG about which tax treatment actually applies — written for the removed
-// compliance engine, never re-verified against `tax/tax-engine.ts` — corrected in place below, with
-// the real reason cited. The restored spec ALSO found two independent, real product defects while
-// running `it-pt`/`pl-de` (a seller in a country with no `country-identifiers/data/<cc>.json` file —
-// Italy, Poland — loses its own LEGAL_ID identifier the moment company settings are saved, an
-// ordinary action; and `build-semantic-invoice.ts` never builds a "Deliver to" country for ANY
-// invoice, which EN 16931's BR-IC-12 requires for category K) — see that spec's own header for the
-// full writeup and exact file/line evidence; neither is a fixture-data problem, so neither is
-// "fixed" here.
-//
-// NOTE (2026-09-10, superseded above): `e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts`, the spec
-// this fixture file feeds, is NOT present in this branch's working tree — removed by an earlier,
-// unrelated commit ("refactor!: suppression des documents légaux et du moteur de conformité"),
-// predating and independent of the 5-country prune. This mapping is prepared and internally
-// consistent, but `.github/workflows/scenarios.yml`'s "Business Scenarios" job cannot actually run
-// until that spec exists again — flagged here rather than silently left inconsistent.
+// NOTE (2026-09-13): `e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts`, the spec this fixture file
+// feeds, exists and its own six legs all pass (`CYPRESS_scenario=<leg> npx cypress run --browser
+// firefox --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts"`). Two of the per-scenario comments
+// below (`de-fr`, `pt-de`) were WRONG about which tax treatment actually applies — written for the
+// removed compliance engine, never re-verified against `tax/tax-engine.ts` — corrected in place
+// below, with the real reason cited. Running the restored spec against `it-pt`/`pl-de` also found
+// three independent, real product defects, ALL SINCE FIXED (see that spec's own header for the full
+// writeup and exact file/line evidence): a seller in a country with no
+// `country-identifiers/data/<cc>.json` file (Italy, Poland) lost its own LEGAL_ID identifier the
+// moment company settings were saved, an ordinary action; `build-semantic-invoice.ts` never built a
+// "Deliver to" country for any invoice, which EN 16931's BR-IC-12 requires for category K; and
+// neither onboarding nor company settings offered any way at all to record a VAT-scheme identifier
+// for a seller in one of those same countries.
 export const SCENARIOS: Record<string, Scenario> = {
   'fr-pl': {
     id: 'fr-pl',
@@ -138,14 +131,16 @@ export const SCENARIOS: Record<string, Scenario> = {
     // `assertCompliance()` and `strictStatus` below/above are ALL concepts of the REMOVED compliance
     // engine (`ComplianceDocument.status`, `TRANSMISSION_FAILED`) — nothing in the restored
     // `full-lifecycle.cy.ts` reads this field or those concepts any more, and no such status exists
-    // in `documents/descriptors/invoice.descriptor.ts`'s own lifecycle today. LEGALLY, SdI remains
-    // Italy's real, exclusive e-invoicing channel — but `transports/channel-policy/data/it.json`
-    // codes this as merely `suggested` (`provenance.kind: 'unverified'`), which arms NO gate: the
-    // restored spec sends this exact invoice via plain "email" and it reaches "Sent" with no block at
-    // all — a real, deliberately-asserted product gap (nothing stops a non-compliant channel choice
-    // for Italy today), not a CI-credentials limitation. `noCiTransmission` is left in place, unused,
-    // rather than deleted, so a reader comparing against pre-restoration git history isn't confused
-    // by its sudden disappearance.
+    // in `documents/descriptors/invoice.descriptor.ts`'s own lifecycle today. `noCiTransmission` is
+    // left in place, unused, rather than deleted, so a reader comparing against pre-restoration git
+    // history isn't confused by its sudden disappearance.
+    // SdI MANDATE (armed 2026-09-13): `transports/channel-policy/data/it.json` now codes "sdi" as
+    // `mandated`, effective 2019-01-01 (D.Lgs. 127/2015 art. 1 comma 3) — an Italian seller choosing
+    // a non-SdI channel is refused. The restored spec proves the block: this leg's main invoice first
+    // tries plain "email" and is rejected, then connects a (fake, CI-only) SdI channel and picks it
+    // before the invoice can send — see `full-lifecycle.cy.ts`'s own header for the exact two-step
+    // shape and why Italy's leg needs it (the mandate has been active since 2019, so unlike France's
+    // PDP mandate there is no "before the mandate" issue date left to pick).
     noCiTransmission: true,
     company: { name: 'Milano Servizi SRL', country: 'Italy', legalId: '12345678901', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Comune di Roma', email: 'client-it-it@mailpit.test', country: 'Italy', type: 'COMPANY', vat: 'IT98765432109', address: 'Via del Corso', postalCode: '00186', city: 'Rome', currency: 'EUR' },
@@ -171,15 +166,22 @@ export const SCENARIOS: Record<string, Scenario> = {
     // Mexico's own RFC identifier scheme, MXN currency, and `expectsAuthorityNumbering` (the CFDI's
     // authority-stamped folio) have no equivalent among the kept countries and are dropped, not
     // reassigned to Italy/Portugal on a guess — see this file's own header.
+    // SdI MANDATE (armed 2026-09-13): Italy is the SELLER here too, so this leg's own main invoice
+    // hits the SAME `channel-policy/data/it.json` "mandated" SdI fact (effective 2019-01-01,
+    // D.Lgs. 127/2015 art. 1 comma 3) as `it-it` above, and needs the same two-step "blocked by
+    // email, unblocked by connecting SdI" proof — see `it-it`'s comment above and
+    // `full-lifecycle.cy.ts`'s own header.
     // TAX (item.type 'PRODUCT' → GOODS): same EU union, buyer VAT "PT501442600" hits
     // `vat-syntax.ts`'s DEFAULT branch (Portugal has no dedicated checksum function) which always
     // answers `valid: true` → confirmed B2B → intra-Community supply, category K, 0%, Art. 138 —
-    // never the seller's own 22%. This IS the one leg among all six whose real, correctly-composed
-    // tax treatment (category K) cannot currently be exported as valid EN 16931 at all — see
-    // `full-lifecycle.cy.ts`'s own header for the two independent defects this restoration found
-    // (a seller identifier that does not survive a company-settings save for a country with no
-    // `country-identifiers` file, and `build-semantic-invoice.ts` never building a "Deliver to"
-    // country, which category K's own BR-IC-12 requires).
+    // never the seller's own 22%. This was the one leg among all six whose real, correctly-composed
+    // tax treatment (category K) could not be exported as valid EN 16931 at all, which exposed two
+    // independent product defects (a seller identifier that did not survive a company-settings save
+    // for a country with no `country-identifiers` file, and `build-semantic-invoice.ts` never
+    // building a "Deliver to" country, which category K's own BR-IC-12 requires) — both now FIXED,
+    // along with a third defect the fix for those two then exposed (no way to record a VAT-scheme
+    // identifier for a seller in one of those same countries) — see `full-lifecycle.cy.ts`'s own
+    // header for the full writeup; this leg now exports and sends successfully.
     noCiTransmission: true,
     company: { name: 'Torino Componenti SRL', country: 'Italy', legalId: '11223344554', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Porto Import Lda', email: 'client-it-pt@mailpit.test', country: 'Portugal', type: 'COMPANY', vat: 'PT501442600', address: 'Rua de Santa Catarina', postalCode: '4000-009', city: 'Porto', currency: 'EUR' },
@@ -192,13 +194,13 @@ export const SCENARIOS: Record<string, Scenario> = {
     // (tax-engine.ts#ossDestinationVat), which none of the other four scenarios reaches. `vatRate`
     // is the DESTINATION country's own standard rate (Germany, 19%), not the seller's — the real
     // tax resolution at issuance recomputes this from tax-systems/data/de.json regardless of what
-    // was typed here. This tax resolution is correct AND (2026-09-12, phase 2) IS the one that
-    // reaches only DEFECT 1 of the two `full-lifecycle.cy.ts`'s own header describes — a Polish
-    // seller has no `country-identifiers/data/pl.json`, so its onboarding-time LEGAL_ID does not
-    // survive the routine company-settings save this spec's own `before()` hook makes, and category
-    // S (OSS's own destination category) needs it (BR-S-02) just as much as category K does
-    // (BR-IC-02) — this leg's own CII export currently 400s on that alone, never on the
-    // category-K-only BT-80/BR-IC-12 gap `it-pt` also hits.
+    // was typed here, and was always correct. This leg's own CII export was blocked by the third
+    // product defect the restored spec found: a Polish seller has no
+    // `country-identifiers/data/pl.json`, and neither onboarding nor company settings offered any
+    // way to record a VAT-scheme identifier for it — category S needs one (BR-S-02) just as much as
+    // category K does (BR-IC-02), the twin `it-pt` hits. Now FIXED (see `full-lifecycle.cy.ts`'s own
+    // header): the seller's VAT number, typed through the same onboarding step every leg uses, now
+    // populates BT-31, and this leg exports and sends successfully.
     company: { name: 'Kraków Usługi Sp. z o.o.', country: 'Poland', legalId: 'PL7010018991', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Klaus Mueller', email: 'client-pl-de@mailpit.test', country: 'Germany', type: 'INDIVIDUAL', contactFirstname: 'Klaus', contactLastname: 'Mueller', address: 'Leopoldstraße 10', postalCode: '80802', city: 'Munich', currency: 'EUR' },
     item: { name: 'Widget', quantity: 2, unitPrice: 150, vatRate: 19, type: 'PRODUCT' },

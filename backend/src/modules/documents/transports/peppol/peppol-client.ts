@@ -123,8 +123,7 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  *
  * `INVOICE_NLCIUS_UBL` (NLCIUS, Netherlands) used to be a THIRD entry here, the same mirroring
  * discipline as `INVOICE_XRECHNUNG_UBL`. Deleted along with the rest of the Netherlands' scope
- * (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — `formats/nlcius-provider.ts` no longer
- * exists to mirror.
+ * (2026-09-10, see `LIVE_TESTING.md`/`B2G_COVERAGE.md`) — the provider it mirrored no longer exists.
  */
 export const PEPPOL_DOC_TYPES = {
   INVOICE_UBL:

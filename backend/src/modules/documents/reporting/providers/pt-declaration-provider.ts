@@ -12,12 +12,12 @@
  *
  * The AT webservice also exposes `ChangeInvoiceStatusRequest` (e.g. marking a document "Anulado") and
  * `DeleteInvoiceRequest` — this codebase's own trigger (`reporting/report-on-send.ts`) only ever
- * fires on a document's OWN "sent" transition, which happens exactly once, at issuance — the SAME
- * "CREATE only" scoping `nav-declaration-provider.ts`'s own header already documents for NAV's
- * MODIFY/STORNO operations. A credit note reaching a FUTURE `reporting/data/pt.json` entry with
- * `appliesTo: 'credit-note'` would need its own mapping (AT's own `InvoiceType` enum already has an
- * "NC – Nota de Crédito" value for this — see `PT_AT_INVOICE_TYPE_FOR` below) — not built further than
- * that single enum value here, deliberately, rather than guessed at.
+ * fires on a document's OWN "sent" transition, which happens exactly once, at issuance, so CREATE is
+ * the only operation this bridge ever has occasion to call. A credit note reaching a FUTURE
+ * `reporting/data/pt.json` entry with `appliesTo: 'credit-note'` would need its own mapping (AT's own
+ * `InvoiceType` enum already has an "NC – Nota de Crédito" value for this — see
+ * `PT_AT_INVOICE_TYPE_FOR` below) — not built further than that single enum value here, deliberately,
+ * rather than guessed at.
  *
  * ## The `authorityId` caveat — SYNTHESIZED, not authority-minted (see `synthesizePtAtAuthorityId`
  * below and `reporting/data/pt.json`'s own `notes`)
@@ -55,8 +55,8 @@ import {
 export const PT_AT_PROVIDER_ID = 'pt-at';
 
 /** This bridge's OWN two-value status vocabulary — AT itself gives no status string, only a numeric
- *  `CodigoResposta` (see `pt-at-client.ts`'s own header), so, exactly like
- *  `mydata-declaration-provider.ts`'s own `'SUCCESS'` default, a name has to be minted here. */
+ *  `CodigoResposta` (see `pt-at-client.ts`'s own header), so a name has to be minted here rather than
+ *  passed through from the authority. */
 export const PT_AT_STATUS_ACCEPTED = 'ACCEPTED';
 export const PT_AT_STATUS_REJECTED = 'REJECTED';
 
@@ -111,13 +111,12 @@ export function ptAtInvoiceTypeFor(typeId: string): string {
  * Field 1.6.14.7.3 (TaxCode) for one VAT-rate group — see `buildPtAtLineSummaries` below for why lines
  * are grouped by rate rather than declared one-for-one. This bridge does NOT have Portugal's own
  * reduced ("RED")/intermediate ("INT") rate-banding data threaded through `DeclaredInvoiceLine` (only
- * the bare percentage), so — exactly like `mydata-declaration-provider.ts#mapVatRateToMyDataCategory`
- * already documents for its own, analogous gap — every genuinely resolved NON-ZERO rate falls back to
- * "NOR" (taxa normal), named here as a fallback rather than silently misclassified as reduced or
- * intermediate. A `null` rate (compute-totals.ts could not resolve one for this line — see
- * `DeclaredInvoiceLine`'s own header) is DIFFERENT from a genuinely resolved 0%: it uses "OUT" ("Outros,
- * aplicável para regimes especiais de IVA"), never "ISE" (isenta) — this bridge has no basis to claim
- * the line was actually EXEMPT, only that no rate could be determined for it.
+ * the bare percentage), so every genuinely resolved NON-ZERO rate falls back to "NOR" (taxa normal),
+ * named here as a fallback rather than silently misclassified as reduced or intermediate. A `null`
+ * rate (compute-totals.ts could not resolve one for this line — see `DeclaredInvoiceLine`'s own
+ * header) is DIFFERENT from a genuinely resolved 0%: it uses "OUT" ("Outros, aplicável para regimes
+ * especiais de IVA"), never "ISE" (isenta) — this bridge has no basis to claim the line was actually
+ * EXEMPT, only that no rate could be determined for it.
  */
 export function ptAtTaxCodeFor(vatRatePercent: number | null): string {
   if (vatRatePercent === null) return 'OUT';
@@ -154,10 +153,9 @@ function groupPtAtLinesByVatRate(lines: DeclaredInvoiceLine[]): PtAtLineSummaryG
 /** Builds the `doc:LineSummary` array — one entry per distinct VAT rate present on the invoice (see
  *  `groupPtAtLinesByVatRate` above). `TaxPointDate` (field 1.6.14.2, "data de envio da mercadoria ou
  *  da prestação do serviço") falls back to the invoice's own `issueDate` — `DeclaredInvoice` carries
- *  no separate dispatch/delivery date, the same fallback `nav-declaration-provider.ts#buildNavInvoiceXml`
- *  already takes for its own `invoiceDeliveryDate`. `DebitCreditIndicator` is fixed to "C" (Crédito) —
- *  the worked example's own value for an ordinary sales invoice, and the only case this scope covers
- *  (see this file's own header). */
+ *  no separate dispatch/delivery date, so no finer timestamp is available to fill this field with.
+ *  `DebitCreditIndicator` is fixed to "C" (Crédito) — the worked example's own value for an ordinary
+ *  sales invoice, and the only case this scope covers (see this file's own header). */
 export function buildPtAtLineSummaries(invoice: DeclaredInvoice): Record<string, unknown>[] {
   return groupPtAtLinesByVatRate(invoice.lines).map((group) => ({
     'doc:TaxPointDate': invoice.issueDate,
@@ -204,9 +202,8 @@ export function buildPtAtInvoiceRequestFields(invoice: DeclaredInvoice): Record<
     : (invoice.buyer.vatNumber ?? invoice.buyer.legalId ?? PT_AT_UNKNOWN_CONSUMER_NIF);
   // `InvoiceStatusDate`/`SystemEntryDate` (fields 1.6.8.2/1.6.13) are documented as the DateTime "of
   // the last save"/"of signature" — `DeclaredInvoice` only carries a date-only `issueDate` (see
-  // `formats/shared-build.ts#toDateOnly`), so this bridge fills a midnight time-of-day, the same
-  // "no finer timestamp available" fallback `nav-declaration-provider.ts` takes for its own
-  // `invoiceDeliveryDate`.
+  // `formats/shared-build.ts#toDateOnly`), so this bridge fills a midnight time-of-day: no finer
+  // timestamp is available to build one from.
   const issueDateTime = `${invoice.issueDate}T00:00:00`;
 
   return {
@@ -304,8 +301,8 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
         // A NEGATIVE CodigoResposta is a genuine, PERMANENT verdict about THIS invoice's own data
         // (e.g. -7 "Documento inválido por valores anómalos") — returned as a normal, journalable
         // rejection rather than thrown: see this file's own header and `pt-at-client.ts`'s own header
-        // for why retrying achieves nothing here, the same "non-terminal-but-real outcome" posture
-        // `nav-declaration-provider.ts` already holds for a non-DONE `invoiceStatus`.
+        // for why retrying achieves nothing here — an honest, non-terminal-but-real outcome, not an
+        // error.
         return {
           statusCode: PT_AT_STATUS_REJECTED,
           reason: result.mensagem ?? describePtAtCodigoResposta(result.codigoResposta),

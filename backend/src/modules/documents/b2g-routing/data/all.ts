@@ -16,9 +16,8 @@
  * The product's scope was then reduced to five countries (FR/PL/IT/PT/DE, 2026-09-10): every rule
  * outside that set was deleted along with its `data/xx.json` (`b2g-routing/data/all.spec.ts`'s own
  * header has the exact list). For es and nl specifically, a LATER pass (2026-09-12) went further and
- * deleted the transport/format code that had implemented their channel outright — FACe/Facturae
- * (`transports/face-transport.ts`, `formats/national/facturae-provider.ts`) and NLCIUS
- * (`formats/nlcius-provider.ts`, `formats/vendored/nl/`) — rather than leaving fully-working code
+ * deleted the transport/format code that had implemented their channel outright — Spain's FACe/
+ * Facturae channel and the Netherlands' NLCIUS provider — rather than leaving fully-working code
  * registered for a country nobody asked to support; see `LIVE_TESTING.md`/`B2G_COVERAGE.md` for exactly
  * what that gave up. A country with no entry here has NO B2G rule at all: `b2g-routing.ts`'s own read
  * side (which reads the DATABASE, not this file — see that module's own header) surfaces that as an
