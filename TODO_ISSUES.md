@@ -16,7 +16,8 @@
 | La **mise à niveau** d'une installation ancienne n'est pas prouvée | Prisma refuse `db push` depuis un agent sans accord explicite du propriétaire. |
 | Le **B2G portugais** | Le canal est délégué à une portaria non retrouvée. |
 | Le catalogue **déclaratif** | L'obligation française est établie mais transite par la PDP : le schéma ne sait pas exprimer « acquittée par un transport déjà implémenté ». |
-| Neuf pages du site **en français** ont des liens morts | Pages du guide développeur non traduites. |
+| Les **jambes de scénarios** ne tournent que sur une PR | Trois étaient rouges depuis des semaines sans que rien ne le dise. Corrigées, mais le procédé reste à trancher. |
+| Deux pages **françaises** sont périmées | `plugin-system.md` décrit un mécanisme supprimé ; `authentication.md` a perdu un paragraphe. Dérive de traduction, sans rapport avec les liens morts, désormais tous réparés. |
 
 **Fermés le même jour** (les entrées restent, barrées, parce qu'elles documentent la FORME du
 défaut) : la franchise de TVA, les mentions fiscales génériques, l'injection XML italienne, la carte
@@ -417,7 +418,37 @@ Ce qui le réglerait : soit une liste blanche explicite des colonnes écrites da
 (plutôt qu'un spread), soit une validation de bordure réelle — ce qui suppose de passer les DTO
 d'`interface` à `class` décorée, un chantier qui touche tous les contrôleurs.
 
-## Le site public a neuf pages à liens morts, toutes en français (2026-09-13)
+## Trois jambes de scénarios étaient rouges depuis des semaines, sans que rien ne le dise (2026-09-13)
+
+`scenarios.yml` ne s'exécute que **sur une pull request**, et cette branche n'en a jamais ouvert. Les
+six jambes n'avaient donc pas tourné depuis longtemps. Lancées une à une aujourd'hui : trois rouges.
+
+- `fr-pl` et `it-it` affirmaient qu'aucun identifiant n'est proposé pour un acheteur polonais ou
+  italien. Vrai jusqu'au commit qui a donné leur catalogue à ces deux pays.
+- `de-fr` et `pl-de` saisissaient le taux de TVA du pays de DESTINATION, au motif que la résolution
+  le recalculait de toute façon. Vrai jusqu'aux catalogues de taux, qui font désormais refuser un
+  taux que le catalogue du vendeur n'offre pas.
+
+Toutes corrigées (`aef402ca`), sans affaiblir une seule assertion. **La leçon de procédé est la vraie
+trouvaille** : une suite qui ne s'exécute qu'à l'ouverture d'une PR est une suite qu'on croit verte.
+Sur une branche de 800 commits, cela veut dire des semaines de rouge invisible. Soit ces jambes
+tournent aussi sur `push`, soit quelqu'un les lance à la main à chaque vague qui touche un catalogue
+pays — la première option coûte du temps machine, la seconde de la discipline.
+
+## ~~Le site public a neuf pages à liens morts, toutes en français~~ — RÉSOLU (`31289771`, 2026-09-13)
+
+Zéro lien mort, zéro ancre cassée, build EXIT=0. Cinq pages traduites (817 lignes). La cause n'était
+pas celle qu'on supposait : les pages générées existent bien dans les deux langues, mais Docusaurus
+rend une page non traduite sous `/fr/` avec le contenu anglais et résout les liens relatifs en
+comparant les chemins de fichiers SOURCE — une page de repli ne peut donc jamais atteindre une page
+réellement traduite. Le générateur n'était pour rien dans l'affaire.
+
+Restent signalées, non corrigées : la page française `plugin-system.md` décrit encore un mécanisme de
+plugins externes que l'anglaise dit supprimé, et la page `authentication.md` française a perdu un
+paragraphe sur la portée des clés d'API. Deux dérives de traduction préexistantes, sans rapport avec
+les liens morts.
+
+### Le constat d'origine (2026-09-13)
 
 `cd documentation && npm run build` réussit (EXIT=0, les deux locales sont générées), mais Docusaurus
 signale **9 pages porteuses de liens morts, toutes dans la locale `fr`, aucune en `en`**. Quatre
