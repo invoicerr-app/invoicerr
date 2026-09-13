@@ -890,4 +890,163 @@ describe('renderDocumentHtml', () => {
       expect(html).toContain('<img');
     });
   });
+
+  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — `language` translates ONLY this
+  // render layer's OWN chrome vocabulary (`language/pdf-chrome-strings.ts`); `descriptor.label`/
+  // `field.label`/`option.label` stay exactly what the descriptor wrote, in every test below, proving
+  // the split described in that field's own header (types.ts) holds in practice, not just in comments.
+  describe('recipient language (rank 14)', () => {
+    const totalsFixture = {
+      currency: 'EUR',
+      lines: [],
+      netMinor: 10000,
+      vatMinor: 2000,
+      grossMinor: 12000,
+      vatBreakdown: [{ ratePercent: 20, baseMinor: 10000, vatMinor: 2000 }],
+      warnings: [],
+    };
+
+    it('omitting `language` renders byte-for-byte the same English chrome as before this feature existed', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Test',
+        fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
+        actions: [],
+      };
+
+      const withoutLanguage = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: true } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+      });
+      const withEnglish = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: true } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+        language: 'en',
+      });
+
+      expect(withoutLanguage).toBe(withEnglish);
+      expect(withoutLanguage).toContain('Yes');
+      expect(withoutLanguage).toContain('>Status:<');
+      expect(withoutLanguage).toContain('>Totals<');
+      expect(withoutLanguage).toContain('VAT 20% on 100.00 EUR');
+      expect(withoutLanguage).toContain('>Total<');
+    });
+
+    it("renders the totals block, the boolean Yes/No pair, and the unnumbered placeholder in Italian — VAT reads 'IVA', never 'TVA' or 'VAT'", () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
+        actions: [],
+        numbering: { onEnterStatus: 'sent' },
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: false } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+        language: 'it',
+      });
+
+      expect(html).toContain('>Stato:<');
+      expect(html).toContain('>Data:<');
+      expect(html).toContain('>Totali<');
+      expect(html).toContain('>Netto<');
+      expect(html).toContain('IVA 20% su 100.00 EUR');
+      expect(html).toContain('>Totale<');
+      expect(html).toContain('<div class="field-value">No</div>'); // 'No' happens to spell like English too
+      expect(html).toContain('Bozza — numero non ancora assegnato');
+      expect(html).not.toContain('TVA');
+      expect(html).not.toContain('>Status:<');
+    });
+
+    it("renders the same document in French — VAT reads 'TVA', the boolean prints 'Oui', never the Italian or English chrome", () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [{ key: 'isPaid', kind: 'boolean', label: 'Is Paid' }],
+        actions: [],
+        numbering: { onEnterStatus: 'sent' },
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { isPaid: true } },
+        company: baseCompany,
+        referenceLabels: {},
+        totals: totalsFixture,
+        language: 'fr',
+      });
+
+      expect(html).toContain('>Statut:<');
+      expect(html).toContain('>Totaux<');
+      expect(html).toContain('TVA 20% sur 100.00 EUR');
+      expect(html).toContain('>Total<'); // French "Total" happens to spell like English — not the bug
+      expect(html).toContain('<div class="field-value">Oui</div>');
+      expect(html).toContain('Brouillon — pas encore de numéro');
+      expect(html).not.toContain('IVA');
+      expect(html).not.toContain('>Stato:<');
+    });
+
+    it('the SEPA "scan to pay" caption translates too, in the same language as everything else', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'invoice',
+        label: 'Invoice',
+        fields: [],
+        actions: [],
+        usesPaymentQr: true,
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentQr: { dataUri: 'data:image/png;base64,AAAA' },
+        language: 'de',
+      });
+
+      expect(html).toContain('Zum Bezahlen scannen (SEPA)');
+      expect(html).not.toContain('Scan to pay');
+    });
+
+    it('descriptor/field/option labels are NEVER translated — plain data, the same in every language', () => {
+      const descriptor: DocumentTypeDescriptor = {
+        id: 'test',
+        label: 'Invoice', // plain data — a plugin could equally have written this in Polish
+        fields: [
+          {
+            key: 'status2',
+            kind: 'select',
+            label: 'Payment status',
+            options: [{ value: 'x', label: 'Paid in full' }],
+          },
+        ],
+        actions: [],
+      };
+
+      const html = renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { status2: 'x' } },
+        company: baseCompany,
+        referenceLabels: {},
+        language: 'pt',
+      });
+
+      // The chrome around it is Portuguese ("Estado", not "Status")...
+      expect(html).toContain('>Estado:<');
+      // ...but the descriptor's OWN label and this field's OWN label/option stay exactly as declared.
+      expect(html).toContain('Invoice');
+      expect(html).toContain('Payment status');
+      expect(html).toContain('Paid in full');
+    });
+  });
 });

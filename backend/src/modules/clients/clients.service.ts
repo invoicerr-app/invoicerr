@@ -314,6 +314,7 @@ export class ClientsService {
         state: dataFields.state,
         country: dataFields.country,
         countryCode: dataFields.countryCode,
+        language: dataFields.language,
         currency: dataFields.currency,
         type: dataFields.type,
         kind: dataFields.kind,

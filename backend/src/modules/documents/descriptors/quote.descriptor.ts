@@ -1,5 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
 import { transitionsAvailableWhen } from './lifecycle';
+import { standardDocumentEmailTranslations } from './standard-email-translations';
 import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /**
@@ -105,6 +106,10 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
+    // TODO_FEATURES.md rank 14 — see types.ts's own comment on `emailTranslations`, and
+    // standard-email-translations.ts's own header on why this is shared, word-for-word, with
+    // invoice.descriptor.ts rather than duplicated.
+    emailTranslations: standardDocumentEmailTranslations(),
     // See contributions/quote-contributions.ts for the implementation — the THIRD real contribution
     // written for this mechanism. Both locations: a draft-quotes shortlist on the dashboard, a
     // "Quotes sent" count plus a fully detailed table on statistics.

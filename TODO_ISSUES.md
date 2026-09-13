@@ -18,6 +18,7 @@
 | Cinq catégories d'**autoliquidation italienne expirent le 2026-12-31** | Le catalogue n'a aucun axe temporel. Daté, à ne pas laisser passer. |
 | Les **jambes de scénarios** ne tournent que sur une PR | Corrigé par un déclencheur `push` filtré (`59beaa50`), mais le procédé mérite d'être retranché. |
 | Le **français dans le code** | 310 fichiers mesurés portent un commentaire français ; balayage en cours, lot par lot. |
+| Le `pattern` des identifiants pays n'est **jamais appliqué** | Le champ est porté du JSON jusqu'à la base et relu par l'API, mais aucun chemin d'écriture ne le vérifie. Un « code SdI » de 3 caractères est accepté et produit une FatturaPA invalide. Concerne aussi `IT_PA_CODE` et les schémas ajoutés le 2026-09-13. |
 | `local-form.json` **orphelin** | Un `"type": "folder"` que plus aucun lecteur ne consomme. |
 
 ## Réglages sans effet — la refonte a retiré le back, les écrans sont restés (2026-09-13)

@@ -308,6 +308,14 @@ model Company {
   state        String? // State/Province (for US addresses, etc.)
   country      String
   countryCode  String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
+  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the FALLBACK layer only: a
+  // client with no `Client.language` of its own renders in this language rather than jumping straight
+  // to English. Free-text, like `country` above, never a Prisma enum — see
+  // documents/rendering/language/supported-languages.ts for the validated set a render actually
+  // recognizes; an unrecognized or absent value here just means the resolver falls through to 'en',
+  // never a rejected write (the same "permissive storage, type-safe consumption" split `country`
+  // already holds).
+  language     String?
   phone        String
   email        String
 
@@ -518,6 +526,16 @@ model Client {
   state            String? // State/Province (for US addresses, etc.)
   country          String
   countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
+  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the ONE explicit,
+  // authoritative source a recipient's PDF/email language is resolved from
+  // (documents/rendering/language/resolve-recipient-language.ts). Deliberately NOT derived from
+  // `country` above: a country names a jurisdiction, not a language (Belgium, Switzerland — a client
+  // domiciled there speaks any one of several official languages, and guessing wrong would be worse
+  // than the English default this field's own absence already falls back to). Free-text, like
+  // `country`, never a Prisma enum — see `rendering/language/supported-languages.ts` for the validated
+  // set a render actually recognizes; an unsupported or absent value here is never rejected at write
+  // time, only never picked by the resolver, which falls through to `Company.language` and then 'en'.
+  language         String?
   currency         Currency?
   type             ClientType        @default(COMPANY)
   // B2G routing — see ClientKind above and B2gRoutingRule below. Default BUSINESS: every existing

@@ -4,12 +4,15 @@ import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
+import { findClientReferenceField } from '../actions/email-template';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { extractCrossBorderMentions } from '../formats/shared-build';
 import { resolveInvoiceNotes, ResolvedInvoiceNote } from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals';
+import { RenderLanguage } from './language/supported-languages';
+import { resolveRecipientLanguage } from './language/resolve-recipient-language';
 import { renderDocumentHtml } from './render-html';
 import { renderPdf } from './render-pdf';
 import { buildEpcPayload, renderSepaQrDataUri } from './sepa-qr';
@@ -124,6 +127,36 @@ export async function sepaPaymentQrFor(
   return { dataUri: await renderSepaQrDataUri(payload) };
 }
 
+/**
+ * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — resolves the document's own
+ * recipient language, ahead of the render, from the SAME client id `referenceLabels` above already
+ * resolves a display name for (`findClientReferenceField`, the one rule `actions/email-template.ts`
+ * owns — see its own updated header). A document type with no "client" reference field at all
+ * (`expense` has none; `credit-note`/`received-invoice` don't reference one either) simply never has a
+ * client to ask, and falls straight to `company.language` — never a lookup on an id that doesn't exist.
+ *
+ * A dangling/unresolvable client id (the same defensive case the `referenceLabels` loop above already
+ * tolerates) is read the same way: `findUnique` returning `null` is not an error here, just "no
+ * client-level preference available" — this function must never THROW over a language choice, the
+ * same "a rendering gap must never block issuing/sending the document itself" discipline that loop's
+ * own comment states.
+ */
+async function recipientLanguageFor(
+  descriptor: DocumentTypeDescriptor,
+  companyLanguage: string | null | undefined,
+  data: Record<string, unknown>,
+): Promise<RenderLanguage> {
+  const clientField = findClientReferenceField(descriptor);
+  const clientId = clientField ? data[clientField.key] : undefined;
+
+  if (typeof clientId !== 'string' || clientId === '') {
+    return resolveRecipientLanguage(undefined, companyLanguage);
+  }
+
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { language: true } });
+  return resolveRecipientLanguage(client?.language, companyLanguage);
+}
+
 export interface RenderedDocumentInstance {
   pdf: Buffer;
   /** REUSED by the send path's email template (`actions/email-template.ts`'s `totalGross`) — this is
@@ -133,6 +166,10 @@ export interface RenderedDocumentInstance {
   referenceLabels: Record<string, string>;
   /** REUSED for `companyName` — the exact name already fetched to put in the PDF's own header. */
   companyName: string;
+  /** REUSED by the send path (`actions/send-document-email.ts`) to resolve the SAME language the PDF
+   *  was just rendered in for the accompanying email's own default template — see
+   *  `language/resolve-recipient-language.ts`. Computed once, here, never twice. */
+  language: RenderLanguage;
 }
 
 /**
@@ -167,8 +204,17 @@ export async function renderDocumentInstance(
     where: { id: companyId },
     // `iban: true` — "QR SEPA / GiroCode": read here for `sepaPaymentQrFor`
     // below, never rendered directly in the company header block (`render-html.ts` has no field for
-    // it there).
-    select: { name: true, address: true, city: true, postalCode: true, country: true, iban: true },
+    // it there). `language: true` — the FALLBACK layer for `recipientLanguageFor` below, read
+    // unconditionally (it's one column on a row this function fetches anyway).
+    select: {
+      name: true,
+      address: true,
+      city: true,
+      postalCode: true,
+      country: true,
+      iban: true,
+      language: true,
+    },
   });
   if (!company) {
     throw new NotFoundException(`Company "${companyId}" not found.`);
@@ -213,6 +259,7 @@ export async function renderDocumentInstance(
   }
 
   const totals = computeDocumentTotals(descriptor, instanceData);
+  const language = await recipientLanguageFor(descriptor, company.language, instanceData);
 
   const html = renderDocumentHtml({
     descriptor,
@@ -227,6 +274,7 @@ export async function renderDocumentInstance(
     company,
     referenceLabels,
     totals,
+    language,
     legalMentions: legalMentionsFor(descriptor, company.country, instanceData),
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
   });
@@ -238,5 +286,5 @@ export async function renderDocumentInstance(
   // `atcud` at all — every non-Portuguese, or non-invoice, PDF keeps the exact page setup it always had.
   const pdf = await renderPdf(html, instance.atcud ? { footerText: instance.atcud } : {});
 
-  return { pdf, totals, referenceLabels, companyName: company.name };
+  return { pdf, totals, referenceLabels, companyName: company.name, language };
 }

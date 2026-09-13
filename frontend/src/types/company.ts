@@ -31,6 +31,10 @@ export interface Company {
   state?: string | null
   country: string
   countryCode?: string | null
+  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the FALLBACK document language
+  // for a client with no `Client.language` of its own. See the backend's `Company.language`
+  // schema.prisma comment and documents/rendering/language/resolve-recipient-language.ts.
+  language?: string | null
   phone: string
   email: string
   /** BT-84 (Payment account identifier) — the seller's own receiving account, optional. Required by

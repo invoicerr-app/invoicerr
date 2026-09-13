@@ -1,6 +1,8 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { DocumentTotals } from '../totals/compute-totals';
+import { pdfChromeStrings, PdfChromeStrings } from './language/pdf-chrome-strings';
+import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from './language/supported-languages';
 
 /**
  * Escapes HTML special characters — applied to ALL values from data to prevent injection.
@@ -38,6 +40,7 @@ function renderFieldValue(
   value: unknown,
   referenceLabels: Record<string, string>,
   data: Record<string, unknown>,
+  strings: PdfChromeStrings,
 ): string {
   // Value is missing — render em-dash
   if (value === undefined || value === null || value === '') {
@@ -80,7 +83,7 @@ function renderFieldValue(
     }
 
     case 'boolean': {
-      return value ? 'Yes' : 'No';
+      return value ? strings.yes : strings.no;
     }
 
     case 'select': {
@@ -121,7 +124,7 @@ function renderFieldValue(
       for (const row of rows) {
         html += '<tr style="border-bottom: 1px solid #eee;">';
         for (const subField of subFields) {
-          const cellValue = renderFieldValue(subField, row[subField.key], referenceLabels, row);
+          const cellValue = renderFieldValue(subField, row[subField.key], referenceLabels, row, strings);
           html += `<td style="padding: 8px;">${cellValue}</td>`;
         }
         html += '</tr>';
@@ -217,6 +220,21 @@ export interface RenderDocumentHtmlInput {
    * (`descriptor.usesPaymentQr`) renders byte-for-byte the same HTML this function always produced.
    */
   paymentQr?: { dataUri: string };
+  /**
+   * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — which language this render's
+   * OWN chrome vocabulary (`language/pdf-chrome-strings.ts`: "Status", "Totals", "VAT … on …", …) is
+   * printed in. Resolved by the caller (`render-instance-pdf.ts`, from the document's own client and
+   * the company's default — see `language/resolve-recipient-language.ts`), never guessed here.
+   *
+   * Absent defaults to `DEFAULT_RENDER_LANGUAGE` ('en') rather than being required: every pre-existing
+   * caller of this function (dozens of specs, plus any third-party code built against this signature
+   * before this feature existed) keeps producing byte-for-byte the same English chrome it always did,
+   * without having to learn about a language it never asked for. This does NOT extend to
+   * `descriptor.label`/`field.label`/`option.label` — those stay exactly what the descriptor wrote,
+   * whatever language that is (see `descriptors/types.ts`'s own comment on `label`: "plain data, not
+   * an i18n key").
+   */
+  language?: RenderLanguage;
 }
 
 /**
@@ -225,6 +243,7 @@ export interface RenderDocumentHtmlInput {
  */
 export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   const { descriptor, instance, company, referenceLabels } = input;
+  const strings = pdfChromeStrings(input.language ?? DEFAULT_RENDER_LANGUAGE);
 
   const createdDate = new Date(instance.createdAt).toISOString().split('T')[0];
 
@@ -435,13 +454,13 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       <div class="document-title">${escapeHtmlSafe(descriptor.label)}</div>
       ${
         descriptor.numbering
-          ? `<div class="document-number">${escapeHtmlSafe(instance.displayNumber ?? 'Draft — no number yet')}</div>`
+          ? `<div class="document-number">${escapeHtmlSafe(instance.displayNumber ?? strings.draftNoNumberYet)}</div>`
           : ''
       }
       ${instance.atcud ? `<div class="document-atcud">${escapeHtmlSafe(instance.atcud)}</div>` : ''}
       <div class="document-meta">
-        <div><strong>Status:</strong> ${escapeHtmlSafe(instance.status)}</div>
-        <div><strong>Date:</strong> ${escapeHtmlSafe(createdDate)}</div>
+        <div><strong>${escapeHtmlSafe(strings.status)}:</strong> ${escapeHtmlSafe(instance.status)}</div>
+        <div><strong>${escapeHtmlSafe(strings.date)}:</strong> ${escapeHtmlSafe(createdDate)}</div>
       </div>
     </div>
 `;
@@ -468,7 +487,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       continue;
     }
 
-    const renderedValue = renderFieldValue(field, value, referenceLabels, instance.data);
+    const renderedValue = renderFieldValue(field, value, referenceLabels, instance.data, strings);
 
     html += `
     <div class="field-row">
@@ -486,14 +505,14 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 
     html += `
     <div class="totals-section">
-      <div class="totals-label">Totals</div>
+      <div class="totals-label">${escapeHtmlSafe(strings.totals)}</div>
 `;
 
     // Net amount
     const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
     html += `
       <div class="totals-row">
-        <span>Net</span>
+        <span>${escapeHtmlSafe(strings.net)}</span>
         <span class="totals-amount">${escapeHtmlSafe(netDisplay)}</span>
       </div>
 `;
@@ -504,7 +523,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
       html += `
       <div class="totals-row">
-        <span>VAT ${escapeHtmlSafe(entry.ratePercent.toString())}% on ${escapeHtmlSafe(baseDisplay)}</span>
+        <span>${escapeHtmlSafe(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
         <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
       </div>
 `;
@@ -514,7 +533,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     const grossDisplay = `${fromMinor(totals.grossMinor, currency).toFixed(decimals)} ${currency}`;
     html += `
       <div class="totals-row summary">
-        <span>Total</span>
+        <span>${escapeHtmlSafe(strings.total)}</span>
         <span class="totals-amount">${escapeHtmlSafe(grossDisplay)}</span>
       </div>
 `;
@@ -543,7 +562,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     html += `
     <div class="payment-qr-section">
       <img class="payment-qr-image" src="${input.paymentQr.dataUri}" alt="SEPA payment QR code" width="130" height="130">
-      <div class="payment-qr-label">Scan to pay (SEPA)</div>
+      <div class="payment-qr-label">${escapeHtmlSafe(strings.scanToPaySepa)}</div>
     </div>
 `;
   }

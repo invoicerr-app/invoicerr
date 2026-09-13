@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
+import DocumentLanguageSelect from "@/components/document-language-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search } from "lucide-react"
@@ -95,6 +96,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       state: z.string().optional(),
       country: z.string().min(1, t("clients.upsert.validation.country.required")),
       countryCode: z.string().optional(),
+      // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — `null`/unset falls back to
+      // the company's own default, then to English (see DocumentLanguageSelect's own header).
+      language: z.string().nullable().optional(),
       identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
       // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
       peppolSchemeId: z.string().optional(),
@@ -152,6 +156,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       state: "",
       country: "",
       countryCode: "",
+      language: null,
       identifiers: [],
       peppolSchemeId: "0088",
       peppolEndpointId: "",
@@ -188,6 +193,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         state: client.state || "",
         country: client.country || "",
         countryCode: client.countryCode || "",
+        language: client.language ?? null,
         identifiers: (client.partyIdentifiers || [])
           .filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
           .map((pi) => ({ scheme: pi.scheme, value: pi.value })),
@@ -214,6 +220,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         state: "",
         country: "",
         countryCode: "",
+        language: null,
         identifiers: [],
         peppolSchemeId: "0088",
         peppolEndpointId: "",
@@ -816,6 +823,25 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("clients.upsert.fields.language.label")}</FormLabel>
+                    <FormControl>
+                      <DocumentLanguageSelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
+                        data-cy="client-language-select"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("clients.upsert.fields.language.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

@@ -1,5 +1,6 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
 import { transitionsAvailableWhen } from './lifecycle';
+import { standardDocumentEmailTranslations } from './standard-email-translations';
 import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as the quote's — see quote.descriptor.ts. */
@@ -340,6 +341,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
+    // TODO_FEATURES.md rank 14 — see types.ts's own comment on `emailTranslations`, and
+    // standard-email-translations.ts's own header on why this is shared, word-for-word, with
+    // quote.descriptor.ts rather than duplicated.
+    emailTranslations: standardDocumentEmailTranslations(),
     // "mandatory mentions" — see types.ts's own comment on this flag. BG-1
     // (EN 16931's mentions block) is an invoice concept; the invoice is the first, and today the
     // only, type that opts in.

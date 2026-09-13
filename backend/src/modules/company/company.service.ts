@@ -147,6 +147,7 @@ export class CompanyService {
         state: rest.state,
         country: rest.country,
         countryCode: rest.countryCode,
+        language: rest.language,
         phone: rest.phone,
         email: rest.email,
         iban: rest.iban,

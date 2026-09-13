@@ -167,6 +167,10 @@
           "label": "Country",
           "placeholder": "Enter country"
         },
+        "language": {
+          "label": "Document language",
+          "description": "The language this client's PDFs and emails are generated in. Leave on Automatic to use the company's own default language."
+        },
         "identifiers": {
           "label": "Country-specific identifiers",
           "unknownCountry": "No identifier requirements are known for this country yet — you can save the client without one."
@@ -1982,6 +1986,10 @@
           "label": "TVA unapplicable",
           "description": "Charge no VAT on future domestic invoices and display the small-business exemption notice your country's law requires (e.g. 'VAT not applicable, art. 293 B of the CGI' in France)."
         },
+        "language": {
+          "label": "Default document language",
+          "description": "The language used for a client's PDFs and emails when that client has no document language of its own set. Leave on Automatic to keep using English."
+        },
         "remindersEnabled": {
           "label": "Send automatic payment reminders",
           "description": "When enabled, clients with overdue invoices receive escalating reminder emails at 7, 14, and 30 days overdue. Off by default."
@@ -2646,6 +2654,17 @@
       "placeholder": "Select a country",
       "searchPlaceholder": "Search countries...",
       "noResults": "No countries found"
+    },
+    "document-language-select": {
+      "automatic": "Automatic",
+      "languages": {
+        "en": "English",
+        "fr": "Français",
+        "it": "Italiano",
+        "pl": "Polski",
+        "de": "Deutsch",
+        "pt": "Português"
+      }
     },
     "country-readiness-alert": {
       "title": "{{country}} is not fully supported yet",

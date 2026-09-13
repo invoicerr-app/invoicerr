@@ -10,6 +10,7 @@ import ChannelConnectPrompt from "@/components/channel-connect-prompt"
 import CountryReadinessAlert from "@/components/country-readiness-alert"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
+import DocumentLanguageSelect from "@/components/document-language-select"
 import { fromMinor, toMinor } from "@/components/documents/totals-calculator"
 import CurrencyRatesSettings from "./currency-rates.settings"
 import { DatePicker } from "@/components/date-picker"
@@ -122,6 +123,10 @@ export default function CompanySettings() {
     state: z.string().optional(),
     country: z.string().min(1, t("settings.company.form.country.errors.empty")),
     countryCode: z.string().optional(),
+    // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the FALLBACK for a client
+    // with no `Client.language` of its own (see DocumentLanguageSelect's own header). `null`/unset
+    // falls all the way back to English.
+    language: z.string().nullable().optional(),
     phone: z
       .string()
       .min(8, t("settings.company.form.phone.errors.minLength"))
@@ -231,6 +236,7 @@ export default function CompanySettings() {
       state: "",
       country: "",
       countryCode: "",
+      language: null,
       phone: "",
       email: "",
       iban: "",
@@ -258,6 +264,7 @@ export default function CompanySettings() {
       const nextValues = {
         ...data,
         countryCode: data.countryCode ?? undefined,
+        language: data.language ?? null,
         description: data.description ?? "",
         addressLine2: data.addressLine2 ?? "",
         state: data.state ?? "",
@@ -1208,6 +1215,25 @@ export default function CompanySettings() {
                       </Select>
                     </FormControl>
                     <FormDescription>{t("settings.company.form.dateFormat.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.company.form.language.label")}</FormLabel>
+                    <FormControl>
+                      <DocumentLanguageSelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
+                        data-cy="company-language-select"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.language.description")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

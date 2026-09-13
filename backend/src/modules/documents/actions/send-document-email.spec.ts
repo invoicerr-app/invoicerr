@@ -31,7 +31,7 @@ function buildDeps() {
 
 const FAKE_PDF = Buffer.from('%PDF-fake-content');
 
-function mockSuccessfulRender() {
+function mockSuccessfulRender(overrides: { language?: string } = {}) {
   (renderInstancePdf.renderDocumentInstance as jest.Mock).mockResolvedValue({
     pdf: FAKE_PDF,
     totals: {
@@ -45,6 +45,11 @@ function mockSuccessfulRender() {
     },
     referenceLabels: {},
     companyName: 'Acme Corp',
+    // TODO_FEATURES.md rank 14 — `renderDocumentInstance` always resolves and returns this now (see
+    // `rendering/render-instance-pdf.ts`'s own `RenderedDocumentInstance.language`); 'en' matches every
+    // pre-existing test's expectations exactly (the English descriptor default), and is the same value
+    // `resolveEmailTemplate`'s own default parameter would apply if this were omitted entirely.
+    language: overrides.language ?? 'en',
   });
 }
 
@@ -408,6 +413,84 @@ describe('sendDocumentInstanceEmail', () => {
         text: 'Hello,\nSee attached.',
         html: '<p>Hello,</p><p>See attached.</p>',
       }),
+    );
+  });
+
+  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the email must go out in the
+  // SAME language `rendered.language` says the attached PDF was just rendered in, never a second,
+  // independently-resolved value (see send-document-email.ts's own comment on this call).
+  it("sends the descriptor's FRENCH default when the render resolved the recipient's language to 'fr'", async () => {
+    mockSuccessfulRender({ language: 'fr' });
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'quote',
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: null,
+          displayNumber: null,
+        },
+        recipient: 'client@example.com',
+        label: 'Quote',
+      },
+    );
+
+    expect(mailService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: expect.stringContaining('de Acme Corp'),
+        text: expect.stringContaining('Veuillez trouver ci-joint'),
+      }),
+    );
+    const sentEmail = mailService.sendMail.mock.calls[0][0];
+    expect(sentEmail.subject).not.toContain('from Acme Corp');
+    expect(sentEmail.text).not.toContain('Please find attached');
+  });
+
+  // A company's OWN wording is sent exactly as written, in whatever language the company itself wrote
+  // it in — the resolved recipient language must never override, or even be consulted for, an
+  // existing company override. See email-template.ts#resolveEmailTemplate's own header.
+  it('a company override still wins even when the render resolved a non-English recipient language', async () => {
+    mockSuccessfulRender({ language: 'it' });
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({
+      quote: { subject: 'OVERRIDDEN SUBJECT', body: 'OVERRIDDEN BODY' },
+    });
+    (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'quote',
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sent',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: null,
+          displayNumber: null,
+        },
+        recipient: 'client@example.com',
+        label: 'Quote',
+      },
+    );
+
+    expect(mailService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'OVERRIDDEN SUBJECT', text: 'OVERRIDDEN BODY' }),
     );
   });
 });

@@ -21,6 +21,12 @@ export class EditClientsDto {
   state?: string;
   country: string;
   countryCode?: string;
+  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — see Client.language's own
+  // schema.prisma comment for the resolution this feeds
+  // (documents/rendering/language/resolve-recipient-language.ts). Free-text, never validated here
+  // (this DTO is a TypeScript interface, not runtime-checked — see editClientsInfo's own comment on
+  // why every write path allow-lists its columns instead).
+  language?: string | null;
   currency: Currency;
   type?: ClientType;
   // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to

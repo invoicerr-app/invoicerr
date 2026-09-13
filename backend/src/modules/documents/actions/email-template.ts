@@ -1,6 +1,7 @@
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
 import { DocumentEmailTemplate, DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
+import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from '../rendering/language/supported-languages';
 import { descriptorHasLineTotals, DocumentTotals } from '../totals/compute-totals';
 
 export type { DocumentEmailTemplate };
@@ -161,6 +162,37 @@ export const GENERIC_FALLBACK_EMAIL_TEMPLATE: DocumentEmailTemplate = {
   body: 'Please find attached {typeLabel} {displayNumber}.',
 };
 
+/**
+ * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — non-English variants of
+ * `GENERIC_FALLBACK_EMAIL_TEMPLATE` above, same precedence rule and same reason for existing as
+ * `DocumentTypeDescriptor.emailTranslations` (see that field's own header): never carries an `'en'`
+ * entry, since `GENERIC_FALLBACK_EMAIL_TEMPLATE` already is the English default. Reachable only for a
+ * third-party type that declares no `email` of its own — every native type ships one (see each
+ * descriptor's own `email`/`emailTranslations`).
+ */
+const GENERIC_FALLBACK_EMAIL_TRANSLATIONS: Partial<Record<RenderLanguage, DocumentEmailTemplate>> = {
+  fr: {
+    subject: '{typeLabel} {displayNumber}',
+    body: 'Veuillez trouver ci-joint {typeLabel} {displayNumber}.',
+  },
+  it: {
+    subject: '{typeLabel} {displayNumber}',
+    body: 'In allegato {typeLabel} {displayNumber}.',
+  },
+  pl: {
+    subject: '{typeLabel} {displayNumber}',
+    body: 'W załączeniu {typeLabel} {displayNumber}.',
+  },
+  de: {
+    subject: '{typeLabel} {displayNumber}',
+    body: 'Anbei {typeLabel} {displayNumber}.',
+  },
+  pt: {
+    subject: '{typeLabel} {displayNumber}',
+    body: 'Em anexo {typeLabel} {displayNumber}.',
+  },
+};
+
 /** Where a resolved template actually came from — the one thing a settings screen needs that the
  *  template's own content cannot tell it ("am I looking at my own text, or at the default I would
  *  revert to?"). Returned by `resolveEmailTemplateSource` below, never inferred by comparing strings. */
@@ -169,25 +201,49 @@ export type EmailTemplateSource = 'company' | 'descriptor' | 'generic';
 /**
  * Which template actually applies for `descriptor`, given the active company's OWN overrides
  * (`Company.documentEmailTemplates`, keyed by `DocumentTypeDescriptor.id` — see
- * actions/company-email-templates.ts for how that column is read and written). Priority, highest first:
- *  1. the company's own override for this type, if it set one;
- *  2. the type's own descriptor default (`descriptor.email`);
- *  3. `GENERIC_FALLBACK_EMAIL_TEMPLATE` above — every shipped type has (2), so this is reachable only
- *     for a type this trunk did not declare one for.
+ * actions/company-email-templates.ts for how that column is read and written) and the resolved
+ * recipient `language` (TODO_FEATURES.md rank 14 — see
+ * `rendering/language/resolve-recipient-language.ts`). Priority, highest first:
+ *  1. the company's own override for this type, if it set one — a company's own wording is sent
+ *     exactly as written, in whatever language the company wrote it in, REGARDLESS of `language`: this
+ *     is what "compose with an override, never bypass it" means in practice (see this function's own
+ *     callers).
+ *  2. the type's own translated default for `language` (`descriptor.emailTranslations?.[language]`),
+ *     if this type declares one for it;
+ *  3. the type's own descriptor default (`descriptor.email`) — the English content, reached for
+ *     `language === 'en'` and for any language this type has no translation for (the missing-
+ *     translation policy: silent fallback to English, never a blocked send — the same "never a typo
+ *     stops an email going out" philosophy `renderEmailTemplate`'s own header already documents for an
+ *     unknown placeholder);
+ *  4. `GENERIC_FALLBACK_EMAIL_TEMPLATE`/`GENERIC_FALLBACK_EMAIL_TRANSLATIONS` above — every shipped
+ *     type has (3), so this is reachable only for a type this trunk did not declare one for.
+ *
+ * `language` defaults to `DEFAULT_RENDER_LANGUAGE` ('en') so every pre-existing caller (the two-arg
+ * call every test and every pre-this-feature call site already makes) keeps resolving exactly the
+ * template it always did.
  */
 export function resolveEmailTemplate(
   descriptor: DocumentTypeDescriptor,
   companyOverrides: Record<string, DocumentEmailTemplate> | null | undefined,
+  language: RenderLanguage = DEFAULT_RENDER_LANGUAGE,
 ): DocumentEmailTemplate {
   const override = companyOverrides?.[descriptor.id];
   if (override) return override;
+
+  const translated = descriptor.emailTranslations?.[language];
+  if (translated) return translated;
+
   if (descriptor.email) return descriptor.email;
-  return GENERIC_FALLBACK_EMAIL_TEMPLATE;
+
+  return GENERIC_FALLBACK_EMAIL_TRANSLATIONS[language] ?? GENERIC_FALLBACK_EMAIL_TEMPLATE;
 }
 
-/** The same three-step resolution `resolveEmailTemplate` performs, reporting WHICH step won — one
- *  function, one precedence rule, so a settings screen can never disagree with what a send will
- *  actually use. */
+/** The same resolution `resolveEmailTemplate` performs, reporting WHICH step won — one function, one
+ *  precedence rule, so a settings screen can never disagree with what a send will actually use.
+ *  Deliberately collapses steps 2/3 of that function into ONE `'descriptor'` source: from a settings
+ *  screen's point of view ("is this the type's own default, or my own override?"), a translated
+ *  default and the English default are the same answer — WHICH language variant was picked is exactly
+ *  what `resolveEmailTemplate` itself, not this reporting helper, is for. */
 export function resolveEmailTemplateSource(
   descriptor: DocumentTypeDescriptor,
   companyOverrides: Record<string, DocumentEmailTemplate> | null | undefined,
@@ -212,10 +268,15 @@ function formatGrossTotal(totals: DocumentTotals): string {
  * The 'reference' field this type uses to point at the "client" entity, if it has one — the SINGLE
  * source of the `{recipientName}` presence rule, shared by `buildEmailTemplateParts` (which fills the
  * value in for a real send) and `describeDocumentEmailVocabulary` (which advertises the key to an
- * editor). Two readers of one rule: a type can never be offered a placeholder the send would then
- * treat as unknown.
+ * editor). Exported so `rendering/render-instance-pdf.ts` can reuse the exact same rule a THIRD time,
+ * to find the document's own client id for recipient-language resolution
+ * (`rendering/language/resolve-recipient-language.ts`) — one rule, three readers, so a type can never
+ * be offered a placeholder the send would then treat as unknown, and can never have its language
+ * resolved from a field this module wouldn't otherwise recognize as "the client".
  */
-function findClientReferenceField(descriptor: DocumentTypeDescriptor): DocumentFieldDescriptor | undefined {
+export function findClientReferenceField(
+  descriptor: DocumentTypeDescriptor,
+): DocumentFieldDescriptor | undefined {
   return descriptor.fields.find((field) => field.kind === 'reference' && field.entity === 'client');
 }
 

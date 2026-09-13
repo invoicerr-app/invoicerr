@@ -1,3 +1,5 @@
+import { RenderLanguage } from '../rendering/language/supported-languages';
+
 /**
  * A document TYPE descriptor — the whole contract for one kind of document (quote, invoice, ...),
  * declared as DATA. Nothing in the engine (registry, controller, frontend) names a document type;
@@ -109,6 +111,26 @@ export interface DocumentTypeDescriptor {
    * silently-borrowed default.
    */
   email?: DocumentEmailTemplate;
+  /**
+   * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — per-language variants of
+   * `email` above, keyed by `rendering/language/supported-languages.ts#RenderLanguage`. Deliberately
+   * NEVER carries an `'en'` entry: `email` above already IS the English default, so
+   * `actions/email-template.ts#resolveEmailTemplate` only ever consults this map for a NON-English
+   * resolved language, and falls straight through to `email` (English) both when the resolved language
+   * is `'en'` and when this type has not been translated into the resolved language at all — the
+   * documented missing-translation policy (silent fallback to English, never a blocked send) applies
+   * here exactly the same way it does in `rendering/language/pdf-chrome-strings.ts`.
+   *
+   * A company's own override (`Company.documentEmailTemplates`) still wins over BOTH this and `email`
+   * — see `resolveEmailTemplate`'s own header: a company that wrote its own wording for this type gets
+   * exactly that wording sent, in whatever language the company itself wrote it in, regardless of the
+   * recipient's resolved language. Only the DEFAULT a company never touched varies by recipient.
+   *
+   * Absent (the default for every type, including third-party ones) means exactly what it always
+   * meant before this field existed: `email`'s own English content is what every send uses, whatever
+   * the resolved recipient language — no behavior change for a type that never added translations.
+   */
+  emailTranslations?: Partial<Record<RenderLanguage, DocumentEmailTemplate>>;
   /**
    * "mandatory mentions" — opts this type into the country-mandated-mentions
    * mechanism (`mentions/`): `rendering/render-instance-pdf.ts` resolves the seller's own country and
