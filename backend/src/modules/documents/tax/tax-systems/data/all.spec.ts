@@ -32,7 +32,7 @@ describe('tax-systems/data — coverage', () => {
   });
 });
 
-describe('tax-systems/data — the kept standard rates read from TEDB, content-pinned', () => {
+describe('tax-systems/data — the kept standard rates, content-pinned', () => {
   const byCode = (cc: string) => ALL_TAX_SYSTEM_FILES.find((f) => f.countryCode === cc);
 
   it('DE (Germany): 19% — the rate the OSS gate used to name as missing', () => {
@@ -57,9 +57,11 @@ describe('tax-systems/data — the kept standard rates read from TEDB, content-p
   });
 
   // Spot-checks across the kept set — each value is the one the underlying reading returned
-  // (see each file's own `provenance.sourceText`), not a value recalled from memory. DE's citation
-  // was replaced 2026-09-13 (TEDB JSON body → UStG § 12 Abs. 1, see the dedicated test below), but
-  // the figure itself (19%) is unchanged — both sources always agreed on it.
+  // (see each file's own `provenance.sourceText`), not a value recalled from memory. All four of
+  // DE/IT/PL/PT had their citation replaced 2026-09-13 (TEDB JSON body → statute — UStG § 12 Abs. 1,
+  // DPR 633/1972 art. 16, ustawa o VAT art. 41/146ef, CIVA art. 18.º respectively; see the dedicated
+  // byte-identity tests below), but the figures themselves are unchanged — every statute agrees with
+  // the TEDB reading it replaces.
   it.each([
     ['DE', 19],
     ['IT', 22],
@@ -93,22 +95,9 @@ describe('tax-systems/data — the kept standard rates read from TEDB, content-p
     expect(fr?.notes).toContain('293 B');
   });
 
-  it('none of the TEDB-sourced files (DE/IT/PL/PT) invent a reducedRates table — the OSS branch this work unblocks reads only standardRate, and DocumentLine has no per-line product category to select a reduced rate against', () => {
+  it('none of DE/IT/PL/PT invent a reducedRates table — the OSS branch this work unblocks reads only standardRate, and DocumentLine has no per-line product category to select a reduced rate against', () => {
     for (const cc of ['DE', 'IT', 'PL', 'PT']) {
       expect(byCode(cc)?.reducedRates).toBeUndefined();
-    }
-  });
-
-  it('IT/PL/PT still claim "legal" provenance citing the actual TEDB HTTP response, checked 2026-09-01', () => {
-    for (const cc of ['IT', 'PL', 'PT']) {
-      const file = byCode(cc);
-      expect(file?.provenance.kind).toBe('legal');
-      if (file?.provenance.kind === 'legal') {
-        expect(file.provenance.sourceText).toMatch(/"isoCode"/);
-        expect(file.provenance.sourceText).toMatch(/"type" : "STANDARD"/);
-        expect(file.provenance.sourceCheckedAt).toBe('2026-09-01');
-        expect(file.notes).toContain('tedb/rest-api/vatSearch');
-      }
     }
   });
 
@@ -123,6 +112,85 @@ describe('tax-systems/data — the kept standard rates read from TEDB, content-p
       expect(de.provenance.sourceText).toBe(deVatStandard.provenance.sourceText);
       expect(de.provenance.sourceCheckedAt).toBe(deVatStandard.provenance.sourceCheckedAt);
       expect(de.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+  });
+
+  // The following three mirror the DE test above exactly — same shape, same byte-identity claim —
+  // for the three files this task's own swap touched. They REPLACE the old
+  // 'IT/PL/PT still claim "legal" provenance citing the actual TEDB HTTP response' test: that
+  // assertion's subject (the TEDB JSON body) no longer exists in any of these three files, and
+  // weakening or deleting the assertion to make the suite green would have hidden the swap instead
+  // of proving it. This is the stronger replacement — it proves the NEW citation is real and
+  // byte-identical to its vat-rates source, not merely that the old one is gone.
+
+  it("IT is PROMOTED off the TEDB HTTP body onto the statute itself — the same DPR 633/1972 art. 16 quote already `legal` on vat-rates/data/it.json's own 'it-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
+    const it_ = byCode('IT');
+    const itVatStandard = require('../../../vat-rates/data/it.json').rates.find(
+      (r: { id: string }) => r.id === 'it-standard',
+    );
+    expect(it_?.provenance.kind).toBe('legal');
+    if (it_?.provenance.kind === 'legal') {
+      expect(it_.provenance.sourceText).not.toMatch(/"isoCode"/); // no longer the TEDB JSON body
+      expect(it_.provenance.sourceText).toBe(itVatStandard.provenance.sourceText);
+      expect(it_.provenance.sourceCheckedAt).toBe(itVatStandard.provenance.sourceCheckedAt);
+      expect(it_.provenance.sourceCheckedAt).toBe('2026-09-13');
+    }
+  });
+
+  it("PL is PROMOTED off the TEDB HTTP body onto the statute itself — the same art. 41 / art. 146ef quote already `legal` on vat-rates/data/pl.json's own 'pl-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
+    const pl = byCode('PL');
+    const plVatStandard = require('../../../vat-rates/data/pl.json').rates.find(
+      (r: { id: string }) => r.id === 'pl-standard',
+    );
+    expect(pl?.provenance.kind).toBe('legal');
+    if (pl?.provenance.kind === 'legal') {
+      expect(pl.provenance.sourceText).not.toMatch(/"isoCode"/); // no longer the TEDB JSON body
+      expect(pl.provenance.sourceText).toBe(plVatStandard.provenance.sourceText);
+      expect(pl.provenance.sourceCheckedAt).toBe(plVatStandard.provenance.sourceCheckedAt);
+      expect(pl.provenance.sourceCheckedAt).toBe('2026-09-13');
+      // Poland's statutory basis is split (see vat-rates/data/pl.json's own notes): art. 41 alone
+      // sets a 22% BASE rate, and it is art. 146ef that raises it to the 23% actually in force. The
+      // quotation must carry BOTH provisions — citing art. 41 alone would misleadingly read as if
+      // 22% were today's rate.
+      expect(pl.provenance.sourceText).toContain('Art. 41');
+      expect(pl.provenance.sourceText).toContain('146ef');
+      expect(pl.provenance.sourceText).toContain('23 %');
+    }
+  });
+
+  it("PT is PROMOTED off the TEDB HTTP body onto the statute itself — the same CIVA art. 18.º quote already `legal` on vat-rates/data/pt.json's own 'pt-standard' entry, copied byte-for-byte (that entry's own check date, 2026-09-04): a citation a reader can check in the law beats a reproduced JSON payload", () => {
+    const pt = byCode('PT');
+    const ptVatStandard = require('../../../vat-rates/data/pt.json').rates.find(
+      (r: { id: string }) => r.id === 'pt-standard',
+    );
+    expect(pt?.provenance.kind).toBe('legal');
+    if (pt?.provenance.kind === 'legal') {
+      expect(pt.provenance.sourceText).not.toMatch(/"isoCode"/); // no longer the TEDB JSON body
+      expect(pt.provenance.sourceText).toBe(ptVatStandard.provenance.sourceText);
+      expect(pt.provenance.sourceCheckedAt).toBe(ptVatStandard.provenance.sourceCheckedAt);
+      // PT's vat-rates reading predates the 2026-09-13 swap date the other three share — carried
+      // over as-is, per this task's own instruction, rather than bumped to match them.
+      expect(pt.provenance.sourceCheckedAt).toBe('2026-09-04');
+    }
+  });
+
+  it('every `legal` standard-rate provenance in this catalog quotes a statute, never an API response body — the positive invariant that replaces the old TEDB-citation assertion now that IT/PL/PT no longer have one', () => {
+    const filesWithStandardRate = ALL_TAX_SYSTEM_FILES.filter(
+      (f) => f.kind === 'VAT' && typeof f.standardRate === 'number' && f.provenance.kind === 'legal',
+    );
+    // Guards the guard: this only proves something if it actually has files to check (today
+    // DE/IT/PL/PT) — an empty filter passing vacuously would be exactly the kind of assertion this
+    // task's own brief warns against.
+    expect(filesWithStandardRate.length).toBe(4);
+    for (const file of filesWithStandardRate) {
+      const sourceText = (file.provenance as { sourceText: string }).sourceText;
+      // A TEDB (or any similarly-shaped REST) response body always carries these literal JSON keys
+      // verbatim — a statutory quotation never does. Where the old assertion REQUIRED this shape,
+      // this one FORBIDS it, for every file that carries a standard rate, not just the three the
+      // 2026-09-13 swap touched.
+      expect(sourceText).not.toMatch(/"isoCode"/);
+      expect(sourceText).not.toMatch(/"situationOn"/);
+      expect(sourceText).not.toMatch(/"countryName"/);
     }
   });
 });
