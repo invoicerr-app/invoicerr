@@ -123,7 +123,18 @@ export const SCENARIOS: Record<string, Scenario> = {
     // SAP SE's long-published, publicly known USt-IdNr, not an invented number).
     company: { name: 'Berlin Tech GmbH', country: 'Germany', legalId: 'DE136695976', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Paris Media SAS', email: 'client-de-fr@mailpit.test', country: 'France', type: 'COMPANY', vat: 'FR12345678901', address: '15 Rue de Rivoli', postalCode: '75001', city: 'Paris', currency: 'EUR' },
-    item: { name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 20, type: 'PRODUCT' },
+    // CORRECTED (2026-09-13): this typed 20 — France's standard rate — which the German SELLER's own
+    // screen has never been able to offer and, since `vat-rates/data/de.json` landed, the document
+    // validator actively refuses ("VAT rate is not one of the offered choices"): Germany's catalog
+    // declares 19, 7 and 0. The leg was red from that commit until this one, unnoticed because the
+    // scenario legs only run on a PR and this branch has not opened one.
+    //
+    // 19 is what a German seller can actually pick. It does NOT weaken the leg: the assertion that
+    // matters is on the EXPORTED XML, where `full-lifecycle.cy.ts` still requires
+    // `RateApplicablePercent 20` and `CategoryCode S` — the OSS destination rate the engine RESOLVES
+    // at send. Typing 19 and exporting 20 is in fact the stronger proof, because the two numbers can
+    // no longer coincide by accident the way the note above warns about.
+    item: { name: 'Software License', quantity: 1, unitPrice: 1200, vatRate: 19, type: 'PRODUCT' },
   },
   'it-it': {
     id: 'it-it',
@@ -191,10 +202,18 @@ export const SCENARIOS: Record<string, Scenario> = {
     id: 'pl-de',
     // B2C — a Polish seller and a German INDIVIDUAL buyer, preserving us-us's own "individual
     // client" angle but as a genuine cross-border EU distance sale: the OSS destination-VAT path
-    // (tax-engine.ts#ossDestinationVat), which none of the other four scenarios reaches. `vatRate`
-    // is the DESTINATION country's own standard rate (Germany, 19%), not the seller's — the real
-    // tax resolution at issuance recomputes this from tax-systems/data/de.json regardless of what
-    // was typed here, and was always correct. This leg's own CII export was blocked by the third
+    // (tax-engine.ts#ossDestinationVat), which none of the other four scenarios reaches.
+    //
+    // CORRECTED (2026-09-13): `vatRate` used to be the DESTINATION country's own standard rate
+    // (Germany, 19%), on the reasoning that "the real tax resolution at issuance recomputes this
+    // regardless of what was typed here". That reasoning was sound until `vat-rates/data/pl.json`
+    // landed: the document validator now refuses a rate the SELLER's own catalog does not offer
+    // ("VAT rate is not one of the offered choices"), and Poland declares 23, 8, 5 and 0 — never 19.
+    // The leg was red from that commit until this one, unnoticed because the scenario legs only run
+    // on a PR and this branch has not opened one. 23 is what a Polish seller can actually pick; the
+    // resolution to Germany's 19% at issuance is unchanged and is what the assertions check.
+    //
+    // This leg's own CII export was blocked by the third
     // product defect the restored spec found: a Polish seller has no `pl.json` under
     // country-identifiers/data, and neither onboarding nor company settings offered any
     // way to record a VAT-scheme identifier for it — category S needs one (BR-S-02) just as much as
@@ -203,6 +222,6 @@ export const SCENARIOS: Record<string, Scenario> = {
     // populates BT-31, and this leg exports and sends successfully.
     company: { name: 'Kraków Usługi Sp. z o.o.', country: 'Poland', legalId: 'PL7010018991', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Klaus Mueller', email: 'client-pl-de@mailpit.test', country: 'Germany', type: 'INDIVIDUAL', contactFirstname: 'Klaus', contactLastname: 'Mueller', address: 'Leopoldstraße 10', postalCode: '80802', city: 'Munich', currency: 'EUR' },
-    item: { name: 'Widget', quantity: 2, unitPrice: 150, vatRate: 19, type: 'PRODUCT' },
+    item: { name: 'Widget', quantity: 2, unitPrice: 150, vatRate: 23, type: 'PRODUCT' },
   },
 };

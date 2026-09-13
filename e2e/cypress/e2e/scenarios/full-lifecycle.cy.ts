@@ -114,12 +114,17 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  * ## House discipline this file follows (see 21/31/35 for the precedent)
  *
  * Actions through a real click; assertions through the API — with ONE documented exception per house
- * convention (35's own "sans pays" client): a buyer country with NO `country-identifiers/data/<cc>.json`
- * file (Poland, Italy — see that catalog's own `all.ts`) renders NO identifier input in the client
- * form at all (`client-identifiers-unknown-country`, never `client-identifier-VAT`) — there is
- * currently no screen path to give such a buyer a VAT number, so `fr-pl`'s Polish buyer is created via
- * the API, its absence from the form asserted FIRST as the gap it is, exactly the way 35 documents its
- * own API-only client creation rather than silently routing around what the screen cannot do.
+ * convention (35's own "sans pays" client): the client form renders exactly the identifier schemes
+ * the buyer country's own `country-identifiers/data/<cc>.json` declares, and nothing else. When a
+ * buyer's VAT number has no input to go in, the client is created through the API instead, its
+ * absence from the form asserted FIRST as the gap it is — the way 35 documents its own API-only
+ * client creation rather than silently routing around what the screen cannot do.
+ *
+ * UPDATED 2026-09-13: this used to say "a buyer country with NO file (Poland, Italy)". Both countries
+ * gained one that day, so the condition is no longer about the FILE but about the SCHEME — Poland's
+ * own file ships `LEGAL_ID` and not `VAT`, so its buyer still needs the API path while its form does
+ * now render an input. `BuyerIdentifiers.formOffers` below carries the real per-country list, and the
+ * assertions check both directions: every declared scheme present, every undeclared one absent.
  */
 const scenarioId = Cypress.env("scenario") as string;
 const s: Scenario = SCENARIOS[scenarioId];
@@ -197,7 +202,17 @@ const SELLER_IDENTIFIERS: Record<string, { legalId?: string; vat?: string }> = {
 interface BuyerIdentifiers {
 	legalId?: string;
 	vat?: string;
-	hasCountryFile: boolean;
+	/**
+	 * The identifier schemes the client form ACTUALLY renders for this buyer's country — i.e. exactly
+	 * what `country-identifiers/data/<cc>.json` declares, nothing assumed.
+	 *
+	 * This replaced a `hasCountryFile: boolean` on 2026-09-13, because a boolean could no longer tell
+	 * the truth: Poland's own file ships `LEGAL_ID` and NOT `VAT`, so "has a file" and "the form can
+	 * carry this buyer's VAT number" stopped being the same question the day that file landed. An
+	 * empty list means the country has no file at all and the form renders the honest
+	 * `client-identifiers-unknown-country` placeholder instead of any input.
+	 */
+	formOffers: ("VAT" | "LEGAL_ID")[];
 	/** `clients.service.ts#upsertPartyIdentifiers`'s own stored verdict — the syntax gate runs FIRST,
 	 *  before any VIES-style call, so this is fully deterministic offline (see this file's header for
 	 *  the per-country checksum this traces). Absent when no VAT was even typed. */
@@ -205,12 +220,17 @@ interface BuyerIdentifiers {
 }
 
 const BUYER_IDENTIFIERS: Record<string, BuyerIdentifiers> = {
-	"fr-pl": { vat: "PL5260001246", hasCountryFile: false, expectedVatStatus: "VALID" },
-	"de-fr": { legalId: "552100554", vat: "FR12345678901", hasCountryFile: true, expectedVatStatus: "INVALID" },
-	"it-it": { hasCountryFile: false },
-	"pt-de": { vat: "DE812000006", hasCountryFile: true, expectedVatStatus: "VALID" },
-	"it-pt": { legalId: "501442600", vat: "PT501442600", hasCountryFile: true, expectedVatStatus: "VALID" },
-	"pl-de": { hasCountryFile: true },
+	// Poland ships LEGAL_ID and NOT VAT (`country-identifiers/data/pl.json`), so this buyer's VAT
+	// number still cannot go through the form — the API fallback below is still exercised, but for a
+	// narrower and more accurate reason than "this country has no file".
+	"fr-pl": { vat: "PL5260001246", formOffers: ["LEGAL_ID"], expectedVatStatus: "VALID" },
+	"de-fr": { legalId: "552100554", vat: "FR12345678901", formOffers: ["LEGAL_ID", "VAT"], expectedVatStatus: "INVALID" },
+	// Italy ships VAT + LEGAL_ID (`country-identifiers/data/it.json`, 2026-09-13). Both inputs render;
+	// neither is typed here, which is correct — both schemes are `required: false`.
+	"it-it": { formOffers: ["VAT", "LEGAL_ID"] },
+	"pt-de": { vat: "DE812000006", formOffers: ["VAT", "LEGAL_ID"], expectedVatStatus: "VALID" },
+	"it-pt": { legalId: "501442600", vat: "PT501442600", formOffers: ["LEGAL_ID", "VAT"], expectedVatStatus: "VALID" },
+	"pl-de": { formOffers: ["VAT", "LEGAL_ID"] },
 };
 
 /** SERVICE/HOUR/DAY → SERVICES, PRODUCT → GOODS — `tax/types.ts`'s own `SupplyType`, the field the
@@ -503,23 +523,26 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		}
 		cy.selectCountry("client-country-select", s.client.country);
 
-		if (!buyer.hasCountryFile) {
-			// THE GAP this file's header documents: no `country-identifiers/data/<cc>.json` for this
-			// country means the form renders NO identifier input at all — proven absent here, not
-			// silently worked around.
+		// The form must offer EXACTLY what the buyer country's own catalog declares — each declared
+		// scheme present, each undeclared one absent. Asserting both directions is the point: a
+		// missing input and an extra one are both wrong, and a country that gained a file (Italy and
+		// Poland both did on 2026-09-13) must be noticed here rather than silently tolerated.
+		if (buyer.formOffers.length === 0) {
 			cy.get('[data-cy="client-identifiers-unknown-country"]', { timeout: 10000 }).should("exist");
-			cy.get('[data-cy="client-identifier-VAT"]').should("not.exist");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').should("not.exist");
 		} else {
-			if (buyer.legalId) {
-				cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
-					.should("exist")
-					.clear()
-					.type(buyer.legalId);
+			cy.get(`[data-cy="client-identifier-${buyer.formOffers[0]}"]`, { timeout: 10000 }).should("exist");
+			cy.get('[data-cy="client-identifiers-unknown-country"]').should("not.exist");
+		}
+		for (const scheme of ["VAT", "LEGAL_ID"] as const) {
+			if (!buyer.formOffers.includes(scheme)) {
+				cy.get(`[data-cy="client-identifier-${scheme}"]`).should("not.exist");
 			}
-			if (buyer.vat) {
-				cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 }).should("exist").clear().type(buyer.vat);
-			}
+		}
+		if (buyer.legalId && buyer.formOffers.includes("LEGAL_ID")) {
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type(buyer.legalId);
+		}
+		if (buyer.vat && buyer.formOffers.includes("VAT")) {
+			cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 }).clear().type(buyer.vat);
 		}
 
 		cy.get('[name="contactEmail"]').clear().type(s.client.email);
@@ -528,10 +551,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		cy.get('[name="city"]').clear().type(s.client.city);
 		selectClientEuro();
 
-		if (!buyer.hasCountryFile && buyer.vat) {
+		if (buyer.vat && !buyer.formOffers.includes("VAT")) {
 			// The form genuinely cannot carry this buyer's VAT number — close without submitting and
 			// finish creating the client through the API instead, exactly the documented exception
 			// `35-cross-border-tax.cy.ts` already establishes for its own "sans pays" client.
+			// Note the condition is about the SCHEME, not about the country having a file at all:
+			// Poland has a file and still offers no VAT input, which is precisely the case here.
 			cy.get('[data-cy="client-cancel"]').click();
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
 
