@@ -1,23 +1,24 @@
 /**
- * Le webhook `DOCUMENT_SENT` (vocabulaire générique `DOCUMENT_*`) part quand la transmission
- * ABOUTIT, jamais avant, jamais sur un échec.
- * L'idempotence à travers un retry BullMQ et le comportement sur échec/enqueue sont déjà prouvés par
- * jest, contre un VRAI serveur HTTP local (`async-send.spec.ts`, `async-send-webhook.spec.ts`,
- * `documents.service.invoice.spec.ts`) — ce fichier prouve la SEULE chose que jest ne peut pas : que
- * l'écran de configuration (`Settings > Webhooks`, jusqu'ici sans aucune spec e2e ni le moindre
- * `data-cy`) mène réellement, de bout en bout, à une émission — un vrai clic configure le webhook,
- * une vraie facture part par un vrai clic "Send" (transport email, résolu depuis le `contactEmail` du
- * client — `invoice-actions.ts` — jamais un champ tapé), à travers une vraie file BullMQ/Redis (le
- * "pipe" que 28-document-async-send.cy.ts a déjà établi), et l'assertion qui compte lit un récepteur
- * HTTP RÉEL (`cypress.config.ts`'s `startWebhookReceiver`, `node:http`, jamais un `cy.intercept` —
- * celui-ci ne verrait qu'un appel fait par le NAVIGATEUR, alors que ce POST part du BACKEND, serveur à
- * serveur). L'écran offre `DOCUMENT_SENT` (et non plus `INVOICE_SENT`, purgé de l'enum par la
- * migration de purge) parce que `GET /api/webhooks/options` reflète `Object.values(WebhookEvent)`
- * directement — aucun changement d'écran n'était nécessaire pour ça, seulement de cette spec.
+ * The `DOCUMENT_SENT` webhook (generic `DOCUMENT_*` vocabulary) fires when the transmission
+ * SUCCEEDS, never before, never on a failure.
+ * Idempotence across a BullMQ retry and behavior on failure/enqueue are already proven by
+ * jest, against a REAL local HTTP server (`async-send.spec.ts`, `async-send-webhook.spec.ts`,
+ * `documents.service.invoice.spec.ts`) — this file proves the ONE thing jest cannot: that
+ * the configuration screen (`Settings > Webhooks`, until now with no e2e spec nor a single
+ * `data-cy`) genuinely leads, end to end, to a real emission — a real click configures the
+ * webhook, a real invoice is sent via a real "Send" click (email transport, resolved from the
+ * client's own `contactEmail` — `invoice-actions.ts` — never a typed field), through a real
+ * BullMQ/Redis queue (the "pipe" 28-document-async-send.cy.ts has already established), and the
+ * assertion that matters reads a REAL HTTP receiver (`cypress.config.ts`'s `startWebhookReceiver`,
+ * `node:http`, never a `cy.intercept` — that would only see a call made by the BROWSER, whereas
+ * this POST comes from the BACKEND, server to server). The screen offers `DOCUMENT_SENT` (no
+ * longer `INVOICE_SENT`, purged from the enum by the purge migration) because
+ * `GET /api/webhooks/options` reflects `Object.values(WebhookEvent)` directly — no screen change
+ * was needed for that, only this spec.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoyée", () => {
+describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -26,31 +27,32 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 		cy.login();
 	});
 
-	it('un webhook configuré PAR L\'ÉCRAN reçoit "DOCUMENT_SENT" exactement une fois, une fois la facture réellement "Sent"', () => {
+	it('a webhook configured THROUGH THE SCREEN receives "DOCUMENT_SENT" exactly once, once the invoice is genuinely "Sent"', () => {
 		cy.task("clearWebhookRequests");
 
 		cy.task("startWebhookReceiver").then((rawUrl) => {
 			const webhookUrl = rawUrl as string;
 
-			// 1) La configuration du webhook — PAR L'ÉCRAN, jamais par l'API : c'est la partie que ce
-			// fichier existe pour tester, et jusqu'ici aucune spec ne la couvrait.
+			// 1) The webhook's configuration — THROUGH THE SCREEN, never via the API: this is the
+			// part this file exists to test, and until now no spec covered it.
 			cy.visit("/settings/webhooks");
 			cy.get('[data-cy="webhook-url-input"]', { timeout: 10000 }).should("be.visible").clear().type(webhookUrl);
 
 			cy.get('[data-cy="webhook-events-select"]').click();
 			cy.get('[data-slot="command-input"]').type("DOCUMENT_SENT");
 			cy.get('[role="option"]').contains("DOCUMENT_SENT").click();
-			// Ferme le popover (non modal — il ne bloque pas le clic sur "Créer", mais fermer d'abord
-			// est ce qu'un vrai utilisateur ferait avant de soumettre).
+			// Closes the popover (non-modal — it doesn't block the click on "Create", but closing it
+			// first is what a real user would do before submitting).
 			cy.get("body").type("{esc}");
 
 			cy.get('[data-cy="webhook-create-submit"]').click();
 
-			// La preuve que la CRÉATION a abouti — pas seulement que le formulaire s'est vidé.
+			// The proof that the CREATION succeeded — not just that the form emptied out.
 			cy.get('[data-cy^="webhook-row-"]', { timeout: 10000 }).should("have.length", 1);
 
-			// 2) Le nécessaire pour qu'une facture puisse réellement partir par courriel — établi par
-			// API, comme 23/28 le font déjà pour ce même transport : ce n'est pas la partie sous test.
+			// 2) What's needed for an invoice to actually be sent by email — set up via the
+			// API, the same way 23/28 already do for this same transport: this isn't the part under
+			// test.
 			cy.request({
 				method: "POST",
 				url: `${api}/api/company/info`,
@@ -100,22 +102,22 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 					const invoiceId = saved.body?.document?.id as string;
 					expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
 
-					// 3) Le vrai déclencheur : un clic réel sur "Send" — jamais un appel direct à
-					// l'action, qui contournerait l'écran (même discipline que 21/22/23/28).
+					// 3) The real trigger: a real click on "Send" — never a direct call to
+					// the action, which would bypass the screen (the same discipline as 21/22/23/28).
 					cy.visit("/documents/invoice");
 					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
 
-					// Le statut affiché atteint "Sent" — la transmission a réellement ABOUTI, à travers
-					// la même file BullMQ/Redis que 28-document-async-send.cy.ts traverse déjà.
+					// The displayed status reaches "Sent" — the transmission genuinely SUCCEEDED, through
+					// the same BullMQ/Redis queue that 28-document-async-send.cy.ts already goes through.
 					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Sent");
 
-					// 4) LA preuve : le récepteur RÉEL a reçu EXACTEMENT un webhook, portant l'événement
-					// DOCUMENT_SENT (générique — `typeId` en donnée de filtrage,
-					// jamais une clé calculée par type) et la facture réellement envoyée — jamais zéro
-					// (rien n'est parti), jamais deux (une double émission), jamais un événement
-					// générique qui ne dirait rien de ce qui vient de se passer.
+					// 4) THE proof: the REAL receiver received EXACTLY one webhook, carrying the
+					// DOCUMENT_SENT event (generic — `typeId` as filtering data,
+					// never a key computed per type) and the invoice that was actually sent — never
+					// zero (nothing went out), never two (a double emission), never a generic event
+					// that would say nothing about what just happened.
 					cy.task("getWebhookRequests").then((requests) => {
 						const list = requests as Array<Record<string, unknown>>;
 						expect(list, "exactement un webhook reçu par le récepteur réel").to.have.length(1);
@@ -132,13 +134,12 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 		});
 	});
 
-	// DOCUMENT_SETTLED part quand le RÈGLEMENT franchit le
-	// seuil "soldé", au moment où le paiement qui fait franchir ce seuil est PERSISTÉ — jamais sur un
-	// recalcul de lecture. "record-payment" est SYNCHRONE (pas de file BullMQ, contrairement à
-	// "send") : le webhook est déjà expédié avant même que le navigateur ne reçoive la réponse de la
-	// mutation, donc aucune attente supplémentaire n'est nécessaire au-delà de la fermeture du
-	// dialogue d'action.
-	it('un webhook configuré PAR L\'ÉCRAN reçoit "DOCUMENT_SETTLED" exactement une fois — au SECOND de deux paiements (partiel puis final), jamais au premier', () => {
+	// DOCUMENT_SETTLED fires when the SETTLEMENT crosses the
+	// "settled" threshold, at the moment the payment that crosses that threshold is PERSISTED —
+	// never on a read-time recomputation. "record-payment" is SYNCHRONOUS (no BullMQ queue, unlike
+	// "send"): the webhook has already been dispatched before the browser even receives the
+	// mutation's response, so no additional wait is needed beyond the action dialog closing.
+	it('a webhook configured THROUGH THE SCREEN receives "DOCUMENT_SETTLED" exactly once — on the SECOND of two payments (partial then final), never on the first', () => {
 		cy.task("clearWebhookRequests");
 
 		cy.task("startWebhookReceiver").then((rawUrl) => {
@@ -155,8 +156,8 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 			cy.get('[data-cy="webhook-create-submit"]').click();
 			cy.get('[data-cy^="webhook-row-"]', { timeout: 10000 }).should("have.length.at.least", 1);
 
-			// La facture elle-même (brouillon + envoi) — déjà prouvée par 21/24, l'API suffit ici ; ce
-			// qui est SOUS TEST, c'est le paiement, par un vrai clic, plus bas.
+			// The invoice itself (draft + send) — already proven by 21/24, the API is enough here;
+			// what's UNDER TEST is the payment, via a real click, further down.
 			cy.request({ url: `${api}/api/documents/references/client/search` })
 				.its("body")
 				.then((clients: { id: string }[]) => {
@@ -194,7 +195,7 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 							cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
 							cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 
-							// Paiement PARTIEL : 60,00 € des 120,00 € dus (100 € net + 20 % de TVA).
+							// PARTIAL payment: €60.00 of the €120.00 due (€100 net + 20% VAT).
 							cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
 							cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
 								"be.visible",
@@ -218,7 +219,7 @@ describe("Le webhook DOCUMENT_SENT part quand une facture est réellement envoy�
 								).to.have.length(0);
 							});
 
-							// Paiement FINAL : les 60,00 € restants — la facture franchit le seuil "soldé".
+							// FINAL payment: the remaining €60.00 — the invoice crosses the "settled" threshold.
 							cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
 							cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
 								"be.visible",

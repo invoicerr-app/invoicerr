@@ -1,31 +1,31 @@
 /**
- * i18n des libellés de descripteurs (données brutes aujourd'hui). Le mécanisme
- * (frontend/src/lib/descriptor-i18n.ts, branché dans
- * hooks/queries/use-document-types.ts et use-widgets.ts) fait tenter au front une clé DÉRIVÉE
- * (`documents.descriptors.<typeId>...`) avec REPLI sur le libellé brut du descripteur quand elle
- * n'existe pas — jamais l'inverse. locales/en/translation.json ne porte les clés que pour les CINQ
- * types NATIFS, et leurs valeurs EN sont le texte ACTUEL des descripteurs, mot pour mot : ce fichier
- * ne prouve donc PAS que l'écran change (il ne doit pas), mais que le mécanisme est bien celui-là,
- * pas un hasard heureux :
+ * i18n of descriptor labels (raw data today). The mechanism
+ * (frontend/src/lib/descriptor-i18n.ts, wired into
+ * hooks/queries/use-document-types.ts and use-widgets.ts) makes the frontend try a DERIVED key
+ * (`documents.descriptors.<typeId>...`) with a FALLBACK to the descriptor's raw label when it
+ * does not exist — never the other way round. locales/en/translation.json only carries keys for the
+ * FIVE NATIVE types, and their EN values are the descriptors' CURRENT text, word for word: this
+ * file therefore does NOT prove the screen changes (it must not), but that the mechanism is really
+ * this one, not a lucky coincidence:
  *
- *  1. le type, ses champs (y compris un champ imbriqué dans un tableau 'array'), ses actions et le
- *     statut d'un brouillon s'affichent identiques à avant — la clé existe, sa valeur EN = le
- *     libellé brut ;
- *  2. le REPLI se voit pour de vrai sur un cas concret que cette app expose déjà en production : le
- *     catalogue de taux de TVA (vat-rates/, backend/src/modules/documents/descriptors/company-view.ts) remplit
- *     les OPTIONS du select `vatRate` PAR COMPAGNIE, À L'EXÉCUTION, dans la langue où le catalogue du
- *     pays est écrit (le français pour FR — voir vat-rates/data/fr.json) ; aucune clé
- *     `documents.descriptors.invoice.fields.lines.fields.vatRate.options.<taux>` n'existe (et ne
- *     PEUT pas exister, le contenu dépend de la société active) — la valeur reste donc le libellé
- *     BRUT du backend, tel quel, en français, sur un écran dont la langue active est l'anglais.
- *     C'est la preuve la plus directe et la plus « vraie » de l'échappatoire "un plugin non traduit
- *     reste affiché tel quel" que cette app puisse offrir aujourd'hui : elle n'a encore aucun type de
- *     document tiers réellement enregistré pour le démontrer autrement.
+ *  1. the type, its fields (including a field nested inside an 'array'), its actions, and a
+ *     draft's status all display identically to before — the key exists, its EN value = the
+ *     raw label;
+ *  2. the FALLBACK is seen for real on a concrete case this app already exposes in production: the
+ *     VAT rate catalog (vat-rates/, backend/src/modules/documents/descriptors/company-view.ts) fills
+ *     the `vatRate` select's OPTIONS PER COMPANY, AT RUNTIME, in whatever language the country's
+ *     catalog is written in (French for FR — see vat-rates/data/fr.json); no
+ *     `documents.descriptors.invoice.fields.lines.fields.vatRate.options.<rate>` key exists (and
+ *     CANNOT exist, the content depends on the active company) — the value therefore stays the
+ *     backend's RAW label, as is, in French, on a screen whose active language is English.
+ *     This is the most direct and most "genuine" proof of the "an untranslated plugin stays
+ *     displayed as-is" escape hatch that this app can offer today: it has no third-party
+ *     document type actually registered yet to demonstrate it any other way.
  *
- * La VRAIE preuve de non-régression est la batterie complète (hors de ce fichier) : les specs
- * existantes assertent en masse sur le texte anglais actuel des descripteurs (17, 20, 21, 24, 26,
- * 28, 34, 37…) — elles doivent passer TELLES QUELLES, sans une seule assertion affaiblie, puisque les
- * valeurs EN ajoutées ici sont, mot pour mot, les libellés qu'elles attendaient déjà.
+ * The REAL proof of non-regression is the full battery (outside this file): the existing
+ * specs assert en masse on the descriptors' current English text (17, 20, 21, 24, 26,
+ * 28, 34, 37…) — they must pass AS THEY ARE, without a single weakened assertion, since the
+ * EN values added here are, word for word, the labels they already expected.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -61,7 +61,7 @@ function createInvoiceDraft() {
 		});
 }
 
-describe("Descripteurs i18n (item 25) — clé dérivée en EN, repli sur le libellé brut sinon", () => {
+describe("i18n descriptors (item 25) -- key derived in EN, falling back to the raw label otherwise", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -70,23 +70,23 @@ describe("Descripteurs i18n (item 25) — clé dérivée en EN, repli sur le lib
 		cy.login();
 	});
 
-	it("le type, ses champs (y compris imbriqués), ses actions s'affichent identiques à avant", () => {
+	it("the type, its fields (including nested ones), its actions display identically to before", () => {
 		cy.visit("/documents/invoice");
 
-		// La sidebar nomme le type — documents.descriptors.invoice.label existe désormais côté EN,
-		// avec exactement la même valeur que le libellé brut du descripteur.
+		// The sidebar names the type — documents.descriptors.invoice.label now exists on the EN side,
+		// with exactly the same value as the descriptor's raw label.
 		cy.get('[data-cy="sidebar-document-type-link-invoice"]').should("contain.text", "Invoice");
 
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
 
-		// Le titre du dialogue interpole le label du type traduit (documents.form.newTitle, déjà
-		// existant — {{label}} devient maintenant le résultat de la dérivation, pas le brut direct).
+		// The dialog's title interpolates the translated type label (documents.form.newTitle, already
+		// existing — {{label}} now becomes the derivation's result, not the raw value directly).
 		cy.get('[data-cy="document-create-dialog"]').should("contain.text", "New: Invoice");
 
-		// Des champs À DEUX PROFONDEURS : top-level (documents.descriptors.invoice.fields.<key>.label)
-		// et une ligne du tableau "lines" (…fields.lines.fields.<key>.label) — la même dérivation
-		// couvre les deux, une seule fois câblée côté hooks/queries/use-document-types.ts.
+		// Fields at TWO DEPTHS: top-level (documents.descriptors.invoice.fields.<key>.label)
+		// and a row of the "lines" array (…fields.lines.fields.<key>.label) — the same derivation
+		// covers both, wired only once on the hooks/queries/use-document-types.ts side.
 		cy.get('[data-cy="document-field-client"]').should("contain.text", "Client");
 		cy.get('[data-cy="document-field-issueDate"]').should("contain.text", "Date");
 		cy.get('[data-cy="document-field-dueDate"]').should("contain.text", "Due date");
@@ -103,18 +103,18 @@ describe("Descripteurs i18n (item 25) — clé dérivée en EN, repli sur le lib
 			.and("contain.text", "VAT rate")
 			.and("contain.text", "Discount %");
 
-		// Les actions — documents.descriptors.invoice.actions.<id>.label, même valeur EN qu'avant.
-		// "send" n'apparaît qu'une fois le document sauvegardé une première fois (son `availableWhen`
-		// dérivé n'inclut jamais un enregistrement sans statut, contrairement à "save-draft", déclaré
-		// `from: 'always'`) : "save-draft" seul suffit ici à prouver la dérivation sur une action.
+		// The actions — documents.descriptors.invoice.actions.<id>.label, the same EN value as before.
+		// "send" only appears once the document has been saved a first time (its derived
+		// `availableWhen` never includes a record with no status, unlike "save-draft", declared
+		// `from: 'always'`): "save-draft" alone is enough here to prove the derivation on an action.
 		cy.get('[data-cy="document-action-save-draft"]').should("contain.text", "Save draft");
 	});
 
-	it("le badge de statut d'un brouillon lit le label DÉCLARÉ du descripteur, pas seulement l'id capitalisé", () => {
-		// document-status-badge.tsx reçoit maintenant `label` (le statut TRADUIT que
-		// useDocumentType() a déjà résolu) et ne retombe sur `capitalize(status)` que si ce statut
-		// n'est pas déclaré du tout — ici "draft" EST déclaré, donc c'est bien
-		// documents.descriptors.invoice.statuses.draft (= "Draft" en EN) qui s'affiche.
+	it("a draft's status badge reads the descriptor's DECLARED label, not just the capitalized id", () => {
+		// document-status-badge.tsx now receives `label` (the TRANSLATED status that
+		// useDocumentType() has already resolved) and only falls back to `capitalize(status)` when
+		// that status is not declared at all — here "draft" IS declared, so it is indeed
+		// documents.descriptors.invoice.statuses.draft (= "Draft" in EN) that gets displayed.
 		createInvoiceDraft().then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
@@ -123,7 +123,7 @@ describe("Descripteurs i18n (item 25) — clé dérivée en EN, repli sur le lib
 		});
 	});
 
-	it("REPLI : les options du taux de TVA (catalogue par société, jamais traduit ici) restent le libellé BRUT du backend — en français, sur un écran anglais", () => {
+	it("FALLBACK: the VAT rate options (per-company catalog, never translated here) stay the backend's RAW label — in French, on an English screen", () => {
 		cy.visit("/documents/invoice");
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
@@ -134,15 +134,15 @@ describe("Descripteurs i18n (item 25) — clé dérivée en EN, repli sur le lib
 			.first()
 			.click({ force: true });
 
-		// Portalé hors de la ligne (Radix Popover) — interrogé directement, même technique que
-		// 14-articles.cy.ts pour le picker "from catalog".
+		// Portaled outside the row (Radix Popover) — queried directly, the same technique as
+		// 14-articles.cy.ts for the "from catalog" picker.
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 })
 			.should("be.visible")
-			// vat-rates/registry.ts compose ce libellé ({{rate}}% — {{label}}) à partir de
-			// vat-rates/data/fr.json ("Taux normal") — jamais depuis ce fichier de traductions, et
-			// aucune clé "…fields.vatRate.options.20" n'a été ajoutée (le contenu dépend de la
-			// société active, pas d'un catalogue statique de langue). Le mécanisme tente quand même
-			// la clé dérivée, ne la trouve pas, et rend ce texte tel quel.
+			// vat-rates/registry.ts composes this label ({{rate}}% — {{label}}) from
+			// vat-rates/data/fr.json ("Taux normal") — never from this translation file, and
+			// no "…fields.vatRate.options.20" key was added (the content depends on the
+			// active company, not a static language catalog). The mechanism still tries
+			// the derived key, does not find it, and renders this text as-is.
 			.should("contain.text", "20% — Taux normal");
 	});
 });

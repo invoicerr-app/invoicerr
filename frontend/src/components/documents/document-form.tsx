@@ -252,7 +252,7 @@ export function DocumentForm({
           <DocumentSettlementSection typeId={descriptor.id} documentId={currentDocumentId} />
         )}
 
-        {/* Legal archiving ("legal archiving ⚖") — shown for ANY document type/status once it has
+        {/* Legal archiving ⚖ — shown for ANY document type/status once it has
             at least one archive (the component itself renders nothing otherwise, see its own header):
             never gated on "sent" here, since the component's own emptiness check already carries
             that fact (a draft has no archive yet, whatever its type). */}
@@ -260,7 +260,7 @@ export function DocumentForm({
           <DocumentArchiveSection typeId={descriptor.id} documentId={currentDocumentId} />
         )}
 
-        {/* Conformity tracking ("conformity tracking") — same gate as the
+        {/* Conformity tracking — same gate as the
             archive section right above (any type/status once it has at least one event; renders
             nothing otherwise, see that component's own header): a document sent by email, or by a
             channel with no poller (e.g. "sdi"), never shows a section here at all. */}

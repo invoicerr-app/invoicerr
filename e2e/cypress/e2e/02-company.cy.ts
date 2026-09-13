@@ -342,15 +342,15 @@ describe("Company Settings E2E", () => {
 			cy.contains(/max|length|500|characters|caractères/i);
 		});
 
-		// Le test « validates starting numbers are positive » a été RETIRÉ le 2026-09-13, et non
-		// affaibli : le champ qu'il pilotait (`input[name="quoteStartingNumber"]`) n'existe plus.
-		// Les trois numéros de départ ont été supprimés de l'écran parce qu'aucune séquence ne les
-		// honorait — `numbering/sequence.ts` démarre toujours un compteur (société, type) à 1 — si
-		// bien que la contrainte « positif » validait un champ dont la valeur n'atteignait jamais un
-		// document. La capacité « démarrer ma numérotation à 500 » est donc absente du produit, et
-		// nommée comme telle dans `TODO_ISSUES.md` plutôt que simulée par un contrôle décoratif.
-		// Le jour où elle existera, c'est un test de BOUT EN BOUT qu'il faudra écrire : saisir 500,
-		// émettre, et lire le numéro du document — pas un test de validation de formulaire.
+		// The test "validates starting numbers are positive" was REMOVED on 2026-09-13, not
+		// weakened: the field it drove (`input[name="quoteStartingNumber"]`) no longer exists.
+		// The three starting numbers were removed from the screen because no sequence
+		// honored them — `numbering/sequence.ts` always starts a counter (company, type) at 1 — so
+		// the "positive" constraint was validating a field whose value never reached a
+		// document. The "start my numbering at 500" capability is therefore absent from the product,
+		// and named as such in `TODO_ISSUES.md` rather than simulated by a decorative check.
+		// The day it exists, it is an END-TO-END test that will need to be written: enter 500,
+		// issue, and read the document's number — not a form-validation test.
 	});
 
 	describe("5 - Restore Valid State (Must run last)", () => {

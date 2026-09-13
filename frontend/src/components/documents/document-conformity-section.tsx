@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils"
 import type { DocumentAuthorityEvent } from "./types"
 
 /**
- * Post-deposit conformity tracking (PDP: fr:200 déposée →
- * fr:201 émise → fr:202 reçue, or fr:213 rejetée; KSeF: gated, see the backend's own
+ * Post-deposit conformity tracking (PDP: fr:200 deposited →
+ * fr:201 issued → fr:202 received, or fr:213 rejected; KSeF: gated, see the backend's own
  * `ksef-status-poller.ts`). Same mould as `document-archive-section.tsx`: shown inside the document
  * edit dialog for ANY document type/status once it has at least one event, renders NOTHING for a
  * document with zero events yet — a "sent" quote/credit-note (no transport, no poller at all) never
@@ -26,7 +26,7 @@ import type { DocumentAuthorityEvent } from "./types"
 export type ConformityVerdict = "accepted" | "rejected" | "gaveUp" | "pending" | "declarationIssue"
 
 /** The two REAL PDP codes proved live (`pdp-conformity.live.spec.ts`, 2026-09-01):
- *  fr:202 ("Reçue par la plateforme") is the platform's own final ACCEPTANCE; fr:213 ("Rejetée") is
+ *  fr:202 ("Received by the platform") is the platform's own final ACCEPTANCE; fr:213 ("Rejected") is
  *  its own final refusal. `pl:200`/any `pl:4xx`/`pl:5xx` mirror the SAME `{code}` convention the
  *  backend's own `ksef-status-poller.ts` borrows (gated — see that file's own honesty note). A new
  *  provider's own terminal codes are added HERE, in this one place, the same "one more entry" shape
@@ -41,7 +41,7 @@ const KSEF_CODE = /^pl:(\d+)$/
  *  it "Rejected" would falsely imply the INVOICE was refused, when only its post-issuance DATA
  *  REPORT to a tax authority has a problem. Still shown on the document LIST (same as a real
  *  rejection — see `DocumentConformityListIndicator` below) because it is exactly the kind of thing
- *  a company needs to notice and act on, same "jamais silencieux" principle as a rejection. */
+ *  a company needs to notice and act on, same "never silent" principle as a rejection. */
 const DECLARATION_ISSUE_CODES = new Set(["report:blocked", "report:failed"])
 
 function isAccepted(code: string): boolean {

@@ -1,26 +1,26 @@
 /**
- * Le cycle de vie déclaré (statuts + transitions, backend/src/modules/documents/descriptors/
- * lifecycle.ts) prouvé par l'écran, pas seulement en mémoire — même discipline que
- * 17-document-descriptor.cy.ts : les ACTIONS passent par l'interface, les ASSERTIONS lisent
- * l'enregistrement (l'API, jamais une relecture de l'écran comme preuve de ce qui est en base).
+ * The declared lifecycle (statuses + transitions, backend/src/modules/documents/descriptors/
+ * lifecycle.ts) proven through the screen, not only in memory — same discipline as
+ * 17-document-descriptor.cy.ts: the ACTIONS go through the interface, the ASSERTIONS read
+ * the record (the API, never a screen re-read as proof of what's in the database).
  *
- * Trois choses, dans l'ordre (l'état traverse les `it` de ce fichier — `resetAndSeed` ne rejoue
- * qu'une fois, dans `before`, exactement comme 17 le fait) :
- *  1. l'indication de transition ("Draft → Sending" — item 22 a rendu "send" asynchrone : la
- *     PREMIÈRE transition déclarée mène à "sending", pas directement à "sent", voir
- *     quote.descriptor.ts's own SEND_TRANSITIONS) apparaît sur une action qui en déclare une, et
- *     PAS sur une action qui n'en déclare aucune (même si cette dernière reste offerte) ;
- *  2. exécuter "send" par un vrai clic fait passer le statut affiché ET enregistré à "sent",
- *     l'écran l'affichant par SON PROPRE polling (useDocumentInstances) une fois le worker passé —
- *     voir 28-document-async-send.cy.ts pour la preuve dédiée de cette traversée de file ;
- *  3. la restriction par statut de la politique pays (fr.json : invoice.save-draft -> ["draft"])
- *     retire le bouton à l'écran une fois la facture partie ("sending" suffit déjà, "draft" étant le
- *     seul statut autorisé), et l'API refuse aussi (409) pour un client scripté qui ignorerait
- *     l'écran.
+ * Three things, in order (state carries across the `it`s in this file — `resetAndSeed` replays
+ * only once, in `before`, exactly as 17 does):
+ *  1. the transition hint ("Draft → Sending" — item 22 made "send" asynchronous: the
+ *     FIRST declared transition leads to "sending", not directly to "sent", see
+ *     quote.descriptor.ts's own SEND_TRANSITIONS) appears on an action that declares one, and
+ *     NOT on an action that declares none (even though the latter is still offered);
+ *  2. running "send" via a real click moves the displayed AND recorded status to "sent",
+ *     the screen showing it through ITS OWN polling (useDocumentInstances) once the worker has run —
+ *     see 28-document-async-send.cy.ts for the dedicated proof of this queue traversal;
+ *  3. the country-policy status restriction (fr.json: invoice.save-draft -> ["draft"])
+ *     removes the button from the screen once the invoice has gone out ("sending" is already
+ *     enough, "draft" being the only allowed status), and the API refuses it too (409) for a
+ *     scripted client that would ignore the screen.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-describe("Le cycle de vie d'un document — statuts et transitions déclarés", () => {
+describe("A document's lifecycle — declared statuses and transitions", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -31,7 +31,7 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 
 	let quoteId: string;
 
-	it("le libellé de transition apparaît sur une action qui en déclare une, pas sur une action qui n'en déclare aucune", () => {
+	it("the transition label appears on an action that declares one, not on an action that declares none", () => {
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
@@ -58,28 +58,28 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 					cy.get(`[data-cy="document-edit-button-${quoteId}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 
-					// "send" déclare (item 22, l'envoi asynchrone) une PREMIÈRE transition draft ->
-					// sending (quote.descriptor.ts) : le devis est actuellement "draft", donc le libellé
-					// attendu est "Draft → Sending" — déduit du descripteur reçu par l'écran, jamais
-					// écrit en dur dans ce test. Ce n'est plus "Sent" : ce serait le libellé de la
-					// SECONDE transition (sending -> sent | send_failed), qui ne s'applique qu'une fois
-					// le devis déjà "sending" — hors de portée de ce clic-ci.
+					// "send" declares (item 22, the asynchronous send) a FIRST transition draft ->
+					// sending (quote.descriptor.ts): the quote is currently "draft", so the expected
+					// label is "Draft → Sending" — deduced from the descriptor received by the screen, never
+					// hard-coded in this test. It is no longer "Sent": that would be the label of the
+					// SECOND transition (sending -> sent | send_failed), which only applies once
+					// the quote is already "sending" — out of scope for this click.
 					cy.get('[data-cy="document-transition-hint-send"]', { timeout: 10000 })
 						.scrollIntoView()
 						.invoke("text")
 						.should("match", /Draft/i)
 						.and("match", /Sending/i);
 
-					// "convert-to-invoice" est offerte (draft ET sent y donnent droit) mais ne déclare
-					// AUCUNE transition (elle ne change jamais le statut du DEVIS lui-même — voir
-					// convert-to-invoice.ts) : pas de libellé du tout, même si le bouton, lui, est là.
+					// "convert-to-invoice" is offered (both draft AND sent qualify) but declares
+					// NO transition at all (it never changes the QUOTE's own status — see
+					// convert-to-invoice.ts): no label at all, even though the button itself is there.
 					cy.get('[data-cy="document-action-convert-to-invoice"]').should("exist");
 					cy.get('[data-cy="document-transition-hint-convert-to-invoice"]').should("not.exist");
 
-					// "save-draft" déclare une transition depuis N'IMPORTE QUEL statut vers "draft"
-					// (registerSaveDraftAction écrit toujours "draft") — ici le devis est déjà "draft",
-					// donc le libellé est "Draft → Draft" : une transition déclarée qui ne change rien,
-					// exactement le cas que la tâche demande de couvrir.
+					// "save-draft" declares a transition from ANY status to "draft"
+					// (registerSaveDraftAction always writes "draft") — here the quote is already "draft",
+					// so the label is "Draft → Draft": a declared transition that changes nothing,
+					// exactly the case the task asks to cover.
 					cy.get('[data-cy="document-transition-hint-save-draft"]', { timeout: 10000 })
 						.invoke("text")
 						.should("match", /Draft.*Draft/i);
@@ -87,7 +87,7 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 			});
 	});
 
-	it('exécuter "send" par un vrai clic fait passer le statut affiché ET enregistré à "sent"', () => {
+	it('running "send" via a real click moves the displayed AND recorded status to "sent"', () => {
 		expect(quoteId, "le devis du test précédent existe toujours").to.be.a("string");
 
 		cy.visit("/documents/quote");
@@ -95,35 +95,35 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 			.find('[data-cy="document-status-badge"]')
 			.should("contain.text", "Draft");
 
-		// Directement depuis la ligne de la liste (document-list.tsx expose les mêmes actions que le
-		// formulaire, sans ouvrir la modale) — un vrai clic, pas une requête directe : c'est l'écran
-		// qui agit ici, l'API ne sert qu'à RELIRE ensuite ce qui a été enregistré.
+		// Directly from the list row (document-list.tsx exposes the same actions as the
+		// form, without opening the modal) — a real click, not a direct request: it's the screen
+		// that acts here, the API only serves to READ BACK afterwards what was recorded.
 		cy.get(`[data-cy="document-row-action-send-${quoteId}"]`).click();
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-recipient-input"]').clear().type("client@example.com");
 		cy.get('[data-cy="document-action-params-confirm"]').click();
 
-		// Le statut affiché change...
+		// The displayed status changes...
 		cy.get(`[data-cy="document-list-row-${quoteId}"]`, { timeout: 15000 })
 			.find('[data-cy="document-status-badge"]')
 			.should("contain.text", "Sent");
 
-		// ...et c'est bien ce qui est enregistré, pas seulement ce que l'écran prétend : l'assertion
-		// qui compte lit l'API, jamais une relecture du DOM comme preuve de la base.
+		// ...and that is indeed what got recorded, not just what the screen claims: the assertion
+		// that matters reads the API, never a DOM re-read as proof of the database.
 		cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })
 			.its("body.status")
 			.should("eq", "sent");
 	});
 
-	describe("la politique pays par statut (fr.json : invoice.save-draft restreint à \"draft\")", () => {
+	describe("country policy by status (fr.json: invoice.save-draft restricted to \"draft\")", () => {
 		let invoiceId: string;
 
-		it('une facture "sent" ne montre plus "Save draft" à l\'écran, et l\'API le refuse aussi (409)', () => {
+		it('a "sent" invoice no longer shows "Save draft" on screen, and the API refuses it too (409)', () => {
 			cy.request({
 				method: "POST",
 				url: `${api}/api/company/info`,
-				// "send" sur une facture a besoin d'un transport configuré (voir invoice-actions.ts) —
-				// même mise en place que 17-document-descriptor.cy.ts pour amener une facture à "sent".
+				// "send" on an invoice needs a configured transport (see invoice-actions.ts) —
+				// same setup as 17-document-descriptor.cy.ts to bring an invoice to "sent".
 				body: { invoiceTransportId: "email" },
 				failOnStatusCode: false,
 			}).then((companyRes) => {
@@ -150,9 +150,9 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 							invoiceId = saved.body?.document?.id;
 
 							cy.visit("/documents/invoice");
-							// AVANT l'envoi : la facture est "draft", l'action doit être offerte — la preuve
-							// que sa disparition plus bas vient bien du changement de statut, pas d'un bouton
-							// qui n'a jamais existé.
+							// BEFORE sending: the invoice is "draft", the action must be offered — the proof
+							// that its disappearance further down really comes from the status change, not
+							// from a button that never existed.
 							cy.get(`[data-cy="document-row-action-save-draft-${invoiceId}"]`, {
 								timeout: 15000,
 							}).should("exist");
@@ -164,20 +164,20 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 								failOnStatusCode: false,
 							}).then((sent) => {
 								expect(sent.status, "facture envoyée").to.be.oneOf([200, 201]);
-								// "send" est asynchrone (item 22) : cet appel direct ne fait plus que la
-								// PREMIÈRE moitié — draft -> sending — et rend la main aussitôt ; la
-								// livraison réelle est l'affaire du worker (28-document-async-send.cy.ts en
-								// fait la preuve dédiée). La restriction par statut testée ici ("draft"
-								// uniquement) exclut aussi bien "sending" que "sent" — elle tient donc déjà,
-								// sans attendre que le worker ait fini.
+								// "send" is asynchronous (item 22): this direct call now only does the
+								// FIRST half — draft -> sending — and returns immediately; the actual
+								// delivery is the worker's job (28-document-async-send.cy.ts gives the
+								// dedicated proof of that). The status restriction tested here ("draft"
+								// only) already excludes both "sending" and "sent" — so it already holds,
+								// without waiting for the worker to finish.
 								expect(sent.body?.document?.status, 'la facture est partie ("sending")').to.eq(
 									"sending",
 								);
 
 								cy.visit("/documents/invoice");
-								// À L'ÉCRAN : le bouton "Save draft" n'est plus offert sur cette ligne — la vue
-								// par compagnie (describeTypeForCompany) a restreint availableWhen à ["draft"]
-								// pour la France, et cette facture n'y est plus.
+								// ON SCREEN: the "Save draft" button is no longer offered on this row — the
+								// per-company view (describeTypeForCompany) restricted availableWhen to
+								// ["draft"] for France, and this invoice is no longer in it.
 								cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 }).should(
 									"exist",
 								);
@@ -185,8 +185,8 @@ describe("Le cycle de vie d'un document — statuts et transitions déclarés", 
 									"not.exist",
 								);
 
-								// À L'API : un client scripté qui ignorerait l'écran et appellerait l'action à
-								// la main se voit refusé exactement pareil — 409, jamais un contournement.
+								// AT THE API: a scripted client that ignored the screen and called the action
+								// by hand gets refused exactly the same way — 409, never a bypass.
 								cy.request({
 									method: "POST",
 									url: `${api}/api/documents/types/invoice/actions/save-draft`,

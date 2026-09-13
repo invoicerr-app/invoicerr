@@ -281,7 +281,7 @@ export function Sidebar() {
               </SidebarMenuItem>
             ))}
 
-            {/* The Documents group: dépliable, and populated from whatever the active company's
+            {/* The Documents group: collapsible, and populated from whatever the active company's
                 country makes available — never a fixed list of urls. See useAvailableDocumentTypes'
                 own comment for the distinction from useDocumentTypesList (every registered type,
                 unfiltered), which this sidebar deliberately does NOT use. */}
@@ -310,7 +310,7 @@ export function Sidebar() {
                 )}
 
                 {/* A country with no policy at all (or that can't be resolved) has NO document
-                    types — this DIT plainly, with the backend's own reason, rather than leaving the
+                    types — this SAYS so plainly, with the backend's own reason, rather than leaving the
                     group silently empty (which would look like a loading bug, not a real state). */}
                 {!typesLoading && (availableTypes?.types.length ?? 0) === 0 && (
                   <SidebarMenuSubItem>
@@ -338,7 +338,7 @@ export function Sidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* "Une catégorie de données — Clients, Articles": its own labeled group, deliberately NOT
+        {/* "A data category — Clients, Articles": its own labeled group, deliberately NOT
             collapsible (unlike Documents) — these two are always the same fixed pair, nothing here
             depends on the active company's country. */}
         <SidebarGroup className="px-0">

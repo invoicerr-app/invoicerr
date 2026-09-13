@@ -39,10 +39,10 @@ function InvoicePreviewButton({ descriptor, instance }: DocumentCustomSlotProps)
 
   const handleDownloadPdf = async () => {
     try {
-      // `authenticatedFetch`, PAS `fetch` : le front et l'API vivent sur des ports différents. Un
-      // fetch relatif part vers le serveur Vite — qui n'a pas d'API — sans cookie de session. Le
-      // bouton était donc MORT, et l'e2e ne le voyait pas : il ne vérifiait que son existence.
-      // Troisième bouton mort de cette famille dans ce dépôt.
+      // `authenticatedFetch`, NOT `fetch`: the frontend and the API live on different ports. A
+      // relative fetch goes to the Vite dev server -- which has no API -- without a session cookie.
+      // The button was therefore DEAD, and the e2e didn't catch it: it only checked that it existed.
+      // Third dead button of this family in this repo.
       const response = await authenticatedFetch(`/api/documents/${instance.id}/pdf?typeId=${descriptor.id}`)
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
@@ -51,8 +51,8 @@ function InvoicePreviewButton({ descriptor, instance }: DocumentCustomSlotProps)
       const url = URL.createObjectURL(blob)
       window.open(url, "_blank")
     } catch (error) {
-      // Le message du backend, pas un générique : « le moteur PDF est indisponible » et « document
-      // introuvable » n'appellent pas la même réaction.
+      // The backend's own message, not a generic one: "the PDF engine is unavailable" and "document
+      // not found" don't call for the same reaction.
       toast.error(error instanceof Error ? error.message : t("documents.list.downloadPdfError"))
     }
   }

@@ -1,7 +1,7 @@
 import { useApiMutation } from "@/hooks/use-api-query"
 
 /**
- * Invoice reception ("réception de factures") — the ONE bespoke endpoint this type needs beyond the
+ * Invoice reception — the ONE bespoke endpoint this type needs beyond the
  * fully generic document machinery (`use-document-types.ts` already covers listing, the descriptor,
  * and running "receive"/"approve"/"reject"/"delete" through `useRunDocumentAction`). Kept in its own
  * file, mirroring `use-document-schedules.ts`'s own placement, rather than folded into

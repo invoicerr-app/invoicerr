@@ -27,11 +27,11 @@ describe("Dashboard E2E", () => {
 	});
 
 	describe("Dashboard Statistics", () => {
-		// Le tableau de bord n'est plus une page écrite à la main : il agrège ce que CHAQUE type de
-		// document veut y montrer. On n'exige donc plus un mot ("revenue", "quotes") qui appartenait
-		// à l'ancien écran, mais le fait générique : au moins une contribution est rendue, et aucune
-		// ne tombe sur le marqueur « type de widget non rendu ».
-		it("affiche au moins une contribution, et aucune non rendue", () => {
+		// The dashboard is no longer a hand-written page: it aggregates whatever EACH document
+		// type wants to show there. We therefore no longer require a word ("revenue", "quotes") that
+		// belonged to the old screen, but the generic fact: at least one contribution is rendered, and
+		// none of them falls on the "unrendered widget type" marker.
+		it("renders at least one contribution, and none unrendered", () => {
 			cy.visit("/dashboard");
 			cy.get('[data-cy^="widget-"]', { timeout: 20000 }).should("exist");
 			cy.get('[data-cy="widget-unsupported"]').should("not.exist");
@@ -63,12 +63,12 @@ describe("Navigation E2E", () => {
 			cy.url().should("include", "/clients");
 		});
 
-		// La navigation vers un type de document N'EST PAS testée ici, et c'est délibéré : cette
-		// spec ne fait que `cy.login()`, sans `resetAndSeed()`. Elle hérite donc de l'état laissé par
-		// la spec précédente et n'a aucune société dont le pays soit garanti — or le groupe Documents
-		// se remplit depuis la politique du PAYS. Le test vivait ici tant que la sidebar portait des
-		// liens en dur ; il a suivi la donnée et vit maintenant dans 17-document-descriptor.cy.ts,
-		// qui construit son monde avant de l'interroger.
+		// Navigation to a document type is NOT tested here, and that is deliberate: this
+		// spec only does `cy.login()`, with no `resetAndSeed()`. It therefore inherits the state left
+		// by the previous spec and has no company whose country is guaranteed — and the Documents
+		// group fills in from the COUNTRY policy. The test used to live here while the sidebar carried
+		// hard-coded links; it followed the data and now lives in 17-document-descriptor.cy.ts,
+		// which builds its own world before querying it.
 
 		it("navigates to settings", () => {
 			cy.visit("/dashboard");

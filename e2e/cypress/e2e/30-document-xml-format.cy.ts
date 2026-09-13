@@ -200,13 +200,14 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 			cy.wait("@xmlCiiMentions", { timeout: 20000 }).then((x) => {
 				expect(x.response?.statusCode).to.eq(200);
 				const body = String(x.response?.body);
-				// PMT (indemnité forfaitaire) — the exact absence a real superpdp fr:213 cited.
+				// PMT (flat-rate compensation for recovery costs) — the exact absence a real superpdp
+				// fr:213 cited.
 				expect(body).to.contain("frais de recouvrement");
 				expect(body).to.contain("40 €");
-				// PMD (pénalités de retard) — issueDate 2026-08-30 falls in the second half of 2026:
+				// PMD (late-payment penalties) — issueDate 2026-08-30 falls in the second half of 2026:
 				// the rate FROZEN at issue, per `mentions/data/fr.json`'s own dated table.
 				expect(body).to.contain("12,40 %");
-				// AAB (escompte) — the prescribed "néant" wording, doctrine F31808.
+				// AAB (early-payment discount) — the prescribed "néant" wording, doctrine F31808.
 				expect(body).to.contain("Escompte pour paiement anticipé");
 				// BT-21 subject codes, recovered by `splitCiiIncludedNotes` into their own element.
 				expect(body).to.contain("<ram:SubjectCode>PMT</ram:SubjectCode>");

@@ -84,13 +84,13 @@ Cypress.Commands.add('clearEmails', () => {
 });
 
 Cypress.Commands.add('waitForDocumentStatus', (url: string, targetStatuses: string[]) => {
-    // Item 22 (files d'attente) a rendu "send" asynchrone : un `cy.request().its().should()` ne
-    // RE-DÉCLENCHE PAS la requête à chaque nouvelle tentative — il relit toujours la MÊME réponse déjà
-    // reçue, et un statut encore "sending" au moment de cette réponse le resterait pour toujours aux
-    // yeux du test. Une vraie boucle de poll est nécessaire pour un test purement API (sans écran pour
-    // profiter de son propre polling — voir 28-document-async-send.cy.ts, qui poll côté UI via
-    // `cy.get(...).should(...)`, lequel re-déclenche bien la lecture DOM à chaque tentative). Même
-    // budget que `getLastEmail` : ~20 tentatives * 500ms ≈ 10s.
+    // Item 22 (queues) made "send" asynchronous: a `cy.request().its().should()` does NOT
+    // RE-TRIGGER the request on each new attempt — it always rereads the SAME response already
+    // received, and a status still "sending" at the time of that response would stay that way forever
+    // as far as the test is concerned. A real poll loop is needed for a purely API-driven test (with
+    // no screen to benefit from its own polling — see 28-document-async-send.cy.ts, which polls on
+    // the UI side via `cy.get(...).should(...)`, which does re-trigger the DOM read on each attempt).
+    // Same budget as `getLastEmail`: ~20 attempts * 500ms ≈ 10s.
     function poll(attemptsLeft: number): Cypress.Chainable<any> {
         return cy.request({ url, failOnStatusCode: false }).then((res) => {
             const status = res.body?.status;

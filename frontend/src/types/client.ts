@@ -34,7 +34,7 @@ export interface Client {
 }
 
 /**
- * Client account statement ("relevé de compte client") — mirrors the backend's
+ * Client account statement — mirrors the backend's
  * `ClientStatementDocumentRow` (settlement/client-statement.ts). ONE shape for both an invoice and a
  * credit note correcting it — see that file's own header for why `paidMinor`/`outstandingMinor` are
  * always 0 for a credit note (it carries no independent balance of its own: it already reduced the

@@ -1,27 +1,28 @@
 /**
- * L'envoi asynchrone d'un document (TODO racine, item 22 — mode worker & files d'attente) — prouvé
- * par l'écran, même discipline que 17/21/22/23 : l'ACTION passe par un vrai clic sur "Send", les
- * ASSERTIONS qui comptent relisent l'enregistrement via l'API (jamais l'écran comme preuve de ce qui
- * est en base) et le message réel dans Mailpit.
+ * A document's asynchronous send (root TODO, item 22 — worker mode & queues) — proven through the
+ * screen, the same discipline as 17/21/22/23: the ACTION goes through a real click on "Send", the
+ * ASSERTIONS that matter read the record back via the API (never the screen as proof of what's in
+ * the database) and the real message in Mailpit.
  *
- * Ce que CE fichier prouve, que 21/22/23 ne prouvaient pas encore : le statut affiché à l'écran
- * atteint "Sent" par le POLLING du front (hooks/queries/use-document-types.ts's `useDocumentInstances`,
- * `refetchInterval` tant qu'un document reste "sending") — jamais par la réponse synchrone du clic
- * lui-même, qui ne renvoie plus que "sending". La pile e2e tourne réellement le worker inline
- * (WORKER_INLINE par défaut — voir app.module.ts) : ce test traverse donc une vraie file BullMQ/Redis,
- * pas un mock. 21 (cycle de vie), 22 (numérotation) et 23 (email) continuent de passer avec le
- * libellé de statut intermédiaire "Sending" qu'elles ne connaissaient pas encore.
+ * What THIS file proves, that 21/22/23 did not yet prove: the status displayed on screen reaches
+ * "Sent" via the frontend's own POLLING (hooks/queries/use-document-types.ts's
+ * `useDocumentInstances`, `refetchInterval` as long as a document stays "sending") — never via the
+ * click's own synchronous response, which now only ever returns "sending". The e2e stack genuinely
+ * runs the worker inline (WORKER_INLINE by default — see app.module.ts): this test therefore goes
+ * through a real BullMQ/Redis queue, not a mock. 21 (lifecycle), 22 (numbering) and 23 (email)
+ * keep passing with the intermediate "Sending" status label they did not know about yet.
  *
- * Le second test couvre un angle que le premier ne touche pas : le dialogue d'édition
- * ([typeId].tsx's `dialogInstance`) doit suivre le LIVE `lastActionError`, jamais rester figé sur
- * l'instantané pris à l'ouverture. Un document "send_failed" réel (facture dont le client n'a pas
- * d'email — transports/email-transport.ts) est ouvert dans le dialogue APRÈS coup, une fois l'erreur
- * déjà en base ; la cause est corrigée puis "Send" est recliqué DANS ce même dialogue, et l'erreur
- * doit disparaître de l'écran pendant qu'il reste ouvert, pas seulement après une fermeture/réouverture.
+ * The second test covers an angle the first one doesn't touch: the edit dialog
+ * ([typeId].tsx's `dialogInstance`) must follow the LIVE `lastActionError`, never stay frozen on
+ * the snapshot taken at opening. A real "send_failed" document (an invoice whose client has no
+ * email — transports/email-transport.ts) is opened in the dialog AFTER the fact, once the error is
+ * already in the database; the cause is fixed and then "Send" is clicked again INSIDE that same
+ * dialog, and the error must disappear from the screen while it stays open, not only after a
+ * close/reopen.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\", avec le PDF dans Mailpit", () => {
+describe("A document's asynchronous send goes through the queue — all the way to \"Sent\", with the PDF in Mailpit", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -30,7 +31,7 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 		cy.login();
 	});
 
-	it('un vrai clic sur "Send" fait passer un devis par sending -> sent (poll UI), avec un courriel réel et son PDF dans Mailpit', () => {
+	it('a real click on "Send" moves a quote through sending -> sent (UI poll), with a real email and its PDF in Mailpit', () => {
 		cy.clearEmails();
 
 		cy.request({ url: `${api}/api/documents/references/client/search` })
@@ -62,21 +63,22 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Draft");
 
-					// Un vrai clic — jamais un appel direct à l'action, qui contournerait l'écran.
+					// A real click — never a direct call to the action, which would bypass the screen.
 					cy.get(`[data-cy="document-row-action-send-${quoteId}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 					cy.get('[data-cy="document-field-recipient-input"]').clear().type(recipient);
 					cy.get('[data-cy="document-action-params-confirm"]').click();
 
-					// Le statut affiché atteint "Sent" — par le POLLING du front (voir l'en-tête de ce
-					// fichier), pas par la réponse synchrone du clic. Délai généreux : ce test attend
-					// réellement un aller-retour de file (BullMQ/Redis), pas une réponse HTTP directe.
+					// The displayed status reaches "Sent" — via the frontend's own POLLING (see this
+					// file's own header), not via the click's synchronous response. Generous timeout:
+					// this test genuinely waits for a queue round trip (BullMQ/Redis), not a direct
+					// HTTP response.
 					cy.get(`[data-cy="document-list-row-${quoteId}"]`, { timeout: 20000 })
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Sent");
 
-					// ...et c'est bien ce qui est enregistré — l'assertion qui compte lit l'API, jamais
-					// une relecture du DOM comme preuve de la base.
+					// ...and this is indeed what gets stored — the assertion that matters reads the
+					// API, never a DOM re-read as proof of the database.
 					cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })
 						.its("body")
 						.then((doc) => {
@@ -112,17 +114,17 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 	});
 
 	it(
-		'un document "send_failed" garde son erreur figée à l\'écran une fois le dialogue OUVERT sur lui ' +
-			'— un re-clic sur "Send" DANS ce dialogue qui aboutit doit la faire DISPARAÎTRE pendant qu\'il ' +
-			"reste ouvert, jamais la garder sur l'instantané pris à l'ouverture",
+		'a "send_failed" document keeps its error frozen on screen once the dialog is OPENED on it ' +
+			'— clicking "Send" again INSIDE that dialog, when it succeeds, must make it DISAPPEAR while it ' +
+			"stays open, never keeping it stuck on the snapshot taken at opening",
 		() => {
-			// La FACTURE, pas le devis : son transport "email" (invoice-actions.ts) résout l'adresse
-			// depuis le contactEmail du CLIENT lui-même (transports/email-transport.ts) — jamais un
-			// champ tapé par l'utilisateur, contrairement au devis. Un client SANS email fait donc
-			// échouer la livraison de façon DÉTERMINISTE, à chaque tentative, jusqu'à épuisement des
-			// retries — exactement le chemin que
-			// backend/.../queue/__tests__/document-action-queue.redis.spec.ts prouve déjà côté back
-			// (son "no contact email on file").
+			// The INVOICE, not the quote: its "email" transport (invoice-actions.ts) resolves the
+			// address from the CLIENT's own contactEmail (transports/email-transport.ts) — never a
+			// field typed by the user, unlike the quote. A client WITHOUT an email therefore makes
+			// delivery fail DETERMINISTICALLY, on every attempt, until retries are exhausted —
+			// exactly the path that
+			// backend/.../queue/__tests__/document-action-queue.redis.spec.ts already proves on the
+			// backend side (its own "no contact email on file").
 			cy.request({
 				method: "POST",
 				url: `${api}/api/company/info`,
@@ -137,7 +139,7 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 				url: `${api}/api/clients`,
 				body: {
 					name: "No Email Co",
-					// Pas de contactEmail — la cause qu'on force ici, puis qu'on corrige plus bas.
+					// No contactEmail — the cause forced here, later fixed further down.
 					currency: "EUR",
 					country: "France",
 					countryCode: "FR",
@@ -174,21 +176,21 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 
 					cy.visit("/documents/invoice");
 
-					// Le PREMIER "send" est déclenché depuis la LIGNE de la liste, dialogue FERMÉ — la
-					// raison même du test : `dialogTarget` (voir [typeId].tsx) doit être capturé APRÈS
-					// coup, une fois le document déjà "send_failed", pour que son propre instantané porte
-					// réellement l'erreur figée que le correctif doit savoir effacer. Un vrai clic — jamais
-					// un appel direct à l'action, qui contournerait l'écran.
+					// The FIRST "send" is triggered from the list ROW, dialog CLOSED — the very
+					// reason for this test: `dialogTarget` (see [typeId].tsx) must be captured AFTER
+					// the fact, once the document is already "send_failed", so that its own snapshot
+					// genuinely carries the frozen error that the fix must know how to clear. A real
+					// click — never a direct call to the action, which would bypass the screen.
 					//
-					// L'horodatage capturé ici sert la preuve SSE plus
-					// bas : AUCUN cy.reload() n'apparaît nulle part dans ce fichier (grep-le), et le
-					// repli de polling de la liste vient d'être ralenti à 60 s
+					// The timestamp captured here serves the SSE proof further
+					// down: NO cy.reload() appears anywhere in this file (grep it), and the list's
+					// polling fallback has just been slowed down to 60s
 					// (frontend/src/hooks/queries/use-document-types.ts's own SENDING_POLL_INTERVAL_MS) —
-					// délibérément, pour qu'une mise à jour visible bien avant cette fenêtre ne puisse
-					// s'expliquer QUE par le flux SSE (documents.controller.ts's `events` route), jamais
-					// par le prochain tick de polling qui, lui, ne peut pas arriver avant ~60 s après ce
-					// clic (le `refetchInterval` est ré-évalué — et sa fenêtre de 60 s relancée — juste
-					// après le clic, via l'invalidation que `useRunDocumentAction` déclenche déjà).
+					// deliberately, so that a visible update well before that window can ONLY be
+					// explained by the SSE stream (documents.controller.ts's `events` route), never
+					// by the next polling tick, which cannot arrive before ~60s after this click (the
+					// `refetchInterval` is re-evaluated — and its 60s window restarted — right after
+					// the click, via the invalidation `useRunDocumentAction` already triggers).
 					let sendClickedAt = 0;
 					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 })
 						.click()
@@ -196,33 +198,34 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 							sendClickedAt = Date.now();
 						});
 
-					// Budget large, volontairement documenté : DOCUMENT_ACTION_QUEUE_ATTEMPTS=3 par
-					// défaut (document-queue.dispatcher.ts) avec un backoff exponentiel de base 2000 ms
-					// -> tentative 2 après ~2 s, tentative 3 (terminale) ~4 s plus tard, soit ~6 s de
-					// file avant l'échec définitif, plus la marge d'une CI chargée. On ne peut pas
-					// réduire ATTEMPTS ici : c'est une variable d'env du serveur déjà démarré, figée à
-					// son propre boot — ce test absorbe le budget plutôt que de risquer un flake. Lu à
-					// l'écran (le SSE primaire, le polling en repli lent — voir le commentaire ci-dessus),
-					// pas via l'API : on veut que la CACHE de requête que le dialogue suivra plus bas soit
-					// déjà à jour.
-					// `timeout` sur le `.find()`, pas seulement sur le `cy.get()` qui le précède : une
-					// assertion chaînée après un `.find()` retente selon le timeout de LA DERNIÈRE
-					// commande de requête avant elle, pas celui du tout premier `cy.get()` de la chaîne
-					// (piège connu de Cypress) — sans ça, ce `.should()` retombe sur les 4000 ms par
-					// défaut, bien trop court pour un échec réel après 3 tentatives. Ce timeout Cypress
-					// (40 s) reste le filet de sécurité contre une CI lente ; la preuve de VITESSE — que
-					// c'est bien le SSE, jamais le repli à 60 s, qui a fait bouger le badge — est
-					// l'assertion sur l'écart mesuré juste après, avec son propre budget bien plus serré.
+					// A generous budget, deliberately documented: DOCUMENT_ACTION_QUEUE_ATTEMPTS=3 by
+					// default (document-queue.dispatcher.ts) with an exponential backoff of base
+					// 2000ms -> attempt 2 after ~2s, attempt 3 (terminal) ~4s later, i.e. ~6s of
+					// queuing before the final failure, plus margin for a loaded CI. ATTEMPTS can't
+					// be reduced here: it's an env var of the server that's already started, fixed at
+					// its own boot — this test absorbs the budget rather than risk a flake. Read on
+					// screen (the primary SSE, the slow polling fallback — see the comment above),
+					// not via the API: we want the query CACHE that the dialog will follow further
+					// down to already be up to date.
+					// `timeout` on the `.find()`, not only on the `cy.get()` that precedes it: an
+					// assertion chained after a `.find()` retries according to the timeout of THE
+					// LAST query command before it, not the very first `cy.get()` in the chain
+					// (a known Cypress pitfall) — without this, this `.should()` falls back to the
+					// default 4000ms, far too short for a real failure after 3 attempts. This Cypress
+					// timeout (40s) stays the safety net against a slow CI; the proof of SPEED — that
+					// it really is the SSE, never the 60s fallback, that moved the badge — is the
+					// assertion on the elapsed time measured right after, with its own much tighter
+					// budget.
 					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
 						.find('[data-cy="document-status-badge"]', { timeout: 40000 })
 						.should("contain.text", "Send failed")
 						.then(() => {
 							const elapsedMs = Date.now() - sendClickedAt;
-							// ~6-8 s sont déjà consommés par les tentatives BullMQ elles-mêmes (voir le
-							// commentaire ci-dessus) — 10 s laisse une marge additionnelle pour le
-							// publish Redis -> EventSource -> invalidation -> refetch -> rendu, tout en
-							// restant à un ordre de grandeur SANS COMMUNE MESURE avec les 60 s qu'exigerait
-							// le repli de polling seul : à cette vitesse, ce ne peut être que le SSE.
+							// ~6-8s are already consumed by the BullMQ attempts themselves (see the
+							// comment above) — 10s leaves additional margin for the Redis publish ->
+							// EventSource -> invalidation -> refetch -> render chain, while staying an
+							// order of magnitude BELOW what the polling fallback alone would require
+							// (60s): at this speed, it can only be the SSE.
 							expect(
 								elapsedMs,
 								"le badge \"Send failed\" est apparu par le SSE, pas par le repli de polling à 60 s",
@@ -233,17 +236,17 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 						"no contact email on file",
 					);
 
-					// L'exigence : "le bouton Retry apparaît de lui-même". Ce dépôt n'a pas de
-					// bouton étiqueté "Retry" à part — c'est la MÊME action "send" qui redevient
-					// disponible depuis "send_failed" (invoice.descriptor.ts's SEND_TRANSITIONS), cachée
-					// pendant "sending" (document-list.tsx's own isProcessing check) puis réaffichée SANS
-					// rechargement dès que le statut live redevient "send_failed" — exactement le
-					// mécanisme "Retry" que ce critère décrit. Preuve directe sur la LIGNE de la liste,
-					// pas seulement dans le dialogue (que le reste de ce test ouvre après coup).
+					// The requirement: "the Retry button appears on its own". This repo has no
+					// separate button labeled "Retry" — it's the SAME "send" action that becomes
+					// available again from "send_failed" (invoice.descriptor.ts's SEND_TRANSITIONS),
+					// hidden during "sending" (document-list.tsx's own isProcessing check) then shown
+					// again WITHOUT a reload as soon as the live status returns to "send_failed" —
+					// exactly the "Retry" mechanism this criterion describes. Direct proof on the list
+					// ROW, not only in the dialog (which the rest of this test opens afterwards).
 					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`).should("be.visible");
 
-					// L'assertion qui compte lit l'API, jamais l'écran comme preuve de ce qui est en
-					// base — même discipline que le reste de ce fichier et de 24.
+					// The assertion that matters reads the API, never the screen as proof of what's in
+					// the database — the same discipline as the rest of this file and of 24.
 					cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 						.its("body")
 						.then((doc) => {
@@ -255,10 +258,10 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 							);
 						});
 
-					// MAINTENANT on ouvre le dialogue d'édition — `dialogTarget` (voir [typeId].tsx) prend
-					// SON instantané ICI, document déjà "send_failed" : c'est CE `lastActionError`-là (non
-					// nul) que le correctif doit savoir abandonner une fois le live redevenu `null`, pas un
-					// `null` capturé plus tôt qui ne prouverait rien.
+					// NOW the edit dialog is opened — `dialogTarget` (see [typeId].tsx) takes
+					// ITS OWN snapshot HERE, with the document already "send_failed": it's THIS
+					// non-null `lastActionError` that the fix must know how to drop once the live
+					// value goes back to `null`, not a `null` captured earlier that would prove nothing.
 					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 					cy.get('[data-cy="document-form-last-error"]').should(
@@ -266,10 +269,10 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 						"no contact email on file",
 					);
 
-					// On corrige la CAUSE réelle, jamais l'écran ni un contournement de la file : le
-					// client reçoit l'email qui lui manquait. `name` doit être renvoyé avec —
-					// editClientsInfo (clients.service.ts) exige un nom non vide sur CHAQUE écriture,
-					// même partielle.
+					// We fix the real CAUSE, never the screen nor a workaround of the queue: the
+					// client receives the email it was missing. `name` must be sent along with it —
+					// editClientsInfo (clients.service.ts) requires a non-empty name on EVERY write,
+					// even a partial one.
 					cy.request({
 						method: "PATCH",
 						url: `${api}/api/clients/${clientId}`,
@@ -279,27 +282,27 @@ describe("L'envoi asynchrone d'un document traverse la file — jusqu'à \"Sent\
 						expect(patched.status, "email ajouté au client").to.eq(200);
 					});
 
-					// Re-clic sur "Send" DANS LE DIALOGUE OUVERT SUR UN "send_failed" — le scénario exact du
-					// bug : le dialogue reste ce même dialogue du début à la fin, jamais fermé ni rouvert.
-					// "send" reste disponible depuis "send_failed" (invoice.descriptor.ts's
-					// SEND_TRANSITIONS), et cette facture n'a AUCUN param "send" (le transport lit le
-					// client, pas un champ tapé — voir invoice-actions.ts) : pas de dialogue de paramètres
-					// à traverser ici.
+					// Clicking "Send" again INSIDE THE DIALOG OPENED ON A "send_failed" — the exact
+					// scenario of the bug: the dialog stays this very same dialog from start to end,
+					// never closed nor reopened. "send" stays available from "send_failed"
+					// (invoice.descriptor.ts's SEND_TRANSITIONS), and this invoice has NO "send" param
+					// at all (the transport reads the client, not a typed field — see
+					// invoice-actions.ts): no params dialog to go through here.
 					cy.get('[data-cy="document-action-send"]', { timeout: 15000 }).click();
 
-					// La preuve que la livraison a RÉELLEMENT abouti cette fois, comme dans
-					// 24-document-payments.cy.ts : "record-payment" n'est offerte que sur une facture
-					// "sent" (availableWhen: ['sent']) — sa seule apparition suffit, sans dépendre d'un
-					// texte de statut affiché nulle part dans CE dialogue.
+					// The proof that delivery GENUINELY succeeded this time, as in
+					// 24-document-payments.cy.ts: "record-payment" is only offered on a "sent" invoice
+					// (availableWhen: ['sent']) — its mere appearance is enough, without depending on
+					// a status text displayed anywhere in THIS dialog.
 					cy.get('[data-cy="document-action-record-payment"]', { timeout: 30000 }).should("exist");
 
-					// Le cœur du bug corrigé : l'erreur périmée ne doit PLUS être là, alors que le
-					// dialogue est toujours le MÊME, jamais fermé entre-temps. Avant le correctif,
-					// `liveDialogTarget?.lastActionError ?? dialogTarget.lastActionError` retombait sur
-					// l'instantané figé (l'erreur bien réelle capturée à l'ouverture, ci-dessus) dès que le
-					// live valait `null` (l'écriture de "sending" au re-clic l'efface déjà, voir
-					// persistence.ts), laissant ce message affiché indéfiniment à côté d'un document
-					// réellement "sent".
+					// The heart of the fixed bug: the stale error must NO LONGER be there, even
+					// though the dialog is still the SAME one, never closed in the meantime. Before
+					// the fix, `liveDialogTarget?.lastActionError ?? dialogTarget.lastActionError`
+					// fell back to the frozen snapshot (the very real error captured at opening,
+					// above) as soon as the live value was `null` (the "sending" write on the
+					// re-click already clears it, see persistence.ts), leaving this message displayed
+					// indefinitely next to a document that was genuinely "sent".
 					cy.get('[data-cy="document-edit-dialog"]').should("be.visible");
 					cy.get('[data-cy="document-form-last-error"]').should("not.exist");
 

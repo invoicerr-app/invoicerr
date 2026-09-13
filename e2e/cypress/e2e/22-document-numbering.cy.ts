@@ -1,26 +1,26 @@
 /**
- * La numérotation — prouvée par l'écran, pas seulement en mémoire. Même discipline que 17/21 : les
- * ACTIONS passent par l'interface (un vrai clic sur "Send"), les ASSERTIONS qui comptent lisent
- * l'enregistrement via l'API, jamais une relecture du DOM comme preuve de ce qui est en base.
+ * Numbering — proven by the screen, not merely in memory. Same discipline as 17/21: the ACTIONS go
+ * through the interface (a real click on "Send"), the ASSERTIONS that matter read the record back
+ * via the API, never a DOM re-read as proof of what is in the database.
  *
- * Trois faits, dans l'ordre (l'état traverse les `it` de ce fichier — `resetAndSeed` ne rejoue
- * qu'une fois, dans `before`, exactement comme 17/21 le font) :
- *  1. un devis fraîchement créé n'a AUCUN numéro — ni côté API (`number: null`), ni fabriqué à
- *     l'écran (le libellé traduit "pas encore de numéro" à la place) ;
- *  2. un vrai clic sur "Send" fait apparaître `number: 1` et un `displayNumber` conforme au format
- *     par défaut (`QUOTE-{year}-{number:4}`), et la liste l'affiche ; un second devis envoyé prend
- *     `2`, jamais `1` à nouveau ;
- *  3. re-sauvegarder le premier devis (son "save-draft" reste offert même une fois "sent" — voir
- *     quote.descriptor.ts) puis le reconsulter ne change ni son numéro ni son affichage.
+ * Three facts, in order (state carries across the `it`s in this file — `resetAndSeed` replays only
+ * once, in `before`, exactly as 17/21 do):
+ *  1. a freshly created quote has NO number at all — neither on the API side (`number: null`) nor
+ *     fabricated on screen (the translated "no number yet" label shows instead);
+ *  2. a real click on "Send" makes `number: 1` and a `displayNumber` matching the default format
+ *     (`QUOTE-{year}-{number:4}`) appear, and the list shows it; a second sent quote gets
+ *     `2`, never `1` again;
+ *  3. re-saving the first quote (its "save-draft" stays offered even once "sent" — see
+ *     quote.descriptor.ts) then re-reading it changes neither its number nor its display.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-// QUOTE-2026-0001 — l'année n'est jamais figée en dur ici : elle vient de la même horloge que le
-// backend qui a pris le numéro, pas d'une date choisie pour le test.
+// QUOTE-2026-0001 — the year is never hardcoded here: it comes from the same clock as the backend
+// that assigned the number, not from a date picked for the test.
 const DEFAULT_QUOTE_DISPLAY_NUMBER = (n: number) =>
 	new RegExp(`^QUOTE-\\d{4}-${String(n).padStart(4, "0")}$`);
 
-describe("La numérotation des documents — jamais avant la sortie du brouillon, jamais deux fois", () => {
+describe("Document numbering — never before leaving draft, never twice", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -57,7 +57,7 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 						expect(saved.status, "brouillon de devis créé").to.be.oneOf([200, 201]);
 						const id = saved.body?.document?.id;
 						expect(id, "le brouillon a un identifiant").to.be.a("string");
-						// Le brouillon n'a AUCUN numéro — jamais 0, jamais une valeur fabriquée.
+						// The draft has NO number at all — never 0, never a fabricated value.
 						expect(saved.body?.document?.number, "un brouillon n'a pas de numéro").to.be.null;
 						expect(
 							saved.body?.document?.displayNumber,
@@ -68,17 +68,17 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 			});
 	}
 
-	it("un devis créé n'a PAS de numéro — ni côté API, ni fabriqué à l'écran", () => {
+	it("a created quote has NO number — neither on the API side, nor fabricated on screen", () => {
 		createDraftQuote().then((id) => {
 			firstQuoteId = id;
 
 			cy.visit("/documents/quote");
 			cy.get(`[data-cy="document-list-row-${firstQuoteId}"]`, { timeout: 15000 }).should("exist");
 
-			// À l'écran : le libellé traduit, jamais un numéro plausible mais faux.
+			// On screen: the translated label, never a plausible-but-fake number.
 			cy.get(`[data-cy="document-number-${firstQuoteId}"]`).should("have.text", "Draft — no number yet");
 
-			// À l'API, relu à nouveau (pas seulement au moment de la création) : toujours null.
+			// On the API, read back again (not only at creation time): still null.
 			cy.request({ url: `${api}/api/documents/${firstQuoteId}?typeId=quote` })
 				.its("body")
 				.then((doc) => {
@@ -88,7 +88,7 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 		});
 	});
 
-	it('un VRAI clic sur "Send" fait apparaître number: 1 et un displayNumber conforme au format par défaut', () => {
+	it('a REAL click on "Send" makes number: 1 and a displayNumber matching the default format appear', () => {
 		expect(firstQuoteId, "le devis du test précédent existe toujours").to.be.a("string");
 
 		cy.visit("/documents/quote");
@@ -97,12 +97,12 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 		cy.get('[data-cy="document-field-recipient-input"]').clear().type("client@example.com");
 		cy.get('[data-cy="document-action-params-confirm"]').click();
 
-		// La liste l'affiche, une fois la requête retombée...
+		// The list shows it, once the request has settled...
 		cy.get(`[data-cy="document-number-${firstQuoteId}"]`, { timeout: 15000 })
 			.invoke("text")
 			.should("match", DEFAULT_QUOTE_DISPLAY_NUMBER(1));
 
-		// ...et c'est bien ce qui est enregistré, pas seulement ce que l'écran prétend.
+		// ...and it is indeed what is recorded, not merely what the screen claims.
 		cy.request({ url: `${api}/api/documents/${firstQuoteId}?typeId=quote` })
 			.its("body")
 			.then((doc) => {
@@ -111,7 +111,7 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 			});
 	});
 
-	it('un second devis envoyé prend le numéro 2 — jamais 1 à nouveau', () => {
+	it('a second sent quote gets number 2 — never 1 again', () => {
 		createDraftQuote().then((id) => {
 			secondQuoteId = id;
 
@@ -134,16 +134,16 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 		});
 	});
 
-	it("re-sauvegarder puis re-consulter le premier devis ne change ni son numéro ni son affichage", () => {
+	it("re-saving then re-reading the first quote changes neither its number nor its display", () => {
 		expect(firstQuoteId, "le premier devis existe toujours").to.be.a("string");
 
 		cy.visit("/documents/quote");
-		// "save-draft" reste offert même une fois "sent" (quote.descriptor.ts : la transition part de
-		// N'IMPORTE QUEL statut) — cliquer dessus directement depuis la ligne de liste, un vrai clic,
-		// exactement comme 21-document-lifecycle.cy.ts le fait pour "send".
+		// "save-draft" stays offered even once "sent" (quote.descriptor.ts: the transition starts from
+		// ANY status) — clicked directly from the list row, a real click,
+		// exactly as 21-document-lifecycle.cy.ts does for "send".
 		cy.get(`[data-cy="document-row-action-save-draft-${firstQuoteId}"]`, { timeout: 15000 }).click();
 
-		// La liste continue d'afficher le MÊME numéro, jamais un nouveau ni un vide.
+		// The list keeps showing the SAME number, never a new one or an empty one.
 		cy.get(`[data-cy="document-number-${firstQuoteId}"]`, { timeout: 15000 })
 			.invoke("text")
 			.should("match", DEFAULT_QUOTE_DISPLAY_NUMBER(1));
@@ -155,8 +155,8 @@ describe("La numérotation des documents — jamais avant la sortie du brouillon
 				expect(doc.displayNumber).to.match(DEFAULT_QUOTE_DISPLAY_NUMBER(1));
 			});
 
-		// Et le second devis, lui, garde son propre numéro — la ré-écriture du premier n'a pas
-		// avancé la séquence pour tout le monde.
+		// And the second quote, for its part, keeps its own number — rewriting the first one did not
+		// advance the sequence for everyone.
 		cy.request({ url: `${api}/api/documents/${secondQuoteId}?typeId=quote` })
 			.its("body.number")
 			.should("eq", 2);

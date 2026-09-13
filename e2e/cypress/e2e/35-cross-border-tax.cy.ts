@@ -1,22 +1,22 @@
 /**
- * Le transfrontalier — la limite la plus profonde, prouvée par l'écran.
+ * The cross-border case — the deepest boundary, proven through the screen.
  *
- * Même discipline que 30/32 : l'ACTION passe par un vrai clic (créer le client, cliquer "Send",
- * cliquer le bouton de téléchargement XML), les ASSERTIONS qui comptent relisent l'API ou
- * interceptent la vraie requête réseau que le clic déclenche — jamais l'écran seul comme preuve de
- * ce qui a été calculé ou envoyé.
+ * Same discipline as 30/32: the ACTION goes through a real click (create the client, click "Send",
+ * click the XML download button), the ASSERTIONS that matter read back the API or intercept the
+ * real network request the click triggers — never the screen alone as proof of what was computed
+ * or sent.
  *
- * `issueDate` fixée AVANT le mandat FR/PDP (2026-09-01) sur les DEUX factures de ce fichier — comme
- * 30/32 — pour que le transport "email" (jamais "pdp") reste le chemin testé ; le mandat lui-même ne
- * s'appliquerait de toute façon pas à une vente FR→DE (l'attachement bilatéral exige les DEUX
- * parties en France — voir `channel-policy/data/fr.json`), mais fixer la date évite tout doute et
- * garde ce fichier lisible sans relire cette règle.
+ * `issueDate` fixed BEFORE the FR/PDP mandate (2026-09-01) on BOTH invoices in this file — like
+ * 30/32 — so the "email" transport (never "pdp") stays the path under test; the mandate itself
+ * would not apply to an FR→DE sale anyway (the bilateral attachment requires BOTH parties to be in
+ * France — see `channel-policy/data/fr.json`), but fixing the date removes any doubt and keeps this
+ * file readable without re-reading that rule.
  *
- * VIES : le backend de test tourne avec `VAT_VALIDATION_FAKE=1` (backend/.env.test) — un client
- * FAUX, déterministe, JAMAIS un appel réseau réel, qui répond VALID pour un numéro de TVA
- * syntaxiquement correct (voir `clients.module.ts` et `documents/tax/vat-validation.ts`'s own
- * header) : c'est ce qui rend observable, à travers un vrai navigateur, la transition VALID ->
- * autoliquidation que le client Null (le défaut sous NODE_ENV=test) ne pouvait pas montrer.
+ * VIES: the test backend runs with `VAT_VALIDATION_FAKE=1` (backend/.env.test) — a FAKE,
+ * deterministic client, NEVER a real network call, that answers VALID for a syntactically correct
+ * VAT number (see `clients.module.ts` and `documents/tax/vat-validation.ts`'s own header): this is
+ * what makes the VALID -> reverse-charge transition observable through a real browser, which the
+ * Null client (the default under NODE_ENV=test) could not show.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -32,7 +32,7 @@ function setInvoiceTransport(transportId: string) {
 		});
 }
 
-describe("Le transfrontalier, à travers l'écran", () => {
+describe("The cross-border case, through the screen", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -41,11 +41,11 @@ describe("Le transfrontalier, à travers l'écran", () => {
 		cy.login();
 	});
 
-	it("un client allemand avec un numéro de TVA intracommunautaire (champ NOUVEAU) — facture FR→DE en email, 0%, catégorie AE, mention art. 196", () => {
+	it("a German client with an intra-Community VAT number (NEW field) — FR→DE invoice via email, 0%, category AE, art. 196 mention", () => {
 		setInvoiceTransport("email");
 
-		// 1. Le client allemand, créé PAR L'ÉCRAN — la preuve que le champ VAT est désormais offert
-		// pour un pays qui n'avait AUCUN fichier `country-identifiers/data/*.json` avant cette tâche.
+		// 1. The German client, created THROUGH THE SCREEN — proof that the VAT field is now offered
+		// for a country that had NO `country-identifiers/data/*.json` file at all before this task.
 		cy.visit("/clients");
 		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
@@ -53,16 +53,16 @@ describe("Le transfrontalier, à travers l'écran", () => {
 		cy.get('[name="name"]').clear().type("Deutsche Autoliquidation GmbH");
 		cy.selectCountry("client-country-select", "Germany");
 
-		// Avant cette tâche, un pays sans country-identifiers/data/xx.json affichait seulement le
-		// message "unknown country" — jamais un champ. Le prouver ABSENT est ce qui distingue "le
-		// champ existe" de "le formulaire affiche juste quelque chose".
+		// Before this task, a country with no country-identifiers/data/xx.json showed only the
+		// "unknown country" message — never a field. Proving it ABSENT is what distinguishes "the
+		// field exists" from "the form just displays something".
 		cy.get('[data-cy="client-identifiers-unknown-country"]').should(
 			"not.exist",
 		);
 		cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 })
 			.should("exist")
 			.clear()
-			.type("DE136695976"); // checksum-valide (ISO 7064 Mod 11,10) — voir vat-syntax.spec.ts
+			.type("DE136695976"); // checksum-valid (ISO 7064 Mod 11,10) — see vat-syntax.spec.ts
 
 		cy.get('[name="contactEmail"]')
 			.clear()
@@ -82,9 +82,9 @@ describe("Le transfrontalier, à travers l'écran", () => {
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 		cy.contains("Deutsche Autoliquidation GmbH", { timeout: 10000 });
 
-		// 2. La facture FR→DE — créée par l'API (même convention que 30/32 : la donnée se prépare
-		// par l'API, l'ACTION testée passe par l'écran), avec une ligne de SERVICES pour que le
-		// moteur résolve l'autoliquidation (AE, art. 196), pas la livraison intra-UE (K, art. 138).
+		// 2. The FR→DE invoice — created via the API (same convention as 30/32: the data is
+		// prepared via the API, the ACTION under test goes through the screen), with a SERVICES line
+		// so the engine resolves reverse charge (AE, art. 196), not the intra-EU supply (K, art. 138).
 		cy.request({
 			url: `${api}/api/documents/references/client/search?q=Deutsche`,
 		})
@@ -130,7 +130,7 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Draft");
 
-					// L'ACTION : un vrai clic sur "Send" — jamais un appel direct à l'action.
+					// THE ACTION: a real click on "Send" — never a direct call to the action.
 					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
 						timeout: 15000,
 					}).click();
@@ -141,7 +141,7 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Sent");
 
-					// 3. Le XML téléchargé — la preuve : 0%, catégorie AE, mention d'autoliquidation.
+					// 3. The downloaded XML — the proof: 0%, category AE, reverse-charge mention.
 					cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
 					cy.intercept({
 						method: "GET",
@@ -161,16 +161,16 @@ describe("Le transfrontalier, à travers l'écran", () => {
 							"le téléchargement CII réussit",
 						).to.eq(200);
 						const body = String(x.response?.body);
-						// BT-152/BT-151 — 0%, catégorie AE, jamais les 20% initialement saisis.
+						// BT-152/BT-151 — 0%, category AE, never the 20% originally typed.
 						expect(body).to.match(
 							/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/,
 						);
 						expect(body).to.contain("<ram:CategoryCode>AE</ram:CategoryCode>");
-						// BG-1 (BT-22) — la mention du moteur, texte du repère, TEL QUEL.
+						// BG-1 (BT-22) — the engine's own mention, the benchmark text, AS IS.
 						expect(body).to.contain(
 							"Autoliquidation / Reverse charge — Art. 196 Directive 2006/112/EC",
 						);
-						// Les totaux reflètent le traitement RÉSOLU (0%), jamais les 20% du brouillon.
+						// The totals reflect the RESOLVED treatment (0%), never the draft's 20%.
 						expect(body).to.match(
 							/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
 						);
@@ -179,7 +179,7 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						);
 					});
 
-					// Et c'est bien ce qui est enregistré — l'assertion qui compte relit l'API.
+					// And this is indeed what gets stored — the assertion that matters reads back the API.
 					cy.request({
 						url: `${api}/api/documents/${invoiceId}?typeId=invoice`,
 					})
@@ -188,12 +188,12 @@ describe("Le transfrontalier, à travers l'écran", () => {
 							expect(doc.status).to.eq("sent");
 						});
 
-					// 4. LE DÉFAUT DE LA TÂCHE 16 (correction chirurgicale) — la donnée STOCKÉE (celle que
-					// `instance.data` porte désormais dès l'entrée en "sending") doit être la donnée
-					// RÉSOLUE : la LISTE (le dialogue ouvert depuis une ligne) doit afficher le total
-					// RÉSOLU (1000,00 €, 0 % de TVA), jamais 1 200,00 € (les 20 % saisis au brouillon).
-					// Avant la correction, `instance.data` gardait le taux saisi et ce total aurait affiché
-					// 1200.00 — cette assertion est celle qui aurait échoué sur le défaut.
+					// 4. THE DEFECT FROM TASK 16 (surgical fix) — the STORED data (what `instance.data`
+					// now carries from the moment it enters "sending") must be the RESOLVED data: the
+					// LIST (the dialog opened from a row) must display the RESOLVED total (€1000.00,
+					// 0% VAT), never €1200.00 (the 20% typed at draft time). Before the fix,
+					// `instance.data` kept the typed rate and this total would have shown 1200.00 —
+					// this is the assertion that would have failed on the defect.
 					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
 						timeout: 15000,
 					}).click();
@@ -206,9 +206,9 @@ describe("Le transfrontalier, à travers l'écran", () => {
 					cy.get("body").type("{esc}");
 					cy.get('[data-cy="document-edit-dialog"]').should("not.exist");
 
-					// 5. Le PDF RE-téléchargé — un second téléchargement, après coup, pas seulement celui
-					// qui a accompagné l'envoi — porte lui aussi le traitement résolu (0 %) : la requête
-					// réseau que le clic déclenche réussit, sur le MÊME document déjà "sent".
+					// 5. The RE-downloaded PDF — a second download, after the fact, not just the one
+					// that accompanied the send — also carries the resolved treatment (0%): the
+					// network request the click triggers succeeds, on the SAME document already "sent".
 					cy.intercept({
 						method: "GET",
 						pathname: `/api/documents/${invoiceId}/pdf`,
@@ -223,10 +223,10 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						).to.eq(200);
 					});
 
-					// 6. LE LETTRAGE d'une transfrontalière — un paiement de 1000,00 € (le total RÉSOLU,
-					// jamais 1200,00 €) règle intégralement la facture : le badge devient "Settled", et
-					// l'API le confirme sur les totaux STOCKÉS (jamais un recalcul caché qui masquerait le
-					// défaut).
+					// 6. RECONCILING a cross-border invoice — a payment of €1000.00 (the RESOLVED
+					// total, never €1200.00) fully settles the invoice: the badge becomes "Settled",
+					// and the API confirms it against the STORED totals (never a hidden recomputation
+					// that would mask the defect).
 					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
 						timeout: 15000,
 					}).click();
@@ -257,8 +257,8 @@ describe("Le transfrontalier, à travers l'écran", () => {
 					})
 						.its("body")
 						.then((body) => {
-							// 1000,00 € résolus, jamais 1200,00 € (20 % du brouillon) — le nombre exact que
-							// ce défaut faussait avant la correction.
+							// €1000.00 resolved, never €1200.00 (20% from the draft) — the exact number
+							// this defect used to get wrong before the fix.
 							expect(
 								body.totals.grossMinor,
 								"total résolu : 1000,00 € (0 % AE)",
@@ -274,13 +274,13 @@ describe("Le transfrontalier, à travers l'écran", () => {
 			});
 	});
 
-	it("un client sans pays résolvable — l'envoi est refusé À L'ÉCRAN, message nommé, jamais un 0% silencieux", () => {
+	it("a client with no resolvable country — sending is refused ON SCREEN, a named message, never a silent 0%", () => {
 		setInvoiceTransport("email");
 
-		// Le FORMULAIRE client exige un pays (validation zod côté écran) — ce client est donc créé
-		// par l'API directement, comme un scripted client le ferait, pour amener l'invoice dans
-		// l'état que ce test vise : c'est le REFUS À L'ENVOI que ce test prouve par l'écran, pas la
-		// création du client elle-même (déjà prouvée par le test précédent).
+		// The client FORM requires a country (zod validation on the screen side) — this client is
+		// therefore created directly via the API, the way a scripted client would, to bring the
+		// invoice into the state this test targets: it's the REFUSAL AT SEND that this test proves
+		// through the screen, not the client creation itself (already proven by the previous test).
 		cy.request({
 			method: "POST",
 			url: `${api}/api/clients`,
@@ -333,8 +333,8 @@ describe("Le transfrontalier, à travers l'écran", () => {
 					timeout: 15000,
 				}).click();
 
-				// Le préflight bloque de façon SYNCHRONE — un toast nommé le dit tout de suite, même
-				// discipline que 32-channel-mandate.cy.ts pour son propre refus au préflight.
+				// The preflight blocks SYNCHRONOUSLY — a named toast says so immediately, the same
+				// discipline as 32-channel-mandate.cy.ts for its own preflight refusal.
 				cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 					"contain.text",
 					"buyer's country could not be determined",
@@ -359,7 +359,7 @@ describe("Le transfrontalier, à travers l'écran", () => {
 	// resolves to DE's own destination rate. Same discipline as the first test in this file: the
 	// client is created BY THE SCREEN, the invoice is sent BY A REAL CLICK, and the assertion that
 	// counts is the actual downloaded XML.
-	it("un client allemand SANS numéro de TVA (B2C) — facture FR→DE en email, OSS charge le taux allemand LU (19%), total TTC chiffré", () => {
+	it("a German client WITHOUT a VAT number (B2C) — FR→DE invoice via email, OSS charges the READ German rate (19%), gross total computed", () => {
 		setInvoiceTransport("email");
 
 		cy.visit("/clients");
@@ -443,7 +443,7 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Draft");
 
-					// L'ACTION : un vrai clic sur "Send".
+					// THE ACTION: a real click on "Send".
 					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
 						timeout: 15000,
 					}).click();
@@ -454,9 +454,9 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Sent");
 
-					// Le XML téléchargé — la preuve : 19% (le taux allemand LU depuis TEDB), catégorie
-					// S (standard-rated, à destination), jamais les 20% saisis au brouillon et jamais un
-					// blocage `UnsupportedOssDestinationError`.
+					// The downloaded XML — the proof: 19% (the German rate READ from TEDB), category
+					// S (standard-rated, at destination), never the 20% typed at draft time and never
+					// an `UnsupportedOssDestinationError` block.
 					cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
 					cy.intercept({
 						method: "GET",
@@ -476,12 +476,12 @@ describe("Le transfrontalier, à travers l'écran", () => {
 							"le téléchargement CII réussit",
 						).to.eq(200);
 						const body = String(x.response?.body);
-						// BT-152/BT-151 — 19% (DE), catégorie S, jamais les 20% du vendeur français.
+						// BT-152/BT-151 — 19% (DE), category S, never the French seller's own 20%.
 						expect(body).to.match(
 							/<ram:RateApplicablePercent>19<\/ram:RateApplicablePercent>/,
 						);
 						expect(body).to.contain("<ram:CategoryCode>S</ram:CategoryCode>");
-						// Totaux : 10 × 100 = 1000,00 € HT, 19% de TVA = 190,00 €, TTC = 1190,00 €.
+						// Totals: 10 × 100 = €1000.00 net, 19% VAT = €190.00, gross = €1190.00.
 						expect(body).to.match(
 							/<ram:TaxTotalAmount currencyID="EUR">190\.00<\/ram:TaxTotalAmount>/,
 						);
@@ -490,8 +490,9 @@ describe("Le transfrontalier, à travers l'écran", () => {
 						);
 					});
 
-					// Et c'est bien ce qui est enregistré et lettrable — même discipline que le premier
-					// test : l'assertion qui compte relit l'API, sur les totaux RÉSOLUS et STOCKÉS.
+					// And this is indeed what gets stored and can be reconciled — same discipline as
+					// the first test: the assertion that matters reads back the API, against the
+					// RESOLVED and STORED totals.
 					cy.request({
 						url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice`,
 					})

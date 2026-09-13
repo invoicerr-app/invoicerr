@@ -27,8 +27,8 @@ interface InAppPluginCategories {
 
 // (2026-09-03) The external, git-clone plugin mechanism (POST /api/plugins,
 // the "Add Plugin" git URL form, the installed-plugins list with delete) was removed: it had no
-// real extension point behind it ("Le système de plugins, vu par son premier
-// vrai consommateur"). Extensibility is now the narrow-interface-at-the-core pattern
+// real extension point behind it ("The plugin system, seen through its first
+// real consumer"). Extensibility is now the narrow-interface-at-the-core pattern
 // (ReceivedDocumentExtractor + registry, the OCR/Mistral plugin) — not third-party code loading.
 // Only the in-app plugins screen (PluginRegistry/PluginType, toggle + configure + webhook
 // instructions) remains, and it is everything below.

@@ -12,7 +12,7 @@ import DocumentTypePage from "@/pages/(app)/documents/[typeId]"
 
 /**
  * Journey coverage, not line coverage: five NAMED tests, one
- * per parcours (émission, rejet, correction, avoir, annulation), each rendering the REAL screen this
+ * per journey (issuance, rejection, correction, credit note, cancellation), each rendering the REAL screen this
  * app actually ships (`DocumentTypePage` — the exact component `[typeId].tsx`'s own route mounts, the
  * SAME tree `document-list.tsx`/`document-form.tsx`/`document-conformity-section.tsx`/
  * `document-settlement.tsx` compose into in production), never an isolated component standing in for
@@ -34,7 +34,7 @@ function sseResult(data: useFetchModule.useSseResult["data"]): useFetchModule.us
   return { data, loading: false, error: null, close: vi.fn() }
 }
 
-/** Mounted alongside the page in the ÉMISSION journey only — the exact hook `(app)/_layout.tsx`
+/** Mounted alongside the page in the ISSUANCE journey only — the exact hook `(app)/_layout.tsx`
  *  mounts once for the whole authenticated app (see that hook's own header). Every other journey
  *  never renders this: their screens react to a plain refetch, not to a pushed SSE message. */
 function SseHost() {
@@ -114,7 +114,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe("Émission — brouillon envoyé, l'écran suit sans reload (SSE mechanism)", () => {
+describe("Issuance — draft sent, the screen follows without reload (SSE mechanism)", () => {
   it("shows 'Sending' the moment send is clicked, then 'Sent' once the SSE nudge arrives", async () => {
     const descriptor: DocumentTypeDescriptor = {
       id: "invoice",
@@ -187,13 +187,13 @@ describe("Émission — brouillon envoyé, l'écran suit sans reload (SSE mechan
   // key the mounted list never reads). Reverted; suite green again.
 })
 
-describe("Slots personnalisés — les DEUX composants list-row-extra coexistent (tripwire du registre à liste)", () => {
-  /** La mutation « seul le DERNIER composant enregistré
-   *  survit » (l'ancien comportement Map-écrase du registre custom-slots)
-   *  laissait les 55 tests verts — rien ne prouvait que le bouton de preview
-   *  ET le bouton de correction coexistent sur une même ligne de facture émise. Ce test est ce
-   *  tripwire : les deux déclencheurs présents, sur la même ligne. */
-  it("une facture émise porte À LA FOIS le bouton preview et le bouton correction", async () => {
+describe("Custom slots — the TWO list-row-extra components coexist (list-registry tripwire)", () => {
+  /** The mutation "only the LAST registered component
+   *  survives" (the old Map-overwrites behavior of the custom-slots registry)
+   *  left the 55 tests green — nothing proved that the preview button
+   *  AND the correction button coexist on the same issued-invoice row. This test is that
+   *  tripwire: both triggers present, on the same row. */
+  it("an issued invoice carries BOTH the preview button and the correction button", async () => {
     const descriptor = {
       id: "invoice", // document-list resolves the slot by descriptor.id — the tripwire NEEDS it
       typeId: "invoice",
@@ -227,9 +227,9 @@ describe("Slots personnalisés — les DEUX composants list-row-extra coexistent
     expect(screen.getByTestId("document-correction-button-inv-slots")).toBeInTheDocument()
   })
 
-  /** Même passe de validation : le gating de statut (« on ne corrige qu'un document ÉMIS ») muté en
-   *  `true` laissait aussi la suite verte — épinglé ici : un brouillon n'a PAS de bouton Corriger. */
-  it("un BROUILLON ne porte pas le bouton correction (le preview, lui, reste)", async () => {
+  /** Same validation pass: the status gating ("only an ISSUED document can be corrected") mutated to
+   *  `true` also left the suite green — pinned here: a draft does NOT have a Correct button. */
+  it("a DRAFT does not carry the correction button (the preview, though, stays)", async () => {
     const descriptor = {
       id: "invoice",
       typeId: "invoice",
@@ -264,7 +264,7 @@ describe("Slots personnalisés — les DEUX composants list-row-extra coexistent
   })
 })
 
-describe("Rejet — un verdict d'autorité négatif journalisé apparaît sur le panneau de conformité", () => {
+describe("Rejection — a logged negative authority verdict appears on the conformity panel", () => {
   it("shows the Rejected badge on the list row and the reason in the edit dialog's timeline", async () => {
     const descriptor: DocumentTypeDescriptor = {
       id: "invoice",
@@ -338,15 +338,15 @@ describe("Rejet — un verdict d'autorité négatif journalisé apparaît sur le
   // on the row a reader is actually scanning). Reverted; suite green again.
 })
 
-describe("Correction — ce que l'écran offre RÉELLEMENT aujourd'hui (pas un écran dédié)", () => {
+describe("Correction — what the screen REALLY offers today (not a dedicated screen)", () => {
   /**
-   * ÉCART CONSIGNÉ (voir le rapport de tâche pour le détail) : aucun descripteur (invoice,
-   * credit-note, quote, expense, received-invoice — les cinq lus depuis `backend/src/modules/
-   * documents/descriptors/`) ne déclare d'action "correct"/"amend", et aucun composant frontend n'a
-   * de dialogue de correction. La SEULE chose que l'écran fait aujourd'hui avec « corriger une facture
-   * émise » est : re-ouvrir le formulaire et cliquer "Save draft" (invoice.descriptor.ts's own
-   * `SAVE_DRAFT_TRANSITIONS: [{ from: 'always', to: 'draft' }]`) — un simple redémarrage de brouillon,
-   * jamais un document de correction distinct. La France elle-même REFUSE ce chemin (country-policy/
+   * GAP LOGGED: no descriptor (invoice,
+   * credit-note, quote, expense, received-invoice — the five read from `backend/src/modules/
+   * documents/descriptors/`) declares a "correct"/"amend" action, and no frontend component has
+   * a correction dialog. The ONLY thing the screen does today with "correcting an issued
+   * invoice" is: reopen the form and click "Save draft" (invoice.descriptor.ts's own
+   * `SAVE_DRAFT_TRANSITIONS: [{ from: 'always', to: 'draft' }]`) — a plain draft restart,
+   * never a distinct correction document. France itself REFUSES this path (country-policy/
    * data/fr.json narrows `invoice.save-draft` to `statuses: ["draft"]`, CGI art. 289, I.5 — "an issued
    * invoice is corrected by a DISTINCT document, never rewritten") — `describeTypeForCompany`
    * (documents.service.ts) annotates the action with `policyBlockedReason` for exactly this case, and
@@ -412,7 +412,7 @@ describe("Correction — ce que l'écran offre RÉELLEMENT aujourd'hui (pas un �
   // suite green again.
 })
 
-describe("Avoir — la référence obligatoire, la devise verrouillée, le crédit visible au règlement", () => {
+describe("Credit note — the mandatory reference, the locked currency, the credit visible at settlement", () => {
   it("locks the currency to the picked invoice's own, then shows the saved credit note on that invoice's settlement", async () => {
     const creditNoteDescriptor: DocumentTypeDescriptor = {
       id: "credit-note",
@@ -578,23 +578,23 @@ describe("Avoir — la référence obligatoire, la devise verrouillée, le créd
   // disappears from the screen. Reverted; suite green again.
 })
 
-describe("Annulation — le parcours tel qu'il existe (ÉCART consigné : aucun écran dédié)", () => {
+describe("Cancellation — the journey as it exists (GAP logged: no dedicated screen)", () => {
   /**
-   * ÉCART CONSIGNÉ (voir le rapport de tâche) : `grep`-ing les cinq descripteurs shippés
+   * GAP LOGGED: `grep`-ing the five shipped descriptors
    * (`backend/src/modules/documents/descriptors/*.descriptor.ts` — invoice, credit-note, quote,
-   * expense, received-invoice) et chaque spec Cypress (`e2e/cypress/e2e/*.cy.ts`) ne trouve NULLE
-   * PART une action "cancel"/"void"/"annul" pour un document déjà émis. `LifecyclePolicy.cancellation`
-   * existe dans le MOTEUR de conformité (`state-machine-preview.ts`, `GET /compliance/
-   * state-machine-preview` — un endpoint de PRÉVISUALISATION, jamais rendu sur aucun écran, voir
-   * `grep -rn state-machine-preview src` : zéro composant, zéro page) mais n'est câblé à AUCUN bouton,
-   * aucun dialogue, pour aucun des cinq types réels. Il n'y a donc pas de parcours d'annulation à
-   * observer aujourd'hui — seulement un GARDE-FOU générique (`isActionAvailable`, types.ts) qui
-   * déciderait si un futur "cancel" apparaîtrait ou non selon le statut courant : c'est CE garde-fou,
-   * le seul mécanisme réel en jeu, que ce test verrouille, sur l'écran réel, avec une action "cancel"
-   * hypothétique déclarée par le descripteur (une donnée, exactement comme "send"/"record-payment" le
-   * sont déjà — voir ce fichier's own header : « add an action... this component never changes either
-   * way ») restreinte à "draft" — jamais "sent", le seul point qui compte tant qu'aucune loi n'a été
-   * établie sur ce qu'annuler une facture ÉMISE voudrait dire.
+   * expense, received-invoice) and every Cypress spec (`e2e/cypress/e2e/*.cy.ts`) finds NOWHERE a
+   * "cancel"/"void"/"annul" action for an already-issued document. `LifecyclePolicy.cancellation`
+   * exists in the compliance ENGINE (`state-machine-preview.ts`, `GET /compliance/
+   * state-machine-preview` — a PREVIEW endpoint, never rendered on any screen, see
+   * `grep -rn state-machine-preview src`: zero components, zero pages) but is wired to NO button,
+   * no dialog, for any of the five real types. There is therefore no cancellation journey to
+   * observe today — only a generic GUARD (`isActionAvailable`, types.ts) that would decide whether a
+   * future "cancel" appears or not depending on the current status: it is THIS guard, the only real
+   * mechanism in play, that this test locks down, on the real screen, with a hypothetical "cancel"
+   * action declared by the descriptor (a piece of data, exactly like "send"/"record-payment" already
+   * are — see this file's own header: « add an action... this component never changes either
+   * way ») restricted to "draft" — never "sent", the only point that matters as long as no law has
+   * been established on what cancelling an ISSUED invoice would mean.
    */
   it("never renders a 'cancel' action for an already-SENT invoice, even when one is declared for drafts", async () => {
     const descriptor: DocumentTypeDescriptor = {
@@ -651,7 +651,7 @@ describe("Annulation — le parcours tel qu'il existe (ÉCART consigné : aucun 
 })
 
 /**
- * The "Corriger" screen: a country-is-data dialog rendered off the
+ * The "Correct" screen: a country-is-data dialog rendered off the
  * `GET .../correction-routes`, on the REAL screen (custom/invoice-correction-routes-button.tsx,
  * registered the same way invoice-preview-button.tsx already is), never a re-implementation of the
  * status/label vocabulary. Four journeys: FR sees the internal credit
@@ -660,7 +660,7 @@ describe("Annulation — le parcours tel qu'il existe (ÉCART consigné : aucun 
  * "not implemented" panel, never a stub; an unresolved seller country shows the backend's own NAMED
  * 404, verbatim.
  */
-describe("Corriger — les voies de correction, par pays vendeur", () => {
+describe("Correct — correction routes, by seller country", () => {
   const invoiceDescriptor: DocumentTypeDescriptor = {
     id: "invoice",
     label: "Invoice",
@@ -700,7 +700,7 @@ describe("Corriger — les voies de correction, par pays vendeur", () => {
     "This reads the document's SELLER country only — never the buyer's. See the seller×buyer " +
     "composition limitation."
 
-  it("vendeur FR : l'avoir interne (INTERNAL_CREDIT_NOTE) est affiché IMPOSÉ avec sa base légale, cliquable, et mène à l'avoir RÉEL pré-lié (référence remplie, devise verrouillée)", async () => {
+  it("seller FR: the internal credit note (INTERNAL_CREDIT_NOTE) is shown IMPOSED with its legal basis, clickable, and leads to the REAL pre-linked credit note (reference filled, currency locked)", async () => {
     const invoice = issuedInvoice("inv-fr")
     const creditNoteDescriptor: DocumentTypeDescriptor = {
       id: "credit-note",
@@ -781,7 +781,7 @@ describe("Corriger — les voies de correction, par pays vendeur", () => {
   // red→green mutation test below, which targets this exact function against the PL fixture instead
   // of repeating the same fixture here).
 
-  it("vendeur PL : le MÊME routeId (INTERNAL_CREDIT_NOTE) est affiché INTERDIT, désactivé, avec sa propre raison — jamais la voie française", async () => {
+  it("seller PL: the SAME routeId (INTERNAL_CREDIT_NOTE) is shown FORBIDDEN, disabled, with its own reason — never the French route", async () => {
     const invoice = issuedInvoice("inv-pl")
 
     installFetchMock({
@@ -822,7 +822,7 @@ describe("Corriger — les voies de correction, par pays vendeur", () => {
     expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
   })
 
-  it("une voie DÉCLARÉE mais NON IMPLÉMENTÉE (CREDIT_NOTE, permise en France) : l'état 501 honnête, jamais un stub qui fait semblant", async () => {
+  it("a DECLARED but NOT IMPLEMENTED route (CREDIT_NOTE, allowed in France): the honest 501 state, never a stub that pretends to work", async () => {
     const invoice = issuedInvoice("inv-notimpl")
 
     installFetchMock({
@@ -860,7 +860,7 @@ describe("Corriger — les voies de correction, par pays vendeur", () => {
     expect(screen.queryByTestId("document-create-dialog")).not.toBeInTheDocument()
   })
 
-  it("pays vendeur SANS FICHIER : le 404 NOMMÉ de l'API, verbatim — jamais un dialogue vide", async () => {
+  it("seller country with NO FILE: the API's NAMED 404, verbatim — never an empty dialog", async () => {
     const invoice = issuedInvoice("inv-be")
     const namedMessage =
       'Aucune règle de correction déclarée pour BE — no correction-routes rule is declared for "BE" yet.'
@@ -882,7 +882,7 @@ describe("Corriger — les voies de correction, par pays vendeur", () => {
     expect(errorMessage).toHaveTextContent(namedMessage)
   })
 
-  it("Vendeur FR : CANCEL_AND_REPLACE est IMPLÉMENTÉE ; le clic exige une confirmation d'irréversibilité avant d'annuler réellement", async () => {
+  it("Seller FR: CANCEL_AND_REPLACE is IMPLEMENTED; the click requires an irreversibility confirmation before actually cancelling", async () => {
     const invoice = issuedInvoice("inv-cancel-fr")
     const cancelCitation =
       "Doit porter référence exacte à la facture initiale et la mention expresse de l'annulation de " +
@@ -941,7 +941,7 @@ describe("Corriger — les voies de correction, par pays vendeur", () => {
   // confirmation. Reverted; suite green again.
   // MUTATION (proven, reverted): invoice-correction-routes-button.tsx — `isChoosable`'s own
   // `route.status === "required" || route.status === "allowed"` -> `true` unconditionally. RED: the
-  // PL test above ("le MÊME routeId ... est affiché INTERDIT, désactivé") fails —
+  // PL test above ("the SAME routeId ... is shown FORBIDDEN, disabled") fails —
   // "document-correction-route-INTERNAL_CREDIT_NOTE-button" is no longer disabled even though its own
   // status is still "forbidden", and clicking it would silently navigate to the credit-note screen
   // for a route the seller's own country refuses outright. Reverted; suite green again.

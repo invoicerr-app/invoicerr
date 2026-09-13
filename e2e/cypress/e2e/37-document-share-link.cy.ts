@@ -1,17 +1,17 @@
 /**
- * Public download links — prouvé PAR L'ÉCRAN, même discipline que
- * 28/34 : l'envoi de la facture et la création/révocation du lien passent par de VRAIS clics, les
- * assertions qui comptent relisent soit l'API, soit — pour le lien public lui-même — une requête
- * HTTP réelle, SANS AUCUN cookie de session, exactement le scénario qu'un client recevant ce lien
- * par e-mail vivrait.
+ * Public download links — proven THROUGH THE SCREEN, same discipline as
+ * 28/34: sending the invoice and creating/revoking the link go through REAL clicks, the
+ * assertions that matter read back either the API, or — for the public link itself — a real
+ * HTTP request, WITH NO session cookie AT ALL, exactly the scenario a client receiving this link
+ * by email would experience.
  *
- * La société de seed (cy.resetAndSeed()) est française (Acme Corp, countryCode FR) — "share-link"
- * y est `allowed: true` (unverified) pour "invoice" (voir data/fr.json), donc rien ici ne teste le
- * blocage par politique pays (déjà couvert au niveau jest, country-policy.spec.ts).
+ * The seed company (cy.resetAndSeed()) is French (Acme Corp, countryCode FR) — "share-link"
+ * is `allowed: true` (unverified) there for "invoice" (see data/fr.json), so nothing here tests
+ * country-policy blocking (already covered at the jest level, country-policy.spec.ts).
  *
- * Régression couverte par la même passe : 19 (le bouton PDF authentifié continue de fonctionner —
- * le lien public appelle EXACTEMENT le même rendu, jamais une seconde implémentation) et 28 (l'envoi
- * asynchrone d'une facture n'est pas perturbé par l'ajout du bouton "share-link" sur la même ligne).
+ * Regression covered by the same pass: 19 (the authenticated PDF button keeps working —
+ * the public link calls EXACTLY the same render, never a second implementation) and 28 (an
+ * invoice's asynchronous send is not disrupted by adding the "share-link" button on the same row).
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -47,7 +47,7 @@ function createInvoiceDraft() {
 		});
 }
 
-/** Configure le transport le plus simple à faire réussir en CI — même choix que 34. */
+/** Configures the simplest transport to make succeed in CI — same choice as 34. */
 function configureEmailTransport() {
 	return cy
 		.request({
@@ -73,7 +73,7 @@ function sendInvoiceFromScreen(invoiceId: string) {
 		.should("contain.text", "Sent");
 }
 
-describe("Les liens publics de téléchargement (item 24) — créés, copiés, révoqués depuis l'écran", () => {
+describe("Public download links (item 24) — created, copied, revoked from the screen", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -83,8 +83,8 @@ describe("Les liens publics de téléchargement (item 24) — créés, copiés, 
 	});
 
 	it(
-		'crée un lien de partage sur une facture ENVOYÉE, et l\'URL copiée sert le PDF SANS AUCUNE session ' +
-			"(cy.request sans cookie) — puis la révocation rend cette même URL 404",
+		"creates a share link on a SENT invoice, and the copied URL serves the PDF WITH NO session " +
+			"AT ALL (a cy.request with no cookie) — then revoking it turns that same URL into a 404",
 		() => {
 			cy.clearEmails();
 			configureEmailTransport();
@@ -92,22 +92,22 @@ describe("Les liens publics de téléchargement (item 24) — créés, copiés, 
 			createInvoiceDraft().then((invoiceId) => {
 				sendInvoiceFromScreen(invoiceId);
 
-				// Le bouton "Share link" n'existe que pour un document non-brouillon — voir le test
-				// dédié plus bas pour la négative. Ici il doit être là, la facture étant "sent".
+				// The "Share link" button only exists for a non-draft document — see the test
+				// dedicated to the negative case further below. Here it must be present, the invoice being "sent".
 				cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`, { timeout: 15000 }).click();
 				cy.get('[data-cy="share-link-dialog"]', { timeout: 15000 }).should("be.visible");
 
-				// Aucun lien actif avant la création.
+				// No active link before creation.
 				cy.get('[data-cy="share-link-empty"]').should("be.visible");
 
 				cy.get('[data-cy="share-link-create-button"]').click();
 				cy.get('[data-cy="share-link-created-url"]', { timeout: 15000 }).should("be.visible");
 
-				// Le bouton "copier" est bien celui qu'un utilisateur cliquerait — on l'exerce pour de
-				// vrai (le presse-papiers réel n'est pas ce que ce test vérifie, l'URL elle-même l'est).
+				// The "copy" button is indeed the one a user would click — we exercise it for
+				// real (the actual clipboard isn't what this test verifies, the URL itself is).
 				cy.get('[data-cy="share-link-copy-button"]').click();
 
-				// Le lien apparaît maintenant dans la liste des liens actifs du document.
+				// The link now appears in the document's list of active links.
 				cy.get('[data-cy="share-link-list"]', { timeout: 15000 })
 					.find('[data-cy^="share-link-row-"]')
 					.should("have.length", 1);
@@ -120,7 +120,7 @@ describe("Les liens publics de téléchargement (item 24) — créés, copiés, 
 							/^https?:\/\/.+\/api\/public\/documents\/[0-9a-f]{64,}\/pdf$/,
 						);
 
-						// SANS AUCUNE session — la preuve centrale de ce ticket.
+						// WITH NO session AT ALL — the central proof of this ticket.
 						cy.clearCookies();
 						cy.request({ url: publicUrl, encoding: "binary", failOnStatusCode: false }).then((res) => {
 							expect(res.status, "200, sans cookie").to.eq(200);
@@ -134,8 +134,8 @@ describe("Les liens publics de téléchargement (item 24) — créés, copiés, 
 							expect(magic, "octets magiques %PDF").to.eq("%PDF");
 						});
 
-						// La session revient (cy.session restaure le cookie sans repasser par l'écran de
-						// connexion) pour pouvoir révoquer depuis l'écran.
+						// The session comes back (cy.session restores the cookie without going back through
+						// the sign-in screen) so the link can be revoked from the screen.
 						cy.login();
 						cy.visit("/documents/invoice");
 						cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`, { timeout: 15000 }).click();
@@ -143,7 +143,7 @@ describe("Les liens publics de téléchargement (item 24) — créés, copiés, 
 						cy.get('[data-cy^="share-link-revoke-"]', { timeout: 15000 }).first().click();
 						cy.get('[data-cy="share-link-empty"]', { timeout: 15000 }).should("be.visible");
 
-						// La même URL, exactement — 404 maintenant, toujours sans session.
+						// The exact same URL — 404 now, still with no session.
 						cy.clearCookies();
 						cy.request({ url: publicUrl, failOnStatusCode: false }).then((res) => {
 							expect(res.status, "révoqué -> 404").to.eq(404);
@@ -153,7 +153,7 @@ describe("Les liens publics de téléchargement (item 24) — créés, copiés, 
 		},
 	);
 
-	it("un brouillon (jamais envoyé) n'offre pas l'action \"share-link\"", () => {
+	it("a draft (never sent) does not offer the \"share-link\" action", () => {
 		createInvoiceDraft().then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })

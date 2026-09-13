@@ -1,29 +1,29 @@
 /**
- * Les 5 fichiers country-policy sourcés (DE, IT, PL, ES, MX,
- * `backend/src/modules/documents/country-policy/data/`). Avant ce fichier, une société dont le pays
- * n'avait pas de fichier country-policy/ voyait TOUTE action document refusée (403, "no document
- * action policy is declared for..." — country-policy.ts's own DECISION 1) : la Pologne, un marché
- * primaire de ce produit, ne pouvait même pas ÉMETTRE une facture. Ce fichier prouve LE DÉBLOCAGE
- * lui-même, par l'écran, pour la Pologne (`data/pl.json`) — jamais par un simple test jest de plus, qui
- * ne peut pas prouver que le VRAI bouton "Send" marche derrière un VRAI clic contre le VRAI serveur.
+ * The 5 sourced country-policy files (DE, IT, PL, ES, MX,
+ * `backend/src/modules/documents/country-policy/data/`). Before this file, a company whose country
+ * had no country-policy/ file saw EVERY document action refused (403, "no document
+ * action policy is declared for..." — country-policy.ts's own DECISION 1): Poland, a primary
+ * market of this product, could not even ISSUE an invoice. This file proves THE UNBLOCKING
+ * itself, through the screen, for Poland (`data/pl.json`) — never through one more jest test, which
+ * cannot prove that the REAL "Send" button works behind a REAL click against the REAL server.
  *
- * Deux angles, un seul describe :
- *  1. Le déblocage : une société polonaise, DEPUIS SA CRÉATION (jamais une bascule après coup — à la
- *     différence de `43-correction-routes.cy.ts`'s own PL cancel test, qui devait émettre sous FR
- *     PUIS basculer, faute de fichier PL à l'époque — cette contrainte n'existe plus), émet une VRAIE
- *     facture par un VRAI clic sur "Send".
- *  2. La restriction lue : `pl.json`'s own `invoice.save-draft` cite le Podręcznik KSeF verbatim
- *     ("nie jest możliwe jej edytowanie" — non éditable une fois transmise) et la porte comme
- *     `statuses: ["draft"]`. Composée par `country-policy.ts`/`documents.service.ts` avec le statut
- *     du document, cette restriction produit un 409 (jamais un 403 — voir `country-policy.ts`'s own
- *     header : l'action EST permise par ce pays en principe, seulement pas depuis ce statut, exactement
- *     ce qu'un 409 signifie déjà pour `availableWhen`), et fait disparaître le bouton "Save draft" de
- *     l'écran d'édition d'une facture déjà émise — jamais un bouton visible qui échouerait en silence.
- *     Aucune des cinq nouvelles règles n'est `allowed: false` (la recherche n'a trouvé
- *     aucune interdiction nette pour les paires (type, action) couvertes — un `allowed: false` inventé
- *     serait exactement la règle fiscale inventée que ce dépôt interdit) : ce test prouve donc la
- *     restriction RÉELLEMENT sourcée (le statut), pas un `policyBlockedReason` qui n'a pas lieu d'être
- *     ici faute d'interdiction à sourcer.
+ * Two angles, a single describe:
+ *  1. The unblocking: a Polish company, FROM ITS OWN CREATION (never a switch afterward — unlike
+ *     `43-correction-routes.cy.ts`'s own PL cancel test, which had to issue under FR
+ *     THEN switch, for lack of a PL file at the time — that constraint no longer exists), issues a
+ *     REAL invoice through a REAL click on "Send".
+ *  2. The restriction read: `pl.json`'s own `invoice.save-draft` quotes the Podręcznik KSeF verbatim
+ *     ("nie jest możliwe jej edytowanie" — not editable once transmitted) and carries it as
+ *     `statuses: ["draft"]`. Composed by `country-policy.ts`/`documents.service.ts` with the
+ *     document's own status, this restriction produces a 409 (never a 403 — see `country-policy.ts`'s
+ *     own header: the action IS allowed by this country in principle, just not from this status,
+ *     exactly what a 409 already means for `availableWhen`), and makes the "Save draft" button
+ *     disappear from the edit screen of an already-issued invoice — never a visible button that
+ *     would silently fail. None of the five new rules is `allowed: false` (the research found
+ *     no clean-cut prohibition for the (type, action) pairs covered — an invented `allowed: false`
+ *     would be exactly the invented tax rule this repository forbids): this test therefore proves the
+ *     GENUINELY sourced restriction (the status), not a `policyBlockedReason`, which has no reason to
+ *     exist here for lack of a prohibition to source.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -34,9 +34,9 @@ function createClient(name: string, country: string, countryCode: string) {
 			url: `${api}/api/clients`,
 			body: {
 				name,
-				// Une adresse simple et valide — jamais dérivée du nom (qui porte des points/espaces
-				// polonais), ce qui a fait échouer une première version de ce test en délivrance réelle
-				// ("send_failed", un aléa SMTP sans rapport avec ce que ce fichier country-policy/ gate).
+				// A simple, valid address — never derived from the name (which carries Polish
+				// dots/spaces), which made a first version of this test fail on real delivery
+				// ("send_failed", an SMTP fluke unrelated to what this country-policy/ file gates).
 				contactEmail: "klient.testowy@example.com",
 				address: "ul. Przykładowa 1",
 				postalCode: "00-001",
@@ -67,10 +67,10 @@ function invoiceData(clientId: string) {
 				quantity: 1,
 				unit: "day",
 				unitPrice: 1000,
-				// Le taux normal polonais (23 %) — un choix de contenu, sans rapport avec ce que ce
-				// fichier country-policy/ gate (l'ACTION, pas le taux) ; aucun catalogue vat-rates/
-				// dédié à la Pologne n'existe à ce jour (seul fr.json y figure), donc ce taux n'est
-				// validé contre aucune liste — un simple nombre porté par la ligne.
+				// The normal Polish rate (23%) — a content choice, unrelated to what this
+				// country-policy/ file gates (the ACTION, not the rate); no vat-rates/ catalog
+				// dedicated to Poland exists to date (only fr.json is there), so this rate is not
+				// validated against any list — a plain number carried by the line.
 				vatRate: "23",
 			},
 		],
@@ -93,15 +93,15 @@ function createInvoiceDraft(clientId: string) {
 		});
 }
 
-describe("Country policy — la Pologne peut désormais émettre, et sa propre restriction sourcée bloque là où KSeF le dit", () => {
+describe("Country policy — Poland can now issue, and its own sourced restriction blocks where KSeF says so", () => {
 	let invoiceId: string;
 
 	before(() => {
 		cy.resetAndSeed();
 
-		// Bascule le pays vendeur EN AMONT de toute création de document — contrairement à
-		// `43-correction-routes.cy.ts`'s own PL test, qui devait émettre sous FR d'abord faute de
-		// fichier country-policy/ pour la Pologne. Ce fichier PROUVE que cette contrainte a disparu.
+		// Switches the seller country BEFORE any document is created — unlike
+		// `43-correction-routes.cy.ts`'s own PL test, which had to issue under FR first for lack of a
+		// country-policy/ file for Poland. This file PROVES that constraint is gone.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
@@ -115,7 +115,7 @@ describe("Country policy — la Pologne peut désormais émettre, et sa propre r
 		cy.login();
 	});
 
-	it('LE DÉBLOCAGE : une société polonaise émet une VRAIE facture par un VRAI clic sur "Send" — impossible avant ce fichier (403 sur TOUTE action)', () => {
+	it('THE UNBLOCKING: a Polish company issues a REAL invoice through a REAL click on "Send" — impossible before this file (403 on EVERY action)', () => {
 		createClient("Klient Testowy Sp. z o.o.", "Poland", "PL").then((clientId) => {
 			createInvoiceDraft(clientId).then((id) => {
 				invoiceId = id;
@@ -124,16 +124,16 @@ describe("Country policy — la Pologne peut désormais émettre, et sa propre r
 				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
 				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 
-				// Le bouton "Send" est bien OFFERT à l'écran pour cette société polonaise (aucun
-				// `policyBlockedReason` dessus) — la preuve la plus directe que `invoice.send` est
-				// `allowed: true` dans `pl.json`, sourcé sur l'art. 106m/106na de l'ustawa o VAT.
+				// The "Send" button is genuinely OFFERED on screen for this Polish company (no
+				// `policyBlockedReason` on it) — the most direct proof that `invoice.send` is
+				// `allowed: true` in `pl.json`, sourced on art. 106m/106na of the ustawa o VAT.
 				cy.get('[data-cy="document-action-send"]', { timeout: 15000 })
 					.should("exist")
 					.and("not.be.disabled")
 					.click();
 
-				// La preuve que l'envoi a réellement abouti : "record-payment" n'est offerte que sur
-				// une facture "sent" (même patron que 24-document-payments.cy.ts).
+				// The proof that sending genuinely succeeded: "record-payment" is only offered on a
+				// "sent" invoice (same pattern as 24-document-payments.cy.ts).
 				cy.get('[data-cy="document-action-record-payment"]', { timeout: 20000 }).should("exist");
 
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
@@ -151,14 +151,14 @@ describe("Country policy — la Pologne peut désormais émettre, et sa propre r
 		});
 	});
 
-	it('LA RESTRICTION LUE : "invoice.save-draft" (Podręcznik KSeF, "nie jest możliwe jej edytowanie") bloque le RE-enregistrement en brouillon d\'une facture polonaise déjà émise — 409 nommé, jamais un silence, et le bouton disparaît de l\'écran', () => {
+	it('THE RESTRICTION READ: "invoice.save-draft" (Podręcznik KSeF, "nie jest możliwe jej edytowanie") blocks RE-saving as draft an already-issued Polish invoice — named 409, never a silence, and the button disappears from the screen', () => {
 		expect(invoiceId, "la facture polonaise émise par le test précédent existe toujours").to.be.a(
 			"string",
 		);
 
-		// Côté API d'abord — la preuve qui compte : un POST direct sur "save-draft" avec ce
-		// `documentId` (un scripteur qui contournerait l'écran) est refusé par un 409 NOMMÉ, jamais un
-		// silence ni un succès qui réécrirait discrètement une facture déjà transmise.
+		// On the API side first — the proof that matters: a direct POST on "save-draft" with this
+		// `documentId` (a scripted client that would bypass the screen) is refused with a NAMED 409,
+		// never a silence nor a success that would quietly overwrite an already-transmitted invoice.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/documents/types/invoice/actions/save-draft`,
@@ -177,15 +177,15 @@ describe("Country policy — la Pologne peut désormais émettre, et sa propre r
 			).to.match(/restricted by this company's country policy to status\(es\) draft/);
 		});
 
-		// Côté écran ensuite — la même restriction, composée dans `isActionAvailable` (types.ts), fait
-		// disparaître le bouton "Save draft" plutôt que de le laisser cliquable pour échouer en
-		// silence (même discipline que `policyBlockedReason` : une règle visible, jamais un piège).
+		// On the screen side next — the same restriction, composed in `isActionAvailable` (types.ts),
+		// makes the "Save draft" button disappear rather than leaving it clickable to silently fail
+		// (same discipline as `policyBlockedReason`: a visible rule, never a trap).
 		cy.visit("/documents/invoice");
 		cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
 		cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 		cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
 
-		// Et la facture reste bien "sent", jamais rétrogradée — la preuve négative qui ferme la boucle.
+		// And the invoice genuinely stays "sent", never downgraded — the negative proof that closes the loop.
 		cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 			.its("body.status")
 			.should("eq", "sent");

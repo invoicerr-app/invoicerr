@@ -1,35 +1,35 @@
 /**
- * Les récurrences (TODO racine, item 5) — prouvées par l'écran, même discipline que 17/21/24/28 :
- * la récurrence est créée par un vrai clic sur "Recurrence" + remplissage du dialogue, l'apparition
- * du duplicata est constatée dans la LISTE (un écran rechargé, jamais un polling du DOM sur une
- * requête React Query qui ne se relance pas toute seule pour un simple brouillon), et les
- * ASSERTIONS qui comptent relisent l'enregistrement via l'API en plus de l'écran.
+ * Recurrences (root TODO, item 5) — proven through the screen, same discipline as 17/21/24/28:
+ * the recurrence is created by a real click on "Recurrence" + filling in the dialog, the appearance
+ * of the duplicate is observed in the LIST (a reloaded screen, never a DOM poll on a
+ * React Query request that does not restart on its own for a plain draft), and the
+ * ASSERTIONS that matter reread the record via the API in addition to the screen.
  *
- * Le mécanisme est générique (documents/schedules/) — cette spec l'exerce sur le SEUL type qui le
- * déclare aujourd'hui avec un enjeu produit réel : la facture (voir duplicate-extension.ts et
- * documents-core.module.ts). La première occurrence est délibérément DANS LE PASSÉ : le balayage
- * (schedule-sweep.ts) doit la considérer due dès le prochain passage, sans qu'aucun humain n'ait à
- * attendre un vrai mois.
+ * The mechanism is generic (documents/schedules/) — this spec exercises it on the ONE type that
+ * declares it today with real product stakes: the invoice (see duplicate-extension.ts and
+ * documents-core.module.ts). The first occurrence is deliberately IN THE PAST: the sweep
+ * (schedule-sweep.ts) must consider it due on the very next pass, without any human having to
+ * wait a real month.
  *
- * L'intervalle de balayage est piloté par `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS` (défaut 60 s,
- * beaucoup trop lent pour un test) — backend/.env.test le fixe à 5 s pour CETTE pile de test
- * uniquement (fichier versionné, pas un secret). Le délai d'attente ci-dessous est calé sur cette
- * valeur CONNUE (>= 3 passages, marge comprise) — jamais resserré sur l'assertion elle-même : une
- * assertion qui échouerait avec un intervalle de 60 s échouerait tout aussi honnêtement ici.
+ * The sweep interval is driven by `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS` (default 60s,
+ * far too slow for a test) — backend/.env.test sets it to 5s for THIS test stack
+ * only (a versioned file, not a secret). The wait delay below is calibrated on this
+ * KNOWN value (>= 3 passes, margin included) — never tightened on the assertion itself: an
+ * assertion that would fail with a 60s interval would fail just as honestly here.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
-// >= 3 passages de balayage (5s/passage en test) + marge réseau/rendu. Utilisé pour ATTENDRE que le
-// balayage ait eu l'occasion de tourner plusieurs fois — jamais pour resserrer une assertion : que
-// l'intervalle réel soit 5s (ici) ou 60s (par défaut), l'assertion qui suit reste la même.
+// >= 3 sweep passes (5s/pass in test) + network/render margin. Used to WAIT for the
+// sweep to have had a chance to run several times — never to tighten an assertion: whether
+// the real interval is 5s (here) or 60s (by default), the following assertion stays the same.
 const SWEEP_WAIT = 18000;
 
-describe("Les récurrences — rejouer \"Duplicate\" sur un document, à une cadence, depuis l'écran", () => {
+describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, from the screen", () => {
 	before(() => {
 		cy.resetAndSeed();
 
-		// "send" sur une facture a besoin d'un transport configuré (voir invoice-actions.ts) — mis en
-		// place une seule fois, comme 24/28 le font pour leurs propres suites (non exercé par CETTE
-		// spec — thenSend reste désactivé ici, voir l'en-tête sur la portée du test).
+		// "send" on an invoice needs a transport configured (see invoice-actions.ts) — set up
+		// once, as 24/28 do for their own suites (not exercised by THIS spec — thenSend stays
+		// disabled here, see the header on this test's own scope).
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
@@ -75,7 +75,7 @@ describe("Les récurrences — rejouer \"Duplicate\" sur un document, à une cad
 			});
 	}
 
-	it("une récurrence créée avec une première occurrence dans le passé produit un duplicata dans la liste, avance nextRunAt, puis n'en produit plus une fois désactivée", () => {
+	it("a recurrence created with a first occurrence in the past produces a duplicate in the list, advances nextRunAt, then produces no more once disabled", () => {
 		let beforeCount = 0;
 		let sourceInvoiceId = "";
 
@@ -89,40 +89,40 @@ describe("Les récurrences — rejouer \"Duplicate\" sur un document, à une cad
 			.then((before: { id: string }[]) => {
 				beforeCount = before.length;
 
-				// Un vrai clic — jamais un appel direct à l'API de création de schedule, qui
-				// contournerait l'écran.
+				// A real click — never a direct call to the schedule creation API, which
+				// would bypass the screen.
 				cy.get('[data-cy^="document-recurrence-button-"]').first().click();
 				cy.get('[data-cy="create-recurrence-dialog"]', { timeout: 10000 }).should("be.visible");
 
-				// Cadence : "Yearly", pas la valeur par défaut ("Monthly") — avec une première occurrence
-				// choisie 2 MOIS dans le passé (voir plus bas), un cycle mensuel exigerait plusieurs
-				// rattrapages (une occurrence par passage de balayage, item 5 du TODO racine) avant de
-				// revenir dans le futur, produisant PLUSIEURS duplicatas pendant ce test — un cycle
-				// annuel n'en a besoin que d'UN seul, ce que ce test vérifie précisément.
+				// Cadence: "Yearly", not the default value ("Monthly") — with a first occurrence
+				// chosen 2 MONTHS in the past (see below), a monthly cycle would require several
+				// catch-ups (one occurrence per sweep pass, root TODO item 5) before
+				// coming back into the future, producing SEVERAL duplicates during this test — a yearly
+				// cycle only needs ONE, which is precisely what this test verifies.
 				cy.get('[data-cy="document-field-cadence-input"] button').click();
 				cy.get('[data-cy="document-field-cadence-input-option-yearly"]', { timeout: 10000 }).click();
 
 				cy.get('[data-cy="document-field-firstOccurrenceAt-input"]').click();
-				// Recule de deux mois dans le calendrier (react-day-picker) pour atterrir sur une date
-				// sans ambiguïté dans le passé.
+				// Goes back two months in the calendar (react-day-picker) to land on a date
+				// unambiguously in the past.
 				cy.get(".rdp-button_previous").click().click();
-				// Le 1er jour affiché portant le libellé "1" — peu importe le mois exact (deux reculs
-				// suffisent à garantir qu'il est dans le passé), et jamais un pari sur le format
-				// jour/mois que la locale du navigateur donnerait à l'attribut `data-day` : on ne
-				// s'appuie que sur le TEXTE affiché du bouton.
+				// The 1st displayed day carrying the label "1" — the exact month doesn't matter (two
+				// steps back are enough to guarantee it's in the past), and never a bet on the
+				// day/month format the browser's own locale would give the `data-day` attribute: this
+				// relies only on the button's own DISPLAYED TEXT.
 				cy.get('[data-day]').contains(/^1$/).first().click({ force: true });
 
 				cy.get('[data-cy="create-recurrence-confirm"]').click();
 				cy.get('[data-cy="create-recurrence-dialog"]').should("not.exist");
 			})
 			.then(() => {
-				// Le balayage réel (BullMQ/Redis) a le temps de tourner plusieurs fois — jamais une
-				// réponse synchrone du clic, qui ne renvoie que la récurrence elle-même.
+				// The real sweep (BullMQ/Redis) has time to run several times — never a
+				// synchronous response from the click, which only returns the recurrence itself.
 				cy.wait(SWEEP_WAIT);
 
-				// L'apparition du duplicata est constatée DANS LA LISTE — un rechargement d'écran,
-				// jamais un polling du DOM sur une requête React Query qui ne se relance pas toute
-				// seule pour un brouillon sans action "sending" en cours (voir use-document-types.ts).
+				// The duplicate's appearance is observed IN THE LIST — a screen reload,
+				// never a DOM poll on a React Query request that does not restart on its
+				// own for a draft with no "sending" action in progress (see use-document-types.ts).
 				cy.visit("/documents/invoice");
 				cy.get('[data-cy="document-list-cards"]', { timeout: 15000 })
 					.find('[data-cy^="document-list-row-"]')
@@ -133,14 +133,14 @@ describe("Les récurrences — rejouer \"Duplicate\" sur un document, à une cad
 				expect(after, "un seul duplicata est apparu").to.have.length(beforeCount + 1);
 				const duplicate = after.find((doc) => doc.id !== sourceInvoiceId);
 				expect(duplicate, "le duplicata existe, distinct de la source").to.exist;
-				// La date de première occurrence (choisie dans le calendrier, dans le passé) a bien
-				// REMPLACÉ celle de la source ("2026-01-15") — jamais une copie verbatim ; voir
+				// The first-occurrence date (chosen in the calendar, in the past) genuinely
+				// REPLACED the source's own ("2026-01-15") — never a verbatim copy; see
 				// duplicate-extension.ts's `applyDateRecalc`.
 				expect(duplicate?.data.issueDate, "issueDate recalculée sur l'occurrence").to.not.eq("2026-01-15");
 			});
 
-		// L'écran des récurrences (Settings > Recurrences) montre nextRunAt avancé — plus dans le
-		// passé (le champ affiché change une fois qu'un balayage a eu lieu, comme ci-dessus).
+		// The recurrences screen (Settings > Recurrences) shows nextRunAt advanced — no longer in the
+		// past (the displayed field changes once a sweep has taken place, as above).
 		cy.visit("/settings/recurring");
 		cy.get('[data-cy="document-schedules-list"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy^="document-schedule-row-"]').first().as("scheduleRow");
@@ -151,11 +151,11 @@ describe("Les récurrences — rejouer \"Duplicate\" sur un document, à une cad
 		cy.get("@scheduleRow")
 			.find('[data-cy^="document-schedule-last-run-"]')
 			.invoke("text")
-			// "Last: —" tant qu'aucun balayage n'a eu lieu — ici, au moins un a déjà tourné.
+			// "Last: —" as long as no sweep has taken place — here, at least one has already run.
 			.should("not.include", "—");
 
-		// La désactivation arrête tout — toggle depuis l'écran, puis vérifie qu'AUCUN nouveau
-		// duplicata n'apparaît après un délai largement supérieur à l'intervalle de balayage.
+		// Disabling stops everything — toggle from the screen, then verify that NO new
+		// duplicate appears after a delay well beyond the sweep interval.
 		cy.get("@scheduleRow").find('[data-cy^="document-schedule-toggle-"]').click();
 		cy.get("@scheduleRow").find('[data-cy^="document-schedule-disabled-"]').should("exist");
 
@@ -163,8 +163,8 @@ describe("Les récurrences — rejouer \"Duplicate\" sur un document, à une cad
 			.its("body")
 			.then((afterDisable: unknown[]) => {
 				const countAfterDisable = afterDisable.length;
-				// Une assertion NÉGATIVE ("rien de plus n'apparaît") n'a rien à sonder positivement —
-				// on attend le délai plein, puis on vérifie une seule fois.
+				// A NEGATIVE assertion ("nothing more appears") has nothing to positively probe —
+				// wait the full delay, then check once.
 				cy.wait(SWEEP_WAIT);
 				cy.request({ url: `${api}/api/documents?typeId=invoice` })
 					.its("body")

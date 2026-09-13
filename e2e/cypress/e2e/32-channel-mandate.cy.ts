@@ -1,28 +1,28 @@
 /**
- * Le canal imposé par pays — la France impose désormais
- * PDP aux factures dont la date d'ÉMISSION (issueDate) est le 2026-09-01 ou plus tard
- * (`backend/.../transports/channel-policy/data/fr.json`, source reprise du repère git
- * `avant-refonte-documents`, voir ce fichier). Ce spec prouve, par l'écran, les trois effets du
- * mécanisme décrits dans le TODO :
+ * The country-mandated channel — France now mandates
+ * PDP for invoices whose ISSUE date (issueDate) is 2026-09-01 or later
+ * (`backend/.../transports/channel-policy/data/fr.json`, source carried over from the git
+ * landmark `avant-refonte-documents`, see that file). This spec proves, via the screen, the three
+ * effects of the mechanism described in the TODO:
  *
- *  1. l'écran Canaux montre un badge « imposé » distinct du badge « suggéré », avec sa source ;
- *  2. envoyer une facture ÉMISE à/après le mandat par un AUTRE transport (ici : email, le défaut
- *     produit) est refusé au PREFLIGHT — jamais persisté au-delà de "draft" — avec un message qui
- *     nomme le canal imposé et sa source ;
- *  3. connecter le canal imposé (par l'écran, comme en 31) puis le choisir comme transport fait
- *     PASSER le mandat : l'envoi n'est plus refusé pour ce motif — il échoue ensuite, comme en 31,
- *     au dépôt réel contre un serveur fictif (fake baseUrl), jamais au mandat.
+ *  1. the Channels screen shows a "mandated" badge distinct from the "suggested" badge, with its source;
+ *  2. sending an invoice ISSUED at/after the mandate via ANOTHER transport (here: email, the
+ *     product default) is refused at PREFLIGHT — never persisted beyond "draft" — with a message
+ *     that names the mandated channel and its source;
+ *  3. connecting the mandated channel (via the screen, as in 31) then choosing it as the transport
+ *     SATISFIES the mandate: the send is no longer refused for that reason — it then fails, as in
+ *     31, at the real deposit against a fake server (fake baseUrl), never at the mandate.
  *
- * La régression que ce fichier protège explicitement : une facture ÉMISE AVANT le mandat part
- * librement par n'importe quel transport — le mandat ne mord jamais la date du jour du serveur, il
- * mord la date d'ÉMISSION du document (voir `channel-policy/mandate.ts`'s own header). C'est aussi ce
- * que les 14 tests de 31-national-channels.cy.ts prouvent déjà en creux (leurs factures y sont toutes
- * émises le 2026-08-31, avant le mandat) — ce fichier le rend explicite.
+ * The regression this file explicitly guards against: an invoice ISSUED BEFORE the mandate goes out
+ * freely via any transport — the mandate never bites on the server's current date, it
+ * bites on the document's ISSUE date (see `channel-policy/mandate.ts`'s own header). This is also
+ * what the 14 tests in 31-national-channels.cy.ts already prove implicitly (their invoices are all
+ * issued on 2026-08-31, before the mandate) — this file makes it explicit.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-/** Même identifiants fictifs que 31 — voir ce fichier's own header pour pourquoi (port 1, jamais
- *  ouvert sur une machine normale : ECONNREFUSED immédiat, aucune vraie plateforme derrière). */
+/** Same fake credentials as 31 — see that file's own header for why (port 1, never
+ *  open on a normal machine: immediate ECONNREFUSED, no real platform behind it). */
 const FAKE_PDP = {
 	baseUrl: "http://127.0.0.1:1",
 	clientId: "e2e-fake-client-id",
@@ -70,7 +70,7 @@ function createInvoiceDraft(issueDate: string) {
 		});
 }
 
-describe("Canal imposé par pays — la France impose PDP aux factures émises depuis le 2026-09-01", () => {
+describe("Country-mandated channel — France mandates PDP for invoices issued since 2026-09-01", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -79,21 +79,21 @@ describe("Canal imposé par pays — la France impose PDP aux factures émises d
 		cy.login();
 	});
 
-	it("l'écran Canaux montre le badge « imposé » pour PDP, distinct du badge « suggéré », avec sa source visible", () => {
+	it('the Channels screen shows the "mandated" badge for PDP, distinct from the "suggested" badge, with its source visible', () => {
 		cy.visit("/settings/channels");
 
 		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
-		// Le badge « suggéré » reste vrai même une fois le canal imposé — un mandat renforce une
-		// suggestion, il ne la contredit pas (voir channels.settings.tsx's own comment).
+		// The "suggested" badge stays true even once the channel is mandated — a mandate reinforces
+		// a suggestion, it does not contradict it (see channels.settings.tsx's own comment).
 		cy.get('[data-cy="channel-pdp-suggested"]').should("exist");
 		cy.get('[data-cy="channel-pdp-mandated"]', { timeout: 10000 })
 			.should("exist")
 			.and("contain.text", "2026-09-01");
-		// La source (la citation reprise du repère) est visible dans la description de la carte.
+		// The source (the citation carried over from the landmark) is visible in the card's description.
 		cy.get('[data-cy="channel-pdp"]').should("contain.text", "plateforme agréée");
 	});
 
-	it("une facture ÉMISE AVANT le mandat (2026-08-31) part librement par email — le mandat ne mord jamais la date du jour", () => {
+	it("an invoice ISSUED BEFORE the mandate (2026-08-31) goes out freely via email — the mandate never bites on today's date", () => {
 		setInvoiceTransport("email");
 		createInvoiceDraft("2026-08-31").then((invoiceId) => {
 			cy.visit("/documents/invoice");
@@ -109,9 +109,9 @@ describe("Canal imposé par pays — la France impose PDP aux factures émises d
 		});
 	});
 
-	it('une facture ÉMISE le jour du mandat (2026-09-01), transport encore "email" → refus au PREFLIGHT, jamais persisté au-delà de "draft", message nommant PDP et sa source', () => {
-		// Le transport reste "email" (test précédent) — c'est exactement le cas que le mandat doit
-		// désormais refuser : le choix libre de la société ne suffit plus une fois le mandat actif.
+	it('an invoice ISSUED on the mandate\'s day (2026-09-01), transport still "email" → refused at PREFLIGHT, never persisted beyond "draft", message naming PDP and its source', () => {
+		// The transport stays "email" (previous test) — this is exactly the case the mandate must
+		// now refuse: the company's free choice is no longer enough once the mandate is active.
 		createInvoiceDraft("2026-09-01").then((invoiceId) => {
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
@@ -120,8 +120,8 @@ describe("Canal imposé par pays — la France impose PDP aux factures émises d
 
 			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
 
-			// Le préflight bloque de façon SYNCHRONE, avant tout passage par la file — un toast visible
-			// le dit tout de suite, même discipline que le test "déconnecte le canal" de 31.
+			// The preflight blocks SYNCHRONOUSLY, before any pass through the queue — a visible toast
+			// says so right away, the same discipline as the "disconnects the channel" test in 31.
 			cy.get('[data-sonner-toast]', { timeout: 10000 })
 				.should("contain.text", "pdp")
 				.and("contain.text", "2026-09-01");
@@ -136,7 +136,7 @@ describe("Canal imposé par pays — la France impose PDP aux factures émises d
 		});
 	});
 
-	it("transport choisi = pdp (le canal imposé) mais NON CONNECTÉ → même refus nommé, jamais persisté", () => {
+	it("chosen transport = pdp (the mandated channel) but NOT CONNECTED → the same named refusal, never persisted", () => {
 		cy.visit("/settings/company");
 		cy.get('[data-cy="company-invoice-transport-select"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="company-invoice-transport-options"]', { timeout: 10000 }).should("be.visible");
@@ -160,7 +160,7 @@ describe("Canal imposé par pays — la France impose PDP aux factures émises d
 		});
 	});
 
-	it("connecte PDP par l'écran → le mandat ne bloque plus : la file part réellement et échoue ensuite au dépôt fictif, jamais au mandat (comme en 31)", () => {
+	it("connects PDP via the screen → the mandate no longer blocks: the queue really goes out and then fails at the fake deposit, never at the mandate (as in 31)", () => {
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 15000 }).clear().type(FAKE_PDP.baseUrl);
 		cy.get('[data-cy="channel-pdp-clientid-input"]').clear().type(FAKE_PDP.clientId);
@@ -174,15 +174,15 @@ describe("Canal imposé par pays — la France impose PDP aux factures émises d
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
 
-			// Même budget documenté que 31 : ATTEMPTS=3 par défaut, backoff exponentiel base 2000ms.
+			// Same documented budget as 31: ATTEMPTS=3 by default, exponential backoff base 2000ms.
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
 				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
 				.should("contain.text", "Send failed");
 
 			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`)
 				.should("contain.text", "PDP")
-				// La cause du "Send failed" est bien le serveur fictif (le dépôt réel a échoué), jamais
-				// le mandat — le mandat est SATISFAIT (le bon canal est choisi et connecté).
+				// The cause of "Send failed" is indeed the fake server (the real deposit failed), never
+				// the mandate — the mandate is SATISFIED (the right channel is chosen and connected).
 				.and("not.contain.text", "requires invoices");
 
 			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })

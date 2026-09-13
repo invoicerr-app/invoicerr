@@ -24,7 +24,7 @@ interface SearchSelectProps {
   className?: string
   disabled?: boolean
   multiple?: boolean
-  noResultsComponent?: React.ReactNode // Ajout d'une propriété pour un composant personnalisé
+  noResultsComponent?: React.ReactNode // Added a property for a custom component
   "data-cy"?: string
 }
 

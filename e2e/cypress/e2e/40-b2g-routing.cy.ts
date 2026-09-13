@@ -10,13 +10,13 @@
  * the API, or intercept the real network request the click triggers — never the screen alone as
  * proof of what was decided or sent.
  *
- * PRUNE 2026-09-10 (produit ramené à FR/PL/IT/PT/DE) : les cas GOVERNMENT BE/NL/ES ci-dessous ont été
- * RETIRÉS (leurs données b2g-routing supprimées). Restent prouvés à l'écran : FR (chorus-pro), DE
- * (peppol/xrechnung), IT (SdI), plus le négatif US (aucune règle B2G). Les paragraphes ES/NL/BE
- * qui suivent sont HISTORIQUES — gardés pour la thèse du modèle, plus exercés par un test.
+ * PRUNE 2026-09-10 (product narrowed to FR/PL/IT/PT/DE): the GOVERNMENT BE/NL/ES cases below were
+ * REMOVED (their b2g-routing data deleted). What stays proven on screen: FR (chorus-pro), DE
+ * (peppol/xrechnung), IT (SdI), plus the US negative (no B2G rule). The ES/NL/BE paragraphs that
+ * follow are HISTORICAL — kept for the model's thesis, no longer exercised by a test.
  *
  * Four countries, four shipped rules, four different shapes of proof:
- *  - FR (Chorus Pro): **RENFORCÉ** — `transportId: "chorus-pro"` used to name a channel absent from
+ *  - FR (Chorus Pro): **REINFORCED** — `transportId: "chorus-pro"` used to name a channel absent from
  *    `transport-registry.ts` (the thesis of this whole model: a rule may legitimately name a channel
  *    not implemented yet), so sending BLOCKED, synchronously, at the preflight. The
  *    channel now EXISTS (`transports/chorus-pro-transport.ts`) — this is the mechanism PROGRESSING,
@@ -30,7 +30,7 @@
  *    shape `chorus-pro-transport.spec.ts`'s own preflight tests already cover exhaustively (jest), and
  *    the identical wiring `invoice-b2g-routing.spec.ts`'s own "channel IS chosen but its OWN preflight
  *    refuses" test already proves for the (structurally identical) IT/sdi case.
- *  - DE (the federal e-invoicing portal, ZRE/OZG-RE): "le trou allemand du B2G" — **RENFORCÉ**, same
+ *  - DE (the federal e-invoicing portal, ZRE/OZG-RE): "the German B2G gap" — **REINFORCED**, same
  *    progression as FR/chorus-pro above. `transportId` used to be `"zre-ozgre"`, a channel absent from
  *    `transport-registry.ts` (the thesis of this whole model: a rule may legitimately name a channel
  *    not implemented yet — §4 Abs. 3 ERechV requires a PORTAL deposit, not email, so sending BLOCKED,
@@ -56,10 +56,10 @@
  *    ts`'s own "THE FORMAT OVERRIDE" block, `actions/invoice-b2g-de-peppol-send.spec.ts`'s own
  *    service-level proof, `documents.service.country-fields.spec.ts`'s own B2G field-hint block), not
  *    an E2E artifact. This spec proves what IS reachable on screen for DE: the client-side help panel,
- *    and the named channel block. A SEPARATE test below ("le champ Leitweg-ID … apparaît
- *    RÉACTIVEMENT") closes the OTHER named gap (`document-form.tsx`'s own screen wiring, `use-document-
- *    types.ts`'s `clientId`-aware descriptor fetch): the field ITSELF, appearing and disappearing on
- *    the invoice FORM as the user picks a client, never just at the service level. The structural
+ *    and the named channel block. A SEPARATE test below ("the Leitweg-ID field … appears REACTIVELY")
+ *    closes the OTHER named gap (`document-form.tsx`'s own screen wiring, `use-document-types.ts`'s
+ *    `clientId`-aware descriptor fetch): the field ITSELF, appearing and disappearing on the invoice
+ *    FORM as the user picks a client, never just at the service level. The structural
  *    limit above still holds for it too — it proves the field on screen and the SAME named block,
  *    never a downloaded XRechnung (still a JEST-only guarantee, same citation).
  *  - IT (SdI): the ONE rule whose channel is ALREADY implemented. The company's own free choice is
@@ -211,7 +211,7 @@ function createInvoiceDraft(
 		});
 }
 
-describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAYS, jamais celui de la société", () => {
+describe("B2G routing — the GOVERNMENT client imposes the channel/format of ITS OWN COUNTRY, never the company's", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -220,7 +220,7 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.login();
 	});
 
-	it("un client BUSINESS (le défaut) n'affiche AUCUNE aide B2G — régression : rien ne change pour lui", () => {
+	it("a BUSINESS client (the default) shows NO B2G hint at all — regression: nothing changes for it", () => {
 		cy.visit("/clients");
 		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
@@ -231,12 +231,12 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get("body").type("{esc}");
 	});
 
-	it("FR — un client GOVERNMENT affiche l'aide Chorus Pro, puis l'envoi force le canal chorus-pro (connecté, identifiants PISTE fictifs) et échoue réellement, jamais un envoi silencieux par email", () => {
-		// RENFORCEMENT (voir ce fichier's own header) : chorus-pro EXISTE désormais
-		// (`transports/chorus-pro-transport.ts`) — on le connecte par l'écran, comme la 31's own
-		// "Vague 3" le fait déjà, AVANT de créer le client/la facture. La société choisit "email" (un
-		// canal qui MARCHERAIT réellement, Mailpit) — la préséance B2G doit l'ignorer complètement,
-		// exactement le même motif que le cas IT/SdI plus bas dans ce fichier.
+	it("FR — a GOVERNMENT client shows the Chorus Pro hint, then sending forces the chorus-pro channel (connected, fake PISTE credentials) and genuinely fails, never a silent send through email", () => {
+		// REINFORCEMENT (see this file's own header): chorus-pro now EXISTS
+		// (`transports/chorus-pro-transport.ts`) — it is connected through the screen, exactly like 31's
+		// own "Wave 3" already does, BEFORE creating the client/invoice. The company picks "email" (a
+		// channel that WOULD genuinely work, Mailpit) — B2G precedence must ignore it completely,
+		// exactly the same pattern as the IT/SdI case further down this file.
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-chorus-pro"]', { timeout: 15000 }).should(
 			"exist",
@@ -271,8 +271,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
 
-		// L'aide B2G — jamais un mur : le client se crée normalement, l'aide dit juste ce qui
-		// attend l'envoi d'une facture à ce client.
+		// The B2G hint — never a wall: the client is created normally, the hint just says what
+		// awaits the sending of an invoice to this client.
 		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
@@ -284,9 +284,9 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			"Code de la commande publique",
 		);
 
-		// Le SIRET — déjà exigé par le catalogue country-identifiers pour TOUT client français
-		// (LEGAL_ID, appliesTo BOTH) : la règle B2G française le référence, elle n'a rien à ajouter
-		// de nouveau à l'écran pour ce champ précis.
+		// The SIRET — already required by the country-identifiers catalog for EVERY French client
+		// (LEGAL_ID, appliesTo BOTH): the French B2G rule references it, it has nothing new to add
+		// on screen for this specific field.
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 			.clear()
 			.type("21750001600017");
@@ -319,12 +319,12 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					timeout: 15000,
 				}).click();
 
-				// RENFORCEMENT (voir ce fichier's own header) : le préflight PASSE désormais (chorus-pro
-				// est enregistré ET connecté) — la préséance B2G force quand même chorus-pro plutôt que
-				// "email" (le choix libre de la société), exactement comme le cas IT/SdI plus bas. La
-				// file échoue ensuite RÉELLEMENT, contre le vrai bac à sable PISTE (identifiants
-				// fictifs, HTTP 400 invalid_client) — jamais un succès silencieux, jamais un envoi par
-				// email. Même budget que 31's own chorus-pro/PDP/KSeF/SdI/Peppol tests.
+				// REINFORCEMENT (see this file's own header): the preflight now PASSES (chorus-pro is
+				// registered AND connected) — B2G precedence still forces chorus-pro rather than
+				// "email" (the company's free choice), exactly like the IT/SdI case further down. The
+				// queue then GENUINELY fails, against the real PISTE sandbox (fake credentials,
+				// HTTP 400 invalid_client) — never a silent success, never a send through email. Same
+				// budget as 31's own chorus-pro/PDP/KSeF/SdI/Peppol tests.
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
 					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
 					.should("contain.text", "Send failed");
@@ -348,9 +348,9 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			});
 		});
 
-		// Nettoyage — laisse le canal déconnecté pour ne pas polluer une autre spec qui relirait
-		// company/channels après celui-ci (même discipline que le dernier test de la 31 et le test IT
-		// plus bas dans ce même fichier).
+		// Cleanup — leaves the channel disconnected so it does not pollute another spec that would
+		// reread company/channels after this one (same discipline as 31's own last test and the IT
+		// test further down this same file).
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 15000 }).should(
 			"contain.text",
@@ -363,11 +363,11 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		);
 	});
 
-	// RENFORCÉ (voir ce fichier's own header) : le canal "peppol" EXISTE désormais dans ce déploiement
-	// — la société de ce test ne le connecte jamais, donc l'envoi bloque toujours, mais le message ne
-	// nomme plus un canal absent ("zre-ozgre") : il nomme "peppol", non connecté — le MÊME
-	// `NotImplementedException` que chorus-pro/IT/ES touchent déjà avant leur propre connexion.
-	it("DE — un client GOVERNMENT affiche l'aide du portail fédéral, puis l'envoi bloque nommément (le canal peppol existe mais n'est pas connecté pour cette société), jamais un envoi silencieux par email", () => {
+	// REINFORCED (see this file's own header): the "peppol" channel now EXISTS in this deployment —
+	// this test's company never connects it, so sending still blocks, but the message no longer
+	// names an absent channel ("zre-ozgre"): it names "peppol", not connected — the SAME
+	// `NotImplementedException` that chorus-pro/IT/ES already hit before their own connection.
+	it("DE — a GOVERNMENT client shows the federal portal hint, then sending blocks by name (the peppol channel exists but is not connected for this company), never a silent send through email", () => {
 		setInvoiceTransport("email");
 
 		cy.visit("/clients");
@@ -407,13 +407,13 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.contains("Stadt Testhausen", { timeout: 10000 });
 
 		findClientIdByName("Stadt Testhausen").then((clientId) => {
-			// data.buyerReference (Leitweg-ID) — voir ce fichier's own header : le champ overlay/
-			// buyerReference existe génériquement (`shared-build.ts#extractBuyerReference`) et le
-			// backend l'offre désormais aussi sur l'écran de création dès qu'un client GOVERNMENT est
-			// choisi (`documents.service.ts#applyB2gDocumentFieldHints`, prouvé par
-			// `documents.service.country-fields.spec.ts`) — mais l'écran de création de facture ne
-			// branche pas encore l'id du client choisi vers cette récupération pour l'offrir
-			// INTERACTIVEMENT ; posé ici via l'API, comme le ferait ce champ une fois câblé.
+			// data.buyerReference (Leitweg-ID) — see this file's own header: the overlay/
+			// buyerReference field exists generically (`shared-build.ts#extractBuyerReference`) and the
+			// backend now also offers it on the creation screen as soon as a GOVERNMENT client is
+			// chosen (`documents.service.ts#applyB2gDocumentFieldHints`, proved by
+			// `documents.service.country-fields.spec.ts`) — but the invoice creation screen does not
+			// yet wire the chosen client's id through to that lookup to offer it
+			// INTERACTIVELY; set here via the API, as this field would once wired.
 			createInvoiceDraft(clientId, {
 				buyerReference: "04011000-1234512345-06",
 			}).then((invoiceId) => {
@@ -422,15 +422,15 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				// Le CANAL bloque, nommément, SYNCHRONE au préflight — jamais persisté au-delà de
-				// "draft" (donc jamais numéroté — voir ce fichier's own header : c'est exactement ce
-				// qui rend un téléchargement XRechnung inatteignable par l'écran pour CE document).
-				// Jamais un envoi silencieux par email, quel que soit le transport choisi par la société.
+				// The CHANNEL blocks, by name, SYNCHRONOUSLY at the preflight — never persisted past
+				// "draft" (so never numbered — see this file's own header: this is exactly what makes
+				// an XRechnung download unreachable from the screen for THIS document).
+				// Never a silent send through email, whatever transport the company has chosen.
 				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
 					timeout: 15000,
 				}).click();
-				// RENFORCÉ : le toast ne nomme plus "zre-ozgre" (un canal absent) mais "peppol" (un
-				// canal EXISTANT, simplement pas connecté pour cette société) — voir ce fichier's own
+				// REINFORCED: the toast no longer names "zre-ozgre" (an absent channel) but "peppol" (an
+				// EXISTING channel, simply not connected for this company) — see this file's own
 				// header.
 				cy.get("[data-sonner-toast]", { timeout: 10000 })
 					.should("contain.text", "peppol")
@@ -447,23 +447,22 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		});
 	});
 
-	// Le trou nommé par 3cb39f91 : le champ Leitweg (`buyerReference`) n'était prouvé qu'au NIVEAU
-	// SERVICE (`documents.service.country-fields.spec.ts`) — le formulaire de création ne passait
-	// jamais le client sélectionné au descripteur (`?clientId=`), donc le champ n'apparaissait jamais
-	// À L'ÉCRAN, quel que soit le client choisi. `document-form.tsx` watche désormais le champ
-	// "client" du formulaire et refait vivre `useDocumentType(typeId, clientId)`
-	// (`use-document-types.ts`) — ce test le prouve PAR L'ÉCRAN : le champ est absent avec un client
-	// BUSINESS, apparaît dès que "Stadt Testhausen" (le client GOVERNMENT allemand du test précédent,
-	// même fichier) est choisi — jamais un rechargement de page.
+	// The gap named by 3cb39f91: the Leitweg field (`buyerReference`) was only proven at the SERVICE
+	// LEVEL (`documents.service.country-fields.spec.ts`) — the creation form never passed the
+	// selected client to the descriptor (`?clientId=`), so the field never appeared ON SCREEN,
+	// whatever client was chosen. `document-form.tsx` now watches the form's "client" field and
+	// re-runs `useDocumentType(typeId, clientId)` (`use-document-types.ts`) — this test proves it BY
+	// SCREEN: the field is absent with a BUSINESS client, appears as soon as "Stadt Testhausen" (the
+	// German GOVERNMENT client from the previous test, same file) is chosen — never a page reload.
 	//
-	// Le brouillon de départ est créé par API avec un client BUSINESS ordinaire (donnée de base —
-	// voir createBusinessClient's own header) ; SEUL le changement de client, le remplissage du
-	// Leitweg et l'enregistrement passent par l'écran, exactement la portion que ce trou concerne.
-	// Le téléchargement XRechnung lui-même reste hors de portée de CE test — voir l'en-tête de ce
-	// fichier ("GENUINE STRUCTURAL LIMIT") : un B2G bloqué au préflight ne numérote jamais, et
-	// "download-xml" exige un numéro ; la preuve que ce Leitweg-ID atterrit bien en BT-10 reste donc
-	// au niveau Jest (`xrechnung-provider.spec.ts`, même valeur "04011000-1234512345-06").
-	it("DE — le champ Leitweg-ID (buyerReference) apparaît RÉACTIVEMENT à l'écran dès qu'un client GOVERNMENT allemand est choisi dans le formulaire (jamais avant, jamais pour un client BUSINESS), avec son aide sourcée ; l'envoi bloque toujours nommément — désormais sur peppol, non connecté", () => {
+	// The starting draft is created by API with an ordinary BUSINESS client (baseline data — see
+	// createBusinessClient's own header); ONLY the client change, filling in the Leitweg, and saving
+	// go through the screen, exactly the portion this gap concerns. The XRechnung download itself
+	// stays out of scope for THIS test — see this file's own header ("GENUINE STRUCTURAL LIMIT"): a
+	// B2G rule blocked at the preflight never gets numbered, and "download-xml" requires a number; the
+	// proof that this Leitweg-ID genuinely lands in BT-10 therefore stays at the Jest level
+	// (`xrechnung-provider.spec.ts`, same value "04011000-1234512345-06").
+	it("DE — the Leitweg-ID field (buyerReference) appears REACTIVELY on screen as soon as a German GOVERNMENT client is chosen in the form (never before, never for a BUSINESS client), with its sourced hint; sending still blocks by name — now on peppol, not connected", () => {
 		setInvoiceTransport("email");
 
 		createBusinessClient("Client Ordinaire SARL").then((businessClientId) => {
@@ -476,11 +475,11 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					"be.visible",
 				);
 
-				// AVANT tout changement : le client chargé est BUSINESS — aucun champ Leitweg à l'écran.
+				// BEFORE any change: the loaded client is BUSINESS — no Leitweg field on screen.
 				cy.get('[data-cy="document-field-buyerReference"]').should("not.exist");
 
-				// Change le client, À L'ÉCRAN, vers "Stadt Testhausen" — le client GOVERNMENT allemand
-				// créé par le test DE précédent (même describe, même `before`, données conservées).
+				// Change the client, ON SCREEN, to "Stadt Testhausen" — the German GOVERNMENT client
+				// created by the previous DE test (same describe, same `before`, data preserved).
 				cy.get('[data-cy="document-field-client-input"] button')
 					.first()
 					.click({ force: true });
@@ -496,11 +495,11 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					{ timeout: 10000 },
 				).click();
 
-				// RÉACTIF, sans rechargement de page : le champ apparaît, avec son `why` (le texte de
-				// l'ERechV) sourcé en aide — jamais juste un label nu. Il est ajouté en QUEUE de
-				// descripteur (`applyFieldOverlay`'s own "add"), donc hors du cadre visible de la boîte
-				// de dialogue tant qu'on ne l'y fait pas défiler — même motif que le SearchSelect de la
-				// devise ailleurs dans cette suite.
+				// REACTIVE, with no page reload: the field appears, with its `why` (the ERechV text)
+				// sourced as a hint — never just a bare label. It is appended at the TAIL of the
+				// descriptor (`applyFieldOverlay`'s own "add"), so it sits outside the dialog's own
+				// visible frame until it is scrolled to — same pattern as the currency SearchSelect
+				// elsewhere in this suite.
 				cy.get('[data-cy="document-field-buyerReference"]', { timeout: 10000 })
 					.scrollIntoView()
 					.should("be.visible");
@@ -514,9 +513,9 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.clear()
 					.type("04011000-1234512345-06");
 
-				// Attend la VRAIE requête réseau plutôt que la visibilité du formulaire après coup (le
-				// défilement provoqué par scrollIntoView ci-dessus rend cette dernière fragile) — même
-				// motif que 20-document-totals.cy.ts's own discount test.
+				// Waits for the REAL network request rather than the form's own visibility afterward
+				// (the scrolling triggered by scrollIntoView above makes the latter flaky) — same
+				// pattern as 20-document-totals.cy.ts's own discount test.
 				cy.intercept(
 					"POST",
 					`${api}/api/documents/types/invoice/actions/save-draft`,
@@ -528,10 +527,10 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					.its("response.statusCode")
 					.should("be.oneOf", [200, 201]);
 
-				// L'envoi bloque toujours, nommément — RENFORCÉ (ce fichier's own header) : désormais
-				// sur "peppol" (un canal EXISTANT, simplement pas connecté pour cette société), plus
-				// "zre-ozgre" (un canal absent) — CE détour par l'écran ne change rien à la préséance
-				// B2G ; jamais un envoi silencieux par email.
+				// Sending still blocks, by name — REINFORCED (this file's own header): now on "peppol"
+				// (an EXISTING channel, simply not connected for this company), not "zre-ozgre" (an
+				// absent channel) — THIS detour through the screen changes nothing about B2G
+				// precedence; never a silent send through email.
 				cy.visit("/documents/invoice");
 				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
 					timeout: 15000,
@@ -546,8 +545,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 						expect(doc.status, 'jamais persisté au-delà de "draft"').to.eq(
 							"draft",
 						);
-						// Le client ET le Leitweg tapés à l'écran sont bien ceux qui ont été enregistrés
-						// — pas seulement affichés le temps d'un rendu.
+						// The client AND the Leitweg typed on screen are indeed the ones that got saved
+						// — not just displayed for the length of a render.
 						expect(
 							doc.data?.client,
 							"le nouveau client est bien celui enregistré",
@@ -561,8 +560,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		});
 	});
 
-	it("IT — un client GOVERNMENT exige le Codice Univoco Ufficio (IPA) ; l'envoi force SdI même si la société a choisi email, et échoue réellement (port fermé), jamais par email", () => {
-		// Le canal SdI, connecté par l'écran, identifiants fictifs (port fermé — même fixture que 31).
+	it("IT — a GOVERNMENT client requires the Codice Univoco Ufficio (IPA); sending forces SdI even though the company chose email, and genuinely fails (closed port), never through email", () => {
+		// The SdI channel, connected through the screen, fake credentials (closed port — same fixture as 31).
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy="channel-sdi-idtrasmittente-input"]')
@@ -583,8 +582,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			"Connected",
 		);
 
-		// La société choisit "email" — un canal qui MARCHERAIT réellement (Mailpit). La préséance B2G
-		// doit l'ignorer complètement.
+		// The company chooses "email" — a channel that WOULD genuinely work (Mailpit). B2G precedence
+		// must ignore it completely.
 		setInvoiceTransport("email");
 
 		cy.visit("/clients");
@@ -608,8 +607,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			"Specifiche tecniche",
 		);
 
-		// Le Codice Univoco Ufficio (IPA) — un champ NOUVEAU, offert UNIQUEMENT parce que ce client
-		// est GOVERNMENT (jamais pour un client italien ordinaire — voir b2g-routing/data/it.json).
+		// The Codice Univoco Ufficio (IPA) — a NEW field, offered ONLY because this client is
+		// GOVERNMENT (never for an ordinary Italian client — see b2g-routing/data/it.json).
 		cy.get('[data-cy="client-identifier-IT_PA_CODE"]', { timeout: 10000 })
 			.should("exist")
 			.clear()
@@ -643,8 +642,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 					timeout: 15000,
 				}).click();
 
-				// Asynchrone (le canal B2G, sdi, EST implémenté et connecté) : la file échoue
-				// réellement contre le port fermé — jamais un succès silencieux via email.
+				// Asynchronous (the B2G channel, sdi, IS implemented and connected): the queue genuinely
+				// fails against the closed port — never a silent success through email.
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
 					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
 					.should("contain.text", "Send failed");
@@ -668,8 +667,8 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 			});
 		});
 
-		// Nettoyage — laisse le canal déconnecté pour ne pas polluer un autre spec qui relirait
-		// company/channels après celui-ci (même discipline que 31's own dernier test).
+		// Cleanup — leaves the channel disconnected so it does not pollute another spec that would
+		// reread company/channels after this one (same discipline as 31's own last test).
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-sdi-status"]', { timeout: 15000 }).should(
 			"contain.text",
@@ -682,7 +681,7 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		);
 	});
 
-	it('un pays GOVERNMENT sans règle B2G déclarée refuse honnêtement — jamais un envoi B2B silencieux (mutation guard #2, à l\'échelle "écran")', () => {
+	it('a GOVERNMENT country with no declared B2G rule refuses honestly — never a silent B2B send (mutation guard #2, at the "screen" scale)', () => {
 		setInvoiceTransport("email");
 
 		cy.visit("/clients");
@@ -695,14 +694,15 @@ describe("B2G routing — le client GOVERNMENT impose le canal/format de SON PAY
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
 
-		// Aucune règle B2G pour US (b2g livré : de/fr/it/pl seuls ; US retiré au prune) — l'aide le dit honnêtement.
+		// No B2G rule for US (b2g shipped: de/fr/it/pl only; US removed at the prune) — the hint says so honestly.
 		cy.get('[data-cy="client-b2g-hint-no-rule"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
 
-		// US n'a plus de fichier country-identifiers depuis le prune → aucun champ LEGAL_ID à remplir
-		// (facturer un acheteur GOUVERNEMENTAL hors des 5 pays supportés reste légitime). Le point du
-		// test est le refus B2G ci-dessous ("No B2G routing rule is declared for US"), jamais l'identifiant.
+		// US no longer has a country-identifiers file since the prune → no LEGAL_ID field to fill in
+		// (invoicing a GOVERNMENT buyer outside the 5 supported countries remains legitimate). The
+		// point of this test is the B2G refusal below ("No B2G routing rule is declared for US"),
+		// never the identifier.
 		cy.get('[name="contactEmail"]').clear().type("procurement@nowhere.example");
 		cy.get('[name="address"]').clear().type("1 Federal Plaza");
 		cy.get('[name="postalCode"]').clear().type("10001");

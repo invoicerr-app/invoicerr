@@ -12,7 +12,7 @@ import { usePageHeader } from "@/hooks/use-page-header"
  * itself is never a dead end: it redirects to the first document type the active company's COUNTRY
  * makes available, or — if none are — explains why, by the REASON the backend computed
  * (country-policy/country-policy.ts's resolveAvailableDocumentTypes). A blank screen here would read
- * as a bug; this is the "jamais un écran vide" requirement made concrete.
+ * as a bug; this is the "never a blank screen" requirement made concrete.
  */
 export default function DocumentsIndexPage() {
   const { t } = useTranslation()

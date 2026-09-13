@@ -129,7 +129,7 @@ describe('Settings E2E', () => {
             cy.visit('/settings');
             cy.wait(1000);
 
-            // Sur petit écran, la navigation peut être un select ou un menu
+            // On a small screen, the navigation can be a select or a menu
             // Just check that the page is reachable through its URL
             cy.visit('/settings/account');
             cy.wait(500);

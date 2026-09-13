@@ -1,10 +1,10 @@
 /**
- * Workflow d'approbation interne (TODO_FEATURES.md rang 17) — un MEMBER ne peut PAS ENVOYER une
- * facture dont le total dépasse le seuil d'approbation de la société sans un ADMIN/OWNER ; un
- * OWNER le peut (son envoi EST l'approbation). Prouvé bout-en-bout avec une VRAIE session MEMBER
- * (créée par invitation), ce que les tests jest ne couvrent pas : le câblage `@ActiveRole` du
- * contrôleur → `runAction`. La logique de la garde (rôle × total × seuil) est couverte/mordue en
- * jest (`approval/approval-gate.spec.ts`) ; ici on prouve le blocage réel sur le vrai endpoint.
+ * Internal approval workflow (TODO_FEATURES.md rank 17) — a MEMBER can NOT SEND an
+ * invoice whose total exceeds the company's approval threshold without an ADMIN/OWNER; an
+ * OWNER can (their send IS the approval). Proven end-to-end with a REAL MEMBER session
+ * (created via invitation), which the jest tests don't cover: the controller's own `@ActiveRole`
+ * wiring → `runAction`. The gate's own logic (role × total × threshold) is covered/bitten in
+ * jest (`approval/approval-gate.spec.ts`); here the real block on the real endpoint is proven.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const MEMBER_EMAIL = "member-approval@example.com";
@@ -49,19 +49,19 @@ function saveDraftThenSend(clientId: string, unitPrice: number) {
 		});
 }
 
-describe("Approbation au-delà d'un seuil — un MEMBER est bloqué, un OWNER passe", () => {
+describe("Approval beyond a threshold — a MEMBER is blocked, an OWNER goes through", () => {
 	let clientId: string;
 
 	before(() => {
 		cy.resetAndSeed();
 		cy.login(); // OWNER (john.doe@acme.org)
-		// Seuil + transport email, au niveau société.
+		// Threshold + email transport, at the company level.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
 			body: { approvalThresholdMinor: THRESHOLD_MINOR, invoiceTransportId: "email" },
 		}).then((res) => expect(res.status).to.be.oneOf([200, 201]));
-		// Un client de la société.
+		// A client of the company.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/clients`,
@@ -80,7 +80,7 @@ describe("Approbation au-delà d'un seuil — un MEMBER est bloqué, un OWNER pa
 		}).then((res) => {
 			clientId = res.body.id as string;
 		});
-		// Une invitation, puis inscription d'un MEMBER qui rejoint la société.
+		// An invitation, then sign-up of a MEMBER who joins the company.
 		cy.request({ method: "POST", url: `${api}/api/invitations`, body: { expiresInDays: 7 } })
 			.its("body.code")
 			.then((code: string) => {
@@ -96,29 +96,29 @@ describe("Approbation au-delà d'un seuil — un MEMBER est bloqué, un OWNER pa
 			});
 	});
 
-	it("un MEMBER ne peut PAS envoyer une facture AU-DESSUS du seuil (403), et la facture reste en brouillon", () => {
+	it("a MEMBER can NOT send an invoice ABOVE the threshold (403), and the invoice stays a draft", () => {
 		memberSession();
-		// 1200,00 € TTC (1000 net + 20 %) = 120000 minor > 50000 → bloqué.
+		// 1200.00 € gross (1000 net + 20%) = 120000 minor > 50000 → blocked.
 		saveDraftThenSend(clientId, 1000).then(({ id, sendStatus }) => {
 			expect(sendStatus, "envoi refusé faute d'approbation").to.eq(403);
-			// Rien n'a été émis : la facture est toujours un brouillon.
+			// Nothing was sent: the invoice is still a draft.
 			cy.request({ url: `${api}/api/documents/${id}?typeId=invoice` })
 				.its("body.status")
 				.should("eq", "draft");
 		});
 	});
 
-	it("un MEMBER PEUT envoyer une facture EN DESSOUS du seuil", () => {
+	it("a MEMBER CAN send an invoice BELOW the threshold", () => {
 		memberSession();
-		// 120,00 € TTC (100 net + 20 %) = 12000 minor < 50000 → autorisé.
+		// 120.00 € gross (100 net + 20%) = 12000 minor < 50000 → allowed.
 		saveDraftThenSend(clientId, 100).then(({ id, sendStatus }) => {
 			expect(sendStatus, "envoi accepté sous le seuil").to.be.oneOf([200, 201]);
 			cy.waitForDocumentStatus(`${api}/api/documents/${id}?typeId=invoice`, ["sent"]);
 		});
 	});
 
-	it("un OWNER PEUT envoyer une facture AU-DESSUS du seuil — son envoi est l'approbation", () => {
-		cy.login(); // revient à la session OWNER
+	it("an OWNER CAN send an invoice ABOVE the threshold — their send is the approval", () => {
+		cy.login(); // returns to the OWNER session
 		saveDraftThenSend(clientId, 1000).then(({ id, sendStatus }) => {
 			expect(sendStatus, "un OWNER n'est jamais bloqué par le seuil").to.be.oneOf([200, 201]);
 			cy.waitForDocumentStatus(`${api}/api/documents/${id}?typeId=invoice`, ["sent"]);

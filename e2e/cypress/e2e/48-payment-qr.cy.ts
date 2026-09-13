@@ -1,22 +1,22 @@
 /**
- * QR de paiement SEPA / EPC069-12 (« GiroCode ») sur le PDF — TODO_FEATURES.md rang 8 (⚡).
+ * SEPA / EPC069-12 payment QR ("GiroCode") on the PDF — TODO_FEATURES.md rank 8 (⚡).
  *
- * Le CONTENU exact du QR (l'ordre des champs EPC069-12 v002, l'IBAN sans espaces, le montant
- * `EUR12.34`, la réf. = numéro de facture, les bornes/troncatures, les gardes IBAN/EUR/type/montant)
- * est prouvé en jest — `rendering/sepa-qr.spec.ts`, `render-html.spec.ts`, `render-instance-pdf.spec.ts`.
- * Ici on prouve le CÂBLAGE bout-en-bout par le VRAI pipeline (endpoint → renderDocumentHtml →
- * puppeteer) : un PDF de facture EMBARQUE le QR quand la société a un IBAN ET que la facture est en
- * EUR, et NE l'embarque PAS sinon (pas d'IBAN — critère d'acceptation « absent si iban null » —, ou
- * devise non-EUR — SEPA ne déplace que de l'euro).
+ * The QR's exact CONTENT (the EPC069-12 v002 field order, the space-free IBAN, the `EUR12.34`
+ * amount, the ref. = invoice number, the bounds/truncations, the IBAN/EUR/type/amount guards)
+ * is proven in jest — `rendering/sepa-qr.spec.ts`, `render-html.spec.ts`, `render-instance-pdf.spec.ts`.
+ * Here we prove the end-to-end WIRING through the REAL pipeline (endpoint → renderDocumentHtml →
+ * puppeteer): an invoice PDF EMBEDS the QR when the company has an IBAN AND the invoice is in
+ * EUR, and does NOT embed it otherwise (no IBAN — acceptance criterion "absent when iban is null" —,
+ * or a non-EUR currency — SEPA only moves euros).
  *
- * On le mesure par la TAILLE du PDF : l'image PNG du QR ajoute des centaines d'octets qu'aucune autre
- * différence ne peut expliquer — les deux factures comparées sont créées à l'identique (même client,
- * mêmes lignes, mêmes dates) et l'id cuid est de longueur fixe. On ne peut pas décoder un QR dans un
- * PDF binaire depuis Cypress ; la taille est le signal robuste, et le contenu est couvert en jest.
+ * This is measured by the PDF's SIZE: the QR's PNG image adds hundreds of bytes that no other
+ * difference can explain — the two compared invoices are created identically (same client,
+ * same lines, same dates) and the cuid id has a fixed length. A QR inside a binary PDF cannot be
+ * decoded from Cypress; size is the robust signal, and the content is covered in jest.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-// IBAN d'exemple valide (le même que le happy-path de sepa-qr.spec.ts).
+// Valid example IBAN (the same one as sepa-qr.spec.ts's own happy path).
 const TEST_IBAN = "FR1420041010050500013M02606";
 
 function setCompanyIban(iban: string | null) {
@@ -68,7 +68,7 @@ function createInvoiceDraft(clientId: string, currency: string) {
 		});
 }
 
-/** Récupère le PDF (binaire), vérifie que c'est bien un PDF, et renvoie sa taille en octets. */
+/** Fetches the PDF (binary), verifies it is indeed a PDF, and returns its size in bytes. */
 function pdfSize(id: string): Cypress.Chainable<number> {
 	return cy
 		.request({ url: `${api}/api/documents/${id}/pdf?typeId=invoice`, encoding: "binary" })
@@ -86,7 +86,7 @@ function pdfSize(id: string): Cypress.Chainable<number> {
 		});
 }
 
-describe("QR de paiement SEPA sur le PDF — câblage bout-en-bout", () => {
+describe("SEPA payment QR on the PDF — end-to-end wiring", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -94,12 +94,12 @@ describe("QR de paiement SEPA sur le PDF — câblage bout-en-bout", () => {
 		cy.login();
 	});
 
-	it("EUR + IBAN embarque le QR ; sans IBAN le PDF ne l'embarque pas (taille du PDF)", () => {
+	it("EUR + IBAN embeds the QR; without an IBAN the PDF doesn't embed it (PDF size)", () => {
 		createClient().then((clientId: string) => {
-			// La société fraîchement semée n'a AUCUN IBAN → pas de QR (critère « absent si iban null »).
+			// The freshly seeded company has NO IBAN at all → no QR (criterion "absent when iban is null").
 			createInvoiceDraft(clientId, "EUR").then((idNoIban) => {
 				pdfSize(idNoIban).then((sizeNoIban) => {
-					// On pose maintenant un IBAN → la MÊME facture (à l'identique) embarque le QR.
+					// An IBAN is now set → the SAME invoice (identically) embeds the QR.
 					setCompanyIban(TEST_IBAN);
 					createInvoiceDraft(clientId, "EUR").then((idIban) => {
 						pdfSize(idIban).then((sizeWithIban) => {
@@ -115,8 +115,8 @@ describe("QR de paiement SEPA sur le PDF — câblage bout-en-bout", () => {
 		});
 	});
 
-	it("une facture non-EUR n'embarque jamais le QR, même avec un IBAN posé", () => {
-		// L'IBAN reste posé par le test précédent ; on le repose pour rendre ce test autonome.
+	it("a non-EUR invoice never embeds the QR, even with an IBAN set", () => {
+		// The IBAN stays set from the previous test; it is set again to make this test self-contained.
 		setCompanyIban(TEST_IBAN);
 		createClient().then((clientId: string) => {
 			createInvoiceDraft(clientId, "USD").then((idUsd) => {

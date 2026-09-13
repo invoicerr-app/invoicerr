@@ -98,11 +98,11 @@ describe("Document totals", () => {
 			"be.visible",
 		);
 
-		// La devise est un SearchSelect (bouton + liste filtrée), PAS un <select> natif : le premier
-		// jet de ce test cherchait `select, input` et ne trouvait rien. Le motif est celui de
-		// commands.ts::selectCountry — cliquer le bouton, puis cliquer l'option par son data-cy.
-		// Le data-cy du SearchSelect est porté PAR le conteneur ET par le déclencheur : cliquer le
-		// conteneur ne déplie rien. `commands.ts::selectCountry` a le bon motif — le BOUTON d'abord.
+		// The currency is a SearchSelect (button + filtered list), NOT a native <select>: the first
+		// draft of this test looked for `select, input` and found nothing. The pattern is the same as
+		// commands.ts::selectCountry — click the button, then click the option by its data-cy.
+		// The SearchSelect's data-cy is carried BY the container AND by the trigger: clicking the
+		// container unfolds nothing. `commands.ts::selectCountry` has the right pattern — the BUTTON first.
 		cy.get('[data-cy="document-field-currency-input"] button')
 			.first()
 			.click({ force: true });
@@ -113,8 +113,8 @@ describe("Document totals", () => {
 			.first()
 			.click();
 
-		// Une ligne : 100 à 20 %. Les champs par NAME, comme la spec 17 — l'ordre des inputs d'une
-		// ligne n'est pas un contrat, leurs names le sont.
+		// One line: 100 at 20%. Fields addressed by NAME, like spec 17 — a line's input order is not
+		// a contract, their names are.
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
 		cy.get('input[name="lines.0.description"]').type("Item 1", { force: true });
@@ -125,7 +125,7 @@ describe("Document totals", () => {
 			.clear({ force: true })
 			.type("100", { force: true });
 
-		// Le taux : SearchSelect aussi (catalogue du pays). "20 %" est le libellé français du catalogue.
+		// The rate: also a SearchSelect (the country's own catalog). "20 %" is the catalog's French label.
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button')
 			.last()
 			.click({ force: true });
@@ -136,7 +136,7 @@ describe("Document totals", () => {
 			.first()
 			.click();
 
-		// Les totaux, en direct — le fait affiché vient du recalcul client, miroir du back.
+		// The totals, live — the displayed fact comes from the client-side recalculation, mirroring the backend.
 		cy.get('[data-cy="document-totals"]', { timeout: 10000 }).should("exist");
 		cy.get('[data-cy="document-totals-gross"]').should("contain", "120");
 	});
@@ -179,14 +179,14 @@ describe("Document totals", () => {
 					cy.get(`[data-cy="document-edit-button-${id}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 
-					// Sans remise (le devis a été créé sans) : 100 EUR HT à 20% = 120 EUR TTC.
+					// With no discount (the quote was created without one): 100 EUR net at 20% = 120 EUR gross.
 					cy.get('[data-cy="document-totals-gross"]', { timeout: 10000 }).should(
 						"contain",
 						"120",
 					);
 
-					// Avec 50% de remise, tapée ici même : 50 EUR HT (remisé), 10 EUR de TVA (sur la
-					// base remisée), 60 EUR TTC — le fait affiché change en direct.
+					// With a 50% discount, typed right here: 50 EUR net (discounted), 10 EUR VAT (on the
+					// discounted base), 60 EUR gross — the displayed fact changes live.
 					cy.get('input[name="lines.0.discountPercent"]')
 						.clear({ force: true })
 						.type("50", { force: true });
@@ -198,8 +198,8 @@ describe("Document totals", () => {
 					cy.get('[data-cy="document-action-save-draft"]').click();
 					cy.wait("@saveDraft");
 
-					// Ce que l'ÉCRAN affiche n'est une preuve de rien tant que l'API ne dit pas la
-					// même chose, une fois vraiment enregistré.
+					// What the SCREEN shows proves nothing until the API says the same thing, once
+					// actually saved.
 					cy.request({ url: `${api}/api/documents/${id}/totals?typeId=quote` }).then((res) => {
 						expect(res.status).to.eq(200);
 						expect(res.body.netMinor, "50 EUR remisés = 5000 cents").to.eq(5000);

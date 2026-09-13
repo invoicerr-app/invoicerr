@@ -1,9 +1,9 @@
 /**
- * Champ « référence client / n° de commande » (TODO_FEATURES.md rang 7, ⚡) — un champ de premier
- * ordre `clientReference` sur devis/factures, saisi à l'écran, persisté, rendu sur le PDF et la
- * liste QUAND il est renseigné, ABSENT sinon (`hideWhenEmpty`). Discipline : action par l'écran,
- * assertions relues via l'API + l'écran. Le rendu PDF exact est couvert en jest
- * (`rendering/render-html.spec.ts`, bloc hideWhenEmpty) ; ici on prouve le parcours UI + la liste.
+ * "Client reference / PO number" field (TODO_FEATURES.md rank 7, ⚡) — a first-class
+ * `clientReference` field on quotes/invoices, entered on the screen, persisted, rendered on the PDF
+ * and the list WHEN filled in, ABSENT otherwise (`hideWhenEmpty`). Discipline: action via the
+ * screen, assertions read back via the API + the screen. The exact PDF rendering is covered in jest
+ * (`rendering/render-html.spec.ts`, hideWhenEmpty block); here we prove the UI journey + the list.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -57,7 +57,7 @@ function createInvoice(clientId: string, clientReference?: string) {
 		});
 }
 
-describe("Référence client / n° de commande — à l'écran", () => {
+describe("Client reference / PO number — on the screen", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -65,11 +65,11 @@ describe("Référence client / n° de commande — à l'écran", () => {
 		cy.login();
 	});
 
-	it("une facture avec une référence client la persiste, la montre sur la liste, et la ré-affiche dans le formulaire", () => {
+	it("an invoice with a client reference persists it, shows it on the list, and redisplays it in the form", () => {
 		const ref = "PO-2026-4242";
 		createClient().then((clientId: string) => {
 			createInvoice(clientId, ref).then((invoiceId) => {
-				// Persisté en base, relu via l'API — jamais l'écran comme preuve de ce qui est stocké.
+				// Persisted in the database, read back via the API — never the screen as proof of what is stored.
 				cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 					.its("body")
 					.then((doc) => {
@@ -79,13 +79,13 @@ describe("Référence client / n° de commande — à l'écran", () => {
 						).to.eq(ref);
 					});
 
-				// Visible sur la carte de la liste.
+				// Visible on the list card.
 				cy.visit("/documents/invoice");
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
 					timeout: 15000,
 				}).should("contain.text", ref);
 
-				// Ré-affichée dans le formulaire d'édition (le champ de premier ordre round-trip).
+				// Redisplayed in the edit form (the first-class field round-trips).
 				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`).click();
 				cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should(
 					"be.visible",
@@ -98,17 +98,17 @@ describe("Référence client / n° de commande — à l'écran", () => {
 		});
 	});
 
-	it("une facture SANS référence n'affiche aucun libellé de référence sur sa carte (hideWhenEmpty)", () => {
+	it("an invoice WITHOUT a reference shows no reference label on its card (hideWhenEmpty)", () => {
 		createClient().then((clientId: string) => {
 			createInvoice(clientId).then((invoiceId) => {
 				cy.visit("/documents/invoice");
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
 					.should("be.visible")
 					.within(() => {
-						// Le champ est hideWhenEmpty : ni la valeur ni le libellé "reference" n'apparaissent.
+						// The field is hideWhenEmpty: neither the value nor the "reference" label appears.
 						cy.contains(/reference/i).should("not.exist");
 					});
-				// Le champ existe quand même dans le formulaire (toujours éditable), simplement vide.
+				// The field still exists in the form (always editable), simply empty.
 				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`).click();
 				cy.get('[data-cy="document-field-clientReference-input"]', {
 					timeout: 5000,

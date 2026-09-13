@@ -1,10 +1,10 @@
 /**
- * Gestion de stock basique (TODO_FEATURES.md rang 18) — facturer N unités d'un article suivi en stock
- * DÉCRÉMENTE son solde à l'ÉMISSION, et sous le seuil une alerte devient visible. Discipline : l'action
- * (création + envoi) passe par la vraie chaîne serveur (le décrément se fait à l'émission, dans
- * `documents.service.ts#runAction`, jamais côté client), les assertions relisent le stock via l'API
- * PUIS le badge à l'écran. La logique pure (somme par article, jamais de clamp) + l'idempotence du gate
- * d'émission sont couvertes en jest ; ici on prouve le câblage bout-en-bout.
+ * Basic stock management (TODO_FEATURES.md rank 18) — invoicing N units of a stock-tracked article
+ * DECREMENTS its balance at ISSUANCE, and an alert becomes visible below the threshold. Discipline: the
+ * action (creation + send) goes through the real server chain (the decrement happens at issuance, in
+ * `documents.service.ts#runAction`, never client-side), the assertions read the stock back via the API
+ * THEN the badge on screen. The pure logic (sum per article, never a clamp) + the idempotence of the
+ * issuance gate are covered in jest; here we prove the end-to-end wiring.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -44,7 +44,7 @@ function createClient() {
 		.its("body.id");
 }
 
-describe("Gestion de stock — décrément à l'émission + alerte seuil", () => {
+describe("Stock management — decrement at issuance + threshold alert", () => {
 	before(() => {
 		cy.resetAndSeed();
 		cy.login();
@@ -58,7 +58,7 @@ describe("Gestion de stock — décrément à l'émission + alerte seuil", () =>
 		cy.login();
 	});
 
-	it("facturer 8 unités d'un article à 10 en stock le descend à 2 (< seuil 3) et montre l'alerte", () => {
+	it("invoicing 8 units of an article with 10 in stock brings it down to 2 (< threshold 3) and shows the alert", () => {
 		createTrackedArticle().then((articleId: string) => {
 			createClient().then((clientId: string) => {
 				const data = {
@@ -85,12 +85,12 @@ describe("Gestion de stock — décrément à l'émission + alerte seuil", () =>
 					const invoiceId = saved.body?.document?.id as string;
 					expect(invoiceId, "brouillon créé").to.be.a("string");
 
-					// Avant l'émission, le stock n'a pas bougé — le décrément se fait à l'ÉMISSION.
+					// Before issuance, the stock hasn't moved — the decrement happens at ISSUANCE.
 					cy.request({ url: `${api}/api/articles/${articleId}` })
 						.its("body.quantity")
 						.should("eq", 10);
 
-					// Émission (le vrai pipeline) → le décrément se déclenche en entrant dans "sending".
+					// Issuance (the real pipeline) → the decrement triggers on entering "sending".
 					cy.request({
 						method: "POST",
 						url: `${api}/api/documents/types/invoice/actions/send`,
@@ -98,7 +98,7 @@ describe("Gestion de stock — décrément à l'émission + alerte seuil", () =>
 					}).then((sent) => expect(sent.status).to.be.oneOf([200, 201]));
 					cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, ["sent"]);
 
-					// API : 10 - 8 = 2, et 2 <= 3 → sous le seuil.
+					// API: 10 - 8 = 2, and 2 <= 3 → below the threshold.
 					cy.request({ url: `${api}/api/articles/${articleId}` })
 						.its("body")
 						.then((article) => {
@@ -106,7 +106,7 @@ describe("Gestion de stock — décrément à l'émission + alerte seuil", () =>
 							expect(article.isLowStock, "sous le seuil").to.eq(true);
 						});
 
-					// L'endpoint d'alerte liste bien l'article.
+					// The alert endpoint does list the article.
 					cy.request({ url: `${api}/api/articles/low-stock` })
 						.its("body")
 						.then((lowStock) => {
@@ -115,7 +115,7 @@ describe("Gestion de stock — décrément à l'émission + alerte seuil", () =>
 							expect(ids, "notre article est en alerte").to.include(articleId);
 						});
 
-					// À l'écran : le badge "stock bas" apparaît sur la carte de l'article.
+					// On screen: the "low stock" badge appears on the article's card.
 					cy.visit("/articles");
 					cy.get(`[data-cy="article-low-stock-${articleId}"]`, { timeout: 15000 }).should("be.visible");
 				});

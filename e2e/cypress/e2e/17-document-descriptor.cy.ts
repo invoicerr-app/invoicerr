@@ -1,21 +1,21 @@
 /**
- * Le nouveau modèle, prouvé par l'écran — et pas seulement en mémoire.
+ * The new model, proven by the screen — not only in memory.
  *
- * Les tests jest prouvent les registres, la validation et le blocage d'une action sans
- * implémentation. Ils ne prouvent rien de ce qu'un utilisateur peut faire : c'est exactement
- * l'angle mort qui, dans le système précédent, a laissé passer un bouton « Modifier » mort, un
- * `send()` qui n'envoyait rien et une liste qui ne se rafraîchissait jamais.
+ * The jest tests prove the registries, the validation, and the blocking of an action with no
+ * implementation. They prove nothing about what a user can actually do: that is exactly
+ * the blind spot which, in the previous system, let through a dead "Edit" button, a
+ * `send()` that sent nothing, and a list that never refreshed.
  *
- * La règle reste celle de tout ce dépôt : les ACTIONS passent par l'interface, les ASSERTIONS
- * lisent l'enregistrement.
+ * The rule stays the one for this whole repo: ACTIONS go through the UI, ASSERTIONS
+ * read the record.
  *
- * Ce que ce fichier vérifie surtout, et qui est LA promesse du modèle : le formulaire n'est pas
- * écrit, il est DÉDUIT du descripteur. On lit donc la liste des types par l'API
- * (GET /api/documents/types), puis CHAQUE descripteur, puis on exige que chacun de leurs champs
- * soit rendu — pas une liste de types ou de champs recopiée à la main, qui ne dirait que ce que le
- * test croit savoir. Un troisième type de document (ou un champ ajouté à un type existant) obtient
- * sa couverture d'écran le jour où il est enregistré côté back, sans toucher ce fichier ; un type
- * dont un champ ne sait pas se rendre fait tomber la suite au lieu de passer en silence.
+ * What this file checks above all, and which is THE promise of the model: the form is not
+ * hand-written, it is DERIVED from the descriptor. We therefore read the list of types from the API
+ * (GET /api/documents/types), then EACH descriptor, then we require that each of their fields
+ * be rendered — not a hand-copied list of types or fields, which would only say what the
+ * test believes it knows. A third document type (or a field added to an existing type) gets
+ * its screen coverage the day it is registered on the backend, without touching this file; a type
+ * whose field does not know how to render itself fails the suite instead of passing silently.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -36,7 +36,7 @@ const descriptorFor = (typeId: string) =>
 		.request<Descriptor>({ url: `${api}/api/documents/types/${typeId}` })
 		.its("body");
 
-describe("Un document est un descripteur, et l'écran le suit", () => {
+describe("A document is a descriptor, and the screen follows it", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -45,17 +45,17 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		cy.login();
 	});
 
-	it("le formulaire rend CHAQUE champ que CHAQUE type déclare", () => {
-		// Piloté par la donnée à deux niveaux : la liste des TYPES vient de l'API, puis pour
-		// chacun, la liste des CHAMPS vient aussi de l'API. Rien ici ne nomme "quote" ou "invoice".
+	it("the form renders EVERY field that EVERY type declares", () => {
+		// Data-driven at two levels: the list of TYPES comes from the API, then for
+		// each one, the list of FIELDS also comes from the API. Nothing here names "quote" or "invoice".
 		listTypes().then((types) => {
-			// TROIS types au minimum (devis, facture, avoir), et c'est une assertion, pas un journal.
+			// THREE types at minimum (quote, invoice, credit note), and this is an assertion, not a log.
 			//
-			// Une boucle sur une liste d'un seul élément passe aussi bien qu'une vraie boucle, et se
-			// donne les airs de la généricité sans la prouver. Si un jour un type disparaît du
-			// registre, ce test doit tomber : c'est le seul moyen que « le front ne connaît aucun
-			// type » reste une propriété vérifiée plutôt qu'une intention. Le compte : montré ici,
-			// dans le message de l'assertion elle-même, pas seulement dans un commentaire.
+			// A loop over a single-element list passes just as well as a real loop, while giving
+			// itself the appearance of genericity without proving it. If a type ever disappears from
+			// the registry, this test must fail: that is the only way for "the frontend knows no
+			// type" to remain a verified property rather than an intention. The count: shown here,
+			// in the assertion's own message, not only in a comment.
 			expect(
 				types.map((t) => t.id),
 				`au moins trois types couverts — vus (${types.length}) : ${types.map((t) => t.id).join(", ")}`,
@@ -85,8 +85,8 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 						cy.get(`[data-cy="document-field-${f.key}"]`, {
 							timeout: 10000,
 						}).should("exist");
-						// Un champ dont le TYPE n'a pas de rendu affiche un marqueur explicite plutôt
-						// que rien. Le voir ici voudrait dire que le noyau ment sur sa couverture.
+						// A field whose TYPE has no renderer shows an explicit marker rather
+						// than nothing. Seeing it here would mean the core is lying about its coverage.
 						cy.get(`[data-cy="document-field-${f.key}-unsupported"]`).should(
 							"not.exist",
 						);
@@ -96,7 +96,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		});
 	});
 
-	it("les actions offertes sont celles du descripteur, ni plus ni moins — pour chaque type", () => {
+	it("the actions offered are exactly those of the descriptor, no more no less — for each type", () => {
 		listTypes().then((types) => {
 			for (const type of types) {
 				descriptorFor(type.id).then((d) => {
@@ -116,10 +116,10 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								b.getAttribute("data-cy")?.replace("document-action-", ""),
 							)
 							.sort();
-						// Sur un document JAMAIS enregistré, seules les actions disponibles « always »
-						// ont un sens : les autres attendent un statut que le document n'a pas encore.
-						// On vérifie donc l'inclusion dans ce que le descripteur déclare, et qu'aucun
-						// bouton ne sorte de nulle part.
+						// On a document that was NEVER saved, only the "always" available actions
+						// make sense: the others expect a status the document does not have yet.
+						// We therefore check inclusion in what the descriptor declares, and that no
+						// button appears out of nowhere.
 						const declared = d.actions.map((a) => a.id);
 						for (const id of onScreen) {
 							expect(
@@ -137,13 +137,13 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		});
 	});
 
-	it("la facture bloque son envoi quand la société n'a configuré AUCUN transport — jamais un repli silencieux", () => {
-		// La société de test n'a par défaut aucun `invoiceTransportId` (voir cypress/support/commands.ts,
-		// `resetAndSeed` ne le fixe jamais) : c'est l'état "aucun transport choisi" par construction.
-		// Ce test tourne donc délibérément AVANT celui qui suit (lequel configure "email" sur cette
-		// même société pour amener une facture au statut "sent") — l'ordre des `it` dans ce fichier
-		// n'est pas accessoire, `resetAndSeed` ne rejoue qu'une fois par fichier (`before`, pas
-		// `beforeEach`), donc l'état de la société traverse les tests.
+	it("the invoice blocks its own send when the company has configured NO transport — never a silent fallback", () => {
+		// The test company has no `invoiceTransportId` by default (see cypress/support/commands.ts,
+		// `resetAndSeed` never sets one): this is the "no transport chosen" state by construction.
+		// This test therefore deliberately runs BEFORE the one that follows (which configures "email" on
+		// this same company to bring an invoice to "sent" status) — the order of the `it`s in this file
+		// is not incidental, `resetAndSeed` only replays once per file (`before`, not
+		// `beforeEach`), so the company's state carries across tests.
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
@@ -210,25 +210,25 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			});
 	});
 
-	it("une action déclarée SANS implémentation est refusée, et l'utilisateur lit pourquoi", () => {
-		// `export-accounting` est déclarée sur la facture et volontairement non implémentée.
+	it("an action declared WITHOUT an implementation is refused, and the user reads why", () => {
+		// `export-accounting` is declared on the invoice and deliberately not implemented.
 		//
-		// Ce n'est plus `convert-to-invoice` (devis) qui porte ce rôle : cette action a depuis été
-		// implémentée pour de vrai (elle crée une facture liée), donc l'appeler ne renvoie plus 501 —
-		// et figer ce test dessus l'aurait fait mentir sur ce que le produit fait désormais.
-		// `record-payment` a ensuite tenu ce rôle à son tour, puis a été implémentée pour de vrai (les
-		// paiements — voir 24-document-payments.cy.ts) : l'appeler ne renvoie plus 501 non plus. Le
-		// mécanisme « déclarée mais non implémentée → 501, clair » n'a pas disparu pour autant :
-		// `export-accounting`, sur la facture, en est maintenant la seule vitrine vivante (avec
-		// documents.service.invoice.spec.ts côté jest).
+		// It is no longer `convert-to-invoice` (quote) that plays this role: that action has since been
+		// implemented for real (it creates a linked invoice), so calling it no longer returns 501 —
+		// and pinning this test on it would have made it lie about what the product does now.
+		// `record-payment` then took on this role in turn, then was itself implemented for real (see
+		// payments — 24-document-payments.cy.ts): calling it no longer returns 501 either. The
+		// "declared but not implemented → 501, clearly" mechanism has not disappeared though:
+		// `export-accounting`, on the invoice, is now its only living showcase (along with
+		// documents.service.invoice.spec.ts on the jest side).
 		//
-		// Il faut d'abord une facture au statut "sent" : `export-accounting` n'est offerte qu'à partir
-		// de là (avant, c'est le 409 de disponibilité qui refuse en premier — le même garde-fou que le
-		// test précédent observe, côté "send", avant même d'atteindre le 501). Pour l'atteindre sans
-		// rien simuler, ce test passe par le vrai chemin : un transport "email" réellement configuré
-		// sur la société (cette fois pour de bon — le test précédent, lui, en dépendait de l'ABSENCE),
-		// un brouillon réel, un envoi réel (qui atterrit dans le vrai Mailpit de la pile e2e) — pas un
-		// raccourci qui forcerait le statut en base.
+		// An invoice at "sent" status is needed first: `export-accounting` is only offered from
+		// there on (before that, it is the availability 409 that refuses first — the same guard the
+		// previous test observes, on the "send" side, before even reaching the 501). To reach it
+		// without simulating anything, this test goes through the real path: an "email" transport
+		// actually configured on the company (this time for real — the previous test, by contrast,
+		// depended on its ABSENCE), a real draft, a real send (which lands in the e2e stack's real
+		// Mailpit) — not a shortcut that would force the status in the database.
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
@@ -240,9 +240,9 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 				cy.request({
 					method: "POST",
 					url: `${api}/api/company/info`,
-					// Une société sans transport configuré bloque l'envoi (voir le test dédié plus bas) —
-					// il faut donc réellement en choisir un ici, comme le ferait un utilisateur dans les
-					// paramètres, avant de pouvoir amener une facture au statut "sent".
+					// A company with no transport configured blocks the send (see the dedicated test
+					// below) — one therefore has to actually pick one here, as a user would in the
+					// settings, before an invoice can be brought to "sent" status.
 					body: { invoiceTransportId: "email" },
 					failOnStatusCode: false,
 				}).then((companyRes) => {
@@ -290,12 +290,12 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 								sent.status,
 								`facture réellement envoyée via le transport configuré — ${JSON.stringify(sent.body).slice(0, 220)}`,
 							).to.be.oneOf([200, 201]);
-							// "send" est asynchrone (item 22, files d'attente) : cette réponse-ci n'est plus
-							// que la première moitié — draft -> "sending" — rendue aussitôt ; la livraison
-							// réelle (transport "email" réel, vrai Mailpit) est l'affaire du worker. Un
-							// `cy.request().its().should()` ne RE-DÉCLENCHERAIT PAS la requête pour attendre
-							// la suite — `cy.waitForDocumentStatus` poll réellement l'API jusqu'à "sent" (ou
-							// signale l'échec réel s'il en survient un).
+							// "send" is asynchronous (item 22, queues): this response is now
+							// only the first half — draft -> "sending" — returned right away; the
+							// actual delivery (real "email" transport, real Mailpit) is the worker's job. A
+							// `cy.request().its().should()` would NOT RE-TRIGGER the request to wait for
+							// what follows — `cy.waitForDocumentStatus` really polls the API until "sent" (or
+							// reports the real failure if one occurs).
 							cy.waitForDocumentStatus(
 								`${api}/api/documents/${id}?typeId=invoice`,
 								["sent", "send_failed"],
@@ -324,7 +324,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			});
 	});
 
-	it("un type de document inconnu est refusé proprement, à l'écran comme à l'API", () => {
+	it("an unknown document type is cleanly refused, both on the screen and at the API", () => {
 		cy.request({
 			url: `${api}/api/documents/types/nexiste-pas`,
 			failOnStatusCode: false,
@@ -332,32 +332,32 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			expect(res.status, "l'API refuse").to.eq(404);
 		});
 
-		// Et l'écran ne montre pas une page vide : une page vide ressemble à une panne.
+		// And the screen does not show a blank page: a blank page looks like an outage.
 		cy.visit("/documents/nexiste-pas");
 		cy.get('[data-cy="document-type-unknown"]', { timeout: 20000 }).should(
 			"be.visible",
 		);
 	});
 
-	it("l'API refuse aussi une action que la politique du pays interdit — un client scripté ne contourne pas l'écran", () => {
-		// La société de ce jeu d'essai est française (voir resetAndSeed) — la France est l'un des deux
-		// pays couverts par backend/src/modules/documents/country-policy/data/, donc jusqu'ici chaque
-		// action a été permise par la politique. Ce test bascule la société sur un pays qui n'a AUCUNE
-		// règle déclarée (ni la France ni les États-Unis) pour observer le blocage — puis restaure la
-		// France, dernier `it` de ce fichier ou pas : rien ne garantit qu'un `it` futur ne s'ajoutera
-		// pas après celui-ci.
+	it("the API also refuses an action the country's policy forbids — a scripted client does not bypass the screen", () => {
+		// The company in this fixture is French (see resetAndSeed) — France is one of the two
+		// countries covered by backend/src/modules/documents/country-policy/data/, so up to this
+		// point every action has been allowed by the policy. This test switches the company to a
+		// country with NO declared rule (neither France nor the United States) to observe the
+		// blocking — then restores France, whether this is the last `it` in this file or not: nothing
+		// guarantees a future `it` won't be added after this one.
 		//
-		// L'appel passe directement par `cy.request`, jamais par un clic : ce que l'écran ne montrerait
-		// même pas (le bouton serait grisé — voir document-form.tsx) doit être refusé exactement pareil
-		// pour un client qui ignore l'écran et appelle l'action à la main.
+		// The call goes directly through `cy.request`, never a click: what the screen would not even
+		// show (the button would be greyed out — see document-form.tsx) must be refused exactly the
+		// same way for a client that ignores the screen and calls the action by hand.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
-			// L'Allemagne a reçu une policy le 2026-09-03 — l'ancien exemple de « pays
-			// sans règle » de ce test est devenu un pays COUVERT (201 au lieu de 403, la batterie l'a
-			// attrapé). Le Japon reprend le rôle : aucun fichier `jp.json` n'existe sous country-policy/data,
-			// et l'intention du test (un client scripté ne contourne pas l'écran pour un pays non
-			// couvert) est inchangée, assertion pour assertion.
+			// Germany received a policy on 2026-09-03 — this test's former example of a "country
+			// with no rule" became a COVERED country (201 instead of 403, the test battery caught
+			// it). Japan now takes on that role: no `jp.json` file exists under country-policy/data,
+			// and the test's intent (a scripted client does not bypass the screen for an uncovered
+			// country) is unchanged, assertion for assertion.
 			body: { country: "Japan", countryCode: "JP" },
 			failOnStatusCode: false,
 		}).then((changed) => {
@@ -399,9 +399,9 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			});
 		});
 
-		// Restaure l'état attendu par le reste de la suite (une société française couverte), que ce
-		// test ait réussi ou non — sinon un futur `it` ajouté après celui-ci hériterait d'un pays sans
-		// aucune règle et verrait TOUT bloqué sans lien avec ce qu'il teste réellement.
+		// Restores the state the rest of the suite expects (a covered French company), whether this
+		// test succeeded or not — otherwise a future `it` added after this one would inherit a country
+		// with no rule at all and would see EVERYTHING blocked with no connection to what it actually tests.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
@@ -410,16 +410,16 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 		});
 	});
 
-	it("la sidebar mène vers un type que le pays autorise, sans nommer ce type", () => {
-		// Le groupe Documents ne porte plus de liens écrits à la main : il se remplit depuis la
-		// politique du pays. On navigue comme un utilisateur, en prenant le type que le back annonce
-		// — jamais un nom codé dans le test.
+	it("the sidebar leads to a type the country allows, without naming that type", () => {
+		// The Documents group no longer carries hand-written links: it fills in from the
+		// country policy. We navigate like a user, taking whatever type the backend announces
+		// — never a name hard-coded in the test.
 		//
-		// Le groupe est déplié PAR DÉFAUT : il ne faut surtout pas cliquer la bascule. Ma première
-		// version le faisait « si le lien est absent » — mais la liste arrive de façon asynchrone,
-		// donc la vérification passait avant la réponse, ne voyait rien, et REFERMAIT un groupe déjà
-		// ouvert. Le lien n'apparaissait alors jamais, et j'ai cru à un défaut du produit pendant
-		// trois essais avant de faire parler l'écran.
+		// The group is expanded BY DEFAULT: the toggle must absolutely not be clicked. My first
+		// version did so "if the link is absent" — but the list arrives asynchronously,
+		// so the check ran before the response, saw nothing, and CLOSED a group that was already
+		// open. The link then never appeared, and I believed it was a product defect for
+		// three attempts before making the screen speak for itself.
 		cy.request<{ types?: { id: string }[] }>({
 			url: `${api}/api/documents/available-types`,
 		})
@@ -444,20 +444,20 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			});
 	});
 
-	it("le dashboard agrège des widgets d'au moins deux types de documents distincts, pas seulement la facture", () => {
-		// Item 25 du TODO : le dashboard n'avait que la facture ; le devis (une shortlist de
-		// brouillons) et la dépense (une métrique « ce mois-ci ») contribuent désormais aussi. Ce
-		// test le prouve à l'écran, pas seulement côté jest — voir le mécanisme dans
+	it("the dashboard aggregates widgets from at least two distinct document types, not just the invoice", () => {
+		// TODO item 25: the dashboard only had the invoice; the quote (a shortlist of
+		// drafts) and the expense (a "this month" metric) now contribute too. This
+		// test proves it on the screen, not just on the jest side — see the mechanism in
 		// backend/src/modules/documents/contributions/.
 		//
-		// Le JSON de GET /api/documents/dashboard n'expose PAS de champ `typeId` sur un widget
-		// implémenté (seul le marqueur « unimplemented » en porte un — voir widgets.ts côté back) :
-		// c'est un simple `id`, `label`, `kind`, etc. Chaque contribution préfixe cependant son
-		// propre `id` par le typeId qui l'a produit (`invoice:pending`, `quote:draft`,
-		// `expense:this-month`, ...) — une convention suivie par toutes, pas un contrat formel. On
-		// s'appuie donc dessus : le DOM porte le même `id` dans son `data-cy` (`widget-<id>`, voir
-		// widget-renderers/*.tsx), donc on le lit là, sur l'écran réellement rendu, plutôt que de
-		// re-fabriquer une requête API séparée.
+		// The GET /api/documents/dashboard JSON does NOT expose a `typeId` field on an
+		// implemented widget (only the "unimplemented" marker carries one — see widgets.ts on the
+		// backend side): it is a plain `id`, `label`, `kind`, etc. Each contribution does however
+		// prefix its own `id` with the typeId that produced it (`invoice:pending`, `quote:draft`,
+		// `expense:this-month`, ...) — a convention every contribution follows, not a formal contract. We
+		// therefore rely on that: the DOM carries the same `id` in its `data-cy` (`widget-<id>`, see
+		// widget-renderers/*.tsx), so we read it there, on the actually rendered screen, rather than
+		// building a separate API request.
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
@@ -466,7 +466,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 					"le jeu d'essai contient un client",
 				).to.have.length.greaterThan(0);
 
-				// Un devis brouillon — remplit la shortlist du devis sur le dashboard.
+				// A draft quote — fills the quote shortlist on the dashboard.
 				cy.request({
 					method: "POST",
 					url: `${api}/api/documents/types/quote/actions/save-draft`,
@@ -486,8 +486,8 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 					).to.be.oneOf([200, 201]);
 				});
 
-				// Une dépense datée d'AUJOURD'HUI (jamais en dur) — remplit la métrique « ce
-				// mois-ci » de la dépense sur le dashboard, quel que soit le jour où ce test tourne.
+				// An expense dated TODAY (never hard-coded) — fills the expense's "this
+				// month" metric on the dashboard, whatever day this test runs on.
 				const today = new Date().toISOString().slice(0, 10);
 				cy.request({
 					method: "POST",

@@ -1,20 +1,20 @@
 /**
- * Signature électronique — prouvée PAR L'ÉCRAN : on uploade un
- * certificat de FIXTURE (auto-signé, généré via un script local jetable utilisant node-forge — jamais
- * committé, comme son nom `gen-e2e-fixture-pfx.tmp.ts` l'annonçait ; voir le commit `3a743a6d` qui a
- * introduit `cypress/fixtures/signing/e2e-fixture-cert.pfx` pour le contexte complet, JAMAIS un vrai certificat), la liste affiche ses
- * VRAIES métadonnées (sujet/validité/série extraits côté serveur par node-forge, jamais échoués par le
- * client), le PDF d'une facture téléchargée DEVIENT signé PAdES (/ByteRange + /Contents dans les
- * octets), et la désactivation du certificat rend le PDF de nouveau non signé — sans toucher au
- * document lui-même.
+ * Electronic signature — proven THROUGH THE SCREEN: a FIXTURE
+ * certificate is uploaded (self-signed, generated via a disposable local script using node-forge —
+ * never committed, as its name `gen-e2e-fixture-pfx.tmp.ts` announced; see commit `3a743a6d`, which
+ * introduced `cypress/fixtures/signing/e2e-fixture-cert.pfx`, for the full context, NEVER a real
+ * certificate), the list shows its REAL metadata (subject/validity/serial extracted server-side by
+ * node-forge, never taken on trust from the client), a downloaded invoice's PDF BECOMES PAdES-signed
+ * (/ByteRange + /Contents in the bytes), and deactivating the certificate makes the PDF unsigned
+ * again — without touching the document itself.
  *
- * Mot de passe du fixture, documenté ici en clair — ce n'est PAS un secret, c'est un mot de passe de
- * test bidon pour un certificat auto-signé jetable :
+ * Fixture password, documented here in plain text — this is NOT a secret, it's a throwaway test
+ * password for a disposable self-signed certificate:
  *   e2e-fake-pfx-password-not-real
  *
- * Régressions couvertes : 19 (rendu PDF de base, aucun certificat actif au départ)
- * et 28 (l'envoi asynchrone continue de fonctionner une fois un certificat actif — la facture envoyée
- * par email est du PDF signé, jamais un envoi cassé).
+ * Regressions covered: 19 (basic PDF rendering, no active certificate at the start)
+ * and 28 (asynchronous sending keeps working once a certificate is active — the invoice sent by
+ * email is a signed PDF, never a broken send).
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -63,8 +63,8 @@ function createInvoiceDraft() {
 		});
 }
 
-/** Télécharge le PDF de la facture et retourne ses octets bruts (encodage binaire — mêmes conventions
- *  que 19-document-pdf.cy.ts) pour y chercher les marqueurs PAdES. */
+/** Downloads the invoice's PDF and returns its raw bytes (binary encoding — same conventions
+ *  as 19-document-pdf.cy.ts) to search for the PAdES markers in it. */
 function fetchInvoicePdfRaw(invoiceId: string) {
 	return cy
 		.request({ url: `${api}/api/documents/${invoiceId}/pdf?typeId=invoice`, encoding: "binary" })
@@ -82,7 +82,7 @@ function fetchInvoicePdfRaw(invoiceId: string) {
 		});
 }
 
-describe("Signature électronique — certificats de société", () => {
+describe("Electronic signature — company certificates", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -91,7 +91,7 @@ describe("Signature électronique — certificats de société", () => {
 		cy.login();
 	});
 
-	it("aucun certificat au départ — le PDF d'une facture est SERVI NON SIGNÉ (régression 19)", () => {
+	it("no certificate at the start — an invoice's PDF is SERVED UNSIGNED (regression 19)", () => {
 		createInvoiceDraft().then((invoiceId) => {
 			fetchInvoicePdfRaw(invoiceId).then((bytes) => {
 				expect(bytes, "aucun /ByteRange sans certificat actif — comportement inchangé").to.not.include(
@@ -101,24 +101,24 @@ describe("Signature électronique — certificats de société", () => {
 		});
 	});
 
-	it("l'écran affiche l'état vide — aucun certificat configuré, jamais présenté comme une obligation", () => {
+	it("the screen shows the empty state — no certificate configured, never presented as an obligation", () => {
 		cy.visit("/settings/signing");
 		cy.get('[data-cy="signing-certificates-section"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy="signing-cert-empty-state"]').should("exist");
 	});
 
-	it("uploade le certificat de FIXTURE par l'écran — la liste affiche ses VRAIES métadonnées", () => {
+	it("uploads the FIXTURE certificate through the screen — the list shows its REAL metadata", () => {
 		cy.visit("/settings/signing");
 
 		cy.get('[data-cy="signing-cert-label-input"]', { timeout: 15000 }).type("E2E fixture cert");
 		cy.get('[data-cy="signing-cert-file-input"]').selectFile(FIXTURE_PFX_PATH, { force: true });
 		cy.get('[data-cy="signing-cert-password-input"]').type(FIXTURE_PASSWORD);
-		// Applicability ("All formats (*)") et environnement ("Test") laissés à leur valeur par défaut.
+		// Applicability ("All formats (*)") and environment ("Test") left at their default value.
 		cy.get('[data-cy="signing-cert-upload-button"]').click();
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Certificate uploaded");
 
-		// L'assertion qui compte relit l'API — jamais l'écran comme preuve de ce qui est en base.
+		// The assertion that matters reads the API back — never the screen as proof of what is in the database.
 		cy.request({ url: `${api}/api/company/signing-certificates` })
 			.its("body")
 			.then((certs: CertificateMeta[]) => {
@@ -127,25 +127,25 @@ describe("Signature électronique — certificats de société", () => {
 				expect(cert!.isActive).to.eq(true);
 				expect(cert!.applicability).to.eq("*");
 				expect(cert!.environment).to.eq("TEST");
-				// Extrait CÔTÉ SERVEUR par node-forge à l'upload — jamais fourni par le client : la preuve
-				// que le PFX a réellement été lu, pas seulement accepté tel quel.
+				// Extracted SERVER-SIDE by node-forge at upload time — never supplied by the client: the
+				// proof that the PFX was actually read, not merely accepted as-is.
 				expect(cert!.subject, "sujet extrait du vrai certificat").to.include(
 					"Invoicerr E2E Fixture Signing Cert",
 				);
 				expect(cert!.serial, "numéro de série extrait du vrai certificat").to.be.a("string").and.not.be.empty;
-				// JAMAIS le PFX ni le mot de passe dans la réponse — le test "never returns" jest le prouve
-				// en isolation ; ici, la preuve de bout en bout par la vraie route HTTP.
+				// NEVER the PFX nor the password in the response — the "never returns" jest test proves this
+				// in isolation; here, the end-to-end proof through the real HTTP route.
 				expect(JSON.stringify(cert)).to.not.include(FIXTURE_PASSWORD);
 				expect(Object.keys(cert!)).to.not.include("encryptedPfx");
 				expect(Object.keys(cert!)).to.not.include("encryptedPass");
 			});
 
-		// Et l'écran lui-même montre le sujet/le statut réels, pas un espace réservé.
+		// And the screen itself shows the real subject/status, not a placeholder.
 		cy.contains('[data-cy^="signing-cert-row-"]', "E2E fixture cert", { timeout: 10000 }).should("exist");
 		cy.get('[data-cy$="-status"]').should("contain.text", "Active");
 	});
 
-	it("le PDF d'une facture téléchargée DEVIENT signé PAdES (/ByteRange + /Contents dans les octets)", () => {
+	it("a downloaded invoice's PDF BECOMES PAdES-signed (/ByteRange + /Contents in the bytes)", () => {
 		createInvoiceDraft().then((invoiceId) => {
 			fetchInvoicePdfRaw(invoiceId).then((bytes) => {
 				expect(bytes, "signature PAdES présente — /ByteRange").to.include("/ByteRange");
@@ -154,7 +154,7 @@ describe("Signature électronique — certificats de société", () => {
 		});
 	});
 
-	it("désactive le certificat par l'écran → le PDF redevient NON SIGNÉ, sans toucher au document", () => {
+	it("deactivates the certificate through the screen → the PDF becomes UNSIGNED again, without touching the document", () => {
 		createInvoiceDraft().then((invoiceId) => {
 			cy.visit("/settings/signing");
 			// `cy.contains` with a selector returns the DEEPEST matching element — here the `-label`
@@ -177,8 +177,8 @@ describe("Signature électronique — certificats de société", () => {
 					expect(cert!.isActive, "isActive devient false").to.eq(false);
 				});
 
-			// Le même document, redemandé, n'est plus signé — la preuve que le PDF suit l'état ACTUEL
-			// du certificat à chaque rendu, jamais une signature mise en cache.
+			// The same document, requested again, is no longer signed — proof that the PDF follows the
+			// certificate's CURRENT state on every render, never a cached signature.
 			fetchInvoicePdfRaw(invoiceId).then((bytes) => {
 				expect(bytes, "plus de /ByteRange une fois le certificat désactivé").to.not.include("/ByteRange");
 			});

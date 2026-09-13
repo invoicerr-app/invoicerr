@@ -1,9 +1,9 @@
 /**
- * Interrupteur « relances automatiques » dans Settings (rang 2, suite) — expose le flag
- * `Company.remindersEnabled` (qui gate le sweep de relances) dans l'UI. La LOGIQUE du sweep est
- * déjà couverte ailleurs ; ici on prouve juste que le flag round-trip par l'API et que
- * l'interrupteur à l'écran reflète son état. Discipline : action/relecture par l'API, reflet vérifié
- * à l'écran.
+ * "Automatic reminders" toggle in Settings (rank 2, continued) — exposes the
+ * `Company.remindersEnabled` flag (which gates the reminder sweep) in the UI. The sweep's own LOGIC
+ * is already covered elsewhere; here it is just proven that the flag round-trips through the API and
+ * that the on-screen toggle reflects its state. Discipline: action/reread via the API, reflection
+ * verified on screen.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -13,7 +13,7 @@ function setReminders(enabled: boolean) {
 		.then((res) => expect(res.status, "company info enregistré").to.be.oneOf([200, 201]));
 }
 
-describe("Settings — interrupteur des relances automatiques", () => {
+describe("Settings — automatic reminders toggle", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -21,14 +21,14 @@ describe("Settings — interrupteur des relances automatiques", () => {
 		cy.login();
 	});
 
-	it("remindersEnabled round-trip via l'API (true puis false)", () => {
+	it("remindersEnabled round-trips via the API (true then false)", () => {
 		setReminders(true);
 		cy.request({ url: `${api}/api/company/info` }).its("body.remindersEnabled").should("eq", true);
 		setReminders(false);
 		cy.request({ url: `${api}/api/company/info` }).its("body.remindersEnabled").should("eq", false);
 	});
 
-	it("l'interrupteur à l'écran reflète l'état activé", () => {
+	it("the on-screen toggle reflects the enabled state", () => {
 		setReminders(true);
 		cy.visit("/settings/company");
 		// shadcn/Radix Switch renders a <button data-state="checked|unchecked"> — assert the state it

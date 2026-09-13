@@ -1,13 +1,13 @@
 /**
- * Export comptable générique CSV (TODO_FEATURES.md rang 4) — un export sur une période produit un CSV
- * dont chaque ligne est une facture / un avoir / un paiement réel, montants cohérents avec le pipeline
- * settlement. L'échappement RFC-4180 et la cohérence des montants sont couverts/mordus en jest
- * (`accounting-export/*.spec.ts`, dont les lignes d'avoir) ; ici on prouve le vrai endpoint
- * bout-en-bout : une facture envoyée + un paiement, dans la période → deux lignes au bon montant.
+ * Generic CSV accounting export (TODO_FEATURES.md rank 4) — an export over a period produces a CSV
+ * where each row is a real invoice / credit note / payment, amounts consistent with the settlement
+ * pipeline. RFC-4180 escaping and amount consistency are covered/bitten in jest
+ * (`accounting-export/*.spec.ts`, including credit-note rows); here we prove the real endpoint
+ * end-to-end: a sent invoice + a payment, within the period → two rows at the right amount.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-describe("Export comptable CSV — facture + paiement sur une période", () => {
+describe("CSV accounting export — invoice + payment within a period", () => {
 	before(() => {
 		cy.resetAndSeed();
 		cy.login();
@@ -21,7 +21,7 @@ describe("Export comptable CSV — facture + paiement sur une période", () => {
 		cy.login();
 	});
 
-	it("une facture envoyée + un paiement dans la période apparaissent comme deux lignes du CSV", () => {
+	it("a sent invoice + a payment within the period appear as two rows of the CSV", () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/clients`,
@@ -60,7 +60,7 @@ describe("Export comptable CSV — facture + paiement sur une période", () => {
 					}).then((sent) => expect(sent.status).to.be.oneOf([200, 201]));
 					cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, ["sent"]);
 
-					// Un paiement complet (1200,00 €) daté dans la période.
+					// A payment in full (1200.00 €) dated within the period.
 					cy.request({
 						method: "POST",
 						url: `${api}/api/documents/types/invoice/actions/record-payment`,
@@ -71,7 +71,7 @@ describe("Export comptable CSV — facture + paiement sur une période", () => {
 						},
 					}).then((pay) => expect(pay.status, "paiement enregistré").to.be.oneOf([200, 201]));
 
-					// L'export sur août 2026.
+					// The export for August 2026.
 					cy.request({ url: `${api}/api/accounting-export?from=2026-08-01&to=2026-08-31` }).then((res) => {
 						expect(res.status).to.eq(200);
 						expect(res.headers["content-type"]).to.include("text/csv");
@@ -83,19 +83,19 @@ describe("Export comptable CSV — facture + paiement sur une période", () => {
 						const paymentRows = lines.filter((l) => l.startsWith("payment,"));
 						expect(invoiceRows, "une ligne facture").to.have.length(1);
 						expect(paymentRows, "une ligne paiement").to.have.length(1);
-						// Facture : brut 1200,00 ; paiement : 1200,00 encaissé.
+						// Invoice: gross 1200.00; payment: 1200.00 collected.
 						expect(invoiceRows[0], "brut de la facture").to.include("1200.00");
 						expect(paymentRows[0], "montant encaissé").to.include("1200.00");
 					});
 
-					// Hors période : aucune facture/paiement d'août ne doit apparaître.
+					// Outside the period: no August invoice/payment should appear.
 					cy.request({ url: `${api}/api/accounting-export?from=2026-01-01&to=2026-01-31` }).then((res) => {
 						const lines = (res.body as string).split("\n").filter((l) => l.length > 0);
 						expect(lines.filter((l) => l.startsWith("invoice,")), "rien en janvier").to.have.length(0);
 						expect(lines.filter((l) => l.startsWith("payment,")), "rien en janvier").to.have.length(0);
 					});
 
-					// Bornes manquantes → 400.
+					// Missing bounds → 400.
 					cy.request({ url: `${api}/api/accounting-export`, failOnStatusCode: false }).then((res) => {
 						expect(res.status, "bornes obligatoires").to.eq(400);
 					});

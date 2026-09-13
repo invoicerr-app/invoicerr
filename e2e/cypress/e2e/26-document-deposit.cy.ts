@@ -36,7 +36,7 @@ describe("request-deposit — a real click creates a draft deposit invoice", () 
 							issueDate: "2026-08-30",
 							dueDate: "2026-09-30",
 							currency: "EUR",
-							// Une seule ligne, un seul taux — 200 EUR HT à 20% = 240 EUR TTC.
+							// A single line, a single rate — 200 EUR net at 20% = 240 EUR gross.
 							lines: [{ description: "Conseil", quantity: 1, unitPrice: 200, vatRate: "20" }],
 						},
 					},
@@ -81,7 +81,7 @@ describe("request-deposit — a real click creates a draft deposit invoice", () 
 			const result = interception.response?.body;
 			expect(result?.document?.typeId, "l'action a créé une FACTURE").to.eq("invoice");
 			expect(result?.document?.status, "en brouillon").to.eq("draft");
-			// Ni "multiple VAT rates" ni rien d'autre à choisir : un seul taux sur le devis.
+			// Neither "multiple VAT rates" nor anything else to choose: a single rate on the quote.
 			expect(result?.message, "le taux unique n'exige aucun choix").to.not.match(/multiple VAT rates/);
 
 			const invoiceId = result.document.id;
@@ -97,8 +97,8 @@ describe("request-deposit — a real click creates a draft deposit invoice", () 
 				});
 				expect(invoice.data.lines, "une seule ligne d'acompte").to.have.length(1);
 
-				// Devis : 200 EUR HT + 20% = 240 EUR TTC. Acompte 25% de 240 = 60 EUR — le montant
-				// exact, pas une approximation, et le taux unique du devis repris tel quel.
+				// Quote: 200 EUR net + 20% = 240 EUR gross. 25% deposit of 240 = 60 EUR — the
+				// exact amount, not an approximation, and the quote's single rate carried over as is.
 				expect(invoice.data.lines[0].unitPrice, "montant exact de l'acompte").to.eq(60);
 				expect(invoice.data.lines[0].vatRate, "taux repris du devis mono-taux").to.eq("20");
 				expect(invoice.data.lines[0].description).to.match(/25%/);

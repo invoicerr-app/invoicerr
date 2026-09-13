@@ -102,7 +102,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     // CORRECTED (2026-09-12, phase 2 — see this file's own top-of-file NOTE): this was described as
     // "standard-rated (20%, category S)" as a DELIBERATE B2B choice — it is not. The buyer's own VAT
     // number below, "FR12345678901", FAILS its own French checksum (`tax/vat-syntax.ts#validateFrVat`
-    // — clé = (12 + 3 × (SIREN mod 97)) mod 97: SIREN 345678901 mod 97 = 1, expected key 15, given
+    // — key = (12 + 3 × (SIREN mod 97)) mod 97: SIREN 345678901 mod 97 = 1, expected key 15, given
     // key 12) — `resolveBuyerRole` (`tax/resolve-invoice-tax.ts`) therefore treats this buyer as B2C
     // BEFORE any VIES-style verdict is even consulted ("never a silent B2B"), which for a
     // cross-border GOODS line, same EU union, routes through OSS destination VAT

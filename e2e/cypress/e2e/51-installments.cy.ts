@@ -1,19 +1,20 @@
 /**
- * Facturation échelonnée multi-jalons (TODO_FEATURES.md rang 12) — depuis un devis ENVOYÉ, l'action
- * `request-installments` génère N factures draft (une par échéance, à sa propre date), dont la SOMME
- * des totaux TTC égale EXACTEMENT le TTC du devis. Le découpage (somme nets + somme bruts exacte, le
- * dernier jalon absorbe l'arrondi ; refus multi-taux de TVA) est couvert/mordu en jest
- * (`actions/request-installments.spec.ts`) ; ici on prouve le parcours réel par l'API : 3 jalons
- * 30/40/30 → 3 factures, somme des bruts == TTC du devis, chacune à sa date.
+ * Multi-milestone installment billing (TODO_FEATURES.md rank 12) — from a SENT quote, the
+ * `request-installments` action generates N draft invoices (one per due date, each at its own date),
+ * whose gross-total SUM equals EXACTLY the quote's own gross total. The split (exact net-sum +
+ * gross-sum, the last milestone absorbs the rounding; refusal on mixed VAT rates) is covered/bitten
+ * in jest (`actions/request-installments.spec.ts`); here we prove the real journey through the API:
+ * 3 milestones 30/40/30 → 3 invoices, sum of gross totals == the quote's own gross total, each at
+ * its own date.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
-// Devis : 1000 net @ 20 % → brut 120000 minor. 30/40/30 → bruts 36000/48000/36000 = 120000.
+// Quote: 1000 net @ 20% → gross 120000 minor. 30/40/30 → gross amounts 36000/48000/36000 = 120000.
 const QUOTE_GROSS_MINOR = 120000;
 const D1 = "2026-10-15";
 const D2 = "2026-11-15";
 const D3 = "2026-12-15";
 
-describe("Facturation échelonnée — N factures dont la somme = TTC du devis", () => {
+describe("Installment billing — N invoices whose sum equals the quote's own gross total", () => {
 	let clientEmail: string;
 
 	before(() => {
@@ -29,7 +30,7 @@ describe("Facturation échelonnée — N factures dont la somme = TTC du devis",
 		cy.login();
 	});
 
-	it("un devis à 3 échéances 30/40/30 génère 3 factures draft, somme des bruts = TTC du devis", () => {
+	it("a quote with 3 milestones 30/40/30 generates 3 draft invoices, sum of gross totals = the quote's own gross total", () => {
 		clientEmail = "installments-client@example.com";
 		cy.request({
 			method: "POST",
@@ -56,7 +57,7 @@ describe("Facturation échelonnée — N factures dont la somme = TTC du devis",
 					currency: "EUR",
 					lines: [{ description: "Prestation", quantity: 1, unit: "day", unitPrice: 1000, vatRate: "20" }],
 				};
-				// Devis → brouillon → envoi (l'action d'échéancier exige 'sent').
+				// Quote → draft → send (the installment-schedule action requires 'sent').
 				cy.request({
 					method: "POST",
 					url: `${api}/api/documents/types/quote/actions/save-draft`,
@@ -72,7 +73,7 @@ describe("Facturation échelonnée — N factures dont la somme = TTC du devis",
 					}).then((sent) => expect(sent.status).to.be.oneOf([200, 201]));
 					cy.waitForDocumentStatus(`${api}/api/documents/${quoteId}?typeId=quote`, ["sent"]);
 
-					// L'échéancier : 30/40/30, trois dates.
+					// The installment schedule: 30/40/30, three dates.
 					cy.request({
 						method: "POST",
 						url: `${api}/api/documents/types/quote/actions/request-installments`,
@@ -89,7 +90,7 @@ describe("Facturation échelonnée — N factures dont la somme = TTC du devis",
 						},
 					}).then((res) => expect(res.status, "échéancier généré").to.be.oneOf([200, 201]));
 
-					// Les 3 factures issues de CE devis (via data.origin.id).
+					// The 3 invoices generated from THIS quote (via data.origin.id).
 					cy.request({ url: `${api}/api/documents?typeId=invoice` })
 						.its("body")
 						.then((body) => {
@@ -100,11 +101,11 @@ describe("Facturation échelonnée — N factures dont la somme = TTC du devis",
 							const mine = invoices.filter((d) => d.data?.origin?.id === quoteId);
 							expect(mine, "3 factures d'échéance créées").to.have.length(3);
 
-							// Les dates d'échéance attendues sont bien portées.
+							// The expected due dates are indeed carried over.
 							const dues = mine.map((d) => d.data?.dueDate).sort();
 							expect(dues).to.deep.eq([D1, D2, D3]);
 
-							// Somme des bruts == TTC du devis, à la cent près.
+							// Sum of gross totals == the quote's own gross total, down to the cent.
 							const ids = mine.map((d) => d.id);
 							const grosses: number[] = [];
 							cy.wrap(ids).each((id) => {

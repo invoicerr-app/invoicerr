@@ -1,17 +1,17 @@
 /**
- * L'envoi emporte le PDF (TODO racine, item 4) — prouvé par l'écran, pas seulement en mémoire, même
- * discipline que 17/21/22 : l'ACTION passe par un vrai clic sur "Send", les ASSERTIONS relisent
- * l'enregistrement via l'API (jamais l'écran comme preuve de ce qui est en base) ET le message réel
- * dans Mailpit (le vrai SMTP de la pile e2e — pas de gate nécessaire ici, contrairement au jest
- * send-quote.live.spec.ts, puisque l'e2e utilise déjà un vrai serveur SMTP pour ses autres flux, par
- * ex. le code de vérification par email).
+ * Sending carries the PDF along (root TODO, item 4) — proven by the screen, not only in memory, the
+ * same discipline as 17/21/22: the ACTION goes through a real click on "Send", the ASSERTIONS read
+ * the record back via the API (never the screen as proof of what is in the database) AND the real
+ * message in Mailpit (the e2e stack's real SMTP — no gate needed here, unlike the jest
+ * send-quote.live.spec.ts, since e2e already uses a real SMTP server for its other flows, e.g.
+ * the email verification code).
  *
- * Mailpit est vidé au début de chaque test (`cy.clearEmails()`) pour que "le dernier message" soit
- * sans ambiguïté celui que CE test a produit.
+ * Mailpit is cleared at the start of each test (`cy.clearEmails()`) so that "the last message" is
+ * unambiguously the one THIS test produced.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-describe("L'envoi d'un document emporte son PDF en pièce jointe", () => {
+describe("Sending a document carries its PDF as an attachment", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -20,7 +20,7 @@ describe("L'envoi d'un document emporte son PDF en pièce jointe", () => {
 		cy.login();
 	});
 
-	it('un vrai clic sur "Send" joint le PDF (nommé d\'après le displayNumber) et interpole le sujet', () => {
+	it('a real click on "Send" attaches the PDF (named after the displayNumber) and interpolates the subject', () => {
 		cy.clearEmails();
 
 		cy.request({ url: `${api}/api/documents/references/client/search` })
@@ -46,8 +46,8 @@ describe("L'envoi d'un document emporte son PDF en pièce jointe", () => {
 					expect(quoteId, "le brouillon a un identifiant").to.be.a("string");
 
 					cy.visit("/documents/quote");
-					// Un vrai clic, exactement le motif de 21/22 — jamais un appel direct à l'action qui
-					// contournerait l'écran.
+					// A real click, exactly the pattern from 21/22 — never a direct call to the action that
+					// would bypass the screen.
 					cy.get(`[data-cy="document-row-action-send-${quoteId}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 					cy.get('[data-cy="document-field-recipient-input"]')
@@ -55,13 +55,13 @@ describe("L'envoi d'un document emporte son PDF en pièce jointe", () => {
 						.type("email-test-client@example.com");
 					cy.get('[data-cy="document-action-params-confirm"]').click();
 
-					// La liste confirme l'envoi à l'écran...
+					// The list confirms the send on the screen...
 					cy.get(`[data-cy="document-list-row-${quoteId}"]`, { timeout: 15000 })
 						.find('[data-cy="document-status-badge"]')
 						.should("contain.text", "Sent");
 
-					// ...puis on relit ce qui est réellement enregistré — le displayNumber vient du SERVEUR,
-					// jamais reconstruit ici (même discipline que 22-document-numbering.cy.ts).
+					// ...then we read back what is actually stored — the displayNumber comes from the SERVER,
+					// never rebuilt here (the same discipline as 22-document-numbering.cy.ts).
 					cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })
 						.its("body")
 						.then((doc) => {

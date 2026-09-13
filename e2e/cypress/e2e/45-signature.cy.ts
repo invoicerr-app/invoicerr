@@ -1,13 +1,14 @@
 /**
- * Signature électronique du devis (OTP par email) — DURCIE
- * (GHSA-vhjw-gwc5-pjfp fermé). Prouvé PAR L'ÉCRAN, côté client anonyme : le vendeur demande une
- * signature (action `request-signature` sur un devis "sent"), le client reçoit un lien à jeton
- * haute-entropie par email, ouvre la page publique `/signature/:token`, demande un OTP (envoyé par
- * email), le saisit, et signe — le devis passe SIGNED. Les ASSERTIONS qui comptent relisent l'API ;
- * le vrai OTP et le vrai jeton sont LUS dans Mailpit (jamais devinés), même discipline que
- * 23-document-email.cy.ts. La garantie anti-brute-force (verrou à vie ≤ 0,01 %) et le CSPRNG sont
- * prouvés exhaustivement en jest (`signatures/otp.spec.ts`, `signatures.service.spec.ts`) ; ici on
- * prouve le PARCOURS réel à l'écran + le refus nommé d'un mauvais code.
+ * Electronic quote signature (email OTP) — HARDENED
+ * (GHSA-vhjw-gwc5-pjfp closed). Proven THROUGH THE SCREEN, on the anonymous client side: the seller
+ * requests a signature (`request-signature` action on a "sent" quote), the client receives a
+ * high-entropy token link by email, opens the public `/signature/:token` page, requests an OTP (sent
+ * by email), enters it, and signs — the quote moves to SIGNED. The ASSERTIONS that matter read the
+ * API back; the real OTP and the real token are READ from Mailpit (never guessed), the same
+ * discipline as 23-document-email.cy.ts. The anti-brute-force guarantee (lifetime lockout ≤ 0.01%)
+ * and the CSPRNG are proven exhaustively in jest (`signatures/otp.spec.ts`,
+ * `signatures.service.spec.ts`); here we prove the real on-screen JOURNEY + the named refusal of a
+ * wrong code.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const appOrigin = "http://localhost:6284";
@@ -16,9 +17,9 @@ function bodyOf(message: { Text?: string; HTML?: string }): string {
 	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;
 }
 
-/** Crée un devis, l'envoie (→ "sent"), puis lance `request-signature` — renvoie le jeton de signature
- *  LU dans l'email de demande (jamais fabriqué). Le devis est envoyé au client seedé (qui porte un
- *  contactEmail), exactement le destinataire auquel part le lien de signature. */
+/** Creates a quote, sends it (→ "sent"), then triggers `request-signature` — returns the signature
+ *  token READ from the request email (never fabricated). The quote is sent to the seeded client
+ *  (which carries a contactEmail), exactly the recipient the signature link is sent to. */
 const CLIENT_EMAIL = "sig-client@example.com";
 
 function createSentQuoteAndRequestSignature(): Cypress.Chainable<{
@@ -81,8 +82,8 @@ function createSentQuoteAndRequestSignature(): Cypress.Chainable<{
 						["sent"],
 					);
 
-					// On vide Mailpit JUSTE avant la demande de signature, pour que "le dernier email"
-					// soit sans ambiguïté celui qui porte le lien.
+					// Mailpit is cleared JUST before the signature request, so "the last email" is
+					// unambiguously the one carrying the link.
 					cy.clearEmails();
 					cy.request({
 						method: "POST",
@@ -113,7 +114,7 @@ function createSentQuoteAndRequestSignature(): Cypress.Chainable<{
 		});
 }
 
-describe("Signature électronique du devis — parcours client à l'écran, durci", () => {
+describe("Electronic quote signature — client journey on screen, hardened", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -122,9 +123,9 @@ describe("Signature électronique du devis — parcours client à l'écran, durc
 		cy.login();
 	});
 
-	it("un client ouvre le lien, demande un code, le saisit et SIGNE — le devis passe SIGNED", () => {
+	it("a client opens the link, requests a code, enters it and SIGNS — the quote moves to SIGNED", () => {
 		createSentQuoteAndRequestSignature().then(({ quoteId, token }) => {
-			// La page publique est anonyme (aucune session) — on ne se connecte pas côté client.
+			// The public page is anonymous (no session) — the client side never logs in.
 			cy.clearCookies();
 			cy.clearEmails();
 			cy.visit(`${appOrigin}/signature/${token}`);
@@ -138,8 +139,8 @@ describe("Signature électronique du devis — parcours client à l'écran, durc
 			);
 
 			cy.getLastEmail().then((message: { Text?: string; HTML?: string }) => {
-				// L'email affiche le code en deux moitiés séparées d'un tiret ("1234-5678") — on le
-				// recompose en 8 chiffres pour la saisie.
+				// The email shows the code as two halves separated by a dash ("1234-5678") — it is
+				// recombined into 8 digits for input.
 				const otp = bodyOf(message).match(/\b(\d{4})-(\d{4})\b/);
 				expect(
 					otp,
@@ -157,7 +158,7 @@ describe("Signature électronique du devis — parcours client à l'écran, durc
 				);
 			});
 
-			// La vérité est en base, relue via l'API (jamais l'écran seul) : le devis est SIGNED.
+			// The truth is in the database, read back via the API (never the screen alone): the quote is SIGNED.
 			cy.login();
 			cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })
 				.its("body")
@@ -170,7 +171,7 @@ describe("Signature électronique du devis — parcours client à l'écran, durc
 		});
 	});
 
-	it("un mauvais code est refusé À L'ÉCRAN (message nommé) et NE signe pas le devis", () => {
+	it("a wrong code is refused ON SCREEN (named message) and does NOT sign the quote", () => {
 		createSentQuoteAndRequestSignature().then(({ quoteId, token }) => {
 			cy.clearCookies();
 			cy.visit(`${appOrigin}/signature/${token}`);
@@ -183,8 +184,8 @@ describe("Signature électronique du devis — parcours client à l'écran, durc
 				"be.visible",
 			);
 
-			// Un code volontairement FAUX (jamais celui de l'email) — le refus doit être nommé, jamais
-			// une signature silencieuse.
+			// A deliberately WRONG code (never the one from the email) — the refusal must be named,
+			// never a silent signature.
 			cy.get('[data-cy="signature-card"]')
 				.find("input")
 				.first()

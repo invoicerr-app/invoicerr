@@ -84,7 +84,7 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
       resetUploadDialog()
       setPreview(result)
 
-      // "sinon... l'écran le dit": a MATCHED outcome is already visible
+      // "otherwise... the screen says so": a MATCHED outcome is already visible
       // through the pre-filled "Linked supplier" field itself (no toast needed); anything else, once
       // the file WAS recognized (a plain scanned PDF with nothing to match has nothing to say here),
       // gets a named message so an empty/ambiguous link is never mistaken for a missed one.
@@ -129,7 +129,7 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
 
   const handleActionSuccess = (result: DocumentInstance) => {
     // "receive" never targets a different document type (unlike the quote's "convert-to-invoice") —
-    // closing unconditionally here is what makes "confirmer → le document est received, badge
+    // closing unconditionally here is what makes "confirm -> the document is received, badge
     // visible" true: the list behind this dialog already refetched (useRunDocumentAction's own
     // `invalidateKeys`), so closing just reveals it.
     if (result.status === "received") setPreview(null)

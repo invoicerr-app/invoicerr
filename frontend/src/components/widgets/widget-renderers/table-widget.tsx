@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { TableWidget } from "@/components/widgets/types"
 import type { WidgetRendererProps } from "./registry"
 
-/** The "statistics c'est tout ultra détaillé" shape — every row a contribution decided to include,
+/** The "statistics, all of it, in full detail" shape — every row a contribution decided to include,
  *  every column it decided to name. No sorting/filtering/pagination here: that is exactly the
  *  behavior document-list.tsx already gives every document TYPE's own saved records; this widget is
  *  a plain, honest table of whatever a contribution computed, nothing fancier assumed on top. */

@@ -1,17 +1,17 @@
 /**
- * Relevé de compte client (TODO_FEATURES.md rang 6, ⚡) — vue agrégée par client : factures ouvertes,
- * solde, et balance âgée (current / 0-30 / 31-60 / 60+). L'agrégation (buckets, isolation société)
- * est couverte en jest (`settlement/client-statement.spec.ts`) ; ici on prouve le parcours réel :
- * deux factures « sent » d'échéances différentes → l'endpoint les range dans les bons buckets, et
- * le relevé s'ouvre et les affiche à l'écran. Dates calculées relativement à maintenant pour que le
- * classement âgé soit stable quel que soit le jour d'exécution.
+ * Client account statement (TODO_FEATURES.md rank 6, ⚡) — an aggregated view per client: open
+ * invoices, balance, and aged balance (current / 0-30 / 31-60 / 60+). The aggregation (buckets,
+ * company isolation) is covered in jest (`settlement/client-statement.spec.ts`); here the real
+ * journey is proven: two "sent" invoices with different due dates → the endpoint sorts them into
+ * the right buckets, and the statement opens and displays them on screen. Dates are computed
+ * relative to now so the aged classification stays stable whatever the day of execution.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 const CLIENT_EMAIL = "statement-client@example.com";
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
-const DUE_31_60 = daysAgo(40); // 40 j de retard → bucket 31-60
-const DUE_60_PLUS = daysAgo(72); // 72 j de retard → bucket 60+
+const DUE_31_60 = daysAgo(40); // 40 days overdue → bucket 31-60
+const DUE_60_PLUS = daysAgo(72); // 72 days overdue → bucket 60+
 
 function createClient() {
 	return cy
@@ -63,7 +63,7 @@ function createSentInvoice(clientId: string, dueDate: string, unitPrice: number)
 		});
 }
 
-describe("Relevé de compte client — balance âgée, à l'écran", () => {
+describe("Client account statement — aged balance, on screen", () => {
 	before(() => {
 		cy.resetAndSeed();
 		cy.login();
@@ -78,11 +78,11 @@ describe("Relevé de compte client — balance âgée, à l'écran", () => {
 		cy.login();
 	});
 
-	it("range deux factures échues dans les bons buckets âgés et les affiche dans le relevé", () => {
+	it("sorts two overdue invoices into the right aged buckets and displays them in the statement", () => {
 		createClient().then((clientId: string) => {
 			createSentInvoice(clientId, DUE_31_60, 1000).then((invA) => {
 				createSentInvoice(clientId, DUE_60_PLUS, 500).then((invB) => {
-					// 1) L'endpoint : les buckets âgés reflètent l'échéance de chaque facture.
+					// 1) The endpoint: the aged buckets reflect each invoice's own due date.
 					cy.request({ url: `${api}/api/clients/${clientId}/statement` })
 						.its("body")
 						.then((st) => {
@@ -102,7 +102,7 @@ describe("Relevé de compte client — balance âgée, à l'écran", () => {
 							);
 						});
 
-					// 2) À l'écran : le relevé s'ouvre depuis la fiche client et affiche total + buckets + lignes.
+					// 2) On screen: the statement opens from the client record and displays total + buckets + lines.
 					cy.visit("/clients");
 					cy.get(`[data-cy="statement-client-button-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="client-statement"]', { timeout: 10000 }).should("be.visible");

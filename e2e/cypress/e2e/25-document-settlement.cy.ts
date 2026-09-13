@@ -1,40 +1,40 @@
 /**
- * LE LETTRAGE (item 8 du TODO racine) — un avoir "sent" réduit ce que doit une facture, un avoir
- * "draft" ne solde rien. Même discipline que 17/21/24 : les ACTIONS qui comptent passent par
- * l'interface (un VRAI clic sur "send" pour l'avoir), les ASSERTIONS qui comptent lisent
- * l'enregistrement via l'API, jamais une relecture du DOM comme preuve de ce qui est en base.
+ * RECONCILIATION / SETTLEMENT (root TODO, item 8) — a "sent" credit note reduces what an invoice
+ * owes, a "draft" one settles nothing. Same discipline as 17/21/24: the ACTIONS that matter go
+ * through the interface (a REAL click on "send" for the credit note), the ASSERTIONS that matter
+ * read the record via the API, never a DOM re-read as proof of what's in the database.
  *
- * La fixture (facture + avoir en brouillon référençant sa ligne) est créée via l'API — le formulaire
- * de l'avoir n'offre rien d'utile de plus à prouver par un clic pour la CRÉATION elle-même (un champ
- * référence, une sélection de ligne à cocher) ; c'est le passage draft -> sent qui est le cœur de la
- * tâche, et LUI passe par un vrai clic.
+ * The fixture (invoice + draft credit note referencing its line) is created via the API — the
+ * credit note's own form doesn't offer anything more useful to prove with a click for the CREATION
+ * itself (a reference field, a line-selection checkbox); it's the draft -> sent transition that is
+ * the heart of the task, and THAT one goes through a real click.
  *
- * Une facture à DEUX lignes, 120,00 € TTC au total (12000 unités mineures) :
- *  - ligne A : 60 € net + 20 % de TVA = 72 € TTC (7200 unités mineures) — celle que l'avoir corrige ;
- *  - ligne B : 40 € net + 20 % de TVA = 48 € TTC (4800 unités mineures) — payée cash.
- * Dans l'ordre :
- *  1. facture envoyée (API — son propre "send" est déjà couvert par 21/24), un paiement de 48,00 €
- *     enregistré par un VRAI clic (dialogue d'action) ;
- *  2. un avoir en BROUILLON, créé par l'API, référençant la ligne A — le solde ne bouge PAS
- *     (assertion API) : paidMinor reste à 4800, creditedMinor reste à 0 ;
- *  3. l'avoir envoyé par un VRAI clic depuis la liste des avoirs → le solde de la FACTURE baisse
- *     (4800 payé + 7200 crédité = 12000, outstandingMinor: 0, settled: true), paidMinor reste
- *     EXACTEMENT à ce qui a été payé (4800) — jamais gonflé par l'avoir ;
- *  4. à l'écran (dialogue de la facture) : les TROIS blocs (paiements, avoirs, solde) s'affichent,
- *     jamais mélangés, et le badge devient "Settled".
+ * An invoice with TWO lines, €120.00 gross total (12000 minor units):
+ *  - line A: €60 net + 20% VAT = €72 gross (7200 minor units) — the one the credit note corrects;
+ *  - line B: €40 net + 20% VAT = €48 gross (4800 minor units) — paid in cash.
+ * In order:
+ *  1. invoice sent (API — its own "send" is already covered by 21/24), a payment of €48.00
+ *     recorded via a REAL click (action dialog);
+ *  2. a DRAFT credit note, created via the API, referencing line A — the balance does NOT move
+ *     (API assertion): paidMinor stays at 4800, creditedMinor stays at 0;
+ *  3. the credit note sent via a REAL click from the credit-note list → the INVOICE's balance
+ *     drops (4800 paid + 7200 credited = 12000, outstandingMinor: 0, settled: true), paidMinor
+ *     stays EXACTLY at what was actually paid (4800) — never inflated by the credit note;
+ *  4. on screen (the invoice dialog): the THREE blocks (payments, credits, balance) are
+ *     displayed, never mixed together, and the badge becomes "Settled".
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-const INVOICE_GROSS_MINOR = 12000; // 60+40 € net, 20 % de TVA sur chaque ligne.
-const LINE_A_GROSS_MINOR = 7200; // ce que l'avoir corrige.
-const PAYMENT_MINOR = 4800; // ce qui est réellement payé, sur la ligne B.
+const INVOICE_GROSS_MINOR = 12000; // 60+40 € net, 20% VAT on each line.
+const LINE_A_GROSS_MINOR = 7200; // what the credit note corrects.
+const PAYMENT_MINOR = 4800; // what is actually paid, on line B.
 
-describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoir DRAFT ne solde rien", () => {
+describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAFT one settles nothing", () => {
 	before(() => {
 		cy.resetAndSeed();
 
-		// "send" sur une facture a besoin d'un transport configuré (voir invoice-actions.ts) — même
-		// mise en place que 21/24 pour leurs propres suites.
+		// "send" on an invoice needs a configured transport (see invoice-actions.ts) — the same
+		// setup as 21/24 for their own suites.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
@@ -53,7 +53,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 	let lineARowId: string;
 	let creditNoteId: string;
 
-	it('une facture à deux lignes est envoyée, et un paiement PARTIEL (la ligne B) est enregistré par un vrai clic', () => {
+	it('a two-line invoice is sent, and a PARTIAL payment (line B) is recorded via a real click', () => {
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
@@ -88,9 +88,9 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 					}).then((sent) => {
 						expect(sent.status, "facture envoyée").to.be.oneOf([200, 201]);
 
-						// La ligne A a reçu un $rowId stable au moment de cet enregistrement
-						// (row-selection.ts's stampRowIds) — relu ici pour construire l'avoir plus bas,
-						// jamais deviné.
+						// Line A received a stable $rowId at the moment of this save
+						// (row-selection.ts's stampRowIds) — read back here to build the credit note
+						// below, never guessed.
 						const lines = sent.body.document.data.lines as { $rowId: string; description: string }[];
 						const lineA = lines.find((line) => line.description === "Ligne A");
 						expect(lineA, "la ligne A existe et porte un $rowId").to.not.be.undefined;
@@ -131,7 +131,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 			});
 	});
 
-	it("un avoir en BROUILLON, créé par l'API et référençant la ligne A, ne change RIEN au solde (assertion API)", () => {
+	it("a DRAFT credit note, created via the API and referencing line A, changes NOTHING in the balance (API assertion)", () => {
 		expect(invoiceId, "la facture du test précédent existe toujours").to.be.a("string");
 		expect(lineARowId, "le $rowId de la ligne A a été relevé").to.be.a("string");
 
@@ -153,9 +153,9 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 			expect(creditNoteId, "le brouillon d'avoir a un identifiant").to.be.a("string");
 			expect(saved.body.document.status, "l'avoir est bien un brouillon").to.eq("draft");
 
-			// Le solde de la FACTURE ne bouge pas tant que l'avoir reste un brouillon — c'est le
-			// commentaire exact de l'ancien code (settlement.ts, avant-refonte-documents) : un
-			// document que l'utilisateur n'a pas fini ne solde rien.
+			// The INVOICE's balance does not move as long as the credit note stays a draft — this is
+			// the exact comment from the old code (settlement.ts, avant-refonte-documents): a
+			// document the user hasn't finished settles nothing.
 			cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })
 				.its("body")
 				.then((body) => {
@@ -168,16 +168,16 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 		});
 	});
 
-	it('un VRAI clic sur "Send" pour l\'avoir fait baisser le solde de la facture — paidMinor JAMAIS gonflé par l\'avoir', () => {
+	it('a REAL click on "Send" for the credit note lowers the invoice\'s balance — paidMinor NEVER inflated by the credit note', () => {
 		expect(creditNoteId, "l'avoir du test précédent existe toujours").to.be.a("string");
 
 		cy.visit("/documents/credit-note");
 		cy.get(`[data-cy="document-row-action-send-${creditNoteId}"]`, { timeout: 15000 }).click();
 
-		// Attend que l'écran reflète la mutation (le clic ne fait que déclencher la requête —
-		// `cy.request` ci-dessous est un appel Node direct, capable de dépasser en course le fetch
-		// du navigateur si on ne l'attend pas d'abord) avant de relire l'API, même motif que 21's
-		// propre "le statut affiché change...".
+		// Waits for the screen to reflect the mutation (the click only triggers the request —
+		// the `cy.request` below is a direct Node call, able to outrace the browser's own fetch
+		// if it isn't awaited first) before reading back the API, the same reasoning as 21's own
+		// "the displayed status changes...".
 		cy.get(`[data-cy="document-list-row-${creditNoteId}"]`, { timeout: 15000 })
 			.find('[data-cy="document-status-badge"]')
 			.should("contain.text", "Sent");
@@ -189,7 +189,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 		cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })
 			.its("body")
 			.then((body) => {
-				// Les deux lignes restent SÉPARÉES — jamais fusionnées — et leur SOMME solde la facture.
+				// The two lines stay SEPARATE — never merged — and their SUM settles the invoice.
 				expect(body.settlement.paidMinor, "paidMinor n'a pas bougé — l'avoir n'est pas un paiement").to.eq(
 					PAYMENT_MINOR,
 				);
@@ -206,7 +206,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 			});
 	});
 
-	it('à l\'écran : les TROIS blocs (paiements, avoirs, solde) s\'affichent séparément, et le badge devient "Settled"', () => {
+	it('on screen: the THREE blocks (payments, credits, balance) are displayed separately, and the badge becomes "Settled"', () => {
 		expect(invoiceId, "la facture des tests précédents existe toujours").to.be.a("string");
 
 		cy.visit("/documents/invoice");
@@ -217,26 +217,26 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 			.scrollIntoView()
 			.should("be.visible");
 
-		// Le badge dit "Settled" dès que outstanding=0 — jamais "Paid" (rien n'a été intégralement
-		// payé : une partie vient d'un avoir) — voir document-settlement.tsx.
+		// The badge says "Settled" as soon as outstanding=0 — never "Paid" (nothing was fully
+		// paid: part of it comes from a credit note) — see document-settlement.tsx.
 		cy.get('[data-cy="document-settlement-badge"]').should("contain.text", "Settled");
 		cy.get('[data-cy="document-settlement-outstanding"]').should("contain.text", "0.00 EUR");
 
-		// Bloc 1 : le paiement — un seul, celui de 48,00 €.
+		// Block 1: the payment — a single one, the €48.00 one.
 		cy.get('[data-cy="document-settlement-payments-list"]').within(() => {
 			cy.get('[data-cy^="document-settlement-payment-"]').should("have.length", 1);
 		});
 		cy.get('[data-cy="document-settlement-payments-list"]').should("contain.text", "48.00 EUR");
 
-		// Bloc 2 : l'avoir — SÉPARÉ de la liste des paiements ci-dessus, jamais mélangé, avec son
-		// propre identifiant (le "lien visuel" vers l'avoir) et son propre montant.
+		// Block 2: the credit note — SEPARATE from the payments list above, never mixed in, with
+		// its own identifier (the "visual link" to the credit note) and its own amount.
 		cy.get('[data-cy="document-settlement-credits-list"]').within(() => {
 			cy.get('[data-cy^="document-settlement-credit-"]').should("have.length", 1);
 		});
 		cy.get(`[data-cy="document-settlement-credit-${creditNoteId}"]`).should("contain.text", "72.00 EUR");
 		cy.get(`[data-cy="document-settlement-credit-${creditNoteId}"]`).should("contain.text", creditNoteId);
 
-		// Bloc 3 : le solde lui-même — paid et credited restent deux lignes distinctes.
+		// Block 3: the balance itself — paid and credited stay two distinct lines.
 		cy.get('[data-cy="document-settlement-paid"]').should("contain.text", "48.00 EUR");
 		cy.get('[data-cy="document-settlement-credited"]').should("contain.text", "72.00 EUR");
 	});
@@ -244,7 +244,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
 
 /**
  * This file's own header, above, used to say the credit note's CREATION
- * form had "rien d'utile de plus à prouver par un clic" beyond a reference field and a checkbox:
+ * form had "nothing more useful to prove with a click" beyond a reference field and a checkbox:
  * true once, no longer true now that `currency` (credit-note.descriptor.ts) declares
  * `lockedFromReference` — THIS is the one screen behaviour that only shows up by actually creating
  * an avoir through the dialog, never through the API-only fixture the rest of this file uses.
@@ -254,7 +254,7 @@ describe("Le lettrage — un avoir SENT réduit ce que doit une facture, un avoi
  * ORDERED sequence of `it`s (line A/line B, partial payment, settlement); this only needs one
  * throwaway invoice, created fresh, with no bearing on that sequence.
  */
-describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige", () => {
+describe("A credit note created ON SCREEN follows the currency of the invoice it corrects", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -263,7 +263,7 @@ describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige
 		cy.login();
 	});
 
-	it("le champ devise se pré-remplit et se verrouille sur celle de la facture choisie, jamais un second choix indépendant", () => {
+	it("the currency field pre-fills and locks onto the chosen invoice's own currency, never a second independent choice", () => {
 		// A USD invoice — deliberately DIFFERENT from the seeded company's own EUR default, so
 		// "the currency follows the invoice" is unambiguous (never a coincidence with some other
 		// default this test didn't control for).
@@ -341,9 +341,9 @@ describe("Un avoir créé À L'ÉCRAN suit la devise de la facture qu'il corrige
 						const creditNoteId = interception.response?.body?.document?.id as string;
 						expect(creditNoteId).to.be.a("string");
 
-						// La preuve qui compte : PERSISTÉ en USD, jamais silencieusement écrasé par un
-						// autre choix — même discipline "jamais l'écran seul comme preuve" que ce
-						// fichier's own header documente pour le reste de la suite.
+						// The proof that matters: PERSISTED in USD, never silently overwritten by
+						// another choice — the same "never the screen alone as proof" discipline this
+						// file's own header documents for the rest of the suite.
 						cy.request({ url: `${api}/api/documents/${creditNoteId}?typeId=credit-note` })
 							.its("body")
 							.then((doc) => {

@@ -1,27 +1,27 @@
 /**
- * Gabarits d'email PAR TYPE DE DOCUMENT (`Settings > Email Templates`, onglet `/settings/email`) —
- * jusqu'ici sans AUCUNE couverture e2e : `09-settings.cy.ts` ne visite jamais cet onglet, et
- * `23-document-email.cy.ts` ne prouve qu'un seul fait (un clic réel sur "Send" joint le PDF et
- * interpole le sujet), jamais que l'ÉDITEUR lui-même enregistre, révoque, ou refuse ce que le
- * serveur refuse. La grammaire des placeholders (simple accolade `{nom}`), le contrat "un
- * placeholder inconnu est SIGNALÉ, jamais refusé" et le contrat opposé "un sujet vide, ou ni corps
- * ni html, EST refusé" sont déjà prouvés unitairement côté serveur
+ * Email templates PER DOCUMENT TYPE (`Settings > Email Templates`, `/settings/email` tab) —
+ * until now with NO e2e coverage at all: `09-settings.cy.ts` never visits this tab, and
+ * `23-document-email.cy.ts` only proves a single fact (a real click on "Send" attaches the PDF and
+ * interpolates the subject), never that the EDITOR itself saves, revokes, or refuses what the
+ * server refuses. The placeholder grammar (simple `{name}` braces), the contract "an
+ * unknown placeholder is FLAGGED, never refused" and the opposite contract "an empty subject, or
+ * neither body nor html, IS refused" are already proven at the unit level on the server side
  * (`backend/src/modules/documents/actions/email-template.spec.ts`,
- * `documents.service.email-templates.spec.ts`) ; ce fichier prouve que l'ÉCRAN respecte exactement
- * ce même contrat, bout en bout.
+ * `documents.service.email-templates.spec.ts`); this file proves that the SCREEN honors exactly
+ * this same contract, end to end.
  *
- * Discipline habituelle : les ACTIONS passent par l'écran (taper, cliquer), les ASSERTIONS qui
- * comptent relisent l'API — jamais le DOM qu'on vient de remplir comme preuve de ce qui est
- * réellement stocké.
+ * Usual discipline: ACTIONS go through the screen (typing, clicking), the ASSERTIONS that
+ * matter read the API back — never the DOM we just filled in as proof of what is
+ * actually stored.
  *
- * Deux types choisis délibérément pour leurs FORMES différentes (voir ce même fichier backend,
- * `derives the right vocabulary for each shipped type`) :
- *  - `quote` / `invoice` : un client (`recipientName`) et des lignes chiffrées (`totalGross`).
- *  - `expense` : ni l'un ni l'autre — la vocabulaire minimale (`companyName`, `displayNumber`,
+ * Two types chosen deliberately for their different SHAPES (see this same file on the backend,
+ * `derives the right vocabulary for each shipped type`):
+ *  - `quote` / `invoice`: a client (`recipientName`) and priced lines (`totalGross`).
+ *  - `expense`: neither one — the minimal vocabulary (`companyName`, `displayNumber`,
  *    `typeLabel`).
- * C'est `invoice`/`expense`, pas `invoice`/`quote`, qui prouve que le vocabulaire est GENUINEMENT
- * par type : `quote` et `invoice` ont en réalité le même jeu de clés (les deux ont un client ET des
- * lignes chiffrées), seul le texte des exemples diffère.
+ * It is `invoice`/`expense`, not `invoice`/`quote`, that proves the vocabulary is GENUINELY
+ * per type: `quote` and `invoice` actually share the same set of keys (both have a client AND
+ * priced lines), only the example text differs.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -40,31 +40,31 @@ interface DocumentEmailTemplateApiView {
 	variables: Record<string, string>;
 }
 
-/** Relit le gabarit RÉSOLU d'un type — la même lecture que l'écran fait lui-même à l'ouverture, mais
- *  ici comme preuve indépendante du DOM. */
+/** Reads back the RESOLVED template of a type — the same read the screen itself does on open, but
+ *  here as evidence independent of the DOM. */
 function getDocumentEmailTemplate(typeId: string) {
 	return cy
 		.request({ url: `${api}/api/documents/types/${typeId}/email-template` })
 		.its("body") as Cypress.Chainable<DocumentEmailTemplateApiView>;
 }
 
-/** Ouvre l'éditeur d'un type par un clic réel sur son toggle, et attend que le champ sujet soit bien
- *  monté avant de continuer — l'éditeur n'existe dans le DOM que pendant que la ligne est dépliée
- *  (`templates.settings.tsx`'s own "un seul éditeur ouvert à la fois"). N'exige que l'EXISTENCE, pas
- *  la visibilité : `<main>` (`-[tab].tsx`) est un panneau `overflow-auto`, et une carte pour un type
- *  situé plus bas dans la liste (ex. "invoice") s'ouvre hors du viewport visible tant qu'on n'a pas
- *  scrollé — Cypress rapporte alors, à raison, un champ "clipped by a parent... overflow", ce qui
- *  n'est pas un bug de l'écran. Les actions réelles qui suivent (`.clear()`/`.type()`) scrollent
- *  elles-mêmes l'élément dans la vue avant d'agir. */
+/** Opens a type's editor via a real click on its toggle, and waits for the subject field to be
+ *  properly mounted before continuing — the editor only exists in the DOM while the row is expanded
+ *  (`templates.settings.tsx`'s own "only one editor open at a time"). Only requires EXISTENCE, not
+ *  visibility: `<main>` (`-[tab].tsx`) is an `overflow-auto` panel, and a card for a type
+ *  further down the list (e.g. "invoice") opens outside the visible viewport until it has been
+ *  scrolled to — Cypress then rightly reports a field "clipped by a parent... overflow", which
+ *  is not a screen bug. The real actions that follow (`.clear()`/`.type()`) scroll
+ *  the element into view themselves before acting. */
 function openTemplateEditor(typeId: string) {
 	cy.get(`[data-cy="email-template-toggle-${typeId}"]`, { timeout: 15000 }).click();
 	cy.get(`[data-cy="email-template-subject-${typeId}"]`, { timeout: 10000 }).should("exist");
 }
 
-describe("Settings — gabarits d'email par type de document", () => {
-	// Une seule capture du gabarit PAR DÉFAUT de "quote", prise avant que tout test n'y touche —
-	// c'est CE gabarit-là (pas une valeur recopiée à la main, qui divergerait le jour où le
-	// descripteur change) que le test de révocation doit retrouver.
+describe("Settings — email templates per document type", () => {
+	// A single capture of "quote"'s DEFAULT template, taken before any test touches it —
+	// it is THIS template (not a hand-copied value, which would diverge the day the
+	// descriptor changes) that the revocation test must find again.
 	let quoteDefaultTemplate: DocumentEmailTemplateApiView;
 
 	before(() => {
@@ -79,14 +79,14 @@ describe("Settings — gabarits d'email par type de document", () => {
 		cy.login();
 	});
 
-	it("l'onglet charge sur /settings/email et liste chaque type de document avec le gabarit qui s'applique réellement", () => {
+	it("the tab loads at /settings/email and lists every document type with the template that actually applies", () => {
 		cy.request({ url: `${api}/api/documents/types` })
 			.its("body")
 			.then((types: DocumentTypeSummary[]) => {
 				const ids = types.map((type) => type.id);
-				// Les cinq types que cette branche enregistre (documents-core.module.ts) — si l'un
-				// disparaissait silencieusement du registre, c'est ICI que ça casserait, pas seulement
-				// à l'écran.
+				// The five types this branch registers (documents-core.module.ts) — if one of them
+				// silently disappeared from the registry, THIS is where it would break, not only
+				// on the screen.
 				expect(ids, "les types de document que cette branche enregistre").to.include.members([
 					"quote",
 					"invoice",
@@ -107,9 +107,9 @@ describe("Settings — gabarits d'email par type de document", () => {
 							);
 						}
 
-						// Déplier UN type montre l'éditeur PRÉ-REMPLI avec exactement ce que l'API dit
-						// s'appliquer — la preuve que l'écran charge le gabarit RÉSOLU, pas un formulaire
-						// vide ni un texte codé en dur.
+						// Expanding ONE type shows the editor PRE-FILLED with exactly what the API says
+						// applies — the proof that the screen loads the RESOLVED template, not an empty
+						// form nor hard-coded text.
 						const invoiceTemplate = templates.find((t) => t.typeId === "invoice");
 						expect(invoiceTemplate, "le type invoice a une entrée").to.exist;
 						openTemplateEditor("invoice");
@@ -122,15 +122,15 @@ describe("Settings — gabarits d'email par type de document", () => {
 			});
 	});
 
-	it("modifier le sujet et le corps d'un type par l'écran les enregistre, et l'API rapporte une surcharge de la société", () => {
+	it("editing a type's subject and body via the screen saves them, and the API reports a company override", () => {
 		const distinctiveSubject = "Sujet distinctif e2e {displayNumber}";
 		const distinctiveBody = "Corps distinctif e2e — rien à voir avec le gabarit livré.";
 
 		cy.visit("/settings/email");
 		openTemplateEditor("quote");
 
-		// `{displayNumber}` contient des accolades qu'un `.type()` cypress interpréterait sinon comme
-		// une séquence spéciale (`{selectall}`, etc.) — désactivé ici pour taper l'accolade littérale.
+		// `{displayNumber}` contains braces that a cypress `.type()` would otherwise interpret as
+		// a special sequence (`{selectall}`, etc.) — disabled here to type the literal brace.
 		cy.get('[data-cy="email-template-subject-quote"]')
 			.clear()
 			.type(distinctiveSubject, { parseSpecialCharSequences: false });
@@ -146,7 +146,7 @@ describe("Settings — gabarits d'email par type de document", () => {
 		});
 	});
 
-	it("la révocation par l'écran fait réapparaître le gabarit livré, et source n'est plus une surcharge", () => {
+	it("revoking via the screen brings back the shipped template, and source is no longer an override", () => {
 		cy.visit("/settings/email");
 		openTemplateEditor("quote");
 
@@ -163,13 +163,13 @@ describe("Settings — gabarits d'email par type de document", () => {
 		});
 	});
 
-	it("un placeholder inconnu s'enregistre AVEC SUCCÈS et fait apparaître un avertissement — signalé, jamais refusé", () => {
+	it("an unknown placeholder saves SUCCESSFULLY and surfaces a warning — flagged, never refused", () => {
 		const subjectWithTypo = "Merci pour votre devis {notAThing}";
 
 		cy.visit("/settings/email");
 		openTemplateEditor("quote");
 
-		// Aucun avertissement avant cet enregistrement — l'état vient d'être rechargé depuis zéro.
+		// No warning before this save — the state was just reloaded from scratch.
 		cy.get('[data-cy="email-template-warnings"]').should("not.exist");
 
 		cy.get('[data-cy="email-template-subject-quote"]')
@@ -177,7 +177,7 @@ describe("Settings — gabarits d'email par type de document", () => {
 			.type(subjectWithTypo, { parseSpecialCharSequences: false });
 		cy.get('[data-cy="email-template-save-quote"]').click();
 
-		// L'enregistrement a RÉUSSI (jamais un 400) — un toast de succès, jamais un toast d'erreur.
+		// The save SUCCEEDED (never a 400) — a success toast, never an error toast.
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "saved successfully");
 
 		cy.get('[data-cy="email-template-warnings"]', { timeout: 10000 })
@@ -192,15 +192,15 @@ describe("Settings — gabarits d'email par type de document", () => {
 		});
 	});
 
-	it("refuse un sujet vide — le bouton Enregistrer se désactive plutôt que d'envoyer une requête, et l'API elle-même répond 400", () => {
+	it("refuses an empty subject — the Save button disables itself rather than sending a request, and the API itself replies 400", () => {
 		cy.visit("/settings/email");
 		openTemplateEditor("quote");
 
 		cy.get('[data-cy="email-template-subject-quote"]').clear();
 		cy.get('[data-cy="email-template-save-quote"]').should("be.disabled");
 
-		// Le second côté du même contrat, prouvé directement contre l'API — jamais fié uniquement à
-		// ce que l'écran empêche de faire.
+		// The other side of the same contract, proven directly against the API — never relying only
+		// on what the screen prevents doing.
 		cy.request({
 			method: "PUT",
 			url: `${api}/api/documents/types/quote/email-template`,
@@ -211,7 +211,7 @@ describe("Settings — gabarits d'email par type de document", () => {
 		});
 	});
 
-	it("le vocabulaire de placeholders est GENUINEMENT par type — invoice et expense n'annoncent pas la même liste", () => {
+	it("the placeholder vocabulary is GENUINELY per type — invoice and expense do not advertise the same list", () => {
 		getDocumentEmailTemplate("invoice").then((invoiceTemplate) => {
 			getDocumentEmailTemplate("expense").then((expenseTemplate) => {
 				const invoiceKeys = Object.keys(invoiceTemplate.variables).sort();
@@ -233,12 +233,12 @@ describe("Settings — gabarits d'email par type de document", () => {
 		});
 	});
 
-	// Le payoff bout en bout : le sujet configuré par l'écran doit être celui que Mailpit reçoit
-	// réellement — même discipline que 23-document-email.cy.ts (relecture Mailpit, jamais devinée),
-	// et même mécanique de clic que 42-webhooks.cy.ts pour l'envoi d'une facture : l'action "send" de
-	// invoice ne déclare AUCUN param (invoice.descriptor.ts), donc un clic réel l'exécute directement
-	// sans dialogue — voir use-document-action-runner.ts's own `if (!action.params ...)`.
-	it("un sujet distinctif configuré pour invoice se retrouve, interpolé, dans le vrai email envoyé", () => {
+	// The end-to-end payoff: the subject configured via the screen must be the one Mailpit actually
+	// receives — the same discipline as 23-document-email.cy.ts (Mailpit read-back, never guessed),
+	// and the same click mechanics as 42-webhooks.cy.ts for sending an invoice: invoice's "send"
+	// action declares NO param (invoice.descriptor.ts), so a real click executes it directly
+	// with no dialog — see use-document-action-runner.ts's own `if (!action.params ...)`.
+	it("a distinctive subject configured for invoice is found, interpolated, in the real email sent", () => {
 		const marker = "E2E-TEMPLATE-MARKER";
 		const distinctiveSubject = `${marker} {displayNumber}`;
 
@@ -252,10 +252,10 @@ describe("Settings — gabarits d'email par type de document", () => {
 
 		cy.clearEmails();
 
-		// Sans transport configuré, "send" refuse tout net (501, `invoice-actions.ts`'s own
-		// `getCompanyInvoiceTransportId` guard) — un frais `resetAndSeed()` n'en configure aucun, donc
-		// ce réglage est un préalable au clic, pas la chose sous test ici (même étape que
-		// 42-webhooks.cy.ts avant son propre envoi de facture).
+		// With no transport configured, "send" flatly refuses (501, `invoice-actions.ts`'s own
+		// `getCompanyInvoiceTransportId` guard) — a fresh `resetAndSeed()` never configures one, so
+		// this setting is a prerequisite to the click, not the thing under test here (the same step
+		// as 42-webhooks.cy.ts before its own invoice send).
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,

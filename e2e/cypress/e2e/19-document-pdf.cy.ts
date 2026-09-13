@@ -160,17 +160,17 @@ describe("Document PDF rendering", () => {
 						timeout: 10000,
 					}).should("exist");
 
-					// Le bouton doit être CLIQUÉ, pas seulement vu. La première version ne vérifiait que
-					// son existence — et il était MORT : un `fetch` relatif partait vers le serveur Vite,
-					// sans cookie, et personne ne le voyait. Troisième bouton mort de cette famille ici.
-					// On intercepte la vraie requête que le clic déclenche et on exige un PDF en retour.
+					// The button must be CLICKED, not just seen. The first version only checked
+					// its existence — and it was DEAD: a relative `fetch` went to the Vite server,
+					// with no cookie, and nobody noticed. Third dead button of this family here.
+					// We intercept the real request the click triggers and require a PDF back.
 					cy.intercept({
 						method: "GET",
 						pathname: `/api/documents/${id}/pdf`,
 					}).as("pdf");
 					cy.window().then((win) => {
-						// window.open ouvrirait un onglet que Cypress ne contrôle pas — on le neutralise,
-						// l'assertion porte sur la requête réseau réelle, pas sur l'onglet.
+						// window.open would open a tab Cypress doesn't control — we neutralize it,
+						// the assertion targets the real network request, not the tab.
 						cy.stub(win, "open").as("windowOpen");
 					});
 					cy.get(`[data-cy="document-pdf-button-${id}"]`).click();

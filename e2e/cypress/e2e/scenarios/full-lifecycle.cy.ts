@@ -114,7 +114,7 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  * ## House discipline this file follows (see 21/31/35 for the precedent)
  *
  * Actions through a real click; assertions through the API — with ONE documented exception per house
- * convention (35's own "sans pays" client): the client form renders exactly the identifier schemes
+ * convention (35's own "no country" client): the client form renders exactly the identifier schemes
  * the buyer country's own `country-identifiers/data/<cc>.json` declares, and nothing else. When a
  * buyer's VAT number has no input to go in, the client is created through the API instead, its
  * absence from the form asserted FIRST as the gap it is — the way 35 documents its own API-only
@@ -554,7 +554,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		if (buyer.vat && !buyer.formOffers.includes("VAT")) {
 			// The form genuinely cannot carry this buyer's VAT number — close without submitting and
 			// finish creating the client through the API instead, exactly the documented exception
-			// `35-cross-border-tax.cy.ts` already establishes for its own "sans pays" client.
+			// `35-cross-border-tax.cy.ts` already establishes for its own "no country" client.
 			// Note the condition is about the SCHEME, not about the country having a file at all:
 			// Poland has a file and still offers no VAT input, which is precisely the case here.
 			cy.get('[data-cy="client-cancel"]').click();
@@ -712,12 +712,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/,
 					);
 					expect(body, "category K").to.contain("<ram:CategoryCode>K</ram:CategoryCode>");
-					// La mention est désormais celle que la loi du VENDEUR nomme, pas le texte générique
-					// citant la directive : le vendeur est italien, et le D.L. 331/1993 art. 46 comma 2
-					// impose d'indiquer, en lieu et place du montant de la taxe, « che si tratta di
-					// operazione non imponibile ». Attention au piège de citation : l'intracommunautaire
-					// relève de ce texte-là, PAS du DPR 633/1972 art. 21 comma 6 lett. b), qui énumère les
-					// cas d'exportation (art. 8, 8-bis, 9, 38-quater) et porte pourtant le même libellé.
+					// The mention is now the one the SELLER's own law names, not the generic text citing
+					// the directive: the seller is Italian, and D.L. 331/1993 art. 46 comma 2 requires
+					// stating, in place of the tax amount, « che si tratta di
+					// operazione non imponibile ». Watch out for a citation trap: intra-Community supply
+					// falls under that text, NOT DPR 633/1972 art. 21 comma 6 lett. b), which lists the
+					// export cases (art. 8, 8-bis, 9, 38-quater) and yet carries the same wording.
 					expect(body, "mention italienne « operazione non imponibile »").to.contain(
 						"operazione non imponibile",
 					);
@@ -792,11 +792,11 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// DIFFERENT country pair, proving the engine composes rather than special-cases one pair.
 					expect(body, "0% (reverse charge)").to.match(/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/);
 					expect(body, "category AE").to.contain("<ram:CategoryCode>AE</ram:CategoryCode>");
-					// Le vendeur est PORTUGAIS, et le CIVA art. 36.º n.º 13 impose l'expression exacte
-					// « IVA - autoliquidação » dès lors que le destinataire est redevable de la taxe. La
-					// jambe fr-pl garde, elle, le texte générique citant la directive : la France n'impose
-					// aucune formulation, et c'est ce contraste qui prouve que le moteur suit la loi du
-					// VENDEUR au lieu d'appliquer une seule phrase à tout le monde.
+					// The seller is PORTUGUESE, and CIVA art. 36.º n.º 13 requires the exact expression
+					// « IVA - autoliquidação » whenever the recipient is liable for the tax. The
+					// fr-pl leg, by contrast, keeps the generic text citing the directive: France imposes
+					// no specific wording, and that contrast is what proves the engine follows the
+					// SELLER's own law instead of applying one sentence to everyone.
 					expect(body, "mention portugaise d'autoliquidation").to.contain("IVA - autoliquidação");
 				}
 
@@ -942,8 +942,8 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		} else if (scenarioId === "it-it") {
 			// Italy — CANCEL_AND_REPLACE is "allowed" and `implemented: true` (Italy IS in
 			// `cancel-policy.ts`'s whitelist), so the button is choosable and the confirmation step opens.
-			// Italy's own local cancel is `restrictedToStatuses: ['send_failed']` ("après scarto
-			// UNIQUEMENT" — `cancel-policy.ts`'s own header: "this app's own 'send_failed' status IS
+			// Italy's own local cancel is `restrictedToStatuses: ['send_failed']` ("only after a
+			// scarto" — `cancel-policy.ts`'s own header: "this app's own 'send_failed' status IS
 			// SdI's scarto"). Before the SdI mandate was armed (2026-09-13), this invoice reached "sent"
 			// via plain email, the ONE status this route does NOT cover, so the backend used to refuse
 			// with a named 409. Now that the mandate is armed, the earlier test's own two-step proof
@@ -987,7 +987,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// clearance/refusal-then-reissue mechanism was FOUND in the primary Decreto-Lei text read for
 			// this catalog — an honest "nobody has settled this", not a permission). `isChoosable` treats
 			// unverified as NOT choosable — disabled, with its own resolution note shown as the reason, the
-			// same "« non établi » n'est pas « permis »" discipline `invoice-correction-routes-button.tsx`'s
+			// same "not established" is not "permitted" discipline `invoice-correction-routes-button.tsx`'s
 			// own header names. The SEPARATE Portuguese ATCUD requirement (Portaria n.º 195/2020) — once a
 			// real gap this leg did not exercise — IS now exercised, earlier in this same file: see
 			// `configurePortugueseAtcud`'s own header and its call site, right before this leg's own main

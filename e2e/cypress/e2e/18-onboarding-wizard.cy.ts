@@ -12,7 +12,7 @@
  *   - a country with a real register provider (France, INSEE SIRENE) — the identifier
  *     step's "Next" fires a real search and the result really lands in the database;
  *   - a country with no dedicated register (only the worldwide GLEIF/Peppol fallbacks,
- *     which is what "no fournisseur" means in company-lookup/registry.ts's own
+ *     which is what "no provider" means in company-lookup/registry.ts's own
  *     `coverage: PARTIAL` — see that file's header) — no automatic search is even
  *     attempted, and manual entry is preserved untouched;
  *   - a country with a register whose search comes up empty — the wizard still
@@ -67,30 +67,31 @@ function finishFromChannelsStep() {
 
 describe("Onboarding wizard — company-lookup drives the identifier step", () => {
 	/**
-	 * Deux affirmations très différentes vivaient dans un seul test, et l'une d'elles faisait
-	 * dépendre le vert quotidien d'une API gouvernementale tierce.
+	 * Two very different claims lived inside a single test, and one of them made the daily
+	 * green depend on a third-party government API.
 	 *
-	 *   — « le parcours marche » : la recherche part, l'assistant avance, ce que l'utilisateur a
-	 *     saisi finit en base. Vrai que le registre réponde ou non. TOUJOURS exécuté.
-	 *   — « le registre français répond vraiment et remplit le formulaire » : vrai seulement si
-	 *     recherche-entreprises.api.gouv.fr est debout. C'est une preuve d'INTÉGRATION, précieuse
-	 *     mais qui n'a pas sa place dans une suite qui doit être verte hors ligne.
+	 *   — "the journey works": the search fires, the wizard advances, what the user
+	 *     typed ends up in the database. True whether the register answers or not. ALWAYS run.
+	 *   — "the French register really answers and fills the form": true only if
+	 *     recherche-entreprises.api.gouv.fr is up. This is an INTEGRATION proof, valuable
+	 *     but it has no place in a suite that must be green offline.
 	 *
-	 * Le second s'auto-gate donc sur COMPANY_LOOKUP_LIVE=1, comme les `*.live.spec.ts` du backend.
-	 * Ce n'est pas une assertion affaiblie : c'est la même exigence, rangée là où son échec veut
-	 * dire quelque chose. Une suite qui rougit parce qu'un tiers est en panne apprend à être ignorée.
+	 * The second therefore self-gates on COMPANY_LOOKUP_LIVE=1, like the backend's own
+	 * `*.live.spec.ts`. This is not a weakened assertion: it's the same requirement, filed where its
+	 * failure means something. A suite that turns red because a third party is down learns to be
+	 * ignored.
 	 */
-	// `String(...)` et non `=== "1"` : passé par `--env COMPANY_LOOKUP_LIVE=1`, Cypress le livre comme
-	// NOMBRE. La comparaison stricte à la chaîne échouait, donc le gate ne pouvait jamais s'ouvrir —
-	// un test derrière une porte condamnée ne prouve rien et ne le dit pas. Vérifié dans les deux
-	// états avant de l'écrire ici.
+	// `String(...)` rather than `=== "1"`: passed via `--env COMPANY_LOOKUP_LIVE=1`, Cypress delivers
+	// it as a NUMBER. The strict string comparison used to fail, so the gate could never open —
+	// a test behind a sealed door proves nothing and doesn't say so. Verified in both
+	// states before writing it here.
 	const liveLookup = String(Cypress.env("COMPANY_LOOKUP_LIVE")) === "1";
 
 	it("the wizard advances and persists what the user typed, registry or not", () => {
-		// On cible le CHEMIN exact. Deux pièges successifs ici : `**/api/company-lookup**` attrapait
-		// aussi `/capabilities/FR`, dont le corps n'a pas de `found` — et le remplacer par
-		// `company-lookup?*` ne changeait rien, parce que dans un glob `?` est un joker d'UN caractère,
-		// pas un point d'interrogation littéral. Il matchait donc encore le `/` de `/capabilities`.
+		// Targets the exact PATH. Two successive traps here: `**/api/company-lookup**` also caught
+		// `/capabilities/FR`, whose body has no `found` — and replacing it with
+		// `company-lookup?*` changed nothing, because in a glob `?` is a ONE-character wildcard,
+		// not a literal question mark. It therefore still matched the `/` of `/capabilities`.
 		cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
 			"lookup",
 		);
@@ -103,10 +104,10 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 			.type("55208131766522", { force: true });
 		cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
 
-		// La recherche PART — c'est du ressort de notre code, pas de celui du registre.
+		// The search FIRES — that's on our own code, not on the register's.
 		cy.wait("@lookup", { timeout: 20000 });
 
-		// On écrase le nom : le test ne dépend alors plus de ce que le registre a rendu.
+		// The name gets overwritten: the test no longer depends on what the register returned.
 		cy.get('[data-cy="onboarding-company-name-input"]', { timeout: 10000 })
 			.clear({ force: true })
 			.type("Societe Saisie Manuelle", { force: true });
@@ -131,9 +132,9 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 	(liveLookup ? it : it.skip)(
 		"a country with a real register: search fires on Next and the real result is persisted",
 		() => {
-			// `**/api/company-lookup**` attrapait AUSSI `/capabilities/FR`, dont le corps n'a pas de
-			// `found` : le test attendait la mauvaise requête et lisait `undefined`. La recherche est le
-			// seul appel avec une chaîne de requête.
+			// `**/api/company-lookup**` ALSO caught `/capabilities/FR`, whose body has no
+			// `found`: the test was waiting on the wrong request and read `undefined`. The search is the
+			// only call with a query string.
 			cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
 				"lookup",
 			);
@@ -149,13 +150,14 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 			cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
 
 			// A real register exists for this country, so the search really ran.
-			// On attend que la recherche parte, sans rien affirmer sur le corps intercepté : une
-			// deuxième requête identique dans la même suite revient en 304 SANS CORPS, et l'assertion
-			// lisait alors `undefined` — un échec qui ne parlait ni du produit ni du registre.
+			// We wait for the search to fire, without asserting anything on the intercepted body: a
+			// second, identical request within the same suite comes back as a 304 WITH NO BODY, and the
+			// assertion would then read `undefined` — a failure that spoke neither to the product nor
+			// to the register.
 			//
-			// Ce n'est pas une exigence relâchée : ce qui suit prouve STRICTEMENT PLUS. Un booléen dans
-			// une réponse dit que le registre a répondu ; le nom et l'adresse d'EDF relus en base
-			// prouvent qu'ils ont traversé tout le parcours jusqu'à l'enregistrement.
+			// This is not a relaxed requirement: what follows proves STRICTLY MORE. A boolean in
+			// a response says the register answered; EDF's name and address read back from the
+			// database prove they travelled the whole journey through to being recorded.
 			cy.wait("@lookup", { timeout: 20000 });
 
 			// Advances to the company step regardless — submit without retyping the name,
@@ -195,9 +197,9 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 					"US has no dedicated register, only worldwide fallbacks",
 				).to.eq("PARTIAL");
 
-				// `**/api/company-lookup**` attrapait AUSSI `/capabilities/FR`, dont le corps n'a pas de
-				// `found` : le test attendait la mauvaise requête et lisait `undefined`. La recherche est le
-				// seul appel avec une chaîne de requête.
+				// `**/api/company-lookup**` ALSO caught `/capabilities/FR`, whose body has no
+				// `found`: the test was waiting on the wrong request and read `undefined`. The search is
+				// the only call with a query string.
 				cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
 					"lookup",
 				);
@@ -218,7 +220,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 					.type("12-3456789", { force: true });
 				cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
 
-				// No fournisseur worth trying automatically for this country — the wizard
+				// No provider worth trying automatically for this country — the wizard
 				// never called the lookup endpoint at all.
 				cy.get('[data-cy="onboarding-company-name-input"]', {
 					timeout: 10000,
@@ -246,10 +248,10 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 	});
 
 	it("a register that finds nothing: the wizard still advances and manual entry wins", () => {
-		// On cible le CHEMIN exact. Deux pièges successifs ici : `**/api/company-lookup**` attrapait
-		// aussi `/capabilities/FR`, dont le corps n'a pas de `found` — et le remplacer par
-		// `company-lookup?*` ne changeait rien, parce que dans un glob `?` est un joker d'UN caractère,
-		// pas un point d'interrogation littéral. Il matchait donc encore le `/` de `/capabilities`.
+		// Targets the exact PATH. Two successive traps here: `**/api/company-lookup**` also caught
+		// `/capabilities/FR`, whose body has no `found` — and replacing it with
+		// `company-lookup?*` changed nothing, because in a glob `?` is a ONE-character wildcard,
+		// not a literal question mark. It therefore still matched the `/` of `/capabilities`.
 		cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
 			"lookup",
 		);

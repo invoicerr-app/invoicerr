@@ -1,28 +1,28 @@
 /**
  * `GET /api/documents/:id/correction-routes?typeId=invoice`
- * (`backend/src/modules/documents/correction-routes/`). NIVEAU API d'abord, comme le reste de la
- * discipline « assertions par l'API » du dépôt (cy.request pour l'action ET pour la vérification) —
- * l'écran (le bouton « Corriger », le dialogue des voies) arrive dans le describe « Corriger » plus
- * bas, PAS ici.
+ * (`backend/src/modules/documents/correction-routes/`). API LEVEL first, like the rest of the repo's
+ * own "assertions via the API" discipline (cy.request for both the action AND the verification) —
+ * the screen (the "Correct" button, the routes dialog) comes in the "Correct" describe further
+ * down, NOT here.
  *
- * La société par défaut (`cy.resetAndSeed()`) est déjà une société FRANÇAISE (SIRET/VAT sur le
- * dossier) — exactement le pays canonique dont l'avoir interne est `required` dans
- * `correction-routes/data/fr.json` (voir sa propre provenance légale). Les deux premiers describe
- * ci-dessous ne basculent donc JAMAIS le pays de la société : le contenu épinglé pays par pays
- * (l'inversion FR/PL, l'échantillon par
- * pays) est déjà prouvé en jest (`correction-routes/data/all.spec.ts`,
- * `correction-routes/cancel-policy.spec.ts`) contre le VRAI fichier — pas la peine de le refaire ici
- * au prix d'un aller-retour navigateur par pays. Ces specs prouvent le CÂBLAGE bout en bout : les
- * quatre gates composés par `documents.service.ts#getCorrectionRoutes`, contre le vrai serveur.
+ * The default company (`cy.resetAndSeed()`) is already a FRENCH company (SIRET/VAT on file) —
+ * exactly the canonical country whose internal credit note is `required` in
+ * `correction-routes/data/fr.json` (see that file's own legal provenance). The first two describes
+ * below therefore NEVER switch the company's country: the country-by-country pinned content
+ * (the FR/PL contrast, the per-country sample) is already proven in jest
+ * (`correction-routes/data/all.spec.ts`, `correction-routes/cancel-policy.spec.ts`) against the
+ * REAL file — no need to redo it here at the cost of a browser round trip per country. Those specs
+ * prove the WIRING end to end: the four gates composed by
+ * `documents.service.ts#getCorrectionRoutes`, against the real server.
  *
- * Le describe « Annulation », tout en bas, EST l'exception : il bascule le
- * pays vendeur vers PL une fois — voir son propre en-tête pour pourquoi (à son écriture, aucun
- * fichier country-policy/ n'existait pour PL, ce qui rendait impossible d'émettre une facture SOUS PL
- * directement ; `country-policy/data/pl.json` a depuis été ajouté, PROUVÉ par
- * `44-country-policy.cy.ts`'s own "LE DÉBLOCAGE" — la bascule après coup reste ici par choix, pas par
- * nécessité : elle isole le gate CANCEL, sans rapport avec country-policy/, sans avoir à dupliquer une
- * émission PL complète que 44 couvre déjà). Dernier describe du dernier
- * fichier numéroté de la suite : la bascule ne contamine aucune autre spec.
+ * The "Cancellation" describe, at the very bottom, IS the exception: it switches the
+ * seller country to PL once — see its own header for why (at the time it was written, no
+ * country-policy/ file existed for PL, which made it impossible to issue an invoice UNDER PL
+ * directly; `country-policy/data/pl.json` has since been added, PROVEN by
+ * `44-country-policy.cy.ts`'s own "THE UNBLOCKING" — keeping the after-the-fact switch here stays a
+ * choice, not a necessity: it isolates the CANCEL gate, unrelated to country-policy/, without having
+ * to duplicate the full PL issuance that 44 already covers). Last describe of the last
+ * numbered file in the suite: the switch does not contaminate any other spec.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -49,7 +49,7 @@ function createClient(name: string) {
 		});
 }
 
-/** `issueDate`/`dueDate` are overridable — the "émise" test below needs a date BEFORE 2026-09-01
+/** `issueDate`/`dueDate` are overridable — the "issued" test below needs a date BEFORE 2026-09-01
  *  (the FR seller-country PDP mandate, sourced 2026-08-27: "FR requires
  *  invoices issued on or after 2026-09-01 to go through the \"pdp\" channel") so a plain "email"
  *  transport (Mailpit, no PDP credentials configured anywhere in this suite) can actually reach
@@ -115,12 +115,13 @@ function createInvoiceDraft(
 		});
 }
 
-/** Fait passer une facture DRAFT à `sending` (numérotée) — la première phase de "send" est
- *  SYNCHRONE (voir `actions/async-send.ts`'s own header : "persists 'sending' ... before ...
- *  returns") : le statut n'est déjà plus "draft" au retour de CET appel, quel que soit le sort de
- *  la livraison elle-même ensuite (hors du périmètre de cette spec — voir 28's own suite pour ça).
- *  `data` doit être renvoyé avec `documentId` — même convention que 21's own "send" (`runAction`
- *  revalide toujours `data` contre le descripteur, jamais un re-lu implicite depuis la base).
+/** Moves a DRAFT invoice to `sending` (numbered) — the first phase of "send" is
+ *  SYNCHRONOUS (see `actions/async-send.ts`'s own header: "persists 'sending' ... before ...
+ *  returns"): the status is already no longer "draft" by the time THIS call returns, whatever the
+ *  fate of the delivery itself afterwards (out of scope for this spec — see 28's own suite for that).
+ *  `data` must be sent back together with `documentId` — the same convention as 21's own "send"
+ *  (`runAction` always revalidates `data` against the descriptor, never an implicit re-read from
+ *  the database).
  */
 function sendInvoice(
 	invoiceId: string,
@@ -155,7 +156,7 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 		cy.login();
 	});
 
-	it('société FR (la société par défaut) sur une facture DRAFT — 409, "a correction corrects an ISSUED document"', () => {
+	it('FR company (the default company) on a DRAFT invoice — 409, "a correction corrects an ISSUED document"', () => {
 		createClient("Client Draft SARL").then((clientId) => {
 			createInvoiceDraft(clientId).then((invoiceId) => {
 				cy.request({
@@ -171,10 +172,10 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 		});
 	});
 
-	it("société FR (la société par défaut) sur une facture ÉMISE — l'avoir interne (INTERNAL_CREDIT_NOTE) est `required` ET `implemented: true` ; toute autre voie reste honnêtement non implémentée ; la limitation vendeur×acheteur est toujours présente", () => {
-		// "email" (Mailpit) suffit à atteindre "sending" — voir `invoiceData`'s own header sur la
-		// date choisie (avant le mandat PDP français du 2026-09-01, sans quoi le préflight bloque
-		// AVANT même de tenter un envoi, quel que soit le transport choisi ici).
+	it("FR company (the default company) on an ISSUED invoice — the internal credit note (INTERNAL_CREDIT_NOTE) is `required` AND `implemented: true`; every other route honestly stays unimplemented; the seller×buyer composition limitation is always present", () => {
+		// "email" (Mailpit) is enough to reach "sending" — see `invoiceData`'s own header on the
+		// chosen date (before the French PDP mandate of 2026-09-01, without which the preflight
+		// blocks BEFORE even attempting a send, whatever transport is chosen here).
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-15", dueDate: "2026-09-15" };
 
@@ -217,11 +218,11 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 							"annulation comptable",
 						);
 
-						// CANCEL_AND_REPLACE est la SECONDE voie réellement
-						// branchée, mais SEULEMENT pour les pays qui la fondent localement (FR en fait
-						// partie — voir correction-routes/cancel-policy.ts côté backend) : le mapping
-						// "implemented" ne suit toujours pas le statut légal SEUL (PL/MX déclarent
-						// aussi CANCEL_AND_REPLACE en "required" mais ne sont PAS branchés).
+						// CANCEL_AND_REPLACE is the SECOND route that is genuinely
+						// wired, but ONLY for the countries that actually ground it locally (FR is one
+						// of them — see correction-routes/cancel-policy.ts on the backend side): the
+						// "implemented" mapping still never follows the legal status ALONE (PL/MX also
+						// declare CANCEL_AND_REPLACE as "required" but are NOT wired).
 						const cancelAndReplace = routes.find(
 							(r) => r.routeId === "CANCEL_AND_REPLACE",
 						);
@@ -232,9 +233,9 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 							"FR fonde une annulation locale",
 						).to.eq(true);
 
-						// Chaque AUTRE voie reste honnêtement non implémentée, quel que soit son statut
-						// (required/allowed/forbidden/unverified) — le mapping "implemented" ne suit
-						// JAMAIS le statut légal seul.
+						// Every OTHER route honestly stays unimplemented, whatever its status
+						// (required/allowed/forbidden/unverified) — the "implemented" mapping NEVER
+						// follows the legal status alone.
 						for (const route of routes) {
 							if (
 								route.routeId !== "INTERNAL_CREDIT_NOTE" &&
@@ -247,8 +248,8 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 							}
 						}
 
-						// La limite (composition vendeur×acheteur non écrite) est toujours
-						// consignée, jamais tue.
+						// The limitation (the unwritten seller×buyer composition) is always
+						// recorded, never left silent.
 						expect(res.body.limitation).to.match(/seller/i);
 						expect(res.body.limitation).to.match(/buyer/i);
 					});
@@ -257,7 +258,7 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 		});
 	});
 
-	it("un typeId autre que « invoice » — 501 nommé, jamais un défaut silencieux", () => {
+	it('a typeId other than "invoice" — a named 501, never a silent default', () => {
 		createClient("Client Devis SARL").then((clientId) => {
 			cy.request({
 				method: "POST",
@@ -292,15 +293,16 @@ describe("Correction routes — GET /api/documents/:id/correction-routes", () =>
 });
 
 /**
- * L'ÉCRAN : le bouton « Corriger » (document-list.tsx's own per-row custom
- * slot, custom/invoice-correction-routes-button.tsx), le dialogue des voies, et le mécanisme RÉEL
- * pour la seule voie branchée (INTERNAL_CREDIT_NOTE) — la création d'avoir PRÉ-LIÉE. Même discipline
- * que 25-document-settlement.cy.ts's own `lockedFromReference` test : la fixture (client, facture émise)
- * est préparée par API — rien de nouveau à prouver par un clic pour ÇA — mais tout ce que l'écran
- * ajoute (ouvrir le dialogue, lire la voie imposée, cliquer, atterrir sur l'écran d'avoir déjà
- * pré-rempli, sauvegarder) passe par un VRAI clic, et la preuve qui compte est relue par l'API.
+ * THE SCREEN: the "Correct" button (document-list.tsx's own per-row custom
+ * slot, custom/invoice-correction-routes-button.tsx), the routes dialog, and the REAL mechanism
+ * for the one wired route (INTERNAL_CREDIT_NOTE) — the PRE-LINKED credit note creation. The same
+ * discipline as 25-document-settlement.cy.ts's own `lockedFromReference` test: the fixture (client,
+ * issued invoice) is prepared via API — nothing new to prove with a click for THAT — but everything
+ * the screen adds (opening the dialog, reading the imposed route, clicking, landing on the already
+ * pre-filled credit-note screen, saving) goes through a REAL click, and the proof that matters is
+ * read back via the API.
  */
-describe("Corriger — l'écran, niveau navigateur", () => {
+describe("Correct — the screen, browser level", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -309,7 +311,7 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 		cy.login();
 	});
 
-	it("société FR sur une facture ÉMISE : la voie imposée (avoir interne) porte sa base légale et mène, au clic, à l'écran d'avoir RÉEL PRÉ-LIÉ (référence remplie, devise verrouillée) — sauvegarder crée l'avoir lié à la facture", () => {
+	it("FR company on an ISSUED invoice: the imposed route (internal credit note) carries its legal basis and clicking it leads to the REAL PRE-LINKED credit-note screen (reference filled in, currency locked) — saving creates the credit note linked to the invoice", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
 		const clientName = "Client Corriger SARL";
@@ -326,8 +328,8 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 						timeout: 5000,
 					}).should("be.visible");
 
-					// La voie imposée : statut ET base légale — les MOTS de l'API (l'extrait du
-					// dossier de spécifications DGFiP/AIFE), jamais un résumé réécrit côté front.
+					// The imposed route: status AND legal basis — the API's own WORDS (the excerpt
+					// from the DGFiP/AIFE specification file), never a summary rewritten on the frontend.
 					cy.get(
 						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-status"]',
 					).should("contain.text", "Required by law");
@@ -341,10 +343,10 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 						.should("not.be.disabled")
 						.click();
 
-					// LE VRAI mécanisme, PRÉ-LIÉ — jamais un stub : navigation vers l'écran d'avoir,
-					// le dialogue de création s'ouvre déjà, la référence facture est déjà résolue
-					// (le label backend combine client + date d'émission — jamais un champ vide) et
-					// `lockedFromReference` verrouille déjà la devise, sans aucune recherche manuelle.
+					// THE REAL mechanism, PRE-LINKED — never a stub: navigation to the credit-note
+					// screen, the creation dialog already opens, the invoice reference is already
+					// resolved (the backend label combines client + issue date — never an empty field)
+					// and `lockedFromReference` already locks the currency, with no manual search at all.
 					cy.location("pathname", { timeout: 10000 }).should(
 						"eq",
 						"/documents/credit-note",
@@ -361,8 +363,9 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 						.should("be.disabled")
 						.and("contain.text", "EUR");
 
-					// Ce que le descripteur exige encore : la date d'émission de l'avoir et la ligne
-					// corrigée (issue de la facture liée — même patron que 25's own `lockedFromReference` test).
+					// What the descriptor still requires: the credit note's own issue date and the
+					// corrected line (taken from the linked invoice — the same pattern as 25's own
+					// `lockedFromReference` test).
 					cy.get('[data-cy="document-field-issueDate-input"]').click();
 					const today = new Date().toLocaleDateString();
 					cy.get(`[data-day="${today}"]`).click();
@@ -392,8 +395,8 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 							"string",
 						);
 
-						// La preuve qui compte, relue par l'API : l'avoir existe et est LIÉ à la
-						// facture corrigée — jamais seulement l'écran comme preuve.
+						// The proof that matters, read back via the API: the credit note exists and is
+						// LINKED to the corrected invoice — never just the screen as proof.
 						cy.request({
 							url: `${api}/api/documents/${creditNoteId}?typeId=credit-note`,
 						})
@@ -414,7 +417,7 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 		});
 	});
 
-	it("une voie déclarée par la loi française mais non implémentée ici (CREDIT_NOTE) : l'état honnête à l'écran, jamais un stub qui fait semblant", () => {
+	it("a route declared by French law but not implemented here (CREDIT_NOTE): the honest state on screen, never a stub pretending otherwise", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-11", dueDate: "2026-09-11" };
 
@@ -430,9 +433,9 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 						timeout: 5000,
 					}).should("be.visible");
 
-					// CREDIT_NOTE est "allowed" en France (le YAML) mais n'est PAS l'une des voies
-					// branchées (seule INTERNAL_CREDIT_NOTE l'est) — le bouton reste cliquable (la
-					// loi le permet), mais le clic ne doit jamais atteindre un écran d'avoir.
+					// CREDIT_NOTE is "allowed" in France (the YAML) but is NOT one of the wired
+					// routes (only INTERNAL_CREDIT_NOTE is) — the button stays clickable (the
+					// law permits it), but the click must never reach a credit-note screen.
 					cy.get('[data-cy="document-correction-route-CREDIT_NOTE-button"]', {
 						timeout: 5000,
 					})
@@ -454,16 +457,16 @@ describe("Corriger — l'écran, niveau navigateur", () => {
 });
 
 /**
- * L'annulation LOCALE : l'entrée vit DANS le dialogue « Corriger » (la ligne
- * CANCEL_AND_REPLACE), jamais un second bouton générique à côté du bouton « Corriger ». Un pays QUI
- * FONDE (FR — voir correction-routes/cancel-policy.ts côté backend) : choisir la voie ouvre une
- * confirmation d'irréversibilité, confirmer annule RÉELLEMENT la facture — vérifié par API (statut
- * ET numéro jamais réutilisé). Un pays QUI NE FONDE PAS (PL — CANCEL_AND_REPLACE y est `required`
- * mais son propre mécanisme n'est qu'une facture corrective, jamais une annulation) : la MÊME voie
- * reste honnêtement non implémentée à l'écran (le panneau 501), et l'API refuse un POST direct par
- * 403 nommé.
+ * LOCAL cancellation: the entry lives INSIDE the "Correct" dialog (the
+ * CANCEL_AND_REPLACE row), never a second generic button next to the "Correct" button. A country
+ * THAT GROUNDS IT (FR — see correction-routes/cancel-policy.ts on the backend side): choosing the
+ * route opens an irreversibility confirmation, confirming REALLY cancels the invoice — verified via
+ * API (status AND number never reused). A country that does NOT GROUND IT (PL — CANCEL_AND_REPLACE
+ * is `required` there but its own mechanism is only a corrective invoice, never a cancellation): the
+ * SAME route honestly stays unimplemented on screen (the 501 panel), and the API refuses a direct
+ * POST with a named 403.
  */
-describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
+describe("Cancellation — a country that grounds it, a country that doesn't", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -472,7 +475,7 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 		cy.login();
 	});
 
-	it("société FR (fonde) : CANCEL_AND_REPLACE → confirmation d'irréversibilité → annulation réelle ; badge, statut ET numéro (jamais réutilisé) vérifiés par API", () => {
+	it("FR company (grounds it): CANCEL_AND_REPLACE → irreversibility confirmation → real cancellation; badge, status AND number (never reused) verified via API", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-12", dueDate: "2026-09-12" };
 
@@ -508,7 +511,7 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 								.should("not.be.disabled")
 								.click();
 
-							// La confirmation d'irréversibilité — jamais un clic direct qui annule.
+							// The irreversibility confirmation — never a direct click that cancels.
 							cy.get('[data-cy="document-correction-confirm-cancel"]', {
 								timeout: 5000,
 							})
@@ -519,8 +522,8 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 								'[data-cy="document-correction-confirm-cancel-confirm"]',
 							).click();
 
-							// Le dialogue se ferme sur succès ; le badge « Cancelled » apparaît sur LA
-							// bonne ligne de la liste (jamais un data-cy partagé ambigu entre lignes).
+							// The dialog closes on success; the "Cancelled" badge appears on THE
+							// correct row of the list (never an ambiguous data-cy shared between rows).
 							cy.get('[data-cy="document-correction-dialog"]').should(
 								"not.exist",
 							);
@@ -530,7 +533,7 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 								.find('[data-cy="document-status-badge"]')
 								.should("contain.text", "Cancelled");
 
-							// La preuve qui compte, relue par l'API : statut ET numéro jamais réutilisé.
+							// The proof that matters, read back via the API: status AND number never reused.
 							cy.request({
 								url: `${api}/api/documents/${invoiceId}?typeId=invoice`,
 							})
@@ -550,29 +553,29 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 		});
 	});
 
-	it("société PL (ne fonde pas) : la MÊME voie (CANCEL_AND_REPLACE) reste honnêtement non implémentée — jamais un clic qui annule ; l'API refuse un POST direct par 403 nommé", () => {
+	it("PL company (doesn't ground it): the SAME route (CANCEL_AND_REPLACE) honestly stays unimplemented — never a click that cancels; the API refuses a direct POST with a named 403", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-13", dueDate: "2026-09-13" };
 
 		createClient("Client Annulation PL SARL").then((clientId) => {
 			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
 				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					// Bascule le pays VENDEUR après l'émission — cette même facture, relue sous le
-					// prisme d'un pays qui ne fonde PAS d'annulation locale. PL a depuis reçu
-					// un vrai fichier country-policy/ (data/pl.json, save-draft/send y sont
-					// `allowed: true` — émettre une facture SOUS PL directement est donc possible
-					// aujourd'hui, voir 44-country-policy.cy.ts's own "LE DÉBLOCAGE") ; cette spec
-					// garde néanmoins la bascule après coup PAR CHOIX, pas par nécessité — le gate testé
-					// ici est "cancel" (cancel-policy.ts), SANS RAPPORT avec country-policy/ (voir cet
-					// en-tête de fichier), donc relire une facture déjà émise sous FR à travers le
-					// prisme PL isole exactement ce gate sans dupliquer l'émission PL complète que 44
-					// couvre déjà.
+					// Switches the SELLER country after issuance — this same invoice, read back through
+					// the lens of a country that does NOT ground local cancellation. PL has since
+					// received a real country-policy/ file (data/pl.json, where save-draft/send are
+					// `allowed: true` — issuing an invoice UNDER PL directly is therefore possible
+					// today, see 44-country-policy.cy.ts's own "THE UNBLOCKING"); this spec nonetheless
+					// keeps the after-the-fact switch as a CHOICE, not a necessity — the gate tested
+					// here is "cancel" (cancel-policy.ts), UNRELATED to country-policy/ (see that
+					// file's own header), so reading back an invoice already issued under FR through
+					// the PL lens isolates exactly this gate without having to duplicate the full PL
+					// issuance that 44 already covers.
 					//
-					// La bascule tombe PENDANT la livraison asynchrone (phase 2, la file BullMQ —
-					// voir sendInvoice's own header : phase 1 est déjà passée, "sending") : le sort
-					// exact de cette livraison (sent ou send_failed) est donc IGNORÉ délibérément par
-					// tout ce test — seul compte que la facture ne soit JAMAIS "cancelled", jamais son
-					// statut de livraison précis (ni "Sent" ni un délai d'attente dessus).
+					// The switch falls WHILE the asynchronous delivery is in flight (phase 2, the BullMQ
+					// queue — see sendInvoice's own header: phase 1 has already gone through, "sending"):
+					// the exact fate of that delivery (sent or send_failed) is therefore deliberately
+					// IGNORED by this whole test — all that matters is that the invoice is NEVER
+					// "cancelled", never its exact delivery status (neither "Sent" nor a wait on it).
 					cy.request({
 						method: "POST",
 						url: `${api}/api/company/info`,
@@ -585,10 +588,10 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 
 					cy.visit("/documents/invoice");
 
-					// Délai généreux (patron de 28-document-async-send.cy.ts) : le bouton « Corriger »
-					// n'apparaît qu'une fois la facture "sent"/"send_failed" (isIssued, jamais
-					// "sending" — invoice-correction-routes-button.tsx), et la livraison est encore en
-					// cours au moment de ce visit.
+					// A generous timeout (the pattern from 28-document-async-send.cy.ts): the "Correct"
+					// button only appears once the invoice is "sent"/"send_failed" (isIssued, never
+					// "sending" — invoice-correction-routes-button.tsx), and delivery is still in
+					// progress at the moment of this visit.
 					cy.get(`[data-cy="document-correction-button-${invoiceId}"]`, {
 						timeout: 30000,
 					}).click({ force: true });
@@ -596,9 +599,9 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 						timeout: 5000,
 					}).should("be.visible");
 
-					// PL déclare CANCEL_AND_REPLACE `required` (donc choisissable), mais AUCUN
-					// mécanisme réel ne le fonde (exécuté par facture corrective, jamais une
-					// annulation — voir data/pl.json).
+					// PL declares CANCEL_AND_REPLACE `required` (hence choosable), but NO
+					// real mechanism grounds it (executed as a corrective invoice, never a
+					// cancellation — see data/pl.json).
 					cy.get(
 						'[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]',
 					).should("contain.text", "Required by law");
@@ -609,7 +612,7 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 						.should("not.be.disabled")
 						.click();
 
-					// Jamais de confirmation d'annulation : le panneau 501 honnête, nommé.
+					// Never a cancellation confirmation: the honest, named 501 panel.
 					cy.get('[data-cy="document-correction-not-implemented"]', {
 						timeout: 5000,
 					})
@@ -620,8 +623,8 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 						"not.exist",
 					);
 
-					// L'API refuse un POST direct, nommé — jamais un simple silence pour qui
-					// contournerait l'écran.
+					// The API refuses a direct POST, by name — never plain silence for anyone
+					// bypassing the screen.
 					cy.request({
 						method: "POST",
 						url: `${api}/api/documents/types/invoice/actions/cancel`,
@@ -635,9 +638,9 @@ describe("Annulation — un pays qui fonde, un pays qui ne fonde pas", () => {
 						expect(JSON.stringify(res.body)).to.match(/PL/);
 					});
 
-					// La facture n'est JAMAIS "cancelled" — son statut de LIVRAISON exact (sent ou
-					// send_failed) n'est pas ce que ce test prouve (voir le commentaire plus haut sur
-					// la bascule de pays tombant pendant la phase 2 asynchrone).
+					// The invoice is NEVER "cancelled" — its exact DELIVERY status (sent or
+					// send_failed) is not what this test proves (see the comment above about
+					// the country switch falling during the asynchronous phase 2).
 					cy.request({
 						url: `${api}/api/documents/${invoiceId}?typeId=invoice`,
 					})

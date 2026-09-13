@@ -55,7 +55,7 @@ export interface Company {
    *  dashboard aggregate stays grouped by currency, unchanged (see backend's Company.referenceCurrency
    *  comment in schema.prisma). */
   referenceCurrency?: string | null
-  /** Internal approval workflow ("workflow d'approbation interne au-delà d'un seuil") — the "send"
+  /** Internal approval workflow ("internal approval workflow beyond a threshold") — the "send"
    *  approval-threshold gate. MINOR units, in the company's OWN `currency` above (a rough guardrail,
    *  never currency-converted — see backend's documents/approval/approval-gate.ts). Null/unset means
    *  no approval is ever required, for any role, at any amount. */

@@ -1,23 +1,23 @@
 /**
- * Le suivi de conformité post-dépôt — prouvé PAR L'ÉCRAN, même
- * discipline que 28/31/34 : l'envoi passe par un vrai clic sur "Send", les ASSERTIONS qui comptent
- * relisent l'API, jamais l'écran comme preuve de ce qui est en base.
+ * Post-deposit conformity tracking — proven THROUGH THE SCREEN, the same
+ * discipline as 28/31/34: the send goes through a real click on "Send", the ASSERTIONS that matter
+ * read back the API, never the screen as proof of what's in the database.
  *
- * Cette spec couvre UNIQUEMENT le cas négatif atteignable en e2e : un document envoyé par EMAIL
- * (aucune plateforme, donc aucun poller) n'affiche RIEN — pas de section vide mensongère, pas
- * d'indicateur sur la liste. Le canal PDP fictif de la spec 31 ne produit qu'un `send_failed` (le
- * port est fermé — voir cette spec's own header) : il n'existe donc AUCUN moyen e2e-atteignable de
- * faire arriver un événement de conformité réel sur cette suite. La timeline avec des événements
- * réels (fr:200→202 acceptée, fr:213 rejetée avec motif) est prouvée :
- *  - LIVE, avec le VRAI poller de production, par
- *    `backend/src/modules/documents/transports/pdp/pdp-conformity.live.spec.ts` (jest, `PDP_LIVE=1`) ;
- *  - au niveau du RENDU, par un test de composant vitest avec des événements EN DUR
- *    (`frontend/src/components/documents/document-conformity-section.spec.tsx`, le même motif que
- *    `descriptor-i18n.spec.ts`) — jamais atteignable ici, dans cette suite Cypress, honnêtement.
+ * This spec covers ONLY the negative case reachable in e2e: a document sent by EMAIL
+ * (no platform, hence no poller) shows NOTHING — no falsely empty section, no indicator on the
+ * list. Spec 31's own fake PDP channel only ever produces a `send_failed` (the
+ * port is closed — see that spec's own header): there is therefore NO e2e-reachable way to
+ * make a real conformity event land on this suite. The timeline with real events
+ * (fr:200→202 accepted, fr:213 rejected with a reason) is proven:
+ *  - LIVE, with the REAL production poller, by
+ *    `backend/src/modules/documents/transports/pdp/pdp-conformity.live.spec.ts` (jest, `PDP_LIVE=1`);
+ *  - at the RENDERING level, by a vitest component test with HARDCODED events
+ *    (`frontend/src/components/documents/document-conformity-section.spec.tsx`, the same pattern as
+ *    `descriptor-i18n.spec.ts`) — never reachable here, in this Cypress suite, honestly.
  *
- * Régressions couvertes : 28 (l'envoi asynchrone continue de fonctionner) et 31 (le
- * canal PDP fictif continue d'échouer en "send_failed", jamais en "sent" — le sweep de conformité
- * n'a donc jamais rien à trouver pour ce document non plus).
+ * Regressions covered: 28 (the asynchronous send keeps working) and 31 (the
+ * fake PDP channel keeps failing into "send_failed", never "sent" — so the conformity sweep never
+ * has anything to find for this document either).
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -53,7 +53,7 @@ function createInvoiceDraft() {
 		});
 }
 
-describe("Le suivi de conformité post-dépôt — un envoi par e-mail n'affiche rien", () => {
+describe("Post-deposit conformity tracking — a send by email shows nothing", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -62,7 +62,7 @@ describe("Le suivi de conformité post-dépôt — un envoi par e-mail n'affiche
 		cy.login();
 	});
 
-	it("une facture envoyée par e-mail ne montre aucune section ni badge de conformité", () => {
+	it("an invoice sent by email shows no conformity section nor badge at all", () => {
 		cy.clearEmails();
 
 		cy.request({
@@ -80,14 +80,14 @@ describe("Le suivi de conformité post-dépôt — un envoi par e-mail n'affiche
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			// Un vrai clic — jamais un appel direct à l'action.
+			// A real click — never a direct call to the action.
 			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
 
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Sent");
 
-			// L'assertion qui compte relit l'API — même discipline que 28/34.
+			// The assertion that matters reads back the API — the same discipline as 28/34.
 			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 				.its("body")
 				.then((doc) => {
@@ -100,23 +100,23 @@ describe("Le suivi de conformité post-dépôt — un envoi par e-mail n'affiche
 				);
 			});
 
-			// PREUVE 1 — l'API elle-même : aucun événement de conformité pour un envoi par e-mail
-			// (aucun poller n'est câblé pour "email" — voir authority-status-poller.ts's own header).
+			// PROOF 1 — the API itself: no conformity event at all for a send by email
+			// (no poller is wired for "email" — see authority-status-poller.ts's own header).
 			cy.request({ url: `${api}/api/documents/${invoiceId}/authority-events?typeId=invoice` })
 				.its("body")
 				.should("deep.equal", []);
 
-			// PREUVE 2 — sur la LISTE, aucun indicateur de conformité (jamais un rejet inventé).
+			// PROOF 2 — on the LIST, no conformity indicator at all (never an invented rejection).
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`)
 				.find(`[data-cy="document-conformity-badge-${invoiceId}"]`)
 				.should("not.exist");
 
-			// PREUVE 3 — dans le dialogue d'édition, AUCUNE section conformité — jamais un bloc vide
-			// mensonger (même choix que document-archive-section.tsx pour un document sans archive).
+			// PROOF 3 — in the edit dialog, NO conformity section at all — never a falsely
+			// empty block (the same choice as document-archive-section.tsx for a document with no archive).
 			cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
 			cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
-			// L'archive, elle, EST montrée (régression 34) — la preuve que le dialogue a bien fini de
-			// charger, avant d'affirmer l'ABSENCE de la section conformité juste en dessous.
+			// The archive, on the other hand, IS shown (regression 34) — the proof the dialog has
+			// genuinely finished loading, before asserting the ABSENCE of the conformity section right below.
 			cy.get('[data-cy="document-archive-section"]', { timeout: 15000 })
 				.scrollIntoView()
 				.should("be.visible");

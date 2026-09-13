@@ -1,18 +1,18 @@
 /**
- * L'archivage légal — prouvé PAR L'ÉCRAN,
- * même discipline que 28/33 : l'envoi passe par un vrai clic sur "Send", les ASSERTIONS qui comptent
- * relisent l'API (jamais l'écran comme preuve de ce qui est en base), et le verify RE-HACHE réellement
- * les octets stockés côté serveur — jamais un verdict mis en cache côté client.
+ * Legal archiving — proven THROUGH THE SCREEN,
+ * the same discipline as 28/33: the send goes through a real click on "Send", the ASSERTIONS that
+ * matter read back the API (never the screen as proof of what's in the database), and the verify
+ * genuinely RE-HASHES the bytes stored server-side — never a client-cached verdict.
  *
- * La société de seed (cy.resetAndSeed()) est française (Acme Corp, countryCode FR) — exactement le
- * cas où la rétention légale a une donnée sourcée : max(fiscale 6 ans LPF L102 B, commerciale 10 ans
- * C. com. L123-22) = 10 ans, voir backend/src/modules/documents/archive/retention/data/fr.json. On
- * envoie une facture par e-mail (le transport le plus simple à faire réussir en CI) : le seul
- * artefact réellement livré est le PDF signé s'il l'était, jamais un format
- * structuré inventé pour un transport qui n'en produit pas.
+ * The seed company (cy.resetAndSeed()) is French (Acme Corp, countryCode FR) — exactly the case
+ * where the legal retention has a sourced fact: max(tax 6 years LPF L102 B, commercial 10 years
+ * C. com. L123-22) = 10 years, see backend/src/modules/documents/archive/retention/data/fr.json.
+ * An invoice is sent by email (the simplest transport to make succeed in CI): the only artifact
+ * actually delivered is the PDF — signed if it was — never a structured format invented for a
+ * transport that doesn't produce one.
  *
- * Régressions couvertes : 28 (l'envoi asynchrone continue de fonctionner une fois
- * l'archivage câblé après le "sent" — jamais un envoi cassé par cet ajout).
+ * Regressions covered: 28 (the asynchronous send keeps working once
+ * archiving is wired in after "sent" — never a send broken by this addition).
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -56,7 +56,7 @@ function createInvoiceDraft() {
 		});
 }
 
-describe('L\'archivage légal ⚖ — hash, date, vérification et rétention FR, prouvés par l\'écran', () => {
+describe('Legal archiving ⚖ — hash, date, verification and FR retention, proven through the screen', () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -65,10 +65,10 @@ describe('L\'archivage légal ⚖ — hash, date, vérification et rétention FR
 		cy.login();
 	});
 
-	it('une facture envoyée par e-mail montre son archive à l\'écran (hash, date), et "verify" répond intact', () => {
+	it('an invoice sent by email shows its archive on screen (hash, date), and "verify" answers intact', () => {
 		cy.clearEmails();
 
-		// Le transport le plus simple à faire réussir en CI — voir l'en-tête de ce fichier.
+		// The simplest transport to make succeed in CI — see this file's own header.
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
@@ -84,18 +84,18 @@ describe('L\'archivage légal ⚖ — hash, date, vérification et rétention FR
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			// Un vrai clic — jamais un appel direct à l'action, qui contournerait l'écran.
+			// A real click — never a direct call to the action, which would bypass the screen.
 			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
 
-			// Le statut affiché atteint "Sent" par le polling du front (même mécanisme que 28) — la
-			// facture n'a aucun param "send" (le transport lit le client, pas un champ tapé), donc pas
-			// de dialogue de paramètres à traverser ici.
+			// The displayed status reaches "Sent" via the frontend's own polling (the same mechanism
+			// as 28) — the invoice has no "send" param at all (the transport reads the client, not a
+			// typed field), so there's no params dialog to go through here.
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Sent");
 
-			// L'assertion qui compte lit l'API, jamais l'écran comme preuve de ce qui est en base —
-			// même discipline que 28.
+			// The assertion that matters reads the API, never the screen as proof of what's in the
+			// database — the same discipline as 28.
 			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
 				.its("body")
 				.then((doc) => {
@@ -109,13 +109,13 @@ describe('L\'archivage légal ⚖ — hash, date, vérification et rétention FR
 				expect(message.Attachments, "le PDF réellement envoyé — l'artefact archivé").to.have.length(1);
 			});
 
-			// L'écran document montre l'archive : ouverture du dialogue d'édition sur la facture
-			// désormais "sent".
+			// The document screen shows the archive: opening the edit dialog on the invoice, now
+			// "sent".
 			cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
 			cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
 
-			// Le dialogue défile (overflow-y-auto, [typeId].tsx) — la section archive est plus bas que
-			// les champs du formulaire, il faut donc y défiler avant toute assertion de visibilité.
+			// The dialog scrolls (overflow-y-auto, [typeId].tsx) — the archive section sits lower than
+			// the form fields, so it must be scrolled into view before any visibility assertion.
 			cy.get('[data-cy="document-archive-section"]', { timeout: 15000 })
 				.scrollIntoView()
 				.should("be.visible");
@@ -123,20 +123,20 @@ describe('L\'archivage légal ⚖ — hash, date, vérification et rétention FR
 				expect(text.trim().length, "un hash abrégé, non vide").to.be.greaterThan(0);
 			});
 			cy.get('[data-cy="document-archive-date"]').should("be.visible");
-			// Rétention FR (⚖) montrée à l'écran, jamais une durée inventée — voir data/fr.json : la
-			// règle retenue (commerciale, 10 ans) est CITÉE, pas juste un nombre.
+			// FR retention (⚖) shown on screen, never an invented duration — see data/fr.json: the
+			// rule that applies (commercial, 10 years) is CITED, not just a number.
 			cy.get('[data-cy="document-archive-retention"]').should("contain.text", "C. com. art. L123-22");
 
-			// La vérification RE-HACHE réellement les octets côté serveur (persistence.ts#verifyDocumentArchive)
-			// — jamais un verdict statique côté client.
+			// The verification genuinely RE-HASHES the bytes server-side (persistence.ts#verifyDocumentArchive)
+			// — never a static client-side verdict.
 			cy.get('[data-cy^="document-archive-verify-"]').first().click();
 			cy.get('[data-cy^="document-archive-verify-result-"]', { timeout: 15000 }).should(
 				"contain.text",
 				"Intact",
 			);
 
-			// L'API liste l'archive avec retentionUntil et basis pour la société FR — la preuve qui
-			// compte, indépendante de tout rendu.
+			// The API lists the archive with retentionUntil and basis for the FR company — the proof
+			// that matters, independent of any rendering.
 			cy.request({ url: `${api}/api/documents/${invoiceId}/archives?typeId=invoice` })
 				.its("body")
 				.then((archives: DocumentArchive[]) => {
@@ -155,7 +155,7 @@ describe('L\'archivage légal ⚖ — hash, date, vérification et rétention FR
 						/LPF art\. L102 B/,
 					);
 
-					// La vérification côté API aussi : intact.
+					// The API-side verification too: intact.
 					cy.request({
 						method: "POST",
 						url: `${api}/api/documents/${invoiceId}/archives/${archive.id}/verify?typeId=invoice`,

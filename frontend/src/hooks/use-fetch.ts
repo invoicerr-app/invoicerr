@@ -159,7 +159,7 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
     setError(null)
 
     es.onopen = () => {
-      // Optionnel : gérer l'ouverture
+      // Optional: handle the open event
     }
 
     es.onmessage = (event) => {
