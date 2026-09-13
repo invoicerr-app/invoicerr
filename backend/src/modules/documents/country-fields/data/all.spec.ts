@@ -67,3 +67,22 @@ describe('country-fields/data — France and Germany each ship a real overlay', 
     expect(de.overlays.map((o) => o.typeId)).toEqual(['invoice']);
   });
 });
+
+// Drop-in invariant (readdir-discovery conversion, 2026-09-13) — proves all.ts's own
+// `discoverCountryCodes()` really does pick up every `<cc>.json` sitting in this directory, the same
+// guarantee `b2g-routing/data/all.spec.ts` and `reporting/data/all.spec.ts` already pin for their own
+// loaders: this test re-reads the directory with the IDENTICAL pattern, independently of all.ts's own
+// implementation, so a regression that silently drops a file from discovery (a typo'd pattern, a
+// change that stops sorting, anything) goes red here — the whole point of "adding a country = dropping
+// a file, no code change" is only true if this holds.
+describe('country-fields/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
+  it('ALL_COUNTRY_FIELD_OVERLAY_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
+    const { readdirSync } = require('node:fs');
+    const onDisk = readdirSync(__dirname)
+      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
+      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
+      .sort();
+    const loaded = ALL_COUNTRY_FIELD_OVERLAY_FILES.map((f) => f.countryCode).sort();
+    expect(loaded).toEqual(onDisk);
+  });
+});

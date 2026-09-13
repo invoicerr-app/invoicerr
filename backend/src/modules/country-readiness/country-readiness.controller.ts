@@ -15,8 +15,8 @@ export class CountryReadinessController {
   @ApiOperation({
     summary: 'Country codes fully supported by the compliance core',
     description:
-      'Every country code present in all five core mechanisms (country-policy, vat-rates, ' +
-      'tax-systems, correction-routes, country-identifiers) — i.e. every code `GET ' +
+      'Every country code present in all six core mechanisms (country-policy, vat-rates, ' +
+      'tax-systems, correction-routes, country-identifiers, channel-policy) — i.e. every code `GET ' +
       '/country-readiness/:countryCode` would answer `complete: true` for. Optional convenience so ' +
       'the frontend can highlight fully-supported countries; not itself required by any flow. Not ' +
       'scoped by `@ActiveCompany()` — see the sibling endpoint for why.',
@@ -30,9 +30,10 @@ export class CountryReadinessController {
   @ApiOperation({
     summary: 'Whether a country has every core compliance mechanism wired',
     description:
-      'A country is "complete" when it has a `data/xx.json` file in all five CŒUR mechanisms: ' +
-      'country-policy, vat-rates, tax-systems, correction-routes, country-identifiers (`mentions` ' +
-      'and `content-requirements` are FR-specific extras and deliberately do not count — see ' +
+      'A country is "complete" when it has a `data/xx.json` file in all six CŒUR mechanisms: ' +
+      'country-policy, vat-rates, tax-systems, correction-routes, country-identifiers, ' +
+      'channel-policy (`mentions`, `content-requirements`, `b2g-routing`, `country-fields`, ' +
+      '`archive/retention` and `reporting` are deliberately excluded, each for its own reason — see ' +
       'country-readiness.service.ts). Used at company creation (onboarding and settings) to warn, ' +
       'never block, when the chosen country is not yet fully supported. Deliberately NOT scoped by ' +
       '@ActiveCompany(): company creation happens BEFORE a company — and therefore an active ' +

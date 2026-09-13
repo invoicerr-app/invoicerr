@@ -12,14 +12,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import { Button } from "@/components/ui/button"
-import { FolderSelect } from "@/components/folder-select"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-type FieldType = "text" | "number" | "switch" | "select" | "folder"
+type FieldType = "text" | "number" | "switch" | "select"
 
 interface SelectOption {
   label: string
@@ -64,12 +63,7 @@ interface SelectField extends BaseField {
   default?: string
 }
 
-interface FolderField extends BaseField {
-  type: "folder"
-  placeholder?: string
-}
-
-type FormFieldItem = TextField | NumberField | SwitchField | SelectField | FolderField
+type FormFieldItem = TextField | NumberField | SwitchField | SelectField
 
 export interface FormConfig {
   form: {
@@ -194,15 +188,6 @@ function generateZodSchema(fields: FormFieldItem[]) {
         }
         break
       }
-
-      case "folder": {
-        fieldSchema = z.string()
-
-        if (!field.required) {
-          fieldSchema = fieldSchema.optional()
-        }
-        break
-      }
     }
 
     schemaFields[field.name] = fieldSchema
@@ -216,18 +201,23 @@ function generateDefaultValues(fields: FormFieldItem[], currentValues?: Record<s
   const defaults: Record<string, any> = {}
 
   fields.forEach((field) => {
+    // Captured before the type-narrowing chain below: with FieldType now exhaustively covered by
+    // the "switch" and "select"/"text"/"number" branches, TypeScript narrows `field` itself to
+    // `never` in the trailing `else` (kept as a runtime fallback for a future field type this
+    // function hasn't been taught yet), where `field.name` would no longer type-check.
+    const key = field.name
     // Existing value wins; otherwise fall back to the field's schema default (selects/numbers
     // included — not just switches), so forms pre-fill sensibly on both create and edit.
-    const existingValue = currentValues?.[field.name]
+    const existingValue = currentValues?.[key]
 
     if (existingValue !== undefined && existingValue !== null && existingValue !== "") {
-      defaults[field.name] = existingValue
+      defaults[key] = existingValue
     } else if (field.type === "switch") {
-      defaults[field.name] = field.default ?? false
+      defaults[key] = field.default ?? false
     } else if (field.type === "select" || field.type === "text" || field.type === "number") {
-      defaults[field.name] = field.default ?? ""
+      defaults[key] = field.default ?? ""
     } else {
-      defaults[field.name] = ""
+      defaults[key] = ""
     }
   })
 
@@ -319,9 +309,6 @@ export function DynamicFormModal({
             </SelectContent>
           </Select>
         )
-
-      case "folder":
-        return <FolderSelect value={value} onChange={onChange} disabled={false} />
 
       default:
         return null

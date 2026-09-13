@@ -3,6 +3,7 @@ import { ALL_CORRECTION_ROUTES_FILES } from '@/modules/documents/correction-rout
 import { ALL_COUNTRY_IDENTIFIER_FILES } from '@/modules/documents/country-identifiers/data/all';
 import { ALL_TAX_SYSTEM_FILES } from '@/modules/documents/tax/tax-systems/data/all';
 import { ALL_VAT_RATE_FILES } from '@/modules/documents/vat-rates/data/all';
+import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel-policy/data/all';
 
 import { CountryReadinessService } from './country-readiness.service';
 
@@ -19,6 +20,7 @@ const MECHANISM_FILES: Record<string, readonly { countryCode: string }[]> = {
   'tax-systems': ALL_TAX_SYSTEM_FILES,
   'correction-routes': ALL_CORRECTION_ROUTES_FILES,
   'country-identifiers': ALL_COUNTRY_IDENTIFIER_FILES,
+  'channel-policy': ALL_CHANNEL_POLICY_FILES,
 };
 const MECHANISM_IDS = Object.keys(MECHANISM_FILES);
 
@@ -43,14 +45,14 @@ describe('CountryReadinessService', () => {
     service = new CountryReadinessService();
   });
 
-  it('only ever reports the 5 CŒUR mechanism ids, never mentions/content-requirements', () => {
+  it('only ever reports the 6 CŒUR mechanism ids, never mentions/content-requirements', () => {
     const result = service.getReadiness('ZZ');
     expect([...result.present, ...result.missing].sort()).toEqual([...MECHANISM_IDS].sort());
   });
 
   it(
-    'reports complete=true, with all 5 mechanisms present, for a country that has a data/xx.json ' +
-      'file in every one of the 5 core mechanisms today — found by scanning the files, not asserted ' +
+    'reports complete=true, with all 6 mechanisms present, for a country that has a data/xx.json ' +
+      'file in every one of the 6 core mechanisms today — found by scanning the files, not asserted ' +
       'to be any particular country',
     () => {
       const fullySupported = [...allKnownCountryCodes()].filter(
@@ -75,7 +77,7 @@ describe('CountryReadinessService', () => {
     'reports complete=false with the EXACT missing mechanisms for a country kept in the product ' +
       'but only partially wired (present in some core mechanisms, not all) — found by scanning the ' +
       'files, not asserted to be any particular country — or, once every shipped country has reached ' +
-      'full 5-mechanism coverage, documents that explicitly instead of failing on a stale assumption',
+      'full 6-mechanism coverage, documents that explicitly instead of failing on a stale assumption',
     () => {
       const partial = [...allKnownCountryCodes()].filter((code) => {
         const covering = mechanismsCovering(code).length;
@@ -83,9 +85,10 @@ describe('CountryReadinessService', () => {
       });
 
       if (partial.length === 0) {
-        // country-identifiers/data/it.json and pl.json (added alongside DE/FR/PT's own files)
-        // closed the last remaining gap: every one of the 5 shipped countries (DE, FR, IT, PL, PT)
-        // now has a data/xx.json file in all 5 core mechanisms, so there is currently no
+        // country-identifiers/data/it.json and pl.json (added alongside DE/FR/PT's own files), and
+        // later transports/channel-policy/data/de.json + pt.json, closed every remaining gap: every
+        // one of the 5 shipped countries (DE, FR, IT, PL, PT) now has a data/xx.json file in all 6
+        // core mechanisms, so there is currently no
         // "partially wired" country left for this branch to exercise against real data — the
         // product reaching completeness, not a broken test. Asserting that explicitly here (rather
         // than skipping silently) means the day a mechanism gap reopens for any shipped country —
@@ -114,7 +117,7 @@ describe('CountryReadinessService', () => {
   );
 
   it(
-    'reports complete=false with ALL 5 mechanisms missing for a country with no data/xx.json file ' +
+    'reports complete=false with ALL 6 mechanisms missing for a country with no data/xx.json file ' +
       'in any core mechanism at all — e.g. one pruned out of the product entirely',
     () => {
       // ISO 3166-1 alpha-2 "ZZ" is a permanently user-assigned/reserved code — it will never legitimately
