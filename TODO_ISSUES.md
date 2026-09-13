@@ -73,7 +73,7 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
-## L'autoliquidation DOMESTIQUE n'existe pas dans le produit, alors que trois pays du périmètre la pratiquent (2026-09-13)
+## L'autoliquidation DOMESTIQUE n'existe pas dans le produit, alors que quatre pays du périmètre la pratiquent (2026-09-13)
 
 Le moteur fiscal ne traite l'autoliquidation que **transfrontalière**. Deux constats de lecture :
 `resolve-invoice-tax.ts` rend la main dès que `sellerCC === buyerCC` (le moteur n'est donc jamais
