@@ -31,7 +31,7 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 
 ## Data layer
 
-The backend uses [Prisma](https://www.prisma.io/) as its ORM, with the schema defined in `backend/prisma/schema.prisma`. SQLite is the default database for local/Docker setups; PostgreSQL is supported via `DATABASE_URL`.
+The backend uses [Prisma](https://www.prisma.io/) as its ORM, with the schema defined in `backend/prisma/schema.prisma`. PostgreSQL is the only supported database — the schema's `datasource` provider is hardcoded to `postgres` — configured via `DATABASE_URL`; `docker-compose.dev.yml` starts one for local development outside Docker.
 
 ## API documentation
 

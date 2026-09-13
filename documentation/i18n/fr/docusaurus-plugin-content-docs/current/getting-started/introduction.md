@@ -18,7 +18,7 @@ Invoicerr est une application de facturation open-source et simple, conçue pour
 - Identité de marque personnalisée : logo, nom de l'entreprise, TVA, et plus
 - Authentification via JWT ou OIDC (stockée dans des cookies)
 - Pensé pour l'international : interface en anglais par défaut, devises personnalisables
-- Base de données SQLite ou PostgreSQL
+- Base de données PostgreSQL
 - Prêt pour Docker & docker-compose pour l'auto-hébergement
 - Construit sur une stack moderne : React, NestJS, Prisma
 - Backend en API REST, prêt pour de futures intégrations (applications mobiles & desktop)
@@ -28,7 +28,7 @@ Invoicerr est une application de facturation open-source et simple, conçue pour
 
 - **Frontend** : React, TypeScript, Vite, TailwindCSS
 - **Backend** : NestJS, TypeScript, Prisma
-- **Base de données** : SQLite (par défaut) ou PostgreSQL
+- **Base de données** : PostgreSQL
 - **Conteneurisation** : Docker & Docker Compose
 
 ## Licence

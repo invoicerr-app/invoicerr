@@ -72,7 +72,7 @@ const FeatureList: FeatureItem[] = [
     emoji: '🐳',
     description: (
       <Translate id="homepage.features.selfhosting.description">
-        Docker & docker-compose ready. Run on SQLite for a quick start or PostgreSQL for production.
+        Docker & docker-compose ready, from a single container to a scaled multi-worker deployment.
       </Translate>
     ),
     to: '/docs/getting-started/docker-installation',

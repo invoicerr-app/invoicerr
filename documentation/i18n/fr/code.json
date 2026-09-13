@@ -39,7 +39,7 @@
     "message": "Auto-hébergement"
   },
   "homepage.features.selfhosting.description": {
-    "message": "Prêt pour Docker & docker-compose. Démarrez rapidement avec SQLite ou passez à PostgreSQL en production."
+    "message": "Prêt pour Docker & docker-compose, du conteneur unique à un déploiement multi-workers évolutif."
   },
   "homepage.features.extensible.title": {
     "message": "Extensible"

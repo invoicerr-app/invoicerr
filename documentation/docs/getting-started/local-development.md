@@ -7,7 +7,7 @@ sidebar_position: 3
 ## Prerequisites
 
 - Node.js v20+
-- SQLite (or configure another `DATABASE_URL`)
+- PostgreSQL — the repo ships `docker-compose.dev.yml` to start one locally (also Redis and Mailpit), or point `DATABASE_URL` at your own instance
 - npm
 
 ## Steps

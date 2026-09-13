@@ -18,7 +18,7 @@ Invoicerr is a simple, open-source invoicing application designed to help freela
 - Custom brand identity: logo, company name, VAT, and more
 - Authentication via JWT or OIDC (stored in cookies)
 - International-friendly: default English UI, customizable currencies
-- SQLite or PostgreSQL database
+- PostgreSQL database
 - Docker & docker-compose ready for self-hosting
 - Built with a modern stack: React, NestJS, Prisma
 - REST API backend, ready for future integrations (mobile & desktop apps)
@@ -28,7 +28,7 @@ Invoicerr is a simple, open-source invoicing application designed to help freela
 
 - **Frontend**: React, TypeScript, Vite, TailwindCSS
 - **Backend**: NestJS, TypeScript, Prisma
-- **Database**: SQLite (default) or PostgreSQL
+- **Database**: PostgreSQL
 - **Containerization**: Docker & Docker Compose
 
 ## License
