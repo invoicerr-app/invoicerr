@@ -1,22 +1,22 @@
 /**
- * Persistance locale durable des octets archivés — reprise de la forme de `avant-refonte-documents:
- * backend/src/compliance/providers/archive/storage.ts#LocalArchiveProvider`/`persistArtifacts` (voir
- * `providers.ts` du même repère pour `WormS3ArchiveProvider`, dont la NOTE D'HONNÊTETÉ est reprise par
- * `README` implicite de ce module : aucun credential S3 n'existe ici non plus, donc AUCUN provider
- * `s3://` n'est même tenté — voir le TODO racine item 14's own report pour le dire explicitement).
+ * Durable local persistence for archived bytes — picks up the shape of `avant-refonte-documents:
+ * backend/src/compliance/providers/archive/storage.ts#LocalArchiveProvider`/`persistArtifacts` (see
+ * `providers.ts` in that same removed compliance engine for `WormS3ArchiveProvider`, whose HONESTY
+ * NOTE this module's own implicit README carries forward: no S3 credentials exist here either, so NO
+ * `s3://` provider is even attempted).
  *
- * `archiveRoot()` est relu à CHAQUE appel (jamais mis en cache au chargement du module) — exactement
- * comme le repère : un test peut ainsi repointer `DOCUMENTS_ARCHIVE_DIR` vers un `os.tmpdir()` sans
- * jamais risquer d'écrire dans le répertoire de travail du projet.
+ * `archiveRoot()` is re-read on EVERY call (never cached at module load) — exactly like the removed
+ * compliance engine: a test can therefore repoint `DOCUMENTS_ARCHIVE_DIR` at an `os.tmpdir()` without
+ * ever risking a write into the project's own working directory.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { ArchivedArtifactInput, computeContentHash } from './hashing';
 
-/** Racine du dépôt d'archives. `DOCUMENTS_ARCHIVE_DIR` si défini (les tests le repointent vers un
- *  sous-répertoire d'`os.tmpdir()`) ; sinon `<cwd>/.documents-archive` — le même défaut "dev-friendly"
- *  que `LocalArchiveProvider` du repère. Lu à neuf sur CHAQUE appel, jamais mis en cache. */
+/** Root of the archive store. `DOCUMENTS_ARCHIVE_DIR` when set (tests repoint it at a subdirectory
+ *  of `os.tmpdir()`); otherwise `<cwd>/.documents-archive` — the same "dev-friendly" default the
+ *  removed compliance engine's `LocalArchiveProvider` used. Read fresh on EVERY call, never cached. */
 export function archiveRoot(): string {
   return resolve(process.env.DOCUMENTS_ARCHIVE_DIR ?? join(process.cwd(), '.documents-archive'));
 }
@@ -30,22 +30,22 @@ export function extFor(mime: string): string {
   return 'bin';
 }
 
-/** Le répertoire où les octets d'une archive donnée vivent : content-hash-addressed, comme le repère
- *  — réarchiver un jeu d'artefacts byte-identique retombe sur le MÊME chemin (idempotent, aucune
- *  duplication), tandis qu'un jeu modifié (donc un `contentHash` différent) atterrit ailleurs.
- *  `documentId` PARTICIPE au chemin (contrairement au repère, où le hash seul suffisait) : deux
- *  documents distincts qui produiraient — improbablement mais pas impossiblement — le même
- *  `contentHash` (un même PDF envoyé deux fois à des clients différents, octet pour octet) ne doivent
- *  jamais partager un répertoire, ce qui romprait l'immuabilité de l'un des deux le jour où l'autre
- *  serait réarchivé avec un contenu différent. */
+/** The directory where one archive's bytes live: content-hash-addressed, like the removed compliance
+ *  engine — re-archiving a byte-identical artifact set lands back on the SAME path (idempotent, no
+ *  duplication), while a modified set (so a different `contentHash`) lands elsewhere. `documentId`
+ *  PARTICIPATES in the path (unlike the removed compliance engine, where the hash alone was enough):
+ *  two distinct documents that produced — improbably but not impossibly — the same `contentHash`
+ *  (the same PDF sent twice to different clients, byte for byte) must never share a directory, which
+ *  would break the immutability of one of them the day the other got re-archived with different
+ *  content. */
 function archiveDir(documentId: string, contentHash: string): string {
   return join(archiveRoot(), documentId, contentHash);
 }
 
 /**
- * Écrit chaque artefact sous `<root>/<documentId>/<contentHash>/<role>.<ext>` et retourne l'URI
- * `file://` du répertoire. `contentHash` est calculé ICI (jamais passé par l'appelant) pour qu'il ne
- * puisse jamais dévier de ce que ces octets, dans cet ordre, hachent réellement.
+ * Writes each artifact under `<root>/<documentId>/<contentHash>/<role>.<ext>` and returns the
+ * directory's `file://` URI. `contentHash` is computed HERE (never passed in by the caller) so it
+ * can never drift from what these bytes, in this order, actually hash to.
  */
 export function persistArtifacts(
   documentId: string,
@@ -61,10 +61,10 @@ export function persistArtifacts(
   return { uri: `file://${dir}`, contentHash };
 }
 
-/** Lit les octets d'un artefact déjà archivé, par son rôle/mime — utilisé par `persistence.ts#verify`
- *  pour re-hacher ce qui est réellement sur disque. `null` (jamais une exception) si le fichier
- *  n'existe pas/plus : un fichier manquant EST une des formes de corruption que `verify` doit nommer,
- *  pas une erreur qui ferait échouer l'appel HTTP tout entier. */
+/** Reads the bytes of an already-archived artifact, by its role/mime — used by `persistence.ts#verify`
+ *  to re-hash what is actually on disk. `null` (never an exception) if the file no longer exists: a
+ *  missing file IS one of the forms of corruption `verify` must name, not an error that would fail
+ *  the entire HTTP call. */
 export function readArchivedArtifact(uri: string, role: string, mime: string): Buffer | null {
   const dir = uri.replace(/^file:\/\//, '');
   const fileName = `${role}.${extFor(mime)}`.toLowerCase();

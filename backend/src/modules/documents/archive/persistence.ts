@@ -1,12 +1,11 @@
 /**
- * Persistance Prisma de l'archive légale — même discipline que
- * `documents/persistence.ts` : des fonctions plates, scopées par `companyId`, jamais une classe.
+ * Prisma persistence for the legal archive — same discipline as `documents/persistence.ts`: plain
+ * functions, scoped by `companyId`, never a class.
  *
- * AUCUNE fonction de modification ou de suppression n'existe ici, et c'est délibéré : une fois écrite,
- * une ligne `DocumentArchive` n'est plus jamais réécrite par ce code — voir le commentaire du modèle
- * dans `schema.prisma`. `verifyDocumentArchive` (ci-dessous) RE-HACHE les octets stockés à chaque
- * appel mais n'écrit jamais son verdict en base : même une exécution qui découvre une corruption ne
- * mute rien ici.
+ * NO update or delete function exists here, and that is deliberate: once written, a `DocumentArchive`
+ * row is never rewritten again by this code — see the model's own comment in `schema.prisma`.
+ * `verifyDocumentArchive` (below) RE-HASHES the stored bytes on every call but never writes its
+ * verdict back to the database: even a run that discovers corruption mutates nothing here.
  */
 import { NotFoundException } from '@nestjs/common';
 
@@ -21,9 +20,9 @@ import { computeRetention } from './retention/compute-retention';
 import { defaultRetentionCatalog, RetentionCatalog } from './retention/registry';
 import { AttestedDeposit, buildVerdictArtifact, TerminalAuthorityVerdict } from './verdict-artifact';
 
-/** Ce que `artifacts` (colonne Json) contient réellement — le hachage PLAIN par artefact (jamais les
- *  octets eux-mêmes, qui vivent sous `uri` — voir storage.ts) sert à nommer LEQUEL des artefacts a été
- *  altéré quand `verify` rapporte CORROMPU. */
+/** What `artifacts` (the Json column) actually holds — the PLAIN per-artifact hash (never the bytes
+ *  themselves, which live under `uri` — see storage.ts) is used to name WHICH artifact was tampered
+ *  with when `verify` reports CORRUPTED. */
 export interface StoredArtifactMeta {
   role: string;
   mime: string;
@@ -120,17 +119,17 @@ function toResult(row: {
 }
 
 /**
- * Écrit UNE archive pour les artefacts réellement livrés — appelée uniquement par
- * `archive-on-send.ts`, jamais directement par un contrôleur (pas de route qui créerait une archive à
- * la demande : une archive n'existe QUE parce qu'une livraison a réellement eu lieu).
+ * Writes ONE archive for the artifacts actually delivered — called only by `archive-on-send.ts`,
+ * never directly by a controller (no route creates an archive on demand: an archive exists ONLY
+ * because a delivery actually took place).
  *
- * La rétention (⚖, item 14) est résolue ICI, au moment de l'écriture, pour le pays de la société
- * ÉMETTRICE — jamais recalculée plus tard : une archive garde la règle qui s'appliquait au moment où
- * elle a été faite, la même discipline que `mentions/invoice-notes.ts` applique aux mentions figées à
- * l'émission. La durée elle-même compte à partir de la date d'ÉMISSION du document (`data.issueDate`,
- * voir `resolveDocumentIssueDate` ci-dessus) selon l'axe déclaré par chaque règle
- * (`retention/schema.ts#RetentionOrigin`) — jamais à partir de `archivedAt`, qui n'est que l'instant où
- * CE code a tourné et n'a aucune valeur légale propre (voir `retention/compute-retention.ts`).
+ * Retention (⚖) is resolved HERE, at write time, for the ISSUING company's own country — never
+ * recomputed later: an archive keeps the rule that applied at the moment it was made, the same
+ * discipline `mentions/invoice-notes.ts` applies to mentions frozen at issue time. The duration
+ * itself is counted from the document's own ISSUE date (`data.issueDate`, see
+ * `resolveDocumentIssueDate` above) along the axis each rule declares
+ * (`retention/schema.ts#RetentionOrigin`) — never from `archivedAt`, which is only the instant THIS
+ * code happened to run and carries no legal weight of its own (see `retention/compute-retention.ts`).
  */
 export async function createDocumentArchive(
   input: {
@@ -142,9 +141,9 @@ export async function createDocumentArchive(
 ): Promise<DocumentArchiveResult> {
   const { companyId, documentId, artifacts } = input;
   if (artifacts.length === 0) {
-    // Défensif — voir archive-on-send.ts's own header : l'appelant ne devrait jamais appeler ceci
-    // avec un tableau vide (il court-circuite avant), mais une archive sans aucun artefact serait un
-    // enregistrement mensonger ("quelque chose a été livré et conservé") pour rien de réel.
+    // Defensive — see archive-on-send.ts's own header: the caller should never call this with an
+    // empty array (it short-circuits before reaching here), but an archive with no artifact at all
+    // would be a dishonest record ("something was delivered and preserved") for nothing real.
     throw new Error(`Cannot archive document "${documentId}": no artifacts were actually delivered.`);
   }
 
@@ -279,8 +278,8 @@ export async function createAuthorityVerdictArchive(
   return count > 0 ? { archived: true } : { archived: false, reason: 'duplicate' };
 }
 
-/** Toutes les archives d'un document, les plus récentes d'abord — un re-send en produit plusieurs
- *  (voir le modèle `DocumentArchive`'s own schema comment), jamais une seule "courante" à remplacer. */
+/** Every archive for a document, most recent first — a re-send produces several of them (see the
+ *  `DocumentArchive` model's own schema comment), never a single "current" one to replace. */
 export async function listDocumentArchives(
   companyId: string,
   documentId: string,
@@ -292,8 +291,8 @@ export async function listDocumentArchives(
   return rows.map(toResult);
 }
 
-/** 404 (jamais null) pour un id qui n'existe pas ou appartient à une autre société/document — même
- *  discipline que `documents/persistence.ts#findOwnedDocument`. */
+/** 404 (never null) for an id that does not exist or belongs to another company/document — the same
+ *  discipline as `documents/persistence.ts#findOwnedDocument`. */
 export async function findOwnedArchive(
   companyId: string,
   documentId: string,
@@ -310,10 +309,10 @@ export async function findOwnedArchive(
 
 export interface ArchiveMismatch {
   role: string;
-  /** Le hachage PLAIN attendu pour cet artefact (`StoredArtifactMeta.sha256`), ou le hachage encadré
-   *  global attendu quand `role` vaut `"(overall)"` — voir le commentaire ci-dessous. */
+  /** The PLAIN hash expected for this artifact (`StoredArtifactMeta.sha256`), or the expected
+   *  overall framed hash when `role` is `"(overall)"` — see the comment below. */
   expected: string;
-  /** Le hachage réellement obtenu en relisant le fichier, ou `null` si le fichier est absent. */
+  /** The hash actually obtained by re-reading the file, or `null` if the file is missing. */
   actual: string | null;
 }
 
@@ -322,17 +321,17 @@ export type ArchiveVerificationResult =
   | { status: 'corrupted'; details: ArchiveMismatch[] };
 
 /**
- * RE-HACHE les octets réellement présents sur le disque et les compare au hachage ENREGISTRÉ — jamais
- * une simple relecture de la colonne `contentHash` (qui ne prouverait rien sur les octets eux-mêmes).
- * Deux niveaux de vérification :
- *  1. par artefact — le hachage PLAIN de chaque fichier relu contre son `sha256` stocké
- *     (`StoredArtifactMeta`), ce qui permet de NOMMER lequel est en cause ;
- *  2. l'ensemble — le hachage ENCADRÉ recalculé sur les artefacts relus (dans l'ordre stocké) contre
- *     `contentHash`, qui détecterait un réordonnancement ou une substitution qu'une comparaison
- *     artefact-par-artefact isolée ne verrait pas si, par une coïncidence adversariale, deux artefacts
- *     échangeaient leurs octets sans qu'aucun `sha256` individuel ne change (rôle `"(overall)"` dans
- *     le rapport).
- * Ne modifie jamais la ligne en base — voir l'en-tête de ce fichier.
+ * RE-HASHES the bytes actually present on disk and compares them to the RECORDED hash — never a
+ * plain re-read of the `contentHash` column (which would prove nothing about the bytes themselves).
+ * Two levels of verification:
+ *  1. per artifact — the PLAIN hash of each re-read file against its stored `sha256`
+ *     (`StoredArtifactMeta`), which lets it NAME which one is at fault;
+ *  2. the whole set — the FRAMED hash recomputed over the re-read artifacts (in stored order)
+ *     against `contentHash`, which would catch a reordering or substitution that an isolated
+ *     artifact-by-artifact comparison would miss if, by an adversarial coincidence, two artifacts
+ *     swapped their bytes without any individual `sha256` changing (role `"(overall)"` in the
+ *     report).
+ * Never modifies the database row — see this file's own header.
  */
 export async function verifyDocumentArchive(
   companyId: string,

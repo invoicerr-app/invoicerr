@@ -1,7 +1,7 @@
 /**
- * The point of accroche of VERDICT archiving on the conformity poller — decided
- * 2026-09-06 ("le poller de conformité PDP/KSeF n'archive PAS le VERDICT, seulement
- * le DÉPÔT"; see `DocumentArchive`'s own schema comment and `verdict-artifact.ts`'s header for the
+ * The attachment point of VERDICT archiving on the conformity poller — decided
+ * 2026-09-06 ("the PDP/KSeF conformity poller does NOT archive the VERDICT, only the
+ * DEPOSIT"; see `DocumentArchive`'s own schema comment and `verdict-artifact.ts`'s header for the
  * content itself). `conformity/conformity-sweep-runner.ts#runPoll` calls
  * `archiveTerminalAuthorityVerdictIfAny` for every event a poll observed that its own poller
  * classifies `isTerminal` — never for an intermediate one (PDP's fr:200/fr:201, any KSeF non-terminal
@@ -9,11 +9,11 @@
  *
  * ## The exact same "never propagate" guarantee `archive-on-send.ts` already holds, and why
  *
- * `runPoll`'s own header states this codebase's rule plainly: "un handler d'événement ne tue jamais
- * le processus". By the time this function runs, `createAuthorityEvents` has ALREADY durably
+ * `runPoll`'s own header states this codebase's rule plainly: "an event handler never kills the
+ * process". By the time this function runs, `createAuthorityEvents` has ALREADY durably
  * journaled the verdict in `DocumentAuthorityEvent` — that operational fact is real and must stay
  * real regardless of what happens next. Archiving it a SECOND time, probatively, is an ADDITION (see
- * `DocumentArchive`'s own schema comment: "elle s'y AJOUTE, elle ne le remplace pas") — a failure
+ * `DocumentArchive`'s own schema comment: "it ADDS to it, it does not replace it") — a failure
  * here must never retract, or even appear to threaten, the journal entry that already landed. This
  * function therefore follows `archiveDeliveredArtifactsIfAny`'s own pattern exactly: it never throws,
  * it logs loud (`logger.error`, category 'documents') on genuine failure, and the caller wraps

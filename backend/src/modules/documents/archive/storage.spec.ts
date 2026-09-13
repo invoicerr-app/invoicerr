@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { archiveRoot, extFor, persistArtifacts, readArchivedArtifact } from './storage';
 
 describe('archive/storage — local, content-hash-addressed persistence', () => {
-  // JAMAIS le cwd du projet — un répertoire de test réel sous os.tmpdir(), comme le repère.
+  // NEVER the project's cwd — a real test directory under os.tmpdir(), the same as the removed
+  // compliance engine.
   let dir: string;
   const originalEnv = process.env.DOCUMENTS_ARCHIVE_DIR;
 

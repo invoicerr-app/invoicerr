@@ -1,5 +1,5 @@
 /**
- * The country RETENTION-DURATION file format — "archivage légal ⚖". A retention
+ * The country RETENTION-DURATION file format — "legal archiving ⚖". A retention
  * rule is a LEGAL DURATION a country's law requires business documents to be kept for, resolved
  * against the moment a document was archived. Same file-per-country, load-time-validated,
  * provenance-mandatory shape `documents/mentions/schema.ts` already established for a DIFFERENT

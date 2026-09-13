@@ -92,8 +92,8 @@ describe('archive/persistence', () => {
       ]);
       expect(written.retentionBasis).toMatch(/10y/);
       expect(written.retentionBasis).toMatch(/6y/);
-      // The discriminator `TODO_ISSUES.md`'s "les archives déjà écrites gardent une date de
-      // conservation trop précoce" entry asked for: every NEW archive stamps the version of the
+      // The discriminator `TODO_ISSUES.md`'s "archives already written keep too early a retention
+      // date" entry asked for: every NEW archive stamps the version of the
       // algorithm that computed it, so a future reader (`document-archive-section.tsx#
       // isRetentionCalcStale`) can tell it apart from a row written before this column existed.
       expect(written.retentionCalcVersion).toBe(CURRENT_RETENTION_CALC_VERSION);
@@ -394,8 +394,8 @@ describe('archive/persistence', () => {
 
     it('reports "corrupted", NAMING the artifact and its expected/actual hash, when a byte on disk is altered', async () => {
       const created = await archiveOneRealPdf('%PDF-1.7 real bytes');
-      // On corrompt directement le fichier stocké — un octet réécrit dans le fichier du test, comme
-      // demandé par la tâche, jamais une simulation en mémoire.
+      // Corrupt the stored file directly — a byte rewritten on disk in the test, never an in-memory
+      // simulation.
       const filePath = join(created.uri.replace('file://', ''), 'pdf.pdf');
       writeFileSync(filePath, 'TAMPERED-BYTES-DIFFERENT-LENGTH');
 

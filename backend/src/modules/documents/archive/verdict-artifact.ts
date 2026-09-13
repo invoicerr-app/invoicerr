@@ -1,12 +1,12 @@
 /**
  * The CANONICAL, dated representation of one TERMINAL authority verdict — decided
- * 2026-09-06 ("le poller de conformité PDP/KSeF n'archive PAS le VERDICT, seulement
- * le DÉPÔT"). This is the "content" half of the decision; `persistence.ts#createAuthorityVerdictArchive`
+ * 2026-09-06 ("the PDP/KSeF conformity poller does NOT archive the VERDICT, only the
+ * DEPOSIT"). This is the "content" half of the decision; `persistence.ts#createAuthorityVerdictArchive`
  * is the "write it under the same discipline as the deposit" half.
  *
- * The decision is explicit about what this content MUST be: "le payload brut de l'autorité tel que
- * reçu — jamais une reformulation — plus l'horodatage de réception et la référence au dépôt". Three
- * consequences follow directly:
+ * The decision is explicit about what this content MUST be: "the authority's raw payload exactly as
+ * received — never a reformulation — plus the reception timestamp and the reference to the deposit".
+ * Three consequences follow directly:
  *
  *  - `rawPayload` is embedded VERBATIM (whatever the poller itself received — see
  *    `RawAuthorityEvent.rawPayload`'s own header in `conformity/authority-status-poller.ts`), never

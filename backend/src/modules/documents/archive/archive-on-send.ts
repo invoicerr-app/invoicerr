@@ -1,26 +1,27 @@
 /**
- * Le point d'accroche de l'archivage légal sur l'envoi asynchrone —
- * `actions/async-send.ts`'s phase-2 (`deliver()` déjà réussi, le document déjà écrit "sent") appelle
- * `archiveDeliveredArtifactsIfAny` juste après cette écriture, jamais avant : archiver ce qui n'a pas
- * encore été livré serait un mensonge (une archive prétendant conserver un envoi qui pourrait encore
- * échouer).
+ * The attachment point of legal archiving on the async send — `actions/async-send.ts`'s phase-2
+ * (`deliver()` already succeeded, the document already written "sent") calls
+ * `archiveDeliveredArtifactsIfAny` right after that write, never before: archiving something that has
+ * not been delivered yet would be a lie (an archive claiming to preserve a send that could still
+ * fail).
  *
- * ## La garantie que cette fonction tient : elle NE PROPAGE JAMAIS D'EXCEPTION
+ * ## The guarantee this function holds: it NEVER PROPAGATES AN EXCEPTION
  *
- * "Un échec d'archivage ne doit PAS annuler un envoi déjà livré" — au moment où
- * cette fonction est appelée, l'e-mail est déjà parti / le dépôt est déjà accepté, c'est un FAIT
- * acquis, et rien ici ne doit pouvoir le remettre en cause. `async-send.ts` appelle donc ceci APRÈS
- * avoir persisté "sent" et sans l'englober dans un try/catch de son cru — c'est CETTE fonction qui
- * absorbe tout, jusqu'à l'échec de sa PROPRE écriture de compensation (`lastArchiveError`).
+ * "An archiving failure must NOT cancel a send that has already been delivered" — by the time this
+ * function is called, the email has already gone out / the deposit has already been accepted, that is
+ * an ESTABLISHED FACT, and nothing here may call it back into question. `async-send.ts` therefore
+ * calls this AFTER persisting "sent" and without wrapping it in a try/catch of its own — it is THIS
+ * function that absorbs everything, down to the failure of its OWN compensating write
+ * (`lastArchiveError`).
  *
- * ## "Jamais silencieux" : `lastArchiveError`, pas `lastActionError`
+ * ## "Never silent": `lastArchiveError`, not `lastActionError`
  *
- * Voir `schema.prisma`'s own comment sur `DocumentInstance.lastArchiveError` pour le raisonnement
- * complet. En bref : `lastActionError` est remis à null par TOUTE écriture ordinaire
- * (`persistence.ts#upsertDocument`) et signifie "l'ACTION déclarée a échoué" — un envoi archivé en
- * échec n'est PAS un envoi qui a échoué (il a réussi ; c'est sa CONSERVATION qui a un problème). Un
- * champ dédié, jamais touché ailleurs, est donc le seul moyen honnête de rendre ce fait interrogeable
- * sans le confondre avec l'échec d'une action ni le faire disparaître au prochain "save-draft".
+ * See `schema.prisma`'s own comment on `DocumentInstance.lastArchiveError` for the full reasoning. In
+ * short: `lastActionError` is reset to null by EVERY ordinary write (`persistence.ts#upsertDocument`)
+ * and means "the DECLARED action failed" — a send that was archived unsuccessfully is NOT a send that
+ * failed (it succeeded; it is its PRESERVATION that has a problem). A dedicated field, never touched
+ * elsewhere, is therefore the only honest way to make this fact queryable without confusing it with
+ * an action's failure or letting it disappear on the next "save-draft".
  */
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -31,18 +32,18 @@ import { createDocumentArchive } from './persistence';
 export interface ArchiveDeliveredArtifactsInput {
   companyId: string;
   documentId: string;
-  /** Ce que `deliver()` a réellement livré — voir `transports/transport-registry.ts`'s
-   *  `DocumentTransportResult.artifacts`'s own header. Absent, ou vide, pour une livraison qui n'a
-   *  produit AUCUN artefact conservable (le "send" du credit-note, `credit-note-actions.ts` — une
-   *  simple transition de statut, sans transport ni e-mail) : rien à archiver n'est pas un échec, ce
-   *  n'est simplement rien à faire. */
+  /** What `deliver()` actually delivered — see `transports/transport-registry.ts`'s
+   *  `DocumentTransportResult.artifacts`'s own header. Absent, or empty, for a delivery that produced
+   *  NO archivable artifact at all (the credit-note's "send", `credit-note-actions.ts` — a plain
+   *  status transition, with no transport and no email): nothing to archive is not a failure, it is
+   *  simply nothing to do. */
   artifacts: ArchivedArtifactInput[] | undefined;
 }
 
 /**
- * Ne lève JAMAIS — voir l'en-tête de ce fichier. Appelée depuis `actions/async-send.ts` juste après
- * l'écriture "sent", inconditionnellement pour tout type/transport (générique, comme le reste de
- * `async-send.ts` — rien ici ne nomme "invoice" ni "pdp").
+ * Never throws — see this file's own header. Called from `actions/async-send.ts` right after the
+ * "sent" write, unconditionally for every type/transport (generic, like the rest of `async-send.ts`
+ * — nothing here names "invoice" or "pdp").
  */
 export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArtifactsInput): Promise<void> {
   const { companyId, documentId, artifacts } = input;
@@ -50,9 +51,9 @@ export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArti
 
   try {
     await createDocumentArchive({ companyId, documentId, artifacts });
-    // Efface une PRÉCÉDENTE panne d'archivage — un re-send qui archive avec succès cette fois n'a
-    // plus besoin de garder la trace du raté de la tentative d'avant à côté d'un document désormais
-    // effectivement conservé.
+    // Clears a PREVIOUS archiving failure — a re-send that archives successfully this time no longer
+    // needs to keep the trace of the earlier attempt's failure next to a document that is now
+    // actually preserved.
     await prisma.documentInstance.update({ where: { id: documentId }, data: { lastArchiveError: null } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -66,9 +67,9 @@ export async function archiveDeliveredArtifactsIfAny(input: ArchiveDeliveredArti
         data: { lastArchiveError: message },
       });
     } catch (writeError) {
-      // Si MÊME cette écriture de compensation échoue (base indisponible…), l'échec est déjà loggé
-      // au niveau error ci-dessus — la livraison, elle, a déjà réellement abouti et doit le rester :
-      // rien ici ne doit jamais remonter jusqu'à `async-send.ts`.
+      // If EVEN this compensating write fails (database unavailable…), the failure is already logged
+      // at error level above — the delivery itself has already genuinely succeeded and must stay
+      // that way: nothing here may ever propagate up to `async-send.ts`.
       logger.error('Could not even record the archiving failure on the document itself', {
         category: 'documents',
         details: {

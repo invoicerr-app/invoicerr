@@ -4,7 +4,7 @@ function bytesOf(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
 
-describe('computeContentHash — the framed, encadré hash', () => {
+describe('computeContentHash — the framed hash', () => {
   it('is deterministic for identical input', () => {
     const artifacts = [{ role: 'pdf', mime: 'application/pdf', bytes: bytesOf('hello') }];
     expect(computeContentHash(artifacts)).toBe(computeContentHash(artifacts));
@@ -38,12 +38,12 @@ describe('computeContentHash — the framed, encadré hash', () => {
   });
 
   /**
-   * LE TEST ANTI-COLLISION DU REPÈRE (voir hashing.ts's own header) — la raison d'être de l'en-tête
-   * `role|mime|byteLength\n`. Deux jeux d'artefacts DIFFÉRENTS ("ab"+"c" vs "a"+"bc") dont la
-   * concaténation NUE des octets bruts serait STRICTEMENT IDENTIQUE ("abc" dans les deux cas) — sans
-   * encadrement, ils hacheraient IDENTIQUEMENT malgré des artefacts réellement différents (une frontière
-   * décalée entre deux fichiers). Ce test prouve que ce n'est PAS le cas ici : l'encadrement par la
-   * longueur (et le rôle) rend les deux jeux distinguables.
+   * THE REMOVED COMPLIANCE ENGINE'S OWN ANTI-COLLISION TEST (see hashing.ts's own header) — the
+   * reason the `role|mime|byteLength\n` header exists at all. Two DIFFERENT artifact sets ("ab"+"c"
+   * vs "a"+"bc") whose BARE concatenation of raw bytes would be STRICTLY IDENTICAL ("abc" in both
+   * cases) — without framing, they would hash IDENTICALLY despite being genuinely different artifacts
+   * (a shifted boundary between two files). This test proves that is NOT the case here: framing by
+   * length (and role) makes the two sets distinguishable.
    */
   it('never collides for two different artifact sets whose bytes alone would concatenate identically', () => {
     const setA = [
@@ -55,15 +55,15 @@ describe('computeContentHash — the framed, encadré hash', () => {
       { role: 'y', mime: 'application/octet-stream', bytes: bytesOf('bc') },
     ];
 
-    // Preuve, dans le test lui-même, que la concaténation NUE serait bien identique — donc que ce
-    // n'est pas un cas de figure artificiel : c'est EXACTEMENT ce qu'une concaténation sans en-tête
-    // produirait pour ces deux jeux.
+    // Proof, within the test itself, that the bare concatenation really would be identical — so this
+    // is not an artificial scenario: it is EXACTLY what a concatenation with no header would produce
+    // for these two sets.
     const naiveConcatA = Buffer.concat(setA.map((a) => Buffer.from(a.bytes))).toString('hex');
     const naiveConcatB = Buffer.concat(setB.map((a) => Buffer.from(a.bytes))).toString('hex');
     expect(naiveConcatA).toBe(naiveConcatB);
 
-    // Le hachage RÉEL (encadré) de ce module les distingue — c'est la propriété que ce test protège,
-    // et celle que mordrait la mutation "le hachage perd son encadrement".
+    // The module's REAL (framed) hash distinguishes them — this is the property this test protects,
+    // and the one a mutation that made "the hash lose its framing" would break.
     expect(computeContentHash(setA)).not.toBe(computeContentHash(setB));
   });
 });
