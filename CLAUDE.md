@@ -11,7 +11,7 @@ Four independent npm projects (no workspace root — each has its own `package.j
 | `backend/` | NestJS 11 + Prisma 7 (Postgres) + BullMQ | REST API (`/api`), the documents module (invoicing + per-country compliance catalogs), queue worker |
 | `frontend/` | React 19 + Vite 7 + TanStack Query + Tailwind 4 | SPA, file-based routes via generouted |
 | `e2e/` | Cypress 15 | End-to-end + per-country business scenarios |
-| `documentation/` | Docusaurus 3 | Public docs + the 100+ per-country compliance specs |
+| `documentation/` | Docusaurus 3 | Public docs + the five in-scope per-country compliance specs |
 
 ## Commands
 
@@ -120,7 +120,9 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
 - `content-requirements/` — country law requiring a specific EN 16931 field to carry a derivable value.
 - `mentions/` — country-mandated free-text legal mentions (BG-1), frozen at issue date.
 - `archive/retention/` — retention duration — **France only** today.
-- `reporting/` — declarative post-send declaration providers (NAV Hungary, myDATA Greece, AT Portugal).
+- `reporting/` — declarative post-send declaration providers. **Portugal (AT) only** today; the
+  Hungarian (NAV) and Greek (myDATA) providers were deleted with the five-country prune, so this
+  catalog is now the thinnest of the twelve rather than the broadest.
 
 Every fact in these catalogs carries its own provenance (`kind: 'legal'`, quoting the exact source
 text, or `kind: 'unverified'`, with a `resolutionNote`), enforced both when a data file loads and
@@ -134,7 +136,7 @@ and `checkTransitionResult` checks every actual write against it. Country nuance
 three disconnected places — do not describe a phases/clearance/reporting graph no code assembles:
 - `correction-routes/` — which correction path a country allows;
 - `conformity/pollers/` — post-send authority status polling, wired per **transport** (pdp, ksef,
-  peppol, chorus-pro, anaf, face), not per country;
+  peppol, chorus-pro), not per country;
 - `archive/retention/` — retention duration, France only.
 
 `documents.service.ts` is the generic orchestrator every document type shares: `runAction` resolves

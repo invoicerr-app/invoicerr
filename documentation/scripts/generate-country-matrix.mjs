@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates the "Country Support" docs pages FROM the compliance engine's own data files — never
+ * Generates the "Country Support" docs pages FROM the application's own per-country data files — never
  * the other way around. Same governing idea as before this rewrite (see git history for the prior
  * version's own header): nobody hand-writes "Poland allows X" in a markdown file that can silently
  * rot the day someone edits `backend/src/modules/documents/**\/data/pl.json` and forgets the doc.
@@ -276,11 +276,11 @@ const STRINGS = {
     matrix: {
       title: 'Country Compliance Matrix',
       description:
-        "Every mechanism, per country, read straight from the compliance engine's own data files.",
+        "Every mechanism, per country, read straight from the application's own per-country data files.",
       heading: 'Country compliance matrix',
       generatedNotice:
         '**This page is generated.** Every cell below is read directly from the JSON data files ' +
-        'the compliance engine itself loads at boot — nobody hand-typed these facts, and nobody ' +
+        'the application itself loads at boot — nobody hand-typed these facts, and nobody ' +
         'can let them drift: rerun `npm run build` (or `npm run start`) in `documentation/` and this ' +
         'page is rebuilt from whatever the data files say today. See ' +
         '[Adding a country](../adding-a-country.md) to add a row or a column.',
@@ -333,15 +333,15 @@ const STRINGS = {
         'terms appears in the flowing text of a page, it also carries this same definition as a ' +
         'hover tooltip.',
       footer: (dirs) =>
-        "_Generated from the compliance engine's own data files — do not edit by hand. Sources: " +
+        "_Generated from the application's own per-country data files — do not edit by hand. Sources: " +
         `${dirs}. See [Adding a country](../adding-a-country.md) for how to extend any of these. ` +
         'Regenerate with `node documentation/scripts/generate-country-matrix.mjs` (also runs ' +
         'automatically before `npm run build`/`npm run start` in `documentation/`)._',
     },
     country: {
-      descriptionOf: (name) => `What ${name} may do, per the compliance engine's own data files.`,
+      descriptionOf: (name) => `What ${name} may do, per the application's own per-country data files.`,
       generatedNotice:
-        "> Generated from the compliance engine's own data files — do not edit by hand. See " +
+        "> Generated from the application's own per-country data files — do not edit by hand. See " +
         '[Adding a country](../adding-a-country.md) to change what this page says (by changing ' +
         'the data, never this file).',
       sectionPolicy: 'Document-action policy',
@@ -420,7 +420,7 @@ const STRINGS = {
       contentReqColMandatedFrom: 'Mandated from',
       contentReqColProvenance: 'Provenance',
       footer: (sources) =>
-        "_Generated from the compliance engine's own data files — do not edit by hand. Sources: " +
+        "_Generated from the application's own per-country data files — do not edit by hand. Sources: " +
         `${sources}._`,
       seeGlossaryLink: 'See the glossary on the [compliance matrix](./index.md) for the technical terms used on this page.',
       part1Heading: 'Part 1 — In plain words',
@@ -588,11 +588,11 @@ const STRINGS = {
     matrix: {
       title: 'Matrice de conformité par pays',
       description:
-        "Chaque mécanisme, par pays, lu directement dans les fichiers de données du moteur de conformité.",
+        "Chaque mécanisme, par pays, lu directement dans les fichiers de données pays de l'application.",
       heading: 'Matrice de conformité par pays',
       generatedNotice:
         '**Cette page est générée.** Chaque cellule ci-dessous est lue directement dans les ' +
-        'fichiers de données JSON que le moteur de conformité charge lui-même au démarrage — ' +
+        "fichiers de données JSON que l'application charge elle-même au démarrage — " +
         "personne n'a tapé ces faits à la main, et personne ne peut les laisser dériver : " +
         'relancez `npm run build` (ou `npm run start`) dans `documentation/` et cette page est ' +
         "reconstruite à partir de ce que disent les fichiers de données aujourd'hui. Voir " +
@@ -647,7 +647,7 @@ const STRINGS = {
         "Termes utilisés sur cette page et les pages pays ci-dessous. La première apparition d'un " +
         "de ces termes dans le texte d'une page porte aussi cette même définition en infobulle.",
       footer: (dirs) =>
-        "_Générée depuis les propres fichiers de données du moteur de conformité — ne pas modifier " +
+        "_Générée depuis les propres fichiers de données pays de l'application — ne pas modifier " +
         `à la main. Sources : ${dirs}. Voir [Ajouter un pays](../adding-a-country.md) pour étendre ` +
         "l'un de ces mécanismes. Régénérer avec `node documentation/scripts/generate-country-" +
         'matrix.mjs` (aussi lancé automatiquement avant `npm run build`/`npm run start` dans ' +
@@ -655,9 +655,9 @@ const STRINGS = {
     },
     country: {
       descriptionOf: (name) =>
-        `Ce que ${name} peut faire, d'après les propres fichiers de données du moteur de conformité.`,
+        `Ce que ${name} peut faire, d'après les propres fichiers de données pays de l'application.`,
       generatedNotice:
-        "> Générée depuis les propres fichiers de données du moteur de conformité — ne pas " +
+        "> Générée depuis les propres fichiers de données pays de l'application — ne pas " +
         'modifier à la main. Voir [Ajouter un pays](../adding-a-country.md) pour changer ce que ' +
         'cette page dit (en changeant la donnée, jamais ce fichier).',
       sectionPolicy: "Politique d'actions documentaires",
@@ -737,7 +737,7 @@ const STRINGS = {
       contentReqColMandatedFrom: 'Obligatoire depuis',
       contentReqColProvenance: 'Provenance',
       footer: (sources) =>
-        "_Générée depuis les propres fichiers de données du moteur de conformité — ne pas " +
+        "_Générée depuis les propres fichiers de données pays de l'application — ne pas " +
         `modifier à la main. Sources : ${sources}._`,
       seeGlossaryLink:
         'Voir le glossaire sur la [matrice de conformité](./index.md) pour les termes techniques utilisés sur cette page.',
