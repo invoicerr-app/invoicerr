@@ -117,6 +117,63 @@ export function resolveEnvOidcProvider(env: NodeJS.ProcessEnv = process.env): En
 }
 
 // ---------------------------------------------------------------------------
+// The instance-wide provider's OIDC endpoints
+// ---------------------------------------------------------------------------
+
+/** The endpoint-related fields of better-auth's `GenericOAuthConfig` — see `resolveOidcEndpoints`. */
+export interface OidcEndpointConfig {
+  discoveryUrl?: string;
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  userInfoUrl?: string;
+  endSessionEndpoint?: string;
+}
+
+/**
+ * The endpoint half of `lib/auth.ts#createOidcConfig`, pulled out for the same reason
+ * `resolveEnvOidcProvider` above is: `lib/auth.ts` cannot be imported from a spec at all (see this
+ * module's own header), so anything in it worth unit-testing has to live here instead.
+ *
+ * Discovery wins over the three manual endpoints, never both: `OIDC_DISCOVERY_URL` (or its legacy
+ * alias, below) is checked FIRST, and when it is present the manual `OIDC_*_ENDPOINT` variables are
+ * never even read — matching `.env.example`'s own "pick ONE of the two options" instruction.
+ *
+ * `OIDC_DISCOVERY_URL` is the current name; `OIDC_JWKS_URI` is kept working as a backward-compatibility
+ * alias, exactly the way `rendering/render-pdf.ts`'s `resolveChromiumExecutablePath` keeps honouring
+ * `PUPPETEER_EXECUTABLE_PATH` after the engine it named was swapped. The old name was actively
+ * misleading — this value is fetched as an OpenID discovery DOCUMENT (better-auth's `discoveryUrl`),
+ * never a JWKS — and the shipped example once pointed it at a bare `jwks.json`, which silently
+ * disabled OIDC rather than erroring. Renaming it must not break an operator who already set the old
+ * name, so it keeps being honoured for as long as `OIDC_JWKS_URI` might still appear in someone's env.
+ *
+ * `OIDC_END_SESSION_ENDPOINT` powers RP-Initiated Logout: better-auth's generic-OAuth plugin only
+ * builds a provider logout URL (`createEndSessionURL`, called from its own `/sign-out` route for every
+ * linked account whose provider defines one) when this field is set. Without it, better-auth's
+ * sign-out clears the LOCAL session only — silently, with no error — and never logs the user out at
+ * the identity provider.
+ */
+export function resolveOidcEndpoints(env: NodeJS.ProcessEnv = process.env): OidcEndpointConfig {
+  const config: OidcEndpointConfig = {};
+
+  // The current name wins over the legacy alias if, somehow, both were ever set at once — `.env.example`
+  // never shows both uncommented together, so this ordering is not expected to matter in practice.
+  const discoveryUrl = env.OIDC_DISCOVERY_URL || env.OIDC_JWKS_URI;
+  if (discoveryUrl) {
+    config.discoveryUrl = discoveryUrl;
+  } else {
+    if (env.OIDC_AUTHORIZATION_ENDPOINT) config.authorizationUrl = env.OIDC_AUTHORIZATION_ENDPOINT;
+    if (env.OIDC_TOKEN_ENDPOINT) config.tokenUrl = env.OIDC_TOKEN_ENDPOINT;
+    if (env.OIDC_USERINFO_ENDPOINT) config.userInfoUrl = env.OIDC_USERINFO_ENDPOINT;
+  }
+
+  if (env.OIDC_END_SESSION_ENDPOINT) {
+    config.endSessionEndpoint = env.OIDC_END_SESSION_ENDPOINT;
+  }
+
+  return config;
+}
+
+// ---------------------------------------------------------------------------
 // OIDC_ONLY — instance-wide, default OFF
 // ---------------------------------------------------------------------------
 

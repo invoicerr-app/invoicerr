@@ -12,6 +12,7 @@ import {
   normalizeDomains,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
+  resolveOidcEndpoints,
   resolveSsoLookup,
   sanitizeProviderId,
   ssoEndpointsComplete,
@@ -129,6 +130,86 @@ describe('resolveEnvOidcProvider — the one fact the backend and the frontend m
 
   it('treats a blank OIDC_CLIENT_ID as unset — a whitespace client id is not a client id', () => {
     expect(resolveEnvOidcProvider({ OIDC_CLIENT_ID: '   ' }).registered).toBe(false);
+  });
+});
+
+describe('resolveOidcEndpoints — RP-Initiated Logout', () => {
+  it('sets endSessionEndpoint when OIDC_END_SESSION_ENDPOINT is present', () => {
+    // Without this, better-auth's own sign-out route (api/routes/sign-out.mjs) never builds a
+    // provider logout URL at all — the local session clears and the IdP never hears about it, with
+    // no error anywhere.
+    expect(
+      resolveOidcEndpoints({ OIDC_END_SESSION_ENDPOINT: 'https://idp.example.com/end_session' }),
+    ).toMatchObject({ endSessionEndpoint: 'https://idp.example.com/end_session' });
+  });
+
+  it('leaves endSessionEndpoint unset when the variable is absent', () => {
+    expect(resolveOidcEndpoints({}).endSessionEndpoint).toBeUndefined();
+  });
+
+  it('sets endSessionEndpoint alongside a discovery URL — the two are independent knobs', () => {
+    expect(
+      resolveOidcEndpoints({
+        OIDC_DISCOVERY_URL: 'https://idp.example.com/.well-known/openid-configuration',
+        OIDC_END_SESSION_ENDPOINT: 'https://idp.example.com/end_session',
+      }),
+    ).toEqual({
+      discoveryUrl: 'https://idp.example.com/.well-known/openid-configuration',
+      endSessionEndpoint: 'https://idp.example.com/end_session',
+    });
+  });
+});
+
+describe('resolveOidcEndpoints — OIDC_DISCOVERY_URL, with OIDC_JWKS_URI as a legacy alias', () => {
+  it('reads a discovery URL from the current name', () => {
+    expect(
+      resolveOidcEndpoints({
+        OIDC_DISCOVERY_URL: 'https://idp.example.com/.well-known/openid-configuration',
+      }),
+    ).toEqual({ discoveryUrl: 'https://idp.example.com/.well-known/openid-configuration' });
+  });
+
+  it('still reads a discovery URL from the legacy OIDC_JWKS_URI name — an operator who already set it must not break on the next image pull', () => {
+    expect(
+      resolveOidcEndpoints({ OIDC_JWKS_URI: 'https://idp.example.com/.well-known/openid-configuration' }),
+    ).toEqual({ discoveryUrl: 'https://idp.example.com/.well-known/openid-configuration' });
+  });
+
+  it('prefers the current name when both are somehow set', () => {
+    expect(
+      resolveOidcEndpoints({
+        OIDC_DISCOVERY_URL: 'https://new.example.com/.well-known/openid-configuration',
+        OIDC_JWKS_URI: 'https://old.example.com/.well-known/openid-configuration',
+      }),
+    ).toEqual({ discoveryUrl: 'https://new.example.com/.well-known/openid-configuration' });
+  });
+
+  it('falls back to the manual *_ENDPOINT variables when neither discovery name is set', () => {
+    expect(
+      resolveOidcEndpoints({
+        OIDC_AUTHORIZATION_ENDPOINT: 'https://idp.example.com/authorize',
+        OIDC_TOKEN_ENDPOINT: 'https://idp.example.com/token',
+        OIDC_USERINFO_ENDPOINT: 'https://idp.example.com/userinfo',
+      }),
+    ).toEqual({
+      authorizationUrl: 'https://idp.example.com/authorize',
+      tokenUrl: 'https://idp.example.com/token',
+      userInfoUrl: 'https://idp.example.com/userinfo',
+    });
+  });
+
+  it('never reads the manual endpoints when a discovery URL is set — the .env.example "pick ONE" contract', () => {
+    expect(
+      resolveOidcEndpoints({
+        OIDC_DISCOVERY_URL: 'https://idp.example.com/.well-known/openid-configuration',
+        OIDC_AUTHORIZATION_ENDPOINT: 'https://idp.example.com/authorize',
+        OIDC_TOKEN_ENDPOINT: 'https://idp.example.com/token',
+      }),
+    ).toEqual({ discoveryUrl: 'https://idp.example.com/.well-known/openid-configuration' });
+  });
+
+  it('resolves to an empty config on a bare instance', () => {
+    expect(resolveOidcEndpoints({})).toEqual({});
   });
 });
 

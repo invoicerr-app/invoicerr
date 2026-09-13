@@ -13,6 +13,7 @@ import {
   deriveUserNames,
   isOidcOnly,
   resolveEnvOidcProvider,
+  resolveOidcEndpoints,
   trustedProviderIds,
 } from './sso-policy';
 import { registeredCompanyProviderIds } from './sso-registry';
@@ -45,19 +46,12 @@ const createOidcConfig = (): GenericOAuthConfig[] => {
     config.clientSecret = process.env.OIDC_CLIENT_SECRET;
   }
 
-  if (process.env.OIDC_JWKS_URI) {
-    config.discoveryUrl = process.env.OIDC_JWKS_URI;
-  } else {
-    if (process.env.OIDC_AUTHORIZATION_ENDPOINT) {
-      config.authorizationUrl = process.env.OIDC_AUTHORIZATION_ENDPOINT;
-    }
-    if (process.env.OIDC_TOKEN_ENDPOINT) {
-      config.tokenUrl = process.env.OIDC_TOKEN_ENDPOINT;
-    }
-    if (process.env.OIDC_USERINFO_ENDPOINT) {
-      config.userInfoUrl = process.env.OIDC_USERINFO_ENDPOINT;
-    }
-  }
+  // Discovery-vs-manual endpoint selection, the `OIDC_JWKS_URI` legacy alias, and
+  // `OIDC_END_SESSION_ENDPOINT` (RP-Initiated Logout) are all decided in
+  // `sso-policy.ts#resolveOidcEndpoints` — pulled out of this function specifically so they can be
+  // unit-tested, since importing THIS file at all builds a live Prisma adapter (see `sso-policy.ts`'s
+  // own module header for why no spec imports `auth.ts`).
+  Object.assign(config, resolveOidcEndpoints());
 
   return [config];
 };

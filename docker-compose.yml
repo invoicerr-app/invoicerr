@@ -24,23 +24,28 @@ services:
       # - BREVO_API_KEY="your_brevo_api_key"
       # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
 
-      # OIDC Configuration (example for Authentik). createOidcConfig() (backend/src/lib/auth.ts)
-      # resolves endpoints EITHER by discovery OR from the manual *_ENDPOINT variables below — NEVER
-      # both: it checks OIDC_JWKS_URI first, and when that is set the three manual endpoints are
-      # never even read. Pick ONE of the two options below; the other is commented out here on
-      # purpose so copy-pasting this file cannot silently set variables that get dropped.
+      # OIDC Configuration (example for Authentik). createOidcConfig() (backend/src/lib/auth.ts, via
+      # sso-policy.ts's resolveOidcEndpoints()) resolves endpoints EITHER by discovery OR from the
+      # manual *_ENDPOINT variables below — NEVER both: it checks OIDC_DISCOVERY_URL first, and when
+      # that is set the three manual endpoints are never even read. Pick ONE of the two options
+      # below; the other is commented out here on purpose so copy-pasting this file cannot silently
+      # set variables that get dropped.
       - OIDC_NAME="Pocket ID"
 
       # Option A (active below) — discovery: the IdP's discovery document supplies the
-      # authorization, token and userinfo endpoints on its own.
-      - OIDC_JWKS_URI="https://auth.chevrier.dev/.well-known/openid-configuration"
+      # authorization, token and userinfo endpoints on its own. (OIDC_JWKS_URI is still accepted as
+      # a legacy alias for this variable — but it took a discovery-DOCUMENT URL, never a JWKS one, so
+      # the name was renamed to say what it actually is.)
+      - OIDC_DISCOVERY_URL="https://auth.chevrier.dev/.well-known/openid-configuration"
 
       # Option B — manual endpoints, for an IdP with no discovery document. To use this instead,
-      # uncomment the three lines below AND comment out OIDC_JWKS_URI above.
+      # uncomment the three lines below AND comment out OIDC_DISCOVERY_URL above.
       # - OIDC_AUTHORIZATION_ENDPOINT="https://auth.chevrier.dev/authorize"
       # - OIDC_TOKEN_ENDPOINT="https://auth.chevrier.dev/token"
       # - OIDC_USERINFO_ENDPOINT="https://auth.chevrier.dev/userinfo"
 
+      # RP-Initiated Logout: when set, signing out of this app also signs out at the IdP. Without it,
+      # sign-out clears only the local session and the user stays signed in at the IdP.
       - OIDC_END_SESSION_ENDPOINT="https://auth.chevrier.dev/end_session"
       # Client ID and Secret for OIDC. OIDC_CLIENT_ID is what decides whether the environment provider
       # is registered at all; OIDC_NAME above is its id, which lands in a URL path segment
