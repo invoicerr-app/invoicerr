@@ -55,6 +55,4 @@ EXPOSE 80
 
 RUN chmod +x /usr/share/nginx/entrypoint.sh
 
-ENV BETTER_AUTH_URL="http://localhost:3000"
-
 CMD ["/usr/share/nginx/entrypoint.sh"]
