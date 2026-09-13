@@ -33,5 +33,16 @@ e2e/cypress/downloads/
 .claude/launch.json
 .dev/
 
-# Enregistrements de démonstration produits localement par Cypress : jamais versionnés.
+# Demo recordings produced locally by Cypress: never versioned.
 e2e/demo-videos/
+
+# Deployment secrets. docker-compose.yml AUTOMATICALLY reads the .env sitting next to it for its
+# ${...} substitutions — that is where BETTER_AUTH_SECRET and CREDENTIALS_ENCRYPTION_KEY live.
+# backend/ and frontend/ already ignore their own .env in their own .gitignore; the repository root
+# did not, so a `git add -A` would have published the deployment's secret file.
+# .env.example is the template, values blank: that one stays versioned.
+# Patterns are root-anchored (leading "/"): backend/.env.test and frontend/.env.test are tracked and
+# must stay so, and an unanchored pattern would match them too.
+/.env
+/.env.*
+!/.env.example

@@ -59,16 +59,24 @@ services:
       # backend refuses to boot if it is set while NO provider exists, since nobody could then sign in.
       # - OIDC_ONLY=true
 
-      # REQUIRED. Generate a real value with: openssl rand -hex 32 — the backend now REFUSES to
-      # boot in production (SECURITY_AUDIT.md finding #3) if this is left empty or set to an
-      # obvious placeholder, specifically so an unmodified copy-paste of this file cannot start
-      # with a PUBLIC secret (this file is committed to the open-source repository, so any string
-      # left here is known to everyone). BETTER_AUTH_SECRET signs every session cookie/JWT; a
-      # deployment running on a known secret lets anyone forge a valid session for any userId.
-      - BETTER_AUTH_SECRET=CHANGE_ME_generate_with_openssl_rand_hex_32
+      # REQUIRED. Put the VALUE in a .env file next to this one — NEVER here. This file is committed
+      # to the open-source repository: a secret typed on this line is a secret published to everyone,
+      # and `git add -A` will happily stage it. `.env` is gitignored (see the repository root
+      # .gitignore) and Docker Compose reads it automatically for the ${...} substitutions below;
+      # copy .env.example to .env and fill it in. If your orchestrator has its own secrets mechanism
+      # (Swarm/Kubernetes secrets, a vault), use that instead and keep the variable names.
+      #
+      # Generate the value with: openssl rand -hex 32 — the backend REFUSES to boot in production
+      # (SECURITY_AUDIT.md finding #3) if it is empty or an obvious placeholder. The `:?` below makes
+      # Compose refuse even earlier, with this message, rather than starting a container that will
+      # die on its own guard. BETTER_AUTH_SECRET signs every session cookie/JWT; a deployment running
+      # on a known secret lets anyone forge a valid session for any userId.
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to docker-compose.yml — see .env.example}
       # Optional: falls back to BETTER_AUTH_SECRET's value above if unset, kept only for
-      # deployments that already set JWT_SECRET separately. Same rule applies if you do set it.
-      # - JWT_SECRET=CHANGE_ME_generate_with_openssl_rand_hex_32
+      # deployments that already set JWT_SECRET separately. ONE of the two is enough — the boot guard
+      # checks the effective value (BETTER_AUTH_SECRET || JWT_SECRET), not each variable. Same rule
+      # applies if you do set it, and the same rule about where the value lives.
+      # - JWT_SECRET=${JWT_SECRET:-}
 
       # REQUIRED for per-company channel credentials. Generate with: openssl rand -hex 32 (32 bytes,
       # so 64 hex characters — base64's 44 characters is also accepted).
@@ -83,7 +91,12 @@ services:
       #
       # It encrypts those credentials at rest with AES-256-GCM. Changing it later makes every
       # already-stored credential undecryptable — treat it like a database password, not a toggle.
-      - CREDENTIALS_ENCRYPTION_KEY=CHANGE_ME_generate_with_openssl_rand_hex_32
+      #
+      # Same rule as BETTER_AUTH_SECRET: the value goes in .env, never on this line. Unset here
+      # (rather than `:?`) on purpose — an instance that never stores channel credentials runs
+      # perfectly well without it, and an existing deployment must not stop booting because it
+      # pulled this file.
+      - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
 
       # Document-action async queue (BullMQ/Redis) — an async "send" and, later, recurring documents
       # both go through it. Redis is REQUIRED for the backend to boot at all,
