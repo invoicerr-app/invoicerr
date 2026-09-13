@@ -4,13 +4,14 @@
  * with `fs.readFileSync` rather than `import`ing it as a TS module: editing a rule is then a plain
  * data change, never a TypeScript one.
  *
- * Ships exactly the seven pivot countries `documentation/internal/CORRECTION-ROUTES.yaml` itself covers
- * (meta.covered: FR/IT/PL/DE/ES/MX/US) — plus every later
+ * Originally shipped exactly the seven pivot countries the dedicated correction-routes research pass
+ * (2026-08-29) covered (FR/IT/PL/DE/ES/MX/US) — plus every later
  * addition, each a plain `data/xx.json` drop. A country with no entry here has NO correction-routes
  * rule at all: `correction-routes.ts`'s own read side surfaces that as an HONEST, NAMED refusal ("no
  * correction-routes rule declared for XX"), never a silent "assume CREDIT_NOTE like everyone else"
- * fallback — the exact temptation the YAML's own header warns against ("Sept profils sur huit portent
- * aujourd'hui la même valeur CREDIT_NOTE, et la recherche documentaire en contredit déjà plusieurs").
+ * fallback — the exact temptation that research pass warned against from the start ("seven profiles
+ * out of eight carried the same CREDIT_NOTE value, and the legal research already contradicted several
+ * of them").
  *
  * The country list is DISCOVERED, not hand-maintained: `discoverCountryCodes()` reads this directory
  * with `readdirSync` and keeps only names matching `/^[a-z]{2}\.json$/` — a lowercase two-letter code

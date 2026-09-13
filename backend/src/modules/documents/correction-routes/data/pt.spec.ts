@@ -3,10 +3,11 @@
  * disk rather than through `data/all.ts` (wiring "pt" in is a product decision), and re-runs the
  * exact load-time gate (`assertValidCorrectionRouteFact`) independently.
  *
- * PT has no `documentation/internal/CORRECTION-ROUTES.yaml` entry (covered: FR/IT/PL/DE/ES/MX/US only) —
- * this is the first, direct reading for this country, grounded in the Código do IVA (CIVA, as
- * served by the Autoridade Tributária e Aduaneira on info.portaldasfinancas.gov.pt, static HTML, curl
- * direct) and the Decreto-Lei n.º 28/2019 (official PDF, pdftotext -layout) — never a fetch-résumé.
+ * PT was not part of the original correction-routes research pass (2026-08-29, covering
+ * FR/IT/PL/DE/ES/MX/US only) — this is the first, direct reading for this country, grounded in the
+ * Código do IVA (CIVA, as served by the Autoridade Tributária e Aduaneira on
+ * info.portaldasfinancas.gov.pt, static HTML, curl direct) and the Decreto-Lei n.º 28/2019 (official
+ * PDF, pdftotext -layout) — never a fetch-résumé.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

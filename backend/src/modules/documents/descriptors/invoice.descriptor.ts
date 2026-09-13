@@ -190,7 +190,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * actually succeeded" limit this replaces).
  *
  * "cancelled" is TERMINAL — nothing transitions OUT of it, on purpose: nothing in the eleven-route
- * correction-routes vocabulary (`documentation/internal/CORRECTION-ROUTES.yaml`) that grounds this action
+ * correction-routes vocabulary (`correction-routes/schema.ts`'s own `CORRECTION_ROUTE_IDS`) that grounds this action
  * (CANCEL_AND_REPLACE) ever describes UN-cancelling, only cancel-THEN-issue-a-SEPARATE-new-document —
  * see "cancel" itself, below, for why its own number is therefore never touched, let alone reused.
  * `record-payment`/`download-xml`/`share-link`/`export-accounting` are DELIBERATELY left unchanged

@@ -7,8 +7,9 @@
  *
  * La société par défaut (`cy.resetAndSeed()`) est déjà une société FRANÇAISE (SIRET/VAT sur le
  * dossier) — exactement le pays canonique dont l'avoir interne est `required` dans
- * `documentation/internal/CORRECTION-ROUTES.yaml`. Les deux premiers describe ci-dessous ne basculent donc JAMAIS
- * le pays de la société : le contenu épinglé pays par pays (l'inversion FR/PL, l'échantillon par
+ * `correction-routes/data/fr.json` (voir sa propre provenance légale). Les deux premiers describe
+ * ci-dessous ne basculent donc JAMAIS le pays de la société : le contenu épinglé pays par pays
+ * (l'inversion FR/PL, l'échantillon par
  * pays) est déjà prouvé en jest (`correction-routes/data/all.spec.ts`,
  * `correction-routes/cancel-policy.spec.ts`) contre le VRAI fichier — pas la peine de le refaire ici
  * au prix d'un aller-retour navigateur par pays. Ces specs prouvent le CÂBLAGE bout en bout : les

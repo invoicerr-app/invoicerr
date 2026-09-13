@@ -92,7 +92,7 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Non recherchée pour l'Allemagne — mais NO_DOCUMENT_BY_LAW en couvre l'essentiel du besoin (documentation/internal/CORRECTION-ROUTES.yaml countries.DE.routes.LEDGER_ANNOTATION.settled_by, verbatim)."
+        "resolutionNote": "Non recherchée pour l'Allemagne : personne n'a encore vérifié, sur un texte juridique primaire allemand, si une correction peut être opérée par simple annotation des registres, sans émettre aucun document. En pratique, la voie NO_DOCUMENT_BY_LAW (l'ajustement de la taxe de plein droit, sans aucun document) couvre déjà l'essentiel des cas concernés en droit allemand."
       }
     },
     {

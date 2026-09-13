@@ -757,8 +757,8 @@
   dans l'env du service ocr (jamais ailleurs), rejouer le live.
 
 - **Restes consignés à la clôture de TODO_CORRECTION.md (C1/C2/C3, 2026-09-03)** :
-  - **Composition vendeur×acheteur (P3-U02)** — `documentation/internal/CORRECTION-JURISDICTION.yaml`
-    documente QUATRE rattachements transfrontaliers distincts ; `correction-routes/` (C1) et
+  - **Composition vendeur×acheteur (P3-U02)** — la recherche dédiée sur le rattachement
+    transfrontalier (2026-08-29) documente QUATRE rattachements distincts ; `correction-routes/` (C1) et
     `cancel-policy.ts` (C3) ne lisent QUE le pays vendeur (couche "A_invoicing_rules", art. 219
     bis — la bonne couche pour "quel document mon pays impose"), jamais la couche
     "B_substantive_vat" (rattachée au pays de TAXATION, potentiellement l'acheteur sous
@@ -771,8 +771,9 @@
     chacun sourcé ou unverified honnête. Entrée d'origine : seuls les 7 pivots (FR/IT/PL/DE/ES/MX/US)
     avaient un fichier `correction-routes/data/*.json` ; tout autre pays (ex. BE, testé dans
     43-correction-routes.cy.ts) reçoit le refus honnête 404 nommé, jamais une voie inventée. Étendre
-    la couverture est un travail de RECHERCHE JURIDIQUE pays par pays (le patron `documentation/internal/
-    CORRECTION-ROUTES.yaml`), pas un mécanisme à construire.
+    la couverture est un travail de RECHERCHE JURIDIQUE pays par pays (le patron : la recherche dédiée
+    par pays menée le 2026-08-29 sur les 7 pivots, depuis transcrite dans `correction-routes/data/*.json`),
+    pas un mécanisme à construire.
   - ~~**`country-policy/` ne couvre QUE FR/US/HU aujourd'hui — DE/IT/PL/ES/MX sont TOTALEMENT
     bloqués sur TOUTE action document**~~ — **RÉSOLU en deux temps** : TODO_SUITE P (les 5 fichiers
     sourcés DE/IT/PL/ES/MX, 2026-09-03) puis la vague B de TODO_DOCUMENTS (UE-27 complète,

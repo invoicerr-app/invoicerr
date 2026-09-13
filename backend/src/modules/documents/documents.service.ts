@@ -1118,8 +1118,8 @@ export class DocumentsService implements OnModuleInit {
    * which of them this repo actually implements. Four gates, each distinct and named, the same
    * "un brouillon sans numéro refuse en le disant" discipline `downloadDocumentFormat` already holds:
    *  - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
-   *  - typeId known but not "invoice"             -> 501 (documentation/internal/CORRECTION-ROUTES.yaml only
-   *    ever covers invoices; V1 of this mechanism does not generalize past that — see
+   *  - typeId known but not "invoice"             -> 501 (the correction-routes research this
+   *    mechanism transcribes only ever covered invoices; V1 does not generalize past that — see
    *    correction-routes/correction-routes.spec.ts for the pinned message)
    *  - the record is still a "draft"              -> 409 (a correction corrects an ISSUED document —
    *    a draft has no number yet, nothing to correct)
@@ -1140,7 +1140,7 @@ export class DocumentsService implements OnModuleInit {
     if (typeId !== 'invoice') {
       throw new NotImplementedException(
         `Correction routes are declared for "invoice" only today — "${typeId}" is not supported yet ` +
-          '(documentation/internal/CORRECTION-ROUTES.yaml only covers invoices).',
+          '(the correction-routes mechanism only covers invoices).',
       );
     }
 

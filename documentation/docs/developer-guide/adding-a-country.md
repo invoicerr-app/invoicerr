@@ -157,9 +157,11 @@ genuinely couldn't reach in the time you had):
 }
 ```
 
-`correction-routes/data/*.json` additionally transcribes from `documentation/internal/CORRECTION-ROUTES.yaml`
-(a research document, not code) — a route's `notes` there should say which YAML row it came from
-and that document's own `meta.updated` date, so a stale transcription is easy to spot later.
+`correction-routes/data/*.json`'s existing countries were originally transcribed from a dedicated
+correction-routes legal research pass (2026-08-29, covering FR/IT/PL/DE/ES/MX/US) — each route's own
+`provenance` already carries the primary citation that pass found, verbatim, so nothing further needs
+citing from it today. A country added since has no such shared research to draw from: source it
+directly from primary text instead, the way `pt.json` does (see `data/pt.spec.ts`'s own header).
 
 ### 3. Write `data/<cc>.json`, shaped exactly like `schema.ts` says
 
@@ -178,8 +180,9 @@ up front:
   (`CORRECTION_ROUTE_IDS` in `correction-routes/schema.ts`) — sparse is not allowed; an
   unresearched route gets an honest `"status": "unverified"` entry, never an omitted key. The
   vocabulary is closed: you may not invent a twelfth route. If your research genuinely surfaces a
-  correction mechanism that doesn't fit any of the eleven, that is a change to
-  `documentation/internal/CORRECTION-ROUTES.yaml` first, not a new value in this schema.
+  correction mechanism that doesn't fit any of the eleven, that is a change to the closed vocabulary —
+  `CORRECTION_ROUTE_IDS` in `correction-routes/schema.ts` — first, never a silent extra value dropped
+  into a per-country file.
 - `transports/channel-policy/data/<cc>.json`'s `requirement: "mandated"` **requires** `legal`
   provenance and a `mandatedFrom` date — the schema throws at load if you mark something mandated
   on an `unverified` claim. If you're not yet confident the channel is genuinely *required* rather

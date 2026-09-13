@@ -111,9 +111,8 @@ function describeRouteWords(route: CorrectionRouteFact): string {
 function describeCancelRefusal(countryCode: string, route: CorrectionRouteFact): string {
   return (
     `Cancelling an invoice locally is not implementable for "${countryCode}" today: its own ` +
-    `CANCEL_AND_REPLACE data (status: ${route.status}) says ${describeRouteWords(route)} — see ` +
-    'documentation/internal/CORRECTION-ROUTES.yaml for why this route is declared ' +
-    'but not wired to a real local-cancellation mechanism.'
+    `CANCEL_AND_REPLACE data (status: ${route.status}) says ${describeRouteWords(route)} — the route ` +
+    'is declared under local law, but this application does not yet automate it locally.'
   );
 }
 

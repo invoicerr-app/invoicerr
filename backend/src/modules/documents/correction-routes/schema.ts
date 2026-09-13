@@ -7,32 +7,32 @@
  * this directory's `registry.ts` header for why this one, unlike those two, stays a PURE file read
  * with no database mirror.
  *
- * The SOURCE this format transcribes is `documentation/internal/CORRECTION-ROUTES.yaml` — a research
- * document, not code, and NOT itself a source of law (see that file's own header: `sourced` there
- * means checked against a primary legal text, `unverified` means nobody has). This schema's own gate
- * mirrors that distinction one level down: every route here carries EITHER a `legal` provenance
- * (quoting the YAML's own `basis`/citation for that route, verbatim) OR an `unverified` one — never a
- * bare, unsourced status. There is no third option and no silent default.
+ * The SOURCE this format transcribes is a dedicated correction-routes legal research pass
+ * (2026-08-29, covering FR/IT/PL/DE/ES/MX/US) — not code, and NOT itself a source of law: a route is
+ * only ever `legal` once checked against a primary legal text, or else honestly `unverified`. This
+ * schema's own gate mirrors that distinction one level down: every route here carries EITHER a
+ * `legal` provenance (quoting the primary citation for that route, verbatim) OR an `unverified` one —
+ * never a bare, unsourced status. There is no third option and no silent default.
  *
- * THE VOCABULARY IS CLOSED, DELIBERATELY. `documentation/internal/CORRECTION-ROUTES.yaml`'s own "LE
- * VOCABULAIRE DES VOIES" section names exactly eleven routes, built abstract by construction so no
- * business code ever has to spell a country's own local name for one (a French "avoir" and a Polish
- * "faktura korygująca" are different routes entirely — CREDIT_NOTE vs CORRECTIVE_INVOICE — while a
- * French "avoir interne" and an Italian post-scarto internal write-off are the SAME route,
- * INTERNAL_CREDIT_NOTE, under two different legal systems). `CORRECTION_ROUTE_IDS` below is that exact
- * eleven, and `assertValidCorrectionRouteFact` refuses anything else — a country file may not invent a
- * twelfth route (e.g. Poland's own abolished "BUYER_CORRECTION_NOTE", or Germany's narrower
- * "CREDIT_NOTE_ALLOCATION" sub-case) as if it were one of the eleven canonical axes; a genuinely new
- * axis discovered for some country belongs back in the YAML first, as the YAML itself proves it already
- * happened four times ("four_routes_the_plan_did_not_list").
+ * THE VOCABULARY IS CLOSED, DELIBERATELY. `CORRECTION_ROUTE_IDS` below names exactly eleven routes,
+ * built abstract by construction so no business code ever has to spell a country's own local name for
+ * one (a French "avoir" and a Polish "faktura korygująca" are different routes entirely — CREDIT_NOTE
+ * vs CORRECTIVE_INVOICE — while a French "avoir interne" and an Italian post-scarto internal write-off
+ * are the SAME route, INTERNAL_CREDIT_NOTE, under two different legal systems). Four of these eleven
+ * were not in the original plan at all — the 2026-08-29 research pass surfaced them one country at a
+ * time as it went. `assertValidCorrectionRouteFact` refuses anything outside this exact eleven — a
+ * country file may not invent a twelfth route (e.g. Poland's own abolished "BUYER_CORRECTION_NOTE", or
+ * Germany's narrower "CREDIT_NOTE_ALLOCATION" sub-case) as if it were one of the eleven canonical axes;
+ * a genuinely new axis discovered for some country is a change to `CORRECTION_ROUTE_IDS` itself first,
+ * never a silent extra value in a per-country file.
  */
 
 import { LegalProvenance, PolicyProvenance, UnverifiedProvenance } from '../country-policy/schema';
 
 export { LegalProvenance, UnverifiedProvenance };
 
-/** The eleven correction routes named in `documentation/internal/CORRECTION-ROUTES.yaml`'s own "routes:"
- *  vocabulary section — see this file's own header for why this list is closed. */
+/** The eleven correction routes surfaced by the dedicated correction-routes legal research pass
+ *  (2026-08-29) — see this file's own header for why this list is closed. */
 export const CORRECTION_ROUTE_IDS = [
   'CREDIT_NOTE',
   'DEBIT_NOTE',
@@ -64,13 +64,11 @@ export interface CorrectionRouteFact {
   status: CorrectionRouteStatus;
   provenance: PolicyProvenance;
   /** Free-form caveats — same convention as `b2g-routing/schema.ts`'s own per-fact `notes`. For this
-   *  format specifically: MUST carry (a) where in `documentation/internal/CORRECTION-ROUTES.yaml` this row
-   *  was transcribed from (path + the YAML's own `meta.updated` date) and (b) the primary source the
-   *  YAML itself cites — see `data/fr.json` for a worked example. Optional only at the TYPE level
-   *  because `schema.spec.ts`'s own fixtures build a bare fact to exercise the gate; every SHIPPED row
-   *  has one (enforced by `data/all.spec.ts`'s content-pinning tests, not by this gate itself — a
-   *  missing transcription pointer is a documentation smell, not an unsafe-to-load fact the way a
-   *  missing legal citation is).
+   *  format specifically: MUST carry the primary source this row rests on — see `data/fr.json` for
+   *  worked examples. Optional only at the TYPE level because `schema.spec.ts`'s own fixtures build a
+   *  bare fact to exercise the gate; every SHIPPED row has one (enforced by `data/all.spec.ts`'s
+   *  content-pinning tests, not by this gate itself — a missing citation here is a documentation
+   *  smell, not an unsafe-to-load fact the way a missing legal citation on `provenance` is).
    */
   notes?: string;
 }
@@ -111,7 +109,7 @@ export function assertValidCorrectionRouteFact(fact: CorrectionRouteFact, contex
     throw new InvalidCorrectionRouteProvenanceError(
       `${context}: "${fact.routeId}" is not one of the eleven canonical correction routes ` +
         `(${CORRECTION_ROUTE_IDS.join(', ')}) — a country file may not invent a route outside the ` +
-        'vocabulary documentation/internal/CORRECTION-ROUTES.yaml already establishes.',
+        'vocabulary CORRECTION_ROUTE_IDS above already establishes.',
     );
   }
 

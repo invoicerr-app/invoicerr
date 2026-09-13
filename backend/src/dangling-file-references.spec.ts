@@ -90,7 +90,7 @@ const SCAN_ROOTS: readonly ScanRoot[] = [
   { prefix: 'frontend/src/', extensions: ['ts', 'tsx'], aliasBase: 'frontend/src/' },
 ];
 
-const TARGET_EXTENSIONS = ['ts', 'tsx', 'json', 'sch', 'xsd', 'pem', 'sql', 'md'] as const;
+const TARGET_EXTENSIONS = ['ts', 'tsx', 'json', 'sch', 'xsd', 'pem', 'sql', 'md', 'yaml', 'yml'] as const;
 const EXTENSION_RE = new RegExp(`\\.(?:${TARGET_EXTENSIONS.join('|')})$`);
 const PATH_CANDIDATE_RE = new RegExp(
   `[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\\.(?:${TARGET_EXTENSIONS.join('|')})\\b`,

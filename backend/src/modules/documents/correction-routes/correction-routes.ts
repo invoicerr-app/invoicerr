@@ -8,10 +8,11 @@
  * Reads the SELLER's own country ONLY — the country of the ACTIVE COMPANY issuing (and now
  * correcting) the document, resolved by `country-policy/country-policy.ts#resolveCompanyCountryCode`
  * exactly the way every other document-action gate in this module already does. This is a REAL,
- * DOCUMENTED LIMIT, not an oversight: `documentation/internal/CORRECTION-JURISDICTION.yaml` finds
- * FOUR distinct cross-border attachments, and confirms this repo's own engine already follows the
- * right one for THIS specific question — "A_invoicing_rules" (which correction DOCUMENT a country
- * imposes) attaches to the supplier's own state under EU directive 2006/112/CE art. 219 bis. But a
+ * DOCUMENTED LIMIT, not an oversight: a dedicated cross-border correction-jurisdiction research pass
+ * (2026-08-29) found FOUR distinct cross-border attachments, and confirmed this repo's own engine
+ * already follows the right one for THIS specific question — "A_invoicing_rules" (which correction
+ * DOCUMENT a country imposes) attaches to the supplier's own state under EU directive 2006/112/CE
+ * art. 219 bis. But a
  * SECOND layer, "B_substantive_vat" (whether/how the tax base may be reduced, and the DEADLINE for
  * doing so), attaches to the STATE OF TAXATION instead — which, under reverse-charge, can be the
  * BUYER's own country. Composing the two is NOT written here: this endpoint answers "what
@@ -71,8 +72,8 @@ function isImplemented(routeId: CorrectionRouteId, countryCode: string): boolean
  *  header for the jurisdiction reasoning this text is a plain-language summary of. */
 const LIMITATION_TEXT =
   "This reads the document's SELLER country only (the active company issuing it) — never the buyer's. " +
-  'For a purely domestic invoice this is the whole answer (documentation/internal/CORRECTION-JURISDICTION.yaml ' +
-  'confirms the invoicing-rule layer, art. 219 bis, already correctly follows the supplier). For a ' +
+  'For a purely domestic invoice this is the whole answer (the invoicing-rule layer, EU directive ' +
+  '2006/112/CE art. 219 bis, already correctly follows the supplier for this case). For a ' +
   'cross-border one, the SELLER×BUYER composition is NOT written: ' +
   "the buyer's own country can, under reverse-charge, govern whether/how the tax base may be reduced " +
   'and by when — a fact this endpoint does not know and never guesses.';

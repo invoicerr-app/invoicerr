@@ -20,7 +20,7 @@ jest.mock('./country-policy/country-policy');
  * Proves `DocumentsService#getCorrectionRoutes` composes its FOUR gates (type
  * known -> 404, type is "invoice" -> 501, status not draft -> 409, seller country has a file -> 404
  * named) against the REAL correction-routes catalog (never mocked — a passing test here is a genuine
- * read of documentation/internal/CORRECTION-ROUTES.yaml's own transcription), the same "compose real country
+ * read of the real per-country `correction-routes/data/*.json` files), the same "compose real country
  * data, mock only Prisma" discipline `documents.service.formats.spec.ts` already holds for
  * `downloadDocumentFormat`.
  */

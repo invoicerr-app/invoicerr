@@ -78,9 +78,10 @@ describe('correction-routes/data/all.ts', () => {
     return file.routes.find((r) => r.routeId === routeId)!.status;
   }
 
-  // THE CANONICAL INVERSION — documentation/internal/CORRECTION-ROUTES.yaml's own "the_decisive_finding":
-  // the internal credit note is IMPOSED in France/Italy and FORBIDDEN in Poland/Spain/Mexico. This is
-  // the single fact the whole per-country mechanism (rather than one shared enum) exists to carry.
+  // THE CANONICAL INVERSION — the decisive finding of the dedicated correction-routes research pass
+  // (2026-08-29): the internal credit note is IMPOSED in France/Italy and FORBIDDEN in Poland/Spain/
+  // Mexico. This is the single fact the whole per-country mechanism (rather than one shared enum)
+  // exists to carry.
   it('FR requires INTERNAL_CREDIT_NOTE (the avoir interne is IMPOSED, transmission forbidden)', () => {
     expect(statusOf('FR', 'INTERNAL_CREDIT_NOTE')).toBe('required');
   });
@@ -97,8 +98,8 @@ describe('correction-routes/data/all.ts', () => {
     expect(statusOf('DE', 'INTERNAL_CREDIT_NOTE')).toBe('forbidden');
   });
 
-  // One further pinned sample per country — each a headline finding from CORRECTION-ROUTES.yaml, so a
-  // future edit that silently drifts a status shows up here.
+  // One further pinned sample per country — each a headline finding from the 2026-08-29 research
+  // pass, so a future edit that silently drifts a status shows up here.
   it('IT: DEBIT_NOTE is required (the upside is an OBLIGATION) while CREDIT_NOTE is only allowed (the downside is a FACULTY) — the asymmetry', () => {
     expect(statusOf('IT', 'DEBIT_NOTE')).toBe('required');
     expect(statusOf('IT', 'CREDIT_NOTE')).toBe('allowed');

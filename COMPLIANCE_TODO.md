@@ -178,9 +178,9 @@ n'y figure pas n'existe plus dans ce dépôt.
   voir §0.1). Il n'y a plus de runtime événementiel séparé (pas de `ComplianceEvent`, pas de drivers
   poll/timer/inbound dédiés) : le polling post-envoi (§3.3) et la queue BullMQ (`queue/`) jouent ce
   rôle aujourd'hui, pour chaque type de document.
-- [x] Voies de correction par pays — `correction-routes/` (§0.1), source
-  `documentation/internal/CORRECTION-ROUTES.yaml` (recherche, pas elle-même une source de droit —
-  chaque route porte sa propre provenance `legal`/`unverified`).
+- [x] Voies de correction par pays — `correction-routes/` (§0.1), source : une recherche dédiée par
+  pays (2026-08-29), pas elle-même une source de droit — chaque route porte sa propre provenance
+  `legal`/`unverified`.
 
 ---
 
