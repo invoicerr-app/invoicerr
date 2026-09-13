@@ -36,7 +36,25 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   Enjeu : franchise en base, Kleinunternehmer, regime forfettario, zwolnienie podmiotowe, regime
   de isenção — une part importante des utilisateurs d'un logiciel de facturation.
 
-- **La carte « Formats de numéro » des réglages n'a aucun effet** (six champs). L'écran écrit
+- ~~**La carte « Formats de numéro » des réglages n'a aucun effet**~~ — **RÉSOLU** (`81f0ef37`,
+  2026-09-13). Une migration ponctuelle recopie les valeurs héritées dans `numberFormats`, mais
+  seulement là où la clé est absente : une série ATCUD déjà choisie survit intacte, prouvé sur la
+  base de test avant/après. L'écran écrit désormais par le point d'entrée validé. Seuls `quote` et
+  `invoice` sont migrés — ce sont les deux seuls types déclarant une numérotation, et inventer une
+  clé `payment` aurait déplacé l'inertie au lieu de la supprimer. La faille d'écriture de masse dont
+  ce correctif dépendait est fermée du même coup (liste blanche explicite dans les deux services,
+  avec des tests prouvant que `id`, `createdAt`, `numberFormats` et `companyId` sont ignorés).
+
+  **Une capacité a été RETIRÉE, et c'est délibéré** : les trois numéros de départ ont disparu de
+  l'écran, aucune séquence ne les honorant (`numbering/sequence.ts` démarre toujours un compteur
+  (société, type) à 1). Une entreprise qui migre depuis un autre produit ne peut donc pas dire
+  « démarre ma numérotation à 500 ». Ce n'est pas implémenté, et c'est maintenant nommé comme tel
+  plutôt que simulé par trois champs décoratifs. Le test e2e qui validait ces champs a été retiré
+  (`a6e023e9`), avec la forme qu'il devra prendre le jour où la capacité existera.
+
+  Le constat d'origine est conservé ci-dessous, il documente la forme du défaut.
+
+- **(constat d'origine) La carte « Formats de numéro » des réglages n'a aucun effet** (six champs). L'écran écrit
   `quote/invoice/paymentNumberFormat` et les trois numéros de départ, persistés par le spread
   `data: { ...rest }` de `company.service.ts` ~128. La numérotation ne lit que
   `Company.numberFormats` (`numbering/take-number.ts` ~34) et retombe sinon sur
@@ -284,7 +302,20 @@ Ce qui le débloquerait : un accord explicite pour rejouer ce chemin sur une bas
 la vérification qui manque avant la fusion, parce qu'elle est la seule qui porte sur les installations
 déjà déployées.
 
-## Aucun corps de requête n'est validé au runtime (2026-09-13)
+## ~~Aucun corps de requête n'est validé au runtime~~ — LES DEUX PORTES SONT FERMÉES (`81f0ef37`, 2026-09-13)
+
+L'écriture de masse est fermée : les deux seuls services qui versaient le corps de requête dans
+Prisma écrivent désormais une liste blanche explicite de colonnes, et des tests prouvent que `id`,
+`createdAt`, `numberFormats` (Company) et `companyId` (Client) sont ignorés au lieu d'être écrits.
+L'invariant du motif de numérotation n'est donc plus contournable : la validation est la seule porte.
+
+**Ce qui reste vrai, et n'a pas changé** : il n'y a toujours AUCUNE validation de corps de requête au
+runtime dans cette API — ni `ValidationPipe`, ni `class-validator` (pas même en dépendance), et les
+DTO restent des `interface` effacées à la compilation. Une entrée malformée rend donc toujours 500 là
+où elle devrait rendre 400, et tout autre point d'écriture futur devra penser à sa propre liste
+blanche. Passer les DTO en classes décorées reste un chantier ouvert, qui touche tous les contrôleurs.
+
+### Le constat d'origine (2026-09-13)
 
 Mesuré, pas supposé : `grep` sur tout `backend/src` ne trouve **aucun** `ValidationPipe`, aucun
 décorateur `class-validator`, et ni `class-validator` ni `class-transformer` ne figurent dans
