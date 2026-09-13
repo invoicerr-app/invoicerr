@@ -1,8 +1,18 @@
 name: Verify Docker Build (PR)
 
+# `pull_request` covers the normal case. `workflow_dispatch` exists for the case this repository
+# actually hits: a long-lived branch that deliberately has no PR open yet still needs a real image
+# to deploy somewhere and exercise. Without it the only way to get an image out of a branch was to
+# open a pull request, which is a poor reason to open one.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (defaults to the sanitised branch name)'
+        required: false
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -23,11 +33,27 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/${REPO_NAME_LOWER}"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-          if [[ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # A dispatch always runs on a ref of this repository, so pushing is always allowed.
+            # The default tag is the branch name with every character a Docker tag rejects turned
+            # into a dash -- `feat/compliance-engine-v2` is not a legal tag, `feat-compliance-engine-v2` is.
+            TAG="${{ inputs.tag }}"
+            if [[ -z "$TAG" ]]; then
+              TAG=$(echo "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')
+            fi
             echo "push=true" >> $GITHUB_OUTPUT
           else
-            echo "push=false" >> $GITHUB_OUTPUT
+            TAG="test-pr-${{ github.event.pull_request.number }}"
+            # A fork's PR gets no registry write: GITHUB_TOKEN is read-only there, so the image is
+            # built (which is the check that matters) and not pushed.
+            if [[ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+              echo "push=true" >> $GITHUB_OUTPUT
+            else
+              echo "push=false" >> $GITHUB_OUTPUT
+            fi
           fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "cache_scope=$TAG" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -47,19 +73,19 @@ jobs:
           context: .
           platforms: linux/amd64
           push: ${{ steps.vars.outputs.push }}
-          tags: ${{ steps.vars.outputs.image }}:test-pr-${{ github.event.pull_request.number }}
-          cache-from: type=gha,scope=pr-${{ github.event.pull_request.number }}
-          cache-to: type=gha,mode=max,scope=pr-${{ github.event.pull_request.number }}
+          tags: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          cache-from: type=gha,scope=${{ steps.vars.outputs.cache_scope }}
+          cache-to: type=gha,mode=max,scope=${{ steps.vars.outputs.cache_scope }}
 
       - name: Publish pull command
         if: steps.vars.outputs.push == 'true'
         run: |
           {
-            echo "### Test this PR's Docker image"
+            echo "### Pull this build"
             echo ""
             echo '```'
-            echo "docker pull ${{ steps.vars.outputs.image }}:test-pr-${{ github.event.pull_request.number }}"
+            echo "docker pull ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "docker pull ${{ steps.vars.outputs.image }}:test-pr-${{ github.event.pull_request.number }}"
+          echo "docker pull ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
