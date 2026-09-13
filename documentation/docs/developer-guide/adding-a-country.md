@@ -120,6 +120,8 @@ honest gap rather than a guess.
 | Mandatory mentions | `mentions/data/` | Free-text legal mentions (BG-1) this country requires on every invoice, temporal. | No — read live from the file. |
 | Content requirements | `content-requirements/data/` | Whether a specific EN 16931 field (e.g. BT-23) must carry a country-derived value from a date. | No — read live from the file. |
 | VAT rate catalog | `vat-rates/data/` | The rate **ladder** a user picks from on one invoice line (presentation data, not a tax computation). | No — read live from the file. |
+| Archive retention | `archive/retention/data/` | How long a document archived for this country must be kept, and — just as important — **what that duration is counted from** (`origin`: the archiving instant, the issue date, the end of its calendar year, or a safe reading of a financial-year close). A country may declare SEVERAL rules: they are simultaneous obligations, and the effective floor is their maximum, never a choice between them. | No — read live from the file; written onto `DocumentArchive.retentionUntil`/`retentionBasis` when an archive is created. |
+| Reporting obligation | `reporting/data/` | Whether this country requires the seller to **declare** an invoice's data to its own tax authority after issuance, independently of how the invoice was delivered. Distinct from channel policy, which is about delivery. | No — read live from the file. |
 
 You will rarely need all of these for a new country. A country whose only need is "let the OSS tax
 engine compute a destination rate for it" needs *only* `tax/tax-systems/data/xx.json` — see
