@@ -36,13 +36,57 @@ describe('activeChannelMandateFor — the real, shipped FR/PDP mandate', () => {
     expect(activeChannelMandateFor('FR', '2026-08-31T23:59:59.999Z')).toBeUndefined();
   });
 
-  it('a country with no mandated fact at all (PL — still merely "suggested") never has an active mandate', () => {
-    expect(activeChannelMandateFor('PL', '2030-01-01')).toBeUndefined();
-  });
+  it(
+    'a country with no mandated fact at all (PL — still merely "suggested", even with real legal ' +
+      "provenance now — see data/pl.json's own notes for why arming it would refuse still-lawful " +
+      'invoices) never has an active mandate',
+    () => {
+      expect(activeChannelMandateFor('PL', '2030-01-01')).toBeUndefined();
+    },
+  );
 
   it('a country with no channel-policy file at all never has an active mandate', () => {
     expect(activeChannelMandateFor('DE', '2030-01-01')).toBeUndefined();
   });
+});
+
+// `data/it.json`'s own "sdi" fact — armed 2026-09-13, sourced to D.Lgs. 127/2015 art. 1 comma 3 (see
+// that file's own `provenance.sourceText`) — went from `requirement: 'suggested'` (blocks nothing) to
+// `requirement: 'mandated'`, `mandatedFrom: '2019-01-01'`. THIS is the proof that arming it actually
+// changed the function's real, shipped answer for Italy — not merely that the JSON file parses. Same
+// "real, shipped catalog" discipline as the FR block above, not a fixture.
+describe('activeChannelMandateFor — the real, shipped IT/SdI mandate (armed 2026-09-13)', () => {
+  it('IS active for an invoice issued well after mandatedFrom (2019-01-01) — e.g. any invoice dated today', () => {
+    const mandate = activeChannelMandateFor('IT', '2026-09-13');
+    expect(mandate).toEqual(
+      expect.objectContaining({
+        providerId: 'sdi',
+        mandatedFrom: '2019-01-01',
+        provenance: expect.objectContaining({ kind: 'legal' }),
+      }),
+    );
+  });
+
+  it('IS active for an invoice issued exactly on mandatedFrom', () => {
+    expect(activeChannelMandateFor('IT', '2019-01-01')?.providerId).toBe('sdi');
+  });
+
+  it(
+    'is NOT active for an invoice issued the day before mandatedFrom (pre-mandate Italian invoices ' +
+      'are unaffected)',
+    () => {
+      expect(activeChannelMandateFor('IT', '2018-12-31')).toBeUndefined();
+    },
+  );
+
+  it(
+    "does not disturb France's own, independent mandate — the two countries' facts are evaluated " +
+      'independently, never cross-contaminated',
+    () => {
+      expect(activeChannelMandateFor('FR', '2026-09-01')?.providerId).toBe('pdp');
+      expect(activeChannelMandateFor('IT', '2026-09-01')?.providerId).toBe('sdi');
+    },
+  );
 });
 
 describe('activeChannelMandateFor — date arithmetic, on an injected fixture catalog', () => {

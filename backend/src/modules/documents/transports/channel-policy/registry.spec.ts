@@ -19,32 +19,34 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ]);
   });
 
-  it('PL suggests (never mandates) the "ksef" provider — a fact read from data/pl.json', () => {
+  it('PL suggests (never mandates) the "ksef" provider — a fact read from data/pl.json, now sourced to the real statute (art. 106ga ust. 1) even though it stays "suggested"', () => {
     expect(defaultChannelPolicyCatalog.factsFor('PL')).toEqual([
       expect.objectContaining({
         providerId: 'ksef',
         requirement: 'suggested',
-        provenance: expect.objectContaining({ kind: 'unverified' }),
+        provenance: expect.objectContaining({ kind: 'legal' }),
       }),
     ]);
   });
 
-  it('IT suggests (never mandates) the "sdi" provider — a fact read from data/it.json', () => {
+  it('IT MANDATES the "sdi" provider from 2019-01-01 — a fact read from data/it.json, sourced to D.Lgs. 127/2015 art. 1 comma 3', () => {
     expect(defaultChannelPolicyCatalog.factsFor('IT')).toEqual([
       expect.objectContaining({
         providerId: 'sdi',
-        requirement: 'suggested',
-        provenance: expect.objectContaining({ kind: 'unverified' }),
+        requirement: 'mandated',
+        mandatedFrom: '2019-01-01',
+        provenance: expect.objectContaining({ kind: 'legal' }),
       }),
     ]);
   });
 
   // BE (suggested "peppol", REAL legal citation) and RO (mandated "anaf", the same unconditional
   // shape as FR's own mandate) were removed by the 5-country prune (2026-09-10)
-  // along with their data/xx.json. Neither case has an honest re-anchor among the kept three
-  // files: FR alone is "mandated" + "legal" (already pinned above), IT/PL are both "suggested" +
-  // "unverified" (also already pinned above) — no kept file exhibits BE's own "suggested" + "legal"
-  // combination, so this case is deleted rather than weakened.
+  // along with their data/xx.json. FR and IT are now both "mandated" + "legal" (pinned above); PL
+  // is "suggested" + "legal" (also pinned above, since primary text now grounds the KSeF entry too
+  // — see that file's own `notes` for why "suggested" was kept anyway: `mandatedFrom` can only ever
+  // be a single date, and the real statute's own transitional articles (145l/145m) make a single
+  // date wrong for most taxpayers).
 
   it('lower-cased or absent country codes never crash — no fact, not a throw', () => {
     expect(defaultChannelPolicyCatalog.factsFor('fr')).toEqual(defaultChannelPolicyCatalog.factsFor('FR'));

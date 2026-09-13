@@ -477,12 +477,19 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 	// ── Vague 2 : SdI (Italie) — même motif que PDP, serveur fictif (port fermé) — un vrai client
 	// SOAP existe désormais (`sdicoop-client.ts`, "implemented-awaiting-accreditation") ──
 
-	it("une société ITALIENNE voit la suggestion SdI sur l'écran des canaux — la donnée vient de data/it.json, jamais d'un `if`", () => {
+	it("une société ITALIENNE voit SdI comme canal IMPOSÉ (pas seulement suggéré) sur l'écran des canaux — la donnée vient de data/it.json, jamais d'un `if`", () => {
+		// Armé le 2026-09-13 (D.Lgs. 127/2015 art. 1 comma 3, `mandatedFrom: '2019-01-01'` —
+		// voir data/it.json's own `provenance`/`notes`) : le badge « suggéré » reste vrai (un mandat
+		// renforce une suggestion, il ne la contredit pas — même convention que PDP/France, déjà
+		// prouvée par 32-channel-mandate.cy.ts), et le badge « imposé » apparaît maintenant lui aussi.
 		setCompanyCountry("Italy", "IT");
 		cy.visit("/settings/channels");
 
 		cy.get('[data-cy="channel-sdi"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy="channel-sdi-suggested"]').should("exist");
+		cy.get('[data-cy="channel-sdi-mandated"]', { timeout: 10000 })
+			.should("exist")
+			.and("contain.text", "2019-01-01");
 		cy.get('[data-cy="channel-pdp-suggested"]').should("not.exist");
 
 		setCompanyCountry("France", "FR");
