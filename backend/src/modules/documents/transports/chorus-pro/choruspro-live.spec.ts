@@ -2,7 +2,7 @@
  * REAL round-trip against the PISTE sandbox — gated `CHORUSPRO_LIVE=1` + `CHORUSPRO_CLIENT_ID` /
  * `CHORUSPRO_CLIENT_SECRET` (`live-gate.ts`, the same shape every sibling `*.live.spec.ts` in this
  * module uses). `CHORUSPRO_TECH_LOGIN`/`CHORUSPRO_TECH_PASSWORD` are read too but NOT part of the
- * gate's required list — same asymmetry the repère's own `choruspro-live.spec.ts` held: a PISTE OAuth
+ * gate's required list — same asymmetry the reference's own `choruspro-live.spec.ts` held: a PISTE OAuth
  * application can exist (and be worth proving reachable) before a Chorus Pro compte technique has
  * been created for it, so this spec still runs the OAuth half and SKIPS only the deposit half when the
  * technical-account pair is absent, rather than gating the whole file on all four.

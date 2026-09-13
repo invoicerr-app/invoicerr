@@ -1,7 +1,7 @@
 /**
  * The "peppol" transport — a high-leverage channel: DE/BE/NL/the Nordics run B2B e-invoicing over the
  * Peppol network, and several EU B2G routes name it too (see `b2g-routing/data/de.json`'s own header
- * for the German federal portal case — "le trou allemand du B2G", CLOSED via the format override
+ * for the German federal portal case — "the German B2G gap", CLOSED via the format override
  * this file's own header, "THE FORMAT OVERRIDE", documents below; see that JSON file's own ADDENDUM
  * for the full, sourced resolution). Same `DocumentTransport` interface `pdp-transport.ts`/
  * `ksef-transport.ts` implement, registered the same way (`TransportRegistry.register`).
@@ -14,7 +14,7 @@
  * spec.ts`, zero-secret sandbox self-signup) — see that file's own header and `documentation/docs/developer-guide/live-testing.md` for
  * the raw, honest result. This PRODUCTION transport uses ONLY the generic adapter: the settings
  * screen's own `PROVIDER_FIELDS.peppol` (AP URL, API key, participant id, environment) has no
- * `apProvider` selector the way the repère's own `ap-adapters.ts` did — a company connects ONE real
+ * `apProvider` selector the way the reference's own `ap-adapters.ts` did — a company connects ONE real
  * AP vendor's own REST endpoint, whatever it is, behind that same common-denominator shape.
  *
  * The payload is `peppol-bis` (`formats/peppol-bis-provider.ts`) BY DEFAULT — gated by the REAL
@@ -28,7 +28,7 @@
  * `peppol-transport.spec.ts`'s own "vendor-FR/R002 case, FIXED" test proves the Access Point actually
  * receives it, merged into one note.
  *
- * ## THE FORMAT OVERRIDE — "le trou allemand du B2G"
+ * ## THE FORMAT OVERRIDE — "the German B2G gap"
  *
  * The Peppol NETWORK is content-agnostic — it is the same four-corner transport whether the envelope
  * carries a generic Peppol BIS invoice or a national CIUS built on the same UBL syntax. Germany's own
@@ -37,8 +37,8 @@
  * CHANNEL, while § 4 Abs. 1 ERechV — read at gesetze-im-internet.de, same file — still mandates
  * XRechnung as the invoice's own CONTENT regardless of which channel carried it. Sending generic
  * Peppol BIS over the (now accepted) Peppol channel would satisfy the CHANNEL half of that law while
- * silently failing the CONTENT half — exactly the "artefact qui A L'AIR conforme sans l'être" this
- * codebase refuses everywhere else (`format-registry.ts`, `structural-check.ts`).
+ * silently failing the CONTENT half — exactly the "artifact that LOOKS conformant without actually
+ * being one" this codebase refuses everywhere else (`format-registry.ts`, `structural-check.ts`).
  *
  * `DocumentTransportContext.formatOverride` (`transport-registry.ts`'s own header) is the fix: a B2G
  * rule that selects this transport (`actions/invoice-actions.ts#resolveB2gInvoiceTransport`) also
@@ -78,9 +78,10 @@
  *    an artifact that failed the format gate, or the AP answering with no usable message id) —
  *    thrown from inside `deliver()`, so BullMQ's own retries get a chance to run before this ever
  *    becomes `send_failed`.
- * An accepted send with an EMPTY message id is the SECOND kind of failure, never a success — this
- * task's own mutation #1 target, the same hard-success contract every transport in this directory
- * already enforces (documentation/docs/developer-guide/live-testing.md: "a reference nobody can look up is not a reference at all").
+ * An accepted send with an EMPTY message id is the SECOND kind of failure, never a success — the
+ * mutation #1 target (see `peppol-transport.spec.ts`), the same hard-success contract every transport
+ * in this directory already enforces (documentation/docs/developer-guide/live-testing.md: "a
+ * reference nobody can look up is not a reference at all").
  *
  * Post-send conformity: the generic AP port's own `getStatus()` is exactly the kind of pull endpoint
  * `conformity/authority-status-poller.ts` exists for — `conformity/pollers/peppol-status-poller.ts`

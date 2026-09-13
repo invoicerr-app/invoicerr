@@ -1,6 +1,6 @@
 /**
  * The document-action queue's ONLY processor — one generic worker for every declared action, not one
- * processor per business need ("un mécanisme générique, pas un job ad hoc"). Lives in
+ * processor per business need ("a generic mechanism, not an ad hoc job"). Lives in
  * its OWN module (document-queue-worker.module.ts), gated by WORKER_INLINE, so a scaled deployment can
  * run it in a dedicated process without the API also consuming (see that module's own header).
  *
@@ -194,8 +194,9 @@ export class DocumentActionProcessor extends WorkerHost {
     // No try/catch here: a thrown error (a forbidden action, a transient delivery failure inside the
     // action's own handler, ...) must propagate so BullMQ records this ATTEMPT as failed and applies
     // its own retry/backoff — swallowing it here would silently turn every failure into a single,
-    // un-retried attempt. THE MUTATION TARGET #2 ("l'échec du job persiste sent quand même") lives in
-    // the action handler itself (actions/async-send.ts) and in `onFailed` below, not in this method.
+    // un-retried attempt. THE MUTATION TARGET #2 ("the job's failure gets persisted as 'sent' anyway")
+    // lives in the action handler itself (actions/async-send.ts) and in `onFailed` below, not in this
+    // method.
     return this.documentsService.runAction(companyId, typeId, actionId, {
       documentId,
       data: payload.data,

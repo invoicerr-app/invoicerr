@@ -16,8 +16,8 @@
  *    call sites, never the "build a machine-readable artifact from the same render" one.
  *
  * No certificate configured (`credentials.resolve()` → null, the default `NullSigningCredentials`
- * path) → the PDF returned is the EXACT input, unchanged — this is the "société sans certificat → PDF
- * strictement inchangé" invariant, and it needs no special-casing here:
+ * path) → the PDF returned is the EXACT input, unchanged — this is the "company with no certificate →
+ * PDF strictly unchanged" invariant, and it needs no special-casing here:
  * `PadesSigningProvider.sign()` already returns `{ ...artifact }` verbatim in that case.
  *
  * A certificate IS configured but the crypto operation fails → this function does NOT catch that

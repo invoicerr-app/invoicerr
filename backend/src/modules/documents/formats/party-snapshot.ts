@@ -56,7 +56,7 @@ export function clientToFormatParty(client: ClientRowForFormat): DocumentFormatP
   return {
     // A CLIENT's `name` is required on the schema but a form can still leave it blank for an
     // INDIVIDUAL client that only carries contact first/last names — the same fallback
-    // `invoice-rendering.service.ts` used at the repère, reprised here rather than reinvented.
+    // `invoice-rendering.service.ts` used at the reference, reprised here rather than reinvented.
     name: client.name || [client.contactFirstname, client.contactLastname].filter(Boolean).join(' ') || 'N/A',
     address: client.address,
     addressLine2: client.addressLine2,

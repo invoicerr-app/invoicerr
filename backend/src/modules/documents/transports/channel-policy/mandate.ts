@@ -1,5 +1,5 @@
 /**
- * "Canal imposé par pays" — evaluates whether a country's channel-policy MANDATE
+ * "Channel mandated by country" — evaluates whether a country's channel-policy MANDATE
  * (schema.ts's `ChannelPolicyFact.requirement === 'mandated'`) has come into force for one particular
  * invoice. Kept in its own small file (not folded into `registry.ts`'s plain lookup, nor into
  * `invoice-actions.ts` itself) because the DATE COMPARISON below is the one genuinely new piece of
@@ -15,7 +15,7 @@
  *     happens to click "Send". France's own CGI art. 289 bis phrases its e-invoicing mandate as
  *     applying to operations "à compter du" a date — the operation's date is the invoice's own
  *     `issueDate`, exactly the field the (removed) compliance engine's `TransactionContext.issueDate`
- *     keyed its own temporal `validFrom`/`validTo` windows on at the repère
+ *     keyed its own temporal `validFrom`/`validTo` windows on at the reference
  *     (`compliance/profiles/data/fr.ts`, `avant-refonte-documents`) before this branch's demolition —
  *     this module continues that precedent rather than inventing a new one that happens to be
  *     simpler to write.

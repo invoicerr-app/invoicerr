@@ -9,22 +9,22 @@
  *
  * This client wraps a hosted AP gateway (corner 2), which handles the AS4/ebMS3 SOAP protocol,
  * digital signatures, and message delivery to the receiver's AP (corner 3). It does NOT implement raw
- * AS4/ebMS3 crypto — that is the AP vendor's own responsibility, exactly like the repère's own header
+ * AS4/ebMS3 crypto — that is the AP vendor's own responsibility, exactly like the reference's own header
  * already documented.
  *
- * API model (unchanged from the repère — the "common denominator" every hosted AP vendor's REST API
+ * API model (unchanged from the reference — the "common denominator" every hosted AP vendor's REST API
  * shares): `POST {accessPointUrl}/api/v1/send` with a JSON body carrying the base64 document bytes,
  * returning `{messageId, status?}`; `GET {accessPointUrl}/api/v1/status/{messageId}` returning the
  * current delivery status.
  *
- * WHAT WAS DROPPED from the repère's own port, deliberately, not by oversight: `sendInvoiceResponse`
+ * WHAT WAS DROPPED from the reference's own port, deliberately, not by oversight: `sendInvoiceResponse`
  * (Peppol Invoice Response / MLR relay) — nothing in this codebase's reception direction
  * (`reception/`... actually this branch's own `documents` module has no inbound Peppol handler at
  * all) ever calls it; carrying dead surface area across the reprise would be pretending a capability
- * exists that nothing wires up. Re-add it the day an inbound flow needs it, from the SAME repère file
+ * exists that nothing wires up. Re-add it the day an inbound flow needs it, from the SAME reference file
  * (git show avant-refonte-documents:.../peppol-client.ts), not invented fresh.
  *
- * LIVE STATUS: this generic gateway remains what the repère already called it — "live-deferred": it
+ * LIVE STATUS: this generic gateway remains what the reference already called it — "live-deferred": it
  * models the common REST denominator and needs a concrete connected AP (Basware, Pagero, Qvalia, or a
  * self-hosted phase4/oxalis-ng — see `documentation/docs/developer-guide/peppol-ap-research.md`). The ACTUAL live attempt
  * went through the peppol.sh adapter instead (`peppol-sh-client.ts`, zero-secret sandbox) — see that
@@ -86,7 +86,7 @@ export interface PeppolApPort {
 }
 
 // ---------------------------------------------------------------------------
-// Standard Peppol constants — REPRISED verbatim from the repère (unchanged, standard URNs).
+// Standard Peppol constants — REPRISED verbatim from the reference (unchanged, standard URNs).
 // ---------------------------------------------------------------------------
 
 /** Default Peppol BIS Billing 3 process ID. */
@@ -100,7 +100,7 @@ export const PEPPOL_BILLING_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:0
  * what is actually inside the envelope.
  *
  * `INVOICE_UBL` is Peppol BIS Billing 3 — the ONE type this transport sent before the
- * "Peppol/Allemagne" wave (an invoice; this codebase has no credit-note transport wiring today, see
+ * "Peppol/Germany" wave (an invoice; this codebase has no credit-note transport wiring today, see
  * `../transport-registry.ts`'s own header: "See invoice-actions.ts's 'send' for the one caller
  * today"). `INVOICE_XRECHNUNG_UBL` is the SECOND, added for `../peppol-transport.ts`'s own format
  * override (`documents-core.module.ts#buildTransportRegistry`'s "peppol" wiring): its
@@ -147,7 +147,7 @@ export interface PeppolApClientConfig {
 /**
  * HTTP client for a generic Peppol AP gateway REST API — the common pattern used by hosted AP
  * vendors. The actual API shape varies per vendor; this models the common JSON denominator, same as
- * the repère's own client.
+ * the reference's own client.
  */
 export class PeppolApHttpClient implements PeppolApPort {
   constructor(private readonly config: PeppolApClientConfig) {}

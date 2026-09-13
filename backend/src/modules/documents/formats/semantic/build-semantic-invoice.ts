@@ -259,7 +259,7 @@ export interface SemanticInvoiceInput {
 /**
  * Map a VAT identifier's 2-letter country prefix → the OpenPeppol Electronic Address Scheme (EAS,
  * ISO 6523 ICD) code for THAT country's own national VAT scheme. REPRISED VERBATIM from
- * `invoice-rendering.service.ts` at the repère — see that file's own comment for the sourcing
+ * `invoice-rendering.service.ts` at the reference — see that file's own comment for the sourcing
  * (cross-checked against the vendored `PEPPOL-EN16931-UBL.sch`'s own eaid enumeration) this table
  * carries. Peppol transmission itself is not wired here (see `format-registry.ts`'s own
  * header) — this table is used here only to give a VAT-registered party SOME `cbc:EndpointID` scheme
@@ -452,7 +452,7 @@ function vatCategoryFor(ratePercent: number | null, lineIndex: number): 'S' | 'Z
  * BT-120 (`cbc:TaxExemptionReason`, free text) vs BT-121 (`cbc:TaxExemptionReasonCode`, a VATEX
  * code) — `tax-engine.ts`'s own `component.reason` is sometimes one, sometimes the other (see
  * `resolveInvoiceCrossBorderTax`'s own header): a genuine VATEX code always starts with the literal
- * prefix `'VATEX-'` (the CEF code list's own naming convention, and the exact strings the repère's
+ * prefix `'VATEX-'` (the CEF code list's own naming convention, and the exact strings the reference's
  * engine emits — `'VATEX-EU-AE'`, `'VATEX-EU-IC'`, `'VATEX-EU-G'`, `'VATEX-EU-O'`), so that prefix is
  * what tells the two BTs apart here — never a guess, never both emitted for the same reason.
  */
@@ -515,7 +515,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   // Community supply, export, …), appended through the EXACT SAME `toUblNote` encoding as the
   // country-mandated ones above (see `SemanticInvoiceInput.additionalMentions`'s own header): a
   // `LegalMention` never carries a UNTDID 4451 subject code (unlike PMT/PMD/AAB), so `subjectCode` is
-  // left undefined and `toUblNote` emits plain text, exactly as the repère's own removed engine did.
+  // left undefined and `toUblNote` emits plain text, exactly as the reference's own removed engine did.
   for (const mention of input.additionalMentions ?? []) {
     legalMentionNotes.push(toUblNote({ text: mention.text, legalRef: mention.text }));
   }
@@ -691,7 +691,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // BR-AE-10/BR-K-*/BR-G-10/BR-O-10/BR-E-10 — the categories that need a reason all need it HERE,
       // at BG-23 (the breakdown), not merely on the line's own `ClassifiedTaxCategory` above. The
       // cross-border-resolved `component.reason` (`tax-engine.ts`) is either a genuine VATEX CODE
-      // (BT-121 — 'VATEX-EU-AE'/'VATEX-EU-IC'/'VATEX-EU-G'/'VATEX-EU-O', the repère's own values,
+      // (BT-121 — 'VATEX-EU-AE'/'VATEX-EU-IC'/'VATEX-EU-G'/'VATEX-EU-O', the reference's own values,
       // verbatim) or free legal TEXT (BT-120 — France's own 293 B mention) — `exemptionReasonFields`
       // tells them apart by the 'VATEX-' prefix, never guessing which BT a given string belongs to.
       ...exemptionReasonFields(reasonForRate(entry.ratePercent)),

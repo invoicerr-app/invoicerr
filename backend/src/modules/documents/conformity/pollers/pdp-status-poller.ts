@@ -8,7 +8,7 @@
  * requirements matured — this file's own poll/journal MECHANICS are proven against the real fr:213
  * payload captured then, not invented).
  *
- * LEÇON CRITIQUE (`pdp/pdp-client.ts`'s own header): the old
+ * CRITICAL LESSON (`pdp/pdp-client.ts`'s own header): the old
  * poller read `invoice.status_code` — a field the API does NOT return — which is why "PDP proven
  * live" stayed green while every real deposit was silently PENDING forever. The lifecycle lives in
  * `events[]`, and ONLY there. This poller reads `events[]` and nothing else.

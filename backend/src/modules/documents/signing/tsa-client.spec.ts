@@ -1,5 +1,5 @@
 /**
- * RFC 3161 TSA client and timestamp-embedding specs — reprised from the repère's
+ * RFC 3161 TSA client and timestamp-embedding specs — reprised from the reference's
  * `tsa-client.spec.ts`, adapted to this module's own `SigningArtifact`/`RecordingSigningLogger`.
  *
  * Coverage:

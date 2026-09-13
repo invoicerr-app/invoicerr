@@ -1,8 +1,8 @@
 /**
  * The country CHANNEL-POLICY file format. A policy file carries two kinds of fact. The first is a
  * settings-screen prompt that tells a company "this transport is the usual one for your country"
- * (FR → PDP) — a non-binding, advisory HINT, never a block. The second ("canal imposé par
- * pays") says a channel is not merely usual but LEGALLY REQUIRED,
+ * (FR → PDP) — a non-binding, advisory HINT, never a block. The second ("channel mandated by
+ * country") says a channel is not merely usual but LEGALLY REQUIRED,
  * with its own sourced provenance, and that fact DOES have a binding effect once the invoice it
  * applies to is issued on or after its start date.
  *
@@ -62,7 +62,7 @@ export interface ChannelPolicyFact {
    *  task's own mechanism (every shipped mandate today applies unconditionally to every invoice the
    *  issuing company sends): a future mandate that only binds a subset of invoices (a role, a buyer
    *  country) has somewhere to put that fact without a schema change, but nothing reads it yet — the
-   *  same "not devinée" discipline `country-policy/schema.ts`'s own `notes` field already holds for a
+   *  same "not guessed" discipline `country-policy/schema.ts`'s own `notes` field already holds for a
    *  different kind of extra fact. */
   scope?: Record<string, unknown>;
   provenance: PolicyProvenance;

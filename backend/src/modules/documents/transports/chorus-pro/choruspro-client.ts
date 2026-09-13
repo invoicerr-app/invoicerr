@@ -2,12 +2,12 @@
  * France Chorus Pro B2G transmission client — PISTE gateway.
  *
  * REPRISED, structurally verbatim, from git tag `avant-refonte-documents`
- * (`compliance/providers/transmission/choruspro-client.ts`) — the repère's client was written
+ * (`compliance/providers/transmission/choruspro-client.ts`) — the reference's client was written
  * against the real documentation, so every endpoint path, every request/response shape, and every
  * status-mapping table is kept exactly as that file had them. Two
  * deliberate ADAPTATIONS to the CURRENT contract, both documented at their own call site below:
  *
- *  1. `deposerFlux` takes a `Buffer` (`fileBytes`), not a UTF-8 `string` — the repère's own signature
+ *  1. `deposerFlux` takes a `Buffer` (`fileBytes`), not a UTF-8 `string` — the reference's own signature
  *     assumed a plain XML string (`Buffer.from(xmlContent, 'utf-8')`), which is safe for pure text but
  *     would CORRUPT the actual payload: the B2G FR rule (`b2g-routing/data/fr.json`) names
  *     `formatSyntax: "facturx"`, and Factur-X is a PDF/A-3 BINARY with an embedded XML (see
@@ -15,13 +15,13 @@
  *     first (`Buffer.from(str, 'utf-8')`) is lossy for any byte sequence that isn't valid UTF-8, which
  *     a PDF's binary body routinely is not. Base64-encoding the Buffer directly (`fileBytes.toString
  *     ('base64')`) is the only correct way to carry it — this is the ONE structural change from the
- *     repère, not a stylistic one.
- *  2. A REAL `FetchChorusProHttpPort` is added at the bottom (the repère's own `choruspro-transmission
+ *     reference, not a stylistic one.
+ *  2. A REAL `FetchChorusProHttpPort` is added at the bottom (the reference's own `choruspro-transmission
  *     .ts` shipped only a `STUB_HTTP` that always threw "not implemented" — this codebase's sibling
  *     clients (`ksef/fetch-http-client.ts`) already ship a real fetch adapter, and
  *     `transports/chorus-pro-transport.ts` needs one to ever actually reach PISTE).
  *
- * Architecture (unchanged from the repère):
+ * Architecture (unchanged from the reference):
  *  - Platform: PISTE (Plateforme d'Intermédiation de Services pour la Transformation de l'État)
  *  - Authority: AIFE / DGFiP — Chorus Pro is the mandatory B2G invoicing portal (see
  *    `b2g-routing/data/fr.json`'s own sourced legal text: Code de la commande publique L.2192-1/-2/-5).
@@ -45,11 +45,11 @@
  *  - consulterCr  : POST /cpro/factures/v1/consulter/cr
  *
  * VERIFIED LIVE (2026-09-02): the OAuth endpoint at
- * `https://sandbox-oauth.piste.gouv.fr/api/oauth/token` (the repère's own hostname) resolves and
+ * `https://sandbox-oauth.piste.gouv.fr/api/oauth/token` (the reference's own hostname) resolves and
  * answers a REAL `HTTP 400 {"error":"invalid_client", ...}` for a garbage client_id/secret — a real,
  * deterministic rejection, not a network-level guess. `documentation/docs/developer-guide/credentials-guide.md` §3 names a DIFFERENT
  * sandbox OAuth hostname (`sandbox-oauth.aife.economie.gouv.fr`), which does NOT resolve from here at
- * all (`curl`: "Could not resolve host") — the repère's own hostname is the one this file keeps, being
+ * all (`curl`: "Could not resolve host") — the reference's own hostname is the one this file keeps, being
  * the one actually reachable and answering the expected OAuth error shape; `documentation/docs/developer-guide/credentials-guide.md`'s
  * name is flagged, not silently trusted or silently overwritten (a real PISTE account is still needed
  * to know for certain which one a production application should target).
@@ -173,7 +173,7 @@ export class ChorusProClient {
    * Returns: { numeroFluxDepot, statut, dateDepot, nbFacturesDepot }
    *
    * `fileBytes` is a `Buffer` — see this file's own header, adaptation §1, for why this is NOT a
-   * `string` the way the repère had it: the payload is Factur-X (a PDF/A-3 binary), and
+   * `string` the way the reference had it: the payload is Factur-X (a PDF/A-3 binary), and
    * base64-encoding the raw bytes directly is the only lossless way to carry it.
    */
   async deposerFlux(
@@ -305,7 +305,7 @@ export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' |
 }
 
 // ---------------------------------------------------------------------------
-// Real HTTP port — adaptation §2 (see this file's own header): the repère only ever shipped a
+// Real HTTP port — adaptation §2 (see this file's own header): the reference only ever shipped a
 // STUB that threw; `transports/chorus-pro-transport.ts` needs a working one to reach PISTE at all,
 // and `conformity/pollers/chorus-pro-status-poller.ts` needs the same for `consulterCr`. Mirrors
 // `transports/ksef/fetch-http-client.ts`'s own shape (fetch + AbortController timeout), simplified:
@@ -339,7 +339,7 @@ export class FetchChorusProHttpPort implements ChorusProHttpPort {
       // The token call sends an already-encoded `application/x-www-form-urlencoded` STRING
       // (`ChorusProClient._getToken`'s own `body.toString()`); every other call sends a plain object
       // that this port itself must serialize — same "read the Content-Type this caller already set"
-      // convention the repère's own live spec used for its ad hoc `realHttp` (`choruspro-live.spec.ts`).
+      // convention the reference's own live spec used for its ad hoc `realHttp` (`choruspro-live.spec.ts`).
       const isForm = headers['Content-Type']?.includes('x-www-form-urlencoded') ?? false;
       const res = await fetch(url, {
         method: 'POST',

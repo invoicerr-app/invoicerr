@@ -1,36 +1,36 @@
 /**
- * Schematron validation harness — REPRISE quasi verbatim de
- * `compliance/schemas/validate.ts` (git tag `avant-refonte-documents`), amputée de sa moitié XSD.
+ * Schematron validation harness — REPRISED almost verbatim from
+ * `compliance/schemas/validate.ts` (git tag `avant-refonte-documents`), amputated of its XSD half.
  *
- * ## Pourquoi pas de moitié XSD ici
+ * ## Why there is no XSD half here
  *
- * La tâche qui a créé ce fichier demandait "XSD (xmllint-wasm) PUIS Schematron" pour CII/UBL. Fait
- * vérifié avant d'écrire une ligne de code (grep sur TOUT l'historique git, pas seulement le repère
- * `avant-refonte-documents`) : ce dépôt n'a JAMAIS vendoré le XSD racine UN/CEFACT CII (D16B) ni le
- * XSD racine OASIS UBL 2.1. L'ancien moteur, déjà, ne validait CII/UBL EN 16931 QUE par Schematron
- * (voir `providers.ts` au repère : `validateXsd` n'y était appelé que pour les formats NATIONAUX —
- * PL FA(2)/FA(3), ES Facturae, IT FatturaPA, MX CFDI — chacun avec son propre XSD vendoré). Inventer
- * un XSD racine EN16931 maison pour combler ce manque serait exactement le "compilateur maison"
- * interdit par cette tâche. La porte structurelle qui EXISTAIT réellement avant le Schematron dans
- * l'ancien `providers.ts` est le contrôle de bonne formation XML + élément racine attendu — reprise
- * ici sous le nom honnête `validateStructural` (voir `../structural-check.ts`), jamais présentée
- * comme une validation XSD. Un futur format NATIONAL (PL/ES/IT/MX, hors périmètre de cette tâche) qui
- * voudrait reprendre `validateXsd` du repère n'aurait qu'à réimporter cette fonction depuis le tag —
- * rien ici ne s'y oppose.
+ * The original request behind this file called for "XSD (xmllint-wasm) THEN Schematron" for CII/UBL.
+ * Fact verified before writing a line of code (grep across the ENTIRE git history, not just the
+ * `avant-refonte-documents` reference): this repository has NEVER vendored the UN/CEFACT CII (D16B)
+ * root XSD, nor the OASIS UBL 2.1 root XSD. The old engine, already, only ever validated CII/UBL EN
+ * 16931 via Schematron (see `providers.ts` at the reference: `validateXsd` was only ever called there
+ * for the NATIONAL formats — PL FA(2)/FA(3), ES Facturae, IT FatturaPA, MX CFDI — each with its own
+ * vendored XSD). Inventing a home-made EN16931 root XSD to fill this gap would be exactly the
+ * "home-made compiler" this work forbids. The structural gate that DID genuinely exist before
+ * Schematron in the old `providers.ts` is the well-formed-XML check plus the expected root element —
+ * reprised here under the honest name `validateStructural` (see `../structural-check.ts`), never
+ * presented as an XSD validation. A future NATIONAL format (PL/ES/IT/MX, out of scope here) that
+ * wanted to reuse `validateXsd` from the reference would only need to re-import that function from the
+ * tag — nothing here stands in the way of that.
  *
- * Schematron passe par node-schematron (exécute le .sch directement, aucune étape de compilation).
+ * Schematron runs via node-schematron (executes the .sch directly, no compilation step).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 const { Schema } = require('node-schematron');
 
 /**
- * Enregistre la fonction XPath personnalisée `u:slack` (tolérance ± sur une comparaison de
- * montant/prix) que le Peppol BIS Billing 3.0 Schematron (PEPPOL-EN16931-UBL.sch, branché par
- * `../peppol-bis-provider.ts`) déclare comme fonction XSLT. node-schematron s'appuie sur fontoxpath,
- * qui exige un enregistrement explicite via `registerCustomXPathFunction` — les déclarations
- * `xsl:function` internes au .sch ne sont pas lues automatiquement. Reprise VERBATIM du repère.
- * Idempotent (même clé → no-op au réimport via le cache de modules).
+ * Registers the custom XPath function `u:slack` (± tolerance on an amount/price comparison) that the
+ * Peppol BIS Billing 3.0 Schematron (PEPPOL-EN16931-UBL.sch, wired by `../peppol-bis-provider.ts`)
+ * declares as an XSLT function. node-schematron relies on fontoxpath, which requires explicit
+ * registration via `registerCustomXPathFunction` — the .sch's own internal `xsl:function`
+ * declarations are not read automatically. Reprised VERBATIM from the reference.
+ * Idempotent (same key → no-op on re-import, via the module cache).
  */
 try {
   const fontoxpath = require('fontoxpath');
@@ -321,11 +321,11 @@ try {
     (_ctx: unknown, arg: unknown, pari: unknown): number => addPIVA(String(arg), Number(pari)),
   );
 } catch {
-  // fontoxpath absent — sans conséquence tant que Peppol BIS (seul ruleset à utiliser ces fonctions)
-  // n'est pas branché ; voir le commentaire ci-dessus.
+  // fontoxpath absent — harmless as long as Peppol BIS (the only ruleset that uses these functions)
+  // is not wired in; see the comment above.
 }
 
-// Schema.fromString est coûteux — mis en cache par chemin, comme au repère.
+// Schema.fromString is expensive — cached by path, same as at the reference.
 const SCH_CACHE = new Map<string, ReturnType<typeof Schema.fromString>>();
 
 function loadSchema(relPath: string) {
@@ -339,12 +339,12 @@ function loadSchema(relPath: string) {
 }
 
 /**
- * node-schematron n'expose que { id, test, message, isReport } — l'attribut ISO Schematron `flag`
- * (fatal|warning, utilisé partout dans les .sch EN16931/Peppol pour distinguer une violation
- * bloquante d'un simple avertissement) est parsé par la lib mais jamais restitué. Repris du repère :
- * on relit l'attribut directement dans la source .sch (une simple lecture d'attribut, jamais une
- * réimplémentation du schéma) et on l'utilise pour scinder les échecs en `errors` bloquantes
- * (flag="fatal" ou absent) vs `warnings` non bloquantes (flag="warning" ou autre).
+ * node-schematron only exposes { id, test, message, isReport } — the ISO Schematron `flag` attribute
+ * (fatal|warning, used throughout the EN16931/Peppol .sch files to distinguish a blocking violation
+ * from a mere warning) is parsed by the library but never returned. Reprised from the reference: the
+ * attribute is read back directly from the .sch source (a plain attribute read, never a
+ * reimplementation of the schema) and used to split failures into blocking `errors`
+ * (flag="fatal" or absent) vs non-blocking `warnings` (flag="warning" or anything else).
  */
 const SEVERITY_CACHE = new Map<string, Map<string, string>>();
 
@@ -367,13 +367,13 @@ function loadSeverityMap(relPath: string): Map<string, string> {
 
 export interface SchematronError {
   id: string;
-  /** L'attribut ISO Schematron `flag` de la règle, p.ex. 'fatal' | 'warning'. */
+  /** The rule's ISO Schematron `flag` attribute, e.g. 'fatal' | 'warning'. */
   flag: string;
   message: string;
 }
 
 export interface SchematronResult {
-  /** Aucune violation bloquante (fatal/non spécifiée). Une violation non bloquante n'y change rien. */
+  /** No blocking violation (fatal/unspecified). A non-blocking violation does not change this. */
   valid: boolean;
   errorCount: number;
   errors: SchematronError[];
@@ -381,13 +381,14 @@ export interface SchematronResult {
 }
 
 /**
- * Valide un XML contre un fichier Schematron .sch (via node-schematron). Passer le .sch PRÉTRAITÉ
- * (tous les `<sch:include>` déjà résolus) — p.ex. 'en16931/EN16931-CII-validation-preprocessed.sch'.
+ * Validates an XML document against a Schematron .sch file (via node-schematron). Pass the
+ * PREPROCESSED .sch (all `<sch:include>`s already resolved) — e.g.
+ * 'en16931/EN16931-CII-validation-preprocessed.sch'.
  *
- * Résultats node-schematron : { assertId, isReport, message }. isReport=false → assertion échouée,
- * isReport=true → <report> déclenché (informationnel, toujours ignoré). Les assertions échouées sont
- * ensuite scindées par le `flag` de la règle (voir loadSeverityMap) : fatal (ou non spécifié) →
- * `errors` (bloquant) ; tout le reste (warning, information, ...) → `warnings` (non bloquant).
+ * node-schematron results: { assertId, isReport, message }. isReport=false → failed assertion,
+ * isReport=true → <report> fired (informational, always ignored). Failed assertions are then split
+ * by the rule's `flag` (see loadSeverityMap): fatal (or unspecified) → blocking `errors`; everything
+ * else (warning, information, ...) → non-blocking `warnings`.
  */
 export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
   const schema = loadSchema(schRelPath);
@@ -412,14 +413,14 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
   };
 }
 
-/** Chemins des rulesets vendorés RÉELLEMENT branchés aujourd'hui, relatifs à ce fichier. */
+/** Paths of the vendored rulesets ACTUALLY wired in today, relative to this file. */
 export const EN16931_CII_SCH = 'en16931/EN16931-CII-validation-preprocessed.sch';
 export const EN16931_UBL_SCH = 'en16931/EN16931-UBL-validation-preprocessed.sch';
-/** Le delta OpenPEPPOL BIS Billing 3.0 — s'exécute EN PLUS de `EN16931_UBL_SCH`, jamais à la place
- *  (voir `../peppol-bis-provider.ts`), exactement comme les deltas nationaux ci-dessous. */
+/** The OpenPEPPOL BIS Billing 3.0 delta — runs IN ADDITION TO `EN16931_UBL_SCH`, never instead of it
+ *  (see `../peppol-bis-provider.ts`), exactly like the national deltas below. */
 export const PEPPOL_BIS_UBL_SCH = 'peppol/PEPPOL-EN16931-UBL.sch';
-/** Le delta KoSIT XRechnung 3.0.x — idem, branché par `../xrechnung-provider.ts`. */
+/** The KoSIT XRechnung 3.0.x delta — likewise, wired by `../xrechnung-provider.ts`. */
 export const XRECHNUNG_UBL_SCH = 'de/XRechnung-UBL-validation-preprocessed.sch';
-// Le delta SI-UBL 2.0 / NLCIUS (Pays-Bas) branchait ici son propre fichier Schematron vendoré —
-// supprimé avec le reste du périmètre néerlandais (réduction à cinq pays, 2026-09-10) : voir
-// `documentation/docs/developer-guide/live-testing.md` pour ce que cela abandonne.
+// The SI-UBL 2.0 / NLCIUS (Netherlands) delta used to wire its own vendored Schematron file here —
+// removed along with the rest of the Dutch scope (five-country pivot, 2026-09-10): see
+// `documentation/docs/developer-guide/live-testing.md` for what this drops.

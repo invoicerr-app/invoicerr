@@ -4,8 +4,8 @@
  * same "loosely-typed, no real DB" testability `country-policy/seed.spec.ts` already established for
  * its own `seedCountryPolicies`.
  *
- * The task's own explicit ask: "le boot-upsert idempotent (2 boots → mêmes lignes ; un fichier
- * modifié → la ligne suit)".
+ * Idempotency requirement: running the boot-upsert twice must produce the same rows; a modified
+ * file's row must follow the change.
  */
 import { defaultB2gRoutingCatalog, B2gRoutingCatalog } from './registry';
 import { B2gRoutingRuleFact } from './schema';

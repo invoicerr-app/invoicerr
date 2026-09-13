@@ -1,12 +1,12 @@
 /**
  * REAL round-trip against the superpdp sandbox. Gated the same way the
- * repère's own `pdp-live.spec.ts` was (`PDP_LIVE=1` + credential env vars — `live-gate.ts`, REPRISED
+ * reference's own `pdp-live.spec.ts` was (`PDP_LIVE=1` + credential env vars — `live-gate.ts`, REPRISED
  * verbatim), and run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
  *   PDP_LIVE=1 npx jest pdp-live --no-coverage --runInBand
  *
- * DB-FREE ON PURPOSE, same choice the repère's own spec made (see its own "(DB-free)" comment): that
+ * DB-FREE ON PURPOSE, same choice the reference's own spec made (see its own "(DB-free)" comment): that
  * exact command above never sets DATABASE_URL, so this spec never touches Prisma — it does not call
  * `pdp-transport.ts`'s exported `send()` (which reads `Company`/`Client` rows), it calls the SAME
  * underlying, DB-free building blocks that function composes, by hand:
@@ -78,10 +78,10 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
     const clientId = process.env.PDP_CLIENT_ID ?? '';
     const clientSecret = process.env.PDP_CLIENT_SECRET ?? '';
 
-    // Same sandbox tenant the repère's own live spec identified the hard way (its own header
+    // Same sandbox tenant the reference's own live spec identified the hard way (its own header
     // explains why: 315143296/415143296 — the numbers on the original brief — are refused by
     // superpdp for this OAuth client; 000000002/000000001 are what `GET /v1.beta/companies/me`
-    // actually answers for these credentials). VAT keys are computed, not invented: clé = (12 + 3 ×
+    // actually answers for these credentials). VAT keys are computed, not invented: key = (12 + 3 ×
     // SIREN mod 97) mod 97 — FR18000000002 and FR15000000001 both satisfy it.
     const SELLER: SemanticPartyInput = {
       name: 'Burger Queen',

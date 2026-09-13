@@ -150,7 +150,7 @@ describe('DocumentQueueDispatcher.enqueueReport', () => {
     );
   });
 
-  // Dédup — a re-job for the SAME (provider,
+  // Dedup — a re-job for the SAME (provider,
   // document) pair must never enqueue a second, independent job — unlike `enqueueAction`, this skip
   // is UNCONDITIONAL, whatever the existing job's state (never "clear a terminal one and retry" —
   // see this method's own header for why a declaration's own retry happens INSIDE the one job, via

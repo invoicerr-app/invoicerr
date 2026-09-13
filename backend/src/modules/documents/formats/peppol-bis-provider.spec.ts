@@ -40,7 +40,7 @@ const BUYER: DocumentFormatParty = {
   partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
 };
 
-/** Hand-computed, chiffrée à la main: one line at 19% VAT (DE's own standard rate — used only as a
+/** Hand-computed: one line at 19% VAT (DE's own standard rate — used only as a
  *  plausible number, never asserted as a legal fact this bridge relies on).
  *   line: 5 × 200.00 = 1000.00 ; VAT (19%) = 190.00 ; gross = 1190.00 */
 const DOCUMENT_DATA = {

@@ -136,7 +136,7 @@ export async function markSendFailed(
 
   // The SSE status nudge — the fact is ACQUIRED right above (Postgres already holds
   // "send_failed", checked against the declared lifecycle): publishing here, never earlier, is what
-  // lets a browser's own SSE connection move a screen from "sending" straight to "échec" — and shows
+  // lets a browser's own SSE connection move a screen from "sending" straight to "failed" — and shows
   // the Retry button, which the frontend derives from this exact status — without a manual reload.
   await events?.publish(companyId, { documentId, typeId, kind: 'send_failed' });
 

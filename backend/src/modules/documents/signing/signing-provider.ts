@@ -4,7 +4,7 @@ import { SignatureLevel, SignedArtifact, SigningArtifact, SignAlgo } from './sig
 export type { SignAlgo, SignatureLevel };
 
 /**
- * Applies a digital signature / seal to a rendered artifact — reprised verbatim from the repère's
+ * Applies a digital signature / seal to a rendered artifact — reprised verbatim from the reference's
  * `compliance/providers/signing/signing-provider.ts`, adapted to this module's own local
  * `SigningArtifact`/`SignedArtifact` (see `signing-types.ts`'s own header for why) and `SigningLogger`
  * (see `signing-logger.ts`'s own header). sign() is async because WebCrypto and PDF-signing libraries

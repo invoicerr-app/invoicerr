@@ -22,13 +22,13 @@
  * payload, and enforces the hard-success contract".
  *
  * Credentials — TWO layers, both required to be "connected" (see `documentation/docs/developer-guide/credentials-guide.md` §3, read at
- * the repère, unchanged): a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
+ * the reference, unchanged): a PISTE OAuth2 application (`clientId`/`clientSecret`) AND a
  * Chorus Pro "compte technique" (`technicalAccountLogin`/`technicalAccountPassword`) — PISTE alone
  * authenticates the CALLING APPLICATION, never a specific Chorus Pro structure; without the compte
  * technique there is no `cpro-account` header to send, and every real Chorus Pro API call needs both
  * (`choruspro-client.ts`'s own header). `environment` reuses the SAME generic TEST/PROD selector every
  * sibling channel's settings row already renders (`ResolvedChannelConfig.environment`) — never a
- * second, redundant `config.environment` field the way the repère's own `configSchema` had one.
+ * second, redundant `config.environment` field the way the reference's own `configSchema` had one.
  *
  * THE RECIPIENT GATE — mirrors `peppol-transport.ts`'s own "this client has no Peppol endpoint on
  * file" guard, for the identical reason: Chorus Pro identifies every public-sector recipient by its
@@ -102,7 +102,7 @@ export const CHORUS_PRO_PROVIDER_ID = 'chorus-pro';
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /**
- * PISTE base URLs — REPRISED from the repère's own `choruspro-transmission.ts#CHORUS_PRO_URLS`, and
+ * PISTE base URLs — REPRISED from the reference's own `choruspro-transmission.ts#CHORUS_PRO_URLS`, and
  * the sandbox pair independently RE-VERIFIED reachable on 2026-09-02 (see `choruspro-client.ts`'s own
  * header for the real `HTTP 400 invalid_client` this checkout observed against it). Fixed by
  * environment, never a user-editable field — same convention `ksef-transport.ts`'s own `BASE_URLS`
@@ -297,7 +297,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
           'conformity/pollers/chorus-pro-status-poller.ts for the timeline.',
         reference: numeroFluxDepot,
         providerId: CHORUS_PRO_PROVIDER_ID,
-        // Legal archiving ("archivage légal") — the ONLY artifact this transport ever delivers is
+        // Legal archiving — the ONLY artifact this transport ever delivers is
         // the Factur-X actually deposited (already gated valid above), same reasoning every sibling
         // transport's own `artifacts` holds.
         artifacts: [

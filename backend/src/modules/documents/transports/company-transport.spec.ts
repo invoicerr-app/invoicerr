@@ -1,14 +1,13 @@
 /**
- * Le résolveur de transport lui-même — la pièce que `send-divergence.spec.ts` MOCKE.
+ * The transport resolver itself — the piece `send-divergence.spec.ts` MOCKS.
  *
- * Ce test existe parce qu'un test de mutation l'a rendu nécessaire : en faisant retomber ce
- * résolveur sur `'email'` quand rien n'est configuré — précisément le repli silencieux que le
- * produit interdit — la suite de divergence est restée VERTE. Elle mocke ce module, donc elle
- * prouve que l'action bloque quand on lui dit « pas de transport », et rien de ce que ce module
- * répond réellement.
+ * This test exists because a mutation test made it necessary: by making this resolver fall back
+ * to `'email'` when nothing is configured — precisely the silent fallback the product forbids —
+ * the divergence suite stayed GREEN. It mocks this module, so it proves the action blocks when
+ * told "no transport", and nothing about what this module actually answers.
  *
- * Ce n'était pas le produit qui avait tort, c'était la couverture : personne ne testait les dix-neuf
- * lignes qui décident. C'est fait ici.
+ * It wasn't the product that was wrong, it was the coverage: nobody was testing the nineteen
+ * lines that decide. That's done here.
  */
 import prisma from '@/prisma/prisma.service';
 import { getCompanyInvoiceTransportId } from './company-transport';

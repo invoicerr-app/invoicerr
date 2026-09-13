@@ -2,9 +2,9 @@
  * The generic poll-side interface every national channel's post-deposit conformity check implements —
  * national transports: a deposit today succeeds
  * the moment the platform ACCEPTS the upload (`DocumentInstance.transportRef`), and nothing ever
- * follows up on the platform's own LATER verdict (PDP: fr:200 déposée → fr:201 émise → fr:202 reçue,
- * or fr:213 rejetée — proven live in ~1s, five times, see `pollers/pdp-status-poller.ts`'s own
- * header). Same "one small interface, a registry, a provider registers itself" shape
+ * follows up on the platform's own LATER verdict (PDP: fr:200 deposited → fr:201 issued → fr:202
+ * received, or fr:213 rejected — proven live in ~1s, five times, see `pollers/pdp-status-poller.ts`'s
+ * own header). Same "one small interface, a registry, a provider registers itself" shape
  * `transports/transport-registry.ts` already holds for delivery — this is its read-side twin.
  *
  * ## Why "sdi" registers no poller at all
@@ -38,9 +38,8 @@ export interface RawAuthorityEvent {
 /** Thrown by a poller's own `poll()` when this company has no usable credentials connected for this
  *  provider RIGHT NOW — the sweep catches this ONE type specifically (never a bare string match on an
  *  error message) and journals a `poll:blocked` synthetic event instead of letting the job fail loud;
- *  every OTHER thrown error is treated the same way ("un handler
- *  d'événement ne tue jamais le processus") but is logged as a genuine unexpected failure, not merely
- *  "not connected". */
+ *  every OTHER thrown error is treated the same way ("an event handler never kills the process") but
+ *  is logged as a genuine unexpected failure, not merely "not connected". */
 export class ChannelNotConnectedError extends Error {
   constructor(providerId: string) {
     super(`The "${providerId}" channel is not connected (or its credentials are incomplete).`);

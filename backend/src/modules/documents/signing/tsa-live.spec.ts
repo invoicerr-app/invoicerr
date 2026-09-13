@@ -1,5 +1,5 @@
 /**
- * TSA live integration test — reprised from the repère's `tsa-live.spec.ts`, adapted to this
+ * TSA live integration test — reprised from the reference's `tsa-live.spec.ts`, adapted to this
  * module's own `SigningArtifact`/`RecordingSigningLogger` and the current `liveDescribe` gate
  * (`documents/transports/live-gate.ts`). Gated behind TSA_LIVE=1 + TSA_URL — skipped by default in
  * CI and any offline run. NO CREDENTIAL is required (FreeTSA is a public, anonymous TSA) — only the

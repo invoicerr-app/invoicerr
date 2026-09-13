@@ -40,7 +40,7 @@ import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } 
 export interface PdpTransportDeps {
   channelCredentials: ChannelCredentialsService;
   /** The Factur-X provider (`formats/facturx-provider.ts`) — the PDP payload (see this
-   *  file's own header: the round-trip's PROVEN artifact at the repère was raw CII, but Factur-X is
+   *  file's own header: the round-trip's PROVEN artifact at the reference was raw CII, but Factur-X is
    *  the deliberate choice here, and the format provider already gates the embedded CII
    *  through the identical Schematron `cii-provider.ts` uses — never an unvalidated artifact sent). */
   facturxFormatProvider: DocumentFormatProvider;

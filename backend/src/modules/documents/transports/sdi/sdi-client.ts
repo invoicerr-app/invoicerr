@@ -4,7 +4,7 @@
  * change: `SdiClient.mapNotifica`'s return type used to be the removed compliance engine's own
  * `TransmissionResult` (`execution/types.ts`) — replaced here by `SdiNotificaOutcome`, a small local
  * type carrying the same three facts (`status`/`ref`/`notes`) that engine's own runtime consumed.
- * Nothing about the notifica-mapping LOGIC changed — see this file's own header at the repère for the
+ * Nothing about the notifica-mapping LOGIC changed — see this file's own header at the reference for the
  * full RC/NS/MC/NE/DT/AT sourcing (independently confirmed against the published WSDL — see
  * `sdicoop-client.ts`'s own header — while building the REAL client below).
  *
@@ -214,7 +214,7 @@ export class SdiClient {
   }
 
   /**
-   * Map an SdI notifica to an outcome — VERBATIM logic from the repère (see this file's own header
+   * Map an SdI notifica to an outcome — VERBATIM logic from the reference (see this file's own header
    * on the ONE type-shape change).
    *
    * SdI lifecycle mapping:

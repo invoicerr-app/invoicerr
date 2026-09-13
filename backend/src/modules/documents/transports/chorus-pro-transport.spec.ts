@@ -178,7 +178,7 @@ describe('buildChorusProTransport', () => {
       expect(mockDeposerFlux).not.toHaveBeenCalled();
     });
 
-    // MUTATION GUARD #2 — "le transport saute le gate facturx" — this test tombe the instant
+    // MUTATION GUARD #2 — "the transport skips the facturx gate" — this test fails the instant
     // `send()` stops checking `buildResult.validation.valid` before depositing: an artifact that
     // failed the EN 16931 Schematron gate must NEVER reach `deposerFlux`, only be refused, named.
     it('MUTATION GUARD #2 — never deposits an artifact that failed the Factur-X/EN 16931 gate', async () => {
@@ -219,7 +219,7 @@ describe('buildChorusProTransport', () => {
       );
     });
 
-    // MUTATION GUARD #1 — "identifiant de dépôt vide accepté" — the hard-success
+    // MUTATION GUARD #1 — "empty deposit id accepted" — the hard-success
     // contract (documentation/docs/developer-guide/live-testing.md): an accepted deposit with an EMPTY numeroFluxDepot must be a
     // FAILURE, never a silent success — a reference nobody can look up is not a reference at all.
     it('MUTATION GUARD #1 — treats an EMPTY numeroFluxDepot as a FAILURE, never a success', async () => {

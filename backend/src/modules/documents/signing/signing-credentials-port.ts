@@ -1,6 +1,6 @@
 /**
  * Port for resolving per-company signing credentials (certificate + private key) — reprised
- * verbatim from the repère's `compliance/providers/signing/signing-credentials-port.ts`.
+ * verbatim from the reference's `compliance/providers/signing/signing-credentials-port.ts`.
  *
  * This module (the crypto — XAdES/CAdES/PAdES) depends only on this interface; the real
  * implementation (`modules/company/signing-certificates/signing-certificates.service.ts`, Prisma +
@@ -8,7 +8,7 @@
  * `channels.service.ts`'s own `ChannelCredentialsService` draws between the credentials STORE and
  * whatever consumes the resolved value, and the reason this module never imports Prisma.
  *
- * Security rules (unchanged from the repère):
+ * Security rules (unchanged from the reference):
  *  - NEVER log private keys, p12 passwords, or raw cert material.
  *  - NEVER commit real cert files to the repo (use in-memory test certs, generated with node-forge —
  *    see providers.spec.ts / signing-certificates.service.spec.ts).

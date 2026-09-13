@@ -27,7 +27,7 @@
  *   AttestazioneTrasmissioneFattura → `attestazioneTrasmissioneFattura` → AT (definitive non-delivery)
  *
  * (Meanings above match `sdi-client.ts`'s own pre-existing header — that file's RC/NS/MC/NE/DT/AT
- * vocabulary, reprised from the repère, is confirmed by what this file actually reads from the WSDL —
+ * vocabulary, reprised from the reference, is confirmed by what this file actually reads from the WSDL —
  * not contradicted, not re-derived.)
  *
  * ## What was NOT read, and is therefore NOT parsed here

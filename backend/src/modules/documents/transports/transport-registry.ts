@@ -67,7 +67,7 @@ export interface DocumentTransportResult {
    */
   providerId?: string;
   /**
-   * Legal archiving ("archivage légal") — the artifacts THIS transport actually delivered, in
+   * Legal archiving — the artifacts THIS transport actually delivered, in
    * delivery order: the human-readable PDF (already signed if it was — see
    * `signing/sign-instance-pdf.ts`) for "email", or the structured format actually
    * deposited/submitted for "pdp"/"ksef"/"sdi" (Factur-X/FA(3)/FatturaPA — see each transport's own
@@ -75,7 +75,7 @@ export interface DocumentTransportResult {
    * empty) means nothing conservable came out of this delivery (e.g. `credit-note-actions.ts`'s own
    * "send", a plain status transition with no transport at all) — not a failure, simply nothing to
    * archive. `actions/async-send.ts`'s phase-2 delivery archives EXACTLY this list, immutably and
-   * hash-encadré (`archive/hashing.ts`), the moment delivery succeeds — see `archive/archive-on-send.ts`.
+   * hash-wrapped (`archive/hashing.ts`), the moment delivery succeeds — see `archive/archive-on-send.ts`.
    */
   artifacts?: ArchivedArtifactInput[];
 }

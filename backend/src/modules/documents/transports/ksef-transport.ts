@@ -61,7 +61,7 @@ const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /** Max attempts / interval polling the SHORT-LIVED auth handshake (challenge → token → status →
  *  redeem) — NOT the invoice's own conformity poll (out of scope, see this file's header). REPRISED
- *  verbatim from `ksef-transmission.ts` at the repère: the auth status usually flips within one or
+ *  verbatim from `ksef-transmission.ts` at the reference: the auth status usually flips within one or
  *  two polls in practice. */
 const AUTH_POLL_ATTEMPTS = 5;
 const AUTH_POLL_INTERVAL_MS = 2000;
@@ -103,7 +103,7 @@ async function requireConnectedKsef(
 }
 
 /** The short auth handshake (challenge → ksef-token → poll status → redeem) — REPRISED verbatim in
- *  SHAPE from `ksef-transmission.ts` at the repère, just no longer wrapped in a `TransmissionResult`.
+ *  SHAPE from `ksef-transmission.ts` at the reference, just no longer wrapped in a `TransmissionResult`.
  *  Throws on outright rejection or on exhausting the poll budget — both are genuine send() failures,
  *  never a silent partial state. Exported so `conformity/pollers/ksef-status-poller.ts` can reuse the
  *  EXACT same handshake rather than a second, drifting copy — a poll needs its own fresh access token

@@ -10,7 +10,7 @@
  *
  * NOT wired through `structural-check.ts`/`validate-schematron.ts` (the EN 16931 gate) — FA(3) is a
  * POLISH NATIONAL schema with its OWN official XSD (`vendored/pl/schemat_FA3.xsd`, vendored
- * byte-for-byte from the repère), so it is judged by THAT XSD, never by the EN 16931 Schematron: a
+ * byte-for-byte from the reference), so it is judged by THAT XSD, never by the EN 16931 Schematron: a
  * national format's own XSD is its judge, exactly as `validate-schematron.ts`'s own header already
  * says for the two syntaxes it DOES cover. `validateXsd` (`vendored/validate-xsd.ts`) is the reprised
  * XSD half of the removed `compliance/schemas/validate.ts` — this is the first real caller since item
@@ -25,7 +25,7 @@
  *
  * ## Provenance — what is and isn't asserted
  * The XML SHAPE (element names, nesting, the FA(3) mandatory `JST`/`GV` "not applicable" markers) is
- * REPRISED, not invented — see fa-vat.ts's own header at the repère for its sourcing (the published
+ * REPRISED, not invented — see fa-vat.ts's own header at the reference for its sourcing (the published
  * KSeF 2.0 schema, crd.gov.pl). The VAT-rate → P_13_x/P_14_x summary BUCKET mapping (23%→group 1,
  * 8%→group 2, 5%→group 3, 0%→group 7, anything else uncounted in the per-rate summary though still
  * counted in the P_15 grand total) is preserved VERBATIM from that same builder — a genuine, known
@@ -161,7 +161,7 @@ async function build(
     // Mandatory in FA(3) (xsd:element, minOccurs defaults to 1) — this product supports neither JST
     // sub-unit invoicing nor VAT-group membership, so both are always "2" (Nie), the same
     // "not applicable" convention Adnotacje already uses below. See fa-vat.ts's own header at the
-    // repère for the sourcing of this being mandatory (the published KSeF 2.0 schema).
+    // reference for the sourcing of this being mandatory (the published KSeF 2.0 schema).
     JST: 2,
     GV: 2,
   };

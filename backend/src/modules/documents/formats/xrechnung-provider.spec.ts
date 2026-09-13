@@ -18,8 +18,8 @@ const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 /** ISO 13616's own published example IBAN (Deutsche Bundesbank) — checksum-valid, never a real
  *  account: the SAME category of clearly-fictitious-but-format-valid fixture value
  *  `providers.spec.ts`'s own 'FR12345678901' VAT number already is. Never used as a stand-in for a
- *  REAL company with no IBAN on file — see `xrechnung-provider.ts`'s own header, "JAMAIS un IBAN
- *  fabriqué", which is about production data, not a test fixture. */
+ *  REAL company with no IBAN on file — see `xrechnung-provider.ts`'s own header, "NEVER A FABRICATED
+ *  IBAN", which is about production data, not a test fixture. */
 const TEST_IBAN = 'DE89370400440532013000';
 
 /** A COMPLETE German seller — Leitweg-ID-capable buyer reference, contact (phone/email already on
@@ -48,7 +48,7 @@ const BUYER_DE_PUBLIC: DocumentFormatParty = {
   partyIdentifiers: [],
 };
 
-/** Hand-computed, chiffrée à la main: one line at 19% VAT.
+/** Hand-computed: one line at 19% VAT.
  *   line: 3 × 500.00 = 1500.00 ; VAT (19%) = 285.00 ; gross = 1785.00 */
 const DOCUMENT_DATA = {
   client: 'client-1',

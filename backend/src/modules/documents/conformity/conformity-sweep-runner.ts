@@ -124,7 +124,7 @@ export class ConformitySweepRunner {
         // A plain, synchronous, idempotent write — never an external HTTP call, so there is no need
         // to hand this off to a queue job the way an actual poll is (see this file's own header on
         // why the recurrence sweep's own `advanceSchedule` write is likewise made inline). Journaled
-        // "une seule fois" — never by an extra existence check here, but structurally, by the
+        // "only once" — never by an extra existence check here, but structurally, by the
         // model's own `@@unique`: a later pass recomputing 'gave-up' for the same document before
         // this write lands would simply hit `skipDuplicates` and count zero new rows.
         const created = await journalSyntheticEvent(
@@ -181,8 +181,8 @@ export class ConformitySweepRunner {
    * WORM-archives any TERMINAL event among them — see
    * `archive/archive-verdict-on-terminal.ts`'s own header.
    *
-   * NEVER throws — see `authority-status-poller.ts`'s own header ("un handler d'événement ne tue
-   * jamais le processus"): a missing/invalid credential
+   * NEVER throws — see `authority-status-poller.ts`'s own header ("an event handler never kills the
+   * process"): a missing/invalid credential
    * (`ChannelNotConnectedError`) OR any other unexpected failure (a network error, a malformed
    * response) both end up journaling `BLOCKED_STATUS_CODE` with the failure's own message as
    * `reason` — loud (logged, and visible on the document as a "blocked" badge), never a crashed

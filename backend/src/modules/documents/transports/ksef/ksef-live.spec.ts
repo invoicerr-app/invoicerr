@@ -1,13 +1,13 @@
 /**
  * REAL round-trip against ksef-test.mf.gov.pl. Gated the same way the
- * repère's own `ksef-live.spec.ts` was (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN` [+ `KSEF_NIP`] —
+ * reference's own `ksef-live.spec.ts` was (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN` [+ `KSEF_NIP`] —
  * `../live-gate.ts`), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
  *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef-live --no-coverage --runInBand
  *
  * **THESE CREDENTIALS ARE ABSENT TODAY** — no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or
- * in CI secrets (unlike PDP/KSeF's OWN historical proof at the repère, which used a token that has
+ * in CI secrets (unlike PDP/KSeF's OWN historical proof at the reference, which used a token that has
  * since expired/rotated). `liveDescribe` therefore SKIPS this suite cleanly and says so on stderr —
  * this file does NOT invent a sandbox, a mock server, or a fabricated token to force a green run.
  *
@@ -16,7 +16,7 @@
  * `facturx-provider.ts`, FA(3) needs no companyId/PDF render step) rather than `ksef-transport.ts`'s
  * exported `send()` (which reads `Company`/`Client` rows).
  *
- * HARD-SUCCESS CONTRACT — REPRISED VERBATIM from the repère's own `ksef-live.spec.ts`: a REJECTED or
+ * HARD-SUCCESS CONTRACT — REPRISED VERBATIM from the reference's own `ksef-live.spec.ts`: a REJECTED or
  * SKIPPED transmission result, or an empty/missing `ksefNumber`, is a FAILURE the assertions below
  * throw on — never a soft `expect().toBeFalsy()` that could quietly pass on a shrugging response.
  * Unlike `ksef-transport.ts`'s own contract (which stops at "session/invoice accepted" — see
@@ -38,7 +38,7 @@ describeLive('KSeF live round-trip (ksef-test.mf.gov.pl) — FA(3) cleared with 
   it('fa3-provider (real XSD gate) → real KSeF auth → real online session → CLEARED + ksefNumber', async () => {
     const ksefToken = process.env.KSEF_AUTH_TOKEN ?? '';
     const nip = process.env.KSEF_NIP ?? '5260001246'; // MF's own well-known TEST NIP, same fallback
-    // the repère's own live spec used.
+    // the reference's own live spec used.
 
     const timestamp = Date.now();
     const SELLER: DocumentFormatParty = {

@@ -1,7 +1,7 @@
 /**
  * The Chorus Pro `AuthorityStatusPoller` — post-deposit
  * conformity tracking (`conformity/authority-status-poller.ts`'s own header), the read-side twin of
- * `transports/chorus-pro-transport.ts`. The repère's own client (`avant-refonte-documents`,
+ * `transports/chorus-pro-transport.ts`. The reference's own client (`avant-refonte-documents`,
  * `compliance/providers/transmission/choruspro-client.ts`) DID carry a usable status method —
  * `consulterCr(numeroFluxDepot)` (`POST /cpro/factures/v1/consulter/cr` → `statutFlux`) — so this is
  * that endpoint, wired, never an invented one; `transports/chorus-pro/choruspro-client.ts` REPRISES it
@@ -13,7 +13,7 @@
  * (`documentation/docs/developer-guide/credentials-guide.md` §3, "Repo status: 🔴 missing"), so `consulterCr`'s own response shape has
  * NEVER been observed live — the field names (`statutFlux`, the vocabulary VALIDE/REJETE/
  * EN_COURS_DE_TRAITEMENT/DEPOSE/SUSPENDU/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) come from the
- * repère's own client, which itself cites the "API Dépôt flux G2B" v5.2.0 documentation rather than a
+ * reference's own client, which itself cites the "API Dépôt flux G2B" v5.2.0 documentation rather than a
  * live capture (see `choruspro-client.ts`'s own header). `../../transports/chorus-pro/
  * choruspro-live.spec.ts` (gated `CHORUSPRO_LIVE=1`, SKIPPED today) already exercises `consulterCr`
  * as its own step 4, against a real deposit — this poller calls the SAME client method, never a
@@ -52,7 +52,7 @@ export { CHORUS_PRO_PROVIDER_ID };
  *  (VALIDE/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) and REJECTED (REJETE) alike, the same "predicate
  *  over the provider's own vocabulary" shape `peppol-status-poller.ts`'s own `isTerminal` already
  *  holds, never a fixed two-code list the way `pdp-status-poller.ts` can afford (PDP's own vocabulary
- *  never grew past fr:202/fr:213 in live proof — Chorus Pro's is wider, per the repère's
+ *  never grew past fr:202/fr:213 in live proof — Chorus Pro's is wider, per the reference's
  *  own client). */
 function isTerminalChorusProStatus(statusCode: string): boolean {
   const mapped = mapChorusProStatus(statusCode);

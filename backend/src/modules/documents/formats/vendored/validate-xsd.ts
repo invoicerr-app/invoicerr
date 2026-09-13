@@ -1,18 +1,17 @@
 /**
- * XSD validation harness — REPRISE quasi verbatim de `compliance/schemas/validate.ts` (git tag
- * `avant-refonte-documents`), la moitié XSD que `validate-schematron.ts`'s propre en-tête disait
- * amputée faute d'un besoin réel à l'époque (item 12 : ni CII ni UBL n'ont de XSD racine vendoré, et
- * cet aveu reste vrai). Ce module comble ce manque MAINTENANT, pour les deux formats NATIONAUX que
- * l'item 10 (vague 2) construit — PL FA(3) et IT FatturaPA : chacun a un XSD OFFICIEL vendoré
- * (`vendored/pl/schemat_FA3.xsd`, `vendored/it/Schema_VFPR12.xsd`), donc chacun est jugé PAR CE
- * SCHÉMA, jamais par le Schematron EN 16931 — un schéma national n'a pas besoin d'un compilateur
- * maison quand l'administration elle-même en publie un.
+ * XSD validation harness — REPRISED almost verbatim from `compliance/schemas/validate.ts` (git tag
+ * `avant-refonte-documents`), the XSD half that `validate-schematron.ts`'s own header said was
+ * amputated for lack of a real need at the time (neither CII nor UBL has a vendored root XSD, and
+ * that admission still holds). This module fills that gap NOW, for the two NATIONAL formats built
+ * here — PL FA(3) and IT FatturaPA: each has an OFFICIAL vendored XSD (`vendored/pl/schemat_FA3.xsd`,
+ * `vendored/it/Schema_VFPR12.xsd`), so each is judged BY THAT SCHEMA, never by the EN 16931
+ * Schematron — a national schema needs no home-made compiler when the authority itself publishes one.
  *
- * xmllint-wasm (déjà une dépendance de ce backend — voir package.json ; aucune dépendance nouvelle)
- * exécute xmllint dans un bac à sable WASM, sans binaire système. Tous les .xsd du RÉPERTOIRE du
- * schéma principal sont préchargés dans le VFS pour que ses `xsd:include`/`xsd:import` se résolvent
- * (schemat_FA3.xsd importe ElementarneTypyDanych/KodyKrajow/StrukturyDanych ; Schema_VFPR12.xsd
- * importe xmldsig-core-schema).
+ * xmllint-wasm (already a dependency of this backend — see package.json; no new dependency added)
+ * runs xmllint in a WASM sandbox, with no system binary. Every .xsd in the main schema's own
+ * DIRECTORY is preloaded into the VFS so its `xsd:include`/`xsd:import` chains resolve
+ * (schemat_FA3.xsd imports ElementarneTypyDanych/KodyKrajow/StrukturyDanych; Schema_VFPR12.xsd
+ * imports xmldsig-core-schema).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -56,7 +55,7 @@ export async function validateXsd(
     schema: mainSchema,
     preload: preloadFiles,
     // Allow callers to raise the WASM memory limit for a large schema set — unused by PL/IT today
-    // (both are modest), kept for the same reason the repère kept it (SAT CFDI's ~6MB catalog).
+    // (both are modest), kept for the same reason the reference kept it (SAT CFDI's ~6MB catalog).
     ...(opts?.maxMemoryPages ? { maxMemoryPages: opts.maxMemoryPages } : {}),
   });
 

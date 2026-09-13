@@ -24,7 +24,7 @@
  * `DocumentEventPublisher` interface (`document-events.ts`) never pays for a real connection.
  *
  * NEVER throws: every call site here runs strictly AFTER the fact it announces is already committed
- * to Postgres — the same "après le fait acquis, jamais avant" discipline `archive/archive-on-send.ts`
+ * to Postgres — the same "after the fact is acquired, never before" discipline `archive/archive-on-send.ts`
  * and `reporting/report-on-send.ts` already document for themselves. A Redis hiccup losing one SSE
  * nudge must never look like the WRITE itself failed, and must never crash a BullMQ worker event
  * handler (`document-action.processor.ts`'s own header already explains why an escaped exception

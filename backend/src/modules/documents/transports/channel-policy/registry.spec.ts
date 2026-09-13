@@ -1,6 +1,6 @@
 /**
- * The channel-policy mechanism itself — the "le pays suggère son canal" requirement, PLUS
- * "un fichier pays en rend un obligatoire" — read as DATA (this spec proves it, never a
+ * The channel-policy mechanism itself — the "the country suggests its channel" requirement, PLUS
+ * "a country file makes one mandatory" — read as DATA (this spec proves it, never a
  * hard-coded `if country === 'FR'` anywhere in the product code).
  */
 import { assertValidChannelPolicyFact, InvalidChannelPolicyProvenanceError } from './schema';

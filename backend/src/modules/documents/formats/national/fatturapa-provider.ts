@@ -8,18 +8,18 @@
  *
  * `@digitalia/fatturapa`'s `fpa2xml` (JSON → XML) is REUSED verbatim — already a dependency (see
  * package.json), no new one added. The CodiceDestinatario/PECDestinatario routing (F-16/M-8 at the
- * repère) is REPRISED VERBATIM: it reads the client's `IT_SDI`/`PEC` party identifiers exactly the
+ * reference) is REPRISED VERBATIM: it reads the client's `IT_SDI`/`PEC` party identifiers exactly the
  * way `entity-identifiers.ts#getIdentifier` already lets any format provider read ANY scheme, with
  * no registry check that the scheme is "known" — the same latitude `party-snapshot.ts`'s own
  * `partyIdentifiers: { scheme: string; value: string }[]` already gives every caller.
  *
  * NOT wired through the EN 16931 Schematron gate — FatturaPA is an ITALIAN NATIONAL schema with its
- * own official XSD (`vendored/it/Schema_VFPR12.xsd`, vendored byte-for-byte from the repère), judged
+ * own official XSD (`vendored/it/Schema_VFPR12.xsd`, vendored byte-for-byte from the reference), judged
  * by THAT XSD alone, exactly the same reasoning `fa3-provider.ts`'s own header gives.
  *
  * ## Provenance
  * The Natura/RiferimentoNormativo mapping and the 4-branch CodiceDestinatario routing are REPRISED,
- * not invented — see `fattura-pa.ts`'s own header at the repère and its `fattura-pa.spec.ts` (kept,
+ * not invented — see `fattura-pa.ts`'s own header at the reference and its `fattura-pa.spec.ts` (kept,
  * `fatturapa-provider.spec.ts`, adapted to this module's own fixture shape) for the sourcing already
  * established there. Nothing here asserts a NEW tax rule.
  *
@@ -58,7 +58,7 @@
  * ordinaria" ("… for PA AND privates …"), its `FormatoTrasmissioneType` enumerates BOTH `FPA12` and
  * `FPR12`, and its `CodiceDestinatarioType` is `[A-Z0-9]{6,7}` — 6 OR 7 characters, exactly the two
  * lengths the Specifiche distinguish. Fetched directly from fatturapa.gov.it on 2026-09-01 to make
- * sure this was not a repère-era approximation: the tax agency in fact publishes this SAME schema
+ * sure this was not a reference-era approximation: the tax agency in fact publishes this SAME schema
  * (identical `FormatoTrasmissioneType`/`CodiceDestinatarioType`/root element/targetNamespace) under
  * TWO different file names for its current 1.2.3 revision —
  * `https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPA12_V1.2.3.xsd` (linked
@@ -96,7 +96,7 @@ function fmtRate(n: number): string {
   return n.toFixed(2);
 }
 
-/** Map NaturaType — codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the repère. */
+/** Map NaturaType — codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference. */
 const EU_CC = [
   'AT',
   'BE',
@@ -202,7 +202,7 @@ async function build(
   // The PA discriminant is checked FIRST and, when it fires, decides BOTH fields outright — see this
   // file's own header ("FPA12 vs FPR12") for why a valid 6-char `IT_PA_CODE` identifier is the signal
   // used, not `Client.kind`. Only once it does NOT fire does the ORIGINAL 4-branch B2B/private routing
-  // (VERBATIM from the repère) run unchanged — same outcomes as before for every client that
+  // (VERBATIM from the reference) run unchanged — same outcomes as before for every client that
   // has no `IT_PA_CODE` on file, which is every test/fixture that predates it.
   const clientePaCode = getIdentifier(client, 'IT_PA_CODE') || '';
   const isValidPaCode = /^[A-Za-z0-9]{6}$/.test(clientePaCode);

@@ -19,42 +19,42 @@
  *
  * ## What BR-DE-* actually demanded, read from the vendored .sch's own fatal `<assert>`s
  *
- *  - BR-DE-15 (fatal): `cbc:BuyerReference` (BT-10) non-empty. Comblé par le mécanisme GÉNÉRIQUE
- *    (`build-semantic-invoice.ts`'s `buyerReference`, alimenté par `data.buyerReference`) — la SEULE
- *    entrée-écran connue aujourd'hui est le champ Leitweg-ID ajouté par l'overlay pays DE
- *    (`country-fields/data/de.json`, add, path `''`, optionnel — jamais un champ générique imposé à
- *    tous les pays sur le descripteur trunc). Absent → refus nommé BR-DE-15, exactement le
- *    comportement attendu du gate.
- *  - BR-DE-2/5/6/7 (fatal): SELLER CONTACT (nom/téléphone/email) — comblé par `sellerContact`
- *    (`build-semantic-invoice.ts`), lui-même alimenté par `Company.phone`/`Company.email` (colonnes
- *    NON-NULLABLES existantes) et `Company.name` pour le nom du point de contact. AUCUN champ neuf
- *    requis : tout vendeur réel les a déjà.
+ *  - BR-DE-15 (fatal): `cbc:BuyerReference` (BT-10) non-empty. Filled by the GENERIC mechanism
+ *    (`build-semantic-invoice.ts`'s `buyerReference`, fed by `data.buyerReference`) — the ONLY
+ *    screen input known today is the Leitweg-ID field added by the DE country overlay
+ *    (`country-fields/data/de.json`, add, path `''`, optional — never a generic field imposed on
+ *    every country on the trunk descriptor). Absent → named refusal BR-DE-15, exactly the gate's
+ *    expected behaviour.
+ *  - BR-DE-2/5/6/7 (fatal): SELLER CONTACT (name/phone/email) — filled by `sellerContact`
+ *    (`build-semantic-invoice.ts`), itself fed by `Company.phone`/`Company.email` (existing
+ *    NON-NULLABLE columns) and `Company.name` for the contact point's name. NO new field required:
+ *    every real seller already has them.
  *  - BR-DE-1/BR-DE-23-a/BR-DE-23-b (fatal): BG-16/BG-17 (`cac:PaymentMeans`/`PayeeFinancialAccount`).
- *    Comblé par `sellerPaymentMeans`, alimenté par la NOUVELLE colonne `Company.iban` (optionnelle,
- *    migration des deux bases — voir schema.prisma). Absent → refus nommé BR-DE-1, en citant le champ
- *    IBAN à remplir (voir le message ci-dessous).
- *  - BR-DE-3/4/8/9/14 (fatal): ville/code postal vendeur+acheteur non vides, taux de TVA non vide —
- *    déjà TOUJOURS satisfaits par le modèle existant (Company/Client `city`/`postalCode` sont des
- *    colonnes non-nullables ; `cbc:Percent` est déjà toujours émis par `build-semantic-invoice.ts`).
- *  - BR-DE-16 (fatal, conditionnel aux codes TVA S/Z/E/AE/K/G/L/M) : nécessite BT-31 (TVA vendeur) ou
- *    BG-11 — déjà couvert par le layer DE BASE (BR-S-02/BR-Z-02 du Schematron EN16931 lui-même
- *    refusent déjà un vendeur sans TVA dès qu'une ligne est à un taux standard/zéro — voir
- *    `build-semantic-invoice.ts`'s en-tête, section "VAT category").
- *  - Le reste des BR-DE-* / BR-DEX-* / BR-DE-CVD-* fatals (22, DEX-*, CVD-*) ne s'activent que pour des
- *    scénarios ce pont ne construit pas du tout (pièces jointes, sous-lignes DEX, véhicules CVD) —
- *    jamais déclenchés par une facture normale, donc rien à combler.
+ *    Filled by `sellerPaymentMeans`, fed by the NEW `Company.iban` column (optional, migrated on
+ *    both databases — see schema.prisma). Absent → named refusal BR-DE-1, citing the IBAN field to
+ *    fill in (see the message below).
+ *  - BR-DE-3/4/8/9/14 (fatal): seller+buyer city/postal code non-empty, VAT rate non-empty — ALREADY
+ *    ALWAYS satisfied by the existing model (Company/Client `city`/`postalCode` are non-nullable
+ *    columns; `cbc:Percent` is already always emitted by `build-semantic-invoice.ts`).
+ *  - BR-DE-16 (fatal, conditional on VAT codes S/Z/E/AE/K/G/L/M): requires BT-31 (seller VAT) or
+ *    BG-11 — already covered by the BASE DE layer (BR-S-02/BR-Z-02 of the EN16931 Schematron itself
+ *    already refuse a seller with no VAT the moment a line is at a standard/zero rate — see
+ *    `build-semantic-invoice.ts`'s own header, "VAT category" section).
+ *  - The rest of the fatal BR-DE-* / BR-DEX-* / BR-DE-CVD-* rules (22, DEX-*, CVD-*) only fire for
+ *    scenarios this bridge does not build at all (attachments, DEX sub-lines, CVD vehicles) — never
+ *    triggered by a normal invoice, so nothing to fill.
  *
- * ## DÉCISION : le delta est BLOQUANT (contrairement au repère)
+ * ## DECISION: the delta is BLOCKING (unlike at the reference)
  *
- * Au repère `avant-refonte-documents` (`compliance/providers/format/providers.ts`), le delta XRechnung
- * tournait en NON-bloquant — sa propre justification écrite était que "la donnée n'existe pas dans le
- * modèle" (pas de Leitweg-ID, pas de contact vendeur structuré, pas d'IBAN). Cette justification NE
- * TIENT PLUS : les trois champs existent désormais (Company.phone/email déjà là, Company.iban ajouté
- * par cette tâche, Leitweg-ID via l'overlay DE) et un refus NOMME précisément lequel manque et où le
- * remplir. Faire tourner ce delta en non-bloquant aujourd'hui ferait exactement ce que ce projet
- * refuse ailleurs (voir `format-registry.ts`, `structural-check.ts`) : servir un artefact qu'un
- * partenaire allemand rejettera, en prétendant qu'il est valide. Le delta est donc BLOQUANT, comme
- * tous les autres gates de ce registre (structurel, EN16931 de base, Peppol).
+ * At the `avant-refonte-documents` reference (`compliance/providers/format/providers.ts`), the
+ * XRechnung delta ran non-blocking — its own written justification was that "the data does not exist
+ * in the model" (no Leitweg-ID, no structured seller contact, no IBAN). That justification NO LONGER
+ * HOLDS: the three fields now exist (Company.phone/email already there, Company.iban added, Leitweg-ID
+ * via the DE overlay) and a refusal NAMES precisely which one is missing and where to fill it in.
+ * Running this delta non-blocking today would do exactly what this project refuses elsewhere (see
+ * `format-registry.ts`, `structural-check.ts`): serve an artifact that a German partner will reject,
+ * while claiming it is valid. The delta is therefore BLOCKING, like every other gate in this registry
+ * (structural, base EN16931, Peppol).
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
@@ -90,8 +90,8 @@ async function build(
     return { bytes: new TextEncoder().encode(xml), validation: { valid: false, errors: structural.errors } };
   }
 
-  // BOTH gates run, and BOTH must pass — see this file's own header, "DÉCISION : le delta est
-  // BLOQUANT". An artifact that trips a single BR-DE-* is never served.
+  // BOTH gates run, and BOTH must pass — see this file's own header, "DECISION: the delta is
+  // BLOCKING". An artifact that trips a single BR-DE-* is never served.
   const base = validateSchematron(xml, EN16931_UBL_SCH);
   const delta = validateSchematron(xml, XRECHNUNG_UBL_SCH);
   const errors = [

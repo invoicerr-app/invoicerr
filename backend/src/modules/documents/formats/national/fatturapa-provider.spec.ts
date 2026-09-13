@@ -4,7 +4,7 @@
  * TRACES from the document's own data through `compute-totals.ts` to a specific XML field (never
  * recomputed here), and that the gate actually enforces something (a mandatory field removed makes
  * the SAME schema reject it) — plus the CodiceDestinatario/PECDestinatario routing REPRISED from
- * `fattura-pa.spec.ts` at the repère.
+ * `fattura-pa.spec.ts` at the reference.
  */
 import { create } from 'xmlbuilder2';
 
@@ -38,11 +38,11 @@ const BUYER: DocumentFormatParty = {
 };
 
 /**
- * Fixture "chiffrée à la main" :
- *  - Ligne 1 : 1 × 1000,00 € @ 22% TVA, sans remise → net 1000,00 ; TVA 220,00.
- *  - Ligne 2 : 2 × 50,00 € @ 10% TVA, remise 20% → net APRÈS remise 80,00 (100 × 0,80) ; TVA 8,00
- *    (10% de 80).
- *  - Total document : net 1080,00 ; TVA 228,00 ; TTC 1308,00.
+ * Hand-computed fixture:
+ *  - Line 1: 1 × 1000.00 € @ 22% VAT, no discount → net 1000.00; VAT 220.00.
+ *  - Line 2: 2 × 50.00 € @ 10% VAT, 20% discount → net AFTER discount 80.00 (100 × 0.80); VAT 8.00
+ *    (10% of 80).
+ *  - Document total: net 1080.00; VAT 228.00; gross 1308.00.
  */
 const VALID_DATA = {
   client: 'client-1',

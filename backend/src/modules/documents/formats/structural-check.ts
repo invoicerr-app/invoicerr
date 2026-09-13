@@ -57,7 +57,7 @@ export function validateStructural(xml: string, syntax: 'cii' | 'ubl'): Structur
     return { valid: false, errors: [`Malformed XML: ${parseErrors.join('; ') || 'no root element'}`] };
   }
 
-  // 2. Root element — local name only, same convention `wrongRootElement` used at the repère.
+  // 2. Root element — local name only, same convention `wrongRootElement` used at the reference.
   const expected = EXPECTED_ROOT[syntax];
   const actual = doc.documentElement.localName || doc.documentElement.nodeName;
   if (actual !== expected) {

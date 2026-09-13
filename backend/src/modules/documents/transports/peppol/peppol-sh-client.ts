@@ -6,14 +6,14 @@
  * adapter this deployment's `PROVIDER_FIELDS.peppol` settings screen actually wires — see
  * `peppol-transport.ts`'s own header) rather than folded into it: this file exists to RE-ATTEMPT the
  * live round-trip (`peppol-sh-live.spec.ts`), not to become a second,
- * user-facing channel choice — the repère's own multi-vendor `apProvider` selector (`ap-adapters.ts`)
+ * user-facing channel choice — the reference's own multi-vendor `apProvider` selector (`ap-adapters.ts`)
  * was NOT reprised for that reason (see `peppol-transport.ts`'s own header on why the settings screen
  * ships exactly one, generic adapter).
  *
  * peppol.sh (https://peppol.sh) is a hosted Peppol AP with a JSON REST API and a free, unlimited
  * sandbox (zero-secret self-signup — the Ethereal-email of Peppol).
  *
- * API surface (as documented at the repère, VERIFIED against the live OpenAPI at
+ * API surface (as documented at the reference, VERIFIED against the live OpenAPI at
  * https://api.peppol.sh/v1/openapi.json and a real sandbox round-trip on 2026-07-11 —
  * `documentation/docs/developer-guide/peppol-ap-research.md` / `documentation/docs/developer-guide/live-testing.md`; RE-VERIFIED (or found broken) by the 2026-09-02 retry
  * — see `peppol-sh-live.spec.ts`'s own header for the raw, current result):
@@ -24,15 +24,15 @@
  *   - POST {base}/v1/documents                        JSON document + company_id → 202 {id: doc_…, status}
  *   - GET  {base}/v1/documents/{id}?company_id=com_…  → 200 full document incl. status + events
  *     (the company_id QUERY PARAM is required — undocumented in the OpenAPI, verified live at the
- *     repère)
+ *     reference)
  *
- * Environments (verified live at the repère): sandbox keys (ps_test_) are REJECTED on api.peppol.sh
+ * Environments (verified live at the reference): sandbox keys (ps_test_) are REJECTED on api.peppol.sh
  * with 403 wrong_environment — all authed sandbox calls must hit https://sandbox.peppol.sh. Sandbox
  * delivers by email instead of routing to the real Peppol network (same code path).
  *
  * Status model: queued → sending → delivered | failed → mapped to QUEUED / SENT / DELIVERED / FAILED.
  *
- * IMPORTANT ARCHITECTURAL NOTE, unchanged from the repère: peppol.sh does NOT accept raw UBL bytes on
+ * IMPORTANT ARCHITECTURAL NOTE, unchanged from the reference: peppol.sh does NOT accept raw UBL bytes on
  * POST /v1/documents (JSON model only). This adapter therefore extracts the JSON payload from the
  * UBL THIS codebase's own `formats/peppol-bis-provider.ts` already generated (a read-only extraction
  * of a document shape this codebase controls and already gates — never a home-grown schema layer of
@@ -59,11 +59,11 @@ import type {
 
 /** Production base URL (real Peppol network; requires a ps_live_ key). */
 export const PEPPOL_SH_PROD_URL = 'https://api.peppol.sh';
-/** Sandbox base URL (email delivery; ps_test_ keys ONLY work here — verified live at the repère). */
+/** Sandbox base URL (email delivery; ps_test_ keys ONLY work here — verified live at the reference). */
 export const PEPPOL_SH_SANDBOX_URL = 'https://sandbox.peppol.sh';
 
 // ---------------------------------------------------------------------------
-// peppol.sh JSON document model (subset emitted) — REPRISED verbatim from the repère.
+// peppol.sh JSON document model (subset emitted) — REPRISED verbatim from the reference.
 // ---------------------------------------------------------------------------
 
 export interface PeppolShParty {
@@ -247,7 +247,7 @@ export class PeppolShApClient implements PeppolApPort {
 
   /**
    * Zero-secret sandbox signup (Ethereal pattern): creates an account and returns a one-time
-   * ps_test_ API key. Public endpoint — always on the production host (verified live at the repère).
+   * ps_test_ API key. Public endpoint — always on the production host (verified live at the reference).
    */
   static async signup(email: string, name?: string): Promise<{ accountId: string; apiKey: string }> {
     const response = await fetch(`${PEPPOL_SH_PROD_URL}/v1/signup`, {
@@ -273,7 +273,7 @@ export class PeppolShApClient implements PeppolApPort {
       taxId?: string;
       country?: string;
       address?: { street?: string; city?: string; postal_code?: string };
-      /** Explicit Peppol participant id (scheme:value) — the repère's own 2026-07-11 proof never
+      /** Explicit Peppol participant id (scheme:value) — the reference's own 2026-07-11 proof never
        *  needed this (tax_id alone was enough); the 2026-09-02 live retry found the
        *  sandbox now REJECTS a company creation with no `peppol_id` at all for at least one country
        *  (BE) — see `peppol-sh-live.spec.ts`'s own header / `documentation/docs/developer-guide/live-testing.md` for the raw response. */
@@ -320,7 +320,7 @@ export class PeppolShApClient implements PeppolApPort {
       signal: AbortSignal.timeout(30_000),
     });
 
-    // Verified live at the repère: peppol.sh answers 202 Accepted with {id: doc_…, status: 'queued', url}.
+    // Verified live at the reference: peppol.sh answers 202 Accepted with {id: doc_…, status: 'queued', url}.
     if (!response.ok) {
       throw new Error(`peppol.sh send failed: ${await this.describeError(response)}`);
     }
@@ -334,7 +334,7 @@ export class PeppolShApClient implements PeppolApPort {
   }
 
   async getStatus(messageId: string): Promise<PeppolStatusResult> {
-    // Verified live at the repère: the company_id query parameter is REQUIRED (400 missing_company_id
+    // Verified live at the reference: the company_id query parameter is REQUIRED (400 missing_company_id
     // without it).
     const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(messageId)}?company_id=${encodeURIComponent(this.config.companyId)}`;
 

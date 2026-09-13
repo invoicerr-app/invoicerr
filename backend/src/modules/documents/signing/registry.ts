@@ -11,7 +11,7 @@ import { HttpTsaClient, NullTsaClient } from './tsa-client';
 
 /**
  * Derives TimestampOptions from the process environment (or a test-supplied override map) —
- * reprised verbatim from the repère.
+ * reprised verbatim from the reference.
  *
  * TSA_URL non-empty → HttpTsaClient + level T (or SIGNATURE_LEVEL if explicitly set).
  * TSA_URL absent    → NullTsaClient  + level BES (offline-safe; byte-identical to prior behaviour).
@@ -33,7 +33,7 @@ export function resolveTimestampOptions(
 }
 
 /**
- * Registry of signing providers by algorithm — reprised verbatim from the repère
+ * Registry of signing providers by algorithm — reprised verbatim from the reference
  * (`compliance/providers/signing/registry.ts`).
  *
  * Only PAdES is wired to a live flow today (this module's own `sign-instance-pdf.ts`): no

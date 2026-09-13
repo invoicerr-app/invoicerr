@@ -12,7 +12,7 @@ import { DocumentActionProcessor } from './document-action.processor';
 jest.mock('../mark-send-failed');
 
 /**
- * THE MUTATION TARGET #1: "le worker saute la porte politique pays" — a processor that resolved the
+ * THE MUTATION TARGET #1: "the worker skips the country-policy gate" — a processor that resolved the
  * `ActionRegistry` handler directly (or any other shortcut around `DocumentsService.runAction`) would
  * make an action forbidden by the country policy run ANYWAY in the worker, even though the API would
  * have refused it with a 403. This spec proves `process()` has NO OTHER WAY to run an action than
@@ -328,8 +328,8 @@ describe('DocumentActionProcessor', () => {
         expect(recordTerminalFailure).not.toHaveBeenCalled();
       });
 
-      // The defect this guards against — "l'échec déclaratif casse le statut de la
-      // facture": this proves the ONLY thing a terminal report failure ever touches is
+      // The defect this guards against — "a declarative failure breaks the invoice's status":
+      // this proves the ONLY thing a terminal report failure ever touches is
       // `ReportingRunner.recordTerminalFailure` (which journals `report:failed`, see
       // `reporting-runner.spec.ts`), never `markSendFailed`/the document's own status.
       it('records the terminal failure once every retry is exhausted, and NEVER touches markSendFailed', async () => {

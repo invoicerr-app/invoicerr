@@ -45,7 +45,7 @@ const BUYER: DocumentFormatParty = {
 };
 
 /**
- * Hand-computed, chiffrée à la main: two lines, both at 20% VAT.
+ * Hand-computed: two lines, both at 20% VAT.
  *   line 1: 10 × 1200.00 = 12000.00
  *   line 2:  2 ×  800.00 =  1600.00
  *   net    = 13600.00 ; VAT (20%) = 2720.00 ; gross = 16320.00

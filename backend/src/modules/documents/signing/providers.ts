@@ -1,15 +1,15 @@
 /**
  * Real cryptographic signing providers for XAdES, CAdES, PAdES, and the none pass-through — reprised
- * from the repère (`avant-refonte-documents`, `compliance/providers/signing/providers.ts`) almost
+ * from the reference (`avant-refonte-documents`, `compliance/providers/signing/providers.ts`) almost
  * verbatim: xadesjs, node-forge, @signpdf, pkijs are ALL already dependencies (see backend/package.json
  * — no new dependency was added), and the crypto itself (RSA import, XML/PKCS#7/PDF signing,
  * RFC 3161 timestamp embedding) is untouched. What changed is only the SHAPE this module hands
  * around: `RenderedArtifact`/`SignedArtifact` (a whole compliance-plan artifact, with a `role` and a
  * closed `DocumentSyntax`) became this module's own `SigningArtifact`/`SignedArtifact`
  * (`signing-types.ts`), and `ComplianceLogger` became `SigningLogger` (`signing-logger.ts`) — see
- * each file's own header for why. XAdES and CAdES are otherwise byte-for-byte the repère's own logic.
+ * each file's own header for why. XAdES and CAdES are otherwise byte-for-byte the reference's own logic.
  *
- * Security rules enforced here (unchanged from the repère):
+ * Security rules enforced here (unchanged from the reference):
  *  - Private key / p12 password is NEVER logged (not even at debug level).
  *  - If no credential is resolved, the artifact is returned unsigned with a warn log.
  *  - No ASN.1 or crypto primitives are hand-rolled — only maintained libraries are used.
@@ -21,13 +21,13 @@
  *
  * TSA is opt-in: passing no TsaPort (or NullTsaClient) always produces BES output.
  *
- * ONE DELIBERATE DEPARTURE FROM THE REPÈRE, in `PadesSigningProvider` only — see that class's own
+ * ONE DELIBERATE DEPARTURE FROM THE REFERENCE, in `PadesSigningProvider` only — see that class's own
  * header for the full reasoning: a company with an ACTIVE, applicable
  * certificate must never receive a silently-unsigned PDF because the crypto operation itself blew up (a
- * corrupt PFX only discoverable at sign time, a library error) — the repère's blanket
+ * corrupt PFX only discoverable at sign time, a library error) — the reference's blanket
  * try/catch-and-warn swallowed that case identically to "no cert configured", which is no longer
- * acceptable for the ONE algorithm actually wired to a live flow (`rendering/sign-instance-pdf.ts`).
- * XAdES and CAdES keep the repère's graceful-swallow contract verbatim — neither is wired to any flow
+ * acceptable for the ONE algorithm actually wired to a live flow (`sign-instance-pdf.ts`).
+ * XAdES and CAdES keep the reference's graceful-swallow contract verbatim — neither is wired to any flow
  * today (see registry.ts's own header), so only PAdES's real-world behavior matters end-to-end.
  */
 import * as forge from 'node-forge';
@@ -417,7 +417,7 @@ export class CadesSigningProvider implements SigningProvider {
 // ---------------------------------------------------------------------------
 // PAdES provider — PAdES-B signature embedded in PDF. THE ONE ALGORITHM WIRED TO A LIVE FLOW
 // (this module's own sign-instance-pdf.ts) — see this class's own error-handling contract below, which is
-// the one deliberate departure from the repère (see this file's own top-of-file header).
+// the one deliberate departure from the reference (see this file's own top-of-file header).
 // ---------------------------------------------------------------------------
 
 export class PadesSigningProvider implements SigningProvider {
@@ -441,7 +441,7 @@ export class PadesSigningProvider implements SigningProvider {
   /**
    * Resolution and signing are split into two distinct failure modes, DELIBERATELY treated
    * differently (see this file's own top-of-file header for why this provider departs from the
-   * repère here):
+   * reference here):
    *
    *  1. No cert configured for `certRef`, or the resolved material has no `p12Buffer` (PAdES cannot
    *     sign without one — there is no PEM fallback the way XAdES/CAdES have): this is "signing was

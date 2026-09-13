@@ -36,14 +36,14 @@ const BUYER: DocumentFormatParty = {
 };
 
 /**
- * Fixture "chiffrée à la main" — les montants ci-dessous sont calculés AVANT le build, pour que le
- * test trace un montant précis jusqu'au champ XML qui le porte, plutôt que de se contenter d'un
- * "ça construit sans erreur".
+ * Hand-computed fixture — the amounts below are computed BEFORE the build, so that the test
+ * traces a precise amount through to the XML field that carries it, rather than settling for a
+ * mere "it builds without error".
  *
- *  - Ligne 1 : 2 × 500,00 PLN @ 23% TVA, sans remise → net 1000,00 ; TVA 230,00 ; TTC 1230,00.
- *  - Ligne 2 : 1 × 200,00 PLN @ 8% TVA, remise 10% → net APRÈS remise 180,00 (200 × 0,90) ; TVA
- *    14,40 (8% de 180) ; TTC 194,40.
- *  - Total document : net 1180,00 ; TVA 244,40 ; TTC 1424,40.
+ *  - Line 1: 2 × 500.00 PLN @ 23% VAT, no discount → net 1000.00; VAT 230.00; gross 1230.00.
+ *  - Line 2: 1 × 200.00 PLN @ 8% VAT, 10% discount → net AFTER discount 180.00 (200 × 0.90); VAT
+ *    14.40 (8% of 180); gross 194.40.
+ *  - Document total: net 1180.00; VAT 244.40; gross 1424.40.
  */
 const VALID_DATA = {
   client: 'client-1',

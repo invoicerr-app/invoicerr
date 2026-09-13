@@ -33,7 +33,7 @@
  *    vendored dependency's own mapping table: `ubl:Invoice.cbc:ProfileID` maps STRAIGHT onto CII's
  *    `BusinessProcessSpecifiedDocumentContextParameter/ram:ID`, and the library's own
  *    `fillInvoiceDefaults` only ever fills a DEFAULT when the key is absent — never overrides a value
- *    already set), which is what makes this the honest "cbc:ProfileID équivalent" for UBL the old
+ *    already set), which is what makes this the honest "cbc:ProfileID equivalent" for UBL the old
  *    providers.ts never actually had (see below).
  *  - `cii-provider.ts`/`facturx-provider.ts`'s own plain-CII gate additionally runs
  *    `applyFrenchBusinessProcess` on the RENDERED CII string when a code was resolved — belt-and-

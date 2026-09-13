@@ -1,6 +1,6 @@
 /**
  * RFC 3161 Timestamp Authority (TSA) port + client implementations — reprised verbatim from the
- * repère's `compliance/providers/signing/tsa-client.ts`. Nothing here reasons about a country or a
+ * reference's `compliance/providers/signing/tsa-client.ts`. Nothing here reasons about a country or a
  * document type; only the SHA-256 digest of whatever the caller already signed.
  *
  * TsaPort:       interface signing providers depend on — the only seam they touch.

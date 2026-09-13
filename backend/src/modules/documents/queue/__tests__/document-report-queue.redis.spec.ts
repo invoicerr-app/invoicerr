@@ -250,7 +250,7 @@ describeWithRedis('document-report queue — real Redis, real Postgres', () => {
     expect(reread.status).toBe('sent');
   });
 
-  it('re-enqueuing the SAME (provider, document) pair journals NO duplicate row — dédup', async () => {
+  it('re-enqueuing the SAME (provider, document) pair journals NO duplicate row — dedup', async () => {
     const document = await prisma.documentInstance.create({
       data: {
         companyId,

@@ -1,5 +1,5 @@
 /**
- * Real cryptographic signing tests — reprised from the repère (`providers.spec.ts`), adapted to this
+ * Real cryptographic signing tests — reprised from the reference (`providers.spec.ts`), adapted to this
  * module's own `SigningArtifact`/`RecordingSigningLogger` (see `signing-types.ts`/`signing-logger.ts`
  * headers). All certs/keys are generated in-memory. No external files, no network, no env vars
  * needed — NEVER a real certificate (see this repo's own security rule).
@@ -10,7 +10,7 @@
  *  - PAdES PDF carries a signature extractable by @signpdf/utils
  *  - No-cert path returns unsigned with a warn note (also covered in signing-registry.spec.ts)
  *  - PAdES-ONLY: an active cert whose crypto operation fails THROWS (never a silent unsigned
- *    pass-through) — the one deliberate departure from the repère, see providers.ts's own header.
+ *    pass-through) — the one deliberate departure from the reference, see providers.ts's own header.
  */
 import * as forge from 'node-forge';
 import { Application as XmldsigApp, Parse as XmlParse } from 'xmldsigjs';
@@ -384,7 +384,7 @@ describe('PadesSigningProvider', () => {
   });
 
   /**
-   * THE DEPARTURE FROM THE REPÈRE — see providers.ts's own top-of-file header and
+   * THE DEPARTURE FROM THE REFERENCE — see providers.ts's own top-of-file header and
    * `PadesSigningProvider.sign`'s own header. An ACTIVE cert (p12Buffer present) whose PFX is
    * actually unusable at sign time (corrupt bytes, wrong password) must throw — never a silent
    * unsigned pass-through — because the caller (`sign-instance-pdf.ts`) has no other signal that

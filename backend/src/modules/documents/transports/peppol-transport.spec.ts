@@ -12,14 +12,14 @@
  * This proves the ORCHESTRATION plus two key facts: an empty AP
  * message id is NEVER a success, and the transport SENDS THE PEPPOL-BIS PAYLOAD (never a plain UBL
  * that skipped the delta gate) — see the "peppol-bis-provider — R002" describe block below, which
- * runs the REAL format provider (not mocked) against a French seller. R002 ("le vendeur français
- * passe enfin la validation Peppol BIS") FIXED the underlying gap
+ * runs the REAL format provider (not mocked) against a French seller. R002 ("the French seller
+ * finally passes Peppol BIS validation") FIXED the underlying gap
  * (`formats/semantic/peppol-post-process.ts`): that describe block used to prove a French seller's
  * three mandatory notes made the Peppol BIS delta refuse the document outright (the Access Point
  * never even called); it now proves the OPPOSITE — the merged single note passes R002, and the real
  * local stub Access Point actually receives it, carrying all three legal texts verbatim.
  *
- * "THE FORMAT OVERRIDE" describe block below closes "le trou allemand du B2G" — see
+ * "THE FORMAT OVERRIDE" describe block below closes "the German B2G gap" — see
  * `peppol-transport.ts`'s own header for the full contract: `ctx.formatOverride` absent (every test
  * ABOVE that block) is unmodified, unchanged behavior — the REAL proof this new mechanism does not
  * regress a single pre-existing case; present-but-unwired is a NAMED refusal, never a silent
@@ -420,7 +420,7 @@ describe('buildPeppolTransport', () => {
     });
   });
 
-  // Closes "le trou allemand du B2G" — see `peppol-transport.ts`'s own header, "THE FORMAT
+  // Closes "the German B2G gap" — see `peppol-transport.ts`'s own header, "THE FORMAT
   // OVERRIDE". `CTX_DE_GOV` mirrors `CTX` exactly (same document shape, same `buyerReference`) but
   // names the German government buyer instead — so a test in this block differs from one above it by
   // EXACTLY one variable: whether `ctx.formatOverride`/`deps.formatOverrides` are involved at all.

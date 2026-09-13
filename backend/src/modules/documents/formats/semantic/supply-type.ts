@@ -1,15 +1,14 @@
 /**
- * Reprise minimale du `SupplyType` du moteur de conformité supprimé (`compliance/types.ts` au repère
- * `avant-refonte-documents`) — seules les deux valeurs que `business-process.ts` consomme survivent
- * ici.
+ * Minimal reprise of the removed compliance engine's own `SupplyType` (`compliance/types.ts` at the
+ * `avant-refonte-documents` reference) — only the two values `business-process.ts` consumes survive
+ * here.
  *
- * DÉSORMAIS ALIMENTÉ PAR UNE VRAIE DONNÉE : le tronc de `invoice.descriptor.ts` n'a toujours pas de
- * champ "nature de la ligne" — c'est l'OVERLAY pays FR (`country-fields/data/fr.json`) qui ajoute un
- * sous-champ `supplyType` (kind 'select', valeurs 'GOODS'/'SERVICES', OPTIONNEL) à `lines`, exactement
- * les deux valeurs de ce type — jamais un `if` dans `invoice.descriptor.ts` lui-même, qui reste
- * country-blind. Voir `country-fields/data/fr.json`'s own header pour le choix (option a : sous-champ
- * de ligne plutôt qu'un champ document unique) et `formats/shared-build.ts#extractLines` pour où la
- * valeur brute (une chaîne quelconque tapée côté client) est resserrée sur ce type strict — toute
- * autre valeur est traitée comme absente, jamais devinée.
+ * NOW FED BY REAL DATA: the trunk `invoice.descriptor.ts` still has no "line nature" field — it is the
+ * FR country OVERLAY (`country-fields/data/fr.json`) that adds a `supplyType` subfield (kind 'select',
+ * values 'GOODS'/'SERVICES', OPTIONAL) to `lines`, exactly the two values of this type — never an `if`
+ * inside `invoice.descriptor.ts` itself, which stays country-blind. See `country-fields/data/fr.json`'s
+ * own header for the choice made (option a: a line-level subfield rather than a single document field)
+ * and `formats/shared-build.ts#extractLines` for where the raw value (an arbitrary string typed on the
+ * client side) is narrowed onto this strict type — any other value is treated as absent, never guessed.
  */
 export type SupplyType = 'GOODS' | 'SERVICES';

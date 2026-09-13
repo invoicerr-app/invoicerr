@@ -4,7 +4,7 @@
  * that service's own header, and `schema.prisma`'s own comment on `B2gRoutingRule`, for the full
  * "why boot, not `prisma/seed.ts`" reasoning — in short: `prisma/seed.ts` only runs after `migrate
  * dev`/`migrate reset`/`db seed`, which is exactly the reseed gap already named for
- * `DocumentCountryActionRule` ("`resetAndSeed` ne re-sème pas la politique pays") — running this from
+ * `DocumentCountryActionRule` ("`resetAndSeed` does not reseed the country policy") — running this from
  * `OnModuleInit` instead means a NEW rule added to `data/*.json` reaches every already-migrated,
  * already-running instance (an e2e `cy.resetAndSeed()`, a self-hosted deployment) the next time it
  * simply RESTARTS, no separate reseed step to remember.

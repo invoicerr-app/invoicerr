@@ -16,14 +16,14 @@
  *      `documentation/docs/developer-guide/live-testing.md` recorded on 2026-08-29. Not fixed.
  *   3. Company creation with `country: 'BE'`: initially ALSO failed, with a DIFFERENT, NEW error —
  *      `missing_peppol_id` ("peppol_id is required and must be a valid <scheme>:<value> Peppol
- *      participant identifier") — a stricter validation than the repère's own 2026-07-11 proof ever
+ *      participant identifier") — a stricter validation than the reference's own 2026-07-11 proof ever
  *      exercised (tax_id alone was enough back then). Once an explicit `peppol_id` is supplied
  *      (`createCompany`'s own new, optional field), BE creation SUCCEEDS (`com_…`).
  *   4. The invoice CONTENT below uses a German seller/French buyer (never a French seller) SPECIFICALLY
  *      so this retry tests peppol.sh's OWN sandbox, not this codebase's OWN gate — a first pass with
- *      the repère's own French-seller fixture tripped R002 + R007, both from this codebase's own gate,
- *      BEFORE ever reaching the network, and would have masked whatever peppol.sh itself says. Root
- *      TODO item L1 has since FIXED the R002 half (`peppol-bis-provider.ts`'s own header,
+ *      the reference's own French-seller fixture tripped R002 + R007, both from this codebase's own gate,
+ *      BEFORE ever reaching the network, and would have masked whatever peppol.sh itself says. The
+ *      R002 half has since been FIXED (`peppol-bis-provider.ts`'s own header,
  *      `formats/semantic/peppol-post-process.ts`) — a French seller no longer trips that rule alone —
  *      but this live spec was never re-run against real peppol.sh credentials to confirm R007 (and the
  *      network round-trip itself) still hold for that seller, so the German/French pairing below is

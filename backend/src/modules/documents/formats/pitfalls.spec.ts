@@ -287,8 +287,8 @@ describe("today's bridge limitation, stated rather than hidden", () => {
   });
 });
 
-// USER DECISION (2026-09-01, "le pays vendeur irrésolu retombait sur 'FR'
-// silencieusement", now RÉSOLU) — this bridge's OWN independent block, symmetric to
+// USER DECISION (2026-09-01: the unresolved seller country silently fell back to 'FR' — now
+// RESOLVED) — this bridge's OWN independent block, symmetric to
 // `tax/resolve-invoice-tax.ts`'s own `UnresolvedSellerCountryError` (see that file's own header) for
 // the one path that can reach `buildSemanticInvoice` without going through the tax resolver first.
 describe("today's bridge limitation, stated rather than hidden — an unresolvable SELLER country", () => {

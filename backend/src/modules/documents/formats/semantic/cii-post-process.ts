@@ -1,12 +1,12 @@
 /**
- * REPRISE PARTIELLE de `compliance/schemas/cii-post-process.ts` (git tag `avant-refonte-documents`) —
- * seule `splitCiiIncludedNotes` survit ici, verbatim. `normalizeCiiNamespaces` et
- * `postProcessCiiForCtc` ne sont PAS repris : les deux existaient pour le besoin d'un transporteur
- * précis (le PDP français "superpdp", qui exige un style de namespace par défaut plutôt que préfixé,
- * et une adresse de routage réécrite après coup) — un souci de TRANSMISSION, pas de FORMAT.
- * Ce module construit un CII/UBL EN 16931 générique, jamais adressé à un transporteur particulier ;
- * réintroduire ce post-traitement ici anticiperait une décision qui appartient à la reprise du
- * transport FR, pas à celle-ci.
+ * PARTIAL REPRISE from `compliance/schemas/cii-post-process.ts` (git tag `avant-refonte-documents`) —
+ * only `splitCiiIncludedNotes` survives here, verbatim. `normalizeCiiNamespaces` and
+ * `postProcessCiiForCtc` are NOT reprised: both existed for the needs of one specific transport (the
+ * French PDP "superpdp", which requires a default namespace style rather than a prefixed one, and a
+ * routing address rewritten after the fact) — a TRANSMISSION concern, not a FORMAT one.
+ * This module builds a generic EN 16931 CII/UBL document, never addressed to a particular transport;
+ * reintroducing that post-processing here would anticipate a decision that belongs to the FR transport
+ * reprise, not to this one.
  */
 
 /**
@@ -14,7 +14,7 @@
  *
  * `@e-invoice-eu/core` maps an array of `cbc:Note` onto a SINGLE `ram:IncludedNote` holding several
  * `ram:Content`. That is invalid CII — `Content` occurs at most once in a note. Measured against a
- * real French PDP rejection at the repère, not deduced: several mentions in, one note with several
+ * real French PDP rejection at the reference, not deduced: several mentions in, one note with several
  * contents out.
  *
  * The same pass recovers BT-21: EN 16931 UBL carries a subject code as a `#CODE#` prefix on the note

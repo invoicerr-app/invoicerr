@@ -1,6 +1,6 @@
 /**
- * REPRISE quasi verbatim de `compliance/providers/format/bt23-business-process.spec.ts`
- * (git tag `avant-refonte-documents`) — seul l'import a changé. `frenchBusinessProcessCode`/
+ * REPRISED almost verbatim from `compliance/providers/format/bt23-business-process.spec.ts`
+ * (git tag `avant-refonte-documents`) — only the import changed. `frenchBusinessProcessCode`/
  * `applyFrenchBusinessProcess` are proven here in isolation; the country-conditional WIRING
  * (`resolveFrenchBusinessProcessCode`, sourced from `../../content-requirements/`) is proven below,
  * and end to end (real CII/UBL/Factur-X output) in `../providers.spec.ts` and

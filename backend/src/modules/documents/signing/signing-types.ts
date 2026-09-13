@@ -1,7 +1,7 @@
 /**
  * Local artifact/signature shapes for the signing module.
  *
- * The repère (`avant-refonte-documents`, `compliance/execution/types.ts`) had `RenderedArtifact`/
+ * The reference (`avant-refonte-documents`, `compliance/execution/types.ts`) had `RenderedArtifact`/
  * `SignedArtifact` carry a `role` (AUTHORITATIVE/…) and a closed `DocumentSyntax` enum, because the
  * whole compliance engine reasoned about a PLAN of several artifacts per jurisdiction. That engine is
  * gone from this codebase — this module signs exactly ONE thing today, a rendered PDF (see
@@ -15,7 +15,7 @@ export type SignAlgo = 'XAdES' | 'CAdES' | 'PAdES' | 'none';
 
 /**
  * Baseline signature level per ETSI EN 319 132 / EN 319 122 / EN 319 102 — reprised verbatim from the
- * repère.
+ * reference.
  *  BES  — Basic Electronic Signature (no timestamp).  Default; offline-safe.
  *  T    — Adds an RFC 3161 SignatureTimeStamp from a TSA.
  *  LT   — Adds revocation material (CRL/OCSP) embedding (seam — not yet implemented).
@@ -23,7 +23,7 @@ export type SignAlgo = 'XAdES' | 'CAdES' | 'PAdES' | 'none';
  *
  * LT and LTA are documented seams: the constructors accept these values so the type is
  * forward-compatible, but the providers currently treat them as T (timestamp only) until revocation
- * embedding is implemented — unchanged from the repère, still true here.
+ * embedding is implemented — unchanged from the reference, still true here.
  */
 export type SignatureLevel = 'BES' | 'T' | 'LT' | 'LTA';
 

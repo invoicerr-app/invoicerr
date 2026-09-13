@@ -18,7 +18,7 @@ import { buildSemanticInvoice, SemanticLineInput } from './semantic/build-semant
 
 /**
  * Logger for `@e-invoice-eu/core`: quiet on narration, loud on the one thing worth knowing — REPRISED
- * from `invoice-rendering.service.ts` at the repère (git tag `avant-refonte-documents`), which found
+ * from `invoice-rendering.service.ts` at the reference (git tag `avant-refonte-documents`), which found
  * the hard way that the library's OWN thrown exception message is a bare "validation failed" and the
  * actual diagnosis only ever reaches `logger.error`.
  */

@@ -108,7 +108,7 @@ describe('createAuthorityEvents — dedup', () => {
     );
 
     expect(first).toBe(1);
-    expect(second).toBe(0); // "journalisé une seule fois" — proven here, not merely asserted
+    expect(second).toBe(0); // "journaled only once" — proven here, not merely asserted
   });
 });
 
@@ -189,7 +189,7 @@ describe('findConformitySweepCandidates — eligibility', () => {
   });
 });
 
-// "le statut lifecycle ne bouge JAMAIS" — proven
+// "the lifecycle status NEVER moves" — proven
 // structurally, at the exact point a mutation could sneak one in, rather than merely asserted in
 // prose. `DocumentInstance.status` is written ONLY through `../persistence.ts` (upsertDocument /
 // updateDocumentStatus) — neither of which this file, nor any function it calls, ever imports or

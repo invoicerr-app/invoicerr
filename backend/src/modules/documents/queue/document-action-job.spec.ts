@@ -1,8 +1,8 @@
 import { buildDocumentActionJobData, buildDocumentActionJobId } from './document-action-job';
 
 /**
- * Pure functions — no BullMQ, no Nest, no Redis. The requirement, stated: "forme du
- * job et déterminisme du jobId (fonctions pures testables sans broker)".
+ * Pure functions — no BullMQ, no Nest, no Redis. The requirement, stated: "shape of the
+ * job and jobId determinism (pure functions testable without a broker)".
  */
 describe('buildDocumentActionJobId', () => {
   it('is deterministic: the same (type, document, action) always produces the same id', () => {
