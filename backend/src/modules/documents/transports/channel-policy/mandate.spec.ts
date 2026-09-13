@@ -46,8 +46,20 @@ describe('activeChannelMandateFor — the real, shipped FR/PDP mandate', () => {
   );
 
   it('a country with no channel-policy file at all never has an active mandate', () => {
-    expect(activeChannelMandateFor('DE', '2030-01-01')).toBeUndefined();
+    expect(activeChannelMandateFor('GB', '2030-01-01')).toBeUndefined();
   });
+
+  it(
+    'DE and PT each ship a channel-policy file (`facts: []`) but neither establishes a mandate: German ' +
+      'law (UStG) regulates FORMAT, not channel, and Portuguese law (Decreto-Lei n.º 28/2019 art. 12.º) ' +
+      "leaves electronic transmission itself optional/consensual — see each file's own `notes`. Distinct " +
+      'from the GB case above (no file at all): these two DO have files, they just carry no fact to ' +
+      'mandate.',
+    () => {
+      expect(activeChannelMandateFor('DE', '2030-01-01')).toBeUndefined();
+      expect(activeChannelMandateFor('PT', '2030-01-01')).toBeUndefined();
+    },
+  );
 });
 
 // `data/it.json`'s own "sdi" fact — armed 2026-09-13, sourced to D.Lgs. 127/2015 art. 1 comma 3 (see

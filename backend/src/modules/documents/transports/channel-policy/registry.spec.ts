@@ -54,9 +54,23 @@ describe('channel policy files — loaded, not hard-coded', () => {
   });
 
   it('a country with no file at all gets no fact — no permissive fallback, and no mandate either', () => {
-    expect(defaultChannelPolicyCatalog.factsFor('DE')).toEqual([]);
+    expect(defaultChannelPolicyCatalog.factsFor('GB')).toEqual([]);
     expect(defaultChannelPolicyCatalog.factsFor('US')).toEqual([]);
   });
+
+  it(
+    'DE and PT now HAVE a channel-policy file each (added once the five-country catalog gap was closed) ' +
+      'but both ship `facts: []` — German law (UStG § 14/§ 27 Abs. 38) mandates a FORMAT, never a channel, ' +
+      'and Portuguese law (Decreto-Lei n.º 28/2019 art. 12.º) leaves electronic transmission itself ' +
+      "consensual/optional; see each file's own `notes` for the sourced legal reasoning. A file that " +
+      'exists with zero facts is NOT the same thing as no file at all (the case above): the difference ' +
+      "is invisible to `factsFor()`'s return value, but very much intended and visible in " +
+      "`data/all.spec.ts` (both files are now discovered) and in each file's own `notes`.",
+    () => {
+      expect(defaultChannelPolicyCatalog.factsFor('DE')).toEqual([]);
+      expect(defaultChannelPolicyCatalog.factsFor('PT')).toEqual([]);
+    },
+  );
 
   it('every shipped file has already passed provenance validation at load time', () => {
     expect(ALL_CHANNEL_POLICY_FILES.length).toBeGreaterThan(0);
