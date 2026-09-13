@@ -55,6 +55,32 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
+## Migrations avant fusion : l'installation neuve est prouvée, la mise à niveau ne l'est pas (2026-09-13)
+
+La branche porte **969 commits d'avance sur `main` et 78 migrations nouvelles** (100 contre 22).
+
+**Prouvé** — une installation NEUVE est saine. Sur une base jetable (`invoicerr_chaincheck`, créée
+pour l'occasion sur le Postgres local de test), `prisma migrate deploy` rejoue les 100 migrations
+depuis le vide : `All migrations have been successfully applied.`, EXIT=0. Puis
+`prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` rend
+EXIT=0, `No difference detected` : **la chaîne reproduit exactement le schéma déclaré**, sans dérive.
+Au passage, la base de test `invoicerr_db` elle-même est à jour (même vérification, EXIT=0, avec un
+test de contrôle sur une base inexistante rendant P1003 pour prouver que l'override d'URL est bien
+pris en compte).
+
+**Non prouvé** — la mise à niveau d'une installation ANCIENNE. `src/prisma/sync-schema.ts` traite le
+cas des instances `db push` antérieures : nivellement sur `prisma/schema-v1.4.4a.prisma`, marquage
+des 23 migrations figées comme appliquées, puis `migrate deploy`. Simuler ce chemin exige
+`prisma db push`, que **Prisma refuse d'exécuter lorsqu'il détecte un agent** et subordonne à un
+consentement explicite du propriétaire (variable `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION`). Ce
+garde-fou n'a pas été contourné, ni par cette commande ni en appliquant le même DDL par un autre
+chemin. Il ne concerne pas le code de production, qui s'exécute depuis `entrypoint.sh` et ne
+rencontre pas cette détection.
+
+Ce qui le débloquerait : un accord explicite pour rejouer ce chemin sur une base jetable locale. C'est
+la vérification qui manque avant la fusion, parce qu'elle est la seule qui porte sur les installations
+déjà déployées.
+
 ## Aucun corps de requête n'est validé au runtime (2026-09-13)
 
 Mesuré, pas supposé : `grep` sur tout `backend/src` ne trouve **aucun** `ValidationPipe`, aucun
