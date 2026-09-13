@@ -669,6 +669,48 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  // Portugal's ATCUD (Portaria n.º 195/2020, art. 4.º n.º 1) — printed once here, near the document
+  // number; the "on every page" rule (art. 4.º n.º 3) is a PDF-footer concern, see render-pdf.spec.ts.
+  describe('ATCUD (Portugal)', () => {
+    const numberedDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      fields: [],
+      actions: [],
+      numbering: { onEnterStatus: 'sent' },
+    };
+
+    it('prints the ATCUD, verbatim, when the instance carries one', () => {
+      const html = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'FT 2026/0007', atcud: 'ATCUD:JCVPTS0J-0007' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).toContain('class="document-atcud"');
+      expect(html).toContain('ATCUD:JCVPTS0J-0007');
+    });
+
+    it('prints no ATCUD block at all for a document with none — not an empty frame, nothing', () => {
+      const htmlNull = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'INVOICE-2026-0001', atcud: null },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+      const htmlAbsent = renderDocumentHtml({
+        descriptor: numberedDescriptor,
+        instance: { ...baseInstance, displayNumber: 'INVOICE-2026-0001' },
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(htmlNull).not.toContain('class="document-atcud"');
+      expect(htmlAbsent).not.toContain('class="document-atcud"');
+    });
+  });
+
   // Mandatory legal mentions ("mentions obligatoires") — reprises the repère's own
   // `legal-mentions-pdf.spec.ts` intent (git tag `avant-refonte-documents`), adapted to this generic
   // renderer: the mentions come in as a plain `legalMentions` array (already resolved for a date by

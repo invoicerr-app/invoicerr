@@ -173,6 +173,125 @@ describe('runAsyncSendAction', () => {
       expect(result.document).toMatchObject({ number: 3, displayNumber: 'QUOTE-2026-0003' });
     });
 
+    // `onNumbered` — a generic, type-agnostic hook (see async-send.ts's own header on why this core
+    // file never branches on `typeId`): invoice-actions.ts is the one REAL caller that supplies one
+    // (Portugal's ATCUD, `actions/atcud-issuance.spec.ts` covers that fact itself) — this file's own
+    // job is only "does the CORE call it, with the right arguments, at the right moment".
+    describe('onNumbered', () => {
+      function mockFreshNumbering() {
+        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'draft',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: null,
+          displayNumber: null,
+        });
+        (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+          number: 3,
+          displayNumber: 'QUOTE-2026-0003',
+        });
+      }
+
+      it('is called, exactly once, right after a real number is won — with the winning number', async () => {
+        mockFreshNumbering();
+        const onNumbered = jest.fn().mockResolvedValue(undefined);
+        const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+
+        await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn(), onNumbered });
+
+        expect(onNumbered).toHaveBeenCalledTimes(1);
+        expect(onNumbered).toHaveBeenCalledWith({
+          companyId: 'company-1',
+          typeId: 'quote',
+          documentId: 'doc-1',
+          numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
+        });
+      });
+
+      it('is never called for a "send_failed" retry that keeps its existing number — nothing was won', async () => {
+        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'send_failed',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 3,
+          displayNumber: 'QUOTE-2026-0003',
+        });
+        const onNumbered = jest.fn();
+
+        await runAsyncSendAction({
+          ...baseInput,
+          queueDispatcher: { enqueueAction: jest.fn().mockResolvedValue(undefined) },
+          deliver: jest.fn(),
+          onNumbered,
+        });
+
+        expect(onNumbered).not.toHaveBeenCalled();
+      });
+
+      it('is never called when `numberOnEnqueue` is false — a type with no numbering at all (credit-note)', async () => {
+        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'credit-note',
+          status: 'draft',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        (persistence.upsertDocument as jest.Mock).mockResolvedValue({
+          id: 'doc-1',
+          typeId: 'credit-note',
+          status: 'sending',
+          data: baseInput.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        const onNumbered = jest.fn();
+
+        await runAsyncSendAction({
+          ...baseInput,
+          typeId: 'credit-note',
+          numberOnEnqueue: false,
+          queueDispatcher: { enqueueAction: jest.fn().mockResolvedValue(undefined) },
+          deliver: jest.fn(),
+          onNumbered,
+        });
+
+        expect(onNumbered).not.toHaveBeenCalled();
+        expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
+      });
+
+      it('every EXISTING caller/spec keeps working unchanged when absent — a true no-op, not a required field', async () => {
+        mockFreshNumbering();
+        const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+
+        await expect(
+          runAsyncSendAction({ ...baseInput, queueDispatcher, deliver: jest.fn() }),
+        ).resolves.toMatchObject({ changed: true });
+      });
+    });
+
     it('runs an optional preflight BEFORE persisting, numbering, or enqueueing anything — a thrown preflight blocks all three', async () => {
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
         id: 'doc-1',

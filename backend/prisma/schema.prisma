@@ -417,6 +417,7 @@ model Company {
   currencyRates           CurrencyRate[]
   channelConfigs          CompanyChannelConfig[]
   signingCertificates     CompanySigningCertificate[]
+  atcudSeries             CompanyAtcudSeries[]
   signatures              Signature[]
   ssoProvider             CompanySsoProvider?
 }
@@ -914,6 +915,19 @@ model DocumentInstance {
   // company's format pattern silently rewrite an already-issued document's number.
   number        Int?
   displayNumber String?
+
+  // Portugal's ATCUD ("Código Único de Documento") — `ATCUD:CodigodeValidação-NumeroSequencial`
+  // (Portaria n.º 195/2020, art. 4.º n.º 1 — see country-policy/data/pt.json's own `invoice.send`
+  // notes for the verbatim citation), computed and frozen the SAME moment `displayNumber` above is
+  // (numbering/atcud.ts's `computeAtcud`, wired from `actions/atcud-issuance.ts`) — never
+  // recomputed on a later read, for the exact same reason `displayNumber` itself is frozen: a
+  // company editing or deleting its AT validation code afterward must never silently rewrite an
+  // already-issued invoice's own printed ATCUD. Null for every record that is not a numbered
+  // Portuguese invoice — every other country's document, and every Portuguese document type other
+  // than "invoice" (this branch has no numbering at all for "credit-note", the only other
+  // fiscally-relevant PT type — see credit-note.descriptor.ts's own header), leaves this column
+  // untouched forever.
+  atcud String?
 
   // The error from the most recent FAILED asynchronous action — see documents/queue/ (TODO item 22)
   // and descriptors/lifecycle.ts's own comment on the "sending"/"send_failed" statuses a type with a
@@ -1851,6 +1865,43 @@ model CompanySigningCertificate {
   updatedAt     DateTime           @updatedAt
 
   @@unique([companyId, applicability, environment])
+  @@index([companyId])
+}
+
+// Portugal's ATCUD — the AT (Autoridade Tributária) "código de validação" a company obtains from the
+// Portal das Finanças for one (série documentaire × tipo de documento) pair, BEFORE issuing any
+// document in that series (AT FAQ 4308/4312, quoted verbatim in country-policy/data/pt.json's own
+// `invoice.send` notes). Shaped after `CompanySigningCertificate` above (per-company, scoped store,
+// settings-screen upsert/list/delete) with ONE deliberate difference: `validationCode` is stored IN
+// THE CLEAR, never through `secret-crypto.ts` — unlike a signing certificate's PFX/password, this
+// code is not a secret, it is PRINTED on every invoice the series produces (Portaria n.º 195/2020,
+// art. 4.º n.º 1), so encrypting it at rest would protect nothing while making it harder to read back
+// for the settings screen that lists what is configured.
+//
+// `seriesId` is this company's own ATCUD "série" identifier — the part of its number-format pattern
+// (Company.numberFormats, numbering/format-number.ts) that comes BEFORE the mandatory "/{number...}"
+// suffix numbering/atcud.ts's `parseAtcudPattern` requires for a Portuguese invoice, rendered through
+// that same pattern's `{year}`/`{month}`/`{day}` tokens (numbering/atcud.ts's `renderAtcudSeriesId`)
+// — e.g. "FT 2026" for a company numbering "FT {year}/{number:4}". A company that resets its series
+// every year therefore needs a NEW row (and a NEW code from the AT) every year, which is the correct,
+// literal reading of "per série" (FAQ 4312: "específico para cada conjunto composto pelo identificador
+// de série e pelo tipo de documento"), not a per-company or per-document-type-only fact.
+//
+// `typeId` is a DocumentTypeDescriptor.id — "invoice" for every row this product can produce today
+// (see numbering/atcud.ts's own header on why "credit-note" cannot: it has no `numbering` declared at
+// all in this branch), kept as a real column rather than hard-coded so a future numbered, fiscally-
+// relevant PT type needs no schema change, only a new row.
+model CompanyAtcudSeries {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  typeId         String
+  seriesId       String
+  validationCode String // AT "código de validação" — NOT a secret, see this model's own header. Plain text.
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, typeId, seriesId])
   @@index([companyId])
 }
 

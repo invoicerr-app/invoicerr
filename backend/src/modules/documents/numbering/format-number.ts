@@ -51,6 +51,41 @@ export function assertValidNumberPattern(pattern: string, context: string): void
 }
 
 /**
+ * Renders ONLY the `{year}`/`{month}`/`{day}` tokens of a pattern fragment against `date` — exported
+ * for `numbering/atcud.ts`, which uses it to predict a Portuguese company's ATCUD "series identifier"
+ * (the portion of its number-format pattern BEFORE the mandatory `/{number...}` suffix, see that
+ * file's own header) at the moment an invoice is about to be issued, i.e. before a real sequence
+ * number even exists to hand to `formatDocumentNumber` above. Refuses a `{number}` token in `pattern`
+ * (an `atcud.ts#parseAtcudPattern` series fragment must never contain one — see that function's own
+ * header on why a second numeric token there would make "the" sequential number ambiguous) and any
+ * token outside this file's known vocabulary, the same "fail loudly on the unexpected, never guess"
+ * discipline `formatDocumentNumber` itself already holds for its own unknown-token case below.
+ */
+export function renderDateTokens(pattern: string, date: Date): string {
+  return pattern.replace(TOKEN_PATTERN, (fullMatch, key: string, padding: string | undefined) => {
+    let value: number;
+    switch (key) {
+      case 'year':
+        value = date.getFullYear();
+        break;
+      case 'month':
+        value = date.getMonth() + 1;
+        break;
+      case 'day':
+        value = date.getDate();
+        break;
+      default:
+        throw new Error(
+          `ATCUD series fragment "${pattern}" uses token "${fullMatch}" — only {year}, {month} and ` +
+            '{day} are allowed there (the sequential number itself lives after the mandatory "/").',
+        );
+    }
+    const padLength = padding !== undefined ? Number.parseInt(padding, 10) : 0;
+    return value.toString().padStart(padLength, '0');
+  });
+}
+
+/**
  * Renders one already-taken number through `pattern` — pure, synchronous, no I/O. `{year}`/
  * `{month}`/`{day}` come from `parts.date`; `{number}` (or `{number:N}`) from `parts.number`, padded
  * with leading zeros to N digits (4 when `:N` is omitted, matching the old engine's own default —

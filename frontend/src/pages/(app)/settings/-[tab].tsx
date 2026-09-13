@@ -4,6 +4,7 @@ import {
   FileSpreadsheet,
   FileText,
   Fingerprint,
+  Hash,
   KeyRound,
   Mail,
   Plug,
@@ -21,6 +22,7 @@ import { useNavigate, useParams } from "react-router"
 import AccountSettings from "./_components/account.settings"
 import AccountingExportSettings from "./_components/accounting-export.settings"
 import ApiKeysSettings from "./_components/api-keys.settings"
+import AtcudSettings from "./_components/atcud.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
 import DangerZoneSettings from "./_components/danger.settings"
@@ -36,8 +38,16 @@ import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useCompanies } from "@/hooks/queries"
+import { useGet } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
 import { LogsSettings } from "./_components/logs.settings"
+
+/** Just enough of `GET /api/company/info` to gate the "atcud" tab below — see `atcud.settings.tsx`'s
+ *  own `isPortugal` for the (deliberately loose, UX-only) country check this mirrors. */
+interface CompanyCountryInfo {
+  country?: string
+  countryCode?: string | null
+}
 
 export default function Settings() {
   const { t } = useTranslation()
@@ -45,6 +55,9 @@ export default function Settings() {
   const navigate = useNavigate()
   const { activeRole } = useCompanies()
   const isMember = activeRole === "MEMBER"
+  const { data: company } = useGet<CompanyCountryInfo>("/api/company/info")
+  const companyCountryValue = (company?.countryCode || company?.country || "").trim().toUpperCase()
+  const isPortugueseCompany = companyCountryValue === "PT" || companyCountryValue === "PORTUGAL"
 
   const validTabs = [
     "company",
@@ -59,6 +72,7 @@ export default function Settings() {
     "plugins",
     "channels",
     "signing",
+    "atcud",
     "sso",
     "recurring",
     "accountingExport",
@@ -132,6 +146,11 @@ export default function Settings() {
       icon: ShieldCheck,
     },
     {
+      value: "atcud",
+      label: t("settings.tabs.atcud", "ATCUD"),
+      icon: Hash,
+    },
+    {
       value: "sso",
       label: t("settings.tabs.sso", "SSO"),
       icon: Fingerprint,
@@ -151,16 +170,31 @@ export default function Settings() {
       label: t("settings.tabs.dangerZone"),
       icon: AlertTriangle,
     },
-  ].filter(
-    (item) =>
-      !isMember ||
-      // "sso" joins the administrative tabs a MEMBER never sees: the identity provider decides who
-      // gets into the company at all, so it belongs with members/invitations rather than with the
-      // per-user account settings.
-      !["invitations", "members", "apiKeys", "webhooks", "danger", "channels", "signing", "sso"].includes(
-        item.value,
-      ),
-  )
+  ]
+    .filter(
+      (item) =>
+        !isMember ||
+        // "sso" joins the administrative tabs a MEMBER never sees: the identity provider decides who
+        // gets into the company at all, so it belongs with members/invitations rather than with the
+        // per-user account settings.
+        ![
+          "invitations",
+          "members",
+          "apiKeys",
+          "webhooks",
+          "danger",
+          "channels",
+          "signing",
+          "atcud",
+          "sso",
+        ].includes(item.value),
+    )
+    // "atcud" only ever applies to a company registered in Portugal — see `atcud.settings.tsx`'s own
+    // header. Hidden here rather than merely showing an empty/inapplicable screen: a French or Polish
+    // company has no reason to ever see a nav entry for a Portuguese-only legal requirement. The
+    // component itself still gates on the SAME check (`isPortugal`) if this tab is ever reached
+    // directly (e.g. a stale bookmark from before the company's own country changed).
+    .filter((item) => item.value !== "atcud" || isPortugueseCompany)
 
   const currentMenuItem = menuItems.find((item) => item.value === currentTab)
 
@@ -192,6 +226,8 @@ export default function Settings() {
         return <ChannelsSettings />
       case "signing":
         return <SigningCertificatesSettings />
+      case "atcud":
+        return <AtcudSettings />
       case "sso":
         return <SsoSettings />
       case "recurring":

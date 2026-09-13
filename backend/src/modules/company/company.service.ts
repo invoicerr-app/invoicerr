@@ -14,6 +14,7 @@ import {
   systemEmailFamilyLabel,
 } from '@/mail/system-email-templates';
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
+import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
 import prisma from '@/prisma/prisma.service';
 
 /**
@@ -141,6 +142,61 @@ export class CompanyService {
     }
 
     return updatedCompany;
+  }
+
+  /**
+   * Sets ONE document type's own number-format PATTERN (`Company.numberFormats`,
+   * `documents/numbering/format-number.ts`) — the settings-screen gap that schema comment's own header
+   * flags ("no settings screen writes this column yet"). Deliberately its OWN small endpoint/method,
+   * never folded into `editCompanyInfo`'s `EditCompanyDto` above: that DTO still carries the SIX dead
+   * `quote/invoice/paymentStartingNumber`/`*NumberFormat` columns from the removed pre-refonte engine
+   * (see `Company.numberFormats`'s own schema comment) — reworking that whole card is "a separate
+   * cleanup this task does not do" (same schema comment), so this adds the one new, correct write path
+   * a Portuguese company's ATCUD settings screen needs (`documents/numbering/atcud.ts#parseAtcudPattern`
+   * requires a "/{number...}"-shaped pattern) without touching that pre-existing, unrelated gap further.
+   *
+   * MERGES into the existing JSON blob (read-modify-write) rather than replacing it outright — a
+   * future second type writing through this same method must never silently erase what a prior call
+   * stored for a DIFFERENT typeId. `assertValidNumberPattern` is the SAME eager check
+   * `numbering/format-number.ts#resolveNumberFormat` re-applies at issuance time — reject here, at
+   * SAVE time, rather than let a company store a pattern that would only fail loudly the next time it
+   * tries to issue anything.
+   */
+  async updateNumberFormat(
+    companyId: string,
+    typeId: string,
+    pattern: string,
+  ): Promise<Record<string, string>> {
+    const trimmedTypeId = typeId?.trim();
+    const trimmedPattern = pattern?.trim();
+    if (!trimmedTypeId) throw new BadRequestException('typeId is required.');
+    if (!trimmedPattern) throw new BadRequestException('pattern is required.');
+
+    try {
+      assertValidNumberPattern(trimmedPattern, `for document type "${trimmedTypeId}"`);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
+
+    const existingCompany = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { numberFormats: true },
+    });
+    if (!existingCompany) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const existingFormats = (existingCompany.numberFormats as Record<string, string> | null) ?? {};
+    const numberFormats = { ...existingFormats, [trimmedTypeId]: trimmedPattern };
+
+    await prisma.company.update({ where: { id: companyId }, data: { numberFormats } });
+
+    logger.info('Company number format updated', {
+      category: 'company',
+      details: { companyId, typeId: trimmedTypeId },
+    });
+
+    return numberFormats;
   }
 
   // Creates a brand-new company and makes the creating user its OWNER —

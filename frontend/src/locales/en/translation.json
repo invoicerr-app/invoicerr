@@ -1546,6 +1546,7 @@
       "apiKeys": "API Keys",
       "channels": "E-invoicing",
       "signing": "Signing certs",
+      "atcud": "ATCUD",
       "members": "Members",
       "recurring": "Recurrences",
       "accountingExport": "Accounting export",
@@ -2384,6 +2385,37 @@
         "submit": "Upload",
         "success": "Certificate uploaded",
         "title": "Upload signing certificate"
+      }
+    },
+    "atcud": {
+      "title": "ATCUD (Portugal)",
+      "description": "Portaria n.º 195/2020 requires every Portuguese invoice to carry an ATCUD, obtained per series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
+      "notApplicable": "The ATCUD is a Portuguese legal requirement — this section only applies to a company registered in Portugal.",
+      "numberFormat": {
+        "title": "Invoice number format",
+        "description": "The ATCUD sequential number is, by law, \"the digits immediately after the / \" in your invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end in a literal \"/\" immediately followed by \"{number}\" (or \"{number:N}\"), e.g. \"FT {year}/{number:4}\".",
+        "label": "Invoice number format",
+        "save": "Save",
+        "compatible": "Compatible with the ATCUD sequential-number rule",
+        "incompatible": "Not compatible yet — it must end in \"/\" immediately followed by \"{number}\" or \"{number:N}\"",
+        "messages": {
+          "saveError": "Failed to save the number format",
+          "saveSuccess": "Invoice number format saved"
+        }
+      },
+      "series": {
+        "addTitle": "Register a series validation code",
+        "addDescription": "The series identifier is the part of your invoice number BEFORE the \"/\" — e.g. \"FT 2026\" for the format \"FT {year}/{number:4}\".",
+        "seriesId": "Series identifier",
+        "validationCode": "AT validation code",
+        "save": "Save",
+        "emptyState": "No ATCUD series registered yet — invoices cannot be sent until at least one is.",
+        "messages": {
+          "saveError": "Failed to save the series",
+          "saveSuccess": "Series saved",
+          "deleteError": "Failed to remove this series",
+          "deleteSuccess": "Series removed"
+        }
       }
     },
     "members": {

@@ -12,7 +12,7 @@ function escapeHtml(value: string): string {
 }
 
 // Fallback for Node.js environment where document doesn't exist
-function escapeHtmlNode(value: string): string {
+export function escapeHtmlNode(value: string): string {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -171,6 +171,14 @@ export interface RenderDocumentHtmlInput {
      *  all (e.g. "expense", "credit-note" — see their own descriptors). Optional so every existing
      *  caller/fixture that never mentions numbering keeps compiling unchanged. */
     displayNumber?: string | null;
+    /** Portugal's ATCUD (`ATCUD:CodigodeValidação-NumeroSequencial`, Portaria n.º 195/2020, art. 4.º
+     *  n.º 1) — frozen onto the instance the same moment `displayNumber` is (`actions/
+     *  atcud-issuance.ts`). Absent/null for every document that is not a numbered Portuguese invoice.
+     *  Printed once here, near the document number, for anyone reading this HTML directly; the "on
+     *  EVERY page" legal requirement (art. 4.º n.º 3) is instead satisfied by a REPEATING PDF footer —
+     *  see `render-pdf.ts#RenderPdfOptions.footerText` and `render-instance-pdf.ts`, which is the only
+     *  caller that ever fills this same string into both places. */
+    atcud?: string | null;
   };
   company: {
     name: string;
@@ -268,6 +276,12 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       font-size: 15px;
       color: #555;
       margin-bottom: 8px;
+    }
+    .document-atcud {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 8px;
+      font-family: monospace;
     }
     .document-meta {
       display: flex;
@@ -422,6 +436,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
           ? `<div class="document-number">${escapeHtmlSafe(instance.displayNumber ?? 'Draft — no number yet')}</div>`
           : ''
       }
+      ${instance.atcud ? `<div class="document-atcud">${escapeHtmlSafe(instance.atcud)}</div>` : ''}
       <div class="document-meta">
         <div><strong>Status:</strong> ${escapeHtmlSafe(instance.status)}</div>
         <div><strong>Date:</strong> ${escapeHtmlSafe(createdDate)}</div>

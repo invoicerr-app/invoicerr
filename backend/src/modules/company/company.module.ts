@@ -3,6 +3,8 @@ import { CompanyService } from '@/modules/company/company.service';
 import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { AtcudSeriesController } from './atcud-series/atcud-series.controller';
+import { AtcudSeriesService } from './atcud-series/atcud-series.service';
 import { ChannelsController } from './channels/channels.controller';
 import { ChannelCredentialsService } from './channels/channels.service';
 import { CurrencyRatesController } from './currency-rates/currency-rates.controller';
@@ -21,6 +23,7 @@ import { SsoService } from './sso/sso.service';
     CurrencyRatesController,
     ChannelsController,
     SigningCertificatesController,
+    AtcudSeriesController,
     SsoController,
     // The ONE anonymous SSO route, on its own path ("/api/sso/lookup") and in its own controller so it
     // cannot share `@Public()` with the company-scoped one — see its own header.
@@ -32,6 +35,7 @@ import { SsoService } from './sso/sso.service';
     CurrencyRatesService,
     ChannelCredentialsService,
     SigningCertificatesService,
+    AtcudSeriesService,
     SsoService,
     // Registers every company's own OIDC provider with the live better-auth instance at boot
     // (`OnModuleInit`) and on every write — see sso-registrar.service.ts's own header for why

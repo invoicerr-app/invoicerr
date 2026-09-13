@@ -35,6 +35,40 @@ export class CompanyController {
     return data || {};
   }
 
+  /**
+   * PUT /api/company/number-format — sets ONE document type's own number-format pattern
+   * (`Company.numberFormats`, `documents/numbering/format-number.ts`). See
+   * `company.service.ts#updateNumberFormat`'s own header for why this is its own small endpoint
+   * rather than a field on `POST info` above. Today's one real caller is the Portuguese ATCUD
+   * settings screen (`documents/numbering/atcud.ts#parseAtcudPattern` requires a "/{number...}"-shaped
+   * pattern before an invoice can even be numbered) — nothing here names Portugal, or any country.
+   */
+  @Put('number-format')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({
+    summary: "Set one document type's own number-format pattern",
+    description:
+      'Merges `{ [typeId]: pattern }` into Company.numberFormats — e.g. `{ "typeId": "invoice", ' +
+      '"pattern": "FT {year}/{number:4}" }`. Rejects a pattern with no "{number}" token.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        typeId: { type: 'string', example: 'invoice' },
+        pattern: { type: 'string', example: 'FT {year}/{number:4}' },
+      },
+      required: ['typeId', 'pattern'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Number format updated' })
+  async updateNumberFormat(
+    @ActiveCompany() companyId: string,
+    @Body() body: { typeId: string; pattern: string },
+  ) {
+    return this.companyService.updateNumberFormat(companyId, body.typeId, body.pattern);
+  }
+
   @Get('email-templates')
   @ApiOperation({
     summary: 'Get the system email templates',

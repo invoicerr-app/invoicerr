@@ -37,6 +37,10 @@ export interface DocumentInstanceResult {
    *  `numbering` at all), never cleared or reassigned afterward. */
   number?: number | null;
   displayNumber?: string | null;
+  /** See `DocumentInstance.atcud`'s own schema comment — Portugal's ATCUD, frozen the same moment
+   *  `displayNumber` above is (`actions/atcud-issuance.ts`). Null/undefined for every document that is
+   *  not a numbered Portuguese invoice, exactly like `displayNumber` itself is absent before numbering. */
+  atcud?: string | null;
   /** See `DocumentInstance.lastActionError`'s own schema comment — the error from the most recent
    *  FAILED asynchronous action (queue/mark-send-failed.ts), or null/undefined once cleared by any
    *  later write. Absent from a result that never re-reads this column (most action handlers don't

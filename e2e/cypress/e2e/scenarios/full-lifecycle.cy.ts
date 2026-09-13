@@ -363,6 +363,44 @@ function connectFakeSdiAndMakeItTheTransport() {
 	});
 }
 
+/**
+ * Portugal's ATCUD (Portaria n.º 195/2020) — `pt-de` is the only leg in this file whose SELLER is
+ * Portuguese (`it-pt`'s own Portugal is the BUYER, unaffected: `documents/actions/atcud-issuance.ts
+ * #ensureAtcudIssuable` gates on the ISSUING company's own country, never the buyer's). Without this,
+ * `pt-de`'s main invoice send below would now 400 at the preflight (`ensureAtcudIssuable`'s own
+ * `AtcudFormatIncompatibleError`/`AtcudValidationCodeMissingError`) — this product's own shipped
+ * default number format ("INVOICE-{year}-{number:4}", `numbering/format-number.ts
+ * #defaultNumberFormatFor`) has no "/" at all, and no company has ever registered a validation code.
+ * A real Portuguese company has to do exactly this — set an ATCUD-compatible invoice number format,
+ * then register the AT-issued code for the series that format predicts — before it can send its
+ * first invoice; this mirrors that real setup through the actual settings screen
+ * (`settings/_components/atcud.settings.tsx`), the same "action through a real click" discipline this
+ * file's own `connectFakeSdiAndMakeItTheTransport` already holds for Italy's own SdI mandate.
+ *
+ * The series identifier is "FT 2026", never "FT {issueDate's year}": numbering takes its `{year}` from
+ * the REAL wall-clock moment the number is actually assigned (`numbering/sequence.ts
+ * #takeDocumentNumber`'s own `issuedAt = new Date()` default), not from the invoice's own `issueDate`
+ * field (2026-08-20, chosen only to sit before France's PDP mandate — see this file's own header) — so
+ * the series this test registers has to match whatever year this suite actually runs in, not the
+ * invoice's own backdated issue date.
+ */
+function configurePortugueseAtcud() {
+	cy.visit("/settings/atcud");
+	// `{ parseSpecialCharSequences: false }` — without it, Cypress's `.type()` would try to interpret
+	// "{year}"/"{number:4}" as key-sequence commands (like "{enter}") rather than typing them literally.
+	cy.get('[data-cy="atcud-number-format-input"]', { timeout: 15000 })
+		.clear()
+		.type("FT {year}/{number:4}", { parseSpecialCharSequences: false });
+	cy.get('[data-cy="atcud-number-format-save-button"]').click();
+	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Invoice number format saved");
+
+	const seriesId = `FT ${new Date().getFullYear()}`;
+	cy.get('[data-cy="atcud-series-id-input"]').type(seriesId);
+	cy.get('[data-cy="atcud-validation-code-input"]').type("E2EATCUDCODE1");
+	cy.get('[data-cy="atcud-series-save-button"]').click();
+	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Series saved");
+}
+
 describe(`Full lifecycle — ${scenarioId}`, () => {
 	let buyerClientId: string;
 	let invoiceId: string;
@@ -563,6 +601,11 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 				// closed port (no real AdE accreditation exists in CI, see `31-national-channels.cy.ts`'s
 				// own header), so it fails for real, landing on "send_failed" rather than "sent".
 				connectFakeSdiAndMakeItTheTransport();
+			}
+			if (scenarioId === "pt-de") {
+				// See `configurePortugueseAtcud`'s own header — without this, the send below 400s at the
+				// ATCUD preflight, never even reaching "sending".
+				configurePortugueseAtcud();
 			}
 			sendInvoiceViaScreen(id);
 
@@ -909,8 +952,11 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// this catalog — an honest "nobody has settled this", not a permission). `isChoosable` treats
 			// unverified as NOT choosable — disabled, with its own resolution note shown as the reason, the
 			// same "« non établi » n'est pas « permis »" discipline `invoice-correction-routes-button.tsx`'s
-			// own header names. See this file's own header note on the SEPARATE Portuguese gap
-			// (ATCUD/fiscal QR) this leg does NOT exercise — it has no reachable surface in this e2e run.
+			// own header names. The SEPARATE Portuguese ATCUD requirement (Portaria n.º 195/2020) — once a
+			// real gap this leg did not exercise — IS now exercised, earlier in this same file: see
+			// `configurePortugueseAtcud`'s own header and its call site, right before this leg's own main
+			// invoice is sent. The fiscal QR code stays genuinely out of scope (required only for AT-
+			// certified software — see `country-policy/data/pt.json`'s own `invoice.send` notes).
 			cy.get('[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]').should(
 				"contain.text",
 				"Not established",

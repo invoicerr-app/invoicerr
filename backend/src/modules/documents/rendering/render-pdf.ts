@@ -4,6 +4,8 @@ import { Browser, chromium, Page } from 'playwright-core';
 
 import { logger } from '@/logger/logger.service';
 
+import { escapeHtmlNode } from './render-html';
+
 /**
  * HTML->PDF rendering, on `playwright-core` (NOT the full `playwright` package — that one downloads
  * its own browsers on install, hundreds of MB the runtime image doesn't need since it already ships
@@ -270,11 +272,28 @@ async function launchBrowser(): Promise<Browser> {
   }
 }
 
+export interface RenderPdfOptions {
+  /**
+   * Plain text (never HTML) to repeat in a small footer on EVERY printed page — the mechanism this
+   * product uses to satisfy Portugal's "o ATCUD deve constar em todas as páginas" (Portaria n.º
+   * 195/2020, art. 4.º n.º 3, quoted in country-policy/data/pt.json) requirement. `render-html.ts`'s
+   * own CSS declares no `@page` rule and no page-break control at all — a repeating footer is not
+   * something the MAIN document HTML can produce on its own, however it happens to paginate. Chromium
+   * itself CAN, natively, via `page.pdf()`'s own `displayHeaderFooter`/`footerTemplate`: those render a
+   * SEPARATE, tiny HTML fragment Chromium repeats in the margin area of every page it lays out, driven
+   * by print pagination rather than anything in the main document's own flow — exactly the "every
+   * page" guarantee the main content cannot give by itself. Absent (the default) renders no footer at
+   * all and leaves every `page.pdf()` option below EXACTLY as before this feature existed — the proof
+   * that a non-Portuguese (or non-invoice) document's PDF is byte-for-byte unchanged.
+   */
+  footerText?: string;
+}
+
 /**
  * Renders HTML to PDF buffer using a shared headless Chromium (via Playwright). Throws if the PDF
  * engine fails.
  */
-export async function renderPdf(html: string): Promise<Buffer> {
+export async function renderPdf(html: string, options: RenderPdfOptions = {}): Promise<Buffer> {
   await acquireRenderSlot();
 
   let page: Page | null = null;
@@ -291,6 +310,8 @@ export async function renderPdf(html: string): Promise<Buffer> {
     // this page will ever render is present.
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
 
+    const { footerText } = options;
+
     // Generate PDF
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -300,7 +321,22 @@ export async function renderPdf(html: string): Promise<Buffer> {
       // margin of its own, so this explicit block is the ONLY thing producing the printable gutter —
       // omitting it (e.g. to "simplify" what looks like a redundant default) would silently reflow
       // every invoice, quote, receipt and credit note this product generates to the paper's edge.
-      margin: { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' },
+      // The bottom margin grows slightly ONLY when a footer is requested, to leave the footer text
+      // room without overlapping the last line of body content — every OTHER document keeps exactly
+      // '1cm', unchanged.
+      margin: { top: '1cm', right: '1cm', bottom: footerText ? '1.4cm' : '1cm', left: '1cm' },
+      ...(footerText
+        ? {
+            displayHeaderFooter: true,
+            // A non-empty, valid template is required even when only a FOOTER is wanted — an empty
+            // string here would make Chromium fall back to its own default header (date/title/url),
+            // never simply "no header at all". This is the standard way to suppress it.
+            headerTemplate: '<span></span>',
+            footerTemplate:
+              `<div style="width:100%; font-size:8px; text-align:center; color:#333; ` +
+              `padding:0 1cm;">${escapeHtmlNode(footerText)}</div>`,
+          }
+        : {}),
     });
 
     return Buffer.from(pdfBuffer);

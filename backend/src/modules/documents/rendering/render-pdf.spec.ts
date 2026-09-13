@@ -81,6 +81,47 @@ describe('renderPdf', () => {
     }
   });
 
+  // Portugal's ATCUD "on every page" (Portaria n.º 195/2020, art. 4.º n.º 3) — the ONLY expressible
+  // mechanism for that, given render-html.ts's own CSS has no `@page`/page-break control at all: see
+  // `RenderPdfOptions.footerText`'s own header.
+  describe('footerText — the "on every page" ATCUD mechanism', () => {
+    it('is absent by default — byte-for-byte the SAME page.pdf() options every other document already got', async () => {
+      const { renderPdf, mock } = load();
+
+      await renderPdf('<html><body>hello</body></html>');
+
+      const [options] = mock.pages[0].pdf.mock.calls[0] as [Record<string, unknown>];
+      expect(options).not.toHaveProperty('displayHeaderFooter');
+      expect(options).not.toHaveProperty('footerTemplate');
+      expect(options).not.toHaveProperty('headerTemplate');
+      expect((options.margin as Record<string, unknown>).bottom).toBe('1cm');
+    });
+
+    it('turns on a repeating footer, with the given text, and grows the bottom margin to fit it', async () => {
+      const { renderPdf, mock } = load();
+
+      await renderPdf('<html><body>hello</body></html>', { footerText: 'ATCUD:JCVPTS0J-0007' });
+
+      const [options] = mock.pages[0].pdf.mock.calls[0] as [Record<string, unknown>];
+      expect(options.displayHeaderFooter).toBe(true);
+      expect(options.footerTemplate).toContain('ATCUD:JCVPTS0J-0007');
+      expect(options.headerTemplate).toBe('<span></span>');
+      expect((options.margin as Record<string, unknown>).bottom).toBe('1.4cm');
+      // Every OTHER side is untouched by the footer option.
+      expect((options.margin as Record<string, unknown>).top).toBe('1cm');
+    });
+
+    it('HTML-escapes the footer text — a company-typed validation code must never inject markup', async () => {
+      const { renderPdf, mock } = load();
+
+      await renderPdf('<html></html>', { footerText: '<script>alert(1)</script>' });
+
+      const [options] = mock.pages[0].pdf.mock.calls[0] as [Record<string, unknown>];
+      expect(options.footerTemplate).not.toContain('<script>');
+      expect(options.footerTemplate).toContain('&lt;script&gt;');
+    });
+  });
+
   it('launches exactly one browser when two renders race to be the first', async () => {
     const { renderPdf, chromium, mock } = load();
 

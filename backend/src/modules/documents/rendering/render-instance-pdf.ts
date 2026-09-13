@@ -138,7 +138,7 @@ export async function renderDocumentInstance(
   deps: RenderDocumentInstanceDeps,
   companyId: string,
   descriptor: DocumentTypeDescriptor,
-  instance: Pick<DocumentInstanceResult, 'id' | 'status' | 'data' | 'createdAt' | 'displayNumber'>,
+  instance: Pick<DocumentInstanceResult, 'id' | 'status' | 'data' | 'createdAt' | 'displayNumber' | 'atcud'>,
 ): Promise<RenderedDocumentInstance> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -199,6 +199,7 @@ export async function renderDocumentInstance(
       data: instanceData,
       createdAt: instance.createdAt,
       displayNumber: instance.displayNumber,
+      atcud: instance.atcud,
     },
     company,
     referenceLabels,
@@ -207,7 +208,12 @@ export async function renderDocumentInstance(
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
   });
 
-  const pdf = await renderPdf(html);
+  // Portugal's ATCUD "on every page" (Portaria n.º 195/2020, art. 4.º n.º 3) — the SAME string just
+  // printed once in the body above, additionally repeated as a PDF footer on every page Chromium lays
+  // out (see `renderPdf`'s own header on why this needs Chromium's native footer mechanism rather than
+  // anything expressible in the main document's own HTML/CSS). Absent for every document with no
+  // `atcud` at all — every non-Portuguese, or non-invoice, PDF keeps the exact page setup it always had.
+  const pdf = await renderPdf(html, instance.atcud ? { footerText: instance.atcud } : {});
 
   return { pdf, totals, referenceLabels, companyName: company.name };
 }

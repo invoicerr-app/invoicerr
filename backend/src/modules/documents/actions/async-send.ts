@@ -44,6 +44,7 @@ import { DocumentInstanceResult, ActionResult } from './action-registry';
 import { archiveDeliveredArtifactsIfAny } from '../archive/archive-on-send';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { logger } from '@/logger/logger.service';
+import { TakenDocumentNumber } from '../numbering/sequence';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { findOwnedDocument, updateDocumentStatus, upsertDocument } from '../persistence';
@@ -149,6 +150,24 @@ export interface RunAsyncSendInput {
    * `runAction`'s own (now merely defensive) post-handler hook.
    */
   numberOnEnqueue: boolean;
+  /**
+   * Optional hook run immediately after THIS call actually WINS the numbering race just above (the
+   * exact same `numbered` truthy condition the stock-effect call already gates on — never for the
+   * loser of a concurrent race, never for a "send_failed" retry of an already-numbered record). Exists
+   * for a fact that can only be computed from the FROZEN `displayNumber` numbering just produced —
+   * e.g. the invoice's own Portuguese ATCUD (`actions/atcud-issuance.ts#attachAtcudToNumberedInvoice`)
+   * — which cannot run any earlier: `preflight()` above executes BEFORE a real number exists at all.
+   * Kept generic here (never a `typeId === 'invoice'` branch in this file — see this module's own
+   * header on why `deliver` is the only thing that is meant to vary by type) so a type with no such
+   * fact (the quote, the credit note) simply never supplies one; absent is a true no-op, the same
+   * "capability absent, no effect" posture `events`/`webhooks` above already hold.
+   */
+  onNumbered?: (ctx: {
+    companyId: string;
+    typeId: string;
+    documentId: string;
+    numbered: TakenDocumentNumber;
+  }) => Promise<void>;
 }
 
 export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<ActionResult> {
@@ -161,6 +180,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     deliver,
     preflight,
     numberOnEnqueue,
+    onNumbered,
     events,
     webhooks,
   } = input;
@@ -295,6 +315,11 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       // sent invoice, that is right here. Type-agnostic and never-throwing — see
       // `stock/apply-stock-on-issuance.ts`'s own header.
       await applyStockOnIssuance(companyId, sending);
+      // See `RunAsyncSendInput.onNumbered`'s own header — a type-agnostic hook, never a branch on
+      // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
+      // are anchored to `numbered` being the atomic winner of the numbering race, never to
+      // `numberOnEnqueue` alone.
+      if (onNumbered) await onNumbered({ companyId, typeId, documentId: sending.id, numbered });
     }
   }
 
