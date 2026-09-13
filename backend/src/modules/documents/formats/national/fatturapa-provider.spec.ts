@@ -6,6 +6,8 @@
  * the SAME schema reject it) — plus the CodiceDestinatario/PECDestinatario routing REPRISED from
  * `fattura-pa.spec.ts` at the repère.
  */
+import { create } from 'xmlbuilder2';
+
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { DocumentFormatParty } from '../format-provider';
@@ -232,5 +234,52 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     const xml = new TextDecoder().decode(result.bytes);
     expect(xml).not.toContain('PMT');
     expect(xml).not.toContain('frais de recouvrement');
+  });
+
+  // SECURITY — `@digitalia/fatturapa@1.3.1` pins `fast-xml-parser@3.21.1` (`npm ls fast-xml-parser`
+  // shows exactly this one path in the tree; `npm audit` reports it `fixAvailable: false` for that
+  // reason — no version bump of ours removes it). Its advisory, "XMLBuilder: XML Comment and CDATA
+  // Injection via Unescaped Delimiters" (GHSA-gh4j-gqv2-49f6), is real here: verified directly
+  // against the vendored copy, `fast-xml-parser@3.21.1`'s builder escapes NOTHING in a string it is
+  // given (no default `tagValueProcessor`, and `@digitalia/fatturapa`'s own `parserOptions` never
+  // sets one). `fatturapa-xml-guard.ts#escapeXmlTree` closes this at the one call site that matters
+  // — see that file's own header and `fatturapa-provider.ts`'s call to it.
+  describe('SECURITY — free text carrying XML comment/CDATA delimiters', () => {
+    it('still builds a document that is well-formed XML AND whose ORIGINAL text is recoverable, unmangled', async () => {
+      // The delimiter class the advisory concerns (`<!-- -->`, `]]>`), plus the other XML
+      // metacharacters (`&`, `"`) — none of this is a working exploit, just the character classes
+      // `escapeXmlText` neutralises. See this file's own header comment for the advisory reference.
+      const description = 'Contratto rif. <!-- v2 --> nota "finale" A&B ]]> validità 2024 --> 2025';
+      const data = { ...VALID_DATA, lines: [{ ...VALID_DATA.lines[0], description }] };
+
+      const result = await fatturapaFormatProvider.build(descriptor, document(data), SELLER, BUYER);
+
+      // 1. The REAL vendored XSD, judged via xmllint-wasm (real libxml2, not a regex) — this is the
+      //    same gate every other test in this file relies on, and it necessarily parses the XML
+      //    before it can validate it, so a syntax error here would already fail this assertion.
+      expect(result.validation.valid).toBe(true);
+      expect(result.validation.errors).toEqual([]);
+
+      // 2. A SECOND, independent XML engine — `xmlbuilder2`, the library every OTHER format
+      //    provider in this codebase (CII/UBL/Factur-X/XRechnung/Peppol BIS via `@e-invoice-eu/core`,
+      //    and FA3 directly) already depends on, and which never ran `escapeXmlText`'s own code —
+      //    parses the built document into a real DOM. Its `textContent` decodes XML entities back,
+      //    proving the human (or SdI) reading this invoice sees the EXACT original description, not
+      //    a truncated or re-escaped one.
+      const xml = new TextDecoder().decode(result.bytes);
+      // `.node` is typed as the generic DOM `Node` by xmlbuilder2; it is actually a `Document` here.
+      const dom = create(xml).node as unknown as Document;
+      const descrizioneEl = dom.getElementsByTagName('Descrizione')[0];
+      expect(descrizioneEl.textContent).toBe(description);
+    });
+
+    it('an ORDINARY description (no XML metacharacters) still produces the SAME output the provider always has', async () => {
+      // No new escaping fires on text that never contained `&`, `<`, `>`, `"` or `'` — this is the
+      // SAME assertion the very first test in this file already makes; repeated here, next to the
+      // security test above, to make the "costs nothing on the normal path" property explicit.
+      const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, BUYER);
+      const xml = new TextDecoder().decode(result.bytes);
+      expect(xml).toContain('<Descrizione>Consulenza strategica</Descrizione>');
+    });
   });
 });

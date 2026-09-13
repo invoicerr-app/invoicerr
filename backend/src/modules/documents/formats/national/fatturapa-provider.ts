@@ -79,6 +79,7 @@ import { computeDocumentTotals } from '../../totals/compute-totals';
 import { toDateOnly } from '../shared-build';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
+import { escapeXmlTree } from './fatturapa-xml-guard';
 import { extractNationalLines, NationalLine } from './national-lines';
 
 const FATTURAPA_XSD = 'it/Schema_VFPR12.xsd';
@@ -339,7 +340,12 @@ async function build(
     },
   };
 
-  const xml: string = await fpa2xml(fattura as Record<string, unknown>);
+  // Every string in `fattura` — free text (line descriptions, party names, addresses, …) and fixed
+  // structural values alike — is rewritten here, ONCE, before it ever reaches `fpa2xml`. See
+  // `fatturapa-xml-guard.ts`'s own header for why this has to be a whole-tree pass rather than a
+  // wrapper at each field above: fast-xml-parser@3.21.1 (pinned transitively through
+  // `@digitalia/fatturapa`, `fixAvailable: false`) escapes nothing on its own.
+  const xml: string = await fpa2xml(escapeXmlTree(fattura) as Record<string, unknown>);
 
   const xsd = await validateXsd(xml, FATTURAPA_XSD);
   return { bytes: new TextEncoder().encode(xml), validation: { valid: xsd.valid, errors: xsd.errors } };
