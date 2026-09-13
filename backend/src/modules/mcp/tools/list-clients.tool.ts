@@ -30,7 +30,7 @@ const outputSchema = {
   ),
 };
 
-// Reprised, unchanged in spirit, from the repère's own `list_clients` (git tag
+// Reprised, unchanged in spirit, from the removed compliance engine's own `list_clients` (git tag
 // `avant-refonte-documents`) — a real business ENTITY, not a document type, so it keeps the simple
 // one-fixed-scope shape ToolDescriptor.isRegistered still supports directly.
 export const listClientsTool: ToolDescriptor<typeof inputSchema> = {

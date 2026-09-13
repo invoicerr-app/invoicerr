@@ -42,11 +42,11 @@ export interface IPdfPreviewProvider {
 }
 
 /**
- * Types de FORMULAIRE de plugin — génériques, malgré leur adresse d'origine.
+ * Plugin FORM types — generic, despite where they used to live.
  *
- * Ils vivaient auparavant aux côtés de l'interface de signature de devis, dans le module retiré qui
- * la portait. La signature est partie avec les documents ; ces trois-là décrivent le formulaire de configuration
- * de N'IMPORTE quel plugin et n'ont rien à voir avec un document légal.
+ * They used to live alongside the quote-signature interface, in the removed module that carried
+ * it. Signing left along with the documents; these three describe the configuration form for
+ * ANY plugin and have nothing to do with a legal document.
  */
 export interface IPluginForm {
   form: IPluginFormConfig;

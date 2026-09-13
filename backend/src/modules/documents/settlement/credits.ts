@@ -45,7 +45,7 @@ export interface CreditsForDocument {
   /**
    * Plain English, same convention as `DocumentTotals.warnings`.
    *
-   * "Un avoir suit la même règle que sa facture" — previously, a credit
+   * "A credit note follows the same rule as its invoice" — previously, a credit
    * note whose OWN `currency` field differed from the invoice's was EXCLUDED here entirely (never
    * counted, never converted) on the theory that it needed the SAME dated-rate conversion a foreign
    * payment does. It does not: `computeCreditedAmountMinor` below computes the credited GROSS amount

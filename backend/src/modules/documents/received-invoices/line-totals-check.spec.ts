@@ -1,7 +1,7 @@
 import { checkReceivedInvoiceLineTotals } from './line-totals-check';
 
 /**
- * "Le total contrôle la somme des lignes". Pure-function tests: no descriptor
+ * "The total checks the sum of the lines". Pure-function tests: no descriptor
  * registry, no persistence, just `data` in and warnings out — see this module's own header for why
  * the "sum of lines" side is `totals/compute-totals.ts`, unmodified, and why the tolerance is
  * `max(1, line count)` minor units.

@@ -4,8 +4,8 @@
  * compliance/reception/inbound-document-parser.ts`), narrowed to the TWO syntaxes this branch's own
  * outbound formats actually produce (CII, UBL — `formats/cii-provider.ts`/`formats/ubl-provider.ts`)
  * plus Factur-X (the SAME CII, embedded in a PDF/A-3 — `formats/facturx-provider.ts`). FatturaPA/FA(3)
- * inbound parsing existed at the repère but is NOT ported here: the scope is the generic upload
- * screen, not a second national-format reception path — see this module's
+ * inbound parsing existed in the removed compliance engine but is NOT ported here: the scope is the
+ * generic upload screen, not a second national-format reception path — see this module's
  * own `received-invoice.descriptor.ts` for the full list of what stays out of scope.
  *
  * ## Never `fromXml` — the documented CII round-trip bug
@@ -13,9 +13,9 @@
  * Per this repo's own operating memory: `@fin.cx/einvoice`/`@e-invoice-eu/core`'s `fromXml` has a
  * known round-trip bug on CII. This module NEVER calls it, on either syntax — every field below is
  * read with plain, namespace-agnostic REGEX tag extraction (`extractText`/`extractBlock`), exactly
- * the technique the repère's own parser used and for the same stated reason: CII's `rsm:`/`ram:`/
- * `udt:` namespace prefixes vary by producer, and a bare tag-name match sidesteps that variance
- * entirely rather than depending on any one XML library's prefix handling.
+ * the technique the removed compliance engine's own parser used and for the same stated reason:
+ * CII's `rsm:`/`ram:`/`udt:` namespace prefixes vary by producer, and a bare tag-name match
+ * sidesteps that variance entirely rather than depending on any one XML library's prefix handling.
  *
  * Every one of this module's own extraction paths is proven, in `extraction.spec.ts`, against XML
  * this branch's OWN providers (`cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts`) produce —
@@ -314,8 +314,8 @@ function parseUblLines(xml: string): ExtractedInvoiceLine[] {
   });
 }
 
-/** Best-effort syntax sniff — same signatures the repère's own `detectSyntax` used for these two
- *  syntaxes, narrowed to what this module actually parses. */
+/** Best-effort syntax sniff — same signatures the removed compliance engine's own `detectSyntax` used
+ *  for these two syntaxes, narrowed to what this module actually parses. */
 function detectXmlSyntax(raw: string): 'CII' | 'UBL' | null {
   const trimmed = raw.trimStart();
   if (

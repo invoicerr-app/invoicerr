@@ -9,8 +9,8 @@ import { Module } from '@nestjs/common';
  * (see that file's own header), which is where `DocumentsService`/`ShareLinksService` actually live
  * — imported here for exactly those two. `ClientsModule`/`ArticlesModule` are imported directly:
  * `list_clients`/`create_client`/`list_articles` read those services straight, the same way the
- * repère's own `McpModule` did (git tag `avant-refonte-documents`) — those two entities were never
- * part of the documents "démolition" the documents module was rebuilt on top of.
+ * removed compliance engine's own `McpModule` did (git tag `avant-refonte-documents`) — those two
+ * entities were never part of the demolition the documents module was rebuilt on top of.
  */
 @Module({
   imports: [DocumentsModule, ClientsModule, ArticlesModule],

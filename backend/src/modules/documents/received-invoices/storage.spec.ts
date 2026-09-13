@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { extFor, inboundRoot, persistInboundFile, readInboundFile } from './storage';
 
 describe('received-invoices/storage — local, content-hash-addressed, company-scoped persistence', () => {
-  // JAMAIS le cwd du projet — un répertoire de test réel sous os.tmpdir(), comme archive/storage.spec.ts.
+  // NEVER the project's cwd — a real test directory under os.tmpdir(), like archive/storage.spec.ts.
   let dir: string;
   const originalEnv = process.env.DOCUMENTS_INBOUND_DIR;
 

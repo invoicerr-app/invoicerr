@@ -19,8 +19,9 @@ export interface ToolContext {
    * The origin (scheme + host) THIS request actually reached the backend at, e.g.
    * "http://localhost:4000" — computed by mcp.controller.ts from the live request, never from an
    * env var. Only get-document-pdf-link.tool.ts uses it (to turn a share-link's API-relative `path`
-   * into an absolute, clickable URL) — see that file's own header for why an env var (the repère's
-   * own BETTER_AUTH_URL, git tag `avant-refonte-documents`) is the wrong tool for this job here.
+   * into an absolute, clickable URL) — see that file's own header for why an env var (the removed
+   * compliance engine's own BETTER_AUTH_URL, git tag `avant-refonte-documents`) is the wrong tool for
+   * this job here.
    */
   baseUrl: string;
   services: {
@@ -54,8 +55,9 @@ export interface ToolDescriptor<Input extends z.ZodRawShape = z.ZodRawShape> {
    * tools/list at all, rather than appearing and erroring on tools/call).
    *
    * A single fixed scope check for `list_clients`/`create_client`/`list_articles` — real business
-   * ENTITIES a tool reads/writes directly, exactly the one-scope-per-tool shape the repère's own
-   * tools always had (git tag `avant-refonte-documents`). The GENERIC, per-descriptor tools
+   * ENTITIES a tool reads/writes directly, exactly the one-scope-per-tool shape the removed
+   * compliance engine's own tools always had (git tag `avant-refonte-documents`). The GENERIC,
+   * per-descriptor tools
    * (`list_document_types`, `list_documents`, `get_document`, `run_document_action`,
    * `get_document_pdf_link`) gate on a COARSER predicate instead — "does this key hold ANY
    * document-domain scope at all" — because the actual document TYPE these are asked to touch only

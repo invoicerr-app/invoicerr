@@ -8,7 +8,7 @@ import { ToolContext } from './tools/types';
 
 // Stateless mode: a fresh McpServer + transport per HTTP request, so companyId/scopes can be safely
 // closed over per-call with no cross-request state to worry about (each request is independently
-// authenticated via API key). Reprised unchanged from the repère (git tag
+// authenticated via API key). Reprised unchanged from the removed compliance engine (git tag
 // `avant-refonte-documents`) — only the per-tool registration TEST changed (`tool.isRegistered(...)`
 // instead of a single fixed `hasScope(..., tool.scope)`), because the tools themselves are now
 // generic across document types rather than one-per-type — see tools/scope-mapping.ts.

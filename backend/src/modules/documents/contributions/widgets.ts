@@ -84,7 +84,7 @@ export interface TableColumn {
   label: string;
 }
 
-/** A fully detailed table — the "statistics c'est tout ultra détaillé" shape. `rows` are plain
+/** A fully detailed table — the "statistics, all of it, ultra-detailed" shape. `rows` are plain
  *  key/value records keyed by `columns[].key`; a contribution decides its own columns, the same way
  *  a document type decides its own fields — this widget never infers columns from anywhere else. */
 export interface TableWidget extends WidgetBase {

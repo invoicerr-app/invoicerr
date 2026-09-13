@@ -77,7 +77,7 @@ describe('resolvePaymentConversion', () => {
     expect(result).toEqual({ ok: false });
   });
 
-  // ── The "piège daté" — UTC month-boundary, never local getters/constructors ──────────────────────
+  // ── The "dated trap" — UTC month-boundary, never local getters/constructors ──────────────────────
   describe('month-boundary dates, pinned exactly — UTC only, never a local-timezone getter', () => {
     it('a payment at 23:30 UTC on the LAST day of the month resolves a rate dated the FIRST of that same month', () => {
       const rates = [rate({ rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z') })];

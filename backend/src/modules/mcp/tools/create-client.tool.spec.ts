@@ -1,8 +1,8 @@
 import { createClientTool } from './create-client.tool';
 import { ToolContext } from './types';
 
-// Adapted from the repère's own `create_client.tool.spec.ts` (git tag `avant-refonte-documents`) —
-// only the ToolContext.services shape changed.
+// Adapted from the removed compliance engine's own `create_client.tool.spec.ts`
+// (git tag `avant-refonte-documents`) — only the ToolContext.services shape changed.
 describe('createClientTool', () => {
   function buildContext(createClient: jest.Mock): ToolContext {
     return {

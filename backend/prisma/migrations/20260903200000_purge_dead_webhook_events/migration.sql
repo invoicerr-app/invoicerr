@@ -1,5 +1,5 @@
 /*
-  TODO_SUITE.md P3 (2026-09-03) — the mine-d'ordre lesson from
+  The lexicographic-order minefield lesson from
   20260903170000_restore_document_settled_after_enum_rebuild applied IN REVERSE: this migration is
   timestamped AFTER every migration in this repository that ADDS a WebhookEvent value
   (20260902234040_payment_conversion_and_document_settled's DOCUMENT_SETTLED,
@@ -12,7 +12,7 @@
 
   Purges 79 further WebhookEvent members with NO real emitter anywhere in backend/src — the
   "soixantaine de valeurs supplémentaires tout aussi mortes" TODO_ISSUES.md flagged when
-  20260903000000_generic_document_webhook_events (T2bis) purged the per-type document families and
+  20260903000000_generic_document_webhook_events purged the per-type document families and
   deliberately left CLIENT_*, COMPANY_*, WEBHOOK_* and the rest "hors périmètre" for a separate decision. That
   decision is this migration. Method: grep, one enum member at a time, for every dispatch call site
   (`WebhookDispatcherService.dispatch(WebhookEvent.X, ...)` and the `DocumentWebhookEmitter.dispatch`
@@ -22,9 +22,8 @@
   formatters exist for members that were never fired — that is exactly the dead weight being
   removed), `*.spec.ts`, and the generated Prisma client. Literal AND dynamic dispatch both checked;
   no call site anywhere builds a WebhookEvent value programmatically (every dispatch call passes a
-  bare `WebhookEvent.X` literal), so a literal grep is exhaustive here, not merely a spot check. Full
-  per-value table (kept-with-proof / purged) is in the task's own report; the shape of what survives
-  and what does not:
+  bare `WebhookEvent.X` literal), so a literal grep is exhaustive here, not merely a spot check. The
+  shape of what survives (kept, with proof) and what does not (purged):
 
     - CLIENT_* (6 members): only CREATED/UPDATED/DELETED/SEARCHED have an emitter
       (`clients.service.ts`) — ACTIVATED/DEACTIVATED purged, the "isActive" toggle dispatches
@@ -34,9 +33,10 @@
     - WEBHOOK_* (5 members): only CREATED/UPDATED/DELETED have an emitter (`webhooks.controller.ts`,
       on the subscription row itself) — TRIGGERED/FAILED purged, a delivery attempt's outcome is
       logged (`webhooks.service.ts#send`), never turned into a self-referential webhook event.
-    - PLUGIN_* (9 members, all purged): TODO_SUITE.md P2 removed the external plugin mechanism;
-      `plugins.controller.ts` exposes no inbound webhook route at all, so PLUGIN_WEBHOOK_RECEIVED —
-      the one member that could plausibly have a real trigger — never had one either.
+    - PLUGIN_* (9 members, all purged): the external plugin mechanism's own removal took with it the
+      only thing that could plausibly have dispatched PLUGIN_WEBHOOK_RECEIVED —
+      `plugins.controller.ts` exposes no inbound webhook route at all, so that member never had a
+      real trigger either.
     - RECURRING_INVOICE_* (10 members incl. 3 item events, all purged): there is no `RecurringInvoice`
       Prisma model any more — the feature is the generic document `schedule/cadence.ts` today.
     - Every remaining family (USER_*, OTP_*, APP_*, EMAIL_*, MAIL_TEMPLATE_*, DASHBOARD_*, STATS_*,
@@ -47,17 +47,18 @@
       written to cover concepts the product later never wired a dispatcher for.
 
   Postgres cannot ALTER TYPE ... DROP VALUE — the only way to remove enum members is the same
-  rebuild dance as T2bis and 20251127192241_remove_unexisting_plugins_types before it: CREATE the
+  rebuild dance 20260903000000_generic_document_webhook_events and
+  20251127192241_remove_unexisting_plugins_types already used: CREATE the
   new type, cast the column across, rename, drop the old type. "Webhook"."events" is a
   WebhookEvent[]; an existing subscription can reference any of the 79 purged values, so Step 1
-  cleans those out of every "events" array BEFORE the type swap — exactly the same reasoning
-  T2bis's own header spells out: a value absent from the new enum makes the cast in Step 2 fail
+  cleans those out of every "events" array BEFORE the type swap, for the same reason: a value
+  absent from the new enum makes the cast in Step 2 fail
   outright, on any base that ever had a webhook subscribed to one of these dead events.
 */
 
--- Etape 1 : nettoie les abonnements EXISTANTS qui referencent une des 79 valeurs sur le point d'etre
--- purgees — retire seulement ces valeurs-la du tableau "events" de chaque webhook concerne, laisse
--- tout le reste du tableau intact (un webhook qui suivait aussi DOCUMENT_SENT garde DOCUMENT_SENT).
+-- Step 1: cleans up EXISTING subscriptions that reference one of the 79 values about to be
+-- purged — removes only those values from each affected webhook's "events" array, leaves
+-- the rest of the array intact (a webhook that also followed DOCUMENT_SENT keeps DOCUMENT_SENT).
 UPDATE "Webhook"
 SET "events" = (
   SELECT COALESCE(array_agg(e ORDER BY ord), ARRAY[]::"WebhookEvent"[])
@@ -66,10 +67,10 @@ SET "events" = (
 )
 WHERE "events" && ARRAY['APP_ALL_DATA_RESET'::"WebhookEvent", 'APP_RESET'::"WebhookEvent", 'CLIENT_ACTIVATED'::"WebhookEvent", 'CLIENT_DEACTIVATED'::"WebhookEvent", 'COMPANY_INFO_VIEWED'::"WebhookEvent", 'COMPANY_PDF_CONFIG_UPDATED'::"WebhookEvent", 'CONFIGURATION_VALIDATED'::"WebhookEvent", 'CRON_JOB_COMPLETED'::"WebhookEvent", 'CRON_JOB_FAILED'::"WebhookEvent", 'CRON_JOB_STARTED'::"WebhookEvent", 'CURRENCY_CONVERSION_REQUESTED'::"WebhookEvent", 'CURRENCY_RATE_FETCHED'::"WebhookEvent", 'CURRENCY_RATE_UPDATED'::"WebhookEvent", 'DASHBOARD_STATS_CALCULATED'::"WebhookEvent", 'DASHBOARD_VIEWED'::"WebhookEvent", 'DATA_VALIDATED'::"WebhookEvent", 'EMAIL_FAILED'::"WebhookEvent", 'EMAIL_SENT'::"WebhookEvent", 'EMAIL_TEMPLATE_CREATED'::"WebhookEvent", 'EMAIL_TEMPLATE_UPDATED'::"WebhookEvent", 'FILE_DOWNLOADED'::"WebhookEvent", 'INVOICE_ITEM_CREATED'::"WebhookEvent", 'INVOICE_ITEM_DELETED'::"WebhookEvent", 'INVOICE_ITEM_UPDATED'::"WebhookEvent", 'INVOICE_NUMBER_GENERATED'::"WebhookEvent", 'MAIL_TEMPLATE_CREATED'::"WebhookEvent", 'MAIL_TEMPLATE_UPDATED'::"WebhookEvent", 'OTP_EXPIRED'::"WebhookEvent", 'OTP_REQUESTED'::"WebhookEvent", 'OTP_VALIDATED'::"WebhookEvent", 'PAYMENT_ITEM_CREATED'::"WebhookEvent", 'PAYMENT_ITEM_DELETED'::"WebhookEvent", 'PAYMENT_ITEM_UPDATED'::"WebhookEvent", 'PAYMENT_NUMBER_GENERATED'::"WebhookEvent", 'PDF_CONFIG_CREATED'::"WebhookEvent", 'PDF_CONFIG_UPDATED'::"WebhookEvent", 'PDF_GENERATED'::"WebhookEvent", 'PLUGIN_ACTIVATED'::"WebhookEvent", 'PLUGIN_ADDED'::"WebhookEvent", 'PLUGIN_CONFIGURED'::"WebhookEvent", 'PLUGIN_DEACTIVATED'::"WebhookEvent", 'PLUGIN_FORMAT_REQUESTED'::"WebhookEvent", 'PLUGIN_PROVIDER_REQUESTED'::"WebhookEvent", 'PLUGIN_REMOVED'::"WebhookEvent", 'PLUGIN_VALIDATED'::"WebhookEvent", 'PLUGIN_WEBHOOK_RECEIVED'::"WebhookEvent", 'QUOTE_ITEM_CREATED'::"WebhookEvent", 'QUOTE_ITEM_DELETED'::"WebhookEvent", 'QUOTE_ITEM_UPDATED'::"WebhookEvent", 'QUOTE_NUMBER_GENERATED'::"WebhookEvent", 'RECEIPT_ITEM_CREATED'::"WebhookEvent", 'RECEIPT_ITEM_DELETED'::"WebhookEvent", 'RECEIPT_ITEM_UPDATED'::"WebhookEvent", 'RECEIPT_NUMBER_GENERATED'::"WebhookEvent", 'RECURRING_INVOICE_AUTO_SENT'::"WebhookEvent", 'RECURRING_INVOICE_CREATED'::"WebhookEvent", 'RECURRING_INVOICE_DELETED'::"WebhookEvent", 'RECURRING_INVOICE_GENERATED'::"WebhookEvent", 'RECURRING_INVOICE_ITEM_CREATED'::"WebhookEvent", 'RECURRING_INVOICE_ITEM_DELETED'::"WebhookEvent", 'RECURRING_INVOICE_ITEM_UPDATED'::"WebhookEvent", 'RECURRING_INVOICE_NEXT_DATE_CALCULATED'::"WebhookEvent", 'RECURRING_INVOICE_PROCESSED'::"WebhookEvent", 'RECURRING_INVOICE_UPDATED'::"WebhookEvent", 'SEARCH_PERFORMED'::"WebhookEvent", 'SSE_CONNECTION_ESTABLISHED'::"WebhookEvent", 'SSE_DATA_STREAMED'::"WebhookEvent", 'STATS_MONTHLY_REQUESTED'::"WebhookEvent", 'STATS_YEARLY_REQUESTED'::"WebhookEvent", 'USER_CREATED'::"WebhookEvent", 'USER_LOGGED_IN'::"WebhookEvent", 'USER_OIDC_CALLBACK'::"WebhookEvent", 'USER_OIDC_LOGIN'::"WebhookEvent", 'USER_PASSWORD_CHANGED'::"WebhookEvent", 'USER_PROFILE_UPDATED'::"WebhookEvent", 'USER_UPDATED'::"WebhookEvent", 'WEBHOOK_FAILED'::"WebhookEvent", 'WEBHOOK_TRIGGERED'::"WebhookEvent", 'XML_GENERATED'::"WebhookEvent"]::"WebhookEvent"[];
 
--- Etape 2 : reconstruit le type enum lui-meme sans les 79 valeurs purgees. La liste ci-dessous porte
--- TOUTES les valeurs vivantes au moment ou CETTE migration tourne en dernier — DOCUMENT_SETTLED et
--- DOCUMENT_CANCELLED incluses (voir l'en-tete : ajoutees par des migrations anterieures dans l'ordre
--- lexicographique, jamais retirees ici).
+-- Step 2: rebuilds the enum type itself without the 79 purged values. The list below carries
+-- EVERY value alive at the moment THIS migration runs last — DOCUMENT_SETTLED and
+-- DOCUMENT_CANCELLED included (see the header: added by earlier migrations in lexicographic
+-- order, never removed here).
 BEGIN;
 CREATE TYPE "WebhookEvent_new" AS ENUM (
   'DOCUMENT_CREATED',

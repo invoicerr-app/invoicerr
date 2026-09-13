@@ -6,7 +6,7 @@ import { consolidateByCurrency, loadCurrencyContext } from './currency-consolida
 import { MetricWidget, Widget } from './widgets';
 
 /**
- * The received-invoice dashboard contribution — "factures reçues en attente" (count + amount by
+ * The received-invoice dashboard contribution — "pending received invoices" (count + amount by
  * currency). DASHBOARD only, deliberately: no Statistics table here the way expense/invoice/credit-
  * note each got one — inventing one unprompted would be exactly
  * the kind of unrequested scope this codebase avoids elsewhere (see credit-note.descriptor.ts's own

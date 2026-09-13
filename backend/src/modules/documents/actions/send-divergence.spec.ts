@@ -49,8 +49,8 @@ jest.mock('../b2g-routing/b2g-routing');
 
 /**
  * Guardrail against the exact mistake this branch once made: generic-actions.ts used to export a
- * single `registerSendAction` shared by BOTH the quote and the invoice, on a "réutilise, ne duplique
- * pas" reading that turned out to be wrong — a quote always sends by email, an invoice's transport is
+ * single `registerSendAction` shared by BOTH the quote and the invoice, on a "reuse, don't duplicate"
+ * reading that turned out to be wrong — a quote always sends by email, an invoice's transport is
  * a company setting. This file proves the two "send" actions run through genuinely DIFFERENT code —
  * not just two functions that happen to produce the same result — so a future refactor that quietly
  * re-merges them makes THIS file go red. That is deliberate.

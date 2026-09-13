@@ -236,7 +236,7 @@ describe('SigningCertificatesService', () => {
     });
 
     /**
-     * "jamais utilisé, dit pourquoi" — a cert valid AT UPLOAD TIME can still expire before its next
+     * "never used, says why" — a cert valid AT UPLOAD TIME can still expire before its next
      * use; `upload()`'s own refusal (tested above) cannot catch this, only `resolve()`'s own check
      * can. The row is inserted directly into the store (bypassing `upload()`) to simulate exactly
      * that: an active row whose `notAfter` has since elapsed. THIS is mutation #1's target — if the

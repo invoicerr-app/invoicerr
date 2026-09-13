@@ -114,7 +114,7 @@ describe('ReceivedInvoicesService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    // Mutation "le doublon par hash n'est plus détecté" — this is the test that must go red for it.
+    // Mutation "the hash duplicate is no longer detected" — this is the test that must go red for it.
     it('refuses re-uploading the exact same file (same hash) already on an existing received-invoice, by name', async () => {
       const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
       const hash = computeArtifactHash(Buffer.from(MINIMAL_CII_XML, 'utf-8'));
@@ -160,7 +160,7 @@ describe('ReceivedInvoicesService', () => {
   });
 
   /**
-   * Supplier reconciliation "au dépôt", proven end-to-end through the REAL `upload()` pipeline: real
+   * Supplier reconciliation "at upload", proven end-to-end through the REAL `upload()` pipeline: real
    * Prisma for the Client/PartyIdentifier side (this file's own `jest.mock('../persistence')` only
    * ever touched `DocumentInstance` reads/writes, never this) — see `supplier-reconciliation.spec.ts`
    * for the exhaustive matching-rule coverage (ambiguity, companyId scoping, name fallback); this

@@ -83,7 +83,7 @@ export const buildCreditNoteStatisticsWidgets: ContributionHandler = async ({ co
  * the dashboard is not "a small amount of information", it is noise competing for the same space as
  * widgets that usually have something to say — so this type gets no dashboard presence at all,
  * rather than a permanently-empty shortlist or a metric perpetually reading "0". Statistics, whose
- * entire premise is "tout ultra détaillé" regardless of volume, is where this type belongs.
+ * entire premise is "everything, in exhaustive detail" regardless of volume, is where this type belongs.
  */
 export function registerCreditNoteContributions(registry: ContributionRegistry): void {
   registry.register('credit-note', 'statistics', buildCreditNoteStatisticsWidgets);

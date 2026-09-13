@@ -49,7 +49,7 @@ function monthKey(value: unknown): string | null {
 }
 
 /**
- * DASHBOARD: "les dépenses du mois" — the exact wording the user asked for.
+ * DASHBOARD: "the expenses for the month" — the exact wording the user asked for.
  *
  * A sum, unlike invoice-contributions.ts's own dashboard curve (which deliberately only COUNTS,
  * never sums, because invoices can carry different currencies): a monthly expense TOTAL is exactly
@@ -170,7 +170,7 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
 };
 
 /**
- * STATISTICS: "tout ultra détaillé" — one row per expense: date, description, amount, currency.
+ * STATISTICS: "all of it, ultra-detailed" — one row per expense: date, description, amount, currency.
  * Most recent first (by the expense's own `date`, not `updatedAt`): there is no "urgency" ordering
  * the way invoice-contributions.ts's pending list has (nearest due date first) — only recency.
  * Rows with no parseable date sort last rather than crashing the sort.

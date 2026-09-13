@@ -20,7 +20,8 @@ export class McpController {
   // Raw endpoint: AuthGuard (global) has already resolved companyId/scopes by the time this runs.
   // @Res({ passthrough: false }) hands the raw Express response to the MCP SDK's
   // StreamableHTTPServerTransport, which writes status/headers/body directly — Nest must not touch
-  // it. Reprised unchanged from the repère (git tag `avant-refonte-documents`) apart from which
+  // it. Reprised unchanged from the removed compliance engine (git tag `avant-refonte-documents`)
+  // apart from which
   // services get threaded into the ToolContext, and `baseUrl` below.
   @Post()
   async handleMcp(@Req() req: RequestWithUser, @Res({ passthrough: false }) res: Response) {
@@ -32,9 +33,10 @@ export class McpController {
       companyId: req.companyId,
       scopes: req.scopes,
       // The origin THIS request actually reached the backend at — see tools/types.ts's own comment
-      // on `ToolContext.baseUrl` for why this replaces the repère's own `BETTER_AUTH_URL` env var:
-      // that variable is UNSET in this repo's own test environment (backend.env.test), whose backend
-      // listens on :4000, not the dev default (:3000) the repère's own fallback silently assumed —
+      // on `ToolContext.baseUrl` for why this replaces the removed compliance engine's own
+      // `BETTER_AUTH_URL` env var: that variable is UNSET in this repo's own test environment
+      // (backend.env.test), whose backend listens on :4000, not the dev default (:3000) the removed
+      // compliance engine's own fallback silently assumed —
       // exactly the "wrong origin baked into a link" trap share-links.service.ts's own header
       // already warns about for `APP_URL`. Deriving it from the very request calling this endpoint
       // is correct in dev/test/prod alike, with zero configuration to get wrong.

@@ -176,7 +176,7 @@ export class ClientsService {
       const valueChanged = before?.value !== entry.value;
       if (entry.scheme === 'VAT' && countryCode && (valueChanged || needsRevalidation(before))) {
         // Cross-border ("transfrontalier") — the SYNTAX gate runs FIRST, before ever asking
-        // VIES: a syntactically wrong number ("un numéro TVA invalide syntaxiquement") is B2C, named,
+        // VIES: a syntactically wrong number is B2C, named,
         // without spending a network round-trip on a number that cannot possibly be valid. Only a
         // number that PASSES its own country's format is worth asking the European Commission about.
         const iso = guessCountryCode(countryCode) ?? countryCode.toUpperCase();

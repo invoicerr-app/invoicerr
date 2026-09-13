@@ -1,6 +1,6 @@
 /**
- * SigningCertificatesService — per-company encrypted signing certificate store ("Signature
- * électronique — module supprimé"). The credentials layer REPRISED from git tag
+ * SigningCertificatesService — per-company encrypted signing certificate store ("Electronic
+ * signature — module removed"). The credentials layer REPRISED from git tag
  * `avant-refonte-documents` (`modules/signing-certificates/signing-certificates.service.ts`), adapted
  * to this codebase's CURRENT `ChannelCredentialsService` conventions (`modules/company/channels/`,
  * the pattern it imitates): no injected `PrismaService` — the `prisma` singleton
@@ -17,7 +17,7 @@
  * day a real sourced obligation appears (a `content-requirements/`-style dated legal citation, never
  * invented here), that is a NEW, separate fact to encode, not a retrofit of this module's own wording.
  *
- * Reprised UNCHANGED from the repère:
+ * Reprised UNCHANGED from the removed compliance engine:
  *  - AES-256-GCM encryption of the PFX bytes AND the password (`utils/secret-crypto.ts`), two
  *    independent blobs — never one derived from the other.
  *  - node-forge extraction of notBefore/notAfter/serial/subject at upload time.
@@ -25,8 +25,9 @@
  *  - The expiry check at RESOLVE time (a cert valid at upload can expire before it is next used).
  *
  * ADAPTED (deliberately, beyond the type/import path changes every reprised file has):
- *  - `upload()` now ALSO refuses an ALREADY-EXPIRED certificate outright (the repère silently stored
- *    it and only skipped it at resolve time) — a noisy refusal at upload is deliberate, not a
+ *  - `upload()` now ALSO refuses an ALREADY-EXPIRED certificate outright (the removed compliance
+ *    engine silently stored it and only skipped it at resolve time) — a noisy refusal at upload is
+ *    deliberate, not a
  *    certificate that sits in the store looking configured while never actually
  *    signing anything.
  *  - `delete()` is now `deactivate()` — a SOFT delete (`isActive: false`), matching the
@@ -34,7 +35,7 @@
  *    document was signed under which cert), unlike a channel connection's credentials, which
  *    `channels.service.ts#deleteChannelConfig` really does erase.
  *  - `rotate()` is dropped — certificate renewal/chain rollover is out of scope for this pass; it
- *    was not implemented at the repère either.
+ *    was not implemented in the removed compliance engine either.
  *
  * Security rules (unchanged):
  *  - encryptedPfx and encryptedPass are stored with AES-256-GCM (secret-crypto), as two SEPARATE
@@ -253,7 +254,7 @@ export class SigningCertificatesService implements SigningCredentialsPort {
     }
 
     // Validity check — skip expired certs rather than crashing, and SAY why (see this file's own
-    // header — this is the "jamais utilisé, dit pourquoi" half; the "refused at upload" half is
+    // header — this is the "never used, says why" half; the "refused at upload" half is
     // `upload()`'s own check, below).
     if (row.notAfter < new Date()) {
       this.logger.warn(

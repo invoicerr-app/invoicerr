@@ -69,12 +69,12 @@ export interface ChannelPolicyStatus {
 
 /**
  * What `GET /api/company/channels`'s own `reportingObligations` array returns — a NEW concept
- * ("déclaration"), never a widened `ChannelPolicyStatus`: a declarative-reporting
+ * ("declaration"), never a widened `ChannelPolicyStatus`: a declarative-reporting
  * obligation (NAV/myDATA) is not "this country's stance on a DELIVERY channel", it says nothing at
  * all about how an invoice reaches the buyer — see `documents/reporting/report-on-send.ts`'s own
  * header for the full "a country is data, a declaration is not a transport" reasoning. Kept as its
  * own, separate array (rather than folded into `suggested` with a widened `requirement` enum) so the
- * settings screen can render it with its own, visually distinct "Déclaration" badge without having to
+ * settings screen can render it with its own, visually distinct "Declaration" badge without having to
  * first decide "is this ACTUALLY a channel policy fact in disguise" — it categorically is not one.
  */
 export interface ReportingObligationStatus {
@@ -201,7 +201,7 @@ export class ChannelCredentialsService {
   /**
    * Every ACTIVE (company, environment) config for a provider, across ALL companies — REPRISED for
    * a future inbound poller the same shape as the removed `KsefInboxPort` used it for (see this
-   * method's own header at the repère); nothing calls it yet (PDP has no poller here yet),
+   * method's own header in the removed compliance engine); nothing calls it yet (PDP has no poller here yet),
    * kept because the reuse is deliberate and a future poller should not have to
    * reinvent it.
    */
@@ -245,7 +245,7 @@ export class ChannelCredentialsService {
 
   /**
    * §188 rotation seam — re-encrypt a stored blob under the CURRENT `CREDENTIALS_ENCRYPTION_KEY`
-   * (idempotent when the key has not changed). REPRISED verbatim from the repère: no DB migration
+   * (idempotent when the key has not changed). REPRISED verbatim from the removed compliance engine: no DB migration
    * needed for a key rotation, only new ciphertext in the same column.
    */
   async reEncrypt(companyId: string, providerId: string, environment: string): Promise<boolean> {
@@ -336,7 +336,7 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * This company's own country's DECLARATIVE-REPORTING obligations ("déclaration") —
+   * This company's own country's DECLARATIVE-REPORTING obligations ("declaration") —
    * `documents/reporting/data/*.json`, read the same way `suggestedChannels` reads
    * `channel-policy/data/*.json` just above, but a categorically different fact: NEVER a hint about
    * which TRANSPORT to use, always "declare this invoice's data to this authority, regardless of how

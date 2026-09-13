@@ -101,7 +101,7 @@ describe('creditsForInvoiceFromNotes', () => {
     expect(warnings).toEqual([]);
   });
 
-  // "Un avoir suit la même règle que sa facture" — a credit note whose OWN
+  // "A credit note follows the same rule as its invoice" — a credit note whose OWN
   // `currency` field differs from the invoice's used to be EXCLUDED here entirely. It no longer is:
   // `computeCreditedAmountMinor` computes the credited amount FROM the invoice's own priced lines
   // (never the note's), so the number is ALREADY, unavoidably, the invoice's own currency — applying

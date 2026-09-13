@@ -148,7 +148,7 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     );
   });
 
-  it('gate 2 (409): a draft (never numbered) refuses, and says WHY — the "un brouillon sans numéro refuse en le disant" requirement', async () => {
+  it('gate 2 (409): a draft (never numbered) refuses, and says WHY — the "a draft with no number refuses, and says so" requirement', async () => {
     mockDocument({ status: 'draft', displayNumber: null, number: null });
     const { service } = buildService();
     await expect(service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', 'cii')).rejects.toThrow(
@@ -185,8 +185,8 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     }
   }, 30_000);
 
-  // USER DECISION (2026-09-01, "le pays vendeur irrésolu retombait sur 'FR'
-  // silencieusement", now RÉSOLU) — `download-xml` shares `resolveInvoiceCrossBorderTax` with the
+  // USER DECISION (2026-09-01, "the unresolved seller country was silently falling back to 'FR'",
+  // now RESOLVED) — `download-xml` shares `resolveInvoiceCrossBorderTax` with the
   // "send" preflight/deliver path (`tax/load-and-resolve.ts`'s own header: "both real call sites...
   // share this"), so this is the SECOND of the two named entry points, proven directly at
   // the SERVICE layer rather than only at the pure resolver (`tax/resolve-invoice-tax.spec.ts`).

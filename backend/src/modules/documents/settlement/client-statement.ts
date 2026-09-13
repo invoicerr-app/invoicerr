@@ -126,7 +126,7 @@ function zeroTotals(currency: string): ClientStatementCurrencyTotals {
  *  - missing/unparseable `dueDate` -> 'current' (cannot judge overdue without one; an honest default,
  *    never a guess — this should not happen for an invoice, whose own `dueDate` field is required,
  *    but a data anomaly degrades rather than crashes, same rule this whole module holds throughout)
- *  - daysOverdue <  0  -> 'current'   (the due date is still in the future — "pas encore dû")
+ *  - daysOverdue <  0  -> 'current'   (the due date is still in the future — not yet due)
  *  - daysOverdue <= 30 -> '0-30'      (due today, or up to 30 days late)
  *  - daysOverdue <= 60 -> '31-60'     (31 to 60 days late)
  *  - otherwise         -> '60+'       (more than 60 days late)

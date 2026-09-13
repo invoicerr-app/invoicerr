@@ -5,7 +5,8 @@ import { createMcpServerForRequest } from './mcp-server.factory';
 import { ToolContext } from './tools/types';
 
 /**
- * Proves the factory's own contract (its header comment, reprised unchanged from the repère — git
+ * Proves the factory's own contract (its header comment, reprised unchanged from the removed
+ * compliance engine — git
  * tag `avant-refonte-documents`): tools out of scope are never REGISTERED (absent from tools/list,
  * not merely refused on tools/call), and a key with zero granted scopes still gets a WORKING server
  * (empty tools/list, a clean isError on tools/call) rather than a broken JSON-RPC connection.

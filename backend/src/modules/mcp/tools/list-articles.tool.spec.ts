@@ -1,7 +1,7 @@
 import { listArticlesTool } from './list-articles.tool';
 import { ToolContext } from './types';
 
-// The repère (git tag `avant-refonte-documents`) had no spec for `list_articles` — this one is new,
+// The removed compliance engine (git tag `avant-refonte-documents`) had no spec for `list_articles` — this one is new,
 // same shape as `list-clients.tool.spec.ts`.
 describe('listArticlesTool', () => {
   function buildContext(findAll: jest.Mock): ToolContext {

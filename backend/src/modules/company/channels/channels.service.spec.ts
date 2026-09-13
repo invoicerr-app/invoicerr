@@ -1,11 +1,12 @@
 /**
- * ChannelCredentialsService in isolation ("transports nationaux"). Mocks
+ * ChannelCredentialsService in isolation — national transports (`transports nationaux`). Mocks
  * `@/prisma/prisma.service` at its own entry point (the same discipline `company-transport.spec.ts`
  * already holds), so this proves the SERVICE's own logic (encryption round-trip, what a GET is and
  * is not allowed to carry, the "at most one active environment" invariant) — never a real database.
  *
  * `CREDENTIALS_ENCRYPTION_KEY` is set here, in-process, to a FIXED test value — the same pattern the
- * repère's own `pdp-live.spec.ts` used (`process.env.CREDENTIALS_ENCRYPTION_KEY ??= '...'`): this is
+ * removed compliance engine's own `pdp-live.spec.ts` used
+ * (`process.env.CREDENTIALS_ENCRYPTION_KEY ??= '...'`): this is
  * `utils/secret-crypto.ts`'s real AES-256-GCM, exercised for real, never mocked away.
  */
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -269,7 +270,7 @@ describe('ChannelCredentialsService', () => {
     });
   });
 
-  // "Déclaration" — a NEW, categorically different concept from `suggestedChannels`
+  // "Declaration" — a NEW, categorically different concept from `suggestedChannels`
   // above: never a transport hint, always "declare this invoice's data to this authority". Reads
   // `documents/reporting/data/*.json`, the real, shipped files, not a fixture.
   describe('reportingObligations() — reads the country file, never a hard-coded country check', () => {

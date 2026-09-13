@@ -375,7 +375,7 @@ model Company {
 
   dateFormat String @default("dd/MM/yyyy") // Date format for quotes and invoices
 
-  // Multi-currency consolidation (item 9, root TODO). Null — the default, and the only state every
+  // Multi-currency consolidation. Null — the default, and the only state every
   // company was already in before this column existed — means NO consolidation happens anywhere:
   // every dashboard/statistics aggregate stays grouped BY CURRENCY, exactly as
   // contributions/expense-contributions.ts and invoice-contributions.ts already do. Setting this is
@@ -432,7 +432,7 @@ model Company {
   ssoProvider             CompanySsoProvider?
 }
 
-// Manually entered exchange rates (item 9, root TODO — "le multi-devises"). The rule that governs
+// Manually entered exchange rates. The rule that governs
 // every USE of this table (contributions/currency-consolidation.ts): a conversion is INFORMATION,
 // never a replacement — the document's own amount and currency stay the truth, and a consolidated
 // aggregate built from a row here always carries the rate, its `asOf` date, and its `source`
@@ -653,7 +653,7 @@ enum WebhookEvent {
   // families purged below: every one of those families was checked by grep against
   // `WebhookDispatcherService.dispatch(WebhookEvent.X, ...)` call sites across backend/src and NONE
   // had a real emitter — INVOICE_SENT/QUOTE_SENT were the only exceptions, and their one emitter
-  // (actions/async-send.ts) is exactly what this task replaces with DOCUMENT_SENT below. A future
+  // (actions/async-send.ts) is exactly what DOCUMENT_SENT below replaces it with. A future
   // document type (or a future write inside DocumentsService) gets every one of these five for
   // free — no migration, no per-type enum member ever again. CLIENT_*/COMPANY_* keep their own
   // dedicated events (real emitters: clients.service.ts, company.service.ts) — genuinely different
@@ -710,11 +710,11 @@ enum WebhookEvent {
   WEBHOOK_UPDATED
   WEBHOOK_DELETED
 
-  // Purge (2026-09-03) of the remaining dead vocabulary flagged by T2bis's own
-  // TODO_ISSUES entry ("une soixantaine de valeurs supplémentaires tout aussi mortes"): the
+  // Purge (2026-09-03) of the remaining dead vocabulary flagged by a TODO_ISSUES.md
+  // entry ("une soixantaine de valeurs supplémentaires tout aussi mortes"): the
   // RECURRING_INVOICE_* family (7 + 3 item events — the feature itself has no `RecurringInvoice`
   // Prisma model any more, superseded by the generic document `schedules/cadence.ts`), every PLUGIN_*
-  // member (9 — P2's own removal of the external plugin mechanism took the only thing that could
+  // member (9 — the external plugin mechanism's own removal took the only thing that could
   // ever have dispatched PLUGIN_WEBHOOK_RECEIVED with it; `plugins.controller.ts` exposes no inbound
   // webhook route at all), USER_*/OTP_*/APP_*(7 + 3 + 2 — auth and OTP never dispatched through this
   // module), EMAIL_*/MAIL_TEMPLATE_*(3 + 2), DASHBOARD_*/STATS_*/CURRENCY_*(5 + 2), SEARCH_PERFORMED,
@@ -963,7 +963,7 @@ model DocumentInstance {
   // ACTUALLY delivered this document — set on the SAME write as `transportRef` above, for the exact
   // same reason and by the exact same caller (`actions/async-send.ts`'s phase-2 delivery). Needed
   // because `Company.invoiceTransportId` is the company's CURRENT choice, which can change after this
-  // document was sent — the post-deposit conformity poll (`conformity/`, this task) must poll the
+  // document was sent — the post-deposit conformity poll (`conformity/`) must poll the
   // channel this document actually went through, never whatever the company happens to have
   // configured today. Null for "email" (no concept of a provider-side conformity verdict to poll) and
   // for every type with no transport at all — the poll sweep's own eligibility query
@@ -973,7 +973,7 @@ model DocumentInstance {
   // no matter what this column holds.
   channelProviderId String?
 
-  // See DocumentAuthorityEvent below (conformity/) — the post-deposit conformity journal (this task):
+  // See DocumentAuthorityEvent below (conformity/) — the post-deposit conformity journal:
   // every event the ISSUING PLATFORM itself reported for this document (fr:200/201/202/213 for PDP,
   // …), append-only. Never drives `status` above — see that model's own header for why the declared
   // lifecycle and the platform's own verdict are deliberately two separate facts.
@@ -1006,8 +1006,8 @@ model DocumentInstance {
 
   // See DocumentArchive below (archive/) — one row per successful delivery that produced at least
   // one artifact, never a "current archive" singleton: a re-send after "send_failed" archives AGAIN
-  // (archive/archive-on-send.ts's own header — "deux archives pour un même document sont deux faits
-  // datés, pas un conflit").
+  // (archive/archive-on-send.ts's own header — two archives for the same document are two dated
+  // facts, not a conflict).
   archives DocumentArchive[]
 
   // Public download links — see DocumentDownloadToken below. A document can have several (a re-share, a
@@ -1050,7 +1050,7 @@ model DocumentSchedule {
   // (documents/schedules/cadence.ts's own union), not the database's. Deliberately NOT the old,
   // orphaned `RecurrenceFrequency` enum a few hundred lines up (WEEKLY/BIWEEKLY/MONTHLY/BIMONTHLY/
   // QUARTERLY/QUADMONTHLY/SEMIANNUALLY/ANNUALLY, git tag `avant-refonte-documents`'s
-  // RecurringInvoice) — this task's own brief asks for four closed cadences, not eight, and no RRULE.
+  // RecurringInvoice) — four closed cadences, deliberately, not eight, and no RRULE.
   cadence String
 
   // The day-of-month THIS schedule targets for monthly/quarterly/yearly cadences — fixed once, at
@@ -1085,7 +1085,7 @@ model DocumentSchedule {
   // Whether the sweep considers this schedule at all. A schedule that fails an occurrence is NEVER
   // auto-disabled — only `lastError` above records the failure — because a country-policy block or a
   // validation gap can be fixed without the human having to remember to re-enable a schedule that
-  // silently stopped running (the task's own explicit rule: "jamais une désactivation silencieuse").
+  // silently stopped running: never a silent deactivation, deliberately.
   // Only a human, from the schedules screen, ever flips this.
   enabled Boolean @default(true)
 
@@ -1128,8 +1128,8 @@ model DocumentPayment {
   // `amountMinor` is denominated in.
   currency    String
 
-  // T3's own resolution of the TODO_ISSUES.md entry this task closes ("les taux existent, mais...
-  // ne convertissent toujours pas"): that entry's recorded WHY demanded "un taux PAR OPÉRATION
+  // The TODO_ISSUES.md entry closed here ("les taux existent, mais...
+  // ne convertissent toujours pas") recorded its WHY as "un taux PAR OPÉRATION
   // (saisi au moment du paiement, STOCKÉ SUR LUI), pas le taux ambiant de la société" — exactly
   // these four fields. `documentAmountMinor` is `amountMinor` converted into the DOCUMENT's own
   // currency at the rate dated to `paidAt` (settlement/convert-payment.ts's `resolvePaymentConversion`),
@@ -1221,10 +1221,10 @@ model DocumentReminder {
 // "verify" endpoint RE-HASHES the stored bytes and compares against `contentHash` on every call; it
 // never writes the result back here, so even a corruption-discovery run cannot mutate this table.
 //
-// ## `kind` — mandataire decision, 2026-09-06 (TODO_ISSUES.md, "le poller ... n'archive PAS le
-// VERDICT, seulement le DÉPÔT")
+// ## `kind` — added because TODO_ISSUES.md flagged that "le poller ... n'archive PAS le
+// VERDICT, seulement le DÉPÔT"
 //
-// A DELIVERY row (the default, and the only kind that ever existed before this decision) archives
+// A DELIVERY row (the default, and the only kind that ever existed before this column) archives
 // the artifact actually SENT (Factur-X/FA(3)/PDF). A VERDICT row archives the AUTHORITY'S OWN later
 // verdict on that same deposit (PDP fr:201/202/213, KSeF's CLEARED/rejection) — written by
 // `conformity/`'s own poller/sweep the moment it observes a TERMINAL status code (never an
@@ -1311,8 +1311,8 @@ model DocumentArchive {
   // `retentionUntil` is null) — it names either the rule(s) applied or says plainly that none exist.
   //
   // VERDICT rows are the ONE exception to "resolved at THIS row's own archivedAt": a verdict proves
-  // the fate of its deposit, it has no retention life of its own (mandataire decision, 2026-09-06,
-  // this model's own header) — both fields are copied VERBATIM from `parentArchive` instead of being
+  // the fate of its deposit, it has no retention life of its own (see this model's own header)
+  // — both fields are copied VERBATIM from `parentArchive` instead of being
   // recomputed, so a verdict is never kept a day less (or more) than the deposit it attests to.
   retentionUntil DateTime?
   retentionBasis String?
@@ -1436,22 +1436,24 @@ model DocumentAuthorityEvent {
 }
 
 // Public download links — a token that lets an unauthenticated
-// caller download ONE document instance's PDF, on the model of the repère's own PdfDownloadToken
-// (git tag `avant-refonte-documents`, backend/src/modules/pdf-links/) with the same security
-// discipline: `tokenHash` is a SHA-256 digest of a 256-bit `crypto.randomBytes` value — the raw
-// token is NEVER stored, and (unlike a password) never needs to be, since `tokenHash` is only ever
-// looked up by EXACT match (a unique index), not compared byte-by-byte — there is no timing oracle
-// to close here, the same reasoning the repère's own service already carried in its header.
+// caller download ONE document instance's PDF, on the model of the removed compliance engine's own
+// PdfDownloadToken (git tag `avant-refonte-documents`, backend/src/modules/pdf-links/) with the same
+// security discipline: `tokenHash` is a SHA-256 digest of a 256-bit `crypto.randomBytes` value — the
+// raw token is NEVER stored, and (unlike a password) never needs to be, since `tokenHash` is only
+// ever looked up by EXACT match (a unique index), not compared byte-by-byte — there is no timing
+// oracle to close here, the same reasoning the removed compliance engine's own service already
+// carried in its header.
 //
-// Two differences from the repère's own model, both deliberate:
+// Two differences from the removed compliance engine's own model, both deliberate:
 //  - `typeId` replaces `PdfDocumentType` (a closed two-value enum: QUOTE/INVOICE) — this codebase no
 //    longer has a fixed set of document types (documents/descriptors/), so the type is a plain
 //    string, exactly like `DocumentInstance.typeId` itself.
-//  - `revokedAt` is NEW: the repère's own token was a short-lived (1h), throwaway link minted by an
-//    MCP chat tool with no screen to revoke it from. THIS feature is a persistent, LISTED link a
-//    company hands to a client — see share-links/share-links.service.ts's own header for why its
-//    default expiry is deliberately NOT the repère's 1 hour. Revocation is a SOFT delete (never a
-//    hard one): who shared what, and when it was pulled back, is itself information worth keeping —
+//  - `revokedAt` is NEW: the removed compliance engine's own token was a short-lived (1h), throwaway
+//    link minted by an MCP chat tool with no screen to revoke it from. THIS feature is a persistent,
+//    LISTED link a company hands to a client — see share-links/share-links.service.ts's own header
+//    for why its default expiry is deliberately NOT the removed compliance engine's 1 hour.
+//    Revocation is a SOFT delete (never a hard one): who shared what, and when it was pulled back, is
+//    itself information worth keeping —
 //    the same "immutable history" instinct `DocumentArchive` above already holds, though this row
 //    (unlike an archive) DOES get one further write: the moment it is revoked.
 model DocumentDownloadToken {
@@ -1470,7 +1472,7 @@ model DocumentDownloadToken {
   @@index([documentId])
 }
 
-// "Signature électronique — module supprimé" — REINTRODUCED, dynamically (the
+// "Electronic signature — module removed" — REINTRODUCED, dynamically (the
 // "request-signature" ACTION, `documents/actions/request-signature.ts`, declared on the quote
 // descriptor like any other action, gated by the same country-policy/status/implementation/
 // validation four-gate `runAction` already runs for everything else) rather than as the standalone
@@ -1723,7 +1725,7 @@ model B2gRoutingRule {
   @@index([countryCode])
 }
 
-// Item 10 (root TODO), "transports nationaux" — REPRISED from git tag `avant-refonte-documents`
+// National transport channels — REPRISED from git tag `avant-refonte-documents`
 // (`channel-credentials.service.ts`'s own model there), same shape: one row per (company, provider,
 // environment) a company has connected a national transport for. `providerId` names a registered
 // `documents/transports/transport-registry.ts` entry (e.g. "pdp") — the value `Company.
@@ -1854,7 +1856,7 @@ model CompanySsoDomain {
   @@unique([providerId, domain])
 }
 
-// "Signature électronique — module supprimé" — a company's OPT-IN electronic
+// "Electronic signature — module removed" — a company's OPT-IN electronic
 // signing capability, reprised (schema unchanged, field-for-field) from git tag
 // `avant-refonte-documents`'s own `CompanySigningCertificate`. See
 // `modules/company/signing-certificates/signing-certificates.service.ts`'s own header for the full

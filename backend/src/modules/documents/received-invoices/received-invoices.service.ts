@@ -1,5 +1,5 @@
 /**
- * "Réception de factures" — the ONE bespoke service this type needs beyond the
+ * "Received invoices" — the ONE bespoke service this type needs beyond the
  * generic document machinery: uploading a file is not "persist this type's own declared fields"
  * (`actions/received-invoice-actions.ts`'s "receive" already covers that), it is a SEPARATE
  * operation — store bytes, hash them, refuse an exact repeat, best-effort extract — that has no
@@ -55,7 +55,7 @@ export interface UploadReceivedInvoicePreview {
     fields: Record<string, unknown>;
   };
   /**
-   * The OUTCOME of auto-reconciliation "au dépôt", computed from whatever the
+   * The OUTCOME of auto-reconciliation "at upload", computed from whatever the
    * `extraction` above just read (`supplierVatId`/`supplier`) — see `supplier-reconciliation.ts`'s own
    * header for the exact rule (VAT first, exact name fallback, ambiguity never silently resolved,
    * NEVER a created client). Surfaced separately from `extraction.fields` so the upload dialog can
@@ -82,7 +82,7 @@ export class ReceivedInvoicesService {
    * Stores the uploaded file content-addressed, refuses an EXACT repeat (same company, same
    * SHA-256, already the `fileRef` of an EXISTING received-invoice record) by name, and returns a
    * best-effort extraction PREVIEW — never a persisted `DocumentInstance`. See
-   * received-invoice.descriptor.ts's own header ("Extraction impossible ... jamais un refus") for why
+   * received-invoice.descriptor.ts's own header ("extraction impossible ... never a refusal") for why
    * a recognized-but-empty extraction is not an error at all, only a genuine duplicate hash is.
    */
   async upload(companyId: string, input: UploadReceivedInvoiceInput): Promise<UploadReceivedInvoicePreview> {
@@ -115,7 +115,7 @@ export class ReceivedInvoicesService {
       ocr,
     } = await applyOcrFallback(structural, bytes, input.mime, input.fileName);
 
-    // Supplier reconciliation "au dépôt": the ONLY point this runs. `data.supplierClient` (a
+    // Supplier reconciliation "at upload": the ONLY point this runs. `data.supplierClient` (a
     // 'reference' field, see received-invoice.descriptor.ts) is filled in HERE, exactly like every
     // other extracted field, then simply flows through the ordinary create form — "receive" never
     // re-runs this (see that action's own header on why). Reads `extractedFields`, NOT `structural.

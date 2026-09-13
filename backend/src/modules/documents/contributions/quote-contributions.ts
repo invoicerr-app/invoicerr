@@ -49,7 +49,7 @@ function quoteGrossTotal(data: Record<string, unknown>): { amount: number; curre
  * DASHBOARD: the quotes still sitting in "draft" — the shortlist the task asked for.
  *
  * Relies on `listDocuments` already ordering by `updatedAt` DESC (persistence.ts) for "most recently
- * touched first", exactly what "les plus récents" means for a list of drafts — no extra sort here,
+ * touched first", exactly what "the most recent" means for a list of drafts — no extra sort here,
  * unlike invoice-contributions.ts's own pending list (which re-sorts by DUE date, because urgency,
  * not recency, is what that one means).
  */

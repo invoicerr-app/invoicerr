@@ -33,7 +33,7 @@ const outputSchema = {
   name: z.string(),
 };
 
-// Reprised, unchanged in spirit, from the repère's own `create_client` (git tag
+// Reprised, unchanged in spirit, from the removed compliance engine's own `create_client` (git tag
 // `avant-refonte-documents`) — a real business ENTITY, not a document type.
 export const createClientTool: ToolDescriptor<typeof inputSchema> = {
   name: 'create_client',

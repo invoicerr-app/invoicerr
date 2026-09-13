@@ -47,7 +47,7 @@ export class WebhooksService {
    */
   async handlePluginWebhook(pluginId: string, body: any, req: Request): Promise<any> {
     logger.info(`Processing webhook for plugin: ${pluginId}`, { category: 'webhook', details: { pluginId } });
-    // Vérifier que le plugin existe et est actif
+    // Check that the plugin exists and is active
     const plugin = await prisma.plugin.findFirst({
       where: {
         id: pluginId,
@@ -73,7 +73,7 @@ export class WebhooksService {
       details: { pluginId, pluginType: plugin.type },
     });
 
-    // Récupérer le provider du plugin
+    // Get the plugin's provider
     const provider = await this.pluginsService.getProviderByType<IWebhookProvider>(plugin.type.toLowerCase());
 
     if (!provider) {
@@ -84,7 +84,7 @@ export class WebhooksService {
       throw new NotFoundException(`No provider found for plugin type: ${plugin.type}`);
     }
 
-    // Vérifier que le provider a une méthode handleWebhook
+    // Check that the provider has a handleWebhook method
     if (typeof provider.handleWebhook !== 'function') {
       logger.warn(`Provider for plugin ${plugin.name} does not implement handleWebhook method`, {
         category: 'webhook',
@@ -93,7 +93,7 @@ export class WebhooksService {
       return { message: 'Webhook received but not handled by provider' };
     }
 
-    // Appeler la méthode handleWebhook du provider
+    // Call the provider's handleWebhook method
     try {
       const result = await provider.handleWebhook(req, body);
       logger.info(`Webhook processed successfully for plugin ${plugin.name}`, {

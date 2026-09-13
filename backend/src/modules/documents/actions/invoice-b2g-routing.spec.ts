@@ -59,12 +59,12 @@ const IT_RULE_READY = {
 // test that reads the REAL file). This fixture is kept, unchanged, as a generic "a rule may
 // legitimately name a channel not implemented yet" exercise — `resolveB2gInvoiceTransport`'s own
 // "channel not available" branch below needs SOME transportId no `TransportRegistry` in this file
-// ever registers, and "zre-ozgre" (this dépôt's own real historical placeholder for a still-unwired
+// ever registers, and "zre-ozgre" (this repo's own real historical placeholder for a still-unwired
 // federal portal channel) reads more honestly than inventing an arbitrary new string.
 const DE_RULE_UNIMPLEMENTED = {
   countryCode: 'DE',
   transportId: 'zre-ozgre',
-  // The EXACT case the task asks to "chiffrer": the FORMAT the rule captures is "xrechnung" —
+  // The EXACT case worth pinning down: the FORMAT the rule captures is "xrechnung" —
   // asserted directly below (`b2gDecision.rule?.formatSyntax`) regardless of whatever the company's
   // OWN configured transport/format would otherwise have been (email+facturx in these tests).
   formatSyntax: 'xrechnung',
@@ -183,8 +183,8 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
 
-  // MUTATION GUARD #2 — "le pays sans règle part en B2B silencieux" — this test tombe the instant that
-  // mutation lands: removing the "no rule" branch (or making it fall through to the free-choice path)
+  // MUTATION GUARD #2 — "a country with no rule silently defaults to B2B" — this test fails the instant
+  // that mutation lands: removing the "no rule" branch (or making it fall through to the free-choice path)
   // makes this expect a NotImplementedException that never comes, or a `sending` result instead.
   it('a GOVERNMENT client of a country with NO B2G rule declared BLOCKS, naming the country — never falls back to B2B', async () => {
     mockB2g({ applies: true, countryCode: 'ZZ' });
@@ -292,7 +292,7 @@ describe('invoice "send" — B2G routing (client government) takes precedence ov
     expect(DE_RULE_UNIMPLEMENTED.formatSyntax).toBe('xrechnung');
   });
 
-  // MUTATION GUARD #1 — "la préséance B2G ignorée (le choix société gagne)" — this test tombe the
+  // MUTATION GUARD #1 — "B2G precedence ignored (the company's own choice wins)" — this test fails the
   // instant `resolveInvoiceTransport` stops short-circuiting on `b2g.applies` (or is reordered after
   // the seller-country mandate check): `mandate.activeChannelMandateFor` would then actually run and
   // this assertion on `toHaveBeenCalled()` — or the refusal message itself — would flip.

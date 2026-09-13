@@ -24,7 +24,7 @@ const inputSchema = {
  * Saved instances of ONE type, for the active company — `DocumentsService.listDocuments` already
  * caps at 50 (persistence.ts's own `take` default); this tool applies a further, caller-chosen
  * `limit` (default 20) on top rather than growing that method a new parameter of its own — a plain
- * `.slice()` is all "paginé raisonnable" needs here, and it keeps DocumentsService's own signature,
+ * `.slice()` is all "reasonably paginated" needs here, and it keeps DocumentsService's own signature,
  * used by the REST controller too, untouched.
  */
 export const listDocumentsTool: ToolDescriptor<typeof inputSchema> = {

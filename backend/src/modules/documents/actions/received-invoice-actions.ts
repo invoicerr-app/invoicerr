@@ -37,7 +37,7 @@ export function registerReceivedInvoiceActions(
    * `grossAmount` beyond rounding tolerance. Recomputed on EVERY save (this action is the type's only
    * create/edit path), so editing a line — or the stated totals — always leaves the persisted warning
    * in sync with what was just saved; STORED, not recomputed on every read, which is what makes the
-   * warning "porté par le document" (visible again on a later GET, the list, the detail screen)
+   * warning "carried by the document" (visible again on a later GET, the list, the detail screen)
    * without a second generic mechanism reading `lines` on every fetch.
    *
    * Also the ONLY point that turns a supplier LINK into a persisted role:

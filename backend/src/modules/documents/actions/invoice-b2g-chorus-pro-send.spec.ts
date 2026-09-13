@@ -65,7 +65,7 @@ const FR_RULE = {
   provenanceDescription: '"Code de la commande publique, art. L. 2192-1..." (checked 2026-09-01)',
 };
 
-// A CONNECTED chorus-pro config — the "canal connecté (stub)" the task brief asks for: complete
+// A CONNECTED chorus-pro config — the "connected channel (stub)" the task brief asks for: complete
 // enough to pass `extractChorusProCredentials`, never a real PISTE credential.
 const CONNECTED_CHORUS_PRO_CONFIG = {
   providerId: 'chorus-pro',

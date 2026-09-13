@@ -1,6 +1,7 @@
 /**
- * The country channel mandate ("canal imposé par pays") — the WIRING inside `invoice-actions.ts`'s "send":
- * `resolveCompanyCountryCode` and `activeChannelMandateFor` (`channel-policy/mandate.ts`) are both
+ * The country channel mandate ("the channel a country imposes") — the WIRING inside
+ * `invoice-actions.ts`'s "send": `resolveCompanyCountryCode` and `activeChannelMandateFor`
+ * (`channel-policy/mandate.ts`) are both
  * mocked here, the same way `documents.service.invoice.spec.ts` already mocks
  * `country-policy/country-policy` wholesale — this file's job is "does invoice-actions.ts react
  * correctly to a mandate decision", never "is the FR/PDP mandate's own date arithmetic right" (that

@@ -453,7 +453,7 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // Client reference / order number ("référence client / n° de commande") — `hideWhenEmpty` (types.ts) is the
+  // Client reference / order number — `hideWhenEmpty` (types.ts) is the
   // one opt-in escape from the "missing and empty values" block right above: a field that declares it
   // gets NO row at all when unset, rather than the universal label + em-dash placeholder.
   describe('hideWhenEmpty', () => {
@@ -711,7 +711,7 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // Mandatory legal mentions ("mentions obligatoires") — reprises the repère's own
+  // Mandatory legal mentions ("mentions obligatoires") — reprises the removed compliance engine's own
   // `legal-mentions-pdf.spec.ts` intent (git tag `avant-refonte-documents`), adapted to this generic
   // renderer: the mentions come in as a plain `legalMentions` array (already resolved for a date by
   // `mentions/invoice-notes.ts` — this file has no opinion on WHERE they came from), and the only

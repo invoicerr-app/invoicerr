@@ -194,7 +194,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     );
   });
 
-  // "Référence client / n° de commande" — an ordinary OPTIONAL top-level
+  // "Client reference / PO number" — an ordinary OPTIONAL top-level
   // field (invoice.descriptor.ts): round-trips through the exact same generic `data` JSON blob every
   // other field already does, with no special-cased persistence path. The PDF's own conditional
   // rendering of it is covered separately in rendering/render-html.spec.ts's own `hideWhenEmpty` block.
@@ -622,7 +622,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
             conversionSource: 'manual',
           }),
         );
-        // The reste-à-payer the result STATES is EXACT: GROSS_MINOR (2376) - 900 = 1476 -> 14.76 EUR —
+        // The outstanding balance the result STATES is EXACT: GROSS_MINOR (2376) - 900 = 1476 -> 14.76 EUR —
         // the DOCUMENT's own currency, never the payment's own USD.
         expect(result.message).toMatch(/14\.76 EUR/);
         expect(result.message).toMatch(/outstanding/i);
@@ -662,7 +662,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
       });
 
-      // ── The "piège daté" — a UTC month-boundary payment, pinned exactly ───────────────────────────
+      // ── The "dated trap" — a UTC month-boundary payment, pinned exactly ────────────────────────────
       it("resolves the rate dated to PAIDAT, at a UTC month-boundary — 23:30 UTC the last day of the month must NOT roll into next month's rate", async () => {
         (currencyRatesStore.loadRatesSafely as jest.Mock).mockResolvedValue([
           { from: 'USD', to: 'EUR', rate: 0.9, asOf: new Date('2026-08-01T00:00:00.000Z'), source: 'manual' },
@@ -1059,8 +1059,8 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       );
     });
 
-    // THE IDEMPOTENCE PROOF: "exactement une émission par document même à
-    // travers les retries BullMQ". The guarantee is STRUCTURAL, not a new lock/table — it lives
+    // THE IDEMPOTENCE PROOF: "exactly one issuance per document, even across
+    // BullMQ retries". The guarantee is STRUCTURAL, not a new lock/table — it lives
     // entirely in `DocumentsService.runAction`'s own status gate (`isActionAvailable`,
     // `documents.service.spec.ts` proves that gate in isolation): "send"'s `availableWhen` (derived
     // from `SEND_TRANSITIONS`, invoice.descriptor.ts) does NOT include "sent" — only

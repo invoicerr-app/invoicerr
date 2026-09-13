@@ -1,9 +1,9 @@
 import { listClientsTool } from './list-clients.tool';
 import { ToolContext } from './types';
 
-// Adapted from the repère's own `list_clients.tool.spec.ts` (git tag `avant-refonte-documents`) —
-// only the ToolContext.services shape changed (documentsService/shareLinksService replace
-// quotesService/invoicesService/pdfLinksService).
+// Adapted from the removed compliance engine's own `list_clients.tool.spec.ts` (git tag
+// `avant-refonte-documents`) — only the ToolContext.services shape changed
+// (documentsService/shareLinksService replace quotesService/invoicesService/pdfLinksService).
 describe('listClientsTool', () => {
   function buildContext(searchClients: jest.Mock): ToolContext {
     return {

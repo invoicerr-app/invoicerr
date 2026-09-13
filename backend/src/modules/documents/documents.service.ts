@@ -232,7 +232,7 @@ export class DocumentsService implements OnModuleInit {
     // which none of them exercise) — never a breaking change to add a new capability.
     @Inject(FORMAT_PROVIDER_REGISTRY)
     private readonly formatProviderRegistry: FormatProviderRegistry = new FormatProviderRegistry(),
-    // Signature électronique — a plain concrete-class dependency, the same
+    // Electronic signature — a plain concrete-class dependency, the same
     // pattern `ChannelsController`/`buildTransportRegistry` already use for `ChannelCredentialsService`
     // (no string token needed: Nest resolves a concrete class by its own type). Defaulted to a fresh
     // `SigningCertificatesService()` (no-arg constructor, same shape as `ChannelCredentialsService`)
@@ -1116,7 +1116,7 @@ export class DocumentsService implements OnModuleInit {
   /**
    * Which correction routes this document's own SELLER country declares, and
    * which of them this repo actually implements. Four gates, each distinct and named, the same
-   * "un brouillon sans numéro refuse en le disant" discipline `downloadDocumentFormat` already holds:
+   * "a draft with no number refuses, and says so" discipline `downloadDocumentFormat` already holds:
    *  - unknown typeId at all                     -> 404 (`resolveType`, same as every other endpoint)
    *  - typeId known but not "invoice"             -> 501 (the correction-routes research this
    *    mechanism transcribes only ever covered invoices; V1 does not generalize past that — see
@@ -1157,11 +1157,10 @@ export class DocumentsService implements OnModuleInit {
     if (!decision) {
       throw new NotFoundException(
         countryCode
-          ? `Aucune règle de correction déclarée pour ${countryCode} — no correction-routes rule is ` +
-              `declared for "${countryCode}" yet. To add one, create ` +
+          ? `No correction rule is declared for "${countryCode}" yet. To add one, create ` +
               `${CORRECTION_ROUTES_DATA_DIR_HINT}/${countryCode.toLowerCase()}.json (see fr.json in ` +
               'that directory for the format) and list it in data/all.ts.'
-          : "Aucune règle de correction déclarée : this company's country does not resolve to a " +
+          : "No correction rule can be resolved: this company's country does not resolve to a " +
               'recognized ISO 3166-1 country code, so no correction-routes file can be found for it. ' +
               'Set an explicit country code in company settings.',
       );
@@ -1196,7 +1195,7 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * "GET .../formats/:syntax" — a normalized EN 16931 export (item 12, "formats normalisés"),
+   * "GET .../formats/:syntax" — a normalized EN 16931 export (item 12, "normalized formats"),
    * built and validated on demand, exactly like `renderInstancePdf` above (never cached — a small
    * document, cheap to rebuild, and this way an edited-then-resaved document can never serve a stale
    * export). NOT reached through `runAction`/`ActionRegistry` (see `invoice.descriptor.ts`'s own
@@ -1240,7 +1239,7 @@ export class DocumentsService implements OnModuleInit {
       // A dedicated message, not `runAction`'s generic one: "download-xml" refuses for exactly ONE
       // structural reason (no number yet — see invoice.descriptor.ts's own comment), so the 409 says
       // so directly rather than making the caller cross-reference `availableWhen` themselves. This IS
-      // the "un brouillon sans numéro refuse en le disant" behavior.
+      // the "a draft with no number refuses, and says so" behavior.
       throw new ConflictException(
         `Cannot download a normalized XML export of a document with status "${instance.status}" — an ` +
           'EN 16931 invoice requires a definitive invoice number (BT-1), only assigned once sending ' +
@@ -1365,7 +1364,7 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * "GET .../archives" — archivage légal ⚖. Every archive written for this
+   * "GET .../archives" — legal archiving ⚖. Every archive written for this
    * document, most recent first — DELIVERY rows (`archive/archive-on-send.ts`, one per successful
    * delivery that produced at least one artifact) AND, since 2026-09-06, VERDICT rows (the
    * authority's own terminal verdict on one of those deposits, `archive/persistence.ts#

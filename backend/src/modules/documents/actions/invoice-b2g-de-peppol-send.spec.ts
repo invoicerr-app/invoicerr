@@ -66,7 +66,7 @@ const DE_RULE = {
   provenanceDescription: '"§ 4/§ 5 ERechV..." (checked 2026-09-01)',
 };
 
-// A CONNECTED peppol config — the "canal connecté (stub)" the task brief asks for: complete enough to
+// A CONNECTED peppol config — the "connected channel (stub)" the task brief asks for: complete enough to
 // pass `extractPeppolCredentials`, never a real Access Point.
 const CONNECTED_PEPPOL_CONFIG = {
   providerId: 'peppol',
@@ -90,7 +90,7 @@ const COMPANY_WITH_IBAN = {
   email: 'contact@muster.example',
   phone: '+49301234567',
   iban: TEST_IBAN,
-  // "un certificat rien-à-voir" — a signing certificate is a concept some other, XAdES-signed national
+  // "an unrelated certificate" — a signing certificate is a concept some other, XAdES-signed national
   // formats need, entirely unrelated to Peppol/XRechnung; carried here only to prove its mere
   // PRESENCE on the company changes nothing about this path — `formats/xrechnung-provider.ts` never
   // reads it, `peppol-transport.ts` never reads it.
@@ -284,7 +284,7 @@ describe('B2G DE, end to end at the service level — government client + connec
     expect(capturedBody!.receiver).toBe(`0204:${LEITWEG}`);
   });
 
-  // MUTATION GUARD — "l'endpoint Peppol manquant accepté": if
+  // MUTATION GUARD — "a missing Peppol endpoint accepted": if
   // `peppol-transport.ts#send()`'s own receiver gate ever stopped refusing an absent
   // `PEPPOL_ENDPOINT`, THIS test is what would catch it for the B2G/DE path specifically (never only
   // at the bare-transport level `peppol-transport.spec.ts` already covers).
@@ -317,7 +317,7 @@ describe('B2G DE, end to end at the service level — government client + connec
     expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
   });
 
-  // "sans IBAN → le refus XRechnung nommé" (task brief) — the FORMAT gate, not the receiver gate:
+  // "no IBAN → the named XRechnung refusal" (task brief) — the FORMAT gate, not the receiver gate:
   // the client carries a valid Peppol endpoint, but the COMPANY (seller) has no IBAN, so
   // `xrechnungFormatProvider`'s own BR-DE-1 refuses — proving the format gate holds EVEN THOUGH the
   // send now goes through, rather than being blocked earlier by B2G routing or the receiver check.
@@ -352,7 +352,7 @@ describe('B2G DE, end to end at the service level — government client + connec
     expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
   });
 
-  // "client business DE → peppol-bis inchangé" (task brief) — a BUSINESS client is NOT B2G-routed at
+  // "DE business client → peppol-bis unchanged" (task brief) — a BUSINESS client is NOT B2G-routed at
   // all (`resolveClientB2gRouting` returns `applies: false`), so the company's OWN free choice of
   // "peppol" applies, with NO `formatOverride` — the ordinary Peppol BIS payload, entirely unaffected
   // by the DE rule's own existence.

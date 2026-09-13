@@ -243,7 +243,7 @@ export const buildInvoiceDashboardWidgetsWithConsolidation: ContributionHandler 
 };
 
 /**
- * STATISTICS: "tout ultra détaillé" — one row per invoice, every field arithmetic can honestly
+ * STATISTICS: "everything, in exhaustive detail" — one row per invoice, every field arithmetic can honestly
  * derive from what is already stored (no client name resolution, no cross-module join: this stays a
  * pure aggregation over the invoice's OWN data, the same boundary invoiceTotal draws).
  */

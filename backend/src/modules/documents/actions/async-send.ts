@@ -238,7 +238,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // `webhooks`) already logs-then-RETHROWS on failure (every existing caller — `company.service.ts`,
     // `clients.service.ts` — wraps it in its own try/catch for the exact same reason), and this is the
     // one call site where "the send genuinely succeeded" must never be undone by a THIRD PARTY's
-    // webhook endpoint being down. A named, loud log — never silent — is what "jamais silencieux"
+    // webhook endpoint being down. A named, loud log — never silent — is what "Never silent"
     // (echoing `report-on-send.ts`'s header) means here.
     if (webhooks) {
       try {
@@ -262,7 +262,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
       }
     }
 
-    // Legal archiving ("archivage légal") — archived ONLY once delivery has genuinely succeeded
+    // Legal archiving — archived ONLY once delivery has genuinely succeeded
     // (this line runs after `sent` is already persisted, never before): archiving a delivery that
     // could still fail would be a lie about what was actually conserved. `archiveDeliveredArtifactsIfAny`
     // NEVER throws (see its own header) — a storage/DB problem here must never undo a delivery that
@@ -270,7 +270,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // recorded on the document itself (`lastArchiveError`) and logged loudly, never silently.
     await archiveDeliveredArtifactsIfAny({ companyId, documentId, artifacts });
 
-    // A separate concept ("déclaration"), never a transport: Hungary/NAV and Greece/myDATA
+    // A separate concept ("declaration"), never a transport: Hungary/NAV and Greece/myDATA
     // require the SELLER to declare the invoice's data to its tax authority AFTER issuance,
     // regardless of the channel that just delivered it — see `reporting/report-on-send.ts`'s own
     // header. Runs generically, for every type/transport, exactly like the archive call just above;

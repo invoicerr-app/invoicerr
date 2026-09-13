@@ -15,8 +15,8 @@ const inputSchema = {};
  * when this company's country currently forbids it (`describeTypeForCompany`, the identical view a
  * frontend form renders from). This is the whole point of the descriptor model applied to an LLM
  * caller: it reads the SHAPE of a document type from data, the same way the frontend does, instead
- * of a human hand-maintaining a fixed tool per type the way the repère's `create_quote`/
- * `create_invoice` did (git tag `avant-refonte-documents`).
+ * of a human hand-maintaining a fixed tool per type the way the removed compliance engine's
+ * `create_quote`/`create_invoice` did (git tag `avant-refonte-documents`).
  *
  * Filtered to the types THIS API KEY actually holds a scope for (read OR write, see
  * `canReadDocumentType`) — a key scoped to `quotes:read` only never sees the invoice descriptor

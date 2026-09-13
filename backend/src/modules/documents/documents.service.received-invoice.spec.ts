@@ -189,7 +189,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     expect(result.document).toMatchObject({ status: 'received' });
   });
 
-  // "Le rôle posé au moment du lien": both the auto-match (upload time) and a
+  // "The role set at link time": both the auto-match (upload time) and a
   // manual pick converge on THIS one handler, so both are proven by the same two tests.
   it('"receive" marks the linked client as a supplier when `data.supplierClient` is set', async () => {
     (persistence.upsertDocument as jest.Mock).mockResolvedValue(

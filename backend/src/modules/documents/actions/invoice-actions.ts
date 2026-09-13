@@ -52,7 +52,7 @@ export interface InvoiceActionDeps {
 }
 
 /**
- * "canal imposé par pays" — resolves the issuing company's own COUNTRY and asks
+ * "country-mandated channel" — resolves the issuing company's own COUNTRY and asks
  * whether it MANDATES a channel for an invoice issued on `issueDate` (`channel-policy/mandate.ts`,
  * evaluated against the invoice's own issue date, never the server's clock — see that file's own
  * header). Undefined for any company whose country's own channel-policy fact does not (yet) declare
@@ -573,7 +573,7 @@ function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: Doc
  * seconds (or, after a retry, much longer) apart, and a job replayed later must honor whatever the
  * company's configuration says AT THAT TIME, not a value cached from when it was first enqueued.
  *
- * A country channel mandate ("canal imposé par pays") folds one more gate into this SAME preflight: a country
+ * A country channel mandate ("country-mandated channel") folds one more gate into this SAME preflight: a country
  * can now MANDATE a channel (`transports/channel-policy/data/*.json`, `requirement: 'mandated'`), not
  * merely suggest one — see `resolveInvoiceTransport`'s own header for how that overrides the
  * company's free choice once active, and `channel-policy/mandate.ts`'s header for why "active" is

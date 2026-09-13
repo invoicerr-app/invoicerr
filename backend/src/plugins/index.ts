@@ -39,7 +39,7 @@ export class PluginRegistry {
       return;
     }
 
-    // Démarrer l'initialisation
+    // Start the initialization
     PluginRegistry.initializationPromise = this.doInitialization();
     await PluginRegistry.initializationPromise;
   }
@@ -57,7 +57,7 @@ export class PluginRegistry {
 
   private initializeInAppPlugins() {
     this.removeRemovedProviders();
-    // Le plugin de signature servait à faire signer les DEVIS : parti avec eux.
+    // The signature plugin existed to get QUOTES signed: it left along with them.
     this.registerProvider(PluginType.STORAGE, new S3StorageProvider());
     this.registerProvider(PluginType.STORAGE, new LocalStorageProvider());
     this.registerOcrExtractor();

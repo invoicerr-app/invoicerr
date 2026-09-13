@@ -40,7 +40,7 @@ export class ChannelsController {
     const [configured, suggested, reportingObligations] = await Promise.all([
       this.channels.listCompanyChannels(companyId),
       this.channels.suggestedChannels(companyId),
-      // Declarative reporting ("déclaration") — a categorically different fact from `suggested` above: never a
+      // Declarative reporting — a categorically different fact from `suggested` above: never a
       // transport hint, always "declare this invoice's data to this authority" — see
       // `channels.service.ts#reportingObligations`'s own header.
       this.channels.reportingObligations(companyId),

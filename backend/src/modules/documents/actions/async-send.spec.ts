@@ -520,7 +520,7 @@ describe('runAsyncSendAction', () => {
       );
     });
 
-    // Legal archiving ("archivage légal") — archiving runs AFTER "sent" is persisted, fed EXACTLY
+    // Legal archiving — archiving runs AFTER "sent" is persisted, fed EXACTLY
     // what `deliver()` handed back, never before and never invented. See `archive/archive-on-send.ts`
     // for why this call itself can never throw or undo a delivery that already succeeded.
     it('archives the artifacts deliver() returned, AFTER "sent" is persisted, never before', async () => {
@@ -582,8 +582,8 @@ describe('runAsyncSendAction', () => {
       });
     });
 
-    // A NEW concept ("déclaration"), never a transport — see `reporting/report-on-send.ts`'s
-    // own header. Runs AFTER archiving (same "après le fait acquis" ordering), generically for every
+    // A NEW concept ("declaration"), never a transport — see `reporting/report-on-send.ts`'s
+    // own header. Runs AFTER archiving (same "after the fact is settled" ordering), generically for every
     // type/transport — this test proves the WIRING (call order + arguments), never the obligation
     // decision itself (that is `reporting/report-on-send.spec.ts`'s job).
     it('calls reportOnSendIfObligated AFTER archiving, with the right (companyId, typeId, documentId)', async () => {
@@ -624,8 +624,8 @@ describe('runAsyncSendAction', () => {
       });
     });
 
-    // THE MUTATION TARGET the task's own brief names: "l'échec déclaratif casse le statut de la
-    // facture" — a declarative-reporting failure must NEVER be able to change what `runAsyncSendAction`
+    // THE MUTATION TARGET the task's own brief names: "a declarative failure breaks the invoice's
+    // status" — a declarative-reporting failure must NEVER be able to change what `runAsyncSendAction`
     // hands back (the document is already "sent", genuinely, by the time this call happens). Since
     // `reportOnSendIfObligated` itself already NEVER throws (see that file's own header), this proves
     // the CALLER here does not additionally wrap it in anything that could turn a rejection into a
@@ -939,8 +939,8 @@ describe('runAsyncSendAction', () => {
         'archiveDeliveredArtifactsIfAny',
       ]);
       expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
-      // Generic by construction: `document` is a FIXED key (never `{ invoice: sent }`) — T2bis's own
-      // contract, decided so a receiver never needs a per-type branch to find the row.
+      // Generic by construction: `document` is a FIXED key (never `{ invoice: sent }`) — a
+      // deliberate contract, decided so a receiver never needs a per-type branch to find the row.
       expect(webhooks.dispatch).toHaveBeenCalledWith(WebhookEvent.DOCUMENT_SENT, {
         documentId: 'doc-1',
         typeId: 'invoice',

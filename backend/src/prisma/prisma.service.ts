@@ -7,13 +7,13 @@ import { PrismaClient } from '../../prisma/generated/prisma/client';
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL as string });
 
 /**
- * Le client Prisma, nu.
+ * The bare Prisma client.
  *
- * Il portait jusqu'ici une extension de requête qui fabriquait les NUMÉROS de documents — devis,
- * factures, paiements : formatage à la création, rattrapage des lignes anciennes, reformatage à la
- * mise à jour. Ces documents sont supprimés, l'extension avec. Ce qui reste est un client
- * ordinaire, et c'est tant mieux : cette extension était aussi l'endroit où tous les brouillons
- * recevaient le même numéro fabriqué.
+ * It used to carry a query extension that manufactured document NUMBERS — quotes,
+ * invoices, payments: formatting at creation, backfilling old rows, reformatting on update. Those
+ * documents are gone now, and the extension with them. What's left is a plain client, and that's
+ * for the best: that extension was also the one place where every draft ended up receiving the
+ * same manufactured number.
  */
 const prisma = new PrismaClient({ adapter });
 export default prisma;
@@ -21,13 +21,13 @@ export default prisma;
 export type ExtendedPrismaClient = PrismaClient;
 
 /**
- * Jeton d'injection NestJS. Le constructeur RETOURNE le singleton, donc l'instance injectée EST le
- * client partagé — un seul pool pour tous les chemins d'accès.
+ * NestJS injection token. The constructor RETURNS the singleton, so the injected instance IS the
+ * shared client — one single pool for every access path.
  */
 @Injectable()
 class PrismaServiceToken {
   constructor() {
-    // biome-ignore lint/correctness/noConstructorReturn: substitution délibérée — le jeton distribue le singleton
+    // biome-ignore lint/correctness/noConstructorReturn: deliberate — the token hands out the singleton
     return prisma as unknown as PrismaServiceToken;
   }
 }

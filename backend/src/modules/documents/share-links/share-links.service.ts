@@ -1,5 +1,5 @@
 /**
- * "Liens publics de téléchargement" — the CRUD half of a public, unauthenticated
+ * "Public download links" — the CRUD half of a public, unauthenticated
  * download link for one document instance's PDF. On the model of `DocumentSchedulesService`
  * (schedules/schedules.service.ts): a small class that reuses `DocumentsService.getType`/
  * `getDocument` for the exact same tenant-scoped 404s every other entry point into this module
@@ -14,16 +14,16 @@
  * gates that actually apply by hand (country policy 403, status 409) — see `create`'s own header for
  * why only two of `downloadDocumentFormat`'s four ever fire here.
  *
- * Default expiry (`DEFAULT_TTL_MS`): deliberately NOT the repère's own 1 hour
+ * Default expiry (`DEFAULT_TTL_MS`): deliberately NOT the removed compliance engine's own 1 hour
  * (pdf-links.service.ts's `TOKEN_TTL_MS`, git tag `avant-refonte-documents`). That number was
- * calibrated for a categorically different consumer — the repère's own header says so explicitly:
- * "minted by the MCP PDF tools so a chat client... can still offer the user a clickable URL", a
- * single-conversation, throwaway link with no screen to ever see it again. THIS feature is the
- * opposite on purpose: a persistent, LISTED (see `list` below), REVOCABLE (see `revoke`) link a
- * company hands to a client to actually open an invoice — an hour would make "list the active links,
- * revoke one" nearly pointless (most links would already be dead before anyone thought to revoke
- * them). 30 days is the reasonable default when the repère's own number doesn't
- * transfer to the new use case.
+ * calibrated for a categorically different consumer — the removed compliance engine's own header
+ * says so explicitly: "minted by the MCP PDF tools so a chat client... can still offer the user a
+ * clickable URL", a single-conversation, throwaway link with no screen to ever see it again. THIS
+ * feature is the opposite on purpose: a persistent, LISTED (see `list` below), REVOCABLE (see
+ * `revoke`) link a company hands to a client to actually open an invoice — an hour would make "list
+ * the active links, revoke one" nearly pointless (most links would already be dead before anyone
+ * thought to revoke them). 30 days is the reasonable default when the removed compliance engine's
+ * own number doesn't transfer to the new use case.
  */
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -42,7 +42,8 @@ import {
 
 const SHARE_LINK_ACTION_ID = 'share-link';
 
-/** 30 days — see this file's own header for why the repère's 1-hour TTL was not reused. */
+/** 30 days — see this file's own header for why the removed compliance engine's 1-hour TTL was not
+ *  reused. */
 const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface CreatedShareLink {

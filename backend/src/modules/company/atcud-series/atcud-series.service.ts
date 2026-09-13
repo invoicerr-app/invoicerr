@@ -36,7 +36,7 @@ export interface UpsertAtcudSeriesBody {
   validationCode: string;
 }
 
-/** A validation code is a plain alphanumeric string in every real AT-issued example this task found
+/** A validation code is a plain alphanumeric string in every real AT-issued example found
  *  (e.g. "JCVPTS0J") — Portaria n.º 195/2020, art. 3.º n.º 1 itself only states a minimum LENGTH, not
  *  a charset, so this is a deliberate, narrower PRODUCT-level input rule (never attributed to the
  *  Portaria in the error message below), chosen to keep this free-text field impossible to turn into

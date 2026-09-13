@@ -12,10 +12,10 @@ import {
 } from './signing-certificates.service';
 
 /**
- * "Signature électronique" — the settings screen this backs is "Signing
+ * "Electronic signature" — the settings screen this backs is "Signing
  * certificates" (company settings). Every handler is scoped to the caller's ACTIVE company
  * (`@ActiveCompany()`) — never a URL parameter — the exact same discipline `channels.controller.ts`
- * already holds, and the fix for the cross-tenant IDOR the repère's own
+ * already holds, and the fix for the cross-tenant IDOR the removed compliance engine's own
  * `signing-certificates.controller.spec.ts` regression-tested (`compliance/nest/`, git tag
  * `avant-refonte-documents`): that controller trusted `@Param('id')` for the company id. This one has
  * no such parameter to trust in the first place — GET/POST are company-scoped exactly like

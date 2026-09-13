@@ -1,7 +1,7 @@
 /**
  * The scope story for the GENERIC MCP tools (`list_document_types`, `list_documents`,
  * `get_document`, `run_document_action`, `get_document_pdf_link`) — one tool per OPERATION,
- * spanning every document type, unlike the repère's one-tool-per-type model (`create_quote`,
+ * spanning every document type, unlike the removed compliance engine's one-tool-per-type model (`create_quote`,
  * `create_invoice`, ..., git tag `avant-refonte-documents`). A single fixed `ApiKeyScope` per tool
  * (still exactly right for `list_clients`/`create_client`/`list_articles`, real business entities a
  * tool reads/writes directly) cannot express this: WHICH document type a call touches only arrives
@@ -12,8 +12,9 @@
  *     ANY document-domain scope granted at all? A key holding only `clients:read` never even sees
  *     `run_document_action` in its tool list — but a key holding only `quotes:read` DOES see it (it
  *     is a generic tool, registered once for every type), even though calling it with
- *     `typeId: "invoice"` is still refused at step 2 below. This mirrors the repère's own "fails
- *     fast at planning time" intent as closely as a multi-type tool can: a key with NO document
+ *     `typeId: "invoice"` is still refused at step 2 below. This mirrors the removed compliance
+ *     engine's own "fails fast at planning time" intent as closely as a multi-type tool can: a key
+ *     with NO document
  *     access at all never learns these tools exist.
  *  2. CALL time, inside each tool's own handler — precise: does the key hold the scope for THIS
  *     SPECIFIC `typeId`? `scopeForDocumentType` computes it by pluralising the id, exactly the way

@@ -19,7 +19,7 @@ const outputSchema = {
   ),
 };
 
-// Reprised, unchanged in spirit, from the repère's own `list_articles` (git tag
+// Reprised, unchanged in spirit, from the removed compliance engine's own `list_articles` (git tag
 // `avant-refonte-documents`) — a real business ENTITY, not a document type.
 export const listArticlesTool: ToolDescriptor<typeof inputSchema> = {
   name: 'list_articles',

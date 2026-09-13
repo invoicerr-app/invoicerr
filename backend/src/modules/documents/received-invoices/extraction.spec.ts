@@ -3,8 +3,8 @@
  * providers (`cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts`) actually produce — never a
  * hand-written XML fixture, and never `@e-invoice-eu/core`'s `fromXml` (the documented CII round-trip
  * bug this module's own header explains avoiding). The exact fixture (seller/buyer/lines) and its
- * hand-computed totals are copied verbatim from `formats/providers.spec.ts` ("Hand-computed, chiffrée
- * à la main") so the expected numbers here are independently traceable to the same arithmetic that
+ * hand-computed totals are copied verbatim from `formats/providers.spec.ts` ("Hand-computed") so the
+ * expected numbers here are independently traceable to the same arithmetic that
  * file already proves against the REAL vendored EN 16931 Schematron.
  */
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -48,7 +48,7 @@ const BUYER: DocumentFormatParty = {
 };
 
 /**
- * Hand-computed, chiffrée à la main (copied from `formats/providers.spec.ts`):
+ * Hand-computed (copied from `formats/providers.spec.ts`):
  *   line 1: 10 × 1200.00 = 12000.00
  *   line 2:  2 ×  800.00 =  1600.00
  *   net    = 13600.00 ; VAT (20%) = 2720.00 ; gross = 16320.00

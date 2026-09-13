@@ -102,7 +102,7 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   registry.register(buildInvoiceDescriptor());
   registry.register(buildCreditNoteDescriptor());
   registry.register(buildExpenseDescriptor());
-  // The FIFTH type, and the first in the "L'entrée"
+  // The FIFTH type, and the first in the "inbound"
   // category: see received-invoice.descriptor.ts for the full reasoning.
   registry.register(buildReceivedInvoiceDescriptor());
   return registry;
@@ -333,8 +333,9 @@ function buildAuthorityStatusPollerRegistry(
   registry.register(buildPdpStatusPoller({ channelCredentials }));
   registry.register(buildKsefStatusPoller({ channelCredentials }));
   registry.register(buildPeppolStatusPoller({ channelCredentials }));
-  // "chorus-pro" — `consulterCr`, the ONE status-consultation endpoint the repère's own client
-  // carried (`chorus-pro/choruspro-client.ts`) — see `conformity/pollers/chorus-pro-status-poller.ts`'s
+  // "chorus-pro" — `consulterCr`, the ONE status-consultation endpoint the removed compliance
+  // engine's own client carried (`chorus-pro/choruspro-client.ts`) — see
+  // `conformity/pollers/chorus-pro-status-poller.ts`'s
   // own header for what is, and is not, live-verified.
   registry.register(buildChorusProStatusPoller({ channelCredentials }));
   return registry;
@@ -420,7 +421,7 @@ function buildActionRegistry(
   });
   registerConvertToInvoiceAction(registry);
   registerRequestDepositAction(registry);
-  // The "échéancier" action — see request-installments.ts's own header. Needs no
+  // The "installment schedule" action — see request-installments.ts's own header. Needs no
   // extra dependency (unlike, say, request-signature.ts's SignaturesService), so it registers exactly
   // like "request-deposit" right above: pure function of the ActionRegistry it's handed.
   registerRequestInstallmentsAction(registry);

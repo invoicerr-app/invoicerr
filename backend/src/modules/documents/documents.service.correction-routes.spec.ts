@@ -122,7 +122,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
       NotFoundException,
     );
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
-      /Aucune règle de correction déclarée pour JP/,
+      /No correction rule is declared for "JP"/,
     );
   });
 
@@ -131,7 +131,7 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
     mockDocument({});
     const { service } = buildService();
     await expect(service.getCorrectionRoutes('company-1', 'invoice', 'doc-1')).rejects.toThrow(
-      /Aucune règle de correction déclarée/,
+      /No correction rule can be resolved/,
     );
   });
 

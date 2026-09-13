@@ -177,7 +177,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     );
   });
 
-  // "Référence client / n° de commande" — `clientReference` is an ordinary
+  // "Client reference / PO number" — `clientReference` is an ordinary
   // OPTIONAL top-level field on the descriptor (quote.descriptor.ts), so it needs no special-cased
   // persistence path: it round-trips through the exact same generic `data` JSON blob every other
   // field already does. This is the "bites" proof at the storage layer — the PDF's
