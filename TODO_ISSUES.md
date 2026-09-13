@@ -188,7 +188,24 @@ cas intracommunautaire italien en particulier relève de l'art. 41 du D.L. 331/1
 8/8-bis/9 que le comma 6 lett. b) énumère — donc la correspondance évidente y est probablement
 fausse.
 
-## Le XML italien est construit par une bibliothèque vulnérable, sans correctif amont (2026-09-13)
+## ~~Le XML italien est construit par une bibliothèque vulnérable~~ — EXPOSITION FERMÉE (`c73bc492`, 2026-09-13)
+
+La bibliothèque reste celle qu'elle était — aucune montée de version ne la retire, elle est épinglée
+par `@digitalia/fatturapa` — mais plus aucun texte utilisateur ne l'atteint sans échappement. Tout
+l'objet passe désormais par un échappement récursif au point unique où il est remis au constructeur,
+si bien qu'un champ ajouté demain est couvert par construction. L'exposition a été prouvée avant
+correction (le constructeur n'échappe aucun des cinq caractères) et le test de sécurité échoue si
+l'on retire le garde-fou. Le texte ordinaire est inchangé, et un texte contenant un délimiteur se
+relit identique — vérifié avec un second moteur XML indépendant. Les cinq autres fournisseurs de
+format passent par `xmlbuilder2`, qui échappe correctement : ils ne partagent pas cette exposition.
+La limite honnête, écrite dans le code : la garantie tient au point d'appel, pas au type — un futur
+appel direct au constructeur la contournerait.
+
+Restent les cinq avis corrigibles par montée de version (`mysql2`, `deepmerge-ts`, `@prisma/config`,
+`prisma`, `sanitize-html`), délibérément laissés : une montée de dépendance sur une branche de cette
+taille mérite son propre changement et sa propre batterie.
+
+### Le constat d'origine (2026-09-13)
 
 `npm audit` dans `backend/` : 9 vulnérabilités (6 hautes, 3 modérées). Une seule touche un chemin
 métier de ce produit, et c'est celle qui n'a **pas** de correctif.
