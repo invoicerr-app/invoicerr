@@ -85,6 +85,25 @@ Invoicerr will use these credentials to authenticate with the SDI system and tra
 
 ---
 
+---
+
+## Known limitation — the recipient's routing code
+
+SDI routes an invoice to its recipient using a **Codice Destinatario**: seven characters for an
+ordinary business, six for a public administration (the *Codice Univoco Ufficio*, looked up from
+IndicePA), or a **PEC** address instead.
+
+Invoicerr can record that code for a client marked as a **government** buyer, because the Italian B2G
+routing rule asks for it. It currently offers **no field to record it for an ordinary business
+client**. An invoice to such a client is therefore sent with the placeholder reserved for recipients
+without an Italian routing code, which is not what a domestic Italian recipient should receive.
+
+Until that field exists, an Italian seller invoicing another Italian business should expect SDI
+delivery to that recipient to be unreliable, and should not rely on this path for production
+invoicing. The gap is tracked in the repository's own `TODO_ISSUES.md`.
+
+---
+
 ## Additional resources
 
 - [Fattura Elettronica official portal](https://fatturaelettronica.agenziaentrate.gov.it)
