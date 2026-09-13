@@ -1,0 +1,262 @@
+import { BadRequestException, ConflictException } from '@nestjs/common';
+
+import { DocumentsService } from '../documents.service';
+import * as documentsPersistence from '../persistence';
+import * as settlementPayments from '../settlement/payments';
+import { BankReconciliationService } from './bank-reconciliation.service';
+import * as candidateInvoices from './candidate-invoices';
+import * as persistence from './persistence';
+
+/**
+ * `./persistence` (this feature's own), `../persistence` (the generic `DocumentInstance` one — used
+ * for `findOwnedDocument`, re-submitting the invoice's own current `data` on "record-payment" the same
+ * way the real screen's action dialog already does, and `findOwnedDocumentsByIds`, resolving a
+ * RECONCILED line's own invoice label) and `../settlement/payments` fully mocked (all three reach
+ * Prisma directly) — the same discipline every other service-level spec in this module holds
+ * (documents.service.invoice.spec.ts's own header). `DocumentsService` itself is never constructed
+ * for real: `reconcileLine`'s ONLY use of it is a single `runAction` call, so a bare
+ * `{ runAction: jest.fn() }` is enough — the exact same "mock the ONE method actually called, not the
+ * whole class" shape a plugin's own webhook emitter mock already uses elsewhere in this module.
+ */
+jest.mock('./persistence');
+jest.mock('./candidate-invoices');
+jest.mock('../persistence');
+jest.mock('../settlement/payments');
+
+const findOwnedLine = persistence.findOwnedLine as jest.Mock;
+const findOwnedStatement = persistence.findOwnedStatement as jest.Mock;
+const claimLineForReconciliation = persistence.claimLineForReconciliation as jest.Mock;
+const attachReconciledPayment = persistence.attachReconciledPayment as jest.Mock;
+const releaseLineClaim = persistence.releaseLineClaim as jest.Mock;
+const listStatementLines = persistence.listStatementLines as jest.Mock;
+const resolveOutstandingInvoices = candidateInvoices.resolveOutstandingInvoices as jest.Mock;
+const findOwnedDocument = documentsPersistence.findOwnedDocument as jest.Mock;
+const findOwnedDocumentsByIds = documentsPersistence.findOwnedDocumentsByIds as jest.Mock;
+const listPayments = settlementPayments.listPayments as jest.Mock;
+
+function buildLine(
+  overrides: Partial<persistence.BankStatementLineResult> = {},
+): persistence.BankStatementLineResult {
+  return {
+    id: 'line-1',
+    statementId: 'stmt-1',
+    lineIndex: 0,
+    date: new Date('2026-08-15T00:00:00.000Z'),
+    amountMinor: 120000,
+    label: 'VIR INV-2026-0001',
+    reference: null,
+    status: 'UNMATCHED',
+    reconciledDocumentId: null,
+    reconciledPaymentId: null,
+    reconciledAt: null,
+    ...overrides,
+  };
+}
+
+function buildStatement() {
+  return {
+    id: 'stmt-1',
+    fileName: 'releve.csv',
+    format: 'CSV' as const,
+    currency: 'EUR',
+    importedAt: new Date(),
+  };
+}
+
+function buildService() {
+  const runAction = jest.fn();
+  const service = new BankReconciliationService({ runAction } as unknown as DocumentsService);
+  return { service, runAction };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  findOwnedDocumentsByIds.mockResolvedValue([]);
+  findOwnedDocument.mockResolvedValue({ id: 'inv-1', data: { client: 'client-1', currency: 'EUR' } });
+});
+
+describe('BankReconciliationService.reconcileLine', () => {
+  it('refuses an already-RECONCILED line — a NAMED 409, and never claims/calls runAction', async () => {
+    findOwnedLine.mockResolvedValue(buildLine({ status: 'RECONCILED' }));
+    const { service, runAction } = buildService();
+
+    await expect(service.reconcileLine('company-1', 'line-1', 'inv-1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(claimLineForReconciliation).not.toHaveBeenCalled();
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('refuses a debit (money-out) line — never even attempts a claim', async () => {
+    findOwnedLine.mockResolvedValue(buildLine({ amountMinor: -500 }));
+    const { service } = buildService();
+    await expect(service.reconcileLine('company-1', 'line-1', 'inv-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(claimLineForReconciliation).not.toHaveBeenCalled();
+  });
+
+  it('a LOST RACE at the atomic claim (status flipped between the read and the claim) is a 409 too', async () => {
+    findOwnedLine.mockResolvedValue(buildLine());
+    claimLineForReconciliation.mockResolvedValue(false);
+    const { service, runAction } = buildService();
+
+    await expect(service.reconcileLine('company-1', 'line-1', 'inv-1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('THE SAME LINE cannot be reconciled twice — a second attempt after a successful first is refused', async () => {
+    // First call: succeeds.
+    findOwnedLine.mockResolvedValueOnce(buildLine());
+    claimLineForReconciliation.mockResolvedValueOnce(true);
+    findOwnedStatement.mockResolvedValue(buildStatement());
+    listPayments.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'pay-1' }]);
+    const { service, runAction } = buildService();
+    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok' });
+
+    await service.reconcileLine('company-1', 'line-1', 'inv-1');
+    expect(attachReconciledPayment).toHaveBeenCalledWith('company-1', 'line-1', 'pay-1');
+
+    // Second call: the line's own persisted status is now RECONCILED — the fast-path check refuses it
+    // without ever touching the claim or runAction again.
+    findOwnedLine.mockResolvedValueOnce(buildLine({ status: 'RECONCILED' }));
+    runAction.mockClear();
+    await expect(service.reconcileLine('company-1', 'line-1', 'inv-1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('a successful reconciliation calls "record-payment" with the LINE\'s own date/amount/currency', async () => {
+    findOwnedLine.mockResolvedValue(buildLine({ amountMinor: 120000, label: 'VIR INV-2026-0001' }));
+    claimLineForReconciliation.mockResolvedValue(true);
+    findOwnedStatement.mockResolvedValue(buildStatement());
+    findOwnedDocument.mockResolvedValue({
+      id: 'inv-1',
+      data: {
+        client: 'client-1',
+        issueDate: '2026-08-01',
+        dueDate: '2026-08-31',
+        currency: 'EUR',
+        lines: [],
+      },
+    });
+    listPayments.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'pay-new' }]);
+    const { service, runAction } = buildService();
+    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok' });
+
+    await service.reconcileLine('company-1', 'line-1', 'inv-1', 'ADMIN' as never);
+
+    expect(runAction).toHaveBeenCalledWith(
+      'company-1',
+      'invoice',
+      'record-payment',
+      expect.objectContaining({
+        documentId: 'inv-1',
+        // The invoice's own CURRENT data, re-submitted unchanged — `runAction` validates `data`
+        // against the invoice's required fields for every action, "record-payment" included (see
+        // this method's own header): an empty object here would 400 against a real descriptor, a
+        // regression only caught by asserting the exact shape, never merely that SOME object was sent.
+        data: {
+          client: 'client-1',
+          issueDate: '2026-08-01',
+          dueDate: '2026-08-31',
+          currency: 'EUR',
+          lines: [],
+        },
+        params: expect.objectContaining({
+          amount: 1200,
+          currency: 'EUR',
+          paidAt: '2026-08-15T00:00:00.000Z',
+          method: 'bank_transfer',
+        }),
+      }),
+      'ADMIN',
+    );
+    expect(attachReconciledPayment).toHaveBeenCalledWith('company-1', 'line-1', 'pay-new');
+  });
+
+  it('rolls back the claim when "record-payment" itself throws — the line is never left stuck reconciled', async () => {
+    findOwnedLine.mockResolvedValue(buildLine());
+    claimLineForReconciliation.mockResolvedValue(true);
+    findOwnedStatement.mockResolvedValue(buildStatement());
+    listPayments.mockResolvedValue([]);
+    const { service, runAction } = buildService();
+    runAction.mockRejectedValue(new BadRequestException('country policy refuses this'));
+
+    await expect(service.reconcileLine('company-1', 'line-1', 'inv-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(releaseLineClaim).toHaveBeenCalledWith('company-1', 'line-1');
+    expect(attachReconciledPayment).not.toHaveBeenCalled();
+  });
+
+  it('a documentId not owned by this company rolls back the claim too, never a stuck line', async () => {
+    findOwnedLine.mockResolvedValue(buildLine());
+    claimLineForReconciliation.mockResolvedValue(true);
+    findOwnedStatement.mockResolvedValue(buildStatement());
+    findOwnedDocument.mockRejectedValue(new Error('not found'));
+    const { service, runAction } = buildService();
+
+    await expect(service.reconcileLine('company-1', 'line-1', 'foreign-inv')).rejects.toThrow('not found');
+    expect(releaseLineClaim).toHaveBeenCalledWith('company-1', 'line-1');
+    expect(runAction).not.toHaveBeenCalled();
+  });
+});
+
+describe('BankReconciliationService.getStatementLines', () => {
+  it("only offers suggestions for UNMATCHED lines, filtered to the statement's own currency", async () => {
+    findOwnedStatement.mockResolvedValue(buildStatement());
+    listStatementLines.mockResolvedValue([
+      buildLine({ id: 'line-1', status: 'UNMATCHED', amountMinor: 120000 }),
+      buildLine({
+        id: 'line-2',
+        status: 'RECONCILED',
+        amountMinor: 5000,
+        reconciledDocumentId: 'inv-already-settled',
+      }),
+    ]);
+    findOwnedDocumentsByIds.mockResolvedValue([
+      { id: 'inv-already-settled', displayNumber: 'INV-2026-0002' },
+    ]);
+    resolveOutstandingInvoices.mockResolvedValue([
+      {
+        documentId: 'inv-1',
+        displayNumber: 'INV-2026-0001',
+        clientLabel: 'ACME',
+        currency: 'EUR',
+        outstandingMinor: 120000,
+        issueDate: null,
+        dueDate: null,
+      },
+      {
+        documentId: 'inv-usd',
+        displayNumber: 'INV-USD',
+        clientLabel: 'Foreign Co',
+        currency: 'USD',
+        outstandingMinor: 120000,
+        issueDate: null,
+        dueDate: null,
+      },
+    ]);
+
+    const { service } = buildService();
+    const view = await service.getStatementLines('company-1', 'stmt-1');
+
+    // Only the EUR candidate survives currency filtering.
+    expect(view.candidates).toHaveLength(1);
+    expect(view.candidates[0].documentId).toBe('inv-1');
+
+    const [unmatched, reconciled] = view.lines;
+    expect(unmatched.suggestions).toHaveLength(1);
+    expect(unmatched.suggestions[0].documentId).toBe('inv-1');
+    expect(unmatched.reconciledInvoiceLabel).toBeNull();
+    // A RECONCILED line never gets suggestions recomputed — pure waste, it already has its own answer.
+    expect(reconciled.suggestions).toEqual([]);
+    // Resolved even though the invoice is no longer in `candidates` (it may since have settled) —
+    // see this method's own header on why `candidates` alone is never a reliable source for this.
+    expect(reconciled.reconciledInvoiceLabel).toBe('INV-2026-0002');
+  });
+});

@@ -1583,6 +1583,50 @@
       }
     }
   },
+  "bankReconciliation": {
+    "title": "Bank reconciliation",
+    "import": {
+      "button": "Import statement",
+      "title": "Import a bank statement",
+      "dropHint": "Drag a CSV or OFX file here, or",
+      "browse": "Browse",
+      "currency": "Currency",
+      "mapping": {
+        "title": "Which column is which?",
+        "dateColumn": "Date column",
+        "amountColumn": "Amount column",
+        "labelColumn": "Label column",
+        "referenceColumn": "Reference column",
+        "none": "None",
+        "dateFormat": "Date format",
+        "decimalSeparator": "Decimal separator"
+      },
+      "submit": "Import",
+      "success": "Statement imported: {{count}} line(s)",
+      "successWithErrors": "Statement imported: {{count}} line(s), {{errorCount}} row(s) could not be read",
+      "error": "Could not import this statement"
+    },
+    "statements": {
+      "empty": "No statement imported yet",
+      "unmatched": "{{count}} unmatched",
+      "reconciled": "{{count}} reconciled"
+    },
+    "lines": {
+      "empty": "This statement has no lines",
+      "date": "Date",
+      "amount": "Amount",
+      "label": "Label",
+      "status": "Status",
+      "reconciledWith": "Reconciled with {{invoice}}",
+      "debit": "Money out — not reconcilable",
+      "reasonReference": "Invoice number found",
+      "pickInvoice": "Pick an invoice…",
+      "reconcile": "Reconcile",
+      "reconcileSuccess": "Payment recorded",
+      "reconcileError": "Could not reconcile this line",
+      "alreadyReconciled": "This line has already been reconciled"
+    }
+  },
   "paymentMethods": {
     "title": "Payment Methods",
     "description": "Manage reusable payment methods.",
@@ -2512,6 +2556,7 @@
       "clients": "Clients",
       "articles": "Articles",
       "timeTracking": "Time Tracking",
+      "bankReconciliation": "Bank reconciliation",
       "stats": "Statistics",
       "settings": "Settings",
       "documents": "Documents"

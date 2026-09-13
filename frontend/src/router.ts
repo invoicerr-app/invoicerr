@@ -9,6 +9,7 @@ export type Path =
   | `/auth/sign-in`
   | `/auth/sign-out`
   | `/auth/sign-up`
+  | `/bank-reconciliation`
   | `/clients`
   | `/dashboard`
   | `/documents`

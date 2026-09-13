@@ -13,6 +13,7 @@ import { CompanyModule } from './modules/company/company.module';
 import { CountryReadinessModule } from './modules/country-readiness/country-readiness.module';
 import { ConfigModule } from '@nestjs/config';
 import { AccountingExportModule } from './modules/documents/accounting-export/accounting-export.module';
+import { BankReconciliationModule } from './modules/documents/bank-reconciliation/bank-reconciliation.module';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
@@ -100,6 +101,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — self-contained, no
     // dependency on DocumentsCoreModule (see time-tracking.module.ts's own header).
     TimeTrackingModule,
+    // TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé") — its own module,
+    // importing DocumentsCoreModule directly so its one write path (reconciling a line) can call the
+    // real "record-payment" action rather than a second one (see bank-reconciliation.module.ts's own
+    // header).
+    BankReconciliationModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,
     PluginsModule,

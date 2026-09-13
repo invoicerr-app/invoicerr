@@ -7,6 +7,7 @@ import {
   Clock,
   FileStack,
   FileText,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -141,6 +142,12 @@ export function Sidebar() {
       icon: <Clock className="w-4 h-4" />,
       url: "/time-tracking",
       dataCy: "sidebar-time-tracking-link",
+    },
+    {
+      title: t("sidebar.navigation.bankReconciliation"),
+      icon: <Landmark className="w-4 h-4" />,
+      url: "/bank-reconciliation",
+      dataCy: "sidebar-bank-reconciliation-link",
     },
   ]
 

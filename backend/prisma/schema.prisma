@@ -442,6 +442,9 @@ model Company {
   // TODO_FEATURES.md rank 11 — see Project/TimeEntry below.
   projects                Project[]
   timeEntries             TimeEntry[]
+  // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — see BankStatement/BankStatementLine below.
+  bankStatements          BankStatement[]
+  bankStatementLines      BankStatementLine[]
 }
 
 // Manually entered exchange rates. The rule that governs
@@ -1138,6 +1141,13 @@ model DocumentInstance {
   // about work actually performed, independent of whether the invoice it was once attached to survives.
   timeEntries TimeEntry[]
 
+  // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — see BankStatementLine below. Every bank
+  // statement line that was reconciled AGAINST this invoice — `onDelete: SetNull` on
+  // BankStatementLine's own side (not a cascade), the same reasoning `timeEntries` above already
+  // gives: a bank line is a fact about money that really arrived, independent of whether the invoice
+  // it was matched to survives.
+  bankStatementReconciliations BankStatementLine[]
+
   @@index([companyId, typeId])
 }
 
@@ -1283,7 +1293,119 @@ model DocumentPayment {
 
   createdAt DateTime @default(now())
 
+  // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — the bank statement line that CAUSED this
+  // payment to be recorded, when it was created by a reconciliation rather than typed in by hand
+  // (`bank-reconciliation/bank-reconciliation.service.ts`). At most one line ever points here (a line
+  // can be reconciled once — see BankStatementLine's own `@@unique`), but this side is still declared
+  // as a list, the same one-sided-list shape Prisma requires for every OTHER optional back-relation on
+  // this exact model (see e.g. `DocumentInstance.timeEntries` for the identical pattern with TimeEntry).
+  reconciledBy BankStatementLine[]
+
   @@index([companyId, documentId])
+}
+
+// TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé") — a single imported bank
+// statement file (CSV or OFX) and the individual transaction lines read from it. Deliberately its OWN
+// pair of tables, never folded into DocumentInstance/DocumentPayment: a statement is not a document
+// this company issues (no lifecycle, no descriptor, no numbering — the same reasoning DocumentPayment's
+// own header already gives for why a payment isn't one either), and a LINE only ever produces a real
+// DocumentPayment once a human confirms a match — see `bank-reconciliation/bank-reconciliation.service.ts`'s
+// own header for the full "machine proposes, human commits" discipline this schema exists to enforce.
+enum BankStatementFormat {
+  CSV
+  OFX
+}
+
+enum BankStatementLineStatus {
+  // The ordinary, honest resting state for a line nothing has been confirmed for yet — whether that
+  // is because nothing matched (see bank-reconciliation/matching.ts's own header: amount alone is
+  // NEVER enough to suggest a match, so most real statements leave some lines here permanently — a
+  // bank fee, an owner's own transfer) or because a suggestion exists but no one has confirmed it.
+  // Never an error state, and nothing sweeps it automatically — see this enum's own module header.
+  UNMATCHED
+  // Exactly one `DocumentPayment` was created from this line — `reconciledDocumentId`/
+  // `reconciledPaymentId`/`reconciledAt` are then all set together (`bank-reconciliation.service.ts`'s own atomic
+  // claim). Terminal: nothing in this module ever moves a line back out of this status (the payment
+  // it produced would have to be un-recorded first, which `settlement/payments.ts`'s own header
+  // already states this codebase never does for ANY payment, hand-entered or reconciled alike).
+  RECONCILED
+}
+
+// One imported file. `currency` is the statement's OWN single declared currency — set once, by the
+// human doing the import (see bank-reconciliation/parse-csv.ts's own header for why this schema never
+// tries to detect a currency from a CSV, which has no standard column for one): a multi-currency
+// account is out of scope for this feature — a bank issuing several currencies from one account
+// exports one file (and one currency) per statement, which is exactly what one row here models.
+model BankStatement {
+  id         String              @id @default(cuid())
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId  String
+  fileName   String
+  format     BankStatementFormat
+  currency   String
+  importedAt DateTime            @default(now())
+  lines      BankStatementLine[]
+
+  @@index([companyId])
+}
+
+// One transaction line read from a statement, in the ORDER it appeared in the file (`lineIndex`) —
+// never re-sorted, so a support conversation about "line 12 of the file I uploaded" always means the
+// same row. `amountMinor` keeps whatever SIGN the statement itself carried (a debit line — money OUT
+// — is still imported and shown, never silently dropped: see this schema's own module header, "the
+// normal case, not an error") — only a POSITIVE line (money IN) is ever a candidate for
+// reconciliation, enforced by bank-reconciliation/bank-reconciliation.service.ts, never by a constraint here (a negative
+// line is a perfectly valid ROW, just never a reconcilable one).
+model BankStatementLine {
+  id                   String                  @id @default(cuid())
+  statement            BankStatement           @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  statementId          String
+  company              Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId            String
+  lineIndex            Int
+  // The bank's own posting/value date for this transaction — UTC midnight, the same "a date-only
+  // fact stores as a UTC-midnight Date, never a local-timezone one" discipline
+  // settlement/convert-payment.ts's own header documents at length for the identical trap.
+  date                 DateTime
+  amountMinor          Int
+  // The raw transaction description/label the bank exported (OFX's MEMO/NAME, or the CSV column the
+  // human mapped to it at import time) — what bank-reconciliation/matching.ts searches for an
+  // invoice's own displayNumber (its "reference" match signal).
+  label                String
+  // A SEPARATE, structured reference column, when the source format actually has one (OFX's own
+  // FITID; a CSV column the human explicitly mapped) — kept apart from `label` (free text) because a
+  // structured reference is a STRONGER signal than a substring match against a free-text label; null
+  // when the format/mapping carries none, never guessed from `label` itself.
+  reference            String?
+  // The untouched parsed row, header-keyed for a CSV or tag-keyed for OFX — kept verbatim so a
+  // support conversation ("why didn't line 12 match?") can be answered by reading back exactly what
+  // was imported, without re-parsing the original file.
+  raw                  Json
+  status               BankStatementLineStatus @default(UNMATCHED)
+  // The three facts below are written TOGETHER, exactly once, by `bank-reconciliation.service.ts`'s
+  // own atomic claim — never independently, and never by anything else in this codebase (no PATCH
+  // endpoint exists for any of the three). `onDelete: SetNull` on both relations (never Cascade): a bank line is a
+  // historical fact about money that arrived; if the invoice or the payment it produced is later
+  // deleted, the line itself must survive, only forgetting which one it was reconciled to — the exact
+  // same reasoning DocumentInstance's own `timeEntries` relation already documents for TimeEntry.
+  reconciledDocument   DocumentInstance?       @relation(fields: [reconciledDocumentId], references: [id], onDelete: SetNull)
+  reconciledDocumentId String?
+  reconciledPayment    DocumentPayment?        @relation(fields: [reconciledPaymentId], references: [id], onDelete: SetNull)
+  reconciledPaymentId  String?
+  reconciledAt         DateTime?
+
+  // NOT what stops the SAME LINE from being reconciled twice — that guarantee is the atomic,
+  // conditional `UPDATE ... WHERE id = ? AND status = 'UNMATCHED'` `bank-reconciliation.service.ts`'s
+  // own claim step issues (a row-level lock Postgres itself serializes, so a genuine race between two
+  // concurrent requests still leaves exactly one winner — see that file's own header). This constraint closes a
+  // narrower, separate hole instead: it makes it impossible for the SAME `DocumentPayment` to ever end
+  // up referenced by two different lines, a data-integrity backstop against a future bug in this
+  // module, not a business rule a user could otherwise trigger. Postgres never treats two NULLs as a
+  // duplicate under a unique constraint, so this activates only once `reconciledPaymentId` is actually
+  // set — every still-UNMATCHED line's own null is unaffected.
+  @@unique([reconciledPaymentId])
+  @@index([companyId, status])
+  @@index([statementId])
 }
 
 // TODO_FEATURES.md rank 2 ("relances automatiques") — one row per ESCALATION TIER actually emailed
