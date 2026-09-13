@@ -35,8 +35,13 @@ import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel
  *    would not render as raw text — this codebase's own discipline requires reading a statute's raw
  *    text, never a fetched summary, before a `legalRef` ships (see `archive/retention/data/all.spec.ts`
  *    own comment). Unlike `b2g-routing/`, a retention duration applies to EVERY invoice a country
- *    issues, not a subset — see this service's own report for why that makes this exclusion the one
- *    most worth revisiting, which is exactly why it is flagged here rather than added.
+ *    issues, not a subset it could be legitimately exempt from — of the four exclusions here, this is
+ *    the one where "not core" rests entirely on a temporary sourcing gap rather than on the mechanism
+ *    being genuinely conditional, and is therefore the strongest candidate to promote once Italy is
+ *    sourced. Left out of `CORE_MECHANISMS` deliberately for now: promoting it today would make Italy
+ *    the only incomplete one of the five in-scope countries purely because of this unresolved gap — a
+ *    real product trade-off for whoever owns the completeness definition, not one this comment should
+ *    decide unilaterally.
  *  - `reporting/` ships PORTUGAL ONLY: NAV Hungary and AADE myDATA Greece were deleted wholesale with
  *    the five-country prune (2026-09-10) because neither Hungary nor Greece stayed in scope. None of
  *    the other four in-scope countries (DE/FR/IT/PL) has been evaluated for a genuinely separate
