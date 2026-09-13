@@ -55,6 +55,30 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
+## Le XML italien est construit par une bibliothèque vulnérable, sans correctif amont (2026-09-13)
+
+`npm audit` dans `backend/` : 9 vulnérabilités (6 hautes, 3 modérées). Une seule touche un chemin
+métier de ce produit, et c'est celle qui n'a **pas** de correctif.
+
+`fast-xml-parser@3.21.1` porte un avis « XMLBuilder: XML Comment and CDATA Injection via Unescaped
+Delimiters ». Le code du dépôt ne l'importe jamais : elle arrive par `@digitalia/fatturapa@1.3.1`,
+qui l'épingle en v3 — d'où `fixAvailable: false`, aucune montée de version ne la retire.
+
+Exposition constatée : `formats/national/fatturapa-provider.ts` ligne ~160 passe
+`Descrizione: line.description` — du texte libre saisi par l'utilisateur — directement à cette
+bibliothèque, qui en construit le XML FatturaPA envoyé au SdI. Une description contenant les
+séquences de délimiteur XML que l'avis vise peut donc produire un document malformé ou altéré. Le
+risque est une facture italienne invalide ou trafiquée, pas une exécution de code.
+
+Deux voies pour le fermer, à trancher : rejeter ou neutraliser ces séquences dans les champs de texte
+libre avant de les remettre au fournisseur (petit, local, vérifiable par un test) ; ou remplacer
+`@digitalia/fatturapa`, ce qui est un chantier. La première suffit à supprimer l'exposition.
+
+Les huit autres avis : `mysql2`, `deepmerge-ts`, `@prisma/config`, `prisma` et `sanitize-html` sont
+corrigibles par montée de version ; `@nestjs/platform-express`, `multer` (déni de service via des
+noms de champs multipart forgés — le produit expose un téléversement de factures reçues) et
+`@digitalia/fatturapa` lui-même ne le sont pas. Le frontend n'en porte aucune.
+
 ## Migrations avant fusion : l'installation neuve est prouvée, la mise à niveau ne l'est pas (2026-09-13)
 
 La branche porte **969 commits d'avance sur `main` et 78 migrations nouvelles** (100 contre 22).
