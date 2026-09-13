@@ -116,7 +116,7 @@ honest gap rather than a guess.
 | Channel policy | `transports/channel-policy/data/` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? | No — read live from the file. |
 | Tax system | `tax/tax-systems/data/` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). | No — read live from the file. |
 | Country identifiers | `country-identifiers/data/` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes — auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
-| Country field overlay | `country-fields/data/` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No — read live from the file. **The one exception to auto-discovery** — see "Register the file" below. |
+| Country field overlay | `country-fields/data/` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No — read live from the file. |
 | Mandatory mentions | `mentions/data/` | Free-text legal mentions (BG-1) this country requires on every invoice, temporal. | No — read live from the file. |
 | Content requirements | `content-requirements/data/` | Whether a specific EN 16931 field (e.g. BT-23) must carry a country-derived value from a date. | No — read live from the file. |
 | VAT rate catalog | `vat-rates/data/` | The rate **ladder** a user picks from on one invoice line (presentation data, not a tax computation). | No — read live from the file. |
@@ -209,14 +209,15 @@ suite), and it is loaded — there is no array to add a line to, and no second f
 codebase that also needs to know Hungary now exists. Removing a country is the same, in reverse:
 delete the file and it stops loading, no dangling entry to clean up.
 
-**The one exception: `country-fields/data/all.ts`.** It still reads a small, hand-maintained
-`COUNTRY_FILES: readonly string[]` array (`['fr', 'de']` today) rather than discovering its
-directory — this mechanism has shipped so few real overlays so far (two fields, both on the
-`invoice` type — France's line-level `supplyType`, Germany's document-level `buyerReference` — for
-two countries total) that nobody has yet ported it to the same discovery pattern every sibling
-mechanism uses. If you add a `country-fields/data/xx.json`, you must also add `'xx'` to that array
-— check the file's own header before assuming otherwise, since this is the one place in this whole
-module where "drop a file and it just works" does not (yet) hold.
+**There is no longer an exception.** Until 2026-09-13, two loaders — `country-fields/data/all.ts` and
+`archive/retention/data/all.ts` — still read a small, hand-maintained `COUNTRY_FILES` array instead of
+discovering their directory, so dropping a file into either did nothing at all, and did it *silently*:
+nothing failed, the country was simply never loaded. Both have been migrated, so the paragraph above
+now holds for every mechanism in this module without qualification.
+
+If you are reading an older branch and find such an array, that is the shape being described here: add
+the two-letter code to it as well as dropping the file, and check the loader's own header rather than
+assuming which behaviour you have.
 
 ### Boot-time self-correction — you don't reseed by hand
 

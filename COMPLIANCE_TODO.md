@@ -47,9 +47,10 @@
 
   Chaque catalogue **auto-découvre** ses fichiers (`readdirSync` sur son propre `data/`, motif
   `/^[a-z]{2}\.json$/`) — ajouter un pays à un mécanisme donné, c'est déposer un fichier, jamais
-  toucher au code de chargement. **Une seule exception subsiste : `country-fields/data/all.ts`**, qui
-  tient encore une liste `COUNTRY_FILES` à la main ; y déposer un fichier ne suffit pas. (`archive/
-  retention/` avait la même forme jusqu'au 2026-09-13 et a été migré depuis.)
+  toucher au code de chargement. **Plus aucune exception depuis le 2026-09-13** : `archive/retention/`
+  et `country-fields/` tenaient encore une liste `COUNTRY_FILES` à la main — y déposer un fichier ne
+  faisait rien, silencieusement, puisque rien n'échouait. Les deux ont été migrés, et la phrase
+  ci-dessus vaut désormais pour les douze.
 - [x] Une seule machine à états de document, générique et non spécifique à un pays
   (`descriptors/lifecycle.ts`) — pas de graphe de cycle de vie composé par pays. La nuance pays
   survit à trois endroits seulement : `correction-routes/` (quelle voie de correction), `conformity/
