@@ -19,6 +19,14 @@
  * read `buyerProfile` at all on this code path (`determineLineTax`'s own "buyer outside the union"
  * branch only reads the buyer's `countryCode`) — their now-stale `prof('US')` sixth argument is
  * simply dropped rather than replaced.
+ *
+ * APPENDED (2026-09-13) — the "localized reverse-charge / intra-Community wording" describe block,
+ * plus one test each in the domestic-VAT and export-out-of-the-EU blocks above, cover
+ * `tax-engine.ts#LOCALIZED_MENTION`: a member state whose OWN statute names the exact wording an
+ * invoice must carry (PT/IT/PL/DE) gets that text instead of the generic Directive-citing one, and a
+ * country with no entry (FR, for this situation) is proven unchanged even though the situation itself
+ * now has overrides for other countries — see that constant's own header for the sourcing and for why
+ * this is a plain TS table rather than a `data/*.json` catalog.
  */
 import { CountryTaxSystemProfile, DocumentLine, PartyTaxProfile, SupplyType, TaxScheme } from './types';
 import { defaultTaxSystemRegistry } from './tax-systems/registry';
@@ -117,6 +125,27 @@ describe('TaxEngine — domestic VAT (France)', () => {
     expect(t.mentions.map((m) => m.text)).toContain('VAT exempt — small business scheme');
   });
 
+  it(
+    'PL→PL small-business exemption: exempt, 0%, the GENERIC mention — ustawa o VAT art. 106e pkt 18 ' +
+      'names a wording for REVERSE CHARGE only, not for this franchise scheme, so Poland has no entry ' +
+      'here and this stays untouched by the new per-country reverse-charge table below',
+    () => {
+      const supplier = party('PL', 'B2B', { scheme: 'FRANCHISE_BASE' });
+      const t = determineLineTax(
+        supplier,
+        party('PL', 'B2C'),
+        line('SERVICES'),
+        prof('PL')!,
+        vat,
+        prof('PL'),
+      );
+      expect(t.components[0].category).toBe('E');
+      expect(t.components[0].rate).toBe(0);
+      expect(t.mentions.map((m) => m.code)).toContain('FRANCHISE');
+      expect(t.mentions.map((m) => m.text)).toContain('VAT exempt — small business scheme');
+    },
+  );
+
   it('uses a reduced-rate hint (5.5%) when the line declared one', () => {
     const t = determineLineTax(
       party('FR', 'B2C'),
@@ -180,6 +209,116 @@ describe('TaxEngine — cross-border within the EU', () => {
   });
 });
 
+describe('TaxEngine — localized reverse-charge / intra-Community wording (per-country prescribed text)', () => {
+  it(
+    'PT→FR B2B services (valid VAT): reverse charge carries the CIVA art. 36.º n.º 13 wording, ' +
+      "'IVA - autoliquidação' — not the generic Directive text",
+    () => {
+      const t = determineLineTax(
+        party('PT', 'B2B'),
+        party('FR', 'B2B', { vat: 'valid' }),
+        line('SERVICES'),
+        prof('PT')!,
+        vat,
+      );
+      expect(t.components[0].category).toBe('AE');
+      expect(t.mentions.map((m) => m.code)).toContain('PT_IVA_AUTOLIQUIDACAO');
+      expect(t.mentions.map((m) => m.text)).toContain('IVA - autoliquidação');
+      expect(t.mentions.map((m) => m.code)).not.toContain('REVERSE_CHARGE');
+    },
+  );
+
+  it(
+    'IT→FR B2B services (valid VAT): reverse charge carries the DPR 633/1972 art. 21 co. 6-bis lett. ' +
+      "a) wording, 'inversione contabile'",
+    () => {
+      const t = determineLineTax(
+        party('IT', 'B2B'),
+        party('FR', 'B2B', { vat: 'valid' }),
+        line('SERVICES'),
+        prof('IT')!,
+        vat,
+      );
+      expect(t.components[0].category).toBe('AE');
+      expect(t.mentions.map((m) => m.code)).toContain('IT_INVERSIONE_CONTABILE');
+      expect(t.mentions.map((m) => m.text)).toContain('inversione contabile');
+    },
+  );
+
+  it(
+    'IT→FR B2B goods (valid VAT): intra-Community supply carries the D.L. 331/1993 art. 46 co. 2 ' +
+      "wording, 'operazione non imponibile', under its OWN code (not the export one, even though the " +
+      'text happens to match)',
+    () => {
+      const t = determineLineTax(
+        party('IT', 'B2B'),
+        party('FR', 'B2B', { vat: 'valid' }),
+        line('GOODS'),
+        prof('IT')!,
+        vat,
+      );
+      expect(t.components[0].category).toBe('K');
+      expect(t.mentions.map((m) => m.code)).toContain('IT_OPERAZIONE_NON_IMPONIBILE_ICS');
+      expect(t.mentions.map((m) => m.text)).toContain('operazione non imponibile');
+      expect(t.mentions.map((m) => m.code)).not.toContain('IT_OPERAZIONE_NON_IMPONIBILE_EXPORT');
+    },
+  );
+
+  it(
+    'PL→FR B2B services (valid VAT): reverse charge carries the ustawa o VAT art. 106e ust. 1 pkt 18 ' +
+      "wording, 'odwrotne obciążenie'",
+    () => {
+      const t = determineLineTax(
+        party('PL', 'B2B'),
+        party('FR', 'B2B', { vat: 'valid' }),
+        line('SERVICES'),
+        prof('PL')!,
+        vat,
+      );
+      expect(t.components[0].category).toBe('AE');
+      expect(t.mentions.map((m) => m.code)).toContain('PL_ODWROTNE_OBCIAZENIE');
+      expect(t.mentions.map((m) => m.text)).toContain('odwrotne obciążenie');
+    },
+  );
+
+  it(
+    'DE→FR B2B services (valid VAT): reverse charge carries the UStG § 14a Abs. 1 wording, ' +
+      "'Steuerschuldnerschaft des Leistungsempfängers' — NOT the generic mention, unlike DE's own " +
+      'franchise case above (§ 14 Abs. 4 Nr. 8 prescribes no wording for that one)',
+    () => {
+      const t = determineLineTax(
+        party('DE', 'B2B'),
+        party('FR', 'B2B', { vat: 'valid' }),
+        line('SERVICES'),
+        prof('DE')!,
+        vat,
+      );
+      expect(t.components[0].category).toBe('AE');
+      expect(t.mentions.map((m) => m.code)).toContain('DE_STEUERSCHULDNERSCHAFT');
+      expect(t.mentions.map((m) => m.text)).toContain('Steuerschuldnerschaft des Leistungsempfängers');
+    },
+  );
+
+  it(
+    'FR→IT B2B services (valid VAT) still gets the GENERIC reverse-charge mention — proves a country ' +
+      'with no entry in the new per-country table is byte-for-byte unaffected by it, even though this ' +
+      'exact situation now HAS overrides for other countries (PT/IT/PL/DE above)',
+    () => {
+      const t = determineLineTax(
+        party('FR', 'B2B'),
+        party('IT', 'B2B', { vat: 'valid' }),
+        line('SERVICES'),
+        prof('FR')!,
+        vat,
+      );
+      expect(t.mentions.map((m) => m.code)).toContain('REVERSE_CHARGE');
+      expect(t.mentions.map((m) => m.text)).toContain(
+        'Autoliquidation / Reverse charge — Art. 196 Directive 2006/112/EC',
+      );
+    },
+  );
+});
+
 describe('TaxEngine — export out of the EU (FR→US)', () => {
   it('FR→US B2B services: outside scope (0%, category O), buyer self-assesses, art. hors-champ', () => {
     const t = determineLineTax(party('FR', 'B2B'), party('US', 'B2B'), line('SERVICES'), prof('FR')!, vat);
@@ -198,6 +337,19 @@ describe('TaxEngine — export out of the EU (FR→US)', () => {
     expect(t.reportingFlags).toContain('CUSTOMS_EXPORT');
     expect(t.mentions.map((m) => m.text)).toContain('Export — zero-rated, Art. 146 Directive 2006/112/EC');
   });
+
+  it(
+    'IT→US goods: export carries the DPR 633/1972 art. 21 co. 6 lett. b) wording, ' +
+      "'operazione non imponibile' — a DIFFERENT statute from the intra-Community case above, even " +
+      'though the two share identical wording, so this must carry its OWN, EXPORT-specific code',
+    () => {
+      const t = determineLineTax(party('IT', 'B2B'), party('US', 'B2B'), line('GOODS'), prof('IT')!, vat);
+      expect(t.components[0].category).toBe('G');
+      expect(t.mentions.map((m) => m.code)).toContain('IT_OPERAZIONE_NON_IMPONIBILE_EXPORT');
+      expect(t.mentions.map((m) => m.text)).toContain('operazione non imponibile');
+      expect(t.mentions.map((m) => m.code)).not.toContain('IT_OPERAZIONE_NON_IMPONIBILE_ICS');
+    },
+  );
 });
 
 describe('TaxEngine — United States sales tax (no VAT)', () => {

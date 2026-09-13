@@ -259,11 +259,11 @@ function applyTaxResult(
  * A DOMESTIC seller under a non-STANDARD tax scheme (`FRANCHISE_BASE` today) never charges VAT:
  * every line is rewritten to 0%, category E, with the scheme's own legal mention (FR gets art. 293 B,
  * PT gets its own CIVA art. 57.º n.º 2 wording, every other country gets the generic small-business
- * mention — see `tax-engine.ts`'s own `MENTION` map). This reuses `determineTax`/`determineLineTax`'s
- * OWN `domesticVat` branch — the SAME one `tax-engine.spec.ts`'s "FR→FR franchise en base" test
- * already exercises — rather than a second, hand-rolled 0%-and-mention rewrite here: the mention TEXT
- * must never be retyped in a second place (see this module's own discipline against inventing a legal
- * citation from memory).
+ * mention — see `tax-engine.ts`'s own `LOCALIZED_MENTION.franchise` table). This reuses
+ * `determineTax`/`determineLineTax`'s OWN `domesticVat` branch — the SAME one `tax-engine.spec.ts`'s
+ * "FR→FR franchise en base" test already exercises — rather than a second, hand-rolled
+ * 0%-and-mention rewrite here: the mention TEXT must never be retyped in a second place (see this
+ * module's own discipline against inventing a legal citation from memory).
  *
  * This is the fix for the THIRD of the three independent breaks that used to let a company tick
  * "VAT exempt" in Settings and still be charged full VAT on every invoice: `taxScheme` was declared
