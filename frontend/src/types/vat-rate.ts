@@ -3,8 +3,9 @@ export type VatRateCategory = "STANDARD" | "REDUCED" | "SUPER_REDUCED" | "ZERO" 
 export type VatRateConfidence = "OFFICIAL" | "UNVERIFIED"
 
 /**
- * One entry in a country's VAT rate catalog — mirrors `VatRateView` in
- * backend/src/compliance/nest/required-fields.controller.ts. `label` is the country's own official
+ * One entry in a country's VAT rate catalog — mirrors `VatRateView`, formerly in
+ * `required-fields.controller.ts` (pre-refonte compliance engine, git tag `avant-refonte-documents`;
+ * no current controller exposes an equivalent endpoint). `label` is the country's own official
  * term (e.g. "Taux normal") and is shown as-is: it is DATA, like a client or article name, not
  * application chrome, so it is deliberately not run through i18n `t()`.
  */

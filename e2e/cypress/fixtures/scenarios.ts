@@ -195,8 +195,8 @@ export const SCENARIOS: Record<string, Scenario> = {
     // is the DESTINATION country's own standard rate (Germany, 19%), not the seller's — the real
     // tax resolution at issuance recomputes this from tax-systems/data/de.json regardless of what
     // was typed here, and was always correct. This leg's own CII export was blocked by the third
-    // product defect the restored spec found: a Polish seller has no
-    // `country-identifiers/data/pl.json`, and neither onboarding nor company settings offered any
+    // product defect the restored spec found: a Polish seller has no `pl.json` under
+    // country-identifiers/data, and neither onboarding nor company settings offered any
     // way to record a VAT-scheme identifier for it — category S needs one (BR-S-02) just as much as
     // category K does (BR-IC-02), the twin `it-pt` hits. Now FIXED (see `full-lifecycle.cy.ts`'s own
     // header): the seller's VAT number, typed through the same onboarding step every leg uses, now

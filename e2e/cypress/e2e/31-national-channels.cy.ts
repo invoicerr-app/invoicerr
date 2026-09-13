@@ -4,7 +4,7 @@
  * qui n'existe pas (port fermé en local), on choisit `pdp` comme transport de facturation, et on
  * observe l'échec réel de la file (BullMQ retry puis "send_failed", l'erreur nommant le canal). Le
  * VRAI dépôt PDP (superpdp sandbox) est prouvé ailleurs, en réel, par
- * `backend/src/modules/documents/transports/pdp/pdp-live.spec.ts` (jest, `PDP_LIVE=1`) — jamais par
+ * `backend/src/modules/documents/transports/pdp/pdp.live.spec.ts` (jest, `PDP_LIVE=1`) — jamais par
  * cette spec, qui ne parle à aucun serveur réel POUR PDP.
  *
  * Vague 2 (KSeF/PL, SdI/IT) étend ce fichier avec le MÊME motif — suggestion pays → connecter par
@@ -159,7 +159,7 @@ describe("Transports nationaux — le canal PDP, connecté/déconnecté par l'é
 
 		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
 		// La France (société seedée) suggère PDP — la donnée vient du fichier pays
-		// (transports/channel-suggestion/data/fr.json), jamais d'un `if` sur le pays ici.
+		// (transports/channel-policy/data/fr.json), jamais d'un `if` sur le pays ici.
 		cy.get('[data-cy="channel-pdp-suggested"]').should("exist");
 		cy.get('[data-cy="channel-pdp-status"]').should(
 			"contain.text",

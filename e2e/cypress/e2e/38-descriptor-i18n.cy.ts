@@ -12,7 +12,7 @@
  *     statut d'un brouillon s'affichent identiques à avant — la clé existe, sa valeur EN = le
  *     libellé brut ;
  *  2. le REPLI se voit pour de vrai sur un cas concret que cette app expose déjà en production : le
- *     catalogue de taux de TVA (vat-rates/, backend/src/modules/documents/company-view.ts) remplit
+ *     catalogue de taux de TVA (vat-rates/, backend/src/modules/documents/descriptors/company-view.ts) remplit
  *     les OPTIONS du select `vatRate` PAR COMPAGNIE, À L'EXÉCUTION, dans la langue où le catalogue du
  *     pays est écrit (le français pour FR — voir vat-rates/data/fr.json) ; aucune clé
  *     `documents.descriptors.invoice.fields.lines.fields.vatRate.options.<taux>` n'existe (et ne

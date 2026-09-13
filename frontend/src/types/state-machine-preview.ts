@@ -1,7 +1,8 @@
 /**
- * Mirrors the compliance engine's own output types (`backend/src/compliance/engine/compliance-engine.ts`
- * `CompliancePlan`, `backend/src/compliance/lifecycle/assembler.ts` `LifecycleGraph`) as returned by
- * `GET /api/compliance/state-machine-preview`.
+ * Mirrors the pre-refonte compliance engine's own output types — `CompliancePlan`
+ * (`compliance-engine.ts`) and `LifecycleGraph` (`lifecycle/assembler.ts`), git tag
+ * `avant-refonte-documents` — as returned by its now-removed `GET /api/compliance/state-machine-preview`.
+ * Kept, unwired, as the documented gap `document-journeys.spec.tsx` pins under "ÉCART CONSIGNÉ".
  *
  * Deliberately loose on the vocabulary fields (`kind`, `model`, `route`, `status`…): they are DATA
  * owned by the country profiles and the engine's own open-ended taxonomy (see `DocumentKindRule` in
@@ -139,7 +140,7 @@ export interface CompliancePlan {
   warnings: string[]
 }
 
-/** Mirrors `Trigger` (lifecycle/triggers.ts). */
+/** Mirrors `Trigger` (pre-refonte `lifecycle/triggers.ts`, git tag `avant-refonte-documents`). */
 export interface TransitionTrigger {
   kind: string
   poll?: { everySeconds: number; timeoutHours: number; backoff: string }

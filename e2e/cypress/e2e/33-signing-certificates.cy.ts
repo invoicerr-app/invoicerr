@@ -1,8 +1,8 @@
 /**
  * Signature électronique — prouvée PAR L'ÉCRAN : on uploade un
- * certificat de FIXTURE (auto-signé, généré par node-forge — voir
- * `backend/gen-e2e-fixture-pfx.tmp.ts`'s own header at the commit that produced
- * `cypress/fixtures/signing/e2e-fixture-cert.pfx`, JAMAIS un vrai certificat), la liste affiche ses
+ * certificat de FIXTURE (auto-signé, généré via un script local jetable utilisant node-forge — jamais
+ * committé, comme son nom `gen-e2e-fixture-pfx.tmp.ts` l'annonçait ; voir le commit `3a743a6d` qui a
+ * introduit `cypress/fixtures/signing/e2e-fixture-cert.pfx` pour le contexte complet, JAMAIS un vrai certificat), la liste affiche ses
  * VRAIES métadonnées (sujet/validité/série extraits côté serveur par node-forge, jamais échoués par le
  * client), le PDF d'une facture téléchargée DEVIENT signé PAdES (/ByteRange + /Contents dans les
  * octets), et la désactivation du certificat rend le PDF de nouveau non signé — sans toucher au

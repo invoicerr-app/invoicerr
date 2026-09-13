@@ -14,13 +14,15 @@ import * as ts from 'typescript';
  * SCOPE, DELIBERATELY NARROW — read this before broadening a rule, not after chasing one false
  * positive it let through:
  *
- *  - Scans `backend/src/**\/*.{ts,tsx}` plus `backend/prisma/schema.prisma` only — never
- *    `documentation/`, `e2e/`, or `frontend/`, whose own comment-citation habits this test has not
- *    been checked against. A dangling reference in one of those trees is a real gap this test does
- *    NOT close (one was fixed by hand this same sweep, in a Cypress spec under `e2e/`).
- *  - Nor `channel-policy/data/` or `country-policy/data/` (see `OUT_OF_SCOPE_DIR_NAMES` below) — a
- *    separate, concurrent workstream owns their sourced legal content, so this sweep left their own
- *    stale examples for that workstream to fix rather than editing out of turn.
+ *  - Scans `backend/src/**\/*.{ts,tsx}`, `backend/prisma/schema.prisma`, `e2e/**\/*.ts`, and
+ *    `frontend/src/**\/*.{ts,tsx}` — never `documentation/`, whose own comment-citation habits this
+ *    test has not been checked against. `e2e/` and `frontend/` were added the same day this guard
+ *    itself was: the very first dangling reference this whole effort found lived in a Cypress spec
+ *    under `e2e/`, and this test would not have caught it until this addition.
+ *  - Nor `country-policy/data/` (see `OUT_OF_SCOPE_DIR_NAMES` below) — TEMPORARY, not structural: a
+ *    separate, concurrent workstream owns its sourced legal content (including the test file
+ *    colocated with it), so this sweep left its own handful of stale examples for that workstream to
+ *    fix rather than editing out of turn. Lift it once that workstream lands.
  *  - Only looks INSIDE comments — via the TypeScript parser's own token trivia, so a `//` inside a
  *    string literal or a URL is never mistaken for a comment start. An import path is already
  *    checked by `tsc` itself and would fail the build long before this test runs.
@@ -38,16 +40,22 @@ import * as ts from 'typescript';
  *  - Excluded by SHAPE, not by name, because each is a real, recurring pattern rather than one
  *    file: a URL; a glob or placeholder (`*`, `<`, `>`, or this codebase's own `xx` country-code
  *    placeholder, e.g. `data/xx.json`); an npm-scoped package (`@prisma/client`) other than this
- *    repo's own `@/` alias (resolved against `backend/src/`); a generated or gitignored output
- *    (`dist/`, `prisma/generated/…`); a slash-joined LIST of filenames or bare country codes used as
- *    shorthand prose ("fr.json/us.json", "fr/it/pl/de/es/mx/us.json") rather than a nested path; and
- *    the pre-rewrite module tree this codebase calls `compliance/…` — cited throughout as permanent
- *    git-history lineage ("REPRISE from `compliance/x.ts` at git tag `avant-refonte-documents`",
- *    retrievable forever with `git show <tag>:<path>`, never a current-tree pointer) and recognised
- *    by that tag name or its established shorthand ("repère", "pre-refonte", "removed compliance")
- *    appearing within a small window of the citation — not the whole comment block, so one such
- *    aside near the top of a file-length header cannot shadow an unrelated, genuinely dangling
- *    citation far below it in the very same block.
+ *    repo's own `@/` alias (resolved against the scanned file's own project root — `backend/src/` or
+ *    `frontend/src/`; `e2e/` declares no such alias, so a literal `@/` there is left unresolved
+ *    rather than guessed at); a generated or gitignored output (`dist/`, `prisma/generated/…`); a
+ *    mid-path ellipsis this codebase uses in prose to elide directories it isn't spelling out
+ *    (`backend/.../descriptors/invoice.descriptor.ts` — no real file has a literal "..." segment, so
+ *    only what follows the LAST one is resolved, the same way a human reads past it); a slash-joined
+ *    LIST of filenames
+ *    or bare country codes used as shorthand prose ("fr.json/us.json", "fr/it/pl.json",
+ *    "fr/it/pl/de/es/mx/us.json") rather than a nested path; and the pre-rewrite module tree this
+ *    codebase calls `compliance/…` — cited throughout as permanent git-history lineage ("REPRISE from
+ *    `compliance/x.ts` at git tag `avant-refonte-documents`", retrievable forever with
+ *    `git show <tag>:<path>`, never a current-tree pointer) and recognised by that tag name or its
+ *    established shorthand ("repère", "pre-refonte", "removed compliance") appearing within a small
+ *    window of the citation — not the whole comment block, so one such aside near the top of a
+ *    file-length header cannot shadow an unrelated, genuinely dangling citation far below it in the
+ *    very same block.
  *
  * WHAT THIS STILL WON'T CATCH (found while building it, not papered over with a bigger rule):
  *  - A path split across a JSDoc line-wrap in the middle of a hyphenated word — rare (one instance
@@ -58,11 +66,33 @@ import * as ts from 'typescript';
  *  - A stale factual claim sitting next to an otherwise-valid citation ("only one country mandates
  *    this channel, see `channel-policy/data/fr.json`") — `fr.json` still exists, so nothing here
  *    fires; the claim itself can still be wrong.
+ *  - A comment that names a path only to say it does NOT exist ("no `pl.json` ships under
+ *    country-identifiers/data"), which this test cannot tell apart from a stale forward-reference to
+ *    one that used to — the two comments found this way were reworded (moved the filename off the
+ *    slash-joined shape, exactly as in that example) rather than taught to this test as a rule: a
+ *    generic "nearby negation" heuristic risks hiding a genuine dangling reference behind whatever
+ *    word happened to precede it.
  */
 
 const REPO_ROOT = resolve(__dirname, '..', '..');
 const BACKEND_SRC = __dirname;
 const SCHEMA_PRISMA = resolve(REPO_ROOT, 'backend', 'prisma', 'schema.prisma');
+
+/** One tracked-file-prefix scan root, besides `backend/src` (walked separately, see
+ *  `listSourceFiles`) and `schema.prisma` (its own comment syntax, see `extractPrismaComments`).
+ *  `aliasBase` is what this root's own `@/` resolves against — `null` where the root declares no
+ *  such alias, so a literal `@/` there is left unresolved rather than guessed at (see the header). */
+interface ScanRoot {
+  /** Repo-root-relative prefix, trailing slash included, matched against `git ls-files` output. */
+  prefix: string;
+  extensions: readonly string[];
+  aliasBase: string | null;
+}
+
+const SCAN_ROOTS: readonly ScanRoot[] = [
+  { prefix: 'e2e/', extensions: ['ts'], aliasBase: null },
+  { prefix: 'frontend/src/', extensions: ['ts', 'tsx'], aliasBase: 'frontend/src/' },
+];
 
 const TARGET_EXTENSIONS = ['ts', 'tsx', 'json', 'sch', 'xsd', 'pem', 'sql', 'md'] as const;
 const EXTENSION_RE = new RegExp(`\\.(?:${TARGET_EXTENSIONS.join('|')})$`);
@@ -88,13 +118,15 @@ interface Finding {
   candidate: string;
 }
 
-// `transports/channel-policy/data/` and `country-policy/data/` were off-limits for the sweep that
-// built this guard (a separate, concurrent workstream owns their sourced legal content, including
-// the test files colocated with it) — so `country-policy/data/all.spec.ts`'s own handful of stale
-// examples from the same 5-country prune everything else here was fixed for were left for that
-// workstream to fix, rather than edited out of turn. Skipped by directory name, not silenced by
-// suppressing the finding, so lifting this exclusion later is a one-line diff, not a rediscovery.
-const OUT_OF_SCOPE_DIR_NAMES = new Set(['channel-policy', 'country-policy']);
+// TEMPORARY — `country-policy/data/` is off-limits for this sweep only because a separate, concurrent
+// workstream owns its sourced legal content, including the test file colocated with it:
+// `country-policy/data/all.spec.ts` carries a handful of stale examples from the same 5-country prune
+// everything else here was fixed for, left for that workstream to fix rather than edited out of turn.
+// (`transports/channel-policy/data/` carried the same exclusion originally but turned out to have no
+// stale citations at all once checked — lifted, not just narrowed.) Skipped by directory name, not
+// silenced by suppressing the finding, so lifting this exclusion once that workstream lands is a
+// one-line diff, not a rediscovery.
+const OUT_OF_SCOPE_DIR_NAMES = new Set(['country-policy']);
 
 function listSourceFiles(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -122,6 +154,18 @@ function listRepoFiles(): string[] {
     .toString('utf8')
     .split('\n')
     .filter(Boolean);
+}
+
+/** Every file among `repoFiles` under `root.prefix` with one of `root.extensions` — used to pick scan
+ *  TARGETS for `e2e/` and `frontend/src/` (unlike `listSourceFiles`'s filesystem walk for
+ *  `backend/src`, filtering the same tracked-or-untracked list `buildResolver` already fetched keeps
+ *  `node_modules/`, build output, and Cypress's own `screenshots/`/`videos/`/`downloads/` out for
+ *  free — they are exactly what `git ls-files --exclude-standard` already excludes, with no second,
+ *  hand-maintained skip list to keep in sync with `.gitignore`). */
+function listScanRootFiles(repoFiles: string[], root: ScanRoot): string[] {
+  return repoFiles
+    .filter((file) => file.startsWith(root.prefix) && root.extensions.some((ext) => file.endsWith(`.${ext}`)))
+    .map((file) => resolve(REPO_ROOT, file));
 }
 
 function buildResolver(repoFiles: string[]): (candidate: string) => boolean {
@@ -213,13 +257,30 @@ function findUrlRanges(text: string): Array<[number, number]> {
   return matchAll(URL_RE, text).map((match) => [match.index, match.index + match[0].length]);
 }
 
-/** Applies every shape-based exclusion from the header comment. Returns the (possibly normalized)
- *  candidate to resolve, or `null` if this match should never be treated as a repo-relative path. */
-function normalizeCandidate(rawCandidate: string): string | null {
+/** Applies every shape-based exclusion from the header comment. `aliasBase` is the scanned file's own
+ *  project root for resolving a leading `@/` (`null` where that root declares no such alias — see
+ *  `ScanRoot`). Returns the (possibly normalized) candidate to resolve, or `null` if this match should
+ *  never be treated as a repo-relative path. */
+function normalizeCandidate(rawCandidate: string, aliasBase: string | null): string | null {
   // A leading run of dot-only segments is either a real relative prefix ("../foo.ts") or a prose
   // ellipsis ("…/foo.ts") — indistinguishable from here, and treated the same way: strip it, then
   // judge what remains on its own merits.
   let candidate = rawCandidate.replace(/^(?:\.+\/)+/, '');
+
+  // A MID-path dot-only segment ("backend/.../descriptors/invoice.descriptor.ts") is this codebase's
+  // own convention for eliding an unspecified number of intermediate directories in prose — no real
+  // file has a literal "..." path segment, so it can never itself be part of a suffix match. Keep
+  // only what follows the LAST such marker; everything before it is context for the reader ("this
+  // lives somewhere under backend"), not part of the path to resolve — the same information loss as
+  // citing just a file's own nearest directory, which the plain suffix match already tolerates.
+  const preEllipsisSegments = candidate.split('/');
+  const lastEllipsisIndex = preEllipsisSegments.reduce(
+    (lastIndex, segment, index) => (/^\.{2,}$/.test(segment) ? index : lastIndex),
+    -1,
+  );
+  if (lastEllipsisIndex >= 0) {
+    candidate = preEllipsisSegments.slice(lastEllipsisIndex + 1).join('/');
+  }
 
   if (!candidate.includes('/')) return null; // bare filename — see header, ambiguous by design
   if (/[*<>]/.test(candidate)) return null; // glob or placeholder syntax
@@ -227,19 +288,27 @@ function normalizeCandidate(rawCandidate: string): string | null {
   if (/(^|\/)(dist|generated|node_modules|coverage)\//.test(candidate)) return null;
 
   if (candidate.startsWith('@/')) {
-    candidate = `backend/src/${candidate.slice(2)}`;
+    if (aliasBase === null) return null; // this root declares no `@/` alias — not ours to guess at
+    candidate = `${aliasBase}${candidate.slice(2)}`;
   }
 
   const segments = candidate.split('/');
   const nonFinalSegments = segments.slice(0, -1);
   // "fr.json/us.json" — a slash-joined LIST of filenames, not a nested path.
   if (nonFinalSegments.some((segment) => EXTENSION_RE.test(segment))) return null;
-  // "fr/it/pl/de/es/mx/us.json" — a slash-joined list of bare country codes. One real two-letter
-  // directory exists in this repo (`formats/vendored/{de,it,pl}`); three or more in one candidate is
-  // the enumeration shorthand, never a real nested directory chain.
-  if (nonFinalSegments.filter((segment) => /^[a-z]{2}$/.test(segment)).length >= 3) return null;
-  // `data/xx.json` — the documented placeholder for "any country's file in this directory".
   const finalStem = segments[segments.length - 1].replace(EXTENSION_RE, '');
+  // "fr/it/pl.json", "fr/it/pl/de/es/mx/us.json" — a slash-joined list of bare country codes, the
+  // extension folded into the last one instead of spelled out for every entry. One real two-letter
+  // directory exists in this repo (`formats/vendored/{de,it,pl}`), and it never nests one bare
+  // two-letter segment directly inside another the way this enumeration shorthand does — so three or
+  // more two-letter-or-stem segments in one candidate (counting the final stem alongside the earlier
+  // bare ones, since the shortest form of the list folds its last entry's extension in) is always the
+  // shorthand, never a real nested directory chain.
+  const bareTwoLetterSegmentCount =
+    nonFinalSegments.filter((segment) => /^[a-z]{2}$/.test(segment)).length +
+    (/^[a-z]{2}$/.test(finalStem) ? 1 : 0);
+  if (bareTwoLetterSegmentCount >= 3) return null;
+  // `data/xx.json` — the documented placeholder for "any country's file in this directory".
   if (finalStem.toLowerCase() === 'xx') return null;
   // The pre-rewrite `compliance/…` namespace — see the header comment's own paragraph on why this is
   // a namespace exclusion, not a per-file allowlist.
@@ -249,10 +318,16 @@ function normalizeCandidate(rawCandidate: string): string | null {
 }
 
 function findDanglingReferences(): Finding[] {
-  const resolves = buildResolver(listRepoFiles());
+  const repoFiles = listRepoFiles();
+  const resolves = buildResolver(repoFiles);
   const findings: Finding[] = [];
 
-  const scan = (absolutePath: string, comments: CommentToken[], sourceText: string): void => {
+  const scan = (
+    absolutePath: string,
+    comments: CommentToken[],
+    sourceText: string,
+    aliasBase: string | null,
+  ): void => {
     const relativePath = relative(REPO_ROOT, absolutePath);
     for (const comment of comments) {
       const urlRanges = findUrlRanges(comment.text);
@@ -266,7 +341,7 @@ function findDanglingReferences(): Finding[] {
         const windowEnd = Math.min(comment.text.length, matchEnd + LINEAGE_WINDOW);
         if (LINEAGE_MARKER_RE.test(comment.text.slice(windowStart, windowEnd))) continue;
 
-        const candidate = normalizeCandidate(raw);
+        const candidate = normalizeCandidate(raw, aliasBase);
         if (candidate === null) continue;
 
         if (!resolves(candidate)) {
@@ -282,17 +357,24 @@ function findDanglingReferences(): Finding[] {
 
   for (const file of listSourceFiles(BACKEND_SRC, [])) {
     const sourceText = readFileSync(file, 'utf8');
-    scan(file, extractComments(file, sourceText), sourceText);
+    scan(file, extractComments(file, sourceText), sourceText, 'backend/src/');
+  }
+
+  for (const root of SCAN_ROOTS) {
+    for (const file of listScanRootFiles(repoFiles, root)) {
+      const sourceText = readFileSync(file, 'utf8');
+      scan(file, extractComments(file, sourceText), sourceText, root.aliasBase);
+    }
   }
 
   const schemaText = readFileSync(SCHEMA_PRISMA, 'utf8');
-  scan(SCHEMA_PRISMA, extractPrismaComments(schemaText), schemaText);
+  scan(SCHEMA_PRISMA, extractPrismaComments(schemaText), schemaText, 'backend/src/');
 
   return findings;
 }
 
 describe('dangling file references in comments', () => {
-  it('never cites, in a backend/src or schema.prisma comment, a repository path that does not exist', () => {
+  it('never cites, in a backend/src, e2e, frontend/src, or schema.prisma comment, a repository path that does not exist', () => {
     const findings = findDanglingReferences();
     if (findings.length === 0) return;
 

@@ -355,7 +355,7 @@ describe("Un document est un descripteur, et l'écran le suit", () => {
 			url: `${api}/api/company/info`,
 			// L'Allemagne a reçu une policy le 2026-09-03 — l'ancien exemple de « pays
 			// sans règle » de ce test est devenu un pays COUVERT (201 au lieu de 403, la batterie l'a
-			// attrapé). Le Japon reprend le rôle : aucun fichier country-policy/data/jp.json n'existe,
+			// attrapé). Le Japon reprend le rôle : aucun fichier `jp.json` n'existe sous country-policy/data,
 			// et l'intention du test (un client scripté ne contourne pas l'écran pour un pays non
 			// couvert) est inchangée, assertion pour assertion.
 			body: { country: "Japan", countryCode: "JP" },
