@@ -1,7 +1,26 @@
 name: Business Scenarios
 
+# These six legs used to run on `pull_request` ONLY. On a long-lived branch that opens no PR — this
+# repository's own `feat/compliance-engine-v2` ran 800+ commits that way — that means they do not run
+# at all, and a suite that never runs is a suite everyone believes is green. Three of the six were in
+# fact red for weeks (2026-09-13): two because a country gained a `country-identifiers` catalog and
+# the legs still asserted its absence, two because a country gained a `vat-rates` catalog and the
+# legs still typed the DESTINATION country's rate, which the document validator now refuses.
+#
+# Both causes share a shape: a per-country DATA file landed and invalidated a leg's expectations.
+# So the `push` trigger below is deliberately PATH-FILTERED on exactly what has ever broken them —
+# the catalogs, the tax engine that composes them, and the spec and fixture themselves — rather than
+# firing six full-stack jobs on every push. `pull_request` stays unfiltered: a PR runs them all.
 on:
   pull_request:
+  push:
+    paths:
+      - 'backend/src/modules/documents/**/data/**'
+      - 'backend/src/modules/documents/tax/**'
+      - 'backend/src/modules/documents/descriptors/**'
+      - 'e2e/cypress/e2e/scenarios/**'
+      - 'e2e/cypress/fixtures/scenarios.ts'
+      - '.github/workflows/scenarios.yml'
 
 jobs:
   scenario:
