@@ -3,6 +3,26 @@
 > Tenu au fil de l'exécution du `TODO.md`. Chaque entrée dit ce qui bloque et ce qui le
 > débloquerait — jamais un simple « échoué ».
 
+## Où en sont les constats du 2026-09-13
+
+**Encore ouverts, par ordre d'enjeu :**
+
+| Constat | Ce qui bloque |
+| --- | --- |
+| L'autoliquidation **domestique** n'existe pas | Manque de CAPACITÉ, pas de câblage. Quatre lois sur cinq la nomment. Le catalogue des catégories est livré et sourcé (32 citations), mais aucun appelant ne le lit encore. |
+| L'onglet **PDF templates** est cassé (404) | Décision de périmètre : restaurer la fonctionnalité, ou retirer l'onglet. |
+| Le **code destinataire italien** n'a pas d'écran | Une facture B2B domestique part avec la valeur de repli des étrangers. |
+| Les **archives déjà écrites** portent une date trop précoce | Recalculer réécrirait des lignes enregistrées, y compris chez des tiers. À trancher. |
+| La **mise à niveau** d'une installation ancienne n'est pas prouvée | Prisma refuse `db push` depuis un agent sans accord explicite du propriétaire. |
+| Le **B2G portugais** | Le canal est délégué à une portaria non retrouvée. |
+| Le catalogue **déclaratif** | L'obligation française est établie mais transite par la PDP : le schéma ne sait pas exprimer « acquittée par un transport déjà implémenté ». |
+| Neuf pages du site **en français** ont des liens morts | Pages du guide développeur non traduites. |
+
+**Fermés le même jour** (les entrées restent, barrées, parce qu'elles documentent la FORME du
+défaut) : la franchise de TVA, les mentions fiscales génériques, l'injection XML italienne, la carte
+des formats de numéro, et les deux portes d'écriture de masse. La rétention d'archives, qui comptait
+depuis le mauvais jour, a été corrigée sans avoir jamais figuré ici.
+
 ## Réglages sans effet — la refonte a retiré le back, les écrans sont restés (2026-09-13)
 
 Quatre défauts de la même famille, tous constatés sur la pile qui tourne. Le premier est corrigé
