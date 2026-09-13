@@ -78,12 +78,16 @@ export class EditCompanyDto {
    *  clears it; never validated/fabricated here, the vendored XRechnung Schematron is the real gate. */
   iban?: string | null;
   pdfConfig: PDFConfigDto;
-  quoteStartingNumber: number;
-  quoteNumberFormat: string;
-  invoiceStartingNumber: number;
-  invoiceNumberFormat: string;
-  paymentStartingNumber: number;
-  paymentNumberFormat: string;
+  // The six `quote/invoice/paymentStartingNumber`/`*NumberFormat` fields that used to live here are
+  // gone: they belonged to a Prisma query extension removed on this branch (see Company.numberFormats'
+  // own schema.prisma comment and the `20260913120000_migrate_legacy_number_formats` migration that
+  // absorbed their last values), and nothing has read them since. A document type's number FORMAT is
+  // now written through `PUT /api/company/number-format` (`CompanyService#updateNumberFormat`), keyed
+  // by the real `DocumentTypeDescriptor` id — never through this DTO's wholesale `...rest` write path,
+  // which is also why `company.service.ts#editCompanyInfo` allow-lists its columns explicitly rather
+  // than spreading this object: `numberFormats` must only ever be set through the endpoint that
+  // validates the pattern. There is no "starting number" capability any more either — see that
+  // migration's own header for what a migrating customer loses.
   identifiers?: IdentifierEntry[];
   /** Which registered document transport (documents/transports/transport-registry.ts) the invoice
    *  "send" action uses — e.g. "email". Null/empty clears the choice, which blocks sending until a

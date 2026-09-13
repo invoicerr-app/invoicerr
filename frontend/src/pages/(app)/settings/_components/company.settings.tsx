@@ -29,11 +29,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useDocumentTransports } from "@/hooks/queries"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
-import { useGet, usePost } from "@/hooks/use-fetch"
+import { useGet, usePost, usePut } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
 import type { Company } from "@/types"
+
+/**
+ * This product's own shipped defaults when a company has never set an entry in
+ * `Company.numberFormats` — backend's `documents/numbering/format-number.ts#defaultNumberFormatFor`,
+ * spelled out verbatim (never expressible with a literal "{type}" token here: that substitution
+ * happens server-side, once, before storage). Shown as the field's value the first time this card
+ * loads for a company with nothing configured yet, exactly like `atcud.settings.tsx`'s own
+ * `SHIPPED_DEFAULT_INVOICE_FORMAT` does for the same reason.
+ */
+const SHIPPED_DEFAULT_QUOTE_FORMAT = "QUOTE-{year}-{number:4}"
+const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
 
 export default function CompanySettings() {
   const { t } = useTranslation()
@@ -135,7 +146,12 @@ export default function CompanySettings() {
         if (!val?.trim()) return true
         return /^[A-Za-z]{2}[0-9]{2}[A-Za-z0-9]{1,30}$/.test(val.replace(/\s+/g, ""))
       }, t("settings.company.form.iban.errors.format")),
-    quoteStartingNumber: z.number().min(1, t("settings.company.form.quoteStartingNumber.errors.min")),
+    // These two back `Company.numberFormats.quote`/`.invoice`, not a dedicated column — saved through
+    // `PUT /api/company/number-format` (see this file's own `onSubmit`), never through this form's
+    // main `POST /api/company/info` submission. There is no third "payment" field any more: no
+    // `DocumentTypeDescriptor` by that id exists (only `quote`/`invoice` declare `numbering` at all —
+    // see backend's descriptors/types.ts), so a "payment number format" control would have nothing to
+    // apply to.
     quoteNumberFormat: z
       .string()
       .min(1, t("settings.company.form.quoteNumberFormat.errors.required"))
@@ -143,7 +159,6 @@ export default function CompanySettings() {
       .refine((val) => {
         return validateNumberFormat(val)
       }, t("settings.company.form.quoteNumberFormat.errors.format")),
-    invoiceStartingNumber: z.number().min(1, t("settings.company.form.invoiceStartingNumber.errors.min")),
     invoiceNumberFormat: z
       .string()
       .min(1, t("settings.company.form.invoiceNumberFormat.errors.required"))
@@ -151,14 +166,6 @@ export default function CompanySettings() {
       .refine((val) => {
         return validateNumberFormat(val)
       }, t("settings.company.form.invoiceNumberFormat.errors.format")),
-    paymentStartingNumber: z.number().min(1, t("settings.company.form.paymentStartingNumber.errors.min")),
-    paymentNumberFormat: z
-      .string()
-      .min(1, t("settings.company.form.paymentNumberFormat.errors.required"))
-      .max(100, t("settings.company.form.paymentNumberFormat.errors.maxLength"))
-      .refine((val) => {
-        return validateNumberFormat(val)
-      }, t("settings.company.form.paymentNumberFormat.errors.format")),
     invoicePDFFormat: z.string().refine((val) => {
       const validFormats = ["pdf", "facturx", "zugferd", "xrechnung", "ubl", "cii"]
       return validFormats.includes(val.toLowerCase())
@@ -201,6 +208,12 @@ export default function CompanySettings() {
     usePost<Company>("/api/company/info"),
     t("settings.company.messages.updateError"),
   )
+  // `Company.numberFormats` is written through its own endpoint, never through `POST /api/company/info`
+  // — see this file's own `onSubmit` and backend's `company.service.ts#editCompanyInfo` comment for why.
+  const { trigger: saveNumberFormat } = useMutationWithToast(
+    usePut<Record<string, string>>("/api/company/number-format"),
+    t("settings.company.numberFormats.messages.saveError", "Failed to save the number format"),
+  )
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<z.infer<typeof companySchema>>({
@@ -222,12 +235,8 @@ export default function CompanySettings() {
       email: "",
       iban: "",
       invoicePDFFormat: "",
-      quoteStartingNumber: 1,
-      quoteNumberFormat: "Q-{year}-{number}",
-      invoiceStartingNumber: 1,
-      invoiceNumberFormat: "INV-{year}-{number}",
-      paymentStartingNumber: 1,
-      paymentNumberFormat: "PAY-{year}-{number}",
+      quoteNumberFormat: SHIPPED_DEFAULT_QUOTE_FORMAT,
+      invoiceNumberFormat: SHIPPED_DEFAULT_INVOICE_FORMAT,
       identifiers: [],
       peppolSchemeId: "0088",
       peppolEndpointId: "",
@@ -258,6 +267,11 @@ export default function CompanySettings() {
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
         referenceCurrency: data.referenceCurrency ?? "",
+        // From `Company.numberFormats`, not a dedicated column — a type absent there (the common case
+        // for a company that never touched this card) shows this product's own shipped default, the
+        // same value `documents/numbering/format-number.ts#defaultNumberFormatFor` would resolve to.
+        quoteNumberFormat: data.numberFormats?.quote ?? SHIPPED_DEFAULT_QUOTE_FORMAT,
+        invoiceNumberFormat: data.numberFormats?.invoice ?? SHIPPED_DEFAULT_INVOICE_FORMAT,
         // MINOR (stored) -> MAJOR (form) — the company's OWN currency, same "rough guardrail, not
         // currency-converted" assumption the backend gate documents (approval-gate.ts).
         approvalThreshold:
@@ -414,7 +428,18 @@ export default function CompanySettings() {
         : null
     // `approvalThreshold` is form-only (MAJOR units) — never sent as-is, replaced by
     // `approvalThresholdMinor` below (MINOR units, the column the backend actually reads).
-    const { peppolSchemeId: _ps, peppolEndpointId: _pe, approvalThreshold, ...valuesWithoutPeppol } = values
+    // `quoteNumberFormat`/`invoiceNumberFormat` back `Company.numberFormats`, not a dedicated column —
+    // saved below through `PUT /api/company/number-format`, never through this `POST /api/company/info`
+    // body (see backend's `company.service.ts#editCompanyInfo` for why that endpoint allow-lists its
+    // columns and does not accept `numberFormats` at all).
+    const {
+      peppolSchemeId: _ps,
+      peppolEndpointId: _pe,
+      approvalThreshold,
+      quoteNumberFormat,
+      invoiceNumberFormat,
+      ...valuesWithoutPeppol
+    } = values
     const payload = {
       ...valuesWithoutPeppol,
       identifiers: [
@@ -435,16 +460,24 @@ export default function CompanySettings() {
       approvalThresholdMinor:
         approvalThreshold != null ? toMinor(approvalThreshold, values.currency || "EUR") : null,
     }
-    trigger(payload)
-      .then((result) => {
-        // The trigger resolves null on failure (error already toasted).
-        if (result) {
-          toast.success(t("settings.company.messages.updateSuccess"))
-        }
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
+    try {
+      const result = await trigger(payload)
+      if (!result) return // error already toasted by the wrapper
+
+      // Sequential, deliberately not `Promise.all`: `updateNumberFormat` merges the new pattern into
+      // the SAME `numberFormats` JSON blob via a read-modify-write on the backend — two concurrent
+      // PUTs would each read the value before the other's write lands, and the second write would
+      // silently drop the first (see backend's `CompanyService#updateNumberFormat`'s own "MERGES ...
+      // read-modify-write" comment).
+      const quoteSaved = await saveNumberFormat({ typeId: "quote", pattern: quoteNumberFormat })
+      if (!quoteSaved) return // error already toasted by the wrapper
+      const invoiceSaved = await saveNumberFormat({ typeId: "invoice", pattern: invoiceNumberFormat })
+      if (!invoiceSaved) return // error already toasted by the wrapper
+
+      toast.success(t("settings.company.messages.updateSuccess"))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getDateFormatOption = (dateFormat: string) => {
@@ -993,143 +1026,57 @@ export default function CompanySettings() {
               <CardDescription>{t("settings.company.numberFormats.description")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="quoteStartingNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>{t("settings.company.form.quoteStartingNumber.label")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder={t("settings.company.form.quoteStartingNumber.placeholder")}
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            data-cy="company-quote-starting-number-input"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("settings.company.form.quoteStartingNumber.description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="quoteNumberFormat"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>{t("settings.company.form.quoteNumberFormat.label")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t("settings.company.form.quoteNumberFormat.placeholder")}
-                            {...field}
-                            data-cy="company-quote-number-format-input"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("settings.company.form.quoteNumberFormat.description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="invoiceStartingNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>
-                          {t("settings.company.form.invoiceStartingNumber.label")}
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder={t("settings.company.form.invoiceStartingNumber.placeholder")}
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            data-cy="company-invoice-starting-number-input"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("settings.company.form.invoiceStartingNumber.description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="invoiceNumberFormat"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>{t("settings.company.form.invoiceNumberFormat.label")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t("settings.company.form.invoiceNumberFormat.placeholder")}
-                            {...field}
-                            data-cy="company-invoice-number-format-input"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("settings.company.form.invoiceNumberFormat.description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="paymentStartingNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>
-                          {t("settings.company.form.paymentStartingNumber.label")}
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder={t("settings.company.form.paymentStartingNumber.placeholder")}
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            data-cy="company-payment-starting-number-input"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("settings.company.form.paymentStartingNumber.description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="paymentNumberFormat"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>{t("settings.company.form.paymentNumberFormat.label")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t("settings.company.form.paymentNumberFormat.placeholder")}
-                            {...field}
-                            data-cy="company-payment-number-format-input"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("settings.company.form.paymentNumberFormat.description")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+              {/*
+                No "starting number" fields any more, and no third "payment" format field — see this
+                file's own `SHIPPED_DEFAULT_*` comment. Neither backend field a removed pre-refonte
+                engine used to read (`quoteStartingNumber`/`invoiceStartingNumber`) is honoured by any
+                sequence logic today (`documents/numbering/sequence.ts` always starts a fresh
+                (company, type) counter at 1 — see `bumpSequence`'s own header), so showing a control
+                for either would be exactly the inert-input bug this card was rewritten to stop being.
+                A company migrating from another product and wanting "start my invoice numbering at
+                500" has no way to do that today — a real gap, not implemented here.
+              */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="quoteNumberFormat"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>{t("settings.company.form.quoteNumberFormat.label")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t("settings.company.form.quoteNumberFormat.placeholder")}
+                          {...field}
+                          data-cy="company-quote-number-format-input"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("settings.company.form.quoteNumberFormat.description")}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="invoiceNumberFormat"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>{t("settings.company.form.invoiceNumberFormat.label")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t("settings.company.form.invoiceNumberFormat.placeholder")}
+                          {...field}
+                          data-cy="company-invoice-number-format-input"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("settings.company.form.invoiceNumberFormat.description")}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>

@@ -289,9 +289,37 @@ export class ClientsService {
       }
     }
 
+    // Explicit allow-list, never `...dataFields`: there is no runtime request validation anywhere in
+    // this API (no ValidationPipe, no class-validator — `EditClientsDto` is a TypeScript `interface`,
+    // erased at compile time), so `dataFields` is really the raw, caller-supplied JSON body with
+    // `identifiers` deleted — `id` is still in there. Spreading it wholesale would let a caller
+    // rewrite THIS record's own primary key (`data.id` differing from the `where: { id }` above) or
+    // reassign it to another tenant entirely (`Client.companyId`, not even a field on this DTO but
+    // just as happily accepted by an unchecked spread). Every column this endpoint is actually
+    // allowed to write is named once, here.
     const updatedClient = await prisma.client.update({
       where: { id: editClientsDto.id },
-      data: { ...dataFields, isActive: true },
+      data: {
+        description: dataFields.description,
+        foundedAt: dataFields.foundedAt,
+        name: dataFields.name,
+        contactFirstname: dataFields.contactFirstname,
+        contactLastname: dataFields.contactLastname,
+        contactEmail: dataFields.contactEmail,
+        contactPhone: dataFields.contactPhone,
+        address: dataFields.address,
+        addressLine2: dataFields.addressLine2,
+        postalCode: dataFields.postalCode,
+        city: dataFields.city,
+        state: dataFields.state,
+        country: dataFields.country,
+        countryCode: dataFields.countryCode,
+        currency: dataFields.currency,
+        type: dataFields.type,
+        kind: dataFields.kind,
+        isSupplier: dataFields.isSupplier,
+        isActive: true,
+      },
     });
 
     await this.upsertPartyIdentifiers(

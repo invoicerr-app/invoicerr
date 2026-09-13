@@ -1623,7 +1623,10 @@
       },
       "numberFormats": {
         "title": "Number Formats",
-        "description": "Customize the number formats for quotes and invoices"
+        "description": "Customize the number formats for quotes and invoices",
+        "messages": {
+          "saveError": "Failed to save the number format"
+        }
       },
       "other": {
         "title": "Other Settings",
@@ -1766,14 +1769,6 @@
             "format": "IBAN format is invalid"
           }
         },
-        "quoteStartingNumber": {
-          "label": "Quote Starting Number",
-          "placeholder": "Enter starting number for quotes",
-          "description": "Initial number for quote numbering",
-          "errors": {
-            "min": "Quote starting number must be at least 1"
-          }
-        },
         "quoteNumberFormat": {
           "label": "Quote Number Format",
           "placeholder": "Enter quote number format (e.g., Q-{year}-{number})",
@@ -1784,14 +1779,6 @@
             "format": "Quote number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
           }
         },
-        "invoiceStartingNumber": {
-          "label": "Invoice Starting Number",
-          "placeholder": "Enter starting number for invoices",
-          "description": "Initial number for invoice numbering",
-          "errors": {
-            "min": "Invoice starting number must be at least 1"
-          }
-        },
         "invoiceNumberFormat": {
           "label": "Invoice Number Format",
           "placeholder": "Enter invoice number format (e.g., INV-{year}-{number})",
@@ -1800,24 +1787,6 @@
             "required": "Invoice number format is required",
             "maxLength": "Invoice number format must be less than 100 characters",
             "format": "Invoice number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
-          }
-        },
-        "paymentStartingNumber": {
-          "label": "Payment Starting Number",
-          "placeholder": "Enter starting number for payments",
-          "description": "Initial number for payment numbering",
-          "errors": {
-            "min": "Payment starting number must be at least 1"
-          }
-        },
-        "paymentNumberFormat": {
-          "label": "Payment Number Format",
-          "placeholder": "Enter payment number format (e.g., PAY-{year}-{number})",
-          "description": "Format for payment numbers",
-          "errors": {
-            "required": "Payment number format is required",
-            "maxLength": "Payment number format must be less than 100 characters",
-            "format": "Payment number format is invalid. Use {year}, {month}, {day}, {number} with optional padding (e.g., {number:4})"
           }
         },
         "invoicePDFFormat": {

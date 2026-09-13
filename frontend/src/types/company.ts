@@ -37,10 +37,14 @@ export interface Company {
    *  XRechnung's own BR-DE-1 (backend/src/modules/documents/formats/xrechnung-provider.ts); absent
    *  for every other syntax. Never auto-filled — see Company.iban's own schema.prisma comment. */
   iban?: string | null
-  quoteStartingNumber: number
-  quoteNumberFormat: string
-  invoiceStartingNumber: number
-  invoiceNumberFormat: string
+  /** Per-document-type number FORMAT, keyed by a `DocumentTypeDescriptor` id — e.g.
+   *  `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to the backend's own
+   *  shipped default (`documents/numbering/format-number.ts#defaultNumberFormatFor`), never a hole —
+   *  only in who chose it. Written through `PUT /api/company/number-format`
+   *  (`company.settings.tsx`'s "Number formats" card, `atcud.settings.tsx`'s own card), never through
+   *  this same `POST /api/company/info` object — see backend's `company.service.ts#editCompanyInfo`
+   *  for why that write path allow-lists its columns instead of accepting this one from the body. */
+  numberFormats?: Record<string, string> | null
   partyIdentifiers?: PartyIdentifier[]
   /** Which registered document transport (GET /api/documents/transports) the invoice "send" action
    *  uses — e.g. "email". Null/unset means no transport is configured: sending blocks until one is

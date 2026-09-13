@@ -122,10 +122,36 @@ export class CompanyService {
       throw new NotFoundException('Company not found');
     }
 
+    // Explicit allow-list, never `...rest`: there is no runtime request validation anywhere in this
+    // API (no ValidationPipe, no class-validator — `EditCompanyDto` is a TypeScript `interface`,
+    // erased at compile time), so `rest` is really just the raw, caller-supplied JSON body with two
+    // keys deleted. Spreading it wholesale would let a caller write ANY Company column by naming it —
+    // `id`, `createdAt`, and, directly relevant to numbering, `numberFormats` itself, which would
+    // bypass `assertValidNumberPattern` (the check `updateNumberFormat` below always runs) and let an
+    // invalid pattern sit in the database until it fails loudly, far from here, at issuance. Every
+    // field this settings screen is actually allowed to write is named once, here.
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
       data: {
-        ...rest,
+        description: rest.description,
+        foundedAt: rest.foundedAt,
+        name: rest.name,
+        currency: rest.currency,
+        exemptVat: rest.exemptVat,
+        address: rest.address,
+        addressLine2: rest.addressLine2,
+        postalCode: rest.postalCode,
+        city: rest.city,
+        state: rest.state,
+        country: rest.country,
+        countryCode: rest.countryCode,
+        phone: rest.phone,
+        email: rest.email,
+        iban: rest.iban,
+        invoiceTransportId: rest.invoiceTransportId,
+        referenceCurrency: rest.referenceCurrency,
+        approvalThresholdMinor: rest.approvalThresholdMinor,
+        remindersEnabled: rest.remindersEnabled,
       },
     });
 
@@ -146,14 +172,14 @@ export class CompanyService {
 
   /**
    * Sets ONE document type's own number-format PATTERN (`Company.numberFormats`,
-   * `documents/numbering/format-number.ts`) — the settings-screen gap that schema comment's own header
-   * flags ("no settings screen writes this column yet"). Deliberately its OWN small endpoint/method,
-   * never folded into `editCompanyInfo`'s `EditCompanyDto` above: that DTO still carries the SIX dead
-   * `quote/invoice/paymentStartingNumber`/`*NumberFormat` columns from the removed pre-refonte engine
-   * (see `Company.numberFormats`'s own schema comment) — reworking that whole card is "a separate
-   * cleanup this task does not do" (same schema comment), so this adds the one new, correct write path
-   * a Portuguese company's ATCUD settings screen needs (`documents/numbering/atcud.ts#parseAtcudPattern`
-   * requires a "/{number...}"-shaped pattern) without touching that pre-existing, unrelated gap further.
+   * `documents/numbering/format-number.ts`). Deliberately its OWN small endpoint/method, never folded
+   * into `editCompanyInfo`'s `EditCompanyDto` above: `numberFormats` must only ever be written through
+   * a path that runs `assertValidNumberPattern` — see `editCompanyInfo`'s own comment on why its
+   * allow-list deliberately excludes this column. Two callers merge into the same JSON blob today: the
+   * Portuguese ATCUD settings screen (`documents/numbering/atcud.ts#parseAtcudPattern` requires a
+   * "/{number...}"-shaped pattern) and the main company settings screen's "Number formats" card, one
+   * `PUT` per type (quote, then invoice) rather than a single multi-type call — see that screen's own
+   * `onSubmit` for why the two are sequenced rather than fired concurrently.
    *
    * MERGES into the existing JSON blob (read-modify-write) rather than replacing it outright — a
    * future second type writing through this same method must never silently erase what a prior call

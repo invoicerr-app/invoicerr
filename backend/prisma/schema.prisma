@@ -322,23 +322,33 @@ model Company {
   // write would be a second, divergent copy of the same rule.
   iban String?
 
-  quoteStartingNumber   Int    @default(1) // Starting number for quotes
-  quoteNumberFormat     String @default("Q-{year}-{number:4}") // Ex: "Q-2025-0001"
-  invoiceStartingNumber Int    @default(1) // Starting number for invoices
-  invoiceNumberFormat   String @default("INV-{year}-{number:4}") // Ex: "INV-2025-0001"
-  paymentStartingNumber Int    @default(1) // Starting number for payments
-  paymentNumberFormat   String @default("PAY-{year}-{number:4}") // Ex: "PAY-2025-0001"
+  // DEAD COLUMNS, kept but never written any more (deliberately not dropped — that is a separate,
+  // irreversible step). They belonged to a Prisma query extension removed on this branch (see
+  // prisma.service.ts's own comment, and the `avant-refonte-documents` git tag); nothing has read
+  // them since, and as of the `20260913120000_migrate_legacy_number_formats` migration nothing writes
+  // them either (`EditCompanyDto` no longer declares them, so `company.service.ts#editCompanyInfo`'s
+  // allow-list cannot resurrect them). That one-time migration copied each company's last value here
+  // into `numberFormats` below, keyed `quote`/`invoice`, ONLY where `numberFormats` had no entry for
+  // that key yet — see its own header for why "payment" was deliberately NOT migrated (no
+  // DocumentTypeDescriptor by that id exists to read it).
+  quoteStartingNumber   Int    @default(1)
+  quoteNumberFormat     String @default("Q-{year}-{number:4}")
+  invoiceStartingNumber Int    @default(1)
+  invoiceNumberFormat   String @default("INV-{year}-{number:4}")
+  paymentStartingNumber Int    @default(1)
+  paymentNumberFormat   String @default("PAY-{year}-{number:4}")
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
   // Per-document-type number FORMAT, keyed by DocumentTypeDescriptor.id — e.g.
-  // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here (the common case today: no settings
-  // screen writes this column yet) falls back to documents/numbering/format-number.ts's own
-  // `defaultNumberFormatFor(typeId)` — never a hole in the format, only in WHO chose it. Deliberately
-  // NOT the six `quote/invoice/paymentStartingNumber`/`*NumberFormat` columns above: those belonged
-  // to the removed pre-refonte engine (see prisma.service.ts's own comment on the Prisma extension
-  // that used to read them, and the `avant-refonte-documents` git tag) and are left untouched here —
-  // migrating or deleting them is a separate cleanup this task does not do.
+  // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to
+  // documents/numbering/format-number.ts's own `defaultNumberFormatFor(typeId)` — never a hole in the
+  // format, only in WHO chose it. Written through `PUT /api/company/number-format`
+  // (`CompanyService#updateNumberFormat`, the only path that runs `assertValidNumberPattern`) — by the
+  // Portuguese ATCUD settings screen and, since the migration above, by the main "Number formats" card
+  // too, one type at a time. Never through `POST /api/company/info`'s `EditCompanyDto`: see
+  // `editCompanyInfo`'s own comment for why that write path allow-lists its columns instead of
+  // spreading the request body.
   numberFormats Json?
 
   // Which registered document transport (documents/transports/transport-registry.ts) an invoice's
