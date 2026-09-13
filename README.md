@@ -32,7 +32,7 @@ The project is still open, and I can continue to review and manage community pul
 - Built-in quote signing system with secure tokens  
 - Generate and send quote/invoice emails directly from the app
 - Generate clean PDF documents (quotes, invoices, payments, and more)  
-- Custom brand identity: logo, company name, VAT, and more  
+- Your company identity on every document: name, VAT number, legal ID, address  
 - Authentication via email/password, OIDC/SSO, or API keys
 - International-friendly: Default English UI, customizable currencies  
 - Docker & docker-compose ready for self-hosting  
