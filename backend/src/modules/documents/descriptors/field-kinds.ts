@@ -89,10 +89,13 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     if (field.allowCustomValue && options.length === 0) return null;
     // A DIFFERENT, NARROWER exception (2026-09-01), not a relaxation of
     // the one above: a VAT-rate-catalog field (`usesVatRateCatalog`, today only the invoice line's
-    // `vatRate`) whose ROW was already resolved by the cross-border tax engine — marked by the
+    // `vatRate`) whose ROW was already resolved by the tax engine — marked by the
     // `__crossBorderCategory` sidecar `documents/tax/resolve-invoice-tax.ts` writes onto that SAME
-    // row — legitimately carries a FOREIGN country's real rate (e.g. Germany's 19% on a FR seller's
-    // OSS sale), which the seller's own domestic catalog (`options` here) was never supposed to
+    // row — legitimately carries either a FOREIGN country's real rate (e.g. Germany's 19% on a FR
+    // seller's OSS sale) OR a 0% small-business-exemption rate for a DOMESTIC franchise seller
+    // (`applyDomesticTaxScheme`, added 2026-09-13 — a franchise-exempt FR seller's own catalog may not
+    // even list "0" as an option, since `tax-systems/data/fr.json` records `hasDomesticZeroRate:
+    // false`), neither of which the seller's own domestic catalog (`options` here) was ever meant to
     // validate in the first place. Without this, the surgical fix (the resolved
     // treatment is persisted at "sending" and REPLAYED through this exact validator when the queued
     // worker job runs `runAction` again — see `queue/processors/document-action.processor.ts`'s own

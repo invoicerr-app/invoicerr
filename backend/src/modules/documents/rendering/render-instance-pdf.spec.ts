@@ -3,7 +3,12 @@
  * pieces of `render-instance-pdf.ts` that need neither Prisma nor Puppeteer to exercise — everything
  * else in that file needs both (see this file's own header for why no broader spec exists here today).
  * `legalMentionsFor` is proven directly, against the REAL shipped `data/fr.json`, the same discipline
- * `mentions/invoice-notes.spec.ts` already holds for the resolver itself. `sepaPaymentQrFor` is proven
+ * `mentions/invoice-notes.spec.ts` already holds for the resolver itself — including the
+ * `__crossBorderMentions` sidecar it now also merges in (2026-09-13), proven with a plain literal
+ * (`tax/resolve-invoice-tax.spec.ts`/`tax/load-and-resolve.spec.ts` already prove the ENGINE actually
+ * produces one of these for a real cross-border or exempt-seller invoice; this file's own job is only
+ * "does the PDF's footer merge whatever sidecar it is handed", not re-proving the engine).
+ * `sepaPaymentQrFor` is proven
  * the same way, against the REAL `sepa-qr.ts` (already exhaustively unit-tested on its own in
  * `sepa-qr.spec.ts`) — this file only proves the GATING for each (which flag, which company/document
  * fact must hold before either one produces anything), never the underlying resolution/encoding logic
@@ -56,6 +61,59 @@ describe('legalMentionsFor', () => {
   it('a missing or unparsable issueDate gets none — never a guessed "today"', () => {
     expect(legalMentionsFor(invoiceDescriptor, 'France', {})).toEqual([]);
     expect(legalMentionsFor(invoiceDescriptor, 'France', { issueDate: 'not-a-date' })).toEqual([]);
+  });
+
+  // The PDF's own footer used to show NOTHING from `__crossBorderMentions` — only the downloaded
+  // EN 16931 XML did (`formats/shared-build.ts`'s own `extractCrossBorderMentions`, reused here
+  // rather than re-filtered). Fixed 2026-09-13 alongside the VAT-exemption checkbox: a mailed PDF is
+  // the common case, not everyone downloads the XML, so a mention the law requires printed cannot
+  // exist in one output and not the other.
+  describe('__crossBorderMentions — the tax engine sidecar (cross-border, or a domestic exempt seller)', () => {
+    it('APPENDS the sidecar mention after the country-mandated ones, for a French seller', () => {
+      const data = {
+        issueDate: '2026-06-30',
+        __crossBorderMentions: [{ code: 'FR_293B', text: 'TVA non applicable, art. 293 B du CGI' }],
+      };
+      const mentions = legalMentionsFor(invoiceDescriptor, 'France', data);
+      expect(mentions.map((m) => m.subjectCode)).toEqual(['PMT', 'PMD', 'AAB', undefined]);
+      expect(mentions[mentions.length - 1]).toEqual({
+        text: 'TVA non applicable, art. 293 B du CGI',
+        legalRef: 'FR_293B',
+      });
+    });
+
+    it('still appears for a country with NO country-mandated mentions file at all (Germany)', () => {
+      const data = {
+        issueDate: '2026-06-30',
+        __crossBorderMentions: [{ code: 'FRANCHISE', text: 'VAT exempt — small business scheme' }],
+      };
+      const mentions = legalMentionsFor(invoiceDescriptor, 'Germany', data);
+      expect(mentions).toEqual([{ text: 'VAT exempt — small business scheme', legalRef: 'FRANCHISE' }]);
+    });
+
+    it('a document type that does not declare usesLegalMentions still gets none, even with a sidecar present', () => {
+      const data = {
+        issueDate: '2026-06-30',
+        __crossBorderMentions: [{ code: 'FR_293B', text: 'TVA non applicable, art. 293 B du CGI' }],
+      };
+      expect(legalMentionsFor(plainDescriptor, 'France', data)).toEqual([]);
+    });
+
+    it('an absent, malformed, or empty sidecar changes nothing — same three FR mentions as before this fix', () => {
+      const base = { issueDate: '2026-06-30' };
+      const withoutSidecar = legalMentionsFor(invoiceDescriptor, 'France', base);
+      const withEmptySidecar = legalMentionsFor(invoiceDescriptor, 'France', {
+        ...base,
+        __crossBorderMentions: [],
+      });
+      const withMalformedSidecar = legalMentionsFor(invoiceDescriptor, 'France', {
+        ...base,
+        __crossBorderMentions: 'not-an-array',
+      });
+      expect(withoutSidecar).toHaveLength(3);
+      expect(withEmptySidecar).toEqual(withoutSidecar);
+      expect(withMalformedSidecar).toEqual(withoutSidecar);
+    });
   });
 });
 

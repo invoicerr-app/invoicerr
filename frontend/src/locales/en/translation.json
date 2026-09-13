@@ -1866,7 +1866,7 @@
         },
         "exemptVat": {
           "label": "TVA unapplicable",
-          "description": "Display the legal notice 'VAT not applicable, art. 293 B of the CGI' on future documents when enabled and if the company's country is France."
+          "description": "Charge no VAT on future domestic invoices and display the small-business exemption notice your country's law requires (e.g. 'VAT not applicable, art. 293 B of the CGI' in France)."
         },
         "remindersEnabled": {
           "label": "Send automatic payment reminders",

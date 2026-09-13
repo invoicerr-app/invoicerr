@@ -48,6 +48,100 @@ describe('resolveInvoiceCrossBorderTax — pure domestic: nothing changes', () =
   });
 });
 
+// The DELICATE HALF this defect's fix required (see resolve-invoice-tax.ts's own header, "ONE
+// exception"): a DOMESTIC seller under a non-STANDARD tax scheme must still see the exemption, while
+// a seller with no scheme (or 'STANDARD') must stay COMPLETELY untouched — same object reference, not
+// merely deep-equal. `tax-engine.spec.ts` already proves the underlying ENGINE branch
+// (`domesticVat`'s FRANCHISE_BASE case) in isolation; these tests prove the WIRING actually reaches it
+// for a real domestic send, which is exactly the gap that let an exempt company be charged VAT.
+describe('resolveInvoiceCrossBorderTax — domestic seller under a non-STANDARD tax scheme (franchise/exempt)', () => {
+  it('FR→FR, seller taxScheme FRANCHISE_BASE: every line is rewritten to 0%, category E, art. 293 B mention', () => {
+    const data = dataWithLines([
+      { description: 'Consulting', quantity: 2, unitPrice: 500, vatRate: '20' },
+      { description: 'More consulting', quantity: 1, unitPrice: 100, vatRate: '10' },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR', taxScheme: 'FRANCHISE_BASE' },
+      buyer: { countryCode: 'FR' },
+      data,
+    });
+    expect(result.crossBorder).toBe(false); // still a DOMESTIC invoice, never treated as cross-border
+    expect(result.data).not.toBe(data); // this IS a rewrite, unlike the ordinary domestic no-op
+    const lines = result.data.lines as Record<string, unknown>[];
+    expect(lines[0].vatRate).toBe('0');
+    expect(lines[0].__crossBorderCategory).toBe('E');
+    expect(lines[1].vatRate).toBe('0');
+    expect(lines[1].__crossBorderCategory).toBe('E');
+    const mentions = result.data.__crossBorderMentions as { code: string; text: string }[];
+    expect(mentions.map((m) => m.code)).toContain('FR_293B');
+    expect(mentions.map((m) => m.text)).toContain('TVA non applicable, art. 293 B du CGI');
+    // Deduplicated document-level, exactly like the cross-border branch does — not once per line.
+    expect(mentions).toHaveLength(1);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('PT→PT, seller taxScheme FRANCHISE_BASE: the CIVA art. 57.º n.º 2 wording, never the generic one', () => {
+    const data = dataWithLines([{ description: 'Consulting', quantity: 1, unitPrice: 500, vatRate: '23' }]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'PT', taxScheme: 'FRANCHISE_BASE' },
+      buyer: { countryCode: 'PT' },
+      data,
+    });
+    const lines = result.data.lines as Record<string, unknown>[];
+    expect(lines[0].vatRate).toBe('0');
+    const mentions = result.data.__crossBorderMentions as { code: string; text: string }[];
+    expect(mentions.map((m) => m.text)).toContain('IVA - regime de isenção');
+  });
+
+  it('DE→DE, seller taxScheme FRANCHISE_BASE: the GENERIC mention — no sourced German wording exists yet', () => {
+    const data = dataWithLines([{ description: 'Consulting', quantity: 1, unitPrice: 500, vatRate: '19' }]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'DE', taxScheme: 'FRANCHISE_BASE' },
+      buyer: { countryCode: 'DE' },
+      data,
+    });
+    const mentions = result.data.__crossBorderMentions as { code: string; text: string }[];
+    expect(mentions.map((m) => m.code)).toContain('FRANCHISE');
+    expect(mentions.map((m) => m.text)).toContain('VAT exempt — small business scheme');
+  });
+
+  it('a seller country with NO known VAT/GST tax system (US) is left COMPLETELY untouched, with a named warning — never a silent guess', () => {
+    const data = dataWithLines([{ description: 'x', quantity: 1, unitPrice: 100, vatRate: '37' }]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'US', taxScheme: 'FRANCHISE_BASE' },
+      buyer: { countryCode: 'US' },
+      data,
+    });
+    expect(result.crossBorder).toBe(false);
+    expect(result.data).toBe(data); // same reference — nothing this catalog can safely rewrite
+    expect(result.warnings.join(' ')).toMatch(/no VAT\/GST tax system is known for its own country/);
+  });
+
+  // NON-REGRESSION — DoD's own requirement: an ORDINARY (non-exempt) domestic seller must be
+  // completely unaffected by any of the above, including the SAME OBJECT REFERENCE, not merely deep
+  // equality — the exact guarantee `ResolveInvoiceCrossBorderTaxResult.data`'s own doc comment makes.
+  it('a NORMAL seller (no taxScheme at all) is byte-identical to before this fix — same object reference', () => {
+    const data = dataWithLines([{ description: 'Consulting', quantity: 1, unitPrice: 500, vatRate: '20' }]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'FR' },
+      data,
+    });
+    expect(result.data).toBe(data);
+    expect((result.data.lines as Record<string, unknown>[])[0].vatRate).toBe('20');
+  });
+
+  it('a seller explicitly marked taxScheme STANDARD is treated exactly like no scheme at all — same object reference', () => {
+    const data = dataWithLines([{ description: 'Consulting', quantity: 1, unitPrice: 500, vatRate: '20' }]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR', taxScheme: 'STANDARD' },
+      buyer: { countryCode: 'FR' },
+      data,
+    });
+    expect(result.data).toBe(data);
+  });
+});
+
 describe('resolveInvoiceCrossBorderTax — unresolved buyer country: hard block, never a silent 0%', () => {
   it('a buyer with no country at all blocks, named', () => {
     const data = dataWithLines([{ description: 'x', quantity: 1, unitPrice: 100, vatRate: '20' }]);

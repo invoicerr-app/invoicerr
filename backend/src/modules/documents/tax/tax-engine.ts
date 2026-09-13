@@ -14,6 +14,13 @@
  * buyer country, OSS with no destination rate table) the product's own history required — see that
  * file's own header. This file stays exactly what it was at the repère: a pure function of its
  * inputs, never aware of Prisma, of "sending", or of any HTTP call.
+ *
+ * ONE amendment, post-repère (2026-09-13): `domesticVat`'s FRANCHISE_BASE branch below used to pick
+ * between exactly two mentions (FR's own art. 293 B wording, or the generic small-business one for
+ * every other country). A THIRD, PT-specific wording was added the same day the wiring that actually
+ * calls this branch for a real domestic invoice was fixed (`resolve-invoice-tax.ts`'s own
+ * `applyDomesticTaxScheme`) — see that mention's own comment for its source. Every other branch below
+ * is still the repère's own, unedited.
  */
 import {
   DocumentLine,
@@ -45,6 +52,14 @@ const MENTION = {
     text: 'VAT not applicable — supply outside the scope of EU VAT',
   },
   fr293b: { code: 'FR_293B', text: 'TVA non applicable, art. 293 B du CGI' },
+  // Código do IVA (CIVA) art. 57.º n.º 2 (redação do Decreto-Lei n.º 35/2025, de 24 de março) NAMES
+  // this exact wording for the invoice a small-business-exempt taxpayer (CIVA art. 53.º n.º 1) must
+  // issue — verbatim: "As faturas emitidas pelos sujeitos passivos referidos no número anterior no
+  // exercício da sua atividade devem sempre conter a menção 'IVA - regime de isenção'." Read directly
+  // from the Autoridade Tributária's own consolidated CIVA PDF (curl + pdftotext, 2026-09-13) — not
+  // translated, not given an article-number suffix the statute's own printed wording does not carry
+  // (unlike `fr293b` above, whose French text names its own article inline).
+  ptRegimeIsencao: { code: 'PT_REGIME_ISENCAO', text: 'IVA - regime de isenção' },
   franchise: { code: 'FRANCHISE', text: 'VAT exempt — small business scheme' },
   importSelfAssess: {
     code: 'IMPORT_SELF_ASSESS',
@@ -180,9 +195,12 @@ export function determineLineTax(
 }
 
 function domesticVat(line: DocumentLine, sys: VatSystemSpec, supplier: PartyTaxProfile): TaxTreatment {
-  // Small-business exemption schemes (FR 293 B and generic franchise / exempt).
+  // Small-business exemption schemes (FR 293 B, PT's own CIVA wording, and generic franchise /
+  // exempt for every other country — see each MENTION entry's own comment for sourcing; a country
+  // with no dedicated entry here falls back to the generic mention rather than an invented wording).
   if (supplier.taxScheme === 'FRANCHISE_BASE') {
-    const mention = supplier.countryCode.toUpperCase() === 'FR' ? MENTION.fr293b : MENTION.franchise;
+    const cc = supplier.countryCode.toUpperCase();
+    const mention = cc === 'FR' ? MENTION.fr293b : cc === 'PT' ? MENTION.ptRegimeIsencao : MENTION.franchise;
     return treatment(
       {
         taxSystem: sys.kind,

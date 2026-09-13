@@ -2,10 +2,12 @@
  * The ONE Prisma-aware entry point for the cross-border tax wiring — loads exactly the facts
  * `resolve-invoice-tax.ts` needs (seller/buyer country, buyer VAT + its STORED validation verdict —
  * never a live VIES call, see `clients.service.ts`'s own header on why that happens at save time) and
- * calls the pure resolver. Both real call sites (`invoice-actions.ts`'s preflight and `deliver()`, and
- * `documents.service.ts#downloadDocumentFormat`) share this so the query shape never drifts between
- * them — a real risk given all three need the SAME two rows, fetched independently before this file
- * existed.
+ * calls the pure resolver. `invoice-actions.ts`'s preflight and `deliver()` both call THIS function.
+ * `documents.service.ts#downloadDocumentFormat` does not — it already has the full company/client rows
+ * (with `partyIdentifiers`) for building the format itself, so it calls `resolveInvoiceCrossBorderTax`
+ * directly on those rather than a second round trip through here (see that call site's own comment) —
+ * which means any fact this function starts reading (like `exemptVat` below) has to be read there too,
+ * kept in sync by hand rather than automatically shared.
  */
 import prisma from '@/prisma/prisma.service';
 
@@ -18,7 +20,10 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
   const clientId = typeof data.client === 'string' ? data.client : undefined;
 
   const [company, client] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId }, select: { country: true, countryCode: true } }),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, countryCode: true, exemptVat: true },
+    }),
     clientId
       ? prisma.client.findUnique({
           where: { id: clientId },
@@ -38,7 +43,22 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
     // resolved) resolves to an unresolved seller country, which is the named hard block USER DECISION
     // (2026-09-01) requires — `resolve-invoice-tax.ts`'s own `UnresolvedSellerCountryError` — never a
     // silent fallback to FR, same discipline the buyer side already held below.
-    seller: { country: company?.country, countryCode: company?.countryCode },
+    seller: {
+      country: company?.country,
+      countryCode: company?.countryCode,
+      // `Company.exemptVat` (`schema.prisma`) is a bare boolean toggled from Settings → Company. The
+      // checkbox's own description (`frontend/src/locales/en/translation.json`,
+      // `settings.company.form.exemptVat.description`) promises the small-business VAT exemption
+      // notice (art. 293 B of the CGI in France, a country-specific or generic wording elsewhere —
+      // see `tax-engine.ts`'s own `MENTION` map) — that is exactly the `FRANCHISE_BASE` scheme, never
+      // `'EXEMPT'` (a stronger claim — "no VAT system applies to this seller at all" — this checkbox
+      // never makes and this product has no UI for). This mapping is the fix for the SECOND of the
+      // three independent breaks that used to let this checkbox do nothing at all: the value was
+      // persisted and read by the DTO/frontend, but no backend code ever read it back — see this
+      // file's own header, "the ONE Prisma-aware entry point", for why here is where that has to
+      // happen.
+      taxScheme: company?.exemptVat ? 'FRANCHISE_BASE' : undefined,
+    },
     // No client row at all (a data problem `documents.service.ts`'s own validation already catches
     // earlier — `client` is a required field) resolves to an unresolved buyer country, which is
     // EXACTLY the named hard block `resolve-invoice-tax.ts` requires — never a second, silent code path.

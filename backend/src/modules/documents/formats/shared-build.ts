@@ -78,13 +78,16 @@ function extractSupplyType(value: unknown): SemanticLineInput['supplyType'] {
 }
 
 /**
- * `__crossBorderCategory`/`__crossBorderExemptionReason` — the cross-border tax engine's
- * OWN sidecar convention, written ONLY by `tax/resolve-invoice-tax.ts` onto the in-memory, never
- * persisted, rewritten `data` it hands back for a CROSS-BORDER invoice (see that file's own header,
- * "Never a blind store"). Absent for every domestic invoice and every OTHER document type — this is
- * the ONE place they are read back, so `vatCategoryFor`'s own rate-only derivation
- * (`build-semantic-invoice.ts`) never has to guess AE/K/G/O from a bare 0% rate, which it structurally
- * cannot (see that file's own header, "VAT category").
+ * `__crossBorderCategory`/`__crossBorderExemptionReason` — the tax engine's OWN sidecar convention,
+ * written ONLY by `tax/resolve-invoice-tax.ts` onto the in-memory, never persisted, rewritten `data`
+ * it hands back for a CROSS-BORDER invoice OR a DOMESTIC invoice from a seller under a non-STANDARD
+ * tax scheme — e.g. `FRANCHISE_BASE`, the small-business VAT exemption (see that file's own header,
+ * "Never a blind store", and its `applyDomesticTaxScheme`) — the "cross-border" name predates the
+ * second case and was kept rather than renamed. Absent for every OTHER domestic invoice (an ordinary,
+ * non-exempt seller) and every OTHER document type — this is the ONE place they are read back, so
+ * `vatCategoryFor`'s own rate-only derivation (`build-semantic-invoice.ts`) never has to guess
+ * AE/K/G/O/E from a bare 0% rate, which it structurally cannot (see that file's own header, "VAT
+ * category").
  */
 const VAT_CATEGORY_CODES = new Set(['S', 'Z', 'E', 'AE', 'K', 'G', 'O']);
 
@@ -114,11 +117,14 @@ export function extractLines(data: Record<string, unknown>): SemanticLineInput[]
 }
 
 /** `__crossBorderMentions` — the document-level twin of the sidecar above: the tax engine's own,
- *  already-deduplicated `LegalMention[]` for a cross-border invoice. Read here,
- *  once, and handed to `buildSemanticInvoice` as `additionalMentions` — see that function's own
- *  header for how they join BG-1 through the EXISTING `mentions/invoice-notes.ts#toUblNote`
- *  mechanism, never a parallel one. */
-function extractCrossBorderMentions(data: Record<string, unknown>): { code: string; text: string }[] {
+ *  already-deduplicated `LegalMention[]` for a cross-border invoice OR a domestic invoice from an
+ *  exempt/franchise seller. Read here, once, and handed to `buildSemanticInvoice` as
+ *  `additionalMentions` — see that function's own header for how they join BG-1 through the EXISTING
+ *  `mentions/invoice-notes.ts#toUblNote` mechanism, never a parallel one. Exported so
+ *  `rendering/render-instance-pdf.ts#legalMentionsFor` reuses this SAME extraction for the PRINTED
+ *  PDF's own footer block, rather than a second, parallel filter that could silently drift from this
+ *  one (see that file's own comment on why the mention has to reach both places). */
+export function extractCrossBorderMentions(data: Record<string, unknown>): { code: string; text: string }[] {
   const raw = data.__crossBorderMentions;
   if (!Array.isArray(raw)) return [];
   return raw.filter(

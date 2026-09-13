@@ -5,6 +5,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { extractCrossBorderMentions } from '../formats/shared-build';
 import { resolveInvoiceNotes, ResolvedInvoiceNote } from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
 import { EntityReferenceRegistry } from '../references/reference-registry';
@@ -39,6 +40,19 @@ export interface RenderDocumentInstanceDeps {
  * rather than guessing "today" — resolveInvoiceNotes` must be handed the document's OWN issue date,
  * never a stand-in, or the freeze property (`mentions/schema.ts`'s own header) would be silently
  * broken for exactly the record that most needs it (a document with bad data on file).
+ *
+ * APPENDED (2026-09-13) — `data.__crossBorderMentions`, the SAME sidecar
+ * `formats/shared-build.ts#extractCrossBorderMentions` already reads for the semantic XML export (a
+ * cross-border invoice's reverse-charge/intra-Community/export mention, or a domestic invoice from a
+ * seller under a non-STANDARD tax scheme — `tax/resolve-invoice-tax.ts#applyDomesticTaxScheme`, the
+ * fix for a company ticking "VAT exempt" in Settings). Before this, the PDF's own footer never showed
+ * either kind of mention at all — only the downloaded EN 16931 XML did — so a seller mailing the PDF
+ * straight to a customer (the common case; not everyone downloads the XML) would omit a mention the
+ * law requires printed. Reused, never re-filtered a second way, and APPENDED after the
+ * country-mandated mentions above — the SAME order `build-semantic-invoice.ts`'s own BG-1 already
+ * uses. `subjectCode` is left unset for these (a `LegalMention` never carries a UNTDID 4451 subject
+ * code, same as that bridge's own comment on this), which `ResolvedInvoiceNote` already allows as an
+ * optional field — no separate type needed to satisfy `RenderableLegalMention` below.
  */
 export function legalMentionsFor(
   descriptor: DocumentTypeDescriptor,
@@ -47,13 +61,22 @@ export function legalMentionsFor(
 ): ResolvedInvoiceNote[] {
   if (!descriptor.usesLegalMentions) return [];
 
-  const rawIssueDate = data.issueDate;
-  if (typeof rawIssueDate !== 'string' && typeof rawIssueDate !== 'number') return [];
-  const issueDate = new Date(rawIssueDate);
-  if (Number.isNaN(issueDate.getTime())) return [];
+  const countryMandated = ((): ResolvedInvoiceNote[] => {
+    const rawIssueDate = data.issueDate;
+    if (typeof rawIssueDate !== 'string' && typeof rawIssueDate !== 'number') return [];
+    const issueDate = new Date(rawIssueDate);
+    if (Number.isNaN(issueDate.getTime())) return [];
 
-  const countryCode = guessCountryCode(companyCountry ?? undefined);
-  return resolveInvoiceNotes(defaultMentionsCatalog.fileFor(countryCode), issueDate);
+    const countryCode = guessCountryCode(companyCountry ?? undefined);
+    return resolveInvoiceNotes(defaultMentionsCatalog.fileFor(countryCode), issueDate);
+  })();
+
+  const crossBorder: ResolvedInvoiceNote[] = extractCrossBorderMentions(data).map((m) => ({
+    text: m.text,
+    legalRef: m.code,
+  }));
+
+  return [...countryMandated, ...crossBorder];
 }
 
 /**

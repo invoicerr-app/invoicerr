@@ -99,6 +99,24 @@ describe('TaxEngine — domestic VAT (France)', () => {
     expect(t.mentions.map((m) => m.text)).toContain('TVA non applicable, art. 293 B du CGI');
   });
 
+  it('PT→PT small-business exemption: exempt, 0%, the CIVA art. 57.º n.º 2 wording, never the generic FR/EN one', () => {
+    const supplier = party('PT', 'B2B', { scheme: 'FRANCHISE_BASE' });
+    const t = determineLineTax(supplier, party('PT', 'B2C'), line('SERVICES'), prof('PT')!, vat, prof('PT'));
+    expect(t.components[0].category).toBe('E');
+    expect(t.components[0].rate).toBe(0);
+    expect(t.mentions.map((m) => m.code)).toContain('PT_REGIME_ISENCAO');
+    expect(t.mentions.map((m) => m.text)).toContain('IVA - regime de isenção');
+  });
+
+  it('DE→DE small-business exemption: exempt, 0%, the GENERIC mention — no sourced German wording yet', () => {
+    const supplier = party('DE', 'B2B', { scheme: 'FRANCHISE_BASE' });
+    const t = determineLineTax(supplier, party('DE', 'B2C'), line('SERVICES'), prof('DE')!, vat, prof('DE'));
+    expect(t.components[0].category).toBe('E');
+    expect(t.components[0].rate).toBe(0);
+    expect(t.mentions.map((m) => m.code)).toContain('FRANCHISE');
+    expect(t.mentions.map((m) => m.text)).toContain('VAT exempt — small business scheme');
+  });
+
   it('uses a reduced-rate hint (5.5%) when the line declared one', () => {
     const t = determineLineTax(
       party('FR', 'B2C'),

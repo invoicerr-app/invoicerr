@@ -190,10 +190,12 @@ export interface RenderDocumentHtmlInput {
   referenceLabels: Record<string, string>;
   totals?: DocumentTotals;
   /**
-   * The country-mandated mentions to print in their
-   * OWN footer block, resolved by the caller (`render-instance-pdf.ts`, gated on
-   * `descriptor.usesLegalMentions`) from the seller's country and this instance's own issue date.
-   * Absent or empty prints NO block at all — not an empty framed section, nothing (see this file's
+   * The mentions to print in their OWN footer block, resolved by the caller (`render-instance-pdf.ts`'s
+   * `legalMentionsFor`, gated on `descriptor.usesLegalMentions`): the country-mandated ones (from the
+   * seller's country and this instance's own issue date) FOLLOWED by the tax engine's own
+   * `__crossBorderMentions` sidecar, when this instance has one (a cross-border invoice, or a domestic
+   * invoice from a seller under a non-STANDARD tax scheme — see that function's own comment). Absent
+   * or empty prints NO block at all — not an empty framed section, nothing (see this file's
    * own `renderDocumentHtml`) — so a country with no mentions, or a document type that never opts
    * in, produces byte-for-byte the same HTML this function always produced.
    *

@@ -1302,7 +1302,16 @@ export class DocumentsService implements OnModuleInit {
       const buyerVatRow = client.partyIdentifiers.find((pi) => pi.scheme === 'VAT');
       try {
         dataForBuild = resolveInvoiceCrossBorderTax({
-          seller: { country: company.country, countryCode: company.countryCode },
+          seller: {
+            country: company.country,
+            countryCode: company.countryCode,
+            // Same `exemptVat` → `FRANCHISE_BASE` mapping as `tax/load-and-resolve.ts`'s own comment
+            // on this exact line — this call site fetches the company row directly rather than
+            // through that Prisma-aware entry point (see this block's own header above for why), so
+            // the mapping has to be repeated here rather than inherited automatically; keep both in
+            // sync if it ever changes.
+            taxScheme: company.exemptVat ? 'FRANCHISE_BASE' : undefined,
+          },
           buyer: { country: client.country, countryCode: client.countryCode },
           buyerVat: buyerVatRow
             ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }
