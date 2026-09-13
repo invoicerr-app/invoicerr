@@ -150,6 +150,19 @@ domestique, ce qui suppose de savoir de quelle catégorie d'opération relève l
 porte cette information aujourd'hui. C'est un chantier à part entière, plus grand que la
 localisation des mentions, et il doit être arbitré avant fusion plutôt que découvert après.
 
+### Échéance datée à ne pas laisser passer : 2026-12-31
+
+Le catalogue d'autoliquidation domestique livré ce jour n'a **aucun axe temporel** — contrairement à
+`mentions/`, qui a le sien. Or cinq catégories italiennes (DPR 633/1972 art. 17 comma 6 lett. b, c,
+d-bis, d-ter, d-quater) **expirent le 2026-12-31**, et une catégorie périmée est, POUR LE CODE,
+indistinguable d'une catégorie en vigueur. La portugaise alínea j) a pris effet le 2026-07-01, ce qui
+pose le problème symétrique.
+
+Tant que l'axe n'existe pas, la parade est humaine : **revérifier ces cinq catégories italiennes avant
+le 1er janvier 2027**. Le fichier `data/it.json` porte les dates dans ses propres notes, et
+`DESIGN.md` dit ce que coûterait le vrai correctif (une paire `validFrom`/`validTo`, le précédent de
+`mentions/schema.ts` étant copiable tel quel).
+
 ## Le catalogue `reporting/` ne connaît que le Portugal — et l'obligation FRANÇAISE est établie (2026-09-13)
 
 `reporting/data/` ne porte que `pt.json`. La France en a pourtant une, et elle est sourcée : **CGI
