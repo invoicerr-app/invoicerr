@@ -3,6 +3,49 @@
 > Tenu au fil de l'exécution du `TODO.md`. Chaque entrée dit ce qui bloque et ce qui le
 > débloquerait — jamais un simple « échoué ».
 
+## Réglages sans effet — la refonte a retiré le back, les écrans sont restés (2026-09-13)
+
+Trois défauts de la même famille, tous constatés sur la pile qui tourne, aucun corrigé à ce jour.
+Le point commun : la suppression du moteur de conformité (`fffbae77`) a emporté des lecteurs côté
+backend sans que les écrans qui les pilotaient soient retirés ou rebranchés. Aucun n'est visible
+depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le câblage.
+
+- **Une entreprise en franchise de TVA est quand même facturée avec TVA.** `Company.exemptVat` est
+  une colonne persistée (`schema.prisma` ~303) que **rien** ne lit côté backend. Le moteur fiscal
+  sait pourtant traiter l'exonération : `tax-engine.ts#domesticVat` branche sur
+  `supplier.taxScheme` et produit catégorie `E`, taux 0 et la mention art. 293 B. Mais `taxScheme`
+  est lu deux fois et **écrit nulle part** — le profil vendeur construit à l'envoi
+  (`tax/resolve-invoice-tax.ts` ~305) ne le porte pas. Et même s'il le portait, la facture
+  domestique n'atteint jamais le moteur : `resolve-invoice-tax.ts` ~249 rend la main dès que
+  `sellerCC === buyerCC`. La case des réglages promet littéralement d'afficher « TVA non
+  applicable, art. 293 B du CGI » ; cette mention est inatteignable. Un test unitaire vert
+  (`tax-engine.spec.ts` ~93) affirme le contraire : il est vrai du moteur et faux du produit.
+  Enjeu : franchise en base, Kleinunternehmer, regime forfettario, zwolnienie podmiotowe, regime
+  de isenção — une part importante des utilisateurs d'un logiciel de facturation.
+
+- **La carte « Formats de numéro » des réglages n'a aucun effet** (six champs). L'écran écrit
+  `quote/invoice/paymentNumberFormat` et les trois numéros de départ, persistés par le spread
+  `data: { ...rest }` de `company.service.ts` ~128. La numérotation ne lit que
+  `Company.numberFormats` (`numbering/take-number.ts` ~34) et retombe sinon sur
+  `defaultNumberFormatFor(typeId)`, soit `INVOICE-{year}-{number:4}` — qui n'est même pas le
+  `INV-…` que l'écran affiche. Constaté en base de test : la même ligne porte
+  `invoiceNumberFormat = INV-{year}-{number:4}` et `numberFormats = {"invoice":"FT {year}/{number:4}"}`,
+  et la facture émise porte `FT 2026/0001`. Une extension Prisma lisait ces colonnes avant la
+  refonte (`prisma.service.ts` ~12) ; elle a été supprimée avec elle. La branche n'étant pas
+  fusionnée, restaurer la valeur héritée est une correction, pas une rupture.
+
+- **L'onglet « PDF templates » des réglages est cassé** — deuxième onglet de la navigation,
+  1270 lignes, dont les deux seuls appels visent `/api/company/pdf-template`, **route absente du
+  backend** : 404 constaté sur la pile qui tourne, là où `/api/company/info` rend 401. En outre
+  `PDFConfigDto` (police, logo, couleurs, marges, ~20 libellés) est un champ **requis** de
+  `EditCompanyDto`, déstructuré puis jeté sans être relu, sans colonne correspondante en base.
+
+Balayage associé (front → Swagger, 54 chemins appelés contre 94 routes exposées) : le seul autre
+écart réel est `/api/directories`, appelé par `components/folder-select.tsx`, lui-même atteignable
+uniquement par un champ de type `folder` qu'aucun descripteur ne déclare — code mort, sans effet
+utilisateur. Trois autres écarts apparents étaient des faux positifs (un exemple en commentaire,
+deux littéraux de gabarit).
+
 ## Rouges e2e permanents (7), connus et rattachés à des items du TODO
 
 - ~~`05-clients` : 5 tests (Allemagne, Royaume-Uni)~~ — **RÉSOLU à l'item 19** (2026-09-01) :

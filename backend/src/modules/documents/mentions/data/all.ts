@@ -11,8 +11,31 @@
  * "a mandate without a citation does not load" discipline
  * `transports/channel-policy/data/all.ts` already holds for a channel mandate.
  *
- * Only France ships today (the repère's only sourced country for this
- * concern), but the list is DISCOVERED, not hand-maintained: `discoverCountryCodes()` reads this
+ * Only France ships today, and that is a RESEARCHED CONCLUSION rather than a gap waiting to be
+ * filled. The other four in-scope countries were each read against their primary source on
+ * 2026-09-13 — Germany's UStG §§ 14, 14a, 14b and 19 (gesetze-im-internet.de), Poland's ustawa o VAT
+ * art. 106e (the gazetted consolidated text on dziennikustaw.gov.pl), Italy's DPR 633/1972 art. 21
+ * (normattiva.it), and Portugal's CIVA art. 36.º and 57.º (the AT's own consolidated PDF on
+ * info.portaldasfinancas.gov.pt) — and NONE of them requires a mention on every invoice. What their
+ * statutes require is either a STRUCTURED FIELD (which belongs to `content-requirements/` or
+ * `country-fields/`, not here) or a mention CONDITIONED on the transaction: self-billing
+ * ("Gutschrift", "samofakturowanie", "autofaturação"), reverse charge ("Steuerschuldnerschaft des
+ * Leistungsempfängers", "odwrotne obciążenie", "inversione contabile", "IVA - autoliquidação"),
+ * cash accounting ("metoda kasowa"), Poland's split-payment note above PLN 15 000 on Annex-15 goods,
+ * the German retention notice owed only on construction work for a private recipient, the margin
+ * schemes, and Portugal's own small-business note under art. 53.º.
+ *
+ * This resolver cannot express any of those: `resolveInvoiceNotes(file, at)` receives a country file
+ * and a date and nothing else, so every `statutory: true` rule prints on EVERY invoice from that
+ * country. Encoding a conditional mention here would put a false legal claim on documents it does not
+ * apply to — strictly worse than printing nothing. France fits precisely because C. com. art. L441-9
+ * I al. 5 applies to every B2B invoice unconditionally. Adding a fifth country therefore means either
+ * finding a genuinely unconditional mention, or first giving `InvoiceNoteRule` a condition axis
+ * evaluated against an explicit context (both call sites — `rendering/render-instance-pdf.ts` and
+ * `formats/semantic/build-semantic-invoice.ts` — already hold the whole document), which is its own
+ * piece of work and would still need transaction facts the product does not capture today.
+ *
+ * The list is DISCOVERED, not hand-maintained: `discoverCountryCodes()` reads this
  * directory with `readdirSync` and keeps only names matching `/^[a-z]{2}\.json$/` — a lowercase
  * two-letter code plus `.json`, which is a country file and nothing else (it excludes this `all.ts`
  * and `all.spec.ts`, neither of which is `.json`). Adding a second country's mentions is exactly its
