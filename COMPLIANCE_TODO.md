@@ -50,7 +50,11 @@
   toucher au code de chargement. **Plus aucune exception depuis le 2026-09-13** : `archive/retention/`
   et `country-fields/` tenaient encore une liste `COUNTRY_FILES` à la main — y déposer un fichier ne
   faisait rien, silencieusement, puisque rien n'échouait. Les deux ont été migrés, et la phrase
-  ci-dessus vaut désormais pour les douze.
+  ci-dessus vaut pour tous, y compris le treizième catalogue créé le 2026-09-13,
+  `documents/domestic-reverse-charge/` — les catégories statutaires où l'ACHETEUR est redevable sur
+  une opération purement domestique (DE/FR/IT/PT, 32 catégories sourcées ; la Pologne n'en a aucune).
+  Délibérément lu par personne à ce stade : le moteur fiscal n'a pas de branche d'autoliquidation
+  domestique, et la câbler est un chantier à part entière.
 - [x] Une seule machine à états de document, générique et non spécifique à un pays
   (`descriptors/lifecycle.ts`) — pas de graphe de cycle de vie composé par pays. La nuance pays
   survit à trois endroits seulement : `correction-routes/` (quelle voie de correction), `conformity/

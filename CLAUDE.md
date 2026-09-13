@@ -142,7 +142,16 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
   close, which has no computable terminus this schema can express.
 - `reporting/` — declarative post-send declaration providers. **Portugal (AT) only** today; the
   Hungarian (NAV) and Greek (myDATA) providers were deleted with the five-country prune, so this
-  catalog is now the thinnest of the twelve rather than the broadest.
+  catalog is now the thinnest of the thirteen rather than the broadest. France's own obligation IS
+  established (CGI art. 290) but is discharged through the accredited platform (the PDP), which this
+  catalog cannot express — a fact here names a `providerId`. See `TODO_ISSUES.md`.
+- `domestic-reverse-charge/` — the statutory categories in which the BUYER, not the seller, owes the
+  VAT on a purely domestic supply (construction subcontracting, waste, scrap, greenhouse-gas
+  allowances, gas and electricity to a reseller…). DE/FR/IT/PT, 32 sourced categories; Poland has none
+  today. **Read by nothing yet, deliberately**: the tax engine has no domestic reverse-charge branch,
+  and wiring one is its own piece of work. `DESIGN.md` next to the schema states what the catalog does
+  NOT model (buyer-status tests, thresholds, Italy's "contraente generale" carve-out) and — important,
+  dated — that it has **no temporal axis** while five Italian categories expire 2026-12-31.
 
 Every fact in these catalogs carries its own provenance (`kind: 'legal'`, quoting the exact source
 text, or `kind: 'unverified'`, with a `resolutionNote`), enforced both when a data file loads and
