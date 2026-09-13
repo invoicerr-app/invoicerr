@@ -687,8 +687,14 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/,
 					);
 					expect(body, "category K").to.contain("<ram:CategoryCode>K</ram:CategoryCode>");
-					expect(body, "Art. 138 mention").to.contain(
-						"Intra-Community supply — Art. 138 Directive 2006/112/EC",
+					// La mention est désormais celle que la loi du VENDEUR nomme, pas le texte générique
+					// citant la directive : le vendeur est italien, et le D.L. 331/1993 art. 46 comma 2
+					// impose d'indiquer, en lieu et place du montant de la taxe, « che si tratta di
+					// operazione non imponibile ». Attention au piège de citation : l'intracommunautaire
+					// relève de ce texte-là, PAS du DPR 633/1972 art. 21 comma 6 lett. b), qui énumère les
+					// cas d'exportation (art. 8, 8-bis, 9, 38-quater) et porte pourtant le même libellé.
+					expect(body, "mention italienne « operazione non imponibile »").to.contain(
+						"operazione non imponibile",
 					);
 					// BT-80 — the buyer's own country (Portugal), the same shape
 					// `formats/providers.spec.ts`'s own BT-80 suite already proves for CII.
@@ -761,7 +767,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// DIFFERENT country pair, proving the engine composes rather than special-cases one pair.
 					expect(body, "0% (reverse charge)").to.match(/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/);
 					expect(body, "category AE").to.contain("<ram:CategoryCode>AE</ram:CategoryCode>");
-					expect(body, "Art. 196 mention").to.contain("Autoliquidation / Reverse charge — Art. 196 Directive 2006/112/EC");
+					// Le vendeur est PORTUGAIS, et le CIVA art. 36.º n.º 13 impose l'expression exacte
+					// « IVA - autoliquidação » dès lors que le destinataire est redevable de la taxe. La
+					// jambe fr-pl garde, elle, le texte générique citant la directive : la France n'impose
+					// aucune formulation, et c'est ce contraste qui prouve que le moteur suit la loi du
+					// VENDEUR au lieu d'appliquer une seule phrase à tout le monde.
+					expect(body, "mention portugaise d'autoliquidation").to.contain("IVA - autoliquidação");
 				}
 
 			});
