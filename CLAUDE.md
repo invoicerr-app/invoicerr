@@ -31,6 +31,18 @@ npm test -- -t "OSS destination rate"                 # a single test by name
 npx prisma migrate dev                                # create + apply a migration
 ```
 
+**A `data/xx.json` you ADD while a watcher is running never reaches the running server.**
+`nest start --watch` copies the assets declared in `nest-cli.json` once at startup and then watches
+the files it already knows for changes; `watchAssets: true` covers EDITING one, not CREATING one.
+Measured 2026-09-13 on a live dev stack: `vat-rates/data/` held five country files and `dist/` only
+two, `transports/channel-policy/data/` five against three. Every per-country rule in this repo lives
+in one of those files, so a stale `dist/` means the server is quietly answering from a different
+catalogue than the one on disk — and any "verified against the running stack" claim about country
+data is then worthless. Before trusting such a check, or before an e2e run that depends on a recently
+added catalogue, compare the two directories (`ls src/**/data/*.json | wc -l` against
+`ls dist/src/**/data/*.json | wc -l`) and restart the backend if they differ. Production is not
+affected: the Docker image runs a fresh `nest build`.
+
 ### Frontend
 ```bash
 npm run dev                    # :5173
