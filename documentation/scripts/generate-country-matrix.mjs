@@ -115,6 +115,12 @@ const countryIdentifiers = loadDataDir('country-identifiers/data');
 const mentions = loadDataDir('mentions/data');
 const countryFields = loadDataDir('country-fields/data');
 const contentRequirements = loadDataDir('content-requirements/data');
+// How long a document archived for this country must be kept — and, just as much, what that duration
+// is counted FROM. A country may declare several rules at once: they are simultaneous obligations, so
+// the effective date is the latest of them, never a choice between them (see the catalogue's own
+// `compute-retention.ts` header). Read here so the public page can state one of the most practical
+// facts a business needs, instead of leaving it unsaid.
+const archiveRetention = loadDataDir('archive/retention/data');
 const vatRates = loadDataDir('vat-rates/data');
 
 // ---------------------------------------------------------------------------------------------
@@ -421,6 +427,25 @@ const STRINGS = {
       channelColRequirement: 'Requirement',
       channelColMandatedFrom: 'Mandated from',
       channelColProvenance: 'Provenance',
+      sectionRetention: 'How long documents must be kept',
+      retentionIntro:
+        'Each row is one legal obligation, with the article it comes from. When a country declares ' +
+        'more than one, they bind the same business AT THE SAME TIME — they are not alternatives to ' +
+        'choose between, so the date you must actually observe is the latest of them. The app works ' +
+        'that date out for each archive it writes.',
+      retentionColLabel: 'Obligation',
+      retentionColYears: 'Years',
+      retentionColOrigin: 'Counted from',
+      retentionColLegalRef: 'Article',
+      retentionOrigin: {
+        archivedAt: 'the moment the archive was written',
+        issueDate: "the document's own issue date",
+        issueDateYearEnd: 'the end of the calendar year the document was issued in',
+        fiscalYearEndUnknownSafe:
+          'the close of the financial year — approximated upwards, because this app does not know your own financial-year end',
+        taxDeadlineYearEndUnknownSafe:
+          'the end of the calendar year the tax fell due in — approximated upwards, because this app does not know your filing frequency',
+      },
       fieldOverlayIntro: 'What this country adds/modifies/removes on top of the trunk document shape:',
       fieldOverlayAdd: (key, on) => `**add** \`${key}\` on \`${on}\``,
       fieldOverlayModify: (key, on) => `**modify** \`${key}\` on \`${on}\``,
@@ -744,6 +769,25 @@ const STRINGS = {
       channelColRequirement: 'Exigence',
       channelColMandatedFrom: 'Obligatoire depuis',
       channelColProvenance: 'Provenance',
+      sectionRetention: 'Combien de temps les documents doivent être conservés',
+      retentionIntro:
+        "Chaque ligne est une obligation légale, avec l'article dont elle vient. Quand un pays en " +
+        'déclare plusieurs, elles pèsent EN MÊME TEMPS sur la même entreprise — ce ne sont pas des ' +
+        "options entre lesquelles choisir, donc la date à observer est la plus tardive d'entre elles. " +
+        "L'application la calcule pour chaque archive qu'elle écrit.",
+      retentionColLabel: 'Obligation',
+      retentionColYears: 'Années',
+      retentionColOrigin: 'Comptées à partir de',
+      retentionColLegalRef: 'Article',
+      retentionOrigin: {
+        archivedAt: "l'instant où l'archive a été écrite",
+        issueDate: "la date d'émission du document",
+        issueDateYearEnd: "la fin de l'année civile d'émission",
+        fiscalYearEndUnknownSafe:
+          "la clôture de l'exercice — approximée par le haut, l'application ne connaissant pas votre propre date de clôture",
+        taxDeadlineYearEndUnknownSafe:
+          "la fin de l'année civile où la taxe est devenue exigible — approximée par le haut, l'application ne connaissant pas votre périodicité de déclaration",
+      },
       fieldOverlayIntro: 'Ce que ce pays ajoute/modifie/retire par rapport au tronc commun du document :',
       fieldOverlayAdd: (key, on) => `**ajoute** \`${key}\` sur \`${on}\``,
       fieldOverlayModify: (key, on) => `**modifie** \`${key}\` sur \`${on}\``,
@@ -1944,6 +1988,32 @@ function renderBonusSections(cc, locale) {
       quotes.push(provenanceQuoteEntry(f.field, f.provenance));
     }
     out.push(renderQuotesBlock(quotes, locale));
+    out.push('');
+  }
+  // Retention, rendered from the STRUCTURED fields only (label, years, origin, legalRef) — never from
+  // a rule's own free-form `notes`, which are written for a maintainer in the data file's own language
+  // and would break this page's locale discipline.
+  //
+  // Deliberately NO "in practice, N years" line: the catalogue resolves competing obligations by
+  // comparing the DATES each one computes, not by whichever declares the most years — a shorter count
+  // from an earlier origin can still land later. Restating that here with a simpler rule would be a
+  // second, divergent implementation of the one thing this page must not get wrong, so the table
+  // states the obligations, the intro states the principle, and the application computes the date.
+  const retention = archiveRetention[cc];
+  if (retention?.rules?.length) {
+    out.push(`### ${S.sectionRetention}`);
+    out.push('');
+    out.push(S.retentionIntro);
+    out.push('');
+    out.push(
+      `| ${S.retentionColLabel} | ${S.retentionColYears} | ${S.retentionColOrigin} | ${S.retentionColLegalRef} |`,
+    );
+    out.push('|---|---|---|---|');
+    for (const rule of retention.rules) {
+      out.push(
+        `| ${rule.label} | ${rule.years} | ${S.retentionOrigin[rule.origin] ?? rule.origin} | ${rule.legalRef} |`,
+      );
+    }
     out.push('');
   }
   return out.join('\n');
