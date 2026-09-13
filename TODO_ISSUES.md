@@ -5,7 +5,9 @@
 
 ## Réglages sans effet — la refonte a retiré le back, les écrans sont restés (2026-09-13)
 
-Trois défauts de la même famille, tous constatés sur la pile qui tourne, aucun corrigé à ce jour.
+Quatre défauts de la même famille, tous constatés sur la pile qui tourne. Le premier est corrigé
+(`cd9ddb0d`) ; les trois autres restent ouverts.
+
 Le point commun : la suppression du moteur de conformité (`fffbae77`) a emporté des lecteurs côté
 backend sans que les écrans qui les pilotaient soient retirés ou rebranchés. Aucun n'est visible
 depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le câblage.
