@@ -102,7 +102,7 @@ describe('activeChannelMandateFor — the real, shipped IT/SdI mandate (armed 20
 
   it(
     'carries "sdi-pec" as an equivalentProviderId — the PEC route discharges the SAME mandate as the ' +
-      'accredited SDICoop one (see data/it.json\'s own added note)',
+      "accredited SDICoop one (see data/it.json's own added note)",
     () => {
       expect(activeChannelMandateFor('IT', '2026-09-13')?.equivalentProviderIds).toEqual(['sdi-pec']);
     },

@@ -54,11 +54,7 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildDeps(overrides?: {
-  resolveActive?: jest.Mock;
-  build?: jest.Mock;
-  sendMail?: jest.Mock;
-}) {
+function buildDeps(overrides?: { resolveActive?: jest.Mock; build?: jest.Mock; sendMail?: jest.Mock }) {
   const channelCredentials = {
     resolveActive: overrides?.resolveActive ?? jest.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
@@ -73,7 +69,9 @@ function buildDeps(overrides?: {
         validation: { valid: true, errors: [] },
       }),
   };
-  const mailService = { sendMail: overrides?.sendMail ?? jest.fn().mockResolvedValue({ message: 'ok' }) } as unknown as MailService;
+  const mailService = {
+    sendMail: overrides?.sendMail ?? jest.fn().mockResolvedValue({ message: 'ok' }),
+  } as unknown as MailService;
   return { channelCredentials, fatturapaFormatProvider, mailService };
 }
 
@@ -258,10 +256,12 @@ describe('buildSdiPecTransport', () => {
       expect(sendMail).not.toHaveBeenCalled();
     });
 
-    it('refuses a FatturaPA payload over this transport\'s own conservative size safety margin', async () => {
+    it("refuses a FatturaPA payload over this transport's own conservative size safety margin", async () => {
       const sendMail = jest.fn();
       const oversized = new Uint8Array(30 * 1024 * 1024); // 30 MB raw — well past the safety margin
-      const build = jest.fn().mockResolvedValue({ bytes: oversized, validation: { valid: true, errors: [] } });
+      const build = jest
+        .fn()
+        .mockResolvedValue({ bytes: oversized, validation: { valid: true, errors: [] } });
       const deps = buildDeps({ build, sendMail });
       const transport = buildSdiPecTransport(deps);
 

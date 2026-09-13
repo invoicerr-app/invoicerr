@@ -243,7 +243,8 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
         equivalentProviderIds: ['sdi-pec'],
         provenance: {
           kind: 'legal' as const,
-          sourceText: 'Sono emesse esclusivamente fatture elettroniche utilizzando il Sistema di Interscambio.',
+          sourceText:
+            'Sono emesse esclusivamente fatture elettroniche utilizzando il Sistema di Interscambio.',
           sourceCheckedAt: '2026-09-13',
         },
       });

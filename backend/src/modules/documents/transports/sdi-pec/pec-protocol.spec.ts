@@ -29,7 +29,7 @@ describe('pec-protocol — facts read from fatturapa.gov.it, encoded as pure fun
   });
 
   describe('the §2.2 filename pattern — the worked examples from the specification, verbatim', () => {
-    it('accepts the specification\'s own worked examples', () => {
+    it("accepts the specification's own worked examples", () => {
       expect(isValidPecAttachmentFilename('ITAAABBB99T99X999W_00001.xml')).toBe(true);
       expect(isValidPecAttachmentFilename('IT99999999999_00002.xml.p7m')).toBe(true);
       expect(isValidPecAttachmentFilename('ITAAABBB99T99X999W_00001.zip')).toBe(true);
@@ -58,7 +58,7 @@ describe('pec-protocol — facts read from fatturapa.gov.it, encoded as pure fun
   });
 
   describe('buildPecProgressivo — deterministic, ≤5 alphanumeric characters', () => {
-    it('is exactly 5 characters, always, regardless of the input id\'s own length/shape', () => {
+    it("is exactly 5 characters, always, regardless of the input id's own length/shape", () => {
       expect(buildPecProgressivo('doc-1')).toHaveLength(5);
       expect(buildPecProgressivo('a-much-longer-cuid-style-document-identifier-000000')).toHaveLength(5);
       expect(buildPecProgressivo('')).toHaveLength(5);

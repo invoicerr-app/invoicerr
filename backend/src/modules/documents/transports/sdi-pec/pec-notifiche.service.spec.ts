@@ -73,47 +73,44 @@ describe('PecNotificheService.handleMessage', () => {
     ['notificaMancataConsegna', 'MC', 'PENDING'],
     ['notificaDecorrenzaTermini', 'DT', 'CLEARED'],
     ['attestazioneTrasmissioneFattura', 'AT', 'CLEARED'],
-  ] as const)(
-    'journals a %s (%s) notifica onto its own document, mapped to the correct internal status (%s)',
-    async (root, notificaType, internalStatus) => {
-      mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
-      mockedCreateEvents.mockResolvedValue(1);
-      const channelCredentials = buildChannelCredentials();
-      const service = new PecNotificheService(channelCredentials as never);
+  ] as const)('journals a %s (%s) notifica onto its own document, mapped to the correct internal status (%s)', async (root, notificaType, internalStatus) => {
+    mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+    mockedCreateEvents.mockResolvedValue(1);
+    const channelCredentials = buildChannelCredentials();
+    const service = new PecNotificheService(channelCredentials as never);
 
-      const result = await service.handleMessage(
-        'company-42',
-        message({
-          attachments: [
-            {
-              filename: 'IT01234567890_00001.xml',
-              content: Buffer.from(notificaXml(root, '123456789012', 'IT01234567890_00001.xml')),
-            },
-          ],
+    const result = await service.handleMessage(
+      'company-42',
+      message({
+        attachments: [
+          {
+            filename: 'IT01234567890_00001.xml',
+            content: Buffer.from(notificaXml(root, '123456789012', 'IT01234567890_00001.xml')),
+          },
+        ],
+      }),
+    );
+
+    expect(result).toEqual({
+      handled: true,
+      notificaType,
+      nomeFile: 'IT01234567890_00001.xml',
+      identificativoSdI: '123456789012',
+      internalStatus,
+    });
+    expect(mockedFindDocument).toHaveBeenCalledWith(SDI_PEC_PROVIDER_ID, 'IT01234567890_00001.xml');
+    expect(mockedCreateEvents).toHaveBeenCalledWith(
+      'company-42',
+      'doc-42',
+      SDI_PEC_PROVIDER_ID,
+      expect.arrayContaining([
+        expect.objectContaining({
+          statusCode: `it:${notificaType}`,
+          rawPayload: expect.objectContaining({ channel: 'pec', mappedStatus: internalStatus }),
         }),
-      );
-
-      expect(result).toEqual({
-        handled: true,
-        notificaType,
-        nomeFile: 'IT01234567890_00001.xml',
-        identificativoSdI: '123456789012',
-        internalStatus,
-      });
-      expect(mockedFindDocument).toHaveBeenCalledWith(SDI_PEC_PROVIDER_ID, 'IT01234567890_00001.xml');
-      expect(mockedCreateEvents).toHaveBeenCalledWith(
-        'company-42',
-        'doc-42',
-        SDI_PEC_PROVIDER_ID,
-        expect.arrayContaining([
-          expect.objectContaining({
-            statusCode: `it:${notificaType}`,
-            rawPayload: expect.objectContaining({ channel: 'pec', mappedStatus: internalStatus }),
-          }),
-        ]),
-      );
-    },
-  );
+      ]),
+    );
+  });
 
   it('an unknown NomeFile journals NOTHING, on ANY document', async () => {
     mockedFindDocument.mockResolvedValue(null);
@@ -180,7 +177,9 @@ describe('PecNotificheService.handleMessage', () => {
           attachments: [
             {
               filename: 'IT01234567890_00001.xml',
-              content: Buffer.from(notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml')),
+              content: Buffer.from(
+                notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml'),
+              ),
             },
           ],
         }),
@@ -221,7 +220,9 @@ describe('PecNotificheService.handleMessage', () => {
           attachments: [
             {
               filename: 'IT01234567890_00001.xml',
-              content: Buffer.from(notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml')),
+              content: Buffer.from(
+                notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml'),
+              ),
             },
           ],
         }),
@@ -233,7 +234,9 @@ describe('PecNotificheService.handleMessage', () => {
     it('never crashes when the "sdi-pec" channel has since been disconnected', async () => {
       mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
       mockedCreateEvents.mockResolvedValue(1);
-      const channelCredentials = buildChannelCredentials({ resolveActive: jest.fn().mockResolvedValue(null) });
+      const channelCredentials = buildChannelCredentials({
+        resolveActive: jest.fn().mockResolvedValue(null),
+      });
       const service = new PecNotificheService(channelCredentials as never);
 
       await expect(
@@ -243,7 +246,9 @@ describe('PecNotificheService.handleMessage', () => {
             attachments: [
               {
                 filename: 'IT01234567890_00001.xml',
-                content: Buffer.from(notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml')),
+                content: Buffer.from(
+                  notificaXml('ricevutaConsegna', '123456789012', 'IT01234567890_00001.xml'),
+                ),
               },
             ],
           }),

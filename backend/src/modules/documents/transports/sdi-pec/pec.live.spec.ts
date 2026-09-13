@@ -59,102 +59,104 @@ function sleep(ms: number): Promise<void> {
 }
 
 describeLive('SdI PEC live round-trip', () => {
-  it('sends a real FatturaPA over PEC and receives a first reply from SdI', async () => {
-    const idTrasmittente = process.env.PEC_ID_TRASMITTENTE!;
-    const pecAddress = process.env.PEC_ADDRESS!;
-    const smtpHost = process.env.PEC_SMTP_HOST!;
-    const smtpPort = Number(process.env.PEC_SMTP_PORT);
-    const smtpSecure = process.env.PEC_SMTP_SECURE !== 'false';
-    const imapHost = process.env.PEC_IMAP_HOST!;
-    const imapPort = Number(process.env.PEC_IMAP_PORT);
-    const imapSecure = process.env.PEC_IMAP_SECURE !== 'false';
-    const username = process.env.PEC_USERNAME!;
-    const password = process.env.PEC_PASSWORD!;
+  it(
+    'sends a real FatturaPA over PEC and receives a first reply from SdI',
+    async () => {
+      const idTrasmittente = process.env.PEC_ID_TRASMITTENTE!;
+      const pecAddress = process.env.PEC_ADDRESS!;
+      const smtpHost = process.env.PEC_SMTP_HOST!;
+      const smtpPort = Number(process.env.PEC_SMTP_PORT);
+      const smtpSecure = process.env.PEC_SMTP_SECURE !== 'false';
+      const imapHost = process.env.PEC_IMAP_HOST!;
+      const imapPort = Number(process.env.PEC_IMAP_PORT);
+      const imapSecure = process.env.PEC_IMAP_SECURE !== 'false';
+      const username = process.env.PEC_USERNAME!;
+      const password = process.env.PEC_PASSWORD!;
 
-    const company = {
-      name: 'Rossi SRL',
-      address: 'Via Roma 10',
-      city: 'Milano',
-      postalCode: '20100',
-      country: 'Italy',
-      partyIdentifiers: [{ scheme: 'VAT', value: idTrasmittente }],
-    };
-    const client = {
-      name: 'Bianchi SpA',
-      address: 'Corso Italia 20',
-      city: 'Roma',
-      postalCode: '00100',
-      country: 'Italy',
-      partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
-    };
-    const documentId = `pec-live-test-${Date.now()}`;
-    const document = {
-      id: documentId,
-      typeId: 'invoice',
-      status: 'sending',
-      data: { client: 'client-1' },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      displayNumber: 'FT-PEC-0001',
-    };
+      const company = {
+        name: 'Rossi SRL',
+        address: 'Via Roma 10',
+        city: 'Milano',
+        postalCode: '20100',
+        country: 'Italy',
+        partyIdentifiers: [{ scheme: 'VAT', value: idTrasmittente }],
+      };
+      const client = {
+        name: 'Bianchi SpA',
+        address: 'Corso Italia 20',
+        city: 'Roma',
+        postalCode: '00100',
+        country: 'Italy',
+        partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
+      };
+      const documentId = `pec-live-test-${Date.now()}`;
+      const document = {
+        id: documentId,
+        typeId: 'invoice',
+        status: 'sending',
+        data: { client: 'client-1' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        displayNumber: 'FT-PEC-0001',
+      };
 
-    const buildResult = await fatturapaFormatProvider.build(
-      buildInvoiceDescriptor(),
-      document,
-      companyToFormatParty(company),
-      clientToFormatParty(client),
-    );
-    expect(buildResult.validation.valid).toBe(true); // fail loud if the XSD gate itself regressed
+      const buildResult = await fatturapaFormatProvider.build(
+        buildInvoiceDescriptor(),
+        document,
+        companyToFormatParty(company),
+        clientToFormatParty(client),
+      );
+      expect(buildResult.validation.valid).toBe(true); // fail loud if the XSD gate itself regressed
 
-    const filename = buildPecAttachmentFilename(idTrasmittente, documentId);
+      const filename = buildPecAttachmentFilename(idTrasmittente, documentId);
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: { user: username, pass: password },
-    });
-    await transporter.sendMail({
-      from: pecAddress,
-      to: SDI_PEC_FIRST_SUBMISSION_ADDRESS,
-      subject: `Fattura elettronica — ${filename}`,
-      text: 'Fattura elettronica trasmessa tramite PEC al Sistema di Interscambio — round-trip di test.',
-      attachments: [
-        { filename, content: Buffer.from(buildResult.bytes), contentType: 'application/xml' },
-      ],
-    });
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
+        auth: { user: username, pass: password },
+      });
+      await transporter.sendMail({
+        from: pecAddress,
+        to: SDI_PEC_FIRST_SUBMISSION_ADDRESS,
+        subject: `Fattura elettronica — ${filename}`,
+        text: 'Fattura elettronica trasmessa tramite PEC al Sistema di Interscambio — round-trip di test.',
+        attachments: [{ filename, content: Buffer.from(buildResult.bytes), contentType: 'application/xml' }],
+      });
 
-    const port = new ImapFlowPecInboxPort({
-      host: imapHost,
-      port: imapPort,
-      secure: imapSecure,
-      username,
-      password,
-    });
+      const port = new ImapFlowPecInboxPort({
+        host: imapHost,
+        port: imapPort,
+        secure: imapSecure,
+        username,
+        password,
+      });
 
-    // SdI's own first reply (notifica di scarto/errore, ricevuta di consegna/mancata consegna, or
-    // attestazione) is not instantaneous — poll for it rather than assuming it is already there.
-    const POLL_ATTEMPTS = 20;
-    const POLL_DELAY_MS = 15_000;
-    let matched: ReturnType<typeof parseSdiNotifica> = null;
-    for (let attempt = 0; attempt < POLL_ATTEMPTS && !matched; attempt++) {
-      if (attempt > 0) await sleep(POLL_DELAY_MS);
-      const messages = await port.fetchUnseen();
-      for (const message of messages) {
-        for (const attachment of message.attachments) {
-          const parsed = parseSdiNotifica(attachment.content.toString('utf-8'));
-          if (parsed?.nomeFile === filename) {
-            matched = parsed;
-            await port.markSeen(message.id);
-            break;
+      // SdI's own first reply (notifica di scarto/errore, ricevuta di consegna/mancata consegna, or
+      // attestazione) is not instantaneous — poll for it rather than assuming it is already there.
+      const POLL_ATTEMPTS = 20;
+      const POLL_DELAY_MS = 15_000;
+      let matched: ReturnType<typeof parseSdiNotifica> = null;
+      for (let attempt = 0; attempt < POLL_ATTEMPTS && !matched; attempt++) {
+        if (attempt > 0) await sleep(POLL_DELAY_MS);
+        const messages = await port.fetchUnseen();
+        for (const message of messages) {
+          for (const attachment of message.attachments) {
+            const parsed = parseSdiNotifica(attachment.content.toString('utf-8'));
+            if (parsed?.nomeFile === filename) {
+              matched = parsed;
+              await port.markSeen(message.id);
+              break;
+            }
           }
+          if (matched) break;
         }
-        if (matched) break;
       }
-    }
 
-    // HARD-SUCCESS CONTRACT: no reply within the poll window is a FAILURE, never a soft pass.
-    expect(matched).not.toBeNull();
-    expect(matched?.identificativoSdI).toBeTruthy();
-  }, 20 * 15_000 + 30_000);
+      // HARD-SUCCESS CONTRACT: no reply within the poll window is a FAILURE, never a soft pass.
+      expect(matched).not.toBeNull();
+      expect(matched?.identificativoSdI).toBeTruthy();
+    },
+    20 * 15_000 + 30_000,
+  );
 });

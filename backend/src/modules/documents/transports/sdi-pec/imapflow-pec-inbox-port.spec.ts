@@ -15,7 +15,7 @@ function bufferStream(content: string): Readable {
 }
 
 describe('toPecInboundMessage', () => {
-  it('extracts the From address, subject, and every attachment part\'s decoded content', async () => {
+  it("extracts the From address, subject, and every attachment part's decoded content", async () => {
     const download = jest.fn().mockResolvedValue({ content: bufferStream('<ricevutaConsegna/>') });
     const client = { download };
 

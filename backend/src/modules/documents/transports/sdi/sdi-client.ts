@@ -301,7 +301,7 @@ export class SdiClient {
           notes: [
             ...notes,
             'attestazione di avvenuta trasmissione con impossibilità di recapito: SdI accepted the ' +
-              'invoice but could not deliver it. It is available in the buyer\'s reserved area, and ' +
+              "invoice but could not deliver it. It is available in the buyer's reserved area, and " +
               'the seller must tell the buyer it is there.',
           ],
         };

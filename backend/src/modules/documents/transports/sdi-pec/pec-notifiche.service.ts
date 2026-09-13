@@ -39,7 +39,10 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { createAuthorityEvents, findDocumentByTransportRef } from '../../conformity/authority-events.persistence';
+import {
+  createAuthorityEvents,
+  findDocumentByTransportRef,
+} from '../../conformity/authority-events.persistence';
 import { RawAuthorityEvent } from '../../conformity/authority-status-poller';
 import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
 import { dispatchDocumentAuthorityEventWebhook } from '../../queue/document-authority-webhook';
@@ -105,7 +108,10 @@ export class PecNotificheService {
         logger.warn(
           `SdI PEC notifica ${parsed.notificaType} received for an unknown NomeFile — nothing ` +
             'journaled (no DocumentInstance carries this transportRef for the "sdi-pec" channel)',
-          { category: 'documents', details: { nomeFile: parsed.nomeFile, notificaType: parsed.notificaType } },
+          {
+            category: 'documents',
+            details: { nomeFile: parsed.nomeFile, notificaType: parsed.notificaType },
+          },
         );
         return {
           handled: false,
@@ -129,7 +135,9 @@ export class PecNotificheService {
         },
       };
 
-      const count = await createAuthorityEvents(document.companyId, document.id, SDI_PEC_PROVIDER_ID, [event]);
+      const count = await createAuthorityEvents(document.companyId, document.id, SDI_PEC_PROVIDER_ID, [
+        event,
+      ]);
       logger.info(
         `SdI PEC notifica ${parsed.notificaType} journaled for document ${document.id} ` +
           `(NomeFile ${parsed.nomeFile}, IdentificativoSdI ${parsed.identificativoSdI})`,

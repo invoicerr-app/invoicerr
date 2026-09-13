@@ -105,11 +105,11 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
 
     // Client events (only the four with a real emitter)
     [WebhookEvent.CLIENT_CREATED]: (p) =>
-      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
     [WebhookEvent.CLIENT_UPDATED]: (p) =>
-      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}`,
     [WebhookEvent.CLIENT_DELETED]: (p) =>
-      `**${(p.client?.type === 'COMPANY' ? p.client?.name : p.client?.contactFirstname + ' ' + p.client?.contactLastname) || 'N/A'}**`,
+      `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**`,
     [WebhookEvent.CLIENT_SEARCHED]: (_p) => null,
 
     // Company events (only the three with a real emitter)
@@ -134,7 +134,7 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
       if (result !== null) {
         return result;
       }
-    } catch (error) {
+    } catch (_error) {
       return `Data: ${JSON.stringify(payload, null, 2).substring(0, 500)}`;
     }
   }
