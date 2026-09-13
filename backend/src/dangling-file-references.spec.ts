@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import * as ts from 'typescript';
@@ -345,6 +345,14 @@ function findDanglingReferences(): Finding[] {
 
   for (const root of SCAN_ROOTS) {
     for (const file of listScanRootFiles(repoFiles, root)) {
+      // `listScanRootFiles` reads `git ls-files`, which lists what git TRACKS — including a file that
+      // has just been deleted from disk and whose deletion is not staged yet. Reading it blindly then
+      // dies with a bare `ENOENT ... folder-select.tsx` from inside a spec whose name is about
+      // dangling COMMENT references, which is about as misleading as a failure gets: it reads as
+      // "this guard found something" when the guard found nothing and simply could not run. A
+      // deleted file has no comments left to check, so skipping it is not a weakened assertion — it
+      // is the only honest thing left to do with it.
+      if (!existsSync(file)) continue;
       const sourceText = readFileSync(file, 'utf8');
       scan(file, extractComments(file, sourceText), sourceText, root.aliasBase);
     }
