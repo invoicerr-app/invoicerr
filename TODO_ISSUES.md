@@ -225,9 +225,20 @@ libre avant de les remettre au fournisseur (petit, local, vérifiable par un tes
 `@digitalia/fatturapa`, ce qui est un chantier. La première suffit à supprimer l'exposition.
 
 Les huit autres avis : `mysql2`, `deepmerge-ts`, `@prisma/config`, `prisma` et `sanitize-html` sont
-corrigibles par montée de version ; `@nestjs/platform-express`, `multer` (déni de service via des
-noms de champs multipart forgés — le produit expose un téléversement de factures reçues) et
-`@digitalia/fatturapa` lui-même ne le sont pas. Le frontend n'en porte aucune.
+corrigibles par montée de version ; `@nestjs/platform-express`, `multer` et `@digitalia/fatturapa`
+lui-même ne le sont pas. Le frontend n'en porte aucune.
+
+**Correction d'une affirmation que j'avais écrite ici et qui était fausse** : j'avais présenté
+l'avis `multer` comme atteignable, « le produit exposant un téléversement de factures reçues ».
+Vérifié depuis : il n'y a **aucun `FileInterceptor` ni multipart entrant** dans tout `backend/src`
+— `received-invoices.service.ts` le dit dans son propre commentaire, les téléversements passent en
+base64 comme `pfxBase64`, et le seul multipart du dépôt est SORTANT, vers la PDP. `SECURITY_AUDIT.md`
+(2026-09-10) avait donc raison de classer `multer` non atteignable, et moi tort.
+
+Ce qu'il faut en retenir n'est pas que l'audit se trompait, mais qu'il avait une **lacune** : la
+table de ses dépendances ne mentionne pas `fast-xml-parser`, qui, lui, était bel et bien atteignable
+par du texte utilisateur. La règle « transitive donc inatteignable » vaut pour celles qui y ont été
+examinées, pas pour celles qui n'y figurent pas.
 
 ## Les archives déjà écrites gardent une date de conservation trop précoce (2026-09-13)
 
