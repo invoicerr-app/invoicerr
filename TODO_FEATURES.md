@@ -23,9 +23,9 @@ vivre), et le paiement passe en dernier parce qu'il est le seul à exiger un com
 
 | # | Rang | Feature | État |
 |---|---|---|---|
-| 1 | 3 | Portail client authentifié | ✅ écrit et vérifié — en attente de commit (arbre partagé) |
-| 2 | 11 | Suivi du temps & facturation de projets | 🔵 en cours |
-| 3 | 14 | Langue du document par destinataire | ⚪ en file |
+| 1 | 3 | Portail client authentifié | ✅ **livré** (`fddfc7df`) |
+| 2 | 11 | Suivi du temps & facturation de projets | ✅ **livré** (`fddfc7df`) |
+| 3 | 14 | Langue du document par destinataire | 🔵 en cours |
 | 4 | 5 | Rapprochement bancaire (import CSV/OFX) | ⚪ en file |
 | 5 | 1 | Paiement en ligne (Stripe/PayPal) | ⚪ en file — écrit et testé à blanc, jamais prouvé sans le compte du propriétaire |
 
