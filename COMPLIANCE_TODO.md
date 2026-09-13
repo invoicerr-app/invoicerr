@@ -38,18 +38,18 @@
 
   | Mécanisme | Pays couverts (fichiers réels) |
   | --- | --- |
-  | `country-policy/`, `correction-routes/`, `tax/tax-systems/` | DE, FR, IT, PL, PT (5) |
-  | `b2g-routing/` | DE, FR, IT, PL (4) |
-  | `country-identifiers/` | DE, FR, PT (3) |
-  | `transports/channel-policy/` | FR, IT, PL (3) |
-  | `country-fields/` | DE, FR (2) |
-  | `vat-rates/` | FR, PT (2) |
-  | `mentions/`, `content-requirements/`, `archive/retention/` | FR (1) |
+  | `country-policy/`, `correction-routes/`, `tax/tax-systems/`, `country-identifiers/`, `vat-rates/`, `transports/channel-policy/` | DE, FR, IT, PL, PT (5) |
+  | `b2g-routing/` | DE, FR, IT, PL (4) — PT bloqué : le CCP art. 299.º-B nº 5 délègue le CANAL à une portaria non retrouvée |
+  | `archive/retention/` | DE, FR, PL, PT (4) — IT absent par CONCLUSION : le DPR 600/1973 art. 22 conserve « fino a quando non siano definiti gli accertamenti », sans terme calculable |
+  | `country-fields/` | DE, FR (2) — un overlay n'existe que si un format national réclame un champ ; l'absence n'est pas un trou |
+  | `mentions/`, `content-requirements/` | FR (1) — pour `mentions/`, une CONCLUSION : les statuts des quatre autres pays ont été lus, et tout ce qu'ils imposent est soit un champ structuré, soit conditionné à la transaction, ce que ce résolveur ne sait pas exprimer (voir l'en-tête de `mentions/data/all.ts`) |
   | `reporting/` (règles de déclenchement) | PT (1) — seul fournisseur restant (§6) |
 
   Chaque catalogue **auto-découvre** ses fichiers (`readdirSync` sur son propre `data/`, motif
   `/^[a-z]{2}\.json$/`) — ajouter un pays à un mécanisme donné, c'est déposer un fichier, jamais
-  toucher au code de chargement.
+  toucher au code de chargement. **Une seule exception subsiste : `country-fields/data/all.ts`**, qui
+  tient encore une liste `COUNTRY_FILES` à la main ; y déposer un fichier ne suffit pas. (`archive/
+  retention/` avait la même forme jusqu'au 2026-09-13 et a été migré depuis.)
 - [x] Une seule machine à états de document, générique et non spécifique à un pays
   (`descriptors/lifecycle.ts`) — pas de graphe de cycle de vie composé par pays. La nuance pays
   survit à trois endroits seulement : `correction-routes/` (quelle voie de correction), `conformity/
