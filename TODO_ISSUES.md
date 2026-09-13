@@ -55,6 +55,38 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
+## Aucun corps de requête n'est validé au runtime (2026-09-13)
+
+Mesuré, pas supposé : `grep` sur tout `backend/src` ne trouve **aucun** `ValidationPipe`, aucun
+décorateur `class-validator`, et ni `class-validator` ni `class-transformer` ne figurent dans
+`package.json`. Les DTO sont des `interface` TypeScript, effacées à la compilation. Donc `@Body()
+body: EditCompanyDto` ne contraint rien à l'exécution : c'est une annotation, pas un contrôle.
+
+Deux services versent ce corps non validé directement dans Prisma :
+`company.service.ts` ~128 (`data: { ...rest }`) et `clients.service.ts` ~294
+(`data: { ...dataFields, isActive: true }`).
+
+**Ce que ce n'est PAS** — vérifié, pour ne pas surestimer : il n'y a ni fuite entre locataires ni
+élévation de privilège. `POST /api/company/info` fixe son `where` sur `@ActiveCompany()` et est
+réservé aux rôles OWNER/ADMIN ; `editClientsInfo` vérifie d'abord l'appartenance par un
+`findFirst({ where: { id, companyId } })` et rend 404 sinon. Ces deux gardes sont corrects.
+
+**Ce que c'est** — une écriture de masse sur les colonnes hors DTO du même locataire :
+- `Company` a 30 colonnes scalaires, dont `id`, `createdAt` et `numberFormats` ; aucune n'est
+  protégée par le spread.
+- `Client` a `companyId` et `id`, absents d'`EditClientsDto` : un corps qui les porte les écrit.
+- Conséquence concrète et la plus vraisemblable : l'invariant du **format de numéro** est
+  contournable. `PUT /api/company/number-format` valide le motif (`assertValidNumberPattern`) ;
+  `POST /api/company/info` écrit `numberFormats` sans aucun contrôle. Un motif invalide stocké par
+  cette porte n'échoue qu'à l'émission d'une facture, loin de sa cause.
+- Et une entrée malformée rend 500 (erreur Prisma) là où elle devrait rendre 400.
+
+Ce qui le réglerait : soit une liste blanche explicite des colonnes écrites dans ces deux services
+(plutôt qu'un spread), soit une validation de bordure réelle — ce qui suppose de passer les DTO
+d'`interface` à `class` décorée, un chantier qui touche tous les contrôleurs.
+
+## Balayage front → Swagger
+
 Balayage associé (front → Swagger, 54 chemins appelés contre 94 routes exposées) : le seul autre
 écart réel est `/api/directories`, appelé par `components/folder-select.tsx`, lui-même atteignable
 uniquement par un champ de type `folder` qu'aucun descripteur ne déclare — code mort, sans effet
