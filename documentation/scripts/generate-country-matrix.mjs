@@ -212,6 +212,10 @@ const STRINGS = {
       optional: 'optional',
       mandated: 'mandated',
       suggested: 'suggested',
+      // A country whose file EXISTS and declares no fact — read, and found to impose nothing. Never
+      // the same as `dash` (no file at all, nobody has looked): the legend below distinguishes them,
+      // and rendering both as a blank cell would throw away the more informative of the two.
+      noneEstablished: 'none — the law imposes no channel',
       sourceOriginal: 'Source (original language)',
       checkedOn: (date) => `checked ${date}`,
       unverifiedNote: 'Not yet sourced to a specific legal text.',
@@ -408,6 +412,11 @@ const STRINGS = {
         'This covers the delivery channel only — a country can separately require e-reporting ' +
         "(declaring the invoice's data to its own tax authority, regardless of delivery channel), " +
         'not yet exposed on this page.',
+      channelNoneEstablished: (path) =>
+        "**This country's law imposes no delivery channel.** That is a sourced conclusion, not a gap: " +
+        `the file \`${path}\` exists and deliberately declares no fact, with the statutes it was read ` +
+        'against quoted in its own notes. Nothing here blocks a seller from choosing any channel the ' +
+        'app supports.',
       channelColChannel: 'Channel',
       channelColRequirement: 'Requirement',
       channelColMandatedFrom: 'Mandated from',
@@ -523,6 +532,7 @@ const STRINGS = {
       optional: 'facultatif',
       mandated: 'obligatoire',
       suggested: 'suggéré',
+      noneEstablished: "aucun — la loi n'impose pas de canal",
       sourceOriginal: 'Source (langue originale)',
       checkedOn: (date) => `consulté le ${date}`,
       unverifiedNote: "Pas encore sourcé à un texte de loi précis.",
@@ -725,6 +735,11 @@ const STRINGS = {
         'Ceci ne couvre que le canal de remise — un pays peut en plus exiger un e-reporting ' +
         "(déclarer les données de la facture à sa propre administration fiscale, indépendamment " +
         'du canal de remise), pas encore exposé sur cette page.',
+      channelNoneEstablished: (path) =>
+        "**La loi de ce pays n'impose aucun canal de remise.** C'est une conclusion sourcée, pas une " +
+        `lacune : le fichier \`${path}\` existe et ne déclare délibérément aucun fait, les textes ` +
+        'contre lesquels il a été établi étant cités dans ses propres notes. Rien ici ne restreint le ' +
+        "choix d'un canal parmi ceux que l'application prend en charge.",
       channelColChannel: 'Canal',
       channelColRequirement: 'Exigence',
       channelColMandatedFrom: 'Obligatoire depuis',
@@ -1621,15 +1636,21 @@ function buildMatrixPage(locale) {
       ? `${countryIdentifiers[cc].schemes.length} — ${countryIdentifiers[cc].schemes.map((s) => s.scheme).join(', ')}`
       : S.common.dash;
 
-    const chan = channelPolicy[cc]
-      ? channelPolicy[cc].facts
-          .map((f) =>
-            f.requirement === 'mandated'
-              ? `${mark(transportLabel(f.providerId))}: ${S.common.mandated} (${f.mandatedFrom})`
-              : `${mark(transportLabel(f.providerId))}: ${S.common.suggested}`,
-          )
-          .join('; ')
-      : S.common.dash;
+    // Three states, not two — a file with zero facts is a RESULT, not a hole. Germany and Portugal
+    // each ship one: their law was read and found to impose a FORMAT (DE) or nothing at all (PT), never
+    // a channel. Joining an empty `facts` array would render a blank cell, indistinguishable from a
+    // rendering fault and strictly less informative than the `dash` that means "nobody has looked".
+    const chan = !channelPolicy[cc]
+      ? S.common.dash
+      : channelPolicy[cc].facts.length === 0
+        ? S.common.noneEstablished
+        : channelPolicy[cc].facts
+            .map((f) =>
+              f.requirement === 'mandated'
+                ? `${mark(transportLabel(f.providerId))}: ${S.common.mandated} (${f.mandatedFrom})`
+                : `${mark(transportLabel(f.providerId))}: ${S.common.suggested}`,
+            )
+            .join('; ');
 
     lines.push(
       `| ${label} | ${policy} | ${cellHtml(b2g)} | ${cell(corr)} | ${cell(cancelCell)} | ${cell(tax)} | ` +
@@ -1867,6 +1888,16 @@ function renderChannelMandateSection(cc, locale, mark) {
   const out = [];
   out.push(mark(S.channelEreportingNote));
   out.push('');
+  // A file that declares no fact is an ANSWER — this country's law was read and imposes no channel.
+  // Emitting the table header with no rows below it reads as a broken page, and says less than the
+  // "no file at all" case does. The file's own `notes` carry the sourced reasoning, but they are
+  // written in the data files' own language and this page follows its locale strictly, so point at
+  // them rather than paste them.
+  if (file.facts.length === 0) {
+    out.push(S.channelNoneEstablished(`transports/channel-policy/data/${cc.toLowerCase()}.json`));
+    out.push('');
+    return out.join('\n');
+  }
   out.push(`| ${S.channelColChannel} | ${S.channelColRequirement} | ${S.channelColMandatedFrom} | ${S.channelColProvenance} |`);
   out.push('|---|---|---|---|');
   const quotes = [];
