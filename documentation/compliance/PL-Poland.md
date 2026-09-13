@@ -85,5 +85,8 @@ cancellation attempt is refused, by name, rather than silently allowed or silent
 
 `backend/src/modules/documents/country-policy/data/pl.json`, `correction-routes/data/pl.json`,
 `correction-routes/cancel-policy.ts`, `b2g-routing/data/pl.json`,
-`transports/channel-policy/data/pl.json`, `tax/tax-systems/data/pl.json`, plus
-`transports/ksef/ksef-live.spec.ts` for the live-proof claim above.
+`transports/channel-policy/data/pl.json`, `tax/tax-systems/data/pl.json`,
+`country-identifiers/data/pl.json`, `vat-rates/data/pl.json`, plus
+`archive/retention/data/pl.json` — five years, counted not from the invoice date but from the end of
+the calendar year the tax fell due in (ustawa o VAT art. 112 pointing at Ordynacja podatkowa art. 70
+§ 1) — and `transports/ksef/ksef-live.spec.ts` for the live-proof claim above.

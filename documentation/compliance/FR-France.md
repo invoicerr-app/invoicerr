@@ -89,5 +89,10 @@ transmission precondition.
 `backend/src/modules/documents/country-policy/data/fr.json`,
 `country-identifiers/data/fr.json`, `correction-routes/data/fr.json`, `b2g-routing/data/fr.json`,
 `transports/channel-policy/data/fr.json`, `tax/tax-systems/data/fr.json`, `vat-rates/data/fr.json`,
-plus `transports/pdp/pdp.live.spec.ts`, `transports/chorus-pro/choruspro-live.spec.ts` and
-`transports/chorus-pro-transport.ts` for the live-proof and implementation claims above.
+`mentions/data/fr.json` (the three C. com. art. L441-9 mentions carried on every invoice),
+`content-requirements/data/fr.json` (BT-23), and `archive/retention/data/fr.json` — **two
+simultaneous obligations**, six years fiscal from the document's own date (LPF art. L102 B) and ten
+years commercial from the close of the financial year (C. com. art. L123-22), the binding date being
+the later of the two — plus `transports/pdp/pdp.live.spec.ts`,
+`transports/chorus-pro/choruspro-live.spec.ts` and `transports/chorus-pro-transport.ts` for the
+live-proof and implementation claims above.
