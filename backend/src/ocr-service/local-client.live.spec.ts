@@ -117,11 +117,9 @@ describeLive('Local OCR engine (the ocr-image repo, ocrmypdf-based) — real ima
   });
 
   it('extracts a real invoice PDF, end to end, through the real container, and maps the heuristic fields', async () => {
-    // A REAL PDF, built with this backend's own `pdf-lib` dependency (never a hand-crafted binary
-    // fixture) — the SAME "never a hand-crafted binary fixture" discipline
-    // `mistral-client.live.spec.ts` already holds one file up. Unlike the Tika era, this DOES
-    // exercise real Tesseract recognition — see this file's own header on why `--force-ocr` changed
-    // that.
+    // A REAL PDF, built with this backend's own `pdf-lib` dependency, never a hand-crafted binary
+    // fixture. This exercises real Tesseract recognition — see this file's own header on
+    // `--force-ocr`.
     const doc = await PDFDocument.create();
     const page = doc.addPage([400, 300]);
     const lines = [

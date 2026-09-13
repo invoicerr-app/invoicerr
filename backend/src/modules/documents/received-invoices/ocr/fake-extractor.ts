@@ -3,7 +3,7 @@
  * ONLY under `NODE_ENV=test` (`plugins/index.ts`'s own composition root) — the SAME discipline
  * `modules/documents/tax/vat-validation.ts`'s own `FakeSyntaxOnlyVatValidationClient` already
  * established for VAT validation, applied here so Cypress spec 36 can exercise "PDF -> pre-filled
- * OCR proposal" through a REAL browser, without a real Mistral API key.
+ * OCR proposal" through a REAL browser, with no OCR engine deployed.
  *
  * Unlike the VAT fake (which genuinely re-derives its answer from the input, checking the number's
  * OWN syntax), this fake does not attempt to simulate real text recognition — there is no cheap,
@@ -11,7 +11,7 @@
  * that OPTS IN, by carrying an exact, obscure marker string in its raw bytes (`FAKE_OCR_MARKER`) —
  * every OTHER PDF (in particular, `36-received-invoices.cy.ts`'s own pre-existing
  * `supplier-invoice-plain.pdf` fixture) still gets an honest `ExtractorNotReadyError`, the SAME "no
- * extractor available" outcome production gets by default (Mistral shipped but never toggled on) —
+ * extractor available" outcome production gets by default (no OCR_SERVICE_URL set) —
  * see that spec file's own "un PDF pur" test, which asserts exactly that. This is
  * what lets ONE fake, always registered in test environments, prove BOTH outcomes (absence AND a
  * successful proposal) without any per-test plugin activation dance.

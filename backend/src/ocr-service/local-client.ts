@@ -1,36 +1,19 @@
 /**
- * Local, 100% offline OCR engine client — the honest, no-cloud-key
- * counterpart to `mistral-client.ts`. Same caller (`ocr-server.ts`, `ROLE=ocr`), same output shape
- * (`ExtractedInvoiceProposal`), same "never invent a field" discipline — but the underlying engine
- * is a plain HTTP call to a SEPARATE, self-hosted Docker container (never a cloud API, never an
- * API key), and the extraction is a HEURISTIC text scrape rather than Mistral's own structured
- * `document_annotation` — see this file's own header below for exactly what that costs.
+ * Client of the OCR engine — `ghcr.io/invoicerr-app/ocr-image` (github.com/invoicerr-app/ocr-image),
+ * ocrmypdf plus the Tesseract language packs this product needs, running as a container on the
+ * deployment's own network. No cloud API, no API key, nothing leaves the machine. It returns plain
+ * text; `mapOcrTextToProposal` below turns that into an `ExtractedInvoiceProposal`, and every field
+ * is either found or OMITTED — never guessed.
  *
- * ## The engine: OUR OWN image + server, not Tika
- *
- * This client originally targeted `apache/tika:latest-full` (chosen at the time over a bare
- * `hertzg/tesseract-server` image specifically because Tika reads a PDF NATIVELY and
- * `tesseract-server` cannot read PDF at all — see git history for that full evaluation, preserved
- * there rather than here since it is no longer the live decision). Tika's own DISQUALIFYING limit,
- * once lived with rather than fixed, is exactly what triggered this switch: its language set is
- * BAKED INTO THE IMAGE at build time and not operator-configurable without a custom image anyway
- * — so building a custom image was always the real fix, just deferred. the `ocr-image` repo
- * (Dockerfile + `server.py`, THIS repo, not a third party) is that custom image, done properly:
- * `jbarlow83/ocrmypdf:latest` (the `ocrmypdf` tool's own official, actively-published image) reads
- * a PDF directly the same way Tika did — it rasterizes each page itself and hands it to its own
- * bundled Tesseract — so this client still never does a PDF-to-image conversion step of its own,
- * the same load-bearing property that justified Tika in the first place. The Dockerfile's own
- * header carries the full apt-get language-pack list (verified against a real `apt-cache search`
- * on that exact base image) and the vision this switch is FOR: a full-local OCR server covering
- * the world's main languages, never frozen to one image's fixed set again — adding a language from
- * here on is one `RUN apt-get install tesseract-ocr-<code>` line in that Dockerfile, no code change
- * on either side of this HTTP call.
+ * `plugins/ocr/providers/local/local.ts` is the backend-side registration shim over this file. There
+ * is no OCR container of our own image in between any more: that hop existed only to hold a cloud
+ * credential, and with the cloud engine gone it held nothing.
  *
  * ## THE HONEST LIMIT — stated up front, never hidden
  *
  *  - **Language coverage**: the `ocr-image` repo installs ALL ~94 Tesseract languages
- *    (`tesseract-ocr-all`) — so there is no real language ceiling anymore, unlike
- *    Tika's frozen set. The one thing still per-request is WHICH of them a given run uses: a document
+ *    (`tesseract-ocr-all`), so there is no language ceiling. What IS per-request is WHICH of them a
+ *    given run uses: a document
  *    whose actual language isn't in the run's `-l` set (the server's default, or a `?lang=` override)
  *    is OCR'd with the wrong model and misrecognizes with no error — so pass `?lang=` for anything
  *    outside the default Latin subset (see the `ocr-image` repo for the default and the full list).
@@ -40,28 +23,17 @@
  *    `[OCR skipped on page(s) 1]` placeholder in its sidecar, NOT that page's own text. Since
  *    `apply-ocr-fallback.ts`'s own trigger is "no STRUCTURED xml was found" — not "this looks like a
  *    scan" — an ordinary, non-structured, already-digital-text invoice PDF is this fallback's most
- *    common customer, not an edge case, so that placeholder would have been a real regression from
- *    Tika. The server instead always force-rasterizes and re-OCRs every page (`--force-ocr`),
+ *    common customer, not an edge case, so that placeholder would have been a real regression.
+ *    The server instead always force-rasterizes and re-OCRs every page (`--force-ocr`),
  *    trading a small amount of accuracy on already-crisp digital text (Tesseract reading a
  *    rendering of it, not the text itself) and some speed, for a sidecar that is NEVER a
  *    placeholder — see that file's header for the full round-trip evidence.
- *  - **Structured extraction vs. plain text**: Mistral's `document_annotation` is the MODEL reading
- *    the invoice and answering a JSON SCHEMA directly. This client gets back UNSTRUCTURED TEXT and
- *    then runs the SAME KIND OF REGEXES a human skimming the page would use — proximity of a
+ *  - **Plain text, not structured extraction**: the engine hands back UNSTRUCTURED TEXT, and this
+ *    file then runs the same kind of regexes a human skimming the page would use — proximity of a
  *    multilingual keyword to a number-shaped token, nothing more. It has no understanding of layout,
- *    tables, or which number is really "the" total when several candidates exist. It is
- *    meaningfully weaker than the cloud path, by design, in exchange for costing nothing and
- *    sending nothing offsite. Every field below is either found or OMITTED — never guessed — the
- *    same "an editable proposal is the safety net" contract Mistral's own path holds (`extractor.
- *    ts`'s own header: OCR is always a PROPOSAL, the upload screen never auto-commits it). NOTE:
- *    the main backend's own plugin (`plugins/ocr/providers/mistral/mistral.ts`,
- *    `MistralOcrProvider.id = 'mistral-ocr'`) is a thin HTTP client of `OCR_SERVICE_URL` ALONE —
- *    it has no notion of `OCR_ENGINE` and never did (that switch lives entirely inside THIS
- *    service, see `ocr-server.ts`'s own header) — so `OcrOutcome.extractorId` on the upload screen
- *    still reads `'mistral-ocr'` even when the instance behind it is running `OCR_ENGINE=local`. A
- *    pre-existing naming quirk (the id is surfaced in one test literal only, `extractor.spec.ts`,
- *    never asserted against by anything user-facing), left here documented rather than silently
- *    inherited.
+ *    of tables, or of which number is really "the" total when several candidates exist. That is the
+ *    deal: it costs nothing and sends nothing offsite. The safety net is that OCR is always a
+ *    PROPOSAL — `extractor.ts`'s own header — and the upload screen never auto-commits it.
  *  - **VAT id detection**: a GENERIC EU-shaped regex (`[A-Z]{2}` + 6-12 alphanumerics), filtered by
  *    a short, HARD-CODED allow-list of country prefixes kept in THIS file — deliberately NOT
  *    imported from `country-identifiers/data/*.json` (that data is this app's own authoritative,
@@ -72,18 +44,17 @@
  *    pattern match anywhere in the text, but a document with no such keyword at all can still
  *    misfire on any other two-letters-then-digits token it contains.
  *  - **Supplier name**: "the first non-blank line that isn't a generic invoice-title word" — no
- *    layout awareness at all (the sidecar's plain-text output loses position/font-size entirely,
- *    same as Tika's did). A letterhead with a logo-only top line, no printed company name as the
+ *    layout awareness at all — the sidecar's plain-text output loses position and font size
+ *    entirely. A letterhead with a logo-only top line, no printed company name as the
  *    very first line, defeats this outright — it will pick whatever text line happens to come first.
  */
 import { ExtractedInvoiceProposal } from '@/modules/documents/received-invoices/ocr/extractor';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
-/** Named per this file's own "never a bare Error" discipline — the same shape `MistralOcrError`/
- *  `MistralOcrTimeoutError` already establish one file up, reused here for the identical reason:
- *  `ocr-server.ts`'s `statusForError` needs to tell a timeout (504) apart from an upstream HTTP
- *  status (passed through) apart from a network-level failure (502), for EITHER engine. */
+/** Named rather than a bare Error so the caller can tell a timeout apart from an upstream HTTP
+ *  status apart from a network-level failure — `plugins/ocr/providers/local/local.ts` maps them,
+ *  and only the "no engine configured at all" case may read as "no extractor available". */
 export class LocalOcrError extends Error {
   constructor(
     message: string,
@@ -103,10 +74,9 @@ export class LocalOcrTimeoutError extends LocalOcrError {
 
 // ---------------------------------------------------------------------------------------------
 // Heuristic text -> ExtractedInvoiceProposal mapping — see this file's own header for the honest
-// limits. Every regex below was validated against a REAL OCR transcript (an
-// `apache/tika:latest-full` round-trip on a genuine rasterized invoice) before being written here,
-// not invented blind — kept intentionally simple, and each one documented with what it does and
-// does NOT handle.
+// limits. Every regex below was validated against a REAL OCR transcript of a genuine rasterized
+// invoice before being written here, not invented blind — kept intentionally simple, and each one
+// documented with what it does and does NOT handle.
 // ---------------------------------------------------------------------------------------------
 
 /** A short, HARD-CODED allow-list of two-letter prefixes real European VAT ids use — see this
@@ -343,7 +313,7 @@ function findSupplier(lines: string[]): string | undefined {
 }
 
 /** Builds keys ONLY for fields actually found — never an explicit `undefined` value — mirroring
- *  `mistral-client.ts`'s own `setIfDefined` discipline one file up, for the identical downstream
+ *  the `setIfDefined` discipline, for the downstream
  *  reason (`Object.keys`/spread-based consumers on the frontend must never see a phantom key). */
 export function mapOcrTextToProposal(text: string): ExtractedInvoiceProposal {
   const lines = text.split(/\r?\n/);
@@ -404,8 +374,8 @@ export function buildLocalOcrClient(config: LocalOcrClientConfig): LocalOcrClien
           signal: controller.signal,
         });
       } catch (err) {
-        // Same "AbortError is not `instanceof Error` in Node" check `mistral-client.ts` already
-        // relies on one file up — see that file's own comment on `withTimeout`.
+        // `AbortError` is not `instanceof Error` in Node, hence the shape check rather than a
+        // plain `instanceof`.
         if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
           throw new LocalOcrTimeoutError(timeoutMs);
         }

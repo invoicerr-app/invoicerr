@@ -1,6 +1,6 @@
 /**
  * The OCR extension point. OCR is a cloud service reached THROUGH THE PLUGIN SYSTEM — this core
- * (`received-invoices/`) never imports Mistral, never imports `fetch`-based HTTP client code for a
+ * (`received-invoices/`) never imports an OCR engine, never imports `fetch`-based HTTP client code for a
  * provider, and never even imports the plugin/Prisma machinery that decides which provider is
  * active. It only declares WHAT a provider must look like and holds a plain in-memory registry of
  * whichever providers a composition root (`plugins/index.ts`) chose to register — the exact same
@@ -19,8 +19,7 @@
  * THIS id" — it asks "does ANYTHING here support this mime type", for every single PDF a user drops,
  * whether or not an OCR plugin was ever installed. "Nobody registered anything that can read this
  * mime" is therefore not a caller bug, it is the EXPECTED, EVERYDAY answer for any deployment that
- * never toggled Mistral on — see
- * `received-invoice.descriptor.ts`'s own header, "a plain scanned PDF is the base case". Throwing
+ * deployed no OCR engine — see `received-invoice.descriptor.ts`'s own header, "a plain scanned PDF is the base case". Throwing
  * here would turn "OCR is not enabled" into an exception the upload flow would have to catch on
  * every single upload; returning `undefined` lets the caller treat "no extractor" as data, the same
  * honest-absence discipline `extraction.ts`'s own `EMPTY_RESULT` already holds for "nothing
@@ -57,7 +56,7 @@ export interface ExtractedInvoiceProposal {
  * this file's own header) by a composition root, e.g. `plugins/index.ts`.
  */
 export interface ReceivedDocumentExtractor {
-  /** This extractor's own registered id (e.g. "mistral-ocr") — surfaced on the outcome
+  /** This extractor's own registered id (e.g. "local-ocr") — surfaced on the outcome
    *  (`apply-ocr-fallback.ts`'s `OcrOutcome`) so a "failed"/"extracted" result names WHICH provider
    *  acted, never a bare "OCR" that could mean any one of several installed extractors. */
   id: string;

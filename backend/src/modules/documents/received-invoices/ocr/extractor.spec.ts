@@ -84,11 +84,11 @@ describe('ReceivedDocumentExtractorRegistry', () => {
 
 describe('ExtractorNotReadyError', () => {
   it('carries the extractor id and a human message, named distinctly from a generic Error', () => {
-    const err = new ExtractorNotReadyError('mistral-ocr', 'not configured');
+    const err = new ExtractorNotReadyError('local-ocr', 'not configured');
 
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe('ExtractorNotReadyError');
-    expect(err.extractorId).toBe('mistral-ocr');
+    expect(err.extractorId).toBe('local-ocr');
     expect(err.message).toBe('not configured');
   });
 });

@@ -85,7 +85,7 @@ describe('applyOcrFallback', () => {
   });
 
   it('any OTHER thrown error is a NAMED "failed" outcome — never swallowed, never folded into "unavailable"', async () => {
-    extract.mockRejectedValue(new Error('Mistral OCR quota or rate limit exceeded (429).'));
+    extract.mockRejectedValue(new Error('OCR engine returned HTTP 429.'));
 
     const result = await applyOcrFallback(STRUCTURAL_EMPTY, new Uint8Array([1]), 'application/pdf', 'x.pdf');
 
@@ -95,7 +95,7 @@ describe('applyOcrFallback', () => {
       ocr: {
         outcome: 'failed',
         extractorId: 'stub-extractor',
-        message: 'Mistral OCR quota or rate limit exceeded (429).',
+        message: 'OCR engine returned HTTP 429.',
       },
     });
   });

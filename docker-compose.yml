@@ -99,9 +99,9 @@ services:
 
       # OCR of scanned received invoices. OPTIONAL and OFF by default: without it a scanned PDF is
       # stored with empty fields for a human to fill in. To enable it, uncomment this line and start
-      # with `docker compose --profile ocr-local up`. Everything stays on this machine — no API key,
-      # no third party, the PDF never leaves the internal compose network.
-      # - OCR_SERVICE_URL=http://ocr-local:3002
+      # with `docker compose --profile ocr up`. Everything stays on this machine — no API key, no
+      # third party, the PDF never leaves the internal compose network.
+      # - OCR_SERVICE_URL=http://ocr:9998
     depends_on:
       - invoicerr_db
       - redis
@@ -115,26 +115,14 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  # The OCR adapter: same image as the app, a third ROLE (entrypoint.sh's "one image, N roles"
-  # switch), started only by `--profile ocr-local`. It reads the PDF through the engine below and
-  # returns a PROPOSAL the user edits — a field it gets wrong or misses is never silently accepted
-  # downstream. `backend/src/ocr-service/local-client.ts` documents what it can and cannot get right.
-  ocr-local:
-    image: ghcr.io/invoicerr-app/invoicerr:latest
-    profiles: ["ocr-local"]
-    environment:
-      - ROLE=ocr
-      - OCR_ENGINE=local
-      - LOCAL_OCR_URL=http://ocr-local-engine:9998
-    depends_on:
-      - ocr-local-engine
-    restart: unless-stopped
-
-  # The engine: our own image (github.com/invoicerr-app/ocr-image), ocrmypdf plus the Tesseract
-  # language packs this product's markets need. Adding a language is one apt line in that repo.
-  ocr-local-engine:
+  # OCR of scanned received invoices — our own image (github.com/invoicerr-app/ocr-image): ocrmypdf
+  # plus the Tesseract language packs this product's markets need. Adding a language is one apt line
+  # in that repo. Opt-in: started only by `docker compose --profile ocr up`, and reached only through
+  # OCR_SERVICE_URL above. The app talks to it directly — the engine does the OCR, the backend turns
+  # the text into an editable proposal (`backend/src/ocr-service/local-client.ts`).
+  ocr:
     image: ghcr.io/invoicerr-app/ocr-image:latest
-    profiles: ["ocr-local"]
+    profiles: ["ocr"]
     restart: unless-stopped
 
   redis:

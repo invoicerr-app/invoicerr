@@ -12,8 +12,8 @@ import prisma from '@/prisma/prisma.service';
 // consumers a caller could reach (`canGenerateXml`/`generateXml`) were permanent stubs (`return
 // false` / `throw`), so an external plugin, once loaded, could do nothing. See
 // "Le système de plugins, vu par son premier vrai consommateur" for the full account and the
-// decision: extensibility is the narrow-interface-at-the-core pattern (the OCR/Mistral
-// plugin, `plugins/ocr/providers/mistral/mistral.ts`), not third-party code loading. Everything
+// decision: extensibility is the narrow-interface-at-the-core pattern (the OCR provider,
+// `plugins/ocr/providers/local/local.ts`), not third-party code loading. Everything
 // below is the OTHER mechanism, which this service always also ran: IN-APP plugins
 // (`PluginRegistry`/`PluginType`, the `Plugin` Postgres table, the Settings > Plugins screen) —
 // unaffected by the removal.

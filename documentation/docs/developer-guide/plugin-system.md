@@ -57,35 +57,23 @@ a **narrow interface at the core, with a registry the feature itself owns**, not
 
 The reference example is received-document OCR extraction (`ReceivedDocumentExtractor`,
 `backend/src/modules/documents/received-invoices/ocr/extractor.ts`) and its implementation
-(`backend/src/plugins/ocr/providers/mistral/mistral.ts`). Read that provider file's own header for
-the full account of why it does **not** go through `PluginRegistry`: the credential/engine is held
-only by a dedicated docker-compose service (`ROLE=ocr`), reached by the backend through
-`OCR_SERVICE_URL` alone — never a `Plugin` row, never the Settings screen. A test double
-(`FakeReceivedInvoiceOcrExtractor`) is registered instead under `NODE_ENV=test`, the same swap
-discipline `clients.module.ts`'s `VAT_VALIDATION_FAKE` already establishes elsewhere in this
-codebase.
+(`backend/src/plugins/ocr/providers/local/local.ts`). It does **not** go through `PluginRegistry`:
+its whole configuration is one environment variable, `OCR_SERVICE_URL`, naming a container — never a
+`Plugin` row, never the Settings screen. A test double (`FakeReceivedInvoiceOcrExtractor`) is
+registered instead under `NODE_ENV=test`, the same swap discipline `clients.module.ts`'s
+`VAT_VALIDATION_FAKE` already establishes elsewhere in this codebase.
 
-That `ROLE=ocr` service itself supports TWO engines, picked by its own `OCR_ENGINE` env var — the
-main backend never knows or cares which one is behind `OCR_SERVICE_URL`:
+OCR is fully local and opt-in. There is no cloud engine and no API key anywhere: the backend talks
+directly to our own OCR image (`ghcr.io/invoicerr-app/ocr-image`, ocrmypdf plus a broad Tesseract
+language-pack set — `docker-compose.yml`'s `ocr` service, `--profile ocr`), which reads the PDF and
+returns plain text. `ocr-service/local-client.ts` maps that text to the proposal shape with regex
+heuristics over amount, date, VAT-id and invoice-number keyword proximity; its own header documents
+exactly what that can and cannot get right. Leave `OCR_SERVICE_URL` unset and a scanned PDF is
+simply stored with empty fields for a human to fill in.
 
-- `OCR_ENGINE=mistral` (the default) — Mistral Document AI, a cloud API, needs `MISTRAL_API_KEY`.
-  Structured extraction: the model itself answers a JSON schema (`ocr-service/mistral-client.ts`).
-- `OCR_ENGINE=local` — for a self-hoster with no Mistral API key: no API key, no data ever leaves
-  the instance. Calls
-  a second, self-hosted container — OUR OWN image (the `ocr-image` repo, repo root, built from
-  `jbarlow83/ocrmypdf:latest` + a broad Tesseract language-pack set, `docker-compose.yml`'s own
-  `ocr-local`/`ocr-local-engine` services), replacing this service's
-  original `apache/tika:latest-full` engine specifically to fix Tika's own frozen, non-configurable
-  language set — that reads the PDF and OCRs it itself, then maps the resulting PLAIN TEXT to the
-  same proposal shape with regex heuristics (amount/date/VAT-id/invoice-number keyword proximity —
-  `ocr-service/local-client.ts`). Meaningfully weaker than the cloud path by design — that file's own
-  header documents exactly what it can and cannot get right, and why `ocrmypdf` was chosen (short
-  version: like Tika before it, `ocrmypdf` reads a PDF natively, so this stays a bare `fetch` with no
-  new dependency; a bare Tesseract-server image does not read PDF at all).
-
-Either way, `apply-ocr-fallback.ts` treats the result as an editable PROPOSAL, never an auto-commit
-— the local engine's weaker accuracy is an acceptable trade for costing nothing and staying fully
-offline, precisely because a human always reviews the pre-filled screen before it is saved.
+`apply-ocr-fallback.ts` treats the result as an editable PROPOSAL, never an auto-commit — the
+heuristic's limits are an acceptable trade for costing nothing and staying fully offline, precisely
+because a human always reviews the pre-filled screen before it is saved.
 
 Adding a new extension point means: define a narrow interface for exactly what callers need,
 give it its own small registry (a `Map`, like `receivedDocumentExtractorRegistry`), and register

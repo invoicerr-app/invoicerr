@@ -8,7 +8,7 @@ import {
 } from './local-client';
 
 /** A real `node:http` stub standing in for the `ocr-image` repo's server.py's own `POST /ocr` — never a
- *  mocked `fetch`, the same discipline `mistral-client.spec.ts`/`ocr-server.spec.ts` already use
+ *  mocked `fetch`, the discipline this module uses
  *  one directory over. The response shape asserted against (`POST`, `Accept: text/plain` in,
  *  PLAIN TEXT body out, no JSON envelope) is quoted from a real, live round-trip
  *  against that server (`local-client.ts`'s own header) — never invented. */

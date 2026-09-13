@@ -256,8 +256,8 @@ describe('ReceivedInvoicesService', () => {
   });
 
   /**
-   * Proves the WIRING, not the Mistral client (that lives in
-   * `plugins/ocr/providers/mistral/mistral.spec.ts`, against a real HTTP stub) nor the fallback
+   * Proves the WIRING, not the OCR client (that lives in
+   * `ocr-service/local-client.spec.ts`, against a mocked fetch) nor the fallback
    * function itself (`ocr/apply-ocr-fallback.spec.ts`): a STUB extractor registered into the exact
    * same core registry a real plugin would use, proving an OCR proposal reaches `preview.extraction.
    * fields` and that supplier reconciliation AND the total-vs-sum check both run on
