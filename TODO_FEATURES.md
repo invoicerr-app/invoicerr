@@ -15,6 +15,22 @@
 
 ---
 
+## File d'exécution — décidée le 2026-09-13
+
+Les cinq gros manques restants, un sous-agent par feature, dans cet ordre. L'ordre n'est pas
+arbitraire : le portail conditionne le paiement en ligne (un lien « Payer » a besoin d'un endroit où
+vivre), et le paiement passe en dernier parce qu'il est le seul à exiger un compte prestataire.
+
+| # | Rang | Feature | État |
+|---|---|---|---|
+| 1 | 3 | Portail client authentifié | 🔵 en cours |
+| 2 | 11 | Suivi du temps & facturation de projets | ⚪ en file |
+| 3 | 14 | Langue du document par destinataire | ⚪ en file |
+| 4 | 5 | Rapprochement bancaire (import CSV/OFX) | ⚪ en file |
+| 5 | 1 | Paiement en ligne (Stripe/PayPal) | ⚪ en file — écrit et testé à blanc, jamais prouvé sans le compte du propriétaire |
+
+---
+
 ## Suivi (mise à jour 2026-09-11)
 
 - **Rang 4 — export comptable générique CSV** : ✅ FAIT (tranche CSV ; FEC/DATEV spécifiques = extension
