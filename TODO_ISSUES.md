@@ -55,6 +55,34 @@ depuis les tests unitaires, qui vérifient les moteurs isolément et jamais le c
   côté client, pour le cas B2B. Même forme que le défaut d'identifiant TVA déjà corrigé sur cette
   branche : un mécanisme complet côté backend, sans écran pour l'alimenter.
 
+## Le B2G portugais : l'obligation est établie, le canal ne l'est pas (2026-09-13)
+
+`b2g-routing/data/` couvre de, fr, it, pl — **pas pt**, et la matrice publique affiche donc « — »
+pour le Portugal sur cette colonne.
+
+**Établi** (récupéré et grepé sur `files.diariodarepublica.pt`, DL 111-B/2017 qui insère l'article) —
+CCP art. 299.º-B :
+- n.º 1 : « No âmbito da execução de contratos públicos, os cocontratantes são obrigados a emitir
+  faturas eletrónicas », suivi des douze éléments obligatoires (identifiants du processus et de la
+  facture, période, cocontractant, contractant public, entité bénéficiaire, représentant fiscal,
+  référence du contrat, conditions de livraison, instructions de paiement, ajustements et charges,
+  rubriques, totaux).
+- n.º 3 : « O modelo de fatura eletrónica é o estabelecido pela norma europeia respetiva aprovada pela
+  Comissão Europeia e publicitada no portal dos contratos públicos. » — le FORMAT est donc la norme
+  européenne, fixée par l'article lui-même.
+- n.º 5 : « A regulamentação dos aspetos complementares da faturação eletrónica é feita por portaria
+  […] » — le reste, dont vraisemblablement le canal, est délégué.
+
+**Non établi** : le `transportId`, que le schéma de `b2g-routing` exige au même titre que le
+`formatSyntax`. Sans lui le fichier ne peut pas être écrit honnêtement.
+
+**Pistes non vérifiées**, à traiter comme telles et non comme des sources : Decreto-Lei n.º 123/2018
+(modèle de gouvernance, confierait à l'eSPap la solution de réception), Portaria n.º 289/2019
+(règlementerait les aspects complémentaires), le format « CIUS-PT » et la solution « FE-AP ». Aucune
+de ces quatre n'a été lue sur son texte brut. Une tentative d'accès au PDF de la Portaria a rendu un
+**200 qui n'était pas le document** (une page HTML servie à la place), ce qui rappelle qu'un code de
+statut ne prouve rien : c'est le corps qu'il faut inspecter.
+
 ## Les mentions fiscales sont en anglais générique, alors que quatre lois sur cinq imposent les mots (2026-09-13)
 
 `tax/tax-engine.ts` ouvre sur une table `MENTION` plate, **aveugle au pays** : une seule formulation
