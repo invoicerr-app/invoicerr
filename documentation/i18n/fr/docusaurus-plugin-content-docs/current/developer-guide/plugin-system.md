@@ -8,7 +8,9 @@ Invoicerr prend en charge deux types de plugins, tous deux gérés par le module
 
 ## Plugins intégrés
 
-Plugins intégrés pour un ensemble fixe de types : `SIGNING`, `STORAGE`, `PDF_FORMAT`, `OIDC`. Ils sont enregistrés au démarrage par un singleton `PluginRegistry` (`backend/src/plugins/index.ts`) et stockés en base de données avec un interrupteur activé/désactivé et un formulaire de configuration optionnel.
+Plugins intégrés pour un ensemble fixe de types : `SIGNING` et `STORAGE`. Une troisième valeur, `OCR`, figure dans l'énumération `PluginType` mais n'a aucun fournisseur enregistré — le commentaire du schéma Prisma sur `PluginType` dit pourquoi elle est laissée en place inutilisée (l'OCR est finalement devenu un service docker-compose dédié, et retirer une valeur d'une énumération Postgres vivante oblige à reconstruire tout le type). `PDF_FORMAT` et `OIDC` ne sont **pas** des types de plugin : ni l'un ni l'autre n'est déclaré dans l'énumération, ni extensible — le format PDF est un réglage de l'entreprise et l'OIDC se configure par variables d'environnement et par l'écran SSO. Ils ne sont cités ici que parce que des versions antérieures de cette page affirmaient le contraire.
+
+Les plugins sont enregistrés au démarrage par un singleton `PluginRegistry` (`backend/src/plugins/index.ts`) et stockés en base de données avec un interrupteur activé/désactivé et un formulaire de configuration optionnel.
 
 - Un seul plugin actif par type, sauf `STORAGE` qui prend en charge plusieurs instances actives.
 - Exemples : un fournisseur Documenso pour la signature, un fournisseur S3 pour le stockage.

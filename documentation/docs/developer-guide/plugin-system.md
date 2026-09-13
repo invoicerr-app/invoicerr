@@ -10,9 +10,15 @@ runtime — existed and was removed (see [History](#history) below).
 
 ## In-app plugins
 
-Built-in plugins for a fixed set of types: `SIGNING`, `STORAGE` (`PDF_FORMAT`, `OIDC`, and `OCR`
-are declared in the `PluginType` enum but have no registered provider yet — see the Prisma schema
-comment on `PluginType` for why they're left in place unused). They are registered on startup by a
+Built-in plugins for a fixed set of types: `SIGNING` and `STORAGE`. A third value, `OCR`, is declared
+in the `PluginType` enum but has no registered provider — the Prisma schema comment on `PluginType`
+explains why it is left in place unused (OCR ended up as a dedicated docker-compose service, and
+dropping a value from a live Postgres enum means rebuilding the whole type). `PDF_FORMAT` and `OIDC`
+are **not** plugin types: neither is declared in the enum, and neither is pluggable — the PDF format
+is a per-company setting and OIDC is configured through environment variables and the SSO settings
+screen. They are named here only because earlier revisions of this page claimed otherwise.
+
+They are registered on startup by a
 `PluginRegistry` singleton (`backend/src/plugins/index.ts`) and stored in the database (the
 `Plugin` table) with an on/off toggle and an optional configuration form.
 
