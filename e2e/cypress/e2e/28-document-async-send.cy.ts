@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * A document's asynchronous send (root TODO, item 22 — worker mode & queues) — proven through the
  * screen, the same discipline as 17/21/22/23: the ACTION goes through a real click on "Send", the

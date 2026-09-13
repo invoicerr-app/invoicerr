@@ -46,6 +46,26 @@ jobs:
       - name: Check i18n catalogs (used keys must exist in EN)
         run: node frontend/scripts/i18n-check.mjs
 
+  # The e2e project was never typechecked by anything: no script, no CI step, and `tsc --noEmit`
+  # could not even run to completion (71 errors, all of them specs colliding in one global scope --
+  # see e2e/tsconfig.json's own comment). A type error in a Cypress spec was therefore only ever
+  # found by running that spec. This job is cheap and needs no stack at all.
+  e2e-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install e2e dependencies
+        run: cd e2e && npm ci
+
+      - name: Typecheck the Cypress specs
+        run: cd e2e && npm run typecheck
+
   backend-tests:
     runs-on: ubuntu-latest
     steps:

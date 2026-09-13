@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Post-deposit conformity tracking — proven THROUGH THE SCREEN, the same
  * discipline as 28/31/34: the send goes through a real click on "Send", the ASSERTIONS that matter

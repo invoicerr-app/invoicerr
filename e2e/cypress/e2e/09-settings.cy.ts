@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 beforeEach(() => {
     cy.login();
 });

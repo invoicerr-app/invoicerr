@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Basic stock management (TODO_FEATURES.md rank 18) — invoicing N units of a stock-tracked article
  * DECREMENTS its balance at ISSUANCE, and an alert becomes visible below the threshold. Discipline: the

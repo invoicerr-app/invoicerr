@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * The cross-border case — the deepest boundary, proven through the screen.
  *

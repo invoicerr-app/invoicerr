@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Client account statement (TODO_FEATURES.md rank 6, ⚡) — an aggregated view per client: open
  * invoices, balance, and aged balance (current / 0-30 / 31-60 / 60+). The aggregation (buckets,

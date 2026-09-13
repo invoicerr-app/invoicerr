@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Legal archiving — proven THROUGH THE SCREEN,
  * the same discipline as 28/33: the send goes through a real click on "Send", the ASSERTIONS that

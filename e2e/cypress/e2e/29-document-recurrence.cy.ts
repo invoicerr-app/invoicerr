@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Recurrences (root TODO, item 5) — proven through the screen, same discipline as 17/21/24/28:
  * the recurrence is created by a real click on "Recurrence" + filling in the dialog, the appearance

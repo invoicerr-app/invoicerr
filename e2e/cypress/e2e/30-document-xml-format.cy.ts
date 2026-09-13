@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Normalized EN 16931 export — same discipline as
  * 19-document-pdf.cy.ts: the ACTION is a real click on the screen, the ASSERTIONS that matter

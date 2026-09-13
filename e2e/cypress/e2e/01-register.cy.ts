@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 // This spec registers the FIRST user, so it needs a database with no user in it — the opposite of
 // the baseline every other spec now gets from the global `before` in support/e2e.ts. Opting out has
 // to happen at load time, before that hook runs.

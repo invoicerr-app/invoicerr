@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Internal approval workflow (TODO_FEATURES.md rank 17) — a MEMBER can NOT SEND an
  * invoice whose total exceeds the company's approval threshold without an ADMIN/OWNER; an

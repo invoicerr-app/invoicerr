@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * i18n of descriptor labels (raw data today). The mechanism
  * (frontend/src/lib/descriptor-i18n.ts, wired into

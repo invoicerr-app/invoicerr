@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * The declared lifecycle (statuses + transitions, backend/src/modules/documents/descriptors/
  * lifecycle.ts) proven through the screen, not only in memory — same discipline as

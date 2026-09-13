@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * PAYMENTS — proven through the screen, not just in memory. Same discipline as 17/21/22: the
  * ACTIONS go through the interface (a real click on "Send", a real fill-in of the "record-payment"

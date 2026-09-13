@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Sending carries the PDF along (root TODO, item 4) — proven by the screen, not only in memory, the
  * same discipline as 17/21/22: the ACTION goes through a real click on "Send", the ASSERTIONS read

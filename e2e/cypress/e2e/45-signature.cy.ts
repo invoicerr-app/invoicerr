@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Electronic quote signature (email OTP) — HARDENED
  * (GHSA-vhjw-gwc5-pjfp closed). Proven THROUGH THE SCREEN, on the anonymous client side: the seller

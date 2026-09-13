@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * SEPA / EPC069-12 payment QR ("GiroCode") on the PDF — TODO_FEATURES.md rank 8 (⚡).
  *

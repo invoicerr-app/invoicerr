@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Public download links — proven THROUGH THE SCREEN, same discipline as
  * 28/34: sending the invoice and creating/revoking the link go through REAL clicks, the

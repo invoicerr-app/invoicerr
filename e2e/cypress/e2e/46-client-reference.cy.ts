@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * "Client reference / PO number" field (TODO_FEATURES.md rank 7, ⚡) — a first-class
  * `clientReference` field on quotes/invoices, entered on the screen, persisted, rendered on the PDF

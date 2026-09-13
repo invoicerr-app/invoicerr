@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Electronic signature — proven THROUGH THE SCREEN: a FIXTURE
  * certificate is uploaded (self-signed, generated via a disposable local script using node-forge —

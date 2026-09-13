@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Generic CSV accounting export (TODO_FEATURES.md rank 4) — an export over a period produces a CSV
  * where each row is a real invoice / credit note / payment, amounts consistent with the settlement

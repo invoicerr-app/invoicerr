@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Email templates PER DOCUMENT TYPE (`Settings > Email Templates`, `/settings/email` tab) —
  * until now with NO e2e coverage at all: `09-settings.cy.ts` never visits this tab, and

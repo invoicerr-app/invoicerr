@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * The 5 sourced country-policy files (DE, IT, PL, ES, MX,
  * `backend/src/modules/documents/country-policy/data/`). Before this file, a company whose country

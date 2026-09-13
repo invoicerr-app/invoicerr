@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Tests for the PDF rendering engine. Verifies that:
  * 1. The endpoint generates valid PDFs

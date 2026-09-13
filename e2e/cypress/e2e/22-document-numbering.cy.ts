@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Numbering — proven by the screen, not merely in memory. Same discipline as 17/21: the ACTIONS go
  * through the interface (a real click on "Send"), the ASSERTIONS that matter read the record back

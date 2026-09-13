@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * `GET /api/documents/:id/correction-routes?typeId=invoice`
  * (`backend/src/modules/documents/correction-routes/`). API LEVEL first, like the rest of the repo's

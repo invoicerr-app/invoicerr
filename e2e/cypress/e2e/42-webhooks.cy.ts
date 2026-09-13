@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * The `DOCUMENT_SENT` webhook (generic `DOCUMENT_*` vocabulary) fires when the transmission
  * SUCCEEDS, never before, never on a failure.

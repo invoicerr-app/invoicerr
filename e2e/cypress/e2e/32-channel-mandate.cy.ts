@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * The country-mandated channel — France now mandates
  * PDP for invoices whose ISSUE date (issueDate) is 2026-09-01 or later

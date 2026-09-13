@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * B2G routing (`backend/src/modules/documents/b2g-routing/`) — a client marked GOVERNMENT
  * (`Client.kind`) changes which channel/format an invoice addressed to it MUST use, per THAT

@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Receiving invoices — proven THROUGH THE SCREEN, like 17-document-descriptor.cy.ts
  * and the rest of this suite: ACTIONS go through the interface, content ASSERTIONS (is the

@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Per-company SSO (`Settings > SSO`, `/settings/sso` tab) — a customer registers THEIR OWN
  * OIDC provider, without touching the instance's environment. Until now with NO e2e coverage

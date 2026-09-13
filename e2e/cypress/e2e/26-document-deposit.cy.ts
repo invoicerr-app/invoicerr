@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * "request-deposit" (backend/src/modules/documents/actions/request-deposit.ts) proven by a REAL
  * click, same discipline as 21-document-lifecycle.cy.ts: the ACTION runs through the screen, the

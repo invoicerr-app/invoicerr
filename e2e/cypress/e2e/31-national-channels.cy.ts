@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * NATIONAL transports — wave 1: the credentials groundwork + the PDP channel,
  * proven by the screen: we connect the PDP channel with FAKE credentials pointing at a server

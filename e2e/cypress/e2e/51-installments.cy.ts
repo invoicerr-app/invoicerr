@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Multi-milestone installment billing (TODO_FEATURES.md rank 12) — from a SENT quote, the
  * `request-installments` action generates N draft invoices (one per due date, each at its own date),

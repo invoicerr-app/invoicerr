@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * Multi-currency (root TODO, item 9) — proven through the screen, not only in memory.
  *

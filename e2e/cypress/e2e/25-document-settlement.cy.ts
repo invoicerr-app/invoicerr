@@ -1,3 +1,5 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
 /**
  * RECONCILIATION / SETTLEMENT (root TODO, item 8) — a "sent" credit note reduces what an invoice
  * owes, a "draft" one settles nothing. Same discipline as 17/21/24: the ACTIONS that matter go
