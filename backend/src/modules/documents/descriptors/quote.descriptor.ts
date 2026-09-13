@@ -68,7 +68,9 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },
-      { id: 'sent', label: 'Sent' },
+      // `clientVisible` (see `DocumentStatusDescriptor`'s own header) — this is what a client portal
+      // session (`client-portal/`) shows: a quote awaiting the client's own response.
+      { id: 'sent', label: 'Sent', clientVisible: true },
       { id: 'send_failed', label: 'Send failed' },
       // Reached ONLY through the public OTP-signature flow
       // (signatures/signatures.service.ts#markSigned), never through `runAction`/`ActionRegistry`:
@@ -78,7 +80,16 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       // so `validateLifecycle` never expects one; `findUndeclaredStatusInstances`
       // (documents.service.ts's own boot check) is the reason this status must be declared here at
       // all — otherwise every signed quote would read as an undeclared-status anomaly.
-      { id: 'signed', label: 'Signed' },
+      { id: 'signed', label: 'Signed', clientVisible: true },
+      // The client PORTAL's own "decline" — `client-portal/portal.service.ts#refuseQuote`. Reached
+      // the EXACT same way "signed" above is: a WRITE outside `runAction`/`ActionRegistry` (there is
+      // no company-authenticated caller to run an action AS — a portal session is a CLIENT, not a
+      // company member), hand-guarded the identical way `SignaturesService`'s own private
+      // `markSigned` guards "signed" (only from "sent", a 409 otherwise). Declined WITHOUT going
+      // through the OTP-hardened signature path on purpose: refusing carries no legal weight the way
+      // accepting does (nothing is signed, nothing is non-repudiable), so it needs none of that
+      // mechanism's guarantees — see `client-portal/portal.service.ts`'s own header.
+      { id: 'refused', label: 'Refused', clientVisible: true },
     ],
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sending' },

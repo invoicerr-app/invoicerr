@@ -429,7 +429,11 @@ model Company {
   signingCertificates     CompanySigningCertificate[]
   atcudSeries             CompanyAtcudSeries[]
   signatures              Signature[]
+  clientPortalTokens      ClientPortalToken[]
   ssoProvider             CompanySsoProvider?
+  // TODO_FEATURES.md rank 11 — see Project/TimeEntry below.
+  projects                Project[]
+  timeEntries             TimeEntry[]
 }
 
 // Manually entered exchange rates. The rule that governs
@@ -539,6 +543,17 @@ model Client {
   isActive         Boolean           @default(true)
   partyIdentifiers PartyIdentifier[]
 
+  // The client portal (`client-portal/`) — see ClientPortalToken below. A client can have several
+  // across its life (a fresh invite after the previous one expired/was revoked) — never overwritten,
+  // the same "one row per grant, soft-revoked" posture DocumentDownloadToken/Signature already hold.
+  portalTokens ClientPortalToken[]
+
+  // TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — see Project below. A
+  // client can have several concurrent projects (an agency running two engagements for the same
+  // client needs its hours kept apart), which is the whole reason Project exists as its own model
+  // rather than TimeEntry hanging directly off Client — see project.service.ts's own header.
+  projects Project[]
+
   @@index([companyId])
 }
 
@@ -606,6 +621,85 @@ model Article {
   lowStockThreshold Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+// TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — the layer TimeEntry hangs
+// off. See project.service.ts's own header for why this is a THIRD model between Client and
+// TimeEntry rather than either of the two cheaper shapes (entries straight on Client, or entries
+// hanging off an existing quote): an agency running several concurrent engagements for the SAME
+// client cannot separate their hours without one. Plain data, like Article — NOT a document type
+// (descriptors/): a project is never issued, sent, numbered or archived, so it has no business going
+// through DocumentsService/ActionRegistry at all.
+model Project {
+  id              String      @id @default(cuid())
+  company         Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId       String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId        String
+  name            String
+  description     String?
+  // The rate a NEW entry logs against by default (minor units, this company's own currency — same
+  // convention as Article.unitPriceMinor). NULL means "no default set yet"; an entry can still
+  // override it with its own `hourlyRateMinor` (time-entries.service.ts) — see that column's own
+  // comment for why the override lives on the entry rather than being forced to match the project.
+  hourlyRateMinor Int?
+  isArchived      Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  timeEntries     TimeEntry[]
+
+  @@index([companyId])
+  @@index([clientId])
+}
+
+// One logged block of work against a Project. Never a document type (see Project's own comment) —
+// what this table's rows eventually BECOME, once billed, is an ordinary invoice LINE
+// (time-tracking/generate-invoice-lines.ts), built to look exactly like a hand-typed HOUR line so
+// the tax engine and every format provider treat the two identically; nothing downstream of the
+// invoice ever queries TimeEntry again.
+model TimeEntry {
+  id              String            @id @default(cuid())
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId       String
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId       String
+  date            DateTime
+  // Minutes, not a float hour count — avoids the repeating-decimal rounding a duration like "50
+  // minutes" (0.8333... h) would otherwise force onto every reader of this column. Converted to
+  // hours only once, at the very last moment (generate-invoice-lines.ts), for the invoice line's own
+  // `quantity`.
+  durationMinutes Int
+  description     String?
+  // Whether this entry should EVER be billed at all (an internal meeting, unpaid onboarding time) —
+  // independent of `invoiceId`: a non-billable entry can never be selected for billing
+  // (time-entries.service.ts's own `findUnbilled` filters on both), so it never even reaches the
+  // "already billed?" question `invoiceId` answers.
+  billable        Boolean           @default(true)
+  // This ONE entry's own rate override (minor units) — NULL means "use the project's own
+  // `hourlyRateMinor`". Separate column, not a write-through onto Project at entry-creation time:
+  // a project's default rate can change later (a renegotiated contract) without silently rewriting
+  // history for entries already logged at the old one, while a SPECIFIC entry (a rush job, a senior
+  // consultant covering one day) can still bill at its own rate without that becoming the project's
+  // new default for every other entry.
+  hourlyRateMinor Int?
+  // Which invoice this entry was billed into — NULL means unbilled. Set EXACTLY ONCE, atomically,
+  // alongside that invoice's own creation (time-tracking/generate-invoice-lines.ts's
+  // `billTimeEntriesToInvoice`): the same transaction that creates the DocumentInstance claims every
+  // entry it consumes with a single `UPDATE ... WHERE invoiceId IS NULL`, so two concurrent requests
+  // racing over the SAME entry can never both win (Postgres serializes the two UPDATEs on this row;
+  // the loser's own WHERE clause matches zero rows once the winner commits — see that function's own
+  // header for the full reasoning, the same one numbering/sequence.ts already documents for
+  // `bumpSequence`). Never reset back to NULL by anything automatic once billed — except by the
+  // invoice itself being deleted (`onDelete: SetNull` below), which is the one honest way a billed
+  // entry becomes unbilled again.
+  invoice         DocumentInstance? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  invoiceId       String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([companyId])
+  @@index([projectId])
+  @@index([invoiceId])
 }
 
 // Signature model
@@ -1018,6 +1112,13 @@ model DocumentInstance {
   // life (a fresh request after the previous one locked out) — never overwritten, the same "one row
   // per grant" posture `shareLinkTokens` above already holds.
   signatures Signature[]
+
+  // TODO_FEATURES.md rank 11 — see TimeEntry below. Every time entry this INVOICE (never any other
+  // type — nothing bills a quote or a credit note) was generated from, once billed. `onDelete:
+  // SetNull` on TimeEntry's own side (not a cascade): deleting a still-draft invoice must free the
+  // entries it consumed back to "unbilled", never take them down with it — a time entry is a fact
+  // about work actually performed, independent of whether the invoice it was once attached to survives.
+  timeEntries TimeEntry[]
 
   @@index([companyId, typeId])
 }
@@ -1549,6 +1650,44 @@ model Signature {
 
   @@index([documentId])
   @@index([companyId])
+}
+
+// The client portal (TODO_FEATURES.md rank 3) — a long-lived, revocable, hashed-random-token
+// credential scoped to ONE (company, client) pair, generalizing DocumentDownloadToken's "one
+// document's own public link" shape to "one client's own account" (every document the descriptors'
+// own `clientVisible` flag exposes, plus their aggregate balance). Minted by a company member
+// ("Invite to portal", client-portal/portal-tokens.service.ts — the same staff-triggered, ONE-TIME-
+// shown-then-copyable shape ShareLinksService already holds for a document link), emailed to the
+// client's own contactEmail when one is on file, and used by an anonymous browser as a bearer
+// credential (`Authorization: Bearer <token>`, never a cookie — see client-portal/portal-auth.guard.ts's
+// own header for why) on every `/api/portal/*` call. Never handed to `runAction`/`ActionRegistry`:
+// nothing a portal session does is a document ACTION — only reads, plus the two narrow writes
+// (`refuseQuote`/`requestSignature`, both delegating to EXISTING mechanisms) client-portal/portal.
+// service.ts exposes.
+//
+//  - The link's ONLY secret is `tokenHash` (a hashed, 256-bit random token — see
+//    client-portal/portal-token.ts, the exact share-link-token.ts pattern), resolved by an exact
+//    unique-index lookup, NEVER the row's own `id`.
+//  - Revocation is a SOFT delete (`revokedAt`), never a hard one — same "immutable history" posture
+//    DocumentDownloadToken already holds: who was invited, and when access was pulled back, is worth
+//    keeping.
+//  - `lastUsedAt` is informational only (surfaced on the staff-facing list so "has this client ever
+//    actually opened their portal" is answerable at a glance) — nothing in this codebase branches on
+//    it; unlike `expiresAt`/`revokedAt`, it is never part of whether a token still resolves.
+model ClientPortalToken {
+  id        String  @id @default(cuid())
+  tokenHash String  @unique
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+
+  @@index([clientId])
 }
 
 // The per-(company, type) monotonic counter numbering/sequence.ts's `bumpSequence` advances — see

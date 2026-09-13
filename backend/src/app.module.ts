@@ -5,6 +5,7 @@ import { AuthExtendedModule } from './modules/auth-extended/auth-extended.module
 import { AuthGuard } from '@/guards/auth.guard';
 import { RolesGuard } from '@/guards/roles.guard';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { ClientPortalModule } from './modules/client-portal/client-portal.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { CompanyLookupModule } from './modules/company-lookup/company-lookup.module';
@@ -27,6 +28,7 @@ import { ReceivedInvoicesModule } from './modules/documents/received-invoices/re
 import { PrismaModule } from './prisma/prisma.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SireneModule } from './modules/sirene/sirene.module';
+import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -89,6 +91,15 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // not folded into `PublicDocumentsModule`).
     SdiNotificheModule,
     ReceivedInvoicesModule,
+    // The authenticated client portal (TODO_FEATURES.md rank 3) — its own module, importing
+    // `DocumentsCoreModule` directly, the same "never the HTTP `DocumentsModule`" reasoning
+    // `PublicDocumentsModule`/`DocumentsQueueWorkerModule` already document. See
+    // `client-portal.module.ts`'s own header for why this feature does not need a Core/HTTP split of
+    // its own.
+    ClientPortalModule,
+    // TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — self-contained, no
+    // dependency on DocumentsCoreModule (see time-tracking.module.ts's own header).
+    TimeTrackingModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,
     PluginsModule,

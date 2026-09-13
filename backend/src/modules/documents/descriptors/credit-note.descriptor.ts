@@ -94,7 +94,11 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },
-      { id: 'sent', label: 'Sent' },
+      // `clientVisible` — see `DocumentStatusDescriptor`'s own header. A credit note has no `client`
+      // field of its own (only `invoice`, above) — the client portal resolves which client a credit
+      // note belongs to through the invoice it corrects, the same join
+      // `settlement/credits.ts#creditsForInvoiceFromNotes` already performs for the statement.
+      { id: 'sent', label: 'Sent', clientVisible: true },
       { id: 'send_failed', label: 'Send failed' },
     ],
     initialStatus: 'draft',

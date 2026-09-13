@@ -13,12 +13,16 @@ export type Path =
   | `/dashboard`
   | `/documents`
   | `/documents/:typeId`
+  | `/portal`
+  | `/portal/:token`
   | `/settings/:tab?`
   | `/signature/:token`
   | `/statistics`
+  | `/time-tracking`
 
 export type Params = {
   '/documents/:typeId': { typeId: string }
+  '/portal/:token': { token: string }
   '/settings/:tab?': { tab?: string }
   '/signature/:token': { token: string }
 }

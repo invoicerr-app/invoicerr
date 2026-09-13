@@ -35,7 +35,8 @@
         "view": "View client details",
         "edit": "Edit client",
         "delete": "Delete client",
-        "statement": "Account statement"
+        "statement": "Account statement",
+        "portalAccess": "Client portal access"
       },
       "title": "All Clients",
       "description": "Manage and view all your clients in one place."
@@ -65,6 +66,24 @@
         "invoice": "Invoice",
         "creditNote": "Credit note"
       }
+    },
+    "portalAccess": {
+      "title": "Client portal access",
+      "description": "Invite this client to their own portal, where they can see every document you've sent them, their balance, and respond to a quote — without a fresh email each time.",
+      "createButton": "Create a new invite",
+      "createError": "The invite could not be created.",
+      "copy": "Copy",
+      "copied": "Link copied to clipboard.",
+      "emailedYes": "An email with this link was sent to the client.",
+      "emailedNo": "No email on file for this client — copy the link and send it yourself.",
+      "activeTitle": "Active invites",
+      "noActive": "No active invites yet.",
+      "createdAt": "Created {{date}}",
+      "expiresAt": "Expires {{date}}",
+      "revoke": "Revoke",
+      "revokeAll": "Revoke all access",
+      "revokeError": "The invite could not be revoked.",
+      "close": "Close"
     },
     "upsert": {
       "title": {
@@ -1433,6 +1452,133 @@
     },
     "title": "Articles"
   },
+  "timeTracking": {
+    "actions": {
+      "cancel": "Cancel",
+      "add": "Add",
+      "save": "Save Changes",
+      "edit": "Edit",
+      "delete": "Delete",
+      "archive": "Archive",
+      "unarchive": "Unarchive"
+    },
+    "units": {
+      "hourShort": "h"
+    },
+    "projects": {
+      "title": "Projects",
+      "empty": "No projects yet",
+      "archivedBadge": "Archived",
+      "list": {
+        "add": "New project"
+      },
+      "fields": {
+        "client": {
+          "label": "Client",
+          "placeholder": "Search a client...",
+          "noResults": "No clients found"
+        },
+        "name": {
+          "label": "Project name"
+        },
+        "description": {
+          "label": "Description"
+        },
+        "hourlyRate": {
+          "label": "Default hourly rate",
+          "placeholder": "Not set",
+          "helpText": "Applied to a new entry unless it sets its own rate."
+        }
+      },
+      "upsert": {
+        "title": {
+          "create": "New project",
+          "edit": "Edit project"
+        }
+      },
+      "messages": {
+        "addSuccess": "Project created",
+        "addError": "Failed to create project",
+        "updateSuccess": "Project updated",
+        "updateError": "Failed to update project"
+      }
+    },
+    "entries": {
+      "empty": "No time logged yet for this project",
+      "list": {
+        "add": "Log time"
+      },
+      "columns": {
+        "date": "Date",
+        "description": "Description",
+        "hours": "Hours",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "status": {
+        "billed": "Billed",
+        "unbilled": "Unbilled",
+        "nonBillable": "Non-billable"
+      },
+      "selectionSummary": "{{count}} entries selected",
+      "selectionSummary_one": "{{count}} entry selected",
+      "fields": {
+        "date": {
+          "label": "Date"
+        },
+        "hours": {
+          "label": "Duration"
+        },
+        "description": {
+          "label": "Description"
+        },
+        "billable": {
+          "label": "Billable"
+        },
+        "hourlyRate": {
+          "label": "Hourly rate override",
+          "placeholder": "Use the project's default",
+          "helpText": "Leave empty to use the project's own default rate."
+        }
+      },
+      "upsert": {
+        "title": {
+          "create": "Log time",
+          "edit": "Edit time entry"
+        }
+      },
+      "delete": {
+        "title": "Delete time entry",
+        "description": "Are you sure you want to delete this time entry? This action cannot be undone."
+      },
+      "messages": {
+        "addSuccess": "Time entry logged",
+        "addError": "Failed to log time entry",
+        "updateSuccess": "Time entry updated",
+        "updateError": "Failed to update time entry",
+        "deleteSuccess": "Time entry deleted",
+        "deleteError": "Failed to delete time entry"
+      }
+    },
+    "generateInvoice": {
+      "trigger": "Generate invoice",
+      "title": "Generate invoice from time entries",
+      "confirm": "Generate invoice",
+      "total": "Total",
+      "columns": {
+        "description": "Description",
+        "hours": "Hours",
+        "total": "Total"
+      },
+      "messages": {
+        "success": "Draft invoice created",
+        "viewInvoice": "{{count}} time entries billed to a new draft invoice",
+        "viewInvoice_one": "{{count}} time entry billed to a new draft invoice",
+        "conflict": "One or more of these entries were just billed elsewhere — reload the list and try again.",
+        "error": "Failed to generate the invoice"
+      }
+    }
+  },
   "paymentMethods": {
     "title": "Payment Methods",
     "description": "Manage reusable payment methods.",
@@ -2357,6 +2503,7 @@
       "dashboard": "Dashboard",
       "clients": "Clients",
       "articles": "Articles",
+      "timeTracking": "Time Tracking",
       "stats": "Statistics",
       "settings": "Settings",
       "documents": "Documents"
@@ -3023,6 +3170,49 @@
     "title": "Compliance"
   },
   "noOptions": "No options available. Create a new client.",
+  "clientPortal": {
+    "title": "Welcome, {{name}}",
+    "subtitle": "Your documents and balance with {{company}}",
+    "signOut": "Sign out",
+    "invalid": {
+      "title": "This link is invalid or has expired",
+      "description": "Ask the company you work with for a fresh portal invite."
+    },
+    "statement": {
+      "title": "Your balance",
+      "empty": "No invoices yet.",
+      "totalOutstanding": "Outstanding",
+      "downloadPdf": "Download PDF",
+      "downloadError": "The PDF could not be downloaded.",
+      "columns": {
+        "document": "Document",
+        "issueDate": "Issue date",
+        "amount": "Amount",
+        "outstanding": "Outstanding",
+        "status": "Status"
+      }
+    },
+    "quotes": {
+      "title": "Your quotes",
+      "empty": "No quotes yet.",
+      "accept": "Accept",
+      "refuse": "Decline",
+      "signatureRequested": "Check your email for a link to complete your signature.",
+      "refused": "Quote declined.",
+      "status": {
+        "sent": "Awaiting your decision",
+        "signed": "Accepted",
+        "refused": "Declined"
+      },
+      "columns": {
+        "document": "Document",
+        "issueDate": "Issue date",
+        "amount": "Amount",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    }
+  },
   "documents": {
     "index": {
       "title": "Documents",
@@ -3236,7 +3426,9 @@
           "draft": "Draft",
           "sending": "Sending",
           "sent": "Sent",
-          "send_failed": "Send failed"
+          "send_failed": "Send failed",
+          "signed": "Signed",
+          "refused": "Refused"
         },
         "widgets": {
           "quote:draft": {

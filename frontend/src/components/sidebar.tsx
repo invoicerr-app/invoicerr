@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  Clock,
   FileStack,
   FileText,
   LayoutDashboard,
@@ -134,6 +135,12 @@ export function Sidebar() {
       icon: <Package className="w-4 h-4" />,
       url: "/articles",
       dataCy: "sidebar-articles-link",
+    },
+    {
+      title: t("sidebar.navigation.timeTracking"),
+      icon: <Clock className="w-4 h-4" />,
+      url: "/time-tracking",
+      dataCy: "sidebar-time-tracking-link",
     },
   ]
 

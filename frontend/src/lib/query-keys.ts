@@ -41,6 +41,14 @@ export const queryKeys = {
   articles: {
     list: () => ["articles", "list"] as const,
   },
+  projects: {
+    list: (filters: { clientId?: string; includeArchived?: boolean } = {}) =>
+      ["projects", "list", filters] as const,
+  },
+  timeEntries: {
+    list: (filters: { projectId?: string; clientId?: string; unbilledOnly?: boolean } = {}) =>
+      ["timeEntries", "list", filters] as const,
+  },
   dashboard: {
     summary: () => ["dashboard", "summary"] as const,
   },

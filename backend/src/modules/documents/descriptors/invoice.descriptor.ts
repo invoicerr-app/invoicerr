@@ -320,7 +320,11 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },
-      { id: 'sent', label: 'Sent' },
+      // `clientVisible` — see `DocumentStatusDescriptor`'s own header: this is the ONE status the
+      // client portal (`client-portal/`) ever shows for an invoice. "cancelled" below is deliberately
+      // NOT flagged — see `client-portal/portal.service.ts`'s own header for the "no longer legally
+      // exists" reasoning, carried over from `settlement/client-statement.ts`.
+      { id: 'sent', label: 'Sent', clientVisible: true },
       { id: 'send_failed', label: 'Send failed' },
       { id: 'cancelled', label: 'Cancelled' },
     ],

@@ -51,3 +51,34 @@ export {
   useSignPublicSignature,
   type PublicSignatureView,
 } from "./use-public-signature"
+export {
+  usePortalAccess,
+  useCreatePortalAccess,
+  useRevokePortalAccess,
+  useRevokeAllPortalAccess,
+  portalAccessKey,
+} from "./use-portal-access"
+export {
+  usePortalProfile,
+  usePortalStatement,
+  usePortalQuotes,
+  useRequestPortalQuoteSignature,
+  useRefusePortalQuote,
+} from "./use-client-portal"
+export {
+  useProjects,
+  useCreateProject,
+  useUpdateProject,
+  useTimeEntries,
+  useCreateTimeEntry,
+  useUpdateTimeEntry,
+  useDeleteTimeEntry,
+  useGenerateInvoiceFromTimeEntries,
+  type ProjectsFilters,
+  type CreateProjectVariables,
+  type EditProjectVariables,
+  type TimeEntriesFilters,
+  type CreateTimeEntryVariables,
+  type EditTimeEntryVariables,
+  type GenerateInvoiceVariables,
+} from "./use-time-tracking"

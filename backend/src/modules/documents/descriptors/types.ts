@@ -184,6 +184,28 @@ export interface DocumentEmailTemplate {
 export interface DocumentStatusDescriptor {
   id: string;
   label: string;
+  /**
+   * Whether an authenticated CLIENT PORTAL session (`client-portal/`) may see an instance parked in
+   * this status at all — the ONE flag `client-portal/client-visibility.ts#clientVisibleStatusIds`
+   * reads, so "which documents does a client portal show" is a fact this descriptor states, never a
+   * per-type `if (typeId === 'invoice')` branch living in the portal's own code (the same discipline
+   * `usesLegalMentions`/`usesPaymentQr` already hold for a document TYPE, scaled to one of its
+   * STATUSES).
+   *
+   * Absent/false (the default for every status of every type, including third-party ones): a portal
+   * session never lists, and never fetches by id, an instance parked here — correct for every
+   * pre-delivery status ("draft", "sending", "send_failed": nothing a company has not actually sent
+   * has any business reaching a client's own screen) and for any internal-only status a type declares.
+   *
+   * True marks a status as "this document has left the company's hands, or is a legitimate state
+   * reached only after that" — invoice/credit-note's own "sent", quote's "sent" (awaiting the
+   * client's own response) /"signed" (accepted, via the EXISTING OTP signature path — see
+   * `signatures/signatures.service.ts`) /"refused" (declined, `client-portal/portal.service.ts`'s own
+   * `refuseQuote`). Deliberately NOT set on invoice's own "cancelled": `client-portal/portal.service.ts`'s
+   * own header names this scope cut — the exact same "no longer legally exists" reasoning
+   * `settlement/client-statement.ts`'s own header already gives for excluding it from a statement.
+   */
+  clientVisible?: boolean;
 }
 
 /** The two aggregation screens a document type may contribute WIDGETS to — see contributions/. Kept
