@@ -22,6 +22,20 @@ export class MailService {
         break;
       case 'smtp':
         this.provider = new SmtpMailProvider();
+        // An empty SMTP_HOST is NOT a construction-time failure: nodemailer builds the transport
+        // regardless (see providers/smtp.provider.ts) and only fails once sendMail() actually tries
+        // to connect — Node resolves an empty host to 127.0.0.1, so that failure is a plain
+        // ECONNREFUSED, indistinguishable from "a real SMTP server that happens to be down" to
+        // anyone not already reading logs. Without this line, a deployment that never sets
+        // SMTP_HOST boots clean, answers 200 on every route, and only reveals the gap the first time
+        // someone sends a document and either watches the response or goes looking for why a client
+        // never got their invoice — the exact silent-failure shape this warning exists to close.
+        if (!process.env.SMTP_HOST?.trim()) {
+          logger.warn(
+            'MAIL_PROVIDER is "smtp" but SMTP_HOST is empty — every outgoing email will fail until it is set.',
+            { category: 'mail' },
+          );
+        }
         break;
       default:
         throw new Error(`Unknown MAIL_PROVIDER "${selected}". Supported values: "smtp", "brevo".`);
