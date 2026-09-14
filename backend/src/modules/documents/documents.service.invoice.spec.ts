@@ -486,6 +486,11 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
       // The result SAYS the new balance — outstanding is GROSS_MINOR - 1000 = 1376 -> 13.76 EUR.
       expect(result.message).toMatch(/13\.76 EUR/);
       expect(result.message).toMatch(/outstanding/i);
+      // The id of the `DocumentPayment` this call just inserted — see ActionResult.createdPaymentId's
+      // own header: this is what lets a caller (bank reconciliation, the payment webhook) know exactly
+      // which row resulted without diffing `listPayments` before/after and risking a mis-attribution
+      // under two concurrent calls against the same invoice.
+      expect(result.createdPaymentId).toBe('payment-1');
     });
 
     it("converts to minor units using the CURRENCY's OWN decimals — JPY has none, not two", async () => {

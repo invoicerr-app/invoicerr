@@ -198,9 +198,14 @@ export class PaymentSessionsService {
    *  4. Only once claimed: call "record-payment" through the REAL action, exactly like a hand-entered
    *     payment or a reconciled bank line. `paidAt` is "now" (unlike a bank reconciliation's own line
    *     date, a checkout completion has no earlier "when the money actually arrived" fact to defer to).
-   *  5. `attachSessionPayment` records which payment resulted — resolved by diffing `listPayments`
-   *     before/after, the identical "which row is the NEW one" shape
-   *     `BankReconciliationService.reconcileLine` already uses.
+   *  5. `attachSessionPayment` records which payment resulted, read straight off
+   *     `ActionResult.createdPaymentId` (see that field's own header in `action-registry.ts`). This
+   *     USED TO be resolved by diffing `listPayments`/`getSettlement` before/after, the identical
+   *     "which row is the NEW one" guess `BankReconciliationService.reconcileLine` used to make and
+   *     was found to mis-attribute under interleaved concurrent calls against the same invoice — the
+   *     exact same risk applied here (two webhook deliveries for two different sessions on the same
+   *     invoice, or a webhook racing a hand-entered/reconciled payment). Reading the id the handler
+   *     already has removes the guess entirely, for both callers.
    *  6. If step 4 or 5 THROWS: `releaseSessionClaim` undoes step 3's claim, and this method RETHROWS —
    *     `PaymentsWebhookController` turns that into a 500, so the provider's own retry schedule gets
    *     another attempt. This is the answer to this feature's own hard rule ("a payment that succeeds
@@ -258,14 +263,8 @@ export class PaymentSessionsService {
         'invoice',
         claimed.documentId,
       );
-      const before = await this.documentsService.getSettlement(
-        claimed.companyId,
-        'invoice',
-        claimed.documentId,
-      );
-      const beforePaymentIds = new Set(before.payments.map((payment) => payment.id));
 
-      await this.documentsService.runAction(claimed.companyId, 'invoice', 'record-payment', {
+      const result = await this.documentsService.runAction(claimed.companyId, 'invoice', 'record-payment', {
         documentId: claimed.documentId,
         data: (document.data ?? {}) as Record<string, unknown>,
         params: {
@@ -283,19 +282,15 @@ export class PaymentSessionsService {
         },
       });
 
-      const after = await this.documentsService.getSettlement(
-        claimed.companyId,
-        'invoice',
-        claimed.documentId,
-      );
-      const newPayment = after.payments.find((payment) => !beforePaymentIds.has(payment.id));
-      if (!newPayment) {
-        // Unreachable in practice — "record-payment" always inserts exactly one row on success — but
-        // never trusted alone, the same defensive posture `BankReconciliationService.reconcileLine`
-        // already holds for the identical "should never happen" case.
-        throw new Error('"record-payment" ran but no new payment could be found.');
+      const paymentId = result.createdPaymentId;
+      if (!paymentId) {
+        // Unreachable in practice — "record-payment" always returns the id of the payment it just
+        // inserted on success — but never trusted alone, the same defensive posture
+        // `BankReconciliationService.reconcileLine` already holds for the identical "should never
+        // happen" case.
+        throw new Error('"record-payment" ran but returned no createdPaymentId.');
       }
-      await attachSessionPayment(claimed.id, newPayment.id);
+      await attachSessionPayment(claimed.id, paymentId);
       return { outcome: 'processed' };
     } catch (error) {
       await releaseSessionClaim(providerId, event.providerSessionId);

@@ -272,10 +272,12 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         currency: 'EUR',
       });
       documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
-      documentsService.getSettlement
-        .mockResolvedValueOnce({ payments: [] }) // before
-        .mockResolvedValueOnce({ payments: [{ id: 'payment-new' }] }); // after
-      documentsService.runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok' });
+      documentsService.runAction.mockResolvedValue({
+        document: {},
+        changed: true,
+        message: 'ok',
+        createdPaymentId: 'payment-new',
+      });
 
       const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig');
 
@@ -310,7 +312,6 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         currency: 'EUR',
       });
       documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
-      documentsService.getSettlement.mockResolvedValue({ payments: [] });
       documentsService.runAction.mockRejectedValue(new Error('country-policy refused this action'));
 
       await expect(service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig')).rejects.toThrow(
@@ -319,5 +320,65 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       expect(releaseSessionClaim).toHaveBeenCalledWith('stripe', 'cs_1');
       expect(attachSessionPayment).not.toHaveBeenCalled();
     });
+
+    it(
+      'TWO INTERLEAVED webhook deliveries crediting the SAME invoice (two checkout sessions) each ' +
+        'attach their OWN payment — the old before/after `getSettlement` diff could not tell them apart',
+      async () => {
+        const { service, documentsService, channelCredentials, provider } = buildService();
+        channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec' } });
+        provider.parseWebhookEvent.mockImplementation((rawBody: string) =>
+          rawBody === 'body-A' ? completedEvent('cs_A') : completedEvent('cs_B'),
+        );
+        claimSessionForCompletion.mockImplementation((_providerId: string, providerSessionId: string) =>
+          Promise.resolve({
+            id: providerSessionId === 'cs_A' ? 'session-A' : 'session-B',
+            companyId: 'company-1',
+            documentId: 'inv-1',
+            providerId: 'stripe',
+            providerSessionId,
+            amountMinor: providerSessionId === 'cs_A' ? 5000 : 7000,
+            currency: 'EUR',
+          }),
+        );
+        documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
+
+        // Same deferred-promise construction as bank-reconciliation.service.spec.ts's own interleaved
+        // test: cs_A's own "record-payment" call resolves only AFTER cs_B's has already resolved and
+        // attached ITS payment — the exact moment a before/after diff would see both new rows at once.
+        let resolveAStarted!: () => void;
+        const aStarted = new Promise<void>((resolve) => {
+          resolveAStarted = resolve;
+        });
+        let resolveBDone!: (value: { changed: true; createdPaymentId: string }) => void;
+        const bDone = new Promise<{ changed: true; createdPaymentId: string }>((resolve) => {
+          resolveBDone = resolve;
+        });
+
+        documentsService.runAction.mockImplementation(
+          async (_companyId: string, _typeId: string, _actionId: string, payload: unknown) => {
+            const note = (payload as { params: { note: string } }).params.note;
+            if (note.includes('cs_A')) {
+              resolveAStarted();
+              return bDone.then((bResult) => ({ ...bResult, createdPaymentId: 'pay-A' }));
+            }
+            await aStarted;
+            const result = { changed: true as const, createdPaymentId: 'pay-B' };
+            resolveBDone(result);
+            return result;
+          },
+        );
+
+        const [resultA, resultB] = await Promise.all([
+          service.handleWebhookEvent('company-1', 'stripe', 'body-A', 'sig'),
+          service.handleWebhookEvent('company-1', 'stripe', 'body-B', 'sig'),
+        ]);
+
+        expect(resultA).toEqual({ outcome: 'processed' });
+        expect(resultB).toEqual({ outcome: 'processed' });
+        expect(attachSessionPayment).toHaveBeenCalledWith('session-A', 'pay-A');
+        expect(attachSessionPayment).toHaveBeenCalledWith('session-B', 'pay-B');
+      },
+    );
   });
 });

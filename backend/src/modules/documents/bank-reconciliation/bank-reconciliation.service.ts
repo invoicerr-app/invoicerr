@@ -5,7 +5,6 @@ import { fromMinor } from '@/utils/financial';
 import { BankStatementFormat, CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { DocumentsService } from '../documents.service';
 import { findOwnedDocument, findOwnedDocumentsByIds } from '../persistence';
-import { listPayments } from '../settlement/payments';
 import { resolveOutstandingInvoices } from './candidate-invoices';
 import { CsvColumnMapping } from './csv-mapping';
 import { MatchCandidateInvoice, MatchSuggestion, suggestMatches } from './matching';
@@ -208,10 +207,15 @@ export class BankReconciliationService {
    *     payment did, in fact, arrive by bank transfer (a reconciled statement line IS that channel);
    *     `note` names the line's own label, so a later reader of the invoice's payment list can see
    *     which bank transaction produced this row without cross-referencing the statement.
-   *  3. `attachReconciledPayment` — records WHICH payment resulted, resolved by diffing
-   *     `listPayments` before/after the action ran (the exact "before/after, no separate query" shape
-   *     `actions/invoice-actions.ts`'s own `crossedIntoSettled` check already uses for the identical
-   *     "which row is the NEW one" question).
+   *  3. `attachReconciledPayment` — records WHICH payment resulted, read straight off
+   *     `ActionResult.createdPaymentId` (see that field's own header in `action-registry.ts`). This
+   *     USED TO be resolved by diffing `listPayments` before/after the action ran — which broke the
+   *     moment two statement lines were reconciled against the SAME invoice with the two calls
+   *     interleaved (two staff working a queue, or an invoice paid in two instalments arriving as two
+   *     lines): both diffs could pick up the OTHER call's new row, so `reconciledPaymentId` could end
+   *     up naming the wrong bank transaction even though the money itself always posted correctly
+   *     (each call still posts its OWN line's own amount). Reading the id the handler already has
+   *     removes the race entirely — see this file's own spec's interleaved-reconciliation test.
    *  4. If step 2 or 3 THROWS (a currency-conversion refusal, a country-policy block, a status
    *     conflict…), `releaseLineClaim` UNDOES step 1's claim — a failed reconciliation must leave the
    *     line exactly as it was, ready to be retried, never stuck "reconciled" with nothing to show
@@ -250,10 +254,7 @@ export class BankReconciliationService {
       // doesn't need data"). An unknown/foreign `documentId` 404s here, before any claim is touched.
       const document = await findOwnedDocument(companyId, 'invoice', documentId);
 
-      const before = await listPayments(companyId, documentId);
-      const beforeIds = new Set(before.map((payment) => payment.id));
-
-      await this.documentsService.runAction(
+      const result = await this.documentsService.runAction(
         companyId,
         'invoice',
         'record-payment',
@@ -271,21 +272,21 @@ export class BankReconciliationService {
         role,
       );
 
-      const after = await listPayments(companyId, documentId);
-      const newPayment = after.find((payment) => !beforeIds.has(payment.id));
-      if (!newPayment) {
-        // Unreachable in practice — "record-payment" always inserts exactly one row on success (see
-        // invoice-actions.ts) — but never trusted alone, the same defensive posture this whole
-        // module's own actions hold for every "should never happen" case.
-        throw new Error('"record-payment" ran but no new payment could be found.');
+      const paymentId = result.createdPaymentId;
+      if (!paymentId) {
+        // Unreachable in practice — "record-payment" always returns the id of the payment it just
+        // inserted on success (see invoice-actions.ts / ActionResult.createdPaymentId) — but never
+        // trusted alone, the same defensive posture this whole module's own actions hold for every
+        // "should never happen" case.
+        throw new Error('"record-payment" ran but returned no createdPaymentId.');
       }
 
-      await attachReconciledPayment(companyId, lineId, newPayment.id);
+      await attachReconciledPayment(companyId, lineId, paymentId);
       return {
         ...line,
         status: 'RECONCILED',
         reconciledDocumentId: documentId,
-        reconciledPaymentId: newPayment.id,
+        reconciledPaymentId: paymentId,
         reconciledAt: new Date(),
       };
     } catch (error) {

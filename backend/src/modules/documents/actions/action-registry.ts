@@ -69,6 +69,20 @@ export interface ActionResult {
   document?: DocumentInstanceResult;
   changed: boolean;
   message?: string;
+  /**
+   * The `DocumentPayment` this call just inserted, when it inserted one — set only by
+   * "record-payment" (`invoice-actions.ts`), undefined for every other action. Exists so a caller that
+   * needs to know EXACTLY which payment resulted never has to guess: before this field existed,
+   * `bank-reconciliation.service.ts#reconcileLine` and `payment-sessions.service.ts#handleWebhookEvent`
+   * each worked it out by diffing `listPayments`/`getSettlement` before and after the call and taking
+   * the row that was new — safe for one call in isolation, but NOT atomic against a second call
+   * crediting the SAME invoice at (or near) the same time: two bank-statement lines, or a webhook
+   * delivery racing a hand-entered payment, could each pick up the OTHER's new row. The money was
+   * always right either way (each call posts its own amount) — what could silently corrupt was the
+   * audit trail of which source produced which payment. The handler already holds this id the moment
+   * `settlement/payments.ts#recordPayment` returns; handing it back here removes the guess entirely.
+   */
+  createdPaymentId?: string;
 }
 
 export type ActionHandler = (ctx: ActionContext) => Promise<ActionResult>;

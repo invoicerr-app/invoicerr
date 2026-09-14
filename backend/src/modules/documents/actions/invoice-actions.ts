@@ -923,6 +923,10 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       document,
       changed: true,
       message: describeSettlement(settlement, documentCurrency),
+      // See ActionResult.createdPaymentId's own header — this is what lets
+      // bank-reconciliation.service.ts / payment-sessions.service.ts stop diffing `listPayments` to
+      // guess which row they just produced.
+      createdPaymentId: newPayment.id,
     };
   });
 }

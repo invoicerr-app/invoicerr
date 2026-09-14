@@ -2,26 +2,26 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import { DocumentsService } from '../documents.service';
 import * as documentsPersistence from '../persistence';
-import * as settlementPayments from '../settlement/payments';
 import { BankReconciliationService } from './bank-reconciliation.service';
 import * as candidateInvoices from './candidate-invoices';
 import * as persistence from './persistence';
 
 /**
- * `./persistence` (this feature's own), `../persistence` (the generic `DocumentInstance` one — used
+ * `./persistence` (this feature's own) and `../persistence` (the generic `DocumentInstance` one — used
  * for `findOwnedDocument`, re-submitting the invoice's own current `data` on "record-payment" the same
  * way the real screen's action dialog already does, and `findOwnedDocumentsByIds`, resolving a
- * RECONCILED line's own invoice label) and `../settlement/payments` fully mocked (all three reach
- * Prisma directly) — the same discipline every other service-level spec in this module holds
- * (documents.service.invoice.spec.ts's own header). `DocumentsService` itself is never constructed
- * for real: `reconcileLine`'s ONLY use of it is a single `runAction` call, so a bare
- * `{ runAction: jest.fn() }` is enough — the exact same "mock the ONE method actually called, not the
- * whole class" shape a plugin's own webhook emitter mock already uses elsewhere in this module.
+ * RECONCILED line's own invoice label) fully mocked — both reach Prisma directly, the same discipline
+ * every other service-level spec in this module holds (documents.service.invoice.spec.ts's own
+ * header). `DocumentsService` itself is never constructed for real: `reconcileLine`'s ONLY use of it
+ * is a single `runAction` call, so a bare `{ runAction: jest.fn() }` is enough — the exact same "mock
+ * the ONE method actually called, not the whole class" shape a plugin's own webhook emitter mock
+ * already uses elsewhere in this module. `../settlement/payments` is NOT mocked here any more:
+ * `reconcileLine` no longer calls `listPayments` at all — see `ActionResult.createdPaymentId`'s own
+ * header and this file's "interleaved reconciliations" test below for why.
  */
 jest.mock('./persistence');
 jest.mock('./candidate-invoices');
 jest.mock('../persistence');
-jest.mock('../settlement/payments');
 
 const findOwnedLine = persistence.findOwnedLine as jest.Mock;
 const findOwnedStatement = persistence.findOwnedStatement as jest.Mock;
@@ -32,7 +32,6 @@ const listStatementLines = persistence.listStatementLines as jest.Mock;
 const resolveOutstandingInvoices = candidateInvoices.resolveOutstandingInvoices as jest.Mock;
 const findOwnedDocument = documentsPersistence.findOwnedDocument as jest.Mock;
 const findOwnedDocumentsByIds = documentsPersistence.findOwnedDocumentsByIds as jest.Mock;
-const listPayments = settlementPayments.listPayments as jest.Mock;
 
 function buildLine(
   overrides: Partial<persistence.BankStatementLineResult> = {},
@@ -112,9 +111,8 @@ describe('BankReconciliationService.reconcileLine', () => {
     findOwnedLine.mockResolvedValueOnce(buildLine());
     claimLineForReconciliation.mockResolvedValueOnce(true);
     findOwnedStatement.mockResolvedValue(buildStatement());
-    listPayments.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'pay-1' }]);
     const { service, runAction } = buildService();
-    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok' });
+    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok', createdPaymentId: 'pay-1' });
 
     await service.reconcileLine('company-1', 'line-1', 'inv-1');
     expect(attachReconciledPayment).toHaveBeenCalledWith('company-1', 'line-1', 'pay-1');
@@ -143,9 +141,8 @@ describe('BankReconciliationService.reconcileLine', () => {
         lines: [],
       },
     });
-    listPayments.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'pay-new' }]);
     const { service, runAction } = buildService();
-    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok' });
+    runAction.mockResolvedValue({ document: {}, changed: true, message: 'ok', createdPaymentId: 'pay-new' });
 
     await service.reconcileLine('company-1', 'line-1', 'inv-1', 'ADMIN' as never);
 
@@ -182,7 +179,6 @@ describe('BankReconciliationService.reconcileLine', () => {
     findOwnedLine.mockResolvedValue(buildLine());
     claimLineForReconciliation.mockResolvedValue(true);
     findOwnedStatement.mockResolvedValue(buildStatement());
-    listPayments.mockResolvedValue([]);
     const { service, runAction } = buildService();
     runAction.mockRejectedValue(new BadRequestException('country policy refuses this'));
 
@@ -204,6 +200,66 @@ describe('BankReconciliationService.reconcileLine', () => {
     expect(releaseLineClaim).toHaveBeenCalledWith('company-1', 'line-1');
     expect(runAction).not.toHaveBeenCalled();
   });
+
+  it(
+    'TWO INTERLEAVED reconciliations against the SAME invoice each end with their OWN payment — ' +
+      'the old before/after `listPayments` diff could not tell them apart',
+    async () => {
+      // Two DIFFERENT statement lines, both reconciled against the SAME invoice — the exact shape
+      // the audit named: two staff working a queue, or one invoice paid in two instalments arriving
+      // as two lines.
+      const lineA = buildLine({ id: 'line-A', label: 'VIR A', amountMinor: 5000 });
+      const lineB = buildLine({ id: 'line-B', label: 'VIR B', amountMinor: 7000 });
+
+      findOwnedLine.mockImplementation((_companyId: string, lineId: string) =>
+        Promise.resolve(lineId === 'line-A' ? lineA : lineB),
+      );
+      claimLineForReconciliation.mockResolvedValue(true);
+      findOwnedStatement.mockResolvedValue(buildStatement());
+      findOwnedDocument.mockResolvedValue({ id: 'inv-1', data: { client: 'client-1', currency: 'EUR' } });
+
+      const { service, runAction } = buildService();
+
+      // Deferred promises are what make the two `reconcileLine` calls GENUINELY overlap, rather than
+      // merely being awaited back-to-back: line-A's own "record-payment" call is made to resolve only
+      // AFTER line-B's own has already resolved and attached ITS payment — line-B's `DocumentPayment`
+      // fully exists, from the caller's point of view, before line-A's own call returns. A before/
+      // after `listPayments` diff (the OLD implementation) reading at that exact moment would see BOTH
+      // new rows and could attribute either one to either line — precisely the defect this test pins
+      // shut. With the fix, there is no diff left to get confused: each call reads its OWN
+      // `ActionResult.createdPaymentId` straight off the result it was handed.
+      let resolveAStarted!: () => void;
+      const aStarted = new Promise<void>((resolve) => {
+        resolveAStarted = resolve;
+      });
+      let resolveBDone!: (value: { changed: true; createdPaymentId: string }) => void;
+      const bDone = new Promise<{ changed: true; createdPaymentId: string }>((resolve) => {
+        resolveBDone = resolve;
+      });
+
+      runAction.mockImplementation(async (_companyId, _typeId, _actionId, payload) => {
+        const note = (payload as { params: { note: string } }).params.note;
+        if (note.includes('VIR A')) {
+          resolveAStarted();
+          return bDone.then((bResult) => ({ ...bResult, createdPaymentId: 'pay-A' }));
+        }
+        await aStarted;
+        const result = { changed: true as const, createdPaymentId: 'pay-B' };
+        resolveBDone(result);
+        return result;
+      });
+
+      const [resultA, resultB] = await Promise.all([
+        service.reconcileLine('company-1', 'line-A', 'inv-1'),
+        service.reconcileLine('company-1', 'line-B', 'inv-1'),
+      ]);
+
+      expect(resultA.reconciledPaymentId).toBe('pay-A');
+      expect(resultB.reconciledPaymentId).toBe('pay-B');
+      expect(attachReconciledPayment).toHaveBeenCalledWith('company-1', 'line-A', 'pay-A');
+      expect(attachReconciledPayment).toHaveBeenCalledWith('company-1', 'line-B', 'pay-B');
+    },
+  );
 });
 
 describe('BankReconciliationService.getStatementLines', () => {
