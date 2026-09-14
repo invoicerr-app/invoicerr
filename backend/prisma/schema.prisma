@@ -1122,9 +1122,10 @@ model DocumentInstance {
   payments DocumentPayment[]
 
   // TODO_FEATURES.md rank 2 — see DocumentReminder below (reminders/). One row per ESCALATION TIER
-  // actually emailed for this document, never per attempt — a document can accumulate up to
-  // `REMINDER_TIERS.length` of these over its overdue life (reminder-sweep.ts), one per crossed
-  // threshold.
+  // CLAIMED for this document, created BEFORE the email is sent and released again if the send then
+  // fails (reminder-sweep-runner.ts#claimReminderTier/releaseReminderClaim) — a document can
+  // accumulate up to `REMINDER_TIERS.length` surviving rows over its overdue life (reminder-sweep.ts),
+  // one per crossed threshold that was actually delivered.
   reminders DocumentReminder[]
 
   // See DocumentArchive below (archive/) — one row per successful delivery that produced at least
@@ -1554,9 +1555,14 @@ model DocumentReminder {
   // `DocumentSchedule.cadence` already make.
   tier Int
 
-  // WHEN this tier's email was actually sent — set once, at write time, never updated afterwards
-  // (this row is never touched again once it exists, the same "a payment is a single complete act"
-  // posture `DocumentPayment`'s own header holds).
+  // WHEN this tier's slot was claimed, just before the send attempt — set once, at write time, never
+  // updated afterwards. A row that SURVIVES (the common case: the send succeeded, or a later send
+  // attempt is still in flight) means this tier's email genuinely went out at essentially this instant;
+  // a row created here and then the send fails is DELETED again by
+  // reminder-sweep-runner.ts#releaseReminderClaim, so what remains keeps meaning "sent", not "attempted"
+  // — see that file's own header ("Reservation, not record-after-send") for why claim now precedes send
+  // rather than following it, and the one residual case (the release write itself also failing) where a
+  // claimed-but-undelivered row can persist, always paired with a PERSISTED log entry when that happens.
   sentAt DateTime @default(now())
 
   @@unique([documentId, tier])

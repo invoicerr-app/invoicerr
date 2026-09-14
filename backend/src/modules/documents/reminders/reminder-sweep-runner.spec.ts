@@ -17,9 +17,13 @@ import { ReminderSweepRunner } from './reminder-sweep-runner';
  * `creditsForInvoiceFromNotes`/`toSettlementCreditInputs` stay the REAL, already-proven implementation
  * (credits.spec.ts), so this file never re-litigates rules that module already owns. `@/prisma/prisma.service`
  * is ALSO mocked, separately, for the calls `reminder-sweep-runner.ts` makes DIRECTLY (never through
- * `../persistence`): `company.findMany`, `client.findFirst`, `documentReminder.findMany/create` — see
- * that file's own header on why it stays a plain `prisma` consumer rather than pulling in
- * `ClientsService`.
+ * `../persistence`): `company.findMany`, `client.findFirst`,
+ * `documentReminder.findMany/create/deleteMany` — see that file's own header on why it stays a plain
+ * `prisma` consumer rather than pulling in `ClientsService`. `create` is the CLAIM
+ * (`claimReminderTier`, run BEFORE `mailService.sendMail`) and `deleteMany` is the compensating
+ * release (`releaseReminderClaim`, run only if the send then fails) — see reminder-sweep-runner.ts's
+ * own header ("Reservation, not record-after-send") for why the order is claim-then-send, not
+ * send-then-record.
  */
 jest.mock('../persistence');
 jest.mock('../settlement/payments');
@@ -32,7 +36,7 @@ jest.mock('@/prisma/prisma.service', () => ({
   default: {
     company: { findMany: jest.fn() },
     client: { findFirst: jest.fn() },
-    documentReminder: { findMany: jest.fn(), create: jest.fn() },
+    documentReminder: { findMany: jest.fn(), create: jest.fn(), deleteMany: jest.fn() },
   },
 }));
 
@@ -43,6 +47,7 @@ const companyFindMany = prisma.company.findMany as jest.Mock;
 const clientFindFirst = prisma.client.findFirst as jest.Mock;
 const reminderFindMany = prisma.documentReminder.findMany as jest.Mock;
 const reminderCreate = prisma.documentReminder.create as jest.Mock;
+const reminderDeleteMany = prisma.documentReminder.deleteMany as jest.Mock;
 
 // One line, 100 EUR net, 20% VAT -> 120 EUR / 12000 minor gross — same fixture shape
 // `client-statement.spec.ts` already uses, kept minimal since this file's own focus is tier
@@ -88,7 +93,8 @@ beforeEach(() => {
   companyFindMany.mockResolvedValue([]);
   clientFindFirst.mockResolvedValue({ contactEmail: 'client@example.com' });
   reminderFindMany.mockResolvedValue([]);
-  reminderCreate.mockResolvedValue({});
+  reminderCreate.mockResolvedValue({ id: 'reminder-default' });
+  reminderDeleteMany.mockResolvedValue({ count: 1 });
 });
 
 describe('ReminderSweepRunner.runSweep', () => {
@@ -220,12 +226,15 @@ describe('ReminderSweepRunner.runSweep', () => {
     expect(clientFindFirst).not.toHaveBeenCalled(); // no clientId at all -> never even queried
   });
 
-  it('a MailService.sendMail rejection for one invoice does not abort the others', async () => {
+  it('a MailService.sendMail rejection for one invoice does not abort the others, and releases that reservation', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     listDocuments.mockResolvedValue([
       invoice({ id: 'inv-1', displayNumber: 'INV-2026-0001', data: invoiceData() }),
       invoice({ id: 'inv-2', displayNumber: 'INV-2026-0002', data: invoiceData() }),
     ]);
+    reminderCreate
+      .mockResolvedValueOnce({ id: 'reminder-inv-1' })
+      .mockResolvedValueOnce({ id: 'reminder-inv-2' });
     const mailService = {
       sendMail: jest
         .fn()
@@ -238,11 +247,21 @@ describe('ReminderSweepRunner.runSweep', () => {
 
     expect(mailService.sendMail).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 1, skipped: 1 });
-    // Only the SECOND invoice's tier was actually recorded — the first one's failed send never reached
-    // the record-write step at all.
-    expect(reminderCreate).toHaveBeenCalledTimes(1);
-    expect(reminderCreate).toHaveBeenCalledWith({
+    // BOTH invoices had their tier claimed BEFORE their own send attempt — the reservation write can
+    // no longer be blamed for a resend, because it happens before the mail goes out, never after.
+    expect(reminderCreate).toHaveBeenCalledTimes(2);
+    expect(reminderCreate).toHaveBeenNthCalledWith(1, {
+      data: { companyId: 'company-1', documentId: 'inv-1', tier: 7 },
+    });
+    expect(reminderCreate).toHaveBeenNthCalledWith(2, {
       data: { companyId: 'company-1', documentId: 'inv-2', tier: 7 },
+    });
+    // The first invoice's failed send released its claim (so a later pass can retry tier 7 for it),
+    // instead of leaving a phantom "sent" row nobody will ever revisit — see this file's own header
+    // ("Reservation, not record-after-send") for why a reserved-then-unsent tier must not stay blocked.
+    expect(reminderDeleteMany).toHaveBeenCalledTimes(1);
+    expect(reminderDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'reminder-inv-1', companyId: 'company-1', documentId: 'inv-1', tier: 7 },
     });
   });
 
@@ -270,6 +289,101 @@ describe('ReminderSweepRunner.runSweep', () => {
           documentId: 'inv-1',
           tier: 7,
           reason: 'SMTP timeout',
+        }),
+      }),
+    );
+    // The claim made just before the failed send was released, not left stuck — see this file's own
+    // header on why a reserved-then-unsent tier must not stay blocked forever.
+    expect(reminderDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'reminder-default', companyId: 'company-1', documentId: 'inv-1', tier: 7 },
+    });
+
+    errorSpy.mockRestore();
+  });
+
+  // --- The fix for the duplicate-send bug this task closes -----------------------------------------
+  //
+  // Under the OLD order (send, then record), a `documentReminder.create` failure for any reason OTHER
+  // than a genuine (documentId, tier) race happened AFTER a real, successful send — so the email had
+  // already gone out, the tier was never marked, and the next day's pass re-sent the identical email.
+  // The two tests below prove the NEW order (claim, then send) closes that hole: the write now always
+  // happens BEFORE the send is even attempted, so a write failure can only ever prevent a send, never
+  // silently follow one that already succeeded.
+
+  it('never sends the email when the reservation write fails for a reason OTHER than a race — the send-then-record bug this closes', async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    // A transient DB hiccup on the CLAIM itself — not a P2002 race. On the old (send-then-record)
+    // order this mock has no bearing on whether the email goes out at all, since sendMail always ran
+    // BEFORE this write was ever attempted; this test would therefore see `sendMail` called on the
+    // pre-fix code. On the fixed (claim-then-send) order it must prevent the send entirely.
+    reminderCreate.mockRejectedValue(new Error('connection reset by peer'));
+
+    const mailService = buildMailService();
+    const runner = new ReminderSweepRunner(mailService);
+    const result = await runner.runSweep(NOW);
+
+    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 1 });
+    // No claim ever landed, so nothing needs releasing either.
+    expect(reminderDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it('releases a claimed tier whose send then failed, so a later pass finds it unclaimed and retries — never blocked forever', async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
+    const mailService = {
+      sendMail: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+    } as unknown as MailService;
+
+    const runner = new ReminderSweepRunner(mailService);
+    const result = await runner.runSweep(NOW);
+
+    expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 1 });
+    expect(reminderCreate).toHaveBeenCalledWith({
+      data: { companyId: 'company-1', documentId: 'inv-1', tier: 7 },
+    });
+    // The claim this call made is released by its own id AND the (companyId, documentId, tier)
+    // invariant — the same belt-and-suspenders scoping `bank-reconciliation/persistence.ts#releaseLineClaim`
+    // holds for its own compensating rollback.
+    expect(reminderDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'reminder-claim-1', companyId: 'company-1', documentId: 'inv-1', tier: 7 },
+    });
+  });
+
+  it('leaves a PERSISTED trace when the release itself also fails — the one case a tier can stay stuck as claimed', async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
+    reminderDeleteMany.mockRejectedValue(new Error('connection reset by peer'));
+    const mailService = {
+      sendMail: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+    } as unknown as MailService;
+    const errorSpy = jest.spyOn(logger, 'error');
+
+    const runner = new ReminderSweepRunner(mailService);
+    const result = await runner.runSweep(NOW);
+
+    expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 1 });
+    // Two distinct persisted facts: the send failed, AND separately, releasing its claim also failed —
+    // this tier is now stuck "claimed" with no email ever delivered.
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('tier-7'),
+      expect.objectContaining({
+        category: 'documents',
+        details: expect.objectContaining({ reason: 'SMTP timeout' }),
+      }),
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ALSO'),
+      expect.objectContaining({
+        category: 'documents',
+        details: expect.objectContaining({
+          companyId: 'company-1',
+          documentId: 'inv-1',
+          tier: 7,
+          reason: 'connection reset by peer',
         }),
       }),
     );
@@ -309,7 +423,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     });
   });
 
-  it('treats a race on the (documentId, tier) unique constraint as "already sent", never a crash', async () => {
+  it('treats a race on the (documentId, tier) unique constraint as "already claimed", never a crash, and never sends a duplicate', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
     reminderCreate.mockRejectedValue(
@@ -331,6 +445,11 @@ describe('ReminderSweepRunner.runSweep', () => {
       remindersSent: 0,
       skipped: 1,
     });
-    expect(mailService.sendMail).toHaveBeenCalledTimes(1); // the email really was sent
+    // Claim-then-send (this file's own header, "Reservation, not record-after-send") means losing this
+    // race must PREVENT the send, not just fail to record it afterwards — a concurrent pass already
+    // owns this tier, so sending here too would be exactly the duplicate a reservation exists to rule
+    // out. This is the behavioral improvement over the old send-then-record order, which really did
+    // send the email twice in this same window.
+    expect(mailService.sendMail).not.toHaveBeenCalled();
   });
 });

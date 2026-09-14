@@ -26,6 +26,38 @@
  * can never take the whole worker process down with it (`document-action.processor.ts`'s own
  * `onFailed` skip-list already tolerates a thrown `runSweep` gracefully — BullMQ just retries at the
  * next scheduled tick — but there is no reason to rely on that when catching here is this cheap).
+ *
+ * ## Reservation, not record-after-send — closes a real duplicate-send bug
+ * This used to send the email, THEN write the `DocumentReminder` row that marks the tier done. If that
+ * write failed for any reason OTHER than the `(documentId, tier)` unique constraint (a genuine
+ * concurrent pass, see below), the tier was never marked sent, and every later daily pass re-sent the
+ * SAME email to the SAME customer — unbounded, silent, real commercial damage (a client getting the
+ * same dunning notice two, three, ten times over).
+ *
+ * The fix reverses the order: `claimReminderTier` RESERVES the tier — a plain `documentReminder.create`
+ * — BEFORE any email is sent, the same "atomic claim, the invariant lives in the write itself" idiom
+ * `time-tracking/time-entries.service.ts#update` (`invoiceId: null` in the `where`) and
+ * `bank-reconciliation/persistence.ts#claimLineForReconciliation`/`releaseLineClaim` already use for an
+ * identical shape of problem elsewhere in this codebase — Postgres serializes two concurrent claims of
+ * the SAME `(documentId, tier)`, so only one ever wins. Losing that race (`P2002`) now means "a
+ * concurrent pass already owns this tier" and skips WITHOUT sending — an improvement over the old
+ * order, which really did send twice in that narrow window.
+ *
+ * A tier reserved but never actually sent (the mail transport itself failed) must not stay blocked
+ * forever, so `releaseReminderClaim` deletes the claim — scoped by its own row id AND the
+ * `(companyId, documentId, tier)` invariant, the same compensating-rollback shape `releaseLineClaim`
+ * already holds — and tomorrow's pass sees the tier unclaimed again.
+ *
+ * ## The trade-off this reversal makes, named explicitly
+ * Reserve-then-send trades an UNBOUNDED, silent, every-day duplicate-send risk (the bug above) for, at
+ * most, ONE narrow re-send — only in the case where `sendMail` throws despite the message having
+ * actually gone out, an ambiguity already accepted for a FIRST attempt under the "Resilience" section
+ * above. This product prefers that bounded residual over ever letting a customer receive the same
+ * reminder night after night. The boundary case is not silent either: if the release write ITSELF then
+ * fails, the tier stays claimed with no email ever delivered and no future pass will retry it —
+ * `releaseReminderClaim` PERSISTS that fact through the DB-backed `logger` (Settings -> Logs), the same
+ * visibility a mail-send failure already gets below, since this is the one outcome nothing else will
+ * ever surface again.
  */
 import { Injectable, Logger } from '@nestjs/common';
 
@@ -217,69 +249,121 @@ export class ReminderSweepRunner {
         companyName,
       });
 
-      try {
-        await this.mailService.sendMail({ to: recipient, subject: email.subject, text: email.text });
-      } catch (error) {
-        // PERSISTED (not the raw Nest `this.logger` used elsewhere in this file) — a reminder that
-        // silently fails to send is exactly the "no trace a human can see" gap closed for the mail
-        // startup warning (see MailService's own SMTP_HOST check); an admin needs to find this in
-        // Settings → Logs, not go looking through a container's stdout. The sweep itself is
-        // unaffected: still counted as `skipped`, the loop still moves on to the next invoice below —
-        // see this file's own header on why one invoice's failure never aborts the pass.
-        logger.error(`Reminder sweep: failed to send the tier-${tier} reminder for invoice ${invoice.id}.`, {
-          category: 'documents',
-          details: {
-            companyId,
-            documentId: invoice.id,
-            tier,
-            recipient,
-            reason: error instanceof Error ? error.message : String(error),
-          },
-        });
+      // Reserve BEFORE sending — see this file's own header ("Reservation, not record-after-send") for
+      // why the order matters: a write failure can now only ever happen before the email goes out,
+      // never silently after a real send.
+      const claim = await this.claimReminderTier(companyId, invoice.id, tier);
+      if (claim.status !== 'claimed') {
+        // Either a concurrent pass already owns this tier (no email sent from THIS call — the
+        // improvement over the old order, see header) or the reservation write itself failed for an
+        // unrelated reason (no email attempted either way; retried automatically on a later pass).
         skipped++;
         continue;
       }
 
-      if (await this.recordReminderSent(companyId, invoice.id, tier)) {
-        remindersSent++;
-      } else {
+      try {
+        await this.mailService.sendMail({ to: recipient, subject: email.subject, text: email.text });
+      } catch (error) {
+        // The reservation above already exists but the email never actually went out — release it
+        // (see header) so a later pass finds this tier unclaimed again, instead of leaving a phantom
+        // "sent" row nobody will ever revisit. PERSISTED (not the raw Nest `this.logger` used
+        // elsewhere in this file) — a reminder that silently fails to send is exactly the "no trace a
+        // human can see" gap closed for the mail startup warning (see MailService's own SMTP_HOST
+        // check); an admin needs to find this in Settings → Logs, not go looking through a container's
+        // stdout. The sweep itself is unaffected: still counted as `skipped`, the loop still moves on
+        // to the next invoice below — see this file's own header on why one invoice's failure never
+        // aborts the pass.
+        await this.releaseReminderClaim(claim.id, companyId, invoice.id, tier);
+        logger.error(
+          `Reminder sweep: failed to send the tier-${tier} reminder for invoice ${invoice.id}; its ` +
+            'reservation was released so a later pass retries.',
+          {
+            category: 'documents',
+            details: {
+              companyId,
+              documentId: invoice.id,
+              tier,
+              recipient,
+              reason: error instanceof Error ? error.message : String(error),
+            },
+          },
+        );
         skipped++;
+        continue;
       }
+
+      remindersSent++;
     }
 
     return { remindersSent, skipped };
   }
 
   /**
-   * Records that `tier` was just sent for `documentId` — the write the `@@unique([documentId, tier])`
-   * constraint (schema.prisma) exists to police. Returns `false` (never throws) on ANY failure,
-   * including — see this file's own header, and `DocumentReminder`'s own schema.prisma comment — the
-   * unique-constraint violation a genuinely concurrent second pass racing the SAME (documentId, tier)
-   * pair would hit: the email was already, really sent, there is nothing to undo, and the other pass's
-   * own write already recorded the identical fact a moment earlier, so this is counted as a success
-   * from the CALLER's point of view (the mail truly went out) even though this method itself reports
-   * `false` here (the caller only uses the boolean to decide `remindersSent` vs `skipped`, and a race
-   * this narrow — extremely unlikely at a once-a-day cadence — is intentionally undercounted as
-   * "skipped" rather than double-logic to special-case it, since the row itself is the durable source
-   * of truth either way).
+   * The atomic claim itself — see this file's own header ("Reservation, not record-after-send") for
+   * why this runs BEFORE `mailService.sendMail`, not after. `'already-sent'` means a genuinely
+   * concurrent pass raced this SAME `(documentId, tier)` pair and won (`P2002` on the
+   * `@@unique([documentId, tier])` constraint, schema.prisma) — that other call's own claim already
+   * owns sending this tier, so THIS call must not send it too. `'error'` means the write itself failed
+   * for an unrelated reason (a transient DB hiccup): no email has been attempted either way, so there
+   * is nothing to compensate, only a tier that stays unclaimed and gets retried on a later pass.
    */
-  private async recordReminderSent(companyId: string, documentId: string, tier: number): Promise<boolean> {
+  private async claimReminderTier(
+    companyId: string,
+    documentId: string,
+    tier: number,
+  ): Promise<{ status: 'claimed'; id: string } | { status: 'already-sent' } | { status: 'error' }> {
     try {
-      await prisma.documentReminder.create({ data: { companyId, documentId, tier } });
-      return true;
+      const row = await prisma.documentReminder.create({ data: { companyId, documentId, tier } });
+      return { status: 'claimed', id: row.id };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         this.logger.log(
-          `Reminder sweep: tier ${tier} for document ${documentId} was already recorded by a ` +
-            'concurrent pass — the email was sent, only this bookkeeping write raced.',
+          `Reminder sweep: tier ${tier} for document ${documentId} was already claimed by a ` +
+            'concurrent pass — skipping, no email sent from this call.',
         );
-      } else {
-        this.logger.error(
-          `Reminder sweep: sent the tier-${tier} reminder for document ${documentId} but FAILED to ` +
-            `record it — ${error instanceof Error ? error.message : String(error)}`,
-        );
+        return { status: 'already-sent' };
       }
-      return false;
+      this.logger.error(
+        `Reminder sweep: could not reserve the tier-${tier} slot for document ${documentId} — ` +
+          `${error instanceof Error ? error.message : String(error)}. No email was attempted; ` +
+          'retried on a later pass.',
+      );
+      return { status: 'error' };
+    }
+  }
+
+  /**
+   * The compensating rollback for a claim whose email then failed to send — see this file's own header
+   * for the trade-off this makes. Scoped by the claimed row's own id AND the
+   * `(companyId, documentId, tier)` invariant together, the same belt-and-suspenders
+   * `bank-reconciliation/persistence.ts#releaseLineClaim` holds for its own compensating rollback. If
+   * this delete ITSELF fails, the claim is now stuck — this tier is durably "claimed" with no email
+   * ever delivered, and no later pass will ever retry it automatically — which is exactly the residual
+   * risk the header names and requires to be PERSISTED, not left to the raw Nest logger alone.
+   */
+  private async releaseReminderClaim(
+    id: string,
+    companyId: string,
+    documentId: string,
+    tier: number,
+  ): Promise<void> {
+    try {
+      await prisma.documentReminder.deleteMany({ where: { id, companyId, documentId, tier } });
+    } catch (error) {
+      logger.error(
+        `Reminder sweep: releasing the tier-${tier} reservation for document ${documentId} ALSO ` +
+          'failed — this tier is now stuck as claimed without ever having been sent and will not be ' +
+          'retried automatically.',
+        {
+          category: 'documents',
+          details: {
+            companyId,
+            documentId,
+            tier,
+            reason: error instanceof Error ? error.message : String(error),
+          },
+        },
+      );
     }
   }
 }
