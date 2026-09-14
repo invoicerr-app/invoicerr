@@ -30,6 +30,14 @@
  * structure and SIRET ("matelas de données") — see `credentials-guide.md` §3, which quotes AIFE's
  * own procedure.
  *
+ * `CHORUSPRO_SELLER_SIRET` / `CHORUSPRO_BUYER_SIRET` — per-portal test parameters, NOT credentials
+ * (same category as `credentials-guide.md`'s "Per-portal test parameters" note: `*_COUNTRY`,
+ * `*_SELLER_VAT`, `*_BUYER_VAT`, `*_TAXPAYER_ID`). Optional overrides; their defaults below are two
+ * real SIRETs drawn from the owner's own qualification "matelas de données" (generated 2026-09-14,
+ * type "Plateforme agréée") so the deposit works out of the box for anyone using a standard mattress,
+ * while staying overridable for a different one. See the SELLER/BUYER constants below for exactly
+ * which entities these are and, for the buyer, why THIS one and not one of the other six.
+ *
  * Recipe (mirrors `../pdp/pdp.live.spec.ts`'s own DB-free approach — the exact bridge
  * `chorus-pro-transport.ts#send()` composes, called here by hand so this spec never needs a live DB):
  *   buildInvoiceDescriptor + computeDocumentTotals → buildSemanticInvoice → newEuInvoiceService()
@@ -89,23 +97,48 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
 
     // ── Step 2: build a REAL, EN 16931-valid Factur-X — the identical recipe
     // `chorus-pro-transport.ts#send()` runs via `facturxFormatProvider.build()`. ──
+    //
+    // Both SIRETs come from the owner's Chorus Pro qualification "matelas de données" (generated
+    // 2026-09-14, type "Plateforme agréée") — see `credentials-guide.md` §3 for how that mattress is
+    // obtained. `scheme: 'LEGAL_ID'` is correct for a French SIRET: `country-identifiers/data/fr.json`
+    // declares FR's ONLY `LEGAL_ID` scheme as "SIREN / SIRET", pattern `^\d{9}(\d{5})?$` (accepts
+    // either length), and `build-semantic-invoice.ts#toSiren()` always reduces a 14-digit SIRET to its
+    // first 9 digits (the SIREN) before emitting BT-29/BT-30 for a French seller — so feeding it the
+    // full 14-digit SIRET, as both constants below do, is the documented, tested path, not a shortcut.
+    //
+    // Address/city/postal code are NOT sourced from the mattress (it supplies only the raison sociale
+    // and the SIRET) — kept as plausible placeholders; Chorus Pro identifies a structure by SIRET, not
+    // by postal address.
+    //
+    // Private-sector qualification structure, SIREN 332540215. Default raison sociale matches the
+    // mattress's own "Fournisseur 33254021516357".
+    const sellerSiret = process.env.CHORUSPRO_SELLER_SIRET ?? '33254021516357';
+    // "Destinataire sans paramètre" is deliberate: the mattress offers seven public-sector
+    // destinataires, and this is the ONLY one that imposes no extra deposit parameter. The other six
+    // each require something this spec does not supply: an engagement juridique reference
+    // (12345678200036, "avec EJ obligatoire"), a service code (12345678200028, "avec service
+    // obligatoire", service SERVICE_DEST_SERV_OBL), both (12345678200044), or routing through the
+    // SFACETAT service (11000201100044, "Destinataire Etat"). Do not swap this SIRET for one of those
+    // without also adding the parameter it requires — the deposit will otherwise be rejected.
+    const buyerSiret = process.env.CHORUSPRO_BUYER_SIRET ?? '12345678200051';
+
     const SELLER: SemanticPartyInput = {
-      name: 'Fournisseur de Test SAS',
+      name: `Fournisseur ${sellerSiret}`,
       address: '1 rue du Test',
       city: 'Paris',
       postalCode: '75001',
       country: 'France',
       email: 'seller@example.fr',
-      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '123456789' }],
+      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: sellerSiret }],
     };
     const BUYER: SemanticPartyInput = {
-      name: 'Ministère du Test',
+      name: process.env.CHORUSPRO_BUYER_SIRET ? `Destinataire ${buyerSiret}` : 'Destinataire sans paramètre',
       address: '20 avenue de Ségur',
       city: 'Paris',
       postalCode: '75007',
       country: 'France',
       email: 'buyer@example.fr',
-      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '98765432100022' }],
+      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: buyerSiret }],
     };
 
     const descriptor = buildInvoiceDescriptor();
