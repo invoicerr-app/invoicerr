@@ -4,9 +4,70 @@ import { defineConfig } from "vitest/config"
 import generouted from "@generouted/react-router/plugin"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
+import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
-  plugins: [react(), generouted(), tailwindcss()],
+  plugins: [
+    react(),
+    generouted(),
+    tailwindcss(),
+    VitePWA({
+      // autoUpdate (not "prompt"): a "new version available" banner depends on the user noticing
+      // and clicking it, which can leave someone running stale app code indefinitely against a live
+      // API that has moved on. autoUpdate installs the new service worker and reloads automatically
+      // once it takes control, so nobody is silently stuck on an old build.
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "favicon.png"],
+      manifest: {
+        name: "Invoicerr",
+        short_name: "Invoicerr",
+        description:
+          "Simple, open-source invoicing app for freelancers: quotes, invoices, clients, and payments.",
+        lang: "en",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        // Matches --background / --foreground in src/index.css (light theme): the app itself is
+        // monochrome (no distinct brand hue), so the install/splash chrome uses the same white the
+        // page already paints rather than inventing a brand color.
+        background_color: "#ffffff",
+        theme_color: "#ffffff",
+        icons: [
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          {
+            src: "/maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        // Precache the built app shell (JS/CSS/HTML/icons) only.
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff,woff2}"],
+        // The main bundle is a single ~2.7 MB chunk (pre-existing — `vite build` already warns
+        // "chunks larger than 500 kB", unrelated to the PWA setup) and workbox's default precache
+        // limit is 2 MiB; without raising it the build fails outright rather than merely skip the
+        // asset, so this only lifts the ceiling, it doesn't request splitting that chunk.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // The SPA fallback (serving cached index.html for unknown navigations, e.g. a deep link
+        // opened while offline) must never catch an /api/* request.
+        navigateFallbackDenylist: [/^\/api\//],
+        // Never let workbox cache /api/* responses. Invoices, clients, and company data are
+        // per-session and per-tenant (see @ActiveCompany() in the backend) — a cached response
+        // replayed after logout or a session/company switch would leak the wrong tenant's data, and
+        // the app's own multi-tenancy guarantees say nothing about what a browser cache does. Every
+        // /api call must hit the network; NetworkOnly guarantees workbox stores nothing for it.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+            handler: "NetworkOnly",
+          },
+        ],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": "/src",

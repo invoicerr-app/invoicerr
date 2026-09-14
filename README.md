@@ -37,7 +37,8 @@ The project is still open, and I can continue to review and manage community pul
 - International-friendly: Default English UI, customizable currencies  
 - Docker & docker-compose ready for self-hosting  
 - Built with modern stack: React, NestJS, Prisma, PostgreSQL  
-- REST API backend, ready for future integrations (mobile & desktop apps)
+- REST API backend, ready for future integrations
+- Installable as a Progressive Web App (PWA)
 - Plugin system for community-made features
 
 ---

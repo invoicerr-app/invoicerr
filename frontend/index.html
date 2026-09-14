@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Two static tags rather than one: the manifest's own theme_color can't vary with the OS
+      scheme, but this meta tag can — browsers pick whichever `media` query matches, same as a CSS
+      media query. Values match --background in src/index.css (light: oklch(1 0 0) = #ffffff, dark:
+      oklch(0.145 0 0) = #0a0a0a), not invented colors.
+    -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
     <title>Invoicerr</title>
   </head>
   <body>
