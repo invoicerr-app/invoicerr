@@ -56,7 +56,7 @@
  *
  * NOT independently re-verified: `deposerFlux`/`consulterCr` themselves (both need a real PISTE
  * application + a Chorus Pro compte technique — neither obtained, see `documentation/docs/developer-guide/credentials-guide.md` §3 and
- * `choruspro-live.spec.ts`'s own header for the honest gap this leaves).
+ * `choruspro.live.spec.ts`'s own header for the honest gap this leaves).
  *
  * References:
  *  - https://piste.gouv.fr — PISTE developer portal (requires account)

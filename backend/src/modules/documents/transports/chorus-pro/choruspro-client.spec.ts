@@ -5,7 +5,7 @@
  * adaptation §1).
  *
  * No network calls — all HTTP responses are stubs. The REAL round-trip (`FetchChorusProHttpPort`
- * against the real PISTE sandbox) is proven separately, gated, in `choruspro-live.spec.ts`.
+ * against the real PISTE sandbox) is proven separately, gated, in `choruspro.live.spec.ts`.
  *
  * Tests:
  *  - ChorusProClient constructs without errors.
@@ -28,7 +28,7 @@
  *  - resolveChorusProSyntax() maps artifact syntax codes correctly.
  *  - CHORUSPRO_PATHS table uses the documented paths.
  *
- * Live integration deferred — see `choruspro-live.spec.ts`'s own header for exactly what is (and is
+ * Live integration deferred — see `choruspro.live.spec.ts`'s own header for exactly what is (and is
  * not) proven without a real PISTE account.
  */
 import {

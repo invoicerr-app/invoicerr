@@ -654,7 +654,7 @@ deux littéraux de gabarit).
      RÉSOLU** (2026-09-01, `conformity/`) : KSeF a désormais un poller câblé derrière la même
      interface que PDP (`pollers/ksef-status-poller.ts`, `invoiceStatus()` — le seul endpoint de
      statut que le client repris expose réellement), MAIS **jamais prouvé live** — `KSEF_AUTH_TOKEN`
-     est absent de cet environnement (même trou que `ksef-live.spec.ts`'s own header le documentait
+     est absent de cet environnement (même trou que `ksef.live.spec.ts`'s own header le documentait
      déjà pour `send()`), et deux inconnues restent NOMMÉES, pas devinées : (a) le mapping
      `{code, description, details}` → terminal/rejeté REPREND la convention que
      `ksef-transport.ts#authenticate` utilise déjà pour l'endpoint AUTH, appliquée par extrapolation
@@ -705,7 +705,7 @@ deux littéraux de gabarit).
      Le premier vrai collaudo peut révéler des écarts d'enveloppe que la seule lecture des specs ne
      pouvait pas anticiper — `sdicoop-client.ts`'s own header dit précisément quoi est lu contre quoi
      est extrapolé. Le récepteur de notifiche entrantes est traité au point 1 ci-dessus.
-  4. **Credentials absents aujourd'hui pour les deux live specs** — `ksef/ksef-live.spec.ts`
+  4. **Credentials absents aujourd'hui pour les deux live specs** — `ksef/ksef.live.spec.ts`
      (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`/`KSEF_NIP`) et `sdi/sdicoop.live.spec.ts` (`SDI_LIVE=1` +
      `SDI_ID_TRASMITTENTE`/`SDI_ENDPOINT`/`SDI_CERTIFICATE`/`SDI_CERT_PASSWORD`) skippent proprement
      (le premier parce que le jeton KSeF prouvé au repère (2026-06-28) a expiré/tourné et n'a pas été

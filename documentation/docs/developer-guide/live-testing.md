@@ -32,16 +32,16 @@ Hard-success contract (enforced per-spec):
 
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
-| KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef-live.spec.ts` | 🟡 Implemented, awaiting credentials — **no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets today.** The spec's own header records that the one historical proof of this flow used a token that has since expired/rotated, and this round-trip has not been re-run since — a real proof needs a fresh sandbox token before it can be claimed again. |
+| KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets today.** The spec's own header records that the one historical proof of this flow used a token that has since expired/rotated, and this round-trip has not been re-run since — a real proof needs a fresh sandbox token before it can be claimed again. |
 | PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
-| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh-live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `FR` remains broken (`invalid_country`), but `BE` (+ explicit `peppol_id`) works: `doc_…` → `DELIVERED` in ~10s, reproduced twice (see below) |
-| Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung-live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` in ~10s; see the box below for the HONEST LIMIT of what this proves (peppol.sh never accepts raw UBL bytes — see that spec's own header) |
+| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh.live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `FR` remains broken (`invalid_country`), but `BE` (+ explicit `peppol_id`) works: `doc_…` → `DELIVERED` in ~10s, reproduced twice (see below) |
+| Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung.live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` in ~10s; see the box below for the HONEST LIMIT of what this proves (peppol.sh never accepts raw UBL bytes — see that spec's own header) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | _(no live spec exists yet — mocked coverage only, `peppol/peppol-client.spec.ts`)_ | 🔴 Deferred (connected AP required) |
-| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `chorus-pro/choruspro-live.spec.ts` | 🟡 Implemented, awaiting a PISTE account — **skipped, always, today** (no PISTE account in this checkout). Credential-free reachability **proven live 2026-09-02**: `sandbox-oauth.piste.gouv.fr` answers a genuine `400 {"error":"invalid_client"}` to a garbage client id/secret — the host/path are real, the deposit itself has never been attempted. |
-| RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa-live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
+| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `chorus-pro/choruspro.live.spec.ts` | 🟡 Implemented, awaiting a PISTE account — **skipped, always, today** (no PISTE account in this checkout). Credential-free reachability **proven live 2026-09-02**: `sandbox-oauth.piste.gouv.fr` answers a genuine `400 {"error":"invalid_client"}` to a garbage client id/secret — the host/path are real, the deposit itself has never been attempted. |
+| RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Mistral OCR (received-invoice PDF extraction, T5(c)) ⚙ *not a channel — the dedicated `ROLE=ocr` service's own CLOUD engine, never the main backend* | `MISTRAL_OCR_LIVE=1` | `MISTRAL_API_KEY` | `ocr-service/mistral-client.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-03** (`api.mistral.ai/v1/ocr`, no/garbage auth → real `401 {"detail":"Invalid API Key"}`) — full round-trip 🔴 deferred, no Mistral API key provisioned for this task |
 | Local OCR engine (the `ocr-image` repo, our own `ocrmypdf`-based image) ⚙ *not a channel — the SAME `ROLE=ocr` service's LOCAL engine, `OCR_ENGINE=local`, running our own Docker image and server rather than depending on a third-party OCR provider* | `LOCAL_OCR_LIVE=1` | _(none — no cloud key, that is the entire point; the spec `docker pull`s + runs the published image (ghcr.io/invoicerr-app/ocr-image) via `docker`, gated on a usable local Docker daemon — `docker info` — checked at load time)_ | `ocr-service/local-client.live.spec.ts` | ✅ **Round-trip proven on 2026-09-11** (engine switched from `apache/tika:latest-full` to our own image, same day) — the spec pulls and launches the real container, `POST`s a real `pdf-lib`-built invoice PDF to it, and the heuristic mapping correctly reads HT/TVA/TTC and the VAT id back; because this server force-OCRs every page (see `server.py`'s own header), this jest run now exercises REAL Tesseract recognition automatically, unlike the Tika era which needed a separate manual proof for that. A SEPARATE, MANUAL round-trip the same day against genuinely RASTERIZED (image-only) invoice PDFs — one French, one Polish (the new language pack Tika's own stock image never had) — proved the broader language coverage too; see `local-client.ts`'s own header for that citation |
@@ -138,7 +138,7 @@ Hard-success contract (enforced per-spec):
 >
 > The new transport (`transports/peppol-transport.ts` + `transports/peppol/peppol-client.ts`, the
 > generic AP adapter) is wired and tested (jest, `peppol-transport.spec.ts`). For the live attempt
-> itself, the `peppol/peppol-sh-live.spec.ts` spec was carried over almost verbatim from the
+> itself, the `peppol/peppol-sh.live.spec.ts` spec was carried over almost verbatim from the
 > pre-rewrite reference, then RE-RUN for real (`PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`), with
 > three raw results, none guessed:
 >
@@ -167,7 +167,7 @@ Hard-success contract (enforced per-spec):
 > still NOT settled as to its exact cause (BELGIUM, for its part, is accepted — so this is not a
 > blanket sandbox removal), but the observation itself (FR rejected) is confirmed, reproduced, and
 > worked around with an alternative country as required. This is the FIRST real Peppol send of this
-> new `documents/` architecture — see `peppol-sh-live.spec.ts`'s own header for the detail and the
+> new `documents/` architecture — see `peppol-sh.live.spec.ts`'s own header for the detail and the
 > `PEPPOL_SH_FALLBACK_COUNTRY` knob that automates this workaround for a future re-run.
 
 > ### ✅ Peppol via peppol.sh — XRechnung (the German B2G gap), attempted and SUCCEEDED on 2026-09-02
@@ -177,7 +177,7 @@ Hard-success contract (enforced per-spec):
 > live question this task asked was "does the peppol.sh sandbox accept a send built with
 > `formats/xrechnung-provider.ts` (instead of `peppol-bis-provider.ts`) to its own test receiver?".
 > Same EXACT setup as the round-trip above (BE company + explicit `peppol_id`, German seller,
-> `sandbox.peppol.sh` receiver) — see `peppol/peppol-sh-xrechnung-live.spec.ts`.
+> `sandbox.peppol.sh` receiver) — see `peppol/peppol-sh-xrechnung.live.spec.ts`.
 >
 > **Raw result, a single run, nothing guessed**:
 > 1. Signup: `acc_qz9uV6XuSnda0fpFOIa1s`.
@@ -195,7 +195,7 @@ Hard-success contract (enforced per-spec):
 > **Conclusion, honest, with its own named limit**: the channel ACCEPTS and DELIVERS a document built
 > by `xrechnung-provider.ts` exactly as it accepts and delivers one built by
 > `peppol-bis-provider.ts` — no regression, no different behavior on the transport side. But read
-> `peppol-sh-xrechnung-live.spec.ts`'s own header before over-interpreting this green:
+> `peppol-sh-xrechnung.live.spec.ts`'s own header before over-interpreting this green:
 > `PeppolShApClient#send()` (`peppol-sh-client.ts#ublToPeppolShDocument`) NEVER accepts raw UBL
 > bytes — it EXTRACTS a handful of generic EN 16931 fields (party name, VAT, currency, dates, lines)
 > and peppol.sh RE-SERIALIZES its own document server-side for the actual delivery; that extraction
@@ -214,7 +214,7 @@ Hard-success contract (enforced per-spec):
 # KSeF (PL) — implemented, awaiting credentials: no KSEF_AUTH_TOKEN/KSEF_NIP exist today (see the
 # summary table above for why the one historical proof no longer counts)
 KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
-  npx jest ksef-live --no-coverage --runInBand
+  npx jest ksef.live --no-coverage --runInBand
 
 # PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
 set -a; . .env.pdp.local; set +a
@@ -240,24 +240,24 @@ PEC_LIVE=1 PEC_ID_TRASMITTENTE=IT01234567890 PEC_ADDRESS=fatture@example.pec.it 
 
 # Peppol via peppol.sh — ZERO SECRETS (self-signup, like the Email leg above)
 PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
-  npx jest peppol-sh-live --no-coverage --runInBand
+  npx jest peppol-sh.live --no-coverage --runInBand
 # Optional: reuse an existing sandbox account instead of self-signup
 #   PEPPOL_SH_API_KEY=ps_test_… PEPPOL_SH_COMPANY_ID=com_… [PEPPOL_RECEIVER_ID=<scheme:id>]
 
 # Peppol via peppol.sh — XRechnung content (DE B2G format override) — same zero-secret sandbox
 PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
-  npx jest peppol-sh-xrechnung-live --no-coverage --runInBand
+  npx jest peppol-sh-xrechnung.live --no-coverage --runInBand
 
 # Peppol generic AP — deferred: no live spec exists yet (needs a connected Access Point first);
 # only mocked coverage exists today, in peppol/peppol-client.spec.ts
 
 # Chorus Pro (FR B2G) — implemented, awaiting a PISTE account (skipped, always, in this checkout)
 CHORUSPRO_LIVE=1 CHORUSPRO_CLIENT_ID=<id> CHORUSPRO_CLIENT_SECRET=<secret> \
-  npx jest choruspro-live --no-coverage --runInBand
+  npx jest choruspro.live --no-coverage --runInBand
 
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
 TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr \
-  npx jest tsa-live --no-coverage --runInBand
+  npx jest tsa.live --no-coverage --runInBand
 
 # Mistral OCR (cloud engine, ROLE=ocr's OWN client — real API key required)
 MISTRAL_OCR_LIVE=1 MISTRAL_API_KEY=<key> \
@@ -277,10 +277,10 @@ LOCAL_OCR_LIVE=1 npx jest local-client.live --no-coverage --forceExit
 ```bash
 # Run the gated spec without the flag → must show as skipped
 cd backend
-npx jest ksef-live --no-coverage
+npx jest ksef.live --no-coverage
 # Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
 
-npx jest pdp.live send-quote.live sdicoop.live tsa-live choruspro-live --no-coverage
+npx jest pdp.live send-quote.live sdicoop.live tsa.live choruspro.live --no-coverage
 # Expected: all suites skipped
 ```
 
@@ -332,7 +332,7 @@ CHORUSPRO_LIVE=1 \
   CHORUSPRO_TECH_LOGIN=<compte_technique_login> \
   CHORUSPRO_TECH_PASSWORD=<compte_technique_password> \
   [CHORUSPRO_ENVIRONMENT=SANDBOX] \
-  npx jest choruspro-live --no-coverage --runInBand
+  npx jest choruspro.live --no-coverage --runInBand
 ```
 
 | Env var | Purpose |
@@ -409,7 +409,7 @@ selectable in production and never called from `peppol-transport.ts`.
 
 ### peppol.sh — ✅ PROVEN, zero secrets (the live-proof harness)
 
-The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (no pre-provisioned account needed):
+The `peppol-sh.live.spec.ts` flow is fully self-bootstrapping (no pre-provisioned account needed):
 
 1. `POST https://api.peppol.sh/v1/signup {email}` → instant `ps_test_` API key (no KYC, no card).
 2. `POST https://sandbox.peppol.sh/v1/companies` → sending company (`com_…`).
@@ -419,7 +419,7 @@ The `peppol-sh-live.spec.ts` flow is fully self-bootstrapping (no pre-provisione
 4. `GET /v1/documents/{id}?company_id=com_…` (the query param is required — verified live) →
    `queued → sending → delivered` (sandbox delivers by email; statuses are real).
 
-Run: `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh npx jest peppol-sh-live --no-coverage --runInBand`
+Run: `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh npx jest peppol-sh.live --no-coverage --runInBand`
 Proven live 2026-09-02 in this architecture (see the box earlier in this file for the full,
 raw result): `BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with
 `invalid_country`. An older 2026-07-11 proof (document `doc_2yb9TJka7US3hBwz4rnDW` → CLEARED in

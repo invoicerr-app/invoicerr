@@ -32,7 +32,7 @@ open question a proper reading of the law would settle.
 
 ## Proven once, not provably working today
 
-- `transports/ksef/ksef-live.spec.ts` is a real round-trip against `ksef-test.mf.gov.pl` that, when
+- `transports/ksef/ksef.live.spec.ts` is a real round-trip against `ksef-test.mf.gov.pl` that, when
   it last ran, reached `CLEARED` with a genuine `ksefNumber` — the fullest live proof any channel in
   this app has produced (it polls all the way to clearance, not just an accepted upload).
 - That spec's own header is explicit that **its credentials are absent today**: no
@@ -89,4 +89,4 @@ cancellation attempt is refused, by name, rather than silently allowed or silent
 `country-identifiers/data/pl.json`, `vat-rates/data/pl.json`, plus
 `archive/retention/data/pl.json` — five years, counted not from the invoice date but from the end of
 the calendar year the tax fell due in (ustawa o VAT art. 112 pointing at Ordynacja podatkowa art. 70
-§ 1) — and `transports/ksef/ksef-live.spec.ts` for the live-proof claim above.
+§ 1) — and `transports/ksef/ksef.live.spec.ts` for the live-proof claim above.

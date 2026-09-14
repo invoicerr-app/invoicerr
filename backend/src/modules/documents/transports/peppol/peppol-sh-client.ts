@@ -5,7 +5,7 @@
  * proven there on 2026-07-11. Kept SEPARATE from `peppol-client.ts` (the generic, production-facing
  * adapter this deployment's `PROVIDER_FIELDS.peppol` settings screen actually wires — see
  * `peppol-transport.ts`'s own header) rather than folded into it: this file exists to RE-ATTEMPT the
- * live round-trip (`peppol-sh-live.spec.ts`), not to become a second,
+ * live round-trip (`peppol-sh.live.spec.ts`), not to become a second,
  * user-facing channel choice — the reference's own multi-vendor `apProvider` selector (`ap-adapters.ts`)
  * was NOT reprised for that reason (see `peppol-transport.ts`'s own header on why the settings screen
  * ships exactly one, generic adapter).
@@ -16,7 +16,7 @@
  * API surface (as documented at the reference, VERIFIED against the live OpenAPI at
  * https://api.peppol.sh/v1/openapi.json and a real sandbox round-trip on 2026-07-11 —
  * `documentation/docs/developer-guide/peppol-ap-research.md` / `documentation/docs/developer-guide/live-testing.md`; RE-VERIFIED (or found broken) by the 2026-09-02 retry
- * — see `peppol-sh-live.spec.ts`'s own header for the raw, current result):
+ * — see `peppol-sh.live.spec.ts`'s own header for the raw, current result):
  *
  *   - POST https://api.peppol.sh/v1/signup           {email,name?} → 201 {id, api_key: ps_test_…}
  *     (public, no auth — new accounts get a sandbox key instantly)
@@ -276,7 +276,7 @@ export class PeppolShApClient implements PeppolApPort {
       /** Explicit Peppol participant id (scheme:value) — the reference's own 2026-07-11 proof never
        *  needed this (tax_id alone was enough); the 2026-09-02 live retry found the
        *  sandbox now REJECTS a company creation with no `peppol_id` at all for at least one country
-       *  (BE) — see `peppol-sh-live.spec.ts`'s own header / `documentation/docs/developer-guide/live-testing.md` for the raw response. */
+       *  (BE) — see `peppol-sh.live.spec.ts`'s own header / `documentation/docs/developer-guide/live-testing.md` for the raw response. */
       peppolId?: string;
     },
     baseUrl = PEPPOL_SH_SANDBOX_URL,

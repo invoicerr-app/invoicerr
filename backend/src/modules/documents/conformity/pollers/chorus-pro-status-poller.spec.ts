@@ -1,6 +1,6 @@
 /**
  * `buildChorusProStatusPoller` in isolation — `ChorusProClient` is mocked wholesale (the real PISTE
- * round-trip is `chorus-pro/choruspro-live.spec.ts`'s job, gated on real PISTE credentials this
+ * round-trip is `chorus-pro/choruspro.live.spec.ts`'s job, gated on real PISTE credentials this
  * checkout does not have — see that file's own header, and this poller's own header for the honesty
  * note on what `consulterCr`'s response shape is NOT independently live-verified against).
  */

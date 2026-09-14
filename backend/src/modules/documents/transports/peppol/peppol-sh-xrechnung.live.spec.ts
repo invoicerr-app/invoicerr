@@ -1,6 +1,6 @@
 /**
  * "Le trou allemand du B2G", live half — does peppol.sh's own sandbox accept and DELIVER an XRechnung
- * UBL document (not Peppol BIS)? Same exact motif as `peppol-sh-live.spec.ts` (self-signup → company,
+ * UBL document (not Peppol BIS)? Same exact motif as `peppol-sh.live.spec.ts` (self-signup → company,
  * FR→BE fallback with an explicit `peppol_id` → send → poll to a terminal status) — the ONLY delta is
  * the format built and sent: `formats/xrechnung-provider.ts` instead of `formats/peppol-bis-provider.
  * ts`, with a German seller carrying an IBAN (BR-DE-1) so the REAL vendored KoSIT delta actually
@@ -19,7 +19,7 @@
  * lines) from whatever UBL it is handed, and peppol.sh RE-SERIALIZES its own UBL server-side for
  * actual delivery. That extraction never reads `cbc:CustomizationID` or any XRechnung-specific
  * element (BuyerReference/Contact/PaymentMeans) at all — it is the exact SAME code path
- * `peppol-sh-live.spec.ts` already exercises for Peppol BIS. A DELIVERED outcome here is still a real,
+ * `peppol-sh.live.spec.ts` already exercises for Peppol BIS. A DELIVERED outcome here is still a real,
  * meaningful proof (this codebase's OWN XRechnung artifact — the REAL vendored base + KoSIT delta,
  * already gated valid before this file ever sends anything — is structurally compatible with the SAME
  * generic UBL extraction path Peppol BIS already is: the extra BR-DE-* mandatory elements do not
@@ -38,7 +38,7 @@ import { liveDescribe } from '../live-gate';
 const describeLive =
   process.env.PEPPOL_AP_PROVIDER === 'peppol-sh' ? liveDescribe('PEPPOL_LIVE', []) : describe.skip;
 
-/** Same EAS table `peppol-sh-live.spec.ts` and `formats/semantic/build-semantic-invoice.ts` already
+/** Same EAS table `peppol-sh.live.spec.ts` and `formats/semantic/build-semantic-invoice.ts` already
  *  carry — reused, not reinvented. */
 const EAS_BY_COUNTRY: Record<string, string> = { FR: '9957', BE: '9925', DE: '9930' };
 
@@ -58,7 +58,7 @@ describeLive(
       const timestamp = Date.now();
       // Checksum-valid but FICTITIOUS FR VAT (validateFrVat — mod-97 key, backend/src/modules/
       // documents/tax/vat-syntax.ts — passes: key 15, not the 12 an earlier draft of this fixture
-      // carried, duplicated from peppol-sh-live.spec.ts). The embedded SIREN (345678901) itself fails
+      // carried, duplicated from peppol-sh.live.spec.ts). The embedded SIREN (345678901) itself fails
       // the standard SIREN Luhn checksum — left as-is: this repo carries no active SIREN/SIRET Luhn
       // validator any more (dropped per vat-syntax.ts's own header), so only the VAT key — the one
       // property `validateFrVat` enforces — needed correcting; see the sibling spec's own comment.
@@ -116,7 +116,7 @@ describeLive(
       expect(apCompanyId).toMatch(/^com_/);
 
       // ── Generate a REAL XRechnung UBL invoice — pure, DB-free. A German seller WITH an IBAN (BR-DE-1)
-      // and a French buyer (VAT-routable on peppol.sh, same reasoning `peppol-sh-live.spec.ts` gives for
+      // and a French buyer (VAT-routable on peppol.sh, same reasoning `peppol-sh.live.spec.ts` gives for
       // isolating peppol.sh's own behaviour from this codebase's own R002 gap — XRechnung has no such
       // gap, but keeping the SAME buyer keeps this a true single-variable delta against the sibling spec).
       const { buildInvoiceDescriptor } = await import('../../descriptors/invoice.descriptor');
@@ -146,7 +146,7 @@ describeLive(
       };
       // Checksum-valid but FICTITIOUS DE VAT (validateDeVat — ISO 7064 Mod 11,10, backend/src/
       // modules/documents/tax/vat-syntax.ts — passes: check digit 8, not the 9 an earlier draft of
-      // this fixture carried, duplicated from peppol-sh-live.spec.ts). A real registered DE VAT would
+      // this fixture carried, duplicated from peppol-sh.live.spec.ts). A real registered DE VAT would
       // need a real German seller onboarded on peppol.sh.
       const sellerVat = 'DE123456788';
       const seller = {
@@ -157,7 +157,7 @@ describeLive(
         country: 'DE',
         email: 'sender@example.com',
         phone: '+49301234567',
-        iban: TEST_IBAN, // BR-DE-1/23-a/23-b — the ONE fact `peppol-sh-live.spec.ts`'s own DE seller lacks.
+        iban: TEST_IBAN, // BR-DE-1/23-a/23-b — the ONE fact `peppol-sh.live.spec.ts`'s own DE seller lacks.
         partyIdentifiers: [{ scheme: 'VAT', value: sellerVat }],
       };
       const buyer = {

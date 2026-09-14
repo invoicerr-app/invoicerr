@@ -4,7 +4,7 @@
  * `../live-gate.ts`), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef-live --no-coverage --runInBand
+ *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef.live --no-coverage --runInBand
  *
  * **THESE CREDENTIALS ARE ABSENT TODAY** — no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or
  * in CI secrets (unlike PDP/KSeF's OWN historical proof at the reference, which used a token that has

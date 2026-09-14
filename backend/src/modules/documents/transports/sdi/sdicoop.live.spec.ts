@@ -20,7 +20,7 @@
  * credential is absent — which is EVERY run today. No sandbox or fake SOAP endpoint is fabricated to
  * force a green run; see `documentation/docs/developer-guide/credentials-guide.md` §4 for how to actually obtain collaudo access.
  *
- * HARD-SUCCESS CONTRACT (the same discipline `ksef-live.spec.ts`/the old `sdi-live.spec.ts` already
+ * HARD-SUCCESS CONTRACT (the same discipline `ksef.live.spec.ts`/the old `sdi-live.spec.ts` already
  * enforced): a response with no usable `IdentificativoSdI`, a `soap:Fault`, or a business `<Errore>`
  * (EI01/EI02/EI03) are ALL failures here — `SdiCoopClient.submit()` already throws named errors for
  * every one of those (`sdicoop-client.ts#parseRiceviFileResponse`), so this spec only needs to assert

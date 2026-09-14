@@ -47,7 +47,7 @@
  *
  * Run:
  *   cd backend && set -a; . .env.test.local; set +a
- *   CHORUSPRO_LIVE=1 npx jest choruspro-live --no-coverage --runInBand
+ *   CHORUSPRO_LIVE=1 npx jest choruspro.live --no-coverage --runInBand
  */
 import { PDFDocument } from 'pdf-lib';
 

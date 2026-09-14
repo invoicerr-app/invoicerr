@@ -1,6 +1,6 @@
 /**
  * The "ksef" transport in isolation. `KsefClient` and `@/prisma/
- * prisma.service` are mocked wholesale (the real KSeF round-trip is `ksef/ksef-live.spec.ts`'s job,
+ * prisma.service` are mocked wholesale (the real KSeF round-trip is `ksef/ksef.live.spec.ts`'s job,
  * gated on real credentials — see that file's own header, and on `KSEF_LIVE`/`KSEF_AUTH_TOKEN`/
  * `KSEF_NIP`, absent today); this proves the ORCHESTRATION: the preflight gate, the FA(3) payload
  * build+gate, and the two facts that matter most — that an empty session/invoice

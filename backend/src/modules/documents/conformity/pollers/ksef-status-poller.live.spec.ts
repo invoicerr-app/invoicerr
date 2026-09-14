@@ -1,21 +1,21 @@
 /**
  * REAL round-trip proof of `buildKsefStatusPoller` — gated the SAME way `transports/ksef/
- * ksef-live.spec.ts` already is (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`, `live-gate.ts`), run the same way:
+ * ksef.live.spec.ts` already is (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`, `live-gate.ts`), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
  *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef-status-poller.live --no-coverage --runInBand
  *
- * **THESE CREDENTIALS ARE ABSENT TODAY** — same gap `transports/ksef/ksef-live.spec.ts`'s own header
+ * **THESE CREDENTIALS ARE ABSENT TODAY** — same gap `transports/ksef/ksef.live.spec.ts`'s own header
  * already documents: no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets.
  * `liveDescribe` SKIPS this suite cleanly and says so on stderr — this file does not invent a token
  * or a fabricated response to force a green run.
  *
- * DB-FREE, same choice `ksef-live.spec.ts` itself makes: the submission recipe below is REPRISED from
+ * DB-FREE, same choice `ksef.live.spec.ts` itself makes: the submission recipe below is REPRISED from
  * that file (challenge → ksef-token → poll status → redeem → open session → send → CLOSE — the exact
  * sequence `ksef-transport.ts#send()` runs in production, including the close), not a copy of
  * production code (which needs a companyId to read real Company/Client rows via Prisma).
  *
- * Once real credentials exist, this spec's own job is TWO-FOLD, beyond what `ksef-live.spec.ts`
+ * Once real credentials exist, this spec's own job is TWO-FOLD, beyond what `ksef.live.spec.ts`
  * already proves (a real submission reaching CLEARED via `sessionStatus`):
  *  1. does `invoiceStatus` answer AT ALL for a session `ksef-transport.ts#send()` already CLOSED
  *     (see `ksef-status-poller.ts`'s own header, §2 — genuinely unknown today, which is why THIS spec

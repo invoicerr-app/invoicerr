@@ -1,7 +1,7 @@
 /**
  * `ublToPeppolShDocument` in isolation — OFFLINE (no network): proves the extraction against a REAL
  * Peppol BIS UBL document this codebase's own `formats/peppol-bis-provider.ts` produces (the exact
- * artifact `peppol-sh-live.spec.ts` later feeds to the real sandbox), not a hand-typed XML fixture
+ * artifact `peppol-sh.live.spec.ts` later feeds to the real sandbox), not a hand-typed XML fixture
  * that could drift from what the format provider actually emits.
  */
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';

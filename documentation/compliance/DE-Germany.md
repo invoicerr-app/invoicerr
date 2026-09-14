@@ -96,7 +96,7 @@ and Germany's own default correction route, which states no correction is requir
 `backend/src/modules/documents/country-policy/data/de.json`, `country-identifiers/data/de.json`,
 `correction-routes/data/de.json`, `correction-routes/cancel-policy.ts`, `b2g-routing/data/de.json`,
 `tax/tax-systems/data/de.json`, `country-fields/data/de.json`, plus
-`transports/peppol-transport.ts` and `transports/peppol/peppol-sh-xrechnung-live.spec.ts` for the
+`transports/peppol-transport.ts` and `transports/peppol/peppol-sh-xrechnung.live.spec.ts` for the
 live-proof claim above, `vat-rates/data/de.json` for the rate ladder, and
 `archive/retention/data/de.json` for the two simultaneous eight-year retention obligations (UStG
 § 14b and AO § 147). `transports/channel-policy/data/de.json` exists but declares no fact, for the

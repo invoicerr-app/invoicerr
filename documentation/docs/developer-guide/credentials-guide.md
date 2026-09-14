@@ -215,7 +215,7 @@ Note: superpdp.tech's own pages are a client-rendered SPA — automated fetches 
 
 **Split the status in two, because the two halves are not equally proven.** A real PISTE sandbox
 application's OAuth pair now authenticates for real — `client_credentials` returned a genuine
-54-character Bearer token in 162 ms (`choruspro-live.spec.ts`, 2026-09-14). What is still NOT proven
+54-character Bearer token in 162 ms (`choruspro.live.spec.ts`, 2026-09-14). What is still NOT proven
 is the deposit itself (`deposerFlux` / `consulterCr`): that needs the `CHORUSPRO_TECH_LOGIN` /
 `CHORUSPRO_TECH_PASSWORD` pair below, which nobody has created yet, and the spec skips that half
 loudly rather than passing quietly. Treat a green run as "PISTE authenticated us", never as "we can
@@ -465,7 +465,7 @@ here:
 - `PEPPOL_AP_URL` — the base REST/API URL of the generic Access Point gateway you've contracted with (repo's generic adapter model: `accessPointUrl` + `apiKey`, REST gateway in front of the AP's AS4/ebMS3 stack).
 - `PEPPOL_API_KEY` — the API key that AP issues once you have an account with them.
 - `PEPPOL_RECEIVER_ID` — the counterpart's Peppol participant ID (`scheme:id`) for the specific test transaction (in production this is looked up per-invoice via SMP/directory, not a fixed secret — it's fixed here only for the live-gated test fixture).
-- peppol.sh path needs **no GitHub secret**: `PEPPOL_SH_API_KEY` (`ps_test_…` / `ps_live_…`) and `PEPPOL_SH_COMPANY_ID` (`com_…`) are optional overrides — when absent, `peppol-sh-live.spec.ts` self-signs-up against the public sandbox and creates its own throwaway company, proving the round-trip with zero pre-provisioned credentials.
+- peppol.sh path needs **no GitHub secret**: `PEPPOL_SH_API_KEY` (`ps_test_…` / `ps_live_…`) and `PEPPOL_SH_COMPANY_ID` (`com_…`) are optional overrides — when absent, `peppol-sh.live.spec.ts` self-signs-up against the public sandbox and creates its own throwaway company, proving the round-trip with zero pre-provisioned credentials.
 
 **Route A — peppol.sh sandbox (zero cost, what the project uses)**
 1. No dashboard, no credit card: `POST https://api.peppol.sh/v1/signup` with `{email}` returns `201 {id, api_key}` instantly — the key is prefixed `ps_test_` (sandbox).
@@ -473,7 +473,7 @@ here:
 3. Sandbox calls must hit `sandbox.peppol.sh` (not `api.peppol.sh` — sandbox keys get `403 wrong_environment` there); invoices are delivered by email instead of the real network, same code path (`ublToPeppolShDocument` → `POST /v1/documents` → poll `GET /v1/documents/:id`).
 4. To go live: `POST /v1/account/kyc` with company/identity details; once approved you can mint a `ps_live_` key, and `api.peppol.sh` then routes onto the real Peppol network.
 5. Pricing (peppol.sh site): pay-per-document, from €0.10/invoice, no monthly minimum; sandbox is free forever.
-6. Repo proof: `backend/src/modules/documents/transports/peppol/peppol-sh-live.spec.ts`, gated by `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`, self-signs-up when `PEPPOL_SH_API_KEY`/`PEPPOL_SH_COMPANY_ID` are absent — proven live 2026-09-02 in this architecture (`BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with `invalid_country` — see [Live Testing](./live-testing.md) for the full raw result). An older 2026-07-11 proof predates this architecture and is kept there only as superseded history. Wired in `.github/workflows/compliance-live.yml` with `PEPPOL_AP_PROVIDER: 'peppol-sh'` set as a plain env constant, not a secret.
+6. Repo proof: `backend/src/modules/documents/transports/peppol/peppol-sh.live.spec.ts`, gated by `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`, self-signs-up when `PEPPOL_SH_API_KEY`/`PEPPOL_SH_COMPANY_ID` are absent — proven live 2026-09-02 in this architecture (`BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with `invalid_country` — see [Live Testing](./live-testing.md) for the full raw result). An older 2026-07-11 proof predates this architecture and is kept there only as superseded history. Wired in `.github/workflows/compliance-live.yml` with `PEPPOL_AP_PROVIDER: 'peppol-sh'` set as a plain env constant, not a secret.
 
 **Route B — connecting through a real/commercial Access Point**
 

@@ -81,7 +81,7 @@ jobs:
       # Still-live, still-wired channel (transports/chorus-pro/) — moved here from the now-deleted
       # national-portals-live job, since its own live spec is matched by THIS job's `npx jest live`
       # pattern already and only needed its flag/creds actually declared somewhere to ever fire.
-      # HONEST STATUS (see choruspro-live.spec.ts's own header): skipped, always, today — this repo
+      # HONEST STATUS (see choruspro.live.spec.ts's own header): skipped, always, today — this repo
       # holds no PISTE account of any kind. CHORUSPRO_TECH_LOGIN/PASSWORD are read too but are NOT part
       # of the gate's required list: the spec runs the OAuth half alone and skips only the deposit half
       # when the technical-account pair is absent.

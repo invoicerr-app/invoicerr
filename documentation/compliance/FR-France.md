@@ -94,5 +94,5 @@ transmission precondition.
 simultaneous obligations**, six years fiscal from the document's own date (LPF art. L102 B) and ten
 years commercial from the close of the financial year (C. com. art. L123-22), the binding date being
 the later of the two — plus `transports/pdp/pdp.live.spec.ts`,
-`transports/chorus-pro/choruspro-live.spec.ts` and `transports/chorus-pro-transport.ts` for the
+`transports/chorus-pro/choruspro.live.spec.ts` and `transports/chorus-pro-transport.ts` for the
 live-proof and implementation claims above.

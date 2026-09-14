@@ -15,7 +15,7 @@
  * EN_COURS_DE_TRAITEMENT/DEPOSE/SUSPENDU/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) come from the
  * reference's own client, which itself cites the "API Dépôt flux G2B" v5.2.0 documentation rather than a
  * live capture (see `choruspro-client.ts`'s own header). `../../transports/chorus-pro/
- * choruspro-live.spec.ts` (gated `CHORUSPRO_LIVE=1`, SKIPPED today) already exercises `consulterCr`
+ * choruspro.live.spec.ts` (gated `CHORUSPRO_LIVE=1`, SKIPPED today) already exercises `consulterCr`
  * as its own step 4, against a real deposit — this poller calls the SAME client method, never a
  * second, poller-only path; no separate live spec exists for the poller itself since there is nothing
  * left to prove that file does not already cover once real credentials exist.

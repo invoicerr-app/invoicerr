@@ -8,7 +8,7 @@
  * ## HONESTY NOTE — what is, and is NOT, verified here
  *
  * `KSEF_AUTH_TOKEN` is absent from every environment available in this checkout (see
- * `transports/ksef/ksef-live.spec.ts`'s own header — `send()` itself was only ever proven live
+ * `transports/ksef/ksef.live.spec.ts`'s own header — `send()` itself was only ever proven live
  * historically, not re-proven alongside this poller). Two consequences, both real:
  *
  *  1. The status-code mapping below (`isTerminal`, `mapKsefEvent`) is NOT independently live-verified

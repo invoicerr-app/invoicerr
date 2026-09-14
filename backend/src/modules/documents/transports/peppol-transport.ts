@@ -10,7 +10,7 @@
  * `avant-refonte-documents` (`compliance/providers/transmission/peppol/peppol-client.ts`) — see that
  * file's own header for exactly what was kept, adapted, and dropped. Its own live status is
  * "live-deferred" (needs a real connected AP vendor); the ACTUAL live attempt went
- * through a DIFFERENT adapter, peppol.sh (`peppol/peppol-sh-client.ts` + `peppol/peppol-sh-live.
+ * through a DIFFERENT adapter, peppol.sh (`peppol/peppol-sh-client.ts` + `peppol/peppol-sh.live.
  * spec.ts`, zero-secret sandbox self-signup) — see that file's own header and `documentation/docs/developer-guide/live-testing.md` for
  * the raw, honest result. This PRODUCTION transport uses ONLY the generic adapter: the settings
  * screen's own `PROVIDER_FIELDS.peppol` (AP URL, API key, participant id, environment) has no
