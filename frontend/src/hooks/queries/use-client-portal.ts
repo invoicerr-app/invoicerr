@@ -1,6 +1,6 @@
 import { usePortalApiMutation, usePortalApiQuery } from "@/hooks/use-portal-api-query"
 
-import type { ClientStatement, PortalProfile, PortalQuoteRow } from "@/types"
+import type { ClientStatement, PortalCheckoutSession, PortalProfile, PortalQuoteRow } from "@/types"
 
 /**
  * The CLIENT-facing half of the portal — driven exclusively by `usePortalApiQuery`/
@@ -46,5 +46,15 @@ export function useRefusePortalQuote() {
     "POST",
     (vars) => `/api/portal/quotes/${vars.quoteId}/refuse`,
     { invalidateKeys: [PORTAL_QUOTES_KEY] },
+  )
+}
+
+/** TODO_FEATURES.md rank 1 ("paiement en ligne") — the Pay button's own mutation. Never invalidates
+ *  the statement: opening a session changes NOTHING about the balance (only a verified webhook does —
+ *  see the backend's own `PaymentSessionsService` header), so re-fetching it here would be pure waste. */
+export function useCreatePortalCheckoutSession() {
+  return usePortalApiMutation<{ invoiceId: string }, PortalCheckoutSession>(
+    "POST",
+    (vars) => `/api/portal/documents/invoice/${vars.invoiceId}/checkout-session`,
   )
 }

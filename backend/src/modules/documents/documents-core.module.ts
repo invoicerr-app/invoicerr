@@ -63,6 +63,13 @@ import { buildArticleReferenceProvider } from './references/article-reference.pr
 import { buildClientReferenceProvider } from './references/client-reference.provider';
 import { buildDocumentReferenceProvider } from './references/document-reference.provider';
 import { EntityReferenceRegistry } from './references/reference-registry';
+import { PaymentProviderRegistry } from './payments/payment-provider-registry';
+import { PaymentSessionsService } from './payments/payment-sessions.service';
+import {
+  FakeStripeCheckoutClient,
+  RealStripeCheckoutClient,
+} from './payments/providers/stripe/stripe-checkout-client';
+import { StripeProvider } from './payments/providers/stripe/stripe-provider';
 import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
@@ -358,6 +365,29 @@ function buildAuthorityStatusPollerRegistry(
 }
 
 /**
+ * TODO_FEATURES.md rank 1 ("paiement en ligne") — same "a provider registers itself under an id"
+ * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above, one entry today
+ * ("stripe" — `payments/provider.ts`'s own header on why this is its own narrow registry, never
+ * `PluginRegistry`). Credentials are resolved the SAME way every other channel already does
+ * (`ChannelCredentialsService`, injected into `PaymentSessionsService` below, never into the provider
+ * itself — a `PaymentProvider` implementation is handed already-decrypted config by its caller, the
+ * same shape `DocumentTransport.send()` is handed a `ResolvedChannelConfig`'s own `config`).
+ *
+ * The ONE environment-conditional wiring decision in this whole feature: `NODE_ENV=test` (every jest
+ * run, and the e2e backend — `.env.test` sets it) gets `FakeStripeCheckoutClient`, never a real
+ * network call to `api.stripe.com` — the identical "swap a network-calling client for a deterministic
+ * fake under test" discipline `clients.module.ts#vatValidationClient` already holds for VIES. Webhook
+ * SIGNATURE VERIFICATION is never faked, in any environment — see `stripe-provider.ts`'s own header.
+ */
+function buildPaymentProviderRegistry(): PaymentProviderRegistry {
+  const registry = new PaymentProviderRegistry();
+  const checkoutClient =
+    process.env.NODE_ENV === 'test' ? new FakeStripeCheckoutClient() : new RealStripeCheckoutClient();
+  registry.register(new StripeProvider(checkoutClient));
+  return registry;
+}
+
+/**
  * Declarative reporting (`reporting/`): a NEW concept, never a transport (see
  * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
  * as `buildAuthorityStatusPollerRegistry` just above. "nav" (Hungary, NAV Online Számla 3.0) and
@@ -557,6 +587,15 @@ function buildEntityReferenceRegistry(
     // this module's own `exports` array) so `PublicDocumentsModule`'s controller — a DIFFERENT
     // module, importing `DocumentsCoreModule` directly — can inject it for the public OTP flow.
     SignaturesService,
+    // TODO_FEATURES.md rank 1 ("paiement en ligne") — see `buildPaymentProviderRegistry`'s own header
+    // just above. A plain class provider (like `AuthorityStatusPollerRegistry`/
+    // `DeclarationProviderRegistry`, never a string token — nothing outside this feature's own two
+    // controllers and `PortalService` ever needs to `@Inject()` it by name). `PaymentSessionsService`
+    // right below it is a plain class too, resolved by Nest the same way `ShareLinksService` above
+    // already is: its constructor (`DocumentsService`, `ChannelCredentialsService`,
+    // `PaymentProviderRegistry`) is entirely satisfied by providers already in this module's own graph.
+    { provide: PaymentProviderRegistry, useFactory: buildPaymentProviderRegistry },
+    PaymentSessionsService,
     // See signatures.service.ts's own `CLIENT_CONTACT_LOOKUP` header for
     // why this is a token/`useExisting` mapping, never a direct `ClientsService` constructor param on
     // that (decorated) class — the identical shape `DOCUMENT_WEBHOOK_EMITTER` below already uses.
@@ -712,6 +751,8 @@ function buildEntityReferenceRegistry(
     PecInboxPollerService,
     ShareLinksService,
     SignaturesService,
+    PaymentProviderRegistry,
+    PaymentSessionsService,
     AuthorityStatusPollerRegistry,
     ConformitySweepRunner,
     DeclarationProviderRegistry,

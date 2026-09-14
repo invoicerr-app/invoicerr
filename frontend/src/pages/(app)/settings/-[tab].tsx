@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Building2,
+  CreditCard,
   FileSpreadsheet,
   FileText,
   Fingerprint,
@@ -26,6 +27,7 @@ import AtcudSettings from "./_components/atcud.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
 import DangerZoneSettings from "./_components/danger.settings"
+import PaymentsSettings from "./_components/payments.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
 import InvitationsSettings from "./_components/invitations.settings"
 import MembersSettings from "./_components/members.settings"
@@ -69,6 +71,7 @@ export default function Settings() {
     "members",
     "plugins",
     "channels",
+    "payments",
     "signing",
     "atcud",
     "sso",
@@ -134,6 +137,11 @@ export default function Settings() {
       icon: Radio,
     },
     {
+      value: "payments",
+      label: t("settings.tabs.payments", "Payments"),
+      icon: CreditCard,
+    },
+    {
       value: "signing",
       label: t("settings.tabs.signing", "Signing certs"),
       icon: ShieldCheck,
@@ -177,6 +185,7 @@ export default function Settings() {
           "webhooks",
           "danger",
           "channels",
+          "payments",
           "signing",
           "atcud",
           "sso",
@@ -215,6 +224,8 @@ export default function Settings() {
         return <PluginsSettings />
       case "channels":
         return <ChannelsSettings />
+      case "payments":
+        return <PaymentsSettings />
       case "signing":
         return <SigningCertificatesSettings />
       case "atcud":

@@ -14,6 +14,7 @@ import { CountryReadinessModule } from './modules/country-readiness/country-read
 import { ConfigModule } from '@nestjs/config';
 import { AccountingExportModule } from './modules/documents/accounting-export/accounting-export.module';
 import { BankReconciliationModule } from './modules/documents/bank-reconciliation/bank-reconciliation.module';
+import { PaymentsModule } from './modules/documents/payments/payments.module';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
@@ -106,6 +107,16 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // real "record-payment" action rather than a second one (see bank-reconciliation.module.ts's own
     // header).
     BankReconciliationModule,
+    // TODO_FEATURES.md rank 1 ("paiement en ligne") — its own module, importing DocumentsCoreModule
+    // directly for the exact same reason BankReconciliationModule does just above (its webhook path
+    // calls the real "record-payment" action, never a second write path — see
+    // payment-sessions.service.ts's own header). Carries the ONE public route this feature adds
+    // outside the client-portal boundary (the provider webhook itself, which is not a client — see
+    // payments-webhook.controller.ts's own header on why its URL segment is a routing hint, not a
+    // credential) plus the staff-facing session read; the client-facing "open a checkout session"
+    // route lives inside ClientPortalModule instead (this feature's own brief: "sit inside that same
+    // boundary, not beside it").
+    PaymentsModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,
     PluginsModule,

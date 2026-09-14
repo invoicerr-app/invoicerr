@@ -78,6 +78,27 @@ export class PortalController {
     return this.portalService.refuseQuote(companyId, clientId, quoteId);
   }
 
+  @Post('documents/invoice/:id/checkout-session')
+  @ApiOperation({
+    summary: "Opens a payment checkout session for this client's own invoice",
+    description:
+      'The Pay link (TODO_FEATURES.md rank 1). Delegates to `PaymentSessionsService` — never writes a ' +
+      "DocumentPayment or touches a provider secret itself. See that service's own header for the " +
+      'amount guard (always the fresh outstanding balance), the provider connectivity check (501), and ' +
+      'the status check (409) this route can surface.',
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Invoice ID' })
+  @ApiResponse({ status: 200, description: 'Checkout session opened' })
+  @ApiResponse({ status: 404, description: 'Not this client’s invoice' })
+  @ApiResponse({ status: 409, description: 'Invoice not "sent", or already fully settled' })
+  @ApiResponse({ status: 501, description: 'No payment provider connected for this company' })
+  createCheckoutSession(
+    @ActivePortalClient() { companyId, clientId }: PortalIdentity,
+    @Param('id') invoiceId: string,
+  ) {
+    return this.portalService.createInvoiceCheckoutSession(companyId, clientId, invoiceId);
+  }
+
   @Get('documents/:typeId/:id/pdf')
   @ApiOperation({
     summary: "One of this client's own documents, as a PDF",

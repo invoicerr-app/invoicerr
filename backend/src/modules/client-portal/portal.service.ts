@@ -5,6 +5,10 @@ import prisma from '@/prisma/prisma.service';
 import { DocumentInstanceResult } from '../documents/actions/action-registry';
 import { DocumentsService } from '../documents/documents.service';
 import { findOwnedDocument, listDocuments, updateDocumentStatus } from '../documents/persistence';
+import {
+  InvoiceCheckoutSessionResult,
+  PaymentSessionsService,
+} from '../documents/payments/payment-sessions.service';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 import { SignaturesService } from '../documents/signatures/signatures.service';
 import { computeDocumentTotals } from '../documents/totals/compute-totals';
@@ -74,6 +78,7 @@ export class PortalService {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly signaturesService: SignaturesService,
+    private readonly paymentSessions: PaymentSessionsService,
   ) {}
 
   async getProfile(companyId: string, clientId: string): Promise<PortalProfile> {
@@ -172,6 +177,32 @@ export class PortalService {
     }
     const updated = await updateDocumentStatus(companyId, 'quote', quoteId, 'refused');
     return { status: updated.status };
+  }
+
+  /**
+   * TODO_FEATURES.md rank 1 ("paiement en ligne") — opens (or reuses) a Stripe Checkout session for
+   * one of THIS client's own invoices. `assertVisibleToClient(..., 'invoice', ...)` is what stands in
+   * for the ownership/visibility check every other write in this class already runs through (see this
+   * class's own header) — a 404, never a 403, for an invoice belonging to another client of this same
+   * company or one this client type never sees at all (a draft). `PaymentSessionsService` itself
+   * re-checks status ("sent") and the outstanding balance on top (its own header) — this method's OWN
+   * job stops at "does this token's owner get to ask about THIS document at all".
+   *
+   * `successUrl`/`cancelUrl` point back at the portal's own dashboard (never trusted as a payment
+   * signal either way — only a verified webhook moves the balance, see `PaymentSessionsService`'s own
+   * header) with a query flag the frontend reads to show the right toast on return.
+   */
+  async createInvoiceCheckoutSession(
+    companyId: string,
+    clientId: string,
+    documentId: string,
+  ): Promise<InvoiceCheckoutSessionResult> {
+    await this.assertVisibleToClient(companyId, clientId, 'invoice', documentId);
+    const appUrl = process.env.APP_URL || '';
+    return this.paymentSessions.createInvoiceCheckoutSession(companyId, documentId, {
+      successUrl: `${appUrl}/portal?payment=success`,
+      cancelUrl: `${appUrl}/portal?payment=cancelled`,
+    });
   }
 
   /**

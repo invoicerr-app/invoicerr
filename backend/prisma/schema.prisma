@@ -445,6 +445,8 @@ model Company {
   // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — see BankStatement/BankStatementLine below.
   bankStatements          BankStatement[]
   bankStatementLines      BankStatementLine[]
+  // TODO_FEATURES.md rank 1 ("paiement en ligne") — see PaymentCheckoutSession below.
+  paymentCheckoutSessions PaymentCheckoutSession[]
 }
 
 // Manually entered exchange rates. The rule that governs
@@ -1148,6 +1150,11 @@ model DocumentInstance {
   // it was matched to survives.
   bankStatementReconciliations BankStatementLine[]
 
+  // TODO_FEATURES.md rank 1 ("paiement en ligne") — see PaymentCheckoutSession below. Every checkout
+  // session ever opened against this invoice (a client can abandon one and try again, so this is a
+  // list, not a nullable single row).
+  paymentCheckoutSessions PaymentCheckoutSession[]
+
   @@index([companyId, typeId])
 }
 
@@ -1301,7 +1308,101 @@ model DocumentPayment {
   // this exact model (see e.g. `DocumentInstance.timeEntries` for the identical pattern with TimeEntry).
   reconciledBy BankStatementLine[]
 
+  // TODO_FEATURES.md rank 1 ("paiement en ligne") — the checkout session that PRODUCED this payment,
+  // when it was recorded by a provider webhook rather than typed in by hand or reconciled from a bank
+  // statement (`payments/payment-sessions.service.ts`). `onDelete: SetNull` on the session's own side
+  // (see `PaymentCheckoutSession.payment` below), the exact same "a payment is a fact about money that
+  // really arrived, independent of whether the record that first pointed at it survives" reasoning
+  // `reconciledBy` just above already holds for a bank line.
+  fromCheckoutSession PaymentCheckoutSession[]
+
   @@index([companyId, documentId])
+}
+
+// TODO_FEATURES.md rank 1 ("paiement en ligne") — one attempt to pay an invoice through an external
+// payment provider's OWN hosted page (Stripe Checkout today — see `payments/provider.ts`'s own header
+// for why this is a narrow interface + registry, never a `PluginRegistry` entry). This table exists
+// for exactly two reasons neither `DocumentPayment` nor the provider itself can give:
+//
+//  1. THE AMOUNT CHARGED, pinned at session-creation time. `amountMinor`/`currency` are read from
+//     `settlement/compute-settlement.ts`'s own `outstandingMinor` the INSTANT the client clicks "Pay"
+//     (`PaymentSessionsService.createInvoiceCheckoutSession`) — never re-derived from anything the
+//     provider or the browser later sends back. A webhook event never carries a trustworthy amount of
+//     its own reason to charge; this row is the one place that says what THIS session was actually
+//     opened for.
+//  2. REPLAY SAFETY. `status` starts PENDING and is flipped to COMPLETED by an ATOMIC, conditional
+//     `UPDATE ... WHERE status = 'PENDING'` (`payment-sessions.persistence.ts#claimSessionForCompletion`,
+//     the exact same claim-then-act shape `bank-reconciliation/persistence.ts#claimLineForReconciliation`
+//     already uses for the identical "an external event must credit a document AT MOST ONCE" problem).
+//     A provider redelivering the SAME webhook event (its own documented at-least-once contract) finds
+//     the row already COMPLETED and does nothing — never a second `DocumentPayment`.
+//
+// `@@unique([providerId, providerSessionId])` is what makes a session individually addressable from an
+// inbound webhook, which carries the PROVIDER's own session id, never this row's own `id`.
+model PaymentCheckoutSession {
+  id         String   @id @default(cuid())
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId  String
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  // A `payments/payment-provider-registry.ts` id — "stripe" today, the same "a provider registers
+  // itself under an id" convention `transports/transport-registry.ts`'s own `providerId` already holds.
+  providerId String
+  // The PROVIDER's own session/checkout id (Stripe's `cs_...`) — what an inbound webhook event names,
+  // never this row's own `id`. Unique per provider (never reused): what makes `findSessionByProviderRef`
+  // an exact, non-ambiguous lookup.
+  providerSessionId String
+
+  status PaymentCheckoutSessionStatus @default(PENDING)
+
+  // The OUTSTANDING amount this session was opened to collect, pinned at creation time (see this
+  // model's own header, point 1) — NEVER recomputed on webhook receipt, and never trusted from
+  // anything the provider or the browser sends back.
+  amountMinor Int
+  currency    String
+
+  // The provider's OWN hosted payment page — never rendered by this app (see `provider.ts`'s own
+  // header: "the payment page is the provider's own hosted surface; this app holds a session id and a
+  // status, nothing more"). Kept so a client re-opening an already-pending session can be handed the
+  // SAME link rather than a second, orphaned one.
+  checkoutUrl String
+
+  // Set the instant `claimSessionForCompletion` wins the race AND `record-payment` succeeds — see
+  // `payment-sessions.service.ts#handleWebhookEvent`'s own header for the exact ordering and what a
+  // failure between the two steps leaves behind. `onDelete: SetNull`: deleting the payment it produced
+  // (this codebase never does, but see `DocumentPayment`'s own header) must not take this audit row
+  // down with it.
+  payment   DocumentPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  paymentId String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Never two sessions credited to the SAME payment row — a data-integrity backstop against a future
+  // bug in this module, the identical reasoning `BankStatementLine`'s own `@@unique([reconciledPaymentId])`
+  // already documents for the equivalent field. Postgres never treats two NULLs as a duplicate under a
+  // unique constraint, so this activates only once `paymentId` is actually set.
+  @@unique([paymentId])
+  @@unique([providerId, providerSessionId])
+  @@index([companyId, documentId])
+}
+
+enum PaymentCheckoutSessionStatus {
+  // The ordinary resting state between "the client clicked Pay" and "the provider told us what
+  // happened" — also the state a webhook redelivery finds once this session has already been claimed
+  // by an EARLIER delivery of the SAME event (see this model's own header, point 2) or released back
+  // after a "record-payment" failure (`payment-sessions.persistence.ts#releaseSessionClaim`) — a
+  // session that failed to record is retryable, never stuck.
+  PENDING
+  // Exactly one `DocumentPayment` was created from this session — `paymentId`/`completedAt` are set
+  // together, on the SAME atomic claim, never independently. Terminal: nothing in this module ever
+  // moves a session back out of this status.
+  COMPLETED
+  // The provider itself reported the checkout did NOT succeed (an expired session, a declined card) —
+  // distinct from PENDING (which still might complete) and from COMPLETED (which did): a client sees
+  // this and can open a fresh session for the same invoice.
+  FAILED
 }
 
 // TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé") — a single imported bank

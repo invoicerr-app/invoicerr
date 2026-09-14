@@ -1741,6 +1741,7 @@
       "webhooks": "Webhooks",
       "apiKeys": "API Keys",
       "channels": "E-invoicing",
+      "payments": "Payments",
       "signing": "Signing certs",
       "atcud": "ATCUD",
       "members": "Members",
@@ -2399,6 +2400,41 @@
         "suggested": "Suggested for your country"
       },
       "title": "Channels"
+    },
+    "payments": {
+      "actions": {
+        "cancel": "Cancel",
+        "connect": "Connect",
+        "copy": "Copy",
+        "disconnect": "Disconnect",
+        "edit": "Edit"
+      },
+      "description": "Connect a payment provider so a Pay link appears on invoices in the client portal.",
+      "fields": {
+        "environment": "Environment",
+        "environmentProd": "Live",
+        "environmentTest": "Test",
+        "secretKey": "Secret key",
+        "webhookSecret": "Webhook signing secret"
+      },
+      "messages": {
+        "connectError": "Failed to connect the payment provider",
+        "connectSuccess": "Payment provider connected",
+        "copied": "Copied to clipboard",
+        "disconnectError": "Failed to disconnect the payment provider",
+        "disconnectSuccess": "Payment provider disconnected",
+        "fieldsRequired": "Secret key and webhook secret are both required"
+      },
+      "status": {
+        "connected": "Connected ({{environment}})",
+        "notConnected": "Not connected"
+      },
+      "stripeDescription": "Bring your own Stripe account — this app never sees a card number or holds your secret keys anywhere but encrypted, and the payment page is always Stripe's own.",
+      "title": "Payments",
+      "webhookUrl": {
+        "hint": "Register this exact URL as a webhook endpoint in your Stripe dashboard (event: checkout.session.completed), then paste the signing secret it gives you below.",
+        "label": "Webhook URL"
+      }
     },
     "signing": {
       "description": "Upload a PKCS#12 (.pfx / .p12) signing certificate to have this company's document PDFs signed PAdES. This is an optional capability — nothing in this product requires a signed document.",
@@ -3252,6 +3288,10 @@
       "totalOutstanding": "Outstanding",
       "downloadPdf": "Download PDF",
       "downloadError": "The PDF could not be downloaded.",
+      "pay": "Pay",
+      "payError": "Could not open the payment page. Please try again.",
+      "payReturnSuccess": "Payment received — thank you! Your balance will update shortly.",
+      "payReturnCancelled": "Payment cancelled — nothing was charged.",
       "columns": {
         "document": "Document",
         "issueDate": "Issue date",

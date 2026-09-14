@@ -1,5 +1,7 @@
 import { FileWarning, LogOut } from "lucide-react"
+import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +14,7 @@ import { settlementBadgeInfo, TONE_CLASSES } from "@/components/documents/docume
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { ApiError } from "@/hooks/use-api-query"
 import {
+  useCreatePortalCheckoutSession,
   usePortalProfile,
   usePortalQuotes,
   usePortalStatement,
@@ -87,6 +90,51 @@ async function downloadPortalPdf(typeId: string, id: string, errorMessage: strin
   }
 }
 
+/**
+ * TODO_FEATURES.md rank 1 ("paiement en ligne") — the Pay link. Shown only for an invoice
+ * (`row.typeId === "invoice"`, never a quote or a credit note) still carrying an outstanding balance.
+ * Opens the provider's own hosted checkout page in a NEW TAB (`window.open`, the exact same mechanism
+ * `downloadPortalPdf` right above already uses for an external artifact) rather than a full-page
+ * redirect: a client who abandons or fails the payment keeps their portal session and the rest of
+ * their document list intact in the original tab, instead of having to re-open the emailed portal
+ * link from scratch. The balance itself never moves here either way: only a verified webhook does that
+ * (see the backend's own `PaymentSessionsService` header) — `successUrl`/`cancelUrl` (the NEW tab's own
+ * eventual destination) bring that tab back to `/portal`, where the return-banner effect below asks
+ * the SAME source of truth (`GET .../statement`) for the up-to-date balance, never trusting the
+ * redirect itself as a signal.
+ */
+function PayButton({ row }: { row: ClientStatementDocumentRow }) {
+  const { t } = useTranslation()
+  const createSession = useCreatePortalCheckoutSession()
+
+  if (row.typeId !== "invoice" || row.outstandingMinor <= 0) return null
+
+  const handlePay = () => {
+    createSession.mutate(
+      { invoiceId: row.id },
+      {
+        onSuccess: (data) => {
+          window.open(data.checkoutUrl, "_blank", "noopener,noreferrer")
+        },
+        onError: (error) =>
+          toast.error(error instanceof ApiError ? error.message : t("clientPortal.statement.payError")),
+      },
+    )
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      loading={createSession.isPending}
+      onClick={handlePay}
+      dataCy={`portal-pay-button-${row.id}`}
+    >
+      {t("clientPortal.statement.pay")}
+    </Button>
+  )
+}
+
 function QuoteRowActions({ quote }: { quote: PortalQuoteRow }) {
   const { t } = useTranslation()
   const requestSignature = useRequestPortalQuoteSignature()
@@ -159,6 +207,29 @@ export default function ClientPortalDashboard() {
   const profile = usePortalProfile(hasToken)
   const statement = usePortalStatement(hasToken && !!profile.data)
   const quotes = usePortalQuotes(hasToken && !!profile.data)
+
+  // TODO_FEATURES.md rank 1 ("paiement en ligne") — the return leg of a Pay redirect
+  // (`PayButton`'s own `successUrl`/`cancelUrl`). Purely a UX courtesy: the query flag is NEVER trusted
+  // as proof of payment (a client could type `?payment=success` into the address bar for nothing) — it
+  // only decides which toast to show and whether to ask `GET .../statement` for a fresh read, the same
+  // source of truth every other balance on this screen already comes from. A webhook that landed
+  // before this redirect completes (the common case — Stripe's own webhook usually beats the browser
+  // back to `/portal`) is reflected immediately; one still in flight simply shows up on the NEXT read.
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Runs once, on mount, against whatever query string the redirect landed with — never re-armed by
+  // `statement`/`t`/`setSearchParams` changing identity on every render.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount, see above.
+  useEffect(() => {
+    const payment = searchParams.get("payment")
+    if (payment === "success") {
+      toast.success(t("clientPortal.statement.payReturnSuccess"))
+      statement.refetch()
+      setSearchParams({}, { replace: true })
+    } else if (payment === "cancelled") {
+      toast.info(t("clientPortal.statement.payReturnCancelled"))
+      setSearchParams({}, { replace: true })
+    }
+  }, [])
 
   const handleSignOut = () => {
     clearPortalToken()
@@ -250,17 +321,24 @@ export default function ClientPortalDashboard() {
                           <StatementRowBadge row={row} />
                         </TableCell>
                         <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              downloadPortalPdf(row.typeId, row.id, t("clientPortal.statement.downloadError"))
-                            }
-                            dataCy={`portal-document-pdf-button-${row.id}`}
-                          >
-                            {t("clientPortal.statement.downloadPdf")}
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <PayButton row={row} />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                downloadPortalPdf(
+                                  row.typeId,
+                                  row.id,
+                                  t("clientPortal.statement.downloadError"),
+                                )
+                              }
+                              dataCy={`portal-document-pdf-button-${row.id}`}
+                            >
+                              {t("clientPortal.statement.downloadPdf")}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

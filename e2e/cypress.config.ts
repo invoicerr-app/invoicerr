@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -294,6 +295,22 @@ export default defineConfig({
           } finally {
             await client.end();
           }
+        },
+
+        /**
+         * TODO_FEATURES.md rank 1 ("paiement en ligne") — `60-online-payment.cy.ts`'s ONE piece of
+         * Node-side help: a real `Stripe-Signature` header, computed exactly the way the backend's own
+         * `stripe-signature.ts#verifyStripeSignature` verifies one (HMAC-SHA256 over
+         * `${timestamp}.${payload}`), using node's own `crypto` — the browser has no `node:crypto`, and
+         * `crypto.subtle` is async/awkward to thread through a Cypress command chain for what is
+         * otherwise a one-line HMAC. This is NOT a shortcut around the real check: the backend still
+         * runs its own, real `verifyStripeSignature` against whatever this produces — this task only
+         * stands in for "a real Stripe server signing a real payload with the secret this company
+         * configured", the one thing this offline suite cannot literally be.
+         */
+        stripeWebhookSignature({ payload, secret, timestampSeconds }: { payload: string; secret: string; timestampSeconds: number }) {
+          const hmac = createHmac("sha256", secret).update(`${timestampSeconds}.${payload}`).digest("hex");
+          return `t=${timestampSeconds},v1=${hmac}`;
         },
 
         // See this file's own header just above for why a real

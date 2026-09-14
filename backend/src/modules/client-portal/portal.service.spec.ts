@@ -10,6 +10,7 @@ import { buildQuoteDescriptor } from '../documents/descriptors/quote.descriptor'
 import { DocumentTypeRegistry } from '../documents/descriptors/type-registry';
 import { DocumentsService } from '../documents/documents.service';
 import * as persistence from '../documents/persistence';
+import { PaymentSessionsService } from '../documents/payments/payment-sessions.service';
 import * as clientStatement from '../documents/settlement/client-statement';
 import { EntityReferenceRegistry } from '../documents/references/reference-registry';
 import { SignaturesService } from '../documents/signatures/signatures.service';
@@ -60,14 +61,29 @@ function fakeSignaturesService(): SignaturesService {
   } as unknown as SignaturesService;
 }
 
+function fakePaymentSessionsService(): PaymentSessionsService {
+  return {
+    createInvoiceCheckoutSession: jest
+      .fn()
+      .mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/x' }),
+  } as unknown as PaymentSessionsService;
+}
+
 function buildService(): {
   service: PortalService;
   documentsService: DocumentsService;
   signatures: SignaturesService;
+  paymentSessions: PaymentSessionsService;
 } {
   const documentsService = buildDocumentsService();
   const signatures = fakeSignaturesService();
-  return { service: new PortalService(documentsService, signatures), documentsService, signatures };
+  const paymentSessions = fakePaymentSessionsService();
+  return {
+    service: new PortalService(documentsService, signatures, paymentSessions),
+    documentsService,
+    signatures,
+    paymentSessions,
+  };
 }
 
 const COMPANY = 'company-1';
@@ -249,6 +265,36 @@ describe('PortalService — the client-portal security boundary', () => {
       const result = await service.requestQuoteSignature(COMPANY, CLIENT_A, 'quote-a');
       expect(result).toEqual({ message: 'sent' });
       expect(signatures.requestSignature).toHaveBeenCalledWith(COMPANY, 'quote', 'quote-a');
+    });
+  });
+
+  describe('createInvoiceCheckoutSession', () => {
+    it('a client CANNOT open a checkout session for another client’s invoice — 404, never calls PaymentSessionsService', async () => {
+      const { service, paymentSessions } = buildService();
+      const invoiceB = { ...INVOICE_A, id: 'invoice-b', data: { client: CLIENT_B, currency: 'EUR' } };
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(invoiceB);
+
+      await expect(
+        service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-b'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(paymentSessions.createInvoiceCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('delegates to PaymentSessionsService, verbatim, for THIS client’s own invoice', async () => {
+      const { service, paymentSessions } = buildService();
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(INVOICE_A);
+
+      const result = await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a');
+
+      expect(result).toEqual({ checkoutUrl: 'https://checkout.stripe.com/x' });
+      expect(paymentSessions.createInvoiceCheckoutSession).toHaveBeenCalledWith(
+        COMPANY,
+        'invoice-a',
+        expect.objectContaining({
+          successUrl: expect.stringContaining('payment=success'),
+          cancelUrl: expect.stringContaining('payment=cancelled'),
+        }),
+      );
     });
   });
 

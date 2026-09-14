@@ -44,3 +44,10 @@ export interface PortalQuoteRow {
   amountMinor: number
   canRespond: boolean
 }
+
+/** What `POST /api/portal/documents/invoice/:id/checkout-session` returns — mirrors the backend's
+ *  `InvoiceCheckoutSessionResult` (TODO_FEATURES.md rank 1, "paiement en ligne"). Nothing but a URL:
+ *  the payment page itself is the provider's own hosted surface, never rendered by this app. */
+export interface PortalCheckoutSession {
+  checkoutUrl: string
+}
