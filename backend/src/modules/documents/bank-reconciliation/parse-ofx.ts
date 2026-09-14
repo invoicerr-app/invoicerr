@@ -1,4 +1,5 @@
 import { toMinor } from '@/utils/financial';
+import { MAX_STATEMENT_AMOUNT_MINOR } from './parse-csv';
 
 import { ParsedStatementLine } from './parse-csv';
 
@@ -77,13 +78,22 @@ export function parseBankStatementOfx(text: string, currency: string): OfxParseR
       return;
     }
 
+    // Same bound as the CSV parser, for the same reason: `amountMinor` is a Postgres `Int`, and a
+    // value past it must be refused here, where the row is still skippable, rather than at the INSERT
+    // where it would take the whole import with it. See MAX_STATEMENT_AMOUNT_MINOR's own comment.
+    const amountMinor = toMinor(amountMajor, currency);
+    if (Math.abs(amountMinor) > MAX_STATEMENT_AMOUNT_MINOR) {
+      errors.push(`Transaction ${position}: "${trnamt}" is out of the range a statement line can hold`);
+      return;
+    }
+
     const memo = extractOfxTag(block, 'MEMO');
     const name = extractOfxTag(block, 'NAME');
     const fitid = extractOfxTag(block, 'FITID');
 
     lines.push({
       date,
-      amountMinor: toMinor(amountMajor, currency),
+      amountMinor,
       // MEMO over NAME when both are present — MEMO is the free-text note a payer actually typed
       // (the one place an invoice number is likely to appear), NAME is closer to a fixed payee label.
       label: memo || name || '',

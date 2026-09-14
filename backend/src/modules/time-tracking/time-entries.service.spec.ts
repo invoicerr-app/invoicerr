@@ -21,8 +21,11 @@ jest.mock('@/prisma/prisma.service', () => ({
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findFirstOrThrow: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     project: { findFirst: jest.fn() },
     client: { findFirst: jest.fn() },
@@ -33,6 +36,9 @@ jest.mock('@/prisma/prisma.service', () => ({
 
 const mockedPrisma = prisma as unknown as {
   timeEntry: {
+    findFirstOrThrow: jest.Mock;
+    updateMany: jest.Mock;
+    deleteMany: jest.Mock;
     create: jest.Mock;
     findMany: jest.Mock;
     findFirst: jest.Mock;
@@ -202,12 +208,40 @@ describe('TimeEntriesService', () => {
 
     it('an unbilled entry can still be freely edited and deleted', async () => {
       mockedPrisma.timeEntry.findFirst.mockResolvedValue(entry({ invoiceId: null }));
-      mockedPrisma.timeEntry.update.mockResolvedValue(entry({ description: 'edited' }));
+      mockedPrisma.timeEntry.updateMany.mockResolvedValue({ count: 1 });
+      mockedPrisma.timeEntry.findFirstOrThrow.mockResolvedValue(entry({ description: 'edited' }));
       await expect(service.update('company-1', 'entry-1', { description: 'edited' })).resolves.toBeDefined();
 
       mockedPrisma.timeEntry.findFirst.mockResolvedValue(entry({ invoiceId: null }));
-      mockedPrisma.timeEntry.delete.mockResolvedValue(entry());
+      mockedPrisma.timeEntry.deleteMany.mockResolvedValue({ count: 1 });
       await expect(service.remove('company-1', 'entry-1')).resolves.toEqual({ id: 'entry-1' });
+    });
+
+    // The two tests above prove the check refuses an entry ALREADY billed when the call starts. They
+    // cannot see the window between that read and the write, which is exactly where `billToInvoice`
+    // lands. These two pin the guard that now lives IN the write.
+    it('update() refuses with 409 when billing claims the entry between the read and the write', async () => {
+      mockedPrisma.timeEntry.findFirst.mockResolvedValue(entry({ invoiceId: null }));
+      mockedPrisma.timeEntry.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.update('company-1', 'entry-1', { durationMinutes: 90 })).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockedPrisma.timeEntry.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ invoiceId: null, companyId: 'company-1' }),
+        }),
+      );
+    });
+
+    it('remove() refuses in the same window, and never hard-deletes a row an invoice line came from', async () => {
+      mockedPrisma.timeEntry.findFirst.mockResolvedValue(entry({ invoiceId: null }));
+      mockedPrisma.timeEntry.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.remove('company-1', 'entry-1')).rejects.toThrow(ConflictException);
+      expect(mockedPrisma.timeEntry.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'entry-1', companyId: 'company-1', invoiceId: null },
+      });
     });
   });
 

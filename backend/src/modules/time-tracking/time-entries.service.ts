@@ -170,8 +170,13 @@ export class TimeEntriesService {
     }
     const currency = await resolveCompanyCurrency(companyId);
 
-    const updated = await prisma.timeEntry.update({
-      where: { id },
+    // `assertNotBilled` above reads, this writes, and `billToInvoice` can land between the two. So
+    // the write carries the invariant in its OWN `where` rather than trusting the read: `invoiceId:
+    // null` makes Postgres re-evaluate it after any concurrent claim commits, exactly as
+    // `billToInvoice`'s own `updateMany` does. `companyId` is there for the same reason -- the read
+    // scoped it, the write must too, or tenancy holds only as long as nothing interleaves.
+    const claimed = await prisma.timeEntry.updateMany({
+      where: { id, companyId, invoiceId: null },
       data: {
         date: dto.date !== undefined ? new Date(dto.date) : existing.date,
         durationMinutes: dto.durationMinutes ?? existing.durationMinutes,
@@ -184,9 +189,16 @@ export class TimeEntriesService {
               : null
             : existing.hourlyRateMinor,
       },
+    });
+    if (claimed.count === 0) {
+      // Nothing matched, and the row demonstrably existed a moment ago: it was billed in between.
+      throw new ConflictException('This time entry has just been billed and can no longer be edited.');
+    }
+
+    const updated = await prisma.timeEntry.findFirstOrThrow({
+      where: { id, companyId },
       include: { project: { select: PROJECT_SELECT } },
     });
-
     return withRate(updated, currency);
   }
 
@@ -196,7 +208,13 @@ export class TimeEntriesService {
       throw new NotFoundException('Time entry not found');
     }
     this.assertNotBilled(existing);
-    await prisma.timeEntry.delete({ where: { id } });
+    // Same race as `update()` above, with a worse outcome: a plain `delete` would destroy the source
+    // row of an invoice line that a concurrent `billToInvoice` had just frozen. The invariant goes in
+    // the `where`.
+    const deleted = await prisma.timeEntry.deleteMany({ where: { id, companyId, invoiceId: null } });
+    if (deleted.count === 0) {
+      throw new ConflictException('This time entry has just been billed and can no longer be deleted.');
+    }
     return { id };
   }
 

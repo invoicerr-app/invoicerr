@@ -106,6 +106,15 @@ function splitCsvLine(line: string, delimiter: string): string[] {
  *  with whitespace/currency symbols a bank export sometimes appends (`"1 234,56 €"`). Throws (never
  *  guesses) on anything that still isn't a finite number once cleaned — the caller turns that into a
  *  named, row-numbered entry in `CsvParseResult.errors`. */
+/** `BankStatementLine.amountMinor` is a Postgres `Int`, so a value past 2^31-1 minor units cannot be
+ *  stored -- about 21.4 million in a two-decimal currency. Without this bound a single oversized cell
+ *  (a stray extra digit, a currency-unit mixup) parses to a perfectly finite number, passes every
+ *  check here, and only fails at the INSERT -- outside the per-row try/catch, so it takes the whole
+ *  import down instead of landing in `errors[]` like every other malformed row. That contradicts this
+ *  module's own promise that a bad row never stops the rest of the file. The bound belongs where the
+ *  row is still recoverable. */
+export const MAX_STATEMENT_AMOUNT_MINOR = 2_147_483_647;
+
 function parseCsvAmount(raw: string, decimalSeparator: '.' | ','): number {
   const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
   const stripped = raw
@@ -209,7 +218,11 @@ export function parseBankStatementCsv(
       const amountMajor = parseCsvAmount(row[mapping.amountColumn], mapping.decimalSeparator);
       const label = row[mapping.labelColumn] ?? '';
       const reference = mapping.referenceColumn ? row[mapping.referenceColumn] || null : null;
-      lines.push({ date, amountMinor: toMinor(amountMajor, currency), label, reference, raw: row });
+      const amountMinor = toMinor(amountMajor, currency);
+      if (Math.abs(amountMinor) > MAX_STATEMENT_AMOUNT_MINOR) {
+        throw new Error(`"${row[mapping.amountColumn]}" is out of the range a statement line can hold`);
+      }
+      lines.push({ date, amountMinor, label, reference, raw: row });
     } catch (error) {
       errors.push(`Row ${fileRow}: ${error instanceof Error ? error.message : String(error)}`);
     }

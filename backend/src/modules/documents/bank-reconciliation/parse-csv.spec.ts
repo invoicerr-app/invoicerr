@@ -103,4 +103,17 @@ describe('parseBankStatementCsv — honest, row-numbered degrade', () => {
   it('an empty file parses to zero lines, zero errors', () => {
     expect(parseBankStatementCsv('', FR_MAPPING, 'EUR')).toEqual({ lines: [], errors: [] });
   });
+
+  it('an out-of-range amount is a skipped ROW, never a failed import — the Int column cannot hold it', () => {
+    // Without the bound this parses to a finite number, passes every check, and only fails at the
+    // INSERT, outside the per-row try/catch — taking a whole good statement down with it.
+    const result = parseBankStatementCsv(
+      'Date;Montant;Libellé\n01/02/2026;99999999999,99;Huge\n02/02/2026;120,00;Fine\n',
+      FR_MAPPING,
+      'EUR',
+    );
+    expect(result.lines).toHaveLength(1);
+    expect(result.lines[0].label).toBe('Fine');
+    expect(result.errors.join(' ')).toMatch(/out of the range/);
+  });
 });
