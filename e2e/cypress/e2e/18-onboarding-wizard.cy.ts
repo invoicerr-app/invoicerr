@@ -131,8 +131,16 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 		});
 	});
 
+	// The gate condition is repeated in the TITLE, not only in the comment above it: CI's own
+	// Cypress results table shows a test's title next to its Pending count, never the source
+	// comment that explains why it's pending. Without this prefix, a reader of that table alone
+	// (e.g. "18-onboarding-wizard.cy.ts  4  3  -  1  -") sees an unexplained gap — exactly the
+	// false-green shape this repository hunts elsewhere — even though the gap is fully
+	// intentional and already documented right here. The backend's equivalent convention gets
+	// this for free from a `*.live.spec.ts` FILENAME; a single `it` inside a shared describe
+	// block has no filename of its own, so the title carries the signal instead.
 	(liveLookup ? it : it.skip)(
-		"a country with a real register: search fires on Next and the real result is persisted",
+		"[COMPANY_LOOKUP_LIVE=1, skipped by default] a country with a real register: search fires on Next and the real result is persisted",
 		() => {
 			// `**/api/company-lookup**` ALSO caught `/capabilities/FR`, whose body has no
 			// `found`: the test was waiting on the wrong request and read `undefined`. The search is the
