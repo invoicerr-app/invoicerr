@@ -116,8 +116,28 @@ describe('mapChorusProStatus', () => {
   it('maps SUSPENDU → PENDING', () => {
     expect(mapChorusProStatus('SUSPENDU')).toBe('PENDING');
   });
-  it('maps unknown → PENDING', () => {
-    expect(mapChorusProStatus('WHATEVER')).toBe('PENDING');
+
+  // The three real, `IN_`-prefixed values LIVE-MEASURED against the PISTE sandbox, 2026-09-14 (see
+  // this function's own doc comment for the full provenance — not Swagger-sourced, not the AIFE EDI
+  // annex, direct observation only). Each of these three assertions FAILS on the pre-fix table (every
+  // `IN_`-prefixed value used to fall through to the `PENDING` default).
+  it('maps IN_INTEGRE → CLEARED (real terminal accepted state, CPP0011117000000000425903)', () => {
+    expect(mapChorusProStatus('IN_INTEGRE')).toBe('CLEARED');
+    expect(mapChorusProStatus('in_integre')).toBe('CLEARED');
+  });
+  it('maps IN_REJETE → REJECTED (real rejection, CPP0011117000000000425895)', () => {
+    expect(mapChorusProStatus('IN_REJETE')).toBe('REJECTED');
+  });
+  it('maps IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP → PENDING (observed immediately after every deposit)', () => {
+    expect(mapChorusProStatus('IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP')).toBe('PENDING');
+  });
+
+  // A value neither table recognizes must be its OWN, visible outcome — never silently PENDING, which
+  // is exactly what hid the three `IN_`-prefixed values above before this fix (see this function's own
+  // doc comment). This test FAILS on the pre-fix table too (it returned 'PENDING').
+  it('maps an unrecognized status → UNKNOWN, never silently PENDING', () => {
+    expect(mapChorusProStatus('WHATEVER')).toBe('UNKNOWN');
+    expect(mapChorusProStatus('IN_SOME_FUTURE_STATE_NOBODY_HAS_SEEN_YET')).toBe('UNKNOWN');
   });
 });
 

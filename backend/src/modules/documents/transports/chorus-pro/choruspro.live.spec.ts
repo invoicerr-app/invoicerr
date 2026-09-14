@@ -43,9 +43,11 @@
  * own SINGLE immediate `consulterCr()` poll below only ever asserts `PENDING`/`CLEARED` — reaching
  * `IN_INTEGRE` needed a LATER, separate poll, same structural point the run above already
  * demonstrated once (run 1: a single immediate poll read `PENDING` for a deposit later found
- * rejected). `mapChorusProStatus` (`choruspro-client.ts`) also does not yet recognize any of the
- * `IN_`-prefixed values actually observed (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`,
- * `IN_REJETE`, `IN_INTEGRE`) — see that function's own doc comment.
+ * rejected — at the time, coincidentally, since every `IN_`-prefixed value fell through to the
+ * function's own `PENDING` default; `mapChorusProStatus` (`choruspro-client.ts`) has SINCE been fixed
+ * to recognize all three `IN_`-prefixed values actually observed here
+ * (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`, `IN_INTEGRE`) by name — see that
+ * function's own doc comment for the corrected table and its provenance).
  *
  * Getting the technical account needs NO real company: the qualification space issues a fictitious
  * structure and SIRET ("matelas de données") — see `credentials-guide.md` §3, which quotes AIFE's

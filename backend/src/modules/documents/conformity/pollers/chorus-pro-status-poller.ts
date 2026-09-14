@@ -18,16 +18,17 @@
  * NAMES (`etatCourantDepotFlux`, `listeErreurDP`, `listeErreurTechnique`) are confirmed correct by
  * that round-trip, not merely Swagger-sourced any more.
  *
- * **But the VALUE VOCABULARY `mapChorusProStatus` compares against is now CONFIRMED WRONG, not
- * merely unverified** — see that function's own doc comment (`choruspro-client.ts`) for the full
- * detail: the real values observed (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`,
- * `IN_INTEGRE`) all carry an `IN_` prefix the current vocabulary does not recognize, so THIS
- * poller's own `isTerminalChorusProStatus` below never reports a real deposit as terminal — a real
- * rejection or a real `IN_INTEGRE` acceptance both read as PENDING today, forever. This is a genuine
- * functional gap, not a documentation nuance; fixing `mapChorusProStatus` is a logic change, out of
- * scope for this status-comment update. `choruspro.live.spec.ts` already exercises `consulterCr` as
- * its own step 4, against the real deposit — this poller calls the SAME client method, never a
- * second, poller-only path.
+ * **The VALUE VOCABULARY `mapChorusProStatus` compares against was found CONFIRMED WRONG the same
+ * day, and FIXED the same day** — see that function's own doc comment (`choruspro-client.ts`) for the
+ * full detail: the real values observed (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`,
+ * `IN_INTEGRE`) all carry an `IN_` prefix the vocabulary at the time did not recognize, so this
+ * poller's own `isTerminalChorusProStatus` below never reported a real deposit as terminal — a real
+ * rejection or a real `IN_INTEGRE` acceptance both read as PENDING, forever. Now fixed:
+ * `mapChorusProStatus` recognizes all three `IN_`-prefixed values (plus the bare vocabulary it already
+ * had), and a value it still does not recognize maps to its own `UNKNOWN` outcome — never silently
+ * PENDING again — which `poll()` below persists a log for (see there). `choruspro.live.spec.ts`
+ * already exercises `consulterCr` as its own step 4, against the real deposit — this poller calls the
+ * SAME client method, never a second, poller-only path.
  *
  * `mapChorusProStatus` (`choruspro-client.ts`) is the ONE vocabulary this poller trusts for
  * `isTerminal`. The `reason` on a rejection now prefers `consulterCRDetaille`'s own structured
@@ -35,6 +36,7 @@
  * code repeated at itself, which is all the OLD (nonexistent) route's response shape could ever have
  * offered.
  */
+import { logger } from '@/logger/logger.service';
 import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
@@ -59,12 +61,15 @@ import {
 
 export { CHORUS_PRO_PROVIDER_ID };
 
-/** A `statutFlux` is terminal exactly when `mapChorusProStatus` no longer calls it PENDING — CLEARED
- *  (VALIDE/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) and REJECTED (REJETE) alike, the same "predicate
- *  over the provider's own vocabulary" shape `peppol-status-poller.ts`'s own `isTerminal` already
- *  holds, never a fixed two-code list the way `pdp-status-poller.ts` can afford (PDP's own vocabulary
- *  never grew past fr:202/fr:213 in live proof — Chorus Pro's is wider, per the reference's
- *  own client). */
+/** A `statutFlux` is terminal exactly when `mapChorusProStatus` calls it CLEARED
+ *  (VALIDE/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE/IN_INTEGRE) or REJECTED (REJETE/IN_REJETE) — the
+ *  same "predicate over the provider's own vocabulary" shape `peppol-status-poller.ts`'s own
+ *  `isTerminal` already holds, never a fixed two-code list the way `pdp-status-poller.ts` can afford
+ *  (PDP's own vocabulary never grew past fr:202/fr:213 in live proof — Chorus Pro's is wider, per the
+ *  reference's own client). PENDING and UNKNOWN are BOTH non-terminal here, deliberately the same way:
+ *  an unrecognized value has no more basis to be read as a success or a failure than a recognized
+ *  in-flight one does — see `mapChorusProStatus`'s own doc comment for why UNKNOWN exists at all and
+ *  is never silently folded into PENDING at the LOGGING level, only at this terminality check. */
 function isTerminalChorusProStatus(statusCode: string): boolean {
   const mapped = mapChorusProStatus(statusCode);
   return mapped === 'CLEARED' || mapped === 'REJECTED';
@@ -106,6 +111,36 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
 
       const cr = await client.consulterCr(transportRef);
       const mapped = mapChorusProStatus(cr.statutFlux);
+
+      // Never silent — see `mapChorusProStatus`'s own doc comment for the full rationale. Persisted
+      // (not the raw Nest logger `conformity-sweep-runner.ts` uses for its OWN operational logging) so
+      // an admin can find it in Settings → Logs, the same "a human must be able to see this without
+      // reading server stdout" discipline `reminder-sweep-runner.ts` already holds for its own send
+      // failures — this is the ONE place with enough context (`companyId`, `transportRef`, the raw
+      // response) to make that log useful; `mapChorusProStatus` itself stays a pure, context-free
+      // mapper. Fires on every poll for as long as the value stays unrecognized, deliberately: a
+      // genuinely new Chorus Pro status must keep surfacing, not be swallowed after the first sighting,
+      // until someone adds it to `mapChorusProStatus`. Never awaited into a failure of the poll itself
+      // — `LoggerService` already never throws (catches its own write failures internally), so this is
+      // belt-and-suspenders, not a new failure mode.
+      if (mapped === 'UNKNOWN') {
+        await logger.error(
+          `Chorus Pro returned an unrecognized flux status "${cr.statutFlux}" for deposit ` +
+            `${transportRef} — mapChorusProStatus has no branch for it yet, so it reads as UNKNOWN ` +
+            "(never terminal, but never silently PENDING either — see that function's own doc " +
+            'comment).',
+          {
+            category: 'documents',
+            details: {
+              companyId,
+              providerId: CHORUS_PRO_PROVIDER_ID,
+              transportRef,
+              statutFlux: cr.statutFlux,
+              raw: cr.raw,
+            },
+          },
+        );
+      }
 
       // On a rejection, prefer the structured errors `consulterCRDetaille` actually carries
       // (`listeErreurDP`/`listeErreurTechnique` — see `choruspro-client.ts`'s own header) over the bare

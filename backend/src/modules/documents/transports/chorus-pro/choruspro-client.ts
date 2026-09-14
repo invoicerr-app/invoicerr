@@ -150,14 +150,16 @@
  * UPDATE 2026-09-14 — the ROUTE and response FIELD NAMES above were Swagger-sourced only; a real
  * PISTE application + Chorus Pro compte technique has SINCE run the live round-trip
  * (`choruspro.live.spec.ts`, `documentation/docs/developer-guide/credentials-guide.md` §3) and it
- * CONFIRMED the vocabulary in `mapChorusProStatus`'s own comment below is WRONG, not merely
+ * CONFIRMED the vocabulary in `mapChorusProStatus`'s own comment below was WRONG, not merely
  * unverified: `etatCourantDepotFlux` returned `IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP` while
  * pending, `IN_REJETE` on a real rejection, and `IN_INTEGRE` at the terminal accepted state — every
- * one of them carrying an `IN_` prefix `mapChorusProStatus` does not recognize, so all three fall
- * through to that function's own `PENDING` default today (a rejection is silently read as pending,
- * and the terminal accepted state never reads as CLEARED). Left UNCHANGED here because fixing the
- * mapping is a logic change, out of scope for this comment — see `mapChorusProStatus`'s own doc
- * comment for the same note repeated where the function actually lives.
+ * one of them carrying an `IN_` prefix `mapChorusProStatus` did not recognize, so all three used to
+ * fall through to that function's own `PENDING` default (a rejection silently read as pending, and
+ * the terminal accepted state never reading as CLEARED). FIXED same day — see `mapChorusProStatus`'s
+ * own doc comment for the corrected table, its provenance (live measurement, not Swagger — the
+ * official Swagger still declares no `enum` for this field, re-checked while fixing this), and why a
+ * value the table still does not recognize now maps to its own `UNKNOWN` outcome, persisted-logged by
+ * `chorus-pro-status-poller.ts#poll()`, rather than silently `PENDING`.
  *
  * References:
  *  - https://piste.gouv.fr/api-catalog-sandbox — PISTE sandbox API catalog (no account needed to browse)
@@ -234,15 +236,16 @@ export interface ChorusProCrResult {
    *  passed through. */
   numeroFluxDepot: string;
   /** `WsRetourConsulterCRDetaille.etatCourantDepotFlux` — overall flux status. The FIELD NAME is
-   *  Swagger-sourced (see this file's own header, "CORRECTED 2026-09-14"); the VALUE VOCABULARY
-   *  (VALIDE | REJETE | EN_COURS_DE_TRAITEMENT | DEPOSE | SUSPENDU | …) is NOT — that field has no
-   *  `enum` in the Swagger, so these values were inherited from the reference implementation. UPDATE
-   *  2026-09-14: a live round-trip has SINCE observed real values, and they do NOT match this
-   *  vocabulary — see `mapChorusProStatus`'s own doc comment for the confirmed-wrong detail. Named
-   *  `statutFlux` here (not `etatCourantDepotFlux`) because
-   *  every caller of this client already speaks that vocabulary (`mapChorusProStatus`,
-   *  `chorus-pro-status-poller.ts`) — only the wire field this value is READ FROM changed, not this
-   *  result type's own shape. */
+   *  Swagger-sourced (see this file's own header, "CORRECTED 2026-09-14"); the VALUE VOCABULARY is
+   *  NOT — that field has no `enum` in the Swagger (re-checked 2026-09-14 while fixing
+   *  `mapChorusProStatus`: neither `WsRetourConsulterCRDetaille` nor its sibling `WsRetourConsulterCR`
+   *  declares one). A live round-trip has observed three real, `IN_`-prefixed values
+   *  (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`, `IN_INTEGRE`) — see
+   *  `mapChorusProStatus`'s own doc comment for the full table, both vocabularies it now recognizes,
+   *  and what happens for a value that matches neither. Named `statutFlux` here (not
+   *  `etatCourantDepotFlux`) because every caller of this client already speaks that vocabulary
+   *  (`mapChorusProStatus`, `chorus-pro-status-poller.ts`) — only the wire field this value is READ
+   *  FROM changed, not this result type's own shape. */
   statutFlux: string;
   /** `WsRetourConsulterCRDetaille.listeErreurDP` — empty when the flux carries no per-payment-request
    *  rejection. */
@@ -496,32 +499,69 @@ export class ChorusProClient {
  * Map a Chorus Pro flux status (`ChorusProCrResult.statutFlux`, read off `consulterCRDetaille`'s own
  * `etatCourantDepotFlux`) to canonical TransmissionStatus.
  *
- * Terminal clearance: VALIDE, MISE_EN_PAIEMENT, MANDATEE, COMPTABILISEE → CLEARED
- * Terminal rejection: REJETE → REJECTED
- * In-flight: DEPOSE, EN_COURS_DE_TRAITEMENT, SUSPENDU → PENDING
+ * Terminal clearance: VALIDE, MISE_EN_PAIEMENT, MANDATEE, COMPTABILISEE, IN_INTEGRE → CLEARED
+ * Terminal rejection: REJETE, IN_REJETE → REJECTED
+ * In-flight: DEPOSE, EN_COURS_DE_TRAITEMENT, SUSPENDU, IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP
+ *   → PENDING
+ * Anything else → UNKNOWN (never silently PENDING — see below).
  *
- * HONESTY NOTE, UPDATED 2026-09-14 — this value VOCABULARY (as opposed to the field NAME it is read
- * from, corrected and Swagger-sourced 2026-09-14 — this file's own header) was inherited from the
- * reference implementation, unconfirmed — `etatCourantDepotFlux` is typed as a bare `string` in the
- * official Swagger, with no `enum`. It is now CONFIRMED WRONG, not merely unverified: the real live
- * round-trip (`choruspro.live.spec.ts`, `CHORUSPRO_LIVE=1`, 2026-09-14) observed
- * `IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP` while pending, `IN_REJETE` on a real rejection
- * (`CPP0011117000000000425895`), and `IN_INTEGRE` at the real terminal accepted state
- * (`CPP0011117000000000425903`) — every one of them `IN_`-prefixed, none matching any branch below,
- * so all three fall through to the `PENDING` default: a real rejection is silently read as pending
- * forever, and the real terminal success is never read as CLEARED. Left UNCHANGED here — fixing this
- * mapping is a logic change, out of scope for a documentation/status pass; the correct fix is to add
- * the `IN_`-prefixed forms (at minimum `IN_INTEGRE` → CLEARED and `IN_REJETE` → REJECTED) once someone
- * picks this up as actual work, not a comment edit.
+ * FIXED 2026-09-14 — this table used to recognize ONLY the bare (non-`IN_`-prefixed) vocabulary
+ * inherited from the pre-refonte reference client, itself never confirmed against any source
+ * (`etatCourantDepotFlux` has no `enum` in the official "Transverses" Swagger — re-checked while
+ * fixing this: neither `WsRetourConsulterCRDetaille` nor `WsRetourConsulterCR` declares one). The
+ * three `IN_`-prefixed rows above are likewise NOT Swagger-sourced — they are LIVE MEASUREMENTS from
+ * the qualification round-trip (`choruspro.live.spec.ts`, `CHORUSPRO_LIVE=1`, 2026-09-14):
+ * `IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP` observed immediately after every deposit
+ * (`...425895`, `...425899`, `...425903`), `IN_REJETE` observed on `...425895`'s real rejection,
+ * `IN_INTEGRE` observed on `...425903`'s real terminal acceptance (`listeErreurDP: []`) — see
+ * `documentation/docs/developer-guide/credentials-guide.md` §3 for the dated citation of each.
+ *
+ * NO EXHAUSTIVE LIST of `etatCourantDepotFlux`'s possible values exists in any source available to
+ * this repository. The AIFE "Annexe relative au raccordement EDI" (V4.20) DOES enumerate a flux/
+ * facture status vocabulary, but for a DIFFERENT, older mechanism — the EDI `CPPStatut`/`AIFE_Statut`
+ * push-notification formats, §8.5/§13.2.3, numeric codes such as `01` "DEPOSEE" or `37` "NON
+ * CONFORME_NON_INTEGRE" — which shares no string with `etatCourantDepotFlux`'s own `IN_`-prefixed
+ * values (checked: zero `IN_`/`REJETE`/`INTEGRE` matches for this API's vocabulary anywhere in that
+ * annex). Only the three `IN_` values above are established, by direct measurement — not by
+ * documentation, and not claimed to be the complete set.
+ *
+ * The bare (non-`IN_`) vocabulary is KEPT, not replaced: nothing establishes it was ever wrong, only
+ * that it is not the vocabulary the live round-trip happened to observe — a different endpoint,
+ * environment, or reporting path could still legitimately send it. Both tables coexist for that
+ * reason.
+ *
+ * UNKNOWN is deliberately its own outcome, never folded into PENDING — an unrecognized value silently
+ * read as PENDING is the EXACT defect this fix closes: the three `IN_`-prefixed values above used to
+ * fall through to PENDING, hiding a real rejection and a real terminal success alike, indefinitely.
+ * `isTerminalChorusProStatus` (`chorus-pro-status-poller.ts`) treats UNKNOWN exactly like PENDING
+ * (never terminal — this codebase has no basis to resolve an unrecognized code either way), but that
+ * same file's `poll()` persists a log for it via `LoggerService` every time it is observed — visible
+ * in Settings → Logs, not silent — so a genuinely new Chorus Pro value gets noticed and added here
+ * rather than quietly stalling a document at PENDING forever. Deliberately NOT done here: this
+ * function stays a pure mapper (no side effects, no `companyId`/`transportRef` context to log with) —
+ * `poll()` is the one caller with enough context to make that log useful.
  */
-export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' | 'PENDING' {
+export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' | 'PENDING' | 'UNKNOWN' {
   const s = statutFlux.toUpperCase();
-  if (s === 'VALIDE' || s === 'MISE_EN_PAIEMENT' || s === 'MANDATEE' || s === 'COMPTABILISEE') {
+  if (
+    s === 'VALIDE' ||
+    s === 'MISE_EN_PAIEMENT' ||
+    s === 'MANDATEE' ||
+    s === 'COMPTABILISEE' ||
+    s === 'IN_INTEGRE'
+  ) {
     return 'CLEARED';
   }
-  if (s === 'REJETE') return 'REJECTED';
-  // DEPOSE | EN_COURS_DE_TRAITEMENT | SUSPENDU | unknown → PENDING
-  return 'PENDING';
+  if (s === 'REJETE' || s === 'IN_REJETE') return 'REJECTED';
+  if (
+    s === 'DEPOSE' ||
+    s === 'EN_COURS_DE_TRAITEMENT' ||
+    s === 'SUSPENDU' ||
+    s === 'IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP'
+  ) {
+    return 'PENDING';
+  }
+  return 'UNKNOWN';
 }
 
 // ---------------------------------------------------------------------------
