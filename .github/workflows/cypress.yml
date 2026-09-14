@@ -1,7 +1,14 @@
 name: Tests
 
+# `pull_request` alone means a long-lived branch that opens no PR -- this repository's own
+# feat/compliance-engine-v2 ran 860 commits that way -- gets NO lint, NO i18n check, NO backend
+# suite, NO queue integration and NO Cypress run. A suite that never runs is a suite everyone
+# believes is green. The `push` trigger below is deliberately unfiltered, unlike scenarios.yml's:
+# these jobs guard the whole tree, not one catalog, so there is no subset of paths that can break
+# them and no subset that cannot.
 on:
   pull_request:
+  push:
 
 jobs:
   lint:
@@ -208,6 +215,13 @@ jobs:
 
   cypress-run:
     runs-on: ubuntu-latest
+    env:
+      # `npm run start:test` loads backend/.env.test, which pins REDIS_URL to 6399 -- the port the
+      # LOCAL dev container publishes. Nothing listens there on a runner, and the backend refuses to
+      # boot without Redis, so without this override the whole job dies waiting on /api/health. That
+      # is exactly what killed every Business Scenarios leg from 2026-08-29 until 486aab6a; the same
+      # trap sat here, unfired only because this workflow had not run on a branch since.
+      REDIS_URL: redis://localhost:6379
     services:
       postgres-test:
         image: postgres:16
