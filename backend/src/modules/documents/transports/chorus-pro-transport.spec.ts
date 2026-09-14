@@ -94,6 +94,9 @@ describe('buildChorusProTransport', () => {
       city: 'Paris',
       postalCode: '75002',
       country: 'France',
+      // THE PAYMENT MEANS GATE's own happy path — see this file's own header. A syntactically valid
+      // (mod-97 checksum verified) French IBAN; most tests below only care that ONE is on file.
+      iban: 'FR7630006000011234567890189',
       partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
     });
     // A GOVERNMENT client on file, SIRET (LEGAL_ID) present — the recipient gate's own happy path.
@@ -175,6 +178,29 @@ describe('buildChorusProTransport', () => {
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/no SIRET\/SIREN \(LEGAL_ID\) on file/);
+      expect(mockDeposerFlux).not.toHaveBeenCalled();
+    });
+
+    // THE PAYMENT MEANS GATE (this file's own header) — REGRESSION for the real 2026-09-14 rejection
+    // (`flux CPP0011117000000000425895`, DEPOSE→IN_REJETE, "TypeCode.value est obligatoire"): a company
+    // with no IBAN on file is refused, named, BEFORE any network call — same shape as the SIRET gate
+    // test just above.
+    it('refuses, naming the missing IBAN, when the company has no IBAN on file', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        name: 'Dupont Consulting SARL',
+        address: '12 Rue de la Paix',
+        city: 'Paris',
+        postalCode: '75002',
+        country: 'France',
+        iban: null,
+        partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
+      });
+      const deps = buildDeps();
+      const transport = buildChorusProTransport(deps);
+
+      await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
+      await expect(transport.send(CTX)).rejects.toThrow(/has no IBAN on file/);
       expect(mockDeposerFlux).not.toHaveBeenCalled();
     });
 

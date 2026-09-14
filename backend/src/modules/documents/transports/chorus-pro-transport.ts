@@ -45,6 +45,23 @@
  * (see that rule's own `notes` for why `buyerReference` is shared, not FR-specific) — there is nothing
  * left for THIS transport to additionally read or pass.
  *
+ * THE PAYMENT MEANS GATE — the SELLER-side twin of the recipient gate above, closing the OTHER half of
+ * a real rejection measured live 2026-09-14 (`flux CPP0011117000000000425895`, DEPOSE→IN_REJETE,
+ * `ApplicableHeaderTradeSettlement.SpecifiedTradeSettlementPaymentMeans.TypeCode.value est
+ * obligatoire`). BT-81 (Payment means type code, BG-16) is OPTIONAL at the base EN 16931 layer — the
+ * vendored Schematron's own BR-49 (`formats/vendored/en16931/EN16931-CII-validation-preprocessed.sch`)
+ * only fires once `SpecifiedTradeSettlementPaymentMeans` EXISTS, so an artifact with the block entirely
+ * absent still passes the Factur-X gate below — but Chorus Pro's OWN data model requires it
+ * UNCONDITIONALLY: AIFE's "Dossier de spécifications externes de Chorus Pro — Annexe relative au
+ * raccordement EDI", V4.20, p.22 ("Entité Données Facture") marks "Mode de paiement" "O" (Obligatoire);
+ * p.168 (S2.05) enumerates the accepted UNTDID 4461 codes for the CII 16B/Factur-X formats — 30
+ * ("Credit Transfert"/"Virement") among them, the exact code `build-semantic-invoice.ts#sellerPaymentMeans`
+ * already emits. That function only builds the block when `seller.iban` (`Company.iban`) is on file —
+ * honest, never a fabricated IBAN, the SAME discipline `Company.iban`'s own schema comment already
+ * holds for XRechnung's BR-DE-1 — so a company with none set would otherwise deposit an artifact Chorus
+ * Pro is GUARANTEED to reject downstream. Refused HERE, named, before any network call, same shape as
+ * the recipient gate above.
+ *
  * The payload is `facturx` (`formats/facturx-provider.ts`) — the format the B2G FR rule itself names
  * (`formatSyntax: "facturx"`), gated by the REAL vendored EN 16931 Schematron before this file ever
  * sees the bytes, same discipline every sibling transport already holds; an artifact that fails that
@@ -224,6 +241,19 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
             "on the client's own edit screen (Clients → this client → country-specific identifiers) " +
             'before sending — Chorus Pro identifies every public-sector recipient by this number, and ' +
             'guessing one risks depositing against the wrong recipient, or none at all.',
+        );
+      }
+
+      // THE PAYMENT MEANS GATE — see this file's own header. Checked directly on the raw `company`
+      // row (never `companyToFormatParty`'s own `DocumentFormatParty` shape) — the same field
+      // (`Company.iban`) `build-semantic-invoice.ts#sellerPaymentMeans` reads, so this gate and that
+      // function can never drift on what "has an IBAN on file" means.
+      if (!company.iban) {
+        throw new BadRequestException(
+          'Cannot deposit to Chorus Pro: this company has no IBAN on file. Chorus Pro requires a ' +
+            'payment means (BT-81 — "Mode de paiement") on every invoice it accepts — set an IBAN in ' +
+            'company settings (Payment methods → Bank transfer) before sending, or Chorus Pro will ' +
+            'reject the deposit after the fact.',
         );
       }
 

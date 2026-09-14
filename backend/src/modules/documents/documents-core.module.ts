@@ -322,13 +322,24 @@ function buildTransportRegistry(
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
-  // "stateless, no reason to couple two registries" reasoning "pdp" above already holds.
+  // "stateless, no reason to couple two registries" reasoning "pdp" above already holds — and, unlike
+  // "pdp"'s own instance, configured with `businessProcessCodeOverride: 'A1'`: Chorus Pro reuses BT-23's
+  // own wire element (`BusinessProcessSpecifiedDocumentContextParameter/ID`) for its OWN, unrelated
+  // "Cadre (Mode de Facturation)" concept — see `SemanticInvoiceInput.businessProcessCodeOverride`'s
+  // own header for the full sourcing (AIFE's Chorus Pro EDI annex, G1.02/G1.03) and the 2026-09-14
+  // rejection this closes. 'A1' ("Dépôt par un fournisseur d'une facture") is Chorus Pro's OWN
+  // documented default/standard case — the only deposit scenario this codebase's descriptor model
+  // ever represents. Scoped to THIS instance alone: "pdp"'s own instance above is untouched, keeping
+  // its already-proven-live CGI-reform BT-23 value (2026-08-29, `fr:200→201→202`) intact.
   registry.register(
     'chorus-pro',
     'Chorus Pro (France)',
     buildChorusProTransport({
       channelCredentials,
-      facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
+      facturxFormatProvider: buildFacturxFormatProvider({
+        referenceRegistry,
+        businessProcessCodeOverride: 'A1',
+      }),
     }),
   );
   // "anaf" (Romania) and "face" (Spain, B2G) used to be registered here — both deleted outright

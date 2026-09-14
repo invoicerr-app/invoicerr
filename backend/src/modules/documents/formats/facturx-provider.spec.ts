@@ -217,6 +217,68 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
     );
   }, 30_000);
 
+  // BT-81. `sellerPaymentMeans` (build-semantic-invoice.ts) only builds `cac:PaymentMeans` when the
+  // seller has an IBAN on file — this test proves the HAPPY path actually reaches the wire, both in
+  // the plain-CII gate and the EMBEDDED Factur-X: the exact fact
+  // `chorus-pro-transport.ts`'s own new "PAYMENT MEANS GATE" exists to guarantee is true before a
+  // real Chorus Pro deposit. Regression for the real 2026-09-14 rejection
+  // (`flux CPP0011117000000000425895`, "TypeCode.value est obligatoire") — see
+  // `SemanticInvoiceInput.businessProcessCodeOverride`'s own header (BT-23, the sibling fix) for the
+  // full sourcing of the OTHER half of that same rejection.
+  it('BT-81: a seller WITH an IBAN on file embeds cac:PaymentMeans (TypeCode 30 + the IBAN) in the ACTUAL Factur-X', async () => {
+    const sellerWithIban: DocumentFormatParty = { ...SELLER, iban: 'FR7630006000011234567890189' };
+    const document = {
+      id: 'doc-bt81',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-BT81',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await provider.build(descriptor, document, sellerWithIban, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    expect(embeddedCii).toMatch(
+      /<(?:ram:)?SpecifiedTradeSettlementPaymentMeans>\s*<(?:ram:)?TypeCode>30<\/(?:ram:)?TypeCode>/,
+    );
+    expect(embeddedCii).toContain('<ram:IBANID>FR7630006000011234567890189</ram:IBANID>');
+  }, 30_000);
+
+  // BT-23, Chorus Pro variant. `FacturxProviderDeps.businessProcessCodeOverride` — see that field's
+  // own header, and `SemanticInvoiceInput.businessProcessCodeOverride`'s, for the full sourcing
+  // (AIFE's Chorus Pro EDI annex: the SAME wire element carries Chorus Pro's OWN, unrelated "Cadre de
+  // facturation" vocabulary, A1-A25, not the CGI-reform B1/S1/M1 family this provider otherwise
+  // derives). A SEPARATE provider instance (mirrors `documents-core.module.ts`'s own Chorus
+  // Pro-specific construction) — the DEFAULT `provider` above (no override) is untouched by this test.
+  it('a provider instance configured with businessProcessCodeOverride embeds THAT code, never the FR-derived one', async () => {
+    const chorusProProvider = buildFacturxFormatProvider({
+      referenceRegistry: new EntityReferenceRegistry(),
+      businessProcessCodeOverride: 'A1',
+    });
+    const document = {
+      id: 'doc-bt23-chorus-pro',
+      data: {
+        ...VALID_DATA,
+        issueDate: '2026-09-01', // on the shipped content requirement's own mandatedFrom
+        dueDate: '2026-09-30',
+        lines: [{ ...VALID_DATA.lines[0], supplyType: 'SERVICES' }], // would derive 'S1' without the override
+      },
+      displayNumber: 'INV-2026-BT23-CPRO',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await chorusProProvider.build(descriptor, document, SELLER, BUYER, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    expect(embeddedCii).toMatch(
+      /<(?:ram:)?BusinessProcessSpecifiedDocumentContextParameter>\s*<(?:ram:)?ID>A1<\/(?:ram:)?ID>/,
+    );
+    expect(embeddedCii).not.toContain('<ram:ID>S1</ram:ID>');
+  }, 30_000);
+
   it('an INVALID document (BR-Z-02: zero-rated line, no seller VAT id): NEVER embeds — no PDF is even attempted', async () => {
     const document = {
       id: 'doc-2',

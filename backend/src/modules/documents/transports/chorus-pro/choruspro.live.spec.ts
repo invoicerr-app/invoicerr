@@ -26,6 +26,26 @@
  * (`documentation/docs/developer-guide/live-testing.md`, and the project memory entry "KSeF mock
  * tests = false confidence").
  *
+ * UPDATE 2026-09-14, a compte technique DID exist for one run: `deposerFlux` was ACCEPTED
+ * (`numeroFluxDepot: CPP0011117000000000425895`, `statut: DEPOSE`, `codeRetour: 0`), but a LATER
+ * `consulterCr()` poll (this client's own name for `consulterCRDetaille` — see `consulterCr()`'s own
+ * doc comment) then reported `etatCourantDepotFlux: IN_REJETE` — Chorus Pro's own asynchronous
+ * validation had not finished by the time this test's SINGLE, immediate poll below ran (still
+ * `EN_COURS_DE_TRAITEMENT`/`PENDING` at that point, which is why this test's own assertion
+ * `expect(['PENDING', 'CLEARED']).toContain(status)` legitimately passed even for the run that was
+ * later found rejected — a real, structural blind spot of a single immediate poll, not a bug in the
+ * assertion itself: a genuinely GREEN run of this file still does not, by itself, prove the deposit
+ * clears — only a LATER poll (`chorus-pro-status-poller.ts`'s own job in production) can. Two
+ * structured errors, both traced to real gaps in the hand-built fixture below, now fixed:
+ * BT-81 (`SELLER.iban`, absent before this fix — see `sellerIban`'s own comment) and BT-23
+ * (`businessProcessCodeOverride`, absent before this fix — see the `buildSemanticInvoice` call's own
+ * comment). Both fixes also apply to the REAL production path (`chorus-pro-transport.ts`'s own new
+ * "PAYMENT MEANS GATE" and its dedicated `facturxFormatProvider` instance,
+ * `documents-core.module.ts`) — this spec's own fixture is kept a faithful, independent mirror of it,
+ * per this file's own "DB-free approach" below. Not re-run against PISTE as part of establishing
+ * this — the orchestrating session runs `CHORUSPRO_LIVE=1` next; until that run is green, read this
+ * fix as "corrected against the documented root cause", not yet as "proven live" a second time.
+ *
  * Getting the technical account needs NO real company: the qualification space issues a fictitious
  * structure and SIRET ("matelas de données") — see `credentials-guide.md` §3, which quotes AIFE's
  * own procedure.
@@ -164,6 +184,20 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // intentionally carries no VAT identifier here — not an oversight.
     const sellerVat = process.env.CHORUSPRO_SELLER_VAT ?? 'FR04332540215';
 
+    // BT-81 (Payment means type code) — REQUIRED here, not optional, for a Chorus Pro deposit
+    // specifically: measured live 2026-09-14, `deposerFlux` DID accept a Factur-X built WITHOUT an
+    // IBAN (the base EN 16931 Schematron's own BR-49 only fires once `SpecifiedTradeSettlementPaymentMeans`
+    // exists at all — omitted entirely is not a Schematron violation), but `consulterCRDetaille`
+    // REJECTED it downstream (`flux CPP0011117000000000425895`, DEPOSE→IN_REJETE, citing
+    // `SpecifiedTradeSettlementPaymentMeans.TypeCode.value est obligatoire`) — AIFE's own "Dossier de
+    // spécifications externes de Chorus Pro — Annexe relative au raccordement EDI" V4.20, p.22, marks
+    // "Mode de paiement" "O" (Obligatoire) unconditionally. A syntactically valid (mod-97 checksum
+    // verified), sandbox-appropriate test IBAN — `build-semantic-invoice.ts#sellerPaymentMeans` only
+    // emits BT-81 (code '30' — "Credit Transfert"/"Virement", one of S2.05's own accepted values,
+    // p.168) when `seller.iban` is actually set, honest, never fabricated when absent, the same
+    // discipline `chorus-pro-transport.ts`'s own new "PAYMENT MEANS GATE" now enforces for a real send.
+    const sellerIban = process.env.CHORUSPRO_SELLER_IBAN ?? 'FR7630006000011234567890189';
+
     const SELLER: SemanticPartyInput = {
       name: `Fournisseur ${sellerSiret}`,
       address: '1 rue du Test',
@@ -171,6 +205,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
       postalCode: '75001',
       country: 'France',
       email: 'seller@example.fr',
+      iban: sellerIban,
       partyIdentifiers: [
         { scheme: 'LEGAL_ID', value: sellerSiret },
         { scheme: 'VAT', value: sellerVat },
@@ -210,6 +245,21 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
         unitPrice: l.unitPrice,
       })),
       totals,
+      // BT-23 — mirrors the SAME override `chorus-pro-transport.ts`'s own dedicated
+      // `facturxFormatProvider` instance now passes for every real Chorus Pro send
+      // (`documents-core.module.ts`) — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own
+      // header for the full sourcing. Without it, this bridge would derive the CGI-reform value
+      // ('M1' — no line here declares a `supplyType`) into
+      // `BusinessProcessSpecifiedDocumentContextParameter/ID`, the EXACT element Chorus Pro's own
+      // "Cadre (Mode de Facturation)" concept also occupies (AIFE's Chorus Pro EDI annex, G1.02: only
+      // A1-A25 are accepted there) — measured live 2026-09-14 as the second half of the
+      // `CPP0011117000000000425895` rejection (`consulterCRDetaille`,
+      // `BusinessProcessSpecifiedDocumentContextParameter.I[D]`, truncated by the platform's own
+      // ~200-char `libelleErreurDP` cutoff). This hand-built recipe does not go through
+      // `facturxFormatProvider.build()` (see this file's own header, "DB-free approach"), so it needs
+      // its OWN copy of this override to stay a faithful mirror of what `chorus-pro-transport.ts#send()`
+      // actually deposits.
+      businessProcessCodeOverride: 'A1',
     });
 
     const service = newEuInvoiceService();

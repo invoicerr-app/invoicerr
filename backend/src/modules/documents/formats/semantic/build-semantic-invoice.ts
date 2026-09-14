@@ -54,6 +54,10 @@
  *    entirely for every other seller, exactly the pre-existing behaviour (no `cbc:ProfileID` key at
  *    all — `@e-invoice-eu/core` fills its own default, unrelated to BT-23). See that file's own
  *    header for the full wiring (CII, UBL, and the Factur-X embed all read this one derivation).
+ *    `input.businessProcessCodeOverride`, when set, WINS over this derivation entirely (never merged
+ *    with it) — see that field's own doc comment below for why a single wire element (BT-23) turned
+ *    out to carry two UNRELATED "cadre de facturation" vocabularies depending on the DESTINATION
+ *    platform, not the seller's country.
  *  - BT-24 Specification identifier    → `cbc:CustomizationID` = 'urn:cen.eu:en16931:2017' (fixed —
  *    this bridge builds EXACTLY the base EN 16931 profile, never Peppol BIS or XRechnung)
  *  - BT-27 Seller name                 → `cac:AccountingSupplierParty/.../cbc:RegistrationName`
@@ -245,6 +249,54 @@ export interface SemanticInvoiceInput {
    * `data.buyerReference`), so their own output is byte-for-byte unaffected.
    */
   buyerReference?: string;
+  /**
+   * BT-23 (Business process type) override — bypasses `resolveFrenchBusinessProcessCode` entirely
+   * (the CGI ann. II art. 242 nonies A "goods/services/mixed" derivation this file's own header
+   * documents) and writes this value into `cbc:ProfileID` verbatim instead. Exists for EXACTLY one
+   * caller today: `facturx-provider.ts`'s Chorus Pro-specific instance (wired via
+   * `FacturxProviderDeps.businessProcessCodeOverride`, `documents-core.module.ts`).
+   *
+   * WHY a second, unrelated meaning for the SAME wire element: `BusinessProcessSpecifiedDocumentContextParameter/ID`
+   * is ALSO where Chorus Pro's OWN, older "Cadre (Mode de Facturation)" business concept lives — a
+   * classification of WHO is depositing WHAT KIND of payment request (a first-time supplier invoice,
+   * an already-paid invoice, a subcontractor's payment request, a "mémoire de frais de justice"...),
+   * unrelated to and pre-dating the 2026 e-invoicing reform's goods/services/mixed field. Sourced
+   * verbatim from AIFE's own "Dossier de spécifications externes de Chorus Pro — Annexe relative au
+   * raccordement EDI", V4.20 (communaute.chorus-pro.gouv.fr/wp-content/uploads/2020/04/
+   * Specifications_Externes_Annexe_EDI_V4.20-1.pdf):
+   *   - §8.3.2.1 "Version 16B" (p.117-118, the SAME CII family Factur-X belongs to): the generic data
+   *     item "Généralités. Cadre" maps to `/ExchangedDocumentContext/
+   *     BusinessProcessSpecifiedDocumentContextParameter/ID` — the EXACT element BT-23 also targets.
+   *   - G1.02 (p.72): "Les valeurs autorisées pour le Cadre (Mode de Facturation) sont: « A1 » (Dépôt
+   *     par un fournisseur d'une facture) [...A2 through A25, each a different deposit scenario: an
+   *     already-paid invoice, a subcontractor/co-contractor payment request, a "mémoire de frais de
+   *     justice", a "maître d'œuvre/d'ouvrage" statement...]." None of the CGI-reform values this
+   *     bridge otherwise emits (B1/S1/M1/...) appear anywhere in that list.
+   *   - G1.03 (p.72): "Le cadre (mode de facturation) est valorisé A1 dans le flux pivot lorsque la
+   *     balise n'est pas renseignée" — confirms 'A1' ("a supplier depositing an invoice") is Chorus
+   *     Pro's OWN standard/default case, and the ONLY scenario this codebase's descriptor model ever
+   *     represents (no cotraitance/sous-traitance/mémoire-de-frais-de-justice notion exists anywhere
+   *     in `descriptors/invoice.descriptor.ts`) — so `businessProcessCodeOverride: 'A1'` for Chorus
+   *     Pro is a sourced fact, not a guess.
+   *   - p.22 ("Entité Données Facture") marks this field "O" (Obligatoire) — Chorus Pro requires SOME
+   *     value here on every deposit, which is why omitting `cbc:ProfileID` entirely for Chorus Pro
+   *     (this bridge's behaviour for every seller with no active FR content requirement) is not a safe
+   *     fallback either.
+   *
+   * MOTIVE (2026-09-14 real rejection, `flux CPP0011117000000000425895`, DEPOSE→IN_REJETE): before
+   * this override existed, a French seller's Chorus Pro deposit carried the CGI-reform value ('M1' —
+   * "mixte", `frenchBusinessProcessCode`'s own no-supply-type-declared default) in this element.
+   * Chorus Pro's `consulterCRDetaille` rejected it citing
+   * `ExchangedDocumentContext.BusinessProcessSpecifiedDocumentContextParameter.I[D]`, TRUNCATED by the
+   * platform's own `libelleErreurDP` cutoff (~200 chars) before the actual reason (missing/invalid?)
+   * was captured — NOT independently recovered, and not needed to establish this fix: the field path
+   * alone already identifies which wire element failed, and G1.02's own list above is the reason NO
+   * value this bridge could otherwise derive (B1/S1/M1/...) was ever going to be accepted there.
+   * PDP (the private-sector B2B channel, unaffected by this override) already proved the CGI-reform
+   * value correct end-to-end (2026-08-29, `fr:200→201→202`) — this override is scoped to Chorus Pro
+   * alone specifically so that proof stays intact.
+   */
+  businessProcessCodeOverride?: string;
   /**
    * BT-24 (Specification identifier) override — defaults to the plain base EN 16931 URN
    * (`'urn:cen.eu:en16931:2017'`) when absent, exactly the value every CII/UBL/Factur-X fixture
@@ -525,14 +577,17 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   // is optional): a document with none declared reaches `frenchBusinessProcessCode` with an empty
   // array, which is already documented to resolve to 'M1' — "the only value that does not assert
   // something false about the content" — never a guess made here.
+  //
+  // `input.businessProcessCodeOverride` WINS outright when set — see that field's own doc comment for
+  // why (Chorus Pro's own, unrelated "Cadre de facturation" vocabulary sharing this exact wire slot).
+  // The FR-CGI-reform derivation below still RUNS in that case (cheap, side-effect-free), simply
+  // discarded — keeping one code path rather than an `if/else` around `resolveFrenchBusinessProcessCode`.
   const supplyTypes = input.lines
     .map((line) => line.supplyType)
     .filter((supplyType): supplyType is SupplyType => !!supplyType);
-  const businessProcessCode = resolveFrenchBusinessProcessCode(
-    sellerCountryCode,
-    input.issueDate,
-    supplyTypes,
-  );
+  const businessProcessCode =
+    input.businessProcessCodeOverride ??
+    resolveFrenchBusinessProcessCode(sellerCountryCode, input.issueDate, supplyTypes);
 
   const sellerLegalId = toSiren(
     getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'LEGAL_ID'),

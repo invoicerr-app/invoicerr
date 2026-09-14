@@ -39,6 +39,18 @@
  * `postProcessor` below, right after `splitCiiIncludedNotesInObject` — one call, two independent
  * fixes, both no-ops when nothing applies (no French seller with an active content requirement, no
  * multi-note packing to split).
+ *
+ * `FacturxProviderDeps.businessProcessCodeOverride` — a THIRD, unrelated BT-23 concern, deliberately
+ * NOT part of the two fixes above: those two exist to make the SAME derived value survive both the
+ * plain-CII string and the Factur-X object regeneration; this override REPLACES the derived value
+ * outright, for the ONE caller (Chorus Pro's own dedicated instance, `documents-core.module.ts`) whose
+ * destination platform reuses this exact wire element for its OWN, unrelated "Cadre de facturation"
+ * concept — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own header for the full sourcing
+ * and the 2026-09-14 rejection this closes. `buildEuInvoiceForDocument` writes it onto `euInvoice`
+ * BEFORE either `service.generate()` call below runs, so both the plain-CII gate and the Factur-X
+ * embed already see the OVERRIDDEN value — `applyFrenchBusinessProcess`/`applyFrenchBusinessProcessInObject`
+ * read `businessProcessCode` off `euInvoice['ubl:Invoice']['cbc:ProfileID']` (below), never re-derive
+ * it, so they stay correct, unmodified, for this case too.
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
@@ -53,6 +65,15 @@ import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schemat
 
 export interface FacturxProviderDeps {
   referenceRegistry: EntityReferenceRegistry;
+  /**
+   * BT-23 override, threaded straight into `buildEuInvoiceForDocument`'s own
+   * `businessProcessCodeOverride` — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own
+   * header for the full sourcing (AIFE's Chorus Pro EDI annex) and why this needs to be a per-INSTANCE
+   * config rather than a per-country rule. `undefined` for every consumer except Chorus Pro's own
+   * dedicated instance (`documents-core.module.ts`) — every other Factur-X build (PDP, the generic
+   * format registry) is byte-for-byte unaffected.
+   */
+  businessProcessCodeOverride?: string;
 }
 
 /**
@@ -82,7 +103,9 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       throw new Error('facturxFormatProvider.build() requires a companyId to render the embedded PDF.');
     }
 
-    const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client);
+    const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
+      businessProcessCodeOverride: deps.businessProcessCodeOverride,
+    });
     const service = newEuInvoiceService();
     // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved
     // a BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller.
