@@ -135,8 +135,15 @@ jobs:
       - name: Apply migrations and seed reference data
         run: cd backend && npx prisma migrate deploy && npx prisma db seed
 
+      # `--maxWorkers=2`, overriding package.json's own 4. That figure suits a developer machine with
+      # cores to spare; a GitHub runner has far fewer, so four workers contend for them and every
+      # CPU-bound test slows down together. Measured on this very job: the whole suite took 458s here
+      # against 102s locally -- 4.5x -- and `extraction.spec.ts`, which builds a real Factur-X PDF and
+      # runs the full EN 16931 Schematron over it, blew a 30s per-test budget it clears in 4s locally.
+      # Fewer workers each getting a real core is the fix; raising that test's timeout again would
+      # only have moved the next failure somewhere else.
       - name: Run backend tests
-        run: cd backend && npm test -- --ci
+        run: cd backend && npm test -- --ci --maxWorkers=2
 
   queue-integration:
     runs-on: ubuntu-latest
