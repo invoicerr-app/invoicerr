@@ -1,7 +1,7 @@
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
-import { BadRequestException, Injectable, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotImplementedException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 
 @Injectable()
@@ -16,14 +16,20 @@ export class DangerService {
 
   constructor(private readonly mailService: MailService) {}
 
-  async requestOtp(user: CurrentUser) {
+  async requestOtp(user: CurrentUser, companyId: string) {
     const otp = Math.floor(10000000 + Math.random() * 90000000).toString();
 
     this.OTP = otp;
     this.otpExpirationTime = new Date(new Date().getTime() + this.otpExpirationMinutes * 60000);
 
     try {
-      await this.mailService.sendMail({
+      // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — this route is
+      // OWNER-only and gated by the SAME active-company resolution `resetApp`/`resetAll` below already
+      // require (`RolesGuard` only ever sets `request.role` from the session's `activeRole`, which is
+      // itself derived from `activeCompanyId` — see `guards/auth.guard.ts` — so an OWNER reaching this
+      // handler at all already has an active company), so this OTP goes out through THAT company's own
+      // mail server when it has one, never the instance's.
+      await this.mailService.sendForCompany(companyId, {
         // F-012: this used to send to SMTP_FROM/SMTP_USER — the instance's own technical mailbox,
         // not the person authorising the destructive action. Anyone able to read that mailbox could
         // authorise; the requester could not.
@@ -32,6 +38,12 @@ export class DangerService {
         text: `Your confirmation code for a destructive action on Invoicerr is: ${otp}. It is valid for ${this.otpExpirationMinutes} minutes. If you did not request this, ignore this message.`,
       });
     } catch (error) {
+      // `sendForCompany`'s own named refusal (no mail server configured anywhere) is a
+      // `BadRequestException` that already names the actual problem — rethrown verbatim, never folded
+      // into the generic message below, for the same reason `signatures.service.ts#sendTemplatedMail`
+      // does the same thing. Any other failure (a real provider error) still collapses to the generic
+      // message; the real one is logged, never shown to the caller.
+      if (error instanceof HttpException) throw error;
       logger.error('Failed to send OTP email', { category: 'danger', details: { error } });
       throw new BadRequestException('Failed to send OTP email. Please check your SMTP configuration.');
     }

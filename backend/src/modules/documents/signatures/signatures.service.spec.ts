@@ -1,6 +1,10 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+
+import { MailService, NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
+import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
 import * as persistence from '../persistence';
 import { hashSignatureToken } from './signature-token';
@@ -8,6 +12,12 @@ import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 
 jest.mock('../persistence');
+// Only used by the "société → instance" cascade tests near the bottom of this file — every other
+// test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
+jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: jest.fn(),
+}));
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
 
 /**
  * `@/prisma/prisma.service` is mocked with a tiny IN-MEMORY table (not a bare `jest.fn()` per
@@ -132,7 +142,7 @@ function buildService(
   const clientsService = {
     getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
   };
-  const mailService = { sendMail: jest.fn().mockResolvedValue(undefined) };
+  const mailService = { sendForCompany: jest.fn().mockResolvedValue(undefined) };
   const service = new SignaturesService(clientsService as any, mailService as any, webhooks as any);
   return { service, clientsService, mailService, webhooks };
 }
@@ -168,7 +178,7 @@ describe('SignaturesService', () => {
       expect(result.message).toContain('client@example.com');
       expect(rows()).toHaveLength(1);
       // >= 32 bytes of entropy hex-encoded -> >= 64 hex chars (signature-token.ts's own TOKEN_BYTES).
-      const sentMail = mailService.sendMail.mock.calls[0][0];
+      const sentMail = mailService.sendForCompany.mock.calls[0][1];
       const urlMatch = /\/signature\/([0-9a-f]{64,})/.exec(sentMail.html);
       expect(urlMatch).not.toBeNull();
       const rawToken = urlMatch![1];
@@ -206,9 +216,12 @@ describe('SignaturesService', () => {
   });
 
   describe('the public flow — resolve / otp / sign', () => {
-    async function requestAndGetToken(service: SignaturesService, mailService: { sendMail: jest.Mock }) {
+    async function requestAndGetToken(
+      service: SignaturesService,
+      mailService: { sendForCompany: jest.Mock },
+    ) {
       await service.requestSignature('company-1', 'quote', 'quote-1');
-      const html = mailService.sendMail.mock.calls[0][0].html as string;
+      const html = mailService.sendForCompany.mock.calls[0][1].html as string;
       return /\/signature\/([0-9a-f]{64,})/.exec(html)![1];
     }
 
@@ -236,12 +249,12 @@ describe('SignaturesService', () => {
     it('requestOtp mints a code, emails it, and stores ONLY its hash — never the code in the clear', async () => {
       const { service, mailService } = buildService();
       const token = await requestAndGetToken(service, mailService);
-      mailService.sendMail.mockClear();
+      mailService.sendForCompany.mockClear();
 
       await service.requestOtp(token);
 
-      expect(mailService.sendMail).toHaveBeenCalledTimes(1);
-      const html = mailService.sendMail.mock.calls[0][0].html as string;
+      expect(mailService.sendForCompany).toHaveBeenCalledTimes(1);
+      const html = mailService.sendForCompany.mock.calls[0][1].html as string;
       const codeMatch = /(\d{4}-\d{4})/.exec(html);
       expect(codeMatch).not.toBeNull();
       const displayedCode = codeMatch![1].replace('-', '');
@@ -284,12 +297,12 @@ describe('SignaturesService', () => {
 
     async function mintedCode(
       service: SignaturesService,
-      mailService: { sendMail: jest.Mock },
+      mailService: { sendForCompany: jest.Mock },
       token: string,
     ) {
-      mailService.sendMail.mockClear();
+      mailService.sendForCompany.mockClear();
       await service.requestOtp(token);
-      const html = mailService.sendMail.mock.calls[0][0].html as string;
+      const html = mailService.sendForCompany.mock.calls[0][1].html as string;
       return /(\d{4})-(\d{4})/.exec(html)!.slice(1, 3).join('');
     }
 
@@ -439,7 +452,7 @@ describe('SignaturesService', () => {
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
 
-      const sent = mailService.sendMail.mock.calls[0][0];
+      const sent = mailService.sendForCompany.mock.calls[0][1];
       expect(sent.html).toContain('<a href=');
       // The company's stored template is html only; the text part is DERIVED from it — and carries the
       // LINK ITSELF, not merely the word "here": the href lives in an attribute, so a plain tag-strip
@@ -458,7 +471,7 @@ describe('SignaturesService', () => {
         message: expect.stringContaining('client@example.com'),
       });
 
-      const sent = mailService.sendMail.mock.calls[0][0];
+      const sent = mailService.sendForCompany.mock.calls[0][1];
       expect(sent.subject).toBe('Please sign document #QUOTE-2026-0001');
       expect(sent.html).toContain('Document Signature Required');
       expect(sent.html).toMatch(/\/signature\/[0-9a-f]{64,}/);
@@ -471,12 +484,12 @@ describe('SignaturesService', () => {
       prisma.mailTemplate.findFirst.mockResolvedValue(null);
 
       await service.requestSignature('company-1', 'quote', 'quote-1');
-      const token = /\/signature\/([0-9a-f]{64,})/.exec(mailService.sendMail.mock.calls[0][0].html)![1];
-      mailService.sendMail.mockClear();
+      const token = /\/signature\/([0-9a-f]{64,})/.exec(mailService.sendForCompany.mock.calls[0][1].html)![1];
+      mailService.sendForCompany.mockClear();
 
       await service.requestOtp(token);
 
-      const sent = mailService.sendMail.mock.calls[0][0];
+      const sent = mailService.sendForCompany.mock.calls[0][1];
       expect(sent.subject).toBe('Your verification code');
       expect(sent.html).toMatch(/\d{4}-\d{4}/);
       expect(sent.text).toMatch(/\d{4}-\d{4}/);
@@ -497,10 +510,10 @@ describe('SignaturesService', () => {
       // Both tokens belong to the retired vocabulary, so neither resolves — and BOTH are left exactly as
       // written rather than silently blanked, which is the whole point: a signature request that cannot
       // be interpolated still reaches its recipient, visibly imperfect instead of invisibly broken.
-      const sent = mailService.sendMail.mock.calls[0][0];
+      const sent = mailService.sendForCompany.mock.calls[0][1];
       expect(sent.subject).toBe('Sign {SIGNATURE_NUMBER}');
       expect(sent.html).toContain('{SIGNATURE_URL}');
-      expect(mailService.sendMail).toHaveBeenCalledTimes(1);
+      expect(mailService.sendForCompany).toHaveBeenCalledTimes(1);
     });
 
     it('still signs even when the DOCUMENT_SIGNED webhook dispatch fails — the sign itself must not roll back', async () => {
@@ -513,5 +526,110 @@ describe('SignaturesService', () => {
       expect(result.message).toBe('Document signed.');
       expect(rows()[0].signedAt).not.toBeNull();
     });
+  });
+
+  // The two tests below use a REAL `MailService` (only `resolveCompanyMailSettings` and
+  // `nodemailer.createTransport` are mocked, the same doubles `mail.service.spec.ts` itself uses) —
+  // every test above already proves the signature-request/OTP email's own CONTENT against a fake
+  // `sendForCompany`; this is the one place proving it genuinely reaches the right transport.
+  describe('signature-request and OTP emails go through the société → instance → refus-nommé cascade', () => {
+    const ORIGINAL_ENV = process.env;
+
+    beforeEach(() => {
+      jest.restoreAllMocks();
+      mockedResolveCompanyMailSettings.mockReset();
+      process.env = { ...ORIGINAL_ENV };
+      delete process.env.MAIL_PROVIDER;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.SMTP_HOST;
+    });
+
+    afterAll(() => {
+      process.env = ORIGINAL_ENV;
+    });
+
+    it("sends the signature request through THIS company's own SMTP server when Settings → Mail has one configured", async () => {
+      process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
+      mockedResolveCompanyMailSettings.mockResolvedValue({
+        kind: 'smtp',
+        host: 'company-smtp.example.com',
+        port: 587,
+        secure: false,
+        username: 'user',
+        password: 'pass',
+        fromAddress: 'billing@company.example.com',
+      });
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const clientsService = {
+        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+      };
+      const service = new SignaturesService(clientsService as any, new MailService(), {
+        dispatch: jest.fn(),
+      } as any);
+
+      await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'company-smtp.example.com' }),
+      );
+    });
+
+    it('falls back to the instance mail server when this company has none configured', async () => {
+      process.env.SMTP_HOST = 'instance-smtp.example.com';
+      mockedResolveCompanyMailSettings.mockResolvedValue(null);
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const clientsService = {
+        getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+      };
+      const service = new SignaturesService(clientsService as any, new MailService(), {
+        dispatch: jest.fn(),
+      } as any);
+
+      const result = await service.requestSignature('company-1', 'quote', 'quote-1');
+
+      expect(result.message).toContain('client@example.com');
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'instance-smtp.example.com' }),
+      );
+    });
+
+    it(
+      'requestOtp rethrows the NAMED "no mail server configured" refusal VERBATIM — never the ' +
+        'generic "check your SMTP configuration" wrapper — when neither company nor instance has ' +
+        'anything configured',
+      async () => {
+        // First, a WORKING mail setup so `requestSignature` itself succeeds and hands back a real,
+        // usable token — this test is about `requestOtp`'s own failure mode, not about getting a token.
+        process.env.SMTP_HOST = 'instance-smtp.example.com';
+        mockedResolveCompanyMailSettings.mockResolvedValue(null);
+        const sendMailMock = jest.fn().mockResolvedValue(undefined);
+        jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+        const clientsService = {
+          getClientById: jest.fn().mockResolvedValue({ contactEmail: 'client@example.com' }),
+        };
+        const service = new SignaturesService(clientsService as any, new MailService(), {
+          dispatch: jest.fn(),
+        } as any);
+        await service.requestSignature('company-1', 'quote', 'quote-1');
+        // `resolveActiveOrThrow` compares HASHES, so requesting the OTP below needs the RAW token —
+        // recovered from the signature-request email itself, the same way every other public-flow test
+        // in this file already does.
+        const rawToken = /\/signature\/([0-9a-f]{64,})/.exec(sendMailMock.mock.calls[0][0].html)![1];
+
+        // NOW remove every mail server, company AND instance, before requesting the OTP.
+        delete process.env.SMTP_HOST;
+        mockedResolveCompanyMailSettings.mockResolvedValue(null);
+
+        const action = service.requestOtp(rawToken);
+
+        await expect(action).rejects.toBeInstanceOf(BadRequestException);
+        await expect(action).rejects.toThrow(NO_MAIL_SERVER_CONFIGURED_MESSAGE);
+      },
+    );
   });
 });

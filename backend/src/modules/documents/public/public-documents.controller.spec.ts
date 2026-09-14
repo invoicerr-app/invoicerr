@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from '../actions/action-extensions';
 import { ActionRegistry } from '../actions/action-registry';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { ContributionRegistry } from '../contributions/contribution-registry';
 import * as countryPolicy from '../country-policy/country-policy';
 import { DocumentsController } from '../documents.controller';
@@ -113,6 +114,7 @@ function buildControllers() {
     schedulesService as never,
     shareLinksService,
     eventsBridge as never,
+    {} as unknown as AttachmentsService,
   );
   const publicController = new PublicDocumentsController(shareLinksService, documentsService);
 

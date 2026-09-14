@@ -46,7 +46,9 @@ function buildService() {
   registerCoreFieldKinds(fieldKindRegistry);
 
   const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
-  const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
+  const mailService = {
+    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+  };
   const referenceRegistry = new EntityReferenceRegistry();
   const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
 

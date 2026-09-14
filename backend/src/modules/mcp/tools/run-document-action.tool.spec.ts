@@ -40,7 +40,7 @@ function buildDocumentsService(): DocumentsService {
   const actionRegistry = new ActionRegistry();
   registerQuoteActions(actionRegistry, {
     clientsService: { getClientById: jest.fn().mockResolvedValue(null) } as never,
-    mailService: { sendMail: jest.fn() } as never,
+    mailService: { sendForCompany: jest.fn() } as never,
     typeRegistry,
     referenceRegistry,
     queueDispatcher: { enqueueAction: jest.fn() },

@@ -119,7 +119,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
     (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
     (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
 
-    const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'ok' }) };
+    const mailService = { sendForCompany: jest.fn().mockResolvedValue({ message: 'ok' }) };
     const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
     const typeRegistry = new DocumentTypeRegistry();
     typeRegistry.register(buildQuoteDescriptor());
@@ -143,7 +143,10 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       params: { recipient: 'client@example.com' },
     });
 
-    expect(mailService.sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: 'client@example.com' }));
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({ to: 'client@example.com' }),
+    );
     expect(companyTransport.getCompanyInvoiceTransportId).not.toHaveBeenCalled();
   });
 
@@ -208,7 +211,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       updatedAt: new Date(),
     });
 
-    const mailService = { sendMail: jest.fn() };
+    const mailService = { sendForCompany: jest.fn() };
     const clientsService = { getClientById: jest.fn() };
     const typeRegistry = new DocumentTypeRegistry();
     typeRegistry.register(buildQuoteDescriptor());
@@ -232,7 +235,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
       params: { recipient: 'client@example.com' },
     });
 
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
     expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith(
       expect.objectContaining({ typeId: 'quote', actionId: 'send' }),
     );
@@ -304,7 +307,7 @@ describe('quote "send" and invoice "send" do not share a path', () => {
 
   it("only the quote's send declares a params-defaults resolver for a typed recipient — the invoice's send has none", () => {
     const clientsService = { getClientById: jest.fn() };
-    const mailService = { sendMail: jest.fn() };
+    const mailService = { sendForCompany: jest.fn() };
 
     const registry = new ActionRegistry();
     registerQuoteActions(registry, {

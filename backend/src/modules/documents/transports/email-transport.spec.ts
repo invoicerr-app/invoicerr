@@ -56,7 +56,9 @@ describe('buildEmailTransport', () => {
     const clientsService = {
       getClientById: jest.fn().mockResolvedValue({ id: 'client-1', contactEmail: 'client-1@example.com' }),
     };
-    const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
+    const mailService = {
+      sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    };
     const { typeRegistry, referenceRegistry } = buildDeps();
 
     const transport = buildEmailTransport({
@@ -82,7 +84,8 @@ describe('buildEmailTransport', () => {
     // Proves the hand-off into sendDocumentInstanceEmail actually happened (real PDF pipeline
     // mocked, real template interpolation NOT mocked) — the company name from the mocked render
     // result reaches the subject/body, and the attachment is the rendered PDF, not a bare text mail.
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({
         to: 'client-1@example.com',
         subject: expect.stringContaining('Test Co'),
@@ -98,7 +101,7 @@ describe('buildEmailTransport', () => {
     const clientsService = {
       getClientById: jest.fn().mockResolvedValue({ id: 'client-1', contactEmail: null }),
     };
-    const mailService = { sendMail: jest.fn() };
+    const mailService = { sendForCompany: jest.fn() };
     const { typeRegistry, referenceRegistry } = buildDeps();
 
     const transport = buildEmailTransport({
@@ -121,12 +124,12 @@ describe('buildEmailTransport', () => {
     });
 
     await expect(action).rejects.toBeInstanceOf(BadRequestException);
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   it('refuses when the document has no client set at all', async () => {
     const clientsService = { getClientById: jest.fn() };
-    const mailService = { sendMail: jest.fn() };
+    const mailService = { sendForCompany: jest.fn() };
     const { typeRegistry, referenceRegistry } = buildDeps();
 
     const transport = buildEmailTransport({

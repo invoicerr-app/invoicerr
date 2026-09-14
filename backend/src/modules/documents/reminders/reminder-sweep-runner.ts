@@ -262,7 +262,16 @@ export class ReminderSweepRunner {
       }
 
       try {
-        await this.mailService.sendMail({ to: recipient, subject: email.subject, text: email.text });
+        // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a company
+        // with its own mail server sends its reminders through it, never the instance's. A named
+        // refusal (no mail server configured anywhere) is caught right below exactly like any other
+        // send failure: the claim is released and the reason is PERSISTED — see this file's own
+        // header on why that matters for a background sweep nobody is watching interactively.
+        await this.mailService.sendForCompany(companyId, {
+          to: recipient,
+          subject: email.subject,
+          text: email.text,
+        });
       } catch (error) {
         // The reservation above already exists but the email never actually went out — release it
         // (see header) so a later pass finds this tier unclaimed again, instead of leaving a phantom

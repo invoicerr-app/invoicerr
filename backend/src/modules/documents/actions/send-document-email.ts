@@ -192,7 +192,13 @@ export async function sendDocumentInstanceEmail(
   // see `renderEmailTemplate`), and `html` is added only when it genuinely exists, so a text-only
   // template still produces the exact same text-only message it always did. MailOptions has supported
   // both since before this mechanism existed (`mail/types.ts`), so no transport changes to carry it.
-  await deps.mailService.sendMail({
+  // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a company with its
+  // own mail server (Settings → Mail) sends its quotes/invoices/credit-notes through it, never the
+  // instance's. A refusal here (including the named "no mail server configured" one) propagates
+  // exactly like a `renderDocumentInstance` failure already does — see this function's own header,
+  // "PDF failure — fails LOUDLY" — all the way to `queue/mark-send-failed.ts`, which records it,
+  // verbatim, as the document's own `send_failed` reason.
+  await deps.mailService.sendForCompany(companyId, {
     to: recipient,
     subject,
     text: body,

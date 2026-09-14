@@ -10,8 +10,14 @@
  * Skipped by default: the offline `backend-tests` CI job provisions no SMTP server on :1025, so this
  * would otherwise hang or fail there. This is exactly the case a MOCKED test cannot prove — see
  * send-document-email.spec.ts's own coverage for the wiring (the right recipient/subject/attachment
- * reach MailService.sendMail) and MEMORY "KSeF mock tests = false confidence" for why that mocked
- * coverage alone is never evidence a real PDF actually lands in a real inbox.
+ * reach MailService.sendForCompany) and MEMORY "KSeF mock tests = false confidence" for why that
+ * mocked coverage alone is never evidence a real PDF actually lands in a real inbox.
+ *
+ * Also exercises `sendForCompany`'s own société → instance → refus-nommé cascade for real: the Company
+ * created below has no `CompanyChannelConfig` row for the `'mail'` provider, so
+ * `resolveCompanyMailSettings` genuinely resolves to `null` against the real database and this test
+ * falls through to the instance-level SMTP env vars set just below — never a mocked resolver standing
+ * in for that decision.
  *
  * Exercises the REAL `sendDocumentInstanceEmail` (send-document-email.ts) — the exact function both
  * the quote's own "send" (generic-actions.ts) and the invoice's "email" transport

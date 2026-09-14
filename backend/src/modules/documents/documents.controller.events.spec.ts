@@ -14,6 +14,7 @@
  */
 import { EventEmitter } from 'node:events';
 
+import { AttachmentsService } from './attachments/attachments.service';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentEventMessage } from './queue/document-events';
@@ -27,6 +28,7 @@ function buildController(bridge: DocumentEventsBridge): DocumentsController {
     {} as unknown as DocumentSchedulesService,
     {} as unknown as ShareLinksService,
     bridge,
+    {} as unknown as AttachmentsService,
   );
 }
 

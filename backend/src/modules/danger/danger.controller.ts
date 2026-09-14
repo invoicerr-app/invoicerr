@@ -19,8 +19,8 @@ export class DangerController {
     description: 'Sends a one-time passcode to the user email to authorize destructive operations.',
   })
   @ApiResponse({ status: 201, description: 'OTP sent' })
-  async requestOtp(@User() user: CurrentUser) {
-    return this.dangerService.requestOtp(user);
+  async requestOtp(@User() user: CurrentUser, @ActiveCompany() companyId: string) {
+    return this.dangerService.requestOtp(user, companyId);
   }
 
   @Post('reset/app')

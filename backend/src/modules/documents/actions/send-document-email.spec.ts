@@ -1,3 +1,8 @@
+import * as nodemailer from 'nodemailer';
+
+import { MailService } from '@/mail/mail.service';
+import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
+
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import * as takeNumber from '../numbering/take-number';
@@ -11,6 +16,13 @@ jest.mock('../numbering/take-number');
 jest.mock('../rendering/render-instance-pdf');
 jest.mock('../stock/apply-stock-on-issuance');
 jest.mock('./company-email-templates');
+// Only used by the "société → instance" cascade tests near the bottom of this file — every other
+// test here keeps using a bare fake `mailService` object, never touching this at all.
+jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: jest.fn(),
+}));
+
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
 
 /**
  * `sendDocumentInstanceEmail` in isolation — the shared core behind the quote's own "send"
@@ -24,7 +36,9 @@ jest.mock('./company-email-templates');
 function buildDeps() {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildQuoteDescriptor());
-  const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
+  const mailService = {
+    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+  };
 
   return { typeRegistry, referenceRegistry: new EntityReferenceRegistry(), mailService };
 }
@@ -83,7 +97,7 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(mailService.sendMail).toHaveBeenCalledWith({
+    expect(mailService.sendForCompany).toHaveBeenCalledWith('company-1', {
       to: 'client@example.com',
       subject: expect.any(String),
       text: expect.any(String),
@@ -125,7 +139,8 @@ describe('sendDocumentInstanceEmail', () => {
 
     // Already numbered — no reason to ever ask the sequence for another one.
     expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({
         attachments: [expect.objectContaining({ filename: 'QUOTE-2026-0001.pdf' })],
       }),
@@ -169,7 +184,8 @@ describe('sendDocumentInstanceEmail', () => {
     );
 
     expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledWith('company-1', 'quote', 'doc-1');
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({
         subject: expect.stringContaining('QUOTE-2026-0007'),
         attachments: [expect.objectContaining({ filename: 'QUOTE-2026-0007.pdf' })],
@@ -211,7 +227,7 @@ describe('sendDocumentInstanceEmail', () => {
     );
 
     await expect(action).rejects.toBe(renderError);
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   // Stock effect — this is the PRIMARY issuance path for a sent document: it is numbered
@@ -314,11 +330,12 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({ subject: 'OVERRIDDEN SUBJECT', text: 'OVERRIDDEN BODY' }),
     );
     // A text-only template still sends a text-only email — no empty html part invented for it.
-    expect(mailService.sendMail.mock.calls[0][0]).not.toHaveProperty('html');
+    expect(mailService.sendForCompany.mock.calls[0][1]).not.toHaveProperty('html');
   });
 
   it('sends BOTH parts when the template carries html, escaping interpolated values into the html one', async () => {
@@ -367,7 +384,8 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({
         subject: 'Quote from Acme <Corp> & Co',
         text: 'Plain from Acme <Corp> & Co',
@@ -407,7 +425,8 @@ describe('sendDocumentInstanceEmail', () => {
 
     // Never an html-only message: that is what a text-only client, a screen reader and most spam
     // filters would see as empty.
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({
         subject: 'Quote QUOTE-2026-0001',
         text: 'Hello,\nSee attached.',
@@ -446,13 +465,14 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({
         subject: expect.stringContaining('de Acme Corp'),
         text: expect.stringContaining('Veuillez trouver ci-joint'),
       }),
     );
-    const sentEmail = mailService.sendMail.mock.calls[0][0];
+    const sentEmail = mailService.sendForCompany.mock.calls[0][1];
     expect(sentEmail.subject).not.toContain('from Acme Corp');
     expect(sentEmail.text).not.toContain('Please find attached');
   });
@@ -489,8 +509,157 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(mailService.sendMail).toHaveBeenCalledWith(
+    expect(mailService.sendForCompany).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({ subject: 'OVERRIDDEN SUBJECT', text: 'OVERRIDDEN BODY' }),
     );
+  });
+
+  // The two tests below use a REAL `MailService` (only `resolveCompanyMailSettings` and
+  // `nodemailer.createTransport` are mocked, the exact same doubles `mail.service.spec.ts` uses for
+  // its own cascade coverage) rather than a fake `{ sendForCompany: jest.fn() }`: every OTHER test in
+  // this file already proves the ADDRESSING/composition logic against a fake, so this is the one place
+  // that proves `sendDocumentInstanceEmail` genuinely reaches the right transport end-to-end, not just
+  // that it calls a method with the right name.
+  describe('the société → instance → refus-nommé cascade, exercised through a REAL MailService', () => {
+    const ORIGINAL_ENV = process.env;
+
+    beforeEach(() => {
+      jest.restoreAllMocks(); // undoes any jest.spyOn(nodemailer, 'createTransport') from a prior test
+      mockedResolveCompanyMailSettings.mockReset();
+      process.env = { ...ORIGINAL_ENV };
+      delete process.env.MAIL_PROVIDER;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.SMTP_HOST;
+    });
+
+    afterAll(() => {
+      process.env = ORIGINAL_ENV;
+    });
+
+    it("sends through THIS company's own SMTP server when Settings → Mail has one configured, never the instance's", async () => {
+      mockSuccessfulRender();
+      (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
+
+      mockedResolveCompanyMailSettings.mockResolvedValue({
+        kind: 'smtp',
+        host: 'company-smtp.example.com',
+        port: 587,
+        secure: false,
+        username: 'user',
+        password: 'pass',
+        fromAddress: 'billing@company.example.com',
+      });
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const { typeRegistry, referenceRegistry } = buildDeps();
+      const mailService = new MailService();
+
+      await sendDocumentInstanceEmail(
+        { mailService, typeRegistry, referenceRegistry },
+        {
+          companyId: 'company-with-own-server',
+          typeId: 'quote',
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sent',
+            data: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: null,
+            displayNumber: null,
+          },
+          recipient: 'client@example.com',
+          label: 'Quote',
+        },
+      );
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'company-smtp.example.com' }),
+      );
+    });
+
+    it("falls back to the instance's own mail server when this company has none configured", async () => {
+      mockSuccessfulRender();
+      (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      process.env.SMTP_HOST = 'instance-smtp.example.com';
+      mockedResolveCompanyMailSettings.mockResolvedValue(null);
+
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const { typeRegistry, referenceRegistry } = buildDeps();
+      const mailService = new MailService();
+
+      await sendDocumentInstanceEmail(
+        { mailService, typeRegistry, referenceRegistry },
+        {
+          companyId: 'company-without-own-server',
+          typeId: 'quote',
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sent',
+            data: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: null,
+            displayNumber: null,
+          },
+          recipient: 'client@example.com',
+          label: 'Quote',
+        },
+      );
+
+      // ONE call to createTransport (the instance provider, built at MailService construction) using
+      // the instance's own host — no per-company override was ever consulted for a transport.
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'instance-smtp.example.com' }),
+      );
+    });
+
+    it('refuses NAMED, and the send fails with that exact message, when neither company nor instance has anything configured', async () => {
+      mockSuccessfulRender();
+      (companyEmailTemplates.getCompanyDocumentEmailTemplates as jest.Mock).mockResolvedValue({});
+      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue(undefined);
+      mockedResolveCompanyMailSettings.mockResolvedValue(null);
+
+      const { typeRegistry, referenceRegistry } = buildDeps();
+      const mailService = new MailService();
+
+      const action = sendDocumentInstanceEmail(
+        { mailService, typeRegistry, referenceRegistry },
+        {
+          companyId: 'company-with-nothing-configured',
+          typeId: 'quote',
+          document: {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sent',
+            data: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: null,
+            displayNumber: null,
+          },
+          recipient: 'client@example.com',
+          label: 'Quote',
+        },
+      );
+
+      // This is exactly the message `queue/mark-send-failed.ts` records, verbatim, as the document's
+      // own `send_failed` reason — see that mechanism's own coverage
+      // (mark-send-failed.spec.ts) for the write itself; this test only proves the message that reaches
+      // it is the NAMED refusal, never a generic one.
+      await expect(action).rejects.toThrow(
+        'No mail server is configured: this company has none set in Settings → Mail, and this instance ' +
+          'has neither RESEND_API_KEY nor SMTP_HOST configured either. Configure one before sending.',
+      );
+    });
   });
 });

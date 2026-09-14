@@ -69,7 +69,9 @@ function buildService() {
   registerCoreFieldKinds(fieldKindRegistry);
 
   const clientsService = { getClientById: jest.fn().mockResolvedValue(null) };
-  const mailService = { sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }) };
+  const mailService = {
+    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+  };
 
   const referenceRegistry = new EntityReferenceRegistry();
 
@@ -344,7 +346,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       });
 
       await expect(action).rejects.toThrow(/Invalid document data/);
-      expect(mailService.sendMail).not.toHaveBeenCalled();
+      expect(mailService.sendForCompany).not.toHaveBeenCalled();
     });
 
     it('phase 1: once params are valid, persists "sending" and ENQUEUES — never calls MailService synchronously', async () => {
@@ -374,7 +376,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
 
       expect(result.changed).toBe(true);
       expect(result.document).toMatchObject({ id: 'doc-1', status: 'sending' });
-      expect(mailService.sendMail).not.toHaveBeenCalled();
+      expect(mailService.sendForCompany).not.toHaveBeenCalled();
       expect(persistence.upsertDocument).toHaveBeenCalledWith(
         'company-1',
         'quote',
@@ -426,7 +428,11 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       // Subject/body now come from quote.descriptor.ts's own `email` template, interpolated with the
       // (mocked) render result — 'Test Co' proves the real template pipeline ran, not a re-implementation.
       // The PDF (also mocked) is attached, never a bare text-only email.
-      expect(mailService.sendMail).toHaveBeenCalledWith(
+      // `sendForCompany`, not the plain `sendMail` — the société → instance → refus-nommé cascade,
+      // addressed by THIS company's own id (never a hardcoded string, never the instance's provider
+      // called directly).
+      expect(mailService.sendForCompany).toHaveBeenCalledWith(
+        'company-1',
         expect.objectContaining({
           to: 'client@example.com',
           subject: expect.stringContaining('Test Co'),
@@ -552,7 +558,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       const actionRegistry = new ActionRegistry();
       registerQuoteActions(actionRegistry, {
         clientsService: { getClientById: jest.fn() } as never,
-        mailService: { sendMail: jest.fn() } as never,
+        mailService: { sendForCompany: jest.fn() } as never,
         typeRegistry,
         referenceRegistry,
         queueDispatcher: { enqueueAction: jest.fn() },

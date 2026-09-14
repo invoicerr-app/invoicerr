@@ -168,13 +168,29 @@ export class MailService {
    * NAMED refusal, thrown before any network attempt, when neither level has anything configured —
    * a send must never look like it worked and then silently vanish into an unconfigured transport.
    *
-   * Deliberately does NOT rewrap failures into a generic message the way `sendMail` above does: its
-   * one caller today, `CompanyMailSettingsService#sendTest`, exists specifically to show a company
-   * admin the REAL provider error (a bad SMTP password, an invalid Resend key, ECONNREFUSED, ...)
-   * while they are configuring this — a generic "check your configuration" string would defeat the
-   * entire point of a "test send" button. A future caller wiring this into an actual document send
-   * (`documents/transports/email-transport.ts`, out of scope for this change — see this method's own
-   * git history) is free to catch and rewrap it the way `sendMail` does, at that call site.
+   * Deliberately does NOT rewrap failures into a generic message the way `sendMail` above does:
+   * `CompanyMailSettingsService#sendTest` exists specifically to show a company admin the REAL
+   * provider error (a bad SMTP password, an invalid Resend key, ECONNREFUSED, ...) while they are
+   * configuring this — a generic "check your configuration" string would defeat the entire point of a
+   * "test send" button. Every OTHER caller decides for itself, at its own call site, whether to let
+   * that real error propagate (documents: `actions/send-document-email.ts`, `reminders/
+   * reminder-sweep-runner.ts` — both already tolerate a `sendMail` failure exactly the same way, so
+   * the extra detail is free) or to catch it and rewrap it into something narrower for an untrusted
+   * caller (`signatures.service.ts#sendTemplatedMail`, `danger.service.ts#requestOtp` — both rethrow
+   * the named "no mail server configured" refusal verbatim but collapse any OTHER provider error into
+   * a generic message, since their own callers are a public signature page / an OWNER confirming a
+   * destructive action, not someone configuring the mail server itself).
+   *
+   * NOW CONSUMED by every real send in this codebase — see `git log -- mail/mail.service.ts` around
+   * the commit that wired this in (this comment used to say "not yet consumed" and named
+   * `email-transport.ts` as the one caller left to wire; that caller, and every sibling one
+   * (reminders, signature requests, OTP codes, client-portal invites), all go through this method now.
+   * The one deliberate holdout is `transports/sdi-pec-transport.ts`: it calls `sendMail` directly with
+   * its own `SmtpOverrides` (the company's dedicated PEC mailbox, resolved through
+   * `ChannelCredentialsService` under the `'sdi-pec'` provider id, never through `'mail'`/
+   * `resolveCompanyMailSettings`) — a PEC mailbox is a certified, protocol-mandated inbox for SdI
+   * traffic specifically, not a general outgoing mail server a company might also want its invoices or
+   * OTPs to go through, so it is never a candidate for this cascade's company-level branch.
    */
   async sendForCompany(companyId: string, options: MailOptions): Promise<{ message: string }> {
     const companySettings = await resolveCompanyMailSettings(companyId);

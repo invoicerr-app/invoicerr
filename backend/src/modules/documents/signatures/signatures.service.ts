@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Inject, Injectable } from '@nestjs/common';
 
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
@@ -295,7 +295,13 @@ export class SignaturesService {
       signatureNumber: input.displayNumber,
     });
 
-    await this.sendTemplatedMail(template, parts, input.recipient, MailTemplateType.SIGNATURE_REQUEST);
+    await this.sendTemplatedMail(
+      input.companyId,
+      template,
+      parts,
+      input.recipient,
+      MailTemplateType.SIGNATURE_REQUEST,
+    );
   }
 
   /** Same mechanism as above, for `VERIFICATION_CODE`. The "XXXX-XXXX" split is purely cosmetic (easier
@@ -320,7 +326,13 @@ export class SignaturesService {
       appUrl: process.env.APP_URL || '',
       otpCode: `${code.slice(0, 4)}-${code.slice(4, 8)}`,
     });
-    await this.sendTemplatedMail(template, parts, client.contactEmail, MailTemplateType.VERIFICATION_CODE);
+    await this.sendTemplatedMail(
+      row.companyId,
+      template,
+      parts,
+      client.contactEmail,
+      MailTemplateType.VERIFICATION_CODE,
+    );
   }
 
   private async resolveSystemTemplate(
@@ -345,8 +357,21 @@ export class SignaturesService {
    * what prevents a signature request — or a verification code — from being delivered. That is the same
    * contract the engine documents for document sends, applied here to the two emails where failing
    * closed would be worst.
+   *
+   * Sends through the société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a
+   * company with its own mail server sends its signature requests and OTP codes through it, never the
+   * instance's. `sendForCompany`'s own named refusal (`NO_MAIL_SERVER_CONFIGURED_MESSAGE`, a
+   * `BadRequestException`) is rethrown VERBATIM below, never folded into the generic
+   * "check your SMTP configuration" wrapper: it already names the actual, actionable problem (this
+   * company has nothing configured, neither does the instance), and rewrapping it would hide that fact
+   * from the exact caller (a company OWNER driving the public signature flow, or requesting a
+   * destructive-action OTP) who needs to see it to fix it. Any OTHER failure — a real SMTP/Resend
+   * provider error — still collapses to the generic message, for the same reason `sendMail` (the
+   * plain, non-company-aware path) already does: the raw provider error is logged, never shown to an
+   * unauthenticated public-signature caller.
    */
   private async sendTemplatedMail(
+    companyId: string,
     template: DocumentEmailTemplate,
     parts: Record<string, string>,
     recipient: string,
@@ -363,13 +388,14 @@ export class SignaturesService {
     }
 
     try {
-      await this.mailService.sendMail({
+      await this.mailService.sendForCompany(companyId, {
         to: recipient,
         subject,
         text: body,
         ...(html ? { html } : {}),
       });
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       logger.error(`Failed to send ${label} email`, {
         category: 'documents',
         details: { recipient, message: error instanceof Error ? error.message : String(error) },

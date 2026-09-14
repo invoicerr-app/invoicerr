@@ -111,7 +111,7 @@ export class PortalTokensService {
     const record = await createPortalToken({ companyId, clientId, tokenHash, expiresAt });
 
     const path = `/portal/${token}`;
-    const emailStatus = await this.tryEmailInvite(client.contactEmail, company.name, path);
+    const emailStatus = await this.tryEmailInvite(companyId, client.contactEmail, company.name, path);
 
     return {
       id: record.id,
@@ -157,6 +157,7 @@ export class PortalTokensService {
   }
 
   private async tryEmailInvite(
+    companyId: string,
     contactEmail: string | null,
     companyName: string,
     path: string,
@@ -164,7 +165,12 @@ export class PortalTokensService {
     if (!contactEmail) return 'no_contact_email';
     const parts = buildPortalInviteEmail({ companyName, portalUrl: this.buildPortalUrl(path) });
     try {
-      await this.mailService.sendMail({
+      // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a company with
+      // its own mail server sends its portal invites through it, never the instance's, exactly like a
+      // document send. A refusal here (including the named "no mail server configured" one) is caught
+      // right below like any other send failure: see `PortalInviteEmailStatus`'s own header for why
+      // this never fails the surrounding `create()` call.
+      await this.mailService.sendForCompany(companyId, {
         to: contactEmail,
         subject: parts.subject,
         text: parts.text,

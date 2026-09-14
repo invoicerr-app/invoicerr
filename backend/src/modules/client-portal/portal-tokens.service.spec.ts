@@ -1,8 +1,17 @@
 import { NotFoundException } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 
 import { MailService } from '@/mail/mail.service';
+import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
 import { PortalTokensService } from './portal-tokens.service';
+
+// Only used by the "société → instance" cascade tests near the bottom of this file — every other
+// test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
+jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: jest.fn(),
+}));
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
 
 /**
  * `@/prisma/prisma.service` mocked with a tiny IN-MEMORY table, the same "mock the module boundary,
@@ -118,8 +127,8 @@ jest.mock('@/prisma/prisma.service', () => {
   };
 });
 
-function buildService(sendMail: jest.Mock): PortalTokensService {
-  return new PortalTokensService({ sendMail } as unknown as MailService);
+function buildService(sendForCompany: jest.Mock): PortalTokensService {
+  return new PortalTokensService({ sendForCompany } as unknown as MailService);
 }
 
 describe('PortalTokensService', () => {
@@ -144,6 +153,7 @@ describe('PortalTokensService', () => {
     expect(result.emailed).toBe(true);
     expect(result.emailStatus).toBe('sent');
     expect(sendMail).toHaveBeenCalledWith(
+      'company-1',
       expect.objectContaining({ to: 'client@example.com', subject: expect.stringContaining('Acme Corp') }),
     );
 
@@ -225,5 +235,63 @@ describe('PortalTokensService', () => {
 
     const after = await service.list('company-1', 'client-1');
     expect(after.every((row) => !row.active)).toBe(true);
+  });
+
+  // The two tests below use a REAL `MailService` (only `resolveCompanyMailSettings` and
+  // `nodemailer.createTransport` are mocked, the same doubles `mail.service.spec.ts` itself uses) —
+  // every test above already proves the invite's OWN addressing/content against a fake
+  // `sendForCompany`; this is the one place proving the invite genuinely reaches the right transport.
+  describe('invite emails go through the société → instance → refus-nommé cascade', () => {
+    const ORIGINAL_ENV = process.env;
+
+    beforeEach(() => {
+      jest.restoreAllMocks();
+      mockedResolveCompanyMailSettings.mockReset();
+      process.env = { ...ORIGINAL_ENV };
+      delete process.env.MAIL_PROVIDER;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.SMTP_HOST;
+    });
+
+    afterAll(() => {
+      process.env = ORIGINAL_ENV;
+    });
+
+    it("uses THIS company's own SMTP server when Settings → Mail has one configured", async () => {
+      process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
+      mockedResolveCompanyMailSettings.mockResolvedValue({
+        kind: 'smtp',
+        host: 'company-smtp.example.com',
+        port: 587,
+        secure: false,
+        username: 'user',
+        password: 'pass',
+        fromAddress: 'billing@company.example.com',
+      });
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const service = new PortalTokensService(new MailService());
+      await service.create('company-1', 'client-1');
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'company-smtp.example.com' }),
+      );
+    });
+
+    it('falls back to the instance mail server when this company has none configured', async () => {
+      process.env.SMTP_HOST = 'instance-smtp.example.com';
+      mockedResolveCompanyMailSettings.mockResolvedValue(null);
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const service = new PortalTokensService(new MailService());
+      const result = await service.create('company-1', 'client-1');
+
+      expect(result.emailStatus).toBe('sent');
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'instance-smtp.example.com' }),
+      );
+    });
   });
 });

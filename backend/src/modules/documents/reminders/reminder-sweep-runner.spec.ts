@@ -1,4 +1,7 @@
+import * as nodemailer from 'nodemailer';
+
 import { MailService } from '@/mail/mail.service';
+import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -10,6 +13,13 @@ import * as settlementCredits from '../settlement/credits';
 import * as settlementPayments from '../settlement/payments';
 import { ReminderSweepRunner } from './reminder-sweep-runner';
 
+// Only used by the "société → instance" cascade tests near the bottom of this file — every other
+// test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
+jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
+  resolveCompanyMailSettings: jest.fn(),
+}));
+const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as jest.Mock;
+
 /**
  * Same mocking discipline as `settlement/client-statement.spec.ts` (this file's own model): `../persistence`
  * and `../settlement/payments` fully mocked (both reach Prisma directly), `../settlement/credits`
@@ -20,7 +30,7 @@ import { ReminderSweepRunner } from './reminder-sweep-runner';
  * `../persistence`): `company.findMany`, `client.findFirst`,
  * `documentReminder.findMany/create/deleteMany` — see that file's own header on why it stays a plain
  * `prisma` consumer rather than pulling in `ClientsService`. `create` is the CLAIM
- * (`claimReminderTier`, run BEFORE `mailService.sendMail`) and `deleteMany` is the compensating
+ * (`claimReminderTier`, run BEFORE `mailService.sendForCompany`) and `deleteMany` is the compensating
  * release (`releaseReminderClaim`, run only if the send then fails) — see reminder-sweep-runner.ts's
  * own header ("Reservation, not record-after-send") for why the order is claim-then-send, not
  * send-then-record.
@@ -81,7 +91,7 @@ const NOW = new Date('2026-06-08T00:00:00Z'); // exactly 7 days after the fixtur
 
 function buildMailService(): MailService {
   return {
-    sendMail: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
+    sendForCompany: jest.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   } as unknown as MailService;
 }
 
@@ -105,7 +115,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW);
 
     expect(result).toEqual({ companiesProcessed: 0, remindersSent: 0, skipped: 0 });
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   it('sends the tier-7 reminder for an overdue, unpaid invoice of an OPTED-IN company', async () => {
@@ -117,8 +127,9 @@ describe('ReminderSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW);
 
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 1, skipped: 0 });
-    expect(mailService.sendMail).toHaveBeenCalledTimes(1);
-    const [sendArgs] = (mailService.sendMail as jest.Mock).mock.calls[0];
+    expect(mailService.sendForCompany).toHaveBeenCalledTimes(1);
+    const [sentCompanyId, sendArgs] = (mailService.sendForCompany as jest.Mock).mock.calls[0];
+    expect(sentCompanyId).toBe('company-1');
     expect(sendArgs.to).toBe('client@example.com');
     expect(sendArgs.subject).toContain('INV-2026-0001');
     expect(sendArgs.text).toContain('120.00 EUR'); // full gross unpaid, no payments/credits recorded
@@ -138,7 +149,7 @@ describe('ReminderSweepRunner.runSweep', () => {
 
     expect(result.remindersSent).toBe(0);
     expect(listDocuments).not.toHaveBeenCalled();
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   it('does not re-send a tier already recorded — idempotency via the (documentId, tier) read', async () => {
@@ -151,7 +162,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW); // still only 7 days overdue -> nothing NEW due
 
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 0 });
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
     expect(reminderCreate).not.toHaveBeenCalled();
   });
 
@@ -197,7 +208,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW);
 
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 0 });
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   it('skips (never throws) an invoice whose client has no resolvable contact email', async () => {
@@ -210,7 +221,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW);
 
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 1 });
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
   it('skips (never throws) an invoice whose data.client points at no client at all', async () => {
@@ -226,7 +237,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     expect(clientFindFirst).not.toHaveBeenCalled(); // no clientId at all -> never even queried
   });
 
-  it('a MailService.sendMail rejection for one invoice does not abort the others, and releases that reservation', async () => {
+  it('a MailService.sendForCompany rejection for one invoice does not abort the others, and releases that reservation', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     listDocuments.mockResolvedValue([
       invoice({ id: 'inv-1', displayNumber: 'INV-2026-0001', data: invoiceData() }),
@@ -236,7 +247,7 @@ describe('ReminderSweepRunner.runSweep', () => {
       .mockResolvedValueOnce({ id: 'reminder-inv-1' })
       .mockResolvedValueOnce({ id: 'reminder-inv-2' });
     const mailService = {
-      sendMail: jest
+      sendForCompany: jest
         .fn()
         .mockRejectedValueOnce(new Error('SMTP timeout'))
         .mockResolvedValueOnce({ message: 'Email sent successfully' }),
@@ -245,7 +256,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     const runner = new ReminderSweepRunner(mailService);
     const result = await runner.runSweep(NOW);
 
-    expect(mailService.sendMail).toHaveBeenCalledTimes(2);
+    expect(mailService.sendForCompany).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 1, skipped: 1 });
     // BOTH invoices had their tier claimed BEFORE their own send attempt — the reservation write can
     // no longer be blamed for a resend, because it happens before the mail goes out, never after.
@@ -269,7 +280,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
     const mailService = {
-      sendMail: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+      sendForCompany: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
     // Real implementation runs (it never throws — see logger.service.ts's own header), only spied on
     // to assert the call: a silently-failing reminder must leave a trace in the PERSISTED logger
@@ -314,16 +325,16 @@ describe('ReminderSweepRunner.runSweep', () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
     // A transient DB hiccup on the CLAIM itself — not a P2002 race. On the old (send-then-record)
-    // order this mock has no bearing on whether the email goes out at all, since sendMail always ran
-    // BEFORE this write was ever attempted; this test would therefore see `sendMail` called on the
-    // pre-fix code. On the fixed (claim-then-send) order it must prevent the send entirely.
+    // order this mock has no bearing on whether the email goes out at all, since sendForCompany always
+    // ran BEFORE this write was ever attempted; this test would therefore see `sendForCompany` called
+    // on the pre-fix code. On the fixed (claim-then-send) order it must prevent the send entirely.
     reminderCreate.mockRejectedValue(new Error('connection reset by peer'));
 
     const mailService = buildMailService();
     const runner = new ReminderSweepRunner(mailService);
     const result = await runner.runSweep(NOW);
 
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
     expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 1 });
     // No claim ever landed, so nothing needs releasing either.
     expect(reminderDeleteMany).not.toHaveBeenCalled();
@@ -334,7 +345,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
     reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
     const mailService = {
-      sendMail: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+      sendForCompany: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
 
     const runner = new ReminderSweepRunner(mailService);
@@ -358,7 +369,7 @@ describe('ReminderSweepRunner.runSweep', () => {
     reminderCreate.mockResolvedValue({ id: 'reminder-claim-1' });
     reminderDeleteMany.mockRejectedValue(new Error('connection reset by peer'));
     const mailService = {
-      sendMail: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+      sendForCompany: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
     } as unknown as MailService;
     const errorSpy = jest.spyOn(logger, 'error');
 
@@ -450,6 +461,69 @@ describe('ReminderSweepRunner.runSweep', () => {
     // owns this tier, so sending here too would be exactly the duplicate a reservation exists to rule
     // out. This is the behavioral improvement over the old send-then-record order, which really did
     // send the email twice in this same window.
-    expect(mailService.sendMail).not.toHaveBeenCalled();
+    expect(mailService.sendForCompany).not.toHaveBeenCalled();
+  });
+
+  // The two tests below use a REAL `MailService` (only `resolveCompanyMailSettings` and
+  // `nodemailer.createTransport` are mocked, the same doubles `mail.service.spec.ts` itself uses) —
+  // every test above already proves the reminder's OWN content/timing against a fake
+  // `sendForCompany`; this is the one place proving a reminder genuinely reaches the right transport.
+  describe('reminders go through the société → instance → refus-nommé cascade', () => {
+    const ORIGINAL_ENV = process.env;
+
+    beforeEach(() => {
+      jest.restoreAllMocks();
+      mockedResolveCompanyMailSettings.mockReset();
+      process.env = { ...ORIGINAL_ENV };
+      delete process.env.MAIL_PROVIDER;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.SMTP_HOST;
+    });
+
+    afterAll(() => {
+      process.env = ORIGINAL_ENV;
+    });
+
+    it("sends the reminder through THIS company's own SMTP server when Settings → Mail has one configured", async () => {
+      companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+      listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+      process.env.SMTP_HOST = 'instance-smtp.example.com'; // instance IS configured too — must be ignored
+      mockedResolveCompanyMailSettings.mockResolvedValue({
+        kind: 'smtp',
+        host: 'company-smtp.example.com',
+        port: 587,
+        secure: false,
+        username: 'user',
+        password: 'pass',
+        fromAddress: 'billing@company.example.com',
+      });
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const runner = new ReminderSweepRunner(new MailService());
+      const result = await runner.runSweep(NOW);
+
+      expect(result.remindersSent).toBe(1);
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'company-smtp.example.com' }),
+      );
+    });
+
+    it('falls back to the instance mail server when this company has none configured', async () => {
+      companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+      listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+      process.env.SMTP_HOST = 'instance-smtp.example.com';
+      mockedResolveCompanyMailSettings.mockResolvedValue(null);
+      const sendMailMock = jest.fn().mockResolvedValue(undefined);
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({ sendMail: sendMailMock } as never);
+
+      const runner = new ReminderSweepRunner(new MailService());
+      const result = await runner.runSweep(NOW);
+
+      expect(result.remindersSent).toBe(1);
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({ host: 'instance-smtp.example.com' }),
+      );
+    });
   });
 });
