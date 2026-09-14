@@ -68,11 +68,13 @@ describe('buildChorusProStatusPoller', () => {
     expect(poller.isTerminal('VALIDE')).toBe(true);
   });
 
-  it('maps a REJECTED statutFlux (REJETE) into a terminal event, carrying the statutFlux as its own reason', async () => {
+  it('maps a REJECTED statutFlux (REJETE) with no structured errors into a terminal event, falling back to the statutFlux itself as reason', async () => {
     mockConsulterCr.mockResolvedValue({
       numeroFluxDepot: '375037',
       statutFlux: 'REJETE',
       raw: { numeroFluxDepot: '375037', statutFlux: 'REJETE' },
+      // No erreursDP/erreursTechniques — a mocked client predating those fields (or a real response
+      // that genuinely carries none) must not crash `poll()`'s own `?? []` guard.
     });
     const poller = buildChorusProStatusPoller({ channelCredentials: buildChannelCredentials() });
 
@@ -80,6 +82,22 @@ describe('buildChorusProStatusPoller', () => {
 
     expect(events[0]).toMatchObject({ statusCode: 'REJETE', reason: 'REJETE' });
     expect(poller.isTerminal('REJETE')).toBe(true);
+  });
+
+  it("prefers consulterCRDetaille's own structured errors over the bare status code for a REJECTED reason", async () => {
+    mockConsulterCr.mockResolvedValue({
+      numeroFluxDepot: '375037',
+      statutFlux: 'REJETE',
+      erreursDP: [{ numeroDP: 'DP1', libelleErreurDP: 'Destinataire inconnu' }],
+      erreursTechniques: [{ codeErreur: 'E01', libelleErreur: 'Flux irrecevable' }],
+      raw: {},
+    });
+    const poller = buildChorusProStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    const events = await poller.poll('company-1', '375037');
+
+    expect(events[0].statusCode).toBe('REJETE');
+    expect(events[0].reason).toBe('Flux irrecevable; Destinataire inconnu');
   });
 
   it('keeps the raw payload verbatim', async () => {

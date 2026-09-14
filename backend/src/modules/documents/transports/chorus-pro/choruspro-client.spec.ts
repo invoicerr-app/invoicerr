@@ -2,7 +2,10 @@
  * Chorus Pro client — mocked / structural tests. REPRISED from git tag `avant-refonte-documents`'s
  * own `choruspro-client.spec.ts` — same assertions, adapted for the ONE structural change made
  * here (`deposerFlux` takes a `Buffer`, not a UTF-8 `string` — see `choruspro-client.ts`'s own header,
- * adaptation §1).
+ * adaptation §1) — PLUS the 2026-09-14 `consulterCr` route correction (that file's own header,
+ * "CORRECTED 2026-09-14"): the reference's own `/cpro/factures/v1/consulter/cr` route does not exist;
+ * the real route is `/cpro/transverses/v1/consulterCRDetaille`, with a different response field name
+ * (`etatCourantDepotFlux`, not `statutFlux`) and two new structured-error arrays.
  *
  * No network calls — all HTTP responses are stubs. The REAL round-trip (`FetchChorusProHttpPort`
  * against the real PISTE sandbox) is proven separately, gated, in `choruspro.live.spec.ts`.
@@ -21,8 +24,10 @@
  *    own client-level companion: the client itself does not silently invent one; the hard-success
  *    contract lives in `chorus-pro-transport.ts#send()`, checked in that file's own spec — this test
  *    only proves the client reports back exactly what PISTE said, empty string included.
- *  - consulterCr() posts to the correct path.
- *  - consulterCr() returns statutFlux from response.
+ *  - consulterCr() posts to the correct (Transverses) path.
+ *  - consulterCr() returns statutFlux read off etatCourantDepotFlux.
+ *  - consulterCr() returns listeErreurDP/listeErreurTechnique as erreursDP/erreursTechniques.
+ *  - consulterCr() defaults erreursDP/erreursTechniques to [] when absent from the response.
  *  - consulterCr() throws on 4xx.
  *  - mapChorusProStatus() maps each Chorus Pro status to the canonical value.
  *  - resolveChorusProSyntax() maps artifact syntax codes correctly.
@@ -76,8 +81,8 @@ describe('CHORUSPRO_PATHS', () => {
   it('deposerFlux uses /cpro/factures/v1/deposer/flux', () => {
     expect(CHORUSPRO_PATHS.deposerFlux).toBe('/cpro/factures/v1/deposer/flux');
   });
-  it('consulterCr uses /cpro/factures/v1/consulter/cr', () => {
-    expect(CHORUSPRO_PATHS.consulterCr).toBe('/cpro/factures/v1/consulter/cr');
+  it('consulterCr uses /cpro/transverses/v1/consulterCRDetaille (Transverses API, not Factures)', () => {
+    expect(CHORUSPRO_PATHS.consulterCr).toBe('/cpro/transverses/v1/consulterCRDetaille');
   });
 });
 
@@ -312,18 +317,18 @@ describe('ChorusProClient — deposerFlux', () => {
 // ChorusProClient — consulterCr
 // ---------------------------------------------------------------------------
 describe('ChorusProClient — consulterCr', () => {
-  it('POSTs to the correct consulterCr path', async () => {
+  it('POSTs to the correct consulterCRDetaille path — Transverses API, not Factures', async () => {
     let capturedUrl = '';
     const http = makeHttp({
       post: async (url) => {
         capturedUrl = url;
         if (String(url).includes('/token')) return TOKEN_RESPONSE;
-        return { status: 200, data: { numeroFluxDepot: '42', statutFlux: 'EN_COURS_DE_TRAITEMENT' } };
+        return { status: 200, data: { etatCourantDepotFlux: 'EN_COURS_DE_TRAITEMENT' } };
       },
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.consulterCr('42');
-    expect(capturedUrl).toBe('https://sandbox-api.piste.gouv.fr/cpro/factures/v1/consulter/cr');
+    expect(capturedUrl).toBe('https://sandbox-api.piste.gouv.fr/cpro/transverses/v1/consulterCRDetaille');
   });
 
   it('sends numeroFluxDepot in the body', async () => {
@@ -332,7 +337,7 @@ describe('ChorusProClient — consulterCr', () => {
       post: async (url, body) => {
         if (String(url).includes('/token')) return TOKEN_RESPONSE;
         capturedBody = body as Record<string, unknown>;
-        return { status: 200, data: { numeroFluxDepot: '42', statutFlux: 'VALIDE' } };
+        return { status: 200, data: { etatCourantDepotFlux: 'VALIDE' } };
       },
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
@@ -340,17 +345,52 @@ describe('ChorusProClient — consulterCr', () => {
     expect(capturedBody.numeroFluxDepot).toBe('42');
   });
 
-  it('returns statutFlux from response', async () => {
+  it("returns statutFlux read off the response's etatCourantDepotFlux field", async () => {
     const http = makeHttp({
       post: async (url) => {
         if (String(url).includes('/token')) return TOKEN_RESPONSE;
-        return { status: 200, data: { numeroFluxDepot: '42', statutFlux: 'VALIDE' } };
+        return { status: 200, data: { etatCourantDepotFlux: 'VALIDE' } };
       },
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     const result = await client.consulterCr('42');
     expect(result.statutFlux).toBe('VALIDE');
+    // numeroFluxDepot is NOT in WsRetourConsulterCRDetaille — the client passes the caller's own
+    // argument through instead (see choruspro-client.ts's own doc comment on consulterCr()).
     expect(result.numeroFluxDepot).toBe('42');
+  });
+
+  it('maps listeErreurDP/listeErreurTechnique onto erreursDP/erreursTechniques', async () => {
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) return TOKEN_RESPONSE;
+        return {
+          status: 200,
+          data: {
+            etatCourantDepotFlux: 'REJETEE',
+            listeErreurDP: [{ numeroDP: 'DP1', libelleErreurDP: 'Destinataire inconnu' }],
+            listeErreurTechnique: [{ codeErreur: 'E01', libelleErreur: 'Flux irrecevable' }],
+          },
+        };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    const result = await client.consulterCr('42');
+    expect(result.erreursDP).toEqual([{ numeroDP: 'DP1', libelleErreurDP: 'Destinataire inconnu' }]);
+    expect(result.erreursTechniques).toEqual([{ codeErreur: 'E01', libelleErreur: 'Flux irrecevable' }]);
+  });
+
+  it('defaults erreursDP/erreursTechniques to [] when the response carries neither', async () => {
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) return TOKEN_RESPONSE;
+        return { status: 200, data: { etatCourantDepotFlux: 'VALIDE' } };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    const result = await client.consulterCr('42');
+    expect(result.erreursDP).toEqual([]);
+    expect(result.erreursTechniques).toEqual([]);
   });
 
   it('throws on 4xx', async () => {
@@ -361,6 +401,8 @@ describe('ChorusProClient — consulterCr', () => {
       },
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
-    await expect(client.consulterCr('unknown')).rejects.toThrow('Chorus Pro consulterCr failed (HTTP 404)');
+    await expect(client.consulterCr('unknown')).rejects.toThrow(
+      'Chorus Pro consulterCRDetaille failed (HTTP 404)',
+    );
   });
 });

@@ -41,8 +41,10 @@
  *   Base path: /cpro/factures/v1
  *
  * Key operations:
- *  - deposerFlux  : POST /cpro/factures/v1/deposer/flux
- *  - consulterCr  : POST /cpro/factures/v1/consulter/cr
+ *  - deposerFlux  : POST /cpro/factures/v1/deposer/flux            (API "Factures" — cpro.factures)
+ *  - consulterCr  : POST /cpro/transverses/v1/consulterCRDetaille  (API "Transverses" — cpro.transverses)
+ *    ^ NOT under /cpro/factures — see the dated correction note below. This is the single most
+ *    consequential fact in this file: get it wrong and every deposit round-trips a 404 on read-back.
  *
  * VERIFIED LIVE (2026-09-02): the OAuth endpoint at
  * `https://sandbox-oauth.piste.gouv.fr/api/oauth/token` (the reference's own hostname) resolves and
@@ -54,14 +56,61 @@
  * name is flagged, not silently trusted or silently overwritten (a real PISTE account is still needed
  * to know for certain which one a production application should target).
  *
- * NOT independently re-verified: `deposerFlux`/`consulterCr` themselves (both need a real PISTE
- * application + a Chorus Pro compte technique — neither obtained, see `documentation/docs/developer-guide/credentials-guide.md` §3 and
- * `choruspro.live.spec.ts`'s own header for the honest gap this leaves).
+ * CORRECTED 2026-09-14 — the reference's own `consulterCr` route (`/cpro/factures/v1/consulter/cr`,
+ * kept verbatim from `avant-refonte-documents` and never independently re-verified) does NOT exist.
+ * Established on the OFFICIAL Swagger 2.0 definitions for BOTH PISTE sandbox APIs, fetched by `curl`
+ * (`index.php?...&task=ajaxrequest.swaggerLoad&apiId=...`, the same JSON the "Download the
+ * documentation — Swagger 2.0" button on https://piste.gouv.fr/api-catalog-sandbox serves — no
+ * authentication required beyond the guest session PISTE hands out to a plain page load):
+ *  - API "Factures" v1.0.0 (apiId `10175213-109c-4423-a7ab-05e7a051ea82`, `resourcePath: "/cpro/factures"`)
+ *    lists exactly 22 operations. `deposer/flux` (nickname `deposerFluxFacture`) IS one of them, at the
+ *    EXACT path this file already had: `/cpro/factures/v1/deposer/flux`, `responseClass:
+ *    "WsRetourDeposerFluxFacture"` (properties: `codeRetour`, `dateDepot`, `libelle`,
+ *    `numeroFluxDepot`, `syntaxeFlux` — no `statut`/`statutFlux` field at all; `numeroFluxDepot` IS the
+ *    field this file reads for the deposit id, confirmed). `consulter/cr` is NOT among the 22 — no
+ *    operation on that resource path resembles it.
+ *  - API "Transverses" v1.0.0 (apiId `5c95c27b-4f81-49d1-aa13-722cff2474f5`, `resourcePath:
+ *    "/cpro/transverses"`, SAME `basePath: "https://sandbox-api.piste.gouv.fr"` as Factures — one
+ *    PISTE gateway host, many resource path prefixes) carries the actual CR-retrieval operations, verbatim
+ *    from its Swagger `summary`/`notes`:
+ *      `POST /v1/consulterCR` (nickname `consulterCR`, `responseClass: "WsRetourConsulterCR"`):
+ *        "Le service ConsulterCR permet de consulter les informations liées au dépôt d'un flux et de
+ *         récupérer au format PDF le compte rendu de traitement du flux déposé via le portail ou le
+ *         service exposé DeposerFluxFacture."
+ *      `POST /v1/consulterCRDetaille` (nickname `consulterCRDetaille`, `responseClass:
+ *        "WsRetourConsulterCRDetaille"`):
+ *        "Le service ConsulterCRDetaille permet de consulter l'état d'intégration d'un flux émis en
+ *         API, avec le cas échéant les erreurs identifiées par le système pour l'irrecevabilité du
+ *         flux ou le rejet d'une ou plusieurs demandes de paiement."
+ *    Both take `{ numeroFluxDepot, syntaxeFlux? }` (`ConsulterCRParam` additionally allows a
+ *    `dateDepot`; `ConsulterCRDetailleParam` does not). This client uses `consulterCRDetaille`, not
+ *    `consulterCR` — see `consulterCr()`'s own doc comment for why (`WsRetourConsulterCR`'s own job is
+ *    handing back a human-readable PDF this codebase has no reader for; `WsRetourConsulterCRDetaille`
+ *    hands back the SAME machine-readable current-state field this poller already wants, PLUS
+ *    structured rejection errors `chorus-pro-status-poller.ts` did not have any source for before).
+ *    Corroborated independently the same day by a live route-existence probe against
+ *    `https://sandbox-api.piste.gouv.fr` (real PISTE OAuth token, deliberately-garbage `cpro-account`,
+ *    empty JSON body — the gateway authorizes per ROUTE, so 401 means "declared and reachable, auth
+ *    layer rejected the bogus account" and 403 means "not declared on this subscription"):
+ *    `/cpro/factures/v1/deposer/flux` → 401, `/cpro/transverses/v1/consulterCR` → 401,
+ *    `/cpro/transverses/v1/consulterCRDetaille` → 401, `/cpro/factures/v1/consulter/cr` → 403,
+ *    `/cpro/transverses/v1/consulter/cr` → 403 (the slash-separated guess — wrong on TWO counts at
+ *    once: wrong API AND wrong path shape, `consulterCR` being one camelCase segment, never
+ *    `consulter/cr`).
+ *
+ * NOT independently re-verified: the ACTUAL VALUE VOCABULARY `etatCourantDepotFlux` returns at runtime
+ * (VALIDE/REJETE/…, see `mapChorusProStatus`'s own comment) — the Swagger types that field as a bare
+ * `string`, no `enum`, for both `consulterCR` and `consulterCRDetaille`. Only the ROUTE, the request
+ * shape, and the response FIELD NAMES are Swagger-sourced; a real PISTE application + Chorus Pro compte
+ * technique (`documentation/docs/developer-guide/credentials-guide.md` §3) is still needed for a live
+ * round-trip that observes an actual value — `choruspro.live.spec.ts`'s own header names this same gap.
  *
  * References:
- *  - https://piste.gouv.fr — PISTE developer portal (requires account)
+ *  - https://piste.gouv.fr/api-catalog-sandbox — PISTE sandbox API catalog (no account needed to browse)
  *  - Chorus Pro EDI integration guide (AIFE)
- *  - "API Dépôt flux G2B" v5.2.0 on PISTE (RFA: g2b.apidepotfluxg2b)
+ *  - "API Dépôt flux G2B" v5.2.0 on PISTE (RFA: g2b.apidepotfluxg2b) — the reference's own citation,
+ *    kept for `deposerFlux`'s original provenance; superseded by the Factures v1.0.0 Swagger above for
+ *    anything the two disagree on.
  */
 
 // ---------------------------------------------------------------------------
@@ -108,11 +157,43 @@ export interface ChorusProDepositResult {
   raw: unknown;
 }
 
+/** One entry of `WsRetourConsulterCRDetaille.listeErreurDP` — a rejected/irrecevable payment request
+ *  (demande de paiement) inside the flux, Swagger model `WsRetourConsulterCRDetailleErreurDP`. */
+export interface ChorusProErreurDP {
+  numeroDP?: string;
+  identifiantFournisseur?: string;
+  identifiantDestinataire?: string;
+  libelleErreurDP?: string;
+}
+
+/** One entry of `WsRetourConsulterCRDetaille.listeErreurTechnique` — a technical rejection reason for
+ *  the flux itself (irrecevabilité), Swagger model `WsRetourConsulterCRDetailleErreurTechnique`. */
+export interface ChorusProErreurTechnique {
+  codeErreur?: string;
+  libelleErreur?: string;
+  natureErreur?: string;
+}
+
 export interface ChorusProCrResult {
-  /** Same numeroFluxDepot as at deposit time. */
+  /** Same numeroFluxDepot as at deposit time — NOT echoed by `WsRetourConsulterCRDetaille` itself
+   *  (that response has no `numeroFluxDepot` field), so this is the caller's own request argument,
+   *  passed through. */
   numeroFluxDepot: string;
-  /** Overall flux status (VALIDE | REJETE | EN_COURS_DE_TRAITEMENT | DEPOSE | SUSPENDU | …). */
+  /** `WsRetourConsulterCRDetaille.etatCourantDepotFlux` — overall flux status. The FIELD NAME is
+   *  Swagger-sourced (see this file's own header, "CORRECTED 2026-09-14"); the VALUE VOCABULARY
+   *  (VALIDE | REJETE | EN_COURS_DE_TRAITEMENT | DEPOSE | SUSPENDU | …) is NOT — that field has no
+   *  `enum` in the Swagger, so these values are inherited from the reference implementation, still
+   *  unverified against a live response. Named `statutFlux` here (not `etatCourantDepotFlux`) because
+   *  every caller of this client already speaks that vocabulary (`mapChorusProStatus`,
+   *  `chorus-pro-status-poller.ts`) — only the wire field this value is READ FROM changed, not this
+   *  result type's own shape. */
   statutFlux: string;
+  /** `WsRetourConsulterCRDetaille.listeErreurDP` — empty when the flux carries no per-payment-request
+   *  rejection. */
+  erreursDP: ChorusProErreurDP[];
+  /** `WsRetourConsulterCRDetaille.listeErreurTechnique` — empty when the flux itself was not rejected
+   *  outright (irrecevabilité). */
+  erreursTechniques: ChorusProErreurTechnique[];
   raw: unknown;
 }
 
@@ -139,8 +220,14 @@ export function resolveChorusProSyntax(artifactSyntax: string): string {
 /** @internal — exported for test assertions */
 export const CHORUSPRO_PATHS = {
   token: '/api/oauth/token', // on oauthBaseUrl
-  deposerFlux: '/cpro/factures/v1/deposer/flux', // on apiBaseUrl
-  consulterCr: '/cpro/factures/v1/consulter/cr', // on apiBaseUrl
+  deposerFlux: '/cpro/factures/v1/deposer/flux', // on apiBaseUrl — API "Factures" (cpro.factures)
+  // On apiBaseUrl too, but a DIFFERENT PISTE API — "Transverses" (cpro.transverses), not "Factures".
+  // Both APIs share the SAME gateway host (`apiBaseUrl`/`basePath`), only the resource path prefix
+  // differs (`/cpro/transverses` vs `/cpro/factures`) — each entry in this table already carries its
+  // own full path, so there is no shared-prefix assumption anywhere in this client to correct.
+  // See this file's own header, "CORRECTED 2026-09-14", for the Swagger source and the verbatim
+  // citation that establishes this exact route.
+  consulterCr: '/cpro/transverses/v1/consulterCRDetaille', // API "Transverses" v1.0.0
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -170,7 +257,13 @@ export class ChorusProClient {
    * Body:
    *   { syntaxeFlux: string, nomFichier: string, fichierFlux: base64(fileBytes) }
    *
-   * Returns: { numeroFluxDepot, statut, dateDepot, nbFacturesDepot }
+   * Returns (`WsRetourDeposerFluxFacture`, confirmed on the official Factures v1.0.0 Swagger 2026-09-14
+   * — see this file's own header): `numeroFluxDepot` (the deposit id this method reads, CONFIRMED
+   * present), `codeRetour`, `dateDepot`, `libelle`, `syntaxeFlux`. There is NO `statut` field in this
+   * response at all — `this.statut` below therefore always falls back to its own default; kept (never
+   * removed) only because nothing downstream reads it today (`chorus-pro-transport.ts#send()` uses
+   * `numeroFluxDepot` alone) and this method's own return type still names it, so a future caller is
+   * not silently handed a fabricated value with no comment explaining why it never varies.
    *
    * `fileBytes` is a `Buffer` — see this file's own header, adaptation §1, for why this is NOT a
    * `string` the way the reference had it: the payload is Factur-X (a PDF/A-3 binary), and
@@ -199,14 +292,30 @@ export class ChorusProClient {
   }
 
   /**
-   * Consult the compte rendu (processing report) for a deposited flux.
+   * Consult the compte rendu détaillé (integration state + rejection errors) for a deposited flux.
    *
-   * POST /cpro/factures/v1/consulter/cr
-   * Body: { numeroFluxDepot: string }
+   * POST /cpro/transverses/v1/consulterCRDetaille   ("Transverses" API, NOT "Factures" — see this
+   * file's own header, "CORRECTED 2026-09-14", for the Swagger source).
    *
-   * Returns: { numeroFluxDepot, statutFlux, ... }
-   * statutFlux values: DEPOSE | EN_COURS_DE_TRAITEMENT | VALIDE | REJETE | SUSPENDU |
-   *                    MISE_EN_PAIEMENT | MANDATEE | COMPTABILISEE | ...
+   * Chosen over the sibling `consulterCR` (`/cpro/transverses/v1/consulterCR`) deliberately: that
+   * operation's own Swagger `responseClass` (`WsRetourConsulterCR`) hands back a PDF report
+   * (`fichierCR`) this codebase has no reader for, plus the SAME kind of top-level `etatCourantFlux`
+   * status field `consulterCRDetaille` already provides. `consulterCRDetaille`'s own `responseClass`
+   * (`WsRetourConsulterCRDetaille`) gives the identical machine-readable current-state field
+   * (`etatCourantDepotFlux`) PLUS `listeErreurDP`/`listeErreurTechnique` — structured rejection
+   * reasons `chorus-pro-status-poller.ts#poll()` folds into its own `reason` on a REJECTED event
+   * (previously just the bare status code repeated, per that poller's own former comment) — the exact
+   * "diagnostic goes in the wrong direction" risk this correction exists to close.
+   *
+   * Body: { numeroFluxDepot: string }   (`ConsulterCRDetailleParam` also allows an optional
+   * `syntaxeFlux`, unused here — this client has never needed it to look up a flux by id alone).
+   *
+   * Returns (`WsRetourConsulterCRDetaille`): `etatCourantDepotFlux` (flux state — see
+   * `ChorusProCrResult.statutFlux`'s own doc comment for what is and is not Swagger-verified about it),
+   * `listeErreurDP` / `listeErreurTechnique` (rejection detail), `codeRetour`/`libelle` (the call's own
+   * outcome code, distinct from the flux's state), `dateDepotFlux`, `dateHeureEtatCourantFlux`,
+   * `nomFichier`, `codeInterfaceDepotFlux`. No `numeroFluxDepot` field in the response itself — this
+   * client passes the caller's own argument through instead of reading one back.
    */
   async consulterCr(numeroFluxDepot: string): Promise<ChorusProCrResult> {
     const token = await this._getToken();
@@ -217,11 +326,15 @@ export class ChorusProClient {
       this._buildHeaders(token),
     );
     if (resp.status >= 400) {
-      throw new Error(`Chorus Pro consulterCr failed (HTTP ${resp.status})`);
+      throw new Error(`Chorus Pro consulterCRDetaille failed (HTTP ${resp.status})`);
     }
     const data = resp.data as Record<string, unknown>;
-    const statutFlux = String(data.statutFlux ?? data.statut_flux ?? data.statut ?? 'EN_COURS_DE_TRAITEMENT');
-    return { numeroFluxDepot, statutFlux, raw: data };
+    const statutFlux = String(data.etatCourantDepotFlux ?? 'EN_COURS_DE_TRAITEMENT');
+    const erreursDP = Array.isArray(data.listeErreurDP) ? (data.listeErreurDP as ChorusProErreurDP[]) : [];
+    const erreursTechniques = Array.isArray(data.listeErreurTechnique)
+      ? (data.listeErreurTechnique as ChorusProErreurTechnique[])
+      : [];
+    return { numeroFluxDepot, statutFlux, erreursDP, erreursTechniques, raw: data };
   }
 
   // -------------------------------------------------------------------------
@@ -288,11 +401,19 @@ export class ChorusProClient {
 // ---------------------------------------------------------------------------
 
 /**
- * Map a Chorus Pro statutFlux to canonical TransmissionStatus.
+ * Map a Chorus Pro flux status (`ChorusProCrResult.statutFlux`, read off `consulterCRDetaille`'s own
+ * `etatCourantDepotFlux`) to canonical TransmissionStatus.
  *
  * Terminal clearance: VALIDE, MISE_EN_PAIEMENT, MANDATEE, COMPTABILISEE → CLEARED
  * Terminal rejection: REJETE → REJECTED
  * In-flight: DEPOSE, EN_COURS_DE_TRAITEMENT, SUSPENDU → PENDING
+ *
+ * HONESTY NOTE: this value VOCABULARY (as opposed to the field NAME it is read from, corrected and
+ * Swagger-sourced 2026-09-14 — this file's own header) is still inherited from the reference
+ * implementation, not independently confirmed — `etatCourantDepotFlux` is typed as a bare `string` in
+ * the official Swagger, with no `enum`. Left unchanged here because nothing establishes it is WRONG
+ * either; a real PISTE round-trip (`choruspro.live.spec.ts`, gated `CHORUSPRO_LIVE=1`) is what would
+ * confirm or correct it.
  */
 export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' | 'PENDING' {
   const s = statutFlux.toUpperCase();
