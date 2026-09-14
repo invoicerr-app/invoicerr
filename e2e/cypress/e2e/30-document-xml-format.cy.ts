@@ -340,16 +340,30 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		// MANDATE binds from (32-channel-mandate.cy.ts): the seeded baseline's default transport
 		// ("email", set in this file's own `before()`) is refused at preflight for any invoice issued
 		// on/after it. So, exactly like 31/32, this one test connects PDP with FICTITIOUS credentials
-		// pointing at a closed port and switches the transport to it — "send" then clears the
-		// preflight (the point this test actually needs) and fails downstream at the real deposit
-		// attempt, which does not matter here: numbering already happened at "sending", before that
-		// attempt, and `download-xml` only needs a number (see invoice.descriptor.ts's own numbering
-		// paragraph) — the SAME reasoning `createAndSendInvoice`'s own comment already gives.
+		// and switches the transport to it — "send" then clears the preflight (the point this test
+		// actually needs) and fails downstream at the real deposit attempt, which does not matter
+		// here: numbering already happened at "sending", before that attempt, and `download-xml` only
+		// needs a number (see invoice.descriptor.ts's own numbering paragraph) — the SAME reasoning
+		// `createAndSendInvoice`'s own comment already gives.
+		//
+		// The fake base URL is this spec's own running backend (`api`), NOT a closed loopback port
+		// (31/32/40's own choice, and this test's original one). PROVEN CAUSE, not a guess (CI run
+		// 20e48a9's `backend-logs` artifact, timestamps cross-checked against the Cypress run log):
+		// a closed port refuses a connect INSTANTLY on this machine but, on the GitHub runner, silently
+		// drops the SYN instead — undici's own connect timeout then fires 10-13s later (the same
+		// mechanism 7c8c5cc4 already measured for 31/32/40's OWN "Send failed" assertions). With
+		// `DOCUMENT_ACTION_QUEUE_ATTEMPTS=3` and exponential backoff, that is a ~40s background retry
+		// storm on the SAME single Node process (`WORKER_INLINE` default true) this test's own
+		// foreground CII/UBL downloads run against — and the backend log lines up exactly: this test's
+		// own job (`send-invoice-cmu1druik…`) was mid-retry precisely when its UBL request (the one
+		// immediately after the passing CII one) came back with no response at all. A real backend
+		// route that answers FAST — `/oauth2/token` 404s here in under a millisecond, proven above —
+		// removes the only environment-dependent part (whether a closed port refuses instantly or
+		// stalls); the deposit still genuinely fails downstream exactly as before, which this test
+		// still does not care about. Never a value this test asserts on.
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
-		cy.get('[data-cy="channel-pdp-baseurl-input"]')
-			.clear()
-			.type("http://127.0.0.1:1");
+		cy.get('[data-cy="channel-pdp-baseurl-input"]').clear().type(api);
 		cy.get('[data-cy="channel-pdp-clientid-input"]')
 			.clear()
 			.type("e2e-bt23-fake-client-id");
@@ -422,6 +436,24 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				expect(String(x.response?.body)).to.match(
 					/<cbc:ProfileID>S1<\/cbc:ProfileID>/,
 				);
+			});
+
+			// Reset back to "email" — this test only ever needed PDP to clear "send"'s preflight (see
+			// the big comment above); nothing past this point exercises PDP, and the two XRechnung
+			// tests below run their OWN `createAndSendInvoice` with the default `issueDate`
+			// ("2026-08-30", before the mandate's `mandatedFrom`), so "email" preflights clean for them
+			// too. Leaving "pdp" (fictitious credentials) active here is what let this file's OWN
+			// background retry storm outlive this test — the backend log from CI run 20e48a9 shows the
+			// two jobs this test and the next one enqueue still retrying at 15:12:29, three seconds
+			// after THIS spec's very last test had already reported its result (15:12:26), and the next
+			// test's own failures (button never rendered, then a bare timeout) line up with that same
+			// window. Resetting removes that leak without touching what either test asserts.
+			cy.request({
+				method: "POST",
+				url: `${api}/api/company/info`,
+				body: { invoiceTransportId: "email" },
+			}).then((res) => {
+				expect(res.status, "transport reset to email").to.be.oneOf([200, 201]);
 			});
 		});
 	});
