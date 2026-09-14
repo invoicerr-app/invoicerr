@@ -51,6 +51,17 @@
  * embed already see the OVERRIDDEN value — `applyFrenchBusinessProcess`/`applyFrenchBusinessProcessInObject`
  * read `businessProcessCode` off `euInvoice['ubl:Invoice']['cbc:ProfileID']` (below), never re-derive
  * it, so they stay correct, unmodified, for this case too.
+ *
+ * `FacturxProviderDeps.legalIdOverride` — a FOURTH, unrelated concern (BT-29/BT-30/BT-46/BT-47), same
+ * SAME Chorus Pro-only instance, same "replaces a derived value outright" shape: `build-semantic-
+ * invoice.ts#toSiren` reduces a French SIRET to its own SIREN by default (proven correct for PDP),
+ * but Chorus Pro routes a deposit to a STRUCTURE identified by the FULL SIRET, not the company-level
+ * SIREN — see `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (another slice
+ * of the SAME 2026-09-14 rejection this businessProcessCodeOverride paragraph already closes, just
+ * above). Threaded straight into `buildEuInvoiceForDocument`'s own `legalIdOverride` alongside
+ * `businessProcessCodeOverride` below — no separate plumbing needed, `sellerLegalId`/`buyerLegalId`
+ * are computed ONCE in `build-semantic-invoice.ts` and reused everywhere else that identifier appears
+ * (`cac:PartyIdentification`, `cbc:EndpointID`), so this one override point is sufficient.
  */
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
@@ -74,6 +85,16 @@ export interface FacturxProviderDeps {
    * format registry) is byte-for-byte unaffected.
    */
   businessProcessCodeOverride?: string;
+  /**
+   * BT-29/BT-30/BT-46/BT-47 override, threaded straight into `buildEuInvoiceForDocument`'s own
+   * `legalIdOverride` — see `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing
+   * (a real Chorus Pro rejection, AIFE's Chorus Pro EDI annex S2.13, and the 24 official Factur-X
+   * examples) and why this needs to be a per-INSTANCE config, the SAME reasoning
+   * `businessProcessCodeOverride` above already holds. `undefined` for every consumer except Chorus
+   * Pro's own dedicated instance (`documents-core.module.ts`) — every other Factur-X build (PDP, the
+   * generic format registry) keeps the SIREN-reducing default, unaffected.
+   */
+  legalIdOverride?: 'full';
 }
 
 /**
@@ -105,6 +126,7 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
 
     const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
       businessProcessCodeOverride: deps.businessProcessCodeOverride,
+      legalIdOverride: deps.legalIdOverride,
     });
     const service = newEuInvoiceService();
     // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved

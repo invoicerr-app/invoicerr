@@ -129,9 +129,15 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // 2026-09-14, type "Plateforme agréée") — see `credentials-guide.md` §3 for how that mattress is
     // obtained. `scheme: 'LEGAL_ID'` is correct for a French SIRET: `country-identifiers/data/fr.json`
     // declares FR's ONLY `LEGAL_ID` scheme as "SIREN / SIRET", pattern `^\d{9}(\d{5})?$` (accepts
-    // either length), and `build-semantic-invoice.ts#toSiren()` always reduces a 14-digit SIRET to its
-    // first 9 digits (the SIREN) before emitting BT-29/BT-30 for a French seller — so feeding it the
-    // full 14-digit SIRET, as both constants below do, is the documented, tested path, not a shortcut.
+    // either length). `build-semantic-invoice.ts#toSiren()` reduces a 14-digit SIRET to its first 9
+    // digits (the SIREN) BY DEFAULT before emitting BT-29/BT-30/BT-46/BT-47 — correct for PDP, WRONG
+    // for Chorus Pro (see `legalIdOverride: 'full'` on the `buildSemanticInvoice` call below, and
+    // `SemanticInvoiceInput.legalIdOverride`'s own header, for the full sourcing: Chorus Pro routes a
+    // deposit to a STRUCTURE identified by its FULL SIRET, not the company-level SIREN — the
+    // `identifiantDestinataire`/`identifiantFournisseur` both truncated to 9 digits in the real
+    // `CPP0011117000000000425899` rejection this fixture now mirrors the fix for). Feeding both
+    // constants the full 14-digit SIRET, as they already did, is therefore now ALSO the correct wire
+    // value, not merely an accepted input the bridge happened to reduce.
     //
     // Address/city/postal code are NOT sourced from the mattress (it supplies only the raison sociale
     // and the SIRET) — kept as plausible placeholders; Chorus Pro identifies a structure by SIRET, not
@@ -194,8 +200,12 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // "Mode de paiement" "O" (Obligatoire) unconditionally. A syntactically valid (mod-97 checksum
     // verified), sandbox-appropriate test IBAN — `build-semantic-invoice.ts#sellerPaymentMeans` only
     // emits BT-81 (code '30' — "Credit Transfert"/"Virement", one of S2.05's own accepted values,
-    // p.168) when `seller.iban` is actually set, honest, never fabricated when absent, the same
-    // discipline `chorus-pro-transport.ts`'s own new "PAYMENT MEANS GATE" now enforces for a real send.
+    // p.170) when `seller.iban` is actually set, honest, never fabricated when absent. A real send
+    // additionally goes through `chorus-pro-transport.ts`'s own "PAYMENT MEANS GATE", now a STRICT
+    // ALLOWLIST requiring "Bank transfer" to be the company's own ENABLED payment method (owner's
+    // decision, 2026-09-14 — see `CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`'s own header) — irrelevant to
+    // THIS hand-built fixture, which never reads a company's payment-methods config at all, only
+    // `seller.iban` directly.
     const sellerIban = process.env.CHORUSPRO_SELLER_IBAN ?? 'FR7630006000011234567890189';
 
     const SELLER: SemanticPartyInput = {
@@ -223,6 +233,12 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
 
     const descriptor = buildInvoiceDescriptor();
     const timestamp = Date.now();
+    // BT-1 (Invoice number) — Chorus Pro's own 20-character limit (AIFE's annex, rule G1.05 — see
+    // `chorus-pro-transport.ts`'s own "THE INVOICE NUMBER LENGTH GATE" for the full sourcing and the
+    // real `flux CPP0011117000000000425899` rejection this fixture now avoids reproducing): a bare
+    // `Date.now()` is 13 digits, so the prefix budget is 20 - 13 = 7 characters — "CPR-" (4) stays
+    // comfortably under that, unlike the previous "INV-CPR-" (8, → 21 total, the exact rejected value).
+    const invoiceNumber = `CPR-${timestamp}`;
     const data = {
       client: 'live-client',
       issueDate: new Date().toISOString().slice(0, 10),
@@ -234,7 +250,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     };
     const totals = computeDocumentTotals(descriptor, data);
     const euInvoice = buildSemanticInvoice({
-      displayNumber: `INV-CPR-${timestamp}`,
+      displayNumber: invoiceNumber,
       issueDate: data.issueDate,
       seller: SELLER,
       buyer: BUYER,
@@ -260,6 +276,15 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
       // its OWN copy of this override to stay a faithful mirror of what `chorus-pro-transport.ts#send()`
       // actually deposits.
       businessProcessCodeOverride: 'A1',
+      // BT-29/BT-30/BT-46/BT-47 — the SIBLING override `documents-core.module.ts`'s own dedicated
+      // `facturxFormatProvider` instance now ALSO passes for every real Chorus Pro send — see
+      // `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing. Without it, this
+      // bridge would reduce BOTH `sellerSiret`/`buyerSiret` above to their own first 9 digits (the
+      // SIREN) before emitting them — measured live 2026-09-14 as the NEXT rejection in the same
+      // sequence (`flux CPP0011117000000000425899`, `identifiantFournisseur`/`identifiantDestinataire`
+      // both 9 digits in the error body). Same "this hand-built recipe needs its own copy to stay a
+      // faithful mirror" reasoning as `businessProcessCodeOverride` just above.
+      legalIdOverride: 'full',
     });
 
     const service = newEuInvoiceService();
@@ -282,7 +307,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     const hostPdfBytes = Buffer.from(await hostPdf.save());
     const facturxPdf = (await service.generate(euInvoice, {
       format: 'Factur-X-EN16931',
-      pdf: { buffer: hostPdfBytes, filename: `INV-CPR-${timestamp}.pdf`, mimetype: 'application/pdf' },
+      pdf: { buffer: hostPdfBytes, filename: `${invoiceNumber}.pdf`, mimetype: 'application/pdf' },
       lang: 'en',
     })) as Uint8Array;
     expect(Buffer.from(facturxPdf.slice(0, 5)).toString()).toBe('%PDF-');
@@ -295,7 +320,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // 2026-09-14 (second correction, same day)", for the Swagger + AIFE community-doc sourcing.
     const depositResult = await client.deposerFlux(
       Buffer.from(facturxPdf),
-      `INV-CPR-${timestamp}.pdf`,
+      `${invoiceNumber}.pdf`,
       resolveChorusProSyntax('FACTURX'),
     );
     console.log('[choruspro-live] deposit result:', JSON.stringify(depositResult, null, 2));

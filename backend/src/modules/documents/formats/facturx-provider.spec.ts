@@ -279,6 +279,47 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
     expect(embeddedCii).not.toContain('<ram:ID>S1</ram:ID>');
   }, 30_000);
 
+  // BT-29/BT-30/BT-46/BT-47, Chorus Pro variant. `FacturxProviderDeps.legalIdOverride` — see that
+  // field's own header, and `SemanticInvoiceInput.legalIdOverride`'s, for the full sourcing (the
+  // 2026-09-14 `CPP0011117000000000425899` rejection: both the seller's and the buyer's SIRET
+  // truncated to their own SIREN). SEPARATE provider instance (mirrors `documents-core.module.ts`'s
+  // own Chorus Pro-specific construction) — the DEFAULT `provider` above (no override) is untouched,
+  // still reducing to the SIREN (see `providers.spec.ts`'s own SIREN/SIRET-equivalence proof).
+  it('a provider instance configured with legalIdOverride: "full" embeds the FULL 14-digit SIRET, for BOTH parties, never the SIREN', async () => {
+    const chorusProProvider = buildFacturxFormatProvider({
+      referenceRegistry: new EntityReferenceRegistry(),
+      legalIdOverride: 'full',
+    });
+    // A French BUYER with its own 14-digit SIRET on file — a Chorus Pro-realistic recipient (a
+    // government "structure"), unlike the default German `BUYER` fixture above which has no
+    // `LEGAL_ID` at all.
+    const buyerFr: DocumentFormatParty = {
+      ...BUYER,
+      name: 'Mairie de Testville',
+      country: 'France',
+      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '12345678200051' }],
+    };
+    const document = {
+      id: 'doc-siret-chorus-pro',
+      data: VALID_DATA,
+      displayNumber: 'INV-2026-SIRET-CPRO',
+      status: 'sent',
+      createdAt: new Date(),
+    };
+
+    const result = await chorusProProvider.build(descriptor, document, SELLER, buyerFr, 'company-1');
+    expect(result.validation.valid).toBe(true);
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    // SELLER.partyIdentifiers carries LEGAL_ID '12345678900017' (14 digits) — the DEFAULT bridge would
+    // reduce this to '123456789' (see `providers.spec.ts`); WITH the override, the full value survives.
+    expect(embeddedCii).toContain('12345678900017');
+    expect(embeddedCii).not.toContain('>123456789<');
+    // buyerFr's own SIRET, same proof, buyer side.
+    expect(embeddedCii).toContain('12345678200051');
+    expect(embeddedCii).not.toContain('>123456782<');
+  }, 30_000);
+
   it('an INVALID document (BR-Z-02: zero-rated line, no seller VAT id): NEVER embeds — no PDF is even attempted', async () => {
     const document = {
       id: 'doc-2',

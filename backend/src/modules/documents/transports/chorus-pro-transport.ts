@@ -53,14 +53,28 @@
  * only fires once `SpecifiedTradeSettlementPaymentMeans` EXISTS, so an artifact with the block entirely
  * absent still passes the Factur-X gate below — but Chorus Pro's OWN data model requires it
  * UNCONDITIONALLY: AIFE's "Dossier de spécifications externes de Chorus Pro — Annexe relative au
- * raccordement EDI", V4.20, p.22 ("Entité Données Facture") marks "Mode de paiement" "O" (Obligatoire);
- * p.168 (S2.05) enumerates the accepted UNTDID 4461 codes for the CII 16B/Factur-X formats — 30
- * ("Credit Transfert"/"Virement") among them, the exact code `build-semantic-invoice.ts#sellerPaymentMeans`
- * already emits. That function only builds the block when `seller.iban` (`Company.iban`) is on file —
- * honest, never a fabricated IBAN, the SAME discipline `Company.iban`'s own schema comment already
- * holds for XRechnung's BR-DE-1 — so a company with none set would otherwise deposit an artifact Chorus
- * Pro is GUARANTEED to reject downstream. Refused HERE, named, before any network call, same shape as
- * the recipient gate above.
+ * raccordement EDI", V4.20, p.22 ("Entité Données Facture") marks "Mode de paiement" "O" (Obligatoire).
+ * STRICT ALLOWLIST (owner's decision, 2026-09-14 — see `CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`'s own
+ * header for the full per-method sourcing): derived from this company's own CONFIGURED payment
+ * methods (`payment-methods/persistence.ts#listCompanyPaymentMethods`), never from `Company.iban`
+ * alone — a company that once typed an IBAN but has since disabled "Bank transfer" in its own
+ * payment-methods settings must not have Chorus Pro silently keep declaring a bank transfer on its
+ * behalf. Only "bank_transfer" (code '30') passes; every other built-in method is refused, named,
+ * explaining WHY a public buyer cannot use it — a company with none of the accepted method(s)
+ * configured, or with "bank_transfer" enabled but no `Company.iban` on file (a real, reachable state:
+ * the general company-settings PATCH — `company.service.ts` — can null `iban` directly, independent
+ * of the payment-methods "enabled" flag), is refused HERE, named, before any network call, same shape
+ * as the recipient gate above.
+ *
+ * THE INVOICE NUMBER LENGTH GATE — closes the OTHER new error from the SAME 2026-09-14 rejection
+ * sequence (`flux CPP0011117000000000425899`): "Le champ identifiant de la facture
+ * (FichierXml.ExchangedDocument.ID.value) ne doit pas depasser 20 caracteres". BT-1 has no length
+ * limit at the base EN 16931 layer — this is a Chorus-Pro-specific constraint (AIFE's own annex, rule
+ * G1.05 — see `CHORUS_PRO_INVOICE_NUMBER_PATTERN`'s own header), so it belongs HERE, not in the
+ * generic, channel-agnostic `numbering/` module every OTHER channel would then also be constrained by.
+ * Nothing in this product's numbering screen (`Company.numberFormats`) stops a company from choosing a
+ * pattern that produces a number over 20 characters — this gate is what turns that mistake into an
+ * immediate, named refusal instead of a deposit rejected hours later.
  *
  * The payload is `facturx` (`formats/facturx-provider.ts`) — the format the B2G FR rule itself names
  * (`formatSyntax: "facturx"`), gated by the REAL vendored EN 16931 Schematron before this file ever
@@ -102,6 +116,7 @@ import {
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
+import { listCompanyPaymentMethods } from '../payment-methods/persistence';
 import { DocumentTransport, DocumentTransportContext, DocumentTransportResult } from './transport-registry';
 
 export interface ChorusProTransportDeps {
@@ -117,6 +132,62 @@ export const CHORUS_PRO_PROVIDER_ID = 'chorus-pro';
 /** Same "the invoice's OWN base descriptor, module-level constant" choice every sibling transport
  *  makes for the identical reason — see `pdp-transport.ts`'s own header. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
+
+/**
+ * BT-1 (Invoice number) — Chorus Pro's OWN length/charset limit, independent of the base EN 16931
+ * layer (which imposes no such constraint at all — an invoice number can be any string there).
+ * AIFE's "Dossier de spécifications externes de Chorus Pro — Annexe relative au raccordement EDI",
+ * V4.20, rule G1.05 (p.73): "L'identifiant de la facture est limité à 20 caractères alphanumériques.
+ * Les caractères spéciaux suivants sont autorisés : espace (" "), tiret ("-"), signe "+", tiret bas
+ * (underscore : "_"), barre oblique (slash : "/")." Measured live 2026-09-14
+ * (`flux CPP0011117000000000425899`): "Le champ identifiant de la facture
+ * (FichierXml.ExchangedDocument.ID.value) ne doit pas depasser 20 caracteres" — exactly the rejection
+ * THE INVOICE NUMBER LENGTH GATE below exists to catch before a deposit is even attempted, not hours
+ * later from a rejected flux.
+ */
+const CHORUS_PRO_INVOICE_NUMBER_PATTERN = /^[A-Za-z0-9 +_/-]{1,20}$/;
+
+/**
+ * THE PAYMENT MEANS GATE's own STRICT ALLOWLIST (owner's decision, 2026-09-14) — which of this
+ * product's payment methods (`payment-methods/built-in.ts`) may appear as BT-81 on a Chorus Pro
+ * deposit AT ALL. Deliberately NOT a best-effort UNTDID 4461 mapping: a code merely being ADMITTED by
+ * the CII 16B/Factur-X formats (`annexe_edi.txt`, S2.05, p.170: "01 10 20 30 31 42 48 49 58 59 97")
+ * is NOT enough on its own to allow it — a public-sector invoice is settled by the buyer's own
+ * accountant ("comptable public"), who pays the supplier by bank transfer to its registered bank
+ * account; no other payment channel exists in that circuit, so a code the FORMAT admits but the
+ * CIRCUIT has no use for is still refused. Two DIFFERENT refusal reasons, tracked separately here
+ * because they would not be fixed the same way if the regulation or Chorus Pro's own model changes:
+ *
+ *  - 'bank_transfer' → ALLOWED, UNTDID 4461 code '30' ("Credit Transfert"/"Virement"). BOTH
+ *    conditions hold: S2.05 (p.170) admits it; G1.14 (p.74) states an unset/"autre" payment mode
+ *    DEFAULTS to "Virement" in Chorus Pro's own pivot flow; G8.20 (p.91) goes further and HARDCODES
+ *    "Mode de règlement" to the literal constant "30" (virement) for the E3 (Mémoire de Frais de
+ *    Justice) flow — the only payment mode this annex treats as unconditional anywhere in it.
+ *  - 'cheque' → REFUSED, reason "admitted but not established as meaningful in the public payment
+ *    circuit". S2.05 (p.170) DOES admit "20 Check"/"Chèque" — the FIRST reason does not apply — but
+ *    nothing in this annex states a cheque is ever used to settle a public-sector invoice through
+ *    Chorus Pro; not established, so refused rather than guessed.
+ *  - 'cash' → REFUSED, the SAME "admitted but not established" reason: S2.05 (p.170) admits "10
+ *    Cash"/"Espèce", but the annex never describes cash as a real settlement path for a public
+ *    buyer's invoice either.
+ *  - 'stripe' → REFUSED, the SAME "admitted but not established" reason: S2.05 (p.170) admits "48
+ *    Bank Card", and Stripe genuinely IS a card processor (`payment-methods/stripe.descriptor.ts`'s
+ *    own header) — but a public accountant paying a supplier invoice through a private card-payment
+ *    gateway has no basis anywhere in this annex either.
+ *  - 'paypal' → REFUSED, the OTHER reason — "not admitted by the UNTDID 4461 list at all": no code
+ *    in S2.05's own list corresponds to a PayPal-style wallet — a genuine absence, not an
+ *    unresearched one.
+ *
+ * NON ÉTABLI: whether 'cheque'/'cash'/'stripe' are refused because French public accounting law
+ * (Décret n° 2012-1246 du 7 novembre 2012, "GBCP") forbids them outright, or merely because Chorus
+ * Pro's own data model never exercises them for THIS flow — this annex does not say either way, and
+ * this comment does not claim it does.
+ *
+ * A payment method this product adds LATER, with no entry here, is refused the SAME way 'paypal' is —
+ * unlisted is never treated as allowed (see the gate below: this is an ALLOWLIST of one id, not a
+ * denylist of four).
+ */
+const CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID = 'bank_transfer';
 
 /**
  * PISTE base URLs — REPRISED from the reference's own `choruspro-transmission.ts#CHORUS_PRO_URLS`, and
@@ -207,6 +278,19 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
       // the (possibly long, retried) time between the two calls.
       const credentials = await requireConnectedChorusPro(deps.channelCredentials, ctx.companyId);
 
+      // THE INVOICE NUMBER LENGTH GATE — see this file's own header and
+      // `CHORUS_PRO_INVOICE_NUMBER_PATTERN`'s own comment. Checked FIRST, before any DB round-trip —
+      // it needs nothing but the document's own `displayNumber`, already on `ctx`.
+      const displayNumber = ctx.document.displayNumber ?? '';
+      if (!CHORUS_PRO_INVOICE_NUMBER_PATTERN.test(displayNumber)) {
+        throw new BadRequestException(
+          `Cannot deposit to Chorus Pro: the invoice number "${displayNumber}" is not valid for a ` +
+            'Chorus Pro deposit. Chorus Pro limits the invoice identifier to 20 characters — letters, ' +
+            'digits, space, "-", "+", "_" and "/" only. Shorten this company\'s invoice numbering ' +
+            'pattern (Company settings → Numbering) before sending to Chorus Pro.',
+        );
+      }
+
       const data = (ctx.document.data ?? {}) as Record<string, unknown>;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
@@ -244,16 +328,41 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         );
       }
 
-      // THE PAYMENT MEANS GATE — see this file's own header. Checked directly on the raw `company`
-      // row (never `companyToFormatParty`'s own `DocumentFormatParty` shape) — the same field
-      // (`Company.iban`) `build-semantic-invoice.ts#sellerPaymentMeans` reads, so this gate and that
-      // function can never drift on what "has an IBAN on file" means.
+      // THE PAYMENT MEANS GATE — see this file's own header and `CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`'s
+      // own header for the full STRICT ALLOWLIST reasoning. Derived from this company's own CONFIGURED
+      // payment methods, never from `Company.iban` alone.
+      const paymentMethods = await listCompanyPaymentMethods(ctx.companyId);
+      const enabledPaymentMethods = paymentMethods.filter((method) => method.enabled);
+      const bankTransfer = enabledPaymentMethods.find(
+        (method) => method.id === CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID,
+      );
+      if (!bankTransfer) {
+        throw new BadRequestException(
+          enabledPaymentMethods.length > 0
+            ? 'Cannot deposit to Chorus Pro: this company only accepts payment by ' +
+                `${enabledPaymentMethods.map((method) => method.label).join(', ')} for this invoice — ` +
+                "a public buyer cannot use that. A public-sector invoice is always paid by the buyer's " +
+                "own accountant, by bank transfer to the supplier's bank account; no other payment " +
+                'channel exists in that circuit. Enable and configure "Bank transfer" (Company ' +
+                'settings → Payment methods) before sending this invoice to Chorus Pro.'
+            : 'Cannot deposit to Chorus Pro: this company has no payment method configured. A ' +
+                "public-sector invoice is always paid by the buyer's own accountant, by bank transfer " +
+                'to the supplier\'s bank account. Enable and configure "Bank transfer" (Company ' +
+                'settings → Payment methods) before sending this invoice to Chorus Pro.',
+        );
+      }
+      // Still checked directly on the raw `company` row (the same field
+      // `build-semantic-invoice.ts#sellerPaymentMeans` reads, so this gate and that function can never
+      // drift on what "has an IBAN on file" means) — NOT redundant with `bankTransfer` above: the
+      // general company-settings PATCH (`company.service.ts`) can null `Company.iban` directly,
+      // independent of this method's own "enabled" flag, so "bank_transfer" can be enabled with no
+      // IBAN actually on file.
       if (!company.iban) {
         throw new BadRequestException(
-          'Cannot deposit to Chorus Pro: this company has no IBAN on file. Chorus Pro requires a ' +
-            'payment means (BT-81 — "Mode de paiement") on every invoice it accepts — set an IBAN in ' +
-            'company settings (Payment methods → Bank transfer) before sending, or Chorus Pro will ' +
-            'reject the deposit after the fact.',
+          'Cannot deposit to Chorus Pro: "Bank transfer" is enabled but this company has no IBAN on ' +
+            'file. Chorus Pro requires a payment account (BT-84) on every bank-transfer invoice it ' +
+            'accepts — set an IBAN in company settings (Payment methods → Bank transfer) before ' +
+            'sending, or Chorus Pro will reject the deposit after the fact.',
         );
       }
 

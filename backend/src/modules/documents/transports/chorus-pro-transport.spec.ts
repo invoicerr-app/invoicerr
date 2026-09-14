@@ -15,6 +15,7 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 
 import { buildChorusProTransport } from './chorus-pro-transport';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { listCompanyPaymentMethods } from '../payment-methods/persistence';
 import { DocumentTransportContext } from './transport-registry';
 
 jest.mock('@/prisma/prisma.service', () => ({
@@ -23,6 +24,15 @@ jest.mock('@/prisma/prisma.service', () => ({
     company: { findUnique: jest.fn() },
     client: { findFirst: jest.fn() },
   },
+}));
+
+// THE PAYMENT MEANS GATE now reads a company's own CONFIGURED payment methods, never
+// `Company.iban` alone — see `chorus-pro-transport.ts`'s own header. Mocked wholesale (rather than
+// exercising the real `payment-methods/persistence.ts` DB reads through a fuller prisma mock): this
+// spec proves the TRANSPORT's own orchestration/gating, not `listCompanyPaymentMethods` itself, which
+// already has its own coverage (`payment-methods/persistence.spec.ts`).
+jest.mock('../payment-methods/persistence', () => ({
+  listCompanyPaymentMethods: jest.fn(),
 }));
 
 const mockDeposerFlux = jest.fn();
@@ -41,6 +51,14 @@ const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
   client: { findFirst: jest.Mock };
 };
+const mockedListCompanyPaymentMethods = listCompanyPaymentMethods as jest.Mock;
+
+/** THE PAYMENT MEANS GATE's own happy path: only "Bank transfer" configured and enabled — the ONE
+ *  built-in method Chorus Pro's own strict allowlist accepts (`CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`'s
+ *  own header). */
+const BANK_TRANSFER_ONLY = [
+  { id: 'bank_transfer', label: 'Bank transfer', fields: [], enabled: true, config: {} },
+];
 
 const CONNECTED_CONFIG = {
   providerId: 'chorus-pro',
@@ -87,6 +105,7 @@ const CTX: DocumentTransportContext = {
 describe('buildChorusProTransport', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedListCompanyPaymentMethods.mockResolvedValue(BANK_TRANSFER_ONLY);
     mockedPrisma.company.findUnique.mockResolvedValue({
       id: 'company-1',
       name: 'Dupont Consulting SARL',
@@ -202,6 +221,113 @@ describe('buildChorusProTransport', () => {
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/has no IBAN on file/);
       expect(mockDeposerFlux).not.toHaveBeenCalled();
+    });
+
+    // THE PAYMENT MEANS GATE's own STRICT ALLOWLIST (owner's decision, 2026-09-14) — one test per
+    // built-in payment method: `CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`'s own header for the full
+    // per-method sourcing (which are admitted by UNTDID 4461 vs meaningful in the public payment
+    // circuit — two DIFFERENT reasons, never conflated).
+    describe('the STRICT ALLOWLIST — one built-in payment method passes, four are refused, named', () => {
+      it('passes for "bank_transfer" alone (the ONLY allowed method) — reaches the network', async () => {
+        mockedListCompanyPaymentMethods.mockResolvedValue(BANK_TRANSFER_ONLY);
+        mockDeposerFlux.mockResolvedValue({
+          numeroFluxDepot: '375037',
+          statut: 'DEPOSE',
+          httpStatus: 200,
+          raw: {},
+        });
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+
+        await expect(transport.send(CTX)).resolves.toMatchObject({ reference: '375037' });
+      });
+
+      it.each([
+        ['PayPal', 'paypal'],
+        ['Cash', 'cash'],
+        ['Cheque', 'cheque'],
+        ['Stripe', 'stripe'],
+      ])('refuses, naming "%s", when that is the only payment method enabled — never reaches the network', async (label, id) => {
+        mockedListCompanyPaymentMethods.mockResolvedValue([
+          { id, label, fields: [], enabled: true, config: {} },
+        ]);
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+
+        await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
+        await expect(transport.send(CTX)).rejects.toThrow(new RegExp(label));
+        await expect(transport.send(CTX)).rejects.toThrow(/bank transfer/i);
+        expect(mockDeposerFlux).not.toHaveBeenCalled();
+      });
+
+      it('refuses with a generic message when NO payment method is configured at all', async () => {
+        mockedListCompanyPaymentMethods.mockResolvedValue([]);
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+
+        await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
+        await expect(transport.send(CTX)).rejects.toThrow(/no payment method configured/);
+        expect(mockDeposerFlux).not.toHaveBeenCalled();
+      });
+
+      it('refuses (never reaches the IBAN check) when "bank_transfer" is CONFIGURED but not ENABLED', async () => {
+        mockedListCompanyPaymentMethods.mockResolvedValue([
+          { id: 'bank_transfer', label: 'Bank transfer', fields: [], enabled: false, config: {} },
+        ]);
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+
+        await expect(transport.send(CTX)).rejects.toThrow(/no payment method configured/);
+      });
+    });
+
+    // THE INVOICE NUMBER LENGTH GATE (this file's own header) — REGRESSION for the real 2026-09-14
+    // rejection (`flux CPP0011117000000000425899`, "ne doit pas depasser 20 caracteres").
+    describe('THE INVOICE NUMBER LENGTH GATE', () => {
+      it('refuses, naming the number, when displayNumber is over 20 characters', async () => {
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+        const ctx: DocumentTransportContext = {
+          ...CTX,
+          document: { ...CTX.document, displayNumber: 'INV-CPR-1789417592601' }, // 21 chars
+        };
+
+        await expect(transport.send(ctx)).rejects.toThrow(BadRequestException);
+        await expect(transport.send(ctx)).rejects.toThrow(/INV-CPR-1789417592601/);
+        await expect(transport.send(ctx)).rejects.toThrow(/20 characters/);
+        expect(mockDeposerFlux).not.toHaveBeenCalled();
+        // Never even reaches the DB — see this file's own "checked FIRST" comment.
+        expect(mockedPrisma.company.findUnique).not.toHaveBeenCalled();
+      });
+
+      it('refuses when displayNumber carries a character Chorus Pro does not allow (e.g. ".")', async () => {
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+        const ctx: DocumentTransportContext = {
+          ...CTX,
+          document: { ...CTX.document, displayNumber: 'INV.2026.0001' },
+        };
+
+        await expect(transport.send(ctx)).rejects.toThrow(BadRequestException);
+        await expect(transport.send(ctx)).rejects.toThrow(/20 characters/);
+      });
+
+      it('accepts a displayNumber at the exact 20-character boundary, with every allowed special character', async () => {
+        mockDeposerFlux.mockResolvedValue({
+          numeroFluxDepot: '375037',
+          statut: 'DEPOSE',
+          httpStatus: 200,
+          raw: {},
+        });
+        const deps = buildDeps();
+        const transport = buildChorusProTransport(deps);
+        const ctx: DocumentTransportContext = {
+          ...CTX,
+          document: { ...CTX.document, displayNumber: 'IN V-2026+A_B/000001' }, // exactly 20 chars
+        };
+
+        await expect(transport.send(ctx)).resolves.toMatchObject({ reference: '375037' });
+      });
     });
 
     // MUTATION GUARD #2 — "the transport skips the facturx gate" — this test fails the instant

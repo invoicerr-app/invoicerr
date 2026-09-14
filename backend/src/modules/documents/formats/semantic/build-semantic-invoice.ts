@@ -72,6 +72,10 @@
  *    (`formats/vendored/peppol/PEPPOL-EN16931-UBL.sch:880-894`) expects. A `LEGAL_ID` for
  *    any OTHER country is still emitted as a bare `cbc:CompanyID` with NO schemeID — asserting a
  *    registry membership (French SIREN, Dutch KVK, or otherwise) nobody claimed would be inventing one.
+ *    `input.legalIdOverride === 'full'` DISABLES the SIREN reduction for BOTH parties — see that
+ *    field's own doc comment below for the sourcing (a real Chorus Pro rejection, AIFE's own annex,
+ *    and the 24 official Factur-X examples) and why this is scoped to Chorus Pro's own dedicated
+ *    instance only, never the default.
  *  - BT-31 Seller VAT identifier       → `cac:PartyTaxScheme/cbc:CompanyID` + `cac:TaxScheme/cbc:ID`='VAT',
  *    from the `VAT` party identifier when present. ABSENT when the seller has none on file — BR-S-02/
  *    BR-Z-02 (see below) then correctly refuse the document, which is the STANDARD's own
@@ -298,6 +302,41 @@ export interface SemanticInvoiceInput {
    */
   businessProcessCodeOverride?: string;
   /**
+   * BT-29/BT-30/BT-46/BT-47 (Seller/Buyer identifier, legal registration id) override — bypasses
+   * `toSiren`'s FR-only SIRET→SIREN reduction entirely for BOTH parties when set to `'full'`, so
+   * `sellerLegalId`/`buyerLegalId` below carry the RAW `LEGAL_ID` party identifier verbatim (still
+   * under schemeID '0002' — `LEGAL_ID_SCHEME_BY_COUNTRY` is UNCHANGED by this override, only the
+   * VALUE truncation is). Exists for EXACTLY one caller today: `facturx-provider.ts`'s Chorus
+   * Pro-specific instance (wired via `FacturxProviderDeps.legalIdOverride`, `documents-core.module.ts`
+   * — the SAME per-instance-config pattern `businessProcessCodeOverride` above already established).
+   *
+   * WHY the default (SIREN) is wrong for Chorus Pro specifically, established empirically, not
+   * guessed: a real rejection, 2026-09-14, `flux CPP0011117000000000425899` — `consulterCRDetaille`
+   * cited `SupplyChainTradeTransaction.ApplicableHeaderTradeAgreement.BuyerTradeParty` while
+   * `identifiantDestinataire`/`identifiantFournisseur` in the SAME error body were both 9 digits — the
+   * exact first 9 digits of the real 14-digit SIRETs on file (`33254021516357`→`332540215`,
+   * `12345678200051`→`123456782`), i.e. `toSiren`'s own reduction, confirmed as the cause by matching
+   * the numbers, not inferred. AIFE's own "Dossier de spécifications externes de Chorus Pro — Annexe
+   * relative au raccordement EDI", V4.20:
+   *   - S2.13 (§9.2, p.171): "Les codes de type identifiant valide sont définis par la liste ISO6523.
+   *     Pour un SIRET le code est « 0002 »" — schemeID '0002' names a SIRET, not a SIREN.
+   *   - Every one of the 24 official Factur-X example flows AIFE publishes (`FSO1117A_EN16931_*`)
+   *     carries a 14-digit value under `ram:SpecifiedLegalOrganization/ram:ID schemeID="0002"` for
+   *     BOTH `BuyerTradeParty` (e.g. `75356054900010`, `53514650090018`, `11000201100044`) and
+   *     `SellerTradeParty` (e.g. `40668031401116`) — never a 9-digit SIREN.
+   *   - Chorus Pro routes a deposit to a STRUCTURE, not merely a legal entity: a SIREN identifies the
+   *     company, a SIRET identifies the specific établissement (service/office) that must receive it —
+   *     reducing to the SIREN loses exactly the part of the identifier Chorus Pro actually routes on,
+   *     which is why the DEFAULT (PDP-proven, see the paragraph above) is not simply "wrong
+   *     everywhere": PDP addresses a company, Chorus Pro addresses a structure within one.
+   *
+   * `undefined` (the default) for every other caller — `cii-provider.ts`/`ubl-provider.ts`/PDP's own
+   * Factur-X instance/`peppol-bis-provider.ts`/`xrechnung-provider.ts` are all byte-for-byte
+   * unaffected, keeping the ALREADY-PROVEN-LIVE PDP SIREN behaviour (2026-08-29, `fr:200→201→202`)
+   * intact.
+   */
+  legalIdOverride?: 'full';
+  /**
    * BT-24 (Specification identifier) override — defaults to the plain base EN 16931 URN
    * (`'urn:cen.eu:en16931:2017'`) when absent, exactly the value every CII/UBL/Factur-X fixture
    * already asserts. `peppol-bis-provider.ts`/`xrechnung-provider.ts` are the only two callers that
@@ -351,9 +390,16 @@ function peppolEasForVat(vat: string | null | undefined): string | undefined {
 }
 
 /** France-first SIRET (14 digits) → SIREN (its own first 9 digits) derivation — see this file's own
- *  header for why this stays FR-specific rather than a generic transform. */
-function toSiren(legalId: string | undefined, isFrenchSeller: boolean): string | undefined {
+ *  header for why this stays FR-specific rather than a generic transform, and
+ *  `SemanticInvoiceInput.legalIdOverride`'s own header for the ONE caller (Chorus Pro) that disables
+ *  the reduction entirely via `override === 'full'`. */
+function toSiren(
+  legalId: string | undefined,
+  isFrenchSeller: boolean,
+  override: 'full' | undefined,
+): string | undefined {
   if (!legalId) return undefined;
+  if (override === 'full') return legalId;
   if (!isFrenchSeller) return legalId;
   const digits = legalId.replace(/\D/g, '');
   return digits.length === 14 ? digits.slice(0, 9) : legalId;
@@ -592,10 +638,12 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   const sellerLegalId = toSiren(
     getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'LEGAL_ID'),
     isFrenchSeller,
+    input.legalIdOverride,
   );
   const buyerLegalId = toSiren(
     getIdentifier({ partyIdentifiers: input.buyer.partyIdentifiers }, 'LEGAL_ID'),
     isFrenchSeller,
+    input.legalIdOverride,
   );
   const sellerVat = getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'VAT');
   const buyerVat = getIdentifier({ partyIdentifiers: input.buyer.partyIdentifiers }, 'VAT');

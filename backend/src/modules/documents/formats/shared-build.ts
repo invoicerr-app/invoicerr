@@ -160,18 +160,19 @@ function extractBuyerReference(data: Record<string, unknown>): string | undefine
  *
  * `options.customizationId` is the ONE thing `peppol-bis-provider.ts`/`xrechnung-provider.ts` pass
  * that `cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts` never do — see
- * `SemanticInvoiceInput.customizationId`'s own header. `options.businessProcessCodeOverride` is its
- * BT-23 sibling, passed ONLY by the Chorus Pro-configured `facturx-provider.ts` instance — see
- * `SemanticInvoiceInput.businessProcessCodeOverride`'s own header for why. Every other extraction
- * below (buyer reference, cross-border mentions, lines) is already syntax/profile-agnostic and stays
- * exactly as it was.
+ * `SemanticInvoiceInput.customizationId`'s own header. `options.businessProcessCodeOverride` and
+ * `options.legalIdOverride` are its BT-23/BT-29-BT-30-BT-46-BT-47 siblings, passed ONLY by the Chorus
+ * Pro-configured `facturx-provider.ts` instance — see `SemanticInvoiceInput.businessProcessCodeOverride`'s
+ * and `SemanticInvoiceInput.legalIdOverride`'s own headers for why. Every other extraction below
+ * (buyer reference, cross-border mentions, lines) is already syntax/profile-agnostic and stays exactly
+ * as it was.
  */
 export function buildEuInvoiceForDocument(
   descriptor: DocumentTypeDescriptor,
   document: Pick<DocumentInstanceResult, 'data' | 'displayNumber'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
-  options?: { customizationId?: string; businessProcessCodeOverride?: string },
+  options?: { customizationId?: string; businessProcessCodeOverride?: string; legalIdOverride?: 'full' },
 ) {
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
@@ -192,5 +193,6 @@ export function buildEuInvoiceForDocument(
     buyerReference: extractBuyerReference(data),
     customizationId: options?.customizationId,
     businessProcessCodeOverride: options?.businessProcessCodeOverride,
+    legalIdOverride: options?.legalIdOverride,
   });
 }

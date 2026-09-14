@@ -323,14 +323,22 @@ function buildTransportRegistry(
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
   // "stateless, no reason to couple two registries" reasoning "pdp" above already holds — and, unlike
-  // "pdp"'s own instance, configured with `businessProcessCodeOverride: 'A1'`: Chorus Pro reuses BT-23's
-  // own wire element (`BusinessProcessSpecifiedDocumentContextParameter/ID`) for its OWN, unrelated
-  // "Cadre (Mode de Facturation)" concept — see `SemanticInvoiceInput.businessProcessCodeOverride`'s
-  // own header for the full sourcing (AIFE's Chorus Pro EDI annex, G1.02/G1.03) and the 2026-09-14
-  // rejection this closes. 'A1' ("Dépôt par un fournisseur d'une facture") is Chorus Pro's OWN
-  // documented default/standard case — the only deposit scenario this codebase's descriptor model
-  // ever represents. Scoped to THIS instance alone: "pdp"'s own instance above is untouched, keeping
-  // its already-proven-live CGI-reform BT-23 value (2026-08-29, `fr:200→201→202`) intact.
+  // "pdp"'s own instance, configured with TWO overrides:
+  //  - `businessProcessCodeOverride: 'A1'`: Chorus Pro reuses BT-23's own wire element
+  //    (`BusinessProcessSpecifiedDocumentContextParameter/ID`) for its OWN, unrelated "Cadre (Mode de
+  //    Facturation)" concept — see `SemanticInvoiceInput.businessProcessCodeOverride`'s own header for
+  //    the full sourcing (AIFE's Chorus Pro EDI annex, G1.02/G1.03) and the 2026-09-14 rejection
+  //    (`CPP0011117000000000425895`) this closes. 'A1' ("Dépôt par un fournisseur d'une facture") is
+  //    Chorus Pro's OWN documented default/standard case — the only deposit scenario this codebase's
+  //    descriptor model ever represents.
+  //  - `legalIdOverride: 'full'`: Chorus Pro routes a deposit to a STRUCTURE identified by its FULL
+  //    14-digit SIRET (schemeID '0002', AIFE's own S2.13), never the 9-digit SIREN
+  //    `build-semantic-invoice.ts#toSiren` reduces to by default — see
+  //    `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (the NEXT rejection
+  //    in the SAME 2026-09-14 sequence, `CPP0011117000000000425899`, both parties truncated).
+  // Both scoped to THIS instance alone: "pdp"'s own instance above is untouched, keeping its
+  // already-proven-live CGI-reform BT-23 value AND SIREN identifier (2026-08-29, `fr:200→201→202`)
+  // intact.
   registry.register(
     'chorus-pro',
     'Chorus Pro (France)',
@@ -339,6 +347,7 @@ function buildTransportRegistry(
       facturxFormatProvider: buildFacturxFormatProvider({
         referenceRegistry,
         businessProcessCodeOverride: 'A1',
+        legalIdOverride: 'full',
       }),
     }),
   );
