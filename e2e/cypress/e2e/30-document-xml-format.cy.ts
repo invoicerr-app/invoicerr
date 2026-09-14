@@ -347,20 +347,62 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		// `createAndSendInvoice`'s own comment already gives.
 		//
 		// The fake base URL is this spec's own running backend (`api`), NOT a closed loopback port
-		// (31/32/40's own choice, and this test's original one). PROVEN CAUSE, not a guess (CI run
-		// 20e48a9's `backend-logs` artifact, timestamps cross-checked against the Cypress run log):
-		// a closed port refuses a connect INSTANTLY on this machine but, on the GitHub runner, silently
-		// drops the SYN instead — undici's own connect timeout then fires 10-13s later (the same
-		// mechanism 7c8c5cc4 already measured for 31/32/40's OWN "Send failed" assertions). With
-		// `DOCUMENT_ACTION_QUEUE_ATTEMPTS=3` and exponential backoff, that is a ~40s background retry
-		// storm on the SAME single Node process (`WORKER_INLINE` default true) this test's own
-		// foreground CII/UBL downloads run against — and the backend log lines up exactly: this test's
-		// own job (`send-invoice-cmu1druik…`) was mid-retry precisely when its UBL request (the one
-		// immediately after the passing CII one) came back with no response at all. A real backend
-		// route that answers FAST — `/oauth2/token` 404s here in under a millisecond, proven above —
-		// removes the only environment-dependent part (whether a closed port refuses instantly or
-		// stalls); the deposit still genuinely fails downstream exactly as before, which this test
-		// still does not care about. Never a value this test asserts on.
+		// (31/32/40's own choice, and this test's original one) — kept from d4d3f3e0, still a real
+		// improvement, but NOT the actual fix for this test (see below): a fast-failing URL alone left
+		// CI run 34867394301 exactly as red as 34857663543, the same 3/3 failures.
+		//
+		// THE REAL CAUSE, established by comparing both CI runs and reproducing the exact failure mode
+		// locally (not the timestamp correlation d4d3f3e0 leaned on, which proved incomplete):
+		// `pdp-transport.ts#send()` builds and Schematron-validates a FULL Factur-X document
+		// (`facturxFormatProvider.build`) BEFORE it ever touches the network — on EVERY retry attempt,
+		// regardless of how fast the target URL fails. That build alone measures ~2.1s per call on an
+		// idle dev machine (`GET .../formats/facturx`, timed directly); this repo's own CI comment
+		// (`.github/workflows/cypress.yml`, the `backend-tests` job) independently documents this exact
+		// operation — Factur-X + full EN 16931 Schematron — blowing up from ~4s locally past a 30s CI
+		// budget under runner contention, worse than the flat 4.5x measured for the whole suite.
+		// `DOCUMENT_ACTION_QUEUE_ATTEMPTS=3` with exponential backoff means that CPU-bound work repeats
+		// up to 3 times per failed deposit, entirely inside the SAME single Node process (`WORKER_INLINE`
+		// default true) that also serves this test's own foreground CII/UBL downloads — proven back to
+		// back in both CI runs: job `send-invoice-cmu1gz29z…` (34867394301's own backend-logs) took 10s
+		// for attempt 1 and 13s for attempt 2 — attempt 2 still running when this test's own UBL wait
+		// reported its failure — and the OLDER run's job (`send-invoice-cmu1druik…`, the closed-port URL)
+		// took a near-identical 11s and 12s per attempt. The URL fix changed the ERROR MESSAGE
+		// ("fetch failed" -> "oauth2/token: 404") but not the per-attempt DURATION at all, which is the
+		// tell that the network leg was never the bottleneck. Confirmed locally too: a burst of 8
+		// concurrent PDP sends measurably starves the event loop — a plain `GET .../formats/ubl` that
+		// normally answers in ~0.37s took up to 400x longer (a trivial 404 lookup went from ~0.005s to
+		// ~1.6s) while the backlog drained.
+		//
+		// This also explains the ORIGINAL failure signature precisely, not just its timing: CI's
+		// `AssertionError: expected undefined to equal 200` is NOT what `cy.wait()` throws when its own
+		// 20s budget runs out (reproduced locally with an artificially short timeout: that throws a
+		// distinct `CypressError: ... No response ever occurred`). Cypress's own net-stubbing
+		// (`RESPONSE_WAITED_STATES = ['Complete', 'Errored']`) resolves `cy.wait()` the moment an
+		// intercepted request's recorded state becomes EITHER — an `Errored` request yields exactly
+		// `{ response: undefined }`, well before any 20s ceiling, which is what both CI runs actually hit.
+		// NOT ESTABLISHED: the precise mechanism that flips "severely delayed" into that `Errored` state
+		// (a Cypress-proxy-side timeout distinct from the driven `cy.wait` timeout is the leading
+		// candidate — local reproduction only ever produced delay, up to 400x, never an outright error,
+		// even under an 8-invoice burst) — deciding between that and any other candidate would need
+		// another CI run with server-side request timing instrumentation this spec cannot add on its own.
+		//
+		// THE FIX: hand the transport back to "email" (and disconnect the fake PDP channel) IMMEDIATELY
+		// after `send()` returns below — before this test ever touches the screen — instead of only at
+		// the very end as before. `requireConnectedPdp` (pdp-transport.ts) is the FIRST thing every
+		// delivery attempt does, BEFORE the expensive build, and re-resolves the channel's live state on
+		// EVERY attempt (that file's own comment: "the company's configuration could have changed...
+		// between the two calls") — so at most the ONE attempt BullMQ's in-process worker may already have
+		// grabbed before this lands still pays the full build cost; every attempt after fails on a cheap
+		// "channel not connected" lookup instead of repeating it. This also fixes the OLD cleanup's own
+		// fragility: it only ran at the very end of THIS test, so failing mid-test (exactly what happened)
+		// skipped it, leaving "pdp" active — with its own still-running retry storm — for the NEXT test's
+		// `createAndSendInvoice` to inherit. That is the proven cause of failures 2 and 3 (not merely
+		// "plausible collateral damage"): job `send-invoice-cmu1gzshy…` (34867394301's own log) was
+		// enqueued the moment job 1's attempt 2 failed, at the exact timestamp the very next test's own
+		// invoice was sent — because THIS test's transport reset never ran. Moving the reset to right
+		// after `send()` makes it run unconditionally (Cypress already executes it before any later
+		// command in this same chain can fail), regardless of what the rest of this test goes on to
+		// assert.
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="channel-pdp"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy="channel-pdp-baseurl-input"]').clear().type(api);
@@ -401,6 +443,26 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				},
 			],
 		}).then(({ id }) => {
+			// Hand the transport back to "email" and disconnect the fake PDP channel BEFORE this test
+			// ever touches the screen — see the big comment above ("THE FIX") for why this has to
+			// happen HERE, not at the end: it starves every BullMQ delivery retry after the first of
+			// the expensive Factur-X build that used to compete with the foreground downloads just
+			// below, and it runs UNCONDITIONALLY (Cypress executes queued commands in order, so this
+			// completes before anything later in this same chain gets a chance to fail) — unlike the
+			// old end-of-test placement, which a failure right here used to skip entirely.
+			cy.request({
+				method: "POST",
+				url: `${api}/api/company/info`,
+				body: { invoiceTransportId: "email" },
+			}).then((res) => {
+				expect(res.status, "transport reset to email").to.be.oneOf([200, 201]);
+			});
+			cy.request({
+				method: "DELETE",
+				url: `${api}/api/company/channels/pdp`,
+				failOnStatusCode: false,
+			});
+
 			cy.visit("/documents/invoice", { timeout: 20000 });
 			cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
 
@@ -436,24 +498,6 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				expect(String(x.response?.body)).to.match(
 					/<cbc:ProfileID>S1<\/cbc:ProfileID>/,
 				);
-			});
-
-			// Reset back to "email" — this test only ever needed PDP to clear "send"'s preflight (see
-			// the big comment above); nothing past this point exercises PDP, and the two XRechnung
-			// tests below run their OWN `createAndSendInvoice` with the default `issueDate`
-			// ("2026-08-30", before the mandate's `mandatedFrom`), so "email" preflights clean for them
-			// too. Leaving "pdp" (fictitious credentials) active here is what let this file's OWN
-			// background retry storm outlive this test — the backend log from CI run 20e48a9 shows the
-			// two jobs this test and the next one enqueue still retrying at 15:12:29, three seconds
-			// after THIS spec's very last test had already reported its result (15:12:26), and the next
-			// test's own failures (button never rendered, then a bare timeout) line up with that same
-			// window. Resetting removes that leak without touching what either test asserts.
-			cy.request({
-				method: "POST",
-				url: `${api}/api/company/info`,
-				body: { invoiceTransportId: "email" },
-			}).then((res) => {
-				expect(res.status, "transport reset to email").to.be.oneOf([200, 201]);
 			});
 		});
 	});
