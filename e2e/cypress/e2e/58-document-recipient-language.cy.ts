@@ -22,7 +22,7 @@ function createClientWithLanguage(name: string, contactEmail: string, languageOp
 
 	cy.get('[name="name"]').clear().type(name);
 	cy.selectCountry("client-country-select", "France");
-	cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("12345678901");
+	cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
 
 	cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 	cy.get('[data-cy="client-currency-select-options"]').should("be.visible");

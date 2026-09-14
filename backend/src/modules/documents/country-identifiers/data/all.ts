@@ -22,7 +22,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { assertValidProvenance, CountryIdentifierRequirementsFile } from '../schema';
+import {
+  assertPatternIsExplainable,
+  assertValidProvenance,
+  CountryIdentifierRequirementsFile,
+} from '../schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -47,6 +51,7 @@ function loadCountryFile(code: string): CountryIdentifierRequirementsFile {
   }
   for (const fact of parsed.schemes) {
     assertValidProvenance(fact, `documents/country-identifiers/data/${code}.json`);
+    assertPatternIsExplainable(fact, `documents/country-identifiers/data/${code}.json`);
   }
   return parsed;
 }

@@ -410,6 +410,11 @@ export default function CompanySettings() {
     )
   }
 
+  // What was actually on file when this form loaded, keyed by scheme — same client-side twin of the
+  // server's "an unchanged value is never re-validated" rule as client-upsert.tsx's own identical
+  // map; see that file's comment for the full reasoning.
+  const originalIdentifierValues = new Map((data?.partyIdentifiers || []).map((pi) => [pi.scheme, pi.value]))
+
   async function onSubmit(values: z.infer<typeof companySchema>) {
     if (requiredIdentifiers) {
       for (const req of requiredIdentifiers) {
@@ -423,6 +428,35 @@ export default function CompanySettings() {
             toast.error(`${req.label} is required`)
             return
           }
+        }
+      }
+
+      // A same-origin, best-effort ECHO of the server's own pattern gate — see client-upsert.tsx's
+      // identical loop for the full reasoning (VAT exemption, unchanged-value grandfather clause).
+      for (const req of requiredIdentifiers) {
+        if (!req.pattern || req.scheme === "VAT") continue
+        const val = (values.identifiers || []).find((i) => i.scheme === req.scheme)?.value
+        if (!val || val.trim() === "") continue
+        if (val === originalIdentifierValues.get(req.scheme)) continue
+
+        let matches = true
+        try {
+          matches = new RegExp(req.pattern).test(val)
+        } catch {
+          matches = true
+        }
+        if (!matches) {
+          const idx = (values.identifiers || []).findIndex((i) => i.scheme === req.scheme)
+          const message = t(
+            "settings.company.form.identifiers.patternMismatch",
+            "{{label}} format is invalid",
+            {
+              label: req.label,
+            },
+          )
+          form.setError(`identifiers.${idx}.value`, { message })
+          toast.error(message)
+          return
         }
       }
     }

@@ -23,7 +23,7 @@ describe("Clients E2E", () => {
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
 				.clear()
-				.type("12345678901");
+				.type("123456789");
 
 			// The country-specific identifiers section (EIN, above) pushes this
 			// select further down the scrollable dialog — scroll it into view first
@@ -265,7 +265,9 @@ describe("Clients E2E", () => {
 			);
 			cy.get('[name="name"]').clear().type("Test Company");
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("12345");
+			// A VALID SIREN on purpose: this test is about the VAT field, and a bad LEGAL_ID would now be
+			// refused first, letting the test pass for a reason it does not claim to be testing.
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("123456");
 			cy.get('[name="contactEmail"]').clear().type("test@test.com");
 			cy.get('[name="address"]').clear().type("123 Test St");
@@ -293,7 +295,7 @@ describe("Clients E2E", () => {
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
 				.clear()
-				.type("11223344556");
+				.type("112233445");
 			cy.get('[name="contactEmail"]').clear().type("info@techinnovations.com");
 			cy.get('[name="address"]').clear().type("456 Innovation Drive");
 			cy.get('[name="addressLine2"]').clear().type("Suite 200");
@@ -404,7 +406,7 @@ describe("Clients E2E", () => {
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
 				.clear()
-				.type("98765432101");
+				.type("987654321");
 			cy.get('[name="contactEmail"]').clear().type("info@oreilly.com");
 			cy.get('[name="address"]').clear().type("789 Publishing Way");
 			cy.get('[name="postalCode"]').clear().type("11111");
@@ -428,9 +430,10 @@ describe("Clients E2E", () => {
 
 			cy.get('[name="name"]').clear().type("Société Française SAS");
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("FR12345678901");
+			// SIREN is nine digits and nothing else (country-identifiers/data/fr.json, sourced to INSEE),
+			// and that shape is now enforced on save. The VAT field keeps its FR-prefixed value: VAT is
+			// deliberately exempt from the generic pattern check and validated by tax/vat-syntax.ts.
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("FR12345678901");
 			cy.get('[name="contactEmail"]').clear().type("contact@societe.fr");
 			cy.get('[name="address"]').clear().type("1 Rue de la Paix");
@@ -693,7 +696,7 @@ describe("Supplier role", () => {
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]')
 			.clear()
-			.type("55566677701");
+			.type("555666777");
 		cy.get('[data-cy="client-is-supplier-switch"]').scrollIntoView().click();
 		cy.get('[name="contactEmail"]').clear().type("fournisseur-t5b@example.com");
 		cy.get('[name="address"]').clear().type("1 Rue Fournisseur");
@@ -728,7 +731,7 @@ describe("Supplier role", () => {
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]')
 			.clear()
-			.type("11223344551");
+			.type("112233446");
 		cy.get('[name="contactEmail"]')
 			.clear()
 			.type("client-ordinaire-t5b@example.com");

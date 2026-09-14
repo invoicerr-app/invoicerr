@@ -83,6 +83,26 @@ export interface CountryIdentifierRequirementsFile {
 
 export class InvalidIdentifierProvenanceError extends Error {}
 
+export class InvalidIdentifierPatternError extends Error {}
+
+/**
+ * A `pattern` is a legal claim exactly like `required` (this file's own header) — but unlike
+ * `required`, it also has a runtime CONSUMER: `validate-identifier-value.ts`, which refuses a value
+ * that fails it. That refusal must name the expected shape in words, never show a user the raw
+ * regex, so a fact declaring `pattern` with no `helpText` would leave that refusal unable to explain
+ * itself. Checked at the SAME two points as `assertValidProvenance` (data/all.ts at load time,
+ * seed.ts again right before writing), for the same reason that header gives for doing so twice.
+ */
+export function assertPatternIsExplainable(fact: IdentifierSchemeFact, context: string): void {
+  if (fact.pattern && !fact.helpText?.trim()) {
+    throw new InvalidIdentifierPatternError(
+      `${context}: identifier scheme "${fact.scheme}" declares a pattern ("${fact.pattern}") but no ` +
+        'helpText — a value that fails it would be refused with no way to explain the expected shape ' +
+        'in words.',
+    );
+  }
+}
+
 /**
  * The one gate a fact cannot get past without a real provenance — see this file's header for why
  * it is called from two independent places rather than trusted to only ever run once.

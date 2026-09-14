@@ -15,6 +15,7 @@ import {
 } from '@/mail/system-email-templates';
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
 import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
+import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
 import prisma from '@/prisma/prisma.service';
 
 /**
@@ -88,12 +89,31 @@ export class CompanyService {
     return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
   }
 
-  private async upsertPartyIdentifiers(companyId: string, identifiers: IdentifierEntry[] | undefined) {
+  private async upsertPartyIdentifiers(
+    companyId: string,
+    identifiers: IdentifierEntry[] | undefined,
+    // The active company's own country — needed to resolve a declared `pattern`, exactly like
+    // `clients.service.ts`'s own `upsertPartyIdentifiers` needs the client's.
+    countryCode: string | null | undefined,
+  ) {
     if (!identifiers) return;
 
     const existing = await prisma.partyIdentifier.findMany({
       where: { companyId },
     });
+
+    // Every entry is checked against the country's declared `pattern` BEFORE any write below — see
+    // clients.service.ts's own identical comment and validate-identifier-value.ts's header for why
+    // this refuses rather than warns, and why an unchanged value is exempt.
+    for (const entry of identifiers) {
+      const before = existing.find((r) => r.scheme === entry.scheme);
+      await assertIdentifierValueMatchesPattern({
+        countryCode,
+        scheme: entry.scheme,
+        value: entry.value,
+        previousValue: before?.value,
+      });
+    }
 
     const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
 
@@ -158,7 +178,11 @@ export class CompanyService {
       },
     });
 
-    await this.upsertPartyIdentifiers(companyId, identifiers);
+    await this.upsertPartyIdentifiers(
+      companyId,
+      identifiers,
+      updatedCompany.countryCode ?? updatedCompany.country,
+    );
 
     logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
 
@@ -234,6 +258,20 @@ export class CompanyService {
   async createCompany(userId: string, editCompanyDto: EditCompanyDto) {
     const { identifiers, ...data } = editCompanyDto;
 
+    // Checked BEFORE the company row itself is created — same reasoning as
+    // `clients.service.ts#createClient`'s identical guard: `upsertPartyIdentifiers` cannot run
+    // first (no `companyId` yet), and a refusal surfacing only after create would leave an orphan
+    // company (and its OWNER `UserCompany` row) behind.
+    if (identifiers) {
+      for (const entry of identifiers) {
+        await assertIdentifierValueMatchesPattern({
+          countryCode: data.countryCode ?? data.country,
+          scheme: entry.scheme,
+          value: entry.value,
+        });
+      }
+    }
+
     const newCompany = await prisma.company.create({
       data: {
         // Sensible blanks for the fields the simplified onboarding (name + country
@@ -252,7 +290,11 @@ export class CompanyService {
       data: { userId, companyId: newCompany.id, role: 'OWNER' },
     });
 
-    await this.upsertPartyIdentifiers(newCompany.id, identifiers);
+    await this.upsertPartyIdentifiers(
+      newCompany.id,
+      identifiers,
+      newCompany.countryCode ?? newCompany.country,
+    );
 
     try {
       await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {

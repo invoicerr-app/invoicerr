@@ -282,6 +282,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         label: r.label,
         appliesTo: "BOTH" as const,
         required: true,
+        // A B2G-only requirement carries no `pattern` of its own — a scheme the country's own
+        // catalog also declares (and DOES have one for) is filtered out of `extra` above already.
+        pattern: undefined,
         helpText: r.why,
       }))
     return [...base, ...extra]
@@ -323,6 +326,14 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // The backend owns the per-country format rules; the button only needs a value.
   const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
+  // What was actually on file when this form opened, keyed by scheme — the client-side twin of the
+  // server's own "an unchanged value is never re-validated" rule (country-identifiers/
+  // validate-identifier-value.ts): a legacy value that predates a pattern must not suddenly block
+  // saving an UNRELATED field. Empty for a brand-new client, where every entry is "new" either way.
+  const originalIdentifierValues = new Map(
+    (client?.partyIdentifiers || []).map((pi) => [pi.scheme, pi.value]),
+  )
+
   const onSubmit = (data: z.infer<typeof clientSchema>) => {
     if (requiredIdentifiers) {
       for (const req of requiredIdentifiers) {
@@ -333,6 +344,38 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             form.setError(`identifiers.${idx}.value`, { message: `${req.label} is required` })
             return
           }
+        }
+      }
+
+      // A same-origin, best-effort ECHO of the server's own pattern gate — never the enforcement
+      // itself (that only exists server-side, in country-identifiers/validate-identifier-value.ts).
+      // VAT is skipped here for the exact reason it is skipped there: `tax/vat-syntax.ts` owns VAT
+      // syntax exclusively, and a DE-shaped `pattern` on this same catalog entry must never be
+      // second-guessed by a weaker client-side regex.
+      for (const req of requiredIdentifiers) {
+        if (!req.pattern || req.scheme === "VAT") continue
+        const val = (data.identifiers || []).find((i) => i.scheme === req.scheme)?.value
+        if (!val || val.trim() === "") continue
+        if (val === originalIdentifierValues.get(req.scheme)) continue // unchanged legacy value
+
+        let matches = true
+        try {
+          matches = new RegExp(req.pattern).test(val)
+        } catch {
+          matches = true // a malformed pattern never blocks here — the server is the real gate
+        }
+        if (!matches) {
+          const idx = (data.identifiers || []).findIndex((i) => i.scheme === req.scheme)
+          form.setError(`identifiers.${idx}.value`, {
+            message: t(
+              "clients.upsert.validation.identifiers.patternMismatch",
+              "{{label}} format is invalid",
+              {
+                label: req.label,
+              },
+            ),
+          })
+          return
         }
       }
     }

@@ -11,7 +11,13 @@
  * `PrismaCountryPolicyClient`: an internal seeding utility, trivial to drive with a hand-rolled fake
  * in tests (see seed.spec.ts) without depending on `prisma/generated/prisma` in the signature.
  */
-import { assertValidProvenance, IdentifierSchemeFact, LegalProvenance, UnverifiedProvenance } from './schema';
+import {
+  assertPatternIsExplainable,
+  assertValidProvenance,
+  IdentifierSchemeFact,
+  LegalProvenance,
+  UnverifiedProvenance,
+} from './schema';
 import {
   CountryIdentifierRequirementsCatalog,
   defaultCountryIdentifierRequirementsCatalog,
@@ -114,6 +120,7 @@ export async function seedCountryIdentifierRequirements(
   for (const countryCode of countries) {
     for (const fact of catalog.schemesFor(countryCode)) {
       assertValidProvenance(fact, `seedCountryIdentifierRequirements(${countryCode})`);
+      assertPatternIsExplainable(fact, `seedCountryIdentifierRequirements(${countryCode})`);
     }
   }
 

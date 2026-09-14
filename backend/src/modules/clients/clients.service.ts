@@ -26,6 +26,7 @@ import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { VatValidationPort } from '../documents/tax/vat-validation';
 import { validateVat } from '../documents/tax/vat-syntax';
+import { assertIdentifierValueMatchesPattern } from '../documents/country-identifiers/validate-identifier-value';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 
 @Injectable()
@@ -151,6 +152,20 @@ export class ClientsService {
       where: { clientId },
     });
 
+    // Every entry is checked against its country's declared `pattern` BEFORE any write below — an
+    // invalid entry later in the array must never leave an earlier one already deleted/upserted
+    // while the call as a whole still fails (see validate-identifier-value.ts's own header for why
+    // this refuses rather than warns, and why an unchanged value is exempt).
+    for (const entry of identifiers) {
+      const before = existing.find((r) => r.scheme === entry.scheme);
+      await assertIdentifierValueMatchesPattern({
+        countryCode,
+        scheme: entry.scheme,
+        value: entry.value,
+        previousValue: before?.value,
+      });
+    }
+
     const incomingSchemes = new Set(identifiers.map((i) => i.scheme));
 
     for (const row of existing) {
@@ -234,6 +249,20 @@ export class ClientsService {
       if (!data.name || (data.name as string).trim() === '') {
         logger.error('Company name is required for company clients', { category: 'client' });
         throw new BadRequestException('Company name is required for company clients');
+      }
+    }
+
+    // Checked BEFORE the client row itself is created: `upsertPartyIdentifiers` cannot run first (it
+    // needs a `clientId` that does not exist yet), and letting a bad identifier surface only after
+    // create would leave an orphan client behind — a resubmit after fixing it would then duplicate
+    // the record rather than complete it.
+    if (identifiers) {
+      for (const entry of identifiers) {
+        await assertIdentifierValueMatchesPattern({
+          countryCode: data.countryCode ?? data.country,
+          scheme: entry.scheme,
+          value: entry.value,
+        });
       }
     }
 

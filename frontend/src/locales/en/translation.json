@@ -232,6 +232,9 @@
         "country": {
           "required": "Country is required"
         },
+        "identifiers": {
+          "patternMismatch": "{{label}} format is invalid"
+        },
         "legalId": {
           "required": "Legal ID is required",
           "empty": "Legal ID cannot be empty",
@@ -2041,6 +2044,7 @@
         "identifiers": {
           "label": "Country-specific identifiers",
           "unknownCountry": "No identifier requirements are known for this country yet — you can save without one.",
+          "patternMismatch": "{{label}} format is invalid",
           "onFile": {
             "label": "Other identifiers on file",
             "description": "Saved on this company before, but not requested by the currently selected country. Kept as-is rather than removed automatically — remove one only if you're sure it's no longer needed.",
