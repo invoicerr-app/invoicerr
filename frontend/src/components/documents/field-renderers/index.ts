@@ -1,4 +1,5 @@
 import { ArrayField } from "./array-field"
+import { FileField } from "./file-field"
 import { HiddenReferenceField } from "./hidden-reference-field"
 import {
   BooleanField,
@@ -34,6 +35,7 @@ registerFieldRenderer("reference", ReferenceField)
 registerFieldRenderer("array", ArrayField)
 registerFieldRenderer("rowSelection", RowSelectionField)
 registerFieldRenderer("hiddenReference", HiddenReferenceField)
+registerFieldRenderer("file", FileField)
 
 export { getFieldRenderer, registerFieldRenderer } from "./registry"
 export type { FieldRendererComponent, FieldRendererProps } from "./registry"

@@ -37,6 +37,15 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
       // for this schema to ever reject; the backend's own 'hiddenReference' validator
       // (field-kinds.ts) is what actually enforces it on save.
       return z.string()
+    case "file":
+      // Mirrors the backend's own 'file' validator (field-kinds.ts) exactly — a well-shaped
+      // `{ fileRef, fileName, mime }`, never the bytes themselves. Existence-on-disk is checked by
+      // neither side (see that validator's own comment).
+      return z.object({
+        fileRef: z.string().min(1),
+        fileName: z.string().min(1),
+        mime: z.string().min(1),
+      })
     case "number":
     case "money": {
       let schema = z.number()

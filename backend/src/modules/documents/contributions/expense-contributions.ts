@@ -170,10 +170,19 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
 };
 
 /**
- * STATISTICS: "all of it, ultra-detailed" — one row per expense: date, description, amount, currency.
- * Most recent first (by the expense's own `date`, not `updatedAt`): there is no "urgency" ordering
- * the way invoice-contributions.ts's pending list has (nearest due date first) — only recency.
- * Rows with no parseable date sort last rather than crashing the sort.
+ * STATISTICS: "all of it, ultra-detailed" — one row per expense: date, description, category,
+ * amount, currency. Most recent first (by the expense's own `date`, not `updatedAt`): there is no
+ * "urgency" ordering the way invoice-contributions.ts's pending list has (nearest due date first) —
+ * only recency. Rows with no parseable date sort last rather than crashing the sort.
+ *
+ * `category` (TODO_FEATURES.md rank 13) reads `data.category` verbatim — the raw option VALUE
+ * (e.g. "office_supplies"), not its human LABEL: same convention as `currency` right next to it (a
+ * plain enum code, translated/labelled only by the SCREEN that renders this table, never by the
+ * contribution itself — see `translateWidget`'s own header, frontend, for why a table's own
+ * `columns[]`/row DATA stay untranslated on purpose). An expense with no category set (every record
+ * saved before this rank existed, or one a user genuinely left uncategorized) is an empty string
+ * here, exactly the same "a still-being-filled draft is a normal state to aggregate over" rule
+ * `expenseAmount` already holds for a missing `amount` — never a crash, never a fabricated bucket.
  */
 export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ companyId }) => {
   const expenses = await listDocuments(companyId, 'expense', CONTRIBUTION_READ_LIMIT);
@@ -184,6 +193,7 @@ export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ compa
       return {
         date: typeof data.date === 'string' ? data.date : '',
         description: typeof data.description === 'string' ? data.description : '',
+        category: typeof data.category === 'string' ? data.category : '',
         amount: Number(expenseAmount(data).toFixed(2)),
         currency: typeof data.currency === 'string' ? data.currency : '',
       };
@@ -197,6 +207,7 @@ export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ compa
     columns: [
       { key: 'date', label: 'Date' },
       { key: 'description', label: 'Description' },
+      { key: 'category', label: 'Category' },
       { key: 'amount', label: 'Amount' },
       { key: 'currency', label: 'Currency' },
     ],

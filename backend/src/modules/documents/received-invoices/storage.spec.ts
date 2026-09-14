@@ -34,6 +34,14 @@ describe('received-invoices/storage — local, content-hash-addressed, company-s
     expect(extFor('application/octet-stream')).toBe('bin');
   });
 
+  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — attachments.service.ts's own first
+  // caller of this map with a PHOTO rather than a supplier document.
+  it('extFor maps the three image mimes attachments.service.ts uploads', () => {
+    expect(extFor('image/jpeg')).toBe('jpg');
+    expect(extFor('image/png')).toBe('png');
+    expect(extFor('image/webp')).toBe('webp');
+  });
+
   it('persists under <root>/<companyId>/<sha256>.<ext>', () => {
     const uri = persistInboundFile(
       'company-1',

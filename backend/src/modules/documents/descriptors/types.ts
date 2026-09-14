@@ -540,6 +540,19 @@ export const CORE_FIELD_KINDS = [
   // The 11th — a reference stored but never shown to a human anywhere:
   // see `entity`'s own doc comment above for the full "why a dedicated kind, not just a flag" account.
   'hiddenReference',
+  // The 12th (TODO_FEATURES.md rank 13, "notes de frais enrichies") — a company-scoped, content-
+  // addressed attachment (a photo or PDF of a receipt, first). The stored value is
+  // `{ fileRef, fileName, mime }` — `fileRef` a SHA-256 (see `attachments/attachments.service.ts`,
+  // which reuses `received-invoices/storage.ts`'s own persistence rather than a second one), never
+  // the bytes themselves — the same "a stored pointer, not a copy of the data" shape 'reference'
+  // already holds for an entity id. Deliberately GENERIC, not "expense's own" field kind: the upload/
+  // download HTTP surface lives on the generic `documents.controller.ts`
+  // (`POST /documents/attachments/upload`, `GET /documents/attachments/:fileRef`), company-scoped
+  // only, never document-id-scoped — exactly the same genericity 'reference' already holds for
+  // `/documents/references/:entity/...`, so a FUTURE document type can declare a 'file' field of its
+  // own with zero new backend wiring. `expense.descriptor.ts`'s `attachment` field is the first (and,
+  // today, only) consumer.
+  'file',
 ] as const;
 
 export type CoreFieldKind = (typeof CORE_FIELD_KINDS)[number];

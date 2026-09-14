@@ -2,7 +2,7 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './field-kinds';
 import { validateAgainstDescriptor } from './validate';
 
 describe('FieldKindRegistry', () => {
-  it('registers and resolves the 11 core kinds', () => {
+  it('registers and resolves the 12 core kinds', () => {
     const registry = new FieldKindRegistry();
     registerCoreFieldKinds(registry);
 
@@ -18,6 +18,7 @@ describe('FieldKindRegistry', () => {
       'array',
       'rowSelection',
       'hiddenReference',
+      'file',
     ]) {
       expect(registry.has(kind)).toBe(true);
     }
@@ -200,6 +201,41 @@ describe('FieldKindRegistry', () => {
       expect(
         validateAgainstDescriptor([otherField], { vatRate: '19', __crossBorderCategory: 'S' }, registry),
       ).toEqual([{ key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' }]);
+    });
+  });
+
+  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the 12th kind, an uploaded attachment.
+  // Purely structural, like every other kind: existence-on-disk is never checked here (see the
+  // registration's own comment in field-kinds.ts).
+  describe("'file'", () => {
+    const registry = new FieldKindRegistry();
+    registerCoreFieldKinds(registry);
+    const field = { key: 'attachment', kind: 'file', label: 'Attachment', required: false };
+
+    it('accepts a well-shaped { fileRef, fileName, mime } object', () => {
+      expect(
+        validateAgainstDescriptor(
+          [field],
+          { attachment: { fileRef: 'abc123', fileName: 'receipt.pdf', mime: 'application/pdf' } },
+          registry,
+        ),
+      ).toEqual([]);
+    });
+
+    it('absent is "missing", not invalid — the field stays optional (an expense need not carry a receipt)', () => {
+      expect(validateAgainstDescriptor([field], {}, registry)).toEqual([]);
+    });
+
+    it("rejects a bare string (the old received-invoice-style flat fileRef, not this kind's own shape)", () => {
+      expect(validateAgainstDescriptor([field], { attachment: 'abc123' }, registry)).toEqual([
+        { key: 'attachment', message: '"Attachment" must be an uploaded file reference.' },
+      ]);
+    });
+
+    it('rejects an object missing any of the three required keys', () => {
+      expect(
+        validateAgainstDescriptor([field], { attachment: { fileRef: 'abc123', fileName: 'x' } }, registry),
+      ).toEqual([{ key: 'attachment', message: '"Attachment" must be an uploaded file reference.' }]);
     });
   });
 });

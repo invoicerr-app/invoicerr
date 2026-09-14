@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import {
   isMultiTargetReference,
   type DocumentFieldDescriptor,
   type MultiTargetReferenceValue,
 } from "@/components/documents/types"
-import { useReferenceResolve } from "@/hooks/queries"
+import { downloadAttachment, useReferenceResolve } from "@/hooks/queries"
 
 interface ReferenceValueProps {
   field: DocumentFieldDescriptor
@@ -26,6 +27,45 @@ function ReferenceValue({ field, value }: ReferenceValueProps) {
   if (!id) return <span className="text-muted-foreground">—</span>
   if (isLoading) return <span className="text-muted-foreground">…</span>
   return <span>{resolved?.label ?? id}</span>
+}
+
+interface AttachmentValueProps {
+  value: { fileRef?: unknown; fileName?: unknown; mime?: unknown }
+}
+
+/** The read-only counterpart to field-renderers/file-field.tsx's own editable control — a plain
+ *  filename with a click-to-open link, fetched (and opened as a blob URL, same technique
+ *  custom/received-invoice-download-button.tsx already uses) lazily, only on click: this component
+ *  renders in lists/tables where preloading every row's bytes eagerly would be wasteful. */
+function AttachmentValue({ value }: AttachmentValueProps) {
+  const { t } = useTranslation()
+  const fileRef = typeof value.fileRef === "string" ? value.fileRef : undefined
+  const mime = typeof value.mime === "string" ? value.mime : undefined
+  const fileName = typeof value.fileName === "string" ? value.fileName : undefined
+
+  if (!fileRef || !mime) return <span className="text-muted-foreground">—</span>
+
+  const handleOpen = async () => {
+    try {
+      const blob = await downloadAttachment(fileRef, mime)
+      window.open(URL.createObjectURL(blob), "_blank")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("documents.list.fieldValue.attachmentError"))
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="text-primary underline"
+      onClick={(event) => {
+        event.stopPropagation()
+        void handleOpen()
+      }}
+    >
+      {fileName ?? t("documents.list.fieldValue.attachmentOpen")}
+    </button>
+  )
 }
 
 interface DocumentFieldValueProps {
@@ -122,6 +162,9 @@ export function DocumentFieldValue({ field, value, data }: DocumentFieldValuePro
       const count = Array.isArray(value) ? value.length : 0
       return <span>{t("documents.list.fieldValue.rowCount", { count })}</span>
     }
+
+    case "file":
+      return <AttachmentValue value={value as AttachmentValueProps["value"]} />
 
     default:
       return <span className="text-muted-foreground">{JSON.stringify(value)}</span>

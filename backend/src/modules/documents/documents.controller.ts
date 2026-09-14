@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, Sse } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+  Sse,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Observable } from 'rxjs';
@@ -8,6 +21,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { ActiveRole } from '@/decorators/active-role.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 
+import { AttachmentRef, AttachmentsService } from './attachments/attachments.service';
 import { DocumentsService } from './documents.service';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import { DocumentEventMessage } from './queue/document-events';
@@ -38,6 +52,7 @@ export class DocumentsController {
     private readonly schedulesService: DocumentSchedulesService,
     private readonly shareLinksService: ShareLinksService,
     private readonly eventsBridge: DocumentEventsBridge,
+    private readonly attachmentsService: AttachmentsService,
   ) {}
 
   // Static segments ('types', 'transports', 'references/:entity/search', 'schedules') are declared
@@ -438,6 +453,81 @@ export class DocumentsController {
     @Param('refId') refId: string,
   ) {
     return this.documentsService.getReferenceFields(companyId, entity, refId);
+  }
+
+  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — backs the 12th field kind, 'file'
+  // (descriptors/types.ts). Company-scoped only, deliberately never document-id-scoped — see
+  // AttachmentsService's own header for why this stays as generic as 'reference's own
+  // "references/:entity/..." routes right above, rather than a bespoke "expense attachment" endpoint.
+  @Post('attachments/upload')
+  @ApiOperation({
+    summary: 'Upload an attachment (a photo or PDF of a receipt, today)',
+    description:
+      'Stores the file content-addressed for the active company. Refused, named, for a disallowed ' +
+      'mime type or a file over the size limit — see AttachmentsService for both.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        fileName: { type: 'string', example: 'receipt.jpg' },
+        mime: { type: 'string', example: 'image/jpeg' },
+        base64: { type: 'string', description: 'Base64-encoded raw file bytes.' },
+      },
+      required: ['fileName', 'mime', 'base64'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'File stored — { fileRef, fileName, mime }' })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing fileName/mime/base64, an empty file, or a disallowed mime',
+  })
+  @ApiResponse({ status: 413, description: 'The file is over the size limit' })
+  uploadAttachment(
+    @ActiveCompany() companyId: string,
+    @Body() body: { fileName?: string; mime?: string; base64?: string },
+  ): Promise<AttachmentRef> {
+    if (!body?.fileName || !body?.mime || !body?.base64) {
+      throw new BadRequestException('fileName, mime and base64 are required');
+    }
+    return this.attachmentsService.upload(companyId, {
+      fileName: body.fileName,
+      mime: body.mime,
+      base64: body.base64,
+    });
+  }
+
+  @Get('attachments/:fileRef')
+  @ApiOperation({ summary: "An attachment's original uploaded bytes" })
+  @ApiParam({
+    name: 'fileRef',
+    type: String,
+    description: "The attachment's own SHA-256, from the upload response",
+  })
+  @ApiQuery({
+    name: 'mime',
+    required: true,
+    type: String,
+    description: 'The mime the upload response carried',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'File bytes, verbatim',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({ status: 404, description: 'Not found for this company, or the file is no longer on disk' })
+  async downloadAttachment(
+    @ActiveCompany() companyId: string,
+    @Param('fileRef') fileRef: string,
+    @Query('mime') mime: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!mime) {
+      throw new BadRequestException('The "mime" query parameter is required.');
+    }
+    const { bytes, mime: resolvedMime } = await this.attachmentsService.download(companyId, fileRef, mime);
+    res.setHeader('Content-Type', resolvedMime);
+    res.send(bytes);
   }
 
   @Post('types/:typeId/actions/:actionId')

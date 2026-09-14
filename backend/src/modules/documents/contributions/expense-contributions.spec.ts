@@ -118,9 +118,44 @@ describe('buildExpenseStatisticsWidgets', () => {
     const widgets = await buildExpenseStatisticsWidgets({ companyId: 'c1' });
     const table = widgets.find((w) => w.kind === 'table') as TableWidget;
 
+    // Neither expense set a category — an unset one is an empty string, never a crash or a
+    // fabricated "uncategorized" bucket (see this file's own header on `expenseAmount`'s identical
+    // rule for a missing `amount`).
     expect(table.rows).toEqual([
-      { date: '2026-06-15', description: 'Hotel', amount: 200, currency: 'EUR' },
-      { date: '2026-01-01', description: 'Taxi', amount: 12.3, currency: 'EUR' },
+      { date: '2026-06-15', description: 'Hotel', category: '', amount: 200, currency: 'EUR' },
+      { date: '2026-01-01', description: 'Taxi', category: '', amount: 12.3, currency: 'EUR' },
+    ]);
+  });
+
+  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the category a user actually picked
+  // flows through to the statistics table verbatim (the raw option value, not its label — see this
+  // file's own header on `translateWidget`'s "row data stays untranslated" convention).
+  it('a chosen category flows through to the statistics table', async () => {
+    listDocuments.mockResolvedValue([
+      expense({
+        id: 'categorized',
+        data: {
+          description: 'Printer paper',
+          amount: 42,
+          currency: 'EUR',
+          date: '2026-03-01',
+          category: 'office_supplies',
+        },
+      }),
+    ]);
+
+    const widgets = await buildExpenseStatisticsWidgets({ companyId: 'c1' });
+    const table = widgets.find((w) => w.kind === 'table') as TableWidget;
+
+    expect(table.columns.map((c) => c.key)).toContain('category');
+    expect(table.rows).toEqual([
+      {
+        date: '2026-03-01',
+        description: 'Printer paper',
+        category: 'office_supplies',
+        amount: 42,
+        currency: 'EUR',
+      },
     ]);
   });
 });

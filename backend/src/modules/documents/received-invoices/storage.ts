@@ -23,10 +23,19 @@ export function inboundRoot(): string {
 }
 
 /** A small, honest map — never a guess: an unrecognized mime gets `.bin`, exactly like
- *  `archive/storage.ts`'s own `extFor`. */
+ *  `archive/storage.ts`'s own `extFor`. The three `image/*` entries were added for
+ *  `attachments/attachments.service.ts` (TODO_FEATURES.md rank 13, "notes de frais enrichies") — the
+ *  first caller of this shared module to ever store a photo rather than a supplier document; extending
+ *  this map (rather than letting a receipt photo fall through to `.bin`) is purely a cosmetic/
+ *  operational nicety for a human browsing `DOCUMENTS_INBOUND_DIR` directly, never a functional
+ *  requirement — `persistInboundFile`/`readInboundFile` both derive the path from `extFor` the SAME
+ *  way, so a `.bin` round-trip would have worked identically either way. */
 export function extFor(mime: string): string {
   if (mime === 'application/pdf') return 'pdf';
   if (mime === 'application/xml' || mime === 'text/xml') return 'xml';
+  if (mime === 'image/jpeg') return 'jpg';
+  if (mime === 'image/png') return 'png';
+  if (mime === 'image/webp') return 'webp';
   return 'bin';
 }
 

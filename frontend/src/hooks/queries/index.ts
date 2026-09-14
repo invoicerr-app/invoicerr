@@ -96,3 +96,9 @@ export {
   useUpdatePaymentMethod,
   type UpdatePaymentMethodVariables,
 } from "./use-payment-methods"
+export {
+  useUploadAttachment,
+  downloadAttachment,
+  type AttachmentRef,
+  type UploadAttachmentVariables,
+} from "./use-attachments"

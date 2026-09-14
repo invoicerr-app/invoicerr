@@ -3555,6 +3555,30 @@
           "date": {
             "label": "Date"
           },
+          "category": {
+            "label": "Category",
+            "options": {
+              "travel": "Travel",
+              "meals": "Meals & entertainment",
+              "accommodation": "Accommodation",
+              "office_supplies": "Office supplies",
+              "software": "Software & subscriptions",
+              "equipment": "Equipment",
+              "marketing": "Marketing",
+              "professional_services": "Professional services",
+              "utilities": "Utilities",
+              "other": "Other"
+            }
+          },
+          "attachment": {
+            "label": "Receipt"
+          },
+          "distanceKm": {
+            "label": "Distance (km)"
+          },
+          "ratePerKm": {
+            "label": "Rate per km"
+          },
           "notes": {
             "label": "Notes"
           }
@@ -3719,6 +3743,14 @@
         "missingRow": "A previously selected row is no longer available.",
         "removeMissing": "Remove"
       },
+      "file": {
+        "browse": "Choose file",
+        "remove": "Remove",
+        "loadingPreview": "Loading preview...",
+        "previewAlt": "Attachment preview",
+        "openFile": "Open file",
+        "uploadError": "Upload failed"
+      },
       "unsupportedKind": "Field \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
       "unknownType": "Unknown document type \"{{typeId}}\".",
       "actionBlockedByPolicy": "Not available: {{reason}}",
@@ -3763,7 +3795,9 @@
       "fieldValue": {
         "yes": "Yes",
         "no": "No",
-        "rowCount": "{{count}} row(s) selected"
+        "rowCount": "{{count}} row(s) selected",
+        "attachmentOpen": "Open",
+        "attachmentError": "Could not open the attachment"
       },
       "item": {
         "fallbackTitle": "{{label}} #{{id}}"

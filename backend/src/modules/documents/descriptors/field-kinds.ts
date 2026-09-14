@@ -164,6 +164,24 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
   registry.register('hiddenReference', (value) =>
     typeof value === 'string' && value.length > 0 ? null : 'must reference an existing record.',
   );
+
+  // The 12th ("notes de frais enrichies", TODO_FEATURES.md rank 13) — a company-scoped attachment.
+  // Purely structural, like every other kind here: only checks the shape `attachments/
+  // attachments.service.ts` actually hands back (`{ fileRef, fileName, mime }`, three non-empty
+  // strings) — never that the file still exists on disk, the SAME deliberate limitation 'reference'
+  // documents for itself above (an async existence check needs a company-scoped lookup a synchronous
+  // validator cannot do; DocumentsService.runAction does not currently cross-check either kind
+  // against its own store).
+  registry.register('file', (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return 'must be an uploaded file reference.';
+    }
+    const { fileRef, fileName, mime } = value as Record<string, unknown>;
+    if (typeof fileRef !== 'string' || fileRef.length === 0) return 'must be an uploaded file reference.';
+    if (typeof fileName !== 'string' || fileName.length === 0) return 'must be an uploaded file reference.';
+    if (typeof mime !== 'string' || mime.length === 0) return 'must be an uploaded file reference.';
+    return null;
+  });
 }
 
 export { CORE_FIELD_KINDS };
