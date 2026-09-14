@@ -5,6 +5,11 @@
  * convention `types/client.ts` already holds for `ClientStatement`.
  */
 
+/** WHY the invite email was, or was not, sent — mirrors the backend's `PortalInviteEmailStatus`.
+ *  `"no_contact_email"` and `"send_failed"` both leave `emailed` false but need DIFFERENT screen
+ *  text: the first is a client-record gap, the second is unrelated to this client (e.g. SMTP down). */
+export type PortalInviteEmailStatus = "sent" | "no_contact_email" | "send_failed"
+
 /** What `POST /clients/:clientId/portal-access` returns — mirrors the backend's `CreatedPortalAccess`.
  *  `token`/`path` appear here ONLY: the same "shown once" contract `CreatedShareLink` already holds. */
 export interface CreatedPortalAccess {
@@ -13,6 +18,7 @@ export interface CreatedPortalAccess {
   path: string
   expiresAt: string
   emailed: boolean
+  emailStatus: PortalInviteEmailStatus
 }
 
 /** One row from `GET /clients/:clientId/portal-access` — mirrors the backend's `PortalAccessSummary`.

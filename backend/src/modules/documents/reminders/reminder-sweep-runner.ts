@@ -30,6 +30,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { MailService } from '@/mail/mail.service';
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
@@ -219,10 +220,22 @@ export class ReminderSweepRunner {
       try {
         await this.mailService.sendMail({ to: recipient, subject: email.subject, text: email.text });
       } catch (error) {
-        this.logger.warn(
-          `Reminder sweep: failed to send the tier-${tier} reminder for invoice ${invoice.id} to ` +
-            `${recipient} — ${error instanceof Error ? error.message : String(error)}`,
-        );
+        // PERSISTED (not the raw Nest `this.logger` used elsewhere in this file) — a reminder that
+        // silently fails to send is exactly the "no trace a human can see" gap closed for the mail
+        // startup warning (see MailService's own SMTP_HOST check); an admin needs to find this in
+        // Settings → Logs, not go looking through a container's stdout. The sweep itself is
+        // unaffected: still counted as `skipped`, the loop still moves on to the next invoice below —
+        // see this file's own header on why one invoice's failure never aborts the pass.
+        logger.error(`Reminder sweep: failed to send the tier-${tier} reminder for invoice ${invoice.id}.`, {
+          category: 'documents',
+          details: {
+            companyId,
+            documentId: invoice.id,
+            tier,
+            recipient,
+            reason: error instanceof Error ? error.message : String(error),
+          },
+        });
         skipped++;
         continue;
       }

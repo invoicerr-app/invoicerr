@@ -142,6 +142,7 @@ describe('PortalTokensService', () => {
     expect(result.token).toMatch(/^[0-9a-f]{64}$/);
     expect(result.path).toBe(`/portal/${result.token}`);
     expect(result.emailed).toBe(true);
+    expect(result.emailStatus).toBe('sent');
     expect(sendMail).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'client@example.com', subject: expect.stringContaining('Acme Corp') }),
     );
@@ -157,6 +158,7 @@ describe('PortalTokensService', () => {
 
     const result = await service.create('company-1', 'client-no-email');
     expect(result.emailed).toBe(false);
+    expect(result.emailStatus).toBe('no_contact_email');
     expect(sendMail).not.toHaveBeenCalled();
   });
 
@@ -167,7 +169,27 @@ describe('PortalTokensService', () => {
     const result = await service.create('company-1', 'client-1');
     expect(result.token).toMatch(/^[0-9a-f]{64}$/);
     expect(result.emailed).toBe(false);
+    expect(result.emailStatus).toBe('send_failed');
   });
+
+  it(
+    'distinguishes "no email on file" from "send failed" via emailStatus — the frontend used to ' +
+      'show the same message for both',
+    async () => {
+      const failingMail = jest.fn().mockRejectedValue(new Error('SMTP down'));
+      const failed = await buildService(failingMail).create('company-1', 'client-1');
+      expect(failed.emailed).toBe(false);
+      expect(failed.emailStatus).toBe('send_failed');
+
+      const unreachedMail = jest.fn();
+      const noEmail = await buildService(unreachedMail).create('company-1', 'client-no-email');
+      expect(noEmail.emailed).toBe(false);
+      expect(noEmail.emailStatus).toBe('no_contact_email');
+      expect(unreachedMail).not.toHaveBeenCalled();
+
+      expect(failed.emailStatus).not.toBe(noEmail.emailStatus);
+    },
+  );
 
   it('lists what it created, then revoke turns it inactive — never deleted', async () => {
     const service = buildService(jest.fn().mockResolvedValue(undefined));

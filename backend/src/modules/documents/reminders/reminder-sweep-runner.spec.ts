@@ -1,4 +1,5 @@
 import { MailService } from '@/mail/mail.service';
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
@@ -243,6 +244,37 @@ describe('ReminderSweepRunner.runSweep', () => {
     expect(reminderCreate).toHaveBeenCalledWith({
       data: { companyId: 'company-1', documentId: 'inv-2', tier: 7 },
     });
+  });
+
+  it('persists an admin-visible log entry when a reminder email fails to send', async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+    listDocuments.mockResolvedValue([invoice({ data: invoiceData() })]);
+    const mailService = {
+      sendMail: jest.fn().mockRejectedValue(new Error('SMTP timeout')),
+    } as unknown as MailService;
+    // Real implementation runs (it never throws — see logger.service.ts's own header), only spied on
+    // to assert the call: a silently-failing reminder must leave a trace in the PERSISTED logger
+    // (Settings -> Logs), not just whatever `this.logger` (raw Nest logger, console-only) already did.
+    const errorSpy = jest.spyOn(logger, 'error');
+
+    const runner = new ReminderSweepRunner(mailService);
+    const result = await runner.runSweep(NOW);
+
+    expect(result).toEqual({ companiesProcessed: 1, remindersSent: 0, skipped: 1 });
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('tier-7'),
+      expect.objectContaining({
+        category: 'documents',
+        details: expect.objectContaining({
+          companyId: 'company-1',
+          documentId: 'inv-1',
+          tier: 7,
+          reason: 'SMTP timeout',
+        }),
+      }),
+    );
+
+    errorSpy.mockRestore();
   });
 
   it('never throws when a per-company query fails — that company is skipped, others still run', async () => {

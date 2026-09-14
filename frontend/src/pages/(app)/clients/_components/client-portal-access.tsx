@@ -22,7 +22,7 @@ import {
   useRevokeAllPortalAccess,
   useRevokePortalAccess,
 } from "@/hooks/queries"
-import type { Client } from "@/types"
+import type { Client, PortalInviteEmailStatus } from "@/types"
 
 interface ClientPortalAccessDialogProps {
   client: Client | null
@@ -46,7 +46,9 @@ function publicUrlFor(path: string): string {
  * EXACT model of `ShareLinkDialog`: create a long-lived link (shown, and copyable, ONCE — the backend
  * never lets it be re-consulted), list/revoke the client's currently active invites. The backend also
  * best-effort emails the link to the client's own `contactEmail` — this dialog surfaces that outcome
- * (`result.emailed`) but never depends on it: the raw URL is always available to copy and send by hand.
+ * (`result.emailStatus`, distinguishing "no email on file" from "the send itself failed" — see
+ * `PortalInviteEmailStatus`'s own header) but never depends on it: the raw URL is always available to
+ * copy and send by hand.
  */
 export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalAccessDialogProps) {
   const { t } = useTranslation()
@@ -58,7 +60,12 @@ export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalA
   const revokeAllAccess = useRevokeAllPortalAccess()
   // The just-minted URL — local state only, dropped on close, same "nowhere else it could come from
   // afterwards" contract `share-link-dialog.tsx` already holds for its own `justCreatedUrl`.
-  const [justCreated, setJustCreated] = useState<{ url: string; emailed: boolean } | null>(null)
+  // `emailStatus` (not just `emailed`) so the two `false`-shaped outcomes below get different text —
+  // see `PortalInviteEmailStatus`'s own header.
+  const [justCreated, setJustCreated] = useState<{
+    url: string
+    emailStatus: PortalInviteEmailStatus
+  } | null>(null)
 
   const activeInvites = (invites ?? []).filter((invite) => invite.active)
 
@@ -67,7 +74,7 @@ export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalA
   const handleCreate = async () => {
     try {
       const result = await createAccess.mutateAsync({ clientId })
-      setJustCreated({ url: publicUrlFor(result.path), emailed: result.emailed })
+      setJustCreated({ url: publicUrlFor(result.path), emailStatus: result.emailStatus })
       invalidateList()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("clients.portalAccess.createError"))
@@ -146,9 +153,11 @@ export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalA
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground" data-cy="portal-access-emailed-status">
-                {justCreated.emailed
+                {justCreated.emailStatus === "sent"
                   ? t("clients.portalAccess.emailedYes")
-                  : t("clients.portalAccess.emailedNo")}
+                  : justCreated.emailStatus === "send_failed"
+                    ? t("clients.portalAccess.emailedSendFailed")
+                    : t("clients.portalAccess.emailedNo")}
               </p>
             </div>
           )}

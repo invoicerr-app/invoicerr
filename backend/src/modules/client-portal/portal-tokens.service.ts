@@ -23,6 +23,16 @@ import {
  *  deliberate scope cut (see this feature's own report) rather than a gap discovered later. */
 const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * WHY the invite email was, or was not, sent — the two `false`-shaped outcomes `emailed` used to
+ * conflate into one indistinguishable value. Distinguishing them here (rather than just in a log
+ * line) is what lets `PortalAccessController`'s caller show the RIGHT message: "this client has no
+ * email on file, add one" is actionable for staff, "the invite email failed to send" (e.g. SMTP is
+ * down) is a completely different problem with a completely different fix — showing the "no email
+ * on file" text for the second case sends staff chasing a client-record problem that does not exist.
+ */
+export type PortalInviteEmailStatus = 'sent' | 'no_contact_email' | 'send_failed';
+
 export interface CreatedPortalAccess {
   id: string;
   /** The RAW token — exposed exactly ONCE, same "never re-consultable" contract
@@ -32,11 +42,15 @@ export interface CreatedPortalAccess {
    *  captures the token and never re-shows it in the address bar afterwards. */
   path: string;
   expiresAt: Date;
-  /** Whether an invite email was actually sent — `false` when the client has no `contactEmail` on
-   *  file, or when sending failed (logged, never thrown: the staff caller still gets the token/path
-   *  back and can hand it to the client through any other channel, the same "the primary action never
-   *  fails because a side-channel email did" contract share-link creation already holds). */
+  /** Whether an invite email was actually sent — `true` iff `emailStatus === 'sent'`. Kept as a
+   *  plain boolean (rather than dropped in favor of `emailStatus` alone) for callers that only ever
+   *  cared about yes/no; a failed or skipped send (logged, never thrown: the staff caller still gets
+   *  the token/path back and can hand it to the client through any other channel, the same "the
+   *  primary action never fails because a side-channel email did" contract share-link creation
+   *  already holds) sets this `false` — see `emailStatus` for WHY. */
   emailed: boolean;
+  /** WHY `emailed` is `false`, when it is — see `PortalInviteEmailStatus`'s own header. */
+  emailStatus: PortalInviteEmailStatus;
 }
 
 export interface PortalAccessSummary {
@@ -97,9 +111,16 @@ export class PortalTokensService {
     const record = await createPortalToken({ companyId, clientId, tokenHash, expiresAt });
 
     const path = `/portal/${token}`;
-    const emailed = await this.tryEmailInvite(client.contactEmail, company.name, path);
+    const emailStatus = await this.tryEmailInvite(client.contactEmail, company.name, path);
 
-    return { id: record.id, token, path, expiresAt: record.expiresAt, emailed };
+    return {
+      id: record.id,
+      token,
+      path,
+      expiresAt: record.expiresAt,
+      emailed: emailStatus === 'sent',
+      emailStatus,
+    };
   }
 
   async list(companyId: string, clientId: string): Promise<PortalAccessSummary[]> {
@@ -139,8 +160,8 @@ export class PortalTokensService {
     contactEmail: string | null,
     companyName: string,
     path: string,
-  ): Promise<boolean> {
-    if (!contactEmail) return false;
+  ): Promise<PortalInviteEmailStatus> {
+    if (!contactEmail) return 'no_contact_email';
     const parts = buildPortalInviteEmail({ companyName, portalUrl: this.buildPortalUrl(path) });
     try {
       await this.mailService.sendMail({
@@ -149,13 +170,13 @@ export class PortalTokensService {
         text: parts.text,
         html: parts.html,
       });
-      return true;
+      return 'sent';
     } catch (error) {
       logger.error('Failed to send the client portal invite email — the invite link was still created', {
         category: 'client-portal',
         details: { recipient: contactEmail, message: error instanceof Error ? error.message : String(error) },
       });
-      return false;
+      return 'send_failed';
     }
   }
 }
