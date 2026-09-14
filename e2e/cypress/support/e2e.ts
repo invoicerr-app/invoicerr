@@ -86,3 +86,25 @@ before(() => {
     if (Cypress.env('skipSeed')) return;
     cy.resetAndSeed();
 });
+
+// ---------------------------------------------------------------------------
+// Belt and braces against a residual service worker.
+//
+// The app's own registration (src/main.tsx) already skips itself under `window.Cypress`, but that
+// guard only stops a NEW registration — it does nothing about one a previous visit already installed
+// (an old build tested earlier in this same browser profile, a manual visit in another tab sharing
+// the profile, ...). Cypress does not unregister service workers between visits or specs on its own,
+// so a stray one would keep controlling every page this run touches. A service worker has no
+// legitimate role in a suite that only ever drives the app through its own screens and the API, and
+// one intercepting navigations (or reloading on activation) is exactly the class of flakiness that
+// broke 29-document-recurrence.cy.ts the day the PWA landed (b7a6581d) — a mid-command DOM
+// detachment with no equivalent in the app's own code. Unregister anything found before every spec
+// rather than trusting that nothing upstream ever registered one.
+before(() => {
+    cy.window({ log: false }).then((win) => {
+        if (!win.navigator.serviceWorker) return;
+        return win.navigator.serviceWorker.getRegistrations().then((registrations) => {
+            registrations.forEach((registration) => registration.unregister());
+        });
+    });
+});

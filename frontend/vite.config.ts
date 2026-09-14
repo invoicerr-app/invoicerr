@@ -17,6 +17,12 @@ export default defineConfig({
       // API that has moved on. autoUpdate installs the new service worker and reloads automatically
       // once it takes control, so nobody is silently stuck on an old build.
       registerType: "autoUpdate",
+      // Manual registration (default is "auto", which injects an unconditional registerSW.js into
+      // every page load with no way to opt out) — src/main.tsx registers the service worker itself
+      // via `virtual:pwa-register`, gated on `!("Cypress" in window)`. See the comment there for why:
+      // an unconditional service worker under Cypress broke 29-document-recurrence.cy.ts the moment
+      // this PWA setup landed (b7a6581d).
+      injectRegister: null,
       includeAssets: ["favicon.svg", "favicon.png"],
       manifest: {
         name: "Invoicerr",
