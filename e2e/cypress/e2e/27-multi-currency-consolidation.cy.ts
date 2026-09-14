@@ -60,6 +60,25 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 		cy.get('[data-cy="currency-rate-from-select-options"]').should("be.visible");
 		cy.get('[data-cy="currency-rate-from-select-option-united-states-dollar-($)"]').click();
 
+		// The "from" popover's own portal must be gone before the "to" trigger is clicked — CI has
+		// twice (2026-09-14 runs 34898300265 and 34899605329, both on otherwise-unrelated commits;
+		// the diff between the last known-green run and these carries no change to this screen, this
+		// component, or currency-select at all) failed exactly here with
+		// `[data-cy="currency-rate-to-select-options"]` never appearing, immediately followed by the
+		// next test's consolidated widget missing too — a direct consequence, not a second bug: the
+		// dashboard was correctly reporting "No USD→EUR rate is set" because the rate this test exists
+		// to create was never added (see the next `it`'s own screenshot evidence in that CI run).
+		// This is the one place in the whole suite where a select is opened with NOTHING between it
+		// and the previous select's own closing click — every other multi-select flow here
+		// (05-clients.cy.ts, selectCountry in support/commands.ts) has a real field typed into, or a
+		// `cy.wait`, in between. On top of that, `support/e2e.ts` overwrites `.click()` suite-wide to
+		// always pass `force: true` (a Radix Dialog/Sheet scroll-lock workaround), which as a side
+		// effect also skips Cypress's own built-in wait-until-actionable check on EVERY click,
+		// including this one — so nothing was left to absorb the gap. Waiting on a concrete DOM fact
+		// (the sibling popover is actually gone), not a fixed sleep, closes that gap without hiding a
+		// real timeout behind a bigger number.
+		cy.get('[data-cy="currency-rate-from-select-options"]').should("not.exist");
+
 		cy.get('[data-cy="currency-rate-to-select"] button').first().click();
 		cy.wait(300);
 		cy.get('[data-cy="currency-rate-to-select-options"]').should("be.visible");
