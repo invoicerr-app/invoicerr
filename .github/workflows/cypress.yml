@@ -75,6 +75,36 @@ jobs:
 
   backend-tests:
     runs-on: ubuntu-latest
+    # This job used to run with no database at all, on the assumption that `npm test` is a unit
+    # suite. It is not, entirely: 13 spec files -- received-invoices, supplier reconciliation, the
+    # client and company services, the identifier-pattern guards, the Portuguese AT provider, the
+    # Peppol transport -- reach a REAL Prisma connection, and several say so in their own headers
+    # ("real Prisma for the Client/PartyIdentifier side"). They passed on every developer machine
+    # because a database happens to be running there, and could only ever have failed here. The
+    # first run of this workflow on a branch proved it: 13 suites, 58 tests, every one of them a
+    # PrismaClientKnownRequestError rather than an assertion.
+    #
+    # So the job gets the database those specs actually need -- the same Postgres service, the same
+    # `migrate deploy` and `db seed` its sibling `queue-integration` already provisions for the same
+    # reason. The alternative, gating each spec on a reachable database, would make them skip in CI:
+    # green, and proving nothing, which is the failure mode this repository already refuses for the
+    # live-gated channel specs.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoicerr_test?schema=public
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: invoicerr_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -97,9 +127,15 @@ jobs:
         run: cd backend && npm ci
 
       - name: Generate Prisma client
-        run: cd backend && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
+        run: cd backend && npx prisma generate
 
-      - name: Run backend unit tests
+      # The schema the DB-touching specs above expect. `migrate deploy` never runs the seed hook, and
+      # the country-policy table being empty makes every document action 403 -- the same gotcha
+      # `queue-integration` and `scenarios.yml` both already document at their own seed step.
+      - name: Apply migrations and seed reference data
+        run: cd backend && npx prisma migrate deploy && npx prisma db seed
+
+      - name: Run backend tests
         run: cd backend && npm test -- --ci
 
   queue-integration:
