@@ -52,8 +52,12 @@ jobs:
           - "1025:1025"
       # The backend requires Redis (BullMQ) to boot — WORKER_INLINE defaults to true, so the inline
       # compliance processors + registerRepeatables() connect at startup. Without it the Nest app
-      # fails to boot and the scenario times out on a hung /api. redisConnection() defaults to
-      # localhost:6379, so no backend env change is needed.
+      # fails to boot and the scenario times out on a hung /api, which is exactly what happened here
+      # for weeks: `redisConnection()` defaults to localhost:6379, but `npm run start:test` loads
+      # backend/.env.test, which pins REDIS_URL to 6399 — the port the LOCAL dev container publishes
+      # (ead8542e). On a runner nothing listens there, so every one of the six legs died before
+      # running a single assertion. cypress.yml never hit this because its own job sets REDIS_URL
+      # explicitly; this job inherited the file's value instead. Hence the job-level override below.
       redis:
         image: redis:7
         ports:
@@ -62,6 +66,11 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 2s
           --health-retries 10
+
+    env:
+      # Overrides backend/.env.test's own REDIS_URL, which points at the local dev container's 6399.
+      # The service above publishes 6379 — see that service's own comment for the full account.
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@v3
