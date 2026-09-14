@@ -7,17 +7,28 @@
  * been created for it, so this spec still runs the OAuth half and SKIPS only the deposit half when the
  * technical-account pair is absent, rather than gating the whole file on all four.
  *
- * HONEST STATUS: **skipped, always** — this checkout holds no PISTE account of
- * any kind (see `documentation/docs/developer-guide/credentials-guide.md` §3, "Repo status: 🔴 missing"). Nobody
- * has run this file's own `describeLive` block for real. What IS independently verified, live
- * (2026-09-02, recorded in `choruspro-client.ts`'s own header): the OAuth endpoint this spec would
- * hit (`https://sandbox-oauth.piste.gouv.fr/api/oauth/token`) is reachable and answers a genuine
- * `HTTP 400 {"error":"invalid_client"}` for a garbage client_id/secret — proof the HOST/PATH are
- * correct, never a claim that a real PISTE application's own credentials would succeed here (that
- * needs the account this checkout does not have). Do not read a future green run of THIS file as more than
- * what it actually checks — see this module's own README-level discipline (`documentation/docs/developer-guide/live-testing.md`, and the
- * project memory entry "KSeF mock tests = false confidence": a gated spec that passes with mocks proves
- * nothing about the integration).
+ * HONEST STATUS, and read the two halves separately — they are not equally proven.
+ *
+ * The OAuth half is **PROVEN LIVE, 2026-09-14**: run against a real PISTE sandbox application
+ * (`APP_SANDBOX_…`, OAuth Credentials pair in `.env.test.local`), `client_credentials` returned a
+ * genuine Bearer token, 54 characters, in 162 ms. That supersedes the weaker 2026-09-02 evidence
+ * this header used to carry alone — that a garbage client_id/secret drew a real
+ * `HTTP 400 {"error":"invalid_client"}`, which only ever proved the HOST/PATH were right. Real
+ * credentials now demonstrably authenticate. Note PISTE answers that SAME `invalid_client` for an
+ * unknown client_id and for a valid one with a wrong secret (measured, responses byte-identical), so
+ * nothing short of a successful token proves a credential pair is good.
+ *
+ * The deposit half — `deposerFlux` + `consulterCr` — is **still unproven**: it needs a Chorus Pro
+ * "compte technique" (`CHORUSPRO_TECH_LOGIN`/`_PASSWORD`), which this checkout does not have, so the
+ * block below skips it and says so on stderr. A green run of this file therefore means "PISTE
+ * authenticated us", NOT "we can file an invoice with Chorus Pro" — do not read the tick as more
+ * than the log line under it. That distinction is this module's whole discipline
+ * (`documentation/docs/developer-guide/live-testing.md`, and the project memory entry "KSeF mock
+ * tests = false confidence").
+ *
+ * Getting the technical account needs NO real company: the qualification space issues a fictitious
+ * structure and SIRET ("matelas de données") — see `credentials-guide.md` §3, which quotes AIFE's
+ * own procedure.
  *
  * Recipe (mirrors `../pdp/pdp.live.spec.ts`'s own DB-free approach — the exact bridge
  * `chorus-pro-transport.ts#send()` composes, called here by hand so this spec never needs a live DB):

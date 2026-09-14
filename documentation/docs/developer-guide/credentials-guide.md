@@ -211,7 +211,20 @@ Note: superpdp.tech's own pages are a client-rendered SPA — automated fetches 
 
 ## 3. Chorus Pro (PISTE) — France (B2G mandatory)
 
-> **GitHub secrets:** `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` &nbsp;•&nbsp; **Live flag:** `CHORUSPRO_LIVE=1` (`CHORUSPRO_ENVIRONMENT=SANDBOX`) &nbsp;•&nbsp; **Sandbox:** yes (qualification) &nbsp;•&nbsp; **Repo status:** 🔴 missing
+> **GitHub secrets:** `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` &nbsp;•&nbsp; **Live flag:** `CHORUSPRO_LIVE=1` (`CHORUSPRO_ENVIRONMENT=SANDBOX`) &nbsp;•&nbsp; **Sandbox:** yes (qualification) &nbsp;•&nbsp; **Repo status:** 🟡 OAuth proven live 2026-09-14, deposit still missing its technical account
+
+**Split the status in two, because the two halves are not equally proven.** A real PISTE sandbox
+application's OAuth pair now authenticates for real — `client_credentials` returned a genuine
+54-character Bearer token in 162 ms (`choruspro-live.spec.ts`, 2026-09-14). What is still NOT proven
+is the deposit itself (`deposerFlux` / `consulterCr`): that needs the `CHORUSPRO_TECH_LOGIN` /
+`CHORUSPRO_TECH_PASSWORD` pair below, which nobody has created yet, and the spec skips that half
+loudly rather than passing quietly. Treat a green run as "PISTE authenticated us", never as "we can
+file an invoice".
+
+One measurement worth keeping in mind while hunting a bad credential: PISTE returns the SAME
+`400 invalid_client` for an unknown `client_id` and for a valid one with a wrong secret — the two
+responses are byte-identical (measured 2026-09-14). Nothing short of a successful token proves a
+pair is good.
 
 **What each secret is / where it comes from**
 
