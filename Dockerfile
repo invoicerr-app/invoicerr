@@ -55,4 +55,28 @@ EXPOSE 80
 
 RUN chmod +x /usr/share/nginx/entrypoint.sh
 
+# Which commit this image was built from — deliberately the LAST thing in the file.
+# `GIT_REVISION` changes on every build, so anything placed after an instruction that consumes it is
+# rebuilt every time; keeping these at the very end leaves every expensive layer above cacheable.
+#
+# Without this, "what is actually running in production?" has no answer that does not go through the
+# registry API: `docker image inspect` on the deployed container shows the tag and the digest but
+# nothing tying either to a commit, and a moving branch tag (`:compliance-engine-v2`) points at a
+# different commit every build. Measured 2026-09-14 on the live deployment: the running image's
+# commit could only be GUESSED, by correlating the image's build timestamp with the git log to
+# within two minutes — and reading it from GHCR needed a token scope we did not have. A label costs
+# nothing and turns that guess into a fact.
+#
+# The value is also exposed as an env var so it can be read from INSIDE the container (a shell, a
+# future health endpoint) without a Docker socket — the label alone is only visible to whoever can
+# inspect the image.
+ARG GIT_REVISION=unknown
+ARG GIT_REF_NAME=unknown
+LABEL org.opencontainers.image.revision=$GIT_REVISION \
+      org.opencontainers.image.version=$GIT_REF_NAME \
+      org.opencontainers.image.source=https://github.com/invoicerr-app/invoicerr \
+      org.opencontainers.image.title=invoicerr
+ENV INVOICERR_REVISION=$GIT_REVISION \
+    INVOICERR_REF_NAME=$GIT_REF_NAME
+
 CMD ["/usr/share/nginx/entrypoint.sh"]

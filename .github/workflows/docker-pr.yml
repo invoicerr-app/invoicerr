@@ -72,6 +72,11 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          # Same stamping as docker-publish.yml — a PR image is the one most likely to be deployed
+          # somewhere and later wondered about, so it needs the revision at least as much.
+          build-args: |
+            GIT_REVISION=${{ github.sha }}
+            GIT_REF_NAME=${{ github.ref_name }}
           push: ${{ steps.vars.outputs.push }}
           tags: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
           cache-from: type=gha,scope=${{ steps.vars.outputs.cache_scope }}
