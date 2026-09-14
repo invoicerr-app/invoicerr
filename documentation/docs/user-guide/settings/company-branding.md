@@ -16,6 +16,8 @@ Your business identity — this information appears on every document you issue.
 - **Email** and **Phone**
 - **Currency** — default currency for new documents
 - **Date Format**
+- **Default document language** — the language a document (PDF and email) renders in for any client
+  who hasn't set one of their own; see [Document Language](../document-language.md)
 
 Your country matters more than it looks: it decides which identifiers you are asked for, which VAT
 rates you can pick, how an invoice may be corrected, and whether the law forces a particular delivery

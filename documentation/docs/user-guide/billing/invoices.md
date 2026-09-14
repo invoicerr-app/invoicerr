@@ -14,7 +14,8 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **View** (eye icon) — read-only details
 - **Download** — choose **PDF**, **Factur-X**, **ZUGFeRD**, **XRechnung**, **UBL**, or **CII**
 - **Send by email** — email the invoice as a PDF attachment
-- **Mark as paid** — record payment manually
+- **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
+  to confirm one from an imported bank statement
 - **Edit** (pencil icon) — available for unpaid invoices
 - **Create receipt** (receipt icon) — generate a [receipt](receipts.md) from this invoice
 - **Delete** (trash icon) — available for unpaid invoices
