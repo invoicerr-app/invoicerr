@@ -17,8 +17,9 @@ name: Compliance live tests
 # starts firing automatically once this file is merged to main. See
 # documentation/docs/developer-guide/live-testing.md for the full
 # list of repo secrets needed for a completely green (real round-trip) run — with none of them set,
-# every creds-gated spec below self-skips and only the creds-free spec (Peppol via peppol.sh, which
-# self-signs-up on the sandbox) runs and passes.
+# every creds-gated spec below self-skips, so nothing in this job actually runs (the Peppol channel,
+# whose peppol.sh leg used to be the one creds-free spec here, was removed from the product
+# 2026-09-15 — see live-testing.md/credentials-guide.md for the current channel list).
 
 on:
   workflow_dispatch:        # manual button in the Actions tab
@@ -56,7 +57,6 @@ jobs:
       KSEF_LIVE: '1'
       PDP_LIVE: '1'
       SDI_LIVE: '1'
-      PEPPOL_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
       CHORUSPRO_LIVE: '1'     # FR B2G (PISTE OAuth2) — see its own block below
 
@@ -96,12 +96,6 @@ jobs:
       SDI_ENDPOINT:        ${{ secrets.SDI_ENDPOINT }}
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
-
-      # --- Peppol ---
-      # peppol.sh path: ZERO secrets — the spec self-signs-up on the sandbox (Ethereal pattern).
-      # PEPPOL_AP_PROVIDER is a constant, not a secret. Proven live 2026-07-11.
-      PEPPOL_AP_PROVIDER:    'peppol-sh'
-      PEPPOL_RECEIVER_ID:    ${{ secrets.PEPPOL_RECEIVER_ID }}
 
       # Encryption key for any credential-store round-trip the specs may touch.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}

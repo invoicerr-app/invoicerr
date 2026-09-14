@@ -168,7 +168,7 @@ and `checkTransitionResult` checks every actual write against it. Country nuance
 three disconnected places — do not describe a phases/clearance/reporting graph no code assembles:
 - `correction-routes/` — which correction path a country allows;
 - `conformity/pollers/` — post-send authority status polling, wired per **transport** (pdp, ksef,
-  peppol, chorus-pro), not per country;
+  chorus-pro), not per country;
 - `archive/retention/` — retention duration and its counting origin, DE/FR/PL/PT.
 
 `documents.service.ts` is the generic orchestrator every document type shares: `runAction` resolves
@@ -227,6 +227,5 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
   documented above plus tag `avant-refonte-documents` for anyone doing archaeology.
 - `documentation/docs/developer-guide/live-testing.md` — required secrets and how to run each real
   round-trip.
-- `documentation/docs/developer-guide/credentials-guide.md`,
-  `documentation/docs/developer-guide/peppol-ap-research.md` — per-authority onboarding notes.
+- `documentation/docs/developer-guide/credentials-guide.md` — per-authority onboarding notes.
 - `documentation/docs/developer-guide/` — plugin system, webhooks, MCP server, auth.

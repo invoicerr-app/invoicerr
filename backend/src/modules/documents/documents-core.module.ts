@@ -31,7 +31,6 @@ import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
 import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
 import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
-import { buildPeppolStatusPoller } from './conformity/pollers/peppol-status-poller';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { DeclarationProviderRegistry } from './reporting/declaration-provider';
 import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
@@ -74,8 +73,6 @@ import { buildChorusProTransport } from './transports/chorus-pro-transport';
 import { buildEmailTransport } from './transports/email-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
 import { buildPdpTransport } from './transports/pdp-transport';
-import { buildPeppolTransport } from './transports/peppol-transport';
-import { PEPPOL_DOC_TYPES } from './transports/peppol/peppol-client';
 import { buildSdiTransport } from './transports/sdi-transport';
 import { buildSdiPecTransport } from './transports/sdi-pec-transport';
 import { PecInboxPollerService } from './transports/sdi-pec/pec-inbox-poller.service';
@@ -199,56 +196,36 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * `buildFormatProviderRegistry`'s own header) rather than sharing `FORMAT_PROVIDER_REGISTRY`'s
  * instance, for the identical "no reason to couple two registries" argument.
  *
- * "peppol" (`transports/peppol-transport.ts`) is the FIFTH. Same reasoning again: its own
- * `peppolBisFormatProvider` reference is the SAME stateless plain
- * object `buildFormatProviderRegistry` already registers under "peppol-bis" for `download-xml` — a
- * second reference to the identical object, not a second instance (there is nothing to construct: the
- * provider takes no dependency at all, unlike `facturx`'s own `referenceRegistry`-bound factory).
- * `formatOverrides.xrechnung` closes "le trou allemand du B2G": Germany's own B2G routing rule
- * (`b2g-routing/data/de.json`) names `transportId: "peppol"` with `formatSyntax: "xrechnung"` — see
- * `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE", for the full mechanism. Its
- * `documentTypeId` is `PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL` (`transports/peppol/peppol-client.ts`),
- * and its `xrechnungFormatProvider` is, again, the SAME stateless plain object registered above under
- * "xrechnung" for `download-xml` — a third reference to an already-shared object, never a new
- * instance.
- *
- * `formatOverrides['peppol-bis']` — a REAL LANDMINE found while wiring the B2G audit wave (BE/CY/EE/
- * GR/LT/LU/LV/MT/SE, `b2g-routing/data/*.json`, EC eInvoicing Country Factsheets, checked 2026-09-02):
- * `resolveB2gInvoiceTransport` (`actions/invoice-actions.ts`) ALWAYS forwards `formatOverride: rule.
- * formatSyntax` for EVERY B2G rule, unconditionally, regardless of which format it names — and
- * `peppol-transport.ts#resolveFormatForSend` treats ANY truthy `ctx.formatOverride` as an OVERRIDE
- * REQUEST, never as "this is just the default, carry on": a B2G rule naming `formatSyntax: "peppol-
- * bis"` (the generic, no-CIUS case every one of the nine countries above actually reads to) would
- * otherwise hit the exact same NAMED refusal DE's own rule hit before `xrechnung` was wired here — "no
- * Peppol format override wired for it" — for a format this transport already sends BY DEFAULT. This
- * entry closes that gap the ONLY way that keeps the "never a silent fallback" contract intact: not by
- * special-casing `peppol-bis` inside `resolveFormatForSend` (which would re-introduce exactly the kind
- * of "absent override reads as ok" ambiguity `xrechnung`'s own wiring was built to avoid), but by
- * WIRING peppol-bis AS ITS OWN override, pointing at the identical `peppolBisFormatProvider`/
- * `PEPPOL_DOC_TYPES.INVOICE_UBL` pair the no-override branch already uses — so a "peppol-bis" B2G rule
- * behaves BYTE-FOR-BYTE like an ordinary B2B Peppol send, proven by
- * `peppol-transport.spec.ts`'s own "THE FORMAT OVERRIDE" block ("`peppol-bis` names ITSELF").
+ * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the FIFTH — this makes the channel the B2G
+ * FR routing rule (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST (that commit's
+ * own thesis: "a rule may legitimately name a channel not implemented yet" — see this file's own
+ * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
+ * same "stateless, no reason to couple two registries" argument.
  *
  * `signingCertificates` (`SigningCertificatesService`, `modules/company/signing-certificates/`) is
  * threaded into "email" (the one transport that hands a human-readable PDF to
  * someone — see `EmailTransportDeps.signingCertificates`'s own header). It used to be threaded into
  * "face" (Spain's FACe channel) too, for XAdES/WS-Security signing — that transport was deleted
  * outright along with Spain's scope (2026-09-10), so this dependency now serves
- * "email" alone. "pdp"/"ksef"/"sdi"/"peppol" transmit XML/Factur-X formats built by
+ * "email" alone. "pdp"/"ksef"/"sdi" transmit XML/Factur-X formats built by
  * `formats/*-provider.ts`, which are deliberately NOT signed (see `sign-instance-pdf.ts`'s
  * own header on why Factur-X's raw-PDF material is exempt).
  *
- * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the SIXTH — this makes the channel the B2G
- * FR routing rule (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST (that commit's
- * own thesis: "a rule may legitimately name a channel not implemented yet" — see this file's own
- * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
- * same "stateless, no reason to couple two registries" argument.
- *
- * "anaf" (Romania) and "face" (Spain, B2G) used to be the SEVENTH and EIGHTH transports here, and
- * `formatOverrides.nlcius` (Netherlands) a third `peppol` override alongside `xrechnung`/`peppol-bis`
- * above. All three were deleted outright — never left dormant — when the product's scope was reduced
- * to five countries (FR/PL/IT/PT/DE, 2026-09-10): none of RO/ES/NL is in scope any more. See
- * `documentation/docs/developer-guide/live-testing.md` for exactly what capability that gave up.
+ * "anaf" (Romania) and "face" (Spain, B2G) used to be registered here too, and `formatOverrides` used
+ * to carry three entries (`xrechnung`, `peppol-bis`, and Netherlands' `nlcius`) on a SIXTH transport,
+ * "peppol". All of that was deleted outright — never left dormant. "anaf"/"face" went with the
+ * five-country prune (2026-09-10: none of RO/ES/NL is in scope any more — see
+ * `documentation/docs/developer-guide/live-testing.md` for exactly what capability that gave up).
+ * "peppol" went separately and later (2026-09-15): the product decision was to remove the channel
+ * entirely rather than keep a generic Access Point client that had only ever spoken to
+ * `POST /api/v1/send`, a shape matching none of the real AP vendors this project had researched, and
+ * that had never proven a round-trip against a real commercial AP account (only against peppol.sh, a
+ * zero-secret sandbox). `formats/peppol-bis-provider.ts` (the Peppol BIS Billing 3.0 FORMAT) survives
+ * untouched — it is still registered above for `download-xml`, and Germany's XRechnung obligation
+ * (`b2g-routing/data/de.json`) is real regardless of which transport can or can't carry it; see that
+ * file's own `notes` for the full, dated history of the format-override mechanism this removal made
+ * dormant (no transport in this registry reads `ctx.formatOverride` today — it remains available for
+ * a future one that builds more than one format).
  */
 function buildTransportRegistry(
   clientsService: ClientsService,
@@ -293,32 +270,6 @@ function buildTransportRegistry(
     'SdI via PEC (Italy)',
     buildSdiPecTransport({ channelCredentials, fatturapaFormatProvider, mailService }),
   );
-  registry.register(
-    'peppol',
-    'Peppol',
-    buildPeppolTransport({
-      channelCredentials,
-      peppolBisFormatProvider,
-      // Germany's B2G rule (`b2g-routing/data/de.json`) imposes XRechnung CONTENT over this SAME
-      // Peppol channel — see `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE". Every OTHER
-      // send through "peppol" (no `ctx.formatOverride`, or one this map has no entry for) is entirely
-      // unaffected by this line's mere presence.
-      formatOverrides: {
-        xrechnung: {
-          provider: xrechnungFormatProvider,
-          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL,
-        },
-        // See this function's own header, "formatOverrides['peppol-bis']" — a B2G rule naming the
-        // generic Peppol BIS syntax (BE/CY/EE/GR/LT/LU/LV/MT/SE) still sets `ctx.formatOverride`
-        // unconditionally, so it must resolve to something; this makes it resolve to EXACTLY the
-        // same provider/documentTypeId the no-override branch already uses.
-        'peppol-bis': {
-          provider: peppolBisFormatProvider,
-          documentTypeId: PEPPOL_DOC_TYPES.INVOICE_UBL,
-        },
-      },
-    }),
-  );
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
   // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
@@ -360,14 +311,15 @@ function buildTransportRegistry(
 /**
  * Post-deposit conformity tracking (`conformity/`). Same
  * "a provider registers itself under an id" shape as `buildTransportRegistry` just above, this
- * registry's own read-side twin: "pdp", "ksef", "peppol" (generic AP `getStatus()` —
- * `conformity/pollers/peppol-status-poller.ts`) and "chorus-pro" (`consulterCr` —
+ * registry's own read-side twin: "pdp", "ksef" and "chorus-pro" (`consulterCr` —
  * `conformity/pollers/chorus-pro-status-poller.ts`) all register a poller; "sdi" does not (push-only
  * SOAP notifiche — see `conformity/authority-status-poller.ts`'s own header for why that is
  * permanent, not a gap to fill later). "anaf" (Romania) and "face" (Spain) used to register pollers
  * here too — both deleted outright along with the rest of their countries' scope (2026-09-10, see
  * `documentation/docs/developer-guide/live-testing.md`), which is also why this factory no longer needs
- * `signingCertificates` (it was "face"'s own WS-Security dependency).
+ * `signingCertificates` (it was "face"'s own WS-Security dependency). "peppol" (generic AP
+ * `getStatus()`) registered a poller here too, until the transport itself was removed from the
+ * product (2026-09-15) — see `buildTransportRegistry`'s own header for why.
  */
 function buildAuthorityStatusPollerRegistry(
   channelCredentials: ChannelCredentialsService,
@@ -375,7 +327,6 @@ function buildAuthorityStatusPollerRegistry(
   const registry = new AuthorityStatusPollerRegistry();
   registry.register(buildPdpStatusPoller({ channelCredentials }));
   registry.register(buildKsefStatusPoller({ channelCredentials }));
-  registry.register(buildPeppolStatusPoller({ channelCredentials }));
   // "chorus-pro" — `consulterCr`, the ONE status-consultation endpoint the removed compliance
   // engine's own client carried (`chorus-pro/choruspro-client.ts`) — see
   // `conformity/pollers/chorus-pro-status-poller.ts`'s

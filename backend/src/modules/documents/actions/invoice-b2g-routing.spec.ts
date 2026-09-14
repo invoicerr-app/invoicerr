@@ -52,15 +52,14 @@ const IT_RULE_READY = {
 // deleted outright (2026-09-10, see `documentation/docs/developer-guide/live-testing.md`) — the routing PRECEDENCE this
 // file proves is already covered by the IT/DE/FR cases that remain.
 
-// A FICTITIOUS still-unimplemented-transport fixture — NOT the real, shipped DE rule any more (that
-// one now routes to the IMPLEMENTED "peppol" channel, `formatSyntax: "xrechnung"`, via that
-// transport's own format override — see `b2g-routing/data/de.json`'s own ADDENDUM and
-// `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE"; `b2g-routing/data/all.spec.ts` is the
-// test that reads the REAL file). This fixture is kept, unchanged, as a generic "a rule may
-// legitimately name a channel not implemented yet" exercise — `resolveB2gInvoiceTransport`'s own
-// "channel not available" branch below needs SOME transportId no `TransportRegistry` in this file
-// ever registers, and "zre-ozgre" (this repo's own real historical placeholder for a still-unwired
-// federal portal channel) reads more honestly than inventing an arbitrary new string.
+// This fixture once again MATCHES the real, shipped DE rule (`b2g-routing/data/all.spec.ts` is the
+// test that reads the REAL file): between 2026-09-02 and 2026-09-15 it briefly routed to a "peppol"
+// transport with a format override instead (see `b2g-routing/data/de.json`'s own `notes` for that
+// history) — but that transport was removed from the product on 2026-09-15, and the rule reverted to
+// naming "zre-ozgre", this repo's own real historical placeholder for a still-unwired federal portal
+// channel. This fixture exercises `resolveB2gInvoiceTransport`'s own "channel not available" branch
+// below — it needs SOME transportId no `TransportRegistry` in this file ever registers, and using the
+// real one reads more honestly than inventing an arbitrary new string.
 const DE_RULE_UNIMPLEMENTED = {
   countryCode: 'DE',
   transportId: 'zre-ozgre',

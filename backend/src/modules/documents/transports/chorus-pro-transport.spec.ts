@@ -180,8 +180,8 @@ describe('buildChorusProTransport', () => {
     });
 
     // THE RECIPIENT GATE (this file's own header) — REGRESSION for the existing B2G refusal: a client
-    // with no SIRET/SIREN (LEGAL_ID) on file is refused, named, BEFORE any network call — same shape
-    // `peppol-transport.spec.ts`'s own "no Peppol endpoint on file" test already proves for Peppol.
+    // with no SIRET/SIREN (LEGAL_ID) on file is refused, named, BEFORE any network call — the same
+    // "named refusal before any network call" shape every sibling transport's own recipient gate holds.
     it('refuses, naming the SIRET/LEGAL_ID gap, when the client has no LEGAL_ID identifier on file', async () => {
       mockedPrisma.client.findFirst.mockResolvedValue({
         id: 'client-1',

@@ -23,7 +23,7 @@ graphe composé :
 - `correction-routes/` — quelle voie de correction (avoir, annulation et remplacement, …) un pays
   autorise.
 - `conformity/pollers/` — l'interrogation du statut côté autorité après envoi, câblée par
-  **transport** (pdp, ksef, sdi, peppol, chorus-pro, anaf, face), jamais par pays.
+  **transport** (pdp, ksef, sdi, chorus-pro, anaf, face), jamais par pays.
 - `archive/retention/` — la durée de rétention, pour la France uniquement.
 
 Voir la section « The documents module » de `CLAUDE.md` pour l'architecture actuelle, et le tag

@@ -37,9 +37,6 @@ Hard-success contract (enforced per-spec):
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
-| Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh.live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `FR` remains broken (`invalid_country`), but `BE` (+ explicit `peppol_id`) works: `doc_…` → `DELIVERED` in ~10s, reproduced twice (see below) |
-| Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung.live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` in ~10s; see the box below for the HONEST LIMIT of what this proves (peppol.sh never accepts raw UBL bytes — see that spec's own header) |
-| Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | _(no live spec exists yet — mocked coverage only, `peppol/peppol-client.spec.ts`)_ | 🔴 Deferred (connected AP required) |
 | Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | ✅ **Proven live** — a real TST DER from FreeTSA (`https://freetsa.org/tsr`) embedded as a genuine XAdES-T `SignatureTimeStamp`; no credential needed (FreeTSA is public/anonymous). First proven 2026-06-30 (`COMPLIANCE_TODO.md`'s own §2 note); re-run 2026-09-14 — `TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand` → 3/3, exit 0 (`HttpTsaClient`, `XadesSigningProvider` level-T, the env-built signing registry) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
@@ -114,101 +111,6 @@ Hard-success contract (enforced per-spec):
 > Burger Queen (`000000002`) and Tricatel (`000000001`) — using a different SIREN means creating the
 > company on superpdp's side first.
 
-> ### 🔴 Peppol via peppol.sh — broken on 2026-08-29, and a useful reminder
->
-> The spec fails BEFORE any transmission, at company creation:
->
-> > `HTTP 400 — {"error":{"code":"invalid_country","message":"country must be an active Peppol
-> > country code","param":"country"}}`
->
-> It sends `country: 'FR'`. The platform no longer accepts it — a plausible hypothesis, NOT verified:
-> France moved to the PDP mandate and peppol.sh may have removed it from its active destinations.
-> **What would settle this**: peppol.sh's own published list of active countries, or their support.
->
-> The spec itself is well built — it requires `CLEARED` and explicitly treats `PENDING` as a
-> failure, which is exactly the discipline the PDP spec was missing. So this is not a false-green
-> but **stale proof**: "Proven live (2026-07-11)" described a world that has since changed, and
-> nobody re-ran the test since. A live channel that isn't re-run is not a proven channel.
->
-> Not fixed: changing the fixture's country would make the test pass again, but would prove
-> something other than what it claims to prove. The question to settle first is whether France is
-> still a Peppol destination at all.
-
-> ### ✅ Peppol via peppol.sh — RETRIED on 2026-09-02, real round-trip obtained (`peppol` transport
-> rebuilt under `documents/transports/`)
->
-> The new transport (`transports/peppol-transport.ts` + `transports/peppol/peppol-client.ts`, the
-> generic AP adapter) is wired and tested (jest, `peppol-transport.spec.ts`). For the live attempt
-> itself, the `peppol/peppol-sh.live.spec.ts` spec was carried over almost verbatim from the
-> pre-rewrite reference, then RE-RUN for real (`PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`), with
-> three raw results, none guessed:
->
-> 1. **`country: 'FR'` — STILL broken.** Raw response, identical to the one on 08/29:
->    `HTTP 400 — {"error":{"code":"invalid_country","message":"country must be an active Peppol
->    country code","param":"country"}}`. Neither fixed on peppol.sh's side nor a transient outage —
->    reproduced identically four days later.
-> 2. **`country: 'BE'` — a NEW, different failure first, then success.** The first attempt (with no
->    explicit `peppol_id`, exactly the 2026-07-11 reference's payload) fails with
->    `HTTP 400 — {"error":{"code":"missing_peppol_id","message":"peppol_id is required and must be a
->    valid <scheme>:<value> Peppol participant identifier"}}` — so the API has changed since the
->    original proof: `tax_id` alone is no longer enough to create a sandbox company. Once an explicit
->    `peppol_id` is supplied (`createCompany` gained this optional parameter), creation succeeds:
->    `com_IO3upwIDxk45Daf8y41h7` (then `com_…` again on the second run).
-> 3. **The full round-trip, end to end, SUCCEEDS — twice.** A GERMAN seller (never French, on
->    purpose — a French seller would have tripped on PEPPOL-EN16931-R002, `peppol-bis-provider.ts`'s
->    already-documented limitation, before even reaching the network) builds a real, VALID Peppol BIS
->    UBL document (the real vendored Schematron, base + delta), sent via `PeppolShApClient.send()`:
->    - Run 1: `{"messageId":"doc_tSynOlxg9LaKv4mTJVnxI","status":"QUEUED"}` → poll 2/24 →
->      `DELIVERED` (~10 s).
->    - Run 2: `{"messageId":"doc_t477L6zcVzFbp7IguAIi7","status":"QUEUED"}` → poll 2/24 →
->      `DELIVERED` (~10 s).
->
-> **Conclusion, honestly stated**: peppol.sh itself works fine today (signup, company, send, status —
-> all real) — the 08/29 hypothesis ("France moved to the PDP mandate and peppol.sh removed it") is
-> still NOT settled as to its exact cause (BELGIUM, for its part, is accepted — so this is not a
-> blanket sandbox removal), but the observation itself (FR rejected) is confirmed, reproduced, and
-> worked around with an alternative country as required. This is the FIRST real Peppol send of this
-> new `documents/` architecture — see `peppol-sh.live.spec.ts`'s own header for the detail and the
-> `PEPPOL_SH_FALLBACK_COUNTRY` knob that automates this workaround for a future re-run.
-
-> ### ✅ Peppol via peppol.sh — XRechnung (the German B2G gap), attempted and SUCCEEDED on 2026-09-02
->
-> "The German B2G gap": `b2g-routing/data/de.json` now routes to `transportId: "peppol"` with
-> `formatSyntax: "xrechnung"` (see `peppol-transport.ts`'s own header, "THE FORMAT OVERRIDE") — the
-> live question this task asked was "does the peppol.sh sandbox accept a send built with
-> `formats/xrechnung-provider.ts` (instead of `peppol-bis-provider.ts`) to its own test receiver?".
-> Same EXACT setup as the round-trip above (BE company + explicit `peppol_id`, German seller,
-> `sandbox.peppol.sh` receiver) — see `peppol/peppol-sh-xrechnung.live.spec.ts`.
->
-> **Raw result, a single run, nothing guessed**:
-> 1. Signup: `acc_qz9uV6XuSnda0fpFOIa1s`.
-> 2. `country: 'FR'`: rejected, `invalid_country` — same failure as the Peppol BIS round-trip.
->    Fallback `country: 'BE'` (+ `peppol_id: '9925:BE999999999'`): `com_h0t5I7orCSKUrK48C2770`.
-> 3. `xrechnungFormatProvider.build()` (German seller WITH an IBAN — `formats/xrechnung-provider.ts`'s
->    own BR-DE-1): `validation.valid: true`, 0 errors, a 4012-byte UBL document. Verified LOCALLY,
->    before any send: `urn:xeinkauf.de:kosit:xrechnung_3.0` present in the XML,
->    `urn:fdc:peppol.eu:2017:poacc:billing:3.0` ABSENT — this really is an XRechnung, never a Peppol
->    BIS, going out on the network.
-> 4. `PeppolShApClient.send()`: `{"messageId":"doc_v37PTxYOQGn78bPAnMiI0","status":"QUEUED"}`.
-> 5. Poll 1/24: `QUEUED`. Poll 2/24: `DELIVERED` (~10 s, a single poll wait — identical timing to the
->    Peppol BIS round-trip).
->
-> **Conclusion, honest, with its own named limit**: the channel ACCEPTS and DELIVERS a document built
-> by `xrechnung-provider.ts` exactly as it accepts and delivers one built by
-> `peppol-bis-provider.ts` — no regression, no different behavior on the transport side. But read
-> `peppol-sh-xrechnung.live.spec.ts`'s own header before over-interpreting this green:
-> `PeppolShApClient#send()` (`peppol-sh-client.ts#ublToPeppolShDocument`) NEVER accepts raw UBL
-> bytes — it EXTRACTS a handful of generic EN 16931 fields (party name, VAT, currency, dates, lines)
-> and peppol.sh RE-SERIALIZES its own document server-side for the actual delivery; that extraction
-> reads neither `cbc:CustomizationID` nor any XRechnung-specific element
-> (BuyerReference/Contact/PaymentMeans). A `DELIVERED` here therefore proves that this deposit's
-> XRechnung artifact (already judged valid by the REAL vendored KoSIT Schematron, base + delta,
-> before it was even sent) is structurally compatible with the SAME generic UBL extraction path as
-> Peppol BIS — not that peppol.sh transmits, judges, or retains the content as specifically being
-> XRechnung. The properly XRechnung-specific proof — the CustomizationID actually present in the
-> bytes sent — is the one judged LOCALLY at point 3 above, before the network, never the network's
-> own.
-
 ## Running a single live spec
 
 ```bash
@@ -238,19 +140,6 @@ PEC_LIVE=1 PEC_ID_TRASMITTENTE=IT01234567890 PEC_ADDRESS=fatture@example.pec.it 
   PEC_IMAP_HOST=imaps.pec-provider.it PEC_IMAP_PORT=993 \
   PEC_USERNAME=fatture@example.pec.it PEC_PASSWORD=<pass> \
   npx jest pec.live --no-coverage --runInBand
-
-# Peppol via peppol.sh — ZERO SECRETS (self-signup, like the Email leg above)
-PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
-  npx jest peppol-sh.live --no-coverage --runInBand
-# Optional: reuse an existing sandbox account instead of self-signup
-#   PEPPOL_SH_API_KEY=ps_test_… PEPPOL_SH_COMPANY_ID=com_… [PEPPOL_RECEIVER_ID=<scheme:id>]
-
-# Peppol via peppol.sh — XRechnung content (DE B2G format override) — same zero-secret sandbox
-PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
-  npx jest peppol-sh-xrechnung.live --no-coverage --runInBand
-
-# Peppol generic AP — deferred: no live spec exists yet (needs a connected Access Point first);
-# only mocked coverage exists today, in peppol/peppol-client.spec.ts
 
 # Chorus Pro (FR B2G) — full qualification round-trip proven live 2026-09-14 (deposit +
 # terminal IN_INTEGRE); production never attempted. Omitting the TECH_LOGIN/PASSWORD pair
@@ -320,8 +209,6 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
   - `.env.ksef.local` — `KSEF_AUTH_TOKEN`, `KSEF_NIP`
   - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
   - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
-  - `.env.peppol.local` — `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID`
-    (generic AP only — the peppol.sh path needs no local secrets at all)
 - Load with: `set -a; . .env.<channel>.local; set +a`
 
 ---
@@ -409,51 +296,12 @@ Unlike SdI's SDICoop channel, NOTHING here needs AdE accreditation. What remains
    codebase chose, and (implicitly, by never needing a second PEC address) that the two-step
    addressing rule was read correctly. None of this has been observed for real yet.
 
-## Peppol
-
-Production sends only through the **generic** Access Point adapter (`peppol/peppol-client.ts`) — this
-architecture has no per-company `apProvider` selector. The multi-vendor switch the compliance engine
-used to have (`ap-adapters.ts`), and the Storecove adapter it could dispatch to, were not carried over
-when that engine was deleted (`peppol-transport.ts`'s own header names this explicitly). `peppol-sh`
-(`peppol/peppol-sh-client.ts`) exists only as a separate, DB-free live-proof harness — it is never
-selectable in production and never called from `peppol-transport.ts`.
-
-### peppol.sh — ✅ PROVEN, zero secrets (the live-proof harness)
-
-The `peppol-sh.live.spec.ts` flow is fully self-bootstrapping (no pre-provisioned account needed):
-
-1. `POST https://api.peppol.sh/v1/signup {email}` → instant `ps_test_` API key (no KYC, no card).
-2. `POST https://sandbox.peppol.sh/v1/companies` → sending company (`com_…`).
-   ⚠ Verified live: `ps_test_` keys are **rejected on api.peppol.sh** (403 `wrong_environment`) —
-   all authed sandbox calls go to `sandbox.peppol.sh`.
-3. `POST /v1/documents` (JSON document extracted from our builder-generated UBL) → `doc_…` id.
-4. `GET /v1/documents/{id}?company_id=com_…` (the query param is required — verified live) →
-   `queued → sending → delivered` (sandbox delivers by email; statuses are real).
-
-Run: `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh npx jest peppol-sh.live --no-coverage --runInBand`
-Proven live 2026-09-02 in this architecture (see the box earlier in this file for the full,
-raw result): `BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with
-`invalid_country`. An older 2026-07-11 proof (document `doc_2yb9TJka7US3hBwz4rnDW` → CLEARED in
-~13 s) predates this architecture and used a different sandbox behavior (`tax_id` alone was then
-enough to create a company) — superseded, kept here only as history.
-Production later: pass KYC → `ps_live_` key → `environment: PROD` (routes via their certified AP).
-
-### Generic AP gateway (deferred)
-
-1. Connect to a Peppol Access Point provider (e.g. Basware, Pagero, Qvalia, or self-hosted phase4/oxalis-ng).
-2. Obtain an AP certificate (C1/C2) registered with OpenPeppol or the national Peppol Authority.
-3. The receiver (`PEPPOL_RECEIVER_ID`) must be registered in the SMP/SML.
-4. No live spec exists yet for this path — only mocked coverage (`peppol/peppol-client.spec.ts`).
-   Set `PEPPOL_LIVE=1` + the four creds above once a live spec is written against a real connected AP.
-
----
-
 ## Running in GitHub Actions
 
 Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch` + nightly cron).
 - The `live` job runs `npx jest live` against a disposable Postgres + Redis, which sweeps in every
-  `*.live.spec.ts` / `*-live.spec.ts` file matched above (KSeF, PDP, SdI, Peppol via peppol.sh, TSA,
-  Chorus Pro), each self-gating on its own flag and credentials.
+  `*.live.spec.ts` / `*-live.spec.ts` file matched above (KSeF, PDP, SdI, TSA, Chorus Pro), each
+  self-gating on its own flag and credentials.
 - **Not yet reconciled with this architecture, named honestly rather than fixed silently**: the
   workflow file's own env block still sets flags this codebase no longer reads (`EMAIL_LIVE`,
   `PDP_AFNOR_LIVE`, `COMPLIANCE_LIVE_DB_TESTS`) — harmless (nothing consumes them) rather than
@@ -467,13 +315,12 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 > use the **"Run workflow"** button (`workflow_dispatch`) targeting that branch instead; the cron
 > starts firing automatically once the workflow file is merged to the default branch.
 >
-> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI,
-> generic-AP Peppol, TSA, Chorus Pro) self-skips via `liveDescribe` — see the hard-success contract
-> at the top of this file, enforced by each spec, not by the gate. Only the genuinely creds-free
-> specs actually run and must pass: Email/Mailpit (`DOCUMENTS_MAIL_LIVE`, though the workflow does
-> not currently set this flag — see the caveat above) and Peppol via `peppol-sh` (zero-secret sandbox
-> self-signup). A fully green *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED, SdI
-> CLEARED, …) additionally needs the repo secrets listed in the table below — see also
+> **What "green" means with zero secrets configured:** every creds-gated spec (KSeF, PDP, SdI, TSA,
+> Chorus Pro) self-skips via `liveDescribe` — see the hard-success contract at the top of this file,
+> enforced by each spec, not by the gate. Only the genuinely creds-free specs actually run and must
+> pass: Email/Mailpit (`DOCUMENTS_MAIL_LIVE`, though the workflow does not currently set this flag —
+> see the caveat above). A fully green *real-round-trip* matrix (KSeF CLEARED, PDP PENDING/CLEARED,
+> SdI CLEARED, …) additionally needs the repo secrets listed in the table below — see also
 > [Credentials Guide](./credentials-guide.md) for the per-platform setup walkthrough.
 
 > **`*_LIVE` and `*_ENVIRONMENT` are constants in the workflow — do NOT add them as GitHub secrets.**
@@ -502,8 +349,6 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
 | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ optional `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
 | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see [Credentials Guide](./credentials-guide.md) §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
-| _(none)_ | Peppol via peppol.sh | Self-signup in the spec — no secret needed. `PEPPOL_AP_PROVIDER` is a constant (`'peppol-sh'`) in the workflow — not a secret. ✅ proven. |
-| `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | Peppol generic AP | A connected **Access Point** (Ecosio, Pagero/Tickstar, Unimaze…) or self-hosted; membership via **OpenPeppol** (peppol.org). `PEPPOL_ENV` is a constant (`'TEST'`) in the workflow — not a secret. No live spec exists yet for this path (see "Peppol" above). |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `CREDENTIALS_ENCRYPTION_KEY` | (shared) | `openssl rand -hex 32` — same value used by the app's credential store. |
 | _(none)_ | Email (document "send" SMTP) | The local Mailpit container the dev/test stack already runs — no secret needed. ✅ proven (see the summary table above). |

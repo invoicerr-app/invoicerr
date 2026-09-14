@@ -8,8 +8,8 @@
  * itself never changes, `resolveB2gInvoiceTransport` (`actions/invoice-actions.ts`) just stops hitting
  * `UnknownTransportError` the moment `documents-core.module.ts` registers this file's own export.
  *
- * Same `DocumentTransport` interface `pdp-transport.ts`/`sdi-transport.ts`/`peppol-transport.ts`
- * implement, registered the same way (`TransportRegistry.register`) — nothing about B2G routing is
+ * Same `DocumentTransport` interface `pdp-transport.ts`/`sdi-transport.ts` implement, registered the
+ * same way (`TransportRegistry.register`) — nothing about B2G routing is
  * special-cased here: a company can ALSO choose "chorus-pro" as its own free `invoiceTransportId` for
  * an ordinary client, exactly like any other registered transport (see `transport-registry.ts`'s own
  * header, "nothing here... ever hard-codes which transport a company should use").
@@ -30,15 +30,15 @@
  * sibling channel's settings row already renders (`ResolvedChannelConfig.environment`) — never a
  * second, redundant `config.environment` field the way the reference's own `configSchema` had one.
  *
- * THE RECIPIENT GATE — mirrors `peppol-transport.ts`'s own "this client has no Peppol endpoint on
- * file" guard, for the identical reason: Chorus Pro identifies every public-sector recipient by its
- * SIRET, the SAME `LEGAL_ID` scheme the B2G FR rule's own `requiredClientIdentifiers` names (see
- * `b2g-routing/data/fr.json`) — a B2G send already has this checked upstream (`resolveClientB2gRouting`
- * in `invoice-actions.ts`, re-checked on every `deliver()` replay too), but a company that chose
- * "chorus-pro" as its OWN free transport for a client that never went through the B2G gate at all (the
- * registry is open by design — see this file's own header above) gets NO such upstream check. This
- * guard closes that gap the same way Peppol's own does: refused, named, BEFORE any network call, never
- * a deposit attempted with no way to identify who it is even for. `buyerReference` ("code service" —
+ * THE RECIPIENT GATE — the same shape every sibling transport's own receiver check holds (e.g.
+ * `pdp-transport.ts`'s own missing-identifier refusal): Chorus Pro identifies every public-sector
+ * recipient by its SIRET, the SAME `LEGAL_ID` scheme the B2G FR rule's own `requiredClientIdentifiers`
+ * names (see `b2g-routing/data/fr.json`) — a B2G send already has this checked upstream
+ * (`resolveClientB2gRouting` in `invoice-actions.ts`, re-checked on every `deliver()` replay too), but
+ * a company that chose "chorus-pro" as its OWN free transport for a client that never went through the
+ * B2G gate at all (the registry is open by design — see this file's own header above) gets NO such
+ * upstream check. This guard closes that gap: refused, named, BEFORE any network call, never a deposit
+ * attempted with no way to identify who it is even for. `buyerReference` ("code service" —
  * the B2G rule's own OPTIONAL `requiredDocumentFields` entry) needs no equivalent guard here: it flows
  * through automatically, embedded in the Factur-X content itself, via the SAME generic
  * `formats/shared-build.ts#extractBuyerReference` every other B2G rule in this codebase already reuses
@@ -374,7 +374,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         ctx.companyId,
       );
       if (!buildResult.validation.valid) {
-        // Same gate `pdp-transport.ts`/`peppol-transport.ts` enforce for their own builds — an
+        // Same gate `pdp-transport.ts` enforces for its own build — an
         // artifact that fails the EN 16931 Schematron is NEVER deposited, only refused, named.
         throw new BadRequestException({
           message:

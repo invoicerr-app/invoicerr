@@ -239,11 +239,14 @@ function resolveB2gInvoiceTransport(
 
   try {
     // `formatOverride: rule.formatSyntax` — ALWAYS set here, regardless of which transport the rule
-    // names: a fixed-format transport (chorus-pro/facturx, sdi/fatturapa) never reads it at all, so
-    // setting it is inert for those (see `transport-registry.ts`'s own
-    // header); "peppol" is the one transport today that DOES honor it, for Germany's own rule
-    // (`b2g-routing/data/de.json`, `formatSyntax: "xrechnung"`) — see `peppol-transport.ts`'s own
-    // header, "THE FORMAT OVERRIDE".
+    // names: every transport registered today is fixed-format (chorus-pro/facturx, sdi/fatturapa) and
+    // never reads it at all, so setting it is inert for those — see `transport-registry.ts`'s own
+    // header. The one transport that used to honor it, "peppol" (for Germany's own rule,
+    // `b2g-routing/data/de.json`, `formatSyntax: "xrechnung"`), was removed from the product on
+    // 2026-09-15 — see that JSON file's own `notes` for the full history. DE's rule still names
+    // "xrechnung" here (the content requirement is real, unaffected by which transport can carry it),
+    // but its `transportId` now names a channel this registry does not implement either, so this call
+    // throws `UnknownTransportError` below before `formatOverride` is ever consulted.
     return { transport: transportRegistry.resolve(rule.transportId), formatOverride: rule.formatSyntax };
   } catch (error) {
     if (error instanceof UnknownTransportError) {
@@ -688,7 +691,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
           resolvedData === deliverData ? document : { ...document, data: resolvedData };
         // `formatOverride` — see `ResolvedInvoiceTransport`'s own header and `transport-registry.ts`'s
         // own header: forwarded VERBATIM, exactly as the B2G rule (if any) named it, never invented or
-        // adjusted here. Every transport except "peppol" ignores it entirely.
+        // adjusted here. Every transport registered today ignores it entirely.
         return transport.send({
           companyId: c,
           document: documentForDelivery,

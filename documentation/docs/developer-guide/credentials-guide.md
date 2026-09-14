@@ -23,9 +23,7 @@ sidebar_position: 11
 - Every channel **self-gates**: a leg runs only when its `<PREFIX>_LIVE=1` flag **and** its
   credential secrets are both present. Missing secrets ⇒ that leg is **skipped**, never failed.
   So you can add secrets **one country at a time** — you never need the whole list.
-- **Priority:** the project's real markets are **France, Poland, Italy** (+ Peppol for
-  cross-border, which also carries Germany's XRechnung B2G content — see
-  [Live Testing](./live-testing.md)).
+- **Priority:** the project's real markets are **France, Poland, Italy**.
 
 ## Two separate credential paths — the deployed app vs the CI tests
 
@@ -81,12 +79,15 @@ Legend — **Repo:** ✅ set · 🟡 partial · 🔴 missing
 | 3 | Chorus Pro (PISTE) | 🇫🇷 France | ✅ | Qualification round-trip proven live 2026-09-14 (deposit reached terminal `IN_INTEGRE`); production needs a dedicated production PISTE app + Chorus Pro production raccordement, neither attempted |
 | 4 | SdI (SDICoop/SDIFTP) | 🇮🇹 Italy | 🔴 | Partita IVA on Entratel + channel accreditation (collaudo) |
 | 4bis | SdI via PEC | 🇮🇹 Italy | 🔴 | No accreditation at all — only blocker is provisioning a PEC mailbox |
-| 5 | Peppol | 🌍 cross-border | ✅/🔴 | peppol.sh live-proof harness proven zero-secret; generic AP (the only one production sends through) = commercial AP account + SMP |
 
-This project's channels are the five numbered above, matching the five countries it supports
-(FR/PL/IT/PT/DE) plus cross-border Peppol, plus #4bis — the SAME Italian Sistema di Interscambio as #4,
-reached over a certified-email mailbox instead of the accredited web service — see
-`backend/src/modules/documents/transports/` and `reporting/providers/` on disk.
+This project's channels are the four numbered above, matching three of the five countries it supports
+(FR/PL/IT — PT/DE have no transport this app implements yet), plus #4bis — the SAME Italian Sistema di
+Interscambio as #4, reached over a certified-email mailbox instead of the accredited web service — see
+`backend/src/modules/documents/transports/` and `reporting/providers/` on disk. A fifth channel, Peppol
+(cross-border Access Point network), was removed from the product on 2026-09-15: the generic client
+only ever spoke to `POST /api/v1/send`, a shape matching none of the real Access Point vendors this
+project had researched, and proving it would have needed a real commercial AP account this project
+never had — see git history around that date for the removed implementation.
 
 ---
 
@@ -488,62 +489,8 @@ here:
 
 ---
 
-## 5. Peppol — cross-border (Access Point network)
-
-> **GitHub secrets (generic AP):** `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` &nbsp;•&nbsp; **Live flag:** `PEPPOL_LIVE=1` (`PEPPOL_ENV=TEST`) &nbsp;•&nbsp; **Sandbox:** yes (peppol.sh, zero-secret) &nbsp;•&nbsp; **Repo status:** ✅ peppol.sh proven (no secret) / 🔴 generic AP missing
-
-**What each secret is / where it comes from**
-
-- `PEPPOL_PARTICIPANT_ID` — your own Peppol address, format `scheme:id` (e.g. `0208:0123456789` BE enterprise number, `9925:BE0441797980` BE VAT, `0088:xxxxxxxxxxxxx` GS1 GLN, `0002:xxxxxxxxx` FR SIRENE, `9930:DExxxxxxxxx` DE VAT). You don't invent this — your Access Point assigns/registers it for you against your business/VAT number when you onboard.
-- `PEPPOL_AP_URL` — the base REST/API URL of the generic Access Point gateway you've contracted with (repo's generic adapter model: `accessPointUrl` + `apiKey`, REST gateway in front of the AP's AS4/ebMS3 stack).
-- `PEPPOL_API_KEY` — the API key that AP issues once you have an account with them.
-- `PEPPOL_RECEIVER_ID` — the counterpart's Peppol participant ID (`scheme:id`) for the specific test transaction (in production this is looked up per-invoice via SMP/directory, not a fixed secret — it's fixed here only for the live-gated test fixture).
-- peppol.sh path needs **no GitHub secret**: `PEPPOL_SH_API_KEY` (`ps_test_…` / `ps_live_…`) and `PEPPOL_SH_COMPANY_ID` (`com_…`) are optional overrides — when absent, `peppol-sh.live.spec.ts` self-signs-up against the public sandbox and creates its own throwaway company, proving the round-trip with zero pre-provisioned credentials.
-
-**Route A — peppol.sh sandbox (zero cost, what the project uses)**
-1. No dashboard, no credit card: `POST https://api.peppol.sh/v1/signup` with `{email}` returns `201 {id, api_key}` instantly — the key is prefixed `ps_test_` (sandbox).
-2. `POST {sandbox.peppol.sh}/v1/companies` with `{name, tax_id, country, address}` (auth: `Authorization: Bearer <api_key>`) → `201 {id: com_…}` — this `com_…` is `PEPPOL_SH_COMPANY_ID`.
-3. Sandbox calls must hit `sandbox.peppol.sh` (not `api.peppol.sh` — sandbox keys get `403 wrong_environment` there); invoices are delivered by email instead of the real network, same code path (`ublToPeppolShDocument` → `POST /v1/documents` → poll `GET /v1/documents/:id`).
-4. To go live: `POST /v1/account/kyc` with company/identity details; once approved you can mint a `ps_live_` key, and `api.peppol.sh` then routes onto the real Peppol network.
-5. Pricing (peppol.sh site): pay-per-document, from €0.10/invoice, no monthly minimum; sandbox is free forever.
-6. Repo proof: `backend/src/modules/documents/transports/peppol/peppol-sh.live.spec.ts`, gated by `PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh`, self-signs-up when `PEPPOL_SH_API_KEY`/`PEPPOL_SH_COMPANY_ID` are absent — proven live 2026-09-02 in this architecture (`BE` sending companies round-trip to `DELIVERED`; `FR` still fails at signup with `invalid_country` — see [Live Testing](./live-testing.md) for the full raw result). An older 2026-07-11 proof predates this architecture and is kept there only as superseded history. Wired in `.github/workflows/compliance-live.yml` with `PEPPOL_AP_PROVIDER: 'peppol-sh'` set as a plain env constant, not a secret.
-
-**Route B — connecting through a real/commercial Access Point**
-
-Production sends only through the **generic** Access Point adapter (`peppol/peppol-client.ts`) — there
-is no per-company adapter selector in this architecture; a company simply supplies the four credentials
-below for whichever AP it has an account with (Ecosio, Pagero/Tickstar, Unimaze, or a self-hosted
-phase4/oxalis-ng). `peppol-sh` is not selectable in production — it exists solely as the DB-free
-live-proof harness Route A above describes.
-
-1. Sign up for an account with a commercial Access Point.
-2. Generate an API key in the AP's dashboard — this becomes `PEPPOL_API_KEY`.
-3. Register your **legal entity**: submit company name, address, country, and a public identifier (VAT / Chamber-of-Commerce number) for validation with the AP.
-4. Create a **Peppol identifier** (participant ID) tied to that legal entity — this is `PEPPOL_PARTICIPANT_ID`. The AP does the SMP registration on your behalf; you never register directly with Peppol/OpenPeppol.
-5. Submit invoices via the AP's REST API. The repo's generic adapter models this as `accessPointUrl` + `apiKey`, with a local SMP/SML DNS pre-check (`DnsSmpLookup`) to confirm the receiver is registered before send.
-6. `PEPPOL_RECEIVER_ID` is the counterpart's participant ID — normally resolved per-invoice (buyer directory / SMP lookup), fixed only as a static secret for a future live-gated CI test (none exists yet for this route — see below).
-
-**Prerequisites** (do you need to BE a certified AP, or just a sender through one? SMP registration)
-
-- **Almost every business only needs to be a Peppol *participant*, sending through an AP — not become an AP itself.** Registration/SMP is done *for* you by whichever AP you sign up with; you cannot register directly with the Peppol network yourself.
-- Becoming a certified Access Point / Service Provider yourself (self-hosting corner 2/3) requires: OpenPeppol membership, an ISO 27001 certificate, meeting the Peppol Authority Specific Requirements (PASR), a due-diligence review (solvency, legitimacy, background checks on senior staff), and three stages of technical testing (unit → OpenPeppol testbed → interoperability) before OpenPeppol issues certification. This is the path Storecove/peppol.sh already went through so you don't have to.
-
-**Cost, lead time & blockers**
-
-- peppol.sh sandbox: €0, instant, no approval — already proven. Going live needs a KYC submission (identity/company verification) before a `ps_live_` key is issued; no fixed lead time published.
-- Commercial AP as a sender: no OpenPeppol certification needed, no implementation fee typically; legal-entity validation ~1 business day; ongoing cost is per-document (vendor-specific pricing).
-- Becoming your own certified Access Point (not needed for this project): OpenPeppol sign-up fees €1,025–€5,000 + annual €1,800–€9,100 depending on org size and AP-only vs AP+SMP scope (2025 fee schedule), plus months of certification testing — explicitly the path the project is avoiding.
-- **Blocker for Route B here:** no generic-AP account/credentials exist yet, and no live spec has been written for this route — `PEPPOL_PARTICIPANT_ID` / `PEPPOL_AP_URL` / `PEPPOL_API_KEY` / `PEPPOL_RECEIVER_ID` are all unset; someone must pick a commercial AP and complete legal-entity + Peppol-ID registration to unblock live testing of the generic adapter.
-
-**Official sources**
-- https://peppol.sh/
-- https://peppol.sh/for/nextjs
-- https://docs.peppol.eu/edelivery/codelists/old/v8.5/Peppol%20Code%20Lists%20-%20Participant%20identifier%20schemes%20v8.5.html
-- https://peppol.org/join/fees-2025/
-
----
-
 _Guide generated via per-platform research (official sources cited per section). Secret statuses
-verified 2026-07-12. Revised 2026-09-13: only the KSeF/PDP/Chorus Pro/SdI/Peppol sections were
-kept, updated to the five-country scope (FR/PL/IT/PT/DE) — see [Live Testing](./live-testing.md)
-for the current channel status._
+verified 2026-07-12. Revised 2026-09-13: only the KSeF/PDP/Chorus Pro/SdI sections were kept, updated
+to the five-country scope (FR/PL/IT/PT/DE). Revised again 2026-09-15: the Peppol section was removed
+along with the transport itself — see [Live Testing](./live-testing.md) for the current channel
+status._

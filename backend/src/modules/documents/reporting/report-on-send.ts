@@ -7,7 +7,7 @@
  * ## Why this is architecturally a COUSIN of archiving, never a transport
  *
  * Hungary (NAV Online Számla) and Greece (AADE myDATA) do not care HOW an invoice reaches the buyer
- * — email, Peppol, anything — they require the SELLER to declare the invoice's DATA to the tax
+ * — email, PDP, anything — they require the SELLER to declare the invoice's DATA to the tax
  * authority afterwards, in near-real-time. That is a fact about what happens AT `sent`, exactly like
  * archiving a legally-required copy is a fact about what happens at `sent` — never about delivery
  * itself. This is why the trigger lives here, generic across every document type

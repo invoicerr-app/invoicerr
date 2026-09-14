@@ -2,7 +2,7 @@
  * The generic `DOCUMENT_SENT` webhook vocabulary — the
  * ONE end-to-end proof of its emission: a REAL local HTTP stub
  * (`node:http`, never a mock of the HTTP client — same `startStubServer`/`closeServer` pattern
- * `transports/peppol-transport.spec.ts` already established for this exact reason) receives EXACTLY
+ * `transports/sdi/sdicoop-client.spec.ts` already established for this exact reason) receives EXACTLY
  * ONE webhook on a successful send, ZERO on a failed one, ZERO at enqueue, and the payload genuinely
  * passes THROUGH the existing driver/formatter pipeline — never a shortcut straight to `fetch`.
  *

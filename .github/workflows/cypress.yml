@@ -77,8 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     # This job used to run with no database at all, on the assumption that `npm test` is a unit
     # suite. It is not, entirely: 13 spec files -- received-invoices, supplier reconciliation, the
-    # client and company services, the identifier-pattern guards, the Portuguese AT provider, the
-    # Peppol transport -- reach a REAL Prisma connection, and several say so in their own headers
+    # client and company services, the identifier-pattern guards, the Portuguese AT provider, and
+    # others -- reach a REAL Prisma connection, and several say so in their own headers
     # ("real Prisma for the Client/PartyIdentifier side"). They passed on every developer machine
     # because a database happens to be running there, and could only ever have failed here. The
     # first run of this workflow on a branch proved it: 13 suites, 58 tests, every one of them a

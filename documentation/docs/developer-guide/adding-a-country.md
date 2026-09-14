@@ -330,13 +330,16 @@ Some countries genuinely need code, not just data:
   actually deliver — not the one that looked more "European". Read its `notes` field for the full
   reasoning: this is what "settled by reading the source, not by picking the obvious one" looks
   like in a real file.
-- **`b2g-routing/data/de.json`** — the opposite journey on the SAME axis: reading the actual German
-  federal text (§ 4 ERechV) turned up a channel this repo did not implement at all
-  (`zre-ozgre`), so sending was correctly BLOCKED, by name, rather than silently routed to email —
-  until a later, dated addendum in the same file's `notes` documents a second, independent reading
-  (the ZRE/OZG-RE platforms' own FAQ) that found Peppol had since become an accepted channel, and a
-  real live send proved it end to end. The file's own history is the proof that "blocked, honestly"
-  is a legitimate, temporary state — not a bug to paper over with a guess.
+- **`b2g-routing/data/de.json`** — the opposite journey on the SAME axis, and it went there and back:
+  reading the actual German federal text (§ 4 ERechV) turned up a channel this repo did not
+  implement at all (`zre-ozgre`), so sending was correctly BLOCKED, by name, rather than silently
+  routed to email; a later, dated addendum then documented a second, independent reading (the
+  ZRE/OZG-RE platforms' own FAQ) that found Peppol had become an accepted channel, wired it, and
+  proved a real live send end to end; a further addendum, dated 2026-09-15, records that the Peppol
+  transport was removed from the product (no real Access Point account ever backed it) and the rule
+  reverted to naming `zre-ozgre` again. The file's own history is the proof that "blocked, honestly"
+  is a legitimate state at either end of that arc — resolving a gap, and un-resolving one when the
+  thing that closed it turns out not to hold up, are both better than a guess.
 - **`country-policy/data/pt.json`** — 20 of its 23 rules are `unverified`, each with a specific,
   useful resolution note. This is not an unfinished file to be ashamed of; it is exactly what
   honest, partial research looks like in this format, and it is just as loadable and just as

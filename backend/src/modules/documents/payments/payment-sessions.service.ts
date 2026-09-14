@@ -53,7 +53,7 @@ export interface InvoiceCheckoutSessionResult {
  *     does not exist and will not exist for this task — see this feature's own brief), an OAuth
  *     onboarding flow per connected company, and application-fee/transfer bookkeeping this codebase has
  *     nowhere to put. Bring-your-own-account costs a company one more settings screen to fill in and
- *     buys total parity with how PDP/KSeF/SdI/Peppol/Chorus Pro credentials already work — one
+ *     buys total parity with how PDP/KSeF/SdI/Chorus Pro credentials already work — one
  *     mechanism, one encryption key, one settings pattern, for every external integration this app has.
  *  3. WEBHOOK TRUST: `parseWebhookEvent` (delegated to the resolved provider) verifies a cryptographic
  *     signature over the RAW request body against THIS company's own webhook secret before this class

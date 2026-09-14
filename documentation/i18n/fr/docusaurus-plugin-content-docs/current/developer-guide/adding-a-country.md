@@ -359,14 +359,17 @@ Certains pays ont vraiment besoin de code, pas seulement de données :
   dépôt peut réellement livrer — pas celui qui paraissait le plus « européen ». Lisez son champ
   `notes` pour le raisonnement complet : voilà à quoi ressemble « tranchée par la lecture, pas la
   plus évidente » dans un vrai fichier.
-- **`b2g-routing/data/de.json`** — le trajet inverse sur le MÊME axe : lire le vrai texte fédéral
-  allemand (§ 4 ERechV) a fait apparaître un canal que ce dépôt n'implémentait pas du tout
-  (`zre-ozgre`), si bien que l'envoi a été correctement BLOQUÉ, nommément, plutôt que routé
-  silencieusement vers l'e-mail — jusqu'à ce qu'un addendum ultérieur et daté, dans les `notes` du
-  même fichier, documente une seconde lecture indépendante (la FAQ des plateformes ZRE/OZG-RE
-  elles-mêmes) ayant établi que Peppol était entre-temps devenu un canal accepté, et qu'un vrai envoi
-  en conditions réelles l'a prouvé de bout en bout. L'historique du fichier lui-même est la preuve que
-  « bloqué, honnêtement » est un état légitime, temporaire — pas un bug à maquiller par une
+- **`b2g-routing/data/de.json`** — le trajet inverse sur le MÊME axe, et un aller-retour complet :
+  lire le vrai texte fédéral allemand (§ 4 ERechV) a fait apparaître un canal que ce dépôt
+  n'implémentait pas du tout (`zre-ozgre`), si bien que l'envoi a été correctement BLOQUÉ, nommément,
+  plutôt que routé silencieusement vers l'e-mail ; un addendum ultérieur et daté a ensuite documenté
+  une seconde lecture indépendante (la FAQ des plateformes ZRE/OZG-RE elles-mêmes) ayant établi que
+  Peppol était entre-temps devenu un canal accepté, l'a câblé, et a prouvé un vrai envoi en conditions
+  réelles de bout en bout ; un nouvel addendum, daté du 2026-09-15, consigne que le transport Peppol a
+  été retiré du produit (aucun compte réel chez un fournisseur d'Access Point ne l'a jamais soutenu)
+  et que la règle est revenue à nommer `zre-ozgre`. L'historique du fichier lui-même est la preuve que
+  « bloqué, honnêtement » est un état légitime aux deux bouts de ce trajet — combler une lacune, et
+  la rouvrir honnêtement quand ce qui l'avait comblée ne tient plus, valent tous deux mieux qu'une
   supposition.
 - **`country-policy/data/pt.json`** — 20 de ses 23 règles sont `unverified`, chacune avec une note de
   résolution précise et utile. Ce n'est pas un fichier inachevé dont il faudrait avoir honte ; c'est

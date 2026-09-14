@@ -21,25 +21,26 @@ export interface DocumentTransportContext {
    * builds by DEFAULT. Exists for exactly one reason today: B2G routing (`b2g-routing/schema.ts`'s own
    * `B2gRoutingRuleFact.formatSyntax`) already decides, per COUNTRY, both the transport AND the format
    * a government recipient is owed — but a transport can be format-fixed (`transports/pdp-transport.ts`
-   * only ever builds Factur-X, `sdi-transport.ts` only FatturaPA) while the SAME channel legitimately
-   * carries more than one content format elsewhere (`transports/peppol-transport.ts`'s own header,
-   * "THE FORMAT OVERRIDE": the Peppol network is content-agnostic — Germany's federal portal
-   * (`b2g-routing/data/de.json`'s own addendum) accepts Peppol as a CHANNEL but requires XRechnung, not
-   * generic Peppol BIS, as CONTENT). `actions/invoice-actions.ts`'s `resolveB2gInvoiceTransport` sets
-   * this to `rule.formatSyntax` whenever a B2G rule is what selected the transport for this send —
-   * NEVER for the seller-country mandate or the company's own free choice, and never for a B2G rule
-   * whose format happens to equal the transport's own default (chorus-pro/facturx, sdi/fatturapa,
-   * face/facturae, anaf/ubl — setting it there is harmless, just redundant, since none of those
-   * transports ever reads this field at all).
+   * only ever builds Factur-X, `sdi-transport.ts` only FatturaPA) while the SAME channel could
+   * legitimately carry more than one content format. `actions/invoice-actions.ts`'s
+   * `resolveB2gInvoiceTransport` sets this to `rule.formatSyntax` whenever a B2G rule is what selected
+   * the transport for this send — NEVER for the seller-country mandate or the company's own free
+   * choice, and never for a B2G rule whose format happens to equal the transport's own default
+   * (chorus-pro/facturx, sdi/fatturapa, face/facturae, anaf/ubl — setting it there is harmless, just
+   * redundant, since none of those transports ever reads this field at all).
    *
    * A transport is free to IGNORE this field entirely — the same "optional, ignored by default"
-   * contract `text` above already holds — and every transport except "peppol" does exactly that today:
-   * a fixed-format transport builds its one format regardless of what this names, with NO change in
-   * behavior and NO error. A transport that DOES understand the concept (peppol) must still never
-   * SILENTLY substitute its own default when it cannot honor a requested override — see
-   * `peppol-transport.ts`'s own `resolveFormatForSend` for the named refusal that guards against
-   * exactly that (a government invoice silently leaving in the wrong format would be worse than a
-   * block).
+   * contract `text` above already holds — and EVERY transport registered today does exactly that: a
+   * fixed-format transport builds its one format regardless of what this names, with NO change in
+   * behavior and NO error. The one transport that used to understand this concept, "peppol"
+   * (`b2g-routing/data/de.json` named it with `formatSyntax: "xrechnung"` — Germany's federal portal
+   * accepted Peppol as a content-agnostic CHANNEL but § 4 Abs. 1 ERechV requires XRechnung, not generic
+   * Peppol BIS, as CONTENT), was removed from the product on 2026-09-15 — see that JSON file's own
+   * `notes` for the full, dated history. This field is left in place, dormant, for a future transport
+   * that legitimately needs to build more than one format: whichever one implements it must still
+   * never SILENTLY substitute its own default when it cannot honor a requested override — a named
+   * refusal, the same discipline the removed `peppol-transport.ts#resolveFormatForSend` held (a
+   * government invoice silently leaving in the wrong format would be worse than a block).
    */
   formatOverride?: string;
 }

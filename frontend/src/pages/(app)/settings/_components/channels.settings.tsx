@@ -63,7 +63,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   pdp: "PDP",
   ksef: "KSeF",
   sdi: "SdI",
-  peppol: "Peppol",
   "chorus-pro": "Chorus Pro",
 }
 
@@ -177,35 +176,6 @@ const PROVIDER_FIELDS: Record<string, ChannelFieldSpec[]> = {
       labelKey: "settings.channels.fields.sdiCertificatePassword",
       labelDefault: "Certificate password",
       type: "password",
-    },
-  ],
-  // Peppol — the GENERIC Access Point contract
-  // (`transports/peppol/peppol-client.ts`): a company connects ITS OWN AP vendor's REST endpoint,
-  // API key, and its OWN Peppol participant id (the SENDER side — the RECEIVER side is read per-
-  // invoice from the client's own "Peppol / electronic routing" field, already collected on the
-  // client edit screen, never asked here). No `apProvider` selector the way the pre-refonte engine's
-  // own multi-vendor registry had — see `peppol-transport.ts`'s own header for why exactly one,
-  // generic adapter ships.
-  peppol: [
-    {
-      key: "accessPointUrl",
-      labelKey: "settings.channels.fields.peppolAccessPointUrl",
-      labelDefault: "Access Point URL",
-      type: "text",
-      placeholder: "https://ap.example.com",
-    },
-    {
-      key: "apiKey",
-      labelKey: "settings.channels.fields.peppolApiKey",
-      labelDefault: "API key",
-      type: "password",
-    },
-    {
-      key: "participantId",
-      labelKey: "settings.channels.fields.peppolParticipantId",
-      labelDefault: "Peppol participant ID (yours)",
-      type: "text",
-      placeholder: "0009:12345678900011",
     },
   ],
   // Chorus Pro (FR, B2G) — makes the channel the B2G FR routing rule (`b2g-routing/data/fr.json`)

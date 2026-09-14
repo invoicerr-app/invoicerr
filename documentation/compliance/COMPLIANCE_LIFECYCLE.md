@@ -20,7 +20,7 @@ received invoice) alike, with no country dimension at all.
 Country-specific lifecycle nuance survives in exactly three places, none of them a composed graph:
 - `correction-routes/` — which correction path (credit note vs. cancel-and-replace) a country allows.
 - `conformity/pollers/` — post-send authority status polling, wired per **transport** (pdp, ksef,
-  peppol, chorus-pro, anaf, face), never per country.
+  chorus-pro, anaf, face), never per country.
 - `archive/retention/` — retention duration, France only.
 
 See `CLAUDE.md`'s "The documents module" section for the current architecture, and tag

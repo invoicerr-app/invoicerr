@@ -743,7 +743,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				timeout: 15000,
 			}).click();
 
-			// Same budget as the PDP/KSeF/SdI/Peppol tests above — see their comment for why it is
+			// Same budget as the PDP/KSeF/SdI tests above — see their comment for why it is
 			// 90000ms, not 40000ms. The real PISTE rejection is in practice near-instant (probed by
 			// hand: well under a second) — that part holds — but 40-b2g-routing.cy.ts's own
 			// chorus-pro test measured ~11-12s of preamble before each of the 3 attempts even reaches

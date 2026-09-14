@@ -5,7 +5,7 @@
  * this one answers a completely different question: "does this country require the SELLER to
  * DECLARE the invoice's data to its own tax authority, after issuance, regardless of how the
  * invoice was delivered". Hungary (NAV Online Számla) and Greece (AADE myDATA) are the two shipped
- * examples: an invoice sent by plain e-mail (or Peppol, or anything else) still has to be reported
+ * examples: an invoice sent by plain e-mail (or PDP, or any other channel) still has to be reported
  * to NAV/myDATA in near-real-time — the delivery channel and the declarative obligation are
  * orthogonal facts about the same invoice, which is exactly why this lives in its own directory,
  * next to (never inside) `transports/channel-policy/`.
