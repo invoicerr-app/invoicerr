@@ -2,21 +2,79 @@ import * as nodemailer from 'nodemailer';
 
 import { IMailProvider, MailOptions, SmtpOverrides } from '@/mail/types';
 
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { BrevoMailProvider } from '@/mail/providers/brevo.provider';
-import { Injectable } from '@nestjs/common';
+import { ResendMailProvider } from '@/mail/providers/resend.provider';
 import { SmtpMailProvider } from '@/mail/providers/smtp.provider';
 import { logger } from '@/logger/logger.service';
 import { toTransportAttachments } from '@/mail/attachments';
+import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
 export type { MailOptions, MailAttachment, SmtpOverrides } from '@/mail/types';
+
+export type InstanceMailProviderId = 'smtp' | 'brevo' | 'resend';
+
+/**
+ * Instance-level provider SELECTION — TODO_FEATURES.md entry G ("Serveur de mail — instance puis
+ * société"): "ça peut être soit SMTP soit Resend (Resend en priorité si les deux sont définis)".
+ * `MAIL_PROVIDER`, when set explicitly, is always authoritative (backward-compatible: an existing
+ * `MAIL_PROVIDER=smtp` deployment keeps selecting smtp regardless of a stray `RESEND_API_KEY` in its
+ * environment — a deliberate choice, since an operator who pinned a value did so on purpose and a
+ * newly-added var should not silently override it). Only when `MAIL_PROVIDER` is UNSET does this
+ * auto-detect, and that is where "Resend wins if both are present" actually applies.
+ *
+ * Resolution table:
+ *
+ * | MAIL_PROVIDER | RESEND_API_KEY | SMTP_HOST | Selected                                          |
+ * |---------------|-----------------|-----------|---------------------------------------------------|
+ * | (unset)       | absent          | absent    | smtp  — "rien" (falls through to the historical   |
+ * |               |                 |           | default; SmtpMailProvider's own construction warns |
+ * |               |                 |           | below since nothing was actually configured)       |
+ * | (unset)       | absent          | present   | smtp  — "SMTP seul"                                |
+ * | (unset)       | present         | absent    | resend — "Resend seul"                             |
+ * | (unset)       | present         | present   | resend — "les deux" (Resend wins per entry G; SMTP  |
+ * |               |                 |           | is not used as a runtime fallback if Resend fails —|
+ * |               |                 |           | entry G leaves that open, not implemented here)    |
+ * | 'smtp'        | *               | *         | smtp   — explicit request, always honored          |
+ * | 'brevo'       | *               | *         | brevo  — explicit request, always honored          |
+ * | 'resend'      | *               | *         | resend — explicit request; throws at construction  |
+ * |               |                 |           | if RESEND_API_KEY is absent (same posture as       |
+ * |               |                 |           | BrevoMailProvider/BREVO_API_KEY)                   |
+ */
+export function resolveInstanceMailProviderId(env: NodeJS.ProcessEnv = process.env): InstanceMailProviderId {
+  const explicit = env.MAIL_PROVIDER?.trim().toLowerCase();
+  if (explicit) {
+    if (explicit === 'smtp' || explicit === 'brevo' || explicit === 'resend') return explicit;
+    throw new Error(`Unknown MAIL_PROVIDER "${explicit}". Supported values: "smtp", "brevo", "resend".`);
+  }
+  if (env.RESEND_API_KEY?.trim()) return 'resend';
+  return 'smtp';
+}
+
+/** Whether THIS instance has anything actually usable to fall back to — used by `sendForCompany`
+ *  below to refuse NAMED, before any network attempt, rather than let an unconfigured "smtp" default
+ *  fail opaquely against 127.0.0.1 (Node's own resolution for an empty host). */
+export function isInstanceMailProviderConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.RESEND_API_KEY?.trim()) || Boolean(env.SMTP_HOST?.trim());
+}
+
+/** Thrown by `sendForCompany` when NEITHER this company NOR this instance has a mail server
+ *  configured — the "société → instance → refus nommé" cascade's own last step (TODO_FEATURES.md
+ *  entry G). Exported so callers/tests can assert on it without string-matching. */
+export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
+  'No mail server is configured: this company has none set in Settings → Mail, and this instance ' +
+  'has neither RESEND_API_KEY nor SMTP_HOST configured either. Configure one before sending.';
 
 @Injectable()
 export class MailService {
   private readonly provider: IMailProvider;
 
   constructor() {
-    const selected = (process.env.MAIL_PROVIDER || 'smtp').toLowerCase();
+    const selected = resolveInstanceMailProviderId();
     switch (selected) {
+      case 'resend':
+        this.provider = new ResendMailProvider();
+        break;
       case 'brevo':
         this.provider = new BrevoMailProvider();
         break;
@@ -30,6 +88,12 @@ export class MailService {
         // SMTP_HOST boots clean, answers 200 on every route, and only reveals the gap the first time
         // someone sends a document and either watches the response or goes looking for why a client
         // never got their invoice — the exact silent-failure shape this warning exists to close.
+        //
+        // This only fires when "smtp" is what got SELECTED (see resolveInstanceMailProviderId's own
+        // resolution table) — the "rien" row, where auto-detect falls through to this branch with an
+        // empty SMTP_HOST, is exactly the case entry G's own "avertissement sinon" describes; a
+        // deployment with a working RESEND_API_KEY or a real SMTP_HOST never reaches this branch at
+        // all, so it never sees it.
         if (!process.env.SMTP_HOST?.trim()) {
           logger.warn(
             'MAIL_PROVIDER is "smtp" but SMTP_HOST is empty — every outgoing email will fail until it is set.',
@@ -37,33 +101,38 @@ export class MailService {
           );
         }
         break;
-      default:
-        throw new Error(`Unknown MAIL_PROVIDER "${selected}". Supported values: "smtp", "brevo".`);
     }
+  }
+
+  /** Builds and uses a one-shot nodemailer transport from decrypted SMTP credentials — shared by the
+   *  per-call `smtpOverrides` path below and by `sendForCompany`'s own company-SMTP branch. Never
+   *  logs `overrides.password`. */
+  private async deliverViaSmtp(options: MailOptions, overrides: SmtpOverrides): Promise<void> {
+    const transporter = nodemailer.createTransport({
+      host: overrides.host,
+      port: overrides.port,
+      secure: overrides.secure,
+      auth: {
+        user: overrides.username,
+        pass: overrides.password,
+      },
+    });
+    await transporter.sendMail({
+      from: overrides.fromAddress,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+      attachments: toTransportAttachments(options.attachments),
+    });
   }
 
   async sendMail(options: MailOptions, smtpOverrides?: SmtpOverrides) {
     // Per-company SMTP: build a one-shot transport from the decrypted company config.
     // The password is intentionally excluded from all log calls below.
     if (smtpOverrides) {
-      const transporter = nodemailer.createTransport({
-        host: smtpOverrides.host,
-        port: smtpOverrides.port,
-        secure: smtpOverrides.secure,
-        auth: {
-          user: smtpOverrides.username,
-          pass: smtpOverrides.password,
-        },
-      });
       try {
-        await transporter.sendMail({
-          from: smtpOverrides.fromAddress,
-          to: options.to,
-          subject: options.subject,
-          text: options.text,
-          html: options.html,
-          attachments: toTransportAttachments(options.attachments),
-        });
+        await this.deliverViaSmtp(options, smtpOverrides);
       } catch (error) {
         // Log host+user only — never the password.
         logger.error('Failed to send email via per-company SMTP.', {
@@ -77,7 +146,7 @@ export class MailService {
       return { message: 'Email sent successfully' };
     }
 
-    // Global provider path (SMTP_* env vars / Brevo).
+    // Global provider path (SMTP_* env vars / Brevo / Resend).
     try {
       await this.provider.sendMail(options);
     } catch (error) {
@@ -88,6 +157,57 @@ export class MailService {
       throw new Error('Failed to send email. Please check your mail provider configuration.');
     }
 
+    return { message: 'Email sent successfully' };
+  }
+
+  /**
+   * The "société → instance → refus nommé" cascade (TODO_FEATURES.md entry G): sends AS this
+   * company, using — in order — (1) this company's OWN mail server (Settings → Mail, SMTP or Resend,
+   * `modules/company/mail-settings/`), (2) this INSTANCE's own provider (`this.provider`, selected
+   * once at construction — see `resolveInstanceMailProviderId`'s own resolution table), or (3) a
+   * NAMED refusal, thrown before any network attempt, when neither level has anything configured —
+   * a send must never look like it worked and then silently vanish into an unconfigured transport.
+   *
+   * Deliberately does NOT rewrap failures into a generic message the way `sendMail` above does: its
+   * one caller today, `CompanyMailSettingsService#sendTest`, exists specifically to show a company
+   * admin the REAL provider error (a bad SMTP password, an invalid Resend key, ECONNREFUSED, ...)
+   * while they are configuring this — a generic "check your configuration" string would defeat the
+   * entire point of a "test send" button. A future caller wiring this into an actual document send
+   * (`documents/transports/email-transport.ts`, out of scope for this change — see this method's own
+   * git history) is free to catch and rewrap it the way `sendMail` does, at that call site.
+   */
+  async sendForCompany(companyId: string, options: MailOptions): Promise<{ message: string }> {
+    const companySettings = await resolveCompanyMailSettings(companyId);
+
+    if (companySettings?.kind === 'smtp') {
+      await this.deliverViaSmtp(options, {
+        host: companySettings.host,
+        port: companySettings.port,
+        secure: companySettings.secure,
+        username: companySettings.username,
+        password: companySettings.password,
+        fromAddress: companySettings.fromAddress,
+      });
+      return { message: 'Email sent successfully' };
+    }
+
+    if (companySettings?.kind === 'resend') {
+      const provider = new ResendMailProvider({
+        apiKey: companySettings.apiKey,
+        defaultFrom: companySettings.fromAddress,
+      });
+      await provider.sendMail(options);
+      return { message: 'Email sent successfully' };
+    }
+
+    // No company-level override: fall back to the instance provider — but refuse NAMED if this
+    // instance has nothing configured either, rather than let the "smtp" default attempt (and fail
+    // opaquely against 127.0.0.1) a connection nobody ever actually set up.
+    if (!isInstanceMailProviderConfigured()) {
+      throw new BadRequestException(NO_MAIL_SERVER_CONFIGURED_MESSAGE);
+    }
+
+    await this.provider.sendMail(options);
     return { message: 'Email sent successfully' };
   }
 }

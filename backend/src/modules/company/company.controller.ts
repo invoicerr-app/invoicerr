@@ -2,14 +2,22 @@ import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
 import { Roles } from '@/decorators/roles.decorator';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { User } from '@/decorators/user.decorator';
+import { CurrentUser } from '@/types/user';
+
+import { SetCompanyMailSettingsDto } from '@/modules/company/mail-settings/company-mail-settings.dto';
+import { CompanyMailSettingsService } from '@/modules/company/mail-settings/company-mail-settings.service';
 
 @ApiTags('company')
 @Controller('company')
 export class CompanyController {
-  constructor(private readonly companyService: CompanyService) {}
+  constructor(
+    private readonly companyService: CompanyService,
+    private readonly companyMailSettingsService: CompanyMailSettingsService,
+  ) {}
 
   @Get('info')
   @ApiOperation({
@@ -115,5 +123,103 @@ export class CompanyController {
   ) {
     const data = await this.companyService.updateEmailTemplate(companyId, body);
     return data || {};
+  }
+
+  /**
+   * GET /api/company/mail-settings — TODO_FEATURES.md entry G: whether this company has its OWN mail
+   * server configured (status only — never the SMTP password / Resend API key, see
+   * `CompanyMailSettingsStatus`'s own header). Absent/`configured: false` means sends for this company
+   * fall back to this INSTANCE's own provider (`MailService#sendForCompany`'s own cascade).
+   */
+  @Get('mail-settings')
+  @ApiOperation({
+    summary: "Get this company's own mail server status",
+    description:
+      'Status only (configured + kind + fromAddress) — never a secret. Falls back to the instance-' +
+      'level provider when unconfigured.',
+  })
+  @ApiResponse({ status: 200, description: 'Mail settings status retrieved' })
+  async getMailSettings(@ActiveCompany() companyId: string) {
+    return this.companyMailSettingsService.getStatus(companyId);
+  }
+
+  /**
+   * PUT /api/company/mail-settings — connects/updates this company's own mail server (SMTP or
+   * Resend). Encrypted at rest via the existing `CompanyChannelConfig`/`ChannelCredentialsService`
+   * mechanism (503 if `CREDENTIALS_ENCRYPTION_KEY` is not configured on this server).
+   */
+  @Put('mail-settings')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({
+    summary: "Set this company's own mail server",
+    description:
+      'Body is discriminated by "kind": "smtp" (host, port, secure, username, password, ' +
+      'fromAddress) or "resend" (apiKey, fromAddress). Replaces any existing configuration.',
+  })
+  @ApiBody({
+    schema: {
+      oneOf: [
+        {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', enum: ['smtp'] },
+            host: { type: 'string' },
+            port: { type: 'number' },
+            secure: { type: 'boolean' },
+            username: { type: 'string' },
+            password: { type: 'string' },
+            fromAddress: { type: 'string' },
+          },
+          required: ['kind', 'host', 'port', 'username', 'password', 'fromAddress'],
+        },
+        {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', enum: ['resend'] },
+            apiKey: { type: 'string' },
+            fromAddress: { type: 'string' },
+          },
+          required: ['kind', 'apiKey', 'fromAddress'],
+        },
+      ],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Mail settings saved' })
+  @ApiResponse({ status: 400, description: 'Missing required field for the given "kind"' })
+  @ApiResponse({ status: 503, description: 'CREDENTIALS_ENCRYPTION_KEY is not configured' })
+  async setMailSettings(@ActiveCompany() companyId: string, @Body() body: SetCompanyMailSettingsDto) {
+    return this.companyMailSettingsService.set(companyId, body);
+  }
+
+  /** DELETE /api/company/mail-settings — clears this company's own mail server; sends for it then
+   *  fall back to the instance level (or a named refusal — see `MailService#sendForCompany`). */
+  @Delete('mail-settings')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @ApiOperation({
+    summary: "Clear this company's own mail server",
+    description: 'Falls back to the instance-level provider (or a named refusal if none is set either).',
+  })
+  @ApiResponse({ status: 200, description: 'Mail settings cleared' })
+  async deleteMailSettings(@ActiveCompany() companyId: string) {
+    return this.companyMailSettingsService.clear(companyId);
+  }
+
+  /**
+   * POST /api/company/mail-settings/test — sends a real test email to the CALLER's own address
+   * (never an address from the request body — see `CompanyMailSettingsService#sendTest`'s own header)
+   * through this company's actual send cascade, and returns the REAL provider error on failure rather
+   * than a generic "check your configuration" message.
+   */
+  @Post('mail-settings/test')
+  @ApiOperation({
+    summary: 'Send a test email to yourself',
+    description:
+      "Exercises this company's real société → instance → refus-nommé mail cascade and reports the " +
+      'actual failure reason (bad credentials, unreachable host, nothing configured at all, ...).',
+  })
+  @ApiResponse({ status: 200, description: 'Test email sent' })
+  @ApiResponse({ status: 400, description: 'The real send failure — see the message' })
+  async testMailSettings(@ActiveCompany() companyId: string, @User() user: CurrentUser) {
+    return this.companyMailSettingsService.sendTest(companyId, user.email);
   }
 }

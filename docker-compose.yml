@@ -15,7 +15,11 @@ services:
       - APP_URL=https://invoicerr.example.com # Required for email templates (redirects to the app) and is also better-auth's own base URL
       - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
 
-      # Required for email features - choose ONE provider below
+      # INSTANCE-level mail (TODO_FEATURES.md entry G) - choose ONE provider below. A company can
+      # also set its OWN mail server in Settings -> Mail; that always wins over whatever is set here
+      # for that one company. Leave MAIL_PROVIDER unset to auto-detect: RESEND_API_KEY present picks
+      # Resend (wins even if SMTP_* is also set), otherwise SMTP is used.
+
       # Option 1: SMTP (default, MAIL_PROVIDER can be omitted)
       - MAIL_PROVIDER=smtp
       - SMTP_HOST=smtp-relay.example.com
@@ -28,6 +32,11 @@ services:
       # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
       # - MAIL_PROVIDER=brevo
       # - BREVO_API_KEY="your_brevo_api_key"
+      # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
+
+      # Option 3: Resend (set MAIL_PROVIDER=resend and comment out the SMTP_*/BREVO_* variables above)
+      # - MAIL_PROVIDER=resend
+      # - RESEND_API_KEY="your_resend_api_key" # https://resend.com/api-keys
       # - MAIL_FROM="user-from@example.com" # Sender address, falls back to SMTP_FROM/SMTP_USER if unset
 
       # OIDC. Endpoints come EITHER from discovery OR from the manual variables, never both:

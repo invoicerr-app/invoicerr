@@ -1,5 +1,6 @@
 import { CompanyController } from '@/modules/company/company.controller';
 import { CompanyService } from '@/modules/company/company.service';
+import { MailService } from '@/mail/mail.service';
 import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
@@ -9,6 +10,7 @@ import { ChannelsController } from './channels/channels.controller';
 import { ChannelCredentialsService } from './channels/channels.service';
 import { CurrencyRatesController } from './currency-rates/currency-rates.controller';
 import { CurrencyRatesService } from './currency-rates/currency-rates.service';
+import { CompanyMailSettingsService } from './mail-settings/company-mail-settings.service';
 import { SigningCertificatesController } from './signing-certificates/signing-certificates.controller';
 import { SigningCertificatesService } from './signing-certificates/signing-certificates.service';
 import { SsoController } from './sso/sso.controller';
@@ -41,6 +43,12 @@ import { SsoService } from './sso/sso.service';
     // (`OnModuleInit`) and on every write — see sso-registrar.service.ts's own header for why
     // post-boot insertion into `auth.$context.socialProviders` is visible immediately.
     SsoRegistrarService,
+    // Plain, empty-constructor leaf provider (see mail.service.ts's own header) — listed here the
+    // same way plugins.module.ts/danger.module.ts/documents-core.module.ts each independently list
+    // it in their OWN providers array; a second instance costs nothing.
+    // `CompanyMailSettingsService#sendTest` (TODO_FEATURES.md entry G) is this module's own caller.
+    MailService,
+    CompanyMailSettingsService,
   ],
   // `ChannelCredentialsService`/`SigningCertificatesService` are exported so `DocumentsCoreModule` can
   // inject them (into the "pdp" transport, and into the PAdES signing wiring,

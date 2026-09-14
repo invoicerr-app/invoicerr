@@ -86,7 +86,17 @@ Make sure port 80 is available on your host machine, or change the port mapping.
 
 ## Email delivery
 
-Invoicerr needs to send emails (quote/invoice notifications, signature links). Choose **one** provider with `MAIL_PROVIDER`:
+Invoicerr needs to send emails (quote/invoice notifications, signature links). This is configured on
+**two levels**:
+
+- **Instance level** — the `MAIL_PROVIDER`/`SMTP_*`/`BREVO_API_KEY`/`RESEND_API_KEY` variables below,
+  set once for the whole deployment. Choose **one** provider with `MAIL_PROVIDER`, or leave it unset
+  to auto-detect: `RESEND_API_KEY` present selects Resend (it wins even if `SMTP_HOST` is also set),
+  otherwise SMTP is used.
+- **Company level** — each company can set its own mail server in **Settings → Mail** (SMTP or
+  Resend). A company's own server, when set, is used for everything that company sends, instead of
+  the instance-level one below; a company that never configures one keeps using the instance level.
+  A send is refused (never silently dropped) only if **neither** level is configured.
 
 <Tabs>
 <TabItem value="smtp" label="SMTP (default)">
@@ -124,6 +134,25 @@ Invoicerr needs to send emails (quote/invoice notifications, signature links). C
 
 :::info
 Use Brevo when you don't want to run or pay for an SMTP relay — it sends email through Brevo's HTTP API instead.
+:::
+
+</TabItem>
+<TabItem value="resend" label="Resend">
+
+```yaml
+- MAIL_PROVIDER=resend
+- RESEND_API_KEY="your_resend_api_key"
+- MAIL_FROM="user-from@example.com" # optional, falls back to SMTP_FROM/SMTP_USER
+```
+
+| Variable | Description |
+| --- | --- |
+| `RESEND_API_KEY` | API key for sending emails via the [Resend](https://resend.com/) HTTP API instead of SMTP |
+| `MAIL_FROM` | Optional — sender address. Falls back to `SMTP_FROM`, then `SMTP_USER`, if unset |
+
+:::info
+Setting `RESEND_API_KEY` alone, with `MAIL_PROVIDER` left unset, also selects Resend — it takes
+priority over SMTP whenever both are present in the environment.
 :::
 
 </TabItem>
