@@ -176,9 +176,17 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 			cy.visit("/documents/invoice");
 			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
 
-			// Same documented budget as 31: ATTEMPTS=3 by default, exponential backoff base 2000ms.
-			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+			// Same documented budget as 31: ATTEMPTS=3 by default, exponential backoff base 2000ms —
+			// ~6s of queueing, PLUS three real connect attempts to the fake PDP baseUrl. That connect
+			// was assumed near-instant (ECONNREFUSED on a closed local port) when 40000ms was first
+			// chosen; measured on CI 2026-09-14, it is not: each attempt took ~10-13s there before
+			// failing (fetch/undici's own connect timeout, not an immediate refusal — this run's own
+			// backend log has the three attempts spanning exactly 8:45:05 to 8:45:45, i.e. the full
+			// 40s, and the spec timed out waiting one tick short of that). 90000ms leaves real margin
+			// instead of sitting on the exact boundary — the assertion itself (a real "Send failed",
+			// never a silent success) is unchanged.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 				.should("contain.text", "Send failed");
 
 			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`)

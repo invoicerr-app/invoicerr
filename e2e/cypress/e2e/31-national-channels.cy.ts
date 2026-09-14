@@ -248,11 +248,19 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 			// A large, documented budget, same reasoning as 28-document-async-send.cy.ts:
 			// DOCUMENT_ACTION_QUEUE_ATTEMPTS=3 by default, exponential backoff base 2000ms — up to
-			// ~6s of queueing before the final failure, plus margin for a loaded CI. `timeout` on the
-			// `.find()` itself, not just the preceding `cy.get()` (a Cypress pitfall documented
-			// in this same file 28).
-			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+			// ~6s of queueing before the final failure. `timeout` on the `.find()` itself, not just
+			// the preceding `cy.get()` (a Cypress pitfall documented in this same file 28).
+			//
+			// UNLIKE 28's own scenario (a structural refusal — no contact email — that fails every
+			// attempt near-instantly), this one is a REAL connect attempt to the fake PDP baseUrl
+			// (a closed local port). That was assumed near-instant too (ECONNREFUSED) when 40000ms
+			// was chosen; measured on CI 2026-09-14 it is not — each of the 3 attempts took ~10-13s
+			// there (fetch/undici's own connect timeout firing before an immediate refusal), pushing
+			// the total past 40s and failing this exact assertion in that run (32-channel-mandate.cy.ts
+			// runs the identical scenario). 90000ms leaves real margin; the assertion itself — a real
+			// "Send failed", never a silent success — is unchanged.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 				.should("contain.text", "Send failed");
 
 			// The VISIBLE error names the channel — never a generic message.
@@ -428,11 +436,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				timeout: 15000,
 			}).click();
 
-			// Same budget as the PDP test above — see its comment. The real KSeF rejection is in
-			// practice near-instant (probed by hand: < 300ms), so this budget is generous, not just
-			// sufficient.
-			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+			// Same budget as the PDP test above — see its comment for why it is 90000ms, not the
+			// 40000ms this was originally set to. The real KSeF rejection is in practice near-instant
+			// (probed by hand: < 300ms) — that part of the estimate holds — but the queueing/attempt
+			// overhead around it does not always, on CI, per the PDP test's own measurement.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 				.should("contain.text", "Send failed");
 
 			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
@@ -582,8 +591,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				timeout: 15000,
 			}).click();
 
-			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+			// Same budget as the PDP test above — see its comment: a closed-port connect (SdI's fake
+			// server here, same as PDP's) was assumed near-instant when 40000ms was chosen; measured
+			// ~10-13s per attempt on CI instead. 40-b2g-routing.cy.ts's own SdI test passed at
+			// 37983ms out of the old 40000ms on 2026-09-14 — under 5% of margin, not a real one.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 				.should("contain.text", "Send failed");
 
 			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
@@ -730,11 +743,13 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				timeout: 15000,
 			}).click();
 
-			// Same budget as the PDP/KSeF/SdI/Peppol tests above — see their comment. The real PISTE
-			// rejection is in practice near-instant (probed by hand: well under a second), so this
-			// budget is generous, not just sufficient.
-			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-				.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+			// Same budget as the PDP/KSeF/SdI/Peppol tests above — see their comment for why it is
+			// 90000ms, not 40000ms. The real PISTE rejection is in practice near-instant (probed by
+			// hand: well under a second) — that part holds — but 40-b2g-routing.cy.ts's own
+			// chorus-pro test measured ~11-12s of preamble before each of the 3 attempts even reaches
+			// PISTE on CI, pushing the total to 42s (over the old 40000ms budget) on 2026-09-14.
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+				.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 				.should("contain.text", "Send failed");
 
 			cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(

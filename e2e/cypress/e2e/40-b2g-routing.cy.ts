@@ -326,9 +326,14 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				// "email" (the company's free choice), exactly like the IT/SdI case further down. The
 				// queue then GENUINELY fails, against the real PISTE sandbox (fake credentials,
 				// HTTP 400 invalid_client) — never a silent success, never a send through email. Same
-				// budget as 31's own chorus-pro/PDP/KSeF/SdI/Peppol tests.
-				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+				// budget as 31's own chorus-pro/PDP/KSeF/SdI/Peppol tests — see that file's own
+				// comment on why it is 90000ms, not 40000ms: PISTE itself answers fast, but the
+				// preamble before each of the 3 attempts even reaches PISTE measured ~11-12s on CI
+				// 2026-09-14 (this run's own backend log: job started 8:50:57, permanently failed
+				// 8:51:39 — 42s, over the old 40000ms budget), not the sub-second figure a local probe
+				// found.
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 					.should("contain.text", "Send failed");
 				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
 					"contain.text",
@@ -645,9 +650,12 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				}).click();
 
 				// Asynchronous (the B2G channel, sdi, IS implemented and connected): the queue genuinely
-				// fails against the closed port — never a silent success through email.
-				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 40000 })
-					.find('[data-cy="document-status-badge"]', { timeout: 40000 })
+				// fails against the closed port — never a silent success through email. Same 90000ms
+				// budget as 31/32's own PDP/SdI tests — see 31's comment: a closed-port connect was
+				// assumed near-instant but measured ~10-13s per attempt on CI. This run's own SdI test
+				// above passed at 37983ms out of the old 40000ms — under a 5% margin, not a real one.
+				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 90000 })
+					.find('[data-cy="document-status-badge"]', { timeout: 90000 })
 					.should("contain.text", "Send failed");
 				cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`).should(
 					"contain.text",
