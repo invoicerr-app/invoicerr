@@ -1,4 +1,10 @@
-import { computeCrossRate, readCurrencyRateSweepIntervalMs } from './currency-rate-sweep';
+import {
+  AUTOMATIC_RATE_SOURCES,
+  ECB_SOURCE,
+  EXCHANGERATE_API_SOURCE,
+  computeCrossRate,
+  readCurrencyRateSweepIntervalMs,
+} from './currency-rate-sweep';
 
 // Same two ECB-shaped rates the ecb-rates-client.spec.ts fixture uses — 1 EUR = 1.0812 USD,
 // 1 EUR = 0.8567 GBP. Expected quotients below were computed with the SAME `Decimal` class
@@ -55,5 +61,18 @@ describe('readCurrencyRateSweepIntervalMs', () => {
   it('reads an override from the environment', () => {
     process.env.CURRENCY_RATE_SWEEP_INTERVAL_MS = '120000';
     expect(readCurrencyRateSweepIntervalMs()).toBe(120000);
+  });
+});
+
+describe('source constants', () => {
+  it('the ECB and fallback sources are distinct strings — a reader must be able to tell them apart', () => {
+    expect(ECB_SOURCE).toBe('ecb');
+    expect(EXCHANGERATE_API_SOURCE).not.toBe(ECB_SOURCE);
+  });
+
+  it('AUTOMATIC_RATE_SOURCES contains both automatic sources and never "manual"', () => {
+    expect(AUTOMATIC_RATE_SOURCES.has(ECB_SOURCE)).toBe(true);
+    expect(AUTOMATIC_RATE_SOURCES.has(EXCHANGERATE_API_SOURCE)).toBe(true);
+    expect(AUTOMATIC_RATE_SOURCES.has('manual')).toBe(false);
   });
 });

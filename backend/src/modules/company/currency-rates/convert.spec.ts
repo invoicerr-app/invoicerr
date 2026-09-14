@@ -1,4 +1,4 @@
-import { CurrencyRateLike, convertMinor, resolveLatestRate } from './convert';
+import { CurrencyRateLike, convertMinor, findPairsWithoutAutomaticRate, resolveLatestRate } from './convert';
 
 function rate(overrides: Partial<CurrencyRateLike>): CurrencyRateLike {
   return {
@@ -80,5 +80,44 @@ describe('resolveLatestRate', () => {
 
   it('returns null when the pair has no rate at all', () => {
     expect(resolveLatestRate([], 'GBP', 'EUR', now)).toBeNull();
+  });
+});
+
+describe('findPairsWithoutAutomaticRate', () => {
+  const AUTOMATIC = new Set(['ecb', 'exchangerate-api']);
+
+  it('a pair with only a manual row has no automatic rate', () => {
+    const rates = [rate({ from: 'EUR', to: 'MAD', source: 'manual' })];
+    expect(findPairsWithoutAutomaticRate(rates, AUTOMATIC)).toEqual([{ from: 'EUR', to: 'MAD' }]);
+  });
+
+  it('a pair with an ecb row is excluded, even alongside an older manual row for the same pair', () => {
+    const rates = [
+      rate({ from: 'EUR', to: 'USD', source: 'manual' }),
+      rate({ from: 'EUR', to: 'USD', source: 'ecb' }),
+    ];
+    expect(findPairsWithoutAutomaticRate(rates, AUTOMATIC)).toEqual([]);
+  });
+
+  it('a pair with an exchangerate-api row is excluded — the fallback counts as automatic too', () => {
+    const rates = [rate({ from: 'EUR', to: 'MAD', source: 'exchangerate-api' })];
+    expect(findPairsWithoutAutomaticRate(rates, AUTOMATIC)).toEqual([]);
+  });
+
+  it('only names pairs actually missing an automatic rate, among several', () => {
+    const rates = [
+      rate({ from: 'EUR', to: 'USD', source: 'ecb' }), // covered
+      rate({ from: 'EUR', to: 'MAD', source: 'manual' }), // NOT covered
+      rate({ from: 'USD', to: 'GBP', source: 'exchangerate-api' }), // covered
+      rate({ from: 'EUR', to: 'ZZZ', source: 'manual' }), // NOT covered
+    ];
+    expect(findPairsWithoutAutomaticRate(rates, AUTOMATIC)).toEqual([
+      { from: 'EUR', to: 'MAD' },
+      { from: 'EUR', to: 'ZZZ' },
+    ]);
+  });
+
+  it('returns an empty array when there are no rates at all', () => {
+    expect(findPairsWithoutAutomaticRate([], AUTOMATIC)).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { CurrencyRateSweepRunner } from './currency-rate-sweep-runner';
 import { fetchEcbDailyRates } from './ecb-rates-client';
+import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
 // Same "mock the prisma singleton default export" shape archive/persistence.spec.ts and
 // conformity/authority-events.persistence.spec.ts already use for a plain-function persistence file
@@ -17,10 +18,12 @@ jest.mock('@/prisma/prisma.service', () => ({
 }));
 
 jest.mock('./ecb-rates-client');
+jest.mock('./open-er-api-rates-client');
 
 const findMany = prisma.currencyRate.findMany as jest.Mock;
 const createMany = prisma.currencyRate.createMany as jest.Mock;
 const fetchEcb = fetchEcbDailyRates as jest.Mock;
+const fetchOpenErApi = fetchOpenErApiRates as jest.Mock;
 
 describe('CurrencyRateSweepRunner.runSweep', () => {
   afterEach(() => jest.resetAllMocks());
@@ -29,7 +32,7 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
     fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) });
     findMany
       .mockResolvedValueOnce([{ companyId: 'company-1', from: 'EUR', to: 'USD' }]) // active pairs
-      .mockResolvedValueOnce([]); // no ecb row yet for this asOf
+      .mockResolvedValueOnce([]); // no ecb/fallback row yet for this asOf
 
     const runner = new CurrencyRateSweepRunner();
     const result = await runner.runSweep();
@@ -47,6 +50,9 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
         },
       ],
     });
+    // Definition-of-done item 2: both legs are ECB-covered, so nothing about the fallback is even
+    // consulted — proves "same source, same behaviour" for the common case, not just "same result".
+    expect(fetchOpenErApi).not.toHaveBeenCalled();
   });
 
   it('is idempotent — a pair already refreshed for the same (company, from, to, asOf) is skipped', async () => {
@@ -62,10 +68,77 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
     expect(createMany).not.toHaveBeenCalled();
   });
 
-  it('skips a pair whose currency the ECB feed does not cover, without inserting a guessed rate', async () => {
+  it('skips a pair NEITHER source covers, without inserting a guessed rate', async () => {
     fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) }); // no MRO
+    fetchOpenErApi.mockResolvedValue({ rates: new Map([['USD', 1.16]]) }); // no MRO either — obsolete code
     findMany
       .mockResolvedValueOnce([{ companyId: 'company-1', from: 'EUR', to: 'MRO' }])
+      .mockResolvedValueOnce([]);
+
+    const runner = new CurrencyRateSweepRunner();
+    const result = await runner.runSweep();
+
+    expect(result).toEqual({ ok: true, companiesProcessed: 1, inserted: 0, skipped: 1 });
+    expect(createMany).not.toHaveBeenCalled();
+    // The fallback WAS tried (this is the "neither source" case, not "ECB-only"), just came up empty
+    // too — proves the runner doesn't give up after the ECB alone.
+    expect(fetchOpenErApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to open.er-api.com for a pair the ECB does not cover, tagging the row with its OWN source', async () => {
+    fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) }); // no MAD
+    fetchOpenErApi.mockResolvedValue({ rates: new Map([['MAD', 10.90371]]) });
+    findMany
+      .mockResolvedValueOnce([{ companyId: 'company-1', from: 'EUR', to: 'MAD' }])
+      .mockResolvedValueOnce([]);
+
+    const runner = new CurrencyRateSweepRunner();
+    const result = await runner.runSweep();
+
+    expect(result).toEqual({ ok: true, companiesProcessed: 1, inserted: 1, skipped: 0 });
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          companyId: 'company-1',
+          from: 'EUR',
+          to: 'MAD',
+          rate: '10.90371',
+          asOf: new Date('2026-09-11T00:00:00.000Z'),
+          // NEVER 'ecb' — this row was resolved through the fallback, and a reader must be able to
+          // tell the two apart (definition-of-done item 1).
+          source: 'exchangerate-api',
+        },
+      ],
+    });
+  });
+
+  it('fetches the fallback at most ONCE per pass even when several pairs all need it', async () => {
+    fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map() }); // covers nothing
+    fetchOpenErApi.mockResolvedValue({
+      rates: new Map([
+        ['MAD', 10.9],
+        ['AED', 4.26],
+      ]),
+    });
+    findMany
+      .mockResolvedValueOnce([
+        { companyId: 'company-1', from: 'EUR', to: 'MAD' },
+        { companyId: 'company-1', from: 'EUR', to: 'AED' },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const runner = new CurrencyRateSweepRunner();
+    const result = await runner.runSweep();
+
+    expect(result).toEqual({ ok: true, companiesProcessed: 1, inserted: 2, skipped: 0 });
+    expect(fetchOpenErApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not crash the pass when the fallback itself fails — the pair is simply skipped', async () => {
+    fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map() }); // no MAD
+    fetchOpenErApi.mockRejectedValue(new Error('open.er-api.com rates feed responded with HTTP 503'));
+    findMany
+      .mockResolvedValueOnce([{ companyId: 'company-1', from: 'EUR', to: 'MAD' }])
       .mockResolvedValueOnce([]);
 
     const runner = new CurrencyRateSweepRunner();
@@ -101,6 +174,7 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
         ['GBP', 0.8567],
       ]),
     });
+    fetchOpenErApi.mockResolvedValue({ rates: new Map([['USD', 1.16]]) }); // no ZZZ either
     findMany
       .mockResolvedValueOnce([
         { companyId: 'company-1', from: 'EUR', to: 'USD' }, // fresh -> inserted

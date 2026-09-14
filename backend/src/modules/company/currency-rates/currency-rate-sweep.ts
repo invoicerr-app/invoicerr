@@ -19,6 +19,28 @@ import { Prisma } from '../../../../prisma/generated/prisma/client';
 export const CURRENCY_RATE_SWEEP_JOB_NAME = 'currency-rate-sweep';
 export const CURRENCY_RATE_SWEEP_JOB_ID = 'currency-rate-sweep-singleton';
 
+/** The `CurrencyRate.source` value the sweep stamps on a row it computed directly from the ECB feed
+ *  (`ecb-rates-client.ts`) — the reference the tax authorities of this product's five countries
+ *  publish against, and the sole source for every currency it quotes (see
+ *  `open-er-api-rates-client.ts`'s own header for why the fallback below never overrides it). */
+export const ECB_SOURCE = 'ecb';
+
+/** The `CurrencyRate.source` value the sweep stamps on a row it could only resolve through the
+ *  open.er-api.com FALLBACK (`open-er-api-rates-client.ts`) — used exclusively for a pair whose ECB
+ *  computation came back `null` (`computeCrossRate` below). Deliberately its OWN distinct value,
+ *  NEVER `ECB_SOURCE`: a reader must always be able to tell which authority a stored rate actually
+ *  came from — the same provenance discipline the country catalogs enforce with `kind: 'legal'` vs
+ *  `'unverified'` — and it matters more here because the number ends up on a legal document. */
+export const EXCHANGERATE_API_SOURCE = 'exchangerate-api';
+
+/** Every `CurrencyRate.source` value this sweep can write AUTOMATICALLY (`'manual'`, the only other
+ *  value in use, is deliberately excluded). Two consumers share this set: the runner's own
+ *  idempotency check (a pair already refreshed today by EITHER source needs no second attempt) and
+ *  `convert.ts#findPairsWithoutAutomaticRate` (a pair with zero rows carrying one of these sources
+ *  has provably been tried and failed by BOTH — currency-rates.store.ts's own
+ *  `listCurrencyRatePairsWithoutAutomaticRate`, surfaced by the settings screen). */
+export const AUTOMATIC_RATE_SOURCES: ReadonlySet<string> = new Set([ECB_SOURCE, EXCHANGERATE_API_SOURCE]);
+
 /** Default 24h (`86_400_000`ms) — the ECB publishes once a business day, around 16:00 CET, so
  *  sweeping more often than that would only ever re-observe the SAME reference date (a no-op,
  *  caught by the runner's own idempotency check) at the cost of an extra outbound HTTP call every
@@ -47,6 +69,15 @@ export function readCurrencyRateSweepIntervalMs(): number {
  * Returns `null`, never a guessed value, the moment a currency THIS pair actually needs (excluding
  * an EUR leg, which is never looked up) is absent from `ecbRates` — an exotic manual pair the ECB
  * simply does not quote must be left to the next manual entry, never silently defaulted.
+ *
+ * ## Reused, unmodified, for the open.er-api.com fallback
+ * Despite the parameter's name, this function has no ECB-specific logic in it at all — it is pure
+ * "compose two EUR-based facts into a cross rate" arithmetic. `currency-rate-sweep-runner.ts` calls
+ * it a SECOND time, against `open-er-api-rates-client.ts`'s own EUR-based map, ONLY when the first
+ * call (against the real ECB map) returned `null` — never with a map that mixes rows from both
+ * sources: each call resolves a pair ENTIRELY from one provider's table or the other, never both
+ * (`EXCHANGERATE_API_SOURCE`'s own comment above explains why a blended rate must never be stamped as
+ * either source's alone).
  *
  * ## Why `Decimal`, not `number` division
  * A stored `CurrencyRate.rate` is a Prisma `Decimal` column precisely because a rate multiplies

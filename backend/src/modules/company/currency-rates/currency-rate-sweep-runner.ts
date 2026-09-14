@@ -20,20 +20,38 @@
  * The schema intentionally carries none (see that model's own schema.prisma comment on why a rate
  * row is just a dated fact, never upserted) — a rerun of this sweep on the SAME reference date must
  * still be a no-op, so this class enforces it in application code: before inserting, it fetches
- * every `source: 'ecb'` row already stamped with today's `asOf` and skips any pair already covered,
- * the same "read once, filter in memory" shape `conformity/authority-events.persistence.ts`'s own
- * dedup checks use rather than one query per candidate.
+ * every row ALREADY stamped with today's `asOf` and an AUTOMATIC source (`AUTOMATIC_RATE_SOURCES` —
+ * ECB or the fallback below; `'manual'` rows are never dedup targets) and skips any pair already
+ * covered, the same "read once, filter in memory" shape
+ * `conformity/authority-events.persistence.ts`'s own dedup checks use rather than one query per
+ * candidate.
+ *
+ * ## The open.er-api.com fallback — fired lazily, only when the ECB actually leaves a gap
+ * The ECB feed quotes ~29 currencies; this product's `Currency` enum (schema.prisma) accepts 171, so
+ * a company billing in e.g. MAD/AED/SAR previously had NO conversion at all — `computeCrossRate`
+ * returned `null` and the pair was silently folded into `skipped`. For each active pair, this runner
+ * tries the ECB map FIRST and ONLY reaches for `open-er-api-rates-client.ts`'s own map when that
+ * comes back `null` — never blending the two (`currency-rate-sweep.ts#computeCrossRate`'s own header
+ * explains why a blended rate must never be stamped as either source's alone). The fallback fetch
+ * itself is LAZY (`getFallbackRates` below, called at most once per pass): a company whose active
+ * pairs are all ECB-covered — the common case (EUR/USD/GBP…) — triggers zero calls to
+ * open.er-api.com, so its sweep behaves EXACTLY as it did before this fallback existed. A pair that
+ * still comes back `null` from BOTH sources is `skipped`, same as before — surfaced separately via
+ * `convert.ts#findPairsWithoutAutomaticRate` / `currency-rates.store.ts`'s own
+ * `listCurrencyRatePairsWithoutAutomaticRate`, not left as a silent counter alone.
  */
 import { Injectable, Logger } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
-import { computeCrossRate } from './currency-rate-sweep';
+import {
+  AUTOMATIC_RATE_SOURCES,
+  ECB_SOURCE,
+  EXCHANGERATE_API_SOURCE,
+  computeCrossRate,
+} from './currency-rate-sweep';
 import { fetchEcbDailyRates } from './ecb-rates-client';
-
-/** The source string every row THIS sweep writes carries — see `CurrencyRate.source`'s own
- *  schema.prisma comment: `'manual'` is the only OTHER value in use today. */
-const ECB_SOURCE = 'ecb';
+import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
 export interface RunCurrencyRateSweepResult {
   /** `false` only when the ECB fetch itself failed — every other outcome (including "nothing to
@@ -44,8 +62,11 @@ export interface RunCurrencyRateSweepResult {
   /** How many NEW `CurrencyRate` rows this pass actually wrote. */
   inserted: number;
   /** How many active pairs were looked at but NOT written — already refreshed today (idempotency)
-   *  OR a currency the ECB feed does not quote. `currencyRateSweep-runner.spec.ts` proves both
-   *  reasons land here, never as a thrown error. */
+   *  OR a currency NEITHER the ECB feed nor the open.er-api.com fallback quotes.
+   *  `currency-rate-sweep-runner.spec.ts` proves all three reasons (idempotency, ECB-only miss now
+   *  covered by the fallback, and a miss by both) land here or in `inserted`, never as a thrown
+   *  error. A pair still `skipped` for the "neither source covers it" reason is surfaced separately —
+   *  see `convert.ts#findPairsWithoutAutomaticRate` — never left as just this counter. */
   skipped: number;
   /** Set only when `ok` is `false` — the ECB fetch's own error message, for the log line and for a
    *  test to assert on without parsing a log. */
@@ -79,13 +100,16 @@ function pairKey(companyId: string, from: string, to: string): string {
   return `${companyId}\0${from}\0${to}`;
 }
 
-/** Every `(companyId, from, to)` already covered by an `ecb`-sourced row dated `asOf` — one query,
- *  reused as an in-memory Set for every candidate pair below, the same "one read, filter in memory"
- *  discipline `findActiveCurrencyRatePairs`'s own header already applies for the candidate list
- *  itself. */
+/** Every `(companyId, from, to)` already covered by an AUTOMATIC-source row (ECB or the
+ *  open.er-api.com fallback — `AUTOMATIC_RATE_SOURCES`) dated `asOf` — one query, reused as an
+ *  in-memory Set for every candidate pair below, the same "one read, filter in memory" discipline
+ *  `findActiveCurrencyRatePairs`'s own header already applies for the candidate list itself. A pair
+ *  only ever gets ONE automatic row per `asOf` regardless of which source produced it (a day where
+ *  the ECB covers a pair never ALSO gets a fallback row for the same day), so checking both sources
+ *  in one query is enough — no need to distinguish which one already ran. */
 async function findAlreadyRefreshedPairKeys(asOf: Date): Promise<Set<string>> {
   const rows = await prisma.currencyRate.findMany({
-    where: { source: ECB_SOURCE, asOf },
+    where: { source: { in: Array.from(AUTOMATIC_RATE_SOURCES) }, asOf },
     select: { companyId: true, from: true, to: true },
   });
   return new Set(rows.map((row) => pairKey(row.companyId, row.from, row.to)));
@@ -135,6 +159,25 @@ export class CurrencyRateSweepRunner {
       source: string;
     }[] = [];
     let skipped = 0;
+    let viaFallback = 0;
+
+    // Lazily fetched, at most ONCE per pass — see this class's own header ("fired lazily") for why: a
+    // company whose active pairs are all ECB-covered never triggers this call at all.
+    let fallbackRates: Map<string, number> | null | undefined; // undefined = not attempted yet
+    const getFallbackRates = async (): Promise<Map<string, number> | null> => {
+      if (fallbackRates !== undefined) return fallbackRates;
+      try {
+        fallbackRates = (await fetchOpenErApiRates()).rates;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Currency-rate sweep could not fetch the open.er-api.com fallback feed — pairs the ECB ` +
+            `doesn't cover stay unresolved this pass: ${message}`,
+        );
+        fallbackRates = null;
+      }
+      return fallbackRates;
+    };
 
     for (const pair of pairs) {
       if (alreadyRefreshed.has(pairKey(pair.companyId, pair.from, pair.to))) {
@@ -142,11 +185,26 @@ export class CurrencyRateSweepRunner {
         continue;
       }
 
-      const rate = computeCrossRate(pair.from, pair.to, ecbRates);
+      let rate = computeCrossRate(pair.from, pair.to, ecbRates);
+      let source = ECB_SOURCE;
+
       if (rate === null) {
-        skipped++; // a currency this pair needs isn't in today's ECB feed — never insert a guess
+        // The ECB doesn't quote a currency this pair needs — try open.er-api.com's OWN map, entirely
+        // on its own (never mixed with the ECB map above: `computeCrossRate` resolves the WHOLE pair
+        // from whichever single map it's given, so a hit here is 100% fallback-sourced, never blended).
+        const fallback = await getFallbackRates();
+        if (fallback) {
+          rate = computeCrossRate(pair.from, pair.to, fallback);
+          source = EXCHANGERATE_API_SOURCE;
+        }
+      }
+
+      if (rate === null) {
+        skipped++; // neither source covers this pair — never insert a guess
         continue;
       }
+
+      if (source === EXCHANGERATE_API_SOURCE) viaFallback++;
 
       rowsToInsert.push({
         companyId: pair.companyId,
@@ -154,7 +212,7 @@ export class CurrencyRateSweepRunner {
         to: pair.to,
         rate,
         asOf,
-        source: ECB_SOURCE,
+        source,
       });
     }
 
@@ -164,7 +222,8 @@ export class CurrencyRateSweepRunner {
 
     this.logger.log(
       `Currency-rate sweep (asOf ${referenceDate}): ${companiesProcessed} compan${companiesProcessed === 1 ? 'y' : 'ies'}, ` +
-        `${rowsToInsert.length} row(s) inserted, ${skipped} pair(s) skipped.`,
+        `${rowsToInsert.length} row(s) inserted (${viaFallback} via the open.er-api.com fallback), ` +
+        `${skipped} pair(s) skipped.`,
     );
 
     return { ok: true, companiesProcessed, inserted: rowsToInsert.length, skipped };

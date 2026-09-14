@@ -13,7 +13,9 @@ import { CurrencyRatesService } from './currency-rates.service';
  * one. No PATCH/DELETE: a mis-entered rate is corrected by entering a NEW one with a later `asOf`
  * (it simply outranks the old one at resolution time — see convert.ts's `resolveLatestRate`), the
  * same "never mutate history, add a new fact" posture settlement/payments.ts already holds for
- * `DocumentPayment` (see that file's own header).
+ * `DocumentPayment` (see that file's own header). `GET .../gaps` is read-only alongside it — it
+ * reports, never writes, which of the company's own pairs the daily sweep still can't refresh from
+ * either automatic source (see `currency-rates.store.ts`'s own `listCurrencyRatePairsWithoutAutomaticRate`).
  */
 @ApiTags('company')
 @Controller('company/currency-rates')
@@ -28,6 +30,19 @@ export class CurrencyRatesController {
   @ApiResponse({ status: 200, description: 'Currency rates retrieved' })
   async list(@ActiveCompany() companyId: string) {
     return this.currencyRatesService.list(companyId);
+  }
+
+  @Get('gaps')
+  @ApiOperation({
+    summary: 'List currency pairs with no automatic rate',
+    description:
+      'Every (from, to) pair this company has entered that neither the ECB feed nor the ' +
+      'open.er-api.com fallback has ever been able to refresh automatically — see ' +
+      'CurrencyRateSweepRunner for how both are tried before a pair counts as one of these.',
+  })
+  @ApiResponse({ status: 200, description: 'Currency pairs with no automatic rate' })
+  async gaps(@ActiveCompany() companyId: string) {
+    return this.currencyRatesService.gaps(companyId);
   }
 
   @Post()

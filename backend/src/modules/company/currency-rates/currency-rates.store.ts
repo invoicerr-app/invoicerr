@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 
-import { CurrencyRateLike } from './convert';
+import { CurrencyRateLike, findPairsWithoutAutomaticRate } from './convert';
+import { AUTOMATIC_RATE_SOURCES } from './currency-rate-sweep';
 
 /**
  * Company-scoped persistence for `CurrencyRate` — same "every query scoped by companyId" discipline
@@ -118,6 +119,19 @@ export async function getReferenceCurrency(companyId: string): Promise<string | 
  *  `toSettlementCreditInputs` already performs for payments/credits. */
 export function toCurrencyRateLikes(rates: readonly CurrencyRateResult[]): CurrencyRateLike[] {
   return rates.map((r) => ({ from: r.from, to: r.to, rate: r.rate, asOf: r.asOf, source: r.source }));
+}
+
+/** A pair this company entered by hand that the DAILY sweep has never been able to refresh from
+ *  EITHER automatic source (ECB or the open.er-api.com fallback — `AUTOMATIC_RATE_SOURCES`) — the
+ *  "stop the silence" surface (`convert.ts#findPairsWithoutAutomaticRate`'s own header explains the
+ *  provable-not-guessed reasoning). `CurrencyRatesController`'s `GET .../gaps` is the one caller,
+ *  which the settings screen reads to list currencies with no automatic rate — the obvious place a
+ *  company already looks to manage its rates, rather than a log line only an operator ever sees. */
+export async function listCurrencyRatePairsWithoutAutomaticRate(
+  companyId: string,
+): Promise<{ from: string; to: string }[]> {
+  const rates = await listCurrencyRates(companyId);
+  return findPairsWithoutAutomaticRate(toCurrencyRateLikes(rates), AUTOMATIC_RATE_SOURCES);
 }
 
 /**

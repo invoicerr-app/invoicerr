@@ -68,3 +68,50 @@ export function convertMinor(amountMinor: number, from: string, to: string, rate
   const toMajor = fromMajor * rate;
   return Math.round(toMajor * 10 ** decimalsFor(to));
 }
+
+/**
+ * The "stop the silence" signal (currency-rate-sweep-runner.ts's own header): every DISTINCT
+ * `(from, to)` pair among `rates` that has NEVER been written by one of `automaticSources`
+ * (`currency-rate-sweep.ts`'s `AUTOMATIC_RATE_SOURCES` — the ECB, or the open.er-api.com fallback) —
+ * only ever a manual entry.
+ *
+ * This is provable, not a guess: the daily sweep tries EVERY active pair against the ECB first, then
+ * (only if that fails) the open.er-api.com fallback, before ever counting a pair as `skipped`
+ * (`currency-rate-sweep-runner.ts#runSweep`) — so a pair with zero rows carrying an automatic source
+ * has been tried and failed by BOTH, not merely "not swept yet". The one exception: a pair entered by
+ * hand moments ago has not been through a sweep tick at all yet (default interval 24h), so it can
+ * show here as a false positive until the next tick — the same "not confirmed automatically yet"
+ * honesty `resolveLatestRate`'s own "no eligible row" case already accepts elsewhere in this file,
+ * not a bug to fix here.
+ *
+ * Pure and DB-free like every other function in this file — `currency-rates.store.ts`'s
+ * `listCurrencyRatePairsWithoutAutomaticRate` is the one caller that fetches `rates` and hands them
+ * in, exactly the "store fetches, this file decides" split `resolveLatestRate` already holds.
+ */
+export function findPairsWithoutAutomaticRate(
+  rates: readonly CurrencyRateLike[],
+  automaticSources: ReadonlySet<string>,
+): { from: string; to: string }[] {
+  // NUL-joined key — same collision-free convention `currency-rate-sweep-runner.ts#pairKey` already
+  // uses, since neither an ISO 4217 code nor (here) a currency pair can ever contain a NUL byte.
+  const hasAutomaticRate = new Map<string, boolean>();
+  const order: string[] = [];
+
+  for (const r of rates) {
+    const key = `${r.from}\0${r.to}`;
+    if (!hasAutomaticRate.has(key)) {
+      hasAutomaticRate.set(key, false);
+      order.push(key);
+    }
+    if (automaticSources.has(r.source)) {
+      hasAutomaticRate.set(key, true);
+    }
+  }
+
+  return order
+    .filter((key) => !hasAutomaticRate.get(key))
+    .map((key) => {
+      const [from, to] = key.split('\0');
+      return { from, to };
+    });
+}

@@ -4,6 +4,7 @@ import {
   CreateCurrencyRateInput,
   CurrencyRateResult,
   createCurrencyRate,
+  listCurrencyRatePairsWithoutAutomaticRate,
   listCurrencyRates,
 } from './currency-rates.store';
 
@@ -21,5 +22,9 @@ export class CurrencyRatesService {
 
   async create(input: CreateCurrencyRateInput): Promise<CurrencyRateResult> {
     return createCurrencyRate(input);
+  }
+
+  async gaps(companyId: string): Promise<{ from: string; to: string }[]> {
+    return listCurrencyRatePairsWithoutAutomaticRate(companyId);
   }
 }
