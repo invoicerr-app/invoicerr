@@ -30,13 +30,15 @@
  * structure and SIRET ("matelas de données") — see `credentials-guide.md` §3, which quotes AIFE's
  * own procedure.
  *
- * `CHORUSPRO_SELLER_SIRET` / `CHORUSPRO_BUYER_SIRET` — per-portal test parameters, NOT credentials
- * (same category as `credentials-guide.md`'s "Per-portal test parameters" note: `*_COUNTRY`,
- * `*_SELLER_VAT`, `*_BUYER_VAT`, `*_TAXPAYER_ID`). Optional overrides; their defaults below are two
- * real SIRETs drawn from the owner's own qualification "matelas de données" (generated 2026-09-14,
- * type "Plateforme agréée") so the deposit works out of the box for anyone using a standard mattress,
- * while staying overridable for a different one. See the SELLER/BUYER constants below for exactly
- * which entities these are and, for the buyer, why THIS one and not one of the other six.
+ * `CHORUSPRO_SELLER_SIRET` / `CHORUSPRO_BUYER_SIRET` / `CHORUSPRO_SELLER_VAT` — per-portal test
+ * parameters, NOT credentials (same category as `credentials-guide.md`'s "Per-portal test parameters"
+ * note: `*_COUNTRY`, `*_SELLER_VAT`, `*_BUYER_VAT`, `*_TAXPAYER_ID`). Optional overrides; their
+ * defaults below are two real SIRETs drawn from the owner's own qualification "matelas de données"
+ * (generated 2026-09-14, type "Plateforme agréée") plus a SIREN-derived seller VAT number (see the
+ * `sellerVat` constant below for the derivation and why only the seller needs one) so the deposit
+ * works out of the box for anyone using a standard mattress, while staying overridable for a
+ * different one. See the SELLER/BUYER constants below for exactly which entities these are and, for
+ * the buyer, why THIS one and not one of the other six.
  *
  * Recipe (mirrors `../pdp/pdp.live.spec.ts`'s own DB-free approach — the exact bridge
  * `chorus-pro-transport.ts#send()` composes, called here by hand so this spec never needs a live DB):
@@ -59,7 +61,12 @@ import { validateStructural } from '../../formats/structural-check';
 import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { liveDescribe } from '../live-gate';
-import { ChorusProClient, FetchChorusProHttpPort, mapChorusProStatus } from './choruspro-client';
+import {
+  ChorusProClient,
+  FetchChorusProHttpPort,
+  mapChorusProStatus,
+  resolveChorusProSyntax,
+} from './choruspro-client';
 
 const describeLive = liveDescribe('CHORUSPRO_LIVE', ['CHORUSPRO_CLIENT_ID', 'CHORUSPRO_CLIENT_SECRET']);
 
@@ -129,6 +136,34 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // without also adding the parameter it requires — the deposit will otherwise be rejected.
     const buyerSiret = process.env.CHORUSPRO_BUYER_SIRET ?? '12345678200051';
 
+    // BT-31 (Seller VAT identifier) — REQUIRED here, not optional: the vendored EN 16931 Schematron's
+    // own BR-S-02 (`formats/vendored/en16931/EN16931-CII-validation-preprocessed.sch`) reads —
+    // "An Invoice that contains an Invoice line (BG-25) where the Invoiced item VAT category code
+    // (BT-151) is "Standard rated" shall contain the Seller VAT Identifier (BT-31), the Seller tax
+    // registration identifier (BT-32) and/or the Seller tax representative VAT identifier (BT-63)."
+    // This spec's own line carries `vatRate: '20'` (> 0 → category 'S' via
+    // `build-semantic-invoice.ts#vatCategoryFor`), so BR-S-02 applies — measured live 2026-09-14, the
+    // exact gate rejection this constant fixes ("EN 16931 Schematron gate rejected the CII: BR-S-02:
+    // ...").
+    //
+    // Mechanically DERIVED from the seller SIREN above (332540215), never invented: a French
+    // intra-Community VAT number is `FR` + a 2-digit key + the 9-digit SIREN, key = (12 + 3 × (SIREN
+    // mod 97)) mod 97 (`tax/vat-syntax.ts`'s own header, sourced
+    // https://fr.wikipedia.org/wiki/Num%C3%A9ro_de_TVA_intracommunautaire#France). For 332540215:
+    // SIREN mod 97 = 62, key = (12 + 3×62) mod 97 = 198 mod 97 = 4 → "04" → FR04332540215. Verified
+    // against this codebase's OWN `validateFrVat` (`tax/vat-syntax.ts`) rather than hand-trusted:
+    // `validateFrVat('FR04332540215')` → `{ valid: true, checksumValidated: true }`.
+    //
+    // Only the SELLER needs one: BR-S-02 and its "Standard rated" siblings (BR-S-03/BR-S-04, the
+    // Document-level-allowance/charge variants) name only `SellerTradeParty` /
+    // `SellerTaxRepresentativeTradeParty` in the vendored Schematron — never `BuyerTradeParty`,
+    // confirmed by reading every `BR-S-*` rule directly. The one rule that DOES mention a buyer VAT
+    // id, BR-CO-09, only constrains its PREFIX if one is present ("...shall have a prefix in
+    // accordance with ISO code ISO 3166-1 alpha-2..."), never requires its presence; BR-CO-26 (seller
+    // identifiability) is already satisfied by the seller's own `LEGAL_ID`/SIREN above. So the buyer
+    // intentionally carries no VAT identifier here — not an oversight.
+    const sellerVat = process.env.CHORUSPRO_SELLER_VAT ?? 'FR04332540215';
+
     const SELLER: SemanticPartyInput = {
       name: `Fournisseur ${sellerSiret}`,
       address: '1 rue du Test',
@@ -136,7 +171,10 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
       postalCode: '75001',
       country: 'France',
       email: 'seller@example.fr',
-      partyIdentifiers: [{ scheme: 'LEGAL_ID', value: sellerSiret }],
+      partyIdentifiers: [
+        { scheme: 'LEGAL_ID', value: sellerSiret },
+        { scheme: 'VAT', value: sellerVat },
+      ],
     };
     const BUYER: SemanticPartyInput = {
       name: process.env.CHORUSPRO_BUYER_SIRET ? `Destinataire ${buyerSiret}` : 'Destinataire sans paramètre',
@@ -200,10 +238,15 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     expect(Buffer.from(facturxPdf.slice(0, 5)).toString()).toBe('%PDF-');
 
     // ── Step 3: the REAL deposit. ──
+    // `resolveChorusProSyntax('FACTURX')` — the EXACT call `chorus-pro-transport.ts#send()` makes
+    // (`facturxFormatProvider.syntax` is the fixed string `'FACTURX'`, `facturx-provider.ts`) — rather
+    // than a second hardcoded literal that could silently drift from the one production path actually
+    // uses. Resolves to `IN_DP_E2_CII_FACTURX`; see `choruspro-client.ts`'s own header, "CORRECTED
+    // 2026-09-14 (second correction, same day)", for the Swagger + AIFE community-doc sourcing.
     const depositResult = await client.deposerFlux(
       Buffer.from(facturxPdf),
       `INV-CPR-${timestamp}.pdf`,
-      'IN_DP_E3_FACTUR_X_10',
+      resolveChorusProSyntax('FACTURX'),
     );
     console.log('[choruspro-live] deposit result:', JSON.stringify(depositResult, null, 2));
 

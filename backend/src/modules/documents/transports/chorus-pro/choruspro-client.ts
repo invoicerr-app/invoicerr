@@ -98,6 +98,55 @@
  *    once: wrong API AND wrong path shape, `consulterCR` being one camelCase segment, never
  *    `consulter/cr`).
  *
+ * CORRECTED 2026-09-14 (second correction, same day) — the `deposerFlux` REQUEST BODY itself, never
+ * independently checked against the Swagger before now (only the ROUTE and the RESPONSE shape had
+ * been). Established on the same official Swagger 2.0 `DeposerFluxFactureParam` model (API "Factures",
+ * see above) plus the AIFE community documentation page "Submit flow invoice"
+ * (https://communaute.chorus-pro.gouv.fr/submit-flow-invoice/?lang=en, fetched by `curl`, no auth
+ * needed — a public support article, not a credentialed endpoint), which gives the exact `json in`
+ * example AIFE itself publishes:
+ *   { "idUtilisateurCourant": 331, "fichierFlux": "Fichier encodé en base 64", "nomFichier": "...",
+ *     "syntaxeFlux": "IN_DP_E1_UBL_INVOICE", "avecSignature": true }
+ * Two findings from comparing this to what `deposerFlux()` below used to send:
+ *  1. `syntaxeFlux` for Factur-X was WRONG — the reference's own value, `IN_DP_E3_FACTUR_X_10`, is not
+ *     a member of `DeposerFluxFactureParam.syntaxeFlux`'s enum AT ALL (that enum has 13 values, none
+ *     of them "E3" — there is no E3 depot format in this Swagger). The correct value, confirmed on
+ *     TWO independent sources, is `IN_DP_E2_CII_FACTURX`:
+ *       (a) the Swagger enum itself lists it verbatim (also echoed in `WsRetourDeposerFluxFacture
+ *           .syntaxeFlux` and `RecupererSyntaxeFluxOutput.syntaxeFlux` in the Transverses API);
+ *       (b) the community "Flow examples" page
+ *           (https://communaute.chorus-pro.gouv.fr/documentation/flow-examples/?lang=en, last updated
+ *           16 Apr 2024) names the exact row for this payload shape: "FSO1117A - Factur-X (E2) / Type
+ *           de Flux : IN_DEPOT_DP / Format du flux : IN_DP_E2_MIXTE / Syntaxe du flux :
+ *           IN_DP_E2_CII_FACTURX / Exemple de flux pour le profil en16931" — "en16931" in that last
+ *           line is this exact profile (base EN 16931, not Peppol BIS/XRechnung), which is what
+ *           `facturx-provider.ts` builds. NOTE: that same page's "Format du flux" column reads
+ *           `IN_DP_E2_MIXTE` for this row, NOT `IN_DP_E2_FACTURX` (a value that DOES exist in the
+ *           Transverses API's own `RecupererSyntaxeFluxParam.formatFlux` enum, alongside
+ *           `IN_DP_E1_STRUCT`/`IN_DP_E2_MIXTE` — but `formatFlux` is only ever an INPUT to
+ *           `recupererSyntaxeFlux`, a lookup helper this client does not call; `deposerFlux` itself
+ *           takes no `formatFlux` field at all, only `syntaxeFlux`, so this ambiguity has no bearing on
+ *           the fix here). `resolveChorusProSyntax`'s other two entries (`EN16931_UBL`, `EN16931_CII`)
+ *           and its UBL/unknown-syntax fallback were ALSO outside the enum (`IN_DP_E1_UBL_201`,
+ *           `IN_DP_E2_CII_16B` — neither string appears in it either) — corrected alongside the
+ *           Factur-X one, to the enum members the SAME "Flow examples" page names for the non-minimal
+ *           E1 profiles this codebase's OWN syntax names most plausibly mean: "FSO1100A - UBL Invoice
+ *           (E1) / Syntaxe du flux : IN_DP_E1_UBL_INVOICE" for `EN16931_UBL`/the generic UBL fallback,
+ *           and "FSO1106A - CII16B (E1) / Syntaxe du flux : IN_DP_E1_CII_16B" for `EN16931_CII` — CII
+ *           "D16B" being the UN/CEFACT syntax EN 16931 itself binds to, the same "16B" this codebase's
+ *           own vendored Schematron file names (`EN16931_CII_SCH`). Neither of those two is reachable
+ *           through `chorus-pro-transport.ts` today (it only ever calls `resolveChorusProSyntax`
+ *           with `'FACTURX'`, `facturx-provider.ts`'s own fixed `.syntax`), so this half of the fix is
+ *           defensive/for-correctness rather than something the imminent live deposit depends on.
+ *  2. `avecSignature` (boolean) and `idUtilisateurCourant` (int64) were MISSING from the body entirely
+ *     — the AIFE example above always sends both. `avecSignature: false` is now sent explicitly: this
+ *     is a true, checkable fact about THIS codebase's OWN payload, not a guess about what Chorus Pro
+ *     wants — `facturx-provider.ts` never applies a PAdES/XAdES signature to the Factur-X PDF before
+ *     this call (grepped this file's own build path for any "sign" step: none), so `false` states
+ *     what the file already is, not an assumption about server behaviour.
+ *     `idUtilisateurCourant` is DELIBERATELY NOT ADDED — see `deposerFlux()`'s own doc comment
+ *     immediately below for why this one is a genuine, NOT-YET-ESTABLISHED gap, not an oversight.
+ *
  * NOT independently re-verified: the ACTUAL VALUE VOCABULARY `etatCourantDepotFlux` returns at runtime
  * (VALIDE/REJETE/…, see `mapChorusProStatus`'s own comment) — the Swagger types that field as a bare
  * `string`, no `enum`, for both `consulterCR` and `consulterCRDetaille`. Only the ROUTE, the request
@@ -201,17 +250,23 @@ export interface ChorusProCrResult {
 // Chorus Pro flux syntax codes (UBL / CII / Factur-X)
 // ---------------------------------------------------------------------------
 /** Map from a `formats/format-registry.ts` syntax (`DocumentFormatProvider.syntax` — e.g. "FACTURX",
- *  the SAME string `facturx-provider.ts` exports) to the Chorus Pro `syntaxeFlux` code. */
+ *  the SAME string `facturx-provider.ts` exports) to the Chorus Pro `syntaxeFlux` code — every value
+ *  below is a member of `DeposerFluxFactureParam.syntaxeFlux`'s own Swagger enum (see this file's own
+ *  header, "CORRECTED 2026-09-14 (second correction, same day)", for the sourcing of each one; none of
+ *  the PREVIOUS values here — `IN_DP_E1_UBL_201`, `IN_DP_E2_CII_16B`, `IN_DP_E3_FACTUR_X_10` — were
+ *  members of that enum at all). `FACTURX` is the only entry `chorus-pro-transport.ts` actually
+ *  reaches today (`facturx-provider.ts`'s own fixed `.syntax`); the other two are defensive
+ *  correctness fixes for a caller this file does not yet have. */
 const SYNTAX_MAP: Record<string, string> = {
-  EN16931_UBL: 'IN_DP_E1_UBL_201',
-  EN16931_CII: 'IN_DP_E2_CII_16B',
-  FACTURX: 'IN_DP_E3_FACTUR_X_10',
-  // Fallback to UBL 2.1 for generic UBL
-  UBL: 'IN_DP_E1_UBL_201',
+  EN16931_UBL: 'IN_DP_E1_UBL_INVOICE',
+  EN16931_CII: 'IN_DP_E1_CII_16B',
+  FACTURX: 'IN_DP_E2_CII_FACTURX',
+  // Fallback to the same non-minimal EN 16931 UBL profile as EN16931_UBL above, for generic UBL.
+  UBL: 'IN_DP_E1_UBL_INVOICE',
 };
 
 export function resolveChorusProSyntax(artifactSyntax: string): string {
-  return SYNTAX_MAP[artifactSyntax] ?? 'IN_DP_E1_UBL_201';
+  return SYNTAX_MAP[artifactSyntax] ?? 'IN_DP_E1_UBL_INVOICE';
 }
 
 // ---------------------------------------------------------------------------
@@ -254,8 +309,34 @@ export class ChorusProClient {
    *   Authorization: Bearer <piste_token>
    *   cpro-account:  base64(<login>:<password>)
    *   Content-Type:  application/json;charset=utf-8
-   * Body:
-   *   { syntaxeFlux: string, nomFichier: string, fichierFlux: base64(fileBytes) }
+   * Body (`DeposerFluxFactureParam`, all 5 properties the Swagger model declares — see this file's own
+   * header, "CORRECTED 2026-09-14 (second correction, same day)"):
+   *   { syntaxeFlux: string, nomFichier: string, fichierFlux: base64(fileBytes), avecSignature: boolean,
+   *     idUtilisateurCourant?: number }
+   * `fichierFlux` being base64 is confirmed by the AIFE community example, not merely assumed from the
+   * JSON transport (`consumes: "application/json;charset=utf-8"` — no `format: "byte"` annotation
+   * exists anywhere in the Swagger itself): the "Submit flow invoice" page's own `json in` sample
+   * literally writes `"fichierFlux": "Fichier encodé en base 64"` in that field's place.
+   * `nomFichier` carries NO documented length/character constraint in the Swagger (plain `"type":
+   * "string"`, no `maxLength`/`pattern`) — this method's own caller (`chorus-pro-transport.ts#send()`)
+   * already produces a filesystem-safe, ASCII, `.pdf`-suffixed name (`facturx-<docId>.pdf`, non-alnum
+   * chars stripped), which satisfies every constraint the AIFE example itself demonstrates without this
+   * client needing to re-validate anything undocumented.
+   *
+   * `idUtilisateurCourant` (Chorus Pro's own internal numeric user id — NOT the `cpro-account`
+   * login/password, a DIFFERENT identifier; the AIFE example uses `331`) is a genuine, UNRESOLVED gap,
+   * left out of the body on purpose rather than guessed: the Swagger model declares NO `required` array
+   * at all for `DeposerFluxFactureParam` (contrast `WsRetourDeposerPdfFacture`, which does have one),
+   * so the schema itself does not establish this field as mandatory; a third-party reseller's own docs
+   * (cpro-docs.choruspay.fr, not AIFE, so not trusted as a primary source here) call the same-named
+   * field "required" on a DIFFERENT endpoint (`CompleterFacture`/SAISIE_API), which is suggestive but
+   * not proof for THIS one. `documentation/docs/developer-guide/credentials-guide.md` §3 (the compte
+   * technique provisioning steps, read in full) never surfaces a numeric user id alongside
+   * `CHORUSPRO_TECH_LOGIN`/`_PASSWORD` — only the login string and an auto-generated password. What
+   * WOULD settle this: either a real `deposerFlux` call succeeding/failing on this exact point (a 400
+   * naming `idUtilisateurCourant` would prove it mandatory), or a call to the "Utilisateurs" PISTE API
+   * (subscribed alongside Factures/Transverses per the credentials guide's own step 3) to look up the
+   * compte technique's own numeric id — neither done here, since this file must not call the real API.
    *
    * Returns (`WsRetourDeposerFluxFacture`, confirmed on the official Factures v1.0.0 Swagger 2026-09-14
    * — see this file's own header): `numeroFluxDepot` (the deposit id this method reads, CONFIRMED
@@ -272,11 +353,15 @@ export class ChorusProClient {
   async deposerFlux(
     fileBytes: Buffer,
     fileName: string,
-    syntaxeFlux: string = 'IN_DP_E1_UBL_201',
+    syntaxeFlux: string = 'IN_DP_E1_UBL_INVOICE',
   ): Promise<ChorusProDepositResult> {
     const token = await this._getToken();
     const fichierFlux = fileBytes.toString('base64');
-    const body = { syntaxeFlux, nomFichier: fileName, fichierFlux };
+    // `avecSignature: false` — a fact about THIS payload (no PAdES/XAdES signature is ever applied to
+    // the Factur-X PDF before this call, see this file's own header), not a guess about what Chorus
+    // Pro requires. `idUtilisateurCourant` is deliberately absent — see this method's own doc comment
+    // above for the unresolved gap and what would settle it.
+    const body = { syntaxeFlux, nomFichier: fileName, fichierFlux, avecSignature: false };
     const resp = await this.http.post(
       `${this.config.apiBaseUrl}${CHORUSPRO_PATHS.deposerFlux}`,
       body,

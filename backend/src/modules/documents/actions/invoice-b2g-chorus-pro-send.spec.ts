@@ -231,7 +231,10 @@ describe('B2G FR, end to end at the service level — government client + connec
     expect(mockDeposerFlux).toHaveBeenCalledWith(
       expect.any(Buffer),
       expect.any(String),
-      'IN_DP_E3_FACTUR_X_10',
+      // IN_DP_E2_CII_FACTURX, not IN_DP_E3_FACTUR_X_10 — see choruspro-client.ts's own header,
+      // "CORRECTED 2026-09-14 (second correction, same day)": the old value was never a member of the
+      // Swagger's own `DeposerFluxFactureParam.syntaxeFlux` enum.
+      'IN_DP_E2_CII_FACTURX',
     );
     expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
       'company-1',

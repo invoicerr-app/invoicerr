@@ -124,18 +124,21 @@ describe('mapChorusProStatus', () => {
 // ---------------------------------------------------------------------------
 // resolveChorusProSyntax
 // ---------------------------------------------------------------------------
+// Values below are every one Swagger-verified as an actual member of `DeposerFluxFactureParam
+// .syntaxeFlux`'s enum — see `choruspro-client.ts`'s own header, "CORRECTED 2026-09-14 (second
+// correction, same day)", for the full sourcing (Swagger + the AIFE community "Flow examples" page).
 describe('resolveChorusProSyntax', () => {
-  it('maps EN16931_UBL → IN_DP_E1_UBL_201', () => {
-    expect(resolveChorusProSyntax('EN16931_UBL')).toBe('IN_DP_E1_UBL_201');
+  it('maps EN16931_UBL → IN_DP_E1_UBL_INVOICE', () => {
+    expect(resolveChorusProSyntax('EN16931_UBL')).toBe('IN_DP_E1_UBL_INVOICE');
   });
-  it('maps EN16931_CII → IN_DP_E2_CII_16B', () => {
-    expect(resolveChorusProSyntax('EN16931_CII')).toBe('IN_DP_E2_CII_16B');
+  it('maps EN16931_CII → IN_DP_E1_CII_16B', () => {
+    expect(resolveChorusProSyntax('EN16931_CII')).toBe('IN_DP_E1_CII_16B');
   });
-  it('maps FACTURX → IN_DP_E3_FACTUR_X_10', () => {
-    expect(resolveChorusProSyntax('FACTURX')).toBe('IN_DP_E3_FACTUR_X_10');
+  it('maps FACTURX → IN_DP_E2_CII_FACTURX (was IN_DP_E3_FACTUR_X_10 — not a member of the Swagger enum at all)', () => {
+    expect(resolveChorusProSyntax('FACTURX')).toBe('IN_DP_E2_CII_FACTURX');
   });
-  it('maps unknown syntax → IN_DP_E1_UBL_201 (safe default)', () => {
-    expect(resolveChorusProSyntax('UNKNOWN')).toBe('IN_DP_E1_UBL_201');
+  it('maps unknown syntax → IN_DP_E1_UBL_INVOICE (safe default)', () => {
+    expect(resolveChorusProSyntax('UNKNOWN')).toBe('IN_DP_E1_UBL_INVOICE');
   });
 });
 
@@ -238,7 +241,7 @@ describe('ChorusProClient — deposerFlux', () => {
     expect(Buffer.from(expected, 'base64').toString('utf-8')).toBe(`${login}:${password}`);
   });
 
-  it('sends syntaxeFlux, nomFichier, fichierFlux in the body — fichierFlux is base64 of the RAW bytes, never a UTF-8-decoded round-trip', async () => {
+  it('sends syntaxeFlux, nomFichier, fichierFlux, avecSignature in the body — fichierFlux is base64 of the RAW bytes, never a UTF-8-decoded round-trip', async () => {
     let capturedBody: Record<string, unknown> = {};
     const http = makeHttp({
       post: async (url, body) => {
@@ -248,15 +251,19 @@ describe('ChorusProClient — deposerFlux', () => {
       },
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
-    await client.deposerFlux(FACTURX_BYTES, 'invoice.pdf', 'IN_DP_E3_FACTUR_X_10');
+    await client.deposerFlux(FACTURX_BYTES, 'invoice.pdf', 'IN_DP_E2_CII_FACTURX');
 
-    expect(capturedBody.syntaxeFlux).toBe('IN_DP_E3_FACTUR_X_10');
+    expect(capturedBody.syntaxeFlux).toBe('IN_DP_E2_CII_FACTURX');
     expect(capturedBody.nomFichier).toBe('invoice.pdf');
     // fichierFlux must be base64 of the RAW Buffer — see adaptation §1 (choruspro-client.ts's own
     // header): a UTF-8 string round-trip would corrupt these non-UTF-8 bytes (0xff/0xfe above).
     expect(capturedBody.fichierFlux).toBe(FACTURX_BYTES.toString('base64'));
     // Proves the round-trip is lossless: decoding the captured base64 gives back the EXACT same bytes.
     expect(Buffer.from(capturedBody.fichierFlux as string, 'base64').equals(FACTURX_BYTES)).toBe(true);
+    // avecSignature — see choruspro-client.ts's own header, "CORRECTED 2026-09-14 (second correction,
+    // same day)": missing from the body entirely before this fix; `false` because this codebase never
+    // applies a PAdES/XAdES signature to the Factur-X PDF before this call.
+    expect(capturedBody.avecSignature).toBe(false);
   });
 
   it('extracts numeroFluxDepot from response', async () => {
@@ -298,7 +305,7 @@ describe('ChorusProClient — deposerFlux', () => {
     expect(result.numeroFluxDepot).toBe('');
   });
 
-  it('uses IN_DP_E1_UBL_201 as default syntaxeFlux', async () => {
+  it('uses IN_DP_E1_UBL_INVOICE as default syntaxeFlux (a real Swagger enum member — the previous default, IN_DP_E1_UBL_201, was not)', async () => {
     let capturedBody: Record<string, unknown> = {};
     const http = makeHttp({
       post: async (url, body) => {
@@ -309,7 +316,7 @@ describe('ChorusProClient — deposerFlux', () => {
     });
     const client = new ChorusProClient(BASE_CONFIG, http);
     await client.deposerFlux(FACTURX_BYTES, 'test.pdf');
-    expect(capturedBody.syntaxeFlux).toBe('IN_DP_E1_UBL_201');
+    expect(capturedBody.syntaxeFlux).toBe('IN_DP_E1_UBL_INVOICE');
   });
 });
 
