@@ -1631,101 +1631,20 @@
     }
   },
   "paymentMethods": {
-    "title": "Payment Methods",
-    "description": "Manage reusable payment methods.",
-    "empty": "No payment methods yet.",
-    "actions": {
+    "description": "Choose which payment methods you accept, and the details shown to your clients when each one is enabled.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "noFields": "No additional information needed.",
+    "configure": "Configure",
+    "dialog": {
+      "title": "Configure {{label}}",
+      "description": "These details are shown to your clients on the invoice and by e-mail once this method is enabled.",
       "cancel": "Cancel",
-      "add": "Add",
-      "save": "Save",
-      "edit": "Edit",
-      "delete": "Delete",
-      "deleting": "Deleting..."
+      "save": "Save"
     },
-    "search": {
-      "placeholder": "Search payment methods..."
-    },
-    "list": {
-      "add": "Add payment method",
-      "empty": "No payment methods found"
-    },
-    "stats": {
-      "active": "Active",
-      "inactive": "Inactive",
-      "total": "Total Payment Methods"
-    },
-    "fields": {
-      "name": {
-        "label": "Name",
-        "placeholder": "e.g. Bank transfer (business)"
-      },
-      "details": {
-        "label": "Details",
-        "placeholder": "IBAN / details"
-      },
-      "type": {
-        "label": "Type",
-        "bank_transfer": "Bank transfer",
-        "paypal": "PayPal",
-        "check": "Check",
-        "cash": "Cash",
-        "other": "Other"
-      },
-      "status": {
-        "label": "Status"
-      }
-    },
-    "upsert": {
-      "title": {
-        "create": "Add payment method",
-        "edit": "Edit payment method"
-      },
-      "messages": {
-        "addSuccess": "Payment method added",
-        "addError": "Failed to add payment method",
-        "updateSuccess": "Payment method updated",
-        "updateError": "Failed to update payment method",
-        "deleteSuccess": "Payment method deleted",
-        "deleteError": "Failed to delete payment method",
-        "nameRequired": "Name is required"
-      },
-      "form": {
-        "name": {
-          "label": "Name",
-          "placeholder": "e.g. Bank transfer (business)"
-        },
-        "details": {
-          "label": "Details",
-          "placeholder": "IBAN / details"
-        },
-        "type": {
-          "label": "Type",
-          "bank_transfer": "Bank transfer",
-          "paypal": "PayPal",
-          "check": "Check",
-          "cash": "Cash",
-          "other": "Other"
-        }
-      },
-      "actions": {
-        "cancel": "Cancel",
-        "add": "Add",
-        "save": "Save",
-        "edit": "Edit",
-        "delete": "Delete",
-        "deleting": "Deleting..."
-      }
-    },
-    "tooltips": {
-      "view": "View",
-      "edit": "Edit",
-      "delete": "Delete"
-    },
-    "delete": {
-      "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
-    },
-    "add": {
-      "title": "Add payment method"
+    "messages": {
+      "updateSuccess": "Payment method updated",
+      "updateError": "Failed to update payment method"
     }
   },
   "settings": {
@@ -1863,6 +1782,14 @@
           "currenciesRequired": "Pick both currencies",
           "sameCurrency": "The \"from\" and \"to\" currencies must differ",
           "invalidRate": "Rate must be a positive number"
+        },
+        "attribution": {
+          "text": "Rates for currencies the European Central Bank does not quote are supplied by",
+          "linkLabel": "exchangerate-api.com"
+        },
+        "gaps": {
+          "title": "No automatic rate available",
+          "description": "Neither the European Central Bank feed nor the exchangerate-api.com fallback has ever refreshed these pairs automatically. Any rate shown above for them is whatever was last entered by hand."
         }
       },
       "form": {
@@ -2597,6 +2524,7 @@
       "articles": "Articles",
       "timeTracking": "Time Tracking",
       "bankReconciliation": "Bank reconciliation",
+      "paymentMethods": "Payment methods",
       "stats": "Statistics",
       "settings": "Settings",
       "documents": "Documents"
@@ -3526,6 +3454,25 @@
               }
             }
           },
+          "request-installments": {
+            "label": "Generate installment invoices",
+            "params": {
+              "milestones": {
+                "label": "Milestones",
+                "fields": {
+                  "percent": {
+                    "label": "Percentage"
+                  },
+                  "dueDate": {
+                    "label": "Due date"
+                  }
+                }
+              }
+            }
+          },
+          "request-signature": {
+            "label": "Request signature"
+          },
           "share-link": {
             "label": "Share link"
           }
@@ -3663,6 +3610,23 @@
           },
           "grossAmount": {
             "label": "Gross amount (incl. VAT)"
+          },
+          "lines": {
+            "label": "Lines",
+            "fields": {
+              "description": {
+                "label": "Designation"
+              },
+              "quantity": {
+                "label": "Quantity"
+              },
+              "unitPrice": {
+                "label": "Unit price (excl. VAT)"
+              },
+              "vatRate": {
+                "label": "VAT rate"
+              }
+            }
           }
         },
         "actions": {

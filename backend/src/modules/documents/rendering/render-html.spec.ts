@@ -891,6 +891,109 @@ describe('renderDocumentHtml', () => {
     });
   });
 
+  describe('payment methods', () => {
+    it('renders one item per presentation — label, lines, and a link when present', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [
+          { id: 'bank_transfer', label: 'Bank transfer', lines: ['IBAN: FR1420041010050500013M02606'] },
+          {
+            id: 'paypal',
+            label: 'PayPal',
+            lines: ['PayPal e-mail: billing@acme.test'],
+            link: 'https://www.paypal.com/cgi-bin/webscr?cmd=_xclick',
+          },
+        ],
+      });
+
+      expect(html).toContain('class="payment-methods-section"');
+      expect(html).toContain('Payment methods');
+      expect(html).toContain('Bank transfer');
+      expect(html).toContain('IBAN: FR1420041010050500013M02606');
+      expect(html).toContain('PayPal');
+      expect(html).toContain('PayPal e-mail: billing@acme.test');
+      expect(html).toContain('https://www.paypal.com/cgi-bin/webscr?cmd=_xclick');
+    });
+
+    it('a method with no lines and no link (cash) still gets its own item, just the label', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [{ id: 'cash', label: 'Cash', lines: [] }],
+      });
+
+      expect(html).toContain('class="payment-methods-section"');
+      expect(html).toContain('class="payment-method-label">Cash<');
+    });
+
+    it('renders NOTHING at all — not an empty frame — when `paymentMethods` is absent', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+      });
+
+      expect(html).not.toContain('class="payment-methods-section"');
+      expect(html).not.toContain('Payment methods');
+    });
+
+    it('renders NOTHING when `paymentMethods` is an empty array — no method currently enabled', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [],
+      });
+
+      expect(html).not.toContain('class="payment-methods-section"');
+    });
+
+    it('two DIFFERENTLY-configured methods render visibly different HTML — the actual defect this fixes', () => {
+      const cashOnly = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [{ id: 'cash', label: 'Cash', lines: [] }],
+      });
+      const bankTransferConfigured = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [
+          { id: 'bank_transfer', label: 'Bank transfer', lines: ['IBAN: FR1420041010050500013M02606'] },
+        ],
+      });
+
+      expect(cashOnly).not.toEqual(bankTransferConfigured);
+      expect(bankTransferConfigured).toContain('IBAN: FR1420041010050500013M02606');
+      expect(cashOnly).not.toContain('IBAN');
+    });
+
+    it('the section heading is translated by `language`, the method label/lines never are', () => {
+      const html = renderDocumentHtml({
+        descriptor: { id: 'invoice', label: 'Invoice', fields: [], actions: [] },
+        instance: baseInstance,
+        company: baseCompany,
+        referenceLabels: {},
+        paymentMethods: [{ id: 'cash', label: 'Cash', lines: [] }],
+        language: 'de',
+      });
+
+      expect(html).toContain('Zahlungsmethoden');
+      expect(html).not.toContain('>Payment methods<');
+      expect(html).toContain('Cash');
+    });
+  });
+
   // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — `language` translates ONLY this
   // render layer's OWN chrome vocabulary (`language/pdf-chrome-strings.ts`); `descriptor.label`/
   // `field.label`/`option.label` stay exactly what the descriptor wrote, in every test below, proving

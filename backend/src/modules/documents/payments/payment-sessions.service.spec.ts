@@ -288,10 +288,10 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         params: expect.objectContaining({
           amount: 120, // 12000 minor EUR -> 120.00 major
           currency: 'EUR',
-          // 'card' — one of invoice.descriptor.ts's own FIXED `method` options (a strict 'select'
-          // field; an invented value like "stripe" would 400 at the real action) — see
+          // 'stripe' — payment-methods/stripe.descriptor.ts's own registered id (a strict 'select'
+          // field; an unregistered value would 400 at the real action) — see
           // payment-sessions.service.ts's own comment at this exact call site.
-          method: 'card',
+          method: 'stripe',
         }),
       });
       expect(attachSessionPayment).toHaveBeenCalledWith('session-1', 'payment-new');

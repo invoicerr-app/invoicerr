@@ -1,6 +1,5 @@
 import type { Client } from "./client"
 import type { Company } from "./company"
-import type { PaymentMethod } from "./payment-method"
 
 export enum QuoteStatus {
   DRAFT = "DRAFT",
@@ -46,8 +45,6 @@ export interface Quote {
   totalVAT: number
   totalTTC: number
   currency: string // Currency code, e.g., "EUR", "USD"
-  paymentMethodId?: string
-  paymentMethod?: PaymentMethod
   isActive: boolean
 }
 

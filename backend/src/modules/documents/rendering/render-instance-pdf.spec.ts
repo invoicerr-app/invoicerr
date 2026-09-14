@@ -15,8 +15,20 @@
  * a second time.
  */
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
+import { PaymentMethodPresentation } from '../payment-methods/types';
 import { DocumentTotals } from '../totals/compute-totals';
-import { legalMentionsFor, sepaPaymentQrFor } from './render-instance-pdf';
+import { legalMentionsFor, paymentMethodsFor, sepaPaymentQrFor } from './render-instance-pdf';
+
+// `paymentMethodsFor` needs neither Prisma nor Puppeteer EITHER, once its one real dependency
+// (`resolveEnabledPaymentMethodPresentations`, which DOES touch Prisma — see persistence.spec.ts for
+// that half's own coverage) is mocked at this boundary: this file's own job is only "does the gating
+// (`descriptor.usesPaymentMethods`, the amountMinor>0 guard) forward the right context", the exact
+// same split `sepaPaymentQrFor`'s own header already draws for its own underlying mechanism.
+jest.mock('../payment-methods/persistence');
+const mockedResolvePresentations = resolveEnabledPaymentMethodPresentations as jest.MockedFunction<
+  typeof resolveEnabledPaymentMethodPresentations
+>;
 
 const invoiceDescriptor: DocumentTypeDescriptor = {
   id: 'invoice',
@@ -205,5 +217,88 @@ describe('sepaPaymentQrFor', () => {
     );
 
     expect(result).toBeUndefined();
+  });
+});
+
+describe('paymentMethodsFor', () => {
+  const paymentMethodsDescriptor: DocumentTypeDescriptor = {
+    id: 'invoice',
+    label: 'Invoice',
+    fields: [],
+    actions: [],
+    usesPaymentMethods: true,
+  };
+
+  const nonOptedInDescriptor: DocumentTypeDescriptor = {
+    id: 'quote',
+    label: 'Quote',
+    fields: [],
+    actions: [],
+  };
+
+  const positiveEurTotals: DocumentTotals = {
+    currency: 'EUR',
+    lines: [],
+    netMinor: 10000,
+    vatMinor: 2000,
+    grossMinor: 12000,
+    vatBreakdown: [],
+    warnings: [],
+  };
+
+  const somePresentations: PaymentMethodPresentation[] = [{ id: 'cash', label: 'Cash', lines: [] }];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedResolvePresentations.mockResolvedValue(somePresentations);
+  });
+
+  it('never calls the resolver at all when the type does not opt in — the exact same gate usesPaymentQr holds', async () => {
+    const result = await paymentMethodsFor(nonOptedInDescriptor, 'company-1', positiveEurTotals, {}, null);
+    expect(result).toEqual([]);
+    expect(mockedResolvePresentations).not.toHaveBeenCalled();
+  });
+
+  it('forwards the document’s own currency, a POSITIVE amount, and the display number as the reference', async () => {
+    const result = await paymentMethodsFor(
+      paymentMethodsDescriptor,
+      'company-1',
+      positiveEurTotals,
+      { currency: 'EUR' },
+      'INV-2026-0001',
+    );
+
+    expect(result).toBe(somePresentations);
+    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
+      amountMinor: 12000,
+      currency: 'EUR',
+      reference: 'INV-2026-0001',
+    });
+  });
+
+  it('omits `amountMinor` for a zero/negative total — never hands a method a nonsensical amount', async () => {
+    await paymentMethodsFor(
+      paymentMethodsDescriptor,
+      'company-1',
+      { ...positiveEurTotals, grossMinor: 0 },
+      { currency: 'EUR' },
+      null,
+    );
+
+    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
+      amountMinor: undefined,
+      currency: 'EUR',
+      reference: undefined,
+    });
+  });
+
+  it('omits `currency` when the document data carries none', async () => {
+    await paymentMethodsFor(paymentMethodsDescriptor, 'company-1', positiveEurTotals, {}, null);
+
+    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
+      amountMinor: 12000,
+      currency: undefined,
+      reference: undefined,
+    });
   });
 });

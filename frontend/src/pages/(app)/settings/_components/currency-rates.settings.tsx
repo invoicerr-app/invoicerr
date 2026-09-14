@@ -10,7 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-import type { CurrencyRate } from "@/types"
+import type { CurrencyRate, CurrencyRatePairGap } from "@/types"
+
+/** Must match the backend's `EXCHANGERATE_API_SOURCE` (currency-rate-sweep.ts) exactly — the two
+ *  are never shared across a language boundary in this repo (backend/frontend are independent npm
+ *  projects, no shared package), the same "duplicated literal, not imported" reality this screen
+ *  already accepts for the existing 'manual'/'ecb' source strings it just renders as raw text below. */
+const EXCHANGERATE_API_SOURCE = "exchangerate-api"
 
 /**
  * Minimal CRUD screen for manually-entered exchange rates ("le multi-devises") —
@@ -28,10 +34,24 @@ import type { CurrencyRate } from "@/types"
  * No auto-derived inverse rate anywhere in this screen either: adding EUR→USD does not fill in
  * USD→EUR for you — see convert.ts's `resolveLatestRate` for why (a derived 1/x would be a silent
  * rounding error nobody asked for). A company wanting both directions adds both rows.
+ *
+ * Two more pieces live here, both read-only:
+ *  - The exchangerate-api.com ATTRIBUTION notice — required by that provider's free-tier licence
+ *    (open-er-api-rates-client.ts's own header quotes it verbatim) for any rate the daily sweep could
+ *    only resolve through it as a FALLBACK for a currency the ECB doesn't quote. Deliberately placed
+ *    HERE, never on an invoice PDF — the product owner's own decision, since an invoice is a legal
+ *    document to a third party, not a screen this provider's terms are aimed at — and shown only when
+ *    at least one listed rate actually carries that source, never unconditionally.
+ *  - The GAPS list (`GET .../gaps`) — pairs this company entered that NEITHER automatic source has
+ *    ever been able to refresh. Before this, such a pair silently vanished into the sweep's own
+ *    `skipped` counter, visible only in a server log; this is where "stop the silence" surfaces it to
+ *    the person who can actually do something about it (enter/refresh the rate by hand) rather than
+ *    an operator who cannot.
  */
 export default function CurrencyRatesSettings() {
   const { t } = useTranslation()
   const { data: rates, mutate } = useGet<CurrencyRate[]>("/api/company/currency-rates")
+  const { data: gaps } = useGet<CurrencyRatePairGap[]>("/api/company/currency-rates/gaps")
   const { trigger: createRate, loading: creating } = useMutationWithToast(
     usePost<CurrencyRate>("/api/company/currency-rates"),
     t("settings.company.currencyRates.messages.createError", "Failed to add currency rate"),
@@ -83,6 +103,23 @@ export default function CurrencyRatesSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {rates?.some((r) => r.source === EXCHANGERATE_API_SOURCE) && (
+          <p className="text-xs text-muted-foreground" data-cy="currency-rates-attribution">
+            {t(
+              "settings.company.currencyRates.attribution.text",
+              "Rates for currencies the European Central Bank does not quote are supplied by",
+            )}{" "}
+            <a
+              href="https://www.exchangerate-api.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              {t("settings.company.currencyRates.attribution.linkLabel", "exchangerate-api.com")}
+            </a>
+            .
+          </p>
+        )}
         {rates && rates.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm" data-cy="currency-rates-table">
@@ -122,6 +159,27 @@ export default function CurrencyRatesSettings() {
           <p className="text-sm text-muted-foreground" data-cy="currency-rates-empty">
             {t("settings.company.currencyRates.empty", "No exchange rate entered yet.")}
           </p>
+        )}
+
+        {gaps && gaps.length > 0 && (
+          <div className="space-y-1 border-t pt-4" data-cy="currency-rates-gaps">
+            <p className="text-sm font-medium">
+              {t("settings.company.currencyRates.gaps.title", "No automatic rate available")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "settings.company.currencyRates.gaps.description",
+                "Neither the European Central Bank feed nor the exchangerate-api.com fallback has ever refreshed these pairs automatically. Any rate shown above for them is whatever was last entered by hand.",
+              )}
+            </p>
+            <ul className="text-sm list-disc pl-5">
+              {gaps.map((g) => (
+                <li key={`${g.from}-${g.to}`} data-cy={`currency-rate-gap-${g.from}-${g.to}`}>
+                  {g.from}→{g.to}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end border-t pt-4">

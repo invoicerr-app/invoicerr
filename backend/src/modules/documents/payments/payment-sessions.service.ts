@@ -271,13 +271,15 @@ export class PaymentSessionsService {
           amount: fromMinor(claimed.amountMinor, claimed.currency),
           currency: claimed.currency,
           paidAt: new Date().toISOString(),
-          // 'card' — the closest of invoice.descriptor.ts's own FIXED `method` options
-          // (bank_transfer/card/cash/other; a strict 'select', so an invented value like "stripe"
-          // would 400 here, never silently pass). Genuinely honest for the common case (Stripe
-          // Checkout's own card flow) and close enough for SEPA debit (this app's `method` vocabulary
-          // has no dedicated option for it, no legal weight either way — see that field's own comment);
-          // `note` below carries the actual provider + session id for anyone who needs the detail.
-          method: 'card',
+          // 'stripe' — `payment-methods/stripe.descriptor.ts`'s own registered id, now that
+          // `record-payment.method` is a strict 'select' over `payment-methods/built-in.ts`'s typed
+          // list (invoice.descriptor.ts's own `PAYMENT_METHOD_OPTIONS`) rather than four bare product
+          // strings — an invented value would 400 here, never silently pass. Honest regardless of
+          // which underlying Stripe Checkout flow the payer actually used (card, SEPA debit, ...): the
+          // PROVIDER is what this id names, exactly as "bank_transfer"/"cash" name a channel, not a
+          // specific instrument; `note` below carries the actual provider + session id for anyone who
+          // needs the detail.
+          method: 'stripe',
           note: `Paid via Stripe checkout (${claimed.providerSessionId})`,
         },
       });

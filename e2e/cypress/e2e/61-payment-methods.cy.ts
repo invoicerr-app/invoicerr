@@ -1,0 +1,201 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
+/**
+ * Payment methods — a typed `PaymentMethodDescriptor` per method (payment-methods/), replacing the
+ * bare, information-less `method` string this defect used to hold. A first-class top-level screen
+ * (sidebar "Data" group, next to Clients/Articles), never a settings-screen tab.
+ *
+ * Proven at TWO levels, both driven through the real screen (a real click on the switch, a real
+ * fill-in of the config dialog):
+ *  1. The payment-methods screen ITSELF renders two configured methods differently — cash (zero
+ *     fields) shows nothing beyond its own label; PayPal shows the configured e-mail as a preview
+ *     line. This is the DIRECT proof of the defect this feature fixes ("nothing can render
+ *     differently per method").
+ *  2. The difference reaches all the way to an actual INVOICE PDF: `usesPaymentMethods` (invoice.
+ *     descriptor.ts) means an invoice's own rendered PDF grows a "Payment methods" section once a
+ *     method is enabled, and grows FURTHER once a second, richer method (PayPal, with its own e-mail
+ *     line) joins it — measured by PDF SIZE, the same "a QR/section embeds real bytes no other
+ *     difference explains" technique 48-payment-qr.cy.ts already established for the identical class
+ *     of proof (a PDF's binary content cannot be parsed from Cypress directly).
+ */
+const api = Cypress.env("apiUrl") || "http://localhost:4000";
+
+function createClient() {
+	return cy
+		.request({
+			method: "POST",
+			url: `${api}/api/clients`,
+			body: {
+				name: "Payment Methods Client SARL",
+				contactEmail: "pm-client@example.com",
+				currency: "EUR",
+				country: "FR",
+				address: "1 Rue des Moyens de Paiement",
+				city: "Paris",
+				postalCode: "75001",
+				isActive: true,
+				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "123456789" }],
+			},
+		})
+		.its("body.id");
+}
+
+function createInvoiceDraft(clientId: string) {
+	return cy
+		.request({
+			method: "POST",
+			url: `${api}/api/documents/types/invoice/actions/save-draft`,
+			body: {
+				data: {
+					client: clientId,
+					issueDate: "2026-08-30",
+					dueDate: "2026-09-30",
+					currency: "EUR",
+					lines: [{ description: "Consulting", quantity: 1, unit: "day", unitPrice: 1000, vatRate: "20" }],
+				},
+			},
+		})
+		.then((saved) => {
+			const id = saved.body?.document?.id as string;
+			expect(id, "brouillon de facture créé").to.be.a("string");
+			return id;
+		});
+}
+
+/** Fetches the PDF (binary), verifies it is indeed a PDF, and returns its size in bytes — the same
+ *  helper 48-payment-qr.cy.ts already uses for the identical "prove a content difference from
+ *  Cypress" problem. */
+function pdfSize(id: string): Cypress.Chainable<number> {
+	return cy
+		.request({ url: `${api}/api/documents/${id}/pdf?typeId=invoice`, encoding: "binary" })
+		.then((res) => {
+			expect(res.status, "PDF rendu").to.eq(200);
+			expect(res.headers["content-type"]).to.include("application/pdf");
+			return res.body.length as number;
+		});
+}
+
+describe("Payment methods — configured through the screen, rendered differently per method", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it("the screen offers all five built-in methods, every one disabled on a freshly seeded company", () => {
+		cy.visit("/dashboard");
+		cy.get('[data-cy="sidebar-payment-methods-link"]').click();
+		cy.location("pathname").should("eq", "/payment-methods");
+
+		cy.get('[data-cy="payment-methods-list"]', { timeout: 15000 }).should("be.visible");
+		for (const id of ["bank_transfer", "paypal", "cash", "cheque", "stripe"]) {
+			cy.get(`[data-cy="payment-method-card-${id}"]`).should("be.visible");
+			cy.get(`[data-cy="payment-method-status-${id}"]`).should("contain.text", "Disabled");
+		}
+	});
+
+	it('enabling "Cash" (zero fields) shows only its own label — the empty case, on screen', () => {
+		cy.visit("/payment-methods");
+
+		cy.get('[data-cy="payment-method-toggle-cash"]').click();
+		cy.get('[data-cy="payment-method-status-cash"]').should("contain.text", "Enabled");
+		// The empty case, proven on screen: no preview block at all for a method with zero fields.
+		cy.get('[data-cy="payment-method-preview-cash"]').should("not.exist");
+		cy.get('[data-cy="payment-method-card-no-fields-cash"]').should("be.visible");
+
+		// The API agrees — never trust the DOM alone as proof of what is in the database.
+		cy.request({ url: `${api}/api/payment-methods` })
+			.its("body")
+			.then((methods: { id: string; enabled: boolean; config: Record<string, unknown> }[]) => {
+				const cash = methods.find((m) => m.id === "cash");
+				expect(cash?.enabled, "cash activé côté API").to.eq(true);
+				expect(cash?.config, "cash n'a aucun champ").to.deep.equal({});
+			});
+	});
+
+	it('configuring PayPal\'s e-mail through the dialog, then enabling it, renders a VISIBLY DIFFERENT card than Cash — real fields, a real dialog', () => {
+		cy.visit("/payment-methods");
+
+		cy.get('[data-cy="payment-method-configure-paypal"]').click();
+		cy.get('[data-cy="payment-method-config-dialog"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="payment-method-config-dialog"]')
+			.find('[data-cy="document-field-email-input"]')
+			.type("billing@acme-client.test", { force: true });
+		cy.get('[data-cy="payment-method-config-save"]').click();
+		cy.get('[data-cy="payment-method-config-dialog"]').should("not.exist");
+
+		// Saving the CONFIG alone never enables the method — a deliberate decoupling (see
+		// payment-method-config-dialog.tsx's own header): the card's own switch is the one place
+		// "enabled" is written.
+		cy.get('[data-cy="payment-method-status-paypal"]').should("contain.text", "Disabled");
+		cy.get('[data-cy="payment-method-preview-paypal"]').should(
+			"contain.text",
+			"PayPal e-mail: billing@acme-client.test",
+		);
+
+		cy.get('[data-cy="payment-method-toggle-paypal"]').click();
+		cy.get('[data-cy="payment-method-status-paypal"]').should("contain.text", "Enabled");
+
+		// The rendered difference, ON THIS SCREEN: PayPal shows a real configured line, Cash (from the
+		// previous test, still enabled) shows none at all — the exact defect this feature fixes
+		// ("nothing can render differently per method"), proven for two DIFFERENT methods at once.
+		cy.get('[data-cy="payment-method-preview-paypal"]').should(
+			"contain.text",
+			"PayPal e-mail: billing@acme-client.test",
+		);
+		cy.get('[data-cy="payment-method-card-no-fields-cash"]').should("be.visible");
+	});
+
+	it("the configured difference reaches the actual invoice PDF — Cash+PayPal renders a LARGER PDF than Cash alone", () => {
+		// Baseline set PRECISELY (never assumed from a previous test's own leftover state, which would
+		// make this test's outcome depend on run order): PayPal explicitly disabled via the API — the
+		// screen-driven configuration itself is already proven by the earlier tests in this spec, this
+		// one's own claim is that the PDF actually reflects whatever IS configured.
+		cy.request({
+			method: "PATCH",
+			url: `${api}/api/payment-methods/paypal`,
+			body: { enabled: false },
+		}).its("status").should("be.oneOf", [200, 201]);
+
+		createClient().then((clientId: string) => {
+			// Cash alone: an invoice's PDF already carries a "Payment methods" section (Cash's own
+			// label), but no PayPal line yet.
+			createInvoiceDraft(clientId).then((cashOnlyId) => {
+				pdfSize(cashOnlyId).then((cashOnlySize) => {
+					// Now enable PayPal — through the SCREEN, a real click on a real dialog, exactly like
+					// the earlier tests in this spec.
+					cy.visit("/payment-methods");
+					cy.get('[data-cy="payment-method-configure-paypal"]').click();
+					cy.get('[data-cy="payment-method-config-dialog"]', { timeout: 10000 }).should("be.visible");
+					cy.get('[data-cy="payment-method-config-dialog"]')
+						.find('[data-cy="document-field-email-input"]')
+						.clear({ force: true })
+						.type("billing@acme-client.test", { force: true });
+					cy.get('[data-cy="payment-method-config-save"]').click();
+					cy.get('[data-cy="payment-method-config-dialog"]').should("not.exist");
+					cy.get('[data-cy="payment-method-toggle-paypal"]').click();
+					cy.get('[data-cy="payment-method-status-paypal"]', { timeout: 10000 }).should(
+						"contain.text",
+						"Enabled",
+					);
+
+					createInvoiceDraft(clientId).then((cashAndPaypalId) => {
+						pdfSize(cashAndPaypalId).then((cashAndPaypalSize) => {
+							cy.log(`Cash only = ${cashOnlySize} o | Cash + PayPal = ${cashAndPaypalSize} o`);
+							// PayPal's own e-mail line plus its full "Buy Now" URL is well over a hundred
+							// characters of NEW text on the PDF — a real content difference, not PDF
+							// metadata noise (a timestamp/producer string a re-render can shift by a few
+							// bytes on its own, which is why the margin is generous rather than "any").
+							expect(
+								cashAndPaypalSize,
+								"PayPal's own e-mail line and link add real bytes no other difference explains",
+							).to.be.greaterThan(cashOnlySize + 100);
+						});
+					});
+				});
+			});
+		});
+	});
+});

@@ -2691,5 +2691,410 @@
             "description": "Êtes-vous sûr de vouloir supprimer \"{{description}}\" ? Cette action ne peut pas être annulée."
         }
     },
-    "noOptions": "Aucune option disponible. Créer un nouveau client."
+    "noOptions": "Aucune option disponible. Créer un nouveau client.",
+    "documents": {
+        "descriptors": {
+            "invoice": {
+                "label": "Facture",
+                "fields": {
+                    "client": {
+                        "label": "Client"
+                    },
+                    "origin": {
+                        "label": "Document d'origine"
+                    },
+                    "issueDate": {
+                        "label": "Date"
+                    },
+                    "dueDate": {
+                        "label": "Date d'échéance"
+                    },
+                    "currency": {
+                        "label": "Devise"
+                    },
+                    "notes": {
+                        "label": "Remarques"
+                    },
+                    "clientReference": {
+                        "label": "Référence client / n° de commande"
+                    },
+                    "lines": {
+                        "label": "Lignes",
+                        "fields": {
+                            "description": {
+                                "label": "Désignation"
+                            },
+                            "quantity": {
+                                "label": "Quantité"
+                            },
+                            "unit": {
+                                "label": "Unité"
+                            },
+                            "unitPrice": {
+                                "label": "Prix unitaire"
+                            },
+                            "vatRate": {
+                                "label": "Taux de TVA"
+                            },
+                            "discountPercent": {
+                                "label": "Remise %"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Enregistrer le brouillon"
+                    },
+                    "send": {
+                        "label": "Envoyer"
+                    },
+                    "cancel": {
+                        "label": "Annuler"
+                    },
+                    "record-payment": {
+                        "label": "Enregistrer un paiement",
+                        "params": {
+                            "amount": {
+                                "label": "Montant"
+                            },
+                            "currency": {
+                                "label": "Devise"
+                            },
+                            "paidAt": {
+                                "label": "Payé le"
+                            },
+                            "method": {
+                                "label": "Moyen de paiement",
+                                "options": {
+                                    "bank_transfer": "Virement bancaire",
+                                    "card": "Carte",
+                                    "cash": "Espèces",
+                                    "other": "Autre"
+                                }
+                            },
+                            "note": {
+                                "label": "Note"
+                            }
+                        }
+                    },
+                    "download-xml": {
+                        "label": "Télécharger le XML normalisé",
+                        "params": {
+                            "syntax": {
+                                "label": "Syntaxe",
+                                "options": {
+                                    "cii": "CII (UN/CEFACT Cross Industry Invoice)",
+                                    "ubl": "UBL 2.1",
+                                    "facturx": "Factur-X (PDF/A-3 avec CII intégré)",
+                                    "fa3": "FA(3) — schéma national KSeF polonais",
+                                    "fatturapa": "FatturaPA — schéma national SdI italien",
+                                    "peppol-bis": "Peppol BIS Billing 3.0",
+                                    "xrechnung": "XRechnung 3.0 (KoSIT, Allemagne)"
+                                }
+                            }
+                        }
+                    },
+                    "export-accounting": {
+                        "label": "Exporter vers la comptabilité"
+                    },
+                    "share-link": {
+                        "label": "Lien de partage"
+                    }
+                },
+                "statuses": {
+                    "draft": "Brouillon",
+                    "sending": "Envoi en cours",
+                    "sent": "Envoyée",
+                    "send_failed": "Échec de l'envoi",
+                    "cancelled": "Annulée"
+                },
+                "widgets": {
+                    "invoice:pending": {
+                        "label": "Factures en attente"
+                    },
+                    "invoice:issued-per-month": {
+                        "label": "Factures émises"
+                    },
+                    "invoice:pending-total:consolidated": {
+                        "label": "Total des factures en attente (consolidé, converti)"
+                    },
+                    "invoice:all": {
+                        "label": "Toutes les factures"
+                    },
+                    "invoice:count": {
+                        "label": "Nombre total de factures"
+                    }
+                }
+            },
+            "quote": {
+                "label": "Devis",
+                "fields": {
+                    "client": {
+                        "label": "Client"
+                    },
+                    "issueDate": {
+                        "label": "Date"
+                    },
+                    "dueDate": {
+                        "label": "Date d'échéance"
+                    },
+                    "currency": {
+                        "label": "Devise"
+                    },
+                    "notes": {
+                        "label": "Remarques"
+                    },
+                    "clientReference": {
+                        "label": "Référence client / n° de commande"
+                    },
+                    "lines": {
+                        "label": "Lignes",
+                        "fields": {
+                            "description": {
+                                "label": "Désignation"
+                            },
+                            "quantity": {
+                                "label": "Quantité"
+                            },
+                            "unitPrice": {
+                                "label": "Prix unitaire"
+                            },
+                            "vatRate": {
+                                "label": "Taux de TVA"
+                            },
+                            "discountPercent": {
+                                "label": "Remise %"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Enregistrer le brouillon"
+                    },
+                    "send": {
+                        "label": "Envoyer",
+                        "params": {
+                            "recipient": {
+                                "label": "E-mail du destinataire"
+                            }
+                        }
+                    },
+                    "convert-to-invoice": {
+                        "label": "Convertir en facture"
+                    },
+                    "request-deposit": {
+                        "label": "Demander un acompte",
+                        "params": {
+                            "percent": {
+                                "label": "Pourcentage d'acompte"
+                            }
+                        }
+                    },
+                    "request-installments": {
+                        "label": "Générer les factures d'échéancier",
+                        "params": {
+                            "milestones": {
+                                "label": "Échéances",
+                                "fields": {
+                                    "percent": {
+                                        "label": "Pourcentage"
+                                    },
+                                    "dueDate": {
+                                        "label": "Date d'échéance"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "request-signature": {
+                        "label": "Demander une signature"
+                    },
+                    "share-link": {
+                        "label": "Lien de partage"
+                    }
+                },
+                "statuses": {
+                    "draft": "Brouillon",
+                    "sending": "Envoi en cours",
+                    "sent": "Envoyé",
+                    "send_failed": "Échec de l'envoi",
+                    "signed": "Signé",
+                    "refused": "Refusé"
+                },
+                "widgets": {
+                    "quote:draft": {
+                        "label": "Devis en brouillon"
+                    },
+                    "quote:all": {
+                        "label": "Tous les devis"
+                    },
+                    "quote:sent-count": {
+                        "label": "Devis envoyés"
+                    }
+                }
+            },
+            "credit-note": {
+                "label": "Avoir",
+                "fields": {
+                    "invoice": {
+                        "label": "Facture"
+                    },
+                    "issueDate": {
+                        "label": "Date"
+                    },
+                    "currency": {
+                        "label": "Devise"
+                    },
+                    "notes": {
+                        "label": "Remarques"
+                    },
+                    "correctedLines": {
+                        "label": "Lignes corrigées"
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Enregistrer le brouillon"
+                    },
+                    "send": {
+                        "label": "Envoyer"
+                    },
+                    "share-link": {
+                        "label": "Lien de partage"
+                    }
+                },
+                "statuses": {
+                    "draft": "Brouillon",
+                    "sending": "Envoi en cours",
+                    "sent": "Envoyé",
+                    "send_failed": "Échec de l'envoi"
+                },
+                "widgets": {
+                    "credit-note:all": {
+                        "label": "Tous les avoirs"
+                    }
+                }
+            },
+            "expense": {
+                "label": "Dépense",
+                "fields": {
+                    "description": {
+                        "label": "Description"
+                    },
+                    "amount": {
+                        "label": "Montant"
+                    },
+                    "currency": {
+                        "label": "Devise"
+                    },
+                    "date": {
+                        "label": "Date"
+                    },
+                    "notes": {
+                        "label": "Remarques"
+                    }
+                },
+                "actions": {
+                    "save-draft": {
+                        "label": "Enregistrer"
+                    },
+                    "delete": {
+                        "label": "Supprimer"
+                    }
+                },
+                "statuses": {
+                    "draft": "Brouillon"
+                },
+                "widgets": {
+                    "expense:this-month": {
+                        "label": "Dépenses de ce mois-ci"
+                    },
+                    "expense:this-month:consolidated": {
+                        "label": "Dépenses de ce mois-ci (consolidé, converti)"
+                    },
+                    "expense:all": {
+                        "label": "Toutes les dépenses"
+                    }
+                }
+            },
+            "received-invoice": {
+                "label": "Facture reçue",
+                "fields": {
+                    "supplier": {
+                        "label": "Fournisseur"
+                    },
+                    "supplierClient": {
+                        "label": "Fournisseur lié"
+                    },
+                    "supplierNumber": {
+                        "label": "N° de facture du fournisseur"
+                    },
+                    "issueDate": {
+                        "label": "Date d'émission"
+                    },
+                    "dueDate": {
+                        "label": "Date d'échéance"
+                    },
+                    "currency": {
+                        "label": "Devise"
+                    },
+                    "netAmount": {
+                        "label": "Montant net (hors TVA)"
+                    },
+                    "vatAmount": {
+                        "label": "Montant de la TVA"
+                    },
+                    "grossAmount": {
+                        "label": "Montant brut (TVA incluse)"
+                    },
+                    "lines": {
+                        "label": "Lignes",
+                        "fields": {
+                            "description": {
+                                "label": "Désignation"
+                            },
+                            "quantity": {
+                                "label": "Quantité"
+                            },
+                            "unitPrice": {
+                                "label": "Prix unitaire (hors TVA)"
+                            },
+                            "vatRate": {
+                                "label": "Taux de TVA"
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "receive": {
+                        "label": "Enregistrer"
+                    },
+                    "approve": {
+                        "label": "Approuver"
+                    },
+                    "reject": {
+                        "label": "Rejeter"
+                    },
+                    "delete": {
+                        "label": "Supprimer"
+                    }
+                },
+                "statuses": {
+                    "received": "Reçue",
+                    "approved": "Approuvée",
+                    "rejected": "Rejetée"
+                },
+                "widgets": {
+                    "received-invoice:pending-count": {
+                        "label": "Factures reçues en attente de revue"
+                    },
+                    "received-invoice:pending-amount:consolidated": {
+                        "label": "Factures reçues en attente (consolidé, converti)"
+                    }
+                }
+            }
+        }
+    }
 }

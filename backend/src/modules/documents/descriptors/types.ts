@@ -166,6 +166,24 @@ export interface DocumentTypeDescriptor {
    * byte-for-byte unchanged.
    */
   usesPaymentQr?: boolean;
+  /**
+   * "Payment methods" — opts this type into `payment-methods/`'s own presentation
+   * mechanism: `rendering/render-instance-pdf.ts` resolves the active company's ENABLED payment
+   * methods (payment-methods/persistence.ts's `resolveEnabledPaymentMethodPresentations`) ONLY when
+   * this flag is set, and passes the result to `rendering/render-html.ts`'s own `paymentMethods`
+   * block; `actions/send-document-email.ts` appends the SAME presentations to the covering email.
+   * Same discipline as `usesLegalMentions`/`usesPaymentQr` right above, scaled to a THIRD, orthogonal
+   * payment-related concern: `usesPaymentQr` is ONE specific method (SEPA bank transfer) rendered as a
+   * scannable code; this flag is the general "which of the company's OWN accepted methods does this
+   * document tell the payer about" section, covering every method the company has enabled — bank
+   * transfer included, printed as text here rather than (only) a QR.
+   *
+   * Only `invoice.descriptor.ts` sets this today, for the identical reason `usesPaymentQr` gives:
+   * an invoice is the one document type that actually REQUESTS payment. Absent (the default for every
+   * other type, including third-party ones) means no "Payment methods" block, ever — the existing PDF
+   * and email of every other document type are unchanged.
+   */
+  usesPaymentMethods?: boolean;
 }
 
 /**

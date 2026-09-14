@@ -278,14 +278,6 @@ enum ItemType {
 }
 
 // Payment method types
-enum PaymentMethodType {
-  BANK_TRANSFER
-  PAYPAL
-  CASH
-  CHECK
-  OTHER
-}
-
 // Role of a user within a company (multi-tenancy)
 enum CompanyRole {
   OWNER
@@ -329,6 +321,18 @@ model Company {
   // (BR-DE-19, non-blocking) the moment a document is actually built; duplicating that check on
   // write would be a second, divergent copy of the same rule.
   iban String?
+
+  // BT-86-adjacent (Payment service provider identifier) — the SWIFT/BIC code that pairs with `iban`
+  // above. Written ONLY through `payment-methods/`'s "bank_transfer" method (never through
+  // `EditCompanyDto`/`editCompanyInfo`, unlike `iban` — see that module's own header on why the two
+  // fields share a home but not a write path): this column did not exist before this feature, so
+  // there is no pre-existing settings screen whose behavior a second write path would have to stay
+  // compatible with. Free `String`, same reasoning as `iban`'s own comment — not checksum-validated
+  // here. NOT threaded into `rendering/sepa-qr.ts` (EPC069-12 v002's own field 5 stays deliberately
+  // empty — see that file's header on why v002 was chosen specifically to avoid needing a BIC at
+  // all) or into the semantic XML builder — both are a separate, unrequested piece of work; this
+  // column exists to satisfy `payment-methods/bank-transfer.descriptor.ts`'s own presentation only.
+  bic String?
 
   // DEAD COLUMNS, kept but never written any more (deliberately not dropped — that is a separate,
   // irreversible step). They belonged to a Prisma query extension removed on this branch (see
@@ -415,7 +419,7 @@ model Company {
   // sending it IS the approval (there is deliberately no separate "approve" action or actor to record).
   approvalThresholdMinor Int?
 
-  createdAt               DateTime                    @default(now())
+  createdAt               DateTime                     @default(now())
   emailTemplates          MailTemplate[]
   webhooks                Webhook[]
   Article                 Article[]
@@ -447,6 +451,8 @@ model Company {
   bankStatementLines      BankStatementLine[]
   // TODO_FEATURES.md rank 1 ("paiement en ligne") — see PaymentCheckoutSession below.
   paymentCheckoutSessions PaymentCheckoutSession[]
+  // See CompanyPaymentMethodConfig below.
+  paymentMethodConfigs    CompanyPaymentMethodConfig[]
 }
 
 // Manually entered exchange rates. The rule that governs
@@ -1292,8 +1298,15 @@ model DocumentPayment {
   // re-join `CurrencyRate` just to say where the pinned rate came from.
   conversionSource    String?
 
-  // Plain product labels (bank_transfer / card / cash / other), never a legal classification — see
-  // invoice.descriptor.ts's own comment on the "record-payment" action's `method` param.
+  // A `payment-methods/built-in.ts` id ("bank_transfer", "paypal", "cash", "cheque", "stripe") for a
+  // row recorded after that module shipped — never a legal classification, see invoice.descriptor.ts's
+  // own comment on the "record-payment" action's `method` param. A row recorded BEFORE it (this
+  // column predates the typed registry) may still carry one of the two OLD bare-string labels that
+  // module never reused ("card", "other" — see built-in.ts's own header): this column was never an
+  // enum, so nothing here changed at the DATABASE level, only what a NEW write is checked against.
+  // `PaymentMethodRegistry.resolve()` returns undefined (never throws) for a value it never
+  // registered, precisely so a reader of an old row degrades to showing the raw string honestly,
+  // rather than crashing on data that was always valid for this column.
   method String?
   paidAt DateTime
   note   String?
@@ -1340,15 +1353,15 @@ model DocumentPayment {
 // `@@unique([providerId, providerSessionId])` is what makes a session individually addressable from an
 // inbound webhook, which carries the PROVIDER's own session id, never this row's own `id`.
 model PaymentCheckoutSession {
-  id         String   @id @default(cuid())
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id         String           @id @default(cuid())
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId  String
   document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId String
 
   // A `payments/payment-provider-registry.ts` id — "stripe" today, the same "a provider registers
   // itself under an id" convention `transports/transport-registry.ts`'s own `providerId` already holds.
-  providerId String
+  providerId        String
   // The PROVIDER's own session/checkout id (Stripe's `cs_...`) — what an inbound webhook event names,
   // never this row's own `id`. Unique per provider (never reused): what makes `findSessionByProviderRef`
   // an exact, non-ambiguous lookup.
@@ -2131,6 +2144,45 @@ model CompanyChannelConfig {
   updatedAt   DateTime           @updatedAt
 
   @@unique([companyId, providerId, environment])
+  @@index([companyId])
+}
+
+// A company's own PAYMENT METHOD configuration — which of `payment-methods/*.descriptor.ts`'s
+// registered methods it accepts, and the values it supplies for each one's own COMPANY-level fields
+// (a PayPal e-mail, a cheque payee...). Plain, UNENCRYPTED `Json`: every field every BUILT-IN method
+// declares today is something the payer is meant to SEE (an account e-mail, a payee name) — never a
+// secret an attacker reading a DB dump could use, the same "printed, not a credential" distinction
+// `CompanySigningCertificate`'s own header draws for Portugal's ATCUD validation code. A method whose
+// FUTURE field genuinely IS a credential (an API key, a client secret) must not be added here — it
+// belongs in `CompanyChannelConfig` above instead, through `ChannelCredentialsService`, the same
+// encrypted store (`CREDENTIALS_ENCRYPTION_KEY`) every national transport already uses.
+//
+// `bank_transfer` is the ONE documented exception, but only for its FIELD VALUES: the two fields
+// (IBAN/BIC) already had a home before this feature existed — `Company.iban`/`Company.bic`, the
+// columns the pre-existing SEPA-QR feature (`rendering/sepa-qr.ts`) already reads — so
+// `payment-methods/persistence.ts` bridges reads/writes of THOSE to those columns instead
+// of this table's own `config`, rather than inventing a second, possibly-drifting place to hold the
+// same fact. A row for `methodId: "bank_transfer"` still exists here, the same as for every other
+// method — its `enabled` flag is a genuinely SEPARATE choice from "is an IBAN on file" (a company may
+// keep an IBAN on file for the SEPA QR alone while not offering "Bank transfer" as an accepted method,
+// or vice versa) — only this one row's own `config` column is never read, always left `{}`.
+//
+// `enabled` is what a company's own "which methods do I offer" choice writes — a method with fields
+// filled in but `enabled: false` keeps its values on file (so re-enabling it later doesn't ask again)
+// without being offered to a payer or printed on a document. Absent row for a given `methodId`: the
+// method is simply unconfigured — every consumer (the invoice's "Payment methods" PDF/email section,
+// `record-payment`'s own `method` options) treats that exactly like `enabled: false`, never a crash.
+model CompanyPaymentMethodConfig {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  methodId  String // a payment-methods/payment-method-registry.ts id, e.g. "paypal"
+  enabled   Boolean  @default(false)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, methodId])
   @@index([companyId])
 }
 

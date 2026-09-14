@@ -3,6 +3,7 @@ import { logger } from '@/logger/logger.service';
 
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
+import { appendPaymentMethodsToEmail } from '../payment-methods/email-block';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
 import { applyStockOnIssuance } from '../stock/apply-stock-on-issuance';
@@ -145,7 +146,26 @@ export async function sendDocumentInstanceEmail(
     totals: rendered.totals,
     referenceLabels: rendered.referenceLabels,
   });
-  const { subject, body, html, warnings } = renderEmailTemplate(template, parts);
+  const { subject, body: renderedBody, html: renderedHtml, warnings } = renderEmailTemplate(template, parts);
+
+  // "Payment methods" — the SAME presentations `rendered.pdf` just printed
+  // (`descriptor.usesPaymentMethods`, resolved once by `renderDocumentInstance` above and reused here
+  // — never a second, independently-resolved read), appended AFTER the company's own template was
+  // interpolated — see appendPaymentMethodsToEmail's own header for why this is a glued-on block,
+  // never a `{placeholder}`. A no-op (byte-for-byte the same `body`/`html`) whenever
+  // `rendered.paymentMethods` is empty — a document type that never opted in, or a company with
+  // nothing currently enabled.
+  const { body, html } = appendPaymentMethodsToEmail(
+    renderedBody,
+    renderedHtml,
+    // `?? []` — defensive, not load-bearing for a real render (renderDocumentInstance always sets
+    // this array, empty or not): several pre-existing specs mock `renderDocumentInstance` with a
+    // loosely-typed `jest.Mock` that predates this field and never sets it (see
+    // send-document-email.spec.ts) — those must keep producing byte-for-byte the same email they
+    // always did, never a crash on a field their own mock never populated.
+    rendered.paymentMethods ?? [],
+    rendered.language,
+  );
 
   for (const warning of warnings) {
     logger.warn(`Document email template: ${warning}`, {

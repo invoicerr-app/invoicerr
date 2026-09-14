@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 
-import { useDocumentSettlement } from "@/hooks/queries"
+import { useDocumentSettlement, usePaymentMethods } from "@/hooks/queries"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -118,6 +118,14 @@ interface DocumentSettlementSectionProps {
 export function DocumentSettlementSection({ typeId, documentId }: DocumentSettlementSectionProps) {
   const { t } = useTranslation()
   const { data, isLoading } = useDocumentSettlement(typeId, documentId)
+  // A payment's own `method` (e.g. "bank_transfer") is a `payment-methods/built-in.ts` id, not a
+  // label — resolved here against the SAME registry the payment-methods screen itself reads, so the
+  // two never disagree about what a method is called. Falls back to the raw id (never blank, never a
+  // crash) for a LEGACY value the registry never registered ("card"/"other" — see that module's own
+  // built-in.ts header) — an old payment still renders exactly what was recorded.
+  const { data: paymentMethods } = usePaymentMethods()
+  const methodLabel = (methodId: string): string =>
+    paymentMethods?.find((method) => method.id === methodId)?.label ?? methodId
 
   if (isLoading) {
     return (
@@ -207,7 +215,9 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
                     </span>
                   )}
                 </span>
-                {payment.method && <span className="text-muted-foreground">{payment.method}</span>}
+                {payment.method && (
+                  <span className="text-muted-foreground">{methodLabel(payment.method)}</span>
+                )}
               </li>
             ))}
           </ul>

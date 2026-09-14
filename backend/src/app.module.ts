@@ -15,6 +15,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AccountingExportModule } from './modules/documents/accounting-export/accounting-export.module';
 import { BankReconciliationModule } from './modules/documents/bank-reconciliation/bank-reconciliation.module';
 import { PaymentsModule } from './modules/documents/payments/payments.module';
+import { PaymentMethodsModule } from './modules/documents/payment-methods/payment-methods.module';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
@@ -117,6 +118,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // route lives inside ClientPortalModule instead (this feature's own brief: "sit inside that same
     // boundary, not beside it").
     PaymentsModule,
+    // A company's own accepted payment methods (bank transfer, PayPal, cash, cheque, Stripe) — its
+    // own top-level nav entity (next to Clients/Articles), never a settings-screen tab. Same
+    // "type-adjacent, standalone module, importing DocumentsCoreModule directly" placement as
+    // PaymentsModule right above — see payment-methods.module.ts's own header.
+    PaymentMethodsModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,
     PluginsModule,

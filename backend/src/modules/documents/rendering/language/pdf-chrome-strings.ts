@@ -41,6 +41,11 @@ export interface PdfChromeStrings {
   no: string;
   draftNoNumberYet: string;
   scanToPaySepa: string;
+  /** Heading of the "Payment methods" section — see `render-html.ts`'s own `paymentMethods` input and
+   *  `descriptors/types.ts#usesPaymentMethods`. Each METHOD's own `label` (below the heading) stays
+   *  untranslated, the same "plain data" convention every descriptor label already holds — only this
+   *  section's heading is this render layer's OWN chrome. */
+  paymentMethodsHeading: string;
 }
 
 const EN: PdfChromeStrings = {
@@ -54,6 +59,7 @@ const EN: PdfChromeStrings = {
   no: 'No',
   draftNoNumberYet: 'Draft — no number yet',
   scanToPaySepa: 'Scan to pay (SEPA)',
+  paymentMethodsHeading: 'Payment methods',
 };
 
 const FR: PdfChromeStrings = {
@@ -67,6 +73,7 @@ const FR: PdfChromeStrings = {
   no: 'Non',
   draftNoNumberYet: 'Brouillon — pas encore de numéro',
   scanToPaySepa: 'Scannez pour payer (SEPA)',
+  paymentMethodsHeading: 'Moyens de paiement',
 };
 
 const IT: PdfChromeStrings = {
@@ -80,6 +87,7 @@ const IT: PdfChromeStrings = {
   no: 'No',
   draftNoNumberYet: 'Bozza — numero non ancora assegnato',
   scanToPaySepa: 'Scansiona per pagare (SEPA)',
+  paymentMethodsHeading: 'Metodi di pagamento',
 };
 
 const PL: PdfChromeStrings = {
@@ -93,6 +101,7 @@ const PL: PdfChromeStrings = {
   no: 'Nie',
   draftNoNumberYet: 'Wersja robocza — brak numeru',
   scanToPaySepa: 'Zeskanuj, aby zapłacić (SEPA)',
+  paymentMethodsHeading: 'Metody płatności',
 };
 
 const DE: PdfChromeStrings = {
@@ -106,6 +115,7 @@ const DE: PdfChromeStrings = {
   no: 'Nein',
   draftNoNumberYet: 'Entwurf — noch keine Nummer',
   scanToPaySepa: 'Zum Bezahlen scannen (SEPA)',
+  paymentMethodsHeading: 'Zahlungsmethoden',
 };
 
 const PT: PdfChromeStrings = {
@@ -119,6 +129,7 @@ const PT: PdfChromeStrings = {
   no: 'Não',
   draftNoNumberYet: 'Rascunho — sem número ainda',
   scanToPaySepa: 'Digitalize para pagar (SEPA)',
+  paymentMethodsHeading: 'Formas de pagamento',
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {

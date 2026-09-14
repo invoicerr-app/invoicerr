@@ -91,3 +91,8 @@ export {
   type ImportBankStatementVariables,
   type ReconcileBankStatementLineVariables,
 } from "./use-bank-reconciliation"
+export {
+  usePaymentMethods,
+  useUpdatePaymentMethod,
+  type UpdatePaymentMethodVariables,
+} from "./use-payment-methods"

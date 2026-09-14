@@ -5,6 +5,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Clock,
+  CreditCard,
   FileStack,
   FileText,
   Landmark,
@@ -149,6 +150,12 @@ export function Sidebar() {
       url: "/bank-reconciliation",
       dataCy: "sidebar-bank-reconciliation-link",
     },
+    {
+      title: t("sidebar.navigation.paymentMethods"),
+      icon: <CreditCard className="w-4 h-4" />,
+      url: "/payment-methods",
+      dataCy: "sidebar-payment-methods-link",
+    },
   ]
 
   const trailingItems: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
@@ -173,6 +180,14 @@ export function Sidebar() {
   // collapsed would hide the normal case behind an extra click.
   const [documentsOpen, setDocumentsOpen] = useState(true)
   const { data: availableTypes, isLoading: typesLoading } = useAvailableDocumentTypes()
+
+  // The "Data" group: collapsible on the exact same mechanic as Documents right above (a toggle
+  // SidebarMenuButton + SidebarMenuSub, no persistence beyond this session) — see dataItems' own
+  // definition above and this group's own JSX comment for why it stopped being a fixed, un-collapsible
+  // pair once Time tracking/Bank reconciliation/Payment methods joined Clients/Articles here. Open by
+  // default for the same reason Documents already is: every one of these screens is something most
+  // companies actually use, so starting collapsed would hide the normal case behind an extra click.
+  const [dataOpen, setDataOpen] = useState(true)
 
   const handleLogout = async () => {
     await authClient.signOut()
@@ -352,30 +367,46 @@ export function Sidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* "A data category — Clients, Articles": its own labeled group, deliberately NOT
-            collapsible (unlike Documents) — these two are always the same fixed pair, nothing here
-            depends on the active company's country. */}
+        {/* "Data" — a collapsible group, on the exact same mechanic as "Documents" right above
+            (a toggle SidebarMenuButton + SidebarMenuSub, open by default, no cross-session
+            persistence). It USED TO be a fixed, un-collapsible pair (Clients, Articles) — that
+            stopped being true the moment Time tracking and Bank reconciliation joined it, and is
+            even less true now that Payment methods has too: this is simply every per-company
+            OPERATIONAL RECORD screen that isn't itself a DocumentTypeDescriptor (which is what the
+            Documents group above already covers, country by country) — a growing list, not a fixed
+            pair, hence the same collapse affordance Documents already needed for the same reason. */}
         <SidebarGroup className="px-0">
-          <SidebarGroupLabel>{t("sidebar.groups.data")}</SidebarGroupLabel>
           <SidebarMenu>
-            {dataItems.map((item) => (
-              <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton asChild>
-                  <Link
-                    data-cy={item.dataCy}
-                    to={item.url}
-                    className={`flex items-center gap-2 py-6 ${
-                      location.pathname.startsWith(item.url)
-                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                        : ""
-                    }`}
-                  >
-                    {item.icon}
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="flex items-center gap-2 py-6"
+                onClick={() => setDataOpen((open) => !open)}
+                data-cy="sidebar-data-group-toggle"
+              >
+                <Users className="w-4 h-4" />
+                <span className="flex-1">{t("sidebar.groups.data")}</span>
+                {dataOpen ? (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {dataOpen && (
+              <SidebarMenuSub>
+                {dataItems.map((item) => (
+                  <SidebarMenuSubItem key={item.url}>
+                    <SidebarMenuSubButton asChild isActive={location.pathname.startsWith(item.url)}>
+                      <Link data-cy={item.dataCy} to={item.url}>
+                        {item.icon}
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))}
+              </SidebarMenuSub>
+            )}
           </SidebarMenu>
         </SidebarGroup>
 

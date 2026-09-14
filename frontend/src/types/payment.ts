@@ -1,5 +1,4 @@
 import type { Invoice } from "./invoice"
-import type { PaymentMethod } from "./payment-method"
 
 export interface PaymentItem {
   id: string
@@ -22,6 +21,4 @@ export interface Payment {
   paidAt?: string // ISO date string — when the payment was received
   createdAt: string // ISO date string
   updatedAt: string // ISO date string
-  paymentMethodId?: string
-  paymentMethod?: PaymentMethod
 }

@@ -1,6 +1,5 @@
 import type { Client } from "./client"
 import type { Company } from "./company"
-import type { PaymentMethod } from "./payment-method"
 
 export enum InvoiceStatus {
   DRAFT = "DRAFT",
@@ -175,8 +174,6 @@ export interface Invoice {
   issuedAt?: string // ISO date string — set at DRAFT→ISSUED transition
   dueDate: string // ISO date string
   paidAt?: string // ISO date string
-  paymentMethodId?: string // Reference to saved payment method
-  paymentMethod?: PaymentMethod // Linked PaymentMethod object
   notes?: string
   discountRate?: number
   totalHT: number
@@ -267,8 +264,6 @@ export interface RecurringInvoice {
   companyId: string
   company: Company
   items: RecurringInvoiceItem[]
-  paymentMethodId?: string
-  paymentMethod?: PaymentMethod // Linked PaymentMethod object
   notes?: string
   totalHT: number
   totalVAT: number

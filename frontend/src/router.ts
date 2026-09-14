@@ -14,6 +14,7 @@ export type Path =
   | `/dashboard`
   | `/documents`
   | `/documents/:typeId`
+  | `/payment-methods`
   | `/portal`
   | `/portal/:token`
   | `/settings/:tab?`

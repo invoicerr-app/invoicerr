@@ -83,3 +83,12 @@ export interface CurrencyRate {
   source: string
   createdAt: string
 }
+
+/** GET /api/company/currency-rates/gaps — a pair this company entered by hand that the daily sweep
+ *  has never been able to refresh from either automatic source (ECB, or the open.er-api.com
+ *  fallback). See the backend's `currency-rates.store.ts#listCurrencyRatePairsWithoutAutomaticRate`
+ *  for the full contract. */
+export interface CurrencyRatePairGap {
+  from: string
+  to: string
+}

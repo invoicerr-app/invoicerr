@@ -9,6 +9,8 @@ import { DocumentTypeDescriptor } from '../descriptors/types';
 import { extractCrossBorderMentions } from '../formats/shared-build';
 import { resolveInvoiceNotes, ResolvedInvoiceNote } from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
+import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
+import { PaymentMethodPresentation } from '../payment-methods/types';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals';
 import { RenderLanguage } from './language/supported-languages';
@@ -128,6 +130,35 @@ export async function sepaPaymentQrFor(
 }
 
 /**
+ * "Payment methods" — resolves the "how to pay" block for ONE instance, gated
+ * the same layered way `sepaPaymentQrFor` right above is: this document TYPE must opt in
+ * (`descriptor.usesPaymentMethods`), and even then, an empty array (no method the company has
+ * ENABLED — `payment-methods/persistence.ts`) is a perfectly normal outcome, not an error — see that
+ * function's own header, and `render-html.ts`'s own "nothing, not an empty frame" rule for `paymentMethods`.
+ *
+ * `amountMinor` is passed only when POSITIVE — the exact same guard `sepaPaymentQrFor` holds for its
+ * own QR — so a zero/negative-total document (nothing owed) never hands a method a nonsensical amount
+ * to build a "pay X" link from; every built-in method already degrades to "no link" without one (see
+ * `PaymentMethodRenderContext`'s own header), this is only the belt to that braces.
+ */
+export async function paymentMethodsFor(
+  descriptor: DocumentTypeDescriptor,
+  companyId: string,
+  totals: DocumentTotals,
+  data: Record<string, unknown>,
+  displayNumber: string | null | undefined,
+): Promise<PaymentMethodPresentation[]> {
+  if (!descriptor.usesPaymentMethods) return [];
+
+  const currency = typeof data.currency === 'string' ? data.currency : undefined;
+  return resolveEnabledPaymentMethodPresentations(companyId, {
+    amountMinor: totals.grossMinor > 0 ? totals.grossMinor : undefined,
+    currency,
+    reference: displayNumber ?? undefined,
+  });
+}
+
+/**
  * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — resolves the document's own
  * recipient language, ahead of the render, from the SAME client id `referenceLabels` above already
  * resolves a display name for (`findClientReferenceField`, the one rule `actions/email-template.ts`
@@ -179,6 +210,12 @@ export interface RenderedDocumentInstance {
    *  was just rendered in for the accompanying email's own default template — see
    *  `language/resolve-recipient-language.ts`. Computed once, here, never twice. */
   language: RenderLanguage;
+  /** REUSED by the send path the exact same way `totals`/`referenceLabels`/`companyName` already are
+   *  — the SAME "Payment methods" presentations just printed on the PDF, appended to the covering
+   *  email (`actions/send-document-email.ts`) so the two never disagree about which methods a company
+   *  currently offers. Empty for a type that never opts in (`descriptor.usesPaymentMethods`), or one
+   *  that opts in with nothing currently enabled — see `paymentMethodsFor`'s own header. */
+  paymentMethods: PaymentMethodPresentation[];
 }
 
 /**
@@ -269,6 +306,13 @@ export async function renderDocumentInstance(
 
   const totals = computeDocumentTotals(descriptor, instanceData);
   const language = await recipientLanguageFor(companyId, descriptor, company.language, instanceData);
+  const paymentMethods = await paymentMethodsFor(
+    descriptor,
+    companyId,
+    totals,
+    instanceData,
+    instance.displayNumber,
+  );
 
   const html = renderDocumentHtml({
     descriptor,
@@ -286,6 +330,7 @@ export async function renderDocumentInstance(
     language,
     legalMentions: legalMentionsFor(descriptor, company.country, instanceData),
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
+    paymentMethods,
   });
 
   // Portugal's ATCUD "on every page" (Portaria n.º 195/2020, art. 4.º n.º 3) — the SAME string just
@@ -295,5 +340,5 @@ export async function renderDocumentInstance(
   // `atcud` at all — every non-Portuguese, or non-invoice, PDF keeps the exact page setup it always had.
   const pdf = await renderPdf(html, instance.atcud ? { footerText: instance.atcud } : {});
 
-  return { pdf, totals, referenceLabels, companyName: company.name, language };
+  return { pdf, totals, referenceLabels, companyName: company.name, language, paymentMethods };
 }

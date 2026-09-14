@@ -1,5 +1,6 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { decimalsFor, fromMinor } from '@/utils/financial';
+import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
 import { pdfChromeStrings, PdfChromeStrings } from './language/pdf-chrome-strings';
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from './language/supported-languages';
@@ -221,6 +222,18 @@ export interface RenderDocumentHtmlInput {
    */
   paymentQr?: { dataUri: string };
   /**
+   * "Payment methods" — every ENABLED payment method's own presentation
+   * (payment-methods/persistence.ts#resolveEnabledPaymentMethodPresentations, gated by the caller on
+   * `descriptor.usesPaymentMethods` — see that flag's own header in descriptors/types.ts). A TOP-LEVEL
+   * input, the same reasoning `paymentQr` right above already gives: this is the outcome of resolving
+   * THIS company's own configuration against THIS document's own amount/currency, not a fact about the
+   * company header block. Absent OR EMPTY prints NO block at all — the same "nothing, not an empty
+   * frame" discipline `paymentQr`/`legalMentions` already hold, so a company with no method enabled
+   * yet, or a document type that never opts in, renders byte-for-byte the same HTML this function
+   * always produced.
+   */
+  paymentMethods?: PaymentMethodPresentation[];
+  /**
    * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — which language this render's
    * OWN chrome vocabulary (`language/pdf-chrome-strings.ts`: "Status", "Totals", "VAT … on …", …) is
    * printed in. Resolved by the caller (`render-instance-pdf.ts`, from the document's own client and
@@ -437,6 +450,38 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       font-size: 12px;
       color: #555;
     }
+    .payment-methods-section {
+      margin-top: 16px;
+      padding: 12px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    .payment-methods-heading {
+      font-size: 12px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    .payment-method-item {
+      margin-bottom: 8px;
+    }
+    .payment-method-item:last-child {
+      margin-bottom: 0;
+    }
+    .payment-method-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #333;
+    }
+    .payment-method-line {
+      font-size: 11px;
+      color: #555;
+    }
+    .payment-method-link {
+      font-size: 11px;
+      color: #1a5fb4;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -565,6 +610,30 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       <div class="payment-qr-label">${escapeHtmlSafe(strings.scanToPaySepa)}</div>
     </div>
 `;
+  }
+
+  // "Payment methods" — see `paymentMethods`'s own header above. Prints NOTHING
+  // when the array is absent or empty (no method enabled, or a type that never opts in) — same rule
+  // `paymentQr` right above already holds.
+  if (input.paymentMethods && input.paymentMethods.length > 0) {
+    html += `
+    <div class="payment-methods-section">
+      <div class="payment-methods-heading">${escapeHtmlSafe(strings.paymentMethodsHeading)}</div>
+`;
+    for (const method of input.paymentMethods) {
+      html += `
+      <div class="payment-method-item">
+        <div class="payment-method-label">${escapeHtmlSafe(method.label)}</div>
+`;
+      for (const line of method.lines) {
+        html += `        <div class="payment-method-line">${escapeHtmlSafe(line)}</div>\n`;
+      }
+      if (method.link) {
+        html += `        <div class="payment-method-link">${escapeHtmlSafe(method.link)}</div>\n`;
+      }
+      html += `      </div>\n`;
+    }
+    html += `    </div>\n`;
   }
 
   // Mandatory mentions get their OWN footer block, never mixed into the fields

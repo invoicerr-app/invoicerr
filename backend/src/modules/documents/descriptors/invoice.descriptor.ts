@@ -1,10 +1,30 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
+import { BUILT_IN_PAYMENT_METHODS } from '../payment-methods/built-in';
 import { transitionsAvailableWhen } from './lifecycle';
 import { standardDocumentEmailTranslations } from './standard-email-translations';
 import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as the quote's — see quote.descriptor.ts. */
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
+
+/**
+ * "record-payment"'s own `method` options — generated from `payment-methods/built-in.ts`'s own list,
+ * never hand-typed here: before this, this array WAS the whole payment-method vocabulary (four bare
+ * strings, "product labels... carrying no fiscal meaning" — see this file's own comment on `method`
+ * just below), which is exactly the defect `payment-methods/` replaces. Now it is a VIEW over that
+ * module's own registry — adding a SIXTH method (payment-methods/built-in.ts) grows this list for
+ * free, with no edit needed here. `bank_transfer`/`cash` keep the exact ids the old hardcoded list
+ * used — see built-in.ts's own header on why an EXISTING `DocumentPayment.method` of either still
+ * resolves correctly with no migration of its own data. Not COMPANY-scoped (unlike `vatRate`'s own
+ * `usesVatRateCatalog` options — vat-rates/): a payment method is never a country fact, so every
+ * company sees the exact same five options, regardless of which ones it has actually enabled in its
+ * own payment-methods screen — recording how a client ACTUALLY paid is a bookkeeping fact, not
+ * conditioned on what this company currently advertises accepting.
+ */
+const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
+  value: method.id,
+  label: method.label,
+}));
 
 /**
  * The invoice document type — the SECOND type written entirely as data, on the model of
@@ -267,9 +287,13 @@ const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_f
  *    belongs to a separate feature, not this one).
  *  - `paidAt`: defaults to TODAY via the same params-defaults resolver, editable for a payment
  *    received earlier and only just being recorded.
- *  - `method`: PRODUCT labels, not a legal classification — "how the customer says they paid",
- *    useful for a bookkeeper skimming a list, carrying no fiscal meaning of its own. Optional: a
- *    payment can be recorded before its method is known or worth naming.
+ *  - `method`: "how the customer says they paid" — useful for a bookkeeper skimming a list, carrying
+ *    no fiscal meaning of its own (a legally mandated mention is chosen by COUNTRY, never by payment
+ *    method — mentions/ never reads this). Its `options` (`PAYMENT_METHOD_OPTIONS`, above) are now a
+ *    VIEW over `payment-methods/built-in.ts`'s own typed registry rather than four hand-typed strings
+ *    — see that constant's own header for the full "why" and what migrating from the old, bare-string
+ *    vocabulary means for a `DocumentPayment` row already on file. Still Optional: a payment can be
+ *    recorded before its method is known or worth naming.
  *  - `note`: free text, optional, for whatever context doesn't fit the fields above (a reference
  *    number, "paid by the client's accountant directly", ...).
  */
@@ -299,12 +323,7 @@ const RECORD_PAYMENT_PARAMS: DocumentFieldDescriptor[] = [
     kind: 'select',
     label: 'Method',
     required: false,
-    options: [
-      { value: 'bank_transfer', label: 'Bank transfer' },
-      { value: 'card', label: 'Card' },
-      { value: 'cash', label: 'Cash' },
-      { value: 'other', label: 'Other' },
-    ],
+    options: PAYMENT_METHOD_OPTIONS,
   },
   {
     key: 'note',
@@ -353,6 +372,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     // invoice is the one document type that actually REQUESTS payment; quote/credit-note/expense/
     // received-invoice each have their own reason NOT to opt in (see that comment).
     usesPaymentQr: true,
+    // "Payment methods" — see types.ts's own comment on this flag. Same
+    // "an invoice is the one document type that REQUESTS payment" reasoning as `usesPaymentQr` above,
+    // for the broader, method-agnostic section this flag opts into.
+    usesPaymentMethods: true,
     // See contributions/invoice-contributions.ts for the implementation — the first real one written
     // for this mechanism, and the model for any other type's own. Both locations, so it demonstrates
     // the small widget vocabulary on both.
