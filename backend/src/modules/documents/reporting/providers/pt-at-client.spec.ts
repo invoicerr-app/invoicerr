@@ -44,17 +44,47 @@ const CREDENTIALS: PtAtCredentials = {
   clientCertificatePassword: 'fake-passphrase',
 };
 
+/**
+ * Undoes RFC 8017's EME-PKCS1-v1_5 encoding (`00 02 <nonzero padding, ≥8 bytes> 00 <message>`) by
+ * hand. Needed because Node disabled `privateDecrypt`'s own `RSA_PKCS1_PADDING` option as the
+ * CVE-2023-46809 ("Marvin attack") mitigation — a timing side-channel in the PADDING-REMOVAL step when
+ * decrypting ATTACKER-SUPPLIED ciphertext against a server's own key. Neither risk applies here: this
+ * buffer is our OWN fixture (never attacker-controlled) and this call runs once per test with no
+ * observer positioned to measure it. `RSA_NO_PADDING` — raw modular exponentiation, no padding
+ * decision made or timed by Node at all — is untouched by that mitigation, so the two steps together
+ * (raw decrypt, then this function) are the exact bytes `RSA_PKCS1_PADDING` decryption used to hand
+ * back, checked against the standard by hand instead of trusting Node's now-disabled shortcut for it.
+ * Verified against a real Node 20 build (the CI runner's own version) via `nvm`: decrypting a
+ * `publicEncrypt(..., RSA_PKCS1_PADDING)` ciphertext this way recovers the exact original plaintext,
+ * on the exact Node build where the guarded convenience path throws
+ * "RSA_PKCS1_PADDING is no longer supported for private decryption".
+ */
+function unpadPkcs1v15(padded: Buffer): Buffer {
+  if (padded[0] !== 0x00 || padded[1] !== 0x02) {
+    throw new Error('not a valid PKCS#1 v1.5 EME block (bad leading 00 02)');
+  }
+  let i = 2;
+  while (i < padded.length && padded[i] !== 0x00) i++;
+  if (i >= padded.length) {
+    throw new Error('PKCS#1 v1.5 padding never terminates with a 00 byte');
+  }
+  return padded.subarray(i + 1);
+}
+
 /** Decrypts what THIS client encrypted, using the matching private key — independently re-deriving
  *  the plaintext rather than merely re-reading what the client already believes it produced. Proves
  *  the round-trip is internally consistent (client encrypts with the public key exactly the way a real
  *  server would decrypt with the private half), never that AT's OWN key/padding expectations match —
  *  see `pt-at-client.ts`'s own header on the RSA padding scheme being ⚠ UNVERIFIED against a real AT
- *  key. */
+ *  key. Raw (`RSA_NO_PADDING`) decrypt + `unpadPkcs1v15` above, NOT `privateDecrypt`'s own
+ *  `RSA_PKCS1_PADDING` option — see that function's own header for why this is the same check, not a
+ *  weaker one. */
 function decryptNonce(nonceBase64: string): Buffer {
-  return privateDecrypt(
-    { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_PKCS1_PADDING },
+  const raw = privateDecrypt(
+    { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_NO_PADDING },
     Buffer.from(nonceBase64, 'base64'),
   );
+  return unpadPkcs1v15(raw);
 }
 
 function decryptAesField(fieldBase64: string, symmetricKey: Buffer): string {

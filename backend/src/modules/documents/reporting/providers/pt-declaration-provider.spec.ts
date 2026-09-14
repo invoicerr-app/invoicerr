@@ -92,6 +92,26 @@ function decryptField(base64: string, symmetricKey: Buffer): string {
   return Buffer.concat([decipher.update(Buffer.from(base64, 'base64')), decipher.final()]).toString('utf8');
 }
 
+/** Same helper, same reasoning, as `pt-at-client.spec.ts#unpadPkcs1v15` — see that file's own header
+ *  for why `privateDecrypt`'s own `RSA_PKCS1_PADDING` option (Node's CVE-2023-46809 mitigation blocks
+ *  it, measured against a real Node 20 build via `nvm`) is replaced with `RSA_NO_PADDING` (untouched
+ *  by that mitigation — no padding decision is made inside Node at all) plus this manual RFC 8017
+ *  EME-PKCS1-v1_5 decode, never a weaker check. Duplicated rather than imported: this file's stub
+ *  server plays AT's OWN role (decrypting what the real client sent), a genuinely different actor from
+ *  `pt-at-client.spec.ts`'s own round-trip helper, matching this file's existing
+ *  `decryptField`/`decryptAesField` duplication instead of introducing cross-spec test coupling. */
+function unpadPkcs1v15(padded: Buffer): Buffer {
+  if (padded[0] !== 0x00 || padded[1] !== 0x02) {
+    throw new Error('not a valid PKCS#1 v1.5 EME block (bad leading 00 02)');
+  }
+  let i = 2;
+  while (i < padded.length && padded[i] !== 0x00) i++;
+  if (i >= padded.length) {
+    throw new Error('PKCS#1 v1.5 padding never terminates with a 00 byte');
+  }
+  return padded.subarray(i + 1);
+}
+
 /** A real local server standing in for the AT `fatcorews` endpoint — decrypts the WS-Security fields
  *  with the matching AT private key (mirroring what a real AT server would do with its own private
  *  half of `authPublicKeyPem`) and returns a canned `RegisterInvoiceResponse` per `scenario`. */
@@ -110,9 +130,11 @@ function startPtAtStub(scenario: StubScenario = 'success'): Promise<PtAtStub> {
           const passwordB64 = textOf(firstByLocalName(doc, 'Password')) ?? '';
           const createdB64 = textOf(firstByLocalName(doc, 'Created')) ?? '';
 
-          const symmetricKey = privateDecrypt(
-            { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_PKCS1_PADDING },
-            Buffer.from(nonceB64, 'base64'),
+          const symmetricKey = unpadPkcs1v15(
+            privateDecrypt(
+              { key: AT_PRIVATE_KEY_PEM, padding: cryptoConstants.RSA_NO_PADDING },
+              Buffer.from(nonceB64, 'base64'),
+            ),
           );
           state.lastDecrypted = {
             username,

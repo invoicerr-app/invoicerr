@@ -183,9 +183,15 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     });
 
     // Building a real PDF/A-3 + embedding + the real vendored EN 16931 Schematron is genuinely slow
-    // under full-suite CPU contention (fast in isolation) — the explicit 20s budget below is the
-    // same generous margin `formats/facturx-provider.spec.ts`'s own equivalent case relies on,
-    // needed here too since this file runs a SECOND full build+validate pass on top of that one.
+    // under full-suite CPU contention (fast in isolation) — `formats/facturx-provider.spec.ts`'s own
+    // equivalent case (the SAME build+validate work, done once) already budgets 30_000ms, the
+    // convention every other real-build-and-validate test in this codebase uses (facturx-provider,
+    // peppol-bis-provider, xrechnung-provider, documents.service.formats, signing/*, pitfalls specs —
+    // all `30_000`/`30000`). This test does that SAME work and then ALSO parses the result back out
+    // (`extractReceivedInvoiceFields`), so 20_000 — LESS than what the base build alone already needs
+    // elsewhere — was never a safe budget; measured failing in CI run 34842491081
+    // ("Exceeded timeout of 20000 ms"), passing locally only because this machine is faster. Raised to
+    // match the established 30_000 floor.
     it('extracts the embedded CII, with every field matching the same fixture', async () => {
       const provider = buildFacturxFormatProvider({ referenceRegistry: new EntityReferenceRegistry() });
       const built = await provider.build(descriptor, DOCUMENT, SELLER, BUYER, 'company-1');
@@ -205,7 +211,7 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
         grossAmount: 16320,
         lines: EXPECTED_LINES,
       });
-    }, 20000);
+    }, 30_000);
   });
 
   describe('a plain PDF with no embedded XML — never a refusal, just nothing to pre-fill', () => {

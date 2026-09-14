@@ -291,6 +291,13 @@ describe('buildPeppolTransport', () => {
     // collapses them into ONE note before the Schematron ever runs, so this now proves the OPPOSITE:
     // the REAL format provider builds a valid artifact, and the REAL local stub Access Point actually
     // receives it — never a mock, exactly this file's own "REAL local HTTP stub" discipline.
+    // Runs the REAL peppol-bis-provider — a real build + the real vendored base EN 16931 Schematron
+    // PLUS the Peppol BIS delta — the same work `formats/peppol-bis-provider.spec.ts`'s own equivalent
+    // cases already budget 30_000ms for (genuinely slow under full-suite CPU contention, fast in
+    // isolation). This test relied on jest's default 5000ms (no explicit override at all) and measured
+    // failing in CI run 34842491081 ("Exceeded timeout of 5000 ms"), passing locally only because this
+    // machine is faster — raised to match the established 30_000 floor every sibling real-build test
+    // in this codebase already uses.
     it('R002 FIXED: a French seller (three mandatory C. com. mentions) against a non-German buyer now builds a VALID artifact — the Access Point IS called, receiving ONE merged note carrying all three legal texts verbatim', async () => {
       mockedPrisma.company.findUnique.mockResolvedValue(FRENCH_SELLER);
       // FRENCH_BUYER_WITH_ENDPOINT (set in the outer `beforeEach`) already carries a PEPPOL_ENDPOINT.
@@ -332,7 +339,7 @@ describe('buildPeppolTransport', () => {
       } finally {
         await closeServer(server);
       }
-    });
+    }, 30_000);
   });
 
   describe('send() — delivery, against a REAL local Access Point stub', () => {
@@ -549,6 +556,11 @@ describe('buildPeppolTransport', () => {
     // would catch it — the REAL `xrechnungFormatProvider` (never mocked) is run, and the assertion is
     // on the actual CustomizationID inside the bytes the (real local stub) Access Point receives.
     describe('the REAL xrechnung-provider, wired as the override — the CustomizationID proof', () => {
+      // Runs the REAL xrechnungFormatProvider — the same real build + real vendored base EN 16931
+      // Schematron + KoSIT XRechnung delta `formats/xrechnung-provider.spec.ts`'s own equivalent cases
+      // already budget 30_000ms for. Sharing the exact same "real work, default 5000ms timeout" shape
+      // as the R002 test above (see that test's own comment) — fixed for the same reason, before it
+      // has its own turn to fail on a slow runner.
       it('sends XRechnung — never Peppol BIS — when `ctx.formatOverride` is "xrechnung": CustomizationID, documentTypeId, and artifact role all agree', async () => {
         let receivedBody = '';
         const { server, url } = await startStubServer((req, res) => {
@@ -595,8 +607,11 @@ describe('buildPeppolTransport', () => {
         } finally {
           await closeServer(server);
         }
-      });
+      }, 30_000);
 
+      // Still a REAL xrechnungFormatProvider.build() call — `formats/xrechnung-provider.spec.ts`'s own
+      // "THE NAMED REFUSAL" case (the identical no-IBAN scenario) proves the full real build+validate
+      // work happens regardless of the outcome being a refusal, and budgets 30_000ms for it too.
       it('the FORMAT GATE still applies under the override — a German seller with NO IBAN refuses, named (BR-DE-1), before the Access Point is ever called', async () => {
         mockedPrisma.company.findUnique.mockResolvedValue(GERMAN_SELLER); // no `iban` — the ONE fact missing
         const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
@@ -616,7 +631,7 @@ describe('buildPeppolTransport', () => {
         const error = await action.catch((e) => e);
         expect(error.response.errors.join(' ')).toContain('BR-DE-1');
         expect(sendSpy).not.toHaveBeenCalled();
-      });
+      }, 30_000);
     });
 
     // NLCIUS (Netherlands) used to have its own "wired as the override" describe block here, the SAME
