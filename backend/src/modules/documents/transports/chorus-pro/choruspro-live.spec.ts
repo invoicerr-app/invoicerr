@@ -112,6 +112,13 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     //
     // Private-sector qualification structure, SIREN 332540215. Default raison sociale matches the
     // mattress's own "Fournisseur 33254021516357".
+    //
+    // DO NOT "FIX" THIS VALUE: 332540215 fails the standard SIREN Luhn checksum, and that is
+    // DELIBERATE, not a typo — verified against AIFE's own qualification "matelas de données" CSV
+    // (2026-09-14): this is the literal SIRET AIFE generated, byte-for-byte. Of the mattress's eight
+    // SIRETs, 3 of 8 fail standard Luhn — AIFE does not guarantee Luhn validity for its fictitious
+    // qualification identifiers, exactly like the PDP sandbox's own already-accepted `000000002`/
+    // `000000001`. A future checksum audit must not "correct" this literal.
     const sellerSiret = process.env.CHORUSPRO_SELLER_SIRET ?? '33254021516357';
     // "Destinataire sans paramètre" is deliberate: the mattress offers seven public-sector
     // destinataires, and this is the ONLY one that imposes no extra deposit parameter. The other six

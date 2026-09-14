@@ -60,7 +60,11 @@ describeLive('SdI SdICoop live round-trip (collaudo)', () => {
       city: 'Roma',
       postalCode: '00100',
       country: 'Italy',
-      partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
+      // Checksum-valid but FICTITIOUS Partita IVA (validateItVat — Luhn-like, backend/src/modules/
+      // documents/tax/vat-syntax.ts — passes: check digit 3, not the 9 an earlier draft of this
+      // fixture carried). A real collaudo VAT number would need the AdE (Agenzia delle Entrate)
+      // intermediary accreditation this file's own header already says this checkout lacks.
+      partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432103' }],
     };
     const document = {
       id: 'sdicoop-live-test-0001',

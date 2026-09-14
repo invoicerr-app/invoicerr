@@ -56,7 +56,13 @@ describeLive(
   () => {
     it('self-signup → company (FR→fallback-country retry) → XRechnung UBL (real KoSIT delta) → send → doc_ id → poll → delivered', async () => {
       const timestamp = Date.now();
-      const buyerVat = 'FR12345678901';
+      // Checksum-valid but FICTITIOUS FR VAT (validateFrVat — mod-97 key, backend/src/modules/
+      // documents/tax/vat-syntax.ts — passes: key 15, not the 12 an earlier draft of this fixture
+      // carried, duplicated from peppol-sh-live.spec.ts). The embedded SIREN (345678901) itself fails
+      // the standard SIREN Luhn checksum — left as-is: this repo carries no active SIREN/SIRET Luhn
+      // validator any more (dropped per vat-syntax.ts's own header), so only the VAT key — the one
+      // property `validateFrVat` enforces — needed correcting; see the sibling spec's own comment.
+      const buyerVat = 'FR15345678901';
       const firstCountry = (process.env.PEPPOL_SH_SUPPLIER_COUNTRY || 'FR').toUpperCase();
       const fallbackCountry = (process.env.PEPPOL_SH_FALLBACK_COUNTRY || 'BE').toUpperCase();
 
@@ -138,7 +144,11 @@ describeLive(
           ],
         },
       };
-      const sellerVat = 'DE123456789';
+      // Checksum-valid but FICTITIOUS DE VAT (validateDeVat — ISO 7064 Mod 11,10, backend/src/
+      // modules/documents/tax/vat-syntax.ts — passes: check digit 8, not the 9 an earlier draft of
+      // this fixture carried, duplicated from peppol-sh-live.spec.ts). A real registered DE VAT would
+      // need a real German seller onboarded on peppol.sh.
+      const sellerVat = 'DE123456788';
       const seller = {
         name: 'Invoicerr Live Test GmbH',
         address: '1 Teststraße',

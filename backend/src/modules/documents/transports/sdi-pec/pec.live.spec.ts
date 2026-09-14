@@ -87,7 +87,11 @@ describeLive('SdI PEC live round-trip', () => {
         city: 'Roma',
         postalCode: '00100',
         country: 'Italy',
-        partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
+        // Checksum-valid but FICTITIOUS Partita IVA (validateItVat — Luhn-like, backend/src/modules/
+        // documents/tax/vat-syntax.ts — passes: check digit 3, not the 9 an earlier draft of this
+        // fixture carried, duplicated from sdicoop.live.spec.ts). A real collaudo VAT number would
+        // need a PEC mailbox this checkout does not have, per this file's own header.
+        partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432103' }],
       };
       const documentId = `pec-live-test-${Date.now()}`;
       const document = {
