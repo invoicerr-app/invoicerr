@@ -158,6 +158,35 @@ describe('applyStockOnIssuance (thin Prisma writer)', () => {
     expect(prisma.article.update).not.toHaveBeenCalled();
   });
 
+  // TODO_ISSUES.md's "hiddenReference n'est pas couvert" finding: a line's `articleId` is a
+  // 'hiddenReference', never scoped by `validate-references.ts` (nested rows are out of that pass's
+  // scope — see that file's own header). This proves the READ side closes the gap anyway, at the ONE
+  // consumer that would actually cost something if it didn't: even a REAL, stock-tracked article
+  // belonging to a DIFFERENT company (`quantity: 500` here, deliberately large enough that a leak
+  // would be obvious) is excluded by the `companyId`-scoped `where` clause, exactly like a
+  // never-existed id — this company's `send` never reaches, let alone decrements, another tenant's
+  // stock. The mock's own `where.companyId` check is what makes this a real proof rather than the
+  // "mock ignores its arguments" trap 86e331c5's own commit message calls out: it actually behaves
+  // like Postgres would for this query, filtering by the id it's given.
+  it('a REAL, stock-tracked article belonging to a DIFFERENT company is excluded by the companyId scope — cross-tenant stock is never touched', async () => {
+    (prisma.article.findMany as jest.Mock).mockImplementation(({ where }: { where: { companyId: string } }) =>
+      Promise.resolve(
+        where.companyId === 'company-1' ? [] : [{ id: 'other-companys-article', quantity: 500 }],
+      ),
+    );
+
+    await applyStockOnIssuance('company-1', {
+      id: 'doc-1',
+      data: { lines: [{ articleId: 'other-companys-article', quantity: 50 }] },
+    });
+
+    expect(prisma.article.findMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-1', id: { in: ['other-companys-article'] }, quantity: { not: null } },
+      select: { id: true, quantity: true },
+    });
+    expect(prisma.article.update).not.toHaveBeenCalled();
+  });
+
   it('NEVER THROWS when the DB read itself fails — the document must stand regardless', async () => {
     (prisma.article.findMany as jest.Mock).mockRejectedValue(new Error('connection lost'));
 

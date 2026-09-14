@@ -16,6 +16,28 @@
  *    close, and a nested row has no stable identity to diff against the previous save the way a
  *    top-level field's plain key lookup does (see "changed vs unchanged" below) — extending here is
  *    future work, not an oversight.
+ *
+ *    FOLLOW-UP, TODO_ISSUES.md's own "`hiddenReference` n'est pas couvert" entry — investigated and
+ *    closed by MEASUREMENT, not by code: every consumer that actually resolves an `articleId` already
+ *    scopes by the ACTING company's own `companyId`, never by a company implied by the id itself —
+ *    `ArticlesService.findOne`/`findAll` (`modules/articles/articles.service.ts`, `where: { id,
+ *    companyId }`) and `stock/apply-stock-on-issuance.ts`'s own `prisma.article.findMany({ where: {
+ *    companyId, id: { in: articleIds }, quantity: { not: null } } })`. A foreign or invented
+ *    `articleId` therefore matches nothing for either lookup and degrades to exactly "no article", the
+ *    same as one since deleted — it never prices a line, sets a VAT rate, or moves ANOTHER company's
+ *    stock (rendering excludes the field from print entirely, so it never leaks a foreign article's
+ *    name/price either — rendering/render-html.ts). The gap this file's scope note names is real but
+ *    cosmetic: a dangling `articleId` sits inert, never re-validated, never acted on — see
+ *    `stock/apply-stock-on-issuance.spec.ts`'s own cross-tenant test for the proof. Extending THIS
+ *    file to it anyway was still evaluated, and still declined, for the identity reason just above:
+ *    `$rowId` (row-selection/row-selection.ts) is stamped on an 'array' field only when some CURRENTLY
+ *    REGISTERED 'rowSelection' field sources FROM it (`referencedArrayFieldKeys`) — true for
+ *    `invoice.lines` (credit-note's own `correctedLines` sources it) but NOT for `quote.lines` (no
+ *    'rowSelection' field targets quotes at all). A "changed vs unchanged" diff keyed on `$rowId` would
+ *    therefore be reliable for one document type and silently wrong for the other, forcing either an
+ *    always-revalidate fallback for quotes (recreating the exact "existing document becomes
+ *    permanently unsendable" failure this file's own "changed vs unchanged" section exists to avoid)
+ *    or a per-type special case this generic pass has no business hard-coding.
  *  - An entity nobody registered (`EntityReferenceRegistry.resolve` throwing
  *    `UnknownEntityReferenceError`) is silently SKIPPED, never turned into a validation error: that is
  *    a descriptor/wiring mistake, a different and boot-level concern `DocumentsService.searchReferences`/
