@@ -1,8 +1,8 @@
 /**
  * `buildChorusProStatusPoller` in isolation — `ChorusProClient` is mocked wholesale (the real PISTE
- * round-trip is `chorus-pro/choruspro.live.spec.ts`'s job, gated on real PISTE credentials this
- * checkout does not have — see that file's own header, and this poller's own header for the honesty
- * note on what `consulterCr`'s response shape is NOT independently live-verified against).
+ * round-trip is `chorus-pro/choruspro.live.spec.ts`'s job — proven live in qualification 2026-09-14,
+ * see that file's own header, and this poller's own header for the honesty note on the ONE thing that
+ * round-trip surfaced as actually wrong: `mapChorusProStatus`'s value vocabulary).
  */
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 

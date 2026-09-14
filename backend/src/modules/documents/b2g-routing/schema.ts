@@ -69,9 +69,11 @@ export interface B2gRoutingRuleFact {
   countryCode: string;
   /** A `transports/transport-registry.ts` id. Deliberately NOT validated against the live registry
    *  here — same reasoning as `channel-policy/schema.ts`'s own `providerId`: a rule may legitimately
-   *  name a channel that does not exist yet ("chorus-pro", "zre-ozgre" — see this directory's own
-   *  data files), and sending then refuses, loudly, naming exactly that; never a load-time crash for
-   *  an intentionally-unimplemented channel, which is this model's own thesis. */
+   *  name a channel that does not exist yet (e.g. "zre-ozgre" — see this directory's own data files;
+   *  "chorus-pro" used to be this example too, until `transports/chorus-pro-transport.ts` registered
+   *  it, proven live in qualification 2026-09-14 — see `credentials-guide.md` §3), and sending then
+   *  refuses, loudly, naming exactly that; never a load-time crash for an intentionally-unimplemented
+   *  channel, which is this model's own thesis. */
   transportId: string;
   /** A `formats/format-registry.ts` id, e.g. "facturx", "xrechnung", "fatturapa". Unlike
    *  `transportId`, this one IS expected to resolve against the live `FormatProviderRegistry` — see

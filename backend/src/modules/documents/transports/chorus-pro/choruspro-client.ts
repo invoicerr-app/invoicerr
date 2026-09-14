@@ -147,12 +147,17 @@
  *     `idUtilisateurCourant` is DELIBERATELY NOT ADDED — see `deposerFlux()`'s own doc comment
  *     immediately below for why this one is a genuine, NOT-YET-ESTABLISHED gap, not an oversight.
  *
- * NOT independently re-verified: the ACTUAL VALUE VOCABULARY `etatCourantDepotFlux` returns at runtime
- * (VALIDE/REJETE/…, see `mapChorusProStatus`'s own comment) — the Swagger types that field as a bare
- * `string`, no `enum`, for both `consulterCR` and `consulterCRDetaille`. Only the ROUTE, the request
- * shape, and the response FIELD NAMES are Swagger-sourced; a real PISTE application + Chorus Pro compte
- * technique (`documentation/docs/developer-guide/credentials-guide.md` §3) is still needed for a live
- * round-trip that observes an actual value — `choruspro.live.spec.ts`'s own header names this same gap.
+ * UPDATE 2026-09-14 — the ROUTE and response FIELD NAMES above were Swagger-sourced only; a real
+ * PISTE application + Chorus Pro compte technique has SINCE run the live round-trip
+ * (`choruspro.live.spec.ts`, `documentation/docs/developer-guide/credentials-guide.md` §3) and it
+ * CONFIRMED the vocabulary in `mapChorusProStatus`'s own comment below is WRONG, not merely
+ * unverified: `etatCourantDepotFlux` returned `IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP` while
+ * pending, `IN_REJETE` on a real rejection, and `IN_INTEGRE` at the terminal accepted state — every
+ * one of them carrying an `IN_` prefix `mapChorusProStatus` does not recognize, so all three fall
+ * through to that function's own `PENDING` default today (a rejection is silently read as pending,
+ * and the terminal accepted state never reads as CLEARED). Left UNCHANGED here because fixing the
+ * mapping is a logic change, out of scope for this comment — see `mapChorusProStatus`'s own doc
+ * comment for the same note repeated where the function actually lives.
  *
  * References:
  *  - https://piste.gouv.fr/api-catalog-sandbox — PISTE sandbox API catalog (no account needed to browse)
@@ -231,8 +236,10 @@ export interface ChorusProCrResult {
   /** `WsRetourConsulterCRDetaille.etatCourantDepotFlux` — overall flux status. The FIELD NAME is
    *  Swagger-sourced (see this file's own header, "CORRECTED 2026-09-14"); the VALUE VOCABULARY
    *  (VALIDE | REJETE | EN_COURS_DE_TRAITEMENT | DEPOSE | SUSPENDU | …) is NOT — that field has no
-   *  `enum` in the Swagger, so these values are inherited from the reference implementation, still
-   *  unverified against a live response. Named `statutFlux` here (not `etatCourantDepotFlux`) because
+   *  `enum` in the Swagger, so these values were inherited from the reference implementation. UPDATE
+   *  2026-09-14: a live round-trip has SINCE observed real values, and they do NOT match this
+   *  vocabulary — see `mapChorusProStatus`'s own doc comment for the confirmed-wrong detail. Named
+   *  `statutFlux` here (not `etatCourantDepotFlux`) because
    *  every caller of this client already speaks that vocabulary (`mapChorusProStatus`,
    *  `chorus-pro-status-poller.ts`) — only the wire field this value is READ FROM changed, not this
    *  result type's own shape. */
@@ -493,12 +500,19 @@ export class ChorusProClient {
  * Terminal rejection: REJETE → REJECTED
  * In-flight: DEPOSE, EN_COURS_DE_TRAITEMENT, SUSPENDU → PENDING
  *
- * HONESTY NOTE: this value VOCABULARY (as opposed to the field NAME it is read from, corrected and
- * Swagger-sourced 2026-09-14 — this file's own header) is still inherited from the reference
- * implementation, not independently confirmed — `etatCourantDepotFlux` is typed as a bare `string` in
- * the official Swagger, with no `enum`. Left unchanged here because nothing establishes it is WRONG
- * either; a real PISTE round-trip (`choruspro.live.spec.ts`, gated `CHORUSPRO_LIVE=1`) is what would
- * confirm or correct it.
+ * HONESTY NOTE, UPDATED 2026-09-14 — this value VOCABULARY (as opposed to the field NAME it is read
+ * from, corrected and Swagger-sourced 2026-09-14 — this file's own header) was inherited from the
+ * reference implementation, unconfirmed — `etatCourantDepotFlux` is typed as a bare `string` in the
+ * official Swagger, with no `enum`. It is now CONFIRMED WRONG, not merely unverified: the real live
+ * round-trip (`choruspro.live.spec.ts`, `CHORUSPRO_LIVE=1`, 2026-09-14) observed
+ * `IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP` while pending, `IN_REJETE` on a real rejection
+ * (`CPP0011117000000000425895`), and `IN_INTEGRE` at the real terminal accepted state
+ * (`CPP0011117000000000425903`) — every one of them `IN_`-prefixed, none matching any branch below,
+ * so all three fall through to the `PENDING` default: a real rejection is silently read as pending
+ * forever, and the real terminal success is never read as CLEARED. Left UNCHANGED here — fixing this
+ * mapping is a logic change, out of scope for a documentation/status pass; the correct fix is to add
+ * the `IN_`-prefixed forms (at minimum `IN_INTEGRE` → CLEARED and `IN_REJETE` → REJECTED) once someone
+ * picks this up as actual work, not a comment edit.
  */
 export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' | 'PENDING' {
   const s = statutFlux.toUpperCase();

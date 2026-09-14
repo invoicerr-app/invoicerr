@@ -266,7 +266,9 @@ refuses" is true by construction:
 3. **501 — implementation.** The action is declared on the descriptor and allowed by every check
    above, but nobody has registered an `ActionHandler` for it in the `ActionRegistry` yet (e.g.
    "convert-to-invoice" until an invoicing pipeline existed to back it, or a channel a B2G rule
-   names — `chorus-pro`, `zre-ozgre` — before this repo's own transport for it is built).
+   names — e.g. `zre-ozgre` — before this repo's own transport for it is built; `chorus-pro` used to
+   be this example too, until `transports/chorus-pro-transport.ts` registered it, proven live in
+   qualification 2026-09-14, see `credentials-guide.md` §3).
    `NotImplementedException`, never a silent no-op: a declared-but-unimplemented action is a real,
    visible gap, not an oversight to hide.
 4. **400 — validation.** The document's own field values (against the country-and-plugin-merged

@@ -40,7 +40,7 @@ Hard-success contract (enforced per-spec):
 | Peppol via peppol.sh | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — spec self-signs-up on the peppol.sh sandbox)_ | `peppol/peppol-sh.live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `FR` remains broken (`invalid_country`), but `BE` (+ explicit `peppol_id`) works: `doc_…` → `DELIVERED` in ~10s, reproduced twice (see below) |
 | Peppol via peppol.sh — XRechnung content (DE B2G format override) | `PEPPOL_LIVE=1` + `PEPPOL_AP_PROVIDER=peppol-sh` | _(none — same zero-secret sandbox)_ | `peppol/peppol-sh-xrechnung.live.spec.ts` | ✅ **Round-trip proven on 2026-09-02** — `doc_v37PTxYOQGn78bPAnMiI0` → `DELIVERED` in ~10s; see the box below for the HONEST LIMIT of what this proves (peppol.sh never accepts raw UBL bytes — see that spec's own header) |
 | Peppol generic AP | `PEPPOL_LIVE=1` | `PEPPOL_PARTICIPANT_ID`, `PEPPOL_AP_URL`, `PEPPOL_API_KEY`, `PEPPOL_RECEIVER_ID` | _(no live spec exists yet — mocked coverage only, `peppol/peppol-client.spec.ts`)_ | 🔴 Deferred (connected AP required) |
-| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET` | `chorus-pro/choruspro.live.spec.ts` | 🟡 Implemented, awaiting a PISTE account — **skipped, always, today** (no PISTE account in this checkout). Credential-free reachability **proven live 2026-09-02**: `sandbox-oauth.piste.gouv.fr` answers a genuine `400 {"error":"invalid_client"}` to a garbage client id/secret — the host/path are real, the deposit itself has never been attempted. |
+| Chorus Pro (FR B2G) | `CHORUSPRO_LIVE=1` | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | `chorus-pro/choruspro.live.spec.ts` | ✅ **Full qualification round-trip proven live 2026-09-14** — a real Factur-X deposit reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP: []`), after two earlier deposits were rejected and fixed (see `credentials-guide.md` §3 and commits `67a94d58`/`7de5a90c`/`ecce4d35`). Proven in **qualification only** — no production PISTE application or Chorus Pro production raccordement exists, and nothing after `IN_INTEGRE` (a public buyer's own `MISE_A_DISPOSITION`/`MANDATEE`/`MISE_EN_PAIEMENT`) has been exercised. |
 | RFC 3161 TSA (-T signing) | `TSA_LIVE=1` | `TSA_URL` | `signing/tsa.live.spec.ts` | 🟡 Wired (run to prove FreeTSA) |
 | Company lookup (national registers) | `COMPANY_LOOKUP_LIVE=1` | _(none — every source is keyless: 15 national registers + VIES + GLEIF + Peppol Directory)_ | `modules/company-lookup/company-lookup.live.spec.ts` | ✅ Proven live (2026-07-27) |
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
@@ -252,8 +252,11 @@ PEPPOL_LIVE=1 PEPPOL_AP_PROVIDER=peppol-sh \
 # Peppol generic AP — deferred: no live spec exists yet (needs a connected Access Point first);
 # only mocked coverage exists today, in peppol/peppol-client.spec.ts
 
-# Chorus Pro (FR B2G) — implemented, awaiting a PISTE account (skipped, always, in this checkout)
+# Chorus Pro (FR B2G) — full qualification round-trip proven live 2026-09-14 (deposit +
+# terminal IN_INTEGRE); production never attempted. Omitting the TECH_LOGIN/PASSWORD pair
+# still runs the spec, but only its OAuth half — see credentials-guide.md §3.
 CHORUSPRO_LIVE=1 CHORUSPRO_CLIENT_ID=<id> CHORUSPRO_CLIENT_SECRET=<secret> \
+  CHORUSPRO_TECH_LOGIN=<login> CHORUSPRO_TECH_PASSWORD=<password> \
   npx jest choruspro.live --no-coverage --runInBand
 
 # RFC 3161 TSA — level-T signing via real TSA (e.g. FreeTSA)
@@ -344,19 +347,26 @@ CHORUSPRO_LIVE=1 \
 | `CHORUSPRO_TECH_PASSWORD` | Chorus Pro "compte technique" password (same optionality as above) |
 | `CHORUSPRO_ENVIRONMENT` | `SANDBOX` (default) or `PROD` |
 
-**How to obtain credentials:**
-1. Create an account on **[piste.gouv.fr](https://piste.gouv.fr)**.
-2. Subscribe to the API "Factures" (or "API Dépôt flux G2B" v5.2.0) in the PISTE sandbox catalog.
-3. Obtain `client_id` + `client_secret` from the PISTE API key manager.
-4. In the Chorus Pro sandbox, create a "compte technique" (technical account) linked to your SIRET.
-5. Use the sandbox hosts: `sandbox-oauth.piste.gouv.fr` / `sandbox-api.piste.gouv.fr`.
+**How to obtain credentials:** see `credentials-guide.md` §3 for the full step-by-step (both layers
+are obtainable with **no real company** — the Chorus Pro qualification space issues a fictitious
+SIRET). In short:
+1. Create an account on **[piste.gouv.fr](https://piste.gouv.fr)**, subscribe to the Chorus Pro APIs
+   (Factures/Structures/Utilisateurs/Transverses) in the sandbox catalog, and copy the OAuth
+   Credentials tab's Client ID/Secret Key.
+2. Create a "matelas de données" on the Chorus Pro qualification portal
+   (`chorus-pro.gouv.fr/qualif/`), then a "compte technique" from it — this is where
+   `CHORUSPRO_TECH_LOGIN`/`CHORUSPRO_TECH_PASSWORD` come from.
+3. Sandbox hosts: `sandbox-oauth.piste.gouv.fr` / `sandbox-api.piste.gouv.fr`.
 
 **What the test verifies:**
-- Step 1: OAuth2 client_credentials → Bearer token reachable.
-- Step 2 (if compte technique provided): `POST /cpro/factures/v1/deposer/flux` → real `numeroFluxDepot` returned.
-- Step 3: `POST /cpro/factures/v1/consulter/cr` → statutFlux = DEPOSE/EN_COURS_DE_TRAITEMENT/VALIDE.
-- With no compte technique set, only step 1 runs — this is the "skipped, always" state this checkout
-  is actually in today (see the summary table above).
+- Step 1: OAuth2 `client_credentials` → Bearer token reachable — **proven live 2026-09-14**.
+- Step 2 (if compte technique provided): `POST /cpro/factures/v1/deposer/flux` → real
+  `numeroFluxDepot` returned — **proven live 2026-09-14** (`CPP0011117000000000425903`).
+- Step 3: `POST /cpro/transverses/v1/consulterCRDetaille` (NOT `/cpro/factures/v1/consulter/cr` — that
+  route does not exist, see `choruspro-client.ts`'s own header) → `etatCourantDepotFlux` reached the
+  terminal state `IN_INTEGRE` with `listeErreurDP: []` — **proven live 2026-09-14**, in qualification.
+  Nothing past that terminal state (a real public buyer's own processing) has been exercised, and no
+  production round-trip exists.
 
 ---
 

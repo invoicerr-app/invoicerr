@@ -78,7 +78,7 @@ Legend — **Repo:** ✅ set · 🟡 partial · 🔴 missing
 |--:|----------|---------|:----:|------------------------------------|
 | 1 | KSeF | 🇵🇱 Poland | ✅ | Already set. Token auth sunsets end-2026 → certificate path later |
 | 2 | PDP (superpdp) | 🇫🇷 France | 🟡 | Sandbox set; routing IDs optional; prod = commercial PDP contract |
-| 3 | Chorus Pro (PISTE) | 🇫🇷 France | 🔴 | Self-service, no real company: qualification issues a fictitious SIRET + Gestionnaire principal |
+| 3 | Chorus Pro (PISTE) | 🇫🇷 France | ✅ | Qualification round-trip proven live 2026-09-14 (deposit reached terminal `IN_INTEGRE`); production needs a dedicated production PISTE app + Chorus Pro production raccordement, neither attempted |
 | 4 | SdI (SDICoop/SDIFTP) | 🇮🇹 Italy | 🔴 | Partita IVA on Entratel + channel accreditation (collaudo) |
 | 4bis | SdI via PEC | 🇮🇹 Italy | 🔴 | No accreditation at all — only blocker is provisioning a PEC mailbox |
 | 5 | Peppol | 🌍 cross-border | ✅/🔴 | peppol.sh live-proof harness proven zero-secret; generic AP (the only one production sends through) = commercial AP account + SMP |
@@ -211,20 +211,43 @@ Note: superpdp.tech's own pages are a client-rendered SPA — automated fetches 
 
 ## 3. Chorus Pro (PISTE) — France (B2G mandatory)
 
-> **GitHub secrets:** `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` &nbsp;•&nbsp; **Live flag:** `CHORUSPRO_LIVE=1` (`CHORUSPRO_ENVIRONMENT=SANDBOX`) &nbsp;•&nbsp; **Sandbox:** yes (qualification) &nbsp;•&nbsp; **Repo status:** 🟡 OAuth proven live 2026-09-14, deposit still missing its technical account
+> **GitHub secrets:** `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` &nbsp;•&nbsp; **Live flag:** `CHORUSPRO_LIVE=1` (`CHORUSPRO_ENVIRONMENT=SANDBOX`) &nbsp;•&nbsp; **Sandbox:** yes (qualification) &nbsp;•&nbsp; **Repo status:** ✅ full qualification round-trip proven live 2026-09-14 — deposit reached the terminal authority state `IN_INTEGRE`; production never attempted
 
-**Split the status in two, because the two halves are not equally proven.** A real PISTE sandbox
-application's OAuth pair now authenticates for real — `client_credentials` returned a genuine
-54-character Bearer token in 162 ms (`choruspro.live.spec.ts`, 2026-09-14). What is still NOT proven
-is the deposit itself (`deposerFlux` / `consulterCr`): that needs the `CHORUSPRO_TECH_LOGIN` /
-`CHORUSPRO_TECH_PASSWORD` pair below, which nobody has created yet, and the spec skips that half
-loudly rather than passing quietly. Treat a green run as "PISTE authenticated us", never as "we can
-file an invoice".
+**Full qualification round-trip PROVEN LIVE, 2026-09-14.** Both credential layers now exist — a PISTE
+OAuth application AND a Chorus Pro "compte technique", both obtained without any real company (see
+Prerequisites below) — and a real Factur-X deposit went all the way to a terminal authority state,
+read directly off `consulterCRDetaille`:
+
+```
+CPP0011117000000000425903   IN_INTEGRE   listeErreurDP=[]   2026-09-14T22:57:02+02:00
+```
+
+Getting there took three iterations, each one a real product defect found only by trying: two
+deposits (`...425895`, `...425899`) were REJECTED before `...425903` was accepted and later polled
+into `IN_INTEGRE` — a wrong BT-23 "cadre de facturation" value colliding with the 2026 CGI-reform
+one, a recipient SIRET wrongly truncated to its SIREN, and a hardcoded (rather than company-derived)
+payment-means code. See commits `67a94d58`, `7de5a90c`, `ecce4d35` for the sourced detail of each.
+
+**What this DOES prove:** PISTE OAuth authentication; a Chorus Pro deposit accepted past both the
+synchronous gate and the asynchronous validation; the deposit reaching the terminal `IN_INTEGRE`
+state. **What this does NOT prove:** production — this checkout has no production PISTE application
+and no production Chorus Pro raccordement, everything above ran under
+`CHORUSPRO_ENVIRONMENT=SANDBOX` qualification — or anything in the invoice's life AFTER
+`IN_INTEGRE`: a real public buyer's own downstream processing (`MISE_A_DISPOSITION`, `MANDATEE`,
+`MISE_EN_PAIEMENT`…) has never been exercised, because qualification has no real public buyer to do
+it with.
 
 One measurement worth keeping in mind while hunting a bad credential: PISTE returns the SAME
 `400 invalid_client` for an unknown `client_id` and for a valid one with a wrong secret — the two
 responses are byte-identical (measured 2026-09-14). Nothing short of a successful token proves a
 pair is good.
+
+A separate, real gap this round-trip surfaced, worth flagging here rather than only in code:
+`mapChorusProStatus` (`choruspro-client.ts`) still only recognizes the BARE values inherited from
+the pre-refonte reference client (`VALIDE`, `REJETE`, `DEPOSE`, …) — every value actually observed
+live carries an `IN_` prefix instead (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`,
+`IN_INTEGRE`), none of which match today, so they all fall through to the function's own `PENDING`
+default. See that file's own header for the full note — fixing the mapping is out of scope here.
 
 **What each secret is / where it comes from**
 
@@ -296,10 +319,13 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 **Cost, lead time & blockers**
 - Both PISTE and Chorus Pro are free state services — no pricing found anywhere in AIFE/PISTE/community docs; this is the mandatory, no-cost B2G invoicing channel.
 - Lead time: PISTE account email-activation is near-instant but community guidance mentions up to 24–48h AIFE-side delay in some cases; Chorus Pro technical-account creation is effective ~30 minutes after request.
-- Current repo blocker: nothing is set up yet. The whole path is self-service and needs **no real
-  company** (see Prerequisites) — a PISTE account for the OAuth pair, then a qualification account
-  whose "matelas de données" supplies the structure, the fictitious SIRET and the Gestionnaire
-  principal that create the technical account.
+- Current repo blocker: **none for qualification** — both credential layers exist and a deposit has
+  reached the terminal `IN_INTEGRE` state (see above). The whole path was self-service and needed
+  **no real company** (see Prerequisites) — a PISTE account for the OAuth pair, then a qualification
+  account whose "matelas de données" supplied the structure, the fictitious SIRET and the
+  Gestionnaire principal that created the technical account. The only remaining blocker is
+  **production**: a dedicated production PISTE application plus a production Chorus Pro
+  raccordement, neither attempted.
 - Common trap to flag in the setup guide: picking the wrong credential panel in PISTE ("API Keys" vs "OAuth Credentials") — Chorus Pro only accepts the OAuth Credentials pair.
 
 **Official sources**

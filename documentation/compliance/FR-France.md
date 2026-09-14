@@ -17,7 +17,8 @@ progress: in-progress
 Dématérialisation Partenaire) for B2B, Chorus Pro for B2G.
 
 France is the only one of the five countries where this app's own data records the transmission
-channel as **legally mandated**, and the only channel that has been proven against a real platform.
+channel as **legally mandated**, and the only country where BOTH its channels — PDP (B2B) and Chorus
+Pro (B2G) — have been proven against a real platform (see below for what "proven" covers for each).
 
 ## Sending an invoice
 
@@ -29,9 +30,10 @@ channel as **legally mandated**, and the only channel that has been proven again
   this page's writing, so the mandate is in force.
 - **Proven live**: a real deposit against the superpdp sandbox reached the platform's own
   conformity states in sequence — `fr:200` (déposée, validated) → `fr:201` (émise) → `fr:202` (reçue
-  par la plateforme) — deposit 375037, 2026-08-29, reproduced across two independent runs. This is
-  the one channel among all five countries this app has actually watched clear against a real
-  service, not just a mock.
+  par la plateforme) — deposit 375037, 2026-08-29, reproduced across two independent runs. Along with
+  Chorus Pro below (B2G, 2026-09-14), this makes France the one country among the five whose channels
+  this app has actually watched clear against a real service, not just a mock — both still in
+  sandbox/qualification, neither in production.
 - The artifact sent is **Factur-X** — a PDF/A-3 file with an embedded EN 16931 CII XML — gated by the
   vendored EN 16931 Schematron before anything is deposited.
 
@@ -40,12 +42,22 @@ channel as **legally mandated**, and the only channel that has been proven again
 The routing rule (`b2g-routing`) sends a French government client's invoice through **Chorus Pro**,
 in Factur-X, and requires the client's **SIRET** on file — sourced to Code de la commande publique
 art. L. 2192-1/L. 2192-2/L. 2192-5. The transport itself is built and registered in this app
-(`transports/chorus-pro-transport.ts`), but it has **never been run against the real Chorus Pro
-service**: this checkout holds no PISTE OAuth application and no Chorus Pro "compte technique". The
-only independent confirmation is that the PISTE sandbox OAuth endpoint itself is reachable and
-answers a genuine rejection for a garbage credential — proof the host and path are correct, not that
-a real deposit would succeed. An optional `buyerReference` ("code service") is also read from the
-invoice if the client's own Chorus Pro account requires one.
+(`transports/chorus-pro-transport.ts`).
+- **Proven live in qualification, 2026-09-14**: a real Factur-X deposit, built the same way a live
+  send builds one, reached the terminal authority state `IN_INTEGRE` (`CPP0011117000000000425903`,
+  `listeErreurDP: []`) after two earlier deposits were rejected and their causes fixed — a wrong
+  BT-23 "cadre de facturation" value, a recipient SIRET wrongly truncated to its SIREN, and a
+  hardcoded payment-means code (commits `67a94d58`, `7de5a90c`, `ecce4d35`). Both credential layers
+  (a PISTE OAuth application and a Chorus Pro "compte technique") were obtained with **no real
+  company** — Chorus Pro's own qualification space issues a fictitious structure and SIRET.
+- **Not proven**: production — no production PISTE application or Chorus Pro production raccordement
+  exists, so nothing above ran outside `CHORUSPRO_ENVIRONMENT=SANDBOX`. Also not proven: anything in
+  an invoice's life AFTER `IN_INTEGRE` — a real public buyer's own downstream handling
+  (`MISE_A_DISPOSITION`, `MANDATEE`, `MISE_EN_PAIEMENT`…) has never been exercised, since
+  qualification has no real public buyer to do it with.
+
+An optional `buyerReference` ("code service") is also read from the invoice if the client's own
+Chorus Pro account requires one.
 
 ## Tax
 

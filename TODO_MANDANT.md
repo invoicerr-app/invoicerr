@@ -55,21 +55,20 @@ Ces trois cases ne valent **que pour cette instance-là**. Un autre déploiement
 
 ---
 
-## 3. En cours de ton côté — PISTE (Chorus Pro, recette)
+## 3. FAIT le 2026-09-14 — PISTE (Chorus Pro, qualification)
 
-C'est le meilleur rapport de toute la liste, et le seul canal gouvernemental que ta contrainte
-laisse ouvert.
+Clos. Les deux couches d'identifiants (compte PISTE OAuth + « compte technique » Chorus Pro) ont
+été obtenues — la qualification Chorus Pro n'a finalement exigé aucune entreprise réelle : son
+« matelas de données » fournit une structure et un SIRET fictifs. Un dépôt Factur-X réel est allé
+jusqu'à l'état terminal `IN_INTEGRE` (`CPP0011117000000000425903`, `listeErreurDP=[]`,
+2026-09-14T22:57:02+02:00), après deux dépôts rejetés qui ont révélé trois défauts produit corrigés
+en trois vagues (commits `67a94d58`, `7de5a90c`, `ecce4d35`).
 
-- [ ] Compte PISTE sur piste.gouv.fr, souscrire à l'API « Dépôt flux G2B ».
-- [ ] Me poser `CHORUSPRO_CLIENT_ID` et `CHORUSPRO_CLIENT_SECRET` dans `backend/.env.test.local`.
-
-Ces deux-là suffisent : j'ai vérifié la porte du test, le gate n'exige qu'eux. Le **compte
-technique** Chorus Pro — celui qui réclame une structure avec SIRET et le rôle « gestionnaire
-principal » — n'est **pas** requis : sans lui la spec joue quand même la moitié OAuth et ne saute
-que la moitié dépôt. Ton blocage SIRET ne t'empêche donc pas de livrer la moitié prouvable.
-
-Établi sans compte à ce jour : l'endpoint OAuth répond un vrai `HTTP 400 invalid_client` sur des
-identifiants bidons — ce qui prouve l'hôte et le chemin, rien de plus.
+Reste ouvert, **hors du cadre de cette section** (qui ne portait que sur la qualification) : le
+raccordement **production** — nouvelle candidature PISTE dédiée à la production + déclaration de
+raccordement Chorus Pro production, aucun des deux tenté. Pas encore qualifié comme relevant de ta
+main ou non : contrairement à la qualification, la production demande vraisemblablement un vrai
+SIRET, à trancher le jour où ce chantier est repris.
 
 ---
 

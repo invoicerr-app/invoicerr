@@ -12,7 +12,8 @@
  * all.spec.ts` owns that); `@/prisma/prisma.service` and `./chorus-pro/choruspro-client`'s
  * `ChorusProClient` are mocked wholesale too, the SAME two seams `chorus-pro-transport.spec.ts` mocks
  * — this file's own job is "does the WIRING between B2G routing and the real transport work", never a
- * live PISTE round-trip (that is `chorus-pro/choruspro.live.spec.ts`'s job, gated, skipped today).
+ * live PISTE round-trip (that is `chorus-pro/choruspro.live.spec.ts`'s job — proven live in
+ * qualification 2026-09-14, see that file's own header).
  */
 import prisma from '@/prisma/prisma.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';

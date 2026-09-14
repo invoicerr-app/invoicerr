@@ -8,20 +8,26 @@
  * (`/cpro/factures/v1/consulter/cr`, kept verbatim from `avant-refonte-documents` and never
  * independently re-verified until then) turned out not to exist at all.
  *
- * ## HONESTY NOTE — what is, and is NOT, verified here
+ * ## HONESTY NOTE — what is, and is NOT, verified here (UPDATED 2026-09-14)
  *
- * Same posture as `ksef-status-poller.ts`'s own header: this checkout holds no PISTE account
- * (`documentation/docs/developer-guide/credentials-guide.md` §3, "Repo status: 🔴 missing"), so
- * `consulterCr`'s own response has NEVER been observed live — the ROUTE and the FIELD NAMES
- * (`etatCourantDepotFlux`, `listeErreurDP`, `listeErreurTechnique`) are Swagger-sourced (2026-09-14,
- * `choruspro-client.ts`'s own header), but the VALUE VOCABULARY `mapChorusProStatus` compares against
- * (VALIDE/REJETE/EN_COURS_DE_TRAITEMENT/DEPOSE/SUSPENDU/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE) is
- * still inherited from the reference client, unconfirmed by any Swagger `enum` (that field is typed as
- * a bare `string`). `../../transports/chorus-pro/choruspro.live.spec.ts` (gated `CHORUSPRO_LIVE=1`,
- * SKIPPED today) already exercises `consulterCr` as its own step 4, against a real deposit — this
- * poller calls the SAME client method, never a second, poller-only path; no separate live spec exists
- * for the poller itself since there is nothing left to prove that file does not already cover once
- * real credentials exist.
+ * A real qualification round-trip now exists — `consulterCr`'s response HAS been observed live
+ * (`../../transports/chorus-pro/choruspro.live.spec.ts`, `CHORUSPRO_LIVE=1`, 2026-09-14): a deposit
+ * reached the terminal `IN_INTEGRE` state with `listeErreurDP: []` (see
+ * `documentation/docs/developer-guide/credentials-guide.md` §3 for the full citation), superseding
+ * this note's own earlier claim that no PISTE account existed in this checkout. The ROUTE and FIELD
+ * NAMES (`etatCourantDepotFlux`, `listeErreurDP`, `listeErreurTechnique`) are confirmed correct by
+ * that round-trip, not merely Swagger-sourced any more.
+ *
+ * **But the VALUE VOCABULARY `mapChorusProStatus` compares against is now CONFIRMED WRONG, not
+ * merely unverified** — see that function's own doc comment (`choruspro-client.ts`) for the full
+ * detail: the real values observed (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`,
+ * `IN_INTEGRE`) all carry an `IN_` prefix the current vocabulary does not recognize, so THIS
+ * poller's own `isTerminalChorusProStatus` below never reports a real deposit as terminal — a real
+ * rejection or a real `IN_INTEGRE` acceptance both read as PENDING today, forever. This is a genuine
+ * functional gap, not a documentation nuance; fixing `mapChorusProStatus` is a logic change, out of
+ * scope for this status-comment update. `choruspro.live.spec.ts` already exercises `consulterCr` as
+ * its own step 4, against the real deposit — this poller calls the SAME client method, never a
+ * second, poller-only path.
  *
  * `mapChorusProStatus` (`choruspro-client.ts`) is the ONE vocabulary this poller trusts for
  * `isTerminal`. The `reason` on a rejection now prefers `consulterCRDetaille`'s own structured

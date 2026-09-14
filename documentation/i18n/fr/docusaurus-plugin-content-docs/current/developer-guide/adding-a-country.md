@@ -288,8 +288,10 @@ ordre, qu'il s'agisse d'un clic à l'écran ou d'un script qui touche l'API dire
 3. **501 — implémentation.** L'action est déclarée sur le descripteur et autorisée par chacune des
    vérifications ci-dessus, mais personne n'a encore enregistré d'`ActionHandler` pour elle dans
    l'`ActionRegistry` (par exemple « convert-to-invoice » avant qu'un pipeline de facturation existe
-   pour le porter, ou un canal qu'une règle B2G nomme — `chorus-pro`, `zre-ozgre` — avant que le
-   transport correspondant de ce dépôt ne soit construit). `NotImplementedException`, jamais un
+   pour le porter, ou un canal qu'une règle B2G nomme — par exemple `zre-ozgre` — avant que le
+   transport correspondant de ce dépôt ne soit construit ; `chorus-pro` était aussi cet exemple,
+   jusqu'à ce que `transports/chorus-pro-transport.ts` l'enregistre, prouvé en réel en qualification
+   le 2026-09-14, voir `credentials-guide.md` §3). `NotImplementedException`, jamais un
    no-op silencieux : une action déclarée mais non implémentée est un vrai manque, visible, pas un
    oubli à cacher.
 4. **400 — validation.** Les valeurs de champ propres au document (par rapport au descripteur

@@ -7,44 +7,45 @@
  * been created for it, so this spec still runs the OAuth half and SKIPS only the deposit half when the
  * technical-account pair is absent, rather than gating the whole file on all four.
  *
- * HONEST STATUS, and read the two halves separately — they are not equally proven.
+ * HONEST STATUS — FULL ROUND-TRIP PROVEN LIVE, 2026-09-14, IN QUALIFICATION.
  *
- * The OAuth half is **PROVEN LIVE, 2026-09-14**: run against a real PISTE sandbox application
- * (`APP_SANDBOX_…`, OAuth Credentials pair in `.env.test.local`), `client_credentials` returned a
- * genuine Bearer token, 54 characters, in 162 ms. That supersedes the weaker 2026-09-02 evidence
- * this header used to carry alone — that a garbage client_id/secret drew a real
- * `HTTP 400 {"error":"invalid_client"}`, which only ever proved the HOST/PATH were right. Real
- * credentials now demonstrably authenticate. Note PISTE answers that SAME `invalid_client` for an
- * unknown client_id and for a valid one with a wrong secret (measured, responses byte-identical), so
- * nothing short of a successful token proves a credential pair is good.
+ * The OAuth half: run against a real PISTE sandbox application (`APP_SANDBOX_…`, OAuth Credentials
+ * pair in `.env.test.local`), `client_credentials` returned a genuine Bearer token, 54 characters, in
+ * 162 ms. Note PISTE answers the SAME `400 {"error":"invalid_client"}` for an unknown client_id and
+ * for a valid one with a wrong secret (measured, responses byte-identical), so nothing short of a
+ * successful token proves a credential pair is good.
  *
- * The deposit half — `deposerFlux` + `consulterCr` — is **still unproven**: it needs a Chorus Pro
- * "compte technique" (`CHORUSPRO_TECH_LOGIN`/`_PASSWORD`), which this checkout does not have, so the
- * block below skips it and says so on stderr. A green run of this file therefore means "PISTE
- * authenticated us", NOT "we can file an invoice with Chorus Pro" — do not read the tick as more
- * than the log line under it. That distinction is this module's whole discipline
- * (`documentation/docs/developer-guide/live-testing.md`, and the project memory entry "KSeF mock
- * tests = false confidence").
+ * The deposit half: getting there took three iterations, each one a real product defect found only
+ * by trying, never a guess:
+ *  1. `deposerFlux` ACCEPTED (`numeroFluxDepot: CPP0011117000000000425895`, `codeRetour: 0`), but the
+ *     LATER `consulterCr()` poll reported `etatCourantDepotFlux: IN_REJETE` — BT-81 (`SELLER.iban`
+ *     missing) and BT-23 (`businessProcessCodeOverride` missing) both fixed.
+ *  2. Next deposit (`CPP0011117000000000425899`) REJECTED too — BT-23's "cadre de facturation" was
+ *     colliding with the unrelated 2026 CGI-reform business-process code, and BT-81's payment-means
+ *     code was hardcoded rather than company-derived — both fixed (`legalIdOverride`,
+ *     `businessProcessCodeOverride: 'A1'`, the invoice-number length gate, the payment-means
+ *     allowlist — see `chorus-pro-transport.ts`'s own header for the full sourcing).
+ *  3. Third deposit (`CPP0011117000000000425903`) ACCEPTED, `listeErreurDP: []` — and a LATER poll
+ *     (beyond this test's own single immediate one, run separately the same day) reached the
+ *     TERMINAL authority state `IN_INTEGRE` at `2026-09-14T22:57:02+02:00`. This is the first time
+ *     this codebase has watched a Chorus Pro deposit clear all the way to a terminal state.
  *
- * UPDATE 2026-09-14, a compte technique DID exist for one run: `deposerFlux` was ACCEPTED
- * (`numeroFluxDepot: CPP0011117000000000425895`, `statut: DEPOSE`, `codeRetour: 0`), but a LATER
- * `consulterCr()` poll (this client's own name for `consulterCRDetaille` — see `consulterCr()`'s own
- * doc comment) then reported `etatCourantDepotFlux: IN_REJETE` — Chorus Pro's own asynchronous
- * validation had not finished by the time this test's SINGLE, immediate poll below ran (still
- * `EN_COURS_DE_TRAITEMENT`/`PENDING` at that point, which is why this test's own assertion
- * `expect(['PENDING', 'CLEARED']).toContain(status)` legitimately passed even for the run that was
- * later found rejected — a real, structural blind spot of a single immediate poll, not a bug in the
- * assertion itself: a genuinely GREEN run of this file still does not, by itself, prove the deposit
- * clears — only a LATER poll (`chorus-pro-status-poller.ts`'s own job in production) can. Two
- * structured errors, both traced to real gaps in the hand-built fixture below, now fixed:
- * BT-81 (`SELLER.iban`, absent before this fix — see `sellerIban`'s own comment) and BT-23
- * (`businessProcessCodeOverride`, absent before this fix — see the `buildSemanticInvoice` call's own
- * comment). Both fixes also apply to the REAL production path (`chorus-pro-transport.ts`'s own new
- * "PAYMENT MEANS GATE" and its dedicated `facturxFormatProvider` instance,
- * `documents-core.module.ts`) — this spec's own fixture is kept a faithful, independent mirror of it,
- * per this file's own "DB-free approach" below. Not re-run against PISTE as part of establishing
- * this — the orchestrating session runs `CHORUSPRO_LIVE=1` next; until that run is green, read this
- * fix as "corrected against the documented root cause", not yet as "proven live" a second time.
+ * All three fixes also apply to the REAL production path (`chorus-pro-transport.ts`'s own "PAYMENT
+ * MEANS GATE" and its dedicated `facturxFormatProvider` instance, `documents-core.module.ts`) — this
+ * spec's own fixture is kept a faithful, independent mirror of it, per this file's own "DB-free
+ * approach" below.
+ *
+ * **What is still NOT proven**: production — no production PISTE application or Chorus Pro
+ * production raccordement exists, everything above ran under `CHORUSPRO_ENVIRONMENT=SANDBOX`
+ * qualification. Also not proven: anything in an invoice's life AFTER `IN_INTEGRE` — a real public
+ * buyer's own downstream handling (`MISE_A_DISPOSITION`, `MANDATEE`, `MISE_EN_PAIEMENT`…) has never
+ * been exercised, qualification has no real public buyer to do it with. And separately: this test's
+ * own SINGLE immediate `consulterCr()` poll below only ever asserts `PENDING`/`CLEARED` — reaching
+ * `IN_INTEGRE` needed a LATER, separate poll, same structural point the run above already
+ * demonstrated once (run 1: a single immediate poll read `PENDING` for a deposit later found
+ * rejected). `mapChorusProStatus` (`choruspro-client.ts`) also does not yet recognize any of the
+ * `IN_`-prefixed values actually observed (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`,
+ * `IN_REJETE`, `IN_INTEGRE`) — see that function's own doc comment.
  *
  * Getting the technical account needs NO real company: the qualification space issues a fictitious
  * structure and SIRET ("matelas de données") — see `credentials-guide.md` §3, which quotes AIFE's

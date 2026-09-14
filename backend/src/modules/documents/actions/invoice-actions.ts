@@ -117,9 +117,11 @@ function describeMandateSource(mandate: ActiveChannelMandate): string {
  *    `requiredDocumentFields` marked `required: true` (e.g. Germany's Leitweg-ID, carried generically
  *    as `data.buyerReference`) are checked against THIS invoice's own submitted fields, same refusal
  *    shape; only once both pass is `rule.transportId` actually resolved against the live registry —
- *    a rule naming a channel not yet implemented (`"chorus-pro"`, `"zre-ozgre"` — see each shipped
- *    file's own header for why that is this model's own thesis, not a gap) refuses too, naming
- *    exactly that channel and citing the rule's own source.
+ *    a rule naming a channel not yet implemented (e.g. `"zre-ozgre"` — see each shipped file's own
+ *    header for why that is this model's own thesis, not a gap; `"chorus-pro"` used to be this
+ *    example too, until `transports/chorus-pro-transport.ts` registered it, proven live in
+ *    qualification 2026-09-14 — see `credentials-guide.md` §3) refuses too, naming exactly that
+ *    channel and citing the rule's own source.
  */
 function b2gUnresolvedCountryMessage(decision: B2gClientRoutingDecision): string {
   return (
