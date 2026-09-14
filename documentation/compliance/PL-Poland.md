@@ -30,17 +30,19 @@ transitional exemption ending **2026-12-31** and full compliance from **2027-01-
 not asserted here as this app's own verified fact — they are what its data notes cite as the
 open question a proper reading of the law would settle.
 
-## Proven once, not provably working today
+## Proven once, not re-verified since the engine refactor
 
 - `transports/ksef/ksef.live.spec.ts` is a real round-trip against `ksef-test.mf.gov.pl` that, when
   it last ran, reached `CLEARED` with a genuine `ksefNumber` — the fullest live proof any channel in
   this app has produced (it polls all the way to clearance, not just an accepted upload).
-- That spec's own header is explicit that **its credentials are absent today**: no
-  `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets, and the token used for the
-  original proof has since expired or rotated. The suite skips cleanly rather than fabricate a
-  result. Until new credentials are obtained and the spec re-run, this app cannot claim the KSeF
-  channel is working today — only that it worked once, against a test environment, before its
-  credentials lapsed.
+- `KSEF_AUTH_TOKEN`/`KSEF_NIP` **do** exist as CI secrets today (confirmed by name, not value). The
+  same secrets authenticated successfully against `ksef-test.mf.gov.pl` as recently as 2026-07-14 (a
+  CI run of the pre-refactor spec: real submission, a semantic `REJECTED` — code 450 — not an auth
+  failure). No live run has exercised the current, post-refactor spec, and no CI run of
+  `compliance-live.yml` has happened since the 2026-08-29 engine refactor — so whether the same
+  credentials are still valid today is unverified, not proven expired. Until the spec is re-run, this
+  app cannot claim the KSeF channel is working today — only that it worked once, against a test
+  environment, with credentials that have not been re-tried since.
 
 ## Selling to a government client (B2G)
 

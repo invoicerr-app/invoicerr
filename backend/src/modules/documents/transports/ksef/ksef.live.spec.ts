@@ -6,10 +6,14 @@
  *   cd backend && set -a; . .env.test.local; set +a
  *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef.live --no-coverage --runInBand
  *
- * **THESE CREDENTIALS ARE ABSENT TODAY** — no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or
- * in CI secrets (unlike PDP/KSeF's OWN historical proof at the reference, which used a token that has
- * since expired/rotated). `liveDescribe` therefore SKIPS this suite cleanly and says so on stderr —
- * this file does NOT invent a sandbox, a mock server, or a fabricated token to force a green run.
+ * `KSEF_AUTH_TOKEN`/`KSEF_NIP` DO exist as CI secrets today (confirmed by name via `gh secret list`,
+ * 2026-09-14 — values never read here). They authenticated successfully against ksef-test.mf.gov.pl
+ * as recently as 2026-07-14 (a CI run of the pre-refactor `compliance/providers/transmission/ksef/
+ * ksef-live.spec.ts`: real submission, a semantic `REJECTED` — code 450 — not an auth failure). No CI
+ * run of `compliance-live.yml` has happened since the 2026-08-29 refactor that produced THIS file, so
+ * this exact suite has no run on record — whether the secret is still valid today is UNVERIFIED, not
+ * proven expired. `liveDescribe` will actually RUN (not skip) if `KSEF_LIVE=1` is set — this file does
+ * NOT invent a sandbox, a mock server, or a fabricated token to force a green run.
  *
  * DB-FREE ON PURPOSE, same choice `pdp/pdp.live.spec.ts` makes for the identical reason: this spec
  * calls `fa3FormatProvider.build()` directly (descriptor + plain party objects, no Prisma — unlike

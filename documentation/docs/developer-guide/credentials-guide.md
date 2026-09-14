@@ -113,7 +113,7 @@ matter for the country whose live leg you actually run.
 
 ## 1. KSeF — Poland (national clearance / B2B mandatory)
 
-> **GitHub secrets:** `KSEF_AUTH_TOKEN`, `KSEF_NIP` &nbsp;•&nbsp; **Live flag:** `KSEF_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes (ksef-test) &nbsp;•&nbsp; **Repo status:** ✅ already set
+> **GitHub secrets:** `KSEF_AUTH_TOKEN`, `KSEF_NIP` &nbsp;•&nbsp; **Live flag:** `KSEF_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes (ksef-test) &nbsp;•&nbsp; **Repo status:** ✅ already set — the secrets exist in CI (confirmed by name, not value); see `live-testing.md`'s own KSeF row for why "set" is not the same claim as "proven today"
 
 **What each secret is / where it comes from**
 - `KSEF_AUTH_TOKEN` → the "token KSeF" (token uwierzytelniający), a bearer token used to authenticate machine-to-machine calls to the KSeF API. It is generated (not assigned by an admin) by a person who already has KSeF permissions for the given NIP, after they authenticate to the taxpayer application with a Trusted Profile (Profil Zaufany), qualified signature, qualified electronic seal, or mObywatel. Generated in the "Tokeny" screen of the MCU — Moduł Certyfikatów i Uprawnień (Certificates & Permissions Module), inside Aplikacja Podatnika KSeF 2.0. It is shown once at creation and cannot be retrieved again. Scope (issue invoices / view-download invoices / manage permissions) is chosen at generation time.
@@ -242,12 +242,19 @@ One measurement worth keeping in mind while hunting a bad credential: PISTE retu
 responses are byte-identical (measured 2026-09-14). Nothing short of a successful token proves a
 pair is good.
 
-A separate, real gap this round-trip surfaced, worth flagging here rather than only in code:
-`mapChorusProStatus` (`choruspro-client.ts`) still only recognizes the BARE values inherited from
-the pre-refonte reference client (`VALIDE`, `REJETE`, `DEPOSE`, …) — every value actually observed
-live carries an `IN_` prefix instead (`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`,
-`IN_INTEGRE`), none of which match today, so they all fall through to the function's own `PENDING`
-default. See that file's own header for the full note — fixing the mapping is out of scope here.
+A separate, real gap this round-trip surfaced — and which has SINCE been fixed, same day, worth
+flagging here rather than only in code: `mapChorusProStatus` (`choruspro-client.ts`) used to
+recognize ONLY the BARE values inherited from the pre-refonte reference client (`VALIDE`, `REJETE`,
+`DEPOSE`, …) — every value actually observed live carries an `IN_` prefix instead
+(`IN_DEPOT_PORTAIL_EN_ATTENTE_TRAITEMENT_SE_CPP`, `IN_REJETE`, `IN_INTEGRE`), none of which matched,
+so they all fell through to the function's own `PENDING` default: a real rejection silently read as
+pending, forever, and the real terminal success never read as CLEARED. Now fixed: `mapChorusProStatus`
+recognizes all three `IN_`-prefixed values (confirmed by this exact round-trip, not by any published
+enumeration — the official Swagger declares no `enum` for `etatCourantDepotFlux`, and AIFE's own EDI
+annex documents a *different* status mechanism, the older `CPPStatut`/`AIFE_Statut` push formats, not
+this one), and a value it still does not recognize now maps to its own `UNKNOWN` outcome — never
+silently `PENDING` again — persisted-logged by `chorus-pro-status-poller.ts#poll()` every time it is
+observed. See `mapChorusProStatus`'s own doc comment for the full detail.
 
 **What each secret is / where it comes from**
 

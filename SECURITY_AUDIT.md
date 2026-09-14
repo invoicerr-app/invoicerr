@@ -19,9 +19,9 @@ depends on a condition not verified here (e.g. deployment configuration).
 
 | # | Title | Severity | Status |
 |---|-------|----------|--------|
-| 1 | better-auth's login rate-limit is bypassable by spoofing `X-Forwarded-For` | High | CONFIRMED (code) |
-| 2 | Authenticated SSRF via the outbound webhook URL (no validation) | High | CONFIRMED (code) |
-| 3 | Example secrets not rejected (`docker-compose.yml`): `JWT_SECRET`/`BETTER_AUTH_SECRET` public if left unchanged | High | CONFIRMED (code) |
+| 1 | better-auth's login rate-limit is bypassable by spoofing `X-Forwarded-For` | High | **FIXED** (`1df72a53`, 2026-09-10) |
+| 2 | Authenticated SSRF via the outbound webhook URL (no validation) | High | **FIXED** (`1af56a43`, 2026-09-10) |
+| 3 | Example secrets not rejected (`docker-compose.yml`): `JWT_SECRET`/`BETTER_AUTH_SECRET` public if left unchanged | High | **FIXED** (`1df72a53`, 2026-09-10) |
 | 4 | Outdated `@xmldom/xmldom` (multiple DoS) reachable from the public SdI endpoint | Medium | CONFIRMED |
 | 5 | Unbounded request body on the public SdI endpoint (`readRawBody`) | Medium | CONFIRMED (code), mitigated by nginx in the standard topology |
 | 6 | No security headers (CSP/X-Frame-Options/HSTS/nosniff) | Medium | CONFIRMED |
@@ -39,7 +39,7 @@ authentication bypass). No cross-tenant IDOR found — see "What is done well".
 
 ## Detailed findings
 
-### 1. [High] Login rate-limit bypassable via spoofed `X-Forwarded-For` — CONFIRMED (code)
+### 1. [High] Login rate-limit bypassable via spoofed `X-Forwarded-For` — FIXED (`1df72a53`, 2026-09-10)
 
 **Files**:
 - `nginx.conf:11-16` (`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`)
@@ -87,9 +87,15 @@ client since nginx always overwrites it) instead of `X-Forwarded-For`. Add a per
 the OTP) in addition to a plain IP rate-limit, which remains inherently bypassable by rotating
 proxies.
 
+**Fix applied** (`1df72a53`, 2026-09-10): `nginx.conf` now overwrites `X-Forwarded-For $remote_addr`
+(non-forgeable) instead of appending to it, and `backend/src/main.ts` sets
+`app.getHttpAdapter().getInstance().set('trust proxy', 1)` — `req.ip` (and so `ThrottlerGuard` and
+better-auth) now reads the real client IP from the trusted nginx hop. Verified against the current
+code (`main.ts:41`, `nginx.conf`).
+
 ---
 
-### 2. [High] Authenticated SSRF via the outbound webhook URL — CONFIRMED (code)
+### 2. [High] Authenticated SSRF via the outbound webhook URL — FIXED (`1af56a43`, 2026-09-10)
 
 **Files**:
 - `backend/src/modules/webhooks/webhooks.service.ts:149-165` (`create`/`update`, no validation of
@@ -118,9 +124,15 @@ reject private/loopback/link-local ranges (RFC1918, `169.254.0.0/16`, `::1`, etc
 resolution on EVERY send (not only at creation, to prevent DNS rebinding). Consider a short timeout
 and disabling automatic redirect following by `fetch`.
 
+**Fix applied** (`1af56a43`, 2026-09-10): `webhooks.service.ts` now calls a new
+`validateWebhookUrl()` (`assertPublicWebhookUrl` guard) on create/update AND again before every send
+— http(s)-only, rejects literal private/loopback/link-local hosts and IPs, then resolves DNS and
+rejects if any resolved address is private (repeated pre-send to catch DNS rebinding). Verified
+against the current code (`webhooks.service.ts:129`, called at lines 171 and 195).
+
 ---
 
-### 3. [High] Example secrets accepted as-is in `docker-compose.yml` — CONFIRMED (code)
+### 3. [High] Example secrets accepted as-is in `docker-compose.yml` — FIXED (`1df72a53`, 2026-09-10)
 
 **Files**:
 - `docker-compose.yml:42-43`: `JWT_SECRET="your_jwt_secret"`, `BETTER_AUTH_SECRET="your_better_auth_secret"`
@@ -145,6 +157,14 @@ runs with the unmodified `docker-compose.yml` can forge a valid session cookie o
 values (`your_jwt_secret`, `your_better_auth_secret`, etc.), or better: do NOT provide a default
 value in `docker-compose.yml` at all (leave it empty like `.env.example`, which makes startup fail)
 rather than a string that looks filled in.
+
+**Fix applied** (`1df72a53`, 2026-09-10): `docker-compose.yml`'s `BETTER_AUTH_SECRET` now uses
+`${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file…}` (Compose refuses to start with no
+value supplied) instead of a public example string, and the new `backend/src/lib/secret-guard.ts`
+(`assertSecretsConfiguredForBoot`, called at the top of `main.ts`) independently refuses to boot in
+`NODE_ENV=production` if the effective secret — `BETTER_AUTH_SECRET || JWT_SECRET`, better-auth's own
+fallback — is empty or matches a known placeholder (`your_jwt_secret`, `changeme`, better-auth's own
+`DEFAULT_SECRET`…). Verified against the current code.
 
 ---
 

@@ -59,10 +59,12 @@ npm run e2e:run                # the numbered suites (cypress/e2e/*.cy.ts)
 npx cypress run --spec "cypress/e2e/21-document-lifecycle.cy.ts"
 ```
 
-`e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts` — the per-country business-scenario spec — does not
-exist in this tree (removed along with the old compliance engine); only its fixture,
-`e2e/cypress/fixtures/scenarios.ts`, survives. There is currently no `CYPRESS_scenario=<pair> npx
-cypress run --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts"` command to run.
+`e2e/cypress/e2e/scenarios/full-lifecycle.cy.ts` — the per-country business-scenario spec — was
+restored after the old compliance engine's removal (see the file's own header for what it now
+asserts against, and why some outcomes deliberately contradict `e2e/cypress/fixtures/scenarios.ts`'s
+own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> npx cypress run --spec
+"cypress/e2e/scenarios/full-lifecycle.cy.ts"` — the exact command `scenarios.yml` runs per matrix job
+(needs :4000/:6284/:5433/:6379/:8025 up, per the E2E section above).
 
 ### CI (`.github/workflows/`)
 - `cypress.yml` ("Tests", on PR) — biome lint, i18n check, backend jest, a **queue-integration** job
@@ -70,8 +72,8 @@ cypress run --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts"` command to run.
 - `scenarios.yml` ("Business Scenarios", on PR) — matrix `fr-pl de-fr it-it pt-de it-pt pl-de` (the
   5-country prune, 2026-09-10, re-pointed fr-be/es-pt/mx-us/us-us onto kept-country pairs — see
   `e2e/cypress/fixtures/scenarios.ts`'s own header for the mapping). Its only step drives
-  `cypress/e2e/scenarios/full-lifecycle.cy.ts` — that spec is currently absent (see above), so this
-  job cannot pass until it is restored.
+  `cypress/e2e/scenarios/full-lifecycle.cy.ts` — all six legs green as of run `34874375005` (commit
+  `b41e99a9`, 2026-09-14).
 - `compliance-live.yml` — real-API round-trips, `workflow_dispatch` only. See
   `documentation/docs/developer-guide/live-testing.md`.
 

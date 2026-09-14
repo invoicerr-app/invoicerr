@@ -10,10 +10,14 @@
  * rules) means EXACTLY the same thing by "legal" and "unverified".
  *
  * This is presentation/choice data for a document's own field, never a second tax authority: nothing
- * in this branch computes tax from it (there is no tax engine left in this codebase at all — see
- * contributions/invoice-contributions.ts's own "no VAT, no rounding rule" boundary). A rate here is
- * exactly what a user picks from a dropdown, with the source that justifies the number sitting right
- * next to it.
+ * in THIS catalog's own resolution path computes tax from it — see
+ * contributions/invoice-contributions.ts's own "no VAT, no rounding rule" boundary. (`tax/tax-engine.ts`
+ * IS a real cross-border tax determination engine that exists in this codebase since 2026-08-31 — see
+ * that file's own header — but it composes the seller's/buyer's `tax-systems/` catalogs, not this
+ * dropdown data; `resolve-invoice-tax.ts` separately cross-checks a chosen rate against
+ * `vat-rates/registry.ts` only to REJECT a rate foreign to the seller's country, never to derive tax
+ * from it.) A rate here is exactly what a user picks from a dropdown, with the source that justifies
+ * the number sitting right next to it.
  *
  * The provenance shape is DELIBERATELY NOT imported from country-policy/schema.ts even though it is
  * structurally identical (`kind: 'legal' | 'unverified'`, same two payload shapes): that file's own
