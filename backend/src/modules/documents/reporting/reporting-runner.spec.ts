@@ -25,7 +25,7 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUniqueOrThrow: jest.fn() },
-    client: { findUniqueOrThrow: jest.fn() },
+    client: { findFirstOrThrow: jest.fn() },
   },
 }));
 
@@ -34,7 +34,7 @@ const mockedCreateAuthorityEvents = createAuthorityEvents as jest.Mock;
 const mockedJournalSynthetic = journalSyntheticEvent as jest.Mock;
 const mockedPrisma = prisma as unknown as {
   company: { findUniqueOrThrow: jest.Mock };
-  client: { findUniqueOrThrow: jest.Mock };
+  client: { findFirstOrThrow: jest.Mock };
 };
 
 const JOB_DATA: ReportJobData = {
@@ -119,7 +119,7 @@ describe('ReportingRunner.runReport', () => {
     jest.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
     mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
-    mockedPrisma.client.findUniqueOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+    mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
     mockedCreateAuthorityEvents.mockResolvedValue(1);
     mockedJournalSynthetic.mockResolvedValue(1);
   });
@@ -256,7 +256,7 @@ describe('ReportingRunner — events', () => {
     jest.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
     mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
-    mockedPrisma.client.findUniqueOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+    mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
   });
 
   it('runReport: publishes an authority-event nudge on a genuine, newly-journaled success', async () => {
@@ -352,7 +352,7 @@ describe('ReportingRunner — webhooks', () => {
     jest.clearAllMocks();
     mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
     mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
-    mockedPrisma.client.findUniqueOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+    mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
   });
 
   it('runReport: dispatches DOCUMENT_AUTHORITY_EVENT with providerId/statusCode on a genuine, newly-journaled success', async () => {

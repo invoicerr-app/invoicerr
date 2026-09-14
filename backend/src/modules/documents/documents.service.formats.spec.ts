@@ -31,7 +31,7 @@ jest.mock('./country-policy/country-policy');
 // other `jest.mock` in this file already holds.
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { company: { findUnique: jest.fn() }, client: { findUnique: jest.fn() } },
+  default: { company: { findUnique: jest.fn() }, client: { findFirst: jest.fn() } },
 }));
 const prismaMock = jest.requireMock('@/prisma/prisma.service').default;
 
@@ -132,7 +132,7 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
     prismaMock.company.findUnique.mockResolvedValue(SELLER_ROW);
-    prismaMock.client.findUnique.mockResolvedValue(BUYER_ROW);
+    prismaMock.client.findFirst.mockResolvedValue(BUYER_ROW);
   });
   afterEach(() => jest.resetAllMocks());
 

@@ -132,8 +132,16 @@ export function buildSdiTransport(deps: SdiTransportDeps): DocumentTransport {
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
+        // Scoped by companyId — `clientId` comes straight off the document's own `data.client`, never
+        // checked for existence at write time (descriptors/field-kinds.ts's own comment on the
+        // 'reference' kind), so a bare `findUnique` would happily hand back another tenant's client. A
+        // `null` result (foreign or nonexistent id) already lands on the exact same "no valid client on
+        // file" refusal just below that a genuinely absent client already produced.
         clientId
-          ? prisma.client.findUnique({ where: { id: clientId }, include: { partyIdentifiers: true } })
+          ? prisma.client.findFirst({
+              where: { id: clientId, companyId: ctx.companyId },
+              include: { partyIdentifiers: true },
+            })
           : Promise.resolve(null),
       ]);
       if (!company) {

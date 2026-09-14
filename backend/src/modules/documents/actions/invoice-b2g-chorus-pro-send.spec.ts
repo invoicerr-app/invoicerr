@@ -37,7 +37,7 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
-    client: { findUnique: jest.fn() },
+    client: { findFirst: jest.fn() },
   },
 }));
 
@@ -53,7 +53,7 @@ jest.mock('../transports/chorus-pro/choruspro-client', () => {
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
-  client: { findUnique: jest.Mock };
+  client: { findFirst: jest.Mock };
 };
 
 const FR_RULE = {
@@ -172,7 +172,7 @@ describe('B2G FR, end to end at the service level — government client + connec
       country: 'France',
       partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
     });
-    mockedPrisma.client.findUnique.mockResolvedValue({
+    mockedPrisma.client.findFirst.mockResolvedValue({
       id: 'client-1',
       name: 'Mairie de Testville',
       address: '1 Place de la Mairie',

@@ -17,18 +17,19 @@ import { DocumentTypeDescriptor } from '../descriptors/types';
 import { ciiFormatProvider } from '../formats/cii-provider';
 import { DocumentFormatParty } from '../formats/format-provider';
 import { resolveInvoiceCrossBorderTaxForCompany } from './load-and-resolve';
+import { UnresolvedBuyerCountryError } from './resolve-invoice-tax';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
-    client: { findUnique: jest.fn() },
+    client: { findFirst: jest.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
-  client: { findUnique: jest.Mock };
+  client: { findFirst: jest.Mock };
 };
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
@@ -68,13 +69,13 @@ function draftData() {
 
 beforeEach(() => {
   mockedPrisma.company.findUnique.mockReset();
-  mockedPrisma.client.findUnique.mockReset();
+  mockedPrisma.client.findFirst.mockReset();
 });
 
 describe('resolveInvoiceCrossBorderTaxForCompany — Company.exemptVat actually reaches a domestic invoice', () => {
   it('exemptVat: true → the resolved data is 0%, category E, art. 293 B mention (never the engine called directly)', async () => {
     mockedPrisma.company.findUnique.mockResolvedValue(frCompanyRow(true));
-    mockedPrisma.client.findUnique.mockResolvedValue(frClientRow());
+    mockedPrisma.client.findFirst.mockResolvedValue(frClientRow());
 
     const data = draftData();
     const result = await resolveInvoiceCrossBorderTaxForCompany('company-1', data);
@@ -109,7 +110,7 @@ describe('resolveInvoiceCrossBorderTaxForCompany — Company.exemptVat actually 
 
   it('exemptVat: false (the ordinary case) — same object reference, standard 20% rate, NO exemption mention anywhere', async () => {
     mockedPrisma.company.findUnique.mockResolvedValue(frCompanyRow(false));
-    mockedPrisma.client.findUnique.mockResolvedValue(frClientRow());
+    mockedPrisma.client.findFirst.mockResolvedValue(frClientRow());
 
     const data = draftData();
     const result = await resolveInvoiceCrossBorderTaxForCompany('company-1', data);
@@ -130,5 +131,59 @@ describe('resolveInvoiceCrossBorderTaxForCompany — Company.exemptVat actually 
     const xml = Buffer.from(build.bytes).toString('utf-8');
     expect(xml).toMatch(/<ram:RateApplicablePercent>20<\/ram:RateApplicablePercent>/);
     expect(xml).not.toContain('293 B');
+  });
+});
+
+/**
+ * The multi-tenancy proof this fix exists for: `data.client` is read straight off the document's own
+ * `data` — never checked against the entity for existence, let alone OWNERSHIP, at write time
+ * (descriptors/field-kinds.ts's own comment on the 'reference' kind) — so before this fix,
+ * `prisma.client.findUnique({ where: { id: clientId } })` resolved ANY company's client row, letting a
+ * guessed or copy-pasted id from another tenant silently supply that tenant's own country/VAT to THIS
+ * company's tax computation. The mock below stands in for what a REAL `findFirst({ where: { id,
+ * companyId } })` actually does — a row comes back only when BOTH match — so this test would have
+ * failed against the pre-fix `findUnique({ where: { id } })` call (which this mock shape cannot even
+ * express: `findUnique` cares only about `id`) and passes now that the lookup is scoped.
+ */
+describe("resolveInvoiceCrossBorderTaxForCompany — data.client cannot resolve another company's client", () => {
+  function scopedClientRow(row: { id: string; companyId: string } & Record<string, unknown>) {
+    return ({ where }: { where: { id: string; companyId: string } }) =>
+      Promise.resolve(where.id === row.id && where.companyId === row.companyId ? row : null);
+  }
+
+  it("a `data.client` naming another tenant's real client resolves to NOTHING — hard-blocks as an unresolved buyer, never that tenant's own country/VAT", async () => {
+    mockedPrisma.company.findUnique.mockResolvedValue(frCompanyRow(false));
+    const otherTenantsClient = {
+      id: 'client-999',
+      companyId: 'company-OTHER',
+      country: 'Germany',
+      countryCode: 'DE',
+      partyIdentifiers: [{ value: 'DE123456789', validationStatus: 'VALID' }],
+    };
+    mockedPrisma.client.findFirst.mockImplementation(scopedClientRow(otherTenantsClient));
+
+    const data = { ...draftData(), client: 'client-999' };
+
+    // The pre-fix behavior would have resolved DE as the buyer country and happily computed a
+    // cross-border OSS treatment off another tenant's data — never reaching this error at all.
+    await expect(resolveInvoiceCrossBorderTaxForCompany('company-1', data)).rejects.toThrow(
+      UnresolvedBuyerCountryError,
+    );
+    // Proves the query itself carries the ACTING company, not merely that this mock said no.
+    expect(mockedPrisma.client.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'client-999', companyId: 'company-1' } }),
+    );
+  });
+
+  it('the SAME id, when it genuinely belongs to the acting company, resolves normally — this closes a tenant leak, not a blanket block', async () => {
+    mockedPrisma.company.findUnique.mockResolvedValue(frCompanyRow(false));
+    const ownClient = { id: 'client-1', companyId: 'company-1', ...frClientRow() };
+    mockedPrisma.client.findFirst.mockImplementation(scopedClientRow(ownClient));
+
+    const result = await resolveInvoiceCrossBorderTaxForCompany('company-1', draftData());
+
+    expect(result.crossBorder).toBe(false);
+    const lines = result.data.lines as Record<string, unknown>[];
+    expect(lines[0].vatRate).toBe('20');
   });
 });

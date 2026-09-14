@@ -47,13 +47,13 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
-    client: { findUnique: jest.fn() },
+    client: { findFirst: jest.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
-  client: { findUnique: jest.Mock };
+  client: { findFirst: jest.Mock };
 };
 
 const CONNECTED_CONFIG = {
@@ -184,7 +184,7 @@ describe('buildPeppolTransport', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedPrisma.company.findUnique.mockResolvedValue(GERMAN_SELLER);
-    mockedPrisma.client.findUnique.mockResolvedValue(FRENCH_BUYER_WITH_ENDPOINT);
+    mockedPrisma.client.findFirst.mockResolvedValue(FRENCH_BUYER_WITH_ENDPOINT);
   });
 
   describe('preflight() — before anything is persisted or queued', () => {
@@ -227,7 +227,7 @@ describe('buildPeppolTransport', () => {
     });
 
     it('refuses when the invoice has no valid client on file', async () => {
-      mockedPrisma.client.findUnique.mockResolvedValue(null);
+      mockedPrisma.client.findFirst.mockResolvedValue(null);
       const sendSpy = jest.spyOn(PeppolApHttpClient.prototype, 'send');
       const deps = buildDeps();
       const transport = buildPeppolTransport(deps);
@@ -240,7 +240,7 @@ describe('buildPeppolTransport', () => {
     // THE PEPPOL_ENDPOINT GATE — this file's own header, and `peppol-transport.ts`'s own header on
     // why this is checked directly rather than through the format bridge's own best-effort fallback.
     it('refuses, NAMED, when the client has no Peppol endpoint on file — never guesses one', async () => {
-      mockedPrisma.client.findUnique.mockResolvedValue({
+      mockedPrisma.client.findFirst.mockResolvedValue({
         ...FRENCH_BUYER_WITH_ENDPOINT,
         partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }], // no PEPPOL_ENDPOINT
       });
@@ -435,7 +435,7 @@ describe('buildPeppolTransport', () => {
 
     beforeEach(() => {
       mockedPrisma.company.findUnique.mockResolvedValue(GERMAN_SELLER_WITH_IBAN);
-      mockedPrisma.client.findUnique.mockResolvedValue(GERMAN_GOV_BUYER_WITH_ENDPOINT);
+      mockedPrisma.client.findFirst.mockResolvedValue(GERMAN_GOV_BUYER_WITH_ENDPOINT);
     });
 
     it('no `ctx.formatOverride` — REGRESSION: unaffected by `deps.formatOverrides` merely being wired, still sends peppol-bis exactly as every test above', async () => {

@@ -116,8 +116,17 @@ export class ReportingRunner {
         where: { id: data.companyId },
         include: { partyIdentifiers: true },
       }),
+      // Scoped by companyId — `clientId` comes straight off the document's own `data.client`, never
+      // checked for existence at write time (descriptors/field-kinds.ts's own comment on the
+      // 'reference' kind), so a bare `findUniqueOrThrow` would happily hand back another tenant's
+      // client instead of throwing. `findFirstOrThrow` keeps this call's existing "propagate, never
+      // swallow" contract (this function's own header) for a foreign id exactly as it already did for
+      // a nonexistent one.
       typeof clientId === 'string' && clientId
-        ? prisma.client.findUniqueOrThrow({ where: { id: clientId }, include: { partyIdentifiers: true } })
+        ? prisma.client.findFirstOrThrow({
+            where: { id: clientId, companyId: data.companyId },
+            include: { partyIdentifiers: true },
+          })
         : Promise.resolve(undefined),
     ]);
 

@@ -25,8 +25,15 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
       select: { country: true, countryCode: true, exemptVat: true },
     }),
     clientId
-      ? prisma.client.findUnique({
-          where: { id: clientId },
+      ? prisma.client.findFirst({
+          // Scoped by companyId, not a bare `id` lookup: `clientId` comes straight out of the
+          // document's own `data.client` reference field, which is never checked against the entity
+          // at write time for existence alone (descriptors/field-kinds.ts's own comment on the
+          // 'reference' kind) — an id naming ANOTHER company's client must resolve to nothing here,
+          // never to that other tenant's real country/VAT, which a bare `findUnique` would happily
+          // hand back. A `null` client is already the exact, hard-blocking "unresolved buyer country"
+          // path just below (never a silent guess) — see this file's own header.
+          where: { id: clientId, companyId },
           select: {
             country: true,
             countryCode: true,

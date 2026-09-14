@@ -21,7 +21,7 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
-    client: { findUnique: jest.fn() },
+    client: { findFirst: jest.fn() },
   },
 }));
 
@@ -39,7 +39,7 @@ jest.mock('./chorus-pro/choruspro-client', () => {
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
-  client: { findUnique: jest.Mock };
+  client: { findFirst: jest.Mock };
 };
 
 const CONNECTED_CONFIG = {
@@ -97,7 +97,7 @@ describe('buildChorusProTransport', () => {
       partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
     });
     // A GOVERNMENT client on file, SIRET (LEGAL_ID) present — the recipient gate's own happy path.
-    mockedPrisma.client.findUnique.mockResolvedValue({
+    mockedPrisma.client.findFirst.mockResolvedValue({
       id: 'client-1',
       name: 'Mairie de Testville',
       address: '1 Place de la Mairie',
@@ -150,7 +150,7 @@ describe('buildChorusProTransport', () => {
     });
 
     it('refuses when the invoice has no valid client on file', async () => {
-      mockedPrisma.client.findUnique.mockResolvedValue(null);
+      mockedPrisma.client.findFirst.mockResolvedValue(null);
       const deps = buildDeps();
       const transport = buildChorusProTransport(deps);
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
@@ -161,7 +161,7 @@ describe('buildChorusProTransport', () => {
     // with no SIRET/SIREN (LEGAL_ID) on file is refused, named, BEFORE any network call — same shape
     // `peppol-transport.spec.ts`'s own "no Peppol endpoint on file" test already proves for Peppol.
     it('refuses, naming the SIRET/LEGAL_ID gap, when the client has no LEGAL_ID identifier on file', async () => {
-      mockedPrisma.client.findUnique.mockResolvedValue({
+      mockedPrisma.client.findFirst.mockResolvedValue({
         id: 'client-1',
         name: 'Mairie de Testville',
         address: '1 Place de la Mairie',

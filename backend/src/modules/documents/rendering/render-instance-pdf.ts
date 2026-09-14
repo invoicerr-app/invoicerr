@@ -136,12 +136,18 @@ export async function sepaPaymentQrFor(
  * client to ask, and falls straight to `company.language` — never a lookup on an id that doesn't exist.
  *
  * A dangling/unresolvable client id (the same defensive case the `referenceLabels` loop above already
- * tolerates) is read the same way: `findUnique` returning `null` is not an error here, just "no
+ * tolerates) is read the same way: a scoped lookup returning `null` is not an error here, just "no
  * client-level preference available" — this function must never THROW over a language choice, the
  * same "a rendering gap must never block issuing/sending the document itself" discipline that loop's
- * own comment states.
+ * own comment states. Scoped by `companyId` for the SAME reason `referenceLabels`' own lookup above
+ * goes through the company-scoped `EntityReferenceRegistry` rather than a bare Prisma call: `clientId`
+ * is read straight off the document's own reference field, never checked for existence at write time
+ * (descriptors/field-kinds.ts's own comment on the 'reference' kind) — an id naming ANOTHER company's
+ * client must fall back to `companyLanguage` exactly like a dangling one already does, never actually
+ * resolve to that other tenant's own language preference.
  */
 async function recipientLanguageFor(
+  companyId: string,
   descriptor: DocumentTypeDescriptor,
   companyLanguage: string | null | undefined,
   data: Record<string, unknown>,
@@ -153,7 +159,10 @@ async function recipientLanguageFor(
     return resolveRecipientLanguage(undefined, companyLanguage);
   }
 
-  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { language: true } });
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, companyId },
+    select: { language: true },
+  });
   return resolveRecipientLanguage(client?.language, companyLanguage);
 }
 
@@ -259,7 +268,7 @@ export async function renderDocumentInstance(
   }
 
   const totals = computeDocumentTotals(descriptor, instanceData);
-  const language = await recipientLanguageFor(descriptor, company.language, instanceData);
+  const language = await recipientLanguageFor(companyId, descriptor, company.language, instanceData);
 
   const html = renderDocumentHtml({
     descriptor,

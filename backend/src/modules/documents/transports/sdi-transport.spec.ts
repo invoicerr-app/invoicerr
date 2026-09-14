@@ -32,13 +32,13 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
-    client: { findUnique: jest.fn() },
+    client: { findFirst: jest.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
-  client: { findUnique: jest.Mock };
+  client: { findFirst: jest.Mock };
 };
 
 const CONNECTED_CONFIG = {
@@ -98,7 +98,7 @@ describe('buildSdiTransport', () => {
       country: 'Italy',
       partyIdentifiers: [{ scheme: 'VAT', value: 'IT12345678901' }],
     });
-    mockedPrisma.client.findUnique.mockResolvedValue({
+    mockedPrisma.client.findFirst.mockResolvedValue({
       id: 'client-1',
       name: 'Bianchi SpA',
       address: 'Corso Italia 20',
@@ -183,7 +183,7 @@ describe('buildSdiTransport', () => {
     });
 
     it('refuses when the invoice has no valid client on file', async () => {
-      mockedPrisma.client.findUnique.mockResolvedValue(null);
+      mockedPrisma.client.findFirst.mockResolvedValue(null);
       const submit = jest.fn();
       const deps = buildDeps({ httpPort: { submit, getStatus: jest.fn(), sendEsito: jest.fn() } });
       const transport = buildSdiTransport(deps);

@@ -42,13 +42,13 @@ jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     company: { findUnique: jest.fn() },
-    client: { findUnique: jest.fn() },
+    client: { findFirst: jest.fn() },
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
-  client: { findUnique: jest.Mock };
+  client: { findFirst: jest.Mock };
 };
 
 // The REAL DE rule shape (`b2g-routing/data/de.json`) — `transportId: "peppol"`,
@@ -212,7 +212,7 @@ describe('B2G DE, end to end at the service level — government client + connec
       missingIdentifierSchemes: [],
     });
     mockedPrisma.company.findUnique.mockResolvedValue(COMPANY_WITH_IBAN);
-    mockedPrisma.client.findUnique.mockResolvedValue(GOVERNMENT_CLIENT);
+    mockedPrisma.client.findFirst.mockResolvedValue(GOVERNMENT_CLIENT);
 
     const data = documentData();
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(draftDocument(data));
@@ -296,7 +296,7 @@ describe('B2G DE, end to end at the service level — government client + connec
       missingIdentifierSchemes: [],
     });
     mockedPrisma.company.findUnique.mockResolvedValue(COMPANY_WITH_IBAN);
-    mockedPrisma.client.findUnique.mockResolvedValue({ ...GOVERNMENT_CLIENT, partyIdentifiers: [] }); // no PEPPOL_ENDPOINT
+    mockedPrisma.client.findFirst.mockResolvedValue({ ...GOVERNMENT_CLIENT, partyIdentifiers: [] }); // no PEPPOL_ENDPOINT
 
     const data = documentData();
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument(data));
@@ -329,7 +329,7 @@ describe('B2G DE, end to end at the service level — government client + connec
       missingIdentifierSchemes: [],
     });
     mockedPrisma.company.findUnique.mockResolvedValue(COMPANY_WITHOUT_IBAN);
-    mockedPrisma.client.findUnique.mockResolvedValue(GOVERNMENT_CLIENT);
+    mockedPrisma.client.findFirst.mockResolvedValue(GOVERNMENT_CLIENT);
 
     const data = documentData();
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument(data));
@@ -369,7 +369,7 @@ describe('B2G DE, end to end at the service level — government client + connec
     // test isolated to its OWN single variable (format choice), never entangled with that unrelated
     // base-layer German rule.
     mockedPrisma.company.findUnique.mockResolvedValue(COMPANY_WITH_IBAN);
-    mockedPrisma.client.findUnique.mockResolvedValue(BUSINESS_CLIENT_DE);
+    mockedPrisma.client.findFirst.mockResolvedValue(BUSINESS_CLIENT_DE);
 
     const data = documentData({ client: 'client-2', buyerReference: 'PO-2026-00099' });
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(sendingDocument(data));

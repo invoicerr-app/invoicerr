@@ -107,6 +107,7 @@ import {
   EntityReferenceRegistry,
   UnknownEntityReferenceError,
 } from './references/reference-registry';
+import { validateReferenceFields } from './references/validate-references';
 import {
   listSourceRows,
   SelectableRowsResult,
@@ -848,9 +849,13 @@ export class DocumentsService implements OnModuleInit {
     }
 
     let currentStatus: string | undefined;
+    // Captured alongside `currentStatus` for `validateReferenceFields` below — see that call's own
+    // comment for why a NEW or CHANGED reference is checked but an unchanged one is grandfathered in.
+    let existingData: Record<string, unknown> | undefined;
     if (payload.documentId) {
       const existing = await findOwnedDocument(companyId, typeId, payload.documentId);
       currentStatus = existing.status;
+      existingData = (existing.data ?? {}) as Record<string, unknown>;
     }
     if (!isActionAvailable(action, currentStatus)) {
       throw new ConflictException(
@@ -920,11 +925,29 @@ export class DocumentsService implements OnModuleInit {
       typeRegistry: this.typeRegistry,
       data: payload.data ?? {},
     });
+    // Company-scoped existence for every top-level 'reference' field that is NEW or CHANGED by this
+    // very write — see references/validate-references.ts's own header for the full "why", in
+    // particular why this is NOT re-checked for a value carried over unchanged from the already-
+    // persisted document. This is what closes the hole this fix exists for: a scripted client can no
+    // longer persist another tenant's (or a nonexistent) client/invoice/quote id as `data.client` (or
+    // `data.invoice`, `data.origin`, `data.supplierClient`) and have every downstream consumer trust it.
+    const referenceErrors = await validateReferenceFields({
+      companyId,
+      referenceRegistry: this.referenceRegistry,
+      fields,
+      data: payload.data ?? {},
+      existingData,
+    });
     const paramErrors = action.params
       ? validateAgainstDescriptor(action.params, payload.params ?? {}, this.fieldKindRegistry)
       : [];
-    if (dataErrors.length > 0 || rowSelectionErrors.length > 0 || paramErrors.length > 0) {
-      const errors = [...dataErrors, ...rowSelectionErrors, ...paramErrors];
+    if (
+      dataErrors.length > 0 ||
+      rowSelectionErrors.length > 0 ||
+      referenceErrors.length > 0 ||
+      paramErrors.length > 0
+    ) {
+      const errors = [...dataErrors, ...rowSelectionErrors, ...referenceErrors, ...paramErrors];
       throw new BadRequestException({ message: 'Invalid document data', errors });
     }
 
@@ -1276,8 +1299,13 @@ export class DocumentsService implements OnModuleInit {
     const clientId = typeof data.client === 'string' ? data.client : undefined;
     const [company, client] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } }),
+      // Scoped by companyId — `clientId` is read straight off `data.client`, never checked for
+      // existence at write time (descriptors/field-kinds.ts's own comment on the 'reference' kind), so
+      // a bare `findUnique` would happily hand back ANOTHER company's client row. A `null` result
+      // (foreign or nonexistent id) already lands on the exact same "no valid client on file" 400
+      // just below that a genuinely absent client already produced — never a silent leak.
       clientId
-        ? prisma.client.findUnique({ where: { id: clientId }, include: { partyIdentifiers: true } })
+        ? prisma.client.findFirst({ where: { id: clientId, companyId }, include: { partyIdentifiers: true } })
         : Promise.resolve(null),
     ]);
     if (!company) {
