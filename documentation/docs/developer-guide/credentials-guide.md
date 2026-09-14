@@ -78,7 +78,7 @@ Legend — **Repo:** ✅ set · 🟡 partial · 🔴 missing
 |--:|----------|---------|:----:|------------------------------------|
 | 1 | KSeF | 🇵🇱 Poland | ✅ | Already set. Token auth sunsets end-2026 → certificate path later |
 | 2 | PDP (superpdp) | 🇫🇷 France | 🟡 | Sandbox set; routing IDs optional; prod = commercial PDP contract |
-| 3 | Chorus Pro (PISTE) | 🇫🇷 France | 🔴 | Needs a SIRET structure + "Gestionnaire principal" to create the tech account |
+| 3 | Chorus Pro (PISTE) | 🇫🇷 France | 🔴 | Self-service, no real company: qualification issues a fictitious SIRET + Gestionnaire principal |
 | 4 | SdI (SDICoop/SDIFTP) | 🇮🇹 Italy | 🔴 | Partita IVA on Entratel + channel accreditation (collaudo) |
 | 4bis | SdI via PEC | 🇮🇹 Italy | 🔴 | No accreditation at all — only blocker is provisioning a PEC mailbox |
 | 5 | Peppol | 🌍 cross-border | ✅/🔴 | peppol.sh live-proof harness proven zero-secret; generic AP (the only one production sends through) = commercial AP account + SMP |
@@ -219,15 +219,47 @@ Two *completely separate* systems issue these four values — mixing them up is 
 
 - **`CHORUSPRO_CLIENT_ID` / `CHORUSPRO_CLIENT_SECRET`** → come from **PISTE** (piste.gouv.fr, AIFE's shared government-API gateway that has hosted all Chorus Pro API access since Jan 2021, replacing the old certificate auth). Inside a PISTE **application**, the config screen has two distinct panels that look similar and get confused:
   - **"API Keys"** — a generic per-API key used by *some other* PISTE-hosted APIs that don't do OAuth. **Not what Chorus Pro uses.**
-  - **"OAuth Credentials" / Authentication tab** — shows a `Client ID` (UUID) and a `Secret Key` (revealed via a "view/regenerate client secret" button). **This is the pair you want.** It's used with the OAuth2 `client_credentials` grant against `oauth.piste.gouv.fr` (sandbox: `sandbox-oauth.aife.economie.gouv.fr`) to obtain a short-lived Bearer token before every Chorus Pro API call.
+  - **"OAuth Credentials" / Authentication tab** — shows a `Client ID` (UUID) and a `Secret Key` (revealed via a "view/regenerate client secret" button). **This is the pair you want.** It's used with the OAuth2 `client_credentials` grant against `oauth.piste.gouv.fr` (sandbox: `sandbox-oauth.piste.gouv.fr`) to obtain a short-lived Bearer token before every Chorus Pro API call.
+
+  That the Chorus Pro API is OAuth2-only — never an API-key plan — is **established, not assumed**.
+  Three concordant sources plus one live measurement (2026-09-14):
+  - AIFE's own migration notice: *"à compter du 1er janvier 2021, le mode d'authentification par
+    certificat ne sera plus accepté. Seuls les appels API en mode Oauth2 seront possibles."*
+    (`communaute.chorus-pro.gouv.fr/raccordement-a-chorus-pro-en-api-le-passage-sur-piste-devient-obligatoire/`)
+  - The PISTE sandbox catalog entry for this exact API (`api_rfa: cpro.factures`) carries
+    `url_oauth_sdbx: sandbox-oauth.piste.gouv.fr` and no API-key field; no entry on that page has one.
+  - The official developer guide's own curl recipe sends exactly the two headers this repo's client
+    sends (`Authorization: Bearer`, `cpro-account`) and no key header.
+  - Measured: `POST https://sandbox-api.piste.gouv.fr/cpro/factures/v1/consulter/cr` with no auth
+    answers `400` with `WWW-Authenticate: Bearer realm="DefaultRealm", error="invalid_request",
+    error_description="Unable to find token in the message"` — a Gravitee OAuth2 policy challenge.
+    An API-key plan would complain about a missing key, not challenge for a Bearer token.
+
+  The sandbox OAuth host above was **corrected** here: this section previously named
+  `sandbox-oauth.aife.economie.gouv.fr`, which does not resolve. `choruspro-client.ts`'s own header
+  records the same correction.
 - **`CHORUSPRO_TECH_LOGIN` / `CHORUSPRO_TECH_PASSWORD`** → come from Chorus Pro itself (the "**compte technique**", created inside the Chorus Pro portal, *not* PISTE). It exists purely so external systems can call the API — it cannot log into the Chorus Pro web portal. Login format looks like `TECH_n_xxxxxx@cpro.fr`; the password is auto-generated and shown **once**. This login:password pair is base64-encoded and sent as a `cpro-account` HTTP header on every API call — it's a second, independent layer of auth stacked on top of the PISTE OAuth Bearer token. It must be rotated by the org's Manager every 424 days (~14 months).
 
 So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT_ID/SECRET) **and** the `cpro-account` header (TECH_LOGIN/PASSWORD).
 
 **Prerequisites**
 
-- An existing **structure** (legal entity) already registered on the Chorus Pro portal, identified by **SIRET**.
-- A Chorus Pro portal user with the **"Gestionnaire principal"** (main Manager) role on that structure — only this role can create/reset a technical account.
+- A **structure** on the Chorus Pro portal, identified by a SIRET, with a user holding the
+  **"Gestionnaire principal"** role — only that role can create or reset a technical account.
+
+  **In qualification, neither the company nor the SIRET has to be real, and this is the point that
+  unblocks the whole channel.** The qualification space generates a fictitious dataset for you — a
+  supplier structure with its own SIRET and its own Gestionnaire principal account. AIFE's own
+  step-by-step says so: *"Descendez jusqu'au bloc **Mon matelas de données** et cliquez sur le bouton
+  **Créer** […] Notez les LOGIN compte GP et le Mot de passe Compte GP, de la structure fournisseur
+  partenaire de votre jeu de données […] Notez également **son SIRET (fictif)** : c'est ce dernier que
+  vous utiliserez pour votre raccordement."*
+  (`communaute.chorus-pro.gouv.fr/espd-connection-at-qualification-space/`)
+
+  Even the PISTE signup asks for no SIRET for this usage — AIFE's setup sheet says to pick
+  `Universelle` as the organisation name. A real SIRET is required only at the **production**
+  raccordement. Earlier revisions of this section stated a real SIRET'd structure was needed at all;
+  that was wrong, and it is what made this channel look blocked for anyone without a French company.
 - A PISTE account (free, self-service signup).
 - For production later: the same steps repeated in a dedicated production PISTE application + a production "raccordement" declaration — out of scope while `CHORUSPRO_ENVIRONMENT=SANDBOX`.
 
@@ -239,7 +271,10 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 5. Open the application's **Authentication / OAuth Credentials tab** (not the separate "API Keys" list) and copy the **Client ID** and **Secret Key** (click "view client secret" to reveal it). These are `CHORUSPRO_CLIENT_ID` and `CHORUSPRO_CLIENT_SECRET`.
 
 **Step-by-step: creating the Chorus Pro technical account + subscribing to the Chorus Pro API on PISTE**
-1. Make sure the company's structure already exists on the Chorus Pro qualification portal and you (or someone) holds the **Gestionnaire principal** role for it.
+1. Create an account on the qualification portal (`chorus-pro.gouv.fr/qualif/`), then generate a
+   **"matelas de données"** from it — that is what gives you a supplier structure, its fictitious
+   SIRET, and the **Gestionnaire principal** login you need for the next steps. No real company and
+   no real SIRET are involved (see Prerequisites above for the official wording).
 2. In the Chorus Pro portal, open **"Raccordement EDI et API"** → tab **"Gérer raccordement API"** → click **"Déclarer un raccordement PISTE"**. Fill in: the structure, the PISTE sandbox application name (`APP_SANDBOX_...` from step above), usage type, and a technical contact.
 3. Still in the portal, create the technical account: choose request type **"Création d'un compte technique"**, then **"Choisir la structure"**. Chorus Pro auto-generates a **login** and **password**, shown once on screen — save immediately. This is `CHORUSPRO_TECH_LOGIN` / `CHORUSPRO_TECH_PASSWORD`. The account activates ~30 minutes later; a confirmation email "[Chorus Pro] Création du compte utilisateur technique" follows.
 4. At call time, base64-encode `login:password` and send it as the `cpro-account` header alongside the PISTE OAuth Bearer token on every request to the Chorus Pro sandbox API host.
@@ -248,7 +283,10 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 **Cost, lead time & blockers**
 - Both PISTE and Chorus Pro are free state services — no pricing found anywhere in AIFE/PISTE/community docs; this is the mandatory, no-cost B2G invoicing channel.
 - Lead time: PISTE account email-activation is near-instant but community guidance mentions up to 24–48h AIFE-side delay in some cases; Chorus Pro technical-account creation is effective ~30 minutes after request.
-- Current repo blocker: nothing is set up yet — needs a real SIRET'd structure on the Chorus Pro portal, a user with the **Gestionnaire principal** role to create the technical account, and a PISTE account/application for the OAuth credentials. All of this is blocked on the user completing PISTE signup first (per project notes).
+- Current repo blocker: nothing is set up yet. The whole path is self-service and needs **no real
+  company** (see Prerequisites) — a PISTE account for the OAuth pair, then a qualification account
+  whose "matelas de données" supplies the structure, the fictitious SIRET and the Gestionnaire
+  principal that create the technical account.
 - Common trap to flag in the setup guide: picking the wrong credential panel in PISTE ("API Keys" vs "OAuth Credentials") — Chorus Pro only accepts the OAuth Credentials pair.
 
 **Official sources**
@@ -259,6 +297,10 @@ So a real Chorus Pro API call needs **both**: a PISTE OAuth Bearer token (CLIENT
 - https://communaute.chorus-pro.gouv.fr/chorus-pro-piste-comment-reussir-son-raccordement-api-oauth2/?lang=en
 - https://communaute.chorus-pro.gouv.fr/raccordement-a-chorus-pro-en-api-le-passage-sur-piste-devient-obligatoire/?lang=en
 - https://communaute.chorus-pro.gouv.fr/quest-ce-que-le-compte-technique-sur-chorus-pro/?lang=en
+- https://communaute.chorus-pro.gouv.fr/espd-connection-at-qualification-space/?lang=en — the
+  "matelas de données" procedure, and the source for the fictitious SIRET quoted above
+- https://communaute.chorus-pro.gouv.fr/documentation/aides-aux-developpeurs-api-en-mode-oauth2/ —
+  the official curl recipe, header for header what `choruspro-client.ts` sends
 - https://communaute.chorus-pro.gouv.fr/documentation/help-for-api-developers-in-oauth2-mode/?lang=en
 - https://communaute.chorus-pro.gouv.fr/documentation/perimetre-et-prerequis-2/
 - https://portail.chorus-pro.gouv.fr/aife_documentation?id=kb_article_view&sysparm_article=KB0012860
