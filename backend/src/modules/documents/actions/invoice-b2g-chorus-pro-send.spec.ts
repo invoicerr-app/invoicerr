@@ -39,6 +39,10 @@ jest.mock('@/prisma/prisma.service', () => ({
   default: {
     company: { findUnique: jest.fn() },
     client: { findFirst: jest.fn() },
+    // Read by THE PAYMENT MEANS GATE's own `listCompanyPaymentMethods` (real, unmocked here —
+    // deliberately: see this file's own header, "does the WIRING... work", never a stubbed persistence
+    // module) — `chorus-pro-transport.ts` refuses a deposit unless "bank_transfer" comes back enabled.
+    companyPaymentMethodConfig: { findUnique: jest.fn() },
   },
 }));
 
@@ -55,6 +59,7 @@ jest.mock('../transports/chorus-pro/choruspro-client', () => {
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock };
   client: { findFirst: jest.Mock };
+  companyPaymentMethodConfig: { findUnique: jest.Mock };
 };
 
 const FR_RULE = {
@@ -171,6 +176,10 @@ describe('B2G FR, end to end at the service level — government client + connec
       city: 'Paris',
       postalCode: '75002',
       country: 'France',
+      // Required by THE PAYMENT MEANS GATE (`chorus-pro-transport.ts`): a public-sector deposit is
+      // refused without an IBAN on file, independent of the "bank_transfer" method's own enabled flag
+      // below — see that gate's own header on why the two checks are not redundant.
+      iban: 'FR7630006000011234567890189',
       partyIdentifiers: [{ scheme: 'VAT', value: 'FR12345678901' }],
     });
     mockedPrisma.client.findFirst.mockResolvedValue({
@@ -182,6 +191,17 @@ describe('B2G FR, end to end at the service level — government client + connec
       country: 'France',
       partyIdentifiers: [{ scheme: 'LEGAL_ID', value: '21750001600017' }],
     });
+    // THE PAYMENT MEANS GATE reads this company's own CONFIGURED payment methods via the REAL
+    // `listCompanyPaymentMethods` (deliberately unmocked — see this file's own header): only
+    // "bank_transfer" comes back enabled here, the ONE method Chorus Pro's own strict allowlist
+    // accepts (`CHORUS_PRO_ALLOWED_PAYMENT_METHOD_ID`) — every other built-in method stays unconfigured
+    // (`enabled: false`), which the gate already accepts as "not offered", never a refusal on its own.
+    mockedPrisma.companyPaymentMethodConfig.findUnique.mockImplementation(
+      ({ where }: { where: { companyId_methodId: { methodId: string } } }) =>
+        Promise.resolve(
+          where.companyId_methodId.methodId === 'bank_transfer' ? { enabled: true, config: {} } : null,
+        ),
+    );
   });
 
   it('phase 1 (enqueue): the preflight PASSES — chorus-pro is registered AND connected, so B2G routing no longer refuses', async () => {
