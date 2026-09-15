@@ -15,7 +15,7 @@ import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/compo
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
-import { useDocumentType } from "@/hooks/queries"
+import { useDocumentType, useResolvedCompanyCustomFields } from "@/hooks/queries"
 
 /**
  * `data.lineTotalWarnings` — a RESERVED key (never a declared `DocumentFieldDescriptor`), the same
@@ -115,7 +115,23 @@ export function DocumentForm({
   // hook's own query-key collapse (see use-document-types.ts) means the "no client yet" case reuses
   // the SAME cache entry `descriptor` itself came from, not a second request.
   const effectiveDescriptor = liveDescriptor ?? descriptor
-  const schema = useMemo(() => buildZodSchema(effectiveDescriptor.fields), [effectiveDescriptor])
+
+  // TODO_FEATURES.md rank 15 ("champs personnalisés") — this company's OWN active custom fields for
+  // THIS document type, resolved separately from `effectiveDescriptor` (never merged into it on the
+  // backend — see `documents.service.ts`'s own header on why the company overlay could not be wired
+  // there on this branch) and appended here instead, the exact same "append once resolved, the SAME
+  // way a reactively-appearing B2G field already does" mechanism `liveDescriptor` above already
+  // proves works: `DocumentField`/`buildZodSchema`/`defaultValuesFor` all just iterate an array of
+  // `DocumentFieldDescriptor`, with ZERO kind-specific code of their own, so appending to that array
+  // is the entire integration. Empty for a company that never defined one — `allFields` below is then
+  // byte-for-byte `effectiveDescriptor.fields`, the exact pre-existing behavior.
+  const { data: customFields } = useResolvedCompanyCustomFields("DOCUMENT", descriptor.id)
+  const customFieldsList = useMemo(() => customFields ?? [], [customFields])
+  const allFields = useMemo(
+    () => [...effectiveDescriptor.fields, ...customFieldsList],
+    [effectiveDescriptor, customFieldsList],
+  )
+  const schema = useMemo(() => buildZodSchema(allFields), [allFields])
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -228,6 +244,22 @@ export function DocumentForm({
             <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
           ))}
         </div>
+
+        {/* TODO_FEATURES.md rank 15 ("champs personnalisés") — its OWN section, mirroring the PDF's
+            own end-of-document "additional fields" block (rendering/render-html.ts): a company field
+            is never mixed into the native fields loop above. Rendered through the exact same
+            `DocumentField` generic-by-kind component every native field already uses — zero
+            kind-specific code here. Absent entirely for a company that defined none for this type. */}
+        {customFieldsList.length > 0 && (
+          <div className="space-y-4 border-t pt-4" data-cy="document-custom-fields-section">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {t("documents.form.customFields.heading")}
+            </h3>
+            {customFieldsList.map((field) => (
+              <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
+            ))}
+          </div>
+        )}
 
         <DocumentTotals descriptor={descriptor} />
 

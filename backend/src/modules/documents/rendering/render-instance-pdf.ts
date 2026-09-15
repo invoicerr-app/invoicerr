@@ -5,7 +5,8 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { findClientReferenceField } from '../actions/email-template';
-import { DocumentTypeDescriptor } from '../descriptors/types';
+import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
+import { DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
 import { extractCrossBorderMentions } from '../formats/shared-build';
 import { resolveInvoiceNotes, ResolvedInvoiceNote } from '../mentions/invoice-notes';
 import { defaultMentionsCatalog } from '../mentions/registry';
@@ -156,6 +157,33 @@ export async function paymentMethodsFor(
     currency,
     reference: displayNumber ?? undefined,
   });
+}
+
+/**
+ * TODO_FEATURES.md rank 15 ("champs personnalisés") — resolves the "additional fields" block for ONE
+ * instance: every DOCUMENT-target custom field definition for `companyId`/`typeId` that ACTUALLY
+ * CARRIES A VALUE on `data`, paired with the raw value itself (`render-html.ts`'s own block formats
+ * it, by kind — see `RenderDocumentHtmlInput.customFields`'s own header for why this hands over the
+ * descriptor+value pair rather than a pre-formatted string).
+ *
+ * Resolved with `includeArchived: true`, deliberately UNLIKE the create/edit FORM's own fetch
+ * (`company-custom-fields.controller.ts`'s `GET .../resolved`, active-only): a PDF is regenerated
+ * on demand, every time it is downloaded, from whatever is CURRENTLY in `data` — an already-issued
+ * document that has a value for a definition a company later archived (renamed away, or retired)
+ * must keep printing that value on every future re-download, exactly as it always did, which is only
+ * possible if archived definitions still resolve here. Never a live/DB round trip surprise for a
+ * company with none defined at all: `resolveDocumentCustomFieldDescriptors` returns `[]` instantly
+ * when this company has no DOCUMENT-target rows for this type, the routine case.
+ */
+async function companyCustomFieldsFor(
+  companyId: string,
+  typeId: string,
+  data: Record<string, unknown>,
+): Promise<{ field: DocumentFieldDescriptor; value: unknown }[]> {
+  const fields = await resolveDocumentCustomFieldDescriptors(companyId, typeId, { includeArchived: true });
+  return fields
+    .map((field) => ({ field, value: data[field.key] }))
+    .filter(({ value }) => value !== undefined && value !== null && value !== '');
 }
 
 /**
@@ -313,6 +341,7 @@ export async function renderDocumentInstance(
     instanceData,
     instance.displayNumber,
   );
+  const customFields = await companyCustomFieldsFor(companyId, descriptor.id, instanceData);
 
   const html = renderDocumentHtml({
     descriptor,
@@ -331,6 +360,7 @@ export async function renderDocumentInstance(
     legalMentions: legalMentionsFor(descriptor, company.country, instanceData),
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
     paymentMethods,
+    customFields,
   });
 
   // Portugal's ATCUD "on every page" (Portaria n.º 195/2020, art. 4.º n.º 3) — the SAME string just

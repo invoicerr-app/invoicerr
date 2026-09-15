@@ -36,6 +36,10 @@ export interface Client {
   currency?: string // Assuming currency is a string, e.g., "USD", "EUR"
   isActive?: boolean
   partyIdentifiers?: PartyIdentifier[]
+  // TODO_FEATURES.md rank 15 ("champs personnalisés") — one entry per company-defined CLIENT-target
+  // custom field, keyed by that definition's own immutable `key` (never prefixed — see the backend's
+  // own `Client.customFields` schema.prisma header). Absent/`{}` for a client with none filled in yet.
+  customFields?: Record<string, unknown>
 }
 
 /**

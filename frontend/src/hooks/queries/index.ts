@@ -8,6 +8,11 @@ export {
 export { useCompany } from "./use-company"
 export { useCompanies } from "./use-companies"
 export {
+  useDeclarations,
+  type DeclarationEntry,
+  type DeclarationsListResponse,
+} from "./use-declarations"
+export {
   useDocumentTypesList,
   useAvailableDocumentTypes,
   useDocumentType,
@@ -102,3 +107,16 @@ export {
   type AttachmentRef,
   type UploadAttachmentVariables,
 } from "./use-attachments"
+export {
+  useCompanyCustomFieldDefinitions,
+  useResolvedCompanyCustomFields,
+  useCreateCompanyCustomField,
+  useUpdateCompanyCustomField,
+  useArchiveCompanyCustomField,
+  useRestoreCompanyCustomField,
+  type CompanyCustomFieldTarget,
+  type CompanyCustomFieldOption,
+  type CompanyCustomFieldDefinition,
+  type CreateCompanyCustomFieldInput,
+  type UpdateCompanyCustomFieldInput,
+} from "./use-company-custom-fields"

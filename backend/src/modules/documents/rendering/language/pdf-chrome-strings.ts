@@ -46,6 +46,11 @@ export interface PdfChromeStrings {
    *  untranslated, the same "plain data" convention every descriptor label already holds — only this
    *  section's heading is this render layer's OWN chrome. */
   paymentMethodsHeading: string;
+  /** Heading of the "additional fields" section (TODO_FEATURES.md rank 15, "champs personnalisés") —
+   *  see `render-html.ts`'s own `customFields` input. Each definition's own `label` stays untranslated
+   *  (plain data, a company's own wording), only this section's heading is this render layer's OWN
+   *  chrome. */
+  customFieldsHeading: string;
 }
 
 const EN: PdfChromeStrings = {
@@ -60,6 +65,7 @@ const EN: PdfChromeStrings = {
   draftNoNumberYet: 'Draft — no number yet',
   scanToPaySepa: 'Scan to pay (SEPA)',
   paymentMethodsHeading: 'Payment methods',
+  customFieldsHeading: 'Additional fields',
 };
 
 const FR: PdfChromeStrings = {
@@ -74,6 +80,7 @@ const FR: PdfChromeStrings = {
   draftNoNumberYet: 'Brouillon — pas encore de numéro',
   scanToPaySepa: 'Scannez pour payer (SEPA)',
   paymentMethodsHeading: 'Moyens de paiement',
+  customFieldsHeading: 'Champs supplémentaires',
 };
 
 const IT: PdfChromeStrings = {
@@ -88,6 +95,7 @@ const IT: PdfChromeStrings = {
   draftNoNumberYet: 'Bozza — numero non ancora assegnato',
   scanToPaySepa: 'Scansiona per pagare (SEPA)',
   paymentMethodsHeading: 'Metodi di pagamento',
+  customFieldsHeading: 'Campi aggiuntivi',
 };
 
 const PL: PdfChromeStrings = {
@@ -102,6 +110,7 @@ const PL: PdfChromeStrings = {
   draftNoNumberYet: 'Wersja robocza — brak numeru',
   scanToPaySepa: 'Zeskanuj, aby zapłacić (SEPA)',
   paymentMethodsHeading: 'Metody płatności',
+  customFieldsHeading: 'Dodatkowe pola',
 };
 
 const DE: PdfChromeStrings = {
@@ -116,6 +125,7 @@ const DE: PdfChromeStrings = {
   draftNoNumberYet: 'Entwurf — noch keine Nummer',
   scanToPaySepa: 'Zum Bezahlen scannen (SEPA)',
   paymentMethodsHeading: 'Zahlungsmethoden',
+  customFieldsHeading: 'Zusätzliche Felder',
 };
 
 const PT: PdfChromeStrings = {
@@ -130,6 +140,7 @@ const PT: PdfChromeStrings = {
   draftNoNumberYet: 'Rascunho — sem número ainda',
   scanToPaySepa: 'Digitalize para pagar (SEPA)',
   paymentMethodsHeading: 'Formas de pagamento',
+  customFieldsHeading: 'Campos adicionais',
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {

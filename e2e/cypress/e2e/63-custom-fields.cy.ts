@@ -1,0 +1,337 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
+/**
+ * TODO_FEATURES.md rank 15 ("champs personnalisés") — proven THROUGH THE SCREEN like the rest of this
+ * suite: ACTIONS go through the interface (Settings -> Custom fields to define, the expense/client
+ * forms to fill), content ASSERTIONS go through the API. Backend module:
+ * `backend/src/modules/documents/company-custom-fields/`.
+ *
+ * "expense" is the DOCUMENT type used throughout (never quote/invoice): it needs no client, no line
+ * items, no country-policy gate — the smallest surface that still exercises a real, generic
+ * DocumentFieldDescriptor form/list/save-draft round trip (see 62-expense-attachments.cy.ts, the same
+ * choice for the same reason).
+ */
+const api = Cypress.env("apiUrl") || "http://localhost:4000";
+
+interface CustomFieldDefinition {
+	id: string;
+	target: "CLIENT" | "DOCUMENT";
+	documentTypeId: string | null;
+	key: string;
+	label: string;
+	kind: string;
+	required: boolean;
+	archivedAt: string | null;
+}
+
+interface ExpenseInstance {
+	id: string;
+	status: string;
+	data: Record<string, unknown>;
+}
+
+function listDefinitions() {
+	return cy
+		.request<CustomFieldDefinition[]>({ url: `${api}/api/custom-fields?includeArchived=true` })
+		.its("body");
+}
+
+function listExpenses() {
+	return cy.request<ExpenseInstance[]>({ url: `${api}/api/documents?typeId=expense` }).its("body");
+}
+
+function openExpenseCreateDialog() {
+	cy.visit("/documents/expense");
+	cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+	cy.get('[data-cy="document-create-dialog"]', { timeout: 15000 }).should("be.visible");
+	cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+}
+
+function pickSelectOption(fieldKey: string, optionSlug: string) {
+	cy.get(`[data-cy="document-field-${fieldKey}-input"] button`).first().click({ force: true });
+	cy.get(`[data-cy="document-field-${fieldKey}-input-options"]`, { timeout: 10000 }).should("be.visible");
+	cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${optionSlug}"]`).first().click();
+}
+
+function pickToday(fieldKey: string) {
+	cy.get(`[data-cy="document-field-${fieldKey}-input"]`).click();
+	const today = new Date().toLocaleDateString();
+	cy.get(`[data-day="${today}"]`).click();
+}
+
+function fillMinimalExpenseNativeFields(description: string) {
+	cy.get('[data-cy="document-field-description-input"]').type(description);
+	cy.get('[data-cy="document-field-amount-input"]').type("10");
+	pickSelectOption("currency", "eur");
+	pickToday("date");
+}
+
+/** Opens Settings -> Custom fields and creates ONE definition through the real screen — the only
+ *  entry point exercised by this whole spec for writing a definition. */
+function createDefinitionThroughScreen(input: {
+	target: "DOCUMENT" | "CLIENT";
+	documentTypeId?: string;
+	label: string;
+	kind: string;
+	required?: boolean;
+	options?: { value: string; label: string }[];
+}) {
+	cy.visit("/settings/customFields");
+	cy.get('[data-cy="custom-fields-settings"]', { timeout: 15000 }).should("be.visible");
+
+	cy.get('[data-cy="custom-field-target-input"]').click();
+	cy.get(`[data-cy="custom-field-target-option-${input.target.toLowerCase()}"]`).click();
+
+	if (input.target === "DOCUMENT" && input.documentTypeId) {
+		cy.get('[data-cy="custom-field-document-type-input"]').click();
+		cy.get(`[data-cy="custom-field-document-type-option-${input.documentTypeId}"]`).click();
+	}
+
+	cy.get('[data-cy="custom-field-label-input"]').clear().type(input.label);
+
+	cy.get('[data-cy="custom-field-kind-input"]').click();
+	cy.get(`[data-cy="custom-field-kind-option-${input.kind}"]`).click();
+
+	if (input.kind === "select") {
+		for (const option of input.options ?? []) {
+			cy.get('[data-cy="custom-field-option-add"]').click();
+		}
+		(input.options ?? []).forEach((option, index) => {
+			cy.get(`[data-cy="custom-field-option-value-${index}"]`).type(option.value);
+			cy.get(`[data-cy="custom-field-option-label-${index}"]`).type(option.label);
+		});
+	}
+
+	if (input.required) {
+		cy.get('[data-cy="custom-field-required-input"]').click();
+	}
+
+	cy.get('[data-cy="custom-field-create-submit"]').click();
+	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+}
+
+describe("Custom fields (rank 15) — settings-defined, appear on the form/list/PDF", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it("Settings -> Custom fields creates a REQUIRED text field for expenses, an optional long-text one, and a CLIENT select field", () => {
+		createDefinitionThroughScreen({
+			target: "DOCUMENT",
+			documentTypeId: "expense",
+			label: "Cost Center",
+			kind: "text",
+			required: true,
+		});
+		createDefinitionThroughScreen({
+			target: "DOCUMENT",
+			documentTypeId: "expense",
+			label: "Internal Notes",
+			kind: "longText",
+		});
+		createDefinitionThroughScreen({
+			target: "CLIENT",
+			label: "Loyalty Tier",
+			kind: "select",
+			options: [
+				{ value: "gold", label: "Gold" },
+				{ value: "silver", label: "Silver" },
+			],
+		});
+
+		listDefinitions().then((definitions) => {
+			expect(definitions, "les trois définitions existent bien côté API").to.have.length(3);
+			const costCenter = definitions.find((d) => d.label === "Cost Center");
+			expect(costCenter?.key, "la clé est dérivée du libellé").to.eq("cost_center");
+			expect(costCenter?.kind).to.eq("text");
+			expect(costCenter?.required).to.eq(true);
+			expect(costCenter?.documentTypeId).to.eq("expense");
+
+			const loyalty = definitions.find((d) => d.label === "Loyalty Tier");
+			expect(loyalty?.target).to.eq("CLIENT");
+			expect(loyalty?.kind).to.eq("select");
+		});
+	});
+
+	it("a REQUIRED custom field left empty blocks save-draft on screen, exactly like a native required field", () => {
+		openExpenseCreateDialog();
+		fillMinimalExpenseNativeFields("Missing cost center");
+		// "Cost Center" is left empty on purpose.
+		cy.get('[data-cy="document-action-save-draft"]').click();
+
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+		// The dialog never closes — an invalid submit never reaches the API.
+		cy.get('[data-cy="document-form"]').should("be.visible");
+	});
+
+	it("filling both custom fields through the screen saves, and the API shows them under their PREFIXED keys", () => {
+		openExpenseCreateDialog();
+		fillMinimalExpenseNativeFields("Client dinner with cost center");
+		cy.get('[data-cy="document-field-custom:cost_center-input"]').type("CC-42");
+		cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(
+			"A distinctly long internal note that should add real, measurable bytes to the rendered PDF.",
+		);
+
+		cy.get('[data-cy="document-action-save-draft"]').click();
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+		cy.get('[data-cy="document-form"]').should("not.exist");
+
+		listExpenses().then((expenses) => {
+			const created = expenses.find((e) => e.data.description === "Client dinner with cost center");
+			expect(created, "la dépense créée est bien retrouvée par l'API").to.exist;
+			expect(created?.data["custom:cost_center"]).to.eq("CC-42");
+			expect(created?.data["custom:internal_notes"]).to.contain("distinctly long internal note");
+		});
+	});
+
+	it("the custom field value appears on the document LIST card, generically, without a page-specific column", () => {
+		listExpenses().then((expenses) => {
+			const created = expenses.find((e) => e.data.description === "Client dinner with cost center");
+			cy.visit("/documents/expense");
+			cy.get(`[data-cy="document-list-row-${created!.id}"]`, { timeout: 15000 }).should(
+				"contain.text",
+				"Cost Center: CC-42",
+			);
+		});
+	});
+
+	it("a scripted save-draft omitting the REQUIRED custom field is refused by the SERVER too (400), even bypassing the screen", () => {
+		cy.request({
+			method: "POST",
+			url: `${api}/api/documents/types/expense/actions/save-draft`,
+			body: { data: { description: "Bypassing the screen entirely", amount: 5, currency: "EUR" } },
+			failOnStatusCode: false,
+		}).then((res) => {
+			expect(res.status, "refusé par le serveur, pas seulement par le formulaire").to.eq(400);
+			expect(JSON.stringify(res.body)).to.contain("Invalid custom field data");
+		});
+	});
+
+	it("the PDF grows once the optional long-text custom field carries real content — the end-of-document block", () => {
+		function saveExpenseAndGetPdfSize(description: string, notes: string | undefined) {
+			openExpenseCreateDialog();
+			fillMinimalExpenseNativeFields(description);
+			cy.get('[data-cy="document-field-custom:cost_center-input"]').type("CC-PDF");
+			if (notes) {
+				cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(notes);
+			}
+			cy.get('[data-cy="document-action-save-draft"]').click();
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+			cy.get('[data-cy="document-form"]').should("not.exist");
+
+			return listExpenses().then((expenses) => {
+				const created = expenses.find((e) => e.data.description === description);
+				expect(created, "la dépense de comparaison PDF existe").to.exist;
+				return cy
+					.request({ url: `${api}/api/documents/${created!.id}/pdf?typeId=expense`, encoding: "binary" })
+					.then((res) => {
+						expect(res.status).to.eq(200);
+						expect(res.headers["content-type"]).to.include("application/pdf");
+						return res.body.length as number;
+					});
+			});
+		}
+
+		saveExpenseAndGetPdfSize("PDF baseline without notes", undefined).then((baselineSize) => {
+			saveExpenseAndGetPdfSize(
+				"PDF with a long internal note",
+				"This internal note is deliberately long and distinctive so its extra bytes on the additional-fields block cannot be explained by anything else on the page.",
+			).then((withNotesSize) => {
+				cy.log(`baseline=${baselineSize}o with-notes=${withNotesSize}o`);
+				expect(
+					withNotesSize,
+					"le bloc « champs supplémentaires » ajoute des octets réels en fin de document",
+				).to.be.greaterThan(baselineSize + 50);
+			});
+		});
+	});
+
+	it("a client fills its own custom SELECT field through the client form, stored unprefixed in customFields", () => {
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Custom Fields Client SARL");
+		cy.selectCountry("client-country-select", "France");
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
+		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+		cy.get('[name="contactEmail"]').clear().type("cf-client@example.com");
+		cy.get('[name="address"]').clear().type("1 Rue des Champs Personnalisés");
+		cy.get('[name="postalCode"]').clear().type("75000");
+		cy.get('[name="city"]').clear().type("Paris");
+
+		cy.get('[data-cy="client-custom-fields-section"]').scrollIntoView().should("be.visible");
+		pickSelectOption("loyalty_tier", "gold");
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Custom Fields Client SARL", { timeout: 10000 });
+
+		cy.request<{ id: string; name: string; customFields?: Record<string, unknown> }[]>({
+			url: `${api}/api/clients`,
+		})
+			.its("body")
+			.then((clients) => {
+				const created = clients.find((c) => c.name === "Custom Fields Client SARL");
+				expect(created, "le client créé est bien retrouvé par l'API").to.exist;
+				expect(created?.customFields?.loyalty_tier).to.eq("gold");
+			});
+	});
+
+	it("archiving a definition removes it from NEW forms but keeps rendering an already-recorded value", () => {
+		listDefinitions().then((definitions) => {
+			const costCenter = definitions.find((d) => d.label === "Cost Center")!;
+
+			cy.visit("/settings/customFields");
+			cy.get(`[data-cy="custom-field-archive-button-${costCenter.id}"]`, { timeout: 15000 }).click();
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+			cy.get(`[data-cy="custom-field-row-archived-${costCenter.id}"]`).should("be.visible");
+
+			// A FRESH create dialog no longer offers "Cost Center" at all.
+			openExpenseCreateDialog();
+			cy.get('[data-cy="document-field-custom:cost_center-input"]').should("not.exist");
+			cy.get('[data-cy="document-field-custom:internal_notes-input"]').should("exist");
+
+			// The document list still shows the value on the record that already had one — an
+			// archived definition never erases a fact already on file (schema.prisma's own header).
+			cy.visit("/documents/expense");
+			listExpenses().then((expenses) => {
+				const created = expenses.find((e) => e.data.description === "Client dinner with cost center");
+				cy.get(`[data-cy="document-list-row-${created!.id}"]`, { timeout: 15000 }).should(
+					"contain.text",
+					"Cost Center: CC-42",
+				);
+			});
+
+			cy.request<CustomFieldDefinition[]>({
+				url: `${api}/api/custom-fields/resolved?target=DOCUMENT&typeId=expense`,
+			})
+				.its("body")
+				.then((activeFields) => {
+					expect(activeFields.some((f) => f.key === "custom:cost_center")).to.eq(false);
+				});
+		});
+	});
+
+	it("restoring the archived definition offers it again on a fresh form", () => {
+		listDefinitions().then((definitions) => {
+			const costCenter = definitions.find((d) => d.label === "Cost Center")!;
+			expect(costCenter.archivedAt, "toujours archivée avant restauration").to.not.be.null;
+
+			cy.visit("/settings/customFields");
+			cy.get(`[data-cy="custom-field-restore-button-${costCenter.id}"]`, { timeout: 15000 }).click();
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+			cy.get(`[data-cy="custom-field-row-archived-${costCenter.id}"]`).should("not.exist");
+
+			openExpenseCreateDialog();
+			cy.get('[data-cy="document-field-custom:cost_center-input"]').should("be.visible");
+		});
+	});
+});

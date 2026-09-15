@@ -26,6 +26,7 @@ import type {
 } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
+import { useResolvedCompanyCustomFields } from "@/hooks/queries"
 import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -161,6 +162,41 @@ function DocumentCardSecondaryInfo({ descriptor, instance }: DocumentCardSeconda
         <span className="font-medium text-foreground">{t("documents.list.columns.updatedAt")}:</span>{" "}
         {new Date(instance.updatedAt).toLocaleString()}
       </span>
+    </div>
+  )
+}
+
+interface DocumentCustomFieldsInfoProps {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+}
+
+/**
+ * TODO_FEATURES.md rank 15 ("champs personnalisés") — the list's own counterpart to
+ * `DocumentCardSecondaryInfo` above, for a company's custom fields: same "<label>: <value>" shape,
+ * same `DocumentFieldValue` renderer, same `hideWhenEmpty` skip (every company custom field descriptor
+ * sets it unconditionally — see the backend's `company-custom-fields/types.ts#toFieldDescriptor`), so
+ * a document with none filled in renders NOTHING extra here. `includeArchived: true` — unlike the
+ * document FORM's own fetch — is what keeps an ALREADY-RECORDED value showing here even after a
+ * company later archives (renames away, retires) the definition that captured it: this list reads
+ * whatever `instance.data` actually holds, not what is currently offered for a FRESH entry.
+ */
+function DocumentCustomFieldsInfo({ descriptor, instance }: DocumentCustomFieldsInfoProps) {
+  const { data: customFields } = useResolvedCompanyCustomFields("DOCUMENT", descriptor.id, {
+    includeArchived: true,
+  })
+  const fields = customFields ?? []
+  const withValue = fields.filter((field) => !isEmptyFieldValue(instance.data[field.key]))
+  if (withValue.length === 0) return null
+
+  return (
+    <div className="mt-1 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-4">
+      {withValue.map((field) => (
+        <span key={field.key}>
+          <span className="font-medium text-foreground">{field.label}:</span>{" "}
+          <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
+        </span>
+      ))}
     </div>
   )
 }
@@ -580,6 +616,7 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
               <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
             </div>
             <DocumentCardSecondaryInfo descriptor={descriptor} instance={instance} />
+            <DocumentCustomFieldsInfo descriptor={descriptor} instance={instance} />
           </div>
         </div>
 

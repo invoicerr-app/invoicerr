@@ -16,6 +16,7 @@ import { AccountingExportModule } from './modules/documents/accounting-export/ac
 import { BankReconciliationModule } from './modules/documents/bank-reconciliation/bank-reconciliation.module';
 import { PaymentsModule } from './modules/documents/payments/payments.module';
 import { PaymentMethodsModule } from './modules/documents/payment-methods/payment-methods.module';
+import { CompanyCustomFieldsModule } from './modules/documents/company-custom-fields/company-custom-fields.module';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
@@ -123,6 +124,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // "type-adjacent, standalone module, importing DocumentsCoreModule directly" placement as
     // PaymentsModule right above — see payment-methods.module.ts's own header.
     PaymentMethodsModule,
+    CompanyCustomFieldsModule,
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,
     PluginsModule,

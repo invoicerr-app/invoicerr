@@ -234,6 +234,25 @@ export interface RenderDocumentHtmlInput {
    */
   paymentMethods?: PaymentMethodPresentation[];
   /**
+   * TODO_FEATURES.md rank 15 ("champs personnalisés") — the company's OWN custom fields that
+   * actually carry a value on THIS instance, resolved by the caller
+   * (`render-instance-pdf.ts#companyCustomFieldsFor`) from `company-custom-fields/`. Deliberately its
+   * OWN top-level block, never merged into the ordinary `descriptor.fields` loop above: the feature's
+   * own spec calls for a single "additional fields" section at the END of the document, not scattered
+   * insertions among the type's native fields — the same "a dedicated block, not a free insertion"
+   * decision `legalMentions` already models for a different, country-mandated concern. Absent or
+   * empty prints NO block at all — the same "nothing, not an empty frame" discipline every other
+   * optional block on this page already holds, so a document whose company has defined no custom
+   * field (or filled none in) renders byte-for-byte the same HTML it always did.
+   *
+   * Carries the RAW descriptor + value pair (not a pre-formatted string): the block below runs each
+   * one through this file's own `renderFieldValue`, the exact same per-KIND formatter (money/date/
+   * boolean/select, …) the main fields loop above already uses, rather than a second, divergent
+   * formatting path the caller (`render-instance-pdf.ts#companyCustomFieldsFor`) would have to keep
+   * in sync with this one by hand.
+   */
+  customFields?: { field: DocumentFieldDescriptor; value: unknown }[];
+  /**
    * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — which language this render's
    * OWN chrome vocabulary (`language/pdf-chrome-strings.ts`: "Status", "Totals", "VAT … on …", …) is
    * printed in. Resolved by the caller (`render-instance-pdf.ts`, from the document's own client and
@@ -432,6 +451,29 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       font-size: 11px;
       color: #555;
       margin-bottom: 4px;
+    }
+    .custom-fields-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #ddd;
+    }
+    .custom-fields-heading {
+      font-weight: bold;
+      font-size: 13px;
+      color: #007bff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .custom-field-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .custom-field-label {
+      color: #666;
     }
     .payment-qr-section {
       display: flex;
@@ -646,6 +688,34 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 `;
     for (const mention of input.legalMentions) {
       html += `      <div class="legal-mention-item">${escapeHtmlSafe(mention.text)}</div>\n`;
+    }
+    html += `    </div>\n`;
+  }
+
+  // TODO_FEATURES.md rank 15 ("champs personnalisés") — the company's own custom fields, LAST on the
+  // page (after the legal mentions footer): see `RenderDocumentHtmlInput.customFields`'s own header
+  // for why this is a dedicated, end-of-document block rather than an insertion into the ordinary
+  // fields loop above. Absent or empty prints NOTHING here — same "nothing, not an empty frame"
+  // discipline every other optional block on this page already holds.
+  if (input.customFields && input.customFields.length > 0) {
+    html += `
+    <div class="custom-fields-section">
+      <div class="custom-fields-heading">${escapeHtmlSafe(strings.customFieldsHeading)}</div>
+`;
+    for (const entry of input.customFields) {
+      const renderedValue = renderFieldValue(
+        entry.field,
+        entry.value,
+        referenceLabels,
+        instance.data,
+        strings,
+      );
+      html += `
+      <div class="custom-field-item">
+        <span class="custom-field-label">${escapeHtmlSafe(entry.field.label)}</span>
+        <span>${renderedValue}</span>
+      </div>
+`;
     }
     html += `    </div>\n`;
   }

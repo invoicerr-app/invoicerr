@@ -44,4 +44,11 @@ export class EditClientsDto {
   isSupplier?: boolean;
   isActive: boolean;
   identifiers?: IdentifierEntry[];
+  // TODO_FEATURES.md rank 15 ("champs personnalisés") — one entry per company-defined CLIENT-target
+  // `CompanyCustomField`, keyed by that definition's own immutable `key` (never prefixed — see
+  // `Client.customFields`'s own schema.prisma header). Validated in `clients.service.ts` against this
+  // company's ACTIVE definitions (`company-custom-fields/persistence.ts#assertClientCustomFieldValuesValid`)
+  // before either write path persists it; optional, so every existing caller that never sends this
+  // field keeps today's behavior exactly (an unchanged `{}`/`null` column).
+  customFields?: Record<string, unknown>;
 }

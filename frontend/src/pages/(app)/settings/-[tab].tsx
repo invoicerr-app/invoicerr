@@ -12,6 +12,7 @@ import {
   Radio,
   Repeat,
   ShieldCheck,
+  SlidersHorizontal,
   TicketIcon,
   User,
   Users,
@@ -26,6 +27,7 @@ import ApiKeysSettings from "./_components/api-keys.settings"
 import AtcudSettings from "./_components/atcud.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
+import CustomFieldsSettings from "./_components/custom-fields.settings"
 import DangerZoneSettings from "./_components/danger.settings"
 import PaymentsSettings from "./_components/payments.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
@@ -76,6 +78,7 @@ export default function Settings() {
     "atcud",
     "sso",
     "recurring",
+    "customFields",
     "accountingExport",
     "danger",
   ]
@@ -162,6 +165,11 @@ export default function Settings() {
       icon: Repeat,
     },
     {
+      value: "customFields",
+      label: t("settings.tabs.customFields", "Custom fields"),
+      icon: SlidersHorizontal,
+    },
+    {
       value: "accountingExport",
       label: t("settings.tabs.accountingExport"),
       icon: FileSpreadsheet,
@@ -189,6 +197,7 @@ export default function Settings() {
           "signing",
           "atcud",
           "sso",
+          "customFields",
         ].includes(item.value),
     )
     // "atcud" only ever applies to a company registered in Portugal — see `atcud.settings.tsx`'s own
@@ -234,6 +243,8 @@ export default function Settings() {
         return <SsoSettings />
       case "recurring":
         return <RecurringSettings />
+      case "customFields":
+        return <CustomFieldsSettings />
       case "accountingExport":
         return <AccountingExportSettings />
       case "danger":

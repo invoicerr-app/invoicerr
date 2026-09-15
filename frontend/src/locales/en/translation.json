@@ -261,6 +261,9 @@
         "lookupError": "Could not reach the company directory.",
         "lookupInvalid": "The identifier looks invalid for this country.",
         "lookupUnavailable": "No business register lookup is available for this country."
+      },
+      "customFields": {
+        "heading": "Custom fields"
       }
     },
     "view": {
@@ -1667,7 +1670,8 @@
       "members": "Members",
       "recurring": "Recurrences",
       "accountingExport": "Accounting export",
-      "sso": "SSO"
+      "sso": "SSO",
+      "customFields": "Custom fields"
     },
     "accountingExport": {
       "title": "Accounting export",
@@ -2516,6 +2520,69 @@
         "endpointsRequired": "Provide a discovery URL, or both an authorization URL and a token URL.",
         "copied": "Copied to clipboard"
       }
+    },
+    "customFields": {
+      "title": "Custom fields",
+      "description": "Define your own fields for clients and documents — no code needed. They appear on the matching form, list, and PDF.",
+      "create": {
+        "title": "New custom field",
+        "description": "Choose where it applies, its kind, and whether it is required.",
+        "button": "Create field"
+      },
+      "form": {
+        "target": "Applies to",
+        "targetDocument": "Documents",
+        "targetClient": "Clients",
+        "documentType": "Document type",
+        "documentTypeAll": "Every document type",
+        "label": "Label",
+        "kind": "Kind",
+        "options": "Options",
+        "optionValuePlaceholder": "Value",
+        "optionLabelPlaceholder": "Label",
+        "addOption": "Add option",
+        "required": "Required",
+        "validation": {
+          "labelRequired": "A label is required.",
+          "optionsRequired": "Add at least one option."
+        }
+      },
+      "kinds": {
+        "text": "Text",
+        "longText": "Long text",
+        "number": "Number",
+        "money": "Amount",
+        "date": "Date",
+        "boolean": "Yes / No",
+        "select": "Choice list"
+      },
+      "list": {
+        "documentTitle": "Document fields",
+        "clientTitle": "Client fields",
+        "loading": "Loading…",
+        "emptyDocument": "No custom document field yet.",
+        "emptyClient": "No custom client field yet.",
+        "required": "Required",
+        "archived": "Archived",
+        "edit": "Edit",
+        "archive": "Archive",
+        "restore": "Restore"
+      },
+      "edit": {
+        "title": "Edit custom field",
+        "save": "Save"
+      },
+      "messages": {
+        "created": "Custom field created.",
+        "createError": "Failed to create the custom field.",
+        "updated": "Custom field updated.",
+        "updateError": "Failed to update the custom field.",
+        "archived": "Custom field archived.",
+        "archiveError": "Failed to archive the custom field.",
+        "restored": "Custom field restored.",
+        "restoreError": "Failed to restore the custom field.",
+        "invalidOptions": "Every option needs both a value and a label."
+      }
     }
   },
   "sidebar": {
@@ -2526,6 +2593,7 @@
       "timeTracking": "Time Tracking",
       "bankReconciliation": "Bank reconciliation",
       "paymentMethods": "Payment methods",
+      "declarations": "Declarations",
       "stats": "Statistics",
       "settings": "Settings",
       "documents": "Documents"
@@ -3770,7 +3838,10 @@
         "actionError": "Something went wrong running this action."
       },
       "newTitle": "New: {{label}}",
-      "transitionOr": "or"
+      "transitionOr": "or",
+      "customFields": {
+        "heading": "Custom fields"
+      }
     },
     "list": {
       "title": "Saved",
@@ -3952,6 +4023,31 @@
         "NO_DOCUMENT_BY_LAW": "No document required by law",
         "COUNTERPARTY_OBJECTION": "Counterparty objection"
       }
+    }
+  },
+  "declarations": {
+    "description": "Tax-authority declarations Invoicerr filed automatically after sending a document — one row per attempt, most recent first.",
+    "filters": {
+      "allStatuses": "All statuses"
+    },
+    "table": {
+      "document": "Document",
+      "country": "Country",
+      "provider": "Provider",
+      "status": "Status",
+      "date": "Date",
+      "error": "Error"
+    },
+    "emptyState": {
+      "noObligation": "This company's country has no declaration obligation handled by Invoicerr.",
+      "noDeclarations": "No declarations have been filed yet.",
+      "noResults": "No declarations match this filter."
+    },
+    "status": {
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "blocked": "Blocked",
+      "failed": "Failed"
     }
   }
 }

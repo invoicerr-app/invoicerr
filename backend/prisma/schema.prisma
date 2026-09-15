@@ -453,6 +453,8 @@ model Company {
   paymentCheckoutSessions PaymentCheckoutSession[]
   // See CompanyPaymentMethodConfig below.
   paymentMethodConfigs    CompanyPaymentMethodConfig[]
+  // TODO_FEATURES.md rank 15 ("champs personnalisés") — see CompanyCustomField below.
+  customFieldDefinitions  CompanyCustomField[]
 }
 
 // Manually entered exchange rates. The rule that governs
@@ -582,6 +584,17 @@ model Client {
   // client needs its hours kept apart), which is the whole reason Project exists as its own model
   // rather than TimeEntry hanging directly off Client — see project.service.ts's own header.
   projects Project[]
+
+  // TODO_FEATURES.md rank 15 ("champs personnalisés") — a company-defined, per-client value, keyed by
+  // the OWNING `CompanyCustomField.key` (never prefixed here — unlike a DOCUMENT instance's own `data`,
+  // this JSON blob is ALREADY an isolated namespace of its own, so no key here can ever collide with a
+  // real `Client` column the way an unprefixed key could collide with a document type's native field
+  // key — see `company-custom-fields/resolve.ts`'s own header for the document-side prefix this same
+  // reasoning rules out needing). Absent/`{}` for every client with no company-defined field filled in
+  // yet — the routine case, not a migration gap. A definition being renamed or archived (soft-delete,
+  // `CompanyCustomField.archivedAt`) never touches this column at all: the value stays keyed by the
+  // definition's immutable `key`, exactly as entered.
+  customFields Json?
 
   @@index([companyId])
 }
@@ -2189,6 +2202,89 @@ model CompanyPaymentMethodConfig {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, methodId])
+  @@index([companyId])
+}
+
+// TODO_FEATURES.md rank 15 ("champs personnalisés") — which kind of record a `CompanyCustomField`
+// attaches to. Kept a closed, two-value enum (never a free string, unlike `documentTypeId` below):
+// unlike a document TYPE (open, third-party-extensible — DocumentTypeRegistry), "client" vs. "document"
+// is a property of THIS core's own data model, the same reason `WidgetLocation` (descriptors/types.ts)
+// is a closed union rather than an open string.
+enum CompanyCustomFieldTarget {
+  CLIENT
+  DOCUMENT
+}
+
+// TODO_FEATURES.md rank 15 ("champs personnalisés") — a company's own field, added to its clients or
+// to one (or every) document type, without touching code: the SAME "a country is data" principle
+// country-fields/ already applies to a COUNTRY's difference from the trunk, scaled to a COMPANY's own
+// difference from the trunk. See `company-custom-fields/resolve.ts` for how a row here becomes a real
+// `DocumentFieldDescriptor` (DOCUMENT target) or a `Client.customFields` entry (CLIENT target), and
+// that file's own header for why a DOCUMENT-target value is stored under a `custom:`-prefixed key
+// rather than the bare one below.
+//
+// `key` is chosen ONCE, at creation (slugified from `label` — see the persistence layer), and NEVER
+// changes afterward: it is the join between an ALREADY-PERSISTED document/client's stored value and
+// this definition, so changing it would either strand every value already on file under the OLD key or
+// silently reattach them to a field that means something else now. Renaming is `label` alone — safe at
+// any time, since every consumer (the form, the list, the PDF) always reads the CURRENT row's `label`
+// at render time, never a value frozen onto the document/client itself (the same "labels are current,
+// not versioned" convention `DocumentFieldDescriptor.label` already holds).
+//
+// DELETION is soft (`archivedAt`), for the reason the feature's own spec names explicitly: "un document
+// émis est immuable". An archived definition disappears from the CREATE/EDIT surface (a brand-new or
+// still-editable record can no longer be given a value for it) but keeps resolving wherever a value for
+// it ALREADY EXISTS on file — an issued invoice's PDF, its entry in the document list, an existing
+// client's own read view — so archiving a definition can never make an already-recorded fact
+// unreadable. Nothing here ever deletes a value: `Client.customFields`/a `DocumentInstance.data` entry
+// keyed by this row's `key` survives this row's own archival (or, in principle, physical deletion)
+// forever, exactly the way a country overlay's own 'remove' operation never touches data already
+// persisted before the country's rules changed.
+model CompanyCustomField {
+  id        String                   @id @default(cuid())
+  companyId String
+  company   Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  target    CompanyCustomFieldTarget
+  // DOCUMENT target only: a DocumentTypeDescriptor.id (e.g. "invoice"), or NULL to mean "every
+  // document type" — deliberately NOT validated against DocumentTypeRegistry (same declared
+  // independence country-fields/schema.ts's own `TypeFieldOverlay.typeId` already keeps, for the same
+  // reason: a plugin's own type may not be registered yet when this row is seeded). Always NULL for a
+  // CLIENT-target row — a client has no "type" for this to narrow.
+  documentTypeId String?
+  // Immutable after creation — see this model's own header.
+  key   String
+  label String
+  // One of the RESTRICTED subset of CORE_FIELD_KINDS this feature offers — see
+  // `company-custom-fields/types.ts#ALLOWED_CUSTOM_FIELD_KINDS` for the closed list and why it is
+  // narrower than the full core set (no 'array'/'reference'/'file'/... — a company-defined field is a
+  // single scalar value, never a structural one). Plain `String`, not a Prisma enum: validated at the
+  // application layer the same way `CompanyFieldOverlayOperation`'s own `field.kind` already is,
+  // because it must stay in lockstep with a TypeScript union living in application code, not the
+  // schema.
+  kind String
+  // 'select' only — `{ value: string; label: string }[]`, the exact shape
+  // `DocumentFieldDescriptor.options` already has. NULL for every other kind.
+  options  Json?
+  required Boolean @default(false)
+  // Display/entry order among this company's OTHER definitions for the SAME (target, documentTypeId)
+  // scope — never a global order across scopes, which would be meaningless (a client-target field has
+  // no business being interleaved with an invoice-only one).
+  order Int @default(0)
+  // Soft-delete — see this model's own header for the full "why".
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // One key per (company, target, document type) scope — a CLIENT-target row and a DOCUMENT-target row
+  // for a DIFFERENT type may reuse the same human-chosen key without colliding, since each becomes its
+  // own storage key once resolved (see this model's own header on `custom:` prefixing).
+  //
+  // NOTE — Postgres treats two NULLs as UNEQUAL for uniqueness, so this constraint does NOT by itself
+  // stop two "applies to every document type" (`documentTypeId: NULL`) rows from sharing a key: the
+  // service layer (persistence.ts#assertKeyAvailable) re-checks that specific case before insert. Kept
+  // as a real DB constraint anyway for every OTHER case (a specific `documentTypeId`, or CLIENT target)
+  // — belt for the common case, the application-level check is the brace for the NULL one.
+  @@unique([companyId, target, documentTypeId, key])
   @@index([companyId])
 }
 

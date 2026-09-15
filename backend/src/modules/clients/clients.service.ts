@@ -27,6 +27,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { VatValidationPort } from '../documents/tax/vat-validation';
 import { validateVat } from '../documents/tax/vat-syntax';
 import { assertIdentifierValueMatchesPattern } from '../documents/country-identifiers/validate-identifier-value';
+import { assertClientCustomFieldValuesValid } from '../documents/company-custom-fields/persistence';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 
 @Injectable()
@@ -266,6 +267,11 @@ export class ClientsService {
       }
     }
 
+    // TODO_FEATURES.md rank 15 ("champs personnalisés") — checked BEFORE create for the same reason
+    // the identifier pattern check just above is: a client row with an invalid custom field value on
+    // file, however briefly, is worse than refusing the write outright.
+    await assertClientCustomFieldValuesValid(companyId, data.customFields as Record<string, unknown>);
+
     const newClient = await prisma.client.create({ data: { ...data, companyId } });
 
     await this.upsertPartyIdentifiers(newClient.id, identifiers, newClient.countryCode ?? newClient.country);
@@ -318,6 +324,12 @@ export class ClientsService {
       }
     }
 
+    // TODO_FEATURES.md rank 15 ("champs personnalisés") — checked BEFORE the write, same reasoning as
+    // `createClient`'s own check above. `undefined` (the caller never sent `customFields` at all) is
+    // treated the same as `{}` by `assertClientCustomFieldValuesValid` — a plain edit that never
+    // touches custom fields never trips a "missing required field" error for one it wasn't editing.
+    await assertClientCustomFieldValuesValid(companyId, dataFields.customFields);
+
     // Explicit allow-list, never `...dataFields`: there is no runtime request validation anywhere in
     // this API (no ValidationPipe, no class-validator — `EditClientsDto` is a TypeScript `interface`,
     // erased at compile time), so `dataFields` is really the raw, caller-supplied JSON body with
@@ -349,6 +361,11 @@ export class ClientsService {
         kind: dataFields.kind,
         isSupplier: dataFields.isSupplier,
         isActive: true,
+        // A submitted `customFields` REPLACES the stored value wholesale — the same "a submitted form
+        // is a full snapshot, never a patch" convention `payment-methods/persistence.ts`'s own
+        // `config` write already holds — never merged key-by-key. `undefined` (never sent) leaves the
+        // column untouched, Prisma's own "absent key" semantics for `update`.
+        customFields: dataFields.customFields,
       },
     });
 

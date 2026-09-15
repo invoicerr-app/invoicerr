@@ -14,6 +14,8 @@ import { usePatch, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
+import { DocumentField } from "@/components/documents/document-field"
+import { useResolvedCompanyCustomFields } from "@/hooks/queries"
 
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
@@ -38,6 +40,34 @@ interface ClientUpsertProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreate?: (client: Client) => void
+}
+
+/**
+ * TODO_FEATURES.md rank 15 ("champs personnalisés") — this company's ACTIVE CLIENT-target custom
+ * fields, rendered through the exact same generic, per-KIND `DocumentField` component the document
+ * form already uses (zero kind-specific code here). `name` is `customFields.<key>` — a NESTED
+ * react-hook-form path, unlike a document's own flat `custom:<key>` (see the backend's
+ * `company-custom-fields/types.ts#toFieldDescriptor` header for why a CLIENT-target field needs no
+ * prefix at all): `Client.customFields` is already its own isolated JSON column, so `customFields`
+ * being a real, `z.record`-typed field on `clientSchema` is what carries this whole object through
+ * `form.handleSubmit` intact. Renders nothing for a company that has defined none.
+ */
+function CustomFieldsSection() {
+  const { t } = useTranslation()
+  const { data: customFields } = useResolvedCompanyCustomFields("CLIENT")
+  const fields = customFields ?? []
+  if (fields.length === 0) return null
+
+  return (
+    <div className="space-y-4 border-t pt-4" data-cy="client-custom-fields-section">
+      <h3 className="text-sm font-medium text-muted-foreground">
+        {t("clients.upsert.customFields.heading")}
+      </h3>
+      {fields.map((field) => (
+        <DocumentField key={field.key} field={field} name={`customFields.${field.key}`} />
+      ))}
+    </div>
+  )
 }
 
 export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUpsertProps) {
@@ -103,6 +133,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
       peppolSchemeId: z.string().optional(),
       peppolEndpointId: z.string().optional(),
+      // TODO_FEATURES.md rank 15 ("champs personnalisés") — one company-defined CLIENT-target field
+      // per key (the backend's own `assertClientCustomFieldValuesValid` is the actual authority on
+      // required-ness/shape; this schema only needs to let the value through, whatever kind it is).
+      customFields: z.record(z.string(), z.unknown()).optional(),
     })
     .superRefine((val, ctx) => {
       if (val.type === "INDIVIDUAL") {
@@ -160,6 +194,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       identifiers: [],
       peppolSchemeId: "0088",
       peppolEndpointId: "",
+      customFields: {},
     },
   })
 
@@ -199,6 +234,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           .map((pi) => ({ scheme: pi.scheme, value: pi.value })),
         peppolSchemeId: parsedPeppolSchemeId,
         peppolEndpointId: parsedPeppolEndpointId,
+        customFields: client.customFields ?? {},
       })
     } else if (!isEditing) {
       form.reset({
@@ -224,6 +260,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         identifiers: [],
         peppolSchemeId: "0088",
         peppolEndpointId: "",
+        customFields: {},
       })
     }
   }, [client, isEditing, form])
@@ -984,6 +1021,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
                   )}
                 />
               </div>
+
+              <CustomFieldsSection />
 
               <div className="flex justify-end space-x-2">
                 <Button

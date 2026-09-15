@@ -3,6 +3,7 @@ import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { ClientsService } from '@/modules/clients/clients.service';
 import { logger } from '@/logger/logger.service';
 
+import { assertDocumentCustomFieldValuesValid } from '../company-custom-fields/persistence';
 import { deleteDocument, upsertDocument } from '../persistence';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { ActionRegistry } from './action-registry';
@@ -13,8 +14,23 @@ import { ActionRegistry } from './action-registry';
  * Extracted from `registerSaveDraftAction` below so `invoice-actions.ts` can
  * reuse the exact same persistence + webhook mechanics from its OWN "save-draft" handler — one that
  * needs to run one extra check first (see that file's own comment) — without duplicating this glue.
- * Nothing here reads a single field of `data`, which is exactly why one function still covers every
- * document type regardless of which caller invokes it.
+ * Nothing here reads a single NATIVE field of `data`, which is exactly why one function still covers
+ * every document type regardless of which caller invokes it.
+ *
+ * TODO_FEATURES.md rank 15 ("champs personnalisés") — the ONE place a company's OWN custom field
+ * definitions (company-custom-fields/) are validated against a document's data. This is deliberately
+ * NOT wired into `documents.service.ts#runAction`'s own `validateAgainstDescriptor` pass alongside
+ * the native descriptor's fields: that merged-descriptor resolution (`describeTypeForCompany`) is
+ * where a company overlay would ideally also apply (the exact "one function gets you the form, the
+ * validation, and the list" reuse `country-fields/` already gives country overlays), but custom
+ * fields are resolved and validated HERE instead, at the one shared, generic PERSISTENCE seam every
+ * document type's "save-draft" already funnels through — see this feature's own handoff notes for
+ * the full reasoning. Practical effect: a required custom field left empty, or a value its own kind
+ * rejects, is refused with the exact same 400 shape a native field's own violation already gets;
+ * "send"/other actions that persist `data` through a DIFFERENT path than `performSaveDraft` do not
+ * separately re-check it (documented limitation, not a silent gap — every shipped type's "send"
+ * either re-derives `data` from an already-validated draft or does not touch custom-field keys at
+ * all, since those are never read by `computeDocumentTotals`/the tax engine/any format builder).
  */
 export async function performSaveDraft(
   companyId: string,
@@ -23,6 +39,7 @@ export async function performSaveDraft(
   data: Record<string, unknown>,
   webhooks?: DocumentWebhookEmitter,
 ) {
+  await assertDocumentCustomFieldValuesValid(companyId, typeId, data);
   const creating = !documentId;
   const document = await upsertDocument(companyId, typeId, documentId, 'draft', data);
   if (creating && webhooks) {
