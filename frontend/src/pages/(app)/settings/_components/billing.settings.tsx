@@ -1,6 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query"
 import { ExternalLink, Loader2 } from "lucide-react"
-import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -10,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useBillingStatus, useOpenCustomerPortal, useStartCheckout } from "@/hooks/queries"
 import { useCompanies } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
-import { queryKeys } from "@/lib/query-keys"
 
 /**
  * Settings > Subscription — only ever reached when `-[tab].tsx` decided to show the "billing" tab at
@@ -26,25 +23,6 @@ export default function BillingSettings() {
   const { data: status, isSuccess } = useBillingStatus()
   const startCheckout = useStartCheckout()
   const openPortal = useOpenCustomerPortal()
-  const queryClient = useQueryClient()
-
-  // Both Polar checkout and the Polar customer portal (see `manageSubscription` below) send the
-  // company owner away from this tab to make a real change — plan, seats, payment method. This tab's
-  // cached `billing status` has no way to know that happened on its own (Polar's webhook updates the
-  // DB, but nothing pushes that to an already-open query), so re-checking it the moment this tab gets
-  // focus back is what keeps the screen from showing a stale plan until the 60s staleTime lapses.
-  useEffect(() => {
-    const invalidateOnReturn = () => {
-      if (document.visibilityState === "hidden") return
-      queryClient.invalidateQueries({ queryKey: queryKeys.billing.status() })
-    }
-    window.addEventListener("focus", invalidateOnReturn)
-    document.addEventListener("visibilitychange", invalidateOnReturn)
-    return () => {
-      window.removeEventListener("focus", invalidateOnReturn)
-      document.removeEventListener("visibilitychange", invalidateOnReturn)
-    }
-  }, [queryClient])
 
   if (!isSuccess || !status) return null
 
@@ -78,28 +56,13 @@ export default function BillingSettings() {
   }
 
   const manageSubscription = () => {
-    // Polar's customer portal refuses to be framed (checked live against the sandbox portal URL
-    // `createCustomerPortalSession` itself builds: `x-frame-options: DENY` and
-    // `content-security-policy: frame-ancestors 'none'` on both the redirect and its destination) —
-    // so this opens a new tab rather than an in-app iframe.
-    //
-    // No blank tab is pre-opened while `POST /api/billing/portal` is in flight (the button just
-    // disables + spins, see `openPortal.isPending` below) — a placeholder tab reading "Opening
-    // Polar…" is a blank page the owner didn't ask for. That means `window.open` below runs from
-    // this async callback rather than synchronously inside the click handler, so the popup blocker
-    // may refuse it; when it does, `window.open` returns `null` and we hand the owner a toast with a
-    // link they can click themselves instead of silently doing nothing.
+    // Same-tab navigation to the Polar customer portal — no popup, no iframe (Polar's portal refuses
+    // to be framed anyway). The button stays disabled + spinning from `openPortal.isPending` through
+    // to the actual navigation below, so there's no window for a double click to fire a second
+    // portal-session request.
     openPortal.mutate(undefined, {
       onSuccess: (data) => {
-        const portalWindow = window.open(data.url, "_blank", "noopener,noreferrer")
-        if (!portalWindow) {
-          toast(t("settings.billing.messages.openPortalBlocked", "Your browser blocked the popup"), {
-            action: {
-              label: t("settings.billing.messages.openPortalBlockedAction", "Open Polar"),
-              onClick: () => window.open(data.url, "_blank", "noopener,noreferrer"),
-            },
-          })
-        }
+        window.location.assign(data.url)
       },
       onError: (error) => {
         toast.error(

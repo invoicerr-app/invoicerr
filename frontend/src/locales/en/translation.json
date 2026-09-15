@@ -2767,8 +2767,6 @@
       },
       "messages": {
         "checkoutError": "Failed to start checkout",
-        "openPortalBlocked": "Your browser blocked the popup",
-        "openPortalBlockedAction": "Open Polar",
         "portalError": "Failed to open the subscription portal"
       }
     }
