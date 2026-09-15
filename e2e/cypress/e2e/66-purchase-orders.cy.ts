@@ -74,19 +74,32 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 			purchaseOrderId = interception.response?.body?.document?.id as string;
 			expect(purchaseOrderId, "le brouillon a un identifiant").to.be.a("string");
 			expect(interception.response?.body?.document?.status).to.eq("draft");
+
+			// The verification below MUST stay nested in this `.then()`, not chained as a sibling
+			// command after it. `purchaseOrderId` is a plain JS variable; a sibling `cy.request(...)`'s
+			// URL template is built synchronously while this test's body runs — i.e. before ANY
+			// Cypress command in the queue (including this very `cy.wait`) has actually resolved — so
+			// it read the still-`undefined` initial value, producing
+			// `GET /api/documents/undefined?typeId=purchase-order` (404: CI run 34916829147, commit
+			// de30e2a4, first execution of this spec). Same trap as the "today" date computed between
+			// two queued Cypress commands fixed on 62-*: read a produced value inside the `.then()` of
+			// the command that produced it, never from a variable captured before the chain resolves.
+			cy.get("body").type("{esc}"); // close the dialog — Radix's own Escape handling
+
+			cy.request({ url: `${api}/api/documents/${purchaseOrderId}?typeId=purchase-order` })
+				.its("body")
+				.then((doc) => {
+					expect(doc.status, "le bon de commande est bien un brouillon en base").to.eq("draft");
+					expect(doc.data.supplier, "un fournisseur est bien lié").to.be.a("string");
+					expect(doc.data.currency).to.eq("EUR");
+					expect(doc.data.lines, "une ligne, telle que saisie à l'écran").to.have.length(1);
+					expect(doc.data.lines[0]).to.include({
+						description: "Widgets",
+						quantity: 10,
+						unitPrice: 25,
+					});
+				});
 		});
-
-		cy.get("body").type("{esc}"); // close the dialog — Radix's own Escape handling
-
-		cy.request({ url: `${api}/api/documents/${purchaseOrderId}?typeId=purchase-order` })
-			.its("body")
-			.then((doc) => {
-				expect(doc.status, "le bon de commande est bien un brouillon en base").to.eq("draft");
-				expect(doc.data.supplier, "un fournisseur est bien lié").to.be.a("string");
-				expect(doc.data.currency).to.eq("EUR");
-				expect(doc.data.lines, "une ligne, telle que saisie à l'écran").to.have.length(1);
-				expect(doc.data.lines[0]).to.include({ description: "Widgets", quantity: 10, unitPrice: 25 });
-			});
 	});
 
 	it('sends it via the screen — Mailpit receives the PDF, named after the displayNumber', () => {
