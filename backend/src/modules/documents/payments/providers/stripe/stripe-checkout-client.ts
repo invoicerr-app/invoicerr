@@ -90,12 +90,20 @@ export class RealStripeCheckoutClient implements StripeCheckoutClient {
 export class FakeStripeCheckoutClient implements StripeCheckoutClient {
   async createSession(
     _secretKey: string,
-    _input: CreateCheckoutSessionInput,
+    input: CreateCheckoutSessionInput,
   ): Promise<CreateCheckoutSessionResult> {
     const providerSessionId = `cs_test_fake_${randomUUID()}`;
+    // `input.successUrl` echoed back as a query param — NOT anything a real Stripe checkout URL ever
+    // carries (the real one is `https://checkout.stripe.com/...`, opaque, and never reveals the return
+    // URL it was configured with). This exists ONLY so an offline test can observe, end to end through
+    // a real HTTP response, which `successUrl` `PortalService.createInvoiceCheckoutSession` actually
+    // built for THIS session — see that method's own header on why it now embeds the caller's raw
+    // portal token — without a new persisted column (`PaymentCheckoutSession` stores `checkoutUrl`
+    // only, never the return URLs that produced it).
+    const returnUrl = new URLSearchParams({ success_url: input.successUrl });
     return {
       providerSessionId,
-      checkoutUrl: `https://mock-stripe.invalid/checkout/${providerSessionId}`,
+      checkoutUrl: `https://mock-stripe.invalid/checkout/${providerSessionId}?${returnUrl}`,
     };
   }
 }

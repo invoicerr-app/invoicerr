@@ -4,6 +4,7 @@ import { PluginRegistry } from '../../plugins';
 import { generateWebhookSecret } from '@/utils/webhook-security';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
+import { backendPublicUrl } from '@/utils/backend-public-url';
 
 // Until 2026-09-03 this service used to ALSO run a second, entirely separate
 // mechanism: git-clone-and-dynamic-`import()` "external" plugins (POST /api/plugins, an in-memory
@@ -242,8 +243,11 @@ export class PluginsService {
         details: { pluginName: plugin.name },
       });
 
-      const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-      webhookUrl = `${baseUrl}/api/webhooks/${plugin.id}`;
+      // `backendPublicUrl()` — never bare `APP_URL`: this URL is what an EXTERNAL plugin service
+      // calls back into (`POST /api/webhooks/:uuid`), a third-party SERVER, not a browser. See that
+      // function's own header, and `webhooks.service.ts#generateWebhookUrl` for the sibling call
+      // site building the identical URL shape.
+      webhookUrl = `${backendPublicUrl()}/api/webhooks/${plugin.id}`;
       webhookSecret = generateWebhookSecret();
 
       await prisma.plugin.update({

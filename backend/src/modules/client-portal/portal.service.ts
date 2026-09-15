@@ -188,20 +188,26 @@ export class PortalService {
    * re-checks status ("sent") and the outstanding balance on top (its own header) — this method's OWN
    * job stops at "does this token's owner get to ask about THIS document at all".
    *
-   * `successUrl`/`cancelUrl` point back at the portal's own dashboard (never trusted as a payment
-   * signal either way — only a verified webhook moves the balance, see `PaymentSessionsService`'s own
-   * header) with a query flag the frontend reads to show the right toast on return.
+   * `successUrl`/`cancelUrl` point back at `/portal/<token>` — the SAME bootstrap route `[token].tsx`
+   * already exists for the emailed portal link (see `PortalIdentity.token`'s own header) — never bare
+   * `/portal`: that route reads the token from `localStorage`, which a NEW TAB opened by `PayButton`
+   * (see that component's own header — the checkout opens in a separate tab, not a redirect of the
+   * current one) has never had a chance to populate. A query flag (`?payment=success|cancelled`,
+   * forwarded by `[token].tsx` onto the clean `/portal` URL it redirects to) is never trusted as a
+   * payment signal either way — only a verified webhook moves the balance, see
+   * `PaymentSessionsService`'s own header — it only picks which toast the frontend shows on return.
    */
   async createInvoiceCheckoutSession(
     companyId: string,
     clientId: string,
     documentId: string,
+    token: string,
   ): Promise<InvoiceCheckoutSessionResult> {
     await this.assertVisibleToClient(companyId, clientId, 'invoice', documentId);
-    const appUrl = process.env.APP_URL || '';
+    const appUrl = (process.env.APP_URL || '').replace(/\/+$/, '');
     return this.paymentSessions.createInvoiceCheckoutSession(companyId, documentId, {
-      successUrl: `${appUrl}/portal?payment=success`,
-      cancelUrl: `${appUrl}/portal?payment=cancelled`,
+      successUrl: `${appUrl}/portal/${token}?payment=success`,
+      cancelUrl: `${appUrl}/portal/${token}?payment=cancelled`,
     });
   }
 

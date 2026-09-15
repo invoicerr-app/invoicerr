@@ -305,6 +305,14 @@ describe('FakePayPalClient', () => {
     await expect(client.captureOrder(CREDENTIALS, 'order_never_created')).rejects.toThrow('HTTP 404');
   });
 
+  it("echoes the caller-supplied successUrl in the mock checkoutUrl — see this class's own header", async () => {
+    const client = new FakePayPalClient();
+    const created = await client.createOrder(CREDENTIALS, INPUT);
+
+    const returnedSuccessUrl = new URL(created.checkoutUrl).searchParams.get('success_url');
+    expect(returnedSuccessUrl).toBe(INPUT.successUrl);
+  });
+
   it('verifyWebhookSignature recognizes an order id THIS instance minted (order-level event)', async () => {
     const client = new FakePayPalClient();
     const created = await client.createOrder(CREDENTIALS, INPUT);

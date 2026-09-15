@@ -50,6 +50,54 @@ describe('MollieProvider.createCheckoutSession', () => {
     ).rejects.toThrow('companyId');
     expect(client.createPayment).not.toHaveBeenCalled();
   });
+
+  describe('webhookUrlFor — BACKEND_PUBLIC_URL vs. APP_URL (backend-public-url.ts)', () => {
+    const originalAppUrl = process.env.APP_URL;
+    const originalBackendPublicUrl = process.env.BACKEND_PUBLIC_URL;
+
+    afterEach(() => {
+      process.env.APP_URL = originalAppUrl;
+      process.env.BACKEND_PUBLIC_URL = originalBackendPublicUrl;
+    });
+
+    it('builds the webhook URL off APP_URL when BACKEND_PUBLIC_URL is unset', async () => {
+      delete process.env.BACKEND_PUBLIC_URL;
+      process.env.APP_URL = 'http://localhost:5173';
+      const client = fakeClient();
+      client.createPayment.mockResolvedValue({
+        providerSessionId: 'tr_1',
+        checkoutUrl: 'https://mollie.com/x',
+      });
+      const provider = new MollieProvider(client);
+
+      await provider.createCheckoutSession({ apiKey: 'test_key' }, INPUT);
+
+      expect(client.createPayment).toHaveBeenCalledWith(
+        'test_key',
+        INPUT,
+        'http://localhost:5173/api/public/payments/mollie/company-1/webhook',
+      );
+    });
+
+    it('builds the webhook URL off BACKEND_PUBLIC_URL when set — never a browser-facing tunnel-unaware APP_URL', async () => {
+      process.env.APP_URL = 'http://localhost:5173';
+      process.env.BACKEND_PUBLIC_URL = 'https://tunnel.example.com';
+      const client = fakeClient();
+      client.createPayment.mockResolvedValue({
+        providerSessionId: 'tr_1',
+        checkoutUrl: 'https://mollie.com/x',
+      });
+      const provider = new MollieProvider(client);
+
+      await provider.createCheckoutSession({ apiKey: 'test_key' }, INPUT);
+
+      expect(client.createPayment).toHaveBeenCalledWith(
+        'test_key',
+        INPUT,
+        'https://tunnel.example.com/api/public/payments/mollie/company-1/webhook',
+      );
+    });
+  });
 });
 
 describe('MollieProvider.parseWebhookEvent', () => {

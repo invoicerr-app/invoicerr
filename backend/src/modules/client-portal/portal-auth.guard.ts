@@ -48,6 +48,13 @@ import { hashPortalToken } from './portal-token';
 export interface PortalIdentity {
   companyId: string;
   clientId: string;
+  /** The RAW bearer token this request itself authenticated with — never persisted anywhere new, just
+   *  handed back to whichever handler already has the header (`extractBearerToken` below already
+   *  parsed it once; this avoids re-parsing it a second time at the one call site that needs the raw
+   *  value itself: `PortalService.createInvoiceCheckoutSession`, which embeds it in the payment
+   *  provider's `successUrl`/`cancelUrl` so the buyer's browser lands back on `/portal/<token>` —
+   *  the SAME bootstrap route `[token].tsx` already exists for the emailed link, never a second one). */
+  token: string;
 }
 
 interface RequestWithPortalIdentity extends Request {
@@ -80,7 +87,7 @@ export class PortalAuthGuard implements CanActivate {
     }
 
     touchPortalTokenLastUsed(record.id);
-    request.portal = { companyId: record.companyId, clientId: record.clientId };
+    request.portal = { companyId: record.companyId, clientId: record.clientId, token };
     return true;
   }
 }

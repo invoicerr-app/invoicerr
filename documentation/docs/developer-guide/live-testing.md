@@ -185,6 +185,12 @@ PAYPAL_LIVE=1 PAYPAL_CLIENT_ID=<id> PAYPAL_CLIENT_SECRET=<secret> \
 # `documents-core.module.ts#shouldUseRealPaymentClients`'s own header explains. No effect outside
 # NODE_ENV=test.
 PAYMENT_PROVIDERS_REAL=1 npm run start:test
+
+# A FULL Mollie round-trip (unlike stripe.live.spec.ts/paypal.live.spec.ts, which only prove session/
+# order creation) needs Mollie's own servers to actually deliver a webhook back to this machine — set
+# BACKEND_PUBLIC_URL to a tunnel exposing only :4000 (`APP_URL` itself must stay the frontend's local
+# origin, see that variable's own header in `utils/backend-public-url.ts`) before starting the backend.
+PAYMENT_PROVIDERS_REAL=1 BACKEND_PUBLIC_URL=https://your-tunnel.example.com npm run start:test
 ```
 
 ---

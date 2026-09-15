@@ -142,6 +142,15 @@ describe("Online payment — Mollie (TODO_FEATURES.md rank 1)", () => {
 		cy.get('[data-cy="payment-provider-mollie-apikey-input"]').clear().type(MOLLIE_API_KEY);
 		cy.get('[data-cy="payment-provider-mollie-connect-button"]').click();
 		cy.get('[data-cy="payment-provider-mollie-status"]', { timeout: 15000 }).should("contain", "Connected");
+
+		// Connecting credentials alone never makes a provider the ACTIVE one the portal's Pay link
+		// opens (`Company.paymentProviderId` — bring-your-own-account lets more than one provider be
+		// connected at once, see `payments.settings.tsx`'s own `ActiveProviderSelector` header) — this
+		// selector is the "own small selector on the Payments settings screen" that column's own
+		// schema.prisma comment always promised.
+		cy.get('[data-cy="payment-active-provider-select"]').click();
+		cy.get('[data-cy="payment-active-provider-option-mollie"]').click();
+		cy.get('[data-cy="payment-active-provider-select"]').should("contain", "Mollie");
 	}
 
 	it("connects Mollie, opens a real (faked) payment from the portal, and a webhook settles it exactly once", () => {
@@ -240,6 +249,11 @@ describe("Online payment — PayPal (TODO_FEATURES.md rank 1)", () => {
 		cy.get('[data-cy="payment-provider-paypal-webhookid-input"]').clear().type(PAYPAL_WEBHOOK_ID);
 		cy.get('[data-cy="payment-provider-paypal-connect-button"]').click();
 		cy.get('[data-cy="payment-provider-paypal-status"]', { timeout: 15000 }).should("contain", "Connected");
+
+		// See `connectMollie`'s own comment — connecting is never the same as SELECTING.
+		cy.get('[data-cy="payment-active-provider-select"]').click();
+		cy.get('[data-cy="payment-active-provider-option-paypal"]').click();
+		cy.get('[data-cy="payment-active-provider-select"]').should("contain", "PayPal");
 	}
 
 	it("connects PayPal, opens a real (faked) order, and TWO webhooks (approved, then captured) settle it exactly once", () => {

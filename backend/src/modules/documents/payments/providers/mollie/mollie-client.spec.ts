@@ -150,4 +150,12 @@ describe('FakeMollieClient', () => {
     const client = new FakeMollieClient();
     await expect(client.getPayment('k', 'tr_never_created')).rejects.toThrow('HTTP 404');
   });
+
+  it("echoes the caller-supplied successUrl in the mock checkoutUrl — see this class's own header", async () => {
+    const client = new FakeMollieClient();
+    const result = await client.createPayment('whatever', INPUT, WEBHOOK_URL);
+
+    const returnedSuccessUrl = new URL(result.checkoutUrl).searchParams.get('success_url');
+    expect(returnedSuccessUrl).toBe(INPUT.successUrl);
+  });
 });

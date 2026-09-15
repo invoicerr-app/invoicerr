@@ -238,13 +238,17 @@ export class FakePayPalClient implements PayPalClient {
 
   async createOrder(
     _credentials: PayPalCredentials,
-    _input: CreateCheckoutSessionInput,
+    input: CreateCheckoutSessionInput,
   ): Promise<CreateCheckoutSessionResult> {
     const providerSessionId = `EC-TEST-FAKE-${randomUUID()}`;
     this.orders.add(providerSessionId);
+    // `input.successUrl` echoed back as a query param — see `stripe-checkout-client.ts`'s own
+    // `FakeStripeCheckoutClient` header for why: test-only observability of the return URL this
+    // session was actually opened with, never anything a real PayPal approve URL carries.
+    const successUrl = encodeURIComponent(input.successUrl);
     return {
       providerSessionId,
-      checkoutUrl: `https://mock-paypal.invalid/checkoutnow?token=${providerSessionId}`,
+      checkoutUrl: `https://mock-paypal.invalid/checkoutnow?token=${providerSessionId}&success_url=${successUrl}`,
     };
   }
 

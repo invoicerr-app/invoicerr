@@ -149,6 +149,19 @@ describe("Online payment (TODO_FEATURES.md rank 1)", () => {
 								expect(interception.response?.statusCode, "session opened").to.eq(201);
 								const checkoutUrl = interception.response?.body?.checkoutUrl as string;
 								expect(checkoutUrl, "a checkout URL came back").to.contain("mock-stripe.invalid");
+
+								// The RETURN URL Stripe would send the buyer back to must carry THIS session's own
+								// portal token (`/portal/<token>`, never bare `/portal`) — a checkout opened in a
+								// NEW tab (`PayButton`'s own header) has no `localStorage` entry yet for the bare
+								// `/portal` route to read a token from. `FakeStripeCheckoutClient` echoes the raw
+								// `successUrl` it received as a `success_url` query param on the mock checkoutUrl —
+								// see that class's own header — purely so this is observable end to end through a
+								// real HTTP response, never a second, hand-rolled reimplementation of the fix.
+								const returnUrl = new URL(checkoutUrl).searchParams.get("success_url");
+								expect(
+									returnUrl,
+									"return URL carries this session's own portal token, not bare /portal",
+								).to.contain(`/portal/${token}?payment=success`);
 							});
 							cy.get("@windowOpen").should(
 								"have.been.calledWithMatch",

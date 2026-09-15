@@ -68,6 +68,13 @@ export interface Company {
    *  escalating overdue-payment reminders (7/14/30 days) to clients. Off by default; see backend's
    *  Company.remindersEnabled comment in schema.prisma. */
   remindersEnabled?: boolean
+  /** Which registered payment provider (GET /api/company/channels, `payments/payment-provider-
+   *  registry.ts`) the client portal's "Pay" link opens a checkout session against — "stripe" |
+   *  "mollie" | "paypal". Null/unset falls back to "stripe" (backend's `Company.paymentProviderId`
+   *  schema.prisma comment) — never a country/channel this app infers, only this stored choice.
+   *  Written by its OWN small selector on the Payments settings screen (`payments.settings.tsx`),
+   *  never this big form. */
+  paymentProviderId?: string | null
 }
 
 /** A manually-entered exchange rate — GET/POST /api/company/currency-rates. See backend's

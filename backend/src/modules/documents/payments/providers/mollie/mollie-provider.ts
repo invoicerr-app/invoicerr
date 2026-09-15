@@ -1,3 +1,5 @@
+import { backendPublicUrl } from '@/utils/backend-public-url';
+
 import {
   CreateCheckoutSessionInput,
   CreateCheckoutSessionResult,
@@ -29,12 +31,13 @@ export function extractMollieCredentials(config: Record<string, unknown>): Molli
 const FAILURE_STATUSES = new Set(['failed', 'canceled', 'expired']);
 
 function webhookUrlFor(companyId: string): string {
-  // Same `APP_URL` convention `webhooks.service.ts#generateWebhookUrl` already uses for building a
-  // backend-hosted URL server-side (production is ONE public origin — nginx proxies `/api/*` to this
-  // process on the same host, see CLAUDE.md's own "Deployment topology") — never `VITE_BACKEND_URL`,
-  // which is a FRONTEND-only env var for the browser, not readable from here.
-  const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
-  return `${appUrl}/api/public/payments/mollie/${companyId}/webhook`;
+  // `backendPublicUrl()` (see that function's own header) — never bare `APP_URL` on its own: THIS
+  // one URL is not opened by a browser, it is called directly by Mollie's own servers, so it must be
+  // whatever origin actually reaches this backend, which in dev/self-hosted setups without a public
+  // domain of their own can differ from the frontend's own `APP_URL` (a tunnel exposing only the
+  // backend, for instance). Never `VITE_BACKEND_URL` either, which is a FRONTEND-only env var for the
+  // browser, not readable from here.
+  return `${backendPublicUrl()}/api/public/payments/mollie/${companyId}/webhook`;
 }
 
 /**

@@ -93,10 +93,10 @@ export class PortalController {
   @ApiResponse({ status: 409, description: 'Invoice not "sent", or already fully settled' })
   @ApiResponse({ status: 501, description: 'No payment provider connected for this company' })
   createCheckoutSession(
-    @ActivePortalClient() { companyId, clientId }: PortalIdentity,
+    @ActivePortalClient() { companyId, clientId, token }: PortalIdentity,
     @Param('id') invoiceId: string,
   ) {
-    return this.portalService.createInvoiceCheckoutSession(companyId, clientId, invoiceId);
+    return this.portalService.createInvoiceCheckoutSession(companyId, clientId, invoiceId, token);
   }
 
   @Get('documents/:typeId/:id/pdf')

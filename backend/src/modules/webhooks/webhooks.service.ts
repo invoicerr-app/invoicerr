@@ -15,6 +15,7 @@ import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url
 import { ZapierDriver } from './drivers/zapier.driver';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
+import { backendPublicUrl } from '@/utils/backend-public-url';
 
 /** HTTP body for creating a webhook (route contract: only `url` is required). */
 export interface WebhookCreateInput {
@@ -111,11 +112,13 @@ export class WebhooksService {
   }
 
   /**
-   * Generate a webhook URL for a given plugin ID
+   * Generate a webhook URL for a given plugin ID — the address the EXTERNAL plugin's own service
+   * calls back into `POST /api/webhooks/:uuid` (`webhooks.controller.ts`'s own public endpoint) at.
+   * `backendPublicUrl()` (see that function's own header) — never bare `APP_URL`: this URL is called
+   * by a third-party SERVER, not opened by a browser.
    */
   generateWebhookUrl(pluginId: string): string {
-    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-    return `${baseUrl}/api/webhooks/${pluginId}`;
+    return `${backendPublicUrl()}/api/webhooks/${pluginId}`;
   }
 
   /**

@@ -139,14 +139,18 @@ export class FakeMollieClient implements MollieClient {
 
   async createPayment(
     _apiKey: string,
-    _input: CreateCheckoutSessionInput,
+    input: CreateCheckoutSessionInput,
     _webhookUrl: string,
   ): Promise<CreateCheckoutSessionResult> {
     const providerSessionId = `tr_test_fake_${randomUUID()}`;
     this.createdPaymentIds.add(providerSessionId);
+    // `input.successUrl` echoed back as a query param — see `stripe-checkout-client.ts`'s own
+    // `FakeStripeCheckoutClient` header for why: test-only observability of the return URL this
+    // session was actually opened with, never anything a real Mollie checkout URL carries.
+    const returnUrl = new URLSearchParams({ success_url: input.successUrl });
     return {
       providerSessionId,
-      checkoutUrl: `https://mock-mollie.invalid/checkout/${providerSessionId}`,
+      checkoutUrl: `https://mock-mollie.invalid/checkout/${providerSessionId}?${returnUrl}`,
     };
   }
 

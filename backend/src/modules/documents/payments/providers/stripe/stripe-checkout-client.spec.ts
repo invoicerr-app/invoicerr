@@ -85,4 +85,16 @@ describe('FakeStripeCheckoutClient', () => {
     const second = await client.createSession('sk', INPUT);
     expect(first.providerSessionId).not.toBe(second.providerSessionId);
   });
+
+  it(
+    'echoes the caller-supplied successUrl in the mock checkoutUrl — the only offline way to prove ' +
+      "which return URL a session was actually opened with (see this class's own header)",
+    async () => {
+      const client = new FakeStripeCheckoutClient();
+      const result = await client.createSession('sk_test_whatever', INPUT);
+
+      const returnedSuccessUrl = new URL(result.checkoutUrl).searchParams.get('success_url');
+      expect(returnedSuccessUrl).toBe(INPUT.successUrl);
+    },
+  );
 });

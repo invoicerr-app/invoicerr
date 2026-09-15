@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCompanies } from "@/hooks/queries"
-import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
+import { useGet, usePost, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import type { Company } from "@/types"
 
 type ChannelEnvironment = "TEST" | "PROD"
 
@@ -63,10 +64,86 @@ export default function PaymentsSettings() {
         </p>
       </div>
 
+      <ActiveProviderSelector channels={channels} />
+
       {PAYMENT_PROVIDERS.map((provider) => (
         <PaymentProviderCard key={provider.id} provider={provider} channels={channels} mutate={mutate} />
       ))}
     </div>
+  )
+}
+
+/** The backend's own `DEFAULT_PROVIDER_ID` (`payments/payment-sessions.service.ts`), mirrored here so
+ *  this selector shows what the Pay link actually opens TODAY for a company that never explicitly
+ *  chose — never a blank/undefined value that would look like nothing is active when something,
+ *  in fact, silently is. */
+const DEFAULT_PAYMENT_PROVIDER_ID = "stripe"
+
+/**
+ * Which CONNECTED provider's Pay link a client actually sees (`Company.paymentProviderId`) — a
+ * DIFFERENT question from "is provider X connected" (each `PaymentProviderCard` above, independently):
+ * bring-your-own-account lets a company hold credentials for more than one provider at once (e.g.
+ * testing Mollie alongside an already-live Stripe), so which one is ACTIVE for the portal's Pay link
+ * must be its own explicit choice — see `Company.paymentProviderId`'s own schema.prisma comment,
+ * which already promised "its own small selector on the Payments settings screen" that this component
+ * is. Hidden entirely until at least one provider is connected: there is nothing to choose between
+ * before then, and the fallback (`DEFAULT_PAYMENT_PROVIDER_ID`) is already exactly what an untouched
+ * company gets.
+ */
+function ActiveProviderSelector({ channels }: { channels: ChannelsResponse | null | undefined }) {
+  const { t } = useTranslation()
+  const { data: company, mutate: refetchCompany } = useGet<Company>("/api/company/info")
+  const { trigger: save, loading: saving } = useMutationWithToast(
+    usePost<Company>("/api/company/info"),
+    t("settings.payments.messages.activeProviderError", "Failed to update the active payment provider"),
+  )
+
+  const connectedIds = new Set(
+    (channels?.configured ?? []).filter((c) => c.isActive).map((c) => c.providerId),
+  )
+  if (connectedIds.size === 0) return null
+
+  const current = company?.paymentProviderId || DEFAULT_PAYMENT_PROVIDER_ID
+
+  const handleChange = async (value: string) => {
+    const result = await save({ paymentProviderId: value })
+    if (!result) return // error already toasted by the wrapper
+    toast.success(t("settings.payments.messages.activeProviderSuccess", "Active payment provider updated"))
+    refetchCompany()
+  }
+
+  return (
+    <Card data-cy="payment-active-provider-card">
+      <CardHeader>
+        <CardTitle className="text-base">
+          {t("settings.payments.activeProvider.title", "Active provider")}
+        </CardTitle>
+        <CardDescription>
+          {t(
+            "settings.payments.activeProvider.description",
+            "Which connected provider the client portal's Pay link opens, when more than one is connected.",
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Select value={current} onValueChange={handleChange} disabled={saving}>
+          <SelectTrigger className="w-full sm:w-64" data-cy="payment-active-provider-select">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYMENT_PROVIDERS.filter((provider) => connectedIds.has(provider.id)).map((provider) => (
+              <SelectItem
+                key={provider.id}
+                value={provider.id}
+                data-cy={`payment-active-provider-option-${provider.id}`}
+              >
+                {provider.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -269,32 +269,57 @@ describe('PortalService — the client-portal security boundary', () => {
   });
 
   describe('createInvoiceCheckoutSession', () => {
+    const originalAppUrl = process.env.APP_URL;
+    afterEach(() => {
+      process.env.APP_URL = originalAppUrl;
+    });
+
     it('a client CANNOT open a checkout session for another client’s invoice — 404, never calls PaymentSessionsService', async () => {
       const { service, paymentSessions } = buildService();
       const invoiceB = { ...INVOICE_A, id: 'invoice-b', data: { client: CLIENT_B, currency: 'EUR' } };
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(invoiceB);
 
       await expect(
-        service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-b'),
+        service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-b', 'raw-token'),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(paymentSessions.createInvoiceCheckoutSession).not.toHaveBeenCalled();
     });
 
-    it('delegates to PaymentSessionsService, verbatim, for THIS client’s own invoice', async () => {
+    it(
+      'delegates to PaymentSessionsService, verbatim, for THIS client’s own invoice, with the ' +
+        'return URLs carrying THIS session’s own portal token (never bare /portal — see this ' +
+        'method’s own header on why a new tab cannot rely on localStorage)',
+      async () => {
+        const { service, paymentSessions } = buildService();
+        (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(INVOICE_A);
+        process.env.APP_URL = 'http://localhost:5173';
+
+        const result = await service.createInvoiceCheckoutSession(
+          COMPANY,
+          CLIENT_A,
+          'invoice-a',
+          'raw-token',
+        );
+
+        expect(result).toEqual({ checkoutUrl: 'https://checkout.stripe.com/x' });
+        expect(paymentSessions.createInvoiceCheckoutSession).toHaveBeenCalledWith(COMPANY, 'invoice-a', {
+          successUrl: 'http://localhost:5173/portal/raw-token?payment=success',
+          cancelUrl: 'http://localhost:5173/portal/raw-token?payment=cancelled',
+        });
+      },
+    );
+
+    it('strips a trailing slash off APP_URL before building the return URL', async () => {
       const { service, paymentSessions } = buildService();
       (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(INVOICE_A);
+      process.env.APP_URL = 'http://localhost:5173/';
 
-      const result = await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a');
+      await service.createInvoiceCheckoutSession(COMPANY, CLIENT_A, 'invoice-a', 'raw-token');
 
-      expect(result).toEqual({ checkoutUrl: 'https://checkout.stripe.com/x' });
-      expect(paymentSessions.createInvoiceCheckoutSession).toHaveBeenCalledWith(
-        COMPANY,
-        'invoice-a',
-        expect.objectContaining({
-          successUrl: expect.stringContaining('payment=success'),
-          cancelUrl: expect.stringContaining('payment=cancelled'),
-        }),
-      );
+      expect(paymentSessions.createInvoiceCheckoutSession).toHaveBeenCalledWith(COMPANY, 'invoice-a', {
+        successUrl: 'http://localhost:5173/portal/raw-token?payment=success',
+        cancelUrl: 'http://localhost:5173/portal/raw-token?payment=cancelled',
+      });
     });
   });
 

@@ -2451,6 +2451,10 @@
         "disconnect": "Disconnect",
         "edit": "Edit"
       },
+      "activeProvider": {
+        "title": "Active provider",
+        "description": "Which connected provider the client portal's Pay link opens, when more than one is connected."
+      },
       "description": "Connect a payment provider so a Pay link appears on invoices in the client portal.",
       "fields": {
         "apiKey": "API key",
@@ -2464,6 +2468,8 @@
         "webhookSecret": "Webhook signing secret"
       },
       "messages": {
+        "activeProviderError": "Failed to update the active payment provider",
+        "activeProviderSuccess": "Active payment provider updated",
         "connectError": "Failed to connect the payment provider",
         "connectSuccess": "Payment provider connected",
         "copied": "Copied to clipboard",
