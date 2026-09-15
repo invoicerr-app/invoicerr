@@ -394,10 +394,14 @@ export default function MailSettings() {
 
   const handleTest = () => {
     testMailSettings.mutate(undefined, {
-      onSuccess: (result) => {
-        toast.success(
-          result?.message ?? t("settings.mail.messages.testSuccess", "Test email sent — check your inbox"),
-        )
+      // NOT `result?.message` — the backend's `{ message }` is the generic string every mail send in
+      // this app returns ("Email sent successfully", see `MailService#sendForCompany`), never
+      // "test"-specific; showing it here would have this button's own success toast never match this
+      // screen's own copy. The real-message discipline documented on this component (and on
+      // `CompanyMailSettingsService#sendTest`) is about the FAILURE path only — a real provider error is
+      // exactly what a "test send" exists to surface; success has nothing provider-specific to show.
+      onSuccess: () => {
+        toast.success(t("settings.mail.messages.testSuccess", "Test email sent — check your inbox"))
       },
       onError: (error) => {
         toast.error(

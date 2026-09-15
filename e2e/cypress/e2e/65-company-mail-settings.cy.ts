@@ -52,7 +52,9 @@ describe("Company mail settings — configuration screen", () => {
 
 	it("nothing configured at the start — status names the instance fallback, the connect form is already open", () => {
 		cy.visit("/settings/mail");
-		cy.get('[data-cy="mail-settings-section"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="mail-settings-section"]', { timeout: 15000 }).should(
+			"exist",
+		);
 		cy.get('[data-cy="mail-settings-status-badge"]').should(
 			"contain.text",
 			"Using the instance's mail server",
@@ -73,10 +75,9 @@ describe("Company mail settings — configuration screen", () => {
 
 	it("connects a company SMTP server via the screen — the password is never echoed back (property 1)", () => {
 		cy.visit("/settings/mail");
-		cy.get('[data-cy="mail-settings-provider-select"]', { timeout: 15000 }).should(
-			"contain.text",
-			"SMTP",
-		);
+		cy.get('[data-cy="mail-settings-provider-select"]', {
+			timeout: 15000,
+		}).should("contain.text", "SMTP");
 
 		// The e2e stack's real Mailpit — already what the INSTANCE-level SMTP config in
 		// backend/.env.test points at (SMTP_HOST=localhost, SMTP_PORT=1025, SMTP_SECURE=false),
@@ -84,12 +85,42 @@ describe("Company mail settings — configuration screen", () => {
 		// "société" branch of the cascade instead of the instance one.
 		cy.get('[data-cy="mail-settings-host-input"]').clear().type("localhost");
 		cy.get('[data-cy="mail-settings-port-input"]').clear().type("1025");
-		cy.get('[data-cy="mail-settings-username-input"]').clear().type("company-e2e");
-		cy.get('[data-cy="mail-settings-password-input"]').clear().type("does-not-matter-for-mailpit");
-		cy.get('[data-cy="mail-settings-fromaddress-input"]').clear().type(COMPANY_SMTP_FROM_ADDRESS);
-		cy.get('[data-cy="mail-settings-save-button"]').click();
+		cy.get('[data-cy="mail-settings-username-input"]')
+			.clear()
+			.type("company-e2e");
+		cy.get('[data-cy="mail-settings-password-input"]')
+			.clear()
+			.type("does-not-matter-for-mailpit");
+		cy.get('[data-cy="mail-settings-fromaddress-input"]')
+			.clear()
+			.type(COMPANY_SMTP_FROM_ADDRESS);
 
-		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Mail server saved");
+		// CI run 34914384074 (commit 9f2e3585): this test timed out waiting on `[data-sonner-toast]`
+		// with NO visibility into what `PUT /api/company/mail-settings` actually did — the backend logs
+		// no HTTP access line, and a handled 4xx/5xx (BadRequestException, RolesGuard's 403) is not
+		// logged by Nest's default exception filter either, so a rejected/never-sent request left no
+		// trace at all. The backend's own CredentialAudit trail for that run shows only `RESOLVE_ACTIVE`
+		// "mail:*" MISS entries for this company, never once the `UPLOAD` entry `upsertChannelConfig`
+		// logs unconditionally on a successful write (a "mail" HIT/UPLOAD appears nowhere in the whole
+		// run, while the identical mechanism fires repeatedly for other providers) — proving the write
+		// never completed, but not WHY. Naming the request itself here, before the toast, turns the next
+		// failure into an actual status code (or "no request ever occurred" if the click never even
+		// reaches the network) instead of a second unexplained toast timeout.
+		cy.intercept("PUT", `${api}/api/company/mail-settings`).as(
+			"saveMailSettings",
+		);
+		cy.get('[data-cy="mail-settings-save-button"]').click();
+		cy.wait("@saveMailSettings", { timeout: 10000 }).then((interception) => {
+			expect(
+				interception.response?.statusCode,
+				"PUT /api/company/mail-settings must succeed",
+			).to.eq(200);
+		});
+
+		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
+			"contain.text",
+			"Mail server saved",
+		);
 
 		// The screen itself switches from the form to the status card — the proof that the SAVE
 		// actually succeeded, not just that the form emptied itself.
@@ -97,13 +128,18 @@ describe("Company mail settings — configuration screen", () => {
 			"contain.text",
 			"Company server (SMTP)",
 		);
-		cy.get('[data-cy="mail-settings-from-address"]').should("contain.text", COMPANY_SMTP_FROM_ADDRESS);
+		cy.get('[data-cy="mail-settings-from-address"]').should(
+			"contain.text",
+			COMPANY_SMTP_FROM_ADDRESS,
+		);
 
 		// The assertion that matters: read the SAME route the screen just used, directly, and prove
 		// its response CANNOT carry the secret — written to fail loudly the day someone widens the
 		// response's mirror DTO.
 		getMailSettingsStatus().then((status) => {
-			expect(status.configured, "la config société est bien stockée").to.eq(true);
+			expect(status.configured, "la config société est bien stockée").to.eq(
+				true,
+			);
 			expect(status.kind).to.eq("smtp");
 			expect(status.fromAddress).to.eq(COMPANY_SMTP_FROM_ADDRESS);
 			expect(
@@ -121,29 +157,77 @@ describe("Company mail settings — configuration screen", () => {
 		cy.clearEmails();
 
 		cy.visit("/settings/mail");
-		cy.get('[data-cy="mail-settings-test-button"]', { timeout: 15000 }).click();
 
-		cy.get('[data-sonner-toast]', { timeout: 15000 }).should("contain.text", "Test email sent");
+		// Same discipline as the save test above: name the request before the toast (see its comment
+		// for the CI run and the exact evidence — no request ever intercepted here would mean the click
+		// itself never reached the network, a 4xx/5xx would show the real status this run's backend log
+		// could not).
+		cy.intercept("POST", `${api}/api/company/mail-settings/test`).as(
+			"sendTestMail",
+		);
+		cy.get('[data-cy="mail-settings-test-button"]', { timeout: 15000 }).click();
+		cy.wait("@sendTestMail", { timeout: 15000 }).then((interception) => {
+			expect(
+				interception.response?.statusCode,
+				"POST /api/company/mail-settings/test must succeed",
+			).to.eq(200);
+		});
+
+		cy.get("[data-sonner-toast]", { timeout: 15000 }).should(
+			"contain.text",
+			"Test email sent",
+		);
 
 		cy.getLastEmail().then((message: any) => {
 			expect(
 				message.To?.[0]?.Address,
 				"le mail de test va à l'adresse du DEMANDEUR, jamais une adresse fournie ailleurs",
 			).to.eq("john.doe@acme.org");
-			expect(message.From?.Address, "envoyé depuis l'adresse configurée par la société").to.eq(
-				COMPANY_SMTP_FROM_ADDRESS,
-			);
+			expect(
+				message.From?.Address,
+				"envoyé depuis l'adresse configurée par la société",
+			).to.eq(COMPANY_SMTP_FROM_ADDRESS);
 		});
 	});
 
 	it("reverts to the instance server via the screen, with confirmation (property 4)", () => {
+		// This test's OWN failure on CI run 34914384074 was not a toast timeout but the revert button
+		// itself never rendering — it only renders when `configured` is true, which comes straight from
+		// this GET's body. Naming the GET here turns "element not found" into the actual
+		// configured/kind/fromAddress this run's backend returned, which is what decides whether the
+		// previous test's save ever actually persisted (the CredentialAudit trail for that run already
+		// points at "never persisted" — see the save test's own comment — this makes that provable from
+		// the spec itself on the next run, not just from a downloaded backend log).
+		cy.intercept("GET", `${api}/api/company/mail-settings`).as(
+			"mailSettingsStatus",
+		);
 		cy.visit("/settings/mail");
-		cy.get('[data-cy="mail-settings-revert-button"]', { timeout: 15000 }).click();
+		cy.wait("@mailSettingsStatus", { timeout: 15000 }).then((interception) => {
+			expect(
+				interception.response?.body,
+				"this company's mail settings must still be configured, from the previous test's save",
+			).to.have.property("configured", true);
+		});
 
-		cy.get('[data-cy="mail-settings-revert-confirm-dialog"]').should("be.visible");
+		cy.intercept("DELETE", `${api}/api/company/mail-settings`).as(
+			"clearMailSettings",
+		);
+		cy.get('[data-cy="mail-settings-revert-button"]', {
+			timeout: 15000,
+		}).click();
+
+		cy.get('[data-cy="mail-settings-revert-confirm-dialog"]').should(
+			"be.visible",
+		);
 		cy.get('[data-cy="mail-settings-revert-confirm-button"]').click();
+		cy.wait("@clearMailSettings", { timeout: 10000 }).then((interception) => {
+			expect(
+				interception.response?.statusCode,
+				"DELETE /api/company/mail-settings must succeed",
+			).to.eq(200);
+		});
 
-		cy.get('[data-sonner-toast]', { timeout: 10000 }).should(
+		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
 			"Reverted to the instance mail server",
 		);
@@ -154,9 +238,16 @@ describe("Company mail settings — configuration screen", () => {
 		cy.get('[data-cy="mail-settings-revert-button"]').should("not.exist");
 
 		getMailSettingsStatus().then((status) => {
-			expect(status.configured, "DELETE a réellement effacé la config société").to.eq(false);
-			expect(status.kind, "plus de kind une fois revenu à l'instance").to.be.undefined;
-			expect(status.fromAddress, "plus de fromAddress une fois revenu à l'instance").to.be.undefined;
+			expect(
+				status.configured,
+				"DELETE a réellement effacé la config société",
+			).to.eq(false);
+			expect(status.kind, "plus de kind une fois revenu à l'instance").to.be
+				.undefined;
+			expect(
+				status.fromAddress,
+				"plus de fromAddress une fois revenu à l'instance",
+			).to.be.undefined;
 		});
 	});
 });
