@@ -35,7 +35,7 @@
 
 | Rank | Feature | Proof |
 |---:|---|---|
-| 1 | Online payment (Stripe) | Wired and dry-run tested — spec `60-online-payment`, commit `4c0b0c94` (2026-09-14). **Proven with a real Stripe test-mode account on 2026-09-15**: `stripe.live.spec.ts` (`STRIPE_LIVE=1`, restricted key — permissions in `providers/stripe/API-KEY-PERMISSIONS.md`) creates a real Checkout Session (`cs_test_…`, hosted URL returned). Still to prove: the full loop on the running app (card payment → verified webhook → payment recorded on the invoice) — in progress, needs `stripe listen` or a public URL for the webhook. See Decision A. |
+| 1 | Online payment (Stripe) | Wired and dry-run tested — spec `60-online-payment`, commit `4c0b0c94` (2026-09-14). **Proven with a real Stripe test-mode account on 2026-09-15**: `stripe.live.spec.ts` (`STRIPE_LIVE=1`, restricted key — permissions in `providers/stripe/API-KEY-PERMISSIONS.md`) creates a real Checkout Session (`cs_test_…`, hosted URL returned). **Full loop proven on the running app (2026-09-15, 14:05 UTC)**: `PAYMENT_PROVIDERS_REAL=1` (`c8620b37`), session created by `POST /api/portal/documents/invoice/:id/checkout-session`, paid in the browser with Stripe's public test card, webhook forwarded by `stripe listen`, signature verified, session `COMPLETED`, a 120.00 EUR payment recorded on INVOICE-2026-0001 (`GET …/settlement` shows it). Defect found on the way: the success/cancel URL lands on `/portal` without the portal token ("This link is invalid") — fix in progress. See Decision A. |
 | 2 | Automatic reminders (dunning) | `53-reminders-toggle` |
 | 3 | Authenticated client portal | `56-client-portal` |
 | 4 | Accounting export (generic CSV) | `52-accounting-export` |
