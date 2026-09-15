@@ -79,14 +79,23 @@ describe("A document is a descriptor, and the screen follows it", () => {
 					cy.get('[data-cy="document-create-button"]', {
 						timeout: 15000,
 					}).click();
-					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
-						"be.visible",
-					);
+					// `exist`, not `be.visible`: the dialog (document-upsert-dialog.tsx) is a
+					// `max-h-[90vh] overflow-y-auto` panel, and the 7th type (goods-receipt) plus the
+					// received invoice's own added `purchaseOrder` field are together tall enough that
+					// the outer `<form>` no longer fits inside a CI-sized (1000×660) viewport in one
+					// screenful — Cypress reports a `<form>` straddling a scrollable ancestor's edge as
+					// NOT visible even though every field in it is one scroll away, which a real user
+					// can do. Each field below is scrolled to and checked individually instead, which is
+					// both the genuine per-field coverage this test is FOR and immune to the form's own
+					// total height.
+					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 					for (const f of d.fields) {
 						cy.get(`[data-cy="document-field-${f.key}"]`, {
 							timeout: 10000,
-						}).should("exist");
+						})
+							.scrollIntoView()
+							.should("be.visible");
 						// A field whose TYPE has no renderer shows an explicit marker rather
 						// than nothing. Seeing it here would mean the core is lying about its coverage.
 						cy.get(`[data-cy="document-field-${f.key}-unsupported"]`).should(
@@ -108,9 +117,10 @@ describe("A document is a descriptor, and the screen follows it", () => {
 					cy.get('[data-cy="document-create-button"]', {
 						timeout: 15000,
 					}).click();
-					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
-						"be.visible",
-					);
+					// `exist`, not `be.visible` — see the previous test's own comment: the dialog can be
+					// taller than the viewport, and the action buttons this test reads are queried via
+					// `.then()` below regardless of scroll position, so the form only needs to exist.
+					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 					cy.get('[data-cy^="document-action-"]').then(($btns) => {
 						const onScreen = [...$btns]

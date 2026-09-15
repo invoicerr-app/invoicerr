@@ -145,7 +145,15 @@ describe("Company branding — logo, accent color, font, presets", () => {
 		cy.get('[data-cy="branding-accent-color-input"]', { timeout: 15000 })
 			.clear()
 			.type("not-a-color");
-		cy.get('[data-cy="branding-accent-color-error"]').should("be.visible");
+		// scrollIntoView(): the error `<p>` is CONDITIONALLY rendered (branding.settings.tsx) — it
+		// doesn't exist yet when `.type()` above auto-scrolls the input into view, so its own
+		// appearance a moment later is never itself what triggers a scroll. On the CI viewport
+		// (1000×660) it then renders just past the bottom edge of _layout.tsx's scrollable content
+		// pane (`overflow-y-auto`), clipped rather than absent — confirmed against the CI screenshot
+		// (the "Colour & font" card isn't in frame at all at scroll position 0). A real user sees it
+		// one small scroll below the field they just typed into; this asserts on the same content a
+		// user would reach, not on whatever happens to already be in the viewport.
+		cy.get('[data-cy="branding-accent-color-error"]').scrollIntoView().should("be.visible");
 		// Proof no PUT can even be attempted from here, without ever clicking a disabled button
 		// (browsers don't fire a real click on one, and forcing the DOM event would test Cypress's
 		// own force-click mechanics rather than this screen's actual behavior).

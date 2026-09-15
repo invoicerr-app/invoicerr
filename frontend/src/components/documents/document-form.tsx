@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
-import { useFieldArray, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
@@ -202,19 +202,30 @@ export function DocumentForm({
     })
     return () => subscription.unsubscribe()
   }, [form, isGoodsReceipt])
-  // `replace()` from react-hook-form's OWN `useFieldArray` — never `form.setValue("lines", ...)`:
-  // `field-renderers/array-field.tsx` renders this SAME array through its own `useFieldArray({
-  // control, name: "lines" })` call, and only `replace` (or `append`/`remove`, RHF's documented API
-  // for a field array already in use) is guaranteed to keep BOTH subscribers of the same field name,
-  // on the same `control`, in sync — `setValue` alone can leave that renderer's own row list stale.
-  const { replace: replaceGoodsReceiptLines } = useFieldArray({ control: form.control, name: "lines" })
+  // `form.setValue("lines", ..., { shouldDirty: true, shouldValidate: true })` — NOT a second
+  // `useFieldArray({ control, name: "lines" }).replace()` here, despite that being RHF's own
+  // documented API for a field array already in use elsewhere. Verified live (not just read) after
+  // 70-three-way-match.cy.ts's own "records a PARTIAL goods receipt" kept timing out on
+  // `document-field-lines-row-0`: react-hook-form 7.80's `useFieldArray`'s own action methods
+  // (`replace`/`append`/`remove`/…) update `control._formValues` but do NOT emit on
+  // `control._subjects.array` — the ONLY channel a SEPARATE `useFieldArray` instance on the same
+  // name (here, `field-renderers/array-field.tsx`'s own, which is what actually RENDERS the rows)
+  // subscribes to for cross-instance sync (see node_modules/react-hook-form/dist/index.esm.mjs:
+  // `_setFieldArray`'s `shouldUpdateFieldsAndState` gate, and `_subjects.array.next` calls, which
+  // exist only in `_setValue` — `form.setValue`'s own internal — and `reset()`). A `replace()` called
+  // from THIS component's own, separate `useFieldArray` instance therefore left `array-field.tsx`'s
+  // rendered `fields` permanently empty: `form.getValues("lines")` already showed the replaced rows
+  // (proving the write itself worked), the SCREEN never did. `form.setValue` on a field-array name
+  // routes through `_setValue`, which DOES call `_subjects.array.next(...)` — the renderer catches
+  // up immediately, confirmed against the real PO/goods-receipt flow in a browser.
   useEffect(() => {
     if (!isGoodsReceipt || currentDocumentId || !goodsReceiptPurchaseOrder) return
     const currentLines = form.getValues("lines")
     if (Array.isArray(currentLines) && currentLines.length > 0) return
     const poLines = (goodsReceiptPurchaseOrder as Record<string, unknown>).lines
     if (!Array.isArray(poLines) || poLines.length === 0) return
-    replaceGoodsReceiptLines(
+    form.setValue(
+      "lines",
       poLines.map((line) => {
         const row = (line ?? {}) as Record<string, unknown>
         return {
@@ -222,8 +233,9 @@ export function DocumentForm({
           quantityReceived: typeof row.quantity === "number" ? row.quantity : 0,
         }
       }),
+      { shouldDirty: true, shouldValidate: true },
     )
-  }, [isGoodsReceipt, currentDocumentId, goodsReceiptPurchaseOrder, form, replaceGoodsReceiptLines])
+  }, [isGoodsReceipt, currentDocumentId, goodsReceiptPurchaseOrder, form])
 
   const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
     useDocumentActionRunner({

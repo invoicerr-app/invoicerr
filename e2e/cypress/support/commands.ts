@@ -135,6 +135,24 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
     // The popover's content unmounts on close (Radix `Presence`, no `forceMount`) -- its own "Today"
     // button is gone, not merely hidden, which is what actually proves the popover closed.
     cy.get('[data-cy="date-picker-today"]').should('not.exist');
+    // CI run 34958157645 (commit 0ff4b8be, which introduced this "Today" button): THREE specs
+    // (62/66/70) failed on the very next `[data-cy="...-input-options"]` -- the following `SearchSelect`
+    // (search-input.tsx,
+    // itself a `@radix-ui/react-popover`, the same primitive this DatePicker is built on) never
+    // opened, even though its trigger's own click landed. Traced to the library, not this screen:
+    // `PopoverContent`'s `DismissableLayer` binds its outside-pointerdown listener straight on
+    // `document` (`@radix-ui/react-dismissable-layer`'s own `usePointerDownOutside`), and detaches it
+    // in a PASSIVE effect's cleanup -- scheduled after this commit's paint, not synchronous with the
+    // `setOpen(false)` the "Today" click just ran. A click fired before that cleanup flushes is still
+    // caught by the stale listener as "pointerdown outside", which replays it onto the (unrelated)
+    // NEXT trigger via `dispatchDiscreteCustomEvent` -- a `ReactDOM.flushSync` dispatched while that
+    // trigger's own click is already in flight, racing the click that should have opened it. A real
+    // user's next click lands tens of milliseconds later, well past one passive-effect flush; only a
+    // scripted click fired in the same tick the popover closed hits this. `not.exist` above proves the
+    // DOM is gone, not that this listener has been torn down -- so it is not by itself enough. The
+    // same "short fixed wait after closing a Radix popover" already covers `selectCountry`'s own
+    // Radix combobox (right above) for the identical class of race.
+    cy.wait(50);
 });
 
 Cypress.Commands.add('ensureClient', () => {

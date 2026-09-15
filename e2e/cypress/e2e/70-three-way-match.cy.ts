@@ -100,11 +100,22 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-create-dialog"]', { timeout: 5000 }).should("be.visible");
 
+		// The prefill (below) fires off the SAME "purchaseOrder resolved" watch that also drives this
+		// picker's own label — waiting on the raw fields GET, not just the picker closing, is what
+		// makes this robust against the prefill's own network round-trip rather than racing it blind.
+		cy.intercept("GET", `${api}/api/documents/references/purchase-order/*/fields`).as(
+			"getPurchaseOrderFields",
+		);
 		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"] button').first().click();
+		cy.wait("@getPurchaseOrderFields").then((interception) => {
+			expect(interception.response?.statusCode, "les champs du BC pour le pré-remplissage").to.eq(
+				200,
+			);
+		});
 
 		cy.pickToday('[data-cy="document-field-receiptDate-input"]');
 
@@ -210,7 +221,14 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 			).to.eq("to-review");
 		});
 
-		cy.get('[data-cy="document-reconciliation-section"]', { timeout: 10000 }).should("be.visible");
+		// scrollIntoView(): the received-invoice edit dialog (document-upsert-dialog.tsx, `max-h-[90vh]
+		// overflow-y-auto`) renders Supplier/Linked supplier/Invoice number/Purchase order/Issue
+		// date/… before this section — on the CI viewport (1000×660) that's already past one
+		// screenful, so the panel is below the fold of the dialog's own scroll area rather than
+		// absent. Same pattern as 17-document-descriptor.cy.ts's own per-field scrollIntoView().
+		cy.get('[data-cy="document-reconciliation-section"]', { timeout: 10000 })
+			.scrollIntoView()
+			.should("be.visible");
 		cy.get('[data-cy="document-reconciliation-overall-badge"]').should("contain.text", "To review");
 		cy.get('[data-cy="document-reconciliation-line-0-badge"]').should("contain.text", "To review");
 		cy.get('[data-cy="document-reconciliation-line-0"]').should("contain.text", "Widgets");
@@ -225,7 +243,11 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.visit("/documents/received-invoice");
 		cy.get(`[data-cy="document-list-row-${receivedInvoiceId}"]`, { timeout: 15000 }).click();
 		cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should("be.visible");
-		cy.get('[data-cy="document-reconciliation-accept-button"]', { timeout: 10000 }).should("be.visible");
+		// scrollIntoView() — same "dialog taller than the CI viewport" reasoning as the previous test's
+		// own comment on `document-reconciliation-section`.
+		cy.get('[data-cy="document-reconciliation-accept-button"]', { timeout: 10000 })
+			.scrollIntoView()
+			.should("be.visible");
 
 		cy.get('[data-cy="document-reconciliation-accept-reason"]').type("Supplier confirmed by phone.");
 
