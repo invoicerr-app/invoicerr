@@ -1,6 +1,14 @@
 {
   "countryCode": "PL",
-  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice", "purchase-order", "goods-receipt"],
+  "documentTypes": [
+    "quote",
+    "invoice",
+    "credit-note",
+    "expense",
+    "received-invoice",
+    "purchase-order",
+    "goods-receipt"
+  ],
   "rules": [
     {
       "typeId": "quote",
