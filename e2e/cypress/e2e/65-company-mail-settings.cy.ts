@@ -191,23 +191,39 @@ describe("Company mail settings — configuration screen", () => {
 	});
 
 	it("reverts to the instance server via the screen, with confirmation (property 4)", () => {
-		// This test's OWN failure on CI run 34914384074 was not a toast timeout but the revert button
-		// itself never rendering — it only renders when `configured` is true, which comes straight from
-		// this GET's body. Naming the GET here turns "element not found" into the actual
-		// configured/kind/fromAddress this run's backend returned, which is what decides whether the
-		// previous test's save ever actually persisted (the CredentialAudit trail for that run already
-		// points at "never persisted" — see the save test's own comment — this makes that provable from
-		// the spec itself on the next run, not just from a downloaded backend log).
-		cy.intercept("GET", `${api}/api/company/mail-settings`).as(
-			"mailSettingsStatus",
-		);
-		cy.visit("/settings/mail");
-		cy.wait("@mailSettingsStatus", { timeout: 15000 }).then((interception) => {
-			expect(
-				interception.response?.body,
-				"this company's mail settings must still be configured, from the previous test's save",
-			).to.have.property("configured", true);
+		// CI run 34930840117: this used to rely on the PREVIOUS test's own save having persisted, read
+		// back by intercepting the page-load GET — which failed with an EMPTY intercepted body, not a
+		// `configured: false`. The real cause: that GET came back a genuine HTTP 304 Not Modified
+		// (Express's default weak ETag + the browser's own conditional-GET caching — the same run shows
+		// /api/company/info and /api/documents/available-types 304 right alongside it), and a 304 has
+		// NO body per HTTP spec — the SCREEN still rendered the right status, from the browser's own
+		// cache-filled `fetch()`, but the raw network body Cypress intercepted was empty. That made this
+		// test's precondition both flaky (order/caching-dependent) AND wrongly diagnosed by the assertion
+		// message. Fixed by not depending on the previous test at all: pose this test's OWN precondition
+		// via `cy.request` (Cypress's own Node-side HTTP client, never subject to the browser's cache),
+		// the same way `getMailSettingsStatus()` above already reads state back.
+		cy.request({
+			method: "PUT",
+			url: `${api}/api/company/mail-settings`,
+			body: {
+				kind: "smtp",
+				host: "localhost",
+				port: 1025,
+				secure: false,
+				username: "company-e2e",
+				password: "does-not-matter-for-mailpit",
+				fromAddress: COMPANY_SMTP_FROM_ADDRESS,
+			},
 		});
+
+		cy.visit("/settings/mail");
+		// Proof this test's own precondition actually reached the screen — read from the DOM the
+		// revert flow below is about to act on, never from a GET's raw (possibly 304-emptied)
+		// intercepted body.
+		cy.get('[data-cy="mail-settings-status-badge"]', { timeout: 15000 }).should(
+			"contain.text",
+			"Company server (SMTP)",
+		);
 
 		cy.intercept("DELETE", `${api}/api/company/mail-settings`).as(
 			"clearMailSettings",

@@ -186,7 +186,21 @@ describe('Articles E2E', () => {
             // The GENERIC "from catalog" picker — one per row, offered because invoice.descriptor.ts
             // declares `prefillFrom: { entity: 'article', map: {...} }` on `lines`, not a bespoke
             // article widget wired into this one form.
-            cy.get('[data-cy="document-field-lines-row-0-prefill"] button').first().click({ force: true });
+            //
+            // The form has grown fields since this spec was last green (custom fields, attachments —
+            // see the dialog's own comment history): on the default 1000x660 viewport this row now
+            // sits below the fold of the dialog's own `overflow-y-auto`, so its trigger's real
+            // bounding rect can be off-screen at click time. `force: true` alone (the repo's usual
+            // SearchSelect-trigger pattern — see 20-document-totals.cy.ts's own comment) bypasses
+            // Cypress's actionability check but does NOT fix that: Radix positions the popover off an
+            // off-screen anchor, landing it somewhere unreachable too (Cypress's own suggestion on
+            // that failure). `scrollIntoView()` first — same fix 05-clients.cy.ts and others already
+            // use for a trigger far down a scrollable form — puts the anchor in view for real, which
+            // is what a real user has to do here too.
+            cy.get('[data-cy="document-field-lines-row-0-prefill"] button')
+                .first()
+                .scrollIntoView()
+                .click({ force: true });
             cy.get('[data-cy="document-field-lines-row-0-prefill-options"]', { timeout: 10000 }).should(
                 'be.visible',
             );

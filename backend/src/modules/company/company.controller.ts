@@ -2,7 +2,7 @@ import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
-import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Post, Put } from '@nestjs/common';
 import { Roles } from '@/decorators/roles.decorator';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from '@/decorators/user.decorator';
@@ -211,6 +211,11 @@ export class CompanyController {
    * than a generic "check your configuration" message.
    */
   @Post('mail-settings/test')
+  // Nest's default for POST is 201 (Created) — wrong here, this action creates nothing (see
+  // `verifyDomain` in sso.controller.ts for the same "action, not creation" precedent). Without this,
+  // the route's own `@ApiResponse({ status: 200 })` right below was already lying about what it
+  // actually returned — see 65-company-mail-settings.cy.ts's own CI-run comment on how that surfaced.
+  @HttpCode(200)
   @ApiOperation({
     summary: 'Send a test email to yourself',
     description:
