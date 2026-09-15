@@ -389,10 +389,79 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
           // field; an unregistered value would 400 at the real action) — see
           // payment-sessions.service.ts's own comment at this exact call site.
           method: 'stripe',
+          note: 'Paid via Stripe checkout (cs_1)',
         }),
       });
       expect(attachSessionPayment).toHaveBeenCalledWith('session-1', 'payment-new');
       expect(releaseSessionClaim).not.toHaveBeenCalled();
+    });
+
+    it('names the note and method after the REAL provider for a Mollie payment — not "Stripe"', async () => {
+      const { service, documentsService, channelCredentials, provider } = buildService();
+      channelCredentials.resolveActive.mockResolvedValue({ config: { apiKey: 'test_key' } });
+      provider.parseWebhookEvent.mockReturnValue(completedEvent('tr_1'));
+      claimSessionForCompletion.mockResolvedValue({
+        id: 'session-1',
+        companyId: 'company-1',
+        documentId: 'inv-1',
+        providerId: 'mollie',
+        providerSessionId: 'tr_1',
+        amountMinor: 12000,
+        currency: 'EUR',
+      });
+      documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
+      documentsService.runAction.mockResolvedValue({
+        document: {},
+        changed: true,
+        message: 'ok',
+        createdPaymentId: 'payment-new',
+      });
+
+      const result = await service.handleWebhookEvent('company-1', 'mollie', 'body', {});
+
+      expect(result).toEqual({ outcome: 'processed' });
+      expect(documentsService.runAction).toHaveBeenCalledWith('company-1', 'invoice', 'record-payment', {
+        documentId: 'inv-1',
+        data: { currency: 'EUR' },
+        params: expect.objectContaining({
+          method: 'mollie',
+          note: 'Paid via Mollie (tr_1)',
+        }),
+      });
+    });
+
+    it('names the note and method after the REAL provider for a PayPal payment — not "Stripe"', async () => {
+      const { service, documentsService, channelCredentials, provider } = buildService();
+      channelCredentials.resolveActive.mockResolvedValue({ config: { clientId: 'x', clientSecret: 'y' } });
+      provider.parseWebhookEvent.mockReturnValue(completedEvent('CAPTURE-1'));
+      claimSessionForCompletion.mockResolvedValue({
+        id: 'session-1',
+        companyId: 'company-1',
+        documentId: 'inv-1',
+        providerId: 'paypal',
+        providerSessionId: 'CAPTURE-1',
+        amountMinor: 12000,
+        currency: 'EUR',
+      });
+      documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
+      documentsService.runAction.mockResolvedValue({
+        document: {},
+        changed: true,
+        message: 'ok',
+        createdPaymentId: 'payment-new',
+      });
+
+      const result = await service.handleWebhookEvent('company-1', 'paypal', 'body', {});
+
+      expect(result).toEqual({ outcome: 'processed' });
+      expect(documentsService.runAction).toHaveBeenCalledWith('company-1', 'invoice', 'record-payment', {
+        documentId: 'inv-1',
+        data: { currency: 'EUR' },
+        params: expect.objectContaining({
+          method: 'paypal',
+          note: 'Paid via PayPal (CAPTURE-1)',
+        }),
+      });
     });
 
     it('releases the claim and RETHROWS when "record-payment" fails — recoverable, never silently lost', async () => {

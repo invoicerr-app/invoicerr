@@ -32,6 +32,24 @@ import {
  *  `createInvoiceCheckoutSession` below. */
 const DEFAULT_PROVIDER_ID = 'stripe';
 
+/** Display label used only inside the "Paid via …" note attached to a webhook-confirmed payment (see
+ *  `handleWebhookEvent` below) — deliberately NOT `payment-methods/built-in.ts`'s own per-provider
+ *  `label` (`paypal.descriptor.ts`'s own header explains why that registry and
+ *  `PaymentProviderRegistry` are kept apart on purpose, even though they share these same three ids).
+ *  `provider.ts`'s `PaymentProvider` interface exposes no display name of its own, hence this small
+ *  table rather than reading one off the resolved provider. Falls back to the raw `providerId` for a
+ *  provider a plugin registers without also adding an entry here — a less polished note
+ *  ("Paid via foo (...)"), never a wrong or throwing one. */
+const PROVIDER_NOTE_LABELS: Record<string, string> = {
+  stripe: 'Stripe checkout',
+  mollie: 'Mollie',
+  paypal: 'PayPal',
+};
+
+function providerNoteLabel(providerId: string): string {
+  return PROVIDER_NOTE_LABELS[providerId] ?? providerId;
+}
+
 export interface CreateInvoiceCheckoutSessionInput {
   successUrl: string;
   cancelUrl: string;
@@ -262,7 +280,7 @@ export class PaymentSessionsService {
       // `providerSessionId` this app never opened a session for at all (the conditional UPDATE simply
       // matches zero rows either way) — logged so a genuinely stray event is still findable.
       this.logger.log(
-        `Stripe checkout ${event.providerSessionId} already processed (or unknown) — replay/no-op.`,
+        `${providerId} checkout ${event.providerSessionId} already processed (or unknown) — replay/no-op.`,
       );
       return { outcome: 'unknown_session' };
     }
@@ -281,16 +299,18 @@ export class PaymentSessionsService {
           amount: fromMinor(claimed.amountMinor, claimed.currency),
           currency: claimed.currency,
           paidAt: new Date().toISOString(),
-          // 'stripe' — `payment-methods/stripe.descriptor.ts`'s own registered id, now that
-          // `record-payment.method` is a strict 'select' over `payment-methods/built-in.ts`'s typed
-          // list (invoice.descriptor.ts's own `PAYMENT_METHOD_OPTIONS`) rather than four bare product
-          // strings — an invented value would 400 here, never silently pass. Honest regardless of
-          // which underlying Stripe Checkout flow the payer actually used (card, SEPA debit, ...): the
-          // PROVIDER is what this id names, exactly as "bank_transfer"/"cash" name a channel, not a
-          // specific instrument; `note` below carries the actual provider + session id for anyone who
-          // needs the detail.
-          method: 'stripe',
-          note: `Paid via Stripe checkout (${claimed.providerSessionId})`,
+          // `providerId` — this SAME id is also `payment-methods/built-in.ts`'s own registered id for
+          // the matching descriptor ('stripe'/'mollie'/'paypal', by construction — see built-in.ts's
+          // own header), now that `record-payment.method` is a strict 'select' over that typed list
+          // (invoice.descriptor.ts's own `PAYMENT_METHOD_OPTIONS`) rather than four bare product
+          // strings — an invented value would 400 here, never silently pass, the same guarantee a
+          // provider added without a matching payment-method descriptor would still get (loudly, not
+          // silently mislabeled). Honest regardless of which underlying flow the payer actually used
+          // (card, SEPA debit, iDEAL, ...): the PROVIDER is what this id names, exactly as
+          // "bank_transfer"/"cash" name a channel, not a specific instrument; `note` below carries the
+          // actual provider + session id for anyone who needs the detail.
+          method: providerId,
+          note: `Paid via ${providerNoteLabel(providerId)} (${claimed.providerSessionId})`,
         },
       });
 
@@ -307,7 +327,7 @@ export class PaymentSessionsService {
     } catch (error) {
       await releaseSessionClaim(providerId, event.providerSessionId);
       this.logger.error(
-        `Stripe checkout ${event.providerSessionId} completed at the provider but "record-payment" ` +
+        `${providerId} checkout ${event.providerSessionId} completed at the provider but "record-payment" ` +
           `failed — released back to PENDING for the provider's own retry. ${
             error instanceof Error ? error.message : String(error)
           }`,
