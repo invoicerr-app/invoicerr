@@ -25,14 +25,25 @@ export default defineConfig({
       injectRegister: null,
       includeAssets: ["favicon.svg", "favicon.png"],
       manifest: {
+        // `id` pins the installed app's identity independently of `start_url`, so a future change to
+        // start_url (e.g. adding a query param) doesn't register as a second, separate install for
+        // people who already have this one — same value as start_url/scope, all "/", on purpose.
+        id: "/",
         name: "Invoicerr",
         short_name: "Invoicerr",
         description:
           "Simple, open-source invoicing app for freelancers: quotes, invoices, clients, and payments.",
         lang: "en",
+        dir: "ltr",
         start_url: "/",
         scope: "/",
         display: "standalone",
+        // Both are "standalone" in practice today; listed as a fallback chain for a browser that
+        // doesn't support standalone but does support minimal-ui, per the manifest spec's own intent.
+        display_override: ["standalone", "minimal-ui"],
+        // Free — the app has no fixed orientation requirement, unlike e.g. a game or a scanner tool.
+        orientation: "any",
+        categories: ["business", "finance", "productivity"],
         // Matches --background / --foreground in src/index.css (light theme): the app itself is
         // monochrome (no distinct brand hue), so the install/splash chrome uses the same white the
         // page already paints rather than inventing a brand color.
@@ -46,6 +57,49 @@ export default defineConfig({
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
+          },
+        ],
+        // Two of the three link into /documents/invoice rather than a dedicated "create" URL: there
+        // is no such route (see documents/[typeId].tsx's own header — one generic page per document
+        // type, "+ New" just opens a dialog on it), so "New invoice" lands on the invoice list, the
+        // closest existing route, where that dialog is one click away.
+        shortcuts: [
+          {
+            name: "New invoice",
+            short_name: "New invoice",
+            url: "/documents/invoice",
+            icons: [{ src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "Clients",
+            short_name: "Clients",
+            url: "/clients",
+            icons: [{ src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "Dashboard",
+            short_name: "Dashboard",
+            url: "/dashboard",
+            icons: [{ src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+          },
+        ],
+        // form_factor "wide" (desktop) + "narrow" (mobile) is what PWABuilder's report card checks
+        // for; both are real captures of the running app (see the scratchpad Playwright script used
+        // to produce them), not placeholders.
+        screenshots: [
+          {
+            src: "/screenshots/dashboard-wide.png",
+            sizes: "1280x800",
+            type: "image/png",
+            form_factor: "wide",
+            label: "Dashboard overview",
+          },
+          {
+            src: "/screenshots/invoices-narrow.png",
+            sizes: "780x1688",
+            type: "image/png",
+            form_factor: "narrow",
+            label: "Invoice list",
           },
         ],
       },
