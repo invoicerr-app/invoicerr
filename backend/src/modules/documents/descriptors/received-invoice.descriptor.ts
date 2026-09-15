@@ -43,6 +43,20 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *  - `currency`, `netAmount`, `vatAmount`, `grossAmount`: FLAT money fields — the totals are whatever
  *    the supplier's own document says, taken (extracted or typed) as-is, never re-priced or
  *    re-computed by this company.
+ *  - `purchaseOrder` (`reference`, entity "purchase-order") — TODO_FEATURES.md rank 19, second pass
+ *    ("rapprochement à 3 voies"): the purchase order this received invoice is checked against, when
+ *    there is one. There was NO existing link between a received invoice and a purchase order before
+ *    this field — added here, in this type's own generic `data` (no migration needed, the same "a new
+ *    fact is a new key in an existing JSON column" mechanism every other field on this descriptor
+ *    already uses), rather than inventing a dedicated join table for one optional reference.
+ *    `required: false`, like every other field here: most received invoices (a phone bill, a SaaS
+ *    subscription) have no purchase order at all, and the reconciliation panel
+ *    (`document-reconciliation-section.tsx`) simply shows nothing for those — see
+ *    `reconciliation/resolve-received-invoice-reconciliation.ts`'s own header for the full
+ *    "`hasPurchaseOrder: false` is the routine case" reasoning. `entity: 'purchase-order'` is
+ *    registered in `documents-core.module.ts#buildEntityReferenceRegistry` via
+ *    `buildDocumentReferenceProvider('purchase-order', ...)` — the exact same factory that already
+ *    backs the invoice's own "origin" and the credit note's own "invoice" fields.
  *  - `lines` (superseding this file's own former "deliberately NOT an array"
  *    stance — see the superseded reasoning preserved at this file's own tail comment): description,
  *    quantity, unit price excl. VAT, VAT rate, the SAME `kind: 'array'` mechanism
@@ -197,6 +211,16 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
         helpText: "The number as printed on the supplier's own invoice — never assigned by this company.",
       },
       {
+        key: 'purchaseOrder',
+        kind: 'reference',
+        label: 'Purchase order',
+        required: false,
+        entity: 'purchase-order',
+        helpText:
+          'The purchase order this invoice fulfills, if any — links this invoice into the 3-way match ' +
+          '(purchase order × goods receipt × invoice) shown in the "Reconciliation" panel below.',
+      },
+      {
         key: 'issueDate',
         kind: 'date',
         label: 'Issue date',
@@ -323,7 +347,11 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
  *    UPLOADING a file, never by a channel pushing
  *    one in automatically.
  *  - supplier reconciliation (matching a received invoice against this company's own purchase
- *    records) — no such records exist in this core today.
+ *    records) — no such records exist in this core today. SUPERSEDED (TODO_FEATURES.md rank 19,
+ *    second pass, 2026-09-15): `purchaseOrder` above is exactly that record now, and
+ *    `reconciliation/three-way-match.ts` is the matching engine — kept as a NEW field and a separate
+ *    module rather than a rewrite of this bullet's own original claim, which stays true about the
+ *    state of this descriptor BEFORE that pass.
  *  - OCR of a scanned PDF — SUPERSEDED: a PDF that structural extraction
  *    (`received-invoices/extraction.ts`) reads nothing from is now, opportunistically, handed to
  *    `received-invoices/ocr/apply-ocr-fallback.ts`'s own extension point — never a hard dependency

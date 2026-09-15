@@ -10,6 +10,7 @@ import { buildQuoteDescriptor } from '../../descriptors/quote.descriptor';
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { buildCreditNoteDescriptor } from '../../descriptors/credit-note.descriptor';
 import { buildExpenseDescriptor } from '../../descriptors/expense.descriptor';
+import { buildGoodsReceiptDescriptor } from '../../descriptors/goods-receipt.descriptor';
 import { buildPurchaseOrderDescriptor } from '../../descriptors/purchase-order.descriptor';
 import { buildReceivedInvoiceDescriptor } from '../../descriptors/received-invoice.descriptor';
 import { ALL_COUNTRY_POLICY_FILES } from './all';
@@ -41,6 +42,10 @@ const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   // `correction-routes/cancel-policy.ts` (see purchase-order-actions.ts's own header for why the
   // action id itself is different from the invoice's "cancel").
   ...buildPurchaseOrderDescriptor().actions.map((a) => ({ typeId: 'purchase-order', actionId: a.id })),
+  // TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — same reasoning as
+  // purchase-order's own entry just above: "record"/"delete" are read from the ORDINARY country-
+  // policy table like every other action, no correction-routes special case involved.
+  ...buildGoodsReceiptDescriptor().actions.map((a) => ({ typeId: 'goods-receipt', actionId: a.id })),
 ];
 
 const ALL_DOCUMENT_TYPE_IDS = [
@@ -50,6 +55,7 @@ const ALL_DOCUMENT_TYPE_IDS = [
   'expense',
   'received-invoice',
   'purchase-order',
+  'goods-receipt',
 ];
 
 function fileFor(countryCode: string) {
@@ -304,9 +310,10 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
     }
   });
 
-  it('every kept file declares the SAME 22 (typeId, actionId) pairs as fr.json — no silent gap versus the reference jurisdiction', () => {
+  it('every kept file declares the SAME (typeId, actionId) pairs as fr.json — no silent gap versus the reference jurisdiction', () => {
     // Widened from the original DE/IT/PL/ES/MX list to every kept country (also PT) — strictly more
-    // coverage than before the prune, not less.
+    // coverage than before the prune, not less. Count widened again from 27 to 30 by the
+    // goods-receipt addition (TODO_FEATURES.md rank 19, second pass) — see pt.spec.ts's own pinned count.
     const frKeys = fileFor('FR')
       .rules.map((r) => `${r.typeId}::${r.actionId}`)
       .sort();

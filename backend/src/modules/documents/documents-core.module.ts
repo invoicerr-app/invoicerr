@@ -16,6 +16,7 @@ import { ActionRegistry } from './actions/action-registry';
 import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
 import { registerExpenseActions } from './actions/expense-actions';
+import { registerGoodsReceiptActions } from './actions/goods-receipt-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
 import { registerPurchaseOrderActions } from './actions/purchase-order-actions';
 import { registerQuoteActions } from './actions/quote-actions';
@@ -48,6 +49,7 @@ import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-k
 import { DocumentTypeRegistry } from './descriptors/type-registry';
 import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
 import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
+import { buildGoodsReceiptDescriptor } from './descriptors/goods-receipt.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
 import { buildPurchaseOrderDescriptor } from './descriptors/purchase-order.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
@@ -118,6 +120,9 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   // reasoning (first pass: EMIT a purchase order; 3-way match against a received invoice is a
   // deliberately separate, second pass).
   registry.register(buildPurchaseOrderDescriptor());
+  // TODO_FEATURES.md rank 19, SECOND PASS ("rapprochement à 3 voies") — the SEVENTH type: see
+  // goods-receipt.descriptor.ts for the full reasoning.
+  registry.register(buildGoodsReceiptDescriptor());
   return registry;
 }
 
@@ -481,6 +486,10 @@ function buildActionRegistry(
     events: eventsPublisher,
     webhooks: webhookDispatcher,
   });
+  // TODO_FEATURES.md rank 19, second pass — see goods-receipt-actions.ts's own header. Needs no extra
+  // dependency (like "expense" above), so it registers exactly like that call: pure function of the
+  // ActionRegistry it's handed, plus the shared webhook dispatcher.
+  registerGoodsReceiptActions(registry, webhookDispatcher);
   // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
   // "export-accounting" (invoice) is intentionally left unregistered here — see that file's header.
   return registry;
@@ -528,6 +537,13 @@ function buildEntityReferenceRegistry(
   // to be one file hard-coded to "quote" and is now generic instead of duplicated.
   registry.register('quote', buildDocumentReferenceProvider('quote', 'Quote', clientsService));
   registry.register('invoice', buildDocumentReferenceProvider('invoice', 'Invoice', clientsService));
+  // TODO_FEATURES.md rank 19, second pass — the goods receipt's own "purchaseOrder" field AND the
+  // received invoice's new "purchaseOrder" field (received-invoice.descriptor.ts) both target this:
+  // one more call to the SAME generic factory, exactly like "quote"/"invoice" just above.
+  registry.register(
+    'purchase-order',
+    buildDocumentReferenceProvider('purchase-order', 'Purchase order', clientsService),
+  );
   return registry;
 }
 

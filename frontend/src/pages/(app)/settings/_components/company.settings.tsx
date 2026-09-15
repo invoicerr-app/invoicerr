@@ -28,7 +28,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useDocumentTransports } from "@/hooks/queries"
+import {
+  useDocumentTransports,
+  useReconciliationSettings,
+  useSetReconciliationSettings,
+} from "@/hooks/queries"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useGet, usePost, usePut } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
@@ -46,6 +50,10 @@ import type { Company } from "@/types"
  */
 const SHIPPED_DEFAULT_QUOTE_FORMAT = "QUOTE-{year}-{number:4}"
 const SHIPPED_DEFAULT_INVOICE_FORMAT = "INVOICE-{year}-{number:4}"
+/** Mirrors the backend's `reconciliation-settings.ts#DEFAULT_TOLERANCE_PERCENT` — shown the first
+ *  time this card loads, before `useReconciliationSettings()` itself resolves (see this file's own
+ *  `reconciliationSettings` sync effect). */
+const SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT = 2
 
 export default function CompanySettings() {
   const { t } = useTranslation()
@@ -205,10 +213,25 @@ export default function CompanySettings() {
     // reminders/reminder-sweep-runner.ts). Off by default; see Company.remindersEnabled's own
     // schema.prisma comment.
     remindersEnabled: z.boolean().optional(),
+    // TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — the 3-way-match TOLERANCE,
+    // a percentage (default 2, see the backend's `reconciliation-settings.ts`). Backed by its OWN
+    // endpoint (`GET`/`PUT /api/documents/received-invoices/reconciliation-settings`), saved
+    // separately below — NOT part of `Company.numberFormats`/a `Company` column at all, see that
+    // backend file's own header for why (a concurrent, unrelated schema change was mid-flight when
+    // this feature landed). Always a concrete number once the query resolves (the backend itself
+    // never returns "unset" — it resolves to the default server-side), unlike `approvalThreshold`
+    // above, which genuinely has an "unset" state.
+    reconciliationTolerancePercent: z
+      .number()
+      .min(0, t("settings.company.form.reconciliationTolerancePercent.errors.min")),
   })
 
   const { data } = useGet<Company>("/api/company/info")
   const { data: invoiceTransports } = useDocumentTransports()
+  // TODO_FEATURES.md rank 19, second pass — a SEPARATE endpoint/query, not part of `/api/company/info`
+  // (see this field's own zod comment above).
+  const { data: reconciliationSettings } = useReconciliationSettings()
+  const setReconciliationSettings = useSetReconciliationSettings()
   const { trigger } = useMutationWithToast(
     usePost<Company>("/api/company/info"),
     t("settings.company.messages.updateError"),
@@ -250,8 +273,18 @@ export default function CompanySettings() {
       referenceCurrency: "",
       approvalThreshold: undefined,
       remindersEnabled: false,
+      reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
     },
   })
+
+  // A SEPARATE data source from `/api/company/info` above (see this field's own zod comment) — its
+  // own small sync effect, the same "don't clobber a value the user already touched" guard the main
+  // effect below holds, scaled down to one field.
+  useEffect(() => {
+    if (reconciliationSettings === undefined) return
+    if (form.formState.dirtyFields.reconciliationTolerancePercent) return
+    form.setValue("reconciliationTolerancePercent", reconciliationSettings.tolerancePercent)
+  }, [reconciliationSettings, form])
 
   useEffect(() => {
     if (data && Object.keys(data).length > 0) {
@@ -479,6 +512,7 @@ export default function CompanySettings() {
       approvalThreshold,
       quoteNumberFormat,
       invoiceNumberFormat,
+      reconciliationTolerancePercent,
       ...valuesWithoutPeppol
     } = values
     const payload = {
@@ -514,6 +548,17 @@ export default function CompanySettings() {
       if (!quoteSaved) return // error already toasted by the wrapper
       const invoiceSaved = await saveNumberFormat({ typeId: "invoice", pattern: invoiceNumberFormat })
       if (!invoiceSaved) return // error already toasted by the wrapper
+
+      // A THIRD, independent endpoint (see this field's own zod comment) — same sequential-await
+      // discipline as the two number-format saves just above, its own try/catch since it goes through
+      // `useApiMutation` (React Query), not the `usePost`/`usePut`+`useMutationWithToast` pair the rest
+      // of this form still uses.
+      try {
+        await setReconciliationSettings.mutateAsync({ tolerancePercent: reconciliationTolerancePercent })
+      } catch {
+        toast.error(t("settings.company.form.reconciliationTolerancePercent.errors.saveFailed"))
+        return
+      }
 
       toast.success(t("settings.company.messages.updateSuccess"))
     } finally {
@@ -1322,6 +1367,39 @@ export default function CompanySettings() {
                     </FormControl>
                     <FormDescription>
                       {t("settings.company.form.approvalThreshold.description")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.company.reconciliation.title")}</CardTitle>
+              <CardDescription>{t("settings.company.reconciliation.description")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="reconciliationTolerancePercent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.company.form.reconciliationTolerancePercent.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.1"
+                        {...field}
+                        value={field.value ?? SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        data-cy="company-reconciliation-tolerance-input"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("settings.company.form.reconciliationTolerancePercent.description")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

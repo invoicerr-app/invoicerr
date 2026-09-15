@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { ReconciliationService } from '../reconciliation/reconciliation.service';
 import { ReceivedInvoicesController } from './received-invoices.controller';
 import { ReceivedInvoicesService } from './received-invoices.service';
 
@@ -10,9 +11,15 @@ import { ReceivedInvoicesService } from './received-invoices.service';
  * circular-import shape `documents.module.ts`'s own header warns about elsewhere in this codebase.
  * Registered directly in `AppModule`, alongside (not inside) `DocumentsModule` — the same
  * "type-adjacent, standalone module" placement `modules/company/signing-certificates/` already has.
+ *
+ * `ReconciliationService` (TODO_FEATURES.md rank 19, second pass) is registered here rather than in
+ * `DocumentsCoreModule`: it, too, reaches Prisma only through `persistence.ts`'s free functions and
+ * the bare `prisma` singleton (`reconciliation-settings.ts`, `variance-acceptance.ts`'s own imports),
+ * so it needs nothing from the Core module either — the identical reasoning `ReceivedInvoicesService`
+ * itself already holds.
  */
 @Module({
   controllers: [ReceivedInvoicesController],
-  providers: [ReceivedInvoicesService],
+  providers: [ReceivedInvoicesService, ReconciliationService],
 })
 export class ReceivedInvoicesModule {}

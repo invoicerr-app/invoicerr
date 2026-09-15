@@ -1673,7 +1673,51 @@
       "accountingExport": "Accounting export",
       "sso": "SSO",
       "customFields": "Custom fields",
-      "expenseCategories": "Expense categories"
+      "expenseCategories": "Expense categories",
+      "branding": "Branding"
+    },
+    "branding": {
+      "title": "Branding",
+      "description": "Personalize your documents with a logo, an accent color, and a font — the layout itself never changes.",
+      "loading": "Loading…",
+      "presets": {
+        "title": "Presets"
+      },
+      "logo": {
+        "label": "Logo",
+        "loading": "Loading…",
+        "upload": "Upload logo",
+        "replace": "Replace logo",
+        "remove": "Remove logo"
+      },
+      "appearance": {
+        "title": "Colour & font"
+      },
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "font": {
+        "label": "Font",
+        "default": "Default"
+      },
+      "actions": {
+        "save": "Save"
+      },
+      "preview": {
+        "title": "Preview",
+        "loading": "Loading preview…"
+      },
+      "messages": {
+        "saveSuccess": "Branding updated",
+        "saveError": "Failed to update branding",
+        "invalidColor": "Must be a hex color like \"#1a2b3c\"",
+        "logoUploadSuccess": "Logo uploaded",
+        "logoUploadError": "Failed to upload logo",
+        "logoRemoveSuccess": "Logo removed",
+        "logoRemoveError": "Failed to remove logo",
+        "invalidFileType": "Please choose a PNG, JPEG or WebP image",
+        "fileTooLarge": "This file is over the 750 KiB limit"
+      }
     },
     "accountingExport": {
       "title": "Accounting export",
@@ -2019,6 +2063,14 @@
             "maxLength": "VAT number must be less than 15 characters",
             "format": "VAT number format is invalid (e.g., FR12345678901)"
           }
+        },
+        "reconciliationTolerancePercent": {
+          "label": "3-way-match tolerance (%)",
+          "description": "Applies to every received invoice checked against a purchase order and its goods receipt(s).",
+          "errors": {
+            "min": "Tolerance must be zero or greater",
+            "saveFailed": "Failed to save the reconciliation tolerance"
+          }
         }
       },
       "onboarding": {
@@ -2048,6 +2100,10 @@
       "messages": {
         "updateSuccess": "Company settings updated successfully",
         "updateError": "Failed to update company settings"
+      },
+      "reconciliation": {
+        "title": "Reconciliation",
+        "description": "The leeway (as a percent) allowed between a purchase order, its goods receipt(s), and the received invoice before a line is flagged \"to review\" in the 3-way-match panel. 0 means no leeway at all — any difference is flagged."
       }
     },
     "account": {
@@ -4191,6 +4247,30 @@
         "NO_DOCUMENT_BY_LAW": "No document required by law",
         "COUNTERPARTY_OBJECTION": "Counterparty objection"
       }
+    },
+    "reconciliation": {
+      "title": "Reconciliation",
+      "tolerance": "Tolerance: {{percent}}%",
+      "verdict": {
+        "withinTolerance": "Within tolerance",
+        "toReview": "To review",
+        "accepted": "Accepted"
+      },
+      "columns": {
+        "description": "Line",
+        "ordered": "Ordered",
+        "received": "Received",
+        "invoiced": "Invoiced",
+        "priceOrdered": "Unit price (PO)",
+        "priceInvoiced": "Unit price (invoice)",
+        "totalVariance": "Variance",
+        "verdict": "Status"
+      },
+      "acceptedBy": "Variance accepted by {{name}} on {{date}}",
+      "reasonPlaceholder": "Reason (optional)",
+      "acceptButton": "Accept the variance",
+      "acceptSuccess": "Variance accepted",
+      "acceptError": "Failed to accept the variance"
     }
   },
   "declarations": {

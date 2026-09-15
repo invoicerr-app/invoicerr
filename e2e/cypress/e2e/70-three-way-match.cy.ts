@@ -1,0 +1,265 @@
+export {}; // makes this spec a module, not a global script -- see tsconfig.json
+
+/**
+ * TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — the full chain: a purchase
+ * order (BC) is sent, a PARTIAL goods receipt is recorded against it (6 of the 10 ordered), a
+ * received invoice is entered LINKED to the same BC but billing for the full 10 — an honest
+ * over-billing relative to what was actually received (see `reconciliation/three-way-match.ts`'s own
+ * header, "the goods receipt is the quantity truth") — and the "Reconciliation" panel on that invoice
+ * shows the variance. An OWNER (john.doe@acme.org, seeded by `cy.resetAndSeed()`) then accepts it.
+ *
+ * Same discipline as 66-purchase-orders.cy.ts (its own direct sibling — read that file first): every
+ * state-changing ACTION goes through a real click on the screen; every `cy.intercept`+`cy.wait` is
+ * followed by an HTTP status assertion BEFORE anything else (no toast is ever asserted here at all);
+ * the FACTS that matter (verdict, acceptance trace) are re-read via `cy.request`, never trusted from
+ * the screen alone. The document dialog is never asserted closed anywhere in this file — it stays
+ * open by design (document-upsert-dialog.tsx) and no step here needs it shut.
+ *
+ * DATES: `[data-cy="document-field-*Date-input"]` is a calendar POPOVER with no typable text input at
+ * all (frontend/src/components/date-picker.tsx — a button that opens a `<Calendar>`, nothing else) —
+ * there is no way to "type" a date into this screen. "Today" is clicked, exactly like
+ * 66-purchase-orders.cy.ts/62-expense-attachments.cy.ts already do (the only two — and only —
+ * fixtures this repo has ever proven for this control): computed and consumed in the SAME synchronous
+ * step, never captured for reuse across a later `.then()`, which is the actual trap this repo's own
+ * "today" bug (62's own commit) was about, not the mere presence of `new Date()`.
+ */
+const api = Cypress.env("apiUrl") || "http://localhost:4000";
+
+describe("Three-way match — purchase order × goods receipt × received invoice", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	let purchaseOrderId: string;
+	let goodsReceiptId: string;
+	let receivedInvoiceId: string;
+
+	it("creates and sends a purchase order for 10 Widgets @ 25 EUR", () => {
+		cy.visit("/documents/purchase-order");
+		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="document-create-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[data-cy="document-field-supplier-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-supplier-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-field-supplier-input-options"] button').first().click();
+
+		cy.get('[data-cy="document-field-issueDate-input"]').click();
+		cy.get(`[data-day="${new Date().toLocaleDateString()}"]`).click();
+
+		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
+
+		cy.get('[data-cy="document-field-lines-add-row"]').click();
+		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
+		cy.get('input[name="lines.0.description"]').type("Widgets", { force: true });
+		cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("10", { force: true });
+		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("25", { force: true });
+
+		cy.intercept("POST", `${api}/api/documents/types/purchase-order/actions/save-draft`).as(
+			"savePurchaseOrderDraft",
+		);
+		cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+		cy.wait("@savePurchaseOrderDraft").then((interception) => {
+			expect(interception.response?.statusCode, "brouillon de bon de commande créé").to.be.oneOf([
+				200, 201,
+			]);
+			purchaseOrderId = interception.response?.body?.document?.id as string;
+			expect(purchaseOrderId, "le brouillon a un identifiant").to.be.a("string");
+
+			// See 66-purchase-orders.cy.ts's own comment for why this stays nested here: a value this
+			// `.then()` just produced is used only inside it, never captured for a sibling command.
+			cy.get("body").type("{esc}");
+
+			cy.get('[data-cy="document-row-action-send-' + purchaseOrderId + '"]', { timeout: 15000 }).click();
+			cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
+			cy.get('[data-cy="document-field-recipient-input"]').clear().type(`three-way-match-${Date.now()}@example.com`);
+
+			cy.intercept("POST", `${api}/api/documents/types/purchase-order/actions/send`).as("sendPurchaseOrder");
+			cy.get('[data-cy="document-action-params-confirm"]').click();
+			cy.wait("@sendPurchaseOrder").then((sendInterception) => {
+				// Async "send": the synchronous response only ever carries "sending" — see
+				// 28-document-async-send.cy.ts's own header. The status CODE is what this step proves.
+				expect(sendInterception.response?.statusCode, "envoi du bon de commande accepté").to.be.oneOf([
+					200, 201,
+				]);
+			});
+
+			cy.get(`[data-cy="document-list-row-${purchaseOrderId}"]`, { timeout: 20000 })
+				.find('[data-cy="document-status-badge"]')
+				.should("contain.text", "Sent");
+		});
+	});
+
+	it("records a PARTIAL goods receipt against the purchase order — 6 of the 10 ordered", () => {
+		expect(purchaseOrderId, "le bon de commande du test précédent existe toujours").to.be.a("string");
+
+		cy.visit("/documents/goods-receipt");
+		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="document-create-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="document-field-purchaseOrder-input-options"] button').first().click();
+
+		cy.get('[data-cy="document-field-receiptDate-input"]').click();
+		cy.get(`[data-day="${new Date().toLocaleDateString()}"]`).click();
+
+		// The line is PRE-FILLED from the purchase order's own lines the moment "purchaseOrder"
+		// resolves (document-form.tsx's own narrow, named exception — see goods-receipt.descriptor.ts's
+		// header): never "add row" here, which would stack a SECOND, blank row on top of this one.
+		cy.get('[data-cy="document-field-lines-row-0"]', { timeout: 10000 }).should("exist");
+		cy.get('input[name="lines.0.description"]', { timeout: 10000 }).should("have.value", "Widgets");
+		cy.get('input[name="lines.0.quantityReceived"]').clear({ force: true }).type("6", { force: true });
+
+		cy.intercept("POST", `${api}/api/documents/types/goods-receipt/actions/save-draft`).as(
+			"saveGoodsReceiptDraft",
+		);
+		cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+		cy.wait("@saveGoodsReceiptDraft").then((interception) => {
+			expect(interception.response?.statusCode, "brouillon de réception créé").to.be.oneOf([200, 201]);
+			goodsReceiptId = interception.response?.body?.document?.id as string;
+			expect(goodsReceiptId, "le brouillon de réception a un identifiant").to.be.a("string");
+			expect(
+				interception.response?.body?.document?.data?.lines?.[0]?.quantityReceived,
+				"6 unités reçues, telles que saisies à l'écran",
+			).to.eq(6);
+
+			cy.get("body").type("{esc}");
+		});
+	});
+
+	it('records the goods receipt ("draft" -> "recorded")', () => {
+		expect(goodsReceiptId, "le brouillon de réception du test précédent existe toujours").to.be.a(
+			"string",
+		);
+
+		cy.visit("/documents/goods-receipt");
+		cy.get(`[data-cy="document-list-row-${goodsReceiptId}"]`, { timeout: 15000 })
+			.find('[data-cy="document-status-badge"]')
+			.should("contain.text", "Draft");
+
+		cy.intercept("POST", `${api}/api/documents/types/goods-receipt/actions/record`).as("recordGoodsReceipt");
+		cy.get(`[data-cy="document-row-action-record-${goodsReceiptId}"]`, { timeout: 15000 }).click();
+		cy.wait("@recordGoodsReceipt").then((interception) => {
+			expect(interception.response?.statusCode, "réception enregistrée").to.be.oneOf([200, 201]);
+			expect(interception.response?.body?.document?.status).to.eq("recorded");
+		});
+
+		cy.get(`[data-cy="document-list-row-${goodsReceiptId}"]`, { timeout: 15000 })
+			.find('[data-cy="document-status-badge"]')
+			.should("contain.text", "Recorded");
+	});
+
+	it("records a received invoice for the full 10 Widgets, linked to the same purchase order", () => {
+		expect(purchaseOrderId, "le bon de commande existe toujours").to.be.a("string");
+
+		cy.visit("/documents/received-invoice");
+		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="document-create-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="document-field-purchaseOrder-input-options"] button').first().click();
+
+		cy.get('[data-cy="document-field-lines-add-row"]').click();
+		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
+		cy.get('input[name="lines.0.description"]').type("Widgets", { force: true });
+		cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("10", { force: true });
+		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("25", { force: true });
+
+		cy.intercept("POST", `${api}/api/documents/types/received-invoice/actions/receive`).as(
+			"receiveInvoice",
+		);
+		cy.get('[data-cy="document-action-receive"]').scrollIntoView().click();
+		cy.wait("@receiveInvoice").then((interception) => {
+			expect(interception.response?.statusCode, "facture reçue enregistrée").to.be.oneOf([200, 201]);
+			receivedInvoiceId = interception.response?.body?.document?.id as string;
+			expect(receivedInvoiceId, "la facture reçue a un identifiant").to.be.a("string");
+			expect(interception.response?.body?.document?.data?.purchaseOrder, "le BC est bien lié").to.eq(
+				purchaseOrderId,
+			);
+
+			cy.get("body").type("{esc}");
+		});
+	});
+
+	it('shows the reconciliation panel with a "to review" variance (10 invoiced vs. 6 received)', () => {
+		expect(receivedInvoiceId, "la facture reçue du test précédent existe toujours").to.be.a("string");
+
+		cy.intercept(
+			"GET",
+			`${api}/api/documents/received-invoices/${receivedInvoiceId}/reconciliation`,
+		).as("getReconciliation");
+
+		cy.visit("/documents/received-invoice");
+		cy.get(`[data-cy="document-list-row-${receivedInvoiceId}"]`, { timeout: 15000 }).click();
+		cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.wait("@getReconciliation").then((interception) => {
+			expect(interception.response?.statusCode, "rapprochement chargé").to.eq(200);
+			expect(interception.response?.body?.hasPurchaseOrder, "un BC est bien lié").to.eq(true);
+			expect(
+				interception.response?.body?.overallVerdict,
+				"10 facturés contre 6 reçus doit être signalé",
+			).to.eq("to-review");
+		});
+
+		cy.get('[data-cy="document-reconciliation-section"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-reconciliation-overall-badge"]').should("contain.text", "To review");
+		cy.get('[data-cy="document-reconciliation-line-0-badge"]').should("contain.text", "To review");
+		cy.get('[data-cy="document-reconciliation-line-0"]').should("contain.text", "Widgets");
+
+		// Never accepted yet — no trace to show.
+		cy.get('[data-cy="document-reconciliation-acceptance"]').should("not.exist");
+	});
+
+	it('accepts the variance — "Accept the variance" (john.doe@acme.org is this company\'s OWNER), trace recorded', () => {
+		expect(receivedInvoiceId, "la facture reçue existe toujours").to.be.a("string");
+
+		cy.visit("/documents/received-invoice");
+		cy.get(`[data-cy="document-list-row-${receivedInvoiceId}"]`, { timeout: 15000 }).click();
+		cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should("be.visible");
+		cy.get('[data-cy="document-reconciliation-accept-button"]', { timeout: 10000 }).should("be.visible");
+
+		cy.get('[data-cy="document-reconciliation-accept-reason"]').type("Supplier confirmed by phone.");
+
+		cy.intercept(
+			"POST",
+			`${api}/api/documents/received-invoices/${receivedInvoiceId}/accept-variance`,
+		).as("acceptVariance");
+		cy.get('[data-cy="document-reconciliation-accept-button"]').click();
+		cy.wait("@acceptVariance").then((interception) => {
+			expect(interception.response?.statusCode, "écart accepté").to.eq(200);
+			expect(interception.response?.body?.overallVerdict).to.eq("accepted");
+			expect(
+				interception.response?.body?.acceptance?.acceptedByLabel,
+				"l'utilisateur connecté (john.doe) est tracé",
+			).to.eq("John Doe");
+		});
+
+		// The panel re-renders straight from the mutation's own response — see
+		// document-reconciliation-section.tsx's own header. Never asserted here: the document dialog's
+		// own open/closed state — it stays open by design and this step does not touch it.
+		cy.get('[data-cy="document-reconciliation-overall-badge"]').should("contain.text", "Accepted");
+		cy.get('[data-cy="document-reconciliation-acceptance"]').should("contain.text", "John Doe");
+
+		cy.request({
+			url: `${api}/api/documents/received-invoices/${receivedInvoiceId}/reconciliation`,
+		})
+			.its("body")
+			.then((body) => {
+				expect(body.overallVerdict, "confirmé en base, pas seulement à l'écran").to.eq("accepted");
+				expect(body.acceptance.acceptedByLabel).to.eq("John Doe");
+				expect(body.acceptance.reason).to.eq("Supplier confirmed by phone.");
+			});
+	});
+});

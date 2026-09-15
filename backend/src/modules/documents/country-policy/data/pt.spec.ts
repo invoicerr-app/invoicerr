@@ -28,9 +28,17 @@ describe('PT — country-policy/data/pt.json', () => {
     expect(pt.countryCode).toBe('PT');
   });
 
-  it('declares the same six document types every other shipped country does', () => {
+  it('declares the same seven document types every other shipped country does', () => {
     expect((pt.documentTypes ?? []).slice().sort()).toEqual(
-      ['credit-note', 'expense', 'invoice', 'quote', 'received-invoice', 'purchase-order'].sort(),
+      [
+        'credit-note',
+        'expense',
+        'invoice',
+        'quote',
+        'received-invoice',
+        'purchase-order',
+        'goods-receipt',
+      ].sort(),
     );
   });
 
@@ -40,7 +48,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 27 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 30 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -77,12 +85,16 @@ describe('PT — country-policy/data/pt.json', () => {
         'purchase-order::save-draft',
         'purchase-order::send',
         'purchase-order::cancel-order',
+        // TODO_FEATURES.md rank 19, second pass — see goods-receipt.descriptor.ts's own header.
+        'goods-receipt::save-draft',
+        'goods-receipt::record',
+        'goods-receipt::delete',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(27);
+    expect(new Set(declared).size).toBe(30);
   });
 
-  it('allows every one of its 27 rules — PT never itself needs an unblock', () => {
+  it('allows every one of its 30 rules — PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 

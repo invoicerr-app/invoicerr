@@ -1,6 +1,6 @@
 {
   "countryCode": "PL",
-  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice", "purchase-order"],
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice", "purchase-order", "goods-receipt"],
   "rules": [
     {
       "typeId": "quote",
@@ -255,6 +255,33 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "Annuler un bon de commande envoyé à un fournisseur est un acte purement commercial (l'entreprise renonce à sa propre commande), jamais la correction d'un document fiscal déjà transmis — ce n'est PAS une voie de correction au sens de correction-routes/ (CANCEL_AND_REPLACE et les autres routes de ce module ne concernent qu'un document fiscal DÉJÀ ÉMIS à un tiers dont la loi encadre la correction, ce qu'un bon de commande n'est pas — voir purchase-order-actions.ts's own header). Les conséquences contractuelles d'une telle annulation vis-à-vis du fournisseur relèvent du droit commun des contrats, hors du périmètre de cette règle (qui ne dit que si CET OUTIL peut enregistrer l'écriture, jamais si l'annulation est opposable au fournisseur). Aucune recherche dédiée menée pour ce type/action (2026-09-15) — à revoir si un besoin réel l'exige."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de bon de réception est une opération interne, purement documentaire (ce que le magasin de cette société a constaté avoir reçu) — même raisonnement que purchase-order.save-draft ci-dessus : aucun texte identifié qui encadrerait spécifiquement l'enregistrement d'un tel brouillon, ce document n'étant transmis à personne (voir goods-receipt.descriptor.ts's own header). Recherche non menée spécifiquement pour ce type/action, nouvellement créé (2026-09-15) — à revoir si un besoin réel l'exige."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "record",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Finaliser un bon de réception (statut 'recorded') est un acte de gestion interne — arrêter ce que le magasin a constaté avoir reçu contre un bon de commande, pour nourrir un contrôle de rapprochement à 3 voies lui-même interne à l'outil, jamais transmis à un tiers ni déclaré à une administration. Aucun texte identifié qui viserait cet acte spécifiquement. Recherche non menée spécifiquement pour ce type/action, nouvellement créé (2026-09-15) — à revoir si un besoin réel l'exige."
+      }
+    },
+    {
+      "typeId": "goods-receipt",
+      "actionId": "delete",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Restreint par le descripteur lui-même au statut 'draft' (goods-receipt.descriptor.ts) : une fois enregistré ('recorded'), un bon de réception fait partie de la trace de rapprochement qu'une facture reçue peut déjà avoir été comparée contre, et sa suppression n'est de toute façon plus offerte par l'écran. Avant cela, supprimer un brouillon mal saisi est la même opération interne, sans destinataire, que purchase-order.save-draft/received-invoice.delete ci-dessus (voir leurs propres notes pour la tension, non tranchée ici non plus, sur les obligations de conservation d'une pièce justificative — LPF art. L. 102 B et L. 102 C, C. com. art. L. 123-22 — qui visent la FACTURE reçue, jamais nommément un bon de réception interne). Recherche non menée spécifiquement pour ce type/action, nouvellement créé (2026-09-15) — à revoir si un besoin réel l'exige."
       }
     }
   ],

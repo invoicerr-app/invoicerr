@@ -247,7 +247,9 @@ describe('resolveAvailableDocumentTypes', () => {
 
     expect(decision.reason).toBeUndefined();
     expect(decision.typeIds.slice().sort()).toEqual(
-      ['quote', 'invoice', 'credit-note', 'expense', 'received-invoice', 'purchase-order'].slice().sort(),
+      ['quote', 'invoice', 'credit-note', 'expense', 'received-invoice', 'purchase-order', 'goods-receipt']
+        .slice()
+        .sort(),
     );
   });
 

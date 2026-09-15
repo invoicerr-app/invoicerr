@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useFieldArray, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { DocumentArchiveSection } from "@/components/documents/document-archive-section"
 import { DocumentConformitySection } from "@/components/documents/document-conformity-section"
 import { DocumentField } from "@/components/documents/document-field"
+import { DocumentReconciliationSection } from "@/components/documents/document-reconciliation-section"
 import { DocumentSettlementSection } from "@/components/documents/document-settlement"
 import { DocumentTotals } from "@/components/documents/document-totals"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
@@ -15,7 +16,7 @@ import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/compo
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
-import { useDocumentType } from "@/hooks/queries"
+import { useDocumentType, useReferenceFields } from "@/hooks/queries"
 
 /**
  * `data.lineTotalWarnings` — a RESERVED key (never a declared `DocumentFieldDescriptor`), the same
@@ -172,6 +173,58 @@ export function DocumentForm({
     }
   }, [initialData, status, displayNumber, form])
 
+  // TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — "pré-remplies depuis le BC": a
+  // NARROW, explicitly TYPE-GATED exception, unlike the B2G client-watching block above (which looks
+  // for ANY field with `entity === "client"`, never a specific typeId): there is no generic descriptor
+  // hint today for "populate this WHOLE array field from a top-level reference field's own sub-array"
+  // (unlike `prefillFrom`, which fills ONE row from a picked catalog entity — types.ts's own comment),
+  // and inventing one for this single consumer would be exactly the speculative machinery this
+  // codebase avoids — see goods-receipt.descriptor.ts's own header. Fires ONLY for a record that has
+  // never been saved yet (`!currentDocumentId` — an existing one keeps whatever the user already
+  // edited/saved) the first time its own `purchaseOrder` field resolves to an id, and ONLY while
+  // `lines` is still empty — never overwrites rows the user has already started typing.
+  const isGoodsReceipt = descriptor.id === "goods-receipt"
+  const [goodsReceiptPoId, setGoodsReceiptPoId] = useState<string | undefined>(() => {
+    if (!isGoodsReceipt) return undefined
+    const raw = (initialData as Record<string, unknown> | undefined)?.purchaseOrder
+    return typeof raw === "string" && raw ? raw : undefined
+  })
+  const { data: goodsReceiptPurchaseOrder } = useReferenceFields(
+    isGoodsReceipt ? "purchase-order" : undefined,
+    goodsReceiptPoId,
+  )
+  useEffect(() => {
+    if (!isGoodsReceipt) return
+    const subscription = form.watch((values, info) => {
+      if (info.name !== undefined && info.name !== "purchaseOrder") return
+      const raw = (values as Record<string, unknown>).purchaseOrder
+      setGoodsReceiptPoId(typeof raw === "string" && raw ? raw : undefined)
+    })
+    return () => subscription.unsubscribe()
+  }, [form, isGoodsReceipt])
+  // `replace()` from react-hook-form's OWN `useFieldArray` — never `form.setValue("lines", ...)`:
+  // `field-renderers/array-field.tsx` renders this SAME array through its own `useFieldArray({
+  // control, name: "lines" })` call, and only `replace` (or `append`/`remove`, RHF's documented API
+  // for a field array already in use) is guaranteed to keep BOTH subscribers of the same field name,
+  // on the same `control`, in sync — `setValue` alone can leave that renderer's own row list stale.
+  const { replace: replaceGoodsReceiptLines } = useFieldArray({ control: form.control, name: "lines" })
+  useEffect(() => {
+    if (!isGoodsReceipt || currentDocumentId || !goodsReceiptPurchaseOrder) return
+    const currentLines = form.getValues("lines")
+    if (Array.isArray(currentLines) && currentLines.length > 0) return
+    const poLines = (goodsReceiptPurchaseOrder as Record<string, unknown>).lines
+    if (!Array.isArray(poLines) || poLines.length === 0) return
+    replaceGoodsReceiptLines(
+      poLines.map((line) => {
+        const row = (line ?? {}) as Record<string, unknown>
+        return {
+          description: typeof row.description === "string" ? row.description : "",
+          quantityReceived: typeof row.quantity === "number" ? row.quantity : 0,
+        }
+      }),
+    )
+  }, [isGoodsReceipt, currentDocumentId, goodsReceiptPurchaseOrder, form, replaceGoodsReceiptLines])
+
   const { pendingAction, pendingDefaults, isRunning, handleAction, executeAction, cancelPendingAction } =
     useDocumentActionRunner({
       typeId: descriptor.id,
@@ -274,6 +327,12 @@ export function DocumentForm({
             channel with no poller (e.g. "sdi"), never shows a section here at all. */}
         {currentDocumentId && (
           <DocumentConformitySection typeId={descriptor.id} documentId={currentDocumentId} />
+        )}
+
+        {/* The 3-way-match panel (TODO_FEATURES.md rank 19, second pass) — TYPE-gated, unlike the two
+            sections above: see document-reconciliation-section.tsx's own header for why. */}
+        {descriptor.id === "received-invoice" && currentDocumentId && (
+          <DocumentReconciliationSection documentId={currentDocumentId} />
         )}
 
         <div className="flex flex-wrap gap-2 border-t pt-4">

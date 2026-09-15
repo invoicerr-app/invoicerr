@@ -38,13 +38,14 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     }
   });
 
-  it('declares the ten expected business fields, no fewer, no more — including "supplierClient"', () => {
+  it('declares the eleven expected business fields, no fewer, no more — including "purchaseOrder"', () => {
     const descriptor = buildReceivedInvoiceDescriptor();
     expect(descriptor.fields.map((f) => f.key).sort()).toEqual(
       [
         'supplier',
         'supplierClient',
         'supplierNumber',
+        'purchaseOrder',
         'issueDate',
         'dueDate',
         'currency',
@@ -54,6 +55,14 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
         'lines',
       ].sort(),
     );
+  });
+
+  it('"purchaseOrder" is an optional reference to the "purchase-order" entity — TODO_FEATURES.md rank 19', () => {
+    const descriptor = buildReceivedInvoiceDescriptor();
+    const purchaseOrder = descriptor.fields.find((f) => f.key === 'purchaseOrder');
+    expect(purchaseOrder?.kind).toBe('reference');
+    expect(purchaseOrder?.entity).toBe('purchase-order');
+    expect(purchaseOrder?.required).toBe(false);
   });
 
   it('"supplierClient" is a reference to the dedicated "supplier" entity, never "client" (the billable picker)', () => {
