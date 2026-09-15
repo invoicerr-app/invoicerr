@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Put, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Put, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 
@@ -108,6 +108,9 @@ export class ReceivedInvoicesController {
    * `verdict` already turned into `'accepted'` — the frontend panel needs no second round-trip.
    */
   @Post(':id/accept-variance')
+  // Nest's default for POST is 201 (Created) — wrong here, this action creates nothing (see
+  // `verifyDomain` in sso.controller.ts for the same "action, not creation" precedent).
+  @HttpCode(200)
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @ApiOperation({ summary: 'Accept the reconciliation variance for this received invoice' })
   @ApiParam({ name: 'id', type: String })
