@@ -31,7 +31,7 @@ export interface SmtpOverrides {
 }
 
 /**
- * Common contract for every mail transport (SMTP, Brevo, ...).
+ * Common contract for every mail transport (SMTP, Resend, ...).
  * Implementations read their own credentials from the environment and
  * are selected at runtime by `MailService` based on `MAIL_PROVIDER`.
  */

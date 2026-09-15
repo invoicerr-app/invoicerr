@@ -34,7 +34,8 @@ Prisma ne fournit pas de binaires précompilés pour cette architecture — l'ap
          - APP_URL=https://invoicerr.example.com
          - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com
 
-         # Envoi des e-mails - voir "Envoi des e-mails" ci-dessous pour l'alternative Brevo
+         # Envoi des e-mails - voir "Envoi des e-mails" ci-dessous pour l'alternative Resend (le relais
+         # SMTP de Brevo fonctionne aussi avec les réglages SMTP ci-dessous)
          - SMTP_HOST=smtp-relay.example.com
          - SMTP_USER="username@example.com"
          - SMTP_FROM="user-from@example.com"
@@ -108,22 +109,9 @@ Invoicerr a besoin d'envoyer des e-mails (notifications de devis/facture, liens 
 | `SMTP_PORT` | Port SMTP (par défaut `587`) |
 | `SMTP_SECURE` | Mettre à `true` si votre serveur SMTP requiert une connexion sécurisée |
 
-</TabItem>
-<TabItem value="brevo" label="Brevo">
-
-```yaml
-- MAIL_PROVIDER=brevo
-- BREVO_API_KEY="your_brevo_api_key"
-- MAIL_FROM="user-from@example.com" # optionnel, retombe sur SMTP_FROM/SMTP_USER
-```
-
-| Variable | Description |
-| --- | --- |
-| `BREVO_API_KEY` | Clé API pour envoyer les e-mails via l'API transactionnelle [Brevo](https://www.brevo.com/) au lieu de SMTP |
-| `MAIL_FROM` | Optionnel — adresse d'expéditeur. Retombe sur `SMTP_FROM`, puis `SMTP_USER`, si non définie |
-
 :::info
-Utilisez Brevo si vous ne voulez pas gérer ou payer un relais SMTP — les e-mails passent alors par l'API HTTP de Brevo.
+Brevo (ex-Sendinblue) n'a plus de fournisseur dédié — utilisez son propre relais SMTP
+(`smtp-relay.brevo.com`) avec cette option SMTP.
 :::
 
 </TabItem>

@@ -512,19 +512,17 @@ décision ou une vérification du propriétaire :
   PayPal → régionaux, décidé) ; restent à vérifier au moment du câblage : les frais non établis
   (Payplug, Nexi, Przelewy24, Easypay, IfThenPay) et la couverture Portugal de Stripe.
 - **B (PDF, y compris l'ancien rang 16)** — communication (ou non) aux sociétés qui pensaient avoir
-  un gabarit personnalisé actif avant le retrait de l'onglet (2026-09-13) ; liste exacte des
-  préréglages visuels (nombre, noms, quels champs de marque — logo/couleurs/police) à définir avec le
-  propriétaire une fois ces champs ajoutés au schéma.
+  un gabarit personnalisé actif avant le retrait de l'onglet (2026-09-13). **Tranché le 2026-09-15** :
+  champs de marque = logo (upload, stockage fichiers existant) + une couleur d'accent + une police
+  parmi un jeu fermé embarqué (4-5) ; les préréglages sont des combinaisons nommées de ces trois.
 - **C (emails)** — bibliothèque d'éditeur WYSIWYG à choisir ; grammaire des variables dans le nouvel
   éditeur ; extension ou non de la cascade de langue du PDF aux gabarits email par défaut.
 - **E (abonnement hébergé)** — **TRANCHÉS** le 2026-09-15, ne plus rouvrir : plateforme (Polar
   Starter), modèle gradué (grille 2 $/1,5 $/1 $), périodicité (mensuel ET annuel), définition du siège
   (`UserCompany`, OWNER inclus, invitation comptée seulement à l'acceptation), cycle de vie complet
   dans les deux cas (jamais payé : essai 7 j sans `'send'` → bloquée 14 j → zip → suppression
-  immédiate ; a payé puis lapsé : bloquée 14 j → zip → suppression après délai). Restent réellement
-  ouverts : **la durée du délai zip→suppression pour une société qui a payé puis cesse de payer**
-  (> 14 jours, non chiffrée — le propriétaire a choisi l'option en la sachant « à fixer ») ; la
-  rédaction de la clause CGU transférant la responsabilité de conservation légale au client une fois
+  immédiate ; a payé puis lapsé : bloquée 14 j → zip → **suppression réelle 180 jours après le zip**,
+  tranché le 2026-09-15). Restent réellement ouverts : la rédaction de la clause CGU transférant la responsabilité de conservation légale au client une fois
   le zip livré ; la grille de prix envisagée (5 $/4 $/3,5 $) n'est PAS tranchée, ni ses seuils (5/10
   sièges supposés par continuité, non confirmés) ; une remise éventuelle sur la formule annuelle ; ce
   que couvre exactement le plugin `@polar-sh/better-auth` (vérification annoncée séparément) et si ses
@@ -537,10 +535,10 @@ décision ou une vérification du propriétaire :
   instrumenté (`c7e80579`, un vrai défaut d'écran corrigé au passage) mais la cause du premier échec
   reste NON établie — le journal backend prouve que `PUT /api/company/mail-settings` n'a jamais abouti
   pendant ce run, sans dire pourquoi ; à lire au prochain run (voir Questions ouvertes #6). Restent
-  ouverts : ce que devient Brevo (troisième fournisseur d'instance à côté de SMTP/Resend, ou remplacé
-  par Resend) ; si `MAIL_PROVIDER` explicite doit continuer à gagner sur `RESEND_API_KEY` (choix pris
-  par défaut, pas demandé par le mandat) ; le comportement de repli exact si Resend est configuré mais
-  échoue à l'exécution (retombée sur SMTP, ou refus direct) — non précisé.
+  ouverts : le comportement de repli exact si Resend est configuré mais échoue à l'exécution (retombée
+  sur SMTP, ou refus direct) — non précisé. **Tranchés le 2026-09-15** : Brevo est SUPPRIMÉ (SMTP ou
+  Resend seulement ; Brevo reste utilisable via son relais SMTP — en cours) ; `MAIL_PROVIDER` explicite
+  continue de gagner sur `RESEND_API_KEY`.
 
 **Ce que ce fichier n'a pas pu établir** : les frais de Payplug/Nexi/Przelewy24/Easypay/IfThenPay ; si
 Adyen/Checkout.com/SumUp offrent un bac à sable sans entreprise réelle ; la couverture Portugal chez

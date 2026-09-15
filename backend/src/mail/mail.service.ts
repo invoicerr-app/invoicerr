@@ -3,7 +3,6 @@ import * as nodemailer from 'nodemailer';
 import { IMailProvider, MailOptions, SmtpOverrides } from '@/mail/types';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { BrevoMailProvider } from '@/mail/providers/brevo.provider';
 import { ResendMailProvider } from '@/mail/providers/resend.provider';
 import { SmtpMailProvider } from '@/mail/providers/smtp.provider';
 import { logger } from '@/logger/logger.service';
@@ -12,7 +11,17 @@ import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/comp
 
 export type { MailOptions, MailAttachment, SmtpOverrides } from '@/mail/types';
 
-export type InstanceMailProviderId = 'smtp' | 'brevo' | 'resend';
+export type InstanceMailProviderId = 'smtp' | 'resend';
+
+/** Thrown by `resolveInstanceMailProviderId` when `MAIL_PROVIDER=brevo` is set. Brevo was removed as
+ *  a dedicated provider (product decision, 2026-09-15) — an existing deployment pinning this value
+ *  must fail loudly at boot rather than silently fall back to some other provider, since that would
+ *  be the exact "quiet catalogue swap" failure mode this codebase's own boot-reseed services already
+ *  guard against elsewhere. Brevo remains usable through its own SMTP relay
+ *  (`smtp-relay.brevo.com`) via the plain `smtp` provider — nothing about sending through Brevo
+ *  itself was removed, only the dedicated HTTP-API integration. */
+const BREVO_REMOVED_MESSAGE =
+  "MAIL_PROVIDER=brevo is no longer supported; use smtp (Brevo's SMTP relay works) or resend";
 
 /**
  * Instance-level provider SELECTION — TODO_FEATURES.md entry G ("Serveur de mail — instance puis
@@ -36,16 +45,17 @@ export type InstanceMailProviderId = 'smtp' | 'brevo' | 'resend';
  * |               |                 |           | is not used as a runtime fallback if Resend fails —|
  * |               |                 |           | entry G leaves that open, not implemented here)    |
  * | 'smtp'        | *               | *         | smtp   — explicit request, always honored          |
- * | 'brevo'       | *               | *         | brevo  — explicit request, always honored          |
+ * | 'brevo'       | *               | *         | throws — removed (see BREVO_REMOVED_MESSAGE above); |
+ * |               |                 |           | Brevo's own SMTP relay still works via 'smtp'       |
  * | 'resend'      | *               | *         | resend — explicit request; throws at construction  |
- * |               |                 |           | if RESEND_API_KEY is absent (same posture as       |
- * |               |                 |           | BrevoMailProvider/BREVO_API_KEY)                   |
+ * |               |                 |           | if RESEND_API_KEY is absent (same posture below)   |
  */
 export function resolveInstanceMailProviderId(env: NodeJS.ProcessEnv = process.env): InstanceMailProviderId {
   const explicit = env.MAIL_PROVIDER?.trim().toLowerCase();
   if (explicit) {
-    if (explicit === 'smtp' || explicit === 'brevo' || explicit === 'resend') return explicit;
-    throw new Error(`Unknown MAIL_PROVIDER "${explicit}". Supported values: "smtp", "brevo", "resend".`);
+    if (explicit === 'brevo') throw new Error(BREVO_REMOVED_MESSAGE);
+    if (explicit === 'smtp' || explicit === 'resend') return explicit;
+    throw new Error(`Unknown MAIL_PROVIDER "${explicit}". Supported values: "smtp", "resend".`);
   }
   if (env.RESEND_API_KEY?.trim()) return 'resend';
   return 'smtp';
@@ -74,9 +84,6 @@ export class MailService {
     switch (selected) {
       case 'resend':
         this.provider = new ResendMailProvider();
-        break;
-      case 'brevo':
-        this.provider = new BrevoMailProvider();
         break;
       case 'smtp':
         this.provider = new SmtpMailProvider();
@@ -146,7 +153,7 @@ export class MailService {
       return { message: 'Email sent successfully' };
     }
 
-    // Global provider path (SMTP_* env vars / Brevo / Resend).
+    // Global provider path (SMTP_* env vars / Resend).
     try {
       await this.provider.sendMail(options);
     } catch (error) {

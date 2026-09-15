@@ -95,7 +95,8 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
          - APP_URL=https://invoicerr.example.com # Required for email templates, as it redirects to the app
          - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
 
-         # Required for email features - choose ONE provider below
+         # Required for email features - choose ONE provider below. Brevo has no dedicated provider
+         # any more — use its own SMTP relay (smtp-relay.brevo.com) with Option 1 instead.
          # Option 1: SMTP (default, MAIL_PROVIDER can be omitted)
          - MAIL_PROVIDER=smtp
          - SMTP_HOST=smtp-relay.example.com
@@ -105,9 +106,9 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
          - SMTP_PORT=587
          - SMTP_SECURE=false
 
-         # Option 2: Brevo (set MAIL_PROVIDER=brevo and comment out the SMTP_* variables above)
-         # - MAIL_PROVIDER=brevo
-         # - BREVO_API_KEY="your_brevo_api_key"
+         # Option 2: Resend (set MAIL_PROVIDER=resend and comment out the SMTP_* variables above)
+         # - MAIL_PROVIDER=resend
+         # - RESEND_API_KEY="your_resend_api_key"
 
          # REQUIRED in production. Generate a real value with: openssl rand -hex 32
          # The backend REFUSES TO BOOT if this is left empty or set to an obvious placeholder — see
@@ -176,7 +177,7 @@ before deploying. It does not repeat every variable in that file; when the two d
 - `DATABASE_URL` — PostgreSQL connection string. There is no alternative database: `backend/prisma/schema.prisma` hardcodes the `postgres` provider.
 - Redis (`REDIS_URL`, or `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`) — the document-action queue (BullMQ). The backend refuses to boot at all without a reachable Redis, in every environment, not just production.
 - `APP_URL` — full public URL of the instance. Used for email links/templates and as the CORS/auth base URL; also the default `redirect_uri` base for OIDC.
-- One mail provider, fully configured — SMTP (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, …) by default, or Brevo (`MAIL_PROVIDER=brevo`, `BREVO_API_KEY`). Without one, sending quote/invoice emails and invitations fails.
+- One mail provider, fully configured — SMTP (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, …) by default, or Resend (`MAIL_PROVIDER=resend`, `RESEND_API_KEY`). Brevo has no dedicated provider — use its own SMTP relay (`smtp-relay.brevo.com`) with the SMTP option. Without one, sending quote/invoice emails and invitations fails.
 
 **Required in production only (`NODE_ENV=production`) — the backend refuses to boot:**
 

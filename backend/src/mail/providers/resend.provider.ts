@@ -4,8 +4,7 @@ import { IMailProvider, MailOptions } from '@/mail/types';
  * Resend transactional email transport, calling the official HTTP API directly
  * (`POST https://api.resend.com/emails`) rather than the `resend` npm SDK — TODO_FEATURES.md entry G
  * asked for the raw API, and this keeps the dependency footprint identical to `smtp.provider.ts`
- * (nodemailer only) instead of adding a second HTTP-wrapping library on top of what `BrevoMailProvider`
- * already pulls in via `@getbrevo/brevo`.
+ * (nodemailer only) instead of adding a second HTTP-wrapping library.
  *
  * Selected at the INSTANCE level when `MAIL_PROVIDER=resend` is set explicitly, or automatically when
  * `RESEND_API_KEY` is present and `MAIL_PROVIDER` is left unset (see `mail.service.ts`'s own
@@ -19,8 +18,8 @@ import { IMailProvider, MailOptions } from '@/mail/types';
  * (`curl https://resend.com/docs/api-reference/emails/send-email.md`) on 2026-09-15, quoted below
  * where a field name or gotcha is not obvious from the endpoint alone.
  *
- *  - Request body fields used here: `from` (string, "Name <email>" or bare email — accepted as-is, no
- *    parsing needed unlike Brevo's `sender` OBJECT), `to` (string[]), `subject`, `html`, `text`,
+ *  - Request body fields used here: `from` (string, "Name <email>" or bare email — accepted as-is), `to`
+ *    (string[]), `subject`, `html`, `text`,
  *    `attachments` (array of `{ filename, content, content_type }` — snake_case: this is the RAW REST
  *    API, not the Node SDK, which camelCases these for you. `content` is "buffer or Base64 string";
  *    JSON has no buffer type, so this always sends the Base64 string form).
@@ -44,9 +43,8 @@ export interface ResendMailProviderOptions {
   /** Defaults to `process.env.RESEND_API_KEY` — overridden by `MailService.sendForCompany` with a
    *  company's OWN key (`modules/company/mail-settings/`), decrypted from `CompanyChannelConfig`. */
   apiKey?: string;
-  /** Defaults to `process.env.MAIL_FROM` (falling back to `SMTP_FROM`/`SMTP_USER`, the same chain
-   *  `BrevoMailProvider` already uses) — overridden with the company's own `fromAddress` when this is
-   *  a per-company send. */
+  /** Defaults to `process.env.MAIL_FROM` (falling back to `SMTP_FROM`/`SMTP_USER`) — overridden with
+   *  the company's own `fromAddress` when this is a per-company send. */
   defaultFrom?: string;
 }
 

@@ -22,10 +22,6 @@ aucune notification de document envoyé.
 - [ ] Ajouter dans `/DATA/AppData/invoicerr/.env` sur l'hôte, puis `docker compose up -d` :
       `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (cinq lignes ;
       `SMTP_SECURE` peut rester à sa valeur par défaut).
-- [ ] **La clé Brevo de l'ancien déploiement `invoicerr-pr-363` était en clair dans son compose** —
-      à traiter comme compromise : la régénérer (ou changer de fournisseur, Resend a été envisagé).
-      C'est cette clé, ou sa remplaçante, qui va dans `SMTP_PASSWORD` (ou dans `MAIL_PROVIDER=brevo`
-      selon l'option choisie).
 
 ## 2. Chorus Pro (B2G français) — qualification prouvée, production restante
 

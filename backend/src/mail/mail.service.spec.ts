@@ -61,7 +61,13 @@ describe('resolveInstanceMailProviderId — the resolution table', () => {
 
   it('an unknown MAIL_PROVIDER throws, naming the supported values', () => {
     expect(() => resolveInstanceMailProviderId({ MAIL_PROVIDER: 'sendgrid' })).toThrow(
-      /Unknown MAIL_PROVIDER "sendgrid".*smtp.*brevo.*resend/,
+      /Unknown MAIL_PROVIDER "sendgrid".*smtp.*resend/,
+    );
+  });
+
+  it('an explicit MAIL_PROVIDER=brevo throws a clear removal message instead of falling back silently', () => {
+    expect(() => resolveInstanceMailProviderId({ MAIL_PROVIDER: 'brevo' })).toThrow(
+      "MAIL_PROVIDER=brevo is no longer supported; use smtp (Brevo's SMTP relay works) or resend",
     );
   });
 });
@@ -91,7 +97,13 @@ describe('MailService#sendForCompany — the société → instance → refus no
     delete process.env.MAIL_PROVIDER;
     delete process.env.RESEND_API_KEY;
     delete process.env.SMTP_HOST;
-    delete process.env.BREVO_API_KEY;
+    // MAIL_FROM/SMTP_FROM/SMTP_USER feed the provider's "from" address only — not the resolution
+    // table under test here — but a value left over from the real shell environment must never leak
+    // into these assertions; each test that needs one sets it explicitly (see e.g. the instance
+    // fallback test below).
+    delete process.env.MAIL_FROM;
+    delete process.env.SMTP_FROM;
+    delete process.env.SMTP_USER;
   });
 
   afterAll(() => {

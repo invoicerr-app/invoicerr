@@ -34,7 +34,8 @@ Prisma does not provide prebuilt binaries for that architecture — the applicat
          - APP_URL=https://invoicerr.example.com
          - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com
 
-         # Email delivery - see "Email delivery" below for the Brevo alternative
+         # Email delivery - see "Email delivery" below for the Resend alternative (Brevo's own SMTP
+         # relay also works with the SMTP settings below)
          - SMTP_HOST=smtp-relay.example.com
          - SMTP_USER="username@example.com"
          - SMTP_FROM="user-from@example.com"
@@ -89,7 +90,7 @@ Make sure port 80 is available on your host machine, or change the port mapping.
 Invoicerr needs to send emails (quote/invoice notifications, signature links). This is configured on
 **two levels**:
 
-- **Instance level** — the `MAIL_PROVIDER`/`SMTP_*`/`BREVO_API_KEY`/`RESEND_API_KEY` variables below,
+- **Instance level** — the `MAIL_PROVIDER`/`SMTP_*`/`RESEND_API_KEY` variables below,
   set once for the whole deployment. Choose **one** provider with `MAIL_PROVIDER`, or leave it unset
   to auto-detect: `RESEND_API_KEY` present selects Resend (it wins even if `SMTP_HOST` is also set),
   otherwise SMTP is used.
@@ -118,22 +119,9 @@ Invoicerr needs to send emails (quote/invoice notifications, signature links). T
 | `SMTP_PORT` | SMTP port (default `587`) |
 | `SMTP_SECURE` | Set to `true` if your SMTP server requires a secure connection |
 
-</TabItem>
-<TabItem value="brevo" label="Brevo">
-
-```yaml
-- MAIL_PROVIDER=brevo
-- BREVO_API_KEY="your_brevo_api_key"
-- MAIL_FROM="user-from@example.com" # optional, falls back to SMTP_FROM/SMTP_USER
-```
-
-| Variable | Description |
-| --- | --- |
-| `BREVO_API_KEY` | API key for sending emails via the [Brevo](https://www.brevo.com/) transactional email API instead of SMTP |
-| `MAIL_FROM` | Optional — sender address. Falls back to `SMTP_FROM`, then `SMTP_USER`, if unset |
-
 :::info
-Use Brevo when you don't want to run or pay for an SMTP relay — it sends email through Brevo's HTTP API instead.
+Brevo (formerly Sendinblue) has no dedicated provider any more — use its own SMTP relay
+(`smtp-relay.brevo.com`) with this SMTP option instead.
 :::
 
 </TabItem>
