@@ -104,7 +104,11 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 				cy.get('[data-cy="document-field-cadence-input"] button').click();
 				cy.get('[data-cy="document-field-cadence-input-option-yearly"]', { timeout: 10000 }).click();
 
-				cy.get('[data-cy="document-field-firstOccurrenceAt-input"]').click();
+				// Same open-side race `cy.pickToday` guards against (a still-detaching outside-pointerdown
+				// listener from the PREVIOUS Radix layer swallowing this trigger's click) — this dialog
+				// never reaches `pickToday` itself (it drives the month-navigation buttons, not "Today"),
+				// so it needs the same protection via the extracted helper.
+				cy.openDatePicker('[data-cy="document-field-firstOccurrenceAt-input"]');
 				// Goes back two months in the calendar (react-day-picker) to land on a date
 				// unambiguously in the past.
 				cy.get(".rdp-button_previous").click().click();

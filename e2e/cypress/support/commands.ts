@@ -119,42 +119,42 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
 });
 
 /**
- * Picks "today" on a `DatePicker` (frontend/src/components/date-picker.tsx) through its own "Today"
- * footer button, never a computed `[data-day="M/D/YYYY"]` selector. That selector depended on the
- * test computing the SAME locale/timezone string react-day-picker would compute for its own "today"
- * cell, and on the popover having actually mounted that cell inside the CI viewport (1000x660) by the
- * time the click fired — three independent ways to race or mismatch, all observed in CI (runs
- * 34954776077, 34930840117, 34951814251). `scrollIntoView()` on the trigger first, because the
- * popover anchors below it and a trigger sitting under the fold of a tall dialog can open a popover
- * that's itself off-screen.
- * @example cy.pickToday('[data-cy="document-field-issueDate-input"]')
+ * Opens a `DatePicker` popover (frontend/src/components/date-picker.tsx, a Radix `Popover`) and
+ * waits for it to have actually mounted, retrying the trigger click (bounded) if it didn't --
+ * factored out of `pickToday` so a caller that needs the popover open for something OTHER than the
+ * "Today" button (spec 29's `.rdp-button_previous` clicks) gets the same race protection instead of
+ * reimplementing it. `scrollIntoView()` on the trigger first, because the popover anchors below it
+ * and a trigger sitting under the fold of a tall dialog can open a popover that's itself off-screen.
+ * Readiness is checked on `[data-cy="date-picker-today"]`: the "Today" footer button is part of the
+ * SAME popover content regardless of what the caller clicks next, so its visibility is a valid proxy
+ * for "the popover is open" for every caller, not just `pickToday`.
+ * @example cy.openDatePicker('[data-cy="document-field-issueDate-input"]')
  */
-Cypress.Commands.add('pickToday', (triggerSelector: string) => {
-    // OPEN-side counterpart of the CLOSE-side race documented below: CI runs 34966958790 (spec 70)
-    // and 34961385407 (specs 63/70) timed out waiting for `[data-cy="date-picker-today"]` to even
-    // APPEAR (10s) -- a failed/undone open, not a slow one. Reading the installed
-    // `@radix-ui/react-dismissable-layer` (1.1.13) shows the same mechanism the close-side comment
-    // below already traced: `usePointerDownOutside` registers its document-level `pointerdown`
-    // listener via a deferred `setTimeout(0)` on mount but only detaches it in a passive effect's
-    // cleanup on unmount -- not synchronous with the `setOpen(false)` that closed the PREVIOUS layer
-    // (a `SearchSelect` combobox, or the sibling `DatePicker` an earlier `pickToday` call just used).
-    // A scripted click on THIS trigger fired inside that window is still visible to the old, stale
-    // listener, which fires its own dismiss/replay handling on the very pointerdown that was meant to
-    // open this popover -- a real user's next click, tens of milliseconds later, never lands inside
-    // that window. Retained hypothesis, not a proven single trace (the CI video artifact for these
-    // runs is ~400MB, too large to pull apart here) -- but it is the same class of bug as the CLOSE
-    // side, on the OPEN side, and the fix is the mirror image: wait before the click the way the
-    // bottom of this command already waits after one, then verify the popover actually opened and
-    // retry the click (bounded) if it didn't, so a genuine product regression still fails loudly
-    // instead of looping forever or timing out with no diagnostic.
+Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
+    // OPEN-side race: CI runs 34966958790 (spec 70) and 34961385407 (specs 63/70) timed out waiting
+    // for `[data-cy="date-picker-today"]` to even APPEAR (10s) -- a failed/undone open, not a slow
+    // one. Reading the installed `@radix-ui/react-dismissable-layer` (1.1.13) shows the mechanism:
+    // `usePointerDownOutside` registers its document-level `pointerdown` listener via a deferred
+    // `setTimeout(0)` on mount but only detaches it in a passive effect's cleanup on unmount -- not
+    // synchronous with the `setOpen(false)` that closed the PREVIOUS layer (a `SearchSelect` combobox,
+    // or the sibling `DatePicker` an earlier call just used). A scripted click on THIS trigger fired
+    // inside that window is still visible to the old, stale listener, which fires its own
+    // dismiss/replay handling on the very pointerdown that was meant to open this popover -- a real
+    // user's next click, tens of milliseconds later, never lands inside that window. Retained
+    // hypothesis, not a proven single trace (the CI video artifact for these runs is ~400MB, too large
+    // to pull apart here) -- but it is the same class of bug as the CLOSE side documented in
+    // `pickToday` below, on the OPEN side, and the fix is the mirror image: wait before the click,
+    // then verify the popover actually opened and retry the click (bounded) if it didn't, so a genuine
+    // product regression still fails loudly instead of looping forever or timing out with no
+    // diagnostic.
     cy.wait(50);
     const OPEN_POLL_MS = 100;
     const OPEN_TIMEOUT_MS = 800;
     const MAX_ATTEMPTS = 3;
-    const isTodayVisible = () =>
+    const isOpen = () =>
         cy.get('body').then(($body) => $body.find('[data-cy="date-picker-today"]:visible').length > 0);
     const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
-        isTodayVisible().then((visible) => {
+        isOpen().then((visible) => {
             if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible);
             cy.wait(OPEN_POLL_MS);
             return pollForOpen(elapsedMs + OPEN_POLL_MS);
@@ -165,7 +165,7 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
             if (opened || attempt >= MAX_ATTEMPTS) {
                 if (attempt > 1) {
                     Cypress.log({
-                        name: 'pickToday',
+                        name: 'openDatePicker',
                         message: opened
                             ? `popover opened after ${attempt} attempt(s)`
                             : `popover still not open after ${attempt} attempt(s), giving up retries`,
@@ -173,11 +173,24 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
                 }
                 return;
             }
-            Cypress.log({ name: 'pickToday', message: `popover did not open on attempt ${attempt} -- retrying` });
+            Cypress.log({ name: 'openDatePicker', message: `popover did not open on attempt ${attempt} -- retrying` });
             openWithRetries(attempt + 1);
         });
     };
     openWithRetries(1);
+});
+
+/**
+ * Picks "today" on a `DatePicker` (frontend/src/components/date-picker.tsx) through its own "Today"
+ * footer button, never a computed `[data-day="M/D/YYYY"]` selector. That selector depended on the
+ * test computing the SAME locale/timezone string react-day-picker would compute for its own "today"
+ * cell, and on the popover having actually mounted that cell inside the CI viewport (1000x660) by the
+ * time the click fired — three independent ways to race or mismatch, all observed in CI (runs
+ * 34954776077, 34930840117, 34951814251).
+ * @example cy.pickToday('[data-cy="document-field-issueDate-input"]')
+ */
+Cypress.Commands.add('pickToday', (triggerSelector: string) => {
+    cy.openDatePicker(triggerSelector);
     cy.get('[data-cy="date-picker-today"]', { timeout: 10000 }).should('be.visible').click();
     // The popover's content unmounts on close (Radix `Presence`, no `forceMount`) -- its own "Today"
     // button is gone, not merely hidden, which is what actually proves the popover closed.

@@ -62,5 +62,14 @@ declare namespace Cypress {
          * @example cy.pickToday('[data-cy="document-field-issueDate-input"]')
          */
         pickToday(triggerSelector: string): Chainable<void>
+
+        /**
+         * Opens a `DatePicker` popover and waits for it to have actually mounted, retrying the
+         * trigger click (bounded) if it didn't. Factored out of `pickToday` for callers that need the
+         * popover open for something other than its "Today" button (e.g. the month-navigation
+         * buttons) — see the implementation for the open-side CI race this guards against.
+         * @example cy.openDatePicker('[data-cy="document-field-firstOccurrenceAt-input"]')
+         */
+        openDatePicker(triggerSelector: string): Chainable<void>
     }
 }

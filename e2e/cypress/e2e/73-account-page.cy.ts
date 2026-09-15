@@ -28,6 +28,12 @@ function getSession() {
 	return cy.request({ url: `${api}/api/auth/get-session` }).its("body") as unknown as Cypress.Chainable<SessionBody>;
 }
 
+// Mailpit message detail carries the body as EITHER `Text` or `HTML` depending on what the sender
+// set — same helper as 45-signature.cy.ts, so a regex match never has to know which one is present.
+function bodyOf(message: { Text?: string; HTML?: string }): string {
+	return `${message.Text ?? ""}\n${message.HTML ?? ""}`;
+}
+
 describe("Personal account page (/account)", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -102,10 +108,16 @@ describe("Personal account page (/account)", () => {
 		});
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", newEmail);
 
-		cy.getLastEmail().then((message: { Subject?: string }) => {
-			expect(message.Subject, "le sujet du mail de confirmation nomme la nouvelle adresse").to.include(
+		// better-auth's own subject is FIXED ("Confirm your email address" — never names the address,
+		// see backend/src/modules/auth-extended/account-lifecycle.ts#buildChangeEmailMail), so the
+		// confirmation is identified by its RECIPIENT, not its subject: the mail goes to the NEW
+		// address, and its body carries the verification link (`/verify-email?token=...`, minted by
+		// better-auth's own `update-user.mjs`).
+		cy.getLastEmail().then((message: { To?: { Address?: string }[]; Text?: string; HTML?: string }) => {
+			expect(message.To?.[0]?.Address, "le mail de confirmation part vers la NOUVELLE adresse").to.eq(
 				newEmail,
 			);
+			expect(bodyOf(message), "le corps porte le lien de vérification").to.include("verify-email?token=");
 		});
 
 		// The address only changes once the link in that email is actually clicked — this test never
