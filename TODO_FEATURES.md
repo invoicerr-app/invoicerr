@@ -32,7 +32,7 @@
 
 ---
 
-## Livré (21)
+## Livré (25)
 
 | Rang | Feature | Preuve |
 |---:|---|---|
@@ -56,19 +56,20 @@
 | 19 (1ʳᵉ passe) | Bons de commande à un fournisseur — émission | `de30e2a4`, sans migration : un `DocumentTypeDescriptor` de plus (fournisseur, date, date de livraison attendue, devise, référence, lignes), statuts calqués sur la facture, numérotation `PURCHASE-ORDER-` à l'entrée en `sending`, envoi réutilisant tel quel `runAsyncSendAction`/`sendDocumentInstanceEmail`. **Aucun code frontend touché** — menu, liste et formulaire pilotés par le descripteur. Country-policy étendu aux cinq pays (sinon 403 partout et invisible au menu). Bug latent corrigé en passant : `compute-totals.ts` plantait (« no usable VAT rate ») sur un type dont les lignes n'ont aucun champ de TVA — jamais exercé avant. **Le rapprochement 3-way avec la facture reçue est une seconde passe, non livrée** — voir Restent. Trois choix pris pour l'émission, à valider : voir Questions ouvertes. **Non établi** : l'exécution réelle du spec Cypress 66 (Cypress non lancé). |
 | 21 | Application mobile — PWA (Décision D) | `b7a6581d` (manifeste, service worker, icônes générées depuis le logo, `vite-plugin-pwa`, `/api/*` jamais mis en cache) puis `acbc2011` (le SW s'enregistrait sans garde et faisait tomber `29-document-recurrence` en CI — corrigé : enregistrement manuel sous garde `!("Cypress" in window)`, rechargement réel à l'activation d'un nouveau SW via `virtual:pwa-register`). README corrigé dans le même commit, ne promet plus d'app native. **Non établi** : installabilité réelle sur iOS/Android, aucun appareil ni simulateur ici. |
 | G | Serveur de mail — instance→société, fournisseur Resend (Décision G) | **COMPLÈTE : backend + écran.** Backend : `f1ed72e4`, `63b42ef9`, `1958c47a`. Écran Réglages → Mail : `7a61f3f7` — état courant sans jamais rendre de secret, formulaire SMTP/Resend, « Tester l'envoi » toujours disponible (erreur backend affichée mot pour mot), retour au serveur de l'instance après confirmation, onglet masqué aux MEMBER. Voir Décision G pour le détail. **Réserve** : son spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4) ; instrumenté (`c7e80579`, un vrai défaut d'écran corrigé au passage), mais la cause du premier échec reste NON établie — voir Questions ouvertes. |
+| 16 → B | Préréglages visuels du PDF (logo, couleur d'accent, police parmi 5 OFL) | `45d67c70` + câblage dans `14c6ae17`, migration `20260915093020_company_branding` (null = HTML identique à l'octet près, snapshot). API `/api/company/branding` (+ logo, preview), onglet Réglages → Branding, spec `69-company-branding` **écrit, non exécuté localement** — CI à lire. PDF réel non prouvé ici (pas de Chromium sur la machine), seul le HTML l'est. |
+| C | Emails — éditeur WYSIWYG (TipTap) | `9ce4a558` — le corps était déjà du HTML côté backend, variables `{clé}` lues depuis l'API, un seul éditeur par gabarit, anciens corps texte convertis en paragraphes. Spec `54-email-templates` adapté et **vert en CI** (run `34950458992`). |
+| 19 (2ᵉ passe) | Bons de commande — rapprochement 3-way (bon de réception, tolérance société, acceptation OWNER/ADMIN tracée) | `14c6ae17`, sans migration : type `goods-receipt`, moteur pur `reconciliation/three-way-match.ts`, tolérance dans un `DocumentInstance` singleton par société, acceptation dans `data.varianceAcceptance`. Prouvé en HTTP réel (66,67 % → to-review → tolérance 70 % → within-tolerance → acceptation persistée). Spec `70-three-way-match` **écrit, non exécuté localement** — CI à lire. |
+| 13 (suite) | Catégories de notes de frais dynamiques par société | `94924a36`, migration `20260915085840_expense_categories` : table, jeu par défaut, CRUD OWNER/ADMIN, options composées par société. Bug trouvé au boot réel (route masquée par `@Get(':id')`). Spec `68-expense-categories` **écrit, non exécuté localement** — CI à lire. |
 | *(hors liste)* | Méthodes de paiement typées par société | `61-payment-methods`, livré le 2026-09-14 (`backend/src/modules/documents/payment-methods/`) |
 
 ---
 
-## Restent (5) — vérifiés dans le code au 2026-09-15
+## Restent (2) — vérifiés dans le code au 2026-09-15, 14 h
 
 | Rang | Feature | État vérifié (2026-09-15) | e2e à prouver |
 |---:|---|---|---|
-| 16 | Personnalisation de template — **redéfini** en préréglages visuels (plus un éditeur) | Débloqué le 2026-09-15 (migrations renommées, Questions ouvertes #1) : à construire — champs de marque sur `Company` (logo, couleur, police) via une nouvelle migration, puis les préréglages. Voir Décision B. | Un utilisateur choisit un préréglage (couleur/logo/police) et voit le PDF changer, sans toucher au HTML. |
 | 20 → E | Facturation par abonnement avancée (usage-based) | Sans objet côté produit invoicerr — redirigé vers l'offre hébergée du propriétaire (Décision E), elle-même bloquée par la clé sandbox Polar que le propriétaire crée demain matin (Questions ouvertes #4). | N/A côté produit self-hosted. |
 | A | Paiements — Mollie, PayPal réel, régionaux | Stripe seul est câblé (rang 1, voir Livré) et jamais prouvé avec un vrai compte ; Mollie, PayPal (vrai encaissement Orders API v2) et les régionaux restent à construire — bloqués par les clés sandbox (Polar, Stripe, Mollie, PayPal), le propriétaire les crée demain matin (Questions ouvertes #4). Voir Décision A. | Un paiement Stripe réel encaissé ; Mollie et PayPal câblés et testés en sandbox. |
-| C | Emails — éditeur WYSIWYG | Bibliothèque d'édition riche non choisie (TipTap/Lexical/Quill…, Questions ouvertes #5) — l'éditeur texte brut actuel (`templates.settings.tsx`) reste en place tant que ce choix n'est pas fait. Voir Décision C. | Non définissable avant le choix de bibliothèque. |
-| 19 (2ᵉ passe) | Bons de commande — rapprochement 3-way | **Tranché le 2026-09-15, en cours** : vrai 3-way (BC ↔ nouveau type « bon de réception » ↔ facture reçue) ; écarts = avertissement jamais bloquant, tolérance en % réglable par société (défaut 2 %), badge « à vérifier » au-delà ; acceptation d'un écart réservée OWNER/ADMIN, tracée (qui, quand). Construit sur `received-invoices/supplier-reconciliation.ts`. Voir Décision F. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
 
 ### Rang 10 — pourquoi le mécanisme `reporting/` ne concerne toujours que le Portugal
 
