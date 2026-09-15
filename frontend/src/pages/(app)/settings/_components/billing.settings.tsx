@@ -88,11 +88,25 @@ export default function BillingSettings() {
     // resolving is asynchronous. Opening a blank tab now and pointing it at the real URL once the
     // portal session comes back is the only sequencing that survives that — a `target="_blank"` link
     // built after the fetch resolves would already be too late.
-    const portalWindow = window.open("about:blank", "_blank", "noopener")
+    //
+    // Do NOT pass `noopener` in the features string here: per spec, `window.open` returns `null` when
+    // `noopener` is set, which made the code below think the popup was blocked and fall back to
+    // `window.location.href` — leaving the owner on an empty tab they never asked for AND redirecting
+    // their current tab to the portal. Keep the window handle instead, and sever `opener` ourselves
+    // right before the real navigation (below) — same security property, without losing the handle.
+    const portalWindow = window.open("", "_blank")
+    if (portalWindow) {
+      const openingLabel = t("settings.billing.messages.openingPortal", "Opening Polar…")
+      portalWindow.document.title = openingLabel
+      portalWindow.document.body.innerText = openingLabel
+    }
 
     openPortal.mutate(undefined, {
       onSuccess: (data) => {
         if (portalWindow) {
+          // Cut the link back to this tab before navigating away — the portal tab can no longer
+          // reach `window.opener` once it's pointed at Polar.
+          portalWindow.opener = null
           portalWindow.location.href = data.url
         } else {
           // The blank tab itself got blocked (no window handle at all) — fall back to navigating
@@ -102,7 +116,7 @@ export default function BillingSettings() {
       },
       onError: (error) => {
         // Nothing to show in the tab we opened — close it rather than stranding the owner on an
-        // empty about:blank tab they didn't ask for.
+        // empty tab they didn't ask for.
         portalWindow?.close()
         toast.error(
           error instanceof ApiError

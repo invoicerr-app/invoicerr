@@ -2767,6 +2767,7 @@
       },
       "messages": {
         "checkoutError": "Failed to start checkout",
+        "openingPortal": "Opening Polar…",
         "portalError": "Failed to open the subscription portal"
       }
     }
