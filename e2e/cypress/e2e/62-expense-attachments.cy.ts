@@ -85,7 +85,27 @@ function saveDraft() {
 	// backend logs for this exact run show no error at all in this test's window: the save always
 	// succeeded, the dialog just never went away, per that design. Content assertions belong to the
 	// API either way (this file's own header) — no DOM check stands in for the API check below.
+	//
+	// The `[data-sonner-toast]` selector used to be asserted right after the click with no
+	// interception behind it — but it matches ANY toast already mounted, including a REFUSAL toast a
+	// prior step in the same test just raised on the attachment field ("Unsupported file type"/"byte
+	// limit" — Sonner's own default 4s life easily outlives the few hundred ms between that refusal
+	// and this click). `cy.get(...).should("exist")` then passed instantly on that STALE toast,
+	// without ever waiting for THIS click's own save-draft request to round-trip, so a caller reading
+	// the result back immediately after (`listExpenses()`) could race the still-in-flight POST — this
+	// is exactly what happened on CI run 34951814251 (commit 94924a36, `created` came back `undefined`
+	// even though the save always succeeds): a pure test race, not a product bug, same category of
+	// false failure as the dialog-staying-open lesson above. Interception + a status-code assertion on
+	// the action's own request (the same discipline 54-email-templates.cy.ts's own save test already
+	// uses for its PUT) is what actually proves the save landed before anything reads it back.
+	cy.intercept("POST", `${api}/api/documents/types/expense/actions/save-draft`).as("saveExpenseDraft");
 	cy.get('[data-cy="document-action-save-draft"]').click();
+	cy.wait("@saveExpenseDraft").then((interception) => {
+		expect(
+			interception.response?.statusCode,
+			"save-draft doit réellement atteindre le serveur avant qu'on ne relise l'expense",
+		).to.be.oneOf([200, 201]);
+	});
 	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 }
 
@@ -248,8 +268,8 @@ describe("Expense attachments, category, and mileage (rank 13)", () => {
 			cy.get('[data-cy="document-field-attachment-value"]').should("not.exist");
 			cy.get('[data-cy="document-field-attachment-input"]').should("be.visible");
 
-			cy.get('[data-cy="document-action-save-draft"]').click();
-			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+			// Same helper as the create-side tests — same interception discipline, see its own header.
+			saveDraft();
 
 			cy.request<ExpenseInstance>({ url: `${api}/api/documents/${target!.id}?typeId=expense` })
 				.its("body")

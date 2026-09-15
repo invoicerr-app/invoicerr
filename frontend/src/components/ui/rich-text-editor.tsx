@@ -15,7 +15,7 @@ import {
   Undo2,
   Unlink,
 } from "lucide-react"
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -257,6 +257,13 @@ export function RichTextEditor({
     [placeholder],
   )
 
+  // The html WE last emitted through `onChange`, updated synchronously inside `onUpdate` — i.e. before
+  // React has necessarily re-rendered this component with the matching `value` prop. This is what lets
+  // the resync effect below tell "value is merely OUR OWN last edit, still catching up through the
+  // parent's state" apart from "value changed for a genuine external reason" — see that effect's own
+  // header for why `value !== editor.getHTML()` alone was not a safe enough test.
+  const lastEmittedHtml = useRef(value)
+
   const editor = useEditor({
     extensions,
     content: value,
@@ -267,7 +274,11 @@ export function RichTextEditor({
         "aria-label": t("component.rich-text-editor.editorAriaLabel"),
       },
     },
-    onUpdate: ({ editor: current }) => onChange(current.getHTML()),
+    onUpdate: ({ editor: current }) => {
+      const html = current.getHTML()
+      lastEmittedHtml.current = html
+      onChange(html)
+    },
   })
 
   // Keeps the editor editable/read-only in sync with the prop — `useEditor`'s own `editable` option is
@@ -277,13 +288,32 @@ export function RichTextEditor({
   }, [editor, readOnly])
 
   // External content sync (a save's own re-sync effect, a "reset to default", switching which
-  // template's card is open): applied only when it actually differs from the editor's own current
-  // html, so every keystroke's own `onUpdate` → `onChange` → `value` round-trip never fights the
-  // cursor mid-edit.
+  // template's card is open) — deliberately conservative about calling `setContent()`, which replaces
+  // the ENTIRE doc and can drop a keystroke that raced ahead of React's own render of this effect:
+  //  - never while the editor HAS FOCUS: a focused editor is, by definition, the one place the user (or
+  //    a fast-typing Cypress `.type()`, or an IME still composing) is actively editing — any `value`
+  //    this component receives while that is true is this editor's OWN edit still on its way back
+  //    through the parent's state, never something to overwrite it with. Confirmed the hard way: CI run
+  //    34951199307, `.ProseMirror`'s own typed text missing SPACES specifically (`Corpsdistinctif`,
+  //    `àvoir`) — a `setContent()` firing mid-keystroke with a `value` one keystroke behind wins the
+  //    race against `editor.getHTML()` having already moved on, and quietly drops what was typed in
+  //    between. A genuinely external change (loading a different template, "reset to default") always
+  //    lands while this editor is NOT focused — the click that triggers it blurs the contenteditable
+  //    first.
+  //  - never when `value` is exactly what THIS editor itself last emitted (`lastEmittedHtml`, updated
+  //    synchronously in `onUpdate`, above) — the second, redundant line of defence for the same race:
+  //    even a blur-timed re-render carrying a `value` that is only an echo of our own latest edit must
+  //    not re-apply itself over a doc that may already differ by selection/marks the html string can't
+  //    capture.
+  // Only past both guards does a real `value !== editor.getHTML()` mismatch mean an ACTUAL external
+  // value — the only case `setContent()` is for.
   useEffect(() => {
     if (!editor) return
+    if (editor.isFocused) return
+    if (value === lastEmittedHtml.current) return
     if (value !== editor.getHTML()) {
       editor.commands.setContent(value || "", { emitUpdate: false })
+      lastEmittedHtml.current = value
     }
   }, [value, editor])
 

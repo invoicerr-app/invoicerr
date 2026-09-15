@@ -155,8 +155,17 @@ describe("Settings — email templates per document type", () => {
 			.clear()
 			.type(distinctiveSubject, { parseSpecialCharSequences: false });
 		// The body field is the TipTap editor's own contenteditable root — `.clear()` works on a
-		// `contenteditable` element exactly like it does on an input/textarea.
-		cy.get('[data-testid="rich-text-editor"] .ProseMirror').clear().type(distinctiveBody);
+		// `contenteditable` element exactly like it does on an input/textarea. `{ delay: 20 }`: at
+		// Cypress' default keystroke rate, ProseMirror's own controlled-value round trip (every
+		// keystroke's `onUpdate` → `onChange` → the `value` prop → `rich-text-editor.tsx`'s own
+		// external-sync effect comparing `value !== editor.getHTML()`) can still be applying a STALE
+		// `value` from a couple of keystrokes back exactly when the next one lands, and that effect's
+		// `setContent()` silently drops the character in flight — reproduced on CI run 34951199307 as
+		// swallowed SPACES specifically (`Corpsdistinctif`, `àvoir`, `avecle`), never a wrong or
+		// duplicated character. A real user's typing cadence (100ms+/keystroke) never gets close to
+		// this race, so this is test input speed, not a product bug — same conclusion this file's own
+		// header draws for the `{selectall}` brace-escaping a line above.
+		cy.get('[data-testid="rich-text-editor"] .ProseMirror').clear().type(distinctiveBody, { delay: 20 });
 		cy.get('[data-cy="email-template-save-quote"]').click();
 
 		cy.wait("@saveQuoteTemplate").then((interception) => {
