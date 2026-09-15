@@ -31,7 +31,9 @@ export interface BillingStatusView {
    *  header for why this is a raw path, not a link this controller can meaningfully "generate": the
    *  frontend supplies its own `products`/`referenceId`/`successUrl` in the request body. */
   checkoutUrl: string;
-  /** The better-auth route the frontend POSTs (or GETs) to reach the Polar customer portal. */
+  /** This app's OWN route (`billing.controller.ts`'s `POST /billing/portal`) — NOT better-auth's own
+   *  `/api/auth/customer/portal`, which cannot open a session for this product's TEAM customers (see
+   *  `portal-session.ts`'s header). */
   portalUrl: string;
 }
 
@@ -55,6 +57,6 @@ export function computeBillingStatusView(
     trialEndsAt: sub.trialEndsAt.toISOString(),
     daysRemaining,
     checkoutUrl: '/api/auth/checkout',
-    portalUrl: '/api/auth/customer/portal',
+    portalUrl: '/api/billing/portal',
   };
 }

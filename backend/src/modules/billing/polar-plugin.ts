@@ -14,6 +14,12 @@
  *  - `portal()` mounts `GET/POST /api/auth/customer/portal` (redirects to Polar's customer portal)
  *    plus `/customer/state`, `/customer/benefits/list`, `/customer/subscriptions/list`,
  *    `/customer/orders/list` — all read-only, all scoped to the CALLER's own Polar customer.
+ *    **`/customer/portal` itself is NOT what the frontend's "Manage subscription" button calls** —
+ *    kept mounted here only for its sibling read-only routes (unused today, but harmless) — because
+ *    its own `customerSessions.create({ externalCustomerId })` call has no way to supply `memberId`,
+ *    which Polar requires for a TEAM customer (this product's seat-based plan promotes a paying
+ *    company's customer to `type: "team"` — see `portal-session.ts`'s header for the full chain).
+ *    `billing.controller.ts`'s own `POST /billing/portal` calls the raw SDK instead.
  *  - `usage()` mounts `/usage/meters/list` + `/usage/ingest` — NOT used by this feature (seat-based
  *    billing, not metered usage); included nowhere below.
  *  - `webhooks()` mounts `POST /api/auth/polar/webhooks` — verifies the Polar signature itself
@@ -42,14 +48,13 @@ import { checkout, polar, portal, webhooks } from '@polar-sh/better-auth';
 
 import { isBillingEnabled } from './billing-flag';
 import { resolvePolarServerEnvironment } from './polar-env';
+import { FALLBACK_RETURN_URL } from './portal-return-url';
 import { applySubscriptionWebhook } from './webhook-handlers';
 
 /** `polar()`'s own return type, structurally — never exported by `@polar-sh/better-auth` itself, so
  *  `ReturnType<typeof polar>` is how `lib/auth.ts`'s `plugins: [...buildPolarAuthPlugins()]` array
  *  stays type-safe without hand-duplicating the shape. */
 type PolarBetterAuthPlugin = ReturnType<typeof polar>;
-
-const FALLBACK_RETURN_URL = () => `${process.env.APP_URL ?? 'http://localhost:5173'}/settings/billing`;
 
 /**
  * `[]` when billing is disabled. When enabled, the ONE `polar()` plugin, carrying `checkout` +

@@ -56,8 +56,13 @@ export function useStartCheckout() {
   return useApiMutation<StartCheckoutBody, PolarRouteResponse>("POST", "/api/auth/checkout")
 }
 
-/** Same route family, `/api/auth/customer/portal` — redirects the browser to Polar's own customer
- *  portal (manage payment method, cancel, see invoices). No body needed. */
+/**
+ * `POST /api/billing/portal` — this app's OWN route, not better-auth's `/api/auth/customer/portal`:
+ * that better-auth route cannot open a session for this product's seat-based TEAM customers (Polar
+ * requires a `memberId` it has no way to supply — see backend's `portal-session.ts` header). Redirects
+ * the browser to Polar's own customer portal (manage payment method, cancel, see invoices). No body
+ * needed.
+ */
 export function useOpenCustomerPortal() {
-  return useApiMutation<undefined, PolarRouteResponse>("POST", "/api/auth/customer/portal")
+  return useApiMutation<undefined, PolarRouteResponse>("POST", "/api/billing/portal")
 }
