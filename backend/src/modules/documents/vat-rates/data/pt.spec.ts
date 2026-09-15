@@ -44,7 +44,7 @@ describe('PT — vat-rates/data/pt.json', () => {
         'Para as restantes importações, transmissões de bens e prestações de serviços, a taxa de 23%.',
       );
     }
-    expect(standard.notes).toMatch(/PAS DE DIVERGENCE/);
+    expect(standard.notes).toMatch(/NO DIVERGENCE/);
   });
 
   it('pins each reduced/super-reduced rate to its own art. 18.º n.º 1 alínea, by id — never one generic citation reused', () => {

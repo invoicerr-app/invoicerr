@@ -129,12 +129,12 @@ describe('PT — country-policy/data/pt.json', () => {
       expect(rule.provenance.sourceText).toMatch(/€ 50 000/);
       expect(rule.provenance.sourceCheckedAt).toBe('2026-09-04');
     }
-    expect(rule.notes).toMatch(/TROUVAILLE ATTENDUE/);
+    expect(rule.notes).toMatch(/EXPECTED FINDING/);
     expect(rule.notes).toMatch(/ATCUD/);
-    expect(rule.notes).toMatch(/SIGNATURE CHAÎNÉE/);
+    expect(rule.notes).toMatch(/CHAINED SIGNATURE/);
     expect(rule.notes).toMatch(/Portaria n\.º 195\/2020/);
     expect(rule.notes).toMatch(/Portaria n\.º 363\/2010/);
-    expect(rule.notes).toMatch(/déjà audité \(2026-09-02\)/);
+    expect(rule.notes).toMatch(/already audited \(2026-09-02\)/);
   });
 
   it('credit-note.send documents the CIVA art. 78.º base-reduction mechanism as the legal fact of substance, distinct from the product-level status transition', () => {
@@ -158,7 +158,7 @@ describe('PT — country-policy/data/pt.json', () => {
   it('the file-level notes documents the CIVA + Decreto-Lei n.º 28/2019 + Portarias sources, the SPA-contournée-par-miroir-officiel method, and the B2G audit cross-check', () => {
     expect(pt.notes ?? '').toMatch(/Código do IVA/);
     expect(pt.notes ?? '').toMatch(/Decreto-Lei n\.º 28\/2019/);
-    expect(pt.notes ?? '').toMatch(/audit B2G-routing déjà livré/);
+    expect(pt.notes ?? '').toMatch(/B2G-routing audit already delivered/);
     expect(pt.notes ?? '').toMatch(/diariodarepublica\.pt/);
   });
 });

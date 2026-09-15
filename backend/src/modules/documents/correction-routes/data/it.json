@@ -9,7 +9,7 @@
         "sourceText": "« ha diritto di portare in detrazione » (comma 2) ; commas 9 et 10 qualifient cette voie de « facoltà » — nature : faculté, jamais obligation. Applicable à la nullité, annulation, révocation, résolution, rescission « e simili » ; abbuoni et sconti contractuels ; impayé en procédure collective ou exécution infructueuse (comma 3-bis). Source : Art. 26 DPR 633/72, comma 2.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "Délais (comma 3) : un an à compter de l'opération si l'événement résulte d'un « sopravvenuto accordo fra le parti » ou d'une rectification d'inexactitudes (art. 21 comma 7) ; aucune limite pour nullité/annulation/révocation/résolution/rescission NON conventionnelles, ni pour le comma 3-bis."
+      "notes": "Deadlines (comma 3): one year from the transaction if the event results from a « sopravvenuto accordo fra le parti » or from correcting inaccuracies (art. 21 comma 7); no limit for nullity/annulment/revocation/termination/rescission that are NOT contractual, nor for comma 3-bis."
     },
     {
       "routeId": "DEBIT_NOTE",
@@ -19,7 +19,7 @@
         "sourceText": "« Le disposizioni degli articoli 21 e seguenti DEVONO ESSERE OSSERVATE, in relazione al maggiore ammontare » — applicable à TOUTE hausse de la base ou de la taxe, « per qualsiasi motivo », y compris rectification d'inexactitudes. Source : Art. 26 DPR 633/72, comma 1.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "C'EST L'ASYMÉTRIE CANONIQUE ITALIENNE : la hausse est une OBLIGATION (comma 1) là où la baisse (CREDIT_NOTE ci-dessus) n'est qu'une faculté."
+      "notes": "THIS IS THE CANONICAL ITALIAN ASYMMETRY: the upward correction is an OBLIGATION (comma 1) whereas the downward one (CREDIT_NOTE above) is only a faculty."
     },
     {
       "routeId": "CORRECTIVE_INVOICE",
@@ -47,7 +47,7 @@
         "sourceText": "« viene effettuata – se necessario – una variazione contabile valida ai soli fini interni SENZA LA TRASMISSIONE DI ALCUNA NOTA DI VARIAZIONE AL SdI » — applicable après scarto SdI, si la facture avait déjà été comptabilisée. Source : Provv. 89757/2018, punto 6.3 ; repris circolare 13/E § 1.6 p. 11.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "L'Italie a AUSSI son avoir interne, après scarto — le piège n'était pas franco-français."
+      "notes": "Italy ALSO has its own internal credit note, after scarto — the trap was not a purely French one."
     },
     {
       "routeId": "AUTHORITY_ANNULMENT",
@@ -57,7 +57,7 @@
         "sourceText": "Aucune procédure d'annulation dans le provvedimento — zéro occurrence de « annull- ». Punto 6.2 : « Le richieste del cessionario/committente [...] di variazioni [...] non sono gestite dal SdI ». Source : Provv. 89757/2018, punti 6.1 et 6.2.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "Caveat du YAML : conclusion tirée par EXHAUSTIVITÉ du texte, pas par une phrase d'interdiction explicite — une risoluzione AdE la confirmerait."
+      "notes": "Caveat from the YAML: conclusion drawn from the text's EXHAUSTIVENESS, not from an explicit prohibition sentence — an AdE risoluzione would confirm it."
     },
     {
       "routeId": "RESUBMIT_SAME_IDENTITY",
@@ -67,7 +67,7 @@
         "sourceText": "Nature RECOMMANDÉE, PAS requise : « la fattura [...] vada PREFERIBILMENTE emessa (ossia nuovamente inviata tramite SdI entro cinque giorni dalla notifica di scarto) con la data ed il numero del documento originario ». Applicable après scarto, dans les 5 jours de la notifica di scarto, sous les date et numéro d'origine. Source : Circolare 13/E § 1.6 ; specifiche tecniche allegato A v1.6.3 p. 150.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "« La fattura elettronica [...] di cui al file scartato dal SdI SI CONSIDERA NON EMESSA » (Provv. 89757/2018, punti 2.4 et 4.1) — rendu possible par le contrôle d'unicité (le doublon 00404/00409 n'est déclenché que si aucune ricevuta di scarto n'a été émise). Open question du YAML : les « 5 jours » sont-ils un délai de forclusion ou une recommandation — non tranché, aucune sanction rattachée trouvée."
+      "notes": "« La fattura elettronica [...] di cui al file scartato dal SdI SI CONSIDERA NON EMESSA » (Provv. 89757/2018, punti 2.4 and 4.1) — made possible by the uniqueness check (the 00404/00409 duplicate is only triggered if no ricevuta di scarto was issued). Open question from the YAML: is the \"five days\" a forfeiture deadline or merely a recommendation — unresolved, no attached penalty was found."
     },
     {
       "routeId": "LEDGER_ANNOTATION",
@@ -77,14 +77,14 @@
         "sourceText": "« deve essere fatta mediante annotazione delle variazioni » (comma 7) ; « possono essere effettuate [...] anche mediante apposite annotazioni in rettifica [...] sui registri » (comma 8) — une correction SANS AUCUN DOCUMENT émis ni transmis, applicable aux erreurs matérielles ou de calcul dans les registres et liquidations, et aux variations des commas 2, 3, 3-bis et 5. Source : Art. 26 DPR 633/72, commas 7 et 8.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "Trouvée hors de la liste initiale du plan (discovered_by: recherche IT, 2026-08-29) — distincte de INTERNAL_CREDIT_NOTE, qui suppose au moins un document interne ; ici il n'y a aucun document du tout."
+      "notes": "Found outside the plan's initial list (discovered_by: IT research, 2026-08-29) — distinct from INTERNAL_CREDIT_NOTE, which presupposes at least an internal document; here there is no document at all."
     },
     {
       "routeId": "ANNOTATED_DUPLICATE",
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Non recherchée pour l'Italie : personne n'a encore vérifié, sur un texte juridique primaire italien, si une facture déjà émise peut être renvoyée telle quelle, simplement annotée d'une mention, plutôt que par un avoir ou une facture rectificative. Cela reste à établir avant de pouvoir répondre."
+        "resolutionNote": "Not researched for Italy: nobody has yet verified, against a primary Italian legal text, whether an invoice already issued can be resent as-is, simply annotated with a note, rather than through a credit note or a corrective invoice. This remains to be established before an answer can be given."
       }
     },
     {
@@ -92,7 +92,7 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.IT.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté Italie, jamais promue faute de statut déclaré."
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.IT.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Italy, never promoted for lack of a declared status."
       }
     },
     {
@@ -100,9 +100,9 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.IT.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté Italie, jamais promue faute de statut déclaré."
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.IT.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Italy, never promoted for lack of a declared status."
       }
     }
   ],
-  "notes": "Italie — HEADLINE : l'ASYMÉTRIE hausse/baisse (DEBIT_NOTE required, CREDIT_NOTE allowed/faculté) est confirmée par l'art. 26 DPR 633/72 lui-même, commas 1 et 2. TEMPORAL, hors périmètre de C1 (pas de versionnage temporel dans ce mécanisme fichier v1) : au 2027-01-01, D.Lgs. 19/01/2026 n. 10 abroge l'art. 26 DPR 633/72, remplacé par l'art. 92 du Testo unico IVA au TEXTE IDENTIQUE — même asymétrie, nouvelle référence."
+  "notes": "Italy — HEADLINE: the upward/downward ASYMMETRY (DEBIT_NOTE required, CREDIT_NOTE allowed/faculty) is confirmed by art. 26 DPR 633/72 itself, commas 1 and 2. TEMPORAL, out of scope for C1 (no temporal versioning in this file mechanism v1): as of 2027-01-01, D.Lgs. 19/01/2026 n. 10 repeals art. 26 DPR 633/72, replaced by art. 92 of the Testo unico IVA with IDENTICAL TEXT — same asymmetry, new reference."
 }

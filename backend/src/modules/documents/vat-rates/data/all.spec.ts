@@ -67,9 +67,9 @@ describe('vat-rates/data — the shipped DE/FR/IT/PL/PT catalog', () => {
     const fr = ALL_VAT_RATE_FILES.find((f) => f.countryCode === 'FR');
     const byId = (id: string) => fr?.rates.find((r) => r.id === id);
     expect(byId('fr-standard')?.notes).toMatch(/art\. 278\b/);
-    expect(byId('fr-intermediate')?.notes).toMatch(/278 bis ET art\. 279/);
+    expect(byId('fr-intermediate')?.notes).toMatch(/278 bis AND art\. 279/);
     expect(byId('fr-reduced')?.notes).toMatch(/278-0 bis/);
-    expect(byId('fr-particular')?.notes).toMatch(/281 quater, 281 octies ET 298 septies/);
+    expect(byId('fr-particular')?.notes).toMatch(/281 quater, 281 octies AND 298 septies/);
     expect(byId('fr-exempt-293b')?.notes).toMatch(/293 B/);
   });
 });

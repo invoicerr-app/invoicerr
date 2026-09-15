@@ -46,7 +46,7 @@ describe('PT — country-identifiers/data/pt.json', () => {
   it('LEGAL_ID declares NO pattern — the 9-digit format was not confirmed against a primary text in this pass, and this is documented honestly rather than filled in from general knowledge', () => {
     const legalId = pt.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
     expect(legalId.pattern).toBeUndefined();
-    expect(legalId.notes).toMatch(/NON CONFIRMÉ/);
+    expect(legalId.notes).toMatch(/NOT CONFIRMED/);
     expect(legalId.notes).toMatch(/Decreto-Lei n\.º 463\/79/);
   });
 
@@ -66,7 +66,7 @@ describe('PT — country-identifiers/data/pt.json', () => {
   it('VAT also declares NO pattern — the PT+NIF equivalence is documented as an unsourced convention, never smuggled in as a legal fact', () => {
     const vat = pt.schemes.find((s) => s.scheme === 'VAT')!;
     expect(vat.pattern).toBeUndefined();
-    expect(vat.notes).toMatch(/INFÉRENCE non sourcée/);
+    expect(vat.notes).toMatch(/unsourced INFERENCE/);
   });
 
   it('LEGAL_ID and VAT genuinely differ in required/provenance — not one copied onto the other with only labels swapped', () => {

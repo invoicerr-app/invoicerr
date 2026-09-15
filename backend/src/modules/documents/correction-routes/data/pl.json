@@ -18,7 +18,7 @@
         "sourceText": "Idem — même instrument unique : « podstawa opodatkowania lub kwota podatku wskazana w fakturze uległa zmianie » est neutre quant au SENS de la variation ; le remède est un KOR. Source : Art. 106j ust. 1 pkt 1.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "Contraste avec l'Italie : symétrie EXACTEMENT INVERSE — la Pologne traite hausse et baisse par le MÊME document, l'Italie par deux documents dont un obligatoire (DEBIT_NOTE) et l'autre facultatif (CREDIT_NOTE)."
+      "notes": "Contrast with Italy: EXACTLY THE OPPOSITE symmetry — Poland handles both upward and downward corrections through the SAME document, Italy through two documents, one mandatory (DEBIT_NOTE) and the other optional (CREDIT_NOTE)."
     },
     {
       "routeId": "CORRECTIVE_INVOICE",
@@ -28,7 +28,7 @@
         "sourceText": "« podatnik WYSTAWIA fakturę korygującą » — obligation, pas faculté, pour les 5 cas de l'art. 106j ust. 1, dont pkt 5 « stwierdzono pomyłkę w jakiejkolwiek pozycji faktury ». Deux verrous de forme s'y ajoutent : ust. 2 pkt 2a impose d'y porter le numéro KSeF de la facture corrigée, ust. 4 impose la forme structurée. Source : Art. 106j ust. 1, ust. 2 pkt 2a, ust. 4 (remplacé au 2026-02-01 par Dz.U. 2025 poz. 1203 art. 1 pkt 4).",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "C'est LA voie polonaise (bascule au 2026-02-01, abrogation de l'art. 106k, la nota korygująca acheteur disparaît — voir le YAML's own headline)."
+      "notes": "This is THE Polish route (switchover on 2026-02-01, repeal of art. 106k, the buyer's own nota korygująca disappears — see the YAML's own headline)."
     },
     {
       "routeId": "CANCEL_AND_REPLACE",
@@ -47,7 +47,7 @@
         "sourceText": "« Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia błędu… jest wystawienie faktury korygującej w KSeF » — applicable à toute facture acceptée par KSeF. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.2.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "L'INVERSION CANONIQUE du YAML : opposé exact de la France et de l'Italie, qui l'IMPOSENT (required) dans leurs cas de rejet respectifs. La même voie est requise là et interdite ici — c'est la meilleure justification du statut par pays plutôt que d'un modèle unique."
+      "notes": "The YAML's own CANONICAL INVERSION: the exact opposite of France and Italy, which IMPOSE it (required) in their respective rejection cases. The same route is required there and forbidden here — this is the best justification for a per-country status rather than a single shared model."
     },
     {
       "routeId": "AUTHORITY_ANNULMENT",
@@ -57,7 +57,7 @@
         "sourceText": "« W KSeF nie jest możliwe anulowanie wystawionej faktury ». Corroboré par un négatif vérifié : la chaîne « anulow » apparaît ZÉRO fois dans le texte consolidé de l'ustawa o VAT (~1 Mo), et zéro fois dans la broszura FA(3) ; aucun type d'annulation dans FA(3). Source : Podręcznik KSeF 2.0 cz. II, § 1.6.3 ; tekst jednolity Dz.U. 2025 poz. 775.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "Le YAML signale un défaut résiduel de l'ANCIEN moteur démoli (pl.ts déclarait requiresAuthorityAck: true, infondé — hors périmètre de C1, sans effet sur ce mécanisme fichier)."
+      "notes": "The YAML flags a residual defect of the OLD, demolished engine (pl.ts declared requiresAuthorityAck: true, unfounded — out of scope for C1, with no effect on this file mechanism)."
     },
     {
       "routeId": "RESUBMIT_SAME_IDENTITY",
@@ -73,7 +73,7 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Non recherchée pour la Pologne : personne n'a encore vérifié, sur un texte juridique primaire polonais, si une correction peut être opérée par simple annotation des registres, sans émettre aucun document. Cela reste à établir avant de pouvoir répondre."
+        "resolutionNote": "Not researched for Poland: nobody has yet verified, against a primary Polish legal text, whether a correction can be made by a simple register annotation, without issuing any document. This remains to be established before an answer can be given."
       }
     },
     {
@@ -81,7 +81,7 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.PL.routes du YAML (elle a été découverte pendant la recherche française, discovered_by: recherche FR, 2026-08-29) — aucune recherche menée côté Pologne, jamais promue faute de statut déclaré."
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the French research, discovered_by: FR research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
       }
     },
     {
@@ -89,7 +89,7 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.PL.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté Pologne, jamais promue faute de statut déclaré."
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
       }
     },
     {
@@ -97,9 +97,9 @@
       "status": "unverified",
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Cette voie n'est même pas mentionnée dans countries.PL.routes du YAML (elle a été découverte pendant la recherche allemande, discovered_by: recherche DE, 2026-08-29) — aucune recherche menée côté Pologne, jamais promue faute de statut déclaré."
+        "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
       }
     }
   ],
-  "notes": "Pologne — HEADLINE : la nota korygująca (l'instrument acheteur, hors des 11 routes canoniques — BUYER_CORRECTION_NOTE dans le YAML) est SUPPRIMÉE au 2026-02-01 (ustawa du 16/06/2023, Dz.U. 2023 poz. 1598 art. 1 pkt 15, « uchyla się art. 106k » ; date fixée par l'ustawa du 09/05/2024, Dz.U. 2024 poz. 852 art. 1 pkt 6 lit. a) — depuis cette date, l'ACHETEUR polonais n'a plus AUCUN instrument de correction, tout part du vendeur. Le fichier ci-dessus transcrit l'état POST-2026-02-01 (le seul en vigueur à la date de cette transcription) ; le régime antérieur (BUYER_CORRECTION_NOTE, ouverte sous condition) n'est pas modélisé — hors périmètre de C1 (pas de versionnage temporel dans ce mécanisme fichier v1). TEMPORAL additionnel non modélisé : le canal KSeF lui-même reste optionnel jusqu'au 2026-03-31 (gros assujettis, art. 145l) ou au 2026-12-31 (petits assujettis, art. 145m) — bascule différente de celle du modèle de correction."
+  "notes": "Poland — HEADLINE: the nota korygująca (the buyer's own instrument, outside the eleven canonical routes — BUYER_CORRECTION_NOTE in the YAML) is REMOVED as of 2026-02-01 (ustawa of 16/06/2023, Dz.U. 2023 poz. 1598 art. 1 pkt 15, « uchyla się art. 106k » ; date set by the ustawa of 09/05/2024, Dz.U. 2024 poz. 852 art. 1 pkt 6 lit. a) — since that date, the Polish BUYER no longer has ANY correction instrument, everything starts from the seller. The file above transcribes the POST-2026-02-01 state (the only one in force as of this transcription's date); the earlier regime (BUYER_CORRECTION_NOTE, open under conditions) is not modeled — out of scope for C1 (no temporal versioning in this file mechanism v1). Additional TEMPORAL fact not modeled: the KSeF channel itself remains optional until 2026-03-31 (large taxpayers, art. 145l) or until 2026-12-31 (small taxpayers, art. 145m) — a different switchover from the correction model's own."
 }

@@ -347,7 +347,7 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
       expect(legalId.provenance.sourceCheckedAt).toBe('2026-09-01');
     }
     expect(legalId.notes).toMatch(/SIRET vs SIREN/);
-    expect(legalId.notes).toMatch(/RÉSOLUE/);
+    expect(legalId.notes).toMatch(/RESOLVED/);
   });
 
   it('label is "SIREN / SIRET", pattern accepts 9 OR 14 digits, still required for BOTH party types', () => {

@@ -112,7 +112,7 @@ describe('PT — correction-routes/data/pt.json', () => {
   it('the file-level notes documents the two primary sources, the DEBIT_NOTE/CREDIT_NOTE asymmetry headline finding, and the deliberate absence of any B2G modeling', () => {
     expect(pt.notes ?? '').toMatch(/Código do IVA/);
     expect(pt.notes ?? '').toMatch(/Decreto-Lei n\.º 28\/2019/);
-    expect(pt.notes ?? '').toMatch(/ASYMÉTRIQUE/);
-    expect(pt.notes ?? '').toMatch(/audit B2G déjà réalisé/);
+    expect(pt.notes ?? '').toMatch(/ASYMMETRIC/);
+    expect(pt.notes ?? '').toMatch(/B2G audit was already carried out/);
   });
 });

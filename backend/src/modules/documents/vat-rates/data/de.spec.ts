@@ -79,6 +79,6 @@ describe('DE — vat-rates/data/de.json', () => {
 
   it('flags in notes that its labels are administrative convention, not literal statutory terms', () => {
     expect(de.notes ?? '').toMatch(/Regelsteuersatz/);
-    expect(de.notes ?? '').toMatch(/UStG NE NOMME JAMAIS/);
+    expect(de.notes ?? '').toMatch(/UStG NEVER NAMES/);
   });
 });

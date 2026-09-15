@@ -16,7 +16,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer un brouillon de devis est une opération interne au produit, pas un acte juridique — même raisonnement que fr.json/us.json pour cette même action : aucun texte identifié qui encadrerait spécifiquement cet acte en droit italien. À revoir si le produit venait un jour à donner un effet légal au fait même d'enregistrer un brouillon."
+        "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/us.json for this same action: no text identified that would specifically govern this act under Italian law. To be revisited if the product were one day to give legal effect to the mere fact of saving a draft."
       }
     },
     {
@@ -28,7 +28,7 @@
         "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
         "sourceCheckedAt": "2026-09-03"
       },
-      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — MÊME citation, lue en direct le 2026-09-03 sur eur-lex.europa.eu, que de.json/pl.json/es.json's own quote.send : un règlement européen est d'applicabilité directe, sans transposition nationale, donc identique pour l'Italie. Un devis n'est pas une facture (voir invoice.send ci-dessous, propre au droit fiscal italien) : c'est ce régime général de non-discrimination de l'écrit électronique qui fonde l'envoi d'un devis."
+      "notes": "Regulation (EU) No 910/2014 (eIDAS), Art. 25 § 1 — the SAME citation, read live on 2026-09-03 on eur-lex.europa.eu, as de.json/pl.json/es.json's own quote.send: a European regulation applies directly, with no national transposition, so it is identical for Italy. A quote is not an invoice (see invoice.send below, specific to Italian tax law): it is this general regime of non-discrimination against the electronic written form that grounds the sending of a quote."
     },
     {
       "typeId": "quote",
@@ -36,7 +36,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Transformer un devis accepté en facture est une commodité produit ; aucun texte identifié n'impose ni n'interdit ce mécanisme précis en droit italien (la seule contrainte légale porterait sur la facture qui en résulte). À confirmer par une revue dédiée si une règle spécifique de traçabilité devait un jour s'y attacher."
+        "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no text identified imposes or prohibits this precise mechanism under Italian law (the only legal constraint would bear on the resulting invoice). To be confirmed by a dedicated review should a specific traceability rule ever come to attach to it."
       }
     },
     {
@@ -45,7 +45,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Demander un acompte sur un devis, sous la forme d'une facture d'acompte en brouillon, est une commodité produit de même nature que 'convert-to-invoice' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit italien. À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la demande d'acompte elle-même."
+        "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no text identified governs this precise mechanism under Italian law. To be confirmed by a dedicated review should a specific rule come to attach to the deposit request itself."
       }
     },
     {
@@ -54,7 +54,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Générer un échéancier de facturation depuis un devis accepté (plusieurs factures en brouillon, une par échéance) est une commodité produit de même nature que 'request-deposit' ci-dessus ; aucun texte identifié n'encadre ce mécanisme précis en droit italien (la seule contrainte légale porterait sur les factures qui en résultent une fois émises, pas sur la création de ces brouillons). À confirmer par une revue dédiée si une règle spécifique venait à s'attacher à la génération d'un échéancier elle-même."
+        "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no text identified governs this precise mechanism under Italian law (the only legal constraint would bear on the resulting invoices once issued, not on the creation of these drafts). To be confirmed by a dedicated review should a specific rule come to attach to the generation of a schedule itself."
       }
     },
     {
@@ -63,7 +63,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Dupliquer un devis en un nouveau brouillon est une commodité produit pure ; aucun texte identifié ne l'encadre en droit italien. À confirmer par une revue dédiée avant d'étendre ce mécanisme à un type de document dont la duplication aurait un enjeu légal."
+        "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no text identified governs it under Italian law. To be confirmed by a dedicated review before extending this mechanism to a document type whose duplication would carry a legal stake."
       }
     },
     {
@@ -72,7 +72,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'un devis est une commodité produit — un devis n'est même pas un document fiscal. Aucun texte identifié qui encadrerait spécifiquement le partage d'un lien vers un document déjà communiqué à son destinataire ; le lien lui-même reste soumis à la discipline de sécurité du jeton (share-links/share-links.service.ts). À confirmer par une revue dédiée le cas échéant."
+        "resolutionNote": "Generating a public, unauthenticated link to a quote's PDF is a product convenience — a quote is not even a tax document. No text identified that would specifically govern the sharing of a link to a document already communicated to its recipient; the link itself remains subject to the token security discipline (share-links/share-links.service.ts). To be confirmed by a dedicated review if applicable."
       }
     },
     {
@@ -81,7 +81,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Demander à un client de signer électroniquement un devis (lien + code OTP par email — signatures/signatures.service.ts) est une commodité produit — signer un devis n'est pas un acte juridiquement encadré, c'est une marque d'acceptation commerciale. Le mécanisme reste au niveau eIDAS le plus bas (signature électronique SIMPLE), jamais un certificat, donc aucun texte italien sur la signature électronique avancée/qualifiée ne s'applique ici. À confirmer par une revue dédiée le cas échéant."
+        "resolutionNote": "Asking a customer to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience — signing a quote is not a legally governed act, it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no Italian text on advanced/qualified electronic signatures applies here. To be confirmed by a dedicated review if applicable."
       }
     },
     {
@@ -94,7 +94,7 @@
         "sourceText": "Inexistant : aucun instrument d'amendement par référence — le provvedimento ne cadre les variations que comme note di credito ou di debito ex art. 26.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/it.json (route CORRECTIVE_INVOICE, forbidden) — Provv. AdE 89757/2018, punto 6.1, consultée le 2026-08-29 (date préservée telle quelle : reprise, pas revérifiée par cette tâche). C'est la citation la PLUS nette des cinq nouveaux pays sur ce fait précis : l'Italie interdit EXPLICITEMENT tout mécanisme de correction par référence sur le document déjà transmis au Sistema di Interscambio (SdI) — une facture italienne acceptée par le SdI ne se corrige QUE par une note di credito ou di debito (documents distincts, art. 26 DPR 633/72), jamais par un nouvel enregistrement de brouillon sur le même document. Le champ `statuses: [\"draft\"]` applique ce principe en refusant de ré-enregistrer en brouillon une facture déjà 'sent' — même mécanique que fr.json/de.json ci-dessus, chacun sourcé sur son propre texte national pour le MÊME fait : l'immutabilité de la facture ÉMISE (au sens italien : acceptée par le SdI)."
+      "notes": "REUSES the citation already read by correction-routes/data/it.json (route CORRECTIVE_INVOICE, forbidden) — Provv. AdE 89757/2018, punto 6.1, checked on 2026-08-29 (date preserved as-is: reused, not re-verified by this task). This is the CLEAREST citation among the five new countries on this precise fact: Italy EXPLICITLY prohibits any correction-by-reference mechanism on a document already transmitted to the Sistema di Interscambio (SdI) — an Italian invoice accepted by the SdI can ONLY be corrected by a nota di credito or di debito (separate documents, art. 26 DPR 633/72), never by re-saving a draft on the same document. The `statuses: [\"draft\"]` field applies this principle by refusing to re-save as draft an invoice already 'sent' — same mechanics as fr.json/de.json above, each sourced to its own national text for the SAME fact: the immutability of the ISSUED invoice (in the Italian sense: accepted by the SdI)."
     },
     {
       "typeId": "invoice",
@@ -105,7 +105,7 @@
         "sourceText": "Per fattura elettronica si intende la fattura che è stata emessa e ricevuta in un qualunque formato elettronico. [...] il ricorso alla fattura elettronica è subordinato all'accettazione da parte del destinatario.",
         "sourceCheckedAt": "2026-09-03"
       },
-      "notes": "Art. 21, comma 1, DPR 633/1972. Lu en direct le 2026-09-03 sur normattiva.it (le portail officiel de la République italienne pour les textes consolidés en vigueur — l'équivalent italien de Légifrance/gesetze-im-internet.de/BOE). Ce texte reconnaît explicitement la validité de la facture ÉLECTRONIQUE italienne, l'équivalent du VI de l'art. 289 CGI français ou du § 14 Abs. 1 UStG allemand. NUANCE NON MODÉLISÉE ICI (même limite que fr.json/de.json's own invoice.send) : le texte conditionne le recours à la facture électronique à L'ACCEPTATION DU DESTINATAIRE — sauf que, à la différence de la France ou de l'Allemagne, l'Italie a rendu la transmission via le Sistema di Interscambio (SdI) OBLIGATOIRE pour la quasi-totalité de la facturation domestique depuis 2019 (fait déjà signalé, mais laissé 'unverified'/'suggested' faute de citation propre à sa propre date de consultation, dans transports/channel-policy/data/it.json — un sujet DISTINCT, le canal/mandat, hors du périmètre de cette règle qui ne porte que sur l'admissibilité de l'ENVOI électronique lui-même)."
+      "notes": "Art. 21, comma 1, DPR 633/1972. Read live on 2026-09-03 on normattiva.it (the official portal of the Italian Republic for consolidated texts in force — the Italian equivalent of Légifrance/gesetze-im-internet.de/BOE). This text explicitly recognizes the validity of the Italian ELECTRONIC invoice, the equivalent of VI of art. 289 CGI (French) or § 14 Abs. 1 UStG (German). NUANCE NOT MODELED HERE (same limitation as fr.json/de.json's own invoice.send): the text conditions recourse to the electronic invoice on THE RECIPIENT'S ACCEPTANCE — except that, unlike France or Germany, Italy has made transmission via the Sistema di Interscambio (SdI) MANDATORY for nearly all domestic invoicing since 2019 (fact already flagged, but left 'unverified'/'suggested' for lack of a citation of its own, dated to its own consultation date, in transports/channel-policy/data/it.json — a DISTINCT subject, the channel/mandate, outside the scope of this rule which only covers the admissibility of the electronic SENDING itself)."
     },
     {
       "typeId": "invoice",
@@ -113,7 +113,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Dupliquer une facture en un nouveau brouillon est la même commodité produit pure que quote.duplicate ci-dessus — le nouveau document naît 'draft' et repart intégralement dans le circuit d'émission normal, donc aucun texte identifié n'encadre l'acte de duplication lui-même en droit italien. La question fiscale (DPR 633/72) porte sur LA FACTURE ÉMISE qui en résultera, pas sur ce brouillon initial. À confirmer par une revue dédiée si une règle spécifique venait un jour à s'attacher à la création automatisée de brouillons de facture."
+        "resolutionNote": "Duplicating an invoice into a new draft is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and re-enters the normal issuance circuit in full, so no text identified governs the act of duplication itself under Italian law. The tax question (DPR 633/72) bears on the ISSUED INVOICE that will result from it, not on this initial draft. To be confirmed by a dedicated review should a specific rule ever come to attach to the automated creation of invoice drafts."
       }
     },
     {
@@ -122,7 +122,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer un paiement est une écriture comptable interne ; aucun texte spécifique identifié qui encadrerait le fait même de le déclarer dans cet outil. Le solde qui en résulte est une PROJECTION affichée à l'écran, jamais un statut du document — voir invoice.descriptor.ts."
+        "resolutionNote": "Recording a payment is an internal accounting entry; no specific text identified that would govern the mere fact of declaring it in this tool. The resulting balance is a PROJECTION displayed on screen, never a status of the document — see invoice.descriptor.ts."
       }
     },
     {
@@ -131,7 +131,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "L'EN 16931 est une NORME TECHNIQUE européenne (directive 2014/55/UE) — ce n'est pas en soi une obligation légale italienne pour CETTE entreprise de la produire. Le format national réellement mandaté en Italie est la FatturaPA, transmise via le SdI (sujet DISTINCT, canal/format imposé — voir transports/channel-policy/data/it.json, resté 'suggested'/unverified faute de citation propre à sa propre date de consultation), hors du périmètre de cette règle qui ne construit que le FORMAT normalisé volontaire EN 16931, même distinction que fr.json/de.json/us.json pour la même action. Cette règle autorise donc le TÉLÉCHARGEMENT volontaire d'un export EN 16931 sans affirmer qu'il est légalement requis SOUS CETTE FORME PRÉCISE."
+        "resolutionNote": "EN 16931 is a European TECHNICAL STANDARD (directive 2014/55/EU) — it is not in itself an Italian legal obligation for THIS company to produce it. The national format actually mandated in Italy is FatturaPA, transmitted via the SdI (a DISTINCT subject, the imposed channel/format — see transports/channel-policy/data/it.json, left 'suggested'/unverified for lack of a citation of its own, dated to its own consultation date), outside the scope of this rule which only builds the voluntary standardized EN 16931 FORMAT, the same distinction as fr.json/de.json/us.json for the same action. This rule therefore authorizes the voluntary DOWNLOAD of an EN 16931 export without asserting that it is legally required IN THIS PRECISE FORM."
       }
     },
     {
@@ -140,7 +140,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Exporter une facture vers un outil comptable est une commodité produit ; aucun texte spécifique identifié qui encadrerait le fait même de proposer cet export. Cette action n'a de toute façon aucune implémentation enregistrée à ce jour (voir invoice-actions.ts) — le blocage réel vient du 501, pas de cette règle."
+        "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific text identified that would govern the mere fact of offering this export. This action has in any case no registered implementation to date (see invoice-actions.ts) — the actual block comes from the 501, not from this rule."
       }
     },
     {
@@ -149,7 +149,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Générer un lien public non authentifié vers le PDF d'une facture est une commodité produit du même ordre que 'download-xml' juste au-dessus : aucun texte identifié n'impose ni n'interdit spécifiquement le partage d'un lien vers une facture déjà communiquée à son destinataire légitime. La sécurité du lien est une garantie technique documentée dans share-links/share-links.service.ts, pas une exigence légale distincte à sourcer ici."
+        "resolutionNote": "Generating a public, unauthenticated link to an invoice's PDF is a product convenience of the same order as 'download-xml' just above: no text identified specifically imposes or prohibits the sharing of a link to an invoice already communicated to its legitimate recipient. The link's security is a technical guarantee documented in share-links/share-links.service.ts, not a distinct legal requirement to source here."
       }
     },
     {
@@ -158,7 +158,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer un brouillon d'avoir est une opération interne au produit. Le régime légal de la nota di credito italienne (voir credit-note.send ci-dessous) concerne le CONTENU et le statut fiscal du document, pas l'acte d'enregistrer un brouillon — même distinction que fr.json/de.json pour cette même action."
+        "resolutionNote": "Saving a credit note draft is an internal product operation. The legal regime of the Italian nota di credito (see credit-note.send below) concerns the CONTENT and the tax status of the document, not the act of saving a draft — same distinction as fr.json/de.json for this same action."
       }
     },
     {
@@ -170,7 +170,7 @@
         "sourceText": "ha diritto di portare in detrazione [...] ; commas 9 et 10 qualifient cette voie de « facoltà » — nature : faculté, jamais obligation.",
         "sourceCheckedAt": "2026-08-29"
       },
-      "notes": "RÉUTILISE la citation déjà lue par correction-routes/data/it.json (route CREDIT_NOTE, allowed) — Art. 26 DPR 633/72, comma 2, consultée le 2026-08-29 (date préservée : reprise, pas revérifiée par cette tâche). Le fait précis dont ce SEND a besoin — émettre un document réduisant le montant d'une facture italienne (la nota di credito, document type TD04 dans la nomenclature SdI) est-il légalement ouvert — est exactement celui que cette citation tranche : c'est une FACULTÉ ouverte par l'art. 26 comma 2 DPR 633/72, jamais une obligation (à la différence de la hausse — DEBIT_NOTE, comma 1, 'DEVONO ESSERE OSSERVATE' — l'asymétrie canonique italienne, non pertinente pour ce SEND de baisse). Distinct de fr.json/de.json's own choix de laisser credit-note.send unverified : ici une citation nette, propre au SENS baisse, existe déjà dans ce dépôt (correction-routes) et tranche exactement ce fait, donc elle est promue."
+      "notes": "REUSES the citation already read by correction-routes/data/it.json (route CREDIT_NOTE, allowed) — Art. 26 DPR 633/72, comma 2, checked on 2026-08-29 (date preserved: reused, not re-verified by this task). The precise fact this SEND needs — is issuing a document that reduces the amount of an Italian invoice (the nota di credito, document type TD04 in the SdI nomenclature) legally open — is exactly what this citation settles: it is a FACULTY (option) opened by art. 26 comma 2 DPR 633/72, never an obligation (unlike the increase case — DEBIT_NOTE, comma 1, 'DEVONO ESSERE OSSERVATE' — the canonical Italian asymmetry, not relevant for this decrease SEND). Distinct from fr.json/de.json's own choice to leave credit-note.send unverified: here a clear citation, specific to the DECREASE direction, already exists in this repo (correction-routes) and settles exactly this fact, so it is promoted."
     },
     {
       "typeId": "credit-note",
@@ -178,7 +178,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Même raisonnement que invoice.share-link ci-dessus, appliqué à l'avoir : aucun texte identifié n'encadre spécifiquement le partage d'un lien public vers un avoir déjà communiqué à son destinataire."
+        "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
       }
     },
     {
@@ -187,7 +187,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer une dépense est une écriture de gestion interne à l'outil. Les obligations comptables italiennes portent sur la comptabilité de l'entreprise elle-même, pas sur ce mécanisme d'enregistrement dans l'outil. À confirmer par une revue dédiée si ce noyau venait à produire des documents comptables opposables à partir de ces données."
+        "resolutionNote": "Recording an expense is an internal management entry within the tool. Italian accounting obligations bear on the company's own bookkeeping, not on this recording mechanism within the tool. To be confirmed by a dedicated review should this core ever come to produce enforceable accounting documents from this data."
       }
     },
     {
@@ -196,7 +196,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Supprimer une dépense mal saisie ; aucun texte identifié n'encadre spécifiquement la suppression d'une telle écriture avant toute clôture comptable. À confirmer par une revue dédiée si ce noyau venait à distinguer un état \"clôturé\" pour une dépense."
+        "resolutionNote": "Deleting an incorrectly entered expense; no text identified specifically governs the deletion of such an entry before any accounting closing. To be confirmed by a dedicated review should this core ever come to distinguish a \"closed\" state for an expense."
       }
     },
     {
@@ -206,7 +206,7 @@
       "statuses": ["received"],
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer (ou corriger) les champs d'une facture reçue est une opération de gestion interne — cet outil ne fait que consigner un fait déjà survenu, jamais émettre quoi que ce soit. Le champ `statuses` restreint la ré-écriture des champs au statut 'received' seul : une fois approuvée ou rejetée, la décision de revue ne doit plus pouvoir être silencieusement défaite (même mécanique que `invoice.save-draft` ci-dessus). Non recherché ici : l'Italie reçoit ses factures domestiques via le SdI, un canal agréé (sujet distinct, hors périmètre de ce workflow interne d'approbation)."
+        "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool only records a fact that has already occurred, never issues anything. The `statuses` field restricts the rewriting of fields to the 'received' status alone: once approved or rejected, the review decision must no longer be silently undone (same mechanics as `invoice.save-draft` above). Not researched here: Italy receives its domestic invoices via the SdI, an accredited channel (a distinct subject, outside the scope of this internal approval workflow)."
       }
     },
     {
@@ -215,7 +215,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Marquer une facture reçue comme approuvée est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+        "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no text identified specifically governs this act."
       }
     },
     {
@@ -224,7 +224,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Marquer une facture reçue comme rejetée (litige, erreur du fournisseur) est une décision de revue interne à l'entreprise ; aucun texte identifié n'encadre spécifiquement cet acte."
+        "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision; no text identified specifically governs this act."
       }
     },
     {
@@ -233,7 +233,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Supprimer un enregistrement de facture reçue avant toute décision d'approbation/rejet est une commodité produit, même nature que `expense.delete` ci-dessus ; aucun texte identifié ne l'encadre. Le descripteur restreint déjà cette action au statut 'received' seul."
+        "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, of the same nature as `expense.delete` above; no text identified governs it. The descriptor already restricts this action to the 'received' status alone."
       }
     },
     {
@@ -242,7 +242,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer un brouillon de bon de commande est une opération interne au produit, sans lien avec la TVA ou la facturation — même raisonnement que quote.save-draft ci-dessus (voir sa propre note pour la recherche menée sur les codes applicables) : aucun texte identifié qui encadrerait spécifiquement l'enregistrement d'un tel brouillon. Un bon de commande engage d'ailleurs moins qu'un devis (il ne constitue pas une offre de vente, seulement une intention d'achat de la société elle-même émettrice), ce qui rend d'autant moins probable l'existence d'un texte le visant. Recherche non reprise spécifiquement pour ce type/action (2026-09-15) — à revoir si un besoin réel l'exige."
+        "resolutionNote": "Saving a purchase order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order also commits less than a quote (it does not constitute a sales offer, only a purchase intent of the issuing company itself), which makes the existence of a text targeting it all the less likely. Research not specifically conducted for this type/action (2026-09-15) — to be revisited should a real need require it."
       }
     },
     {
@@ -254,7 +254,7 @@
         "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
         "sourceCheckedAt": "2026-09-03"
       },
-      "notes": "Règlement (UE) n° 910/2014 (eIDAS), art. 25 § 1 — le MÊME texte, à la même date de vérification, que quote.send ci-dessus (voir sa propre note : un RÈGLEMENT européen s'applique directement, sans variante nationale, dans tous les États membres). Un bon de commande n'est ni une facture ni un devis, mais un document électronique comme un autre au regard de ce texte : c'est ce même régime général de non-discrimination de l'écrit électronique qui fonde son envoi par courriel, jamais un texte propre à la facturation ou à la TVA (aucun n'existe pour ce type — voir purchase-order.descriptor.ts's own header)."
+      "notes": "Regulation (EU) No 910/2014 (eIDAS), Art. 25 § 1 — the SAME text, at the same verification date, as quote.send above (see its own note: a European REGULATION applies directly, with no national variant, in every Member State). A purchase order is neither an invoice nor a quote, but an electronic document like any other with regard to this text: it is this same general regime of non-discrimination against the electronic written form that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
     },
     {
       "typeId": "purchase-order",
@@ -262,7 +262,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Annuler un bon de commande envoyé à un fournisseur est un acte purement commercial (l'entreprise renonce à sa propre commande), jamais la correction d'un document fiscal déjà transmis — ce n'est PAS une voie de correction au sens de correction-routes/ (CANCEL_AND_REPLACE et les autres routes de ce module ne concernent qu'un document fiscal DÉJÀ ÉMIS à un tiers dont la loi encadre la correction, ce qu'un bon de commande n'est pas — voir purchase-order-actions.ts's own header). Les conséquences contractuelles d'une telle annulation vis-à-vis du fournisseur relèvent du droit commun des contrats, hors du périmètre de cette règle (qui ne dit que si CET OUTIL peut enregistrer l'écriture, jamais si l'annulation est opposable au fournisseur). Aucune recherche dédiée menée pour ce type/action (2026-09-15) — à revoir si un besoin réel l'exige."
+        "resolutionNote": "Canceling a purchase order sent to a supplier is a purely commercial act (the company renounces its own order), never the correction of a tax document already transmitted — it is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module only concern a tax document ALREADY ISSUED to a third party whose correction is governed by law, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation toward the supplier fall under ordinary contract law, outside the scope of this rule (which only states whether THIS TOOL can record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to be revisited should a real need require it."
       }
     },
     {
@@ -271,7 +271,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Enregistrer un brouillon de bon de réception est une opération interne, purement documentaire (ce que le magasin de cette société a constaté avoir reçu) — même raisonnement que purchase-order.save-draft ci-dessus : aucun texte identifié qui encadrerait spécifiquement l'enregistrement d'un tel brouillon, ce document n'étant transmis à personne (voir goods-receipt.descriptor.ts's own header). Recherche non menée spécifiquement pour ce type/action, nouvellement créé (2026-09-15) — à revoir si un besoin réel l'exige."
+        "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse has recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, this document not being transmitted to anyone (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited should a real need require it."
       }
     },
     {
@@ -280,7 +280,7 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Finaliser un bon de réception (statut 'recorded') est un acte de gestion interne — arrêter ce que le magasin a constaté avoir reçu contre un bon de commande, pour nourrir un contrôle de rapprochement à 3 voies lui-même interne à l'outil, jamais transmis à un tiers ni déclaré à une administration. Aucun texte identifié qui viserait cet acte spécifiquement. Recherche non menée spécifiquement pour ce type/action, nouvellement créé (2026-09-15) — à revoir si un besoin réel l'exige."
+        "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — closing out what the warehouse has recorded as received against a purchase order, to feed a 3-way matching check that is itself internal to the tool, never transmitted to a third party nor declared to an administration. No text identified that would specifically target this act. Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited should a real need require it."
       }
     },
     {
@@ -289,9 +289,9 @@
       "allowed": true,
       "provenance": {
         "kind": "unverified",
-        "resolutionNote": "Restreint par le descripteur lui-même au statut 'draft' (goods-receipt.descriptor.ts) : une fois enregistré ('recorded'), un bon de réception fait partie de la trace de rapprochement qu'une facture reçue peut déjà avoir été comparée contre, et sa suppression n'est de toute façon plus offerte par l'écran. Avant cela, supprimer un brouillon mal saisi est la même opération interne, sans destinataire, que purchase-order.save-draft/received-invoice.delete ci-dessus (voir leurs propres notes pour la tension, non tranchée ici non plus, sur les obligations de conservation d'une pièce justificative — LPF art. L. 102 B et L. 102 C, C. com. art. L. 123-22 — qui visent la FACTURE reçue, jamais nommément un bon de réception interne). Recherche non menée spécifiquement pour ce type/action, nouvellement créé (2026-09-15) — à revoir si un besoin réel l'exige."
+        "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting an incorrectly entered draft is the same internal operation, with no recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, on the retention obligations for a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never a goods receipt by name). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited should a real need require it."
       }
     }
   ],
-  "notes": "Italie — recherche du 2026-09-03. Les actes internes au produit reprennent le raisonnement déjà tenu par fr.json/us.json pour les mêmes actions. Le lourd légal repose sur deux sources : (1) une lecture FRAÎCHE, DIRECTE, du 2026-09-03 sur normattiva.it (le portail officiel italien des textes consolidés) pour l'art. 21 comma 1 DPR 633/1972 (invoice.send) et sur eur-lex.europa.eu pour le règlement eIDAS (quote.send) ; (2) la RÉUTILISATION, datée et non re-vérifiée, des citations déjà lues le 2026-08-29 par correction-routes/data/it.json pour l'immutabilité de la facture émise (invoice.save-draft, CORRECTIVE_INVOICE forbidden — la citation la plus nette des cinq nouveaux pays sur ce fait) et pour l'avoir (credit-note.send, CREDIT_NOTE allowed) — chacune ne vaut que pour le fait exact qu'elle tranche ici, jamais étirée au-delà."
+  "notes": "Italy — research from 2026-09-03. The acts internal to the product follow the same reasoning already held by fr.json/us.json for the same actions. The legal weight rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on normattiva.it (the official Italian portal for consolidated texts) for art. 21 comma 1 DPR 633/1972 (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/it.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE forbidden — the clearest citation among the five new countries on this fact) and for the credit note (credit-note.send, CREDIT_NOTE allowed) — each one only holds for the exact fact it settles here, never stretched beyond that."
 }

@@ -46,7 +46,7 @@ describe('PL — vat-rates/data/pl.json', () => {
         expect(standard.provenance.sourceText).toMatch(/Art\. 146ef/);
         expect(standard.provenance.sourceText).toMatch(/wynosi 23 %/);
       }
-      expect(standard.notes).toMatch(/CECI N'EST PAS UN TAUX FIXE/);
+      expect(standard.notes).toMatch(/THIS IS NOT A FIXED RATE/);
 
       const reduced = pl.rates.find((r) => r.id === 'pl-reduced-8')!;
       expect(reduced.rate).toBe(8);

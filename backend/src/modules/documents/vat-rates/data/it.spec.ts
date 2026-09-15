@@ -79,7 +79,7 @@ describe('IT — vat-rates/data/it.json', () => {
 
   it('does not model Tabella A parte I (the flat-rate farmer compensation mechanism under art. 34)', () => {
     expect(it_.notes ?? '').toMatch(/PARTE I\b/);
-    expect(it_.notes ?? '').toMatch(/N'EST PAS MODÉLISÉE/);
+    expect(it_.notes ?? '').toMatch(/IS NOT MODELED/);
   });
 
   it('documents the 2027-01-01 repeal/renumbering to TUIVA art. 34 on every rate, keeping the same figures', () => {
