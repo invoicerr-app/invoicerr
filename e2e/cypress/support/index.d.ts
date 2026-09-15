@@ -53,5 +53,14 @@ declare namespace Cypress {
          * @example cy.ensureClient()
          */
         ensureClient(): Chainable<void>
+
+        /**
+         * Picks "today" on a `DatePicker` via its own "Today" footer button (never a computed
+         * `[data-day="M/D/YYYY"]` selector — see the implementation for the CI races that caused).
+         * Scrolls the trigger into view, clicks it, waits for the "Today" button, clicks it, then
+         * asserts the popover has actually closed.
+         * @example cy.pickToday('[data-cy="document-field-issueDate-input"]')
+         */
+        pickToday(triggerSelector: string): Chainable<void>
     }
 }

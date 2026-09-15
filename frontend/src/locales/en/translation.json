@@ -2896,6 +2896,9 @@
       "searchPlaceholder": "Search currencies...",
       "noResults": "No currencies found"
     },
+    "date-picker": {
+      "today": "Today"
+    },
     "country-select": {
       "placeholder": "Select a country",
       "searchPlaceholder": "Search countries...",

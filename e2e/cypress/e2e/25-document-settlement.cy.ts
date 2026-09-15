@@ -323,9 +323,7 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 					// Fill in what the descriptor still requires — issueDate (a real calendar click,
 					// "today") and one corrected line (the invoice's own single line, ROW_ID_KEY-
 					// stamped by save-draft above) — so the record actually persists.
-					cy.get('[data-cy="document-field-issueDate-input"]').click();
-					const today = new Date().toLocaleDateString();
-					cy.get(`[data-day="${today}"]`).click();
+					cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 					cy.get('[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]', {
 						timeout: 10000,

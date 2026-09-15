@@ -368,9 +368,7 @@ describe("Correct — the screen, browser level", () => {
 					// What the descriptor still requires: the credit note's own issue date and the
 					// corrected line (taken from the linked invoice — the same pattern as 25's own
 					// `lockedFromReference` test).
-					cy.get('[data-cy="document-field-issueDate-input"]').click();
-					const today = new Date().toLocaleDateString();
-					cy.get(`[data-day="${today}"]`).click();
+					cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 					cy.get(
 						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]',

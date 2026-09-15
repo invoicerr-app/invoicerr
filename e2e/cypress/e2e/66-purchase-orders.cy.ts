@@ -44,23 +44,12 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 		cy.get('[data-cy="document-field-supplier-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-supplier-input-options"] button').first().click();
 
-		// "issueDate" — a real calendar click, "today". NOT the eager
-		// `const today = new Date().toLocaleDateString()` placed BEFORE the click (25-document-
-		// settlement.cy.ts still has that version): Cypress commands are QUEUED, not run immediately,
-		// so a plain statement between two commands captures the wall clock at test-BODY-execution
-		// time — seconds (and several other queued commands) before this click actually opens the
-		// calendar in the browser. The calendar (react-day-picker) computes its OWN "today" only once
-		// it mounts, right when the click resolves. CI run 34930840117 (`[data-day="9/15/2026"]` never
-		// found) is exactly the failure 62-expense-attachments.cy.ts's own `pickToday()` helper was
-		// written to fix (see its header, established on a run straddling the 2026-09-14/15 UTC
-		// midnight): deferring the computation into the `.then()` below shrinks that window to the
-		// click's own settle time, the same fix applied here.
-		cy.get('[data-cy="document-field-issueDate-input"]')
-			.click()
-			.then(() => {
-				const today = new Date().toLocaleDateString();
-				cy.get(`[data-day="${today}"]`).click();
-			});
+		// "issueDate" — a real calendar click, "today", via the DatePicker's own "Today" footer button
+		// rather than a computed `[data-day="M/D/YYYY"]` selector: CI run 34930840117
+		// (`[data-day="9/15/2026"]` never found) was exactly this — a stale/off-screen calendar cell
+		// racing the test's own locale-formatted guess. `cy.pickToday()` (support/commands.ts) removes
+		// the race at the source instead of shrinking its window.
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		// "currency" — a SearchSelect, same pattern as 20-document-totals.cy.ts's own currency fill.
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });

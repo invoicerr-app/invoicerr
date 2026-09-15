@@ -4,7 +4,7 @@ import { Button } from "./ui/button"
 import { Calendar } from "./ui/calendar"
 import { CalendarIcon } from "lucide-react"
 import { FormControl } from "./ui/form"
-import { Fragment } from "react"
+import { Fragment, useState } from "react"
 import { useFormContext } from "react-hook-form"
 import type React from "react"
 import { cn } from "@/lib/utils"
@@ -22,7 +22,7 @@ interface DatePickerProps {
 }
 
 const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   // `FormControl` reaches for react-hook-form's context to wire a field's id, description and error
   // together. Outside a `<Form>` that context is null and the component throws while destructuring
@@ -33,8 +33,14 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
   const insideForm = useFormContext() !== null
   const Wrapper = insideForm ? FormControl : Fragment
 
+  // Controlled so both a day click and the "Today" shortcut below can close the popover themselves
+  // -- an uncontrolled Popover only ever closes on an outside click/Escape, which used to leave a
+  // date picker sitting open (invisibly blocking nothing, but never producing the "pick and move on"
+  // feel a calendar is expected to have) after a date was chosen.
+  const [open, setOpen] = useState(false)
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Wrapper {...(insideForm ? { className: "w-full" } : {})}>
           <Button
@@ -62,10 +68,28 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
           required
           mode="single"
           selected={field.value || undefined}
-          onSelect={field.onChange}
+          onSelect={(date) => {
+            field.onChange(date ?? null)
+            setOpen(false)
+          }}
           captionLayout="dropdown"
           showOutsideDays={field.showOutsideDays || true}
         />
+        <div className="flex justify-center border-t p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            data-cy="date-picker-today"
+            onClick={() => {
+              field.onChange(new Date())
+              setOpen(false)
+            }}
+          >
+            {t("component.date-picker.today")}
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   )

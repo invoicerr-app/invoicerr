@@ -118,6 +118,25 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
     cy.get(`[data-cy="${dataCy}-option-${countryName.toLowerCase().replace(/\s+/g, '-')}"]`, { timeout: 3000 }).should('exist').click({ force: true });
 });
 
+/**
+ * Picks "today" on a `DatePicker` (frontend/src/components/date-picker.tsx) through its own "Today"
+ * footer button, never a computed `[data-day="M/D/YYYY"]` selector. That selector depended on the
+ * test computing the SAME locale/timezone string react-day-picker would compute for its own "today"
+ * cell, and on the popover having actually mounted that cell inside the CI viewport (1000x660) by the
+ * time the click fired — three independent ways to race or mismatch, all observed in CI (runs
+ * 34954776077, 34930840117, 34951814251). `scrollIntoView()` on the trigger first, because the
+ * popover anchors below it and a trigger sitting under the fold of a tall dialog can open a popover
+ * that's itself off-screen.
+ * @example cy.pickToday('[data-cy="document-field-issueDate-input"]')
+ */
+Cypress.Commands.add('pickToday', (triggerSelector: string) => {
+    cy.get(triggerSelector).scrollIntoView().click();
+    cy.get('[data-cy="date-picker-today"]', { timeout: 10000 }).should('be.visible').click();
+    // The popover's content unmounts on close (Radix `Presence`, no `forceMount`) -- its own "Today"
+    // button is gone, not merely hidden, which is what actually proves the popover closed.
+    cy.get('[data-cy="date-picker-today"]').should('not.exist');
+});
+
 Cypress.Commands.add('ensureClient', () => {
     const apiUrl = Cypress.env('apiUrl');
     cy.request({ url: `${apiUrl}/api/clients`, failOnStatusCode: false }).then(({ status, body }: any) => {

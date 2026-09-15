@@ -53,24 +53,6 @@ function pickSelectOption(fieldKey: string, optionSlug: string) {
 	cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${optionSlug}"]`).first().click();
 }
 
-function pickToday(fieldKey: string) {
-	// `today` is computed INSIDE the `.then()`, never above it: Cypress commands are queued, not
-	// executed immediately (cy.get().click() enqueues and returns at once), so a plain `new Date()`
-	// statement between two commands captures the wall clock at TEST-BODY-EXECUTION time — seconds, and
-	// several other queued commands, before this click actually opens the calendar in the browser. The
-	// calendar (react-day-picker) computes its OWN "today" only once it mounts, right when the click
-	// resolves — established the hard way on CI run 34914384074, which straddled the 2026-09-14/15 UTC
-	// midnight: the eagerly-computed date had already rolled over to the 15th by the time the test body
-	// ran, while the calendar (mounting later, after the click actually resolved) was still on the
-	// 14th. Deferring the computation to here shrinks that window to the click's own settle time.
-	cy.get(`[data-cy="document-field-${fieldKey}-input"]`)
-		.click()
-		.then(() => {
-			const today = new Date().toLocaleDateString();
-			cy.get(`[data-day="${today}"]`).click();
-		});
-}
-
 function saveDraft() {
 	// CI run 34909400701 (commit 6cb60096), spec's own first execution: this used to also assert
 	// `cy.get('[data-cy="document-form"]').should("not.exist")` here, and all three tests that called
@@ -124,7 +106,7 @@ describe("Expense attachments, category, and mileage (rank 13)", () => {
 		cy.get('[data-cy="document-field-description-input"]').type("Business lunch with client");
 		cy.get('[data-cy="document-field-amount-input"]').type("45.90");
 		pickSelectOption("currency", "eur");
-		pickToday("date");
+		cy.pickToday('[data-cy="document-field-date-input"]');
 		pickSelectOption("category", "meals");
 
 		// The attachment: the hidden file input behind the "Choose file" button — same `{ force: true }`
@@ -193,7 +175,7 @@ describe("Expense attachments, category, and mileage (rank 13)", () => {
 		cy.get('[data-cy="document-field-description-input"]').type("Suspicious upload attempt");
 		cy.get('[data-cy="document-field-amount-input"]').type("10");
 		pickSelectOption("currency", "eur");
-		pickToday("date");
+		cy.pickToday('[data-cy="document-field-date-input"]');
 
 		cy.get('[data-cy="document-field-attachment-file-input"]').selectFile(
 			{
@@ -227,7 +209,7 @@ describe("Expense attachments, category, and mileage (rank 13)", () => {
 		cy.get('[data-cy="document-field-description-input"]').type("Huge scan attempt");
 		cy.get('[data-cy="document-field-amount-input"]').type("10");
 		pickSelectOption("currency", "eur");
-		pickToday("date");
+		cy.pickToday('[data-cy="document-field-date-input"]');
 
 		// One byte over the documented 750 KiB limit (attachments.service.ts's own
 		// `MAX_ATTACHMENT_BYTES`) — an ALLOWED mime, refused purely for its size.

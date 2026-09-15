@@ -62,25 +62,11 @@ function pickSelectOption(fieldKey: string, optionSlug: string) {
 	cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${optionSlug}"]`).first().click();
 }
 
-function pickToday(fieldKey: string) {
-	// `today` is computed INSIDE the `.then()`, never above it — see the identical helper in
-	// 62-expense-attachments.cy.ts for the established, deterministic (not flaky) midnight-crossing bug
-	// this avoids: Cypress commands are queued, not executed immediately, so a plain `new Date()`
-	// between two commands captures the wall clock at test-body-execution time, well before this click
-	// actually opens the calendar in the browser.
-	cy.get(`[data-cy="document-field-${fieldKey}-input"]`)
-		.click()
-		.then(() => {
-			const today = new Date().toLocaleDateString();
-			cy.get(`[data-day="${today}"]`).click();
-		});
-}
-
 function fillMinimalExpenseNativeFields(description: string) {
 	cy.get('[data-cy="document-field-description-input"]').type(description);
 	cy.get('[data-cy="document-field-amount-input"]').type("10");
 	pickSelectOption("currency", "eur");
-	pickToday("date");
+	cy.pickToday('[data-cy="document-field-date-input"]');
 }
 
 /** Opens Settings -> Custom fields and creates ONE definition through the real screen — the only

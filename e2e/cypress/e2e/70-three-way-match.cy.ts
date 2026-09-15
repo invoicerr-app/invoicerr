@@ -17,11 +17,10 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * DATES: `[data-cy="document-field-*Date-input"]` is a calendar POPOVER with no typable text input at
  * all (frontend/src/components/date-picker.tsx — a button that opens a `<Calendar>`, nothing else) —
- * there is no way to "type" a date into this screen. "Today" is clicked, exactly like
- * 66-purchase-orders.cy.ts/62-expense-attachments.cy.ts already do (the only two — and only —
- * fixtures this repo has ever proven for this control): computed and consumed in the SAME synchronous
- * step, never captured for reuse across a later `.then()`, which is the actual trap this repo's own
- * "today" bug (62's own commit) was about, not the mere presence of `new Date()`.
+ * there is no way to "type" a date into this screen. "Today" is picked via `cy.pickToday()`
+ * (support/commands.ts), which clicks the DatePicker's own "Today" footer button instead of computing
+ * a `[data-day="M/D/YYYY"]` guess — the source of the CI races (runs 34954776077, 34930840117,
+ * 34951814251) that a merely-deferred-computation version of this helper was still exposed to.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -47,8 +46,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.get('[data-cy="document-field-supplier-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-supplier-input-options"] button').first().click();
 
-		cy.get('[data-cy="document-field-issueDate-input"]').click();
-		cy.get(`[data-day="${new Date().toLocaleDateString()}"]`).click();
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
@@ -108,8 +106,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		);
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"] button').first().click();
 
-		cy.get('[data-cy="document-field-receiptDate-input"]').click();
-		cy.get(`[data-day="${new Date().toLocaleDateString()}"]`).click();
+		cy.pickToday('[data-cy="document-field-receiptDate-input"]');
 
 		// The line is PRE-FILLED from the purchase order's own lines the moment "purchaseOrder"
 		// resolves (document-form.tsx's own narrow, named exception — see goods-receipt.descriptor.ts's
