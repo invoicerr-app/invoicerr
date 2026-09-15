@@ -130,7 +130,54 @@ Cypress.Commands.add('selectCountry', (dataCy: string, countryName: string) => {
  * @example cy.pickToday('[data-cy="document-field-issueDate-input"]')
  */
 Cypress.Commands.add('pickToday', (triggerSelector: string) => {
-    cy.get(triggerSelector).scrollIntoView().click();
+    // OPEN-side counterpart of the CLOSE-side race documented below: CI runs 34966958790 (spec 70)
+    // and 34961385407 (specs 63/70) timed out waiting for `[data-cy="date-picker-today"]` to even
+    // APPEAR (10s) -- a failed/undone open, not a slow one. Reading the installed
+    // `@radix-ui/react-dismissable-layer` (1.1.13) shows the same mechanism the close-side comment
+    // below already traced: `usePointerDownOutside` registers its document-level `pointerdown`
+    // listener via a deferred `setTimeout(0)` on mount but only detaches it in a passive effect's
+    // cleanup on unmount -- not synchronous with the `setOpen(false)` that closed the PREVIOUS layer
+    // (a `SearchSelect` combobox, or the sibling `DatePicker` an earlier `pickToday` call just used).
+    // A scripted click on THIS trigger fired inside that window is still visible to the old, stale
+    // listener, which fires its own dismiss/replay handling on the very pointerdown that was meant to
+    // open this popover -- a real user's next click, tens of milliseconds later, never lands inside
+    // that window. Retained hypothesis, not a proven single trace (the CI video artifact for these
+    // runs is ~400MB, too large to pull apart here) -- but it is the same class of bug as the CLOSE
+    // side, on the OPEN side, and the fix is the mirror image: wait before the click the way the
+    // bottom of this command already waits after one, then verify the popover actually opened and
+    // retry the click (bounded) if it didn't, so a genuine product regression still fails loudly
+    // instead of looping forever or timing out with no diagnostic.
+    cy.wait(50);
+    const OPEN_POLL_MS = 100;
+    const OPEN_TIMEOUT_MS = 800;
+    const MAX_ATTEMPTS = 3;
+    const isTodayVisible = () =>
+        cy.get('body').then(($body) => $body.find('[data-cy="date-picker-today"]:visible').length > 0);
+    const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
+        isTodayVisible().then((visible) => {
+            if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible);
+            cy.wait(OPEN_POLL_MS);
+            return pollForOpen(elapsedMs + OPEN_POLL_MS);
+        });
+    const openWithRetries = (attempt: number): void => {
+        cy.get(triggerSelector).scrollIntoView().click();
+        pollForOpen(0).then((opened) => {
+            if (opened || attempt >= MAX_ATTEMPTS) {
+                if (attempt > 1) {
+                    Cypress.log({
+                        name: 'pickToday',
+                        message: opened
+                            ? `popover opened after ${attempt} attempt(s)`
+                            : `popover still not open after ${attempt} attempt(s), giving up retries`,
+                    });
+                }
+                return;
+            }
+            Cypress.log({ name: 'pickToday', message: `popover did not open on attempt ${attempt} -- retrying` });
+            openWithRetries(attempt + 1);
+        });
+    };
+    openWithRetries(1);
     cy.get('[data-cy="date-picker-today"]', { timeout: 10000 }).should('be.visible').click();
     // The popover's content unmounts on close (Radix `Presence`, no `forceMount`) -- its own "Today"
     // button is gone, not merely hidden, which is what actually proves the popover closed.
