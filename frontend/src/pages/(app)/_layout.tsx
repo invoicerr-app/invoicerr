@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
 import { authClient } from "@/lib/auth"
@@ -56,6 +57,10 @@ const AuthenticatedLayout = () => {
           </main>
         </section>
       </PageHeaderProvider>
+      {/* Fixed to the viewport bottom (see the component's own className) — mounted here, not
+          inside any scrolling section, purely for readability; its positioning doesn't depend on
+          where in the tree it sits. */}
+      <PwaInstallPrompt />
     </SidebarProvider>
   )
 }

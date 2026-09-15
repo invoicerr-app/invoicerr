@@ -4365,5 +4365,17 @@
         "description": "A full export of your documents has been emailed to the account owner. Subscribe now to cancel the deletion."
       }
     }
+  },
+  "pwaInstall": {
+    "dismiss": "Dismiss",
+    "android": {
+      "title": "Install Invoicerr",
+      "description": "Install the app for quick access and an app-like experience.",
+      "install": "Install"
+    },
+    "ios": {
+      "title": "Add Invoicerr to your Home Screen",
+      "description": "Tap Share, then \"Add to Home Screen\"."
+    }
   }
 }
