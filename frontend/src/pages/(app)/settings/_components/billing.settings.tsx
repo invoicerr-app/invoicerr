@@ -83,41 +83,25 @@ export default function BillingSettings() {
     // `content-security-policy: frame-ancestors 'none'` on both the redirect and its destination) —
     // so this opens a new tab rather than an in-app iframe.
     //
-    // `window.open` MUST run synchronously inside this click handler: every major browser's popup
-    // blocker only allows a popup opened directly from a user gesture, and `POST /api/billing/portal`
-    // resolving is asynchronous. Opening a blank tab now and pointing it at the real URL once the
-    // portal session comes back is the only sequencing that survives that — a `target="_blank"` link
-    // built after the fetch resolves would already be too late.
-    //
-    // Do NOT pass `noopener` in the features string here: per spec, `window.open` returns `null` when
-    // `noopener` is set, which made the code below think the popup was blocked and fall back to
-    // `window.location.href` — leaving the owner on an empty tab they never asked for AND redirecting
-    // their current tab to the portal. Keep the window handle instead, and sever `opener` ourselves
-    // right before the real navigation (below) — same security property, without losing the handle.
-    const portalWindow = window.open("", "_blank")
-    if (portalWindow) {
-      const openingLabel = t("settings.billing.messages.openingPortal", "Opening Polar…")
-      portalWindow.document.title = openingLabel
-      portalWindow.document.body.innerText = openingLabel
-    }
-
+    // No blank tab is pre-opened while `POST /api/billing/portal` is in flight (the button just
+    // disables + spins, see `openPortal.isPending` below) — a placeholder tab reading "Opening
+    // Polar…" is a blank page the owner didn't ask for. That means `window.open` below runs from
+    // this async callback rather than synchronously inside the click handler, so the popup blocker
+    // may refuse it; when it does, `window.open` returns `null` and we hand the owner a toast with a
+    // link they can click themselves instead of silently doing nothing.
     openPortal.mutate(undefined, {
       onSuccess: (data) => {
-        if (portalWindow) {
-          // Cut the link back to this tab before navigating away — the portal tab can no longer
-          // reach `window.opener` once it's pointed at Polar.
-          portalWindow.opener = null
-          portalWindow.location.href = data.url
-        } else {
-          // The blank tab itself got blocked (no window handle at all) — fall back to navigating
-          // this tab rather than leaving the user with a button that silently did nothing.
-          window.location.href = data.url
+        const portalWindow = window.open(data.url, "_blank", "noopener,noreferrer")
+        if (!portalWindow) {
+          toast(t("settings.billing.messages.openPortalBlocked", "Your browser blocked the popup"), {
+            action: {
+              label: t("settings.billing.messages.openPortalBlockedAction", "Open Polar"),
+              onClick: () => window.open(data.url, "_blank", "noopener,noreferrer"),
+            },
+          })
         }
       },
       onError: (error) => {
-        // Nothing to show in the tab we opened — close it rather than stranding the owner on an
-        // empty tab they didn't ask for.
-        portalWindow?.close()
         toast.error(
           error instanceof ApiError
             ? error.message
