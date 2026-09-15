@@ -67,6 +67,7 @@ import {
   CORRECTION_ROUTES_DATA_DIR_HINT,
   resolveCorrectionRoutesForCountry,
 } from './correction-routes/correction-routes';
+import { applyCompanyCustomFieldsView } from './company-custom-fields/persistence';
 import { applyFieldOverlay } from './country-fields/apply-overlay';
 import { FieldOverlayOperation } from './country-fields/schema';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
@@ -530,24 +531,37 @@ export class DocumentsService implements OnModuleInit {
    * The descriptor a FRONTEND actually renders — `getType` above, but with:
    *  - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
    *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
-   *  - each FIELD passed through the company's own field VIEW (descriptors/company-view.ts): the
-   *    country field overlay (add/modify/remove — country-fields/) and the VAT rate catalog
-   *    (vat-rates/) filling in a field like the invoice line's `vatRate`.
+   *  - each FIELD passed through the company's own field VIEW, composed in THREE steps, each one
+   *    layered on the result of the one before it:
+   *     1. `descriptors/company-view.ts#applyCompanyFieldView` — the country field overlay
+   *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
+   *        field like the invoice line's `vatRate`.
+   *     2. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` — this company's own
+   *        ACTIVE custom field definitions (TODO_FEATURES.md rank 15), appended as plain `add`
+   *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
+   *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
+   *        that happens to be scoped by company instead of by country — see that function's own
+   *        header for why it composes AFTER the country view, never before or in place of it.
+   *     3. `applyB2gDocumentFieldHints` (below) — the CLIENT's own country's B2G rule, when one
+   *        resolves and `clientId` is given.
    *
-   * Both are country-aware VIEWS layered on top of the plain descriptor, never a change to
+   * All three are VIEWS layered on top of the plain descriptor, never a change to
    * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
    * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
-   * that build a service with no company at all) is unaffected.
+   * that build a service with no company at all) is unaffected. `runAction` (further down) composes
+   * the exact same steps 1-2 (never step 3 — see that method's own comment) before validating, so
+   * "what the form offers" and "what actually gets checked/blocked" can never drift apart — the same
+   * discipline this module already holds for country policy and status.
    *
    * `policyBlockedReason` is PLAIN TEXT, not an i18n key — same convention as `label`/`message`
    * elsewhere in this module — so the frontend can show it verbatim without knowing any country.
    * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
    * from "explicitly not blocked" here, only "has a reason" from "doesn't".
    *
-   * `clientId` (optional) adds a THIRD, orthogonal source on top of the two `applyCompanyFieldView`
-   * already folds in — see `applyB2gDocumentFieldHints`'s own header just below for why this is keyed
-   * on the CLIENT's own country, never the company's: a French company invoicing a German government
-   * body has no field-overlay file of its OWN country to thank for a Leitweg-ID input
+   * `clientId` (optional) adds a FOURTH, orthogonal source on top of the ones composed above — see
+   * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
+   * country, never the company's: a French company invoicing a German government body has no
+   * field-overlay file of its OWN country to thank for a Leitweg-ID input
    * (`country-fields/data/de.json`'s own overlay only ever applies for a DE-country COMPANY — see
    * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
    * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
@@ -606,7 +620,8 @@ export class DocumentsService implements OnModuleInit {
       fieldOverlayCatalog: this.countryFieldOverlayCatalog,
       vatRateCatalog: this.vatRateCatalog,
     });
-    const fields = await this.applyB2gDocumentFieldHints(companyViewFields, companyId, clientId);
+    const fieldsWithCustom = await applyCompanyCustomFieldsView(companyId, typeId, companyViewFields);
+    const fields = await this.applyB2gDocumentFieldHints(fieldsWithCustom, companyId, clientId);
 
     return {
       ...descriptor,
@@ -899,20 +914,30 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    // The FIELDS this company's country actually gets — the same country-field-overlay +
-    // VAT-rate-catalog view describeTypeForCompany hands the frontend (descriptors/company-view.ts).
-    // Validating against the BASE descriptor.fields here would let a scripted client bypass whatever
-    // a country's overlay added/required (or accept a value a REMOVEd field could no longer carry) —
-    // the same "the API refuses exactly what the screen would refuse" discipline the country-policy
-    // check right above already holds for actions, now held for fields too.
+    // The FIELDS this company actually gets — the SAME two-step view describeTypeForCompany hands
+    // the frontend (that method's own header): the country-field-overlay + VAT-rate-catalog view
+    // (descriptors/company-view.ts), THEN this company's own ACTIVE custom field definitions
+    // (company-custom-fields/persistence.ts#applyCompanyCustomFieldsView, TODO_FEATURES.md rank 15)
+    // composed on top of it. Validating against the BASE descriptor.fields here would let a scripted
+    // client bypass whatever a country's overlay added/required (or accept a value a REMOVEd field
+    // could no longer carry), and skip a company's own required custom field entirely — the same
+    // "the API refuses exactly what the screen would refuse" discipline the country-policy check
+    // right above already holds for actions, now held for fields too. This is what makes a required
+    // custom field left empty block "send" (and every other action), not merely "save-draft": every
+    // action funnels through this exact check before its handler ever runs (see this method's own
+    // header). Deliberately NOT the third step (`applyB2gDocumentFieldHints`) — a PRE-EXISTING gap
+    // this change does not touch: a B2G-required field (e.g. Germany's Leitweg-ID,
+    // `data.buyerReference`) is offered on the FORM (describeTypeForCompany) but never independently
+    // enforced here, same as before this feature existed.
     const countryCode = await resolveCompanyCountryCode(companyId);
-    const fields = applyCompanyFieldView({
+    const countryViewFields = applyCompanyFieldView({
       typeId,
       fields: descriptor.fields,
       countryCode,
       fieldOverlayCatalog: this.countryFieldOverlayCatalog,
       vatRateCatalog: this.vatRateCatalog,
     });
+    const fields = await applyCompanyCustomFieldsView(companyId, typeId, countryViewFields);
 
     const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
     // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares

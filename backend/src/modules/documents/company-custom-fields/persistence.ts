@@ -3,12 +3,21 @@
  * `payment-methods/persistence.ts` already draws (plain functions, not a Nest service): this module
  * is read from both the settings-screen controller AND the plain rendering pipeline
  * (`rendering/render-instance-pdf.ts` has no Nest injector to pull a service from), and from
- * `actions/generic-actions.ts`'s `performSaveDraft` for the save-time validation pass.
+ * `documents.service.ts`'s `describeTypeForCompany`/`runAction` (`applyCompanyCustomFieldsView`
+ * below), which is what makes a company custom field validate on every action a document has —
+ * "send" included — not merely on "save-draft". See that function's own header for why the earlier
+ * `actions/generic-actions.ts#performSaveDraft` hook this module used to expose
+ * (`assertDocumentCustomFieldValuesValid`, CLIENT-side counterpart `assertClientCustomFieldValuesValid`
+ * kept) was removed once this composition point existed: `runAction` is the ONE place a document
+ * action ever actually runs, so a check inside one single handler was strictly narrower than, and
+ * therefore made redundant by, one wired into the shared field VIEW every handler's data is already
+ * checked against.
  */
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
+import { applyFieldOverlay } from '../country-fields/apply-overlay';
 import { FieldKindRegistry, registerCoreFieldKinds } from '../descriptors/field-kinds';
 import { validateAgainstDescriptor } from '../descriptors/validate';
 import {
@@ -55,6 +64,19 @@ function slugify(label: string): string {
  * constraint alone: schema.prisma's own `@@unique` cannot distinguish two DIFFERENT
  * `documentTypeId: null` ("every document type") rows from each other (Postgres treats two NULLs as
  * unequal for uniqueness) — see that constraint's own comment.
+ *
+ * For a DOCUMENT-target field, the scope checked is WIDER than the exact `documentTypeId` this row
+ * will carry: `resolveDocumentCustomFieldDescriptors` resolves one TYPE's fields as the UNION of that
+ * type's own rows AND the `documentTypeId: null` ("every type") rows (its own header), so a specific
+ * type's row and an "every type" row are composed together the moment anyone asks for that type's
+ * fields — `applyCompanyCustomFieldsView` (below) then feeds both into
+ * `country-fields/apply-overlay.ts#applyFieldOverlay` as plain `add` operations, which THROWS on a
+ * duplicate key. A key must therefore be unique across whichever OTHER scope could end up composed
+ * alongside it, never merely within its own exact `documentTypeId` value — a NEW "every type" field
+ * must not collide with an EXISTING specific-type one (or every type using it would break the moment
+ * this field is added), and a NEW specific-type field must not collide with an EXISTING "every type"
+ * one either. CLIENT-target rows have no such cross-scope composition (`documentTypeId` is always
+ * `null` for them — see this model's own header), so they keep the exact, single-scope check.
  */
 async function findAvailableKey(
   companyId: string,
@@ -63,10 +85,21 @@ async function findAvailableKey(
   label: string,
 ): Promise<string> {
   const base = slugify(label);
+  // Prisma's `in` filter never matches a NULL column value (a Postgres/Prisma limitation, not a
+  // choice here) — the "specific type OR every type" scope below is therefore an explicit `OR` of
+  // two `equals` clauses, never `documentTypeId: { in: [documentTypeId, null] } }`, which would
+  // silently drop the `null` half and let a genuine collision through uncaught.
+  const scope =
+    target === 'DOCUMENT'
+      ? documentTypeId === null
+        ? {} // "every type": collides with ANY existing DOCUMENT-target row, whatever ITS own scope.
+        : { OR: [{ documentTypeId }, { documentTypeId: null }] }
+      : { documentTypeId };
+
   for (let attempt = 0; ; attempt++) {
     const candidate = attempt === 0 ? base : `${base}_${attempt + 1}`;
     const existing = await prisma.companyCustomField.findFirst({
-      where: { companyId, target, documentTypeId, key: candidate },
+      where: { companyId, target, key: candidate, ...scope },
       select: { id: true },
     });
     if (!existing) return candidate;
@@ -262,30 +295,43 @@ export async function resolveClientCustomFieldDescriptors(
 }
 
 /**
- * Validates a document's own `data` against `companyId`'s ACTIVE (non-archived) custom field
- * definitions for `typeId` — called from `actions/generic-actions.ts#performSaveDraft`, the one
- * generic write path every document type's "save-draft" goes through, so a required company field
- * left empty (or a value the field's own kind rejects — `field-kinds.ts`, the exact same validators
- * a NATIVE field's value is checked with) is refused with a 400 exactly the way a native field
- * already is, rather than silently accepted because this module lives outside `descriptor.fields`.
+ * Appends this company's ACTIVE custom field definitions for `typeId` onto `fields` as `add`
+ * operations — reusing `country-fields/apply-overlay.ts#applyFieldOverlay` exactly as it stands, per
+ * this feature's own governing decision: a company custom field IS an "add", nothing more, composed
+ * AFTER the country's own field view (`descriptors/company-view.ts#applyCompanyFieldView`). Called
+ * from `documents.service.ts`'s `describeTypeForCompany` (what the create/edit FORM renders) and
+ * `runAction` (what actually gets VALIDATED — `validateAgainstDescriptor` over whatever this
+ * returns), so the two can never drift apart: a required custom field left empty is refused with the
+ * exact same 400 shape a native or country-added field's own violation already gets, on EVERY
+ * action a document has — "send" included, not merely "save-draft" (see this module's own header
+ * for why the earlier, save-draft-only hook was removed once this existed).
  *
- * Deliberately reads `data[field.key]` (the ALREADY-PREFIXED `custom:...` key) — this function does
- * not need to know the un-prefixed, human `key` at all, only the descriptor shape it converts to.
- * A company with NO custom field definitions for this type returns instantly (`fields.length === 0`
- * short-circuits `validateAgainstDescriptor` to `[]`), so this costs nothing for the overwhelming
- * majority of saves today.
+ * ARCHIVED definitions are deliberately excluded (`resolveDocumentCustomFieldDescriptors`'s own
+ * `includeArchived: false` default): this is the ONE shared field view both callers above use, so an
+ * archived definition must never be offered for fresh input, nor be required, again. An
+ * already-recorded value for an archived definition is a document LIST/PDF concern instead — their
+ * own separate `includeArchived: true` resolution (the controller's `GET .../resolved` and
+ * `render-instance-pdf.ts#companyCustomFieldsFor`): a per-TYPE descriptor is shared across every
+ * instance of that type, so it has no per-instance `data` here to check an archived key's value
+ * against, unlike those two per-INSTANCE reads.
+ *
+ * The `custom:` key prefix (`toFieldDescriptor`) makes a genuine collision with a native or
+ * country-overlay field structurally impossible, so `applyFieldOverlay`'s own duplicate-key check
+ * here is a defensive backstop, never a path any correctly-keyed data reaches — see
+ * `findAvailableKey`'s own header for the one place a collision BETWEEN TWO custom fields
+ * themselves is actually prevented, at creation time.
  */
-export async function assertDocumentCustomFieldValuesValid(
+export async function applyCompanyCustomFieldsView(
   companyId: string,
   typeId: string,
-  data: Record<string, unknown>,
-): Promise<void> {
-  const fields = await resolveDocumentCustomFieldDescriptors(companyId, typeId);
-  if (fields.length === 0) return;
-  const errors = validateAgainstDescriptor(fields, data, fieldKindRegistry);
-  if (errors.length > 0) {
-    throw new BadRequestException({ message: 'Invalid custom field data', errors });
-  }
+  fields: DocumentFieldDescriptor[],
+): Promise<DocumentFieldDescriptor[]> {
+  const customFields = await resolveDocumentCustomFieldDescriptors(companyId, typeId);
+  if (customFields.length === 0) return fields;
+  return applyFieldOverlay(
+    fields,
+    customFields.map((field) => ({ op: 'add' as const, path: '', field })),
+  );
 }
 
 /** The CLIENT counterpart — called from `clients.service.ts`'s create/edit paths against

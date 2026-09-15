@@ -1,17 +1,22 @@
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — proves the REAL, live integration point named
- * in `performSaveDraft`'s own header: a company custom field's own validation actually runs on the
- * generic "save-draft" write path every document type shares, not merely in isolation
- * (company-custom-fields/persistence.spec.ts already covers the resolver/validator on their own).
- * Real Prisma, same "construct the plain function directly" convention every sibling spec in this
- * module already holds — `performSaveDraft` needs no NestJS DI at all.
+ * TODO_FEATURES.md rank 15 ("champs personnalisés") — `performSaveDraft` (generic-actions.ts) itself
+ * no longer validates a company's custom field definitions: that check moved to
+ * `documents.service.ts#runAction` (`company-custom-fields/persistence.ts#applyCompanyCustomFieldsView`),
+ * which validates EVERY action's data — "send" included, not merely "save-draft" — against the SAME
+ * merged field view the create/edit form renders, before any handler (this one included) ever runs.
+ * `documents.service.company-custom-fields.spec.ts` proves THAT gate, end to end, through
+ * `runAction`. This file's remaining job is narrower: `performSaveDraft` still persists a
+ * `custom:`-prefixed value verbatim, and calling it DIRECTLY (bypassing `runAction`, the same
+ * "construct the plain function directly" convention every sibling spec in this module already
+ * holds) is deliberately no longer where a required-field check happens — asserted here so a future
+ * reader never mistakes this file for evidence that the gate still lives here.
  */
 import prisma from '@/prisma/prisma.service';
 
 import { createCompanyCustomField } from '../company-custom-fields/persistence';
 import { performSaveDraft } from './generic-actions';
 
-describe('performSaveDraft — company custom field validation', () => {
+describe('performSaveDraft — company custom fields persist verbatim; validation lives in runAction now', () => {
   let companyId: string;
 
   beforeAll(async () => {
@@ -45,16 +50,15 @@ describe('performSaveDraft — company custom field validation', () => {
     await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
   });
 
-  it('refuses a save-draft that omits a REQUIRED custom field, before anything is persisted', async () => {
-    await expect(
-      performSaveDraft(companyId, 'quote', undefined, { description: 'no cost center' }),
-    ).rejects.toThrow(/Invalid custom field data/);
+  it("does NOT itself refuse a missing REQUIRED custom field — that gate is runAction's alone now", async () => {
+    const result = await performSaveDraft(companyId, 'quote', undefined, { description: 'no cost center' });
+    expect(result.changed).toBe(true);
 
-    const rows = await prisma.documentInstance.findMany({ where: { companyId, typeId: 'quote' } });
-    expect(rows).toHaveLength(0);
+    const row = await prisma.documentInstance.findUnique({ where: { id: result.document.id } });
+    expect((row?.data as Record<string, unknown>)['custom:cost_center']).toBeUndefined();
   });
 
-  it('accepts and persists a save-draft that carries the prefixed custom field value', async () => {
+  it('persists a prefixed custom field value verbatim when the caller supplies one', async () => {
     const result = await performSaveDraft(companyId, 'quote', undefined, {
       description: 'has a cost center',
       'custom:cost_center': 'CC-007',

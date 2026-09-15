@@ -6,15 +6,21 @@
 import prisma from '@/prisma/prisma.service';
 
 import {
+  applyCompanyCustomFieldsView,
   archiveCompanyCustomField,
   assertClientCustomFieldValuesValid,
-  assertDocumentCustomFieldValuesValid,
   createCompanyCustomField,
   listCompanyCustomFields,
   resolveDocumentCustomFieldDescriptors,
   restoreCompanyCustomField,
   updateCompanyCustomField,
 } from './persistence';
+import { DocumentFieldDescriptor } from '../descriptors/types';
+import { validateAgainstDescriptor } from '../descriptors/validate';
+import { FieldKindRegistry, registerCoreFieldKinds } from '../descriptors/field-kinds';
+
+const fieldKindRegistry = new FieldKindRegistry();
+registerCoreFieldKinds(fieldKindRegistry);
 
 async function makeCompany(suffix: string) {
   return prisma.company.create({
@@ -186,7 +192,7 @@ describe('company-custom-fields/persistence', () => {
     expect(expenseFields.some((f) => f.key === `custom:${wildcard.key}`)).toBe(true);
   });
 
-  it("validates a document's data against active definitions — required + kind-shape", async () => {
+  it('applyCompanyCustomFieldsView appends active definitions as real fields — required + kind-shape then validate exactly like a native field', async () => {
     const scopeType = 'expense';
     await createCompanyCustomField(companyId, {
       target: 'DOCUMENT',
@@ -196,17 +202,83 @@ describe('company-custom-fields/persistence', () => {
       required: true,
     });
 
-    await expect(assertDocumentCustomFieldValuesValid(companyId, scopeType, {})).rejects.toThrow(
-      /Invalid custom field data/,
+    const baseFields: DocumentFieldDescriptor[] = [
+      { key: 'description', kind: 'text', label: 'Description', required: true },
+    ];
+    const fields = await applyCompanyCustomFieldsView(companyId, scopeType, baseFields);
+    expect(fields.find((f) => f.key === 'custom:cost_center')).toMatchObject({ required: true });
+    // The BASE fields are untouched, not replaced — an "add", never a substitution.
+    expect(fields.find((f) => f.key === 'description')).toBeDefined();
+
+    expect(validateAgainstDescriptor(fields, { description: 'x' }, fieldKindRegistry)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'custom:cost_center' })]),
     );
+    expect(
+      validateAgainstDescriptor(
+        fields,
+        { description: 'x', 'custom:cost_center': 'CC-42' },
+        fieldKindRegistry,
+      ),
+    ).toEqual([]);
+    expect(
+      validateAgainstDescriptor(fields, { description: 'x', 'custom:cost_center': 42 }, fieldKindRegistry),
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'custom:cost_center' })]));
+  });
 
-    await expect(
-      assertDocumentCustomFieldValuesValid(companyId, scopeType, { 'custom:cost_center': 'CC-42' }),
-    ).resolves.toBeUndefined();
+  it('applyCompanyCustomFieldsView never offers an ARCHIVED definition — it must not become required again here', async () => {
+    const definition = await createCompanyCustomField(companyId, {
+      target: 'DOCUMENT',
+      documentTypeId: 'received-invoice',
+      label: 'Archived And Required',
+      kind: 'text',
+      required: true,
+    });
+    await archiveCompanyCustomField(companyId, definition.id);
 
-    await expect(
-      assertDocumentCustomFieldValuesValid(companyId, scopeType, { 'custom:cost_center': 42 }),
-    ).rejects.toThrow(/Invalid custom field data/);
+    const fields = await applyCompanyCustomFieldsView(companyId, 'received-invoice', []);
+    expect(fields.find((f) => f.key === `custom:${definition.key}`)).toBeUndefined();
+  });
+
+  /**
+   * The cross-scope collision `findAvailableKey` (persistence.ts) now guards against: a
+   * `documentTypeId: null` ("every type") definition and a specific type's own definition are
+   * COMPOSED TOGETHER the moment `applyCompanyCustomFieldsView` resolves that type's fields — see
+   * that function's own header. Before this fix, two labels that slugify to the same key — one
+   * created for "every type", the other for one specific type — could both be created (each check
+   * only looked at its OWN exact `documentTypeId`), and `applyFieldOverlay` would then THROW the
+   * moment anyone asked for that one type's fields (a duplicate `add`). Proven both directions.
+   */
+  it('a wildcard ("every type") field never collides with an existing specific-type field sharing a slug, or vice versa', async () => {
+    const scopeType = 'quote';
+    await createCompanyCustomField(companyId, {
+      target: 'DOCUMENT',
+      documentTypeId: scopeType,
+      label: 'Shared Slug',
+      kind: 'text',
+    });
+    const wildcard = await createCompanyCustomField(companyId, {
+      target: 'DOCUMENT',
+      label: 'Shared Slug',
+      kind: 'text',
+    });
+    expect(wildcard.key).not.toBe('shared_slug');
+
+    // The reverse order: a wildcard first, then a specific-type field with the same label.
+    await createCompanyCustomField(companyId, {
+      target: 'DOCUMENT',
+      label: 'Other Shared Slug',
+      kind: 'text',
+    });
+    const specific = await createCompanyCustomField(companyId, {
+      target: 'DOCUMENT',
+      documentTypeId: scopeType,
+      label: 'Other Shared Slug',
+      kind: 'text',
+    });
+    expect(specific.key).not.toBe('other_shared_slug');
+
+    // Both compositions resolve without ever throwing a duplicate-key FieldOverlayError.
+    await expect(applyCompanyCustomFieldsView(companyId, scopeType, [])).resolves.toBeDefined();
   });
 
   it("validates a CLIENT's customFields the same way, unprefixed", async () => {
@@ -232,11 +304,13 @@ describe('company-custom-fields/persistence', () => {
     );
   });
 
-  it('a company with no definitions at all costs nothing — instant no-op validation', async () => {
+  it('a company with no definitions at all costs nothing — applyCompanyCustomFieldsView is a true no-op, same fields reference', async () => {
     const other = await makeCompany('empty');
-    await expect(
-      assertDocumentCustomFieldValuesValid(other.id, 'invoice', { anything: 'goes' }),
-    ).resolves.toBeUndefined();
+    const baseFields: DocumentFieldDescriptor[] = [{ key: 'x', kind: 'text', label: 'X' }];
+
+    const fields = await applyCompanyCustomFieldsView(other.id, 'invoice', baseFields);
+    expect(fields).toBe(baseFields); // short-circuits before ever cloning/composing anything.
+
     await expect(assertClientCustomFieldValuesValid(other.id, { anything: 'goes' })).resolves.toBeUndefined();
     await prisma.company.delete({ where: { id: other.id } }).catch(() => undefined);
   });

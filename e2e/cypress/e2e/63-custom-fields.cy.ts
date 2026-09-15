@@ -199,7 +199,13 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 		});
 	});
 
-	it("a scripted save-draft omitting the REQUIRED custom field is refused by the SERVER too (400), even bypassing the screen", () => {
+	// Backend: `documents.service.ts#runAction` — a company custom field is validated in the SAME pass
+	// as every native field (`validateAgainstDescriptor` over the merged view
+	// `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` composes onto the country
+	// view), so a missing REQUIRED one now surfaces with the exact same "Invalid document data" shape
+	// (and a per-field `errors[].key`) a native field's own violation already gets — never a
+	// custom-fields-specific message a client would have to special-case.
+	it("a scripted save-draft omitting the REQUIRED custom field is refused by the SERVER too (400), even bypassing the screen — same error shape as a native field", () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/documents/types/expense/actions/save-draft`,
@@ -207,9 +213,18 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 			failOnStatusCode: false,
 		}).then((res) => {
 			expect(res.status, "refusé par le serveur, pas seulement par le formulaire").to.eq(400);
-			expect(JSON.stringify(res.body)).to.contain("Invalid custom field data");
+			expect(res.body.message).to.eq("Invalid document data");
+			expect(res.body.errors).to.deep.include.members([
+				{ key: "custom:cost_center", message: '"Cost Center" is required.' },
+			]);
 		});
 	});
+
+	// "expense" (the type used throughout this spec) has no "send" action at all — see
+	// expense.descriptor.ts (only "save-draft"/"delete"). The proof that a required custom field also
+	// blocks "send", not merely "save-draft", is a backend concern instead:
+	// documents.service.company-custom-fields.spec.ts, against the "quote" type, through the real
+	// `runAction` gate.
 
 	it("the PDF grows once the optional long-text custom field carries real content — the end-of-document block", () => {
 		function saveExpenseAndGetPdfSize(description: string, notes: string | undefined) {
