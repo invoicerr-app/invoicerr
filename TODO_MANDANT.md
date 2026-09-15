@@ -11,17 +11,25 @@ RUNNING `invoicerr.chevrier.dev`, or staging (UAT) accounts to prove a channel l
 
 ---
 
-## 1. Urgent — no email is being sent in production
+## 1. Email — DONE on 2026-09-15 (instance server + mailbox)
 
-Established on 2026-09-14: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` are all
-**empty** in the `invoicerr.chevrier.dev` container, and have been for weeks. The app starts and
-responds normally — nothing flagged this before today; a fix now makes it fail loudly at startup
-rather than at the first send attempt. As long as it's empty: no invitation, no reminder, no
-sent-document notification.
+Was: the dev instance sent nothing (SMTP variables empty since weeks). Now:
 
-- [ ] Add to `/DATA/AppData/invoicerr/.env` on the host, then `docker compose up -d`:
-      `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (five lines;
-      `SMTP_SECURE` can stay at its default value).
+- [x] Instance mail server on `invoicerr.chevrier.dev`: `MAIL_PROVIDER=resend`,
+      `MAIL_FROM=no-reply@invoicerr.app`, `RESEND_API_KEY` — present in the container (verified
+      by name). One clean-up left: the key is written **in clear in `docker-compose.yml`** on the
+      host instead of `.env` — move it to `.env` and reference it as `${RESEND_API_KEY}` like the
+      other secrets.
+- [x] Domain: Resend verified on `invoicerr.app` (DKIM `resend._domainkey`, return-path on
+      `send.invoicerr.app`), Cloudflare Email Routing on the root (MX `route1/2/3.mx.cloudflare.net`),
+      DMARC `p=none` with reports to `dmarc@invoicerr.app` — added 2026-09-15.
+- [x] Inbound mailbox: Cloudflare catch-all `*@invoicerr.app` → a dedicated Gmail account, `noreply@`
+      dropped; Gmail filters label `contact`/`privacy`, `support`, `security`, `abuse`/`postmaster`,
+      `dmarc`. Outbound identities `contact@`, `support@`, `security@` send through `smtp.resend.com`
+      (dedicated sending-only key). **Proven end to end 2026-09-15**: 7 test mails routed and
+      labelled, a reply from `support@` reached Gmail with `spf=pass`, `dkim=pass (invoicerr.app)`,
+      `dmarc=pass`, no "via", and the customer's reply came back under the Support label.
+- [ ] In a few weeks, once DMARC reports show only PASS: harden to `p=quarantine`.
 
 ## 2. Chorus Pro (French B2G) — qualification proven, production remaining
 
