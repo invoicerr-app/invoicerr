@@ -17,6 +17,7 @@ import { BankReconciliationModule } from './modules/documents/bank-reconciliatio
 import { PaymentsModule } from './modules/documents/payments/payments.module';
 import { PaymentMethodsModule } from './modules/documents/payment-methods/payment-methods.module';
 import { CompanyCustomFieldsModule } from './modules/documents/company-custom-fields/company-custom-fields.module';
+import { ExpenseCategoriesModule } from './modules/documents/expense-categories/expense-categories.module';
 import { DangerModule } from './modules/danger/danger.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PublicDocumentsModule } from './modules/documents/public/public-documents.module';
@@ -85,6 +86,23 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     SireneModule,
     CompanyLookupModule,
     DangerModule,
+    // Registered BEFORE `DocumentsModule` deliberately — NOT for DI (Nest resolves the module graph
+    // regardless of array order; both this module and `DocumentsModule` import the shared
+    // `DocumentsCoreModule` independently, instantiated once either way), but for HTTP ROUTE
+    // registration order. `DocumentsController` (`@Controller('documents')`) declares a catch-all
+    // `@Get(':id')` — Nest's default Express adapter tries routes in REGISTRATION order, so a bare
+    // `GET /api/documents/expense-categories` (no further segment) would otherwise be swallowed by
+    // that `:id` route (matching `id: "expense-categories"`) before Express ever reaches
+    // `ExpenseCategoriesController`'s own identically-shaped `documents/expense-categories` path.
+    // Proven live (not merely by a passing jest suite, which never boots a real HTTP server) on
+    // 2026-09-15: moving this entry here is what makes `GET /api/documents/expense-categories`
+    // actually reach `ExpenseCategoriesController` rather than `DocumentsController`'s 404 ("Document
+    // \"expense-categories\" not found for type \"undefined\""). Every OTHER `documents/<feature>`
+    // controller in this codebase (`received-invoices/`) avoids the same trap structurally instead —
+    // by declaring no BARE, zero-extra-segment route at all (`documents/received-invoices/upload`,
+    // `documents/received-invoices/:id/file`) — this module needed the reorder instead because its own
+    // settings-screen `GET`/`POST` are deliberately the bare list/create routes the task asked for.
+    ExpenseCategoriesModule,
     DocumentsModule,
     // The generic accounting CSV export's own controller, deliberately its
     // own module (see accounting-export.module.ts's own header for why it never joins DocumentsModule).
@@ -125,6 +143,8 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // PaymentsModule right above — see payment-methods.module.ts's own header.
     PaymentMethodsModule,
     CompanyCustomFieldsModule,
+    // ExpenseCategoriesModule is registered further up, BEFORE DocumentsModule — see that entry's own
+    // comment for why (HTTP route-shadowing, not DI).
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),
     McpModule,
     PluginsModule,

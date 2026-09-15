@@ -68,6 +68,7 @@ import {
   resolveCorrectionRoutesForCountry,
 } from './correction-routes/correction-routes';
 import { applyCompanyCustomFieldsView } from './company-custom-fields/persistence';
+import { applyExpenseCategoriesView } from './expense-categories/persistence';
 import { applyFieldOverlay } from './country-fields/apply-overlay';
 import { FieldOverlayOperation } from './country-fields/schema';
 import { CountryFieldOverlayCatalog } from './country-fields/registry';
@@ -531,25 +532,29 @@ export class DocumentsService implements OnModuleInit {
    * The descriptor a FRONTEND actually renders — `getType` above, but with:
    *  - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
    *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
-   *  - each FIELD passed through the company's own field VIEW, composed in THREE steps, each one
+   *  - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
    *    layered on the result of the one before it:
    *     1. `descriptors/company-view.ts#applyCompanyFieldView` — the country field overlay
    *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
    *        field like the invoice line's `vatRate`.
-   *     2. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` — this company's own
+   *     2. `expense-categories/persistence.ts#applyExpenseCategoriesView` — this company's own ACTIVE
+   *        expense categories (TODO_FEATURES.md rank 13, product decision 2026-09-15), patched onto
+   *        the "category" field's `options` via a `country-fields/apply-overlay.ts` 'modify' operation
+   *        — a no-op for every type but "expense" (see that function's own header).
+   *     3. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` — this company's own
    *        ACTIVE custom field definitions (TODO_FEATURES.md rank 15), appended as plain `add`
    *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
    *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
    *        that happens to be scoped by company instead of by country — see that function's own
    *        header for why it composes AFTER the country view, never before or in place of it.
-   *     3. `applyB2gDocumentFieldHints` (below) — the CLIENT's own country's B2G rule, when one
+   *     4. `applyB2gDocumentFieldHints` (below) — the CLIENT's own country's B2G rule, when one
    *        resolves and `clientId` is given.
    *
-   * All three are VIEWS layered on top of the plain descriptor, never a change to
+   * All four are VIEWS layered on top of the plain descriptor, never a change to
    * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
    * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
    * that build a service with no company at all) is unaffected. `runAction` (further down) composes
-   * the exact same steps 1-2 (never step 3 — see that method's own comment) before validating, so
+   * the exact same steps 1-3 (never step 4 — see that method's own comment) before validating, so
    * "what the form offers" and "what actually gets checked/blocked" can never drift apart — the same
    * discipline this module already holds for country policy and status.
    *
@@ -620,7 +625,13 @@ export class DocumentsService implements OnModuleInit {
       fieldOverlayCatalog: this.countryFieldOverlayCatalog,
       vatRateCatalog: this.vatRateCatalog,
     });
-    const fieldsWithCustom = await applyCompanyCustomFieldsView(companyId, typeId, companyViewFields);
+    // TODO_FEATURES.md rank 13 — this company's own expense categories, patched onto the "category"
+    // field's `options` (a no-op for every type other than "expense" — see that module's own header).
+    // Composed BEFORE custom fields: both are company-level overlays on the SAME company-view fields,
+    // and neither can collide (this one 'modify's a NATIVE key, custom fields only ever 'add's a
+    // `custom:`-prefixed one — see company-custom-fields/persistence.ts#toFieldDescriptor).
+    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, companyViewFields);
+    const fieldsWithCustom = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
     const fields = await this.applyB2gDocumentFieldHints(fieldsWithCustom, companyId, clientId);
 
     return {
@@ -914,21 +925,24 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    // The FIELDS this company actually gets — the SAME two-step view describeTypeForCompany hands
-    // the frontend (that method's own header): the country-field-overlay + VAT-rate-catalog view
-    // (descriptors/company-view.ts), THEN this company's own ACTIVE custom field definitions
+    // The FIELDS this company actually gets — the SAME view describeTypeForCompany hands the frontend
+    // (that method's own header): the country-field-overlay + VAT-rate-catalog view
+    // (descriptors/company-view.ts), THEN this company's own expense categories where applicable
+    // (expense-categories/persistence.ts#applyExpenseCategoriesView, TODO_FEATURES.md rank 13, a no-op
+    // outside typeId "expense"), THEN this company's own ACTIVE custom field definitions
     // (company-custom-fields/persistence.ts#applyCompanyCustomFieldsView, TODO_FEATURES.md rank 15)
     // composed on top of it. Validating against the BASE descriptor.fields here would let a scripted
     // client bypass whatever a country's overlay added/required (or accept a value a REMOVEd field
-    // could no longer carry), and skip a company's own required custom field entirely — the same
-    // "the API refuses exactly what the screen would refuse" discipline the country-policy check
-    // right above already holds for actions, now held for fields too. This is what makes a required
-    // custom field left empty block "send" (and every other action), not merely "save-draft": every
-    // action funnels through this exact check before its handler ever runs (see this method's own
-    // header). Deliberately NOT the third step (`applyB2gDocumentFieldHints`) — a PRE-EXISTING gap
-    // this change does not touch: a B2G-required field (e.g. Germany's Leitweg-ID,
-    // `data.buyerReference`) is offered on the FORM (describeTypeForCompany) but never independently
-    // enforced here, same as before this feature existed.
+    // could no longer carry), post an archived/nonexistent expense category, and skip a company's own
+    // required custom field entirely — the same "the API refuses exactly what the screen would refuse"
+    // discipline the country-policy check right above already holds for actions, now held for fields
+    // too. This is what makes a required custom field left empty (or an archived expense category)
+    // block "send" (and every other action), not merely "save-draft": every action funnels through
+    // this exact check before its handler ever runs (see this method's own header). Deliberately NOT
+    // the fourth step (`applyB2gDocumentFieldHints`) — a PRE-EXISTING gap this change does not touch: a
+    // B2G-required field (e.g. Germany's Leitweg-ID, `data.buyerReference`) is offered on the FORM
+    // (describeTypeForCompany) but never independently enforced here, same as before this feature
+    // existed.
     const countryCode = await resolveCompanyCountryCode(companyId);
     const countryViewFields = applyCompanyFieldView({
       typeId,
@@ -937,7 +951,10 @@ export class DocumentsService implements OnModuleInit {
       fieldOverlayCatalog: this.countryFieldOverlayCatalog,
       vatRateCatalog: this.vatRateCatalog,
     });
-    const fields = await applyCompanyCustomFieldsView(companyId, typeId, countryViewFields);
+    // Same composition as describeTypeForCompany's own — see that method's own comment right above its
+    // identical call: a no-op for every type other than "expense".
+    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, countryViewFields);
+    const fields = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
 
     const dataErrors = validateAgainstDescriptor(fields, payload.data ?? {}, this.fieldKindRegistry);
     // Cross-document existence for every 'rowSelection' field — a no-op for a type that declares

@@ -38,17 +38,18 @@ describe('expense.descriptor — passes validateLifecycle and has the declared s
     expect(attachment?.required).toBe(false);
   });
 
-  it('"category" is a closed select, WITH an "other" catch-all — never allowCustomValue', () => {
+  it('"category" is a select with NO trunk options — a per-company view fills it in, never allowCustomValue', () => {
+    // Product decision 2026-09-15 (see this file's own header): the closed, hardcoded catalog this
+    // test used to assert on is GONE — categories are per-company data now
+    // (expense-categories/persistence.ts), composed onto this exact field via
+    // `applyExpenseCategoriesView` at describeTypeForCompany/runAction time, never present on the
+    // TRUNK descriptor itself. See documents.service.expense-categories.spec.ts for the composed view.
     const descriptor = buildExpenseDescriptor();
     const category = descriptor.fields.find((f) => f.key === 'category');
     expect(category?.kind).toBe('select');
     expect(category?.required).toBe(false);
     expect(category?.allowCustomValue).toBeUndefined();
-    const values = category?.options?.map((o) => o.value) ?? [];
-    expect(values).toContain('other');
-    expect(values.length).toBeGreaterThan(1);
-    // Every value is a distinct, non-empty machine key — a real, closed catalog, not a placeholder.
-    expect(new Set(values).size).toBe(values.length);
+    expect(category?.options).toEqual([]);
   });
 
   it('"distanceKm"/"ratePerKm" ("kilométrage") are plain, optional, non-negative — no per-country rate baked in', () => {

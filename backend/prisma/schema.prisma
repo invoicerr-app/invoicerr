@@ -455,6 +455,10 @@ model Company {
   paymentMethodConfigs    CompanyPaymentMethodConfig[]
   // TODO_FEATURES.md rank 15 ("champs personnalisés") — see CompanyCustomField below.
   customFieldDefinitions  CompanyCustomField[]
+  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — see ExpenseCategory below. Product
+  // decision 2026-09-15: expense categories are per-company DATA, not the fixed catalog
+  // expense.descriptor.ts used to hardcode (see that file's own current header).
+  expenseCategories       ExpenseCategory[]
 }
 
 // Manually entered exchange rates. The rule that governs
@@ -2286,6 +2290,45 @@ model CompanyCustomField {
   // as a real DB constraint anyway for every OTHER case (a specific `documentTypeId`, or CLIENT target)
   // — belt for the common case, the application-level check is the brace for the NULL one.
   @@unique([companyId, target, documentTypeId, key])
+  @@index([companyId])
+}
+
+// TODO_FEATURES.md rank 13 ("notes de frais enrichies") — per-company expense categories. Product
+// decision 2026-09-15, OVERRIDING this rank's own original shipped design: `expense.descriptor.ts`
+// used to hardcode a closed `EXPENSE_CATEGORY_OPTIONS` list (with an "Other" catch-all), reasoning at
+// the time that no per-company "write your own list" mechanism existed anywhere in this codebase (see
+// that file's OWN prior header, still readable via git history on this model's introducing commit).
+// `CompanyCustomField` (rank 15) shipped that exact mechanism afterwards — but a company custom field
+// is always a NEW field bolted on top of a type (`company-custom-fields/persistence.ts#toFieldDescriptor`,
+// `custom:`-prefixed key), never a per-company override of an EXISTING native field's own `options`.
+// Expense categories need the latter: the expense descriptor's own `category` field keeps its native,
+// un-prefixed key (every already-recorded expense's `data.category` value stays meaningful), while
+// WHICH values are offered/valid becomes per-company data resolved at `describeTypeForCompany`/
+// `runAction` time — see `expense-categories/persistence.ts#applyExpenseCategoriesView`, which reuses
+// `country-fields/apply-overlay.ts`'s 'modify' operation to patch that ONE field's `options`, the same
+// reuse-not-reinvent precedent `applyCompanyCustomFieldsView` already set for its own, different case.
+model ExpenseCategory {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // The value actually stored on an expense's `data.category` — immutable once created (same
+  // reasoning as `CompanyCustomField.key`'s own header: renaming it would silently reinterpret every
+  // expense that already carries it). Derived from `label` at creation time
+  // (expense-categories/persistence.ts#slugify) and never accepted from the caller.
+  key   String
+  // The only thing "rename a category" (`PUT /api/documents/expense-categories/:id`) ever changes.
+  label String
+  // Soft-delete, same discipline as `CompanyCustomField.archivedAt`'s own header: an expense that
+  // already carries an archived category's `key` keeps reading it forever (this table is resolved
+  // with `includeArchived: true` for THAT case — see `resolveActiveExpenseCategoryOptions`'s own
+  // header) — archiving only removes a category from the create/edit FORM's own offered options.
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  // One key per company — see this model's own header on why `key` is derived, not caller-supplied,
+  // and why it is immutable: nothing here needs the NULL-scope carve-out `CompanyCustomField`'s own
+  // unique constraint comment documents (`documentTypeId` doesn't exist on this model at all).
+  @@unique([companyId, key])
   @@index([companyId])
 }
 

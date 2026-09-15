@@ -6,33 +6,6 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
 
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — a fixed list, WITH an "Other" catch-all
- * value, not a per-company configurable one: no mechanism for a company to define its OWN list of
- * values exists anywhere in this codebase today (checked — `payment-methods/` is the closest
- * precedent, but it is a registry of built-in TYPES a company enables/configures, never a company
- * writing its own free-form list; rank 15, "champs personnalisés / tags", is exactly the still-
- * unbuilt mechanism that WOULD let a company do that generically). Building a per-company category
- * editor is real, separate work this rank's own scope does not cover — flagged in this feature's own
- * report as a product choice to validate, not a researched, closed list the way `vat-rates/`'s own
- * catalogs are. `'other'` is a plain option INSIDE this closed list (never `allowCustomValue` — see
- * field-kinds.ts's own 'select' validator: that escape hatch only ever opens for an EMPTY options
- * list, which this one deliberately is not), so a scripted client is refused exactly what the screen
- * offers, same as every other 'select' field here.
- */
-const EXPENSE_CATEGORY_OPTIONS = [
-  { value: 'travel', label: 'Travel' },
-  { value: 'meals', label: 'Meals & entertainment' },
-  { value: 'accommodation', label: 'Accommodation' },
-  { value: 'office_supplies', label: 'Office supplies' },
-  { value: 'software', label: 'Software & subscriptions' },
-  { value: 'equipment', label: 'Equipment' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'professional_services', label: 'Professional services' },
-  { value: 'utilities', label: 'Utilities' },
-  { value: 'other', label: 'Other' },
-];
-
-/**
  * The expense document type — the FOURTH type written entirely as data, and the first one that used
  * to be its OWN bespoke module (`modules/expenses/`, a plain Controller/Service/Prisma-model CRUD
  * resource, now removed) rather than a fresh addition. Migrating it here is exactly the "a country
@@ -52,8 +25,21 @@ const EXPENSE_CATEGORY_OPTIONS = [
  *    `attachments/attachments.service.ts` reuses `received-invoices/storage.ts`'s own content-hash-
  *    addressed, `DOCUMENTS_INBOUND_DIR`-rooted persistence (the same volume-backed directory that
  *    already survives a `docker pull`), never a second storage mechanism invented for this type.
- *  - `category` (kind 'select', `EXPENSE_CATEGORY_OPTIONS` above) — see that constant's own header
- *    for why this is a fixed list with an "Other" value, not a per-company configurable one.
+ *  - `category` (kind 'select', `options: []` here — deliberately EMPTY in the trunk descriptor).
+ *    Product decision 2026-09-15, OVERRIDING this rank's own original design (a hardcoded, closed
+ *    `EXPENSE_CATEGORY_OPTIONS` list, still readable via git history on this file's introducing
+ *    commit): categories are per-COMPANY data now, CRUD'd in Settings and resolved at
+ *    `describeTypeForCompany`/`runAction` time by `expense-categories/persistence.ts`'s
+ *    `applyExpenseCategoriesView`, which patches this field's `options` with a `country-fields/
+ *    apply-overlay.ts` 'modify' operation — the same reuse-not-reinvent precedent
+ *    `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` set for its own, different
+ *    case (a NEW field there, an override of this EXISTING one here). A brand-new company gets a
+ *    default set (`expense-categories/persistence.ts#DEFAULT_EXPENSE_CATEGORIES`) — the exact ten
+ *    categories + "Other" this field used to hardcode, so nothing changes for a company that never
+ *    opens the new settings screen. The stored VALUE on `data.category` is unaffected either way — a
+ *    plain string key, resolved against whichever options apply at read/write time, never itself a
+ *    foreign key into `ExpenseCategory` (an archived or since-renamed category's key still reads back
+ *    fine — see that model's own schema.prisma header).
  *  - `distanceKm`/`ratePerKm` ("kilométrage") — plain, INFORMATIONAL optional numeric fields, a
  *    distance and a rate the USER TYPES IN, exactly like `vat-rates/`'s own catalog is "the seller's
  *    own sourced rate, not a tax authority" — nothing here sources a legal mileage scale (a
@@ -150,7 +136,12 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
         kind: 'select',
         label: 'Category',
         required: false,
-        options: EXPENSE_CATEGORY_OPTIONS,
+        // Always resolved per-company at read/validate time — see this file's own header on
+        // `applyExpenseCategoriesView`. Never `[]` in practice by the time a real request sees it (a
+        // company always has at least its own default set — see that function's own header on
+        // `ensureDefaultExpenseCategoriesSeeded`), only in the odd case nothing has composed a
+        // company view onto this trunk descriptor at all (e.g. a jest spec building it directly).
+        options: [],
       },
       {
         key: 'attachment',

@@ -14,6 +14,7 @@ import {
   Server,
   ShieldCheck,
   SlidersHorizontal,
+  Tags,
   TicketIcon,
   User,
   Users,
@@ -30,6 +31,7 @@ import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
 import CustomFieldsSettings from "./_components/custom-fields.settings"
 import DangerZoneSettings from "./_components/danger.settings"
+import ExpenseCategoriesSettings from "./_components/expense-categories.settings"
 import PaymentsSettings from "./_components/payments.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
 import InvitationsSettings from "./_components/invitations.settings"
@@ -82,6 +84,7 @@ export default function Settings() {
     "sso",
     "recurring",
     "customFields",
+    "expenseCategories",
     "accountingExport",
     "danger",
   ]
@@ -178,6 +181,11 @@ export default function Settings() {
       icon: SlidersHorizontal,
     },
     {
+      value: "expenseCategories",
+      label: t("settings.tabs.expenseCategories", "Expense categories"),
+      icon: Tags,
+    },
+    {
       value: "accountingExport",
       label: t("settings.tabs.accountingExport"),
       icon: FileSpreadsheet,
@@ -206,6 +214,7 @@ export default function Settings() {
           "atcud",
           "sso",
           "customFields",
+          "expenseCategories",
           "mail",
         ].includes(item.value),
     )
@@ -256,6 +265,8 @@ export default function Settings() {
         return <RecurringSettings />
       case "customFields":
         return <CustomFieldsSettings />
+      case "expenseCategories":
+        return <ExpenseCategoriesSettings />
       case "accountingExport":
         return <AccountingExportSettings />
       case "danger":

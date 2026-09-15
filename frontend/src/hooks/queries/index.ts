@@ -130,3 +130,12 @@ export {
   type CreateCompanyCustomFieldInput,
   type UpdateCompanyCustomFieldInput,
 } from "./use-company-custom-fields"
+export {
+  useExpenseCategories,
+  useCreateExpenseCategory,
+  useUpdateExpenseCategory,
+  useArchiveExpenseCategory,
+  type ExpenseCategory,
+  type CreateExpenseCategoryInput,
+  type UpdateExpenseCategoryInput,
+} from "./use-expense-categories"

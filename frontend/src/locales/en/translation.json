@@ -1672,7 +1672,8 @@
       "recurring": "Recurrences",
       "accountingExport": "Accounting export",
       "sso": "SSO",
-      "customFields": "Custom fields"
+      "customFields": "Custom fields",
+      "expenseCategories": "Expense categories"
     },
     "accountingExport": {
       "title": "Accounting export",
@@ -2634,6 +2635,41 @@
         "restored": "Custom field restored.",
         "restoreError": "Failed to restore the custom field.",
         "invalidOptions": "Every option needs both a value and a label."
+      }
+    },
+    "expenseCategories": {
+      "title": "Expense categories",
+      "description": "Add, rename, or archive the categories your team picks from on an expense's own form.",
+      "create": {
+        "title": "New category",
+        "description": "Add a category to offer it on the expense form.",
+        "button": "Create category"
+      },
+      "form": {
+        "label": "Label",
+        "validation": {
+          "labelRequired": "A label is required."
+        }
+      },
+      "list": {
+        "title": "Categories",
+        "loading": "Loading…",
+        "empty": "No expense category yet.",
+        "archived": "Archived",
+        "rename": "Rename",
+        "archive": "Archive"
+      },
+      "rename": {
+        "title": "Rename category",
+        "save": "Save"
+      },
+      "messages": {
+        "created": "Expense category created.",
+        "createError": "Failed to create the expense category.",
+        "updated": "Expense category updated.",
+        "updateError": "Failed to update the expense category.",
+        "archived": "Expense category archived.",
+        "archiveError": "Failed to archive the expense category."
       }
     }
   },

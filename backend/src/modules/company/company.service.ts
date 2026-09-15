@@ -16,6 +16,7 @@ import {
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
 import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
 import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
+import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
 import prisma from '@/prisma/prisma.service';
 
 /**
@@ -289,6 +290,14 @@ export class CompanyService {
     await prisma.userCompany.create({
       data: { userId, companyId: newCompany.id, role: 'OWNER' },
     });
+
+    // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — this brand-new company's default
+    // expense category set (the ten categories + "Other" `expense.descriptor.ts` used to hardcode).
+    // Idempotent (`ensureDefaultExpenseCategoriesSeeded`'s own header) — count is trivially 0 here, so
+    // this always inserts; the SAME function also runs lazily, on first read, for a company that
+    // predates this feature (`expense-categories/persistence.ts#listExpenseCategories`), so no data
+    // migration was needed to backfill existing companies.
+    await ensureDefaultExpenseCategoriesSeeded(newCompany.id);
 
     await this.upsertPartyIdentifiers(
       newCompany.id,
