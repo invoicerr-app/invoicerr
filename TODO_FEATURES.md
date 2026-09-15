@@ -22,12 +22,7 @@
 > new topic (instance vs. company mail server). The ranks and numbered titles in this file carry
 > over from the historical §3 — they were not restarted from zero.
 >
-> **CI status, honestly (2026-09-15, 17:00).** Last fully green run: `fb00877b` (spec 30). Every run since carries 1-5 red specs out of 59-62, never the product except twice (goods-receipt lines never rendered — `28206c03`; TipTap resync race — `00122b2e`), always a test assumption: viewport 1000×660 (dialogs longer than the screen), computed dates, popover timing, 201 vs 200. Root causes fixed one by one (`a3cae835`, `00122b2e`, `0ff4b8be`, `aaf075ad`, `28206c03`); the run for `28206c03` is the current candidate for a fully green run.
-> `34930840117` (`cfae3605`, rerun after a runner was lost with no log): backend/lint/i18n green,
-> Cypress 296/303, **3 specs out of 59 red**: 14 (article picker outside the dialog's viewport), 65
-> (the test expects 201, the API responds 200; test 4 depends on test 3), 66 (`[data-day="9/15/2026"]`,
-> the test-computed-date trap, despite the guidance against it). Spec 64 passed. Fixes in progress;
-> the runs for `c4e1d1a0`, `9ce4a558`, `0f39d2e5`, `94924a36` (morning) are queued.
+> **CI status (2026-09-15, 19:40).** **Run `34986378950` (`8a18853f`) is fully green — all six jobs (lint, i18n, backend jest, queue-integration, e2e typecheck, Cypress 64/64)** — the first fully green run since `fb00877b`. Between the two: 40+ commits, every red root-caused and fixed (viewport 1000×660, computed dates, Radix popover timing, 201 vs 200 on action POSTs, TipTap resync race, goods-receipt lines never rendered, DatePicker "Today"). Later commits (`cfded939`, `ee099682`) only touch docs and the PWA install banner; their runs are queued.
 
 ---
 
