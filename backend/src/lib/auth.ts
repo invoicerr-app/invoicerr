@@ -4,7 +4,7 @@ import { GenericOAuthConfig, customSession, genericOAuth } from 'better-auth/plu
 
 import { PrismaClient } from '../../prisma/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { betterAuth } from 'better-auth';
+import { APIError, betterAuth } from 'better-auth';
 import { InvitationLookupResult, decideRegistration, registrationDenialMessage } from './registration-policy';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import {
@@ -16,15 +16,41 @@ import {
   resolveOidcEndpoints,
   trustedProviderIds,
 } from './sso-policy';
+import {
+  AccountMembership,
+  SoleOwnerError,
+  assertNotSoleOwner,
+  cleanupAfterUserDelete,
+  sendChangeEmailMail,
+} from '../modules/auth-extended/account-lifecycle';
 import { registeredCompanyProviderIds } from './sso-registry';
 import { buildPolarAuthPlugins } from '../modules/billing/polar-plugin';
 import { syncCompanySeatsOnMembershipChange } from '../modules/billing/seat-sync';
+import { MailService } from '../mail/mail.service';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
 const prisma = new PrismaClient({ adapter });
 
+// Same reasoning as `prisma` just above: `lib/auth.ts` runs outside Nest DI entirely, so every
+// infrastructure client it needs is its own plain instance rather than an injected one. This is the
+// INSTANCE mail path (`sendMail`), never `sendForCompany`'s per-company cascade — a user account
+// belongs to no company (see `account-lifecycle.ts`'s own header on `buildChangeEmailMail`).
+const mailService = new MailService();
+
+const appUrl = () => process.env.APP_URL || 'http://localhost:3000';
+
 export const pendingInvitationCodes = new Map<string, string>();
+
+/**
+ * Bridges `deleteUser.beforeDelete` to `deleteUser.afterDelete` for the SAME request: by the time
+ * `afterDelete` runs, the DB's own `ON DELETE CASCADE` has already removed the deleted user's
+ * `UserCompany` rows (see `account-lifecycle.ts#cleanupAfterUserDelete`'s own header), so there is
+ * nothing left to query them from — `beforeDelete` captures the list while it still can. The same
+ * in-process-Map shape `pendingInvitationCodes` above already uses for a similar
+ * "captured earlier in the same flow, consumed once, never persisted" need.
+ */
+const pendingMembershipsForDeletedUser = new Map<string, AccountMembership[]>();
 
 /**
  * The instance-wide provider's identity and whether it is registered, resolved ONCE here — it cannot
@@ -234,6 +260,20 @@ export const auth = betterAuth({
     // as well; without both halves the flag would merely hide a form rather than close a door.
     enabled: !isOidcOnly(),
   },
+  // Powers `user.changeEmail` below. Despite the name, this is NOT a signup feature here: `sendOnSignUp`
+  // and `sendOnSignIn` are both left unset (default off, and `requireEmailVerification` is never set
+  // either, so neither follows it into "on") — the only caller that ever reaches
+  // `sendVerificationEmail` today is `POST /api/auth/change-email`'s own "send a link to the new
+  // address" branch (`node_modules/better-auth/dist/api/routes/update-user.mjs`'s `changeEmail`
+  // endpoint, the final branch once `updateEmailWithoutVerification` and `sendChangeEmailConfirmation`
+  // are both unset, which they are below) — better-auth reuses this generic hook for that rather than
+  // exposing a field literally named `sendChangeEmailVerification`; confirmed by reading that file
+  // directly, since the bundled types are the only documentation this dependency ships.
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appUrl() });
+    },
+  },
   account: {
     accountLinking: {
       enabled: true,
@@ -260,6 +300,48 @@ export const auth = betterAuth({
         type: 'string',
         required: true,
         input: true,
+      },
+    },
+    changeEmail: {
+      enabled: true,
+      // `sendChangeEmailConfirmation` (sent to the OLD address, requiring a currently-verified
+      // email — see the endpoint's own ladder) is deliberately left unset: the product decision here
+      // is one email, to the NEW address, and the account's email does not change until that link is
+      // opened (`emailVerification.sendVerificationEmail` above). `updateEmailWithoutVerification`
+      // stays unset too, for the same reason — an email change must always be confirmed, verified
+      // current address or not.
+    },
+    deleteUser: {
+      enabled: true,
+      // `sendDeleteAccountVerification` is deliberately NOT set here, even though it exists for
+      // exactly the "email a verification link" case this product wants for an SSO-only account: read
+      // literally (`update-user.mjs`'s `deleteUser` endpoint, lines ~291-349), when that option is
+      // configured at ALL it takes over the response for EVERY call that doesn't already carry a
+      // `token` — including one that supplied a correct `password` — always returning
+      // "Verification email sent" instead of deleting. Setting it would silently break the
+      // password-in, deleted-immediately path a credential account is supposed to keep. Without it, a
+      // credential account still deletes immediately off its `password` (verified above this branch,
+      // then falls straight through to `beforeDelete`), and an SSO-only account (no password to send)
+      // falls to better-auth's own session-freshness gate instead of an email link: fresh enough →
+      // deletes immediately, stale → `SESSION_EXPIRED`, asking them to sign back in with their
+      // provider and retry. A true mail-link flow for SSO-only accounts would need its own endpoint
+      // minting a better-auth-compatible verification token directly — a bigger, separate change than
+      // this one warrants.
+      beforeDelete: async (user) => {
+        try {
+          const memberships = await assertNotSoleOwner(user.id);
+          pendingMembershipsForDeletedUser.set(user.id, memberships);
+        } catch (error) {
+          if (error instanceof SoleOwnerError) {
+            throw new APIError('FORBIDDEN', { message: error.message, code: error.code });
+          }
+          throw error;
+        }
+      },
+      afterDelete: async (user) => {
+        const memberships = pendingMembershipsForDeletedUser.get(user.id) ?? [];
+        pendingMembershipsForDeletedUser.delete(user.id);
+        await cleanupAfterUserDelete(memberships);
       },
     },
   },

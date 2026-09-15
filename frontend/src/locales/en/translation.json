@@ -1657,7 +1657,6 @@
       "company": "Company",
       "emailTemplates": "Email Templates",
       "mail": "Mail",
-      "account": "Account",
       "logs": "Logs",
       "invitations": "Invitations",
       "dangerZone": "Danger Zone",
@@ -2107,86 +2106,6 @@
         "description": "The leeway (as a percent) allowed between a purchase order, its goods receipt(s), and the received invoice before a line is flagged \"to review\" in the 3-way-match panel. 0 means no leeway at all — any difference is flagged."
       }
     },
-    "account": {
-      "title": "Account Settings",
-      "description": "Manage your personal account information and security",
-      "profile": {
-        "title": "Profile Information",
-        "description": "Update your personal details"
-      },
-      "password": {
-        "title": "Password & Security",
-        "description": "Change your password and security settings",
-        "loading": "Loading...",
-        "noPasswordSet": "You signed in with an external provider (OIDC). You can set a password to also sign in with email and password."
-      },
-      "form": {
-        "firstname": {
-          "label": "First Name",
-          "placeholder": "Enter your first name",
-          "errors": {
-            "required": "First name is required"
-          }
-        },
-        "lastname": {
-          "label": "Last Name",
-          "placeholder": "Enter your last name",
-          "errors": {
-            "required": "Last name is required"
-          }
-        },
-        "email": {
-          "label": "Email",
-          "placeholder": "Enter your email",
-          "errors": {
-            "invalid": "Email format is invalid"
-          }
-        },
-        "currentPassword": {
-          "label": "Current Password",
-          "placeholder": "Enter current password",
-          "errors": {
-            "required": "Current password is required"
-          }
-        },
-        "password": {
-          "label": "New Password",
-          "labelNew": "Password",
-          "placeholder": "Enter new password",
-          "errors": {
-            "minLength": "Password must be at least 8 characters",
-            "letter": "Password must contain at least one letter",
-            "number": "Password must contain at least one number",
-            "special": "Password must contain at least one special character"
-          }
-        },
-        "confirmPassword": {
-          "label": "Confirm Password",
-          "placeholder": "Confirm new password",
-          "errors": {
-            "match": "Passwords do not match"
-          }
-        },
-        "errors": {
-          "fieldsEmpty": "All fields are required"
-        },
-        "updatingProfile": "Updating...",
-        "updateProfile": "Update Profile",
-        "updatingPassword": "Updating...",
-        "updatePassword": "Update Password",
-        "setPassword": "Set Password"
-      },
-      "messages": {
-        "profileUpdateSuccess": "Profile updated successfully",
-        "profileUpdateError": "Failed to update profile",
-        "passwordUpdateSuccess": "Password updated successfully",
-        "passwordUpdateError": "Failed to update password"
-      },
-      "language": {
-        "title": "Language",
-        "description": "Choose the language of the interface. Languages marked (beta) are partially or machine translated."
-      }
-    },
     "dangerZone": {
       "title": "Danger Zone",
       "description": "Irreversible and destructive actions",
@@ -2197,7 +2116,7 @@
       },
       "resetDatabase": {
         "title": "Reset Everything",
-        "description": "Permanently delete your account and all associated data",
+        "description": "Permanently delete this company and all associated data",
         "button": "Reset Database"
       },
       "modal": {
@@ -2207,8 +2126,8 @@
         "otpPlaceholder": "0000-0000",
         "warningApp": "This will reset all your application data",
         "warningAppDescription": "All quotes, invoices, and clients will be permanently deleted",
-        "warningDatabase": "This will delete your entire account",
-        "warningDatabaseDescription": "Your account and all data will be permanently deleted",
+        "warningDatabase": "This will delete this company entirely",
+        "warningDatabaseDescription": "This company and all its data will be permanently deleted",
         "cancel": "Cancel",
         "confirm": "Confirm Action"
       },
@@ -2771,6 +2690,137 @@
       }
     }
   },
+  "account": {
+    "pageTitle": "My account",
+    "nav": {
+      "profile": "Profile",
+      "security": "Security",
+      "preferences": "Preferences",
+      "danger": "Danger zone"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Your name and how it appears across Invoicerr",
+      "form": {
+        "firstname": {
+          "label": "First name",
+          "placeholder": "Enter your first name",
+          "errors": {
+            "required": "First name is required"
+          }
+        },
+        "lastname": {
+          "label": "Last name",
+          "placeholder": "Enter your last name",
+          "errors": {
+            "required": "Last name is required"
+          }
+        },
+        "save": "Save changes",
+        "saving": "Saving..."
+      },
+      "messages": {
+        "updateSuccess": "Profile updated",
+        "updateError": "Failed to update your profile"
+      },
+      "email": {
+        "title": "Email address",
+        "description": "Used to sign in and to receive account notifications",
+        "currentLabel": "Current address",
+        "newLabel": "New email address",
+        "newPlaceholder": "you@example.com",
+        "send": "Send confirmation",
+        "sending": "Sending...",
+        "errors": {
+          "invalid": "Enter a valid email address"
+        },
+        "messages": {
+          "sent": "A confirmation email was sent to {{email}}. Your address won't change until you click the link in it.",
+          "error": "Failed to send the confirmation email",
+          "verified": "Your email address has been verified and updated."
+        }
+      }
+    },
+    "security": {
+      "password": {
+        "title": "Password",
+        "description": "Change your password",
+        "loading": "Loading...",
+        "noPasswordSet": "You signed in with an external provider (OIDC). You can set a password to also sign in with email and password.",
+        "form": {
+          "currentPassword": {
+            "label": "Current password",
+            "placeholder": "Enter your current password",
+            "errors": {
+              "required": "Current password is required"
+            }
+          },
+          "password": {
+            "label": "New password",
+            "labelNew": "Password",
+            "placeholder": "Enter a new password",
+            "errors": {
+              "minLength": "Password must be at least 8 characters",
+              "letter": "Password must contain at least one letter",
+              "number": "Password must contain at least one number",
+              "special": "Password must contain at least one special character"
+            }
+          },
+          "confirmPassword": {
+            "label": "Confirm password",
+            "placeholder": "Confirm the new password",
+            "errors": {
+              "match": "Passwords do not match"
+            }
+          },
+          "submit": "Update password",
+          "submitNew": "Set password",
+          "submitting": "Updating..."
+        }
+      },
+      "messages": {
+        "updateSuccess": "Password updated successfully",
+        "updateError": "Failed to update your password"
+      }
+    },
+    "preferences": {
+      "language": {
+        "title": "Language",
+        "description": "Choose the language of the interface. Languages marked (beta) are partially or machine translated."
+      },
+      "theme": {
+        "title": "Theme",
+        "description": "Choose how Invoicerr looks on this device."
+      }
+    },
+    "danger": {
+      "card": {
+        "title": "Delete my account",
+        "description": "Permanently delete your personal account. This does not delete any company you belong to — if you are the sole owner of a company, transfer ownership or delete that company first.",
+        "button": "Delete my account"
+      },
+      "dialog": {
+        "title": "Delete your account?",
+        "description": "This permanently deletes your personal account — not any company. This cannot be undone.",
+        "passwordLabel": "Confirm your password",
+        "passwordPlaceholder": "Enter your password",
+        "ssoNotice": "You signed in with an external provider. We'll email you a confirmation link instead of asking for a password.",
+        "cancel": "Cancel",
+        "confirm": "Delete my account",
+        "confirming": "Deleting..."
+      },
+      "messages": {
+        "emailSent": "A confirmation email was sent — click the link in it to finish deleting your account.",
+        "success": "Your account has been deleted.",
+        "error": "Failed to delete your account",
+        "soleOwner": {
+          "title": "You're the only owner",
+          "description": "Transfer ownership to another member, or delete the company, before deleting your account.",
+          "link": "Go to Members"
+        }
+      }
+    }
+  },
   "sidebar": {
     "navigation": {
       "dashboard": "Dashboard",
@@ -2804,7 +2854,7 @@
       "system": "System"
     },
     "userMenu": {
-      "account": "Account",
+      "account": "My account",
       "logout": "Log out"
     },
     "companyDialog": {

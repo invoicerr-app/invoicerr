@@ -12,11 +12,9 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
-  Moon,
   Package,
   Plus,
   Settings,
-  Sun,
   TrendingUp,
   User,
   Users,
@@ -42,11 +40,9 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  useSidebar,
 } from "@/components/ui/sidebar"
 
 import { Badge } from "./ui/badge"
-import { Button } from "./ui/button"
 import OnBoarding from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
@@ -57,19 +53,16 @@ import type { Company } from "@/types"
 
 import { useAvailableDocumentTypes, useCompanies, useCompany } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useTheme } from "./theme-provider"
 import { useTranslation } from "react-i18next"
 
 export function Sidebar() {
   const { t } = useTranslation()
-  const { open: isOpen } = useSidebar()
   const isMobile = useIsMobile()
   const location = useLocation()
 
   const { data, isPending: userLoading } = authClient.useSession()
   const { companies, activeCompanyId, isPending: companiesLoading } = useCompanies()
 
-  const { setTheme } = useTheme()
   const { data: company } = useCompany()
   const navigate = useNavigate()
 
@@ -445,32 +438,10 @@ export function Sidebar() {
         <SidebarMenu className="flex flex-col gap-2">
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className={`${isOpen ? "ml-2" : ""} w-8 h-8`}>
-                  <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                  <Moon className="absolute size-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                  <span className="sr-only">{t("sidebar.theme.toggleTheme")}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setTheme("light")}>
-                  {t("sidebar.theme.light")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("dark")}>
-                  {t("sidebar.theme.dark")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("system")}>
-                  {t("sidebar.theme.system")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <DropdownMenu>
               <DropdownMenuTrigger className="cursor-pointer" asChild>
                 <SidebarMenuButton
                   size="lg"
+                  data-cy="sidebar-user-menu-trigger"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
@@ -512,7 +483,11 @@ export function Sidebar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => navigate("/account")}
+                    data-cy="sidebar-account-menu-item"
+                  >
                     <User className="w-4 h-4" />
                     {t("sidebar.userMenu.account")}
                   </DropdownMenuItem>

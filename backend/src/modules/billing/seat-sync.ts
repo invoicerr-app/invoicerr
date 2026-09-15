@@ -11,10 +11,13 @@
  *  - `lib/auth.ts` — a BRAND-NEW user signing up via an invitation code or their company's own SSO
  *    (`markInvitationAsUsed`/`attachSsoProvisionedMembership`), the one call site outside Nest DI
  *    entirely;
- *  - `companies.service.ts` — a member being removed (removeMember).
+ *  - `companies.service.ts` — a member being removed (removeMember);
+ *  - `auth-extended/account-lifecycle.ts` — a user deleting their OWN account
+ *    (`cleanupAfterUserDelete`), once per company the DB's own `ON DELETE CASCADE` already removed
+ *    their `UserCompany` row from.
  *
  * A no-op when billing is disabled (checked first, same as every other billing entry point) — so
- * these four call sites cost a self-hosted instance nothing beyond one synchronous env read.
+ * these call sites cost a self-hosted instance nothing beyond one synchronous env read.
  *
  * NEVER throws into its caller: a Polar outage or a bad access token must not turn "accept an
  * invitation" or "remove a member" into a 500 — errors are logged and swallowed, the same

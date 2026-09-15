@@ -17,7 +17,6 @@ import {
   SlidersHorizontal,
   Tags,
   TicketIcon,
-  User,
   Users,
   Wallet,
   Webhook,
@@ -25,7 +24,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNavigate, useParams } from "react-router"
 
-import AccountSettings from "./_components/account.settings"
 import AccountingExportSettings from "./_components/accounting-export.settings"
 import ApiKeysSettings from "./_components/api-keys.settings"
 import AtcudSettings from "./_components/atcud.settings"
@@ -85,7 +83,6 @@ export default function Settings() {
     "webhooks",
     "apiKeys",
     "logs",
-    "account",
     "invitations",
     "members",
     "plugins",
@@ -142,11 +139,6 @@ export default function Settings() {
       value: "logs",
       label: t("settings.tabs.logs"),
       icon: FileText,
-    },
-    {
-      value: "account",
-      label: t("settings.tabs.account"),
-      icon: User,
     },
     {
       value: "invitations",
@@ -271,8 +263,6 @@ export default function Settings() {
         return <ApiKeysSettings />
       case "logs":
         return <LogsSettings />
-      case "account":
-        return <AccountSettings />
       case "invitations":
         return <InvitationsSettings />
       case "members":
