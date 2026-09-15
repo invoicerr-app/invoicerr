@@ -242,9 +242,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 			// A real click — the invoice has no "send" param (the transport reads the client, not a
 			// typed field — see invoice-actions.ts), so there is no params dialog to go through.
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-				timeout: 15000,
-			}).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// A large, documented budget, same reasoning as 28-document-async-send.cy.ts:
 			// DOCUMENT_ACTION_QUEUE_ATTEMPTS=3 by default, exponential backoff base 2000ms — up to
@@ -319,9 +317,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 
 		createInvoiceDraft().then((invoiceId) => {
 			cy.visit("/documents/invoice");
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-				timeout: 15000,
-			}).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// PREFLIGHT blocks BEFORE any persistence — even the transition to "sending" never
 			// happens (see async-send.ts / pdp-transport.ts's own header): a visible toast says so
@@ -432,9 +428,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-				timeout: 15000,
-			}).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// Same budget as the PDP test above — see its comment for why it is 90000ms, not the
 			// 40000ms this was originally set to. The real KSeF rejection is in practice near-instant
@@ -587,9 +581,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-				timeout: 15000,
-			}).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// Same budget as the PDP test above — see its comment: a closed-port connect (SdI's fake
 			// server here, same as PDP's) was assumed near-instant when 40000ms was chosen; measured
@@ -739,9 +731,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-				timeout: 15000,
-			}).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// Same budget as the PDP/KSeF/SdI tests above — see their comment for why it is
 			// 90000ms, not 40000ms. The real PISTE rejection is in practice near-instant (probed by

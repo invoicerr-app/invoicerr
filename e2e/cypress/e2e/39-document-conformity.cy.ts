@@ -83,7 +83,7 @@ describe("Post-deposit conformity tracking — a send by email shows nothing", (
 				.should("contain.text", "Draft");
 
 			// A real click — never a direct call to the action.
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 				.find('[data-cy="document-status-badge"]')

@@ -118,6 +118,8 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		createAndSendInvoice().then(({ id, displayNumber }) => {
 			cy.visit("/documents/invoice", { timeout: 20000 });
 
+			cy.openDocumentRowMenu(id);
+
 			cy.get(`[data-cy="document-xml-button-${id}"]`, {
 				timeout: 10000,
 			}).should("exist");
@@ -133,6 +135,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				method: "GET",
 				pathname: `/api/documents/${id}/formats/cii`,
 			}).as("xmlCii");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`).click();
 			cy.get(`[data-cy="document-xml-cii-${id}"]`, { timeout: 10000 })
 				.should("be.visible")
@@ -155,6 +158,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				method: "GET",
 				pathname: `/api/documents/${id}/formats/ubl`,
 			}).as("xmlUbl");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`).click();
 			cy.get(`[data-cy="document-xml-ubl-${id}"]`, { timeout: 10000 })
 				.should("be.visible")
@@ -193,6 +197,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				method: "GET",
 				pathname: `/api/documents/${id}/formats/cii`,
 			}).as("xmlCiiMentions");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`, {
 				timeout: 10000,
 			}).click();
@@ -224,6 +229,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				method: "GET",
 				pathname: `/api/documents/${id}/formats/ubl`,
 			}).as("xmlUblMentions");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`).click();
 			cy.get(`[data-cy="document-xml-ubl-${id}"]`, { timeout: 10000 })
 				.should("be.visible")
@@ -279,6 +285,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 					cy.get(`[data-cy="document-list-row-${id}"]`, {
 						timeout: 10000,
 					}).should("exist");
+					cy.openDocumentRowMenu(id);
 					cy.get(`[data-cy="document-xml-button-${id}"]`).should("not.exist");
 
 					// And a scripted client hitting the endpoint directly gets the same refusal, not a
@@ -470,6 +477,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				method: "GET",
 				pathname: `/api/documents/${id}/formats/cii`,
 			}).as("xmlCiiBt23");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`, {
 				timeout: 10000,
 			}).click();
@@ -489,6 +497,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				method: "GET",
 				pathname: `/api/documents/${id}/formats/ubl`,
 			}).as("xmlUblBt23");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`).click();
 			cy.get(`[data-cy="document-xml-ubl-${id}"]`, { timeout: 10000 })
 				.should("be.visible")
@@ -524,6 +533,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 						method: "GET",
 						pathname: `/api/documents/${id}/formats/xrechnung`,
 					}).as("xrechnungNoIban");
+					cy.openDocumentRowMenu(id);
 					cy.get(`[data-cy="document-xml-button-${id}"]`, {
 						timeout: 10000,
 					}).click();
@@ -583,6 +593,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 						method: "GET",
 						pathname: `/api/documents/${id}/formats/xrechnung`,
 					}).as("xrechnungOk");
+					cy.openDocumentRowMenu(id);
 					cy.get(`[data-cy="document-xml-button-${id}"]`, {
 						timeout: 10000,
 					}).click();

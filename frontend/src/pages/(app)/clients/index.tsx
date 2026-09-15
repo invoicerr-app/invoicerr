@@ -7,6 +7,7 @@ import {
   MapPin,
   Phone,
   Plus,
+  SearchX,
   Search,
   Trash2,
   User,
@@ -17,6 +18,7 @@ import {
 import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import type { Client } from "@/types"
 import { ClientDeleteDialog } from "./_components/client-delete"
 import { ClientPortalAccessDialog } from "./_components/client-portal-access"
@@ -96,24 +98,32 @@ export default function Clients() {
 
   usePageHeader(t("sidebar.navigation.clients"))
 
-  const emptyState = (
-    <div className="text-center py-12">
-      <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-      <h3 className="mt-2 text-sm font-medium text-foreground">
-        {searchTerm ? t("clients.emptyState.noResults") : t("clients.emptyState.noClients")}
-      </h3>
-      <p className="mt-1 text-sm text-primary">
-        {searchTerm ? t("clients.emptyState.tryDifferentSearch") : t("clients.emptyState.startAdding")}
-      </p>
-      {!searchTerm && (
-        <div className="mt-6">
-          <Button onClick={handleAddClick}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t("clients.actions.addNew")}
-          </Button>
-        </div>
-      )}
-    </div>
+  // `secondary` on the empty-state CTA: the header's "Add client" stays the page's one filled button.
+  const emptyState = searchTerm ? (
+    <EmptyState
+      icon={SearchX}
+      title={t("clients.emptyState.noResults")}
+      description={t("clients.emptyState.tryDifferentSearch")}
+      action={
+        <Button variant="outline" onClick={() => setSearchTerm("")}>
+          {t("common.emptyState.clearSearch")}
+        </Button>
+      }
+      data-cy="clients-empty"
+    />
+  ) : (
+    <EmptyState
+      icon={Users}
+      title={t("clients.emptyState.noClients")}
+      description={t("clients.emptyState.startAdding")}
+      action={
+        <Button variant="secondary" onClick={handleAddClick}>
+          <Plus aria-hidden="true" />
+          {t("clients.actions.addNew")}
+        </Button>
+      }
+      data-cy="clients-empty"
+    />
   )
 
   return (

@@ -69,7 +69,7 @@ function sendInvoiceFromScreen(invoiceId: string) {
 		.find('[data-cy="document-status-badge"]')
 		.should("contain.text", "Draft");
 
-	cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+	cy.runDocumentRowAction(invoiceId, "send");
 	cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 		.find('[data-cy="document-status-badge"]')
 		.should("contain.text", "Sent");
@@ -96,6 +96,7 @@ describe("Public download links (item 24) — created, copied, revoked from the 
 
 				// The "Share link" button only exists for a non-draft document — see the test
 				// dedicated to the negative case further below. Here it must be present, the invoice being "sent".
+				cy.openDocumentRowMenu(invoiceId);
 				cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`, { timeout: 15000 }).click();
 				cy.get('[data-cy="share-link-dialog"]', { timeout: 15000 }).should("be.visible");
 
@@ -140,6 +141,7 @@ describe("Public download links (item 24) — created, copied, revoked from the 
 						// the sign-in screen) so the link can be revoked from the screen.
 						cy.login();
 						cy.visit("/documents/invoice");
+						cy.openDocumentRowMenu(invoiceId);
 						cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`, { timeout: 15000 }).click();
 						cy.get('[data-cy="share-link-dialog"]', { timeout: 15000 }).should("be.visible");
 						cy.get('[data-cy^="share-link-revoke-"]', { timeout: 15000 }).first().click();
@@ -162,9 +164,10 @@ describe("Public download links (item 24) — created, copied, revoked from the 
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			cy.get(`[data-cy="document-list-row-${invoiceId}"]`).within(() => {
-				cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`).should("not.exist");
-			});
+			// The entry lives in the row's "more" menu (a portal, so not `within` the row's own DOM):
+			// open that menu and assert the entry is absent from it.
+			cy.openDocumentRowMenu(invoiceId);
+			cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`).should("not.exist");
 		});
 	});
 });

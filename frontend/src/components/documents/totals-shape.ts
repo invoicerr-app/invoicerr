@@ -29,13 +29,25 @@ export function extractCurrency(
   descriptor: DocumentTypeDescriptor | undefined,
   data: Record<string, unknown>,
 ): string | null {
+  const field = findCurrencyField(descriptor, data)
+  return field ? (data[field.key] as string) : null
+}
+
+/**
+ * The FIELD `extractCurrency` reads — for a caller that needs to know which one it was (the list's
+ * secondary line skips it once the row's amount already names the currency), not just its value.
+ */
+export function findCurrencyField(
+  descriptor: DocumentTypeDescriptor | undefined,
+  data: Record<string, unknown>,
+): DocumentFieldDescriptor | null {
   if (!descriptor?.fields) return null
 
   for (const field of descriptor.fields) {
     if ((field.kind === "select" || field.kind === "text") && field.key.toLowerCase().includes("currency")) {
       const value = data[field.key]
       if (typeof value === "string" && value) {
-        return value
+        return field
       }
     }
   }

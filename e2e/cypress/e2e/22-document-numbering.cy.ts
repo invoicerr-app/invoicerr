@@ -94,7 +94,7 @@ describe("Document numbering — never before leaving draft, never twice", () =>
 		expect(firstQuoteId, "le devis du test précédent existe toujours").to.be.a("string");
 
 		cy.visit("/documents/quote");
-		cy.get(`[data-cy="document-row-action-send-${firstQuoteId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(firstQuoteId, "send");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-recipient-input"]').clear().type("client@example.com");
 		cy.get('[data-cy="document-action-params-confirm"]').click();
@@ -118,7 +118,7 @@ describe("Document numbering — never before leaving draft, never twice", () =>
 			secondQuoteId = id;
 
 			cy.visit("/documents/quote");
-			cy.get(`[data-cy="document-row-action-send-${secondQuoteId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(secondQuoteId, "send");
 			cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 			cy.get('[data-cy="document-field-recipient-input"]').clear().type("second-client@example.com");
 			cy.get('[data-cy="document-action-params-confirm"]').click();
@@ -143,7 +143,7 @@ describe("Document numbering — never before leaving draft, never twice", () =>
 		// "save-draft" stays offered even once "sent" (quote.descriptor.ts: the transition starts from
 		// ANY status) — clicked directly from the list row, a real click,
 		// exactly as 21-document-lifecycle.cy.ts does for "send".
-		cy.get(`[data-cy="document-row-action-save-draft-${firstQuoteId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(firstQuoteId, "save-draft");
 
 		// The list keeps showing the SAME number, never a new one or an empty one.
 		cy.get(`[data-cy="document-number-${firstQuoteId}"]`, { timeout: 15000 })

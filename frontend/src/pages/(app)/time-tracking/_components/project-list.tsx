@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { currencies } from "@/lib/constants/currencies"
 import { cn } from "@/lib/utils"
 import { useCompany, useUpdateProject } from "@/hooks/queries"
@@ -46,13 +47,21 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
             </div>
           ) : projects.length === 0 ? (
-            <div className="text-center py-12" data-cy="project-empty">
-              <Briefcase className="mx-auto h-10 w-10 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-foreground">{t("timeTracking.projects.empty")}</h3>
-            </div>
+            // `secondary`: the card header's own "Add project" stays the one filled button.
+            <EmptyState
+              icon={Briefcase}
+              title={t("timeTracking.projects.empty")}
+              action={
+                <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+                  <Plus aria-hidden="true" />
+                  {t("timeTracking.projects.list.add")}
+                </Button>
+              }
+              data-cy="project-empty"
+            />
           ) : (
             <div className="divide-y">
               {projects.map((project) => (

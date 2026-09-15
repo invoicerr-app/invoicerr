@@ -311,9 +311,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 
 				// REINFORCEMENT (see this file's own header): the preflight now PASSES (chorus-pro is
 				// registered AND connected) — B2G precedence still forces chorus-pro rather than
@@ -427,9 +425,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				// "draft" (so never numbered — see this file's own header: this is exactly what makes
 				// an XRechnung download unreachable from the screen for THIS document).
 				// Never a silent send through email, whatever transport the company has chosen.
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 				// The toast names "zre-ozgre" (a channel absent from `transport-registry.ts` entirely) —
 				// see this file's own header.
 				cy.get("[data-sonner-toast]", { timeout: 10000 })
@@ -526,9 +522,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				// header) — THIS detour through the screen changes nothing about B2G precedence; never a
 				// silent send through email.
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 				cy.get("[data-sonner-toast]", { timeout: 10000 })
 					.should("contain.text", "zre-ozgre")
 					.and("contain.text", "ERechV");
@@ -632,9 +626,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 
 				// Asynchronous (the B2G channel, sdi, IS implemented and connected): the queue genuinely
 				// fails against the closed port — never a silent success through email. Same 90000ms
@@ -724,9 +716,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 
 				cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 					"contain.text",

@@ -1,10 +1,11 @@
-import { Trash2 } from "lucide-react"
+import { Repeat, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -142,9 +143,12 @@ export default function RecurringSettings() {
             <Skeleton className="h-16 w-full" />
           </div>
         ) : !schedules || schedules.length === 0 ? (
-          <p className="text-sm text-muted-foreground" data-cy="document-schedules-empty">
-            {t("documents.schedules.list.empty")}
-          </p>
+          <EmptyState
+            icon={Repeat}
+            size="sm"
+            title={t("documents.schedules.list.empty")}
+            data-cy="document-schedules-empty"
+          />
         ) : (
           <div data-cy="document-schedules-list">
             {schedules.map((schedule) => (

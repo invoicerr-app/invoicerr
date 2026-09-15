@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2 } from "lucide-react"
+import { Loader2, Tags } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
@@ -258,7 +259,12 @@ export default function ExpenseCategoriesSettings() {
                   {t("settings.expenseCategories.list.loading")}
                 </p>
               ) : (categories ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("settings.expenseCategories.list.empty")}</p>
+                <EmptyState
+                  icon={Tags}
+                  size="sm"
+                  title={t("settings.expenseCategories.list.empty")}
+                  data-cy="expense-categories-empty"
+                />
               ) : (
                 (categories ?? []).map((category) => <CategoryRow key={category.id} category={category} />)
               )}

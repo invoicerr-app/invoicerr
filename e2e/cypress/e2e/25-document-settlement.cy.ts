@@ -173,7 +173,7 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 		expect(creditNoteId, "l'avoir du test précédent existe toujours").to.be.a("string");
 
 		cy.visit("/documents/credit-note");
-		cy.get(`[data-cy="document-row-action-send-${creditNoteId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(creditNoteId, "send");
 
 		// Waits for the screen to reflect the mutation (the click only triggers the request —
 		// the `cy.request` below is a direct Node call, able to outrace the browser's own fetch

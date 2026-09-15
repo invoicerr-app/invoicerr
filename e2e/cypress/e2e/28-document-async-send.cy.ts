@@ -67,7 +67,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 						.should("contain.text", "Draft");
 
 					// A real click — never a direct call to the action, which would bypass the screen.
-					cy.get(`[data-cy="document-row-action-send-${quoteId}"]`, { timeout: 15000 }).click();
+					cy.runDocumentRowAction(quoteId, "send");
 					cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 					cy.get('[data-cy="document-field-recipient-input"]').clear().type(recipient);
 					cy.get('[data-cy="document-action-params-confirm"]').click();

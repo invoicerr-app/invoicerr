@@ -264,6 +264,76 @@ Cypress.Commands.add('runDocumentAction', (actionId: string) => {
     });
 });
 
+/**
+ * Opens one list row's "more" menu (document-list.tsx's `document-row-menu-<id>`) and waits for its
+ * content. Everything a row offers besides its ONE primary button lives in there — the secondary
+ * declared actions (`document-row-action-<actionId>-<id>`), the PDF/XML downloads, the share link,
+ * the recurrence — the same split the detail page's own "Actions" menu makes.
+ * @example cy.openDocumentRowMenu(invoiceId)
+ */
+Cypress.Commands.add('openDocumentRowMenu', (documentId: string) => {
+    const content = `[data-cy="document-row-menu-content-${documentId}"]`;
+    cy.get(`[data-cy="document-list-row-${documentId}"]`, { timeout: 15000 }).should('exist');
+    // Idempotent: a Radix trigger TOGGLES, so a second call while the menu is already open (a spec
+    // that first asserts an entry exists, then clicks it) must not close what the first opened.
+    // `data-state="open"`, not `:visible` — a menu that just closed (an entry was clicked) is still
+    // in the DOM and visible for its exit animation, with `data-state="closed"`, and treating that
+    // as "already open" is what left the next click landing on a menu that was going away.
+    // Same open-side race `openDatePicker` above guards against, on the same primitive family: a
+    // trigger clicked right after the PREVIOUS Radix layer closed (this very menu, after one of its
+    // entries was clicked) can land inside the window where that layer's outside-pointerdown
+    // listener is still attached, and the click never opens anything (scenario leg fr-pl, the
+    // PDF entry then the XML entry back to back). Short wait, then click-and-verify with bounded
+    // retries — a genuine regression still fails loudly on the final assertion below.
+    const isOpen = () =>
+        cy.get('body', { log: false }).then(($body) => $body.find(`${content}[data-state="open"]`).length > 0);
+    const OPEN_POLL_MS = 100;
+    const OPEN_TIMEOUT_MS = 800;
+    const MAX_ATTEMPTS = 3;
+    const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
+        isOpen().then((open) => {
+            if (open || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(open, { log: false });
+            cy.wait(OPEN_POLL_MS, { log: false });
+            return pollForOpen(elapsedMs + OPEN_POLL_MS);
+        });
+    const openWithRetries = (attempt: number): void => {
+        cy.get(`[data-cy="document-row-menu-${documentId}"]`, { timeout: 15000 }).scrollIntoView().click();
+        pollForOpen(0).then((opened) => {
+            if (opened || attempt >= MAX_ATTEMPTS) return;
+            Cypress.log({ name: 'openDocumentRowMenu', message: `menu did not open on attempt ${attempt} -- retrying` });
+            openWithRetries(attempt + 1);
+        });
+    };
+    isOpen().then((alreadyOpen) => {
+        if (alreadyOpen) return;
+        cy.wait(50, { log: false });
+        openWithRetries(1);
+    });
+    cy.get(content, { timeout: 10000 }).should('be.visible').and('have.attr', 'data-state', 'open');
+});
+
+/**
+ * Runs one declared action from a LIST row, wherever the row put it: the row's primary button when
+ * `document-row-action-<actionId>-<id>` is visible on its own, otherwise the same selector inside
+ * the row's "more" menu (opened first). Which one it is depends on the record's status
+ * (action-presentation.ts's `pickPrimaryAction`, the same rule the detail page applies) — a spec
+ * should not have to know, the same way a user does not: the label reads the same in both places.
+ * The row-level twin of `runDocumentAction` above.
+ * @example cy.runDocumentRowAction(quoteId, 'send')
+ */
+Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: string) => {
+    const selector = `[data-cy="document-row-action-${actionId}-${documentId}"]`;
+    cy.get(`[data-cy="document-list-row-${documentId}"]`, { timeout: 15000 }).should('exist');
+    cy.get('body').then(($body) => {
+        if ($body.find(`${selector}:visible`).length > 0) {
+            cy.get(selector).scrollIntoView().click();
+            return;
+        }
+        cy.openDocumentRowMenu(documentId);
+        cy.get(selector, { timeout: 10000 }).should('be.visible').click();
+    });
+});
+
 Cypress.Commands.add('ensureClient', () => {
     const apiUrl = Cypress.env('apiUrl');
     cy.request({ url: `${apiUrl}/api/clients`, failOnStatusCode: false }).then(({ status, body }: any) => {

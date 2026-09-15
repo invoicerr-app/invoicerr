@@ -93,7 +93,9 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 
 				// A real click — never a direct call to the schedule creation API, which
 				// would bypass the screen.
-				cy.get('[data-cy^="document-recurrence-button-"]').first().click();
+				// The entry lives in the row's "more" menu — open the first row's, then click it.
+				cy.get('[data-cy^="document-row-menu-"]').first().scrollIntoView().click();
+				cy.get('[data-cy^="document-recurrence-button-"]', { timeout: 10000 }).first().click();
 				cy.get('[data-cy="create-recurrence-dialog"]', { timeout: 10000 }).should("be.visible");
 
 				// Cadence: "Yearly", not the default value ("Monthly") — with a first occurrence

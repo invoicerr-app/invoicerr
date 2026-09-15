@@ -76,6 +76,19 @@ declare namespace Cypress {
         runDocumentAction(actionId: string): Chainable<void>
 
         /**
+         * Opens one list row's "more" menu (`document-row-menu-<id>`) and waits for its content.
+         * @example cy.openDocumentRowMenu(invoiceId)
+         */
+        openDocumentRowMenu(documentId: string): Chainable<void>
+
+        /**
+         * Clicks one declared action on a LIST row — the row's primary button when that is where
+         * the row put it, otherwise the same entry inside the row's "more" menu.
+         * @example cy.runDocumentRowAction(quoteId, 'send')
+         */
+        runDocumentRowAction(documentId: string, actionId: string): Chainable<void>
+
+        /**
          * Picks "today" on a `DatePicker` via its own "Today" footer button (never a computed
          * `[data-day="M/D/YYYY"]` selector — see the implementation for the CI races that caused).
          * Scrolls the trigger into view, clicks it, waits for the "Today" button, clicks it, then

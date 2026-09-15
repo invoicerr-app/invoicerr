@@ -90,7 +90,7 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
           <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
               </div>
             ) : articles.length === 0 ? (
               emptyState
@@ -100,8 +100,8 @@ export const ArticlesList = forwardRef<ArticlesListHandle, ArticlesListProps>(
                   <div key={article.id} className="p-4 sm:p-6" data-cy="article-item">
                     <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex flex-row items-center gap-4 w-full">
-                        <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                          <Package className="h-5 w-5 text-blue-600" />
+                        <div className="p-2 bg-info rounded-lg mb-4 md:mb-0 w-fit h-fit">
+                          <Package className="h-5 w-5 text-info-foreground" aria-hidden="true" />
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">

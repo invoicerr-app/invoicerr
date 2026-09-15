@@ -114,7 +114,7 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 
 		// A real click, directly from the list row — never a direct call to the action, which would
 		// bypass the screen (same pattern as 23-document-email.cy.ts / 28-document-async-send.cy.ts).
-		cy.get(`[data-cy="document-row-action-send-${purchaseOrderId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(purchaseOrderId, "send");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-recipient-input"]').clear().type(recipient);
 		cy.get('[data-cy="document-action-params-confirm"]').click();
@@ -164,7 +164,7 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 
 		// No params dialog for this action (no `params` declared) — a real click runs it immediately,
 		// see use-document-action-runner.ts's own `handleAction`.
-		cy.get(`[data-cy="document-row-action-cancel-order-${purchaseOrderId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(purchaseOrderId, "cancel-order");
 
 		cy.get(`[data-cy="document-list-row-${purchaseOrderId}"]`, { timeout: 15000 })
 			.find('[data-cy="document-status-badge"]')

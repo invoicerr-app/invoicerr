@@ -1,9 +1,12 @@
+import { Gavel, SearchX } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -104,12 +107,18 @@ export default function DeclarationsPage() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : declarations.length === 0 ? (
-            <div
-              className="p-12 text-center text-sm text-muted-foreground"
+            <EmptyState
+              icon={status ? SearchX : Gavel}
+              title={emptyMessage}
+              action={
+                status && (
+                  <Button variant="outline" onClick={() => handleStatusChange(ALL_STATUSES_VALUE)}>
+                    {t("common.emptyState.clearFilters")}
+                  </Button>
+                )
+              }
               data-cy={!status && !data?.hasObligation ? "declarations-no-obligation" : "declarations-empty"}
-            >
-              {emptyMessage}
-            </div>
+            />
           ) : (
             <Table data-cy="declarations-table">
               <TableHeader>

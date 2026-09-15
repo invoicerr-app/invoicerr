@@ -103,7 +103,7 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 				.find('[data-cy="document-status-badge"]')
@@ -120,7 +120,7 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Draft");
 
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// The preflight blocks SYNCHRONOUSLY, before any pass through the queue — a visible toast
 			// says so right away, the same discipline as the "disconnects the channel" test in 31.
@@ -148,7 +148,7 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 
 		createInvoiceDraft("2026-09-02").then((invoiceId) => {
 			cy.visit("/documents/invoice");
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			cy.get('[data-sonner-toast]', { timeout: 10000 })
 				.should("contain.text", "PDP")
@@ -174,7 +174,7 @@ describe("Country-mandated channel — France mandates PDP for invoices issued s
 
 		createInvoiceDraft("2026-09-03").then((invoiceId) => {
 			cy.visit("/documents/invoice");
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// Same documented budget as 31: ATTEMPTS=3 by default, exponential backoff base 2000ms —
 			// ~6s of queueing, PLUS three real connect attempts to the fake PDP baseUrl. That connect

@@ -1,8 +1,9 @@
 import { ArticlesList, type ArticlesListHandle } from "@/pages/(app)/articles/_components/article-list"
-import { Package, Plus } from "lucide-react"
+import { Package, Plus, SearchX } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useArticles } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { useTranslation } from "react-i18next"
@@ -22,20 +23,33 @@ export default function ArticlesPage() {
 
   usePageHeader(t("sidebar.navigation.articles"))
 
-  const emptyState = (
-    <div className="text-center py-12">
-      <Package className="mx-auto h-12 w-12 text-gray-400" />
-      <h3 className="mt-2 text-sm font-medium text-foreground">{t("articles.empty")}</h3>
-      <p className="mt-1 text-sm text-primary">{t("articles.description")}</p>
-      {!searchTerm && (
-        <div className="mt-6">
-          <Button onClick={() => listRef.current?.handleAddClick()}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t("articles.list.add")}
-          </Button>
-        </div>
-      )}
-    </div>
+  // `secondary` on the empty-state CTA: the list header's "Add article" stays the page's one filled
+  // button.
+  const emptyState = searchTerm ? (
+    <EmptyState
+      icon={SearchX}
+      title={t("common.emptyState.noResultsTitle")}
+      description={t("common.emptyState.noResultsHint")}
+      action={
+        <Button variant="outline" onClick={() => setSearchTerm("")}>
+          {t("common.emptyState.clearSearch")}
+        </Button>
+      }
+      data-cy="articles-empty"
+    />
+  ) : (
+    <EmptyState
+      icon={Package}
+      title={t("articles.empty")}
+      description={t("articles.description")}
+      action={
+        <Button variant="secondary" onClick={() => listRef.current?.handleAddClick()}>
+          <Plus aria-hidden="true" />
+          {t("articles.list.add")}
+        </Button>
+      }
+      data-cy="articles-empty"
+    />
   )
 
   return (

@@ -335,7 +335,7 @@ function sendInvoiceViaScreen(invoiceId: string) {
 	cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
 		.find('[data-cy="document-status-badge"]')
 		.should("contain.text", "Draft");
-	cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+	cy.runDocumentRowAction(invoiceId, "send");
 }
 
 /**
@@ -665,6 +665,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// re-download after "sent" is enough to prove the path works for every leg; 35 already proves
 			// a SECOND, post-edit re-render for the one leg that specifically needs it.
 			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/pdf` }).as("pdfDownload");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-pdf-button-${id}"]`, { timeout: 10000 }).click();
 			cy.wait("@pdfDownload", { timeout: 20000 }).then((x) => {
 				expect(x.response?.statusCode, "the PDF renders").to.eq(200);
@@ -688,6 +689,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// cross-border line — see that file's own header, "the engine DECIDES").
 			cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
 			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/cii` }).as("cii");
+			cy.openDocumentRowMenu(id);
 			cy.get(`[data-cy="document-xml-button-${id}"]`, { timeout: 10000 }).click();
 			cy.get(`[data-cy="document-xml-cii-${id}"]`, { timeout: 10000 }).should("be.visible").click();
 			cy.wait("@cii", { timeout: 20000 }).then((x) => {

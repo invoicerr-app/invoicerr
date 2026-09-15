@@ -102,8 +102,22 @@ before(() => {
 // rather than trusting that nothing upstream ever registered one.
 before(() => {
     cy.window({ log: false }).then((win) => {
-        if (!win.navigator.serviceWorker) return;
-        return win.navigator.serviceWorker.getRegistrations().then((registrations) => {
+        const serviceWorker = win.navigator.serviceWorker;
+        if (!serviceWorker) return;
+        // This hook runs BEFORE any `cy.visit`, on the blank page Cypress shows first: an opaque
+        // origin, where `getRegistrations()` rejects with a `DOMException` (SecurityError) rather
+        // than returning an empty list. Left uncaught, that rejection failed every spec's before-all
+        // hook — and not even with its own message: the runner tries to re-label the error and a
+        // `DOMException`'s `message` is a getter, so what surfaced was "Cannot set property message
+        // of [object DOMException]". No origin means nothing could have been registered: swallow it.
+        const noRegistrations = () => [] as readonly ServiceWorkerRegistration[];
+        let lookup: Promise<readonly ServiceWorkerRegistration[]>;
+        try {
+            lookup = serviceWorker.getRegistrations().then((registrations) => registrations, noRegistrations);
+        } catch {
+            lookup = Promise.resolve(noRegistrations());
+        }
+        return lookup.then((registrations) => {
             registrations.forEach((registration) => registration.unregister());
         });
     });

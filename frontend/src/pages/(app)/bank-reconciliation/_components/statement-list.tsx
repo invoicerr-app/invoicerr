@@ -3,6 +3,7 @@ import { FileStack } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { cn } from "@/lib/utils"
 import type { BankStatementSummary } from "@/types/bank-reconciliation"
 
@@ -27,15 +28,15 @@ export function StatementList({ statements, loading, selectedStatementId, onSele
       <CardContent className="p-0">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
           </div>
         ) : statements.length === 0 ? (
-          <div className="text-center py-12" data-cy="bank-reconciliation-statements-empty">
-            <FileStack className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-foreground">
-              {t("bankReconciliation.statements.empty")}
-            </h3>
-          </div>
+          // No CTA here: importing is the header's own dialog trigger, right above this block.
+          <EmptyState
+            icon={FileStack}
+            title={t("bankReconciliation.statements.empty")}
+            data-cy="bank-reconciliation-statements-empty"
+          />
         ) : (
           <div className="divide-y" data-cy="bank-reconciliation-statement-list">
             {statements.map((statement) => (

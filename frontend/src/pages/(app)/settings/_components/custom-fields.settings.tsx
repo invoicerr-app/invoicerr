@@ -1,7 +1,8 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArchiveRestore, Loader2, Plus, Trash2 } from "lucide-react"
+import { ArchiveRestore, Loader2, Plus, SlidersHorizontal, Trash2 } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useMemo, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -558,9 +559,12 @@ export default function CustomFieldsSettings() {
               {isLoading ? (
                 <p className="text-sm text-muted-foreground">{t("settings.customFields.list.loading")}</p>
               ) : documentDefinitions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("settings.customFields.list.emptyDocument")}
-                </p>
+                <EmptyState
+                  icon={SlidersHorizontal}
+                  size="sm"
+                  title={t("settings.customFields.list.emptyDocument")}
+                  data-cy="custom-fields-empty"
+                />
               ) : (
                 documentDefinitions.map((definition) => (
                   <DefinitionRow

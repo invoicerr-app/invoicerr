@@ -1,3 +1,4 @@
+import { ListX } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -5,6 +6,7 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { currencies } from "@/lib/constants/currencies"
@@ -68,12 +70,12 @@ export function StatementLines({ statementId }: StatementLinesProps) {
       </CardHeader>
       <CardContent>
         {lines.length === 0 ? (
-          <p
-            className="text-center py-8 text-sm text-muted-foreground"
+          <EmptyState
+            icon={ListX}
+            size="sm"
+            title={t("bankReconciliation.lines.empty")}
             data-cy="bank-reconciliation-lines-empty"
-          >
-            {t("bankReconciliation.lines.empty")}
-          </p>
+          />
         ) : (
           <Table data-cy="bank-reconciliation-lines-table">
             <TableHeader>

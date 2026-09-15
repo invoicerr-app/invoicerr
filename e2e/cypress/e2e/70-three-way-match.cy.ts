@@ -75,7 +75,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 			// "send" below is the LIST row's, so go back to the list first.
 			cy.visit("/documents/purchase-order");
 
-			cy.get('[data-cy="document-row-action-send-' + purchaseOrderId + '"]', { timeout: 15000 }).click();
+			cy.runDocumentRowAction(purchaseOrderId, "send");
 			cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 			cy.get('[data-cy="document-field-recipient-input"]').clear().type(`three-way-match-${Date.now()}@example.com`);
 
@@ -165,7 +165,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 			.should("contain.text", "Draft");
 
 		cy.intercept("POST", `${api}/api/documents/types/goods-receipt/actions/record`).as("recordGoodsReceipt");
-		cy.get(`[data-cy="document-row-action-record-${goodsReceiptId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(goodsReceiptId, "record");
 		cy.wait("@recordGoodsReceipt").then((interception) => {
 			expect(interception.response?.statusCode, "réception enregistrée").to.be.oneOf([200, 201]);
 			expect(interception.response?.body?.document?.status).to.eq("recorded");

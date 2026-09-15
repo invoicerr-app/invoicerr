@@ -227,7 +227,7 @@ describe("Receiving invoices", () => {
 			expect(created.data.supplier).to.eq("Fixture Fournisseur SARL");
 			const id = created.id;
 
-			cy.get(`[data-cy="document-row-action-approve-${id}"]`, { timeout: 10000 }).click();
+			cy.runDocumentRowAction(id, "approve");
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 
 			cy.get(`[data-cy="document-list-row-${id}"]`)

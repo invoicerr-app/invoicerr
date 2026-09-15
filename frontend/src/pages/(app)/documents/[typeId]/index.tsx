@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import { DocumentCreateDialog } from "@/components/documents/document-create-dialog"
 import { DocumentList } from "@/components/documents/document-list"
 import type { DocumentInstance } from "@/components/documents/types"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentInstances, useDocumentType } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -27,7 +28,12 @@ export default function DocumentTypePage() {
   const location = useLocation()
 
   const { data: descriptor, isLoading, error } = useDocumentType(typeId)
-  const { data: instances = [], isLoading: instancesLoading } = useDocumentInstances(typeId)
+  const {
+    data: instances = [],
+    isLoading: instancesLoading,
+    error: instancesError,
+    refetch: refetchInstances,
+  } = useDocumentInstances(typeId)
 
   const [createOpen, setCreateOpen] = useState(false)
   // A cross-page "create, pre-linked" seed — the correction-routes dialog's own hand-off: a DIFFERENT
@@ -77,12 +83,12 @@ export default function DocumentTypePage() {
 
   if (error || !descriptor) {
     return (
-      <div
-        className="max-w-4xl mx-auto p-12 text-center text-muted-foreground"
-        data-cy="document-type-unknown"
-      >
-        <FileQuestion className="mx-auto h-10 w-10 mb-3 opacity-50" />
-        {t("documents.form.unknownType", { typeId })}
+      <div className="max-w-4xl mx-auto p-6">
+        <EmptyState
+          icon={FileQuestion}
+          title={t("documents.form.unknownType", { typeId })}
+          data-cy="document-type-unknown"
+        />
       </div>
     )
   }
@@ -106,6 +112,8 @@ export default function DocumentTypePage() {
         descriptor={descriptor}
         instances={instances}
         isLoading={instancesLoading}
+        error={instancesError}
+        onRetry={() => void refetchInstances()}
         onCreate={() => {
           // Never resurrect a stale navigation hand-off from an earlier visit — the generic "+ New"
           // button always means a genuinely blank record, whatever `createInitialData` still holds.

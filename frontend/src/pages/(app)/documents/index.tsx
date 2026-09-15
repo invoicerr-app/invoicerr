@@ -2,6 +2,7 @@ import { FileStack } from "lucide-react"
 import { Navigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
+import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAvailableDocumentTypes } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -34,12 +35,12 @@ export default function DocumentsIndexPage() {
   }
 
   return (
-    <div
-      className="mx-auto max-w-2xl p-12 text-center text-muted-foreground"
-      data-cy="documents-index-no-types"
-    >
-      <FileStack className="mx-auto mb-3 h-10 w-10 opacity-50" />
-      <p>{data?.reason ?? t("documents.index.empty")}</p>
+    <div className="mx-auto max-w-2xl p-6">
+      <EmptyState
+        icon={FileStack}
+        title={data?.reason ?? t("documents.index.empty")}
+        data-cy="documents-index-no-types"
+      />
     </div>
   )
 }

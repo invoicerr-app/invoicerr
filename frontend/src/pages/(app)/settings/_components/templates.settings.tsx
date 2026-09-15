@@ -1,6 +1,7 @@
 // biome-ignore-all lint/security/noDangerouslySetInnerHtml: the html preview is sanitized into safeHtml
 import DOMPurify from "dompurify"
 import { ChevronDown, ChevronUp, Mail, RotateCcw, TriangleAlert } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { type ReactNode, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -599,7 +600,7 @@ export default function EmailTemplatesSettings() {
         {documentData === null ? (
           <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
         ) : documentTemplates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("settings.emailTemplates.documents.empty")}</p>
+          <EmptyState icon={Mail} size="sm" title={t("settings.emailTemplates.documents.empty")} />
         ) : (
           documentTemplates.map((template) => (
             <DocumentTemplateCard

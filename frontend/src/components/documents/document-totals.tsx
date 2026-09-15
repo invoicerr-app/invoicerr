@@ -3,7 +3,12 @@ import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import type { DocumentTypeDescriptor } from "@/components/documents/types"
-import { computeTotals, decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
+import {
+  type ClientDocumentTotals,
+  computeTotals,
+  decimalsFor,
+  fromMinor,
+} from "@/components/documents/totals-calculator"
 import { extractCurrency, findLineArrayFields } from "@/components/documents/totals-shape"
 
 /**
@@ -14,50 +19,61 @@ import { extractCurrency, findLineArrayFields } from "@/components/documents/tot
  * it, and the detail page's header reads it once more for the headline amount.
  */
 export function useDocumentTotals(descriptor: DocumentTypeDescriptor) {
-  const arrayFields = useMemo(() => findLineArrayFields(descriptor), [descriptor])
   const formValues = useWatch()
+  return useMemo(() => computeDocumentTotals(descriptor, formValues), [formValues, descriptor])
+}
 
-  return useMemo(() => {
-    if (!formValues || arrayFields.length === 0) return null
+/**
+ * The pure half of `useDocumentTotals`: the same net/VAT/gross for ANY `values` object shaped like
+ * the document's data — the live form above, or a SAVED record's `instance.data` (the list's own
+ * per-row total, list-amount.ts). One function so a row in the list and the page it opens can never
+ * disagree on the figure. Null when there are no line rows, no money subfield to sum, or nothing
+ * sums to anything.
+ */
+export function computeDocumentTotals(
+  descriptor: DocumentTypeDescriptor,
+  values: Record<string, unknown> | undefined,
+): ClientDocumentTotals | null {
+  const arrayFields = findLineArrayFields(descriptor)
+  if (!values || arrayFields.length === 0) return null
 
-    // Collect all lines from all array fields
-    const allLines: Array<Record<string, unknown>> = []
-    for (const arrayField of arrayFields) {
-      const arrayValue = formValues[arrayField.key]
-      const rows = Array.isArray(arrayValue) ? (arrayValue as Record<string, unknown>[]) : []
-      allLines.push(...rows)
-    }
-    if (allLines.length === 0) return null
+  // Collect all lines from all array fields
+  const allLines: Array<Record<string, unknown>> = []
+  for (const arrayField of arrayFields) {
+    const arrayValue = values[arrayField.key]
+    const rows = Array.isArray(arrayValue) ? (arrayValue as Record<string, unknown>[]) : []
+    allLines.push(...rows)
+  }
+  if (allLines.length === 0) return null
 
-    // Use the first array field for field key detection (all should have same structure)
-    const firstArrayField = arrayFields[0]
-    const moneyField = firstArrayField.fields?.find((f) => f.kind === "money")
-    // The QUANTITY field is the 'number' subfield whose key does NOT look like a discount — mirrors
-    // the backend's own compute-totals.ts detection exactly, so a descriptor that also declares
-    // `discountPercent` (a second 'number' subfield) is not mistaken for the quantity here.
-    const numberField = firstArrayField.fields?.find(
-      (f) => f.kind === "number" && !f.key.toLowerCase().includes("discount"),
-    )
-    const discountField = firstArrayField.fields?.find(
-      (f) => f.kind === "number" && f.key.toLowerCase().includes("discount"),
-    )
-    const vatRateField = firstArrayField.fields?.find((f) => {
-      if (f.kind !== "select") return false
-      return f.key.toLowerCase().includes("vat") || (f.options && f.options.length > 0)
-    })
-    if (!moneyField) return null
+  // Use the first array field for field key detection (all should have same structure)
+  const firstArrayField = arrayFields[0]
+  const moneyField = firstArrayField.fields?.find((f) => f.kind === "money")
+  // The QUANTITY field is the 'number' subfield whose key does NOT look like a discount — mirrors
+  // the backend's own compute-totals.ts detection exactly, so a descriptor that also declares
+  // `discountPercent` (a second 'number' subfield) is not mistaken for the quantity here.
+  const numberField = firstArrayField.fields?.find(
+    (f) => f.kind === "number" && !f.key.toLowerCase().includes("discount"),
+  )
+  const discountField = firstArrayField.fields?.find(
+    (f) => f.kind === "number" && f.key.toLowerCase().includes("discount"),
+  )
+  const vatRateField = firstArrayField.fields?.find((f) => {
+    if (f.kind !== "select") return false
+    return f.key.toLowerCase().includes("vat") || (f.options && f.options.length > 0)
+  })
+  if (!moneyField) return null
 
-    const currency = extractCurrency(descriptor, formValues)
-    const totals = computeTotals(
-      allLines,
-      currency,
-      moneyField.key,
-      numberField?.key,
-      vatRateField?.key,
-      discountField?.key,
-    )
-    return totals.netMinor === 0 ? null : totals
-  }, [formValues, arrayFields, descriptor])
+  const currency = extractCurrency(descriptor, values)
+  const totals = computeTotals(
+    allLines,
+    currency,
+    moneyField.key,
+    numberField?.key,
+    vatRateField?.key,
+    discountField?.key,
+  )
+  return totals.netMinor === 0 ? null : totals
 }
 
 /** `1234.50 EUR` — one formatter for every figure this module shows, so the header amount and the

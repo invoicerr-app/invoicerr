@@ -5,7 +5,8 @@ import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { RefreshCwIcon, TrashIcon } from "lucide-react"
+import { RefreshCwIcon, TrashIcon, Users } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import type { CompanyMember, CompanyRole } from "@/types"
 import { authClient } from "@/lib/auth"
 import { toast } from "sonner"
@@ -69,7 +70,7 @@ export default function MembersSettings() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : !members || members.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">{t("settings.members.empty")}</div>
+            <EmptyState icon={Users} size="sm" title={t("settings.members.empty")} data-cy="members-empty" />
           ) : (
             <Table>
               <TableHeader>

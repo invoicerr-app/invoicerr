@@ -87,7 +87,7 @@ describe('Legal archiving ⚖ — hash, date, verification and FR retention, pro
 				.should("contain.text", "Draft");
 
 			// A real click — never a direct call to the action, which would bypass the screen.
-			cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(invoiceId, "send");
 
 			// The displayed status reaches "Sent" via the frontend's own polling (the same mechanism
 			// as 28) — the invoice has no "send" param at all (the transport reads the client, not a

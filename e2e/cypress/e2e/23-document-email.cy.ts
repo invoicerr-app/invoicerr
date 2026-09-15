@@ -50,7 +50,7 @@ describe("Sending a document carries its PDF as an attachment", () => {
 					cy.visit("/documents/quote");
 					// A real click, exactly the pattern from 21/22 — never a direct call to the action that
 					// would bypass the screen.
-					cy.get(`[data-cy="document-row-action-send-${quoteId}"]`, { timeout: 15000 }).click();
+					cy.runDocumentRowAction(quoteId, "send");
 					cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 					cy.get('[data-cy="document-field-recipient-input"]')
 						.clear()

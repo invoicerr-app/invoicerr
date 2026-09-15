@@ -158,6 +158,7 @@ describe("Document PDF rendering", () => {
 					cy.visit("/documents/quote", { timeout: 20000 });
 
 					// The PDF button should be present with the correct data-cy attribute
+					cy.openDocumentRowMenu(id);
 					cy.get(`[data-cy="document-pdf-button-${id}"]`, {
 						timeout: 10000,
 					}).should("exist");
@@ -175,6 +176,7 @@ describe("Document PDF rendering", () => {
 						// the assertion targets the real network request, not the tab.
 						cy.stub(win, "open").as("windowOpen");
 					});
+					cy.openDocumentRowMenu(id);
 					cy.get(`[data-cy="document-pdf-button-${id}"]`).click();
 					cy.wait("@pdf", { timeout: 20000 }).then((x) => {
 						expect(

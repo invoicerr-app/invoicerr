@@ -208,7 +208,7 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 					.should("contain.text", "Draft");
 
 				// A real click — never a direct call to the action (same discipline as 39/44).
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 
 				cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
 					.find('[data-cy="document-status-badge"]')

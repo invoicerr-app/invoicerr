@@ -133,9 +133,7 @@ describe("The cross-border case, through the screen", () => {
 						.should("contain.text", "Draft");
 
 					// THE ACTION: a real click on "Send" — never a direct call to the action.
-					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-						timeout: 15000,
-					}).click();
+					cy.runDocumentRowAction(invoiceId, "send");
 
 					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
 						timeout: 20000,
@@ -149,6 +147,7 @@ describe("The cross-border case, through the screen", () => {
 						method: "GET",
 						pathname: `/api/documents/${invoiceId}/formats/cii`,
 					}).as("xmlCiiCrossBorder");
+					cy.openDocumentRowMenu(invoiceId);
 					cy.get(`[data-cy="document-xml-button-${invoiceId}"]`, {
 						timeout: 10000,
 					}).click();
@@ -210,6 +209,7 @@ describe("The cross-border case, through the screen", () => {
 						method: "GET",
 						pathname: `/api/documents/${invoiceId}/pdf`,
 					}).as("pdfCrossBorderReDownload");
+					cy.openDocumentRowMenu(invoiceId);
 					cy.get(`[data-cy="document-pdf-button-${invoiceId}"]`, {
 						timeout: 10000,
 					}).click();
@@ -319,9 +319,7 @@ describe("The cross-border case, through the screen", () => {
 					.find('[data-cy="document-status-badge"]')
 					.should("contain.text", "Draft");
 
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 
 				// The preflight blocks SYNCHRONOUSLY — a named toast says so immediately, the same
 				// discipline as 32-channel-mandate.cy.ts for its own preflight refusal.
@@ -434,9 +432,7 @@ describe("The cross-border case, through the screen", () => {
 						.should("contain.text", "Draft");
 
 					// THE ACTION: a real click on "Send".
-					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, {
-						timeout: 15000,
-					}).click();
+					cy.runDocumentRowAction(invoiceId, "send");
 
 					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
 						timeout: 20000,
@@ -452,6 +448,7 @@ describe("The cross-border case, through the screen", () => {
 						method: "GET",
 						pathname: `/api/documents/${invoiceId}/formats/cii`,
 					}).as("xmlCiiOss");
+					cy.openDocumentRowMenu(invoiceId);
 					cy.get(`[data-cy="document-xml-button-${invoiceId}"]`, {
 						timeout: 10000,
 					}).click();

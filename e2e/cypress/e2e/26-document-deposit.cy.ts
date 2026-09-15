@@ -49,7 +49,7 @@ describe("request-deposit — a real click creates a draft deposit invoice", () 
 					expect(quoteId, "le brouillon a un identifiant").to.be.a("string");
 
 					cy.visit("/documents/quote");
-					cy.get(`[data-cy="document-row-action-send-${quoteId}"]`, { timeout: 15000 }).click();
+					cy.runDocumentRowAction(quoteId, "send");
 					cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
 						"be.visible",
 					);
@@ -74,9 +74,16 @@ describe("request-deposit — a real click creates a draft deposit invoice", () 
 		);
 
 		cy.visit("/documents/quote");
-		cy.get(`[data-cy="document-row-action-request-deposit-${quoteId}"]`, { timeout: 15000 }).click();
+		cy.runDocumentRowAction(quoteId, "request-deposit");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="document-field-percent-input"]').clear().type("25", { force: true });
+		// The dialog re-applies the action's default values in an effect right after it mounts
+		// (action-params-dialog.tsx's own `reset`) — a keystroke that lands before that effect
+		// flushes is wiped by it and only the ones typed AFTER survive ("25" became "5", a 5%
+		// deposit). Reaching the field through a real click first, then typing, keeps the keystrokes
+		// on the far side of that flush; the `have.value` check proves it before confirming.
+		cy.get('[data-cy="document-field-percent-input"]', { timeout: 10000 }).should("be.visible").click();
+		cy.wait(50);
+		cy.get('[data-cy="document-field-percent-input"]').type("{selectall}25").should("have.value", "25");
 		cy.get('[data-cy="document-action-params-confirm"]').click();
 
 		cy.wait("@requestDeposit").then((interception) => {

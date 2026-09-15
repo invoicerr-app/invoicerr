@@ -107,7 +107,7 @@ describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", ()
 					// 3) The real trigger: a real click on "Send" — never a direct call to
 					// the action, which would bypass the screen (the same discipline as 21/22/23/28).
 					cy.visit("/documents/invoice");
-					cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+					cy.runDocumentRowAction(invoiceId, "send");
 
 					// The displayed status reaches "Sent" — the transmission genuinely SUCCEEDED, through
 					// the same BullMQ/Redis queue that 28-document-async-send.cy.ts already goes through.

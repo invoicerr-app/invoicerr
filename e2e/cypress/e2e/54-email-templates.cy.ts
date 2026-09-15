@@ -350,7 +350,7 @@ describe("Settings — email templates per document type", () => {
 				expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
 
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`, { timeout: 15000 }).click();
+				cy.runDocumentRowAction(invoiceId, "send");
 				// The `timeout` that actually governs a `.should()` retry belongs on the LAST queryable
 				// command before it — putting it on the outer `.get()` alone (as a first pass here did)
 				// silently caps the retry at Cypress' 4s default instead of the 20s this async send

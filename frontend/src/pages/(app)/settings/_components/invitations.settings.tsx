@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CopyIcon, PlusIcon, RefreshCwIcon, TrashIcon } from "lucide-react"
+import { CopyIcon, PlusIcon, RefreshCwIcon, TicketIcon, TrashIcon } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
@@ -149,9 +150,12 @@ export default function InvitationsSettings() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : !invitations || invitations.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {t("settings.invitations.list.empty")}
-            </div>
+            <EmptyState
+              icon={TicketIcon}
+              size="sm"
+              title={t("settings.invitations.list.empty")}
+              data-cy="invitations-empty"
+            />
           ) : (
             <Table>
               <TableHeader>

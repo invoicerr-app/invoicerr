@@ -3054,6 +3054,15 @@
         "destinationBasedSystem": "This country's tax depends on the buyer's state or destination, not a fixed company-country rate — enter a rate manually.",
         "noCatalogYet": "No sourced VAT rate list is available yet for this country — enter a rate manually."
       }
+    },
+    "emptyState": {
+      "noResultsTitle": "No results",
+      "noResultsHint": "Try a different search term or filter.",
+      "clearFilters": "Clear filters",
+      "clearSearch": "Clear search",
+      "loadErrorTitle": "This list could not be loaded.",
+      "loadErrorHint": "Check your connection, then try again.",
+      "retry": "Retry"
     }
   },
   "payments": {
@@ -4168,7 +4177,8 @@
       "columns": {
         "status": "Status",
         "updatedAt": "Updated",
-        "actions": "Actions"
+        "actions": "Actions",
+        "amount": "Total"
       },
       "searchPlaceholder": "Search...",
       "actions": {
@@ -4177,7 +4187,8 @@
       "emptyState": {
         "noResults": "No documents match your search.",
         "noResultsHint": "Try a different search term or filter.",
-        "startCreatingHint": "Get started by creating your first {{label}}."
+        "startCreatingHint": "Get started by creating your first {{label}}.",
+        "noneYetTitle": "No {{label}} yet"
       },
       "tooltips": {
         "open": "Open"
@@ -4203,7 +4214,19 @@
       "downloadXmlError": "The normalized XML export could not be generated.",
       "shareLink": "Share link",
       "processing": "Processing…",
-      "lastActionError": "Last error: {{message}}"
+      "lastActionError": "Last error: {{message}}",
+      "rowMenu": "More actions",
+      "sort": {
+        "label": "Sort",
+        "updatedDesc": "Recently updated",
+        "updatedAsc": "Least recently updated",
+        "amountDesc": "Highest amount",
+        "amountAsc": "Lowest amount"
+      },
+      "filters": {
+        "all": "All",
+        "ariaLabel": "Filter by status"
+      }
     },
     "custom": {
       "receivedInvoiceUpload": {

@@ -81,7 +81,7 @@ function sendQuoteAndReadEmail(clientId: string) {
 			cy.visit("/documents/quote");
 			// A real click on "Send" — never a direct call to the action, same discipline
 			// 23-document-email.cy.ts already holds.
-			cy.get(`[data-cy="document-row-action-send-${quoteId}"]`, { timeout: 15000 }).click();
+			cy.runDocumentRowAction(quoteId, "send");
 			cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 			cy.get('[data-cy="document-field-recipient-input"]').clear().type("recipient@example.com");
 			cy.get('[data-cy="document-action-params-confirm"]').click();

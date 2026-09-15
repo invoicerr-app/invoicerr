@@ -102,7 +102,7 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 		// Directly from the list row (document-list.tsx exposes the same actions as the
 		// form, without opening the modal) — a real click, not a direct request: it's the screen
 		// that acts here, the API only serves to READ BACK afterwards what was recorded.
-		cy.get(`[data-cy="document-row-action-send-${quoteId}"]`).click();
+		cy.runDocumentRowAction(quoteId, "send");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-recipient-input"]').clear().type("client@example.com");
 		cy.get('[data-cy="document-action-params-confirm"]').click();
@@ -157,9 +157,14 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 							// BEFORE sending: the invoice is "draft", the action must be offered — the proof
 							// that its disappearance further down really comes from the status change, not
 							// from a button that never existed.
+							// "Save draft" is the draft's SAVE, not its next step, so the row keeps it in
+							// its "more" menu (action-presentation.ts's `pickPrimaryAction` puts "send"
+							// in the primary slot) — open that menu to see it offered.
+							cy.openDocumentRowMenu(invoiceId);
 							cy.get(`[data-cy="document-row-action-save-draft-${invoiceId}"]`, {
 								timeout: 15000,
 							}).should("exist");
+							cy.get("body").type("{esc}");
 
 							cy.request({
 								method: "POST",
@@ -185,6 +190,7 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 								cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 }).should(
 									"exist",
 								);
+								cy.openDocumentRowMenu(invoiceId);
 								cy.get(`[data-cy="document-row-action-save-draft-${invoiceId}"]`).should(
 									"not.exist",
 								);
