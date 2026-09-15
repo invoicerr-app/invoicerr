@@ -1,20 +1,20 @@
-# 03 — Vérification juridique contre sources primaires (Phase 2)
+# 03 — Legal Verification Against Primary Sources (Phase 2)
 
-> Six pays : ceux où le code prétend le plus — profils bespoke, `confidence: OFFICIAL`, schémas
-> d'autorité vendorisés. Les 100 autres n'ont pas d'implémentation à confronter à une règle ;
-> les sourcer serait un travail de documentation, pas d'audit.
+> Six countries: the ones where the code claims the most — bespoke profiles, `confidence: OFFICIAL`,
+> vendored authority schemas. The other 100 have no implementation to check a rule against; sourcing
+> them would be documentation work, not an audit.
 >
-> **Discipline de sourçage.** Sources primaires uniquement : administration fiscale nationale,
-> journal officiel, spécification technique publiée par l'autorité. Documentation d'opérateur
-> accrédité acceptée mais marquée `authority: "vendor"`. Blogs, cabinets, éditeurs : jamais.
-> Chaque règle porte son URL, sa date de consultation, sa date d'entrée en vigueur et son statut.
-> **Ce qui n'a pas été établi reste `open_question` — jamais une valeur plausible.**
+> **Sourcing discipline.** Primary sources only: national tax administration, official gazette,
+> technical specification published by the authority. Accredited-operator documentation accepted but
+> flagged `authority: "vendor"`. Blogs, law firms, publishers: never. Every rule carries its URL, the
+> date it was consulted, its effective date and its status. **What has not been established stays
+> `open_question` — never a plausible value.**
 >
-> **Toutes les consultations : 2026-08-27.**
+> **All consultations: 2026-08-27.**
 >
-> Méthode : un agent par pays, questionnaire identique, chacun confronté à ce que le profil du
-> logiciel affirme. Les affirmations porteuses ont ensuite été **recontrôlées directement** ; les
-> recontrôles sont signalés par ✓✓.
+> Method: one agent per country, identical questionnaire, each checked against what the software's
+> profile claims. Load-bearing claims were then **rechecked directly**; rechecks are flagged with
+> ✓✓.
 
 ---
 
@@ -22,1132 +22,1164 @@
 
 ### Sources
 
-Dossier de spécifications externes de la facturation électronique (DSE) **v3.2 du 2026-04-30**,
-publié par l'AIFE/DGFiP — [page d'autorité](https://www.impots.gouv.fr/specifications-externes-b2b),
-archive `specifications-externes-v3.2.zip` (Document général v3.2, DSE Chorus Pro v1.1, Annexe 1
-format sémantique v1.2, Annexe 2 CDV v2.3, Annexe 7 règles de gestion v1.9). Légifrance et BOFiP
-pour le droit dur.
+Dossier de spécifications externes de la facturation électronique (DSE) **v3.2 of 2026-04-30**,
+published by AIFE/DGFiP — [authority page](https://www.impots.gouv.fr/specifications-externes-b2b),
+archive `specifications-externes-v3.2.zip` (General document v3.2, DSE Chorus Pro v1.1, Annex 1
+semantic format v1.2, Annex 2 CDV v2.3, Annex 7 business rules v1.9). Légifrance and BOFiP for hard
+law.
 
-### Calendrier ✓✓
+### Timeline ✓✓
 
-Recontrôlé directement sur [economie.gouv.fr](https://www.economie.gouv.fr/tout-savoir-sur-la-facturation-electronique-pour-les-entreprises)
-et [impots.gouv.fr](https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique)
-(page modifiée le 2026-07-10), consultés le 2026-08-27 :
+Rechecked directly on [economie.gouv.fr](https://www.economie.gouv.fr/tout-savoir-sur-la-facturation-electronique-pour-les-entreprises)
+and [impots.gouv.fr](https://www.impots.gouv.fr/professionnel/je-passe-la-facturation-electronique)
+(page modified 2026-07-10), consulted 2026-08-27:
 
-| Obligation | Périmètre | Date | Statut |
+| Obligation | Scope | Date | Status |
 | --- | --- | --- | --- |
-| **Réception** | **toutes** les entreprises, quelle que soit la taille | **2026-09-01** | en vigueur dans 5 jours |
-| **Émission** | grandes entreprises, ETI, membres d'un assujetti unique | **2026-09-01** | idem |
-| **Émission** | PME, TPE, micro-entreprises | **2027-09-01** | annoncé |
+| **Receiving** | **all** businesses, regardless of size | **2026-09-01** | in force in 5 days |
+| **Issuing** | large enterprises, mid-caps, members of a single taxable group | **2026-09-01** | same |
+| **Issuing** | SMEs, small businesses, micro-enterprises | **2027-09-01** | announced |
 
-Les micro-entrepreneurs et les entreprises en franchise de TVA sont dans le champ, en réception
-comme en émission.
+Micro-entrepreneurs and VAT-exempt businesses are in scope, both for receiving and issuing.
 
-**Réserve** : l'alinéa final de l'art. 1737 CGI autorise un décret à repousser l'application
-« sans pouvoir être postérieure au 1er décembre 2026 ». **Aucun décret publié au 2026-08-27.**
-À re-vérifier avant toute mise en production.
+**Caveat**: the final subparagraph of CGI art. 1737 allows a decree to push back application "sans
+pouvoir être postérieure au 1er décembre 2026" [without being later than 1 December 2026]. **No
+decree published as of 2026-08-27.** To be re-checked before any production rollout.
 
-### Règles établies
+### Established rules
 
-| # | Règle | Source | Entrée en vigueur | Statut |
+| # | Rule | Source | Effective date | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Correction par **facture rectificative (384)** OU **avoir (381)** — les deux voies sont ouvertes ; les autres types UNTDID 1001 sont interdits | DSE Annexe 7 v1.9, règle G1.01 ; DSE Chorus Pro §3.4.2.2 citant AFNOR XP Z12-014 | 2026-09-01 | en vigueur |
-| 2 | Troisième voie : **avoir interne**, non transmis à l'acheteur et **ne devant générer aucun flux F1** vers le PPF | DSE général §3.6.4 | 2026-09-01 | en vigueur |
-| 3 | Le contenu d'une facture émise est **intangible** — aucune opération d'annulation n'existe dans le circuit | DSE Chorus Pro §2.4.2 | 2026-09-01 | en vigueur |
-| 4 | Authenticité / intégrité / lisibilité par **quatre moyens alternatifs** : piste d'audit fiable, signature électronique qualifiée, EDI, cachet électronique qualifié | [CGI art. 289, VII](https://www.legifrance.gouv.fr/codes/id/LEGISCTA000006191855) | — | en vigueur, **abrogé au 2027-01-01** |
-| 5 | **Aucun identifiant d'État n'est attribué à la facture.** L'unicité se calcule : numéro de facture + SIREN fournisseur + année | DSE §3.6.8 note 109 | 2026-09-01 | en vigueur |
-| 6 | Quatre statuts obligatoires : **200 Déposée, 210 Refusée, 212 Encaissée** (sous conditions art. 290 A CGI), **213 Rejetée** | DSE §3.6.4 tableau 8 ; Annexe 2 | 2026-09-01 | en vigueur |
-| 7 | Délai de **24 h** — pour le flux F1 à compter de l'horodatage du statut « Déposée », et pour les flux de cycle de vie à compter de l'horodatage du statut | DSE §3.6.5 et §3.6.6 | 2026-09-01 | en vigueur |
-| 8 | Conservation **fiscale : 6 ans**. Les documents établis ou reçus sur support informatique **doivent être conservés sous cette forme** ✓✓ | [LPF art. L102 B](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000041471233/) — version en vigueur 2023-01-01 → 2027-01-01 | — | en vigueur |
-| 9 | Conservation **commerciale : 10 ans** pour les documents comptables et pièces justificatives | [C. com. art. L123-22](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327/) | — | en vigueur |
-| 10 | **Localisation** : stockage en France sauf accès en ligne immédiat, complet, avec téléchargement et utilisation ; interdiction dans un pays sans convention d'assistance mutuelle ; **le lieu de stockage doit être déclaré** et tout changement signalé | [LPF art. L102 C](https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006069583/LEGISCTA000006147333/) | — | en vigueur |
-| 11 | Numérotation « **basée sur une séquence chronologique et continue** » | [CGI ann. II art. 242 nonies A, 7°](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046086694/) | — | en vigueur |
-| 12 | Identifiant de facture : **35 caractères max**, alphanumériques, spéciaux limités à espace `-` `+` `_` `/`, sans espace en tête/fin ni consécutif | DSE Annexe 7 v1.9, règle G1.05 | 2026-09-01 | en vigueur |
-| 13 | Socle de formats : **UBL, CII et Factur-X**. Mais le flux F1 vers le PPF n'accepte que **UBL 2.1 ou CII D22B** — pas Factur-X | DSE §2.3.10 et §3.6.3 | 2026-09-01 | en vigueur |
-| 14 | Mentions nouvelles : appartenance à un assujetti unique (5° bis), **catégorie d'opération biens/services (8° bis → BT-23, 1..1)**, option paiement TVA sur les débits (11° bis) ; **adresse de livraison (7° bis → BG-15) à compter du 2027-09-01** | [CGI ann. II art. 242 nonies A](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046086694/), décret n° 2024-1195 du 2024-12-21 | 2026-09-01 / 2027-09-01 | en vigueur / annoncé |
-| 15 | Sanctions : omission ou inexactitude **15 €** par mention (plafond ¼ du montant) ; défaut d'émission électronique **50 €/facture**, plafond 15 000 €/an ; refus de recourir à une plateforme agréée **500 €** puis **1 000 €** par trimestre | [CGI art. 1737](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046869201) (mod. LOI n° 2026-103 du 2026-02-19) | 2026-09-01 | en vigueur |
+| 1 | Correction by **corrective invoice (384)** OR **credit note (381)** — both paths are open; other UNTDID 1001 types are forbidden | DSE Annex 7 v1.9, rule G1.01; DSE Chorus Pro §3.4.2.2 citing AFNOR XP Z12-014 | 2026-09-01 | in force |
+| 2 | Third path: **internal credit note**, not transmitted to the buyer and **must generate no F1 flow** to the PPF | DSE general §3.6.4 | 2026-09-01 | in force |
+| 3 | The content of an issued invoice is **immutable** — no cancellation operation exists in the circuit | DSE Chorus Pro §2.4.2 | 2026-09-01 | in force |
+| 4 | Authenticity / integrity / legibility via **four alternative means**: reliable audit trail, qualified electronic signature, EDI, qualified electronic seal | [CGI art. 289, VII](https://www.legifrance.gouv.fr/codes/id/LEGISCTA000006191855) | — | in force, **repealed as of 2027-01-01** |
+| 5 | **No state identifier is assigned to the invoice.** Uniqueness is computed: invoice number + supplier SIREN + year | DSE §3.6.8 note 109 | 2026-09-01 | in force |
+| 6 | Four mandatory statuses: **200 Déposée, 210 Refusée, 212 Encaissée** (conditional on art. 290 A CGI), **213 Rejetée** | DSE §3.6.4 table 8; Annex 2 | 2026-09-01 | in force |
+| 7 | **24 h** deadline — for the F1 flow from the "Déposée" status timestamp, and for lifecycle flows from the status timestamp | DSE §3.6.5 and §3.6.6 | 2026-09-01 | in force |
+| 8 | **Tax** retention: **6 years**. Documents created or received on a digital medium **must be kept in that form** ✓✓ | [LPF art. L102 B](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000041471233/) — version in force 2023-01-01 → 2027-01-01 | — | in force |
+| 9 | **Commercial** retention: **10 years** for accounting documents and supporting records | [C. com. art. L123-22](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327/) | — | in force |
+| 10 | **Localization**: storage in France unless immediate, complete online access with download and use is available; forbidden in a country with no mutual-assistance agreement; **the storage location must be declared** and any change reported | [LPF art. L102 C](https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006069583/LEGISCTA000006147333/) | — | in force |
+| 11 | Numbering "**based on a chronological and continuous sequence**" | [CGI ann. II art. 242 nonies A, 7°](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046086694/) | — | in force |
+| 12 | Invoice identifier: **35 characters max**, alphanumeric, special characters limited to space `-` `+` `_` `/`, no leading/trailing or consecutive spaces | DSE Annex 7 v1.9, rule G1.05 | 2026-09-01 | in force |
+| 13 | Format base: **UBL, CII and Factur-X**. But the F1 flow to the PPF only accepts **UBL 2.1 or CII D22B** — not Factur-X | DSE §2.3.10 and §3.6.3 | 2026-09-01 | in force |
+| 14 | New mentions: membership in a single taxable group (5° bis), **goods/services transaction category (8° bis → BT-23, 1..1)**, option to pay VAT on debits (11° bis); **delivery address (7° bis → BG-15) as of 2027-09-01** | [CGI ann. II art. 242 nonies A](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046086694/), decree no. 2024-1195 of 2024-12-21 | 2026-09-01 / 2027-09-01 | in force / announced |
+| 15 | Penalties: omission or inaccuracy **€15** per mention (cap ¼ of the amount); failure to issue electronically **€50/invoice**, cap €15,000/year; refusing to use an accredited platform **€500** then **€1,000** per quarter | [CGI art. 1737](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046869201) (amended by LOI no. 2026-103 of 2026-02-19) | 2026-09-01 | in force |
 
-### Divergences avec le code — France
+### Divergences from the code — France
 
-Classées par gravité. « Le code est faux » signifie : le profil affirme quelque chose que la source
-primaire contredit.
+Ranked by severity. "The code is wrong" means: the profile asserts something the primary source
+contradicts.
 
-**FR-D1 — `canaux: EMAIL` est illicite dans le champ B2B domestique. ✓✓**
-À compter du 2026-09-01, « seule une plateforme agréée est habilitée à assurer toutes les
-fonctionnalités prévues » ; l'émission, la transmission et la réception passent par une plateforme
-agréée. L'e-mail n'est pas un canal licite pour une facture dans le champ. Sanctions : 50 €/facture,
-puis 500 € et 1 000 €/trimestre. Le profil FR déclare pourtant `EMAIL` parmi ses canaux — et
-l'inventaire montre que c'est, avec PDP et Peppol, l'un des seuls réellement joignables.
-*(Terminologie : « PDP » est périmé ; le terme officiel depuis la LF 2026 est **plateforme agréée**.)*
+**FR-D1 — `channels: EMAIL` is unlawful in the domestic B2B scope. ✓✓**
+As of 2026-09-01, "seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités
+prévues" [only an accredited platform is authorized to provide all the intended functionalities];
+issuing, transmission and receiving go through an accredited platform. Email is not a lawful channel
+for an in-scope invoice. Penalties: €50/invoice, then €500 and €1,000/quarter. Yet the FR profile
+declares `EMAIL` among its channels — and the inventory shows that, along with PDP and Peppol, it is
+one of the only ones actually reachable.
+*(Terminology: "PDP" is outdated; the official term since the LF 2026 is **plateforme agréée**
+[accredited platform].)*
 
-**FR-D2 — `correctionModel: CREDIT_NOTE` seul : le code est faux.**
-G1.01 autorise **Facture rectificative (384)** au même titre qu'**Avoir (381)**, et le modèle
-sémantique porte BG-3 « facture antérieure qui doit être **rectifiée** ou faire l'objet d'une facture
-d'avoir ». Un moteur qui ne sait émettre qu'un avoir ne peut pas représenter la voie rectificative.
+**FR-D2 — `correctionModel: CREDIT_NOTE` alone: the code is wrong.**
+G1.01 allows **corrective invoice (384)** on the same footing as **credit note (381)**, and the
+semantic model carries BG-3 "prior invoice that must be **corrected** or be the subject of a credit
+note". An engine that can only issue a credit note cannot represent the corrective-invoice path.
 
-**FR-D3 — l'avoir interne est ignoré : risque de sur-déclaration.**
-Sur statut « Refusée » ou « Rejetée », l'annulation comptable se fait par avoir interne, qui
-« **ne doit pas générer de flux de données réglementaires (F1) au PPF** » et ne doit pas être
-transmis à l'acheteur. Un code qui émet systématiquement un avoir *via* la plateforme transmet à
-l'administration précisément dans le cas où la spécification l'interdit.
+**FR-D3 — the internal credit note is ignored: over-reporting risk.**
+On "Refusée" or "Rejetée" status, accounting cancellation is done via an internal credit note, which
+"**ne doit pas générer de flux de données réglementaires (F1) au PPF**" [must not generate a
+regulatory-data (F1) flow to the PPF] and must not be transmitted to the buyer. Code that
+systematically issues a credit note *via* the platform transmits to the administration precisely in
+the case the specification forbids.
 
-**FR-D4 — contrainte de localisation absente : lacune de conformité réelle.**
-LPF L102 C impose France / pays sous convention avec accès en ligne, **et impose de déclarer le lieu
-de stockage**. Le profil FR ne déclare aucune contrainte de résidence
-(`10y/BOTH/HASH_CHAIN`, sans `residency`). C'est la divergence la plus opérationnelle pour un
-hébergement SaaS ou self-hosted hors de France.
+**FR-D4 — no localization constraint: a real compliance gap.**
+LPF L102 C requires France / a country under an agreement with online access, **and requires
+declaring the storage location**. The FR profile declares no residency constraint
+(`10y/BOTH/HASH_CHAIN`, with no `residency`). This is the most operationally relevant divergence for
+a SaaS or self-hosted deployment outside France.
 
-**FR-D5 — `integrity: HASH_CHAIN` n'a aucune base légale française.**
-L'art. 289 VII offre quatre moyens alternatifs ; le chaînage de hash n'en fait pas partie. La seule
-« inaltérabilité » du droit fiscal français est celle de l'art. 286, I-3° bis, dont le champ est le
-**logiciel de caisse enregistrant des règlements de clients particuliers** — obligation distincte,
-amende de 7 500 €. Le profil applique donc une contrainte qui n'existe pas, et n'implémente aucun des
-quatre moyens qui, eux, existent.
+**FR-D5 — `integrity: HASH_CHAIN` has no basis in French law.**
+Art. 289 VII offers four alternative means; hash-chaining is not one of them. The only
+"inalterability" requirement in French tax law is that of art. 286, I-3° bis, whose scope is **cash
+register software recording payments from private customers** — a separate obligation, €7,500 fine.
+The profile thus applies a constraint that does not exist, and implements none of the four means that
+do exist.
 
-**FR-D6 — `mandatoryReceiveSyntax: FACTURX` : le code est faux, deux fois.**
-Le socle compte **trois** formats (UBL, CII, Factur-X) et la plateforme de réception doit convertir
-vers un autre format du socle à la demande du client : rien n'impose Factur-X en réception.
-Symétriquement, le PPF **n'accepte pas** Factur-X pour le flux F1 — UBL 2.1 ou CII D22B uniquement.
+**FR-D6 — `mandatoryReceiveSyntax: FACTURX`: the code is wrong, twice.**
+The format base has **three** formats (UBL, CII, Factur-X) and the receiving platform must convert to
+another base format on the customer's request: nothing mandates Factur-X on receipt. Symmetrically,
+the PPF **does not accept** Factur-X for the F1 flow — UBL 2.1 or CII D22B only.
 
-**FR-D7 — BT-23 « Cadre de facturation » manquant, cardinalité 1..1.**
-Traduction machine de la mention statutaire 8° bis, obligatoire dès le 2026-09-01, valeurs
-limitatives (`B1`, `S1`, `M1`, `B2`/`S2`/`M2`, `B4`/`S4`/`M4`, `S5`, `S6`, `B7`/`S7`). Une facture
-sans BT-23 valide échoue aux contrôles fonctionnels du PPF.
+**FR-D7 — BT-23 "Invoice type code" missing, cardinality 1..1.**
+Machine translation of the statutory mention 8° bis, mandatory from 2026-09-01, restricted values
+(`B1`, `S1`, `M1`, `B2`/`S2`/`M2`, `B4`/`S4`/`M4`, `S5`, `S6`, `B7`/`S7`). An invoice without a valid
+BT-23 fails the PPF's functional checks.
 
-**FR-D8 — contrainte de format du numéro non implémentée, et bloquante.**
-G1.05 : 35 caractères maximum, spéciaux restreints à espace `-` `+` `_` `/`. Un générateur émettant
-`#`, `.` ou un identifiant plus long fera **rejeter le flux F1**. À rapprocher de F-002 : la
-numérotation est déjà le point faible du système.
+**FR-D8 — number-format constraint not implemented, and blocking.**
+G1.05: 35 characters max, special characters restricted to space `-` `+` `_` `/`. A generator emitting
+`#`, `.` or a longer identifier will **get the F1 flow rejected**. To be tied to F-002: numbering is
+already the system's weak point.
 
-**FR-D9 — `archival: 10 ans` : approximatif et mal fondé. ✓✓**
-La durée **fiscale** est de **6 ans** (LPF L102 B) ; les 10 ans relèvent du **droit commercial**
-(C. com. L123-22). 10 ans est une enveloppe prudente, mais l'étiqueter comme la règle fiscale est
-faux et empêche tout raisonnement correct sur les deux échéances. La contrainte réellement
-structurante — conserver le **format d'origine** — n'est, elle, pas modélisée.
+**FR-D9 — `archival: 10 years`: approximate and poorly grounded. ✓✓**
+The **tax** duration is **6 years** (LPF L102 B); the 10 years belong to **commercial law**
+(C. com. L123-22). 10 years is a prudent envelope, but labeling it as the tax rule is wrong and
+blocks any correct reasoning about the two deadlines. The genuinely structuring constraint —
+retaining the **original format** — is not modeled at all.
 
-**FR-D10 — `REAL_TIME_REPORTING` est inexact.**
-Le régime n'est pas temps réel : **24 h** à compter de l'horodatage du statut, avec allotissement.
-En revanche `non bloquant` est **correct** : le PPF n'exerce aucun clearance, il ne peut qu'accepter
-(250) ou rejeter (251) les données réglementaires **après** émission, sans effet sur la validité de
-la facture.
+**FR-D10 — `REAL_TIME_REPORTING` is inaccurate.**
+The regime is not real-time: **24 h** from the status timestamp, batched. On the other hand,
+`non-blocking` is **correct**: the PPF exercises no clearance, it can only accept (250) or reject
+(251) the regulatory data **after** issuance, with no effect on the invoice's validity.
 
-**FR-D11 — `cancellationAllowed: true` à nuancer.**
-Aucune annulation d'une facture émise n'existe. Il existe un **statut** 220 « Annulée », inter-
-plateformes, signifiant « remplacée par une facture rectificative » et **non transmis à
-l'administration**, plus l'annulation comptable par avoir interne. En revanche
-`immutableAfter: ISSUE` est **exact et bien fondé** — c'est l'un des rares points où le profil dit
-juste.
+**FR-D11 — `cancellationAllowed: true` needs nuance.**
+No cancellation of an issued invoice exists. There is a cross-platform **status** 220 "Annulée",
+meaning "replaced by a corrective invoice" and **not transmitted to the administration**, plus
+accounting cancellation via an internal credit note. On the other hand `immutableAfter: ISSUE` is
+**accurate and well grounded** — one of the few points where the profile gets it right.
 
-**FR-D12 — granularité temporelle absente : le blocage serait sur-strict. ✓✓**
-L'obligation d'**émission** au 2026-09-01 ne vise que GE, ETI et membres d'un assujetti unique ;
-PME/TPE/micro n'émettent qu'au **2027-09-01**. Seule la **réception** est universelle au 2026-09-01.
-Un profil qui bloque l'émission de toute entreprise française au 2026-09-01 serait plus strict que
-la loi. De même, l'adresse de livraison (BG-15) est CIBLE au 2027-09-01, pas au démarrage.
+**FR-D12 — missing time granularity: the block would be over-strict. ✓✓**
+The **issuing** obligation on 2026-09-01 only targets large enterprises, mid-caps and members of a
+single taxable group; SMEs/small businesses/micro only issue as of **2027-09-01**. Only
+**receiving** is universal on 2026-09-01. A profile that blocks issuance for every French business on
+2026-09-01 would be stricter than the law. Likewise, the delivery address (BG-15) is a TARGET for
+2027-09-01, not at rollout.
 
-**FR-D13 — obsolescence programmée des références.**
-Les articles 289 et 289 bis CGI sont **abrogés au 2027-01-01** par l'ordonnance n° 2025-1247 du
-2025-12-17 (recodification TVA vers le CIBS), certaines dispositions étant maintenues jusqu'à reprise
-réglementaire. Les profils étant temporels, la bascule de référence devra être portée.
+**FR-D13 — scheduled obsolescence of the references.**
+Articles 289 and 289 bis CGI are **repealed as of 2027-01-01** by ordinance no. 2025-1247 of
+2025-12-17 (VAT recodification into the CIBS), with certain provisions kept in force pending
+regulatory pickup. Since the profiles are time-based, the reference switch will need to be carried.
 
-### Ce que le code fait juste — France
+### What the code gets right — France
 
-À signaler, parce qu'un audit qui ne relève que les fautes est un mauvais audit :
+Worth noting, because an audit that only flags faults is a bad audit:
 
-- `immutableAfter: ISSUE` est exact et correspond au principe d'intangibilité du DSE ;
-- `GAPLESS_SELF` est exact : 242 nonies A, 7° exige bien une séquence chronologique **et** continue,
-  sanctionnée par l'art. 1737, II ;
-- `regimeBlocking: false` est exact : le PPF n'exerce aucun clearance ;
-- l'architecture par canal PDP — se raccorder à une plateforme agréée tierce — est le seul chemin
-  praticable sans immatriculation DGFiP (voir `04-TESTABILITY.md` §2).
+- `immutableAfter: ISSUE` is accurate and matches the DSE's intangibility principle;
+- `GAPLESS_SELF` is accurate: 242 nonies A, 7° does require a chronological **and** continuous
+  sequence, sanctioned under art. 1737, II;
+- `regimeBlocking: false` is accurate: the PPF exercises no clearance;
+- the per-channel PDP architecture — connecting to a third-party accredited platform — is the only
+  practical path without a DGFiP registration (see `04-TESTABILITY.md` §2).
 
 ### Open questions — France
 
-1. Délai légal d'émission d'un avoir ou d'une facture rectificative après la facture initiale.
-2. Consentement de la contrepartie pour une facture rectificative.
-3. Fenêtre de forclusion au-delà de laquelle une rectification n'est plus possible.
-4. Texte désignant **ce qui fait foi** en contrôle — aucun texte identifié ne consacre un document
-   unique ; le faisceau semble être facture + piste d'audit fiable (289 VII) + CDV 200 horodaté.
-5. Obligation et durée de conservation des messages de cycle de vie et accusés de plateforme ;
-   qualification en « pièces justificatives » au sens de L102 B non tranchée.
-6. Format d'archivage imposé (XML natif seul, XML + PDF, PDF/A-3). Seule règle sûre : conservation
-   du **format d'origine**.
-7. **AFNOR XP Z12-012 / 013 / 014 sont payantes et n'ont pas été consultées.** Tout ce qui précède à
-   leur sujet provient de leur citation par le DSE Chorus Pro v1.1. Elles portent la liste complète
-   des statuts (dont 220, 224, 225, 227, 228) et les cas d'usage de correction.
-8. Décret de report au 2026-12-01 (art. 1737, dernier alinéa) — aucun publié au 2026-08-27.
-9. Mise à jour post-réforme de la doctrine d'archivage BOI-CF-COM-10-10-30, datée du 2012-09-12 et
-   donc antérieure au dispositif.
+1. Statutory deadline for issuing a credit note or corrective invoice after the original invoice.
+2. Counterparty's consent for a corrective invoice.
+3. Cut-off window beyond which a correction is no longer possible.
+4. Text designating **what is authoritative** in an audit — no identified text establishes a single
+   document; the bundle appears to be invoice + reliable audit trail (289 VII) + timestamped CDV 200.
+5. Obligation and retention period for lifecycle messages and platform acknowledgments;
+   qualification as "supporting records" under L102 B not settled.
+6. Mandated archival format (native XML only, XML + PDF, PDF/A-3). Only safe rule: retention of the
+   **original format**.
+7. **AFNOR XP Z12-012 / 013 / 014 are paid standards and were not consulted.** Everything above about
+   them comes from their citation by DSE Chorus Pro v1.1. They carry the full list of statuses
+   (including 220, 224, 225, 227, 228) and the correction use cases.
+8. Deferral decree to 2026-12-01 (art. 1737, last subparagraph) — none published as of 2026-08-27.
+9. Post-reform update of the archival doctrine BOI-CF-COM-10-10-30, dated 2012-09-12 and therefore
+   predating the scheme.
 
 ---
 
 ---
 
-## POLOGNE
+## POLAND
 
 ### Sources
 
-*Podręcznik KSeF 2.0, Cz. II — Wystawianie i otrzymywanie faktur*, MF, **état du droit au
-2026-02-01** ; ustawa du 2025-08-05 (**Dz.U. 2025 poz. 1203**) et du 2023-06-16 (**Dz.U. 2023 poz.
-1598**) via `eli.gov.pl` ; **spécification OpenAPI de production** `api.ksef.mf.gov.pl/docs/v2/openapi.json` ;
-broszura FA(3) ; pages `ksef.podatki.gov.pl`.
+*Podręcznik KSeF 2.0, Cz. II — Wystawianie i otrzymywanie faktur*, MF, **state of the law as of
+2026-02-01**; ustawa of 2025-08-05 (**Dz.U. 2025 poz. 1203**) and of 2023-06-16 (**Dz.U. 2023 poz.
+1598**) via `eli.gov.pl`; **production OpenAPI specification**
+`api.ksef.mf.gov.pl/docs/v2/openapi.json`; broszura FA(3); `ksef.podatki.gov.pl` pages.
 
-### Assujettissement échelonné — non modélisé par le profil
+### Staggered scope — not modeled by the profile
 
-| Date | Règle | Statut |
+| Date | Rule | Status |
 | --- | --- | --- |
-| 2026-02-01 | Émission obligatoire si vente TTC 2024 **> 200 000 000 zł** ; **réception obligatoire pour tous** | en vigueur |
-| 2026-04-01 | Émission obligatoire pour **tous les autres** | en vigueur |
-| 2026-04-01 → 2026-12-31 | Dérogation si vente TTC **≤ 10 000 zł/mois**, perdue dès la facture qui dépasse le seuil (art. 145m) | en vigueur, expire |
-| 2026-02-01 → 2026-12-31 | Factures de caisse hors KSeF (art. 145n) | en vigueur, expire |
-| 2027-01-01 | Sanctions art. 106ni ; numéro KSeF obligatoire dans les paiements MPP | annoncé |
+| 2026-02-01 | Issuing mandatory if 2024 gross sales **> PLN 200,000,000**; **receiving mandatory for everyone** | in force |
+| 2026-04-01 | Issuing mandatory for **everyone else** | in force |
+| 2026-04-01 → 2026-12-31 | Exemption if gross sales **≤ PLN 10,000/month**, lost as soon as an invoice pushes past the threshold (art. 145m) | in force, expiring |
+| 2026-02-01 → 2026-12-31 | Cash-register invoices outside KSeF (art. 145n) | in force, expiring |
+| 2027-01-01 | Penalties under art. 106ni; KSeF number mandatory in MPP payments | announced |
 
-### Règles établies
+### Established rules
 
-| # | Règle | Source | Statut |
+| # | Rule | Source | Status |
 | --- | --- | --- | --- |
-| 1 | **Aucune annulation n'est possible** après attribution d'un numéro KSeF ✓✓ — « Faktura po przyjęciu do KSeF staje się dokumentem prawnym i nie można jej zmieniać » | [ksef.podatki.gov.pl Q&R](https://ksef.podatki.gov.pl/pytania-i-odpowiedzi-ksef-20/) ; Podręcznik §1.6.3 | en vigueur |
-| 2 | Fichier **rejeté ⇒ la facture n'a jamais été émise** ✓✓ — « Nie można więc wystawić faktury korygującej ani anulować faktury ». On corrige le XML et on **renvoie sous le même numéro `P_2`** | idem ; Podręcznik §1.6.7 | en vigueur |
-| 3 | Seule voie de correction : la **faktura korygująca**. La *nota korygująca* est **supprimée depuis le 2026-02-01** | Podręcznik §1.6.2 | en vigueur |
-| 4 | **Consentement de l'acheteur non requis** pour une korygująca structurée (art. 29a ust. 13 nouvelle rédaction ; ust. 15 pkt 5 abrogé) | Dz.U. 2023 poz. 1598 | en vigueur 2026-02-01 |
-| 5 | Date d'émission = **date de transmission** à KSeF si elle coïncide avec `P_1` (art. 106na ust. 1) — **pas** la date d'attribution du numéro. `P_1` au futur ⇒ **rejet** | Podręcznik §1.4 | en vigueur |
-| 6 | Le **numéro KSeF n'est pas un champ de la facture** ; il est restitué dans l'**UPO** | Podręcznik §4.1 | en vigueur |
-| 7 | Archivage **10 ans par KSeF**, art. 112aa : « art. 112 i art. 112a **nie stosuje się** » — le contribuable **est dispensé** de conserver ✓✓. Suppression automatique au terme, sans récupération | Podręcznik §7 ; Q&R | en vigueur |
-| 8 | Trois modes offline permanents : **offline24** (libre choix, envoi J+1 ouvrable), **niedostępność** (J+1 après fin), **awaryjny** (7 jours ouvrables) | art. 106nda / 106nh / 106nf | en vigueur |
-| 9 | Anti-doublon sur (NIP vendeur, `P_2`, `RodzajFaktury`), **10 ans en arrière** ⇒ code `440` | Podręcznik §3.4 | en vigueur |
-| 10 | KSeF **ne vérifie pas l'arithmétique** : « Nie odrzuci faktury w przypadku wystąpienia na niej błędów rachunkowych » | Podręcznik §1.6.2 | en vigueur |
-| 11 | Numérotation : « kolejny numer nadany w ramach **jednej lub więcej serii** » — seule l'**unicité** est contrôlée ; la transmission dans le désordre n'est **pas** un motif de rejet ni de korygująca | art. 106e ust. 1 pkt 2 ; Podręcznik §1.6.7 | en vigueur |
+| 1 | **No cancellation is possible** once a KSeF number is assigned ✓✓ — "Faktura po przyjęciu do KSeF staje się dokumentem prawnym i nie można jej zmieniać" [Once accepted into KSeF, an invoice becomes a legal document and cannot be changed] | [ksef.podatki.gov.pl Q&A](https://ksef.podatki.gov.pl/pytania-i-odpowiedzi-ksef-20/); Podręcznik §1.6.3 | in force |
+| 2 | File **rejected ⇒ the invoice was never issued** ✓✓ — "Nie można więc wystawić faktury korygującej ani anulować faktury" [A correcting invoice cannot therefore be issued, nor can the invoice be cancelled]. The XML is fixed and **resent under the same `P_2` number** | ibid.; Podręcznik §1.6.7 | in force |
+| 3 | Only correction path: the **faktura korygująca**. The *nota korygująca* was **abolished as of 2026-02-01** | Podręcznik §1.6.2 | in force |
+| 4 | **Buyer's consent not required** for a structured korygująca (art. 29a ust. 13, new wording; ust. 15 pkt 5 repealed) | Dz.U. 2023 poz. 1598 | in force 2026-02-01 |
+| 5 | Issue date = **transmission date** to KSeF if it matches `P_1` (art. 106na ust. 1) — **not** the date the number is assigned. `P_1` in the future ⇒ **rejection** | Podręcznik §1.4 | in force |
+| 6 | The **KSeF number is not a field on the invoice**; it is returned in the **UPO** | Podręcznik §4.1 | in force |
+| 7 | **10-year archival by KSeF**, art. 112aa: "art. 112 i art. 112a **nie stosuje się**" [articles 112 and 112a do not apply] — the taxpayer **is exempted** from retention ✓✓. Automatic deletion at term, with no recovery | Podręcznik §7; Q&A | in force |
+| 8 | Three permanent offline modes: **offline24** (free choice, sent by next business day), **niedostępność** (next business day after the outage ends), **awaryjny** (7 business days) | art. 106nda / 106nh / 106nf | in force |
+| 9 | Duplicate check on (seller NIP, `P_2`, `RodzajFaktury`), **10 years back** ⇒ code `440` | Podręcznik §3.4 | in force |
+| 10 | KSeF **does not check arithmetic**: "Nie odrzuci faktury w przypadku wystąpienia na niej błędów rachunkowych" [It will not reject an invoice for containing arithmetic errors] | Podręcznik §1.6.2 | in force |
+| 11 | Numbering: "kolejny numer nadany w ramach **jednej lub więcej serii**" [a sequential number assigned within one or more series] — only **uniqueness** is checked; out-of-order transmission is **not** grounds for rejection or for a korygująca | art. 106e ust. 1 pkt 2; Podręcznik §1.6.7 | in force |
 
-### Divergences avec le code — Pologne
+### Divergences from the code — Poland
 
-**PL-D1 — `cancellationAllowed: true` : le code est faux. La divergence la plus grave. ✓✓**
-« W KSeF nie jest możliwe anulowanie wystawionej faktury » — jamais, quelle que soit l'erreur, et
-l'assujetti ne peut pas non plus supprimer la facture. La substitution passe par une korygująca
-« do zera » suivie d'une nouvelle facture primitive. Permettre une annulation produit un état
-juridiquement inexistant côté autorité.
+**PL-D1 — `cancellationAllowed: true`: the code is wrong. The most serious divergence. ✓✓**
+"W KSeF nie jest możliwe anulowanie wystawionej faktury" [Cancelling an issued invoice is not
+possible in KSeF] — never, whatever the error, and the taxpayer cannot delete the invoice either.
+Substitution goes through a korygująca "do zera" [zeroing it out] followed by a new original invoice.
+Allowing a cancellation produces a state that does not legally exist on the authority's side.
 
-**PL-D2 — `correctionModel: CREDIT_NOTE + CORRECTIVE_INVOICE` : le code est faux.**
-Seule la **faktura korygująca** existe ; il n'y a pas de note de crédit distincte en droit polonais,
-et la *nota korygująca* est abrogée depuis le 2026-02-01. La branche `CREDIT_NOTE` produit un
-document non conforme.
+**PL-D2 — `correctionModel: CREDIT_NOTE + CORRECTIVE_INVOICE`: the code is wrong.**
+Only the **faktura korygująca** exists; there is no separate credit note under Polish law, and the
+*nota korygująca* has been repealed since 2026-02-01. The `CREDIT_NOTE` branch produces a
+non-compliant document.
 
-**PL-D3 — `primarySyntaxes: PLAIN_PDF + FA_VAT` : le code est faux deux fois.**
-L'unique syntaxe légale d'émission est **FA(3)** (`kodSystemowy "FA (3)"`, `wersjaSchemy 1-0E`) depuis
-le 2026-02-01 ; « FA_VAT » / FA(2) est périmé. Le PDF n'est jamais une syntaxe primaire : c'est une
-visualisation pour les acquéreurs de l'art. 106gb ust. 4, qui doit alors porter un code QR.
+**PL-D3 — `primarySyntaxes: PLAIN_PDF + FA_VAT`: the code is wrong twice over.**
+The sole lawful issuing syntax is **FA(3)** (`kodSystemowy "FA (3)"`, `wersjaSchemy 1-0E`) as of
+2026-02-01; "FA_VAT" / FA(2) is outdated. PDF is never a primary syntax: it is a visualization for
+buyers under art. 106gb ust. 4, which must then carry a QR code.
 
-**PL-D4 — RETIRÉ. C'était un faux positif de mon instrumentation.**
+**PL-D4 — WITHDRAWN. It was a false positive in my instrumentation.**
 
-*Le profil polonais est correct.* Il déclare `EMAIL` **jusqu'au 2026-02-01 seulement**, puis
-uniquement `GOV_PORTAL_API:ksef` — ce qui est exactement la règle. L'erreur venait de mon
-inventaire, qui aplatit **délibérément toutes les périodes temporelles**, y compris révolues, et
-présentait donc un canal abandonné comme un canal déclaré.
+*The Polish profile is correct.* It declares `EMAIL` **only until 2026-02-01**, then only
+`GOV_PORTAL_API:ksef` — which is exactly the rule. The error came from my own inventory, which
+**deliberately flattens all time periods**, including lapsed ones, and so presented an abandoned
+channel as a declared one.
 
-Reste vrai et non affecté : KSeF est le seul canal d'émission légale, et l'e-mail n'est qu'un mode
-convenu de mise à disposition pour les acquéreurs de l'art. 106gb ust. 4.
+Still true and unaffected: KSeF is the only lawful issuing channel, and email is merely an agreed
+means of delivery to buyers under art. 106gb ust. 4.
 
-**PL-D5 — `archival: 10y / BOTH / SIGNED` : durée juste, tout le reste faux. ✓✓**
-Les 10 ans sont exacts (art. 112aa) mais **à la charge de KSeF**, le contribuable en étant dispensé.
-Aucune obligation de conserver un PDF. La facture XML **n'est pas signée** : l'intégrité vient de
-KSeF, et l'empreinte SHA-2 256 bits figure dans l'UPO. **Obligation résiduelle non modélisée** : si
-la prescription dépasse les 10 ans, il faut extraire les factures **avant** leur suppression
-automatique.
+**PL-D5 — `archival: 10y / BOTH / SIGNED`: duration correct, everything else wrong. ✓✓**
+The 10 years are accurate (art. 112aa) but **borne by KSeF**, with the taxpayer exempted. No
+obligation to keep a PDF. The XML invoice **is not signed**: integrity comes from KSeF, and the
+256-bit SHA-2 fingerprint appears in the UPO. **Residual obligation not modeled**: if the statute of
+limitations runs past 10 years, invoices must be extracted **before** their automatic deletion.
 
-**PL-D6 — `reporting: aucun` : le code est incomplet.**
-Depuis les déclarations de février 2026, `JPK_V7M(3)` / `JPK_V7K(3)` exigent le **numéro KSeF de
-chaque facture de vente et d'achat**. Cela impose de persister le numéro KSeF **dans les deux
-directions**, émission comme réception.
+**PL-D6 — `reporting: none`: the code is incomplete.**
+Since the February 2026 filings, `JPK_V7M(3)` / `JPK_V7K(3)` require the **KSeF number of every sales
+and purchase invoice**. This requires persisting the KSeF number **in both directions**, issuing and
+receiving.
 
-**PL-D7 — `numbering: GAPLESS_SELF` : sur-contrainte.**
-La loi exige « kolejny numer […] w ramach jednej lub więcej serii » ; le ministère tolère
-explicitement la transmission dans le désordre **sans korygująca**, et KSeF ne contrôle que
-l'**unicité**. Un gapless strict côté client forcerait des corrections inutiles. *(« sans chaînage de
-hash » est en revanche correct.)*
+**PL-D7 — `numbering: GAPLESS_SELF`: over-constrained.**
+The law requires "kolejny numer […] w ramach jednej lub więcej serii"; the ministry explicitly
+tolerates out-of-order transmission **without a korygująca**, and KSeF only checks **uniqueness**. A
+strict gapless requirement on the client side would force needless corrections. *("No hash chain" is
+correct, on the other hand.)*
 
-**PL-D8 — `requiredIdentifiers: LEGAL_ID + VAT` : sur-contrainte et modèle incomplet.**
-Côté vendeur, FA(3) n'exige que **NIP + Nazwa + Adres** — aucun KRS/REGON sur la facture. Côté
-acheteur, il faut modéliser **quatre cas exclusifs** : `NIP`, `KodUE`+`NrVatUE`, `KodKraju`+`NrID`,
-ou **`BrakID="1"`**. Un identifiant mal placé fait que la facture n'est **pas délivrée à l'acquéreur,
-silencieusement**.
+**PL-D8 — `requiredIdentifiers: LEGAL_ID + VAT`: over-constrained and an incomplete model.**
+On the seller side, FA(3) only requires **NIP + Nazwa + Adres** — no KRS/REGON on the invoice. On the
+buyer side, **four mutually exclusive cases** must be modeled: `NIP`, `KodUE`+`NrVatUE`,
+`KodKraju`+`NrID`, or **`BrakID="1"`**. A misplaced identifier causes the invoice to **not be
+delivered to the buyer, silently**.
 
-**PL-D9 — lacunes entières.** Les trois modes offline et leurs délais ; le certificat KSeF `Offline`
-et les deux codes QR ; le rejet si `P_1` est au futur ; l'anti-doublon sur 10 ans ; la *korekta
-techniczna* ; la procédure NIP acheteur erroné (korekta à zéro **sur le NIP erroné**, puis nouvelle
-facture — corriger le NIP est explicitement interdit) ; les statuts par facture (`200` seul succès,
-`550` retryable, `440` doublon).
+**PL-D9 — whole gaps.** The three offline modes and their deadlines; the KSeF `Offline` certificate
+and the two QR codes; rejection if `P_1` is in the future; the 10-year duplicate check; the *korekta
+techniczna*; the wrong-buyer-NIP procedure (korekta zeroing it out **on the erroneous NIP**, then a
+new invoice — correcting the NIP is explicitly forbidden); the per-invoice statuses (`200` success
+only, `550` retryable, `440` duplicate).
 
-### Ce que le code fait juste — Pologne
+### What the code gets right — Poland
 
-`regimeBlocking: true` est **exact** : pas de numéro KSeF, pas de facture. `hashChain: false` est
-exact. Et le fait que KSeF **ne valide pas l'arithmétique** confirme qu'un `CLEARANCE` ne dispense
-d'aucun contrôle applicatif — le profil ne prétend pas le contraire.
-
----
+`regimeBlocking: true` is **accurate**: no KSeF number, no invoice. `hashChain: false` is accurate.
+And the fact that KSeF **does not validate arithmetic** confirms that a `CLEARANCE` waives no
+application-level check — the profile does not claim otherwise.
 
 ---
 
-## ALLEMAGNE
+---
+
+## GERMANY
 
 ### Sources
 
-`gesetze-im-internet.de` (UStG, UStDV, AO, ERechV) ; BMF — FAQ E-Rechnung **Stand März 2026**,
-BMF-Schreiben du **2025-10-15** (GZ III C 2 - S 7287-a/00019/007/243) introduisant le nouvel UStAE,
-BMF-Schreiben GoBD du **2025-07-14** ; KoSIT / xeinkauf.de pour XRechnung **3.0.2**.
+`gesetze-im-internet.de` (UStG, UStDV, AO, ERechV); BMF — E-Rechnung FAQ **as of March 2026**,
+BMF-Schreiben of **2025-10-15** (GZ III C 2 - S 7287-a/00019/007/243) introducing the new UStAE,
+GoBD BMF-Schreiben of **2025-07-14**; KoSIT / xeinkauf.de for XRechnung **3.0.2**.
 
-### Calendrier B2B
+### B2B timeline
 
-Déclencheur : **les deux parties établies en Allemagne** (§ 14 Abs. 2 Satz 3). Une simple
-immatriculation TVA allemande ne suffit pas.
+Trigger: **both parties established in Germany** (§ 14 Abs. 2 Satz 3). A simple German VAT
+registration is not enough.
 
-| Phase | Date | Contenu | Statut |
+| Phase | Date | Content | Status |
 | --- | --- | --- | --- |
-| **Réception** | **2025-01-01** | Toute entreprise établie en DE doit pouvoir recevoir. **Aucune exception, aucun seuil** — Kleinunternehmer inclus | en vigueur |
-| Tolérance émission | → **2026-12-31** | Papier, ou autre format électronique avec accord du destinataire (§ 27 Abs. 38 Nr. 1) | en vigueur |
-| **Émission** | **2027-01-01** | Obligatoire si `Gesamtumsatz` N-1 **> 800 000 €** | annoncé, dans 4 mois |
-| Tolérance PME | → **2027-12-31** | `Gesamtumsatz` N-1 ≤ 800 000 € (Nr. 2) ; EDI 94/820/EG avec accord, sans condition de CA (Nr. 3) | en vigueur |
-| **Obligation générale** | **2028-01-01** | Plus aucune dérogation | annoncé |
+| **Receiving** | **2025-01-01** | Every business established in DE must be able to receive. **No exception, no threshold** — Kleinunternehmer included | in force |
+| Issuing tolerance | → **2026-12-31** | Paper, or another electronic format with the recipient's agreement (§ 27 Abs. 38 Nr. 1) | in force |
+| **Issuing** | **2027-01-01** | Mandatory if prior-year `Gesamtumsatz` **> €800,000** | announced, in 4 months |
+| SME tolerance | → **2027-12-31** | Prior-year `Gesamtumsatz` ≤ €800,000 (Nr. 2); EDI 94/820/EG with agreement, no revenue condition (Nr. 3) | in force |
+| **General obligation** | **2028-01-01** | No exemption left | announced |
 
-**Aucun régime CTC, aucune clearance, aucun reporting n'est en vigueur.** Un `Meldesystem` est
-annoncé « zu gegebener Zeit », **sans date ni projet de loi** ; le JStG 2026 (Regierungsentwurf du
-2026-05-19) ne le contient pas.
+**No CTC regime, no clearance, no reporting is in force.** A `Meldesystem` is announced "zu gegebener
+Zeit" [in due course], **with no date and no bill**; the JStG 2026 (government bill of 2026-05-19)
+does not contain it.
 
-### Règles établies
+### Established rules
 
-| # | Règle | Source | Statut |
+| # | Rule | Source | Status |
 | --- | --- | --- | --- |
-| 1 | Archivage **8 ans** ✓✓ — « acht Jahre aufzubewahren » ; réduction 10 → 8 par le BEG IV | [§ 14b Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html) | en vigueur 2025-01-01 |
-| 2 | § 147 Abs. 3 AO : **8 ans** pour les Buchungsbelege ; **10 ans** subsiste pour livres, bilans, inventaires | § 147 AO | en vigueur |
-| 3 | **Localisation** ✓✓ — conservation en Allemagne ; ailleurs dans l'UE **seulement** si accès à distance complet et téléchargement, **avec notification du lieu au Finanzamt** ; **hors UE ⇒ autorisation préalable** (§ 146 Abs. 2b AO), sanction 2 500 – 250 000 € | § 14b Abs. 2/4/5 UStG | en vigueur |
-| 4 | Intégrité **obligatoire mais à moyen libre** : contrôle interne à piste d'audit fiable, **ou** signature/cachet qualifié eIDAS, **ou** EDI — et elle doit tenir **pendant toute la durée d'archivage** | § 14 Abs. 3 et § 14b Abs. 1 S. 2 UStG ; UStAE 14.4 | en vigueur |
-| 5 | Format : **tout** format EN 16931 / dir. 2014/55/UE, ou format convenu bilatéralement permettant l'extraction correcte et complète. ZUGFeRD ≥ 2.0.1 admis (hors profils MINIMUM et BASIC-WL) | § 14 Abs. 1 S. 6 UStG ; UStAE 14.1 | en vigueur |
-| 6 | En format hybride, **la partie structurée prime** en cas de divergence avec l'image | UStAE 14.4 Abs. 3 | en vigueur |
-| 7 | Numérotation : « eine fortlaufende Nummer …, die … **einmalig vergeben** wird ». Doctrine : « Eine **lückenlose Abfolge … ist nicht zwingend** ». Kleinbetragsrechnungen ≤ 250 €, Fahrausweise et Kleinunternehmer : **aucun numéro requis** | § 14 Abs. 4 Nr. 4 UStG ; UStAE 14.5 Abs. 10/11/14 | en vigueur |
-| 8 | Identifiant vendeur : **Steuernummer OU USt-IdNr.** — alternative, pas cumul | § 14 Abs. 4 Nr. 2 UStG | en vigueur |
-| 9 | Correction par **document rectificatif** se référant spécifiquement à l'original, dans la **même forme** ; voie de référence `BT-3 = 384` + `BG-3` (BR-DE-26). Aucune correction requise pour les variations § 17 (escompte, remise) | § 31 Abs. 5 UStDV ; UStAE 14.11 | en vigueur |
-| 10 | Annulation en cas de `unberechtigter Steuerausweis` : **demande écrite au Finanzamt et accord** de celui-ci (§ 14c Abs. 2) | § 14c UStG | en vigueur |
-| 11 | Leitweg-ID : obligatoire **en B2G seulement** (§ 5 Abs. 1 Nr. 1 ERechV) ; en B2B « wird grundsätzlich keine Leitweg-ID benötigt », et BT-10 manquant est « umsatzsteuerlich unbeachtlich » | BMF FAQ 6 ; BMF Rn. 35a | en vigueur |
+| 1 | Archival **8 years** ✓✓ — "acht Jahre aufzubewahren" [to be kept for eight years]; reduction from 10 to 8 by the BEG IV | [§ 14b Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html) | in force 2025-01-01 |
+| 2 | § 147 Abs. 3 AO: **8 years** for Buchungsbelege; **10 years** remains for ledgers, balance sheets, inventories | § 147 AO | in force |
+| 3 | **Localization** ✓✓ — retention in Germany; elsewhere in the EU **only** with full remote access and download, **with the location reported to the Finanzamt**; **outside the EU ⇒ prior authorization required** (§ 146 Abs. 2b AO), penalty €2,500 – €250,000 | § 14b Abs. 2/4/5 UStG | in force |
+| 4 | Integrity **mandatory but the means is free**: internal control with a reliable audit trail, **or** eIDAS-qualified signature/seal, **or** EDI — and it must hold **for the entire archival period** | § 14 Abs. 3 and § 14b Abs. 1 S. 2 UStG; UStAE 14.4 | in force |
+| 5 | Format: **any** EN 16931 / dir. 2014/55/EU format, or a bilaterally agreed format allowing correct and complete extraction. ZUGFeRD ≥ 2.0.1 accepted (except MINIMUM and BASIC-WL profiles) | § 14 Abs. 1 S. 6 UStG; UStAE 14.1 | in force |
+| 6 | In hybrid format, **the structured part prevails** in case of discrepancy with the image | UStAE 14.4 Abs. 3 | in force |
+| 7 | Numbering: "eine fortlaufende Nummer …, die … **einmalig vergeben** wird" [a sequential number … assigned … uniquely]. Doctrine: "Eine **lückenlose Abfolge … ist nicht zwingend**" [A gapless sequence … is not mandatory]. Kleinbetragsrechnungen ≤ €250, Fahrausweise and Kleinunternehmer: **no number required** | § 14 Abs. 4 Nr. 4 UStG; UStAE 14.5 Abs. 10/11/14 | in force |
+| 8 | Seller identifier: **Steuernummer OR USt-IdNr.** — alternative, not cumulative | § 14 Abs. 4 Nr. 2 UStG | in force |
+| 9 | Correction via a **corrective document** specifically referencing the original, in the **same form**; reference path `BT-3 = 384` + `BG-3` (BR-DE-26). No correction required for § 17 variations (discount, rebate) | § 31 Abs. 5 UStDV; UStAE 14.11 | in force |
+| 10 | Cancellation in case of `unberechtigter Steuerausweis`: **written request to, and agreement of, the Finanzamt** (§ 14c Abs. 2) | § 14c UStG | in force |
+| 11 | Leitweg-ID: mandatory **in B2G only** (§ 5 Abs. 1 Nr. 1 ERechV); in B2B "wird grundsätzlich keine Leitweg-ID benötigt" [in principle no Leitweg-ID is needed], and a missing BT-10 is "umsatzsteuerlich unbeachtlich" [immaterial for VAT purposes] | BMF FAQ 6; BMF Rn. 35a | in force |
 
-### Divergences avec le code — Allemagne
+### Divergences from the code — Germany
 
-**DE-D1 — `archival: 10 ans` : le code est faux. ✓✓**
-C'est **8 ans** depuis le 2025-01-01 (§ 14b Abs. 1 Satz 1, texte vérifié verbatim : « acht Jahre »).
-Sur-rétention de deux ans, avec les conséquences RGPD que cela implique.
+**DE-D1 — `archival: 10 years`: the code is wrong. ✓✓**
+It is **8 years** since 2025-01-01 (§ 14b Abs. 1 Satz 1, text verified verbatim: "acht Jahre"). Two
+years of over-retention, with the GDPR consequences that implies.
 
-**DE-D2 — `integrity: NONE` : le code est faux.**
-§ 14 Abs. 3 impose Echtheit der Herkunft, Unversehrtheit des Inhalts **et** Lesbarkeit, et
-§ 14b Abs. 1 Satz 2 impose de les garantir **pendant toute la durée d'archivage**. Ce n'est pas
-« aucune exigence », c'est « exigence à moyen libre ». Modélisation correcte :
-`AUDIT_TRAIL | QES | EDI` — jamais `NONE`.
+**DE-D2 — `integrity: NONE`: the code is wrong.**
+§ 14 Abs. 3 requires Echtheit der Herkunft, Unversehrtheit des Inhalts [authenticity of origin,
+integrity of content] **and** Lesbarkeit [legibility], and § 14b Abs. 1 Satz 2 requires guaranteeing
+them **for the whole archival period**. This is not "no requirement", it is "requirement, free
+choice of means". Correct modeling: `AUDIT_TRAIL | QES | EDI` — never `NONE`.
 
-**DE-D3 — `mandatoryReceiveSyntax: XRECHNUNG` : le code est faux.**
-Tout format EN 16931 est admis, ainsi qu'un format convenu bilatéralement. Le profil rejetterait des
-factures parfaitement légales (ZUGFeRD, Factur-X, UBL/CII étrangers, EDIFACT). Aggravant : le
-destinataire « **hat kein Anrecht auf eine alternative Ausstellung** » — il ne peut pas exiger un
-autre format.
+**DE-D3 — `mandatoryReceiveSyntax: XRECHNUNG`: the code is wrong.**
+Any EN 16931 format is accepted, as is a bilaterally agreed format. The profile would reject
+perfectly lawful invoices (ZUGFeRD, Factur-X, foreign UBL/CII, EDIFACT). Aggravating factor: the
+recipient "**hat kein Anrecht auf eine alternative Ausstellung**" [has no right to demand an
+alternative issuing format] — they cannot require another format.
 
-**DE-D4 — `numbering: GAPLESS_SELF` : le code est faux.**
-Le critère légal est **`einmalig`** (unique), pas `lückenlos` (sans trou). La doctrine BMF l'énonce
-explicitement : « Eine lückenlose Abfolge der ausgestellten Rechnungsnummern ist nicht zwingend ».
-Plusieurs séries non contiguës sont admises. Le profil impose donc une contrainte que la loi
-allemande ne connaît pas.
+**DE-D4 — `numbering: GAPLESS_SELF`: the code is wrong.**
+The legal criterion is **`einmalig`** (unique), not `lückenlos` (gapless). BMF doctrine states it
+explicitly: "Eine lückenlose Abfolge der ausgestellten Rechnungsnummern ist nicht zwingend". Several
+non-contiguous series are allowed. The profile thus imposes a constraint German law does not have.
 
-**DE-D5 — `requiredIdentifiers: VAT` obligatoire : le code est faux.**
-§ 14 Abs. 4 Nr. 2 offre l'alternative **Steuernummer ou USt-IdNr.** Exiger la seconde bloque les
-fournisseurs domestiques qui n'en ont pas.
+**DE-D5 — `requiredIdentifiers: VAT` mandatory: the code is wrong.**
+§ 14 Abs. 4 Nr. 2 offers the alternative **Steuernummer or USt-IdNr.** Requiring the latter blocks
+domestic suppliers who do not have one.
 
-**DE-D6 — `requiredIdentifiers: LEITWEG_ID` : le code est faux en B2B.**
-Correct en B2G, faux en B2B. Doit être conditionné à la nature du destinataire.
+**DE-D6 — `requiredIdentifiers: LEITWEG_ID`: the code is wrong in B2B.**
+Correct in B2G, wrong in B2B. Must be conditioned on the recipient's nature.
 
-**DE-D7 — `archivedForm: BOTH` : sur-spécifié.**
-La partie structurée seule suffit (GoBD Rz. 119/131) ; le PDF n'est requis que s'il porte des
-informations supplémentaires pertinentes fiscalement. Pour les factures sortantes, aucune copie image
-n'est requise si un duplicata identique est reproductible à la demande (Rz. 76).
+**DE-D7 — `archivedForm: BOTH`: over-specified.**
+The structured part alone suffices (GoBD Rz. 119/131); the PDF is only required if it carries
+additional tax-relevant information. For outgoing invoices, no image copy is required if an
+identical duplicate can be reproduced on request (Rz. 76).
 
-**DE-D8 — `correctionModel: CREDIT_NOTE` : sous-modélisé, avec un piège terminologique.**
-La voie allemande de référence est la **Rechnungsberichtigung** (`BT-3 = 384`), pas l'avoir. Et
-surtout : en droit allemand, **`Gutschrift` au sens du § 14 Abs. 2 Satz 5 signifie autofacturation**,
-mention imposée par le § 14 Abs. 4 Nr. 10. Employer ce terme pour un avoir commercial est un risque
-documenté au regard du § 14c.
+**DE-D8 — `correctionModel: CREDIT_NOTE`: under-modeled, with a terminology trap.**
+The German reference path is the **Rechnungsberichtigung** (`BT-3 = 384`), not the credit note. And
+above all: under German law, **`Gutschrift` within the meaning of § 14 Abs. 2 Satz 5 means
+self-billing**, a mention required under § 14 Abs. 4 Nr. 10. Using that term for a commercial credit
+note is a documented risk under § 14c.
 
-**DE-D9 — `cancellationAllowed: true` inconditionnel : le code est incomplet.**
-En cas de `unberechtigter Steuerausweis` (§ 14c Abs. 2), la correction exige la suppression du risque
-fiscal, **une demande écrite séparée au Finanzamt et son accord**. Porte d'autorisation étatique non
-modélisée.
+**DE-D9 — `cancellationAllowed: true` unconditional: the code is incomplete.**
+In case of `unberechtigter Steuerausweis` (§ 14c Abs. 2), correction requires removing the tax risk,
+**a separate written request to, and agreement of, the Finanzamt**. This state-authorization gate is
+not modeled.
 
-**DE-D10 — `canaux: PEPPOL + EMAIL` : à la fois trop étroit et trop large.**
-En B2B, la loi ne prescrit **aucun** canal. En B2G fédéral en revanche, le § 4 Abs. 3 ERechV impose
-le **portail (OZG-RE) avec enregistrement préalable** : un e-mail direct à l'acheteur public ne
-satisfait pas l'obligation.
+**DE-D10 — `channels: PEPPOL + EMAIL`: both too narrow and too broad.**
+In B2B, the law prescribes **no** channel at all. In federal B2G on the other hand, § 4 Abs. 3 ERechV
+requires the **portal (OZG-RE) with prior registration**: a direct email to the public buyer does not
+satisfy the obligation.
 
-**DE-D11 — lacunes** : contrainte de localisation (§ 14b Abs. 2) ; déclencheur d'établissement des
-deux parties ; seuils et exemptions d'émission (≤ 250 € TTC, Fahrausweise, Kleinunternehmer, B2C,
-§ 4 Nr. 8–29) alors que la **réception n'en connaît aucune** ; primauté de la partie structurée ;
-obligation que **toutes** les mentions figurent dans la partie structurée.
+**DE-D11 — gaps**: localization constraint (§ 14b Abs. 2); both-parties-established trigger; issuing
+thresholds and exemptions (≤ €250 gross, Fahrausweise, Kleinunternehmer, B2C, § 4 Nr. 8–29) while
+**receiving has none at all**; primacy of the structured part; the requirement that **all** mentions
+appear in the structured part.
 
-### Ce que le code fait juste — Allemagne
+### What the code gets right — Germany
 
-`regime: POST_AUDIT, non bloquant` et `reporting: aucun` sont **exacts au 2026-08-27**. C'est le seul
-des six pays où le régime déclaré correspond exactement à la réalité. Fragile toutefois : émettre une
-non-E-Rechnung devient une infraction au 2027-01-01 au-dessus de 800 000 €, puis pour tous au
-2028-01-01.
+`regime: POST_AUDIT, non-blocking` and `reporting: none` are **accurate as of 2026-08-27**. This is
+the only one of the six countries where the declared regime matches reality exactly. Fragile though:
+issuing a non-E-Rechnung becomes an infringement as of 2027-01-01 above €800,000, then for everyone
+as of 2028-01-01.
 
-### Open questions — Allemagne
+### Open questions — Germany
 
-1. **Date du Meldesystem** : `null`. Aucun projet de loi au 2026-08-27. **Le « 2028 » qui circule
-   n'apparaît dans aucune source primaire consultée — ne pas le coder.**
-2. Articulation avec ViDA : non traitée par une source primaire allemande.
-3. Délai légal de la Rechnungsberichtigung : `null` — ni § 31 Abs. 5 UStDV ni § 14 UStG ne fixent de
-   fenêtre.
-4. Sanctions en cas d'émission d'une non-E-Rechnung après le 2027-01-01 : non établies.
-5. GoBD Rz. 135/136 (conditions de conversion de format) : non lues verbatim — à vérifier avant de
-   coder une politique de conversion.
+1. **Date of the Meldesystem**: `null`. No bill as of 2026-08-27. **The "2028" that circulates does
+   not appear in any primary source consulted — do not code it.**
+2. Interaction with ViDA: not addressed by a German primary source.
+3. Statutory deadline for the Rechnungsberichtigung: `null` — neither § 31 Abs. 5 UStDV nor § 14 UStG
+   sets a window.
+4. Penalties for issuing a non-E-Rechnung after 2027-01-01: not established.
+5. GoBD Rz. 135/136 (format-conversion conditions): not read verbatim — to verify before coding a
+   conversion policy.
 
 ---
 
 ---
 
-## ITALIE
+## ITALY
 
 ### Sources
 
-D.Lgs. 127/2015 art. 1 et DPR 633/1972 artt. 21, 26, 39 via `normattiva.it` ; **Provvedimento AdE
-prot. 433608 du 2022-11-24** (dont le point 15.1 « sostituisce integralmente il provvedimento del
-30 aprile 2018 ») ; **Allegato A — Specifiche tecniche v1.9.1**, mise à jour du 2026-03-31,
-utilisables depuis le **2026-05-15** ; DM MEF 17/06/2014 ; Linee Guida AgID sur le document
-informatique, applicables depuis le 2022-01-01 ; prassi AdE (Ris. 1/E 2013, Circ. 13/E 2018,
-Circ. 14/E 2019, Circ. 20/E 2021, Risposta 447/2023, Guida AdE **décembre 2025**).
+D.Lgs. 127/2015 art. 1 and DPR 633/1972 artt. 21, 26, 39 via `normattiva.it`; **Provvedimento AdE
+prot. 433608 of 2022-11-24** (whose point 15.1 "sostituisce integralmente il provvedimento del 30
+aprile 2018" [fully replaces the provision of 30 April 2018]); **Allegato A — Specifiche tecniche
+v1.9.1**, updated 2026-03-31, usable since **2026-05-15**; DM MEF 17/06/2014; Linee Guida AgID on the
+electronic document, applicable since 2022-01-01; AdE prassi (Ris. 1/E 2013, Circ. 13/E 2018,
+Circ. 14/E 2019, Circ. 20/E 2021, Risposta 447/2023, AdE Guide **December 2025**).
 
-### Règles établies
+### Established rules
 
-| # | Règle | Source | Statut |
+| # | Rule | Source | Status |
 | --- | --- | --- | --- |
-| 1 | Les variations **en hausse sont obligatoires** (« devono essere osservate ») → **nota di debito TD05** ; celles en baisse sont **facultatives** (« ha diritto di ») → nota di credito TD04 | art. 26 c. 1 et 2 DPR 633/72 | en vigueur |
-| 2 | Il n'existe **aucune facture rectificative** distincte en droit italien : la liste `TipoDocumento` n'en comporte pas | Provv. 433608 pt 6.1 | en vigueur |
-| 3 | Fenêtre d'un an **uniquement** pour l'accord postérieur entre parties et la rectification d'inexactitudes ex art. 21 c. 7 ; pour nullité, résolution, rescission : **aucun délai d'un an** | art. 26 c. 3 ; Circ. 20/E « senza specifici limiti di tempo » | en vigueur |
-| 4 | Butoir réel : la nota doit être émise avant le **délai de dépôt de la déclaration TVA annuelle** de l'année du fait générateur | Circ. 20/E §3 | en vigueur |
-| 5 | **Consentement de la contrepartie non requis** : « Le richieste […] di variazioni […] **non sono gestite dal SdI** » | Provv. 433608 pt 6.2 | en vigueur |
-| 6 | **Aucune annulation possible** après RC ou MC : « Le ricevute […] attestano che la fattura è emessa ». Seule voie : nota di variazione art. 26 | Provv. 433608 pt 4.4 ; Risposta 447/2023 | en vigueur |
-| 7 | **Date d'émission = le champ `Data` de `DatiGenerali`**, pas la date de transmission. Délai d'émission : **12 jours** depuis l'opération | Provv. 433608 pt 4.1 ; art. 21 c. 4 DPR 633/72 | en vigueur |
-| 8 | Un **scarto (NS) ⇒ la facture n'a jamais été émise**, notifié **sous 5 jours** | Provv. 433608 pt 2.4 | en vigueur |
-| 9 | Renvoi après scarto : **de préférence même date et même numéro** ; le contrôle d'unicité 00404/00409 est levé précisément parce qu'un NS a été émis ; seul le **nom de fichier** doit changer | Circ. 13/E §1.6 ; Specifiche v1.9.1 App. 1 | prassi, reconfirmée en 2025 |
-| 10 | Flux B2B : **RC, NS, MC** seulement (+ MT au destinataire). **NE, DT et AT n'existent que dans le flux B2G** DM 55/2013 | Specifiche v1.9.1 §1.1 | en vigueur |
-| 11 | Archivage **10 ans** (art. 2220 c.c.) **prolongés** « anche oltre il termine stabilito dall'articolo 2220 » jusqu'à définition des contrôles | art. 22 c. 2 DPR 600/73 via art. 39 c. 3 DPR 633/72 | en vigueur |
-| 12 | **Seul l'original XML** doit être conservé ; le PDF est une faculté (« potrà portare in conservazione **anche** copie informatiche ») | art. 39 c. 3 DPR 633/72 ; Circ. 13/E §3.2 | en vigueur |
-| 13 | Ce qui est obligatoire, c'est la signature/sceau du **pacchetto di archiviazione** + un **riferimento temporale opponibile a terzi** — pas la signature de la facture, **optionnelle en B2B** et obligatoire en B2G | DM 17/06/2014 art. 3 c. 2 ; LG AgID §4.8 ; Provv. pt 2.6 | en vigueur |
-| 14 | **Pas de contrainte UE** sur la localisation : conservation possible dans tout État lié par un instrument d'assistance mutuelle, avec accès automatisé garanti ; le lieu doit être déclaré | art. 39 c. 3 DPR 633/72 | en vigueur |
-| 15 | Numérotation : « numero progressivo che la identifichi in modo **univoco** ». La mention « in ordine progressivo per anno solare » a été **supprimée** en 2013 | art. 21 c. 2 lett. b) DPR 633/72 ; Ris. 1/E 2013 | en vigueur |
-| 16 | `Natura` **obligatoire dès que `AliquotaIVA` = 0** (erreurs 00400/00429) et **interdite** si le taux ≠ 0 (00401/00430) | Specifiche v1.9.1 | en vigueur |
+| 1 | Upward variations **are mandatory** ("devono essere osservate" [must be observed]) → **nota di debito TD05**; downward ones are **optional** ("ha diritto di" [has the right to]) → nota di credito TD04 | art. 26 c. 1 and 2 DPR 633/72 | in force |
+| 2 | There is **no distinct corrective invoice** under Italian law: the `TipoDocumento` list has none | Provv. 433608 pt 6.1 | in force |
+| 3 | One-year window **only** for a later agreement between parties and for correcting inaccuracies under art. 21 c. 7; for nullity, rescission, cancellation: **no one-year deadline** | art. 26 c. 3; Circ. 20/E "senza specifici limiti di tempo" [with no specific time limits] | in force |
+| 4 | Real cutoff: the nota must be issued before the **filing deadline of the annual VAT return** for the year of the triggering event | Circ. 20/E §3 | in force |
+| 5 | **Counterparty consent not required**: "Le richieste […] di variazioni […] **non sono gestite dal SdI**" [Requests … for variations … are not handled by the SdI] | Provv. 433608 pt 6.2 | in force |
+| 6 | **No cancellation possible** after RC or MC: "Le ricevute […] attestano che la fattura è emessa" [The receipts … certify that the invoice has been issued]. Only path: the nota di variazione under art. 26 | Provv. 433608 pt 4.4; Risposta 447/2023 | in force |
+| 7 | **Issue date = the `Data` field in `DatiGenerali`**, not the transmission date. Issuing deadline: **12 days** from the transaction | Provv. 433608 pt 4.1; art. 21 c. 4 DPR 633/72 | in force |
+| 8 | A **scarto (NS) ⇒ the invoice was never issued**, notified **within 5 days** | Provv. 433608 pt 2.4 | in force |
+| 9 | Resending after a scarto: **preferably the same date and number**; the uniqueness check 00404/00409 is lifted precisely because an NS was issued; only the **file name** must change | Circ. 13/E §1.6; Specifiche v1.9.1 App. 1 | prassi, reconfirmed in 2025 |
+| 10 | B2B flow: **RC, NS, MC** only (+ MT to the recipient). **NE, DT and AT only exist in the B2G flow** DM 55/2013 | Specifiche v1.9.1 §1.1 | in force |
+| 11 | Archival **10 years** (art. 2220 c.c.) **extended** "anche oltre il termine stabilito dall'articolo 2220" [even beyond the term set by article 2220] until controls are settled | art. 22 c. 2 DPR 600/73 via art. 39 c. 3 DPR 633/72 | in force |
+| 12 | **Only the original XML** must be retained; the PDF is optional ("potrà portare in conservazione **anche** copie informatiche" [may also bring digital copies into retention]) | art. 39 c. 3 DPR 633/72; Circ. 13/E §3.2 | in force |
+| 13 | What is mandatory is the signature/seal of the **archival package** + a **timestamp enforceable against third parties** — not the signature of the invoice, **optional in B2B** and mandatory in B2G | DM 17/06/2014 art. 3 c. 2; LG AgID §4.8; Provv. pt 2.6 | in force |
+| 14 | **No EU constraint** on location: retention possible in any state bound by a mutual-assistance instrument, with guaranteed automated access; the location must be declared | art. 39 c. 3 DPR 633/72 | in force |
+| 15 | Numbering: "numero progressivo che la identifichi in modo **univoco**" [a progressive number that identifies it **uniquely**]. The mention "in ordine progressivo per anno solare" [in progressive order per calendar year] was **removed** in 2013 | art. 21 c. 2 lett. b) DPR 633/72; Ris. 1/E 2013 | in force |
+| 16 | `Natura` **mandatory as soon as `AliquotaIVA` = 0** (errors 00400/00429) and **forbidden** if the rate ≠ 0 (00401/00430) | Specifiche v1.9.1 | in force |
 
-### Divergences avec le code — Italie
+### Divergences from the code — Italy
 
-**IT-D1 — `cancellationAllowed: true` : le code est faux.** Aucune annulation après RC/MC ; seule la
-nota di variazione art. 26 existe. Un flux d'annulation produirait un état incohérent avec le
-registre TVA.
+**IT-D1 — `cancellationAllowed: true`: the code is wrong.** No cancellation exists after RC/MC; only
+the nota di variazione under art. 26 exists. A cancellation flow would produce a state inconsistent
+with the VAT register.
 
-**IT-D2 — `numbering: GAPLESS_SELF` : le code est faux.** La loi n'exige que l'unicité, et la
-Ris. 1/E de 2013 admet « qualsiasi tipologia di numerazione progressiva che garantisca
-l'identificazione univoca ». Une lacune n'invalide rien.
+**IT-D2 — `numbering: GAPLESS_SELF`: the code is wrong.** The law only requires uniqueness, and
+Ris. 1/E of 2013 accepts "qualsiasi tipologia di numerazione progressiva che garantisca
+l'identificazione univoca" [any kind of progressive numbering that guarantees unique
+identification]. A gap invalidates nothing.
 
-**IT-D3 — `correctionModel: CREDIT_NOTE` seul : le code est incomplet.** Il manque la **nota di
-debito TD05**, qui couvre les variations en hausse — lesquelles sont **obligatoires**, à la
-différence des baisses.
+**IT-D3 — `correctionModel: CREDIT_NOTE` alone: the code is incomplete.** It is missing the **nota di
+debito TD05**, which covers upward variations — which are **mandatory**, unlike downward ones.
 
-**IT-D4 — `reporting: aucun` : le code est faux, et c'est la divergence la plus structurante.**
-L'art. 1 c. 3-bis du D.Lgs. 127/2015 impose la transmission des données des opérations avec des
-**non-établis**, via le SdI et le tracciato ordinaire depuis le 2022-07-01 — sortantes « entro i
-termini di emissione delle fatture », entrantes « entro il quindicesimo giorno del mese successivo ».
-S'y ajoute la liquidation trimestrielle de l'imposta di bollo. **C'est exactement le basculement
-domestique → reporting décrit en F-017.**
+**IT-D4 — `reporting: none`: the code is wrong, and it is the most structural divergence.** Art. 1
+c. 3-bis of D.Lgs. 127/2015 requires transmitting the data of transactions with **non-established**
+parties, via the SdI and the ordinary tracciato since 2022-07-01 — outgoing "entro i termini di
+emissione delle fatture" [within invoice-issuing deadlines], incoming "entro il quindicesimo giorno
+del mese successivo" [by the 15th day of the following month]. On top of that, the quarterly
+settlement of the imposta di bollo. **This is exactly the domestic → reporting shift described in
+F-017.**
 
-**IT-D5 — `archivedForm: BOTH` et `integrity: SIGNED` : le code confond deux niveaux.** Seul le XML
-doit être conservé. Et la signature obligatoire porte sur le **paquet d'archivage**, pas sur la
-facture — laquelle n'est signée obligatoirement qu'en **B2G**. Le profil ne distingue pas B2B et B2G.
+**IT-D5 — `archivedForm: BOTH` and `integrity: SIGNED`: the code conflates two levels.** Only the
+XML must be retained. And the mandatory signature applies to the **archival package**, not the
+invoice — which is only mandatorily signed in **B2G**. The profile does not distinguish B2B from
+B2G.
 
-**IT-D6 — `archival: 10 ans` : incomplet.** Les 10 ans sont prolongés jusqu'à la définition des
-contrôles. Une purge à J+10 ans détruirait des pièces encore exigibles.
+**IT-D6 — `archival: 10 years`: incomplete.** The 10 years are extended until controls are settled.
+A purge at day-10-years-plus-1 would destroy records still required to be kept.
 
-**IT-D7 — `primarySyntaxes: PLAIN_PDF + FATTURAPA` : le code est faux.** En domestique,
-« sono emesse **esclusivamente** fatture elettroniche utilizzando il Sistema di Interscambio », et
-toute autre modalité ⇒ « la fattura si intende **non emessa** ». Le PDF n'est licite que dans les cas
-d'exonération, ou comme *copia di cortesia* sans valeur fiscale.
+**IT-D7 — `primarySyntaxes: PLAIN_PDF + FATTURAPA`: the code is wrong.** Domestically, "sono emesse
+**esclusivamente** fatture elettroniche utilizzando il Sistema di Interscambio" [electronic invoices
+are issued **exclusively** using the Interchange System], and any other method ⇒ "la fattura si
+intende **non emessa**" [the invoice is deemed **not issued**]. PDF is only lawful in exemption
+cases, or as a *copia di cortesia* with no tax value.
 
-**IT-D8 — RETIRÉ. Faux positif, même cause que PL-D4.**
+**IT-D8 — WITHDRAWN. False positive, same cause as PL-D4.**
 
-*Le profil italien est correct.* Il déclare `EMAIL` **jusqu'au 2019-01-01 seulement**, puis `SDI`.
-Reste vrai comme point de vocabulaire : les canaux SdI sont **PEC** (qui n'est pas un e-mail
-ordinaire), la procédure web/app AdE, **SDICoop** et **SDIFTP**.
+*The Italian profile is correct.* It declares `EMAIL` **only until 2019-01-01**, then `SDI`. Still
+true as a vocabulary point: the SdI channels are **PEC** (which is not an ordinary email), the AdE
+web/app procedure, **SDICoop** and **SDIFTP**.
 
-**IT-D9 — `requiredIdentifiers: IT_SDI + PEC` cumulés : le code est faux.** Codice destinatario et
-PEC sont **alternatifs**. Manquent les valeurs conventionnelles `0000000` (consommateur, forfettario,
-canal inconnu) et **`XXXXXXX`** (destinataire non établi — contrôle 00313).
+**IT-D9 — `requiredIdentifiers: IT_SDI + PEC` combined: the code is wrong.** Codice destinatario and
+PEC are **alternatives**. Missing are the conventional values `0000000` (consumer, forfettario,
+unknown channel) and **`XXXXXXX`** (non-established recipient — check 00313).
 
-**IT-D10 — `immutableAfter: ISSUE puis CLEARANCE` : mauvais déclencheur.** L'immutabilité naît au
-retour **RC ou MC**. Avant la réponse du SdI, ou après un NS, le document peut être librement
-recomposé — y compris avec la même date et le même numéro. Le profil **verrouille trop tôt** et
-bloquerait le renvoi post-scarto.
+**IT-D10 — `immutableAfter: ISSUE then CLEARANCE`: wrong trigger.** Immutability begins on the
+**RC or MC** response. Before the SdI's response, or after an NS, the document can be freely
+recomposed — including with the same date and number. The profile **locks too early** and would
+block resending after a scarto.
 
-**IT-D11 — politique de réponse : risque de statuts fantômes.** Si le profil modélise NE, DT ou AT
-en B2B, il attend des messages qui **n'arriveront jamais** — ils n'existent que dans le flux B2G.
+**IT-D11 — response policy: risk of phantom statuses.** If the profile models NE, DT or AT in B2B,
+it expects messages that **will never arrive** — they only exist in the B2G flow.
 
-**IT-D12 — lacune fonctionnelle majeure** : la règle du renvoi post-scarto sous 5 jours, même date et
-même numéro, n'apparaît nulle part. C'est pourtant le chemin nominal de reprise après rejet.
+**IT-D12 — major functional gap**: the post-scarto resend rule under 5 days, same date and number,
+appears nowhere. Yet it is the nominal recovery path after a rejection.
 
-### Contradiction interne relevée
+### Internal contradiction found
 
-Le profil déclare simultanément `POST_AUDIT + CLEARANCE` et `reporting: aucun`. Or la jambe
-« post-audit » du dispositif italien **est** précisément le reporting c. 3-bis que le profil nie.
+The profile simultaneously declares `POST_AUDIT + CLEARANCE` and `reporting: none`. But the
+"post-audit" leg of the Italian scheme **is** precisely the c. 3-bis reporting the profile denies.
 
 ---
 
 ---
 
-## ESPAGNE
+## SPAIN
 
 ### Sources
 
-BOE, textes consolidés (RD 1007/2023, RD 1619/2012, RD 238/2026, Orden HAC/1177/2024, LGT, LIVA,
-Código de Comercio, Ley 25/2013) ; AEAT (`sede.agenciatributaria.gob.es`) ; `hacienda.gob.es` pour le
-projet d'orden ministerial.
+BOE, consolidated texts (RD 1007/2023, RD 1619/2012, RD 238/2026, Orden HAC/1177/2024, LGT, LIVA,
+Código de Comercio, Ley 25/2013); AEAT (`sede.agenciatributaria.gob.es`); `hacienda.gob.es` for the
+draft ministerial order.
 
-### Deux régimes, deux déclencheurs de nature différente
+### Two regimes, two triggers of a different nature
 
-C'est la particularité espagnole, et elle est structurante :
+This is Spain's particularity, and it is structural:
 
-| Régime | Déclencheur | Pivot |
+| Regime | Trigger | Pivot |
 | --- | --- | --- |
-| **Veri\*Factu** | **unilatéral** — un **statut fiscal de l'émetteur** (IS / IRPF activité économique / IRNR **avec établissement permanent** / entité en attribution de revenus), domicile fiscal en territoire commun, **et non inscrit au SII** | **vendeur** |
-| **Mandat B2B** (RD 238/2026) | **bilatéral, dominé par le destinataire** — l'émetteur doit être tenu d'émettre selon le RD 1619/2012, **et** le destinataire doit avoir en Espagne son siège, un EP ou son domicile, **et l'opération doit lui être adressée** | **acheteur** |
+| **Veri\*Factu** | **unilateral** — a **tax status of the issuer** (IS / IRPF economic activity / IRNR **with a permanent establishment** / income-attribution entity), tax domicile in common territory, **and not enrolled in the SII** | **seller** |
+| **B2B mandate** (RD 238/2026) | **bilateral, dominated by the recipient** — the issuer must be required to issue under RD 1619/2012, **and** the recipient must have their registered office, a PE, or their domicile in Spain, **and the transaction must be addressed to them** | **buyer** |
 
-Le mandat B2B pivote donc sur `buyerEstablishment == ES`, **pas** sur le pays du vendeur. Un moteur
-qui l'active sur le vendeur se trompe dans les deux sens : faux positif sur ES → FR, faux négatif sur
-un vendeur étranger soumis aux règles espagnoles vendant à un acheteur établi en Espagne.
+The B2B mandate thus pivots on `buyerEstablishment == ES`, **not** on the seller's country. An
+engine that turns it on based on the seller gets it wrong both ways: a false positive on ES → FR, a
+false negative for a foreign seller subject to Spanish rules selling to a buyer established in Spain.
 
-**Veri\*Factu couvre le transfrontalier sortant** : la norme vise l'émission de factures
-« **cualquiera que sea el destinatario** ». Une facture à un client étranger génère un registro de
-facturación comme une facture domestique. Un moteur qui court-circuite sur `buyerCountry != ES` est
-non conforme.
+**Veri\*Factu covers outbound cross-border transactions**: the standard targets the issuing of
+invoices "**cualquiera que sea el destinatario**" [whoever the recipient may be]. An invoice to a
+foreign customer generates a registro de facturación just like a domestic invoice. An engine that
+short-circuits on `buyerCountry != ES` is non-compliant.
 
-### Calendrier — trois horloges indépendantes
+### Timeline — three independent clocks
 
-| Horloge | Échéance | Statut |
+| Clock | Deadline | Status |
 | --- | --- | --- |
-| Veri\*Factu — contribuables IS | **2027-01-01** | en vigueur (prorogé deux fois : RD 254/2025 puis RD-ley 15/2025, convalidé le 2025-12-11) |
-| Veri\*Factu — reste des obligés art. 3.1 | **2027-07-01** | en vigueur |
-| Veri\*Factu — **producteurs de logiciel** | **9 mois après l'entrée en vigueur de l'orden ministerial** ✓✓ | **échéance expirée** |
-| Mandat B2B | 12 / 24 / 36 mois **à compter de l'entrée en vigueur d'une orden ministerial non publiée** | **horloge non démarrée** |
+| Veri\*Factu — IS taxpayers | **2027-01-01** | in force (postponed twice: RD 254/2025 then RD-ley 15/2025, validated 2025-12-11) |
+| Veri\*Factu — remaining art. 3.1 obligated parties | **2027-07-01** | in force |
+| Veri\*Factu — **software producers** | **9 months after the ministerial order takes effect** ✓✓ | **deadline has expired** |
+| B2B mandate | 12 / 24 / 36 months **from the entry into force of an unpublished ministerial order** | **clock not started** |
 
-L'orden ministerial du mandat B2B **n'est pas publiée au 2026-08-27** ; elle existe à l'état de projet
-soumis à information publique le 2026-04-17, prévoyant une entrée en vigueur au 2026-10-01. **Ces
-dates ne doivent pas être codées comme fermes.**
+The B2B mandate's ministerial order **is not published as of 2026-08-27**; it exists as a draft
+submitted for public comment on 2026-04-17, proposing entry into force on 2026-10-01. **These dates
+must not be coded as firm.**
 
-### Divergences avec le code — Espagne
+### Divergences from the code — Spain
 
-**ES-D1 — le chaînage est obligatoire, l'algorithme existe, et la chaîne n'est jamais formée.**
+**ES-D1 — chaining is mandatory, the algorithm exists, and the chain is never formed.**
 
-*Version corrigée. La première rédaction disait « `hashChain: false` : le code est faux » et laissait
-entendre que la capacité était absente. Elle ne l'est pas, et le défaut réel est plus précis.*
+*Corrected version. The first draft said "`hashChain: false`: the code is wrong" and implied the
+capability was absent. It is not, and the real defect is more precise.*
 
-**Le droit d'abord.** Le chaînage par empreinte du registre précédent est **obligatoire dans les deux
-modalités** (RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e et 12). L'exception de l'art. 16.3 ne lève que la
-**signature XAdES**, jamais le hash. Le drapeau de profil `hashChain: false` est donc faux comme
-déclaration.
+**The law first.** Chaining by the previous record's fingerprint is **mandatory in both modalities**
+(RD 1007/2023 art. 8.2.b, 10.1.ñ, 11.2.e and 12). The art. 16.3 exception only lifts the **XAdES
+signature**, never the hash. The profile's `hashChain: false` flag is therefore wrong as a
+declaration.
 
-**Ce que le code fait réellement.** `reporting/generators.ts` implémente l'algorithme de la huella —
-chaîne canonique, jeu et ordre des champs, casse, SHA-256 hexadécimal majuscule — construit d'après
-les documents techniques AEAT nommément cités : « Detalle de las especificaciones técnicas para la
-generación de la huella o hash de los registros de facturación » **v0.1.2 du 2024-08-27**, et celui
-du code QR **v0.5.0 du 2025-12-10**. `generators.spec.ts` **reproduit les deux exemples chiffrés
-officiels de l'AEAT** — cas 1, premier registre non chaîné, et cas 2, registre chaînant le
-précédent — avec les SHA-256 publiés par l'autorité en dur. Les 39 tests passent.
+**What the code actually does.** `reporting/generators.ts` implements the huella algorithm — the
+canonical chain, the field set and order, casing, uppercase hexadecimal SHA-256 — built from the AEAT
+technical documents it explicitly cites: "Detalle de las especificaciones técnicas para la generación
+de la huella o hash de los registros de facturación" **v0.1.2 of 2024-08-27**, and the QR-code one
+**v0.5.0 of 2025-12-10**. `generators.spec.ts` **reproduces the AEAT's two official worked
+examples** — case 1, first record with no chain, and case 2, a record chaining the previous one —
+hard-coding the authority's published SHA-256 values. All 39 tests pass.
 
-> C'est de la **preuve L3** au sens de l'échelle de cet audit : un test vérifié contre un vecteur
-> publié par l'autorité. Mon inventaire de phase 0 l'avait manquée, ayant sondé les providers de
-> *format* et jamais les générateurs de *reporting*.
+> This is **L3-grade evidence** on this audit's own scale: a test checked against a vector published
+> by the authority. My phase-0 inventory missed it, having probed the *format* providers and never
+> the *reporting* generators.
 
-**Le défaut, exactement.** Le paramètre `previousHuella` vaut `''` par défaut, et **aucun appelant ne
-l'alimente jamais** — vérifié sur tout le dépôt. `handlers.ts:185` le documente d'ailleurs
-explicitement, et `generators.ts:695` porte un `TODO(seam)` disant que la lecture arrière du registre
-précédent est délibérément laissée à la couche d'I/O. Conséquence : **chaque registre est émis avec
-`PrimerRegistro='S'`** — le système produit une chaîne de longueur un, répétée indéfiniment, alors
-que toute la valeur probante du dispositif tient dans le chaînage.
+**The defect, precisely.** The `previousHuella` parameter defaults to `''`, and **no caller ever
+supplies it** — checked across the whole repository. `handlers.ts:185` even documents this
+explicitly, and `generators.ts:695` carries a `TODO(seam)` saying that reading the previous record
+backward is deliberately left to the I/O layer. Consequence: **every record is emitted with
+`PrimerRegistro='S'`** — the system produces a chain of length one, repeated indefinitely, when the
+whole evidentiary value of the scheme lies in the chaining.
 
-**Ce qui manque n'est donc pas une source légale, c'est une requête.** Le `TODO(seam)` décrit lui-même
-le correctif : lire, par émetteur, la huella du dernier registre VERIFACTU via `ReportingStore`, et
-la passer au générateur. Aucune recherche juridique supplémentaire n'est nécessaire pour cela — ce
-qui déplace la séquence de F-018 (voir `06-REMEDIATION.md`).
+**So what is missing is not a legal source, it is a query.** The `TODO(seam)` itself describes the
+fix: read, per issuer, the huella of the last VERIFACTU record via `ReportingStore`, and pass it to
+the generator. No further legal research is needed for this — which moves the F-018 sequence (see
+`06-REMEDIATION.md`).
 
-**ES-D12 — l'URL du QR est celle d'un système vérifiable, que le produit n'est pas.** *(nouveau)*
+**ES-D12 — the QR URL is that of a verifiable system, which the product is not.** *(new)*
 
-Le document AEAT « Detalle de las especificaciones técnicas del código QR de la factura… »
-**v0.5.0 du 2025-12-10**, obtenu et lu, distingue **deux axes** et non un seul :
+The AEAT document "Detalle de las especificaciones técnicas del código QR de la factura…"
+**v0.5.0 of 2025-12-10**, obtained and read, distinguishes **two axes**, not one:
 
-| | Environnement de test | Production |
+| | Test environment | Production |
 | --- | --- | --- |
-| **5.1** Système émettant des factures **vérifiables** | `prewww2.aeat.es/…/ValidarQR` | `www2.agenciatributaria.gob.es/…/ValidarQR` |
-| **5.2** Système émettant des factures **non vérifiables** | `prewww2.aeat.es/…/ValidarQRNoVerifactu` | `www2.agenciatributaria.gob.es/…/ValidarQRNoVerifactu` |
+| **5.1** System issuing **verifiable** invoices | `prewww2.aeat.es/…/ValidarQR` | `www2.agenciatributaria.gob.es/…/ValidarQR` |
+| **5.2** System issuing **non-verifiable** invoices | `prewww2.aeat.es/…/ValidarQRNoVerifactu` | `www2.agenciatributaria.gob.es/…/ValidarQRNoVerifactu` |
 
-Le **chemin** change avec le mode, pas seulement l'hôte avec l'environnement. `generators.ts:656`
-code en dur `…/ValidarQR`, c'est-à-dire l'URL d'un **système vérifiable**. Or le produit ne
-transmet rien en continu — le handler de reporting journalise `[MOCK]` (F-016) — il est donc un
-système **non vérifiable**, qui devrait imprimer `ValidarQRNoVerifactu`.
+The **path** changes with the mode, not just the host with the environment. `generators.ts:656`
+hard-codes `…/ValidarQR`, i.e. the URL of a **verifiable system**. But the product transmits nothing
+continuously — the reporting handler logs `[MOCK]` (F-016) — it is therefore a **non-verifiable**
+system, which should print `ValidarQRNoVerifactu`.
 
-Le commentaire du code (`generators.ts:653-655`) décrit `prewww2` comme un simple hôte de
-préproduction « à basculer par configuration ». C'est exact quant à l'environnement — le PDF le
-qualifie bien d'« Entorno de pruebas (Portal de Pruebas Externas) » — mais cela **manque le second
-axe** : bascule l'hôte et l'on reste sur le chemin des factures vérifiables.
+The code comment (`generators.ts:653-655`) describes `prewww2` as a simple pre-production host "to
+switch via configuration". That is accurate about the environment — the PDF does describe it as
+"Entorno de pruebas (Portal de Pruebas Externas)" [Test environment (External Test Portal)] — but it
+**misses the second axis**: switching the host still leaves it on the verifiable-invoices path.
 
-> Ce défaut se referme sur l'indicateur **1.e** de la déclaration responsable (voir
-> `09-F018-ES-DECLARATION.md` §5) : le QR imprimé affirme au destinataire un mode que le système ne
-> tient pas. Ce n'est pas une divergence de plus, c'est la même incohérence vue depuis la facture.
+> This defect closes back onto indicator **1.e** of the responsible declaration (see
+> `09-F018-ES-DECLARATION.md` §5): the printed QR tells the recipient the system operates in a mode
+> it does not actually hold to. This is not one more divergence, it is the same inconsistency seen
+> from the invoice's side.
 
-**ES-D13 — l'horodatage du registro est en UTC, pas à l'heure de Madrid.** *(nouveau — axe 2, sous condition)*
+**ES-D13 — the registro's timestamp is in UTC, not Madrid local time.** *(new — axis 2, conditional)*
 
-`generators.ts` produit `FechaHoraHusoGenRegistro` avec un décalage `+00:00` fixe :
+`generators.ts` produces `FechaHoraHusoGenRegistro` with a fixed `+00:00` offset:
 
 ```ts
 const fechaHoraHusoGenRegistro = `${new Date().toISOString().slice(0, 19)}+00:00`;
 ```
 
-Le nom du champ le dit — *huso* signifie fuseau horaire. Les exemples chiffrés de l'AEAT emploient
-le décalage local de Madrid (`+01:00` en hiver, `+02:00` en été). La valeur produite est
-**syntaxiquement valide** — elle respecte le motif de la spécification, et c'est pourquoi les
-vecteurs de test passent — mais elle ne déclare pas le fuseau espagnol.
+The field name says it — *huso* means time zone. The AEAT's worked examples use Madrid's local
+offset (`+01:00` in winter, `+02:00` in summer). The value produced is **syntactically valid** — it
+follows the specification's pattern, which is why the test vectors pass — but it does not declare
+the Spanish time zone.
 
-**Rectification d'une première formulation de cette divergence.** Elle affirmait qu'« un contrôle
-qui recalculerait la huella à partir de l'horodatage attendu localement ne retrouverait pas la
-valeur enregistrée ». C'est trompeur : un vérificateur recalcule la huella à partir des champs
-**du registre soumis**, pas d'un horodatage deviné. La chaîne est donc **auto-cohérente et
-vérifiable** quel que soit le décalage écrit — comme le fait observer la contrainte du format, le
-décalage étant explicite, l'instant est non ambigu. Le risque réel est plus étroit, et il est
-double :
+**Correcting an earlier phrasing of this divergence.** It claimed that "a check that recomputed the
+huella from the locally expected timestamp would not recover the stored value". That is misleading: a
+verifier recomputes the huella from the fields **of the submitted record**, not from a guessed
+timestamp. The chain is therefore **self-consistent and verifiable** regardless of the offset
+written — as the format constraint itself notes, since the offset is explicit, the instant is
+unambiguous. The real risk is narrower, and it is twofold:
 
-1. **L'AEAT valide-t-elle que le décalage corresponde à l'heure légale espagnole ?** Inconnu. Si
-   oui, chaque registro est rejeté à la soumission — d'où l'axe 2, **sous cette condition**.
-2. **La convention est scellée dans une chaîne append-only.** Rien ne casse cryptographiquement si
-   l'on passe à Madrid plus tard — chaque registre hache sa propre valeur — mais la chaîne portera
-   alors deux conventions de fuseau successives, ce qu'un contrôle lira comme une anomalie. C'est ce
-   qui rend la question urgente maintenant, et non le jour où la transmission espagnole fonctionnera.
+1. **Does the AEAT validate that the offset matches Spanish legal time?** Unknown. If so, every
+   registro is rejected on submission — hence axis 2, **under this condition**.
+2. **The convention is sealed into an append-only chain.** Nothing breaks cryptographically if the
+   system switches to Madrid time later — each record hashes its own value — but the chain would then
+   carry two successive time-zone conventions, which a check would read as an anomaly. This is what
+   makes the question urgent now, not the day Spanish transmission starts working.
 
-**Pourquoi ce n'est pas corrigé.** La piste la plus défendable serait le fuseau du *domicilio
-fiscal* de l'emisor. **Elle n'est pas disponible** : le chemin de production
-(`invoices.helpers.ts:128-133`) construit `supplier` avec `legalName`, `countryCode`, `role` et
-`identifiers` — **sans adresse**. `PartyTaxProfile.address` existe mais n'est jamais peuplé par ce
-constructeur, donc le générateur ne dispose que du **pays**, pas de la région.
+**Why this is not fixed.** The most defensible fix would be the *domicilio fiscal*'s time zone for
+the emisor. **It is not available**: the production path (`invoices.helpers.ts:128-133`) builds
+`supplier` with `legalName`, `countryCode`, `role` and `identifiers` — **with no address**.
+`PartyTaxProfile.address` exists but is never populated by this constructor, so the generator only
+has the **country**, not the region.
 
-Or le pays ne suffit pas : l'Espagne péninsulaire et les Baléares sont à `Europe/Madrid`, les
-**Canaries à `Atlantic/Canary`**, une heure derrière. Coder `Europe/Madrid` sur la seule foi de
-`countryCode === 'ES'` serait donc exact pour la majorité des redevables et **faux d'une heure**
-pour les canariens — en écrivant cette valeur fausse dans une chaîne immuable. Le dépôt sait faire
-la conversion (`company-lookup/providers/shared.ts:17`, `localDate(timeZone)` via
-`Intl.DateTimeFormat`) ; ce qui manque n'est pas l'outil, c'est **la donnée d'entrée**.
+And the country is not enough: mainland Spain and the Balearics are on `Europe/Madrid`, the
+**Canaries on `Atlantic/Canary`**, one hour behind. Coding `Europe/Madrid` on the sole basis of
+`countryCode === 'ES'` would therefore be right for most taxpayers and **wrong by one hour** for
+Canary Islanders — writing that wrong value into an immutable chain. The repository knows how to
+convert (`company-lookup/providers/shared.ts:17`, `localDate(timeZone)` via `Intl.DateTimeFormat`);
+what is missing is not the tool, it is **the input data**.
 
-> `open_question` — **deux questions distinctes, et la première suffit à débloquer.**
+> `open_question` — **two distinct questions, and the first is enough to unblock.**
 >
-> 1. **L'AEAT rejette-t-elle un `FechaHoraHusoGenRegistro` dont le décalage n'est pas celui de
->    l'heure légale espagnole, ou accepte-t-elle tout décalage explicite désignant le bon instant ?**
->    Ce qui la trancherait : les règles de validation publiées du service de soumission (la liste des
->    codes d'erreur de l'AEAT, qui énumère les rejets de format), ou un aller-retour réel sur
->    `preportal.aeat.es` — bloqué par **S2**, les prérequis d'accès n'étant pas documentés.
-> 2. **Si le fuseau doit être espagnol, lequel pour un redevable canarien ?** Ce qui la trancherait :
->    le champ d'application de l'art. 3.1 quant aux Canaries, à traiter avec la question de
->    rattachement (**D2**) plutôt que séparément.
+> 1. **Does the AEAT reject a `FechaHoraHusoGenRegistro` whose offset is not Spanish legal time, or
+>    does it accept any explicit offset that names the right instant?** What would settle it: the
+>    submission service's published validation rules (the AEAT's error-code list, which enumerates
+>    format rejections), or a real round trip on `preportal.aeat.es` — blocked by **S2**, the access
+>    prerequisites not being documented.
+> 2. **If the time zone must be Spanish, which one for a Canary Islands taxpayer?** What would settle
+>    it: art. 3.1's scope regarding the Canaries, to be handled alongside the nexus question (**D2**)
+>    rather than separately.
 >
-> Tant que la première reste ouverte, **ne rien corriger** : un décalage dont on sait qu'il est en
-> UTC vaut mieux qu'un décalage espagnol supposé et faux d'une heure pour une partie des redevables,
-> gravé dans une chaîne qu'on ne peut pas réécrire.
+> As long as the first stays open, **fix nothing**: an offset known to be UTC is worth more than a
+> presumed-Spanish offset that is wrong by an hour for part of the taxpayers, carved into a chain
+> that cannot be rewritten.
 
-**ES-D2 — `reporting: SII + VERIFACTU` : le code est faux s'il cumule.**
-Les deux régimes sont **mutuellement exclusifs** : « El presente Reglamento **no se aplicará** a los
+**ES-D2 — `reporting: SII + VERIFACTU`: the code is wrong if it stacks them.**
+The two regimes are **mutually exclusive**: "El presente Reglamento **no se aplicará** a los
 contribuyentes que lleven los libros registros en los términos […] del artículo 62 del Reglamento del
-IVA » (art. 3.3). Un flag `isSiiFiler` doit arbitrer en amont ; il n'existe aucun état où les deux
-sont actifs.
+IVA" [This Regulation shall **not apply** to taxpayers who keep their record books under the terms
+… of article 62 of the VAT Regulation] (art. 3.3). An `isSiiFiler` flag must arbitrate upstream; no
+state exists where both are active.
 
-**ES-D3 — `archival: 10 ans` : mal étiqueté.**
-Le RD 1619/2012 art. 19.1 renvoie à la LGT sans écrire de durée. Le plancher réel est **6 ans**
-(Código de Comercio art. 30.1, via LGT art. 70.2 qui impose le plus long des deux), sur un socle
-fiscal de 4 ans. Les 10 ans ne valent que pour les bases et déductions en attente (LGT art. 66 bis.2)
-— et sont **insuffisants** pour l'immobilier, la régularisation des biens d'investissement portant sur
-neuf années supplémentaires (LIVA art. 107.Tres). 10 ans est un défaut prudent, pas une règle.
+**ES-D3 — `archival: 10 years`: mislabeled.**
+RD 1619/2012 art. 19.1 refers to the LGT without writing a duration. The real floor is **6 years**
+(Código de Comercio art. 30.1, via LGT art. 70.2, which requires the longer of the two), on top of a
+4-year tax base. The 10 years only apply to bases and deductions pending (LGT art. 66 bis.2) — and
+are **insufficient** for real estate, capital-goods adjustment running an extra nine years
+(LIVA art. 107.Tres). 10 years is a prudent default, not a rule.
 
-**ES-D4 — `archivedForm: BOTH` : incomplet sur deux points opposables.**
-(a) Le **format d'origine** doit être conservé — XML natif, données associées **et mécanismes de
-vérification de signature** (art. 21.1) ; un rendu PDF ne suffit pas. (b) La conservation **hors
-d'Espagne** est licite mais soumise à **communication préalable à l'AEAT** (art. 22.2), de même que la
-sous-traitance hors UE (art. 19.4). Le profil ne modélise aucune de ces deux obligations déclaratives.
+**ES-D4 — `archivedForm: BOTH`: incomplete on two opposable points.**
+(a) The **original format** must be retained — native XML, associated data **and signature-verification
+mechanisms** (art. 21.1); a PDF rendering is not enough. (b) Retention **outside Spain** is lawful but
+subject to **prior notice to the AEAT** (art. 22.2), as is outsourcing outside the EU (art. 19.4).
+The profile models neither of these two reporting obligations.
 
-**ES-D5 — `numbering: GAPLESS_SELF` : non sourcé, et incomplet.**
-Le texte n'exige que « la numeración […] **dentro de cada serie** será correlativa ». L'interdiction
-des trous n'est écrite nulle part → `open_question`. Surtout, le profil ignore les **séries
-obligatoirement séparées** : rectificatives, autofacturation (**une série par tiers émetteur ou
-destinataire**), art. 84.Uno.2º.g) LIVA, DA 5ª et art. 61 quinquies.2 RIVA, et **complètes vs
-simplifiées dès qu'elles coexistent sur une même année civile**.
+**ES-D5 — `numbering: GAPLESS_SELF`: not sourced, and incomplete.**
+The text only requires "la numeración […] **dentro de cada serie** será correlativa" [numbering …
+**within each series** must be sequential]. The ban on gaps is written nowhere → `open_question`.
+More importantly, the profile ignores the **mandatorily separate series**: corrective invoices,
+self-billing (**one series per issuing or receiving third party**), art. 84.Uno.2º.g) LIVA, DA 5ª and
+art. 61 quinquies.2 RIVA, and **full vs. simplified once they coexist in the same calendar year**.
 
-**ES-D6 / ES-D7 — `PLAIN_PDF + ES_FACTURAE` : faux pour le mandat B2B.**
-Le RD 238/2026 art. 7.1 impose EN 16931 dans l'une de quatre syntaxes — **CII, UBL, EDIFACT ou
-Facturae** — et les opérateurs doivent savoir **convertir entre les quatre**. **UBL est la syntaxe de
-référence** de la solución pública. Le PDF n'est qu'un **accompagnement transitoire** pendant les
-12 premiers mois pour les entreprises de plus de 8 M€. Facturae-seul est une règle **B2G**
-(Ley 25/2013 / FACe), pas B2B.
+**ES-D6 / ES-D7 — `PLAIN_PDF + ES_FACTURAE`: wrong for the B2B mandate.**
+RD 238/2026 art. 7.1 requires EN 16931 in one of four syntaxes — **CII, UBL, EDIFACT or Facturae** —
+and operators must be able to **convert between all four**. **UBL is the reference syntax** of the
+solución pública. PDF is only a **transitional accompaniment** during the first 12 months for
+businesses above €8M. Facturae-only is a **B2G** rule (Ley 25/2013 / FACe), not B2B.
 
-**ES-D8 — canaux : incomplet sur trois obligations.**
-Manquent : le **dépôt simultané d'une copie fidèle UBL** au repositorio universel de l'AEAT par toute
-plateforme privée ; l'**interconnexion obligatoire** entre plateformes, sous un mois ; et le
-**reporting des états de facture** — acceptation ou rejet commercial, paiement effectif — sous
-**quatre jours naturels hors week-ends et fériés**. L'e-mail ne satisfera pas le mandat B2B.
+**ES-D8 — channels: incomplete on three obligations.**
+Missing: **simultaneous filing of a faithful UBL copy** to the AEAT's universal repositorio by every
+private platform; **mandatory interconnection** between platforms, within a month; and **reporting of
+invoice states** — commercial acceptance or rejection, actual payment — within **four calendar days
+excluding weekends and holidays**. Email will not satisfy the B2B mandate.
 
-**ES-D9 — `cancellationAllowed` : ambigu, et le risque est de n'en faire qu'une moitié.**
-Aucune suppression n'existe. L'annulation prend **deux formes distinctes et cumulatives** : un
-**registro de anulación** append-only et chaîné côté Veri\*Factu, **et** une facture rectificative à
-100 % côté destinataire. Un `cancel` unique qui ne produit que l'un des deux est non conforme.
+**ES-D9 — `cancellationAllowed`: ambiguous, and the risk is doing only half of it.**
+No deletion exists. Cancellation takes **two distinct, cumulative forms**: an append-only, chained
+**registro de anulación** on the Veri\*Factu side, **and** a 100% corrective invoice on the
+recipient's side. A single `cancel` that produces only one of the two is non-compliant.
 
-**ES-D10 — `correctionModel: CREDIT_NOTE` : correct sur le principe, incomplet sur les règles.**
-Manquent la **double ancre** de la fenêtre de 4 ans (*devengo* **ou** survenance de la circonstance de
-l'art. 80 LIVA), les fenêtres courtes (2 mois en cas de concours, 6 mois pour créances irrécouvrables
-puis 1 mois de communication à l'AEAT, 1 mois pour une re-rectification à la hausse), les **deux
-représentations** admises — delta ou absolu post-rectification —, et l'interdiction de rectifier à la
-hausse un destinataire non-entrepreneur hors art. 80.
+**ES-D10 — `correctionModel: CREDIT_NOTE`: right in principle, incomplete on the rules.**
+Missing: the **double anchor** of the 4-year window (*devengo* **or** the occurrence of the
+circumstance under art. 80 LIVA), the short windows (2 months in insolvency proceedings, 6 months for
+uncollectible debts then 1 month to notify the AEAT, 1 month for an upward re-correction), the **two
+representations** allowed — delta or post-correction absolute —, and the ban on correcting upward for
+a non-business recipient outside art. 80.
 
-**ES-D11 — plafond territorial absent.**
-Le profil ne modélise ni l'exclusion du **País Vasco et de la Navarre** (régimes foraux, exclusion par
-domicile fiscal), ni les spécificités des Canaries, Ceuta et Melilla, ni l'exclusion des opérations
-réalisées via un **établissement permanent à l'étranger** (art. 4.2), ni le fait qu'un assujetti **non
-établi mais simplement immatriculé NIF est hors du champ Veri\*Factu**.
+**ES-D11 — no territorial ceiling.**
+The profile models neither the exclusion of the **Basque Country and Navarre** (foral regimes,
+excluded by tax domicile), nor the specifics of the Canaries, Ceuta and Melilla, nor the exclusion of
+transactions carried out via a **permanent establishment abroad** (art. 4.2), nor the fact that a
+taxpayer who is **not established but merely NIF-registered is outside the Veri\*Factu scope**.
 
-### Ce que le code fait juste — Espagne
+### What the code gets right — Spain
 
-`regimeBlocking: false` est **exact** : Veri\*Factu n'est pas une clearance, l'AEAT ne valide pas la
-facture — l'art. 16 n'établit qu'une présomption de conformité **du système**, et l'art. 8.4 du
-RD 1619/2012 une présomption d'authenticité et d'intégrité **de la facture**. `immutableAfter: ISSUE`
-est exact, et même sous-estimé : l'immutabilité est exigée au niveau du **registre**, append-only,
-avec registro de eventos obligatoire en mode non-VERI\*FACTU.
+`regimeBlocking: false` is **accurate**: Veri\*Factu is not a clearance, the AEAT does not validate
+the invoice — art. 16 only establishes a presumption of compliance **of the system**, and art. 8.4 of
+RD 1619/2012 a presumption of authenticity and integrity **of the invoice**. `immutableAfter: ISSUE`
+is accurate, and even understated: immutability is required at the **record** level, append-only,
+with a mandatory registro de eventos in non-VERI\*FACTU mode.
 
-### Open questions — Espagne
+### Open questions — Spain
 
-Les deux plus bloquantes pour une implémentation : le **document technique AEAT du hash** (algorithme
-confirmé, ordre de concaténation, séparateurs, encodage) et celui du **QR** (URL littérale du service
-de cotejo, paramètres, variante selon la modalité). L'Orden HAC/1177/2024 y renvoie formellement —
-**ne pas implémenter le hash ni l'URL du QR sans ces documents**. S'y ajoutent : les critères exacts
-d'assujettissement au SII (c'est pourtant le flag qui arbitre ES-D2), la publication de l'orden
-ministerial du mandat B2B, et le cas d'un fournisseur non établi mais immatriculé réalisant une
-opération localisée en Espagne vers un acheteur établi.
-
----
+The two most blocking for an implementation: the **AEAT hash technical document** (confirmed
+algorithm, concatenation order, separators, encoding) and the **QR** one (literal cotejo-service URL,
+parameters, variant per modality). Orden HAC/1177/2024 formally refers to them — **do not implement
+the hash or the QR URL without these documents**. Also open: the exact SII-liability criteria (yet it
+is precisely the flag that arbitrates ES-D2), publication of the B2B mandate's ministerial order, and
+the case of a non-established but registered supplier carrying out a transaction located in Spain
+toward an established buyer.
 
 ---
 
-## MEXIQUE
+---
+
+## MEXICO
 
 ### Sources
 
-CFF (art. 28, 29, 29-A, 30) via `sat.gob.mx` ; **RMF 2026, DOF 2025-12-28**, reglas 2.7.1.34 et
-2.7.1.35 ; Anexo 20 v4.0 ; et — vérification la plus forte de tout cet audit — **les schémas de
-l'autorité eux-mêmes, vendorisés dans le dépôt** : `backend/src/compliance/schemas/mx/cfdv40.xsd` et
-`catCFDI.xsd`, plus `TimbreFiscalDigitalv11.xsd` récupéré en ligne.
+CFF (art. 28, 29, 29-A, 30) via `sat.gob.mx`; **RMF 2026, DOF 2025-12-28**, reglas 2.7.1.34 and
+2.7.1.35; Anexo 20 v4.0; and — the strongest verification in this whole audit — **the authority's own
+schemas, vendored in the repository**: `backend/src/compliance/schemas/mx/cfdv40.xsd` and
+`catCFDI.xsd`, plus `TimbreFiscalDigitalv11.xsd` retrieved online.
 
-**Version en vigueur au 2026-08-27 : CFDI 4.0.** Aucune version postérieure publiée ni annoncée.
+**Version in force as of 2026-08-27: CFDI 4.0.** No later version published or announced.
 
-### Divergences avec le code — Mexique
+### Divergences from the code — Mexico
 
-**MX-D1 — `numbering: AUTHORITY_RANGE` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
+**MX-D1 — `numbering: AUTHORITY_RANGE`: the code is wrong. ✓✓ Verified against the repository's own schema.**
 
-Il n'existe **aucune plage de folios attribuée par l'autorité** sous CFDI. Contrôle direct sur
-`cfdv40.xsd` :
+There is **no folio range assigned by the authority** under CFDI. Direct check against
+`cfdv40.xsd`:
 
 ```
 name="Serie" use="optional"
 name="Folio" use="optional"
 ```
 
-L'Anexo 20 les qualifie de « para **control interno del contribuyente** ». L'identifiant fiscal est
-l'**`UUID`**, attribué **par document, par le PAC, au moment du timbrado** — le
-`TimbreFiscalDigital` porte d'ailleurs `RfcProvCertif`, « el RFC del proveedor de certificación […]
-que genera el timbre fiscal digital ». Le « folio » du CFF art. 29 fr. IV désigne cet UUID, pas une
-plage. Le mécanisme de plages a existé sous les régimes CFD/CBB, **abrogés**.
+The Anexo 20 describes them as being "para **control interno del contribuyente**" [for the
+taxpayer's internal control]. The tax identifier is the **`UUID`**, assigned **per document, by the
+PAC, at the moment of timbrado** — the `TimbreFiscalDigital` even carries `RfcProvCertif`, "el RFC
+del proveedor de certificación […] que genera el timbre fiscal digital" [the RFC of the
+certification provider … that generates the digital tax stamp]. The "folio" of CFF art. 29 fr. IV
+refers to this UUID, not a range. The range mechanism existed under the CFD/CBB regimes, **now
+repealed**.
 
-C'est une divergence coûteuse : `AUTHORITY_RANGE` implique une pré-allocation, un compteur
-consommable et une gestion d'épuisement — tout cet appareillage est **sans objet** au Mexique, et
-produira au mieux du code mort, au pire un blocage d'émission artificiel. Le modèle correct est celui
-déjà nécessaire pour KSeF et SdI : **numéro interne libre + identifiant fiscal reçu en retour du
-clearance**.
+This is a costly divergence: `AUTHORITY_RANGE` implies pre-allocation, a consumable counter and
+exhaustion handling — all of that machinery is **pointless** in Mexico, and will produce dead code at
+best, an artificial issuing block at worst. The correct model is the one already needed for KSeF and
+SdI: **free internal number + tax identifier returned by the clearance response**.
 
-**MX-D2 — `requiredIdentifiers: RFC + CURP` : le code est faux. ✓✓ Vérifié sur le schéma du dépôt.**
+**MX-D2 — `requiredIdentifiers: RFC + CURP`: the code is wrong. ✓✓ Verified against the repository's own schema.**
 
-`grep -c -i "curp" cfdv40.xsd` → **0**. Le CURP n'apparaît **nulle part** dans le schéma CFDI : ni sur
-`Comprobante`, ni sur `Emisor`, ni sur `Receptor`. Il n'existe que dans certains compléments,
-principalement **Nómina 1.2**, pour les personnes physiques.
+`grep -c -i "curp" cfdv40.xsd` → **0**. CURP appears **nowhere** in the CFDI schema: not on
+`Comprobante`, not on `Emisor`, not on `Receptor`. It only exists in certain complements, mainly
+**Nómina 1.2**, for individuals.
 
-À l'inverse, le `Receptor` exige trois champs que le profil ignore :
+Conversely, `Receptor` requires three fields the profile ignores:
 
 ```
 Rfc -> required · Nombre -> required · DomicilioFiscalReceptor -> required
 RegimenFiscalReceptor -> required · UsoCFDI -> required
 ```
 
-Et `Comprobante` porte `Exportacion` en `use="required"` — l'export n'est pas hors champ, c'est un
-cas **paramétré** du CFDI.
+And `Comprobante` carries `Exportacion` as `use="required"` — export is not out of scope, it is a
+**parameterized** case of CFDI.
 
-**MX-D3 — `archival.residency: MX` : le code est plus strict que le droit sourcé.**
+**MX-D3 — `archival.residency: MX`: the code is stricter than the sourced law.**
 
-Les sources primaires imposent la **disponibilité au domicilio fiscal** : « La documentación
-comprobatoria […] deberá estar **disponible en el domicilio fiscal** del contribuyente » (CFF art. 28
-fr. III), et la conservation « **a disposición de las autoridades** » (art. 30). **Aucune source
-primaire prononçant une interdiction de stockage hors du Mexique n'a été trouvée.** L'exigence réelle
-est une **résidence d'accès**, pas une résidence physique des données. Le profil invente donc ici une
-contrainte — le symétrique exact de FR-D4 et DE-D13, où il en **omet** de réelles.
+The primary sources require **availability at the domicilio fiscal**: "La documentación
+comprobatoria […] deberá estar **disponible en el domicilio fiscal** del contribuyente" [Supporting
+documentation … must be available at the taxpayer's tax domicile] (CFF art. 28 fr. III), and
+retention "**a disposición de las autoridades**" [available to the authorities] (art. 30). **No
+primary source stating a ban on storage outside Mexico was found.** The real requirement is an
+**access residency**, not a physical data residency. The profile therefore invents a constraint here
+— the exact mirror of FR-D4 and DE-D13, where it instead **omits** real ones.
 
-**MX-D4 — `archival: 5 ans` : durée juste, point de départ faux.**
-Le CFF art. 30 compte les cinq ans **depuis le dépôt de la déclaration** concernée, non depuis
-l'émission de la facture. Et la conservation est **perpétuelle** pour les actes constitutifs, les
-mouvements de capital, fusions, scissions, distributions de dividendes et justificatifs de prix de
-transfert — et court jusqu'à ce que la résolution mettant fin à un contentieux soit **ferme**.
+**MX-D4 — `archival: 5 years`: duration correct, starting point wrong.**
+CFF art. 30 counts the five years **from the filing of the relevant return**, not from the invoice's
+issuance. And retention is **perpetual** for incorporation documents, capital movements, mergers,
+spin-offs, dividend distributions and transfer-pricing records — and runs until a dispute-ending
+ruling becomes **final**.
 
-**MX-D5 — `cancellationAllowed: true` : un booléen ne peut pas porter cette règle.**
-L'annulation est **bilatérale par défaut** — acceptation du récepteur, **tacite au bout de trois
-jours** (RMF 2026 regla 2.7.1.34) — sauf hydrocarbures et Carta Porte carburants où l'acceptation
-**expresse** est exigée et où le silence ne vaut donc pas accord. Elle exige un **motivo**
-(`01`…`04`), le `01` imposant de fournir l'UUID du CFDI de substitution. Elle est **bloquée** tant
-qu'un document relié est *vigente*. Elle est bornée à **l'exercice fiscal d'émission**. Et douze cas
-limitatifs (regla 2.7.1.35) la dispensent entièrement d'acceptation.
+**MX-D5 — `cancellationAllowed: true`: a boolean cannot carry this rule.**
+Cancellation is **bilateral by default** — recipient acceptance, **implied after three days**
+(RMF 2026 regla 2.7.1.34) — except for hydrocarbons and fuel Carta Porte, where **express**
+acceptance is required and silence therefore does not mean agreement. It requires a **motivo**
+(`01`…`04`), with `01` requiring the UUID of the replacing CFDI. It is **blocked** while a linked
+document is still *vigente*. It is bounded to **the fiscal year of issuance**. And twelve limitative
+cases (regla 2.7.1.35) exempt it entirely from acceptance.
 
-**MX-D6 — `correctionModel: CREDIT_NOTE` : incomplet.**
-Manque la voie **annulation + substitution** — `motivo 01` avec l'UUID du substitut, puis nouveau
-CFDI portant `TipoRelacion = "04"` (« Sustitución de los CFDI previos »). C'est le chemin **normal**
-de rectification d'une erreur au Mexique. La nota de crédito (`TipoDeComprobante = E` +
-`TipoRelacion 01`) ne couvre que l'ajustement d'une opération qui subsiste.
+**MX-D6 — `correctionModel: CREDIT_NOTE`: incomplete.**
+Missing is the **cancellation + substitution** path — `motivo 01` with the UUID of the substitute,
+then a new CFDI carrying `TipoRelacion = "04"` ("Sustitución de los CFDI previos"). This is the
+**normal** path for correcting an error in Mexico. The nota de crédito (`TipoDeComprobante = E` +
+`TipoRelacion 01`) only covers adjusting a transaction that still stands.
 
-### Ce que le code fait juste — Mexique
+### What the code gets right — Mexico
 
-`CLEARANCE` bloquant, canal `PAC`, syntaxe `CFDI`, `immutableAfter: CLEARANCE`,
-`archivedForm: AUTHORITATIVE_XML`, `integrity: SIGNED` et `reporting: aucun` sont **tous exacts**.
-Le `SelloSAT` scelle le XML et toute modification post-timbrado l'invalide. C'est, avec l'Allemagne,
-le profil dont le noyau est le mieux posé.
+Blocking `CLEARANCE`, `PAC` channel, `CFDI` syntax, `immutableAfter: CLEARANCE`,
+`archivedForm: AUTHORITATIVE_XML`, `integrity: SIGNED` and `reporting: none` are **all accurate**.
+The `SelloSAT` seals the XML and any post-timbrado modification invalidates it. Along with Germany,
+this is the profile with the best-grounded core.
 
-### Portée territoriale — déclencheur unilatéral, cycle de vie bilatéral
+### Territorial scope — unilateral trigger, bilateral lifecycle
 
-L'obligation d'émettre dépend **exclusivement du statut de l'émetteur** (résident fiscal mexicain ou
-établissement permanent). Le pays de l'acheteur ne conditionne **jamais** l'applicabilité : il ne
-modifie que le contenu des champs (`Exportacion`, RFC générique étranger, `ResidenciaFiscal`,
-`NumRegIdTrib`, complemento Comercio Exterior le cas échéant).
+The obligation to issue depends **exclusively on the issuer's status** (Mexican tax resident or
+permanent establishment). The buyer's country **never** conditions applicability: it only changes
+field contents (`Exportacion`, generic foreign RFC, `ResidenciaFiscal`, `NumRegIdTrib`, Comercio
+Exterior complemento where relevant).
 
-**Conséquence directe pour le correctif `f6888eb2`** : le hard-block sur pays acheteur non résolu est
-correct pour la TVA, mais **ne doit pas être réutilisé pour décider si un CFDI est dû**. Au Mexique,
-une adresse acheteur non résolue ne doit jamais désactiver l'émission — au pire bloquer sur le choix
-`Exportacion` / RFC générique.
+**Direct consequence for the `f6888eb2` fix**: the hard-block on an unresolved buyer country is
+correct for VAT, but **must not be reused to decide whether a CFDI is owed**. In Mexico, an unresolved
+buyer address must never disable issuance — at worst it should block on the `Exportacion` / generic
+RFC choice.
 
-Le **cycle de vie**, lui, est bilatéral et temporisé : c'est un cas d'usage direct du runtime
-événementiel — `COMMAND(cancel)` → `AWAIT_CALLBACK` + `ARM_TIMER(3 jours)` → `INBOUND_STATUS` ou
-`TIMER_ELAPSED`. Avec deux pièges : les douze exceptions doivent être évaluées **avant** d'armer le
-timer, et pour les hydrocarbures **le timer ne doit pas conclure**.
+The **lifecycle**, on the other hand, is bilateral and timed: it is a direct use case for the
+event-sourced runtime — `COMMAND(cancel)` → `AWAIT_CALLBACK` + `ARM_TIMER(3 days)` →
+`INBOUND_STATUS` or `TIMER_ELAPSED`. With two traps: the twelve exceptions must be evaluated **before**
+arming the timer, and for hydrocarbons **the timer must never conclude**.
 
 ---
 
 ---
 
-## PORTÉE TERRITORIALE — le volet transfrontalier
+## TERRITORIAL SCOPE — the cross-border dimension
 
-Cette section répond à la question ajoutée au questionnaire. **Seule la France a pu être achevée** :
-les cinq autres agents ont été interrompus par une limite de service (voir « État de la phase 2 »).
+This section answers the question added to the questionnaire. **Only France could be completed**:
+the other five agents were cut off by a service limit (see "Phase 2 status").
 
-### France — le mandat est bilatéral, et il est domestique
+### France — the mandate is bilateral, and it is domestic
 
 **[CGI art. 289 bis, I](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000044051178/2026-08-27)**,
-version en vigueur au 2026-02-21 (LOI n° 2026-103 du 2026-02-19, art. 123) — l'obligation s'applique
-lorsque « **l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont
-leur domicile ou leur résidence habituelle en France** ».
+version in force as of 2026-02-21 (LOI no. 2026-103 of 2026-02-19, art. 123) — the obligation applies
+when "**l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur
+domicile ou leur résidence habituelle en France**" [the invoice's issuer and its recipient are
+taxable persons established, domiciled or habitually resident in France].
 
-Trois conséquences, toutes contraires à ce que le moteur suppose :
+Three consequences, all contrary to what the engine assumes:
 
-1. Le critère est **l'établissement**, le domicile ou la résidence habituelle. **L'immatriculation à
-   la TVA en France n'est pas un critère de rattachement.**
-2. La condition est **bilatérale et cumulative** : elle porte sur **les deux parties**.
-3. Le transfrontalier est **hors du mandat** ; l'art. 289 bis V exclut en outre les livraisons
-   intracommunautaires exonérées (art. 262 ter, 1° du I).
+1. The criterion is **establishment**, domicile or habitual residence. **French VAT registration is
+   not a nexus criterion.**
+2. The condition is **bilateral and cumulative**: it applies to **both parties**.
+3. Cross-border is **outside the mandate**; art. 289 bis V further excludes exempt intra-Community
+   supplies (art. 262 ter, 1° of I).
 
-Confirmé par l'autorité, DSE v3.2 §2.3.1 : le dispositif vise « les **transactions domestiques**
-entre assujettis à la TVA **établis, domiciliés ou ayant leur résidence habituelle en France** ».
+Confirmed by the authority, DSE v3.2 §2.3.1: the scheme targets "**transactions domestiques** entre
+assujettis à la TVA **établis, domiciliés ou ayant leur résidence habituelle en France**" [domestic
+transactions between VAT-liable persons established, domiciled or habitually resident in France].
 
-### Ce qui remplace le mandat en transfrontalier : l'e-reporting
+### What replaces the mandate cross-border: e-reporting
 
-[CGI art. 290](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046195617/2026-08-27) et
-art. 290 A, applicables aux opérations réalisées **à compter du 2026-09-01**, selon les mêmes deux
-vagues que l'e-invoicing.
+[CGI art. 290](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000046195617/2026-08-27) and
+art. 290 A, applicable to transactions carried out **as of 2026-09-01**, following the same two waves
+as e-invoicing.
 
 | Situation | E-invoicing (289 bis) | E-reporting |
 | --- | :-: | --- |
-| Deux assujettis établis en France | **oui** | sans objet |
-| Non établi, mais **immatriculé** TVA en France | **non** | **oui** — art. 290, II |
-| Établi en France, opération **localisée à l'étranger** | **non** | **oui** — art. 290, I-1° |
+| Both taxable persons established in France | **yes** | not applicable |
+| Not established, but **VAT-registered** in France | **no** | **yes** — art. 290, II |
+| Established in France, transaction **located abroad** | **no** | **yes** — art. 290, I-1° |
 
-Format : **flux F10**, XML, distinct du F1 (`tar.gz`, UBL 2.1 ou CII D22B). Statuts propres :
-**300 Déposée / 301 Rejetée**. Rythme **périodique** adossé au régime de TVA (décadaire, mensuel ou
-bimestriel selon le régime), et non transactionnel. Rectification par flux **RE**, qui « annule et
-remplace l'ensemble des données agrégées » de la période — un modèle *replace-period* sans aucun
-rapport avec l'avoir ou le rectificatif de l'e-invoicing.
+Format: **F10 flow**, XML, distinct from F1 (`tar.gz`, UBL 2.1 or CII D22B). Own statuses:
+**300 Déposée / 301 Rejetée**. **Periodic** cadence tied to the VAT regime (ten-day, monthly or
+bimonthly depending on the regime), not transactional. Correction via the **RE** flow, which "annule
+et remplace l'ensemble des données agrégées" [cancels and replaces the whole set of aggregated data]
+for the period — a *replace-period* model with nothing in common with e-invoicing's credit note or
+corrective invoice.
 
-### Pourquoi cela aggrave F-017
+### Why this makes F-017 worse
 
-Le fait générateur du mandat français est **l'établissement conjoint des deux parties**. Sans
-connaître le statut d'établissement du **destinataire**, le moteur ne peut pas trancher entre deux
-régimes disjoints — deux formats, deux horloges, deux modèles de correction :
+The French mandate's triggering fact is the **joint establishment of both parties**. Without knowing
+the **recipient's** establishment status, the engine cannot choose between two disjoint regimes — two
+formats, two clocks, two correction models:
 
-- e-invoicing : F1, plateforme agréée, cycle de vie 200/210/212/213, 24 h ;
-- e-reporting : F10, périodique, rectification par remplacement de période.
+- e-invoicing: F1, accredited platform, 200/210/212/213 lifecycle, 24 h;
+- e-reporting: F10, periodic, correction by replacing the period.
 
-Un `country = FR` déduit du seul fournisseur produira un e-invoicing sur des opérations relevant en
-réalité de l'art. 290 — et manquera l'obligation d'e-reporting de l'art. 290 II pour un fournisseur
-non établi mais immatriculé en France, que le moteur classera hors périmètre français.
+A `country = FR` derived from the supplier alone will produce an e-invoicing flow for transactions
+that actually fall under art. 290 — and will miss the art. 290 II e-reporting obligation for a
+supplier not established but VAT-registered in France, which the engine will classify as outside
+French scope.
 
-### Italie — mandat bilatéral, reporting unilatéral, et l'immatriculation ne déclenche rien
+### Italy — bilateral mandate, unilateral reporting, and registration triggers nothing
 
-Art. 1 c. 3 du D.Lgs. 127/2015, texte consolidé vérifié au 2026-08-27 : l'obligation vise les
-opérations « effettuate **tra soggetti residenti o stabiliti nel territorio dello Stato** ». La même
-condition bilatérale est reprise **mot pour mot** au c. 6 pour la sanction (« la fattura si intende
-non emessa »). Le c. 3-bis, lui, n'exige la qualité de résident ou établi **que du transmetteur** :
-« I soggetti passivi di cui al comma 3 **trasmettono** […] i dati […] verso e da soggetti non
-stabiliti ». **Deux déclencheurs de nature différente dans le même article.**
+Art. 1 c. 3 of D.Lgs. 127/2015, consolidated text verified as of 2026-08-27: the obligation targets
+transactions "effettuate **tra soggetti residenti o stabiliti nel territorio dello Stato**" [carried
+out **between persons resident or established in the territory of the State**]. The same bilateral
+condition is repeated **word for word** in c. 6 for the penalty ("la fattura si intende non emessa"
+[the invoice is deemed not issued]). C. 3-bis, on the other hand, only requires resident-or-established
+status **of the transmitting party**: "I soggetti passivi di cui al comma 3 **trasmettono** […] i dati
+[…] verso e da soggetti non stabiliti" [The taxable persons referred to in paragraph 3 **transmit**
+… the data … to and from non-established persons]. **Two triggers of a different nature within the
+same article.**
 
-**L'immatriculation ne déclenche rien — et c'est explicite.** Le mot `identificati` a été
-**expressément retiré** de l'art. 1 c. 3 ; le provvedimento de 2018 le portait encore dans son
-intitulé, celui de 2022 ne le porte plus. L'AdE :
+**Registration triggers nothing — and this is explicit.** The word `identificati` was **explicitly
+removed** from art. 1 c. 3; the 2018 provvedimento still carried it in its title, the 2022 one no
+longer does. The AdE:
 
-> « […] tra i soggetti "stabiliti" **non possono essere inclusi i soggetti non residenti meramente
-> identificati** » — Circolare 13/E du 2018-07-02, §1.2
+> "[…] tra i soggetti "stabiliti" **non possono essere inclusi i soggetti non residenti meramente
+> identificati**" [among "established" persons, non-resident persons who are merely registered
+> **cannot be included**] — Circolare 13/E of 2018-07-02, §1.2
 >
-> « […] espungendo, dall'articolo 1, comma 3 […] il riferimento ai soggetti identificati (tramite
+> "[…] espungendo, dall'articolo 1, comma 3 […] il riferimento ai soggetti identificati (tramite
 > identificazione diretta ovvero rappresentante fiscale), **i quali non sono tenuti alla
-> fatturazione elettronica** » — Circolare 14/E du 2019-06-17, §1.2
+> fatturazione elettronica**" [… removing, from article 1, paragraph 3 … the reference to registered
+> persons (via direct registration or a fiscal representative), **who are not subject to electronic
+> invoicing**] — Circolare 14/E of 2019-06-17, §1.2
 
-**Établissement stable : une propriété de l'opération, pas de l'entité.** L'art. 1 c. 3 ne définit
-pas « stabilito » et emprunte la notion TVA de l'art. 7 c. 1 lett. d) du DPR 633/1972 :
+**Permanent establishment: a property of the transaction, not of the entity.** Art. 1 c. 3 does not
+define "stabilito" and borrows the VAT concept from art. 7 c. 1 lett. d) of DPR 633/1972:
 
-> « […] ovvero una **stabile organizzazione** nel territorio dello Stato di soggetto domiciliato e
-> residente all'estero, **limitatamente alle operazioni da essa rese o ricevute** »
+> "[…] ovvero una **stabile organizzazione** nel territorio dello Stato di soggetto domiciliato e
+> residente all'estero, **limitatamente alle operazioni da essa rese o ricevute**" [… or a permanent
+> establishment in the territory of the State of a person domiciled and resident abroad, **limited to
+> the transactions rendered or received by it**]
 
-Confirmé par la Risposta AdE n. 374/2023, qui rattache la règle à l'art. 192 bis de la directive TVA
-et au critère d'« intervention » de l'art. 53 du règlement 282/2011 — en précisant que « lo
-svolgimento di **meri compiti di supporto amministrativo, quali la contabilità, la fatturazione** o
-il recupero crediti, **non è sufficiente** ». Les spécifications techniques v1.9.1 en tirent la
-conséquence : le bloc `StabileOrganizzazione` n'est obligatoire que « nei soli casi in cui […]
-effettua **la transazione oggetto del documento** tramite stabile organizzazione ».
+Confirmed by AdE Risposta n. 374/2023, which ties the rule to art. 192 bis of the VAT directive and
+the "intervention" test of art. 53 of regulation 282/2011 — specifying that "lo svolgimento di
+**meri compiti di supporto amministrativo, quali la contabilità, la fatturazione** o il recupero
+crediti, **non è sufficiente**" [carrying out **purely administrative support tasks, such as
+bookkeeping, invoicing** or debt collection, **is not sufficient**]. The v1.9.1 technical
+specifications draw the consequence: the `StabileOrganizzazione` block is only mandatory "nei soli
+casi in cui […] effettua **la transazione oggetto del documento** tramite stabile organizzazione"
+[in the only cases where … it carries out **the transaction the document concerns** through a
+permanent establishment].
 
-**Reporting c. 3-bis — vérifié.** Périmètre sortant **et** entrant (« effettuate e ricevute verso e
-da »). Délais : sortantes « entro i termini di emissione delle fatture » ; entrantes « entro il
-quindicesimo giorno del mese successivo a quello di ricevimento del documento **o di effettuazione
-dell'operazione** » — le second terme alternatif est souvent omis. Exclusion à câbler : les achats
-non territorialement pertinents (art. 7 à 7-octies) **≤ 5 000 € par opération**.
+**Reporting c. 3-bis — verified.** Outbound **and** inbound scope ("effettuate e ricevute verso e
+da"). Deadlines: outbound "entro i termini di emissione delle fatture" [within invoice-issuing
+deadlines]; inbound "entro il quindicesimo giorno del mese successivo a quello di ricevimento del
+documento **o di effettuazione dell'operazione**" [by the 15th day of the month following that of
+the document's receipt **or of the transaction taking place**] — the second, alternative term is
+often left out. Exclusion to wire in: territorially non-relevant purchases (art. 7 to 7-octies)
+**≤ €5,000 per transaction**.
 
-**Canal unique depuis le 2022-07-01** : les données passent par le SdI au format de la facture
-ordinaire ; les fichiers à l'ancien schéma portant une date postérieure au 2022-06-30 « **verranno
-scartati** ». L'esterometro autonome ne survit que pour les faits générateurs antérieurs.
+**Single channel since 2022-07-01**: the data goes through the SdI in the ordinary invoice format;
+files using the old schema dated after 2022-06-30 "**verranno scartati**" [will be rejected]. The
+standalone esterometro only survives for earlier triggering events.
 
-**Discriminant technique** : il n'existe **aucun `TipoDocumento` dédié** au flux sortant 3-bis. Le
-seul marqueur est `CodiceDestinatario = XXXXXXX`, valide **si et seulement si** `IdPaese ≠ IT` —
-sinon rejet **00313**. `0000000` couvre le cas distinct de l'émission volontaire vers un identifié
-portant sa partita IVA italienne. Ce sont deux branches disjointes, pas un repli. Entrantes :
-TD17 (services étrangers), TD18 (biens intracommunautaires), TD19 (art. 17 c. 2), TD28
-(Saint-Marin).
+**Technical discriminant**: there is **no dedicated `TipoDocumento`** for the c. 3-bis outbound
+flow. The only marker is `CodiceDestinatario = XXXXXXX`, valid **if and only if** `IdPaese ≠ IT` —
+otherwise rejection **00313**. `0000000` covers the distinct case of voluntary issuance to a party
+identified via its Italian partita IVA. These are two disjoint branches, not a fallback. Inbound:
+TD17 (foreign services), TD18 (intra-Community goods), TD19 (art. 17 c. 2), TD28 (San Marino).
 
-### Allemagne — déclencheur bilatéral conjonctif, et trois prédicats d'établissement distincts
+### Germany — bilateral conjunctive trigger, and three distinct establishment tests
 
-Sources : UStG « zuletzt geändert durch Art. 5 G v. 29.6.2026 » ; **UStAE consolidé, Stand
-2026-04-09** ; BMF-Schreiben du 2025-10-15 ; BMF FAQ E-Rechnung, Stand mars 2026.
+Sources: UStG "zuletzt geändert durch Art. 5 G v. 29.6.2026"; **consolidated UStAE, Stand
+2026-04-09**; BMF-Schreiben of 2025-10-15; BMF FAQ E-Rechnung, Stand March 2026.
 
-**§ 14 Abs. 2 Satz 2 Nr. 1** : la facture est électronique « wenn der leistende Unternehmer **und**
-der Leistungsempfänger im Inland […] ansässig sind ». Et l'UStAE tranche le cas contraire sans
-ambiguïté :
+**§ 14 Abs. 2 Satz 2 Nr. 1**: the invoice is electronic "wenn der leistende Unternehmer **und** der
+Leistungsempfänger im Inland […] ansässig sind" [if the supplying business **and** the recipient of
+the supply are established in the domestic territory]. And the UStAE settles the opposite case
+unambiguously:
 
-> « Ist **mindestens einer** der am Umsatz beteiligten Unternehmer nicht im Inland […] ansässig,
-> besteht **keine Pflicht** zur Ausstellung einer E-Rechnung » — UStAE Abschnitt 14.1 Abs. 6 S. 3
+> "Ist **mindestens einer** der am Umsatz beteiligten Unternehmer nicht im Inland […] ansässig,
+> besteht **keine Pflicht** zur Ausstellung einer E-Rechnung" [If **at least one** of the businesses
+> involved in the transaction is not established in the domestic territory …, **there is no
+> obligation** to issue an E-Rechnung] — UStAE Abschnitt 14.1 Abs. 6 S. 3
 
-Le régime de repli n'est ni l'interdiction ni l'obligation : le papier reste **toujours licite**, et
-l'électronique — E-Rechnung comme PDF — est licite **sous consentement du destinataire**
-(§ 14 Abs. 1 S. 5), consentement « bedarf **keiner besonderen Form** » et pouvant être **tacite**,
-donné par CGV, ou même **a posteriori** (UStAE 14.1 Abs. 7).
+The fallback regime is neither a ban nor an obligation: paper remains **always lawful**, and
+electronic — E-Rechnung as well as PDF — is lawful **with the recipient's consent** (§ 14 Abs. 1
+S. 5), consent that "bedarf **keiner besonderen Form**" [requires **no particular form**] and can be
+**implied**, given via terms and conditions, or even given **after the fact** (UStAE 14.1 Abs. 7).
 
-**Le territoire n'est pas « l'Allemagne ».** Le test porte sur « im Inland **oder in einem der in
-§ 1 Absatz 3 bezeichneten Gebiete** » — ports francs, eaux et estrans. Un moteur qui teste
-`country == "DE"` est sous-inclusif.
+**The territory is not "Germany".** The test covers "im Inland **oder in einem der in § 1 Absatz 3
+bezeichneten Gebiete**" [the domestic territory **or one of the areas referred to in § 1 paragraph
+3**] — free ports, waters and mudflats. An engine testing `country == "DE"` is under-inclusive.
 
-**L'établissement stable ne compte que s'il participe** — § 14 Abs. 2 Satz 3 :
+**A permanent establishment only counts if it participates** — § 14 Abs. 2 Satz 3:
 
-> « […] eine Betriebsstätte, **die an dem Umsatz beteiligt ist** […] »
+> "[…] eine Betriebsstätte, **die an dem Umsatz beteiligt ist** […]" [… a permanent establishment
+> **that is involved in the transaction** …]
 
-Et la doctrine précise ce que « participer » exclut :
+And the doctrine spells out what "participating" excludes:
 
-> « **Nicht als Nutzung** […] gelten **unterstützende Arbeiten** durch die Betriebsstätte wie
-> **Buchhaltung, Rechnungsausstellung oder Einziehung von Forderungen**. » — UStAE 13b.11 Abs. 1 S. 5
+> "**Nicht als Nutzung** […] gelten **unterstützende Arbeiten** durch die Betriebsstätte wie
+> **Buchhaltung, Rechnungsausstellung oder Einziehung von Forderungen**." [**Supporting work** by
+> the permanent establishment, such as **bookkeeping, invoicing or debt collection**, **does not
+> count as use**.] — UStAE 13b.11 Abs. 1 S. 5
 
-Avec une règle **auto-référentielle** à connaître : porter sur la facture le numéro de TVA de
-l'établissement stable **vaut présomption de participation** (UStAE 13b.11 Abs. 1 S. 6, renvoi à
-l'art. 53 du règlement 282/2011). Autrement dit, le numéro de TVA choisi pour la facture décide de
-l'obligation qui pèse sur cette même facture.
+With a **self-referential** rule worth knowing: putting the permanent establishment's VAT number on
+the invoice **amounts to a presumption of participation** (UStAE 13b.11 Abs. 1 S. 6, referring to
+art. 53 of regulation 282/2011). In other words, the VAT number chosen for the invoice decides the
+obligation that applies to that same invoice.
 
-**L'immatriculation ne figure dans aucune des quatre branches** du § 14 Abs. 2 S. 3. Le BMF ne
-l'écrit pas ainsi mais en tire la conséquence opérationnelle (FAQ Frage 3) : un assujetti étranger
-immatriculé sans établissement « können auf diesen Umstand in ihrer Rechnung hinweisen, um zu
-begründen, warum sie **keine E-Rechnung** stellen », et le destinataire peut s'y fier.
+**Registration appears in none of the four branches** of § 14 Abs. 2 S. 3. The BMF does not phrase it
+that way but draws the operational consequence (FAQ Frage 3): a foreign taxable person registered
+with no establishment "können auf diesen Umstand in ihrer Rechnung hinweisen, um zu begründen, warum
+sie **keine E-Rechnung** stellen" [may point to this fact on their invoice to explain why they are
+**not issuing an E-Rechnung**], and the recipient may rely on it.
 
-#### Trois prédicats d'établissement distincts dans le seul UStG
+#### Three distinct establishment tests within the UStG alone
 
-C'est le point le plus lourd pour la modélisation, et il n'apparaît nulle part dans le profil :
+This is the heaviest point for modeling, and it appears nowhere in the profile:
 
-| Usage | Base | Définition |
+| Use | Basis | Definition |
 | --- | --- | --- |
-| Déclencheur d'**émission** | § 14 Abs. 2 S. 3 | Sitz, Geschäftsleitung, **Betriebsstätte participante**, ou à défaut de Sitz : Wohnsitz / gewöhnlicher Aufenthalt |
-| Obligation de **réception** | UStAE 14.1 Abs. 5 S. 1 ; FAQ Frage 12 | **unilatéral** — porte sur le seul destinataire établi |
-| Localisation d'**archivage** | § 14b Abs. 3 | **Wohnsitz** (sans condition), Sitz, Geschäftsleitung, ou **Zweigniederlassung** — pas « Betriebsstätte participante » |
+| **Issuing** trigger | § 14 Abs. 2 S. 3 | Sitz, Geschäftsleitung, **participating Betriebsstätte**, or absent a Sitz: Wohnsitz / gewöhnlicher Aufenthalt |
+| **Receiving** obligation | UStAE 14.1 Abs. 5 S. 1; FAQ Frage 12 | **unilateral** — applies only to the established recipient |
+| **Archival** location | § 14b Abs. 3 | **Wohnsitz** (no condition), Sitz, Geschäftsleitung, or **Zweigniederlassung** — not "participating Betriebsstätte" |
 
-Un unique booléen `isEstablishedDE` ne peut donc servir les trois.
+A single `isEstablishedDE` boolean therefore cannot serve all three.
 
-#### § 14 Abs. 7 — l'art. 219 bis transposé, et il retourne le problème
+#### § 14 Abs. 7 — art. 219 bis transposed, and it flips the problem
 
-> « […] so gelten **abweichend von den Absätzen 1 bis 6** für die Rechnungserteilung die
+> "[…] so gelten **abweichend von den Absätzen 1 bis 6** für die Rechnungserteilung die
 > **Vorschriften des Mitgliedstaats**, in dem der Unternehmer seinen Sitz, seine Geschäftsleitung,
-> eine Betriebsstätte, von der aus der Umsatz ausgeführt wird […] hat. »
+> eine Betriebsstätte, von der aus der Umsatz ausgeführt wird […] hat." [… then, **by way of
+> derogation from paragraphs 1 to 6**, invoicing is governed by the **rules of the Member State** in
+> which the business has its seat, place of management, or a permanent establishment from which the
+> transaction is carried out …]
 
-Lorsque le fournisseur n'est pas établi en Allemagne et que le preneur est redevable au titre du
-§ 13b — et **sauf** convention d'autofacturation (S. 2) — ce n'est plus le droit allemand qui régit
-la facturation, mais celui de l'État du **fournisseur**.
+When the supplier is not established in Germany and the customer is liable under § 13b — and
+**unless** there is a self-billing agreement (S. 2) — it is no longer German law that governs
+invoicing, but that of the **supplier's** state.
 
-C'est exactement la dérogation de l'art. 219 bis de la directive 2006/112/CE. Elle a une conséquence
-inconfortable pour l'audit : dans ce cas précis, la résolution « fournisseur seul » du moteur donne
-le **bon** résultat. Mais elle le donne sans connaître la condition qui l'y autorise — donc elle
-l'appliquerait tout aussi bien aux cas où elle est fausse. Une règle juste par accident n'est pas
-une règle.
+This is exactly the derogation in art. 219 bis of directive 2006/112/EC. It has an uncomfortable
+consequence for the audit: in this specific case, the engine's "supplier-only" resolution gives the
+**right** result. But it gives it without knowing the condition that authorizes it — so it would
+apply it just as readily in cases where it is wrong. A rule that is right by accident is not a rule.
 
-#### Zusammenfassende Meldung — ce qui couvre le transfrontalier
+#### Zusammenfassende Meldung — what covers cross-border
 
-§ 18a UStG, déclaration au Bundeszentralamt für Steuern, **sortant uniquement**. Périmètre :
-livraisons intracommunautaires et prestations § 3a Abs. 2 imposables dans un autre État membre où le
-preneur est redevable. Hors périmètre : exportations pays tiers, acquisitions, services reçus, B2C,
-Kleinunternehmer. Délai : **25e jour** après le mois (biens ; option trimestrielle sous 50 000 €) ou
-après le trimestre (services). Sanction : Bußgeld jusqu'à **5 000 €**, sans Verspätungszuschlag.
+§ 18a UStG, filed with the Bundeszentralamt für Steuern, **outbound only**. Scope: intra-Community
+supplies and § 3a Abs. 2 services taxable in another member state where the customer is liable.
+Out of scope: third-country exports, acquisitions, received services, B2C, Kleinunternehmer.
+Deadline: **the 25th day** after the month (goods; quarterly option under €50,000) or after the
+quarter (services). Penalty: Bußgeld up to **€5,000**, no Verspätungszuschlag.
 
-**Aucune transmission de facture n'y est jointe** : le § 18a Abs. 7 énumère limitativement le numéro
-de TVA de chaque acquéreur, la **somme** des bases par acquéreur, et des indicateurs de nature. Ni
-numéro de facture, ni date, ni ligne, ni document. C'est un agrégat périodique par client.
+**No invoice transmission is attached to it**: § 18a Abs. 7 limitatively lists each buyer's VAT
+number, the **sum** of the bases per buyer, and nature indicators. No invoice number, no date, no
+line, no document. It is a periodic per-customer aggregate.
 
-Le `Meldesystem` transactionnel reste `annoncé` sans texte ni date : le Regierungsentwurf du JStG
-2026 ne le contient pas, et ne touche ni le § 14 ni le § 27 Abs. 38.
+The transactional `Meldesystem` remains `announced` with no text and no date: the JStG 2026
+government bill does not contain it, and touches neither § 14 nor § 27 Abs. 38.
 
-### Pologne — déclencheur **unilatéral**, et cela invalide une généralisation
+### Poland — a **unilateral** trigger, which invalidates a generalization
 
-Sources : texte consolidé de l'ustawa o VAT (Dz.U. 2025 poz. 775), surchargé par la loi du
-2025-08-05 (Dz.U. 2025 poz. 1203) ; **Objaśnienia podatkowe MF du 2026-01-28** sur le
-`stałe miejsce prowadzenia działalności` (SMPD) pour les besoins du KSeF — document opposable au
-titre de l'art. 14n § 4 pkt 1 de l'Ordynacja podatkowa. Contrôle négatif effectué : les actes
-modificatifs postérieurs (Dz.U. 2025 poz. 1811 et Dz.U. 2026 poz. 846) ne touchent ni l'art. 106a,
-ni 106ga, ni 106gb.
+Sources: consolidated text of the ustawa o VAT (Dz.U. 2025 poz. 775), overlaid by the law of
+2025-08-05 (Dz.U. 2025 poz. 1203); **Objaśnienia podatkowe MF of 2026-01-28** on the
+`stałe miejsce prowadzenia działalności` (SMPD, fixed establishment) for KSeF purposes — a document
+opposable under art. 14n § 4 pkt 1 of the Ordynacja podatkowa. Negative check performed: the later
+amending acts (Dz.U. 2025 poz. 1811 and Dz.U. 2026 poz. 846) touch neither art. 106a, nor 106ga, nor
+106gb.
 
-L'art. 106ga ust. 2 pose le rattachement par **exclusion négative**, et ses points 1 et 2 sont tous
-deux rédigés « **przez podatnika** » — par l'assujetti **émetteur** :
+Art. 106ga ust. 2 sets the nexus by **negative exclusion**, and its points 1 and 2 are both phrased
+"**przez podatnika**" [by the taxpayer] — by the **issuing** taxable person:
 
-> 1) « przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca
-> prowadzenia działalności gospodarczej na terytorium kraju ;
-> 2) przez podatnika nieposiadającego siedziby […] qui possède un SMPD sur le territoire national,
+> 1) "przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca
+> prowadzenia działalności gospodarczej na terytorium kraju [by a taxpayer having neither a
+> registered office nor a fixed establishment in the national territory];
+> 2) przez podatnika nieposiadającego siedziby […] who has an SMPD in the national territory,
 > **przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub
-> świadczeniu usług**, dla których wystawiono fakturę »
+> świadczeniu usług**, dla których wystawiono fakturę" [provided that **this fixed establishment does
+> not participate in the supply of goods or services** for which the invoice was issued]
 
-Le seul point où l'acquéreur apparaît est le pkt 4, et il ne vise que sa **qualité** (personne
-physique non entrepreneur), jamais sa localisation. Le ministère l'énonce explicitement :
+The only point where the buyer appears is pkt 4, and it only covers their **status** (a non-business
+private individual), never their location. The ministry states it explicitly:
 
-> « Podatnicy z siedzibą na terytorium Polski, nabywający towary lub usługi od podatników z siedzibą
+> "Podatnicy z siedzibą na terytorium Polski, nabywający towary lub usługi od podatników z siedzibą
 > za granicą, **dla celów stosowania KSeF nie są zobowiązani do dokonywania weryfikacji, czy taki
-> zagraniczny podatnik posiada SMPD w Polsce**. »
+> zagraniczny podatnik posiada SMPD w Polsce**." [Taxpayers established in Poland who purchase goods
+> or services from taxpayers established abroad **are not, for KSeF purposes, required to check
+> whether that foreign taxpayer has an SMPD in Poland**.]
 
-**Conséquences :**
+**Consequences:**
 
-| Situation | Émission KSeF |
+| Situation | KSeF issuing |
 | --- | --- |
-| Assujetti étranger **immatriculé** en Pologne, sans établissement | **non** — art. 106ga ust. 2 pkt 1 ; option ouverte et **révocable transaction par transaction** |
-| Étranger avec SMPD polonais **participant** à l'opération | **oui** |
-| Étranger avec SMPD polonais **passif** | **non** |
-| Assujetti polonais réalisant **WDT, export, prestation B2B intracommunautaire** | **oui** — « Faktury dokumentujące np. WDT, eksport towarów czy świadczenie usług na rzecz zagranicznych podatników są **obowiązkowo wystawiane w KSeF** » |
+| Foreign taxpayer **registered** in Poland, no establishment | **no** — art. 106ga ust. 2 pkt 1; option open and **revocable transaction by transaction** |
+| Foreign taxpayer with a Polish SMPD **participating** in the transaction | **yes** |
+| Foreign taxpayer with a **passive** Polish SMPD | **no** |
+| Polish taxpayer carrying out **intra-Community supply, export, intra-Community B2B service** | **yes** — "Faktury dokumentujące np. WDT, eksport towarów czy świadczenie usług na rzecz zagranicznych podatników są **obowiązkowo wystawiane w KSeF**" [Invoices documenting e.g. intra-Community supplies, goods exports or services to foreign taxpayers **must be issued in KSeF**] |
 
-**La Pologne n'exclut donc pas le transfrontalier du mandat** — contrairement à la France et à
-l'Italie. Elle le maintient dans le champ de l'**émission**, et traite l'extranéité à l'étape
-suivante, distincte : la **mise à disposition**. L'art. 106gb ust. 4 est une **disjonction à six
-branches** dont la première est purement géographique (`miejsce świadczenia ∉ PL`), imposant une
-remise « w sposób z nim uzgodniony » assortie d'un **code QR** obligatoire (art. 106gb ust. 5,
-spécifié par Dz.U. 2025 poz. 1815, norme ISO/IEC 18004:2024). Pour l'acquéreur étranger, le document
-porteur du QR **est** la facture.
+**Poland therefore does not exclude cross-border from the mandate** — unlike France and Italy. It
+keeps it within the scope of **issuing**, and handles foreignness at the next, separate step:
+**delivery**. Art. 106gb ust. 4 is a **six-branch disjunction** whose first branch is purely
+geographic (`miejsce świadczenia ∉ PL`), requiring delivery "w sposób z nim uzgodniony" [in a manner
+agreed with them] together with a mandatory **QR code** (art. 106gb ust. 5, specified by Dz.U. 2025
+poz. 1815, standard ISO/IEC 18004:2024). For the foreign buyer, the document carrying the QR **is**
+the invoice.
 
-Effet secondaire à modéliser : **deux horloges de date de réception** — date d'attribution du numéro
-KSeF pour un acquéreur ordinaire, date de réception effective hors KSeF pour tout acquéreur relevant
-de l'art. 106gb ust. 4.
+Side effect to model: **two receipt-date clocks** — the date the KSeF number is assigned for an
+ordinary buyer, the date of actual receipt outside KSeF for any buyer falling under art. 106gb ust. 4.
 
-Seule dérogation réellement transfrontalière : l'**autofacturation** par un acquéreur UE dépourvu de
-NIP polonais (rozporządzenie Dz.U. 2025 poz. 1740, § 2 pkt 5 et § 3).
+The only truly cross-border exception: **self-billing** by an EU buyer with no Polish NIP
+(rozporządzenie Dz.U. 2025 poz. 1740, § 2 pkt 5 and § 3).
 
-### La généralisation que je retire
+### The generalization I am withdrawing
 
-J'avais écrit que les juridictions vérifiées posaient toutes « le même schéma : mandat domestique à
-déclencheur bilatéral, transfrontalier renvoyé vers une obligation déclarative distincte ». **C'est
-faux.** La Pologne est unilatérale et garde le transfrontalier dans le champ de l'émission.
+I had written that the verified jurisdictions all showed "the same pattern: a domestic mandate with a
+bilateral trigger, cross-border pushed to a separate reporting obligation". **That is wrong.** Poland
+is unilateral and keeps cross-border within the scope of issuing.
 
-Le constat correct est plus fort, pas plus faible :
+The correct finding is stronger, not weaker:
 
-| Pays | Déclencheur | Transfrontalier |
+| Country | Trigger | Cross-border |
 | --- | --- | --- |
-| France | **bilatéral** (art. 289 bis I) | hors mandat → e-reporting art. 290 |
-| Allemagne | **bilatéral** (§ 14 Abs. 2 S. 3 UStG) | hors mandat → ZM § 18a |
-| Italie | résidents ou établis (à préciser) | hors mandat → données c. 3-bis |
-| **Pologne** | **unilatéral — vendeur seul** | **dans le mandat**, extranéité traitée au canal de remise |
+| France | **bilateral** (art. 289 bis I) | outside the mandate → e-reporting art. 290 |
+| Germany | **bilateral** (§ 14 Abs. 2 S. 3 UStG) | outside the mandate → ZM § 18a |
+| Italy | resident or established (to be refined) | outside the mandate → c. 3-bis data reporting |
+| **Poland** | **unilateral — seller only** | **within the mandate**, foreignness handled at the delivery channel |
 
-**La règle de rattachement varie d'un pays à l'autre.** Une stratégie de résolution unique est donc
-fausse quel que soit le choix retenu : la résolution « fournisseur seul » du moteur se trouve être
-juste pour la Pologne et fausse pour la France et l'Allemagne. Cela ne réhabilite pas F-017, cela
-l'aggrave — il ne suffit pas d'ajouter le pays de l'acheteur, il faut que **le déclencheur lui-même
-soit une donnée du profil**, au même titre que le régime ou l'archivage.
+**The nexus rule varies from country to country.** A single resolution strategy is therefore wrong
+whichever choice is made: the engine's "supplier-only" resolution happens to be right for Poland and
+wrong for France and Germany. This does not rehabilitate F-017, it makes it worse — it is not enough
+to add the buyer's country, **the trigger itself must be a datum of the profile**, on the same
+footing as the regime or archival.
 
-### Espagne — deux régimes, deux déclencheurs opposés
+### Spain — two regimes, two opposite triggers
 
-Traité dans la section Espagne ci-dessus. En résumé : **Veri\*Factu** est **unilatéral** et attaché à
-un **statut fiscal de l'émetteur**, indépendamment de l'opération — une facture à un client étranger
-génère un registro comme une facture domestique. Le **mandat B2B** du RD 238/2026 est au contraire
-**bilatéral et dominé par l'acheteur** : il se déclenche « cuando el destinatario […] **tenga en
-España la sede de su actividad económica, o tenga en España un establecimiento permanente** ». Une
-résolution fondée sur le vendeur s'y trompe **dans les deux sens**.
+Covered in the Spain section above. In summary: **Veri\*Factu** is **unilateral** and tied to an
+**issuer's tax status**, regardless of the transaction — an invoice to a foreign customer generates a
+registro just like a domestic invoice. The **B2B mandate** under RD 238/2026 is, on the contrary,
+**bilateral and buyer-dominated**: it triggers "cuando el destinatario […] **tenga en España la sede
+de su actividad económica, o tenga en España un establecimiento permanente**" [when the recipient …
+**has in Spain the seat of its economic activity, or has a permanent establishment in Spain**]. A
+resolution based on the seller gets it wrong **both ways**.
 
-### Mexique — unilatéral à l'émission, bilatéral au cycle de vie
+### Mexico — unilateral at issuance, bilateral in the lifecycle
 
-Traité dans la section Mexique ci-dessus. L'obligation d'émettre dépend **exclusivement du statut de
-l'émetteur** ; le pays de l'acheteur ne conditionne jamais l'applicabilité, il ne modifie que le
-contenu des champs (`Exportacion`, RFC générique étranger, `ResidenciaFiscal`). En revanche
-l'**annulation** est bilatérale et temporisée — acceptation du récepteur, tacite au bout de trois
-jours.
-
----
+Covered in the Mexico section above. The obligation to issue depends **exclusively on the issuer's
+status**; the buyer's country never conditions applicability, it only changes field contents
+(`Exportacion`, generic foreign RFC, `ResidenciaFiscal`). **Cancellation**, on the other hand, is
+bilateral and timed — recipient acceptance, implied after three days.
 
 ---
 
-## ViDA — vérifié en source primaire
+---
 
-Directive (UE) 2025/516, texte consolidé sur
+## ViDA — verified against the primary source
+
+Directive (EU) 2025/516, consolidated text on
 [EUR-Lex, CELEX 32025L0516](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32025L0516),
-consulté le **2026-08-27**. Publication au JO : **2025-03-25** (série L, 2025/516).
+consulted **2026-08-27**. Published in the OJ: **2025-03-25** (L series, 2025/516).
 
-| Disposition | Contenu établi | Statut |
+| Provision | Established content | Status |
 | --- | --- | --- |
-| **Art. 6(1)** | « Member States may apply the laws, regulations and administrative provisions regarding Article 1, points 2 and 3 **from 14 April 2025** » — soit les modifications des art. 218 et 232 de la directive 2006/112/CE | **en vigueur** |
-| **Art. 6(4)** | Article **4** : adoption au 2029-06-30, application au **2029-07-01** | annoncé |
-| **Art. 6(5)** | Article **5** : adoption au 2030-06-30, application au **2030-07-01** | annoncé |
-| **Art. 6(5), 3ᵉ alinéa** | **Report au 2035-01-01** — disposition opérative, voir ci-dessous | annoncé |
-| **Art. 5 → nouvel art. 218** | Impose la facture électronique conforme à **la norme européenne** et à la liste de ses syntaxes au titre de la **directive 2014/55/UE**, avec données structurées selon les art. 262 et 271b | annoncé, 2030-07-01 |
-| **Art. 5 → nouvel art. 232** | Une facture électronique conforme à la norme européenne **ne requiert pas l'acceptation du destinataire** ; les autres formats peuvent y rester soumis selon le droit national | annoncé, 2030-07-01 |
-| **Art. 5(6) → art. 222** | Émission « **no later than 10 days following the chargeable event** » | annoncé, 2030-07-01 |
-| **Art. 7** | Entrée en vigueur « on the **twentieth day** following that of its publication » — publication au JO le 2025-03-25, directive adoptée à Bruxelles le **2025-03-11** | en vigueur |
+| **Art. 6(1)** | "Member States may apply the laws, regulations and administrative provisions regarding Article 1, points 2 and 3 **from 14 April 2025**" — i.e. the amendments to art. 218 and 232 of directive 2006/112/EC | **in force** |
+| **Art. 6(4)** | Article **4**: adoption by 2029-06-30, application on **2029-07-01** | announced |
+| **Art. 6(5)** | Article **5**: adoption by 2030-06-30, application on **2030-07-01** | announced |
+| **Art. 6(5), 3rd subparagraph** | **Deferral to 2035-01-01** — an operative provision, see below | announced |
+| **Art. 5 → new art. 218** | Requires an electronic invoice compliant with **the European standard** and its list of syntaxes under **directive 2014/55/EU**, with structured data per art. 262 and 271b | announced, 2030-07-01 |
+| **Art. 5 → new art. 232** | An electronic invoice compliant with the European standard **does not require the recipient's acceptance**; other formats may remain subject to it under national law | announced, 2030-07-01 |
+| **Art. 5(6) → art. 222** | Issuance "**no later than 10 days following the chargeable event**" | announced, 2030-07-01 |
+| **Art. 7** | Entry into force "on the **twentieth day** following that of its publication" — published in the OJ on 2025-03-25, directive adopted in Brussels on **2025-03-11** | in force |
 
-### Le report au 2035 : établi, et c'est une disposition opérative
+### The deferral to 2035: established, and it is an operative provision
 
-*Correction. Deux rendus HTML successifs de la page CELEX se sont tronqués au même endroit, et
-j'avais consigné le report comme non établi, en notant qu'un considérant n'est pas une disposition
-opérative. Le PDF du Journal officiel, converti localement, donne le texte. J'avais aussi attribué
-par erreur la date du 2030-07-01 à l'art. 6(4) : celui-ci porte sur l'**article 4** et le
-2029-07-01. C'est l'art. 6(5) qui porte l'article 5.*
+*Correction. Two successive HTML renders of the CELEX page were truncated at the same spot, and I
+had recorded the deferral as not established, noting that a recital is not an operative provision.
+The Official Journal PDF, converted locally, gives the text. I had also mistakenly attributed the
+2030-07-01 date to art. 6(4): that one covers **article 4** and 2029-07-01. It is art. 6(5) that
+covers article 5.*
 
-Troisième alinéa de l'art. 6(5), verbatim :
+Third subparagraph of art. 6(5), verbatim:
 
-> « By way of derogation from the second subparagraph of this paragraph, Member States **having a
+> "By way of derogation from the second subparagraph of this paragraph, Member States **having a
 > domestic digital real-time transaction-based reporting obligation in place on 1 January 2024** or
 > having been granted an authorisation on the basis of Article 395 before 1 January 2024 allowing
 > them to put such an obligation in place, or where such authorisation was not necessary, having
@@ -1155,128 +1187,126 @@ Troisième alinéa de l'art. 6(5), verbatim :
 > domestic digital real-time transaction-based reporting obligation, **shall apply the measures
 > regarding Article 5, point (5), related to Article 218, and the measures regarding Article 5,
 > point (19), related to Articles 271a and 271b, by 1 January 2035**, in so far as **domestic**
-> electronic invoicing and reporting are concerned. »
+> electronic invoicing and reporting are concerned."
 
-Trois voies d'éligibilité, alternatives : obligation **déjà en place** au 2024-01-01 ; **autorisation
-art. 395** obtenue avant cette date ; ou, si l'autorisation n'était pas nécessaire, **législation
-nationale adoptée** avant cette date prévoyant l'introduction d'une telle obligation.
+Three alternative eligibility routes: an obligation **already in place** on 2024-01-01; an
+**art. 395 authorization** obtained before that date; or, if authorization was not necessary,
+**national legislation adopted** before that date providing for the introduction of such an
+obligation.
 
-Le report est **borné** : il ne couvre que l'art. 218 et les art. 271a/271b, et **uniquement pour la
-facturation et le reporting domestiques**. L'intracommunautaire reste au 2030-07-01. Une clause de
-revoyure permet en outre à la Commission, si le rapport intermédiaire de l'art. 271c révèle des
-lacunes, de proposer un report supplémentaire.
+The deferral is **bounded**: it only covers art. 218 and art. 271a/271b, and **only for domestic
+invoicing and reporting**. Intra-Community remains at 2030-07-01. A review clause also lets the
+Commission propose a further deferral if the interim report under art. 271c reveals gaps.
 
-**Portée pratique.** L'Espagne (SII depuis juillet 2017), l'Italie (SdI) et la Hongrie relèvent
-manifestement de la première voie ; la France et la Pologne, dont les dispositifs ont été adoptés
-avant 2024, relèvent au moins de la troisième. Un profil qui coderait « EN 16931 obligatoire au
-2030-07-01 » pour ces pays serait donc trop strict de cinq ans sur leur périmètre domestique.
+**Practical scope.** Spain (SII since July 2017), Italy (SdI) and Hungary clearly fall under the
+first route; France and Poland, whose schemes were adopted before 2024, fall at least under the
+third. A profile coding "EN 16931 mandatory on 2030-07-01" for these countries would therefore be
+five years too strict for their domestic scope.
 
-### L'Espagne ouvre-t-elle une des trois voies ? — analyse, et ce qui reste ouvert
+### Does Spain open one of the three routes? — analysis, and what remains open
 
-La question mérite d'être posée voie par voie plutôt que laissée en bloc.
+The question deserves to be asked route by route rather than left as a block.
 
-| Voie de l'art. 6(5) | Application à l'Espagne | Verdict |
+| Art. 6(5) route | Application to Spain | Verdict |
 | --- | --- | --- |
-| 1. Obligation **en place** au 2024-01-01 | **Le prédicat factuel est rempli** : le SII fonctionne depuis **juillet 2017**, il est obligatoire, et il porte sur les registres **facture par facture** — donc transactionnel. Seul le qualificatif reste ouvert : la remise SII est de **quatre jours ouvrés**. | **rempli, sauf un qualificatif** |
-| 2. Autorisation **art. 395** obtenue avant le 2024-01-01 | L'Espagne ne figure pas dans les dérogations « Articles 218 and 232 » de la Commission, et n'en a jamais demandé. | **non** |
-| 3. **Législation nationale adoptée** avant le 2024-01-01 prévoyant l'introduction d'une telle obligation | Le **RD 1007/2023 est du 5 décembre 2023**, donc antérieur au 2024-01-01, et il institue Veri\*Factu — dont la modalité vérifiable est définie par une remisión « **automática, continua e instantánea** » des registres. | **paraît rempli** |
+| 1. Obligation **in place** on 2024-01-01 | **The factual predicate is met**: the SII has run since **July 2017**, it is mandatory, and it covers **invoice-by-invoice** records — hence transactional. Only the qualifier remains open: SII submission is **within four business days**. | **met, except for one qualifier** |
+| 2. **Art. 395 authorization** obtained before 2024-01-01 | Spain does not appear in the Commission's "Articles 218 and 232" derogations, and never requested one. | **no** |
+| 3. **National legislation adopted** before 2024-01-01 providing for the introduction of such an obligation | **RD 1007/2023 is dated 5 December 2023**, so before 2024-01-01, and it establishes Veri\*Factu — whose verifiable modality is defined by an "**automática, continua e instantánea**" [automatic, continuous and instantaneous] submission of records. | **appears to be met** |
 
-**La voie 3 est la plus solide**, et elle ne dépend pas de la qualification du SII : la date
-d'adoption est vérifiable, et « automática, continua e instantánea » correspond mot pour mot à ce que
-« real-time transaction-based » décrit. Si elle est retenue, **l'horizon domestique espagnol glisse du
-2030-07-01 au 2035-01-01**, et tout le volet ES doit se lire à cette échéance.
+**Route 3 is the strongest**, and it does not depend on how the SII is classified: the adoption date
+is verifiable, and "automática, continua e instantánea" matches "real-time transaction-based" word
+for word. If it is retained, **Spain's domestic horizon shifts from 2030-07-01 to 2035-01-01**, and
+the whole ES section must be read against that deadline.
 
-### `open_question` — formulée factuellement, pour être cherchable
+### `open_question` — phrased factually, to be searchable
 
-Ce qui reste ouvert n'est pas « la qualification juridique de l'Espagne ». C'est **une question de
-fait, à un seuil près** :
+What remains open is not "Spain's legal classification". It is **a question of fact, down to a
+threshold**:
 
-> **Une remise sous quatre jours ouvrés, facture par facture, qualifie-t-elle de « real-time
-> transaction-based » au sens du troisième alinéa de l'art. 6(5) ?**
+> **Does submission within four business days, invoice by invoice, qualify as "real-time
+> transaction-based" within the meaning of the third subparagraph of art. 6(5)?**
 
-Posée ainsi, elle devient cherchable, et trois endroits peuvent la trancher :
+Phrased this way, it becomes searchable, and three places could settle it:
 
-1. **Les considérants de la directive** — le considérant 24 évoque les systèmes domestiques
-   préexistants ; il n'a pas été lu ligne à ligne sous cet angle.
-2. **Une position de la Commission** — la clause de revoyure de l'art. 271c lui donne compétence pour
-   évaluer les dispositifs nationaux, ce qui suppose de savoir lesquels relèvent du report.
-3. **La pratique d'un autre État membre** — la Hongrie (RTIR, quasi immédiat) et l'Italie (SdI, au fil
-   de l'eau) sont des cas plus francs. Si l'un revendique publiquement le report, le seuil se lit par
-   comparaison.
+1. **The directive's recitals** — recital 24 discusses pre-existing domestic systems; it has not been
+   read line by line from this angle.
+2. **A Commission position** — the review clause of art. 271c gives it authority to assess national
+   schemes, which presupposes knowing which ones fall under the deferral.
+3. **Another member state's practice** — Hungary (RTIR, near-instant) and Italy (SdI, continuous) are
+   clearer cases. If one of them publicly claims the deferral, the threshold can be read by
+   comparison.
 
-Deux choses sont en revanche **établies** : la voie 2 est **exclue**, et la voie 3 repose sur une
-**date vérifiée**, le RD 1007/2023 étant du 2023-12-05.
+Two things are however **established**: route 2 is **excluded**, and route 3 rests on a **verified
+date**, RD 1007/2023 being dated 2023-12-05.
 
-Une seule voie suffit : si la voie 3 est retenue, le sort de la voie 1 devient sans effet pratique.
-L'énumération est traitée en entier pour qu'aucun trou ne se lise comme un oubli.
+One route is enough: if route 3 is retained, route 1's fate becomes moot. The full enumeration is
+covered so that no gap reads as an oversight.
 
-**Conséquence immédiate, et elle est datée du 2025-04-14** : un État membre n'a plus besoin d'une
-dérogation du Conseil au titre de l'art. 395 pour imposer la facturation électronique domestique sans
-acceptation du destinataire. L'option figure désormais directement dans la directive. Cela explique
-que ni la France ni l'Espagne n'aient eu à en demander une pour leurs dispositifs récents.
+**Immediate consequence, dated 2025-04-14**: a member state no longer needs a Council derogation
+under art. 395 to impose domestic electronic invoicing without the recipient's acceptance. The option
+now sits directly in the directive. This explains why neither France nor Spain had to request one for
+their recent schemes.
 
-### Ce qui reste ouvert sur ViDA
+### What remains open on ViDA
 
-1. **EN 16931-1:2026** : la directive renvoie à « la norme européenne […] au titre de la directive
-   2014/55/UE » **sans nommer de version**. Qu'une version 2026 ait été publiée par le CEN en mars
-   2026, et qu'elle soit « figée », **n'a pas été vérifié** et ne figure pas dans le texte de la
-   directive. `open_question`.
-2. La qualification de « real-time » pour le SII espagnol (remise à quatre jours) au sens du
-   troisième alinéa de l'art. 6(5) — la directive ne définit pas le terme.
+1. **EN 16931-1:2026**: the directive refers to "the European standard […] under directive
+   2014/55/EU" **without naming a version**. Whether a 2026 version was published by CEN in March
+   2026, and whether it is "frozen", **has not been verified** and does not appear in the directive's
+   text. `open_question`.
+2. Whether the Spanish SII (four-day submission) qualifies as "real-time" under the third
+   subparagraph of art. 6(5) — the directive does not define the term.
 
 ---
 
-# SYNTHÈSE DES SIX PAYS
+# SIX-COUNTRY SUMMARY
 
-La phase 2 est complète. Trois constats transversaux, chacun vérifié dans plusieurs juridictions.
+Phase 2 is complete. Three cross-cutting findings, each verified across several jurisdictions.
 
-## 1. La numérotation est fausse dans cinq pays sur six
+## 1. Numbering is wrong in five countries out of six
 
-| Pays | Ce que le profil déclare | Ce que le droit exige |
+| Country | What the profile declares | What the law requires |
 | --- | --- | --- |
-| France | `GAPLESS_SELF` | **exact** — « séquence chronologique **et continue** » |
-| Allemagne | `GAPLESS_SELF` | **faux** — « **einmalig** » ; « eine lückenlose Abfolge […] ist nicht zwingend » |
-| Pologne | `GAPLESS_SELF` | sur-contrainte — seule l'**unicité** est contrôlée |
-| Italie | `GAPLESS_SELF` | **faux** — « numero progressivo che la identifichi in modo **univoco** » |
-| Espagne | `GAPLESS_SELF` | non sourcé — « correlativa **dentro de cada serie** », l'interdiction des trous n'est écrite nulle part ; et **cinq cas de séries obligatoirement séparées** sont ignorés |
-| Mexique | `AUTHORITY_RANGE` | **faux** — `Serie` et `Folio` sont `optional`, l'UUID vient du PAC |
+| France | `GAPLESS_SELF` | **accurate** — "chronological **and continuous** sequence" |
+| Germany | `GAPLESS_SELF` | **wrong** — "**einmalig**" [unique]; "eine lückenlose Abfolge […] ist nicht zwingend" [a gapless sequence … is not mandatory] |
+| Poland | `GAPLESS_SELF` | over-constrained — only **uniqueness** is checked |
+| Italy | `GAPLESS_SELF` | **wrong** — "numero progressivo che la identifichi in modo **univoco**" [a progressive number that identifies it **uniquely**] |
+| Spain | `GAPLESS_SELF` | not sourced — "correlativa **dentro de cada serie**" [sequential **within each series**], the ban on gaps is written nowhere; and **five cases of mandatorily separate series** are ignored |
+| Mexico | `AUTHORITY_RANGE` | **wrong** — `Serie` and `Folio` are `optional`, the UUID comes from the PAC |
 
-**Un seul pays sur six est correctement modélisé.** Et le rapprochement avec **F-002** est cruel : le
-produit impose une contrainte que cinq de ses six marchés n'exigent pas — tout en ne la tenant pas
-là où elle est réellement exigée.
+**Only one country out of six is correctly modeled.** And the comparison with **F-002** is cruel: the
+product imposes a constraint that five of its six markets do not require — while failing to enforce
+it where it actually is required.
 
-## 2. L'archivage est mal modélisé dans les six
+## 2. Archival is poorly modeled in all six
 
-| Pays | Profil | Réalité |
+| Country | Profile | Reality |
 | --- | --- | --- |
-| France | 10 ans | **6 ans** fiscal (LPF L102 B) ; les 10 ans sont commerciaux |
-| Allemagne | 10 ans | **8 ans** depuis le 2025-01-01 (§ 14b Abs. 1 S. 1) |
-| Italie | 10 ans | 10 ans **prolongés** jusqu'à définition des contrôles |
-| Pologne | 10 ans, à la charge du contribuable | 10 ans **à la charge de KSeF**, le contribuable en est **dispensé** |
-| Espagne | 10 ans | plancher **6 ans**, jusqu'à ~14 ans pour l'immobilier |
-| Mexique | 5 ans depuis l'émission | 5 ans **depuis le dépôt de la déclaration**, perpétuel pour certains actes |
+| France | 10 years | **6 years** tax (LPF L102 B); the 10 years are commercial |
+| Germany | 10 years | **8 years** since 2025-01-01 (§ 14b Abs. 1 S. 1) |
+| Italy | 10 years | 10 years **extended** until controls are settled |
+| Poland | 10 years, borne by the taxpayer | 10 years **borne by KSeF**, the taxpayer is **exempted** |
+| Spain | 10 years | floor of **6 years**, up to ~14 years for real estate |
+| Mexico | 5 years from issuance | 5 years **from the filing of the return**, perpetual for certain acts |
 
-Aucun des six n'est juste. Et la **localisation des données** est fausse dans les deux sens : la
-France (LPF L102 C), l'Allemagne (§ 14b Abs. 2, autorisation préalable hors UE) et l'Italie imposent
-des contraintes que les profils **omettent**, tandis que le Mexique se voit **imposer** une résidence
-que le droit sourcé n'exige pas.
+None of the six is right. And **data localization** is wrong in both directions: France (LPF
+L102 C), Germany (§ 14b Abs. 2, prior authorization outside the EU) and Italy impose constraints the
+profiles **omit**, while Mexico is **saddled** with a residency requirement the sourced law does not
+require.
 
-## 3. Le canal illicite — un pays, pas trois
+## 3. The unlawful channel — one country, not three
 
-**Correction d'une première rédaction de cette synthèse.** J'avais écrit que `EMAIL` figurait dans
-les profils FR, PL et IT et qu'il y était illicite dans les trois. C'est vrai pour la **France
-seulement**.
+**Correcting an earlier draft of this summary.** I had written that `EMAIL` appeared in the FR, PL
+and IT profiles and was unlawful in all three. That is true for **France only**.
 
-Les profils sont **temporels**, et deux des trois font déjà le bon découpage : la Pologne abandonne
-l'e-mail au **2026-02-01** pour KSeF, l'Italie au **2019-01-01** pour le SdI. Seule la France le
-conservait dans sa période postérieure au 2026-09-01.
+The profiles are **time-based**, and two of the three already make the right split: Poland drops
+email on **2026-02-01** for KSeF, Italy on **2019-01-01** for the SdI. Only France kept it in its
+post-2026-09-01 period.
 
-L'erreur venait de mon propre inventaire, qui aplatit délibérément **toutes** les périodes — un
-choix défendable pour un audit, qui doit voir les règles révolues, mais qui rend le résultat
-inexploitable tel quel pour juger de l'état courant. Toute lecture de `profile.channels` dans
-`inventory.json` porte ce biais.
+The error came from my own inventory, which deliberately flattens **all** periods — a defensible
+choice for an audit, which needs to see lapsed rules, but one that makes the result unusable as-is for
+judging the current state. Any reading of `profile.channels` in `inventory.json` carries this bias.
 
-Ce qui subsiste, et qui est le vrai point : en retirant `EMAIL` de la France, on lui retire **le seul
-canal qui fonctionnait sans configuration**. PDP et Peppol exigent des identifiants, Chorus Pro n'a
-aucun transport. La France non configurée n'émet donc plus rien du tout — c'est le résultat correct,
-et il est désormais visible plutôt que masqué par un canal sanctionné.
+What remains, and is the real point: removing `EMAIL` from France strips it of **the only channel
+that worked with no configuration**. PDP and Peppol require credentials, Chorus Pro has no transport
+at all. An unconfigured France therefore now issues nothing at all — which is the correct outcome,
+now visible rather than masked by a non-compliant channel.

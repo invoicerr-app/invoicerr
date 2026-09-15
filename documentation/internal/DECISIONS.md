@@ -1,48 +1,48 @@
-# Décisions prises en autonomie
+# Decisions Made Autonomously
 
-Une décision par entrée : ce qui a été tranché, pourquoi, et ce qui la rouvrirait. Les arbitrages
-rendus par le mandant vivent dans la passation, pas ici. Ce qui revient au mandant et à lui seul —
-les 118 pages Docusaurus, la bascule CI vers Firefox, un avertissement aux utilisateurs, tout ce qui
-engage juridiquement — n'est **pas** tranché ici : c'est posé en question.
-
----
-
-## D-001 — `archival.retentionYears` reste à 10 ans, la couche déclare 6
-
-**Date** : 2026-08-28 · **Tâche** : P2-T02
-
-Le profil français retient **10 ans**. La couche `ARCHIVAL` que P2-T02 ajoute déclare **6 ans**,
-LPF art. L102 B — la durée **fiscale**, celle à laquelle un mandat de facturation électronique
-s'attache. `03-LEGAL-VERIFICATION.md` signale l'écart comme **FR-D9** : les 10 ans relèvent du droit
-commercial (C. com. art. L123-22), sur sa propre horloge, et les confondre est « approximatif et mal
-fondé ».
-
-**Décidé** : je ne change pas `retentionYears`. Le faire **réduirait** ce que le produit conserve,
-de 10 à 6 — un changement de comportement à conséquence juridique, dans le sens du moins-disant.
-Une durée trop longue ne met personne en défaut ; une durée trop courte, si.
-
-**Ce qui la rouvre** : une décision explicite sur ce que le runtime doit appliquer. Les deux durées
-sont réelles et répondent à deux obligations distinctes ; le produit devrait probablement porter les
-deux plutôt que d'en choisir une. `openQuestion` sur la couche `ARCHIVAL` porte la trace.
+One decision per entry: what was settled, why, and what would reopen it. Calls made by the owner
+live in the handoff notes, not here. What belongs to the owner and to the owner alone — the 118
+Docusaurus pages, the CI switch to Firefox, a warning to users, anything with legal implications — is
+**not** settled here: it is posed as a question.
 
 ---
 
-## D-002 — les échéances de P2-T02 ne sont pas branchées, et c'est la phase 3 qui les branchera
+## D-001 — `archival.retentionYears` stays at 10 years, the layer declares 6
 
-**Date** : 2026-08-28 · **Tâche** : P2-T02
+**Date**: 2026-08-28 · **Task**: P2-T02
 
-Un mécanisme d'échéance **existe déjà** et fonctionne : `deadlineHours` sur les transitions du cycle
-de vie, consommé par `lifecycle/drivers/timer-scheduler.ts` et `nest/apply-signal.ts`, qui arment de
-vrais minuteurs. La couche `obligations[].deadline` que j'ajoute est une **seconde représentation que
-rien ne lit**.
+The French profile keeps **10 years**. The `ARCHIVAL` layer that P2-T02 adds declares **6 years**,
+LPF art. L102 B — the **tax** duration, the one an e-invoicing mandate attaches to.
+`03-LEGAL-VERIFICATION.md` flags the gap as **FR-D9**: the 10 years belong to commercial law
+(C. com. art. L123-22), on its own clock, and conflating the two is "approximate and poorly
+grounded".
 
-**Décidé** : je la livre quand même, et je la nomme telle quelle. Le critère d'acceptation de P2-T02
-porte sur le **modèle** — que le profil français exprime ses trois couches avec leurs échéances — et
-la consommation est l'objet de la phase 3, « machine à états dérivée du profil ». Livrer le modèle
-sans le brancher est ici l'ordre voulu, pas un oubli.
+**Decided**: I am not changing `retentionYears`. Doing so would **reduce** what the product retains,
+from 10 to 6 — a behavior change with legal consequences, in the direction of the weaker guarantee.
+A duration that is too long puts no one at fault; one that is too short does.
 
-**Ce qui la rouvre, et le risque à surveiller** : c'est exactement la forme « saine mais non
-branchée » que l'audit reproche au dépôt, et que j'ai déjà reproduite deux fois (`ComplianceService`
-sans `formats`, `ViesVatValidationClient` non câblé). La phase 3 doit **relier** `obligations[].
-deadline` au `deadlineHours` existant, pas en construire un troisième. Si elle en construit un
-troisième, cette entrée est le témoin que je l'avais vu venir.
+**What reopens it**: an explicit decision on what the runtime must enforce. Both durations are real
+and answer two distinct obligations; the product should probably carry both rather than choosing
+one. The `openQuestion` on the `ARCHIVAL` layer carries the trace.
+
+---
+
+## D-002 — P2-T02's deadlines are not wired up, and phase 3 will wire them
+
+**Date**: 2026-08-28 · **Task**: P2-T02
+
+A deadline mechanism **already exists** and works: `deadlineHours` on lifecycle transitions,
+consumed by `lifecycle/drivers/timer-scheduler.ts` and `nest/apply-signal.ts`, which arm real
+timers. The `obligations[].deadline` layer I am adding is a **second representation that nothing
+reads**.
+
+**Decided**: I am shipping it anyway, and naming it for what it is. P2-T02's acceptance criterion is
+about the **model** — that the French profile expresses its three layers with their deadlines — and
+consuming it is phase 3's job, the "profile-derived state machine". Shipping the model without
+wiring it is the intended order here, not an oversight.
+
+**What reopens it, and the risk to watch**: this is exactly the "sound but unwired" shape the audit
+criticizes the repository for, and that I have already reproduced twice (`ComplianceService` with no
+`formats`, `ViesVatValidationClient` left unwired). Phase 3 must **connect** `obligations[].
+deadline` to the existing `deadlineHours`, not build a third representation. If it builds a third
+one, this entry is the record that I saw it coming.

@@ -1,47 +1,47 @@
-# 12 — Inventaire de suppression
+# 12 — Deletion Inventory
 
-**Ce document est un inventaire. Aucune suppression n'a été faite.** Il dit ce qui part, ce qui
-reste, et ce qui bloque chaque suppression. Les chiffres sont mesurés, pas repris : chaque ligne
-porte la commande qui la produit.
+**This document is an inventory. No deletion has been made.** It states what leaves, what stays, and
+what blocks each deletion. The figures are measured, not copied: every line carries the command that
+produced it.
 
-Les fiches 00 à 11 vivent sur `audit/compliance-truth`. Celle-ci est sur `feat/compliance-engine-v2`,
-parce qu'elle précède un changement de code sur cette branche.
+Sheets 00 through 11 live on `audit/compliance-truth`. This one is on `feat/compliance-engine-v2`,
+because it precedes a code change on this branch.
 
-Date : 2026-08-28. Arbre : `feat/compliance-engine-v2` à `9f74e7e2`.
+Date: 2026-08-28. Tree: `feat/compliance-engine-v2` at `9f74e7e2`.
 
 ---
 
-## 1. L'état mesuré
+## 1. The measured state
 
-### 1.1 Les 62 providers de transmission
+### 1.1 The 62 transmission providers
 
-La taxonomie existe déjà, dans `providers/transmission/provider-maturity.spec.ts`, et elle est
-gardée par un test. Je la reprends telle quelle plutôt que d'en inventer une seconde.
+The taxonomy already exists, in `providers/transmission/provider-maturity.spec.ts`, and it is guarded
+by a test. I reuse it as-is rather than inventing a second one.
 
-| Palier | Nombre | Ce que c'est |
+| Tier | Count | What it is |
 | --- | --- | --- |
-| `PROVEN` | **4** | `ksef`, `pdp`, `peppol`, `email` — aller-retour réel constaté |
-| `IMPLEMENTED` | **17** | client de protocole nommé, réel, sans identifiants |
-| `STUB` générique | **37** | `buildGenericPortalProvider()`, aucun `httpPort` injecté en production |
-| `STUB` autre | **4** | `pac`, `ose`, `print`, `zatca` |
+| `PROVEN` | **4** | `ksef`, `pdp`, `peppol`, `email` — a real round trip was observed |
+| `IMPLEMENTED` | **17** | named, real protocol client, no credentials |
+| Generic `STUB` | **37** | `buildGenericPortalProvider()`, no `httpPort` injected in production |
+| Other `STUB` | **4** | `pac`, `ose`, `print`, `zatca` |
 
-`4 + 17 + 37 + 4 = 62`. **58 ne transmettent rien.**
+`4 + 17 + 37 + 4 = 62`. **58 transmit nothing.**
 
 ```
 $ ls src/compliance/providers/transmission/portals/*.ts | wc -l      # 37
-$ cat src/compliance/providers/transmission/portals/*.ts | wc -l     # 1475 lignes
-$ ls src/compliance/providers/transmission/*-client.ts | wc -l       # 18 fichiers
-$ cat src/compliance/providers/transmission/*-client.ts | wc -l      # 3698 lignes
+$ cat src/compliance/providers/transmission/portals/*.ts | wc -l     # 1475 lines
+$ ls src/compliance/providers/transmission/*-client.ts | wc -l       # 18 files
+$ cat src/compliance/providers/transmission/*-client.ts | wc -l      # 3698 lines
 ```
 
-### 1.2 Les 42 formats nationaux déclarés et vides
+### 1.2 The 42 declared-and-empty national formats
 
 ```
 $ ls src/compliance/providers/format/national/*.ts | wc -l           # 42
-$ cat src/compliance/providers/format/national/*.ts | wc -l          # 589 lignes
+$ cat src/compliance/providers/format/national/*.ts | wc -l          # 589 lines
 ```
 
-589 lignes pour 42 fichiers : **14 lignes chacun**. Un fichier entier :
+589 lines for 42 files: **14 lines each**. One full file:
 
 ```ts
 export const AR_FE_FORMAT: NationalFormatSpec = {
@@ -52,144 +52,143 @@ export const AR_FE_FORMAT: NationalFormatSpec = {
 };
 ```
 
-Aucun n'a de `build`. Ce ne sont pas des implémentations partielles : ce sont **42 déclarations
-d'intention** que le moteur sélectionne comme s'il s'agissait de formats.
+None has a `build`. These are not partial implementations: they are **42 declarations of intent**
+that the engine selects as though they were formats.
 
-### 1.3 Ce qu'il ne faut PAS confondre avec eux
+### 1.3 What must NOT be confused with them
 
-`src/modules/invoice-rendering/national/` contient **14 fichiers, 3846 lignes**, et ceux-là
-produisent des octets réels : `fattura-pa`, `cfdi`, `facturae`, `ksa-ubl`, `fa-vat`… Même mot,
-« national », deux répertoires, deux natures opposées. La confusion coûterait cher dans les deux
-sens.
+`src/modules/invoice-rendering/national/` holds **14 files, 3846 lines**, and those produce real
+bytes: `fattura-pa`, `cfdi`, `facturae`, `ksa-ubl`, `fa-vat`… Same word, "national", two directories,
+two opposite natures. The confusion would be costly in both directions.
 
-### 1.4 Le rapport publié / implémenté
+### 1.4 Published vs. implemented
 
 ```
-$ ls src/compliance/profiles/data/*.ts | wc -l                       # 108 profils
+$ ls src/compliance/profiles/data/*.ts | wc -l                       # 108 profiles
 $ find documentation -name "*.md" -path "*compliance*" | wc -l       # 118 pages
 ```
 
-F-004 le chiffrait à 106 pages publiques et 56 pays sans aucune sortie en vigueur. L'écart 106/118
-tient aux fiches ajoutées depuis ; l'ordre de grandeur est le même.
+F-004 put this at 106 public pages and 56 countries with zero output in force. The 106/118 gap comes
+from sheets added since; the order of magnitude is the same.
 
 ---
 
-## 2. Ce qui part
+## 2. What leaves
 
-| Lot | Fichiers | Lignes | Pourquoi |
+| Batch | Files | Lines | Why |
 | --- | --- | --- | --- |
-| Portails génériques | 37 | 1 475 | `buildGenericPortalProvider()` sans `httpPort` en production : un objet qui accepte un document et ne l'envoie nulle part |
-| Formats nationaux vides | 42 | 589 | Aucun `build`. Le moteur les choisit par syntaxe et obtient zéro octet — c'est le mécanisme de F-001 |
-| Clients de portail dédiés | 18 | 3 698 | À décider lot par lot ; voir §4. Ceux-là contiennent du protocole réel, ce n'est pas la même suppression |
+| Generic portals | 37 | 1,475 | `buildGenericPortalProvider()` with no `httpPort` in production: an object that accepts a document and sends it nowhere |
+| Empty national formats | 42 | 589 | No `build`. The engine picks them by syntax and gets zero bytes — this is F-001's own mechanism |
+| Dedicated portal clients | 18 | 3,698 | To be decided batch by batch; see §4. These contain real protocol work, this is not the same kind of deletion |
 
-**Total du périmètre certain : 79 fichiers, 2 064 lignes.** Le lot des 18 clients (3 698 lignes)
-est un arbitrage, pas un acquis.
+**Total of the certain scope: 79 files, 2,064 lines.** The batch of 18 clients (3,698 lines) is a
+judgment call, not a settled item.
 
-## 3. Ce qui reste
+## 3. What stays
 
-- **`profiles/data/*.ts` — les 108.** Ce sont des règles sourcées : taux, régime, durée de
-  conservation, numérotation, identifiants requis. Elles valent sans transport, et c'est le seul
-  endroit du dépôt où le travail juridique est capitalisé. Le profil ghanéen fait onze lignes et
-  n'en contient qu'une de faux : le `providerId`.
-- **Le moteur, `resolve()`, la composition de profils, le runtime.** L'audit les a établis sains et
-  sous-étendus. Hors périmètre, sans exception.
-- **Les 14 builders de `modules/invoice-rendering/national/`.** Ils rendent des documents réels.
+- **`profiles/data/*.ts` — the 108.** These are sourced rules: rate, regime, retention period,
+  numbering, required identifiers. They hold value without transport, and this is the only place in
+  the repository where the legal work is capitalized. The Ghanaian profile is eleven lines long and
+  only one of them is fake: the `providerId`.
+- **The engine, `resolve()`, profile composition, the runtime.** The audit established these as
+  sound and under-extended. Out of scope, no exception.
+- **The 14 builders in `modules/invoice-rendering/national/`.** They render real documents.
 - **`email`, `print`, `peppol`, `pdp`, `ksef`.**
 
 ---
 
-## 4. Ce qui bloque chaque suppression
+## 4. What blocks each deletion
 
-### B1 — Un profil ne peut pas exprimer « pas de transport » *(bloquant, structurel)*
+### B1 — A profile cannot express "no transport" *(blocking, structural)*
 
-`profiles/data-integrity.spec.ts` :
+`profiles/data-integrity.spec.ts`:
 
 ```ts
 expect(p.transmission.length).toBeGreaterThan(0);
 ```
 
-… et « every DocumentSyntax and channel providerId it references must resolve to a REAL provider ».
+… and "every DocumentSyntax and channel providerId it references must resolve to a REAL provider".
 
-Supprimer les 37 portails casse donc les 37 profils qui les nomment. Les repointer vers `EMAIL`
-via l'archétype `noMandate` compilerait — et **mentirait** : un pays sous mandat de clearance dont
-on déclare le canal « e-mail » affirme une conformité qui n'existe pas. Le schéma n'a aujourd'hui
-aucun état pour « un mandat existe, nous n'avons pas de sortie ».
+Deleting the 37 portals therefore breaks the 37 profiles that name them. Repointing them to `EMAIL`
+via the `noMandate` archetype would compile — and **lie**: a country under a clearance mandate
+declaring the "email" channel claims a compliance that does not exist. The schema today has no state
+for "a mandate exists, we have no output for it".
 
-**C'est le vrai blocage, et ce n'est pas un problème de volume de code : c'est un trou dans le
-schéma.** Tant qu'un profil ne peut pas dire « non desservi », les 58 stubs sont la seule façon dont
-le dépôt sait l'écrire — mal, mais sans mentir moins qu'un `EMAIL` inventé.
+**This is the real blocker, and it is not a code-volume problem: it is a hole in the schema.** As
+long as a profile cannot say "not served", the 58 stubs are the only way the repository knows how to
+write that — badly, but no more dishonestly than an invented `EMAIL`.
 
-Il faut donc, dans l'ordre : ajouter l'état, migrer les profils, puis supprimer.
+The order therefore has to be: add the state, migrate the profiles, then delete.
 
-### B2 — Les 118 pages Docusaurus *(bloquant, F-004)*
+### B2 — The 118 Docusaurus pages *(blocking, F-004)*
 
-Le site publie un navigateur à facettes avec un badge « {count} countries ». Retirer le code sans
-traiter les pages produit exactement l'inversion que F-004 dénonce : un site qui promet cent pays
-au-dessus d'un dépôt qui en implémente cinq. Le sort des pages fait partie de la suppression, pas de
-sa suite.
+The site publishes a faceted browser with a "{count} countries" badge. Removing the code without
+handling the pages produces exactly the inversion F-004 denounces: a site promising a hundred
+countries above a repository that implements five. The fate of the pages is part of the deletion,
+not its aftermath.
 
-Trois options, à trancher :
+Three options, to be decided:
 
-| | Effet | Coût |
+| | Effect | Cost |
 | --- | --- | --- |
-| Garder, avec un bandeau d'état par pays | Le travail documentaire survit, la promesse est bornée | Un champ d'état à dériver du profil |
-| Réduire aux pays servis | Aucune ambiguïté | Perte de 100+ fiches de recherche |
-| Déplacer hors du site public | Conserve tout, ne promet rien | Un déplacement, une redirection |
+| Keep, with a per-country status banner | The documentation work survives, the promise is bounded | A status field to derive from the profile |
+| Cut down to served countries | No ambiguity | Loss of 100+ research sheets |
+| Move off the public site | Keeps everything, promises nothing | A move, a redirect |
 
-`profiles/coverage.spec.ts` lit `documentation/compliance/*.md` et échoue si un pays documenté n'a
-pas de profil. Les profils restant, ce test ne bloque pas — mais si les pages partent, il perd son
-objet et devient un test qui ne teste rien.
+`profiles/coverage.spec.ts` reads `documentation/compliance/*.md` and fails if a documented country
+has no profile. As long as the profiles remain, this test does not block — but if the pages leave, it
+loses its object and becomes a test that tests nothing.
 
-### B3 — F-001 et F-004 ne doivent pas disparaître avec le code
+### B3 — F-001 and F-004 must not disappear with the code
 
-F-001 (un document de zéro octet traverse le pipeline et est archivé) a pour mécanisme précisément
-les 42 formats vides. Les supprimer **résout** le finding — mais si la suppression ne laisse aucune
-trace, la prochaine génération de stubs le recréera. Il faut, au moment de supprimer :
+F-001 (a zero-byte document travels through the pipeline and is archived) has as its precise
+mechanism the 42 empty formats. Deleting them **resolves** the finding — but if the deletion leaves
+no trace, the next generation of stubs will recreate it. At the moment of deletion, there must be:
 
-- un test qui échoue si un `FormatProvider` enregistré rend zéro octet alors qu'un renderer était
-  câblé (la distinction établie en P1-T04 ; la garde existe, il faut qu'elle survive au ménage) ;
-- la fermeture explicite de F-001 et F-004 dans `02-FINDINGS.md`, avec le commit qui les ferme.
+- a test that fails if a registered `FormatProvider` renders zero bytes while a renderer was wired in
+  (the distinction established in P1-T04; the guard exists, it has to survive the cleanup);
+- the explicit closing of F-001 and F-004 in `02-FINDINGS.md`, with the commit that closes them.
 
-### B4 — La vérification de la dérivation depuis le taux *(levé)*
+### B4 — Verifying derivation from the rate *(lifted)*
 
-La règle de périmètre disait : rien ne se supprime avant d'avoir vérifié, sur les 58, que la
-dérivation d'une catégorie TVA depuis un taux n'existe pas ailleurs. **C'est fait** (§1 du rapport
-de ce tour). Le résultat, et il change la conclusion :
+The scope rule said: nothing gets deleted before verifying, across the 58, that deriving a VAT
+category from a rate does not exist elsewhere. **This is done** (§1 of this round's report). The
+result, and it changes the conclusion:
 
 | Site | Nature |
 | --- | --- |
-| `invoice-rendering.service.ts:358` | corrigé — lisait le taux, lit le plan |
-| `tax-engine.ts:177` | le moteur, `taxCategoryHint ?? (rate === 0 ? 'Z' : 'S')` |
-| `tax-engine.ts:250` | le moteur, `rate > 0 ? 'S' : 'Z'` sur une ligne de *sales tax* américaine |
-| `europe-builders.ts:40` | myDATA grec, `vatRate > 0 ? '1' : '7'` |
+| `invoice-rendering.service.ts:358` | fixed — used to read the rate, now reads the plan |
+| `tax-engine.ts:177` | the engine, `taxCategoryHint ?? (rate === 0 ? 'Z' : 'S')` |
+| `tax-engine.ts:250` | the engine, `rate > 0 ? 'S' : 'Z'` on a US sales-tax line |
+| `europe-builders.ts:40` | Greek myDATA, `vatRate > 0 ? '1' : '7'` |
 | `europe-builders.ts:96` | `AAA` / `AAM` |
-| `cfdi.ts:30` | traslado mexicain émis seulement si taux > 0 |
-| `fattura-pa.ts:50` | Natura italienne calculée seulement si taux = 0 |
+| `cfdi.ts:30` | Mexican traslado emitted only if rate > 0 |
+| `fattura-pa.ts:50` | Italian Natura computed only if rate = 0 |
 | `ksa-ubl.ts:207` | `'S'` / `'E'` |
-| `latam-builders.ts:121` | `CodigoTarifa` costaricain dérivé de la valeur du taux |
+| `latam-builders.ts:121` | Costa Rican `CodigoTarifa` derived from the rate's value |
 
-**Dix occurrences, pas trois.** Et le fait notable pour cet inventaire : **six d'entre elles sont
-dans les 14 builders qui RESTENT**, pas dans les 79 qui partent. La suppression ne les emporte pas.
-Les deux du moteur sont d'une autre nature — là, le moteur est l'autorité qui décide, pas une copie
-qui devine — mais `0 ⇒ Z` y ignore E et O, et mérite d'être repris à part.
+**Ten occurrences, not three.** And the notable fact for this inventory: **six of them are in the 14
+builders that STAY**, not in the 79 that leave. The deletion does not remove them. The two in the
+engine are of a different nature — there, the engine is the authority making the decision, not a
+copy guessing at it — but `0 ⇒ Z` ignores E and O there too, and deserves to be revisited on its own.
 
-### B5 — Les 18 clients dédiés sont un arbitrage, pas un acquis
+### B5 — The 18 dedicated clients are a judgment call, not a settled item
 
-Ils contiennent du protocole réel (SOAP SdI, ChorusPro, ANAF, SEFAZ…), 3 698 lignes, et leur seul
-défaut est l'absence d'identifiants. Les supprimer jette du travail exact ; les garder maintient
-17 chemins que rien ne parcourt. **À trancher pays par pays selon les marchés visés** — France,
-Pologne, Italie sont les marchés déclarés, donc `sdi` et `choruspro` ne relèvent pas du même
-jugement que `uy-dgi`.
+They contain real protocol work (SOAP SdI, ChorusPro, ANAF, SEFAZ…), 3,698 lines, and their only
+fault is the lack of credentials. Deleting them throws away exact work; keeping them maintains
+17 paths that nothing walks. **To decide country by country according to the target markets** —
+France, Poland, Italy are the declared markets, so `sdi` and `choruspro` do not fall under the same
+judgment as `uy-dgi`.
 
 ---
 
-## 5. L'ordre imposé par les blocages
+## 5. The order the blockers impose
 
-1. Ajouter au schéma l'état « mandat connu, pas de sortie » (B1).
-2. Trancher le sort des 118 pages (B2).
-3. Migrer les 37 + 42 profils vers le nouvel état.
-4. Supprimer les 79 fichiers, en fermant F-001 et F-004 avec le commit (B3).
-5. Arbitrer les 18 clients dédiés séparément (B5).
-6. Reprendre à part les 6 dérivations depuis le taux qui survivent (B4).
+1. Add to the schema the "mandate known, no output" state (B1).
+2. Decide the fate of the 118 pages (B2).
+3. Migrate the 37 + 42 profiles to the new state.
+4. Delete the 79 files, closing F-001 and F-004 with the commit (B3).
+5. Decide the 18 dedicated clients separately (B5).
+6. Revisit separately the 6 surviving rate-derivations (B4).
 
-Aucune de ces étapes ne touche le moteur, `resolve()`, la composition de profils ni le runtime.
+None of these steps touch the engine, `resolve()`, profile composition, or the runtime.
