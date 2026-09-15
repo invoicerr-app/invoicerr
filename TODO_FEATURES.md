@@ -1,705 +1,707 @@
-# TODO_FEATURES — fonctionnalités manquantes vs. concurrents (2026-09-15)
+# TODO_FEATURES — missing features vs. competitors (2026-09-15)
 
-> Tâche d'ANALYSE pour §1/§2 (aucun code touché par ce fichier). Méthode : §1 est reconstruit à 100 %
-> depuis le code (modules `backend/src/modules/`, écrans `frontend/src/pages/`, specs
-> `e2e/cypress/e2e/`) — jamais deviné. §2 recoupe cet inventaire avec une recherche web sur les
-> logiciels de facturation concurrents (SaaS et self-hosted, y compris closed-source) pour ne garder
-> que les manques réellement récurrents chez eux. Chaque ligne de manque porte une case "e2e" : ce
-> qu'un test devrait prouver le jour où l'item est implémenté.
+> ANALYSIS task for §1/§2 (no code touched by this file). Method: §1 is rebuilt 100% from the code
+> (modules `backend/src/modules/`, screens `frontend/src/pages/`, specs `e2e/cypress/e2e/`) — never
+> guessed. §2 cross-references this inventory against web research on competing invoicing software
+> (SaaS and self-hosted, closed-source included) to keep only the genuinely recurring gaps among
+> them. Every gap line carries an "e2e" note: what a test should prove the day the item is
+> implemented.
 >
-> Ce fichier est complémentaire à `TODO_MANDANT.md` (credentials/démarches de conformité e-invoicing)
-> et à `TODO_ISSUES.md` (le moteur de conformité pays). Il ne les recoupe pas : il couvre les
-> fonctionnalités "métier" génériques (paiement, relances, portail, stock, temps…) que la
-> quasi-totalité des concurrents proposent, indépendamment de la conformité e-invoicing par pays
-> (déjà très avancée, voir §1.2).
+> This file is complementary to `TODO_MANDANT.md` (e-invoicing compliance credentials/steps) and to
+> `TODO_ISSUES.md` (the per-country compliance engine). It does not overlap with them: it covers
+> generic "business" features (payment, reminders, portal, stock, time…) that nearly every
+> competitor offers, independent of per-country e-invoicing compliance (already very advanced, see
+> §1.2).
 >
-> **Réorganisation du 2026-09-15.** L'ancienne « file d'exécution » (décidée le 2026-09-13) et
-> l'ancien « Suivi » affichaient encore « en cours »/« en file » pour des features livrées et
-> prouvées en CI depuis (run `34875223906`, 2026-09-14, workflow « Tests », job `cypress-run` vert —
-> chaque feature listée ci-dessous a sa propre spec Cypress passante, sauf mention contraire).
-> Remplacés par la section **Livré** et par les **décisions produit du propriétaire** prises le
-> 2026-09-15, qui referment ou reformulent plusieurs manques restants (paiements, PDF, email, mobile,
-> abonnement) et ajoutent un sujet nouveau (serveur de mail d'instance vs. de société). Les rangs et
-> intitulés numérotés dans ce fichier reprennent ceux du §3 historique — ils ne sont pas repartis de
-> zéro.
+> **Reorganization of 2026-09-15.** The old "execution queue" (decided on 2026-09-13) and the old
+> "Tracking" section still showed "in progress"/"queued" for features that have since shipped and
+> been proven in CI (run `34875223906`, 2026-09-14, workflow "Tests", job `cypress-run` green —
+> every feature listed below has its own passing Cypress spec, unless noted otherwise). Replaced by
+> the **Shipped** section and by the **owner's product decisions** made on 2026-09-15, which close
+> out or reformulate several remaining gaps (payments, PDF, email, mobile, subscription) and add a
+> new topic (instance vs. company mail server). The ranks and numbered titles in this file carry
+> over from the historical §3 — they were not restarted from zero.
 >
-> **État de la CI, honnêtement (2026-09-15, 12 h).** Dernier vert complet : `fb00877b` (spec 30).
-> Run `34930840117` (`cfae3605`, relancé après un runner perdu sans log) : backend/lint/i18n verts,
-> Cypress 296/303, **3 specs sur 59 rouges** — 14 (sélecteur d'article hors viewport du dialogue),
-> 65 (le test attend 201, l'API répond 200 ; test 4 dépendant du 3), 66 (`[data-day="9/15/2026"]`,
-> le piège de la date calculée par le test, malgré la consigne). Spec 64 passé. Correctifs en cours ;
-> les runs de `c4e1d1a0`, `9ce4a558`, `0f39d2e5`, `94924a36` (matin) sont en file.
+> **CI status, honestly (2026-09-15, 12:00).** Last fully green run: `fb00877b` (spec 30). Run
+> `34930840117` (`cfae3605`, rerun after a runner was lost with no log): backend/lint/i18n green,
+> Cypress 296/303, **3 specs out of 59 red**: 14 (article picker outside the dialog's viewport), 65
+> (the test expects 201, the API responds 200; test 4 depends on test 3), 66 (`[data-day="9/15/2026"]`,
+> the test-computed-date trap, despite the guidance against it). Spec 64 passed. Fixes in progress;
+> the runs for `c4e1d1a0`, `9ce4a558`, `0f39d2e5`, `94924a36` (morning) are queued.
 
 ---
 
-## Livré (25)
+## Shipped (25)
 
-| Rang | Feature | Preuve |
+| Rank | Feature | Proof |
 |---:|---|---|
-| 1 | Paiement en ligne (Stripe) | Câblé et testé à blanc — spec `60-online-payment`, commit `4c0b0c94` (2026-09-14). **Jamais prouvé avec un vrai compte Stripe** : le commit le dit lui-même — « No payment-provider account exists for this project and none will » — la vérification webhook/idempotence est réelle, l'intégration ne l'est pas. Voir Décision A. |
-| 2 | Relances automatiques (dunning) | `53-reminders-toggle` |
-| 3 | Portail client authentifié | `56-client-portal` |
-| 4 | Export comptable (CSV générique) | `52-accounting-export` |
-| 5 | Rapprochement bancaire | `59-bank-reconciliation` |
-| 6 | Relevé de compte client | `47-client-statement` |
-| 7 | Référence client / n° de commande | `46-client-reference` |
-| 8 | QR de paiement SEPA (EPC069-12) | `48-payment-qr` |
-| 9 | Taux de change automatiques | Livré le 2026-09-14 — `backend/src/modules/company/currency-rates/` (sweep BullMQ quotidien, flux BCE `ecb-rates-client.ts` + repli `open-er-api-rates-client.ts` sans clé). Pas d'écran : preuve = jest + round-trip live réel contre le flux BCE (`ECB_LIVE=1`), pas de spec Cypress. |
-| 10 | Écran « déclarations » (Portugal seul) | `c6a06617`, sans migration. `reporting-runner.ts` persistait déjà chaque résultat dans `DocumentAuthorityEvent` — ce qui manquait était la lecture au niveau société : `reporting/list-declarations.ts` (liste paginée, filtrable par statut, fournisseurs découverts dynamiquement depuis `reporting/data/*.json`), route `GET /documents/declarations`, écran « Declarations », SSE qui invalide désormais aussi cette liste. Spec Cypress `64-declarations` écrite mais **pas exécutée** (backend en cours d'édition au moment du commit) — à confirmer par la CI. |
-| 11 | Suivi du temps & facturation de projets | `57-time-tracking` |
-| 12 | Facturation échelonnée multi-jalons | `51-installments` |
-| 13 | Notes de frais enrichies (pièce jointe, catégorie, kilométrage) | `6cb60096`, sans migration. Réutilise le stockage des factures reçues (`received-invoices/storage.ts`, volume `documents_data`) et le hash SHA-256 de `archive/hashing.ts` ; nouveau type de champ générique `file` au descripteur. Deux choix de produit pris au plus simple, **à valider** (voir Questions ouvertes) : dix catégories fixes + « Other », taille max 750 Kio (dérivée de la limite globale bodyParser 1 Mo — refusera la plupart des photos de téléphone). |
-| 14 | Langue du document par destinataire | `58-document-recipient-language` — cascade `Client.language` → `Company.language` → `en` (`rendering/language/resolve-recipient-language.ts`), vérifiée dans le code : c'est exactement la cascade que la Décision B redemande pour le PDF, déjà en place. |
-| 15 | Champs personnalisés (clients + documents) | `3ff59800`, avec migration `20260914170000_company_custom_fields` (renommée le 2026-09-15, voir Questions ouvertes #1). CRUD scopé société, clé immuable dérivée du libellé, suppression = archivage (`archivedAt`), rendu fusionné avec les descripteurs génériques côté formulaire et PDF. **Fusion terminée** (`9f2e3585`) : un champ personnalisé requis bloque désormais toute action, `send` compris, avant tout effet de bord — ce n'est plus « en cours ». Bug latent de collision de clés corrigé au passage (`findAvailableKey`, deux libellés se réduisant au même slug sous des scopes différents). Choix à valider : voir Questions ouvertes. |
-| 17 | Workflow d'approbation interne | `50-approval` |
-| 18 | Gestion de stock basique | `49-stock` |
-| 19 (1ʳᵉ passe) | Bons de commande à un fournisseur — émission | `de30e2a4`, sans migration : un `DocumentTypeDescriptor` de plus (fournisseur, date, date de livraison attendue, devise, référence, lignes), statuts calqués sur la facture, numérotation `PURCHASE-ORDER-` à l'entrée en `sending`, envoi réutilisant tel quel `runAsyncSendAction`/`sendDocumentInstanceEmail`. **Aucun code frontend touché** — menu, liste et formulaire pilotés par le descripteur. Country-policy étendu aux cinq pays (sinon 403 partout et invisible au menu). Bug latent corrigé en passant : `compute-totals.ts` plantait (« no usable VAT rate ») sur un type dont les lignes n'ont aucun champ de TVA — jamais exercé avant. **Le rapprochement 3-way avec la facture reçue est une seconde passe, non livrée** — voir Restent. Trois choix pris pour l'émission, à valider : voir Questions ouvertes. **Non établi** : l'exécution réelle du spec Cypress 66 (Cypress non lancé). |
-| 21 | Application mobile — PWA (Décision D) | `b7a6581d` (manifeste, service worker, icônes générées depuis le logo, `vite-plugin-pwa`, `/api/*` jamais mis en cache) puis `acbc2011` (le SW s'enregistrait sans garde et faisait tomber `29-document-recurrence` en CI — corrigé : enregistrement manuel sous garde `!("Cypress" in window)`, rechargement réel à l'activation d'un nouveau SW via `virtual:pwa-register`). README corrigé dans le même commit, ne promet plus d'app native. **Non établi** : installabilité réelle sur iOS/Android, aucun appareil ni simulateur ici. |
-| G | Serveur de mail — instance→société, fournisseur Resend (Décision G) | **COMPLÈTE : backend + écran.** Backend : `f1ed72e4`, `63b42ef9`, `1958c47a`. Écran Réglages → Mail : `7a61f3f7` — état courant sans jamais rendre de secret, formulaire SMTP/Resend, « Tester l'envoi » toujours disponible (erreur backend affichée mot pour mot), retour au serveur de l'instance après confirmation, onglet masqué aux MEMBER. Voir Décision G pour le détail. **Réserve** : son spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4) ; instrumenté (`c7e80579`, un vrai défaut d'écran corrigé au passage), mais la cause du premier échec reste NON établie — voir Questions ouvertes. |
-| 16 → B | Préréglages visuels du PDF (logo, couleur d'accent, police parmi 5 OFL) | `45d67c70` + câblage dans `14c6ae17`, migration `20260915093020_company_branding` (null = HTML identique à l'octet près, snapshot). API `/api/company/branding` (+ logo, preview), onglet Réglages → Branding, spec `69-company-branding` **écrit, non exécuté localement** — CI à lire. PDF réel non prouvé ici (pas de Chromium sur la machine), seul le HTML l'est. |
-| C | Emails — éditeur WYSIWYG (TipTap) | `9ce4a558` — le corps était déjà du HTML côté backend, variables `{clé}` lues depuis l'API, un seul éditeur par gabarit, anciens corps texte convertis en paragraphes. Spec `54-email-templates` adapté et **vert en CI** (run `34950458992`). |
-| 19 (2ᵉ passe) | Bons de commande — rapprochement 3-way (bon de réception, tolérance société, acceptation OWNER/ADMIN tracée) | `14c6ae17`, sans migration : type `goods-receipt`, moteur pur `reconciliation/three-way-match.ts`, tolérance dans un `DocumentInstance` singleton par société, acceptation dans `data.varianceAcceptance`. Prouvé en HTTP réel (66,67 % → to-review → tolérance 70 % → within-tolerance → acceptation persistée). Spec `70-three-way-match` **écrit, non exécuté localement** — CI à lire. |
-| 13 (suite) | Catégories de notes de frais dynamiques par société | `94924a36`, migration `20260915085840_expense_categories` : table, jeu par défaut, CRUD OWNER/ADMIN, options composées par société. Bug trouvé au boot réel (route masquée par `@Get(':id')`). Spec `68-expense-categories` **écrit, non exécuté localement** — CI à lire. |
-| *(hors liste)* | Méthodes de paiement typées par société | `61-payment-methods`, livré le 2026-09-14 (`backend/src/modules/documents/payment-methods/`) |
+| 1 | Online payment (Stripe) | Wired and dry-run tested — spec `60-online-payment`, commit `4c0b0c94` (2026-09-14). **Never proven with a real Stripe account**: the commit says so itself — "No payment-provider account exists for this project and none will" — the webhook/idempotency verification is real, the integration is not. See Decision A. |
+| 2 | Automatic reminders (dunning) | `53-reminders-toggle` |
+| 3 | Authenticated client portal | `56-client-portal` |
+| 4 | Accounting export (generic CSV) | `52-accounting-export` |
+| 5 | Bank reconciliation | `59-bank-reconciliation` |
+| 6 | Client account statement | `47-client-statement` |
+| 7 | Client reference / PO number | `46-client-reference` |
+| 8 | SEPA payment QR (EPC069-12) | `48-payment-qr` |
+| 9 | Automatic exchange rates | Shipped on 2026-09-14 — `backend/src/modules/company/currency-rates/` (daily BullMQ sweep, ECB feed `ecb-rates-client.ts` + no-key fallback `open-er-api-rates-client.ts`). No screen: proof = jest + a real live round-trip against the ECB feed (`ECB_LIVE=1`), no Cypress spec. |
+| 10 | "Declarations" screen (Portugal only) | `c6a06617`, no migration. `reporting-runner.ts` already persisted every result in `DocumentAuthorityEvent` — what was missing was reading it at the company level: `reporting/list-declarations.ts` (paginated list, filterable by status, providers discovered dynamically from `reporting/data/*.json`), route `GET /documents/declarations`, "Declarations" screen, SSE now also invalidates this list. Cypress spec `64-declarations` written but **not run** (backend still being edited at commit time) — to confirm via CI. |
+| 11 | Time tracking & project billing | `57-time-tracking` |
+| 12 | Multi-milestone installment billing | `51-installments` |
+| 13 | Enriched expense reports (attachment, category, mileage) | `6cb60096`, no migration. Reuses received-invoice storage (`received-invoices/storage.ts`, `documents_data` volume) and the SHA-256 hash from `archive/hashing.ts`; new generic `file` field kind on the descriptor. Two product choices made at the simplest option, **to be validated** (see Open questions): ten fixed categories plus "Other", 750 KiB max size (derived from the global 1 MB bodyParser limit — will reject most phone photos). |
+| 14 | Document language per recipient | `58-document-recipient-language` — cascade `Client.language` → `Company.language` → `en` (`rendering/language/resolve-recipient-language.ts`), verified in the code: it's exactly the cascade Decision B asks for again for the PDF, already in place. |
+| 15 | Custom fields (clients + documents) | `3ff59800`, with migration `20260914170000_company_custom_fields` (renamed 2026-09-15, see Open questions #1). Company-scoped CRUD, immutable key derived from the label, deletion = archiving (`archivedAt`), rendering merged with the generic descriptors on both the form and the PDF. **Merge completed** (`9f2e3585`): a required custom field now blocks every action, `send` included, before any side effect — no longer "in progress". Latent key-collision bug fixed along the way (`findAvailableKey`, two labels reducing to the same slug under different scopes). Choices to validate: see Open questions. |
+| 17 | Internal approval workflow | `50-approval` |
+| 18 | Basic stock management | `49-stock` |
+| 19 (1st pass) | Purchase orders to a supplier — issuance | `de30e2a4`, no migration: one more `DocumentTypeDescriptor` (supplier, date, expected delivery date, currency, reference, lines), statuses mirroring the invoice, `PURCHASE-ORDER-` numbering on entering `sending`, sending reuses `runAsyncSendAction`/`sendDocumentInstanceEmail` as-is. **No frontend code touched** — menu, list and form all driven by the descriptor. Country-policy extended to the five countries (otherwise 403 everywhere and invisible in the menu). Latent bug fixed in passing: `compute-totals.ts` was crashing ("no usable VAT rate") on a type whose lines have no VAT field — never exercised before. **The 3-way reconciliation with the received invoice is a second pass, not shipped** — see Remaining. Three choices made for issuance, to validate: see Open questions. **Not established**: the real run of Cypress spec 66 (Cypress not launched). |
+| 21 | Mobile app — PWA (Decision D) | `b7a6581d` (manifest, service worker, icons generated from the logo, `vite-plugin-pwa`, `/api/*` never cached) then `acbc2011` (the SW was registering itself without a guard and was breaking `29-document-recurrence` in CI — fixed: manual registration under the guard `!("Cypress" in window)`, real reload on activation of a new SW via `virtual:pwa-register`). README fixed in the same commit, no longer promises a native app. **Not established**: real installability on iOS/Android, no device or simulator here. |
+| G | Mail server — instance→company, Resend provider (Decision G) | **COMPLETE: backend + screen.** Backend: `f1ed72e4`, `63b42ef9`, `1958c47a`. Settings → Mail screen: `7a61f3f7` — current state without ever rendering a secret, SMTP/Resend form, "Test send" always available (backend error shown verbatim), reverts to the instance server after confirmation, tab hidden from MEMBER. See Decision G for detail. **Caveat**: its Cypress spec 65 failed on its first run (3 failures out of 4); instrumented (`c7e80579`, a real screen defect fixed along the way), but the cause of the first failure remains NOT established — see Open questions. |
+| 16 → B | PDF visual presets (logo, accent color, font from a set of 5 OFL fonts) | `45d67c70` + wiring in `14c6ae17`, migration `20260915093020_company_branding` (null = byte-identical HTML, snapshot). API `/api/company/branding` (+ logo, preview), Settings → Branding tab, spec `69-company-branding` **written, not run locally** — CI to be read. Real PDF not proven here (no Chromium on this machine), only the HTML is. |
+| C | Emails — WYSIWYG editor (TipTap) | `9ce4a558` — the body was already HTML server-side, `{key}` variables read from the API, a single editor per template, old plain-text bodies converted to paragraphs. Spec `54-email-templates` adapted and **green in CI** (run `34950458992`). |
+| 19 (2nd pass) | Purchase orders — 3-way reconciliation (goods receipt, company tolerance, tracked OWNER/ADMIN acceptance) | `14c6ae17`, no migration: `goods-receipt` type, pure engine `reconciliation/three-way-match.ts`, tolerance in a per-company singleton `DocumentInstance`, acceptance in `data.varianceAcceptance`. Proven over real HTTP (66.67% → to-review → 70% tolerance → within-tolerance → persisted acceptance). Spec `70-three-way-match` **written, not run locally** — CI to be read. |
+| 13 (continued) | Dynamic per-company expense categories | `94924a36`, migration `20260915085840_expense_categories`: table, default set, OWNER/ADMIN CRUD, options composed per company. Bug found at real boot (route hidden behind `@Get(':id')`). Spec `68-expense-categories` **written, not run locally** — CI to be read. |
+| *(off list)* | Payment methods typed per company | `61-payment-methods`, shipped on 2026-09-14 (`backend/src/modules/documents/payment-methods/`) |
 
 ---
 
-## Restent (2) — vérifiés dans le code au 2026-09-15, 14 h
+## Remaining (2) — verified in the code on 2026-09-15, 14:00
 
-| Rang | Feature | État vérifié (2026-09-15) | e2e à prouver |
+| Rank | Feature | Verified state (2026-09-15) | e2e to prove |
 |---:|---|---|---|
-| 20 → E | Offre hébergée — abonnement Polar par siège (Décision E) | **Construit à blanc le 2026-09-15** (`d16b46dd`, migration `20260915102254_company_subscription`) : tout invisible sans `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (404 réel prouvé), boot refusé avec flag sans clé, plugin `@polar-sh/better-auth` 1.8.4 hors guards Nest (middleware Express, chaque route se protège seule), sièges = `CompanyMembership`, cycle de vie en fonction pure testée sur chaque frontière, gate `TRIAL_SEND_BLOCKED`. **Reste** : preuve réelle contre Polar sandbox (clé attendue), gate « toute action refusée » en `blocked` — **livré** (`4152fea8`, `CompanyWriteGuard` global sous le flag, refus nommé `COMPANY_BLOCKED` 403, jest seulement), zip/suppression jamais exécutés hors jest, clause CGU. | Avec `POLAR_LIVE=1` : `polar.live.spec.ts` liste les produits de l'organisation sandbox ; un checkout sandbox aboutit et `GET /api/billing/status` passe `trial` → `active`. |
-| A | Paiements — Mollie, PayPal réel, régionaux | **Construits à blanc le 2026-09-15** (`3247fa9d`) : Mollie (Payments API v2, webhook vérifié par re-GET), PayPal (OAuth2, Orders v2, crédit uniquement sur `PAYMENT.CAPTURE.COMPLETED` vérifié), fournisseur choisi par société (`Company.paymentProviderId`, migration, repli Stripe), 170 tests jest verts. **Reste** : preuve réelle avec les clés sandbox (Stripe, Mollie, PayPal — attendues dans `backend/.env.test.local`), spec 71 à confirmer en CI, régionaux (Payplug, Przelewy24, Nexi, Easypay/IfThenPay) non commencés. | Live specs gatés `MOLLIE_LIVE`/`PAYPAL_LIVE`/`STRIPE_LIVE` verts avec de vraies clés ; un paiement Stripe test réellement encaissé. |
+| 20 → E | Hosted offering — per-seat Polar subscription (Decision E) | **Built dry on 2026-09-15** (`d16b46dd`, migration `20260915102254_company_subscription`): everything invisible without `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (real 404 proven), boot refused if the flag is set without a key, `@polar-sh/better-auth` plugin 1.8.4 outside Nest guards (Express middleware, each route protects itself), seats = `CompanyMembership`, lifecycle tested as a pure function on every boundary, `TRIAL_SEND_BLOCKED` gate. **Remaining**: real proof against the Polar sandbox (key expected), the "every action refused" gate in `blocked` — **shipped** (`4152fea8`, global `CompanyWriteGuard` under the flag, refusal named `COMPANY_BLOCKED` 403, jest only), zip/deletion never run outside jest, ToS clause. | With `POLAR_LIVE=1`: `polar.live.spec.ts` lists the sandbox organization's products; a sandbox checkout completes and `GET /api/billing/status` moves from `trial` to `active`. |
+| A | Payments — Mollie, real PayPal, regional | **Built dry on 2026-09-15** (`3247fa9d`): Mollie (Payments API v2, webhook verified by re-GET), PayPal (OAuth2, Orders v2, credit only on a verified `PAYMENT.CAPTURE.COMPLETED`), provider chosen per company (`Company.paymentProviderId`, migration, Stripe fallback), 170 green jest tests. **Remaining**: real proof with sandbox keys (Stripe, Mollie, PayPal — expected in `backend/.env.test.local`), spec 71 to confirm in CI, regionals (Payplug, Przelewy24, Nexi, Easypay/IfThenPay) not started. | Live specs gated on `MOLLIE_LIVE`/`PAYPAL_LIVE`/`STRIPE_LIVE` green with real keys; a real captured test Stripe payment. |
 
-### Rang 10 — pourquoi le mécanisme `reporting/` ne concerne toujours que le Portugal
+### Rank 10 — why the `reporting/` mechanism still only covers Portugal
 
-`reporting/` modélise « le vendeur DÉCLARE les données de la facture à SON autorité fiscale en temps
-réel et reçoit un identifiant émis par l'autorité » (`DeclarationResult.authorityId` obligatoire).
-NAV (Hongrie) et myDATA (Grèce) étaient les deux seules formes livrées ; les deux pays sont sortis du
-périmètre au pivot cinq pays (2026-09-10) et leurs fichiers ont été supprimés (vérifié : `find` ne
-trouve plus aucun `*mydata*`/`*nav*` sous `reporting/`). Verdicts pays par pays (étude 2026-09-11,
-sources primaires, non repris ici en détail — voir l'historique git de ce fichier pour le texte
-complet) : FR (e-reporting via PDP→PPF, transport périodique, pas une déclaration temps réel), PL/IT
-(KSeF/SdI = clearance/transport, déjà modélisé ailleurs), DE (Meldesystem pas encore législé). **PT
-reste le seul candidat honnête** et a déjà reçu son provider (`pt-at`, DL 198/2012 art. 3º n.º1,
-provenance `legal`) — implémenté mais jamais éprouvé en réel (mTLS non câblé, padding RSA
-`unverified`). Le besoin produit d'origine (« donner du contenu à l'écran ») **est réglé** : l'écran
-est livré (`c6a06617`, rang 10 — voir Livré) et lit `DocumentAuthorityEvent` en le distinguant d'un
-événement de conformité ordinaire par `providerId`, sans mélanger les deux mécanismes — exactement ce
-que l'en-tête de `reporting/schema.ts` demande. Reste, à part ça, la mise en réel du fournisseur PT
-(mTLS, padding RSA) une fois l'accréditation obtenue.
+`reporting/` models "the seller DECLARES the invoice data to THEIR OWN tax authority in real time
+and receives an identifier issued by the authority" (`DeclarationResult.authorityId` mandatory).
+NAV (Hungary) and myDATA (Greece) were the only two shipped forms; both countries fell out of scope
+at the five-country pivot (2026-09-10) and their files were deleted (verified: `find` no longer
+turns up any `*mydata*`/`*nav*` under `reporting/`). Country-by-country verdicts (2026-09-11 study,
+primary sources, not reproduced here in detail — see this file's git history for the full text): FR
+(e-reporting via PDP→PPF, a periodic transport, not a real-time declaration), PL/IT (KSeF/SdI =
+clearance/transport, already modeled elsewhere), DE (Meldesystem not yet legislated). **PT remains
+the only honest candidate** and has already received its provider (`pt-at`, DL 198/2012 art. 3º
+n.º1, `legal` provenance) — implemented but never proven live (mTLS not wired, RSA padding
+`unverified`). The original product need ("give the screen some content") **is resolved**: the
+screen has shipped (`c6a06617`, rank 10 — see Shipped) and reads `DocumentAuthorityEvent`,
+distinguishing it from an ordinary conformity event via `providerId`, without mixing the two
+mechanisms — exactly what `reporting/schema.ts`'s own header asks for. What remains, apart from
+that, is bringing the PT provider to production (mTLS, RSA padding) once accreditation is obtained.
 
 ---
 
-## Décisions produit du 2026-09-15
+## Owner's product decisions of 2026-09-15
 
-### A. Paiements — toutes les plateformes
+### A. Payments — every platform
 
-Mandat du propriétaire : « va falloir checker toutes les façons de pouvoir payer une facture, et
-toutes les plateformes (faire fonctionner PayPal, Stripe, et toutes les autres plateformes du
-genre) ». Point de départ vérifié dans le code : Stripe est câblé (`payments/providers/stripe/`) mais
-**jamais prouvé avec un vrai compte** (voir Livré, rang 1) ; PayPal aujourd'hui n'est qu'un
-**descripteur d'affichage** (`payment-methods/paypal.descriptor.ts` — imprime l'email du compte et
-construit un lien `paypal.com/cgi-bin/webscr` classique, JAMAIS un webhook vérifié : « recording that
-it arrived stays a record-payment action a human … performs afterward »). Les points d'extension
-existent déjà et n'ont pas besoin d'être réinventés : `backend/src/modules/documents/payments/
-providers/` (registre `PaymentProviderRegistry`, un provider = un fichier + un `register()`) pour un
-VRAI encaissement webhook-vérifié, et `backend/src/modules/documents/payment-methods/` (descripteurs
-d'affichage : `cash`, `bank-transfer`, `cheque`, `paypal`, `stripe`) pour ce qui reste déclaratif.
+Owner's mandate: "we need to check every way to pay an invoice, and every platform (get PayPal,
+Stripe, and every other platform of that kind working)." Starting point verified in the code:
+Stripe is wired (`payments/providers/stripe/`) but **never proven with a real account** (see
+Shipped, rank 1); PayPal today is only a **display descriptor**
+(`payment-methods/paypal.descriptor.ts` — prints the account email and builds a plain
+`paypal.com/cgi-bin/webscr` link, NEVER a verified webhook: "recording that it arrived stays a
+record-payment action a human … performs afterward"). The extension points already exist and don't
+need to be reinvented: `backend/src/modules/documents/payments/providers/` (the
+`PaymentProviderRegistry` registry, one provider = one file + one `register()`) for a REAL
+webhook-verified collection method, and `backend/src/modules/documents/payment-methods/` (display
+descriptors: `cash`, `bank-transfer`, `cheque`, `paypal`, `stripe`) for what remains purely
+declarative.
 
-**Recherche sur les plateformes utilisables dans les 5 pays avec bac à sable sans entreprise réelle**
-(sources officielles citées, 2026-09-15) :
+**Research on platforms usable in the 5 countries with a sandbox and no real company required**
+(official sources cited, 2026-09-15):
 
-| Plateforme | Moyens de paiement | API (lien + webhook) | Pays FR/PL/IT/PT/DE | Bac à sable sans entreprise | Frais annoncés (page tarifaire, 2026-09) | Famille |
+| Platform | Payment methods | API (link + webhook) | FR/PL/IT/PT/DE countries | Sandbox without a real company | Advertised fees (pricing page, 2026-09) | Family |
 |---|---|---|---|---|---|---|
-| **Stripe** | +40 (cartes, SEPA, iDEAL, Przelewy24…) | Oui — Payment Links API | ✓/✓/✓/**?**/✓ | Oui, gratuit (test mode intégré) | Carte 1,5 % + 0,25 € (EEE) ; SEPA 0,35 € | Généraliste — déjà câblé, jamais prouvé |
-| **Mollie** | +35 (cartes, SEPA, iDEAL, Przelewy24, Bancontact, MB WAY…) | Oui — Payment Links API | ✓/✓/✓/✓/✓ (30 pays EEE) | Oui, gratuit | Carte 1,8 % + 0,25 € ; SEPA 0,25 % + 0,4 % ; iDEAL 0,29 € | Généraliste — natif UE, couvre tous les moyens locaux des 5 pays |
-| **PayPal** | PayPal, cartes, méthodes locales | Oui — Orders API v2 + webhooks | ✓/✓/✓/✓/✓ (200+ pays) | Oui, sandbox développeur gratuit | 3,49 % + fixe (checkout) ; 2,99 % + fixe (cartes) | Généraliste — aujourd'hui descripteur seul dans invoicerr, à construire en vrai encaissement |
-| Payplug | Cartes, Apple Pay, Google Pay | Oui — API REST | FR seulement | Oui, environnement de test | Non établi | Spécialiste FR |
-| Przelewy24 | +165 banques polonaises, cartes | Oui — API REST | PL seulement | Oui, panel de test | Non établi | Spécialiste PL |
-| Nexi (XPay) | Cartes, Satispay, BNPL | Oui — Pay-by-Link API | IT seulement | Non établi | Non établi | Spécialiste IT |
-| Easypay | Cartes, MB WAY, Multibanco | Oui — Pay-by-Link | PT seulement | Oui, gratuit | Non établi | Spécialiste PT |
-| IfThenPay | Multibanco, MB WAY, Payshop, cartes | Oui — Pay-by-Link | PT seulement | Oui | Non établi | Spécialiste PT |
+| **Stripe** | +40 (cards, SEPA, iDEAL, Przelewy24…) | Yes — Payment Links API | ✓/✓/✓/**?**/✓ | Yes, free (built-in test mode) | Card 1,5 % + 0,25 € (EEA); SEPA 0,35 € | General-purpose — already wired, never proven |
+| **Mollie** | +35 (cards, SEPA, iDEAL, Przelewy24, Bancontact, MB WAY…) | Yes — Payment Links API | ✓/✓/✓/✓/✓ (30 EEA countries) | Yes, free | Card 1,8 % + 0,25 €; SEPA 0,25 % + 0,4 %; iDEAL 0,29 € | General-purpose — EU-native, covers every local payment method in all 5 countries |
+| **PayPal** | PayPal, cards, local methods | Yes — Orders API v2 + webhooks | ✓/✓/✓/✓/✓ (200+ countries) | Yes, free developer sandbox | 3,49 % + fixed (checkout); 2,99 % + fixed (cards) | General-purpose — currently a display-only descriptor in invoicerr, to be built as real collection |
+| Payplug | Cards, Apple Pay, Google Pay | Yes — REST API | FR only | Yes, test environment | Not established | FR specialist |
+| Przelewy24 | +165 Polish banks, cards | Yes — REST API | PL only | Yes, test panel | Not established | PL specialist |
+| Nexi (XPay) | Cards, Satispay, BNPL | Yes — Pay-by-Link API | IT only | Not established | Not established | IT specialist |
+| Easypay | Cards, MB WAY, Multibanco | Yes — Pay-by-Link | PT only | Yes, free | Not established | PT specialist |
+| IfThenPay | Multibanco, MB WAY, Payshop, cards | Yes — Pay-by-Link | PT only | Yes | Not established | PT specialist |
 
-Chaque frais est celui annoncé par la page tarifaire officielle de la plateforme à la date de la
-recherche (2026-09-15), pas un fait durable — à revérifier avant toute décision de câblage. La
-couverture Portugal de Stripe n'a pas pu être confirmée (marquée `?`) ; Adyen/Checkout.com/SumUp/
-Braintree/GoCardless couvrent aussi tout ou partie des 5 pays mais leur bac à sable n'est pas confirmé
-(sauf GoCardless), donc pas retenus pour l'instant. **Écartées et pourquoi** : Paddle et Lemon Squeezy
-(famille SaaS/marchand de référence, 5 %+ de frais, pensées pour un abonnement logiciel, pas pour
-encaisser une facture ponctuelle) ; Klarna (BNPL uniquement, pas un mode d'encaissement direct) ;
-Square (couverture UE non confirmée dans les 5 pays cibles, plateforme centrée USA). **polar.sh est
-volontairement absent de ce tableau** : c'est un marchand de référence (MoR) pensé pour un abonnement
-logiciel, pas pour l'encaissement d'une facture — il est en revanche retenu pour un tout autre sujet,
-voir Décision E.
+Each fee figure is the one advertised on the platform's official pricing page as of the research
+date (2026-09-15), not a durable fact — to be re-checked before any decision to wire it up.
+Stripe's Portugal coverage could not be confirmed (marked `?`); Adyen/Checkout.com/SumUp/
+Braintree/GoCardless also cover all or part of the 5 countries but their sandbox isn't confirmed
+(except GoCardless), so they aren't retained for now. **Excluded, and why**: Paddle and Lemon
+Squeezy (the merchant-of-record/SaaS family, 5 %+ fees, built for a software subscription, not for
+collecting on a one-off invoice); Klarna (BNPL only, not a direct collection method); Square (EU
+coverage not confirmed in the 5 target countries, a US-centric platform). **polar.sh is
+deliberately absent from this table**: it's a merchant of record (MoR) built for a software
+subscription, not for invoice collection — it is however retained for a completely different
+topic, see Decision E.
 
-**Ordre d'implémentation qui en découle** (aucune durée n'est estimée ici — non demandé) :
-1. Stripe — déjà câblé, à prouver en premier avec un vrai compte (lève la seule réserve du rang 1).
-2. Mollie — nouveau provider, la meilleure couverture native des 5 pays et de leurs moyens locaux.
-3. PayPal — remplacer le descripteur d'affichage actuel par un vrai encaissement Orders API v2.
-4. Régionaux (Przelewy24 PL, Payplug FR, Nexi IT, Easypay/IfThenPay PT) — seulement si des clients
-   dans ces pays le demandent spécifiquement.
+**Resulting implementation order** (no duration estimated here — not requested):
+1. Stripe — already wired, to be proven first with a real account (lifts rank 1's only caveat).
+2. Mollie — new provider, the best native coverage of the 5 countries and their local payment
+   methods.
+3. PayPal — replace the current display descriptor with real Orders API v2 collection.
+4. Regionals (Przelewy24 PL, Payplug FR, Nexi IT, Easypay/IfThenPay PT) — only if clients in those
+   countries specifically ask for them.
 
-**Non établi par la recherche**, à ne pas prendre pour acquis : les frais de Payplug / Nexi /
-Przelewy24 / Easypay / IfThenPay ; l'existence d'un bac à sable chez Adyen / Checkout.com / SumUp ; la
-couverture Portugal de Stripe et de Klarna.
+**Not established by the research**, not to be taken for granted: Payplug / Nexi / Przelewy24 /
+Easypay / IfThenPay fees; whether Adyen / Checkout.com / SumUp have a sandbox; Stripe's and
+Klarna's Portugal coverage.
 
-### B. PDF — document figé, éditeur supprimé
+### B. PDF — a frozen document, editor removed
 
-Mandat du propriétaire, confirmé par question explicite : « faut pas d'éditeur de PDF pour les
-documents, un document hardcodé, y'a que la langue qui change pour être celle du client, si pas
-défini celle de l'entreprise, si pas défini en anglais » — et l'éditeur Handlebars doit être
-**supprimé**. Vérification dans le code : **c'est déjà fait, mais pas pour cette raison**. L'onglet
-PDF (`frontend/src/pages/(app)/settings/_components/pdf.settings.tsx`) a été retiré le 2026-09-13
-(commit `0a4f850a`) — motif à l'époque : les deux routes qu'il appelait (`GET`/`POST
-/api/company/pdf-template`) n'ont jamais existé côté backend, l'écran ne faisait donc rien
-silencieusement pour tout visiteur. Le champ `pdfConfig` d'`EditCompanyDto` et le modèle de gabarit
-associé ont été supprimés avec lui ; **il n'existe aujourd'hui aucun modèle Prisma de gabarit PDF ni
-aucun champ `Company.pdfTemplate`** (vérifié par grep sur `backend/prisma/schema.prisma` — le seul
-mécanisme de « template » qui subsiste est `MailTemplate`, pour les e-mails, sans rapport). La
-décision du 2026-09-15 confirme donc l'absence d'éditeur comme un choix produit définitif, pas
-seulement l'état de fait actuel : aucun retour de gabarit personnalisé ne doit être réintroduit.
+Owner's mandate, confirmed by an explicit question: "there shouldn't be a PDF editor for the
+documents, a hardcoded document, only the language changes to match the client's, if not set the
+company's, if not set English" — and the Handlebars editor must be **removed**. Verified in the
+code: **it's already done, but not for this reason**. The PDF tab
+(`frontend/src/pages/(app)/settings/_components/pdf.settings.tsx`) was removed on 2026-09-13
+(commit `0a4f850a`) — reason at the time: the two routes it called (`GET`/`POST
+/api/company/pdf-template`) had never existed on the backend, so the screen silently did nothing
+for every visitor. The `pdfConfig` field of `EditCompanyDto` and its associated template model
+were removed with it; **there exists today no Prisma PDF template model nor any
+`Company.pdfTemplate` field** (verified by grepping `backend/prisma/schema.prisma` — the only
+surviving "template" mechanism is `MailTemplate`, for emails, unrelated). The 2026-09-15 decision
+therefore confirms the absence of an editor as a definitive product choice, not merely the current
+state of things: no custom-template return should ever be reintroduced.
 
-La cascade de langue demandée (client → société → anglais) est, elle, **déjà livrée** — rang 14,
-`rendering/language/resolve-recipient-language.ts`, exactement dans cet ordre, avec `en` en plancher
-universel. Rien à faire de ce côté.
+The requested language cascade (client → company → English) is, on its own, **already shipped** —
+rank 14, `rendering/language/resolve-recipient-language.ts`, in exactly that order, with `en` as
+the universal floor. Nothing to do on that front.
 
-Les « thèmes PDF sans code » (ancien rang 16) deviennent une **liste de préréglages visuels**
-(couleurs, logo, police) — jamais un éditeur de contenu. État vérifié : aucun champ de marque
-n'existe encore sur `Company` (ni `logo`, ni `color`, ni `font` dans le schéma — grep confirmé) ; le
-rendu (`rendering/render-html.ts`) produit un unique design hardcodé aujourd'hui. Construire les
-préréglages suppose donc d'abord d'ajouter le strict nécessaire (un champ logo, une palette
-restreinte de couleurs, un choix de police parmi un jeu fermé) — jamais une zone de texte libre ou de
-markup.
+The "no-code PDF themes" (old rank 16) become a **list of visual presets** (colors, logo, font) —
+never a content editor. Verified state: no brand field exists yet on `Company` (no `logo`, `color`,
+or `font` in the schema — grep confirmed); rendering (`rendering/render-html.ts`) produces a
+single hardcoded design today. Building the presets therefore first requires adding the strict
+minimum (a logo field, a restricted color palette, a font choice from a closed set) — never a
+free-text or markup area.
 
-**Ce que la suppression retire** : l'onglet Settings (déjà parti), tout gabarit HTML/Handlebars
-stocké en base (il n'y en avait déjà plus au moment du retrait — les deux routes qu'il appelait
-étaient déjà mortes). **Question ouverte** : pour les sociétés qui croyaient avoir un gabarit
-personnalisé actif avant le 2026-09-13, l'écran ne l'a jamais réellement persisté (404 sur les deux
-routes) — il n'y a donc rien à migrer côté données, mais aucune communication n'a été faite vers ces
-sociétés au moment du retrait ; à trancher si une telle communication est nécessaire.
+**What the removal takes away**: the Settings tab (already gone), any HTML/Handlebars template
+stored in the database (there already was none left at removal time — the two routes it called
+were already dead). **Open question**: for companies that believed they had an active custom
+template before 2026-09-13, the screen never actually persisted it (404 on both routes) — so there
+is nothing to migrate on the data side, but no communication was made to those companies at
+removal time; to be decided whether such a communication is needed.
 
-### C. Emails — un vrai éditeur WYSIWYG
+### C. Emails — a real WYSIWYG editor
 
-À l'inverse du PDF, le propriétaire veut « un éditeur d'email propre type WYSIWYG ». État actuel
-vérifié : `Settings → Email` (`templates.settings.tsx`, testé par `54-email-templates`) est un
-éditeur de **texte brut avec jetons `{placeholder}` à accolade simple** (`actions/
-email-template.ts`), pas Handlebars malgré la dépendance npm du même nom encore présente dans les
-deux `package.json` (elle sert au rendu PDF historique, pas aux emails — aucun usage de `handlebars`
-trouvé dans le code d'email). Trois niveaux de repli déjà en place : défaut du descripteur par type,
-surcharge par entreprise (`Company.documentEmailTemplates`, modèle `MailTemplate` pour les deux
-e-mails système), repli générique. Un placeholder inconnu est SIGNALÉ, jamais bloquant — contrat à
-préserver si l'éditeur change.
+Unlike the PDF, the owner wants "a clean WYSIWYG-style email editor." Current verified state:
+`Settings → Email` (`templates.settings.tsx`, tested by `54-email-templates`) is a **plain-text
+editor with single-brace `{placeholder}` tokens** (`actions/email-template.ts`), not Handlebars
+despite the npm dependency of the same name still present in both `package.json` files (it serves
+the legacy PDF rendering, not emails — no usage of `handlebars` found in the email code). Three
+fallback levels already in place: per-type descriptor default, per-company override
+(`Company.documentEmailTemplates`, `MailTemplate` model for the two system emails), generic
+fallback. An unknown placeholder is FLAGGED, never blocking — a contract to preserve if the editor
+changes.
 
-**Écart à combler** : gabarits texte/`{placeholder}` aujourd'hui → éditeur riche (WYSIWYG) demain.
-**Questions ouvertes, non tranchées ici** :
-- quelle bibliothèque d'édition riche (TipTap, Lexical, Quill…) — à choisir, ce fichier ne tranche
-  pas ;
-- que deviennent les variables (`{{invoice.number}}` façon Handlebars, ou la grammaire `{name}`
-  actuelle conservée sous une autre UI) — le contrat serveur actuel (placeholder inconnu signalé, pas
-  levé) devra être précisé pour la nouvelle grammaire choisie ;
-- la même cascade de langue que le PDF (Décision B) doit-elle s'appliquer aux gabarits par défaut —
-  probable vu la cohérence produit visée, mais non demandé explicitement pour l'email : à confirmer.
+**Gap to close**: today's text/`{placeholder}` templates → tomorrow's rich (WYSIWYG) editor. **Open
+questions, not settled here**:
+- which rich-editing library (TipTap, Lexical, Quill…) — to be chosen, this file doesn't decide;
+- what happens to variables (Handlebars-style `{{invoice.number}}`, or today's `{name}` grammar
+  kept under a different UI) — the current server contract (unknown placeholder flagged, never
+  lifted) will need to be pinned down for whichever new grammar is chosen;
+- should the same language cascade as the PDF (Decision B) apply to the default templates — likely,
+  given the product consistency being aimed for, but not explicitly requested for email: to be
+  confirmed.
 
-### D. Mobile — PWA, pas plus
+### D. Mobile — PWA, nothing more
 
-Mandat du propriétaire : « le max qu'on peut faire c'est une PWA, pas plus ». Remplace l'ancien
-rang 21 (application native iOS/Android). **Livré cette nuit** (voir Livré, rang 21) : `b7a6581d`
-(manifeste, icônes générées depuis le seul logo du dépôt, service worker avec `/api/*` en
-`NetworkOnly` — jamais mis en cache, pour raison multi-tenant) puis `acbc2011` (le SW s'enregistrait
-sans garde `window.Cypress` et faisait tomber le spec `29-document-recurrence` en CI ; corrigé par un
-enregistrement manuel gardé, et un effet de bord bienvenu : le runtime `virtual:pwa-register` porte
-désormais le vrai rechargement à l'activation d'un nouveau SW, ce que l'`autoUpdate` du premier commit
-n'avait pas). **Le README a été corrigé dans le même commit** (`b7a6581d`) : il dit désormais
-« Installable as a Progressive Web App (PWA) » et ne promet plus d'app native mobile/desktop.
+Owner's mandate: "the most we can do is a PWA, nothing more." Replaces the old rank 21 (native
+iOS/Android app). **Shipped overnight** (see Shipped, rank 21): `b7a6581d` (manifest, icons
+generated from the repo's only logo, service worker with `/api/*` set to `NetworkOnly` — never
+cached, for multi-tenancy reasons) then `acbc2011` (the SW was registering itself without a
+`window.Cypress` guard and was breaking spec `29-document-recurrence` in CI; fixed with a guarded
+manual registration, plus a welcome side effect: the `virtual:pwa-register` runtime now carries the
+real reload on activation of a new SW, which the first commit's `autoUpdate` didn't). **The README
+was fixed in the same commit** (`b7a6581d`): it now says "Installable as a Progressive Web App
+(PWA)" and no longer promises a native mobile/desktop app.
 
-**Non établi** : l'installabilité réelle sur iOS et Android, et le rendu du splash Android — aucun
-appareil ni simulateur disponible ici, à vérifier par le propriétaire sur un vrai téléphone. Le scan
-de reçu via l'appareil photo (pertinent pour le rang 13, notes de frais) n'a pas été construit — hors
-du périmètre de ces deux commits.
+**Not established**: real installability on iOS and Android, and the rendering of the Android
+splash screen — no device or simulator available here, to be checked by the owner on a real phone.
+Receipt scanning via the camera (relevant to rank 13, expense reports) was not built — out of
+scope for these two commits.
 
-### E. Abonnement à l'usage — une offre HÉBERGÉE payante
+### E. Usage-based subscription — a paid HOSTED offering
 
-Mandat du propriétaire : « l'objectif c'est que moi je host Invoicerr dans des datacenters allemands
-sécurisés, et qu'il y ait un système pour qu'une entreprise paye en fonction de sa taille (2 $ par
-utilisateur qui utilise l'application, 1,5 $ dès 5 utilisateurs, et 1 $ pour 10 et + [tarif
-dégressif par palier de sièges]) ». Décisions déjà prises par question explicite :
+Owner's mandate: "the goal is for me to host Invoicerr in secure German datacenters, and to have a
+system for a company to pay based on its size (2 $ per user who uses the app, 1,5 $ from 5 users
+on, and 1 $ for 10 and up [tiered degressive seat pricing])." Decisions already made by explicit
+question:
 
-- **La version open source auto-hébergée reste LIBRE et sans aucun module de facturation.** La
-  facturation n'existe que sur l'offre hébergée du propriétaire, activée par une configuration que
-  seul son hébergement porte — modèle Gitea/Plausible (le code peut exister dans le dépôt, mais reste
-  inerte pour tout self-hébergeur).
-- **Plateforme : Polar (polar.sh), offre « Starter »** — décidé le 2026-09-15 : « On go sur Polar en
-  starter, ils ont le système pour gérer les seats ». La question « quelle plateforme » n'est donc
-  plus ouverte.
-- **Modèle de tarification : GRADUÉ (marginal par tranches)** — décidé le 2026-09-15 : « on part sur
-  du gradué ». Fermé, l'option « tarif unique par palier » (tout le monde payé au taux de la tranche
-  atteinte) est écartée. **Deux grilles à distinguer** :
-  - **Grille DÉCIDÉE** (celle du mandat initial) : les 4 premiers sièges à 2 $ chacun, du 5ᵉ au 9ᵉ à
-    1,5 $ chacun, le 10ᵉ et au-delà à 1 $ chacun.
-  - **Grille ENVISAGÉE, NON TRANCHÉE** — le propriétaire a dit que les prix allaient « sûrement » être
-    revus vers 5 $ / 4 $ / 3,5 $ par siège. Il n'a précisé QUE ces trois montants, pas de nouveaux
-    seuils : les paliers à 5 et 10 sièges ci-dessous sont une hypothèse de continuité avec la grille
-    décidée, **non confirmée par le propriétaire** — ne pas la prendre pour acquise.
+- **The self-hosted open-source version stays FREE and with no billing module whatsoever.**
+  Billing exists only on the owner's hosted offering, enabled by a configuration only their
+  hosting sets — the Gitea/Plausible model (the code can exist in the repo but stays inert for any
+  self-hoster).
+- **Platform: Polar (polar.sh), "Starter" plan** — decided 2026-09-15: "We're going with Polar on
+  Starter, they have the system to manage seats." The "which platform" question is therefore no
+  longer open.
+- **Pricing model: GRADUATED (marginal by tier)** — decided 2026-09-15: "we're going with
+  graduated." Closed; the "flat rate per tier reached" option (everyone paying the rate of the
+  tier they've reached) is ruled out. **Two grids to distinguish**:
+  - **DECIDED grid** (the one from the original mandate): the first 4 seats at 2 $ each, the 5th
+    through 9th at 1,5 $ each, the 10th and beyond at 1 $ each.
+  - **CONSIDERED grid, NOT DECIDED** — the owner said prices would "probably" be revised to 5 $ /
+    4 $ / 3,5 $ per seat. He only specified these three amounts, no new thresholds: the 5- and
+    10-seat tiers below are a continuity assumption with the decided grid, **not confirmed by the
+    owner** — not to be taken for granted.
 
-  Exemple chiffré pour lever toute ambiguïté, avec les deux grilles :
+  Worked example to remove any ambiguity, with both grids:
 
-  | Sièges | Grille décidée (2 $/1,5 $/1 $) | Grille envisagée, non tranchée (5 $/4 $/3,5 $) |
+  | Seats | Decided grid (2 $/1,5 $/1 $) | Considered grid, not decided (5 $/4 $/3,5 $) |
   |---:|---|---|
   | 7 | `4×2 + 3×1,5 = 12,5 $` | `4×5 + 3×4 = 32 $` |
   | 12 | `4×2 + 5×1,5 + 3×1 = 18,5 $` | `4×5 + 5×4 + 3×3,5 = 50,5 $` |
 
-- **Périodicité : DÉCIDÉE le 2026-09-15 — mensuel ET annuel, pas un choix exclusif.** Les deux
-  formules seront proposées. Non précisé par le propriétaire, à ne pas inventer : si l'annuel porte
-  une remise par rapport à 12 fois le tarif mensuel.
-- **Définition d'un siège : TRANCHÉE le 2026-09-15 — un siège = un rattachement utilisateur × société,
-  né à l'acceptation, jamais à l'envoi d'une invitation.** Mot du propriétaire, à citer : « Un
-  utilisateur paye pour être relié à une entreprise. Imaginons un comptable qui veut utiliser
-  Invoicerr, chaque entreprise à laquelle il est rattaché doit payer pour l'avoir dans son équipe. »
-  Conséquences, toutes closes le 2026-09-15 :
-  - le compteur facturable d'une société est le nombre de ses rattachements utilisateur (modèle
-    Prisma réel : `UserCompany` — le propriétaire dit « CompanyMembership » au sens générique, il n'y
-    a pas de modèle de ce nom dans ce schéma), **jamais** le nombre d'utilisateurs distincts de toute
-    la plateforme, et **sans aucune notion d'activité** (pas de « connecté dans les 30 derniers
-    jours ») ;
-  - un même utilisateur membre de trois sociétés compte pour **trois sièges**, chacun facturé à sa
-    propre société ;
-  - le payeur est toujours la société, jamais l'utilisateur ;
-  - **l'OWNER compte comme un siège**, comme tout membre — pas d'exemption de rôle ;
-  - **une invitation ne compte qu'à l'acceptation** — le siège naît avec la ligne `UserCompany`,
-    jamais à l'envoi de l'invitation (`modules/invitations/`) : une invitation en attente ne doit rien
-    ajouter au compteur facturable.
+- **Billing period: DECIDED on 2026-09-15 — monthly AND annual, not an exclusive choice.** Both
+  plans will be offered. Not specified by the owner, not to be invented: whether annual carries a
+  discount versus 12 times the monthly rate.
+- **Definition of a seat: SETTLED on 2026-09-15 — a seat = one user × company attachment, born on
+  acceptance, never on sending an invitation.** Owner's words, to quote: "A user pays to be linked
+  to a company. Imagine an accountant who wants to use Invoicerr — every company they're attached
+  to has to pay to have them on their team." Consequences, all closed on 2026-09-15:
+  - a company's billable count is the number of its user attachments (the actual Prisma model:
+    `UserCompany` — the owner says "CompanyMembership" in the generic sense, there is no model of
+    that name in this schema), **never** the number of distinct users across the whole platform,
+    and **with no notion of activity at all** (no "active in the last 30 days");
+  - the same user who is a member of three companies counts as **three seats**, each billed to its
+    own company;
+  - the payer is always the company, never the user;
+  - **the OWNER counts as a seat**, like any member — no role exemption;
+  - **an invitation only counts upon acceptance** — the seat is born with the `UserCompany` row,
+    never on sending the invitation (`modules/invitations/`): a pending invitation must add nothing
+    to the billable count.
 
-**Cycle de vie de l'abonnement — trois états datés, décidés le 2026-09-15** (aucun n'est implémenté,
-c'est une exigence produit à consigner) :
-1. **Essai** — 7 jours gratuits à compter de la création de la société. Mot du propriétaire, à citer :
-   « dans les 7 j d'essai il doit pas pouvoir envoyer de factures, il doit pouvoir tout faire mais pas
-   en envoyer, donc on n'est pas obligé de les conserver ». Concrètement : **l'action `'send'`**, le
-   seul point d'entrée partagé par `invoice`/`quote`/`credit-note` via `actions/async-send.ts`
-   (numérotation définitive, dépôt PDP/Chorus Pro/KSeF, envoi email — vérifié dans le code, c'est bien
-   la même action id pour les trois types) **est refusée nommément** pendant l'essai. Tout le reste
-   reste utilisable : brouillons, clients, articles, PDF de prévisualisation.
-2. **Bloquée** — si aucun paiement n'est enregistré au terme des 7 jours d'essai, la société bascule
-   en blocage total : **plus aucune action possible** (lecture/écriture, à préciser à l'implémentation
-   si un mode lecture-seule minimal doit subsister). Ce blocage dure 14 jours.
-3. **Supprimée** — la mécanique et son délai diffèrent selon si la société a déjà payé, **TRANCHÉ
-   dans les deux cas le 2026-09-15** :
-   - **Société qui n'a jamais payé** (jamais sortie de l'essai) : au terme des 14 jours de blocage
-     (donc 21 jours après la création sans paiement), **zip de tous ses documents créés** envoyé ou
-     mis à disposition (courtoisie, pas une obligation), puis **suppression réelle immédiate**.
-     Cohérent précisément parce que cette société n'a, par construction, **jamais émis aucun document
-     légalement** (le rang 1 du cycle de vie bloque `'send'`) : aucune obligation de conservation
-     légale (`archive/retention/`) ne s'applique à elle.
-   - **Société qui A payé puis cesse de payer** (a réellement émis des factures) : même mécanique de
-     principe — bloquée 14 jours, puis **zip**, puis **suppression réelle** — mais avec **un délai
-     plus long entre le zip et la suppression**, pour lui laisser le temps de récupérer son archive.
-     **La durée exacte de ce délai n'est PAS fixée** : le propriétaire a choisi cette option en le
-     sachant explicitement « à fixer » — à consigner comme question ouverte chiffrable (> 14 jours,
-     aucune valeur proposée ici). Une fois le zip livré, **la responsabilité de la conservation légale
-     passe au client** : une clause des CGU doit le dire explicitement (non rédigée ici). Le zip doit
-     contenir tout ce qui est nécessaire à une conservation légale, pas seulement les PDF : d'après ce
-     qu'`archive/` sait déjà produire (`DocumentArchive.artifacts`, typé par `mime` —
-     `application/pdf`, `application/xml`), le zip doit inclure PDF, XML signés (factures
-     électroniques FR/PL/IT), pièces jointes (factures reçues, notes de frais une fois le rang 13
-     livré) et le journal d'événements d'autorité (`DocumentAuthorityEvent`, déjà alimenté pour
-     FR/PL/IT).
+**Subscription lifecycle — three dated states, decided 2026-09-15** (none of it is implemented,
+this is a product requirement to record):
+1. **Trial** — 7 free days from the company's creation. Owner's words, to quote: "during the 7-day
+   trial they shouldn't be able to send invoices, they should be able to do everything except send
+   them, so we don't have to keep them." Concretely: **the `'send'` action**, the single entry
+   point shared by `invoice`/`quote`/`credit-note` via `actions/async-send.ts` (final numbering,
+   PDP/Chorus Pro/KSeF deposit, email sending — verified in the code, it is indeed the same action
+   id for all three types) **is refused by name** during the trial. Everything else stays usable:
+   drafts, clients, articles, PDF preview.
+2. **Blocked** — if no payment is recorded by the end of the 7-day trial, the company switches to
+   total blocking: **no action possible at all** (read/write, to be refined at implementation time
+   whether a minimal read-only mode should survive). This blocking lasts 14 days.
+3. **Deleted** — the mechanics and the delay differ depending on whether the company has already
+   paid, **DECIDED in both cases on 2026-09-15**:
+   - **A company that never paid** (never left the trial): at the end of the 14-day blocking
+     period (so 21 days after creation with no payment), **a zip of every document it created** is
+     sent or made available (a courtesy, not an obligation), then **actual immediate deletion**.
+     This is consistent precisely because this company has, by construction, **never legally
+     issued any document** (rank 1 of the lifecycle blocks `'send'`): no legal retention
+     obligation (`archive/retention/`) applies to it.
+   - **A company that paid and then stops paying** (has actually issued invoices): the same
+     mechanics in principle — blocked 14 days, then **zip**, then **actual deletion** — but with a
+     **longer delay between the zip and the deletion**, to give it time to retrieve its archive.
+     **The exact length of this delay is NOT fixed**: the owner chose this option knowing
+     explicitly it was "to be set" — to record as an open, quantifiable question (> 14 days, no
+     value proposed here). Once the zip has been delivered, **responsibility for legal retention
+     passes to the client**: a ToS clause must say so explicitly (not drafted here). The zip must
+     contain everything needed for legal retention, not just the PDFs: based on what `archive/`
+     already knows how to produce (`DocumentArchive.artifacts`, typed by `mime` —
+     `application/pdf`, `application/xml`), the zip must include PDFs, signed XML (FR/PL/IT
+     e-invoices), attachments (received invoices, expense reports once rank 13 has shipped) and
+     the authority event log (`DocumentAuthorityEvent`, already populated for FR/PL/IT).
 
-**Cycle complet, les deux cas côte à côte** :
-- Jamais payé : essai 7 j (tout sauf `'send'`) → bloquée 14 j → zip → suppression immédiate.
-- A payé puis a cessé de payer : bloquée 14 j → zip → suppression après un délai à fixer (> 14 j,
-  non chiffré à ce jour).
+**Full cycle, both cases side by side**:
+- Never paid: 7-day trial (everything except `'send'`) → blocked 14 days → zip → immediate
+  deletion.
+- Paid then lapsed: blocked 14 days → zip → deletion after a delay to be set (> 14 days, not
+  quantified to date).
 
-**Vérifié le 2026-09-15 contre la documentation officielle Polar** (URL par point) :
-- **Le modèle gradué EST modélisable tel quel** — fonction « Seat-Based Pricing »,
-  https://polar.sh/docs/features/seat-based-pricing.md : trois modèles supportés, fixe, **gradué**
-  (« les sièges sont facturés selon leur palier respectif ») et volume ; l'exemple officiel donné
-  (1-10 sièges à 10 $, 11ᵉ et + à 8 $ → 14 sièges = `10×10 + 4×8 = 132 $`) est structurellement le
-  même calcul que le barème 2 $/1,5 $/1 $ retenu ci-dessus. Ferme le point qui restait à vérifier.
-- Mise à jour du nombre de sièges par API : `PATCH /v1/subscriptions/{id}` avec les champs `seats` et
-  `proration_behavior` (`invoice` | `prorate` | `next_period` | `reset`), prorata automatique —
-  https://polar.sh/docs/api-reference/2026-10/subscriptions/update-subscription.md (**URL rapportée
-  par la recherche, non revérifiée directement ici**).
-- Webhooks — https://polar.sh/docs/integrate/webhooks/events.md : `subscription.created/updated/
-  canceled/revoked/past_due`, et surtout `customer_seat.assigned/claimed/revoked` — Polar a sa propre
-  notion de **siège assigné à une personne**, qui correspond naturellement à un `UserCompany`. Piste
-  d'implémentation à retenir : un siège Polar par rattachement `UserCompany`, plutôt qu'une simple
-  quantité numérique côté abonnement.
-- Offre Starter — https://polar.sh/docs/merchant-of-record/fees.md : gratuite à l'entrée, **5 % +
-  0,50 $ par transaction**, +1,5 % sur les cartes internationales, la tarification par siège est
-  incluse dans l'offre.
-- **Polar est Merchant of Record** —
-  https://polar.sh/docs/merchant-of-record/introduction.md : Polar collecte et reverse lui-même la
-  TVA dans les cinq pays cibles à la place de l'hébergeur ; l'hébergeur ne gère plus que son propre
-  impôt sur ses revenus en France. Conséquence à consigner : **la facture reçue par la société
-  cliente est émise par Polar, pas par le propriétaire d'Invoicerr.**
-- Bac à sable gratuit — https://polar.sh/docs/integrate/sandbox.md :
-  `sandbox.polar.sh` / API `sandbox-api.polar.sh`, cartes de test Stripe.
+**Verified on 2026-09-15 against the official Polar documentation** (URL per point):
+- **The graduated model IS modelable as-is** — the "Seat-Based Pricing" feature,
+  https://polar.sh/docs/features/seat-based-pricing.md: three models supported, flat, **graduated**
+  ("seats are billed according to their respective tier") and volume; the official example given
+  (1-10 seats at 10 $, 11th and up at 8 $ → 14 seats = `10×10 + 4×8 = 132 $`) is structurally the
+  same calculation as the 2 $/1,5 $/1 $ scale retained above. Closes the point that remained to be
+  verified.
+- Updating the seat count via the API: `PATCH /v1/subscriptions/{id}` with the `seats` and
+  `proration_behavior` fields (`invoice` | `prorate` | `next_period` | `reset`), automatic
+  proration — https://polar.sh/docs/api-reference/2026-10/subscriptions/update-subscription.md
+  (**URL reported by the research, not re-verified directly here**).
+- Webhooks — https://polar.sh/docs/integrate/webhooks/events.md: `subscription.created/updated/
+  canceled/revoked/past_due`, and notably `customer_seat.assigned/claimed/revoked` — Polar has its
+  own notion of a **seat assigned to a person**, which naturally maps to a `UserCompany`.
+  Implementation lead to keep: one Polar seat per `UserCompany` attachment, rather than a plain
+  numeric quantity on the subscription.
+- Starter plan — https://polar.sh/docs/merchant-of-record/fees.md: free to start, **5 % + 0,50 $
+  per transaction**, +1,5 % on international cards, per-seat pricing is included in the plan.
+- **Polar is a Merchant of Record** —
+  https://polar.sh/docs/merchant-of-record/introduction.md: Polar itself collects and remits VAT
+  in the five target countries on the hoster's behalf; the hoster then only manages their own
+  income tax on their revenue in France. Consequence to record: **the invoice received by the
+  client company is issued by Polar, not by Invoicerr's owner.**
+- Free sandbox — https://polar.sh/docs/integrate/sandbox.md:
+  `sandbox.polar.sh` / API `sandbox-api.polar.sh`, Stripe test cards.
 
-**Point économique, chiffré, avec les deux grilles** : le fixe de 0,50 $/transaction de l'offre
-Starter pèse proportionnellement beaucoup plus sur une petite société, et nettement moins si les prix
-sont revus à la hausse (grille envisagée) :
+**Economics, worked out, with both grids**: the Starter plan's fixed 0,50 $/transaction fee weighs
+proportionally much more on a small company, and noticeably less if prices are revised upward
+(considered grid):
 
-| Société | Grille décidée (2 $/1,5 $/1 $) | Frais Polar (5 % + 0,50 $) | Grille envisagée (5 $/4 $/3,5 $) | Frais Polar |
+| Company | Decided grid (2 $/1,5 $/1 $) | Polar fees (5 % + 0,50 $) | Considered grid (5 $/4 $/3,5 $) | Polar fees |
 |---|---|---|---|---|
-| 1 siège | 2 $/mois | `0,50 + 5%×2 = 0,60 $` → **30 %** | 5 $/mois | `0,50 + 5%×5 = 0,75 $` → **15 %** |
-| 4 sièges | 8 $/mois | `0,50 + 5%×8 = 0,90 $` → **11 %** | 20 $/mois | `0,50 + 5%×20 = 1,50 $` → **7,5 %** |
+| 1 seat | 2 $/month | `0,50 + 5%×2 = 0,60 $` → **30 %** | 5 $/month | `0,50 + 5%×5 = 0,75 $` → **15 %** |
+| 4 seats | 8 $/month | `0,50 + 5%×8 = 0,90 $` → **11 %** | 20 $/month | `0,50 + 5%×20 = 1,50 $` → **7,5 %** |
 
-Le fixe pèse donc deux fois moins, en proportion, si la grille envisagée (non tranchée) remplace la
-grille décidée — un argument en sa faveur, mais ce fichier ne tranche pas le choix de grille. Avec la
-périodicité annuelle désormais décidée (voir ci-dessus), reste ouvert : si l'annuel porte une remise,
-qui diluerait encore ce fixe sur un montant plus gros — non précisé par le propriétaire.
+So the fixed fee weighs half as much, proportionally, if the considered grid (not decided)
+replaces the decided grid — an argument in its favor, but this file does not decide the choice of
+grid. With the annual billing period now decided (see above), what remains open: if annual carries
+a discount, which would dilute this fixed fee even further over a bigger amount — not specified by
+the owner.
 
-**Chemin d'intégration à évaluer EN PREMIER, avant tout client Polar écrit à la main** : le plugin
-Polar de better-auth (`@polar-sh/better-auth`) — better-auth est déjà l'auth du dépôt
-(`backend/src/lib/auth.ts`), le plugin couvrirait a priori checkout, portail client et webhooks
-rattachés à l'utilisateur authentifié en un seul mécanisme plutôt que trois clients séparés. **Marqué
-« à vérifier sur la doc officielle »** : ce que ce plugin couvre exactement n'est pas encore confirmé
-(vérification annoncée séparément, ne pas la devancer). **Point d'attention vérifié dans ce dépôt**
-(pas un problème établi, juste à regarder au moment du câblage) : `app.module.ts:75` désactive
-délibérément le guard propre de better-auth (`disableGlobalAuthGuard: true`) parce qu'il « ignore
-API-key requests » — tout plugin better-auth qui ajoute ses propres routes doit être vérifié sous cet
-angle : ces routes passent-elles par le même `AuthGuard`/`RolesGuard` globaux que le reste de
-l'API, ou contournent-elles ce mécanisme ? Le garde-fou `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`
-ci-dessous s'applique de la même façon à toute route ajoutée par ce plugin — absente (404) tant que
-la variable n'est pas définie, qu'elle vienne du code du propriétaire ou du plugin.
+**Integration path to evaluate FIRST, before any hand-written Polar client**: better-auth's Polar
+plugin (`@polar-sh/better-auth`) — better-auth is already the repo's auth system
+(`backend/src/lib/auth.ts`), the plugin would presumably cover checkout, customer portal and
+webhooks tied to the authenticated user in a single mechanism rather than three separate clients.
+**Marked "to verify against the official docs"**: exactly what this plugin covers is not yet
+confirmed (verification announced separately, not to be pre-empted). **Point of attention verified
+in this repo** (not an established problem, just something to look at when wiring this up):
+`app.module.ts:75` deliberately disables better-auth's own guard (`disableGlobalAuthGuard: true`)
+because it "ignores API-key requests" — any better-auth plugin that adds its own routes must be
+checked from this angle: do these routes go through the same global `AuthGuard`/`RolesGuard` as
+the rest of the API, or do they bypass this mechanism? The
+`WARNING__ENABLE_BILLING_FOR_USERS__WARNING` guardrail below applies the same way to any route
+added by this plugin — absent (404) as long as the variable isn't set, whether it comes from the
+owner's code or from the plugin.
 
-**Garde-fou d'activation — exigence, pas encore implémentée**, à reproduire EXACTEMENT : tout le
-système d'abonnement (écrans, routes, compteur de sièges, tout — y compris les routes qu'ajouterait
-le plugin better-auth ci-dessus) doit rester **invisible** tant que la variable d'environnement
-globale `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` n'est pas définie (nom à copier au caractère
-près, doubles soulignés compris, `WARNING` en tête ET en queue — délibérément dissuasif pour qu'aucun
-self-hébergeur ne l'active par accident). C'est la concrétisation technique de la décision « le
-self-hosted reste libre, la facturation n'existe que sur l'offre hébergée ». Ce que ça implique pour
-l'implémentation à venir :
-- la variable doit être lue en **UN SEUL endroit** côté backend (un module de configuration dédié),
-  jamais via des `process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING` dispersés dans le code ;
-- elle doit être exposée au frontend par **une seule route de configuration** (le frontend ne doit
-  jamais lire une variable d'environnement backend directement) ;
-- **chaque contrôleur de facturation doit refuser en 404, jamais en 403**, quand la variable est
-  absente — un 403 révèle que la route existe, un 404 la rend indiscernable d'une route qui n'a
-  jamais existé, cohérent avec l'objectif de discrétion de la variable elle-même.
+**Activation guardrail — a requirement, not yet implemented**, to be reproduced EXACTLY: the
+entire subscription system (screens, routes, seat counter, everything — including the routes the
+better-auth plugin above would add) must stay **invisible** as long as the global environment
+variable `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` isn't set (name to be copied character for
+character, double underscores included, `WARNING` at both the start AND the end — deliberately
+off-putting so that no self-hoster enables it by accident). This is the technical realization of
+the "self-hosted stays free, billing only exists on the hosted offering" decision. What this
+implies for the upcoming implementation:
+- the variable must be read in **A SINGLE place** on the backend (a dedicated configuration
+  module), never through `process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING` scattered
+  through the code;
+- it must be exposed to the frontend through **a single configuration route** (the frontend must
+  never read a backend environment variable directly);
+- **every billing controller must refuse with a 404, never a 403**, when the variable is absent —
+  a 403 reveals that the route exists, a 404 makes it indistinguishable from a route that never
+  existed, consistent with the variable's own aim of discretion.
 
-### F. Les autres (13 notes de frais, 15 champs personnalisés, 19 bons de commande)
+### F. The others (13 expense reports, 15 custom fields, 19 purchase orders)
 
-Mandat du propriétaire : « j'ai rien contre, faut mettre ça dans TODO_FEATURES et détailler ». Au
-moment de cette décision (2026-09-15), aucune des trois fonctionnalités n'avait de trace dans le code
-(`grep` vide sur `customField`/`CustomField`, sur `purchase.order`/`PurchaseOrder`/
-`PurchaseOrderReference` hors formats vendorés E-invoicing). **Rang 13, rang 15 et la première passe
-du rang 19 sont livrés depuis** (voir Livré) ; seule la seconde passe du rang 19 (rapprochement
-3-way) reste ouverte, décrite ci-dessous.
+Owner's mandate: "I have nothing against it, put that in TODO_FEATURES and spell it out." At the
+time of this decision (2026-09-15), none of the three features had any trace in the code (`grep`
+empty on `customField`/`CustomField`, on `purchase.order`/`PurchaseOrder`/
+`PurchaseOrderReference` outside the vendored e-invoicing formats). **Rank 13, rank 15 and the
+first pass of rank 19 have shipped since** (see Shipped); only rank 19's second pass (3-way
+reconciliation) remains open, described below.
 
-**Rang 13 — notes de frais enrichies.** Livré (`6cb60096`, voir Livré) : pièce jointe, catégorie et
-kilométrage, en réutilisant le stockage de `received-invoices/storage.ts` plutôt qu'en le dupliquant.
-OCR non branché, délibérément : le pipeline existant (`received-invoices/ocr/`) extrait un vocabulaire
-de facture (`grossAmount`, `supplier`), pas de dépense, et ne tente l'OCR que sur un PDF alors que le
-cas principal ici est une photo — un adaptateur à écrire, pas fait ici. Pas de barème kilométrique
-fiscal : deux champs informationnels seulement, l'utilisateur reporte lui-même le résultat.
+**Rank 13 — enriched expense reports.** Shipped (`6cb60096`, see Shipped): attachment, category
+and mileage, reusing `received-invoices/storage.ts`'s storage rather than duplicating it. OCR
+deliberately not wired up: the existing pipeline (`received-invoices/ocr/`) extracts invoice
+vocabulary (`grossAmount`, `supplier`), not expense vocabulary, and only attempts OCR on a PDF
+while the main use case here is a photo — an adapter to write, not done here. No statutory mileage
+rate: just two informational fields, the user reports the result themselves.
 
-**Rang 15 — champs personnalisés / tags.** Livré (`3ff59800`, voir Livré) : un mécanisme parallèle de
-champs définis en base par société, mergés au rendu du formulaire et du PDF, sans toucher aux
-`DocumentTypeDescriptor` figés existants. Clé dérivée du libellé et immuable ; suppression = archivage,
-jamais une perte du lien avec les valeurs déjà saisies sur des documents émis. **Fusion terminée**
-(`9f2e3585`) : un champ personnalisé requis bloque désormais toute action, `send` compris, avant tout
-effet de bord — plus une « fusion en cours ». Bug latent de collision de clés trouvé et corrigé au
-passage (`findAvailableKey`).
+**Rank 15 — custom fields / tags.** Shipped (`3ff59800`, see Shipped): a parallel mechanism of
+company-defined database fields, merged into the form and PDF rendering, without touching the
+existing frozen `DocumentTypeDescriptor`s. Key derived from the label and immutable; deletion =
+archiving, never a loss of the link with values already entered on issued documents. **Merge
+completed** (`9f2e3585`): a required custom field now blocks every action, `send` included, before
+any side effect — no longer a "merge in progress." Latent key-collision bug found and fixed along
+the way (`findAvailableKey`).
 
-**Rang 19 — bons de commande / achats fournisseurs.** Première passe livrée (`de30e2a4`, voir
-Livré) : émettre un bon de commande à un fournisseur, un `DocumentTypeDescriptor` de plus, aucune
-migration. Le rapprochement 3-way avec la facture reçue reste une seconde passe, décrite dans le
-commit : elle demande des décisions produit (quels écarts tolérer, qui valide, blocage ou
-avertissement) et d'établir ce que « 3-way » désigne ici — un troisième document de réception
-n'existe pas dans le modèle. Le mécanisme à réutiliser alors est
-`received-invoices/supplier-reconciliation.ts`, jamais une mécanique dupliquée. Trois choix pris pour
-l'émission, à valider : voir Questions ouvertes.
+**Rank 19 — purchase orders / supplier purchasing.** First pass shipped (`de30e2a4`, see Shipped):
+issuing a purchase order to a supplier, one more `DocumentTypeDescriptor`, no migration. The 3-way
+reconciliation with the received invoice remains a second pass, described in the commit: it needs
+product decisions (which variances to tolerate, who approves, block or warn) and settling what
+"3-way" means here — a third, goods-receipt document doesn't exist in the model. The mechanism to
+reuse then is `received-invoices/supplier-reconciliation.ts`, never a duplicated mechanic. Three
+choices made for issuance, to validate: see Open questions.
 
-### G. Serveur de mail — instance puis société
+### G. Mail server — instance then company
 
-Demande du propriétaire, avec insistance explicite (« Ajoute ça au TODO bien expliqué qu'on l'oublie
-pas ») : « une instance peut déclarer un serveur de mail global, c'est lui qui sera utilisé par défaut,
-si une entreprise n'a pas défini le sien dans les paramètres. Pour le serveur de mail de l'instance ça
-peut être soit SMTP soit Resend (Resend en priorité si les deux sont définis). »
+Owner's request, with explicit emphasis ("Add that to the TODO, well explained, so we don't forget
+it"): "an instance can declare a global mail server, which is what's used by default if a company
+hasn't set its own in settings. For the instance's mail server it can be either SMTP or Resend
+(Resend takes priority if both are set)."
 
-**Livré cette nuit, côté backend** (voir Livré) :
-- `f1ed72e4` — fournisseur Resend (`providers/resend.provider.ts`, REST brute plutôt que le SDK :
-  deux pièges rencontrés et traités, pièces jointes en `content_type` snake_case et `User-Agent`
-  obligatoire sous peine de 403). Résolution au niveau instance quand `MAIL_PROVIDER` est absent :
-  rien→smtp, SMTP seul→smtp, Resend seul→resend, les deux→resend — **un `MAIL_PROVIDER` explicite
-  continue de gagner**, choix soumis au propriétaire (voir Questions ouvertes), pas tranché par le
-  mandat qui ne couvrait que le cas implicite. `CompanyChannelConfig` (déjà chiffrée AES-256-GCM par
-  `ChannelCredentialsService`) réutilisée avec `providerId='mail'`, **aucune migration**. Quatre
-  routes sur le contrôleur company : lire, définir, effacer, tester l'envoi. Câblage DI prouvé par un
-  boot réel sur le port 4100.
-- `63b42ef9` — la cascade société→instance branchée sur les six chemins d'envoi réels : document
-  (devis/facture, `send-document-email.ts`), relances d'impayés, demande de signature et son OTP, OTP
-  de la zone de danger (route corrigée pour porter `@ActiveCompany()`, vérifié avant d'y toucher que
-  `RolesGuard`/`AuthGuard` garantissent déjà une société active à ce point), invitation au portail
-  client. **Volontairement non branché** : le transport PEC italien, qui envoie par la boîte PEC
-  certifiée de la société sous son propre identifiant de canal `sdi-pec` — un canal réglementaire
-  distinct du serveur de mail courant, documenté comme seul holdout.
-- `1958c47a` — un test qui dépendait de l'environnement ambiant (`.env.test` fournissait un
-  expéditeur par défaut que la CI n'a pas) rendu hermétique.
+**Shipped overnight, backend side** (see Shipped):
+- `f1ed72e4` — Resend provider (`providers/resend.provider.ts`, raw REST rather than the SDK: two
+  pitfalls hit and handled, attachments in snake_case `content_type` and a mandatory `User-Agent`
+  on pain of a 403). Instance-level resolution when `MAIL_PROVIDER` is absent: nothing→smtp, SMTP
+  only→smtp, Resend only→resend, both→resend — **an explicit `MAIL_PROVIDER` still wins**, a
+  choice submitted to the owner (see Open questions), not settled by the mandate, which only
+  covered the implicit case. `CompanyChannelConfig` (already AES-256-GCM encrypted by
+  `ChannelCredentialsService`) reused with `providerId='mail'`, **no migration**. Four routes on
+  the company controller: read, set, clear, test send. DI wiring proven by a real boot on port
+  4100.
+- `63b42ef9` — the company→instance cascade wired onto the six real sending paths: document
+  (quote/invoice, `send-document-email.ts`), unpaid reminders, the signature request and its OTP,
+  the danger-zone OTP (route fixed to carry `@ActiveCompany()`, checked before touching it that
+  `RolesGuard`/`AuthGuard` already guarantee an active company at that point), client-portal
+  invitation. **Deliberately not wired**: the Italian PEC transport, which sends via the company's
+  own certified PEC mailbox under its own `sdi-pec` channel identifier — a regulatory channel
+  distinct from the everyday mail server, documented as the only holdout.
+- `1958c47a` — a test that depended on the ambient environment (`.env.test` provided a default
+  sender that CI didn't) made hermetic.
 
-**Livré cette nuit, côté écran** (`7a61f3f7`) — Réglages → Mail, ce qui manquait à la décision G.
-**La décision G est donc COMPLÈTE (backend + écran).**
-- État courant : instance par défaut, ou serveur de société avec son fournisseur et son expéditeur.
-  **Aucun secret n'est jamais rendu** : la route de lecture ne renvoie que
-  `{configured, kind, fromAddress}`, le formulaire d'édition repart toujours vide sur le mot de passe
-  et la clé API.
-- SMTP ou Resend, validation zod par fournisseur en écho de celle du serveur.
-- **Tester l'envoi** disponible en permanence, même sans configuration de société, parce qu'il exerce
-  la cascade réelle : l'erreur affichée est celle du backend, mot pour mot.
-- **Revenir au serveur de l'instance** efface la configuration, après confirmation. Onglet masqué aux
-  MEMBER, cohérent avec les routes d'écriture réservées à OWNER/ADMIN.
+**Shipped overnight, screen side** (`7a61f3f7`) — Settings → Mail, what was missing for Decision G
+to be complete. **Decision G is therefore COMPLETE (backend + screen).**
+- Current state: instance default, or a company server with its own provider and sender. **No
+  secret is ever returned**: the read route only returns `{configured, kind, fromAddress}`, the
+  edit form always starts empty on the password and API key.
+- SMTP or Resend, zod validation per provider mirroring the server's own.
+- **Test send** available at all times, even with no company configuration, because it exercises
+  the real cascade: the error shown is the backend's, verbatim.
+- **Revert to the instance server** clears the configuration, after confirmation. Tab hidden from
+  MEMBER, consistent with the write routes being reserved to OWNER/ADMIN.
 
-**Réserve, non résolue** : le spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4, tous
-en « toast jamais apparu » ou « bouton de retour introuvable ») — écrit sans être lancé, comme les
-specs 62/63/64. Instrumenté (`c7e80579` — assertions sur le code HTTP avant chaque attente de toast ;
-un vrai défaut d'écran corrigé au passage, indépendant de la cause : le toast de succès de « Tester
-l'envoi » affichait le message générique de `sendForCompany`, jamais le texte dédié attendu). **Cause
-du premier échec NON établie** : le journal backend du run prouve que `PUT /api/company/mail-settings`
-n'a jamais abouti (piste `CredentialAudit` : six `mail:* RESOLVE_ACTIVE MISS`, jamais un `UPLOAD`),
-sans dire pourquoi — ni 400/403/503 (chacun produirait un toast d'erreur, absent), donc soit une
-requête qui ne part jamais du navigateur, soit une réponse jamais reçue ; à trancher au prochain run,
-avec le journal navigateur/accès cette fois.
+**Unresolved caveat**: Cypress spec 65 failed on its first run (3 failures out of 4, all either
+"toast never appeared" or "back button not found") — written without being run, like specs
+62/63/64. Instrumented (`c7e80579` — assertions on the HTTP status code before every toast wait; a
+real screen defect fixed along the way, unrelated to the cause: the success toast for "Test send"
+was showing `sendForCompany`'s generic message, never the expected dedicated text). **Cause of the
+first failure NOT established**: the run's backend log proves that `PUT /api/company/mail-settings`
+never completed (trail: `CredentialAudit`, six `mail:* RESOLVE_ACTIVE MISS`, never an `UPLOAD`),
+without saying why — neither 400/403/503 (each would produce an error toast, which is absent), so
+either a request that never leaves the browser, or a response that's never received; to be settled
+on the next run, with the browser log or access log this time.
 
-**Questions ouvertes, à ne pas trancher ici** :
-- **Que devient Brevo ?** Le propriétaire a une clé Brevo compromise à régénérer (trouvée en clair
-  dans un `compose` de PR) et envisageait déjà de passer à Resend. `brevo.provider.ts` reste dans le
-  code ; il n'a pas dit s'il reste un troisième fournisseur d'instance à côté de SMTP/Resend, ou s'il
-  est purement remplacé par Resend — laissé ouvert.
-- **`MAIL_PROVIDER` explicite gagnant sur `RESEND_API_KEY`** (choix pris par défaut dans `f1ed72e4`,
-  au-delà de ce que le mandat tranchait) — à valider.
-- Le comportement de repli exact si Resend est configuré mais échoue à l'exécution (retombée sur
-  SMTP, ou refus direct) — non précisé, non implémenté.
-- **Lien avec la production** : `invoicerr.chevrier.dev` n'a aujourd'hui AUCUN serveur de mail
-  configuré, donc aucun email ne part (établi le 2026-09-14, voir `5aed5154`). L'écran société
-  (`7a61f3f7`) réduit ce risque désormais qu'il est construit ; renseigner les cinq variables SMTP sur
-  l'hôte, ou configurer un serveur de société via l'écran, reste une action immédiate distincte, déjà
-  notée dans `TODO_MANDANT.md`.
-
----
-
-## Questions ouvertes
-
-**À trancher par le propriétaire dès son réveil — la liste courte, actionnable :**
-
-1. **Migrations à date future — tranché : renommées le 2026-09-15** (préfixe `20260920…` → `20260914…`, sept migrations, `_prisma_migrations` réaligné sur les deux bases locales).
-2. **Choix de produit de la nuit — tranchés le 2026-09-15** : tout validé tel quel (pièce jointe
-   ≤ 750 Kio ; champs personnalisés : kinds text/longText/number/money/date/boolean/select, écran
-   OWNER/ADMIN, champ requis bloque aussi `send` ; bons de commande : fournisseur = `Client.supplier`,
-   statuts calqués sur la facture, préfixe `PURCHASE-ORDER-`) — **SAUF les catégories de notes de
-   frais** : « pas fixe mais dynamique dans le back » → table `ExpenseCategory` par société (migration),
-   jeu par défaut inséré à la création de la société, CRUD dans Réglages, sélecteur alimenté par l'API.
-   En cours.
-3. **`MAIL_PROVIDER` explicite gagne sur `RESEND_API_KEY`** — **tranché le 2026-09-15 : gardé** (un
-   `MAIL_PROVIDER` posé est respecté tel quel ; Resend ne prime que si rien n'est posé).
-4. **Comptes sandbox** (Polar, Stripe, Mollie, PayPal) — guide publié, pas encore créés. Les chantiers
-   A (paiements) et E (abonnement) attendent ces clés.
-5. **Bibliothèque WYSIWYG pour les emails** (Décision C) — **tranché le 2026-09-15 : TipTap**. En cours.
-6. **Spec 65 (réglages mail), cause du premier échec non établie.** Le journal backend du run prouve
-   que `PUT /api/company/mail-settings` n'a jamais abouti, sans dire pourquoi (aucune hypothèse
-   vérifiable par lecture — 400/403/503 — n'explique l'absence totale de toast). Le spec (`c7e80579`)
-   nomme désormais l'appel qui échoue au lieu d'attendre un toast ; à lire au prochain run.
-
-*Note de méthode, en une phrase : quatre specs Cypress écrits sans être lancés sur cinq ont cassé à
-leur première exécution en CI cette nuit (62, 63, 64, 65) — jamais un bug produit, toujours une
-hypothèse fausse du spec lui-même.*
+**Open questions, not to be settled here**:
+- **What happens to Brevo?** The owner has a compromised Brevo key to regenerate (found in
+  plaintext in a PR's compose file) and was already considering moving to Resend.
+  `brevo.provider.ts` stays in the code; he hasn't said whether it remains a third instance
+  provider alongside SMTP/Resend, or is purely replaced by Resend — left open.
+- **An explicit `MAIL_PROVIDER` winning over `RESEND_API_KEY`** (the default choice made in
+  `f1ed72e4`, beyond what the mandate settled) — to validate.
+- The exact fallback behavior if Resend is configured but fails at runtime (fall back to SMTP, or
+  refuse outright) — not specified, not implemented.
+- **Link to production**: `invoicerr.chevrier.dev` today has NO mail server configured at all, so
+  no email goes out (established 2026-09-14, see `5aed5154`). The company screen (`7a61f3f7`)
+  reduces this risk now that it's built; filling in the five SMTP variables on the host, or
+  configuring a company server via the screen, remains a separate immediate action, already noted
+  in `TODO_MANDANT.md`.
 
 ---
 
-Regroupées ici pour relecture rapide — aucune n'est tranchée par ce fichier, toutes attendent une
-décision ou une vérification du propriétaire :
+## Open questions
 
-- **A (paiements)** — rien d'ouvert sur le choix des plateformes prioritaires (Stripe → Mollie →
-  PayPal → régionaux, décidé) ; restent à vérifier au moment du câblage : les frais non établis
-  (Payplug, Nexi, Przelewy24, Easypay, IfThenPay) et la couverture Portugal de Stripe.
-- **B (PDF, y compris l'ancien rang 16)** — communication (ou non) aux sociétés qui pensaient avoir
-  un gabarit personnalisé actif avant le retrait de l'onglet (2026-09-13). **Tranché le 2026-09-15** :
-  champs de marque = logo (upload, stockage fichiers existant) + une couleur d'accent + une police
-  parmi un jeu fermé embarqué (4-5) ; les préréglages sont des combinaisons nommées de ces trois.
-- **C (emails)** — bibliothèque d'éditeur WYSIWYG à choisir ; grammaire des variables dans le nouvel
-  éditeur ; extension ou non de la cascade de langue du PDF aux gabarits email par défaut.
-- **E (abonnement hébergé)** — **TRANCHÉS** le 2026-09-15, ne plus rouvrir : plateforme (Polar
-  Starter), modèle gradué (grille 2 $/1,5 $/1 $), périodicité (mensuel ET annuel), définition du siège
-  (`UserCompany`, OWNER inclus, invitation comptée seulement à l'acceptation), cycle de vie complet
-  dans les deux cas (jamais payé : essai 7 j sans `'send'` → bloquée 14 j → zip → suppression
-  immédiate ; a payé puis lapsé : bloquée 14 j → zip → **suppression réelle 180 jours après le zip**,
-  tranché le 2026-09-15). Restent réellement ouverts : la rédaction de la clause CGU transférant la responsabilité de conservation légale au client une fois
-  le zip livré ; la grille de prix envisagée (5 $/4 $/3,5 $) n'est PAS tranchée, ni ses seuils (5/10
-  sièges supposés par continuité, non confirmés) ; une remise éventuelle sur la formule annuelle ; ce
-  que couvre exactement le plugin `@polar-sh/better-auth` (vérification annoncée séparément) et si ses
-  routes passent par `AuthGuard`/`RolesGuard` ou les contournent (`app.module.ts:75`,
+**For the owner to settle as soon as they're up — the short, actionable list:**
+
+1. **Future-dated migrations — settled: renamed on 2026-09-15** (prefix `20260920…` →
+   `20260914…`, seven migrations, `_prisma_migrations` realigned on both local databases).
+2. **Product choices from overnight — settled on 2026-09-15**: everything validated as-is
+   (attachment ≤ 750 KiB; custom fields: kinds text/longText/number/money/date/boolean/select,
+   OWNER/ADMIN screen, a required field also blocks `send`; purchase orders: supplier =
+   `Client.supplier`, statuses mirroring the invoice, `PURCHASE-ORDER-` prefix) — **EXCEPT expense
+   categories**: "not fixed but dynamic in the backend" → per-company `ExpenseCategory` table
+   (migration), a default set inserted on company creation, CRUD in Settings, selector fed by the
+   API. In progress.
+3. **An explicit `MAIL_PROVIDER` wins over `RESEND_API_KEY`** — **settled on 2026-09-15: kept** (an
+   explicit `MAIL_PROVIDER` is honored as-is; Resend only takes priority when nothing is set).
+4. **Sandbox accounts** (Polar, Stripe, Mollie, PayPal) — guide published, not yet created.
+   Workstreams A (payments) and E (subscription) are waiting on these keys.
+5. **WYSIWYG library for emails** (Decision C) — **settled on 2026-09-15: TipTap**. In progress.
+6. **Spec 65 (mail settings), cause of the first failure not established.** The run's backend log
+   proves that `PUT /api/company/mail-settings` never completed, without saying why (no readable
+   hypothesis — 400/403/503 — explains the total absence of a toast). The spec (`c7e80579`) now
+   names the failing call instead of waiting on a toast; to be read on the next run.
+
+*One-line methodology note: four Cypress specs out of five written without being run broke on
+their first CI run overnight (62, 63, 64, 65) — never a product bug, always a false assumption in
+the spec itself.*
+
+---
+
+Grouped here for quick review — none of them is settled by this file, all await a decision or a
+check from the owner:
+
+- **A (payments)** — nothing open on the choice of priority platforms (Stripe → Mollie → PayPal →
+  regionals, decided); still to be checked when wiring them up: the unestablished fees (Payplug,
+  Nexi, Przelewy24, Easypay, IfThenPay) and Stripe's Portugal coverage.
+- **B (PDF, including the old rank 16)** — communication (or not) to companies that thought they
+  had an active custom template before the tab was removed (2026-09-13). **Settled on 2026-09-15**:
+  brand fields = logo (upload, existing file storage) + one accent color + a font from a closed
+  embedded set (4-5); presets are named combinations of these three.
+- **C (emails)** — WYSIWYG editor library to choose; variable grammar in the new editor; whether to
+  extend the PDF's language cascade to the default email templates or not.
+- **E (hosted subscription)** — **SETTLED** on 2026-09-15, not to be reopened: platform (Polar
+  Starter), graduated model (2 $/1,5 $/1 $ scale), billing period (monthly AND annual), definition
+  of a seat (`UserCompany`, OWNER included, invitation counted only on acceptance), full lifecycle
+  in both cases (never paid: 7-day trial with no `'send'` → blocked 14 days → zip → immediate
+  deletion; paid then lapsed: blocked 14 days → zip → **real deletion 180 days after the zip**,
+  settled 2026-09-15). What remains genuinely open: drafting the ToS clause transferring
+  legal-retention responsibility to the client once the zip has been delivered; the considered
+  pricing grid (5 $/4 $/3,5 $) is NOT settled, nor are its thresholds (5/10 seats assumed by
+  continuity, not confirmed); a possible discount on the annual plan; exactly what the
+  `@polar-sh/better-auth` plugin covers (verification announced separately) and whether its routes
+  go through `AuthGuard`/`RolesGuard` or bypass them (`app.module.ts:75`,
   `disableGlobalAuthGuard: true`).
-- **G (serveur de mail)** — **COMPLÈTE, backend + écran** (`f1ed72e4`, `63b42ef9`, `1958c47a` pour le
-  backend — fournisseur Resend, cascade société→instance branchée sur tous les envois sauf la PEC
-  italienne, volontairement — puis `7a61f3f7` pour l'écran Réglages → Mail, qui ne rend jamais de
-  secret). **Réserve** : le spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4) ;
-  instrumenté (`c7e80579`, un vrai défaut d'écran corrigé au passage) mais la cause du premier échec
-  reste NON établie — le journal backend prouve que `PUT /api/company/mail-settings` n'a jamais abouti
-  pendant ce run, sans dire pourquoi ; à lire au prochain run (voir Questions ouvertes #6). Restent
-  ouverts : le comportement de repli exact si Resend est configuré mais échoue à l'exécution (retombée
-  sur SMTP, ou refus direct) — non précisé. **Tranchés le 2026-09-15** : Brevo est SUPPRIMÉ (SMTP ou
-  Resend seulement ; Brevo reste utilisable via son relais SMTP — en cours) ; `MAIL_PROVIDER` explicite
-  continue de gagner sur `RESEND_API_KEY`.
+- **G (mail server)** — **COMPLETE, backend + screen** (`f1ed72e4`, `63b42ef9`, `1958c47a` for the
+  backend — Resend provider, company→instance cascade wired onto every send path except the
+  Italian PEC, deliberately — then `7a61f3f7` for the Settings → Mail screen, which never returns
+  a secret). **Caveat**: Cypress spec 65 failed on its first run (3 failures out of 4); instrumented
+  (`c7e80579`, a real screen defect fixed along the way) but the cause of the first failure remains
+  NOT established — the backend log proves that `PUT /api/company/mail-settings` never completed
+  during that run, without saying why; to be read on the next run (see Open questions #6). Still
+  open: the exact fallback behavior if Resend is configured but fails at runtime (fall back to
+  SMTP, or refuse outright) — not specified. **Settled on 2026-09-15**: Brevo is REMOVED (SMTP or
+  Resend only; Brevo remains usable via its SMTP relay — in progress); an explicit `MAIL_PROVIDER`
+  still wins over `RESEND_API_KEY`.
 
-**Ce que ce fichier n'a pas pu établir** : les frais de Payplug/Nexi/Przelewy24/Easypay/IfThenPay ; si
-Adyen/Checkout.com/SumUp offrent un bac à sable sans entreprise réelle ; la couverture Portugal chez
-Stripe et Klarna ; la couverture exacte du plugin `@polar-sh/better-auth` (vérification en cours
-ailleurs) ; si l'URL versionnée `api-reference/2026-10/subscriptions/update-subscription.md` de Polar
-reste stable dans le temps (rapportée par la recherche, non revérifiée directement ici).
+**What this file could not establish**: Payplug/Nexi/Przelewy24/Easypay/IfThenPay fees; whether
+Adyen/Checkout.com/SumUp offer a sandbox with no real company required; Stripe's and Klarna's
+Portugal coverage; the exact coverage of the `@polar-sh/better-auth` plugin (verification in
+progress elsewhere); whether Polar's versioned URL
+`api-reference/2026-10/subscriptions/update-subscription.md` stays stable over time (reported by
+the research, not directly re-verified here).
 
 ---
 
-## 1. Inventaire de l'existant (100 % code)
+## 1. Inventory of what exists (100% from code)
 
-### 1.1 Documents (devis, factures, avoirs, dépenses, factures reçues)
-Un seul mécanisme générique — `backend/src/modules/documents/descriptors/` (`type-registry.ts` +
-un descripteur par type : `quote.descriptor.ts`, `invoice.descriptor.ts`,
-`credit-note.descriptor.ts`, `expense.descriptor.ts`, `received-invoice.descriptor.ts`) — pilote
-tout : champs, statuts, actions, numérotation, email, contributions dashboard/statistics. Aucun type
-n'a son propre contrôleur/service Prisma ; `documents.service.ts` + `persistence.ts` sont génériques.
-Preuves e2e : `17-document-descriptor`, `19-document-pdf`, `20-document-totals`,
+### 1.1 Documents (quotes, invoices, credit notes, expenses, received invoices)
+A single generic mechanism — `backend/src/modules/documents/descriptors/` (`type-registry.ts` +
+one descriptor per type: `quote.descriptor.ts`, `invoice.descriptor.ts`,
+`credit-note.descriptor.ts`, `expense.descriptor.ts`, `received-invoice.descriptor.ts`) — drives
+everything: fields, statuses, actions, numbering, email, dashboard/statistics contributions. No
+type has its own controller/Prisma service; `documents.service.ts` + `persistence.ts` are generic.
+e2e proof: `17-document-descriptor`, `19-document-pdf`, `20-document-totals`,
 `21-document-lifecycle`, `22-document-numbering`, `23-document-email`, `28-document-async-send`.
 
-- **Devis → facture** : conversion intégrale (`actions/convert-to-invoice.ts`) ou **acompte en %**
-  (`actions/request-deposit.ts`, recalcule le TTC du devis, refuse si plusieurs taux de TVA sans
-  ligne unique) ou **facturation échelonnée multi-jalons** (`actions/request-installments.ts`) — e2e
-  `26-document-deposit`, `51-installments`.
-- **Avoirs (credit notes)** : type dédié, seul type autorisé à réduire une facture
+- **Quote → invoice**: full conversion (`actions/convert-to-invoice.ts`) or a **percentage
+  deposit** (`actions/request-deposit.ts`, recomputes the quote's gross total, refuses when there
+  are several VAT rates without a single line) or **multi-milestone installment billing**
+  (`actions/request-installments.ts`) — e2e `26-document-deposit`, `51-installments`.
+- **Credit notes**: a dedicated type, the only type allowed to reduce an invoice
   (`settlement/credits.ts`) — e2e via `24-document-payments`/`25-document-settlement`.
-- **Dépenses** : pièce jointe, catégorie (liste fermée + « Other ») et kilométrage — livré rang 13,
-  `6cb60096` (voir Livré), en réutilisant le stockage et le hash de `received-invoices/`, avec un
-  nouveau type de champ générique `file` au descripteur.
-- **Factures reçues (AP)** : module dédié `received-invoices/` avec extraction (`extraction.ts`),
-  OCR (`received-invoices/ocr/`, moteurs Mistral **et** local `ocrmypdf`), stockage de fichier
-  (`storage.ts`) et rapprochement fournisseur automatique/manuel
-  (`supplier-reconciliation.ts`, marque `Client.isSupplier`) — e2e `36-received-invoices`.
-- **Lignes** : remise en % par ligne déjà supportée, appliquée avant TVA
+- **Expenses**: attachment, category (closed list + "Other") and mileage — shipped rank 13,
+  `6cb60096` (see Shipped), reusing `received-invoices/`'s storage and hashing, with a new generic
+  `file` field kind on the descriptor.
+- **Received invoices (AP)**: a dedicated `received-invoices/` module with extraction
+  (`extraction.ts`), OCR (`received-invoices/ocr/`, Mistral **and** local `ocrmypdf` engines), file
+  storage (`storage.ts`) and automatic/manual supplier reconciliation
+  (`supplier-reconciliation.ts`, `Client.isSupplier` flag) — e2e `36-received-invoices`.
+- **Lines**: per-line percentage discount already supported, applied before VAT
   (`totals/compute-totals.ts`).
-- **Paiements & lettrage** : `DocumentPayment` générique à tout type de document
-  (`settlement/payments.ts`), conversion multi-devise **au moment du paiement** avec taux figé
-  (`settlement/convert-payment.ts`), paiement en ligne (Stripe, voir Livré rang 1) et méthodes de
-  paiement typées par société (`payment-methods/`) — e2e `24-document-payments`,
+- **Payments & settlement**: a `DocumentPayment` generic to any document type
+  (`settlement/payments.ts`), multi-currency conversion **at the moment of payment** with a frozen
+  rate (`settlement/convert-payment.ts`), online payment (Stripe, see Shipped rank 1) and
+  per-company typed payment methods (`payment-methods/`) — e2e `24-document-payments`,
   `27-multi-currency-consolidation`, `60-online-payment`, `61-payment-methods`.
-- **Récurrence** : moteur générique `schedules/` (cadence weekly/monthly/quarterly/yearly,
-  `cadence.ts`), rejoue une action sur un document gabarit, option `{thenSend:boolean}` pour
-  enchaîner l'envoi — écran `settings/recurring.settings.tsx` — e2e `29-document-recurrence`.
-- **Partage/consultation publique** : lien à jeton hashé, PDF seul (`share-links/`,
-  `public/public-documents.controller.ts`) ; **portail client authentifié livré séparément**
-  (`56-client-portal`, voir Livré rang 3) — e2e `37-document-share-link`.
-- **Signature électronique** : OTP par email, jeton dédié (`signatures/otp.ts`,
-  `signature-token.ts`), webhook `DOCUMENT_SIGNED` — e2e `45-signature`.
-- **Archivage légal / WORM** : `archive/` (`persistence.ts`, `storage.ts`,
-  `archive-verdict-on-terminal.ts`, `verdict-artifact.ts`), rétention (`archive/retention/`) — e2e
+- **Recurrence**: a generic `schedules/` engine (weekly/monthly/quarterly/yearly cadence,
+  `cadence.ts`), replays an action on a template document, `{thenSend:boolean}` option to chain the
+  send — screen `settings/recurring.settings.tsx` — e2e `29-document-recurrence`.
+- **Sharing/public viewing**: a hashed-token link, PDF only (`share-links/`,
+  `public/public-documents.controller.ts`); **authenticated client portal shipped separately**
+  (`56-client-portal`, see Shipped rank 3) — e2e `37-document-share-link`.
+- **Electronic signature**: email OTP, dedicated token (`signatures/otp.ts`,
+  `signature-token.ts`), `DOCUMENT_SIGNED` webhook — e2e `45-signature`.
+- **Legal / WORM archiving**: `archive/` (`persistence.ts`, `storage.ts`,
+  `archive-verdict-on-terminal.ts`, `verdict-artifact.ts`), retention (`archive/retention/`) — e2e
   `34-document-archive`.
 
-### 1.2 Conformité e-invoicing (le cœur de la branche)
-Voir `CLAUDE.md`. En bref, déjà en place et prouvé par des specs dédiées (hors périmètre de ce
-document, non reproduit ici en détail) :
-- Formats nationaux + sémantiques (`formats/national`, `formats/semantic`,
+### 1.2 E-invoicing compliance (the core of this branch)
+See `CLAUDE.md`. In short, already in place and proven by dedicated specs (out of scope for this
+document, not reproduced in detail here):
+- National formats + semantics (`formats/national`, `formats/semantic`,
   `formats/vendored/{en16931,pl,es,nl,de,it}`) — e2e `30-document-xml-format`.
-- Canaux/transports (`transports/{pdp,ksef,sdi,chorus-pro,face,anaf}`) — e2e `31-national-channels`,
-  `32-channel-mandate`.
-- B2G (`b2g-routing/`, 15 pays livrables — voir les catalogues eux-mêmes) — e2e `40-b2g-routing`.
-- Politique pays (types de documents disponibles, mentions obligatoires, identifiants requis,
-  routes de correction/annulation) : `country-policy/`, `mentions/`, `country-identifiers/`,
+- Channels/transports (`transports/{pdp,ksef,sdi,chorus-pro,face,anaf}`) — e2e
+  `31-national-channels`, `32-channel-mandate`.
+- B2G (`b2g-routing/`, 15 deliverable countries — see the catalogs themselves) — e2e
+  `40-b2g-routing`.
+- Per-country policy (available document types, mandatory mentions, required identifiers,
+  correction/cancellation routes): `country-policy/`, `mentions/`, `country-identifiers/`,
   `correction-routes/` — e2e `39-document-conformity`, `43-correction-routes`, `44-country-policy`.
-- Fiscalité transfrontalière par composition de profils, jamais une matrice N×N (`tax/tax-engine.ts`)
-  — e2e `35-cross-border-tax`.
-- **Mentions légales calculées** : ex. FR — indemnité forfaitaire de recouvrement (40 €) et taux de
-  pénalités de retard (taux BCE + 10 pts, figé à l'émission) générés automatiquement
-  (`mentions/data/fr.json`) — une sophistication que peu de concurrents grand public égalent.
-- **Déclarations temps réel** : mécanisme `reporting/`, **un seul pays livré** — le Portugal
-  (`reporting/providers/pt-at-*`, statut implemented-awaiting-accreditation). Les fournisseurs
-  Grèce/Hongrie qui existaient avant le pivot cinq pays ont été supprimés avec lui. **Écran de suivi
-  livré** (rang 10, `c6a06617`, voir Livré) : liste paginée scopée société, lue depuis
+- Cross-border taxation by profile composition, never an N×N matrix (`tax/tax-engine.ts`) — e2e
+  `35-cross-border-tax`.
+- **Computed legal mentions**: e.g. FR — statutory recovery indemnity (€40) and late-payment
+  penalty rate (ECB rate + 10 pts, frozen at issue date) generated automatically
+  (`mentions/data/fr.json`) — a level of sophistication few consumer-grade competitors match.
+- **Real-time declarations**: the `reporting/` mechanism, **only one country shipped** — Portugal
+  (`reporting/providers/pt-at-*`, status implemented-awaiting-accreditation). The Greece/Hungary
+  providers that existed before the five-country pivot were removed with it. **Tracking screen
+  shipped** (rank 10, `c6a06617`, see Shipped): a paginated, company-scoped list read from
   `DocumentAuthorityEvent`.
 
-### 1.3 Clients, articles, fournisseurs
-- `modules/clients/` : CRUD complet, `ClientType` (particulier/société), `ClientKind`
-  (BUSINESS/GOVERNMENT — routage B2G), flag `isSupplier` indépendant (réconciliation AP), champ
-  `language` (rang 14) — écran `pages/(app)/clients/`, e2e `05-clients`.
-- `modules/articles/` : catalogue produit/service, pré-remplissage de ligne depuis le catalogue,
-  quantité en stock + seuil d'alerte (`Article.quantity`/`lowStockThreshold`, rang 18) — e2e
-  `14-articles`, `49-stock`.
-- `modules/company-lookup/` + `modules/sirene/` : enrichissement automatique à la création d'un
-  client depuis un registre officiel (SIRENE FR + ~250 capacités par pays, REGISTER/PARTIAL) — e2e
+### 1.3 Clients, articles, suppliers
+- `modules/clients/`: full CRUD, `ClientType` (individual/company), `ClientKind`
+  (BUSINESS/GOVERNMENT — B2G routing), an independent `isSupplier` flag (AP reconciliation),
+  `language` field (rank 14) — screen `pages/(app)/clients/`, e2e `05-clients`.
+- `modules/articles/`: product/service catalog, line prefill from the catalog, stock quantity +
+  alert threshold (`Article.quantity`/`lowStockThreshold`, rank 18) — e2e `14-articles`,
+  `49-stock`.
+- `modules/company-lookup/` + `modules/sirene/`: automatic enrichment on client creation from an
+  official registry (French SIRENE + ~250 per-country capabilities, REGISTER/PARTIAL) — e2e
   `16-company-lookup`.
 
-### 1.4 Multi-société, auth, API
+### 1.4 Multi-company, auth, API
 - `modules/companies/` + `modules/company/` (+ `signing-certificates/`, `channels/`,
-  `currency-rates/`) : multi-société par utilisateur (`UserCompany`, `CompanyRole`
-  OWNER/ADMIN/MEMBER), `@ActiveCompany()` scope toutes les requêtes — e2e `15-multi-company`,
-  `02-company`.
-- Auth better-auth + fallback clé API (`modules/api-keys/`, scopes) — e2e `13-api-keys`,
+  `currency-rates/`): multi-company per user (`UserCompany`, `CompanyRole` OWNER/ADMIN/MEMBER),
+  `@ActiveCompany()` scopes every request — e2e `15-multi-company`, `02-company`.
+- better-auth auth + API-key fallback (`modules/api-keys/`, scopes) — e2e `13-api-keys`,
   `01-register`, `03-auth`.
-- `modules/invitations/` : invitation de membres par code — écran
+- `modules/invitations/`: member invitation by code — screen
   `settings/_components/invitations.settings.tsx`.
-- `modules/danger/` : reset app/société avec confirmation OTP.
-- Taux de change (`company/currency-rates/`) : flux BCE quotidien automatique + repli
-  `open.er-api.com`, saisie manuelle toujours possible (`CurrencyRate.source` — rang 9, voir Livré).
+- `modules/danger/`: app/company reset with OTP confirmation.
+- Exchange rates (`company/currency-rates/`): daily automatic ECB feed + `open.er-api.com`
+  fallback, manual entry always possible (`CurrencyRate.source` — rank 9, see Shipped).
 
-### 1.5 Intégrations & extensibilité
-- **Webhooks** : `modules/webhooks/` — 7 types de destination (`WebhookType`: GENERIC, DISCORD,
-  MATTERMOST, SLACK, TEAMS, ZAPIER, ROCKETCHAT), événements génériques `DOCUMENT_*`/`CLIENT_*`/
-  `COMPANY_*`/`WEBHOOK_*` (purgés de ~80 valeurs mortes en 2026-09-03, ne restent que celles avec un
-  émetteur réel) — e2e `42-webhooks`.
-- **Serveur MCP** : `modules/mcp/` — outils génériques par type de document, scopés par clé API
-  (`tools/tool-registry.ts`), permet à un agent IA de piloter l'appli.
-- **Plugins in-app** : `modules/plugins/` — `PluginType` SIGNING/STORAGE/OCR, registre interne
-  (le mécanisme de plugins tiers chargés dynamiquement a été retiré en 2026, voir le commentaire de
-  tête de `plugins.service.ts` — jugé sans point d'extension réel).
+### 1.5 Integrations & extensibility
+- **Webhooks**: `modules/webhooks/` — 7 destination types (`WebhookType`: GENERIC, DISCORD,
+  MATTERMOST, SLACK, TEAMS, ZAPIER, ROCKETCHAT), generic `DOCUMENT_*`/`CLIENT_*`/`COMPANY_*`/
+  `WEBHOOK_*` events (purged of ~80 dead values in 2026-09-03, only those with a real emitter
+  remain) — e2e `42-webhooks`.
+- **MCP server**: `modules/mcp/` — generic tools per document type (`tools/tool-registry.ts`),
+  scoped by API key, lets an AI agent drive the app.
+- **In-app plugins**: `modules/plugins/` — `PluginType` SIGNING/STORAGE/OCR, an internal registry
+  (the dynamically-loaded third-party plugin mechanism was removed in 2026, see the header comment
+  of `plugins.service.ts` — judged to have no real extension point).
 
-### 1.6 PDF, mails, i18n
-- **Rendu PDF : un design unique, hardcodé** (`rendering/render-html.ts`), sans éditeur ni gabarit
-  stocké en base — l'onglet Settings qui prétendait l'éditer a été retiré le 2026-09-13 (deux routes
-  qu'il appelait n'ont jamais existé côté backend). Décision produit du 2026-09-15 (voir Décision B) :
-  cet état reste tel quel par choix, pas seulement par défaut — la seule variation admise est la
-  langue du contenu (rang 14, déjà livré) et, à venir, un jeu restreint de préréglages visuels
-  (couleur/logo/police) — e2e `19-document-pdf`.
-- Gabarits e-mail : UN SEUL moteur pour tout ce que le back envoie (`actions/email-template.ts`) —
-  jetons `{placeholder}` à accolade simple, un jeton inconnu laissé verbatim et SIGNALÉ plutôt que
-  levé (un e-mail ne doit jamais être bloqué par une faute de frappe), une partie HTML et une partie
-  texte (dérivée du HTML quand le gabarit n'en fournit pas, liens compris). Trois niveaux : défaut du
-  descripteur par type, surcharge par entreprise (`Company.documentEmailTemplates`, écrite par
-  `actions/company-email-templates.ts`), repli générique. Les deux e-mails SYSTÈME (demande de
-  signature, code de vérification) partagent ce moteur depuis l'unification ; leur table
-  (`MailTemplate`) ne garde que ces deux familles. Le HTML stocké est assaini à l'ÉCRITURE
-  (`mail/sanitize-email-html.ts`), les valeurs interpolées échappées au rendu. Écran unique
-  `settings/_components/templates.settings.tsx` (variables offertes par l'API, dérivées par type —
-  jamais une liste en dur ; écriture réservée OWNER/ADMIN), testé par `54-email-templates`. **Éditeur
-  WYSIWYG à construire par-dessus ce mécanisme, voir Décision C** — le texte brut actuel n'est pas un
-  Handlebars malgré la dépendance npm du même nom, encore présente mais utilisée nulle part dans le
-  code d'email.
-- i18n : UI entièrement `t()`-isée, gérée par Weblate, `npm run i18n:check` en CI ; les libellés de
-  descripteurs de documents suivent le même mécanisme avec repli sur le texte brut
-  (`descriptor-i18n`, e2e `38-descriptor-i18n`). Langue du document par destinataire : livrée
-  (rang 14, voir Livré et Décision B).
+### 1.6 PDF, mail, i18n
+- **PDF rendering: a single, hardcoded design** (`rendering/render-html.ts`), with no editor or
+  database-stored template — the Settings tab that claimed to edit it was removed on 2026-09-13
+  (the two routes it called had never existed on the backend). Product decision of 2026-09-15 (see
+  Decision B): this state stays as-is by choice, not just by default — the only variation allowed
+  is the content's language (rank 14, already shipped) and, coming up, a restricted set of visual
+  presets (color/logo/font) — e2e `19-document-pdf`.
+- Email templates: a SINGLE engine for everything the backend sends (`actions/email-template.ts`)
+  — single-brace `{placeholder}` tokens, an unknown token left verbatim and FLAGGED rather than
+  resolved (an email should never be blocked by a typo), an HTML part and a text part (derived from
+  the HTML when the template doesn't supply one, links included). Three levels: per-type
+  descriptor default, per-company override (`Company.documentEmailTemplates`, written by
+  `actions/company-email-templates.ts`), generic fallback. The two SYSTEM emails (signature
+  request, verification code) have shared this engine since unification; their table
+  (`MailTemplate`) keeps only these two families. Stored HTML is sanitized on WRITE
+  (`mail/sanitize-email-html.ts`), interpolated values escaped at render time. A single screen
+  `settings/_components/templates.settings.tsx` (variables offered by the API, derived per type —
+  never a hardcoded list; write access reserved to OWNER/ADMIN), tested by `54-email-templates`.
+  **WYSIWYG editor to be built on top of this mechanism, see Decision C** — today's plain text is
+  not Handlebars despite the npm dependency of the same name, still present but used nowhere in the
+  email code.
+- i18n: the UI is entirely `t()`-driven, managed by Weblate, `npm run i18n:check` gates CI;
+  document descriptor labels follow the same mechanism with a plain-text fallback
+  (`descriptor-i18n`, e2e `38-descriptor-i18n`). Document language per recipient: shipped (rank 14,
+  see Shipped and Decision B).
 
-### 1.7 Dashboard, reporting interne
-- Dashboard et Statistics sont le **même mécanisme de "contributions"** (`contributions/`) : chaque
-  type de document peut publier des widgets dashboard et/ou statistics, jamais un champ en dur —
-  invoice/quote/credit-note/expense/received-invoice y contribuent déjà.
-- Consolidation multi-devises **opt-in** sur ces widgets (`contributions/currency-consolidation.ts`,
+### 1.7 Dashboard, internal reporting
+- Dashboard and Statistics are the **same "contributions" mechanism** (`contributions/`): every
+  document type can publish dashboard and/or statistics widgets, never a hardcoded field —
+  invoice/quote/credit-note/expense/received-invoice already contribute to it.
+- **Opt-in** multi-currency consolidation on these widgets (`contributions/currency-consolidation.ts`,
   `Company.referenceCurrency`) — e2e `27-multi-currency-consolidation`.
-- Relevé de compte client (solde agrégé + âge de créance) : livré, rang 6 (voir Livré).
+- Client account statement (aggregated balance + aging): shipped, rank 6 (see Shipped).
 
 ---
 
-## 2. Ce que font les concurrents (recherche web, 8 requêtes, 2026-09-10)
+## 2. What competitors do (web research, 8 queries, 2026-09-10)
 
-Sources consultées (contenu non fiable, extrait uniquement pour repérer des *familles de
-fonctionnalités*, aucune instruction suivie, aucun texte copié) :
-- Concurrents self-hosted directement comparables : Invoice Ninja, Akaunting, Crater, InvoiceShelf.
-- SaaS grand public : Zoho Invoice, Xero, FreshBooks, QuickBooks, Stripe Billing/Invoicing, PayPal
-  Invoicing, Salesforce Billing.
-- Marché FR TPE/PME : Evoliz, Sellsy, Kwixéo, Abby, Tiime.
-- Roundups génériques 2026 (Zapier, Capterra, GetApp, TheDigitalPM) sur les fonctionnalités
-  "must-have" et les intégrations comptables (QuickBooks/Xero/DATEV).
+Sources consulted (unreliable content, extracted only to spot *feature families*, no instruction
+followed, no text copied):
+- Directly comparable self-hosted competitors: Invoice Ninja, Akaunting, Crater, InvoiceShelf.
+- Consumer-facing SaaS: Zoho Invoice, Xero, FreshBooks, QuickBooks, Stripe Billing/Invoicing,
+  PayPal Invoicing, Salesforce Billing.
+- French SMB market: Evoliz, Sellsy, Kwixéo, Abby, Tiime.
+- Generic 2026 roundups (Zapier, Capterra, GetApp, TheDigitalPM) on "must-have" features and
+  accounting integrations (QuickBooks/Xero/DATEV).
 
-Familles récurrentes chez ces concurrents, qui ont motivé §3 historique (paiement en ligne, relances,
-portail client, rapprochement bancaire, export comptable, suivi du temps, stock, notes de frais,
-bons de commande, workflows d'approbation, personnalisation de template, taux de change automatiques,
-facturation échelonnée, champs personnalisés, application mobile) : la quasi-totalité est désormais
-soit livrée (section Livré), soit reformulée par une décision produit du 2026-09-15 (section
-Décisions produit), soit détaillée comme manque restant (section Restent).
+Recurring families among these competitors, which drove the historical §3 (online payment,
+reminders, client portal, bank reconciliation, accounting export, time tracking, stock, expense
+reports, purchase orders, approval workflows, template customization, automatic exchange rates,
+installment billing, custom fields, mobile app): nearly all of them are now either shipped (Shipped
+section), or reformulated by a 2026-09-15 product decision (Product decisions section), or detailed
+as a remaining gap (Remaining section).

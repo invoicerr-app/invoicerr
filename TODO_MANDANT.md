@@ -1,69 +1,69 @@
-# TODO_MANDANT — ce qui est à ta main (2026-09-14)
+# TODO_MANDANT — what's in your hands (2026-09-14)
 
-Ne contient que ce qui reste à faire, classé par ce que ça débloque. Tout ce qui était ici et est fait
-a été retiré — l'historique vit dans les commits, pas dans ce fichier. Rien ici ne bloque le merge :
-la CI de PR ne dépend d'aucun secret.
+Contains only what remains to be done, sorted by what it unblocks. Everything that used to be here
+and is done has been removed — the history lives in the commits, not in this file. Nothing here
+blocks the merge: the PR CI does not depend on any secret.
 
-**Rappel qui vide encore les trois quarts d'une liste imaginaire** : aucun identifiant PAR CLIENT
-n'est une démarche à ta main. L'app est multi-tenant — chaque client saisit SES propres credentials
-dans Settings → Channels, chiffrés en base. Ce qui suit, ce sont les identifiants de LA SOCIÉTÉ QUI
-FAIT TOURNER `invoicerr.chevrier.dev`, ou des comptes de recette pour prouver un canal en réel.
+**Reminder that still empties three-quarters of an imaginary list**: no PER-CLIENT credential is a
+task in your hands. The app is multi-tenant — each client enters THEIR OWN credentials in
+Settings → Channels, encrypted in the database. What follows are the credentials of THE COMPANY
+RUNNING `invoicerr.chevrier.dev`, or staging (UAT) accounts to prove a channel live.
 
 ---
 
-## 1. Urgent — aucun email ne part en production
+## 1. Urgent — no email is being sent in production
 
-Établi le 2026-09-14 : `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` et `SMTP_FROM` sont tous **vides**
-dans le conteneur de `invoicerr.chevrier.dev`, depuis des semaines. L'app démarre et répond
-normalement — rien ne le signalait avant ce jour, un correctif fait maintenant échouer bruyamment au
-démarrage plutôt qu'au premier envoi. Tant que c'est vide : aucune invitation, aucune relance,
-aucune notification de document envoyé.
+Established on 2026-09-14: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` are all
+**empty** in the `invoicerr.chevrier.dev` container, and have been for weeks. The app starts and
+responds normally — nothing flagged this before today; a fix now makes it fail loudly at startup
+rather than at the first send attempt. As long as it's empty: no invitation, no reminder, no
+sent-document notification.
 
-- [ ] Ajouter dans `/DATA/AppData/invoicerr/.env` sur l'hôte, puis `docker compose up -d` :
-      `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (cinq lignes ;
-      `SMTP_SECURE` peut rester à sa valeur par défaut).
+- [ ] Add to `/DATA/AppData/invoicerr/.env` on the host, then `docker compose up -d`:
+      `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (five lines;
+      `SMTP_SECURE` can stay at its default value).
 
-## 2. Chorus Pro (B2G français) — qualification prouvée, production restante
+## 2. Chorus Pro (French B2G) — qualification proven, production remaining
 
-Clos pour la qualification : les deux couches d'identifiants (compte PISTE OAuth + compte technique
-Chorus Pro) ont été obtenues, et un dépôt Factur-X réel est allé jusqu'à l'état terminal
-`IN_INTEGRE` (`CPP0011117000000000425903`, 2026-09-14). **À retenir pour la suite** : la
-qualification Chorus Pro n'exige aucune entreprise française réelle — son « matelas de données »
-fournit une structure et un SIRET fictifs ; seule la PRODUCTION en demande un vrai.
+Closed for qualification: both layers of credentials (PISTE OAuth account + Chorus Pro technical
+account) were obtained, and a real Factur-X submission reached the terminal state `IN_INTEGRE`
+(`CPP0011117000000000425903`, 2026-09-14). **Worth remembering going forward**: Chorus Pro
+qualification does not require any real French company — its sandbox test data supplies a
+fictitious company structure and SIRET; only PRODUCTION requires a real one.
 
-- [ ] **Raccordement production** : nouvelle candidature PISTE dédiée à la production + déclaration
-      de raccordement Chorus Pro production. Rien tenté encore. Pas déterminé si ça relève de toi
-      (ça demandera vraisemblablement un vrai SIRET, contrairement à la qualification) — à trancher
-      quand ce chantier est repris.
+- [ ] **Production onboarding**: a new PISTE application dedicated to production + a Chorus Pro
+      production onboarding declaration. Nothing attempted yet. Not determined whether this is on
+      you (it will likely require a real SIRET, unlike qualification) — to be decided when this
+      work is picked back up.
 
-## 3. Canaux et comptes encore à ouvrir
+## 3. Channels and accounts still to open
 
-Chacun débloque une preuve en réel pour un canal déjà écrit. Aucun ne casse quoi que ce soit en son
-absence : tout est proprement gated.
+Each one unblocks a live proof for a channel that's already written. None of them breaks anything
+in its absence: everything is properly gated.
 
-| Compte / démarche | Débloque | Ce qui bloque |
+| Account / step | Unblocks | What's blocking |
 |---|---|---|
-| 🇮🇹 Boîte PEC italienne | SdI-par-PEC (déjà écrit, jamais prouvé en réel) | Purement administratif — un abonnement chez un fournisseur (Aruba, Legalmail…), aucune accréditation ni contrat commercial requis. Le seul canal dans ce cas. |
-| 💳 Compte Stripe | Paiement en ligne depuis le portail client (livré aujourd'hui) | Aucun compte prestataire n'existe pour ce projet ; le canal est écrit et testé à blanc, jamais prouvé sans lui. |
-| 🇵🇹 Identifiants AT portugais | Déclaration fiscale portugaise en réel | NIF portugais, subutilizador, certificat X.509 signé par l'AT |
-| 🌍 Compte chez un Access Point Peppol commercial | Peppol en production | Contrat avec un Access Point, ou adhésion OpenPeppol |
-| 🇮🇹 SdI direct (hors PEC) | Le canal SdI officiel (indépendamment de la voie PEC ci-dessus) | Partita IVA inscrite sur Entratel + certificats délivrés par l'AdE |
-| 🇵🇱 KSeF **prod** | KSeF en production (déjà prouvé en environnement de test, 2026-06-28) | NIP polonais + profil de confiance ou signature qualifiée |
-| 🇫🇷 PDP **prod** | PDP en production (déjà prouvé en réel, 2026-08-29) | Contrat commercial avec une PDP immatriculée |
-| 🇪🇸 FACe | Canal espagnol | Certificat FNMT, vérification d'identité en présentiel |
-| 🇭🇺 NAV · 🇬🇷 myDATA · 🇷🇴 ANAF · 🇲🇽 CFDI | Ces quatre canaux | Contribuable local + identité fiscale nationale dans chaque pays |
+| 🇮🇹 Italian PEC mailbox | SdI-via-PEC (already written, never proven live) | Purely administrative — a subscription with a provider (Aruba, Legalmail…), no accreditation or commercial contract required. The only channel in this case. |
+| 💳 Stripe account | Online payment from the client portal (shipped today) | No provider account exists for this project; the channel is written and dry-run tested, never proven without one. |
+| 🇵🇹 Portuguese AT credentials | Live Portuguese tax declaration | Portuguese NIF, subutilizador, X.509 certificate signed by the AT |
+| 🌍 Account with a commercial Peppol Access Point | Peppol in production | Contract with an Access Point, or OpenPeppol membership |
+| 🇮🇹 Direct SdI (outside PEC) | The official SdI channel (independent of the PEC route above) | Partita IVA registered on Entratel + certificates issued by the AdE |
+| 🇵🇱 KSeF **production** | KSeF in production (already proven in the test environment, 2026-06-28) | Polish NIP + trusted profile or qualified signature |
+| 🇫🇷 PDP **production** | PDP in production (already proven live, 2026-08-29) | Commercial contract with a registered PDP |
+| 🇪🇸 FACe | Spanish channel | FNMT certificate, in-person identity verification |
+| 🇭🇺 NAV · 🇬🇷 myDATA · 🇷🇴 ANAF · 🇲🇽 CFDI | These four channels | Local taxpayer status + national tax identity in each country |
 
-## 4. Administratif
+## 4. Administrative
 
-- [ ] **Ouvrir la PR vers `main`** — la branche a ~870 commits d'avance. Pas de secret requis pour
-      que la CI de PR passe.
+- [ ] **Open the PR to `main`** — the branch is ~870 commits ahead. No secret is required for the
+      PR CI to pass.
 
-## 5. Petit, sans credentials
+## 5. Small, no credentials needed
 
-- [ ] Weblate : vérifier qu'il a bien ramassé les nouvelles clés i18n.
-- [ ] (Optionnel) Environnement GitHub `live-tests` avec *required reviewer*, pour qu'aucun run live
-      ne parte sans validation.
+- [ ] Weblate: check that it has correctly picked up the new i18n keys.
+- [ ] (Optional) GitHub `live-tests` environment with a *required reviewer*, so that no live run
+      goes out without validation.
 
 ---
 
-*`TODO_ISSUES.md` n'est pas pour toi : c'est le carnet de bord technique. Tu n'as rien à en faire.*
+*`TODO_ISSUES.md` is not for you: it's the technical logbook. You have nothing to do with it.*
