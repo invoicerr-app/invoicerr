@@ -49,7 +49,7 @@
 | 12 | Facturation échelonnée multi-jalons | `51-installments` |
 | 13 | Notes de frais enrichies (pièce jointe, catégorie, kilométrage) | `6cb60096`, sans migration. Réutilise le stockage des factures reçues (`received-invoices/storage.ts`, volume `documents_data`) et le hash SHA-256 de `archive/hashing.ts` ; nouveau type de champ générique `file` au descripteur. Deux choix de produit pris au plus simple, **à valider** (voir Questions ouvertes) : dix catégories fixes + « Other », taille max 750 Kio (dérivée de la limite globale bodyParser 1 Mo — refusera la plupart des photos de téléphone). |
 | 14 | Langue du document par destinataire | `58-document-recipient-language` — cascade `Client.language` → `Company.language` → `en` (`rendering/language/resolve-recipient-language.ts`), vérifiée dans le code : c'est exactement la cascade que la Décision B redemande pour le PDF, déjà en place. |
-| 15 | Champs personnalisés (clients + documents) | `3ff59800`, avec migration `20260920170000_company_custom_fields` (nom à date future, voir Questions ouvertes #1). CRUD scopé société, clé immuable dérivée du libellé, suppression = archivage (`archivedAt`), rendu fusionné avec les descripteurs génériques côté formulaire et PDF. **Fusion terminée** (`9f2e3585`) : un champ personnalisé requis bloque désormais toute action, `send` compris, avant tout effet de bord — ce n'est plus « en cours ». Bug latent de collision de clés corrigé au passage (`findAvailableKey`, deux libellés se réduisant au même slug sous des scopes différents). Choix à valider : voir Questions ouvertes. |
+| 15 | Champs personnalisés (clients + documents) | `3ff59800`, avec migration `20260914170000_company_custom_fields` (renommée le 2026-09-15, voir Questions ouvertes #1). CRUD scopé société, clé immuable dérivée du libellé, suppression = archivage (`archivedAt`), rendu fusionné avec les descripteurs génériques côté formulaire et PDF. **Fusion terminée** (`9f2e3585`) : un champ personnalisé requis bloque désormais toute action, `send` compris, avant tout effet de bord — ce n'est plus « en cours ». Bug latent de collision de clés corrigé au passage (`findAvailableKey`, deux libellés se réduisant au même slug sous des scopes différents). Choix à valider : voir Questions ouvertes. |
 | 17 | Workflow d'approbation interne | `50-approval` |
 | 18 | Gestion de stock basique | `49-stock` |
 | 19 (1ʳᵉ passe) | Bons de commande à un fournisseur — émission | `de30e2a4`, sans migration : un `DocumentTypeDescriptor` de plus (fournisseur, date, date de livraison attendue, devise, référence, lignes), statuts calqués sur la facture, numérotation `PURCHASE-ORDER-` à l'entrée en `sending`, envoi réutilisant tel quel `runAsyncSendAction`/`sendDocumentInstanceEmail`. **Aucun code frontend touché** — menu, liste et formulaire pilotés par le descripteur. Country-policy étendu aux cinq pays (sinon 403 partout et invisible au menu). Bug latent corrigé en passant : `compute-totals.ts` plantait (« no usable VAT rate ») sur un type dont les lignes n'ont aucun champ de TVA — jamais exercé avant. **Le rapprochement 3-way avec la facture reçue est une seconde passe, non livrée** — voir Restent. Trois choix pris pour l'émission, à valider : voir Questions ouvertes. **Non établi** : l'exécution réelle du spec Cypress 66 (Cypress non lancé). |
@@ -63,7 +63,7 @@
 
 | Rang | Feature | État vérifié (2026-09-15) | e2e à prouver |
 |---:|---|---|---|
-| 16 | Personnalisation de template — **redéfini** en préréglages visuels (plus un éditeur) | Suspendu : construire les préréglages suppose d'ajouter des champs de marque à `Company` (logo, couleur, police) via une nouvelle migration — le renommage en bloc des sept migrations à date future (Questions ouvertes #1) n'est pas tranché, donc aucune nouvelle migration n'est ajoutée avant cette décision. Voir Décision B. | Un utilisateur choisit un préréglage (couleur/logo/police) et voit le PDF changer, sans toucher au HTML. |
+| 16 | Personnalisation de template — **redéfini** en préréglages visuels (plus un éditeur) | Débloqué le 2026-09-15 (migrations renommées, Questions ouvertes #1) : à construire — champs de marque sur `Company` (logo, couleur, police) via une nouvelle migration, puis les préréglages. Voir Décision B. | Un utilisateur choisit un préréglage (couleur/logo/police) et voit le PDF changer, sans toucher au HTML. |
 | 20 → E | Facturation par abonnement avancée (usage-based) | Sans objet côté produit invoicerr — redirigé vers l'offre hébergée du propriétaire (Décision E), elle-même bloquée par la clé sandbox Polar que le propriétaire crée demain matin (Questions ouvertes #4). | N/A côté produit self-hosted. |
 | A | Paiements — Mollie, PayPal réel, régionaux | Stripe seul est câblé (rang 1, voir Livré) et jamais prouvé avec un vrai compte ; Mollie, PayPal (vrai encaissement Orders API v2) et les régionaux restent à construire — bloqués par les clés sandbox (Polar, Stripe, Mollie, PayPal), le propriétaire les crée demain matin (Questions ouvertes #4). Voir Décision A. | Un paiement Stripe réel encaissé ; Mollie et PayPal câblés et testés en sandbox. |
 | C | Emails — éditeur WYSIWYG | Bibliothèque d'édition riche non choisie (TipTap/Lexical/Quill…, Questions ouvertes #5) — l'éditeur texte brut actuel (`templates.settings.tsx`) reste en place tant que ce choix n'est pas fait. Voir Décision C. | Non définissable avant le choix de bibliothèque. |
@@ -481,32 +481,19 @@ avec le journal navigateur/accès cette fois.
 
 **À trancher par le propriétaire dès son réveil — la liste courte, actionnable :**
 
-1. **Migrations à date future.** Sept migrations de cette branche portent le préfixe `20260920…` alors
-   qu'elles datent du 14-15 septembre (`20260920103000_client_portal_token`,
-   `…120000_time_tracking`, `…140000_document_recipient_language`, `…150000_bank_reconciliation`,
-   `…160000_payment_checkout_sessions`, `…161500_payment_methods`, `…170000_company_custom_fields`).
-   Un horodatage faux est définitif une fois appliqué en production — et la production ne les a PAS
-   encore appliquées (elle a ~50 commits de retard). Proposition : les renommer toutes d'un bloc AVANT
-   le prochain déploiement, en réalignant `_prisma_migrations` sur les bases locales. Décision à
-   prendre par lui, ça touche sa base de dev.
-2. **Choix de produit pris au plus simple cette nuit, à valider** :
-   - Notes de frais (`6cb60096`) : dix catégories fixes + « Other » ; taille maximale 750 Kio
-     (refusera la plupart des photos de téléphone).
-   - Champs personnalisés (`3ff59800`) : sous-ensemble de kinds admis (text/longText/number/money/
-     date/boolean/select — pas array/reference/file) ; accès à l'écran réservé OWNER/ADMIN ; si un
-     champ requis doit aussi bloquer l'envoi — **implémenté cette nuit** (`9f2e3585`, bloque désormais
-     `send` en plus du brouillon) : à confirmer que c'est le comportement voulu.
-   - Bons de commande (`de30e2a4`) : fournisseur = entité `Client` via son flag `supplier` (déjà
-     utilisé par les factures reçues) ; cycle de statuts calqué sur celui de la facture plutôt que
-     celui du devis ; préfixe de numérotation `PURCHASE-ORDER-` par défaut (aucun mécanisme de préfixe
-     par type n'existait avant cette nuit, `Company.numberFormats` permet déjà de le changer).
-3. **`MAIL_PROVIDER` explicite gagne sur `RESEND_API_KEY`** (commit `f1ed72e4`) — un déploiement en
-   `smtp` n'est pas court-circuité par une clé Resend ajoutée par erreur ; la décision du mandant ne
-   tranchait que le cas implicite (aucun `MAIL_PROVIDER` posé), ce choix explicite lui est soumis, pas
-   acquis.
-4. **Comptes sandbox** (Polar, Stripe, Mollie, PayPal) — il a dit qu'il les crée demain matin ; le
-   guide est publié. Les chantiers A (paiements) et E (abonnement) attendent ces clés.
-5. **Bibliothèque WYSIWYG pour les emails** (Décision C) — non choisie.
+1. **Migrations à date future — tranché : renommées le 2026-09-15** (préfixe `20260920…` → `20260914…`, sept migrations, `_prisma_migrations` réaligné sur les deux bases locales).
+2. **Choix de produit de la nuit — tranchés le 2026-09-15** : tout validé tel quel (pièce jointe
+   ≤ 750 Kio ; champs personnalisés : kinds text/longText/number/money/date/boolean/select, écran
+   OWNER/ADMIN, champ requis bloque aussi `send` ; bons de commande : fournisseur = `Client.supplier`,
+   statuts calqués sur la facture, préfixe `PURCHASE-ORDER-`) — **SAUF les catégories de notes de
+   frais** : « pas fixe mais dynamique dans le back » → table `ExpenseCategory` par société (migration),
+   jeu par défaut inséré à la création de la société, CRUD dans Réglages, sélecteur alimenté par l'API.
+   En cours.
+3. **`MAIL_PROVIDER` explicite gagne sur `RESEND_API_KEY`** — **tranché le 2026-09-15 : gardé** (un
+   `MAIL_PROVIDER` posé est respecté tel quel ; Resend ne prime que si rien n'est posé).
+4. **Comptes sandbox** (Polar, Stripe, Mollie, PayPal) — guide publié, pas encore créés. Les chantiers
+   A (paiements) et E (abonnement) attendent ces clés.
+5. **Bibliothèque WYSIWYG pour les emails** (Décision C) — **tranché le 2026-09-15 : TipTap**. En cours.
 6. **Spec 65 (réglages mail), cause du premier échec non établie.** Le journal backend du run prouve
    que `PUT /api/company/mail-settings` n'a jamais abouti, sans dire pourquoi (aucune hypothèse
    vérifiable par lecture — 400/403/503 — n'explique l'absence totale de toast). Le spec (`c7e80579`)
