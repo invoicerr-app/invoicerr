@@ -1,14 +1,22 @@
 /**
  * Turns one Polar subscription webhook payload into a `CompanySubscription` write — reused, verbatim,
- * across every `onSubscription*` handler `polar-plugin.ts` registers with the `webhooks()` plugin:
- * the SUBSCRIPTION OBJECT's own `status`/`recurringInterval` fields are authoritative regardless of
- * which specific event name fired (`subscription.created`, `.active`, `.updated`, `.canceled` —
- * still billable until the period ends — or `.revoked` — actually terminated), so one function
- * suffices; there is no per-event-name branching to get right.
+ * for every subscription event `polar-webhook.controller.ts` dispatches (`subscription.created`,
+ * `.active`, `.updated`, `.canceled` — still billable until the period ends —, `.uncanceled`, or
+ * `.revoked` — actually terminated): the SUBSCRIPTION OBJECT's own `status`/`recurringInterval` fields
+ * are authoritative regardless of which specific event name fired, so one function suffices; there is
+ * no per-event-name branching to get right.
  *
- * Split out from `polar-plugin.ts` specifically so it is testable WITHOUT constructing the real
- * better-auth polar plugin (which needs a live `Polar` SDK client) — a spec calls this directly with
- * a plain object, the same "pure-ish core, thin wiring shell" split this whole directory holds.
+ * Split out from the wiring layer specifically so it is testable WITHOUT constructing a real SDK/HTTP
+ * harness (which would need a live `Polar` client or a running Nest app) — a spec calls this directly
+ * with a plain object, the same "pure-ish core, thin wiring shell" split this whole directory holds.
+ * `handleSubscriptionPayload` below used to live in `polar-plugin.ts`, called from the six
+ * `onSubscription*` options of `@polar-sh/better-auth`'s own `webhooks()` sub-plugin — that plugin
+ * relied on `@polar-sh/sdk`'s `validateEvent` for signature verification, which turned out to derive
+ * the WRONG HMAC key for a real Polar delivery (see `polar-webhook.controller.ts`'s own header for the
+ * full story, established 2026-09-15). It moved here once `polar-webhook.controller.ts` — this app's
+ * own receiver, verifying the signature itself — became its only caller: this file has zero
+ * `@polar-sh/*` import, so nothing here needs that package's ESM-only transitive dependency mocked
+ * away under Jest the way `polar-plugin.spec.ts` still has to for `buildPolarAuthPlugins`.
  */
 import prisma from '@/prisma/prisma.service';
 
@@ -79,5 +87,41 @@ export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFa
       ...(interval ? { interval } : {}),
       ...(status === 'ACTIVE' ? { blockedAt: null, zipSentAt: null, deletionDueAt: null } : {}),
     },
+  });
+}
+
+/** Structurally typed from whatever a Polar subscription webhook's own `data` carries — every one of
+ *  the six handled event types carries `{ data: Subscription }` with these fields in common, so one
+ *  narrow local shape (just the fields `applySubscriptionWebhook` actually reads) covers all six
+ *  without importing the SDK's full `Subscription` model. Already CAMELCASE
+ *  (`customerId`/`recurringInterval`) — `polar-webhook.controller.ts` is the one responsible for
+ *  remapping Polar's snake_case WIRE fields (`customer_id`/`recurring_interval`) into this shape
+ *  before calling `handleSubscriptionPayload`; see that file's own header for why. */
+export interface SubscriptionWebhookPayload {
+  data: {
+    id: string;
+    customerId: string;
+    status: string;
+    recurringInterval: string;
+    metadata: Record<string, string | number | boolean>;
+  };
+}
+
+export async function handleSubscriptionPayload(payload: SubscriptionWebhookPayload): Promise<void> {
+  const referenceId = payload.data.metadata?.referenceId;
+  if (referenceId === undefined) {
+    // No companyId to resolve to — `metadata.referenceId` is the companyId `checkout()`'s own
+    // `referenceId` body param stamps on at checkout time (`polar-plugin.ts`'s own header). Never
+    // thrown: a malformed/foreign event must not fail the whole webhook delivery (Polar retries a
+    // non-2xx response), it simply has nothing for this app to do.
+    return;
+  }
+
+  await applySubscriptionWebhook({
+    companyId: String(referenceId),
+    polarSubscriptionId: payload.data.id,
+    polarCustomerId: payload.data.customerId,
+    status: payload.data.status,
+    recurringInterval: payload.data.recurringInterval,
   });
 }

@@ -26,6 +26,7 @@ import { DocumentsCoreModule } from '../documents/documents-core.module';
 import { BillingController } from './billing.controller';
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
 import { BillingExportService } from './export-zip.service';
+import { PolarWebhookController } from './polar-webhook.controller';
 import { BillingLifecycleProcessor } from './queue/billing-lifecycle.processor';
 import {
   BILLING_LIFECYCLE_SWEEP_JOB_ID,
@@ -44,7 +45,7 @@ import { MailService } from '@/mail/mail.service';
     BullModule.forRoot({ connection: redisConnection() }),
     BullModule.registerQueue({ name: Q_BILLING_LIFECYCLE }),
   ],
-  controllers: [BillingController],
+  controllers: [BillingController, PolarWebhookController],
   providers: [MailService, BillingExportService, BillingLifecycleSweepRunner, BillingLifecycleProcessor],
 })
 export class BillingModule implements OnApplicationBootstrap {

@@ -3,6 +3,7 @@ import prisma from '@/prisma/prisma.service';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import {
   applySubscriptionWebhook,
+  handleSubscriptionPayload,
   mapPolarRecurringInterval,
   mapPolarSubscriptionStatus,
 } from './webhook-handlers';
@@ -106,5 +107,58 @@ describe('applySubscriptionWebhook', () => {
 
     const data = update.mock.calls[0][0].data;
     expect(data).not.toHaveProperty('interval');
+  });
+});
+
+// Moved here from `polar-plugin.spec.ts` 2026-09-15 alongside `handleSubscriptionPayload` itself —
+// see this file's own header. Exercises the REAL `applySubscriptionWebhook` (not a mock of it, unlike
+// the old spec) through the SAME prisma double already declared above — end-to-end within this file's
+// own boundary, `PolarWebhookController` (the function's real caller now) mocks this whole module.
+describe('handleSubscriptionPayload', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it('applies the webhook when metadata.referenceId is present', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1' });
+
+    await handleSubscriptionPayload({
+      data: {
+        id: 'sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'month',
+        metadata: { referenceId: 'company-1' },
+      },
+    });
+
+    expect(getOrCreate).toHaveBeenCalledWith('company-1');
+    expect(update).toHaveBeenCalledWith({
+      where: { companyId: 'company-1' },
+      data: {
+        status: 'ACTIVE',
+        polarSubscriptionId: 'sub_1',
+        polarCustomerId: 'cus_1',
+        interval: 'MONTH',
+        blockedAt: null,
+        zipSentAt: null,
+        deletionDueAt: null,
+      },
+    });
+  });
+
+  it('drops a payload with no referenceId in its metadata, without throwing or touching the DB', async () => {
+    await expect(
+      handleSubscriptionPayload({
+        data: {
+          id: 'sub_1',
+          customerId: 'cus_1',
+          status: 'active',
+          recurringInterval: 'month',
+          metadata: {},
+        },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(getOrCreate).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });

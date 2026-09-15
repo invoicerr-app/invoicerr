@@ -1,7 +1,4 @@
 import { BILLING_FLAG_NAME } from './billing-flag';
-import { applySubscriptionWebhook } from './webhook-handlers';
-
-jest.mock('./webhook-handlers');
 
 // `@polar-sh/better-auth`'s own `dist/index.cjs` unconditionally `require`s
 // `@polar-sh/checkout/embed` — a BROWSER-ONLY bundle (references `window`/`document`, genuine ESM
@@ -12,19 +9,20 @@ jest.mock('./webhook-handlers');
 // reproduced and confirmed while writing this file (a bare `import { polar } from
 // '@polar-sh/better-auth'` in a throwaway spec fails identically, with no `polar-plugin.ts` code
 // involved at all). Mocking the package here is what isolates OUR OWN gating/wiring logic
-// (`buildPolarAuthPlugins`, `handleSubscriptionPayload`) from that unrelated, browser-only dependency
-// — real construction of the actual better-auth plugin is exercised at boot (see `lib/auth.ts`, never
-// imported by any spec per this codebase's own convention) and by `polar.live.spec.ts`.
+// (`buildPolarAuthPlugins`) from that unrelated, browser-only dependency — real construction of the
+// actual better-auth plugin is exercised at boot (see `lib/auth.ts`, never imported by any spec per
+// this codebase's own convention) and by `polar.live.spec.ts`. No `webhooks` entry here any more — see
+// `polar-plugin.ts`'s own header for why that sub-plugin was removed 2026-09-15 (its own coverage,
+// including what used to be `handleSubscriptionPayload`, moved to `webhook-handlers.spec.ts` and
+// `polar-webhook.controller.spec.ts`).
 jest.mock('@polar-sh/better-auth', () => ({
   polar: jest.fn((opts: unknown) => ({ id: 'polar', __opts: opts })),
   checkout: jest.fn((opts: unknown) => ({ __plugin: 'checkout', __opts: opts })),
   portal: jest.fn((opts: unknown) => ({ __plugin: 'portal', __opts: opts })),
-  webhooks: jest.fn((opts: unknown) => ({ __plugin: 'webhooks', __opts: opts })),
 }));
 
-import { buildPolarAuthPlugins, handleSubscriptionPayload } from './polar-plugin';
+import { buildPolarAuthPlugins } from './polar-plugin';
 
-const applyMock = applySubscriptionWebhook as jest.Mock;
 const ORIGINAL_ENV = { ...process.env };
 
 describe('buildPolarAuthPlugins', () => {
@@ -37,7 +35,7 @@ describe('buildPolarAuthPlugins', () => {
     expect(buildPolarAuthPlugins()).toEqual([]);
   });
 
-  it('returns exactly one polar() plugin when enabled and configured', () => {
+  it('returns exactly one polar() plugin, carrying checkout + portal only (no webhooks), when enabled', () => {
     process.env[BILLING_FLAG_NAME] = 'true';
     process.env.POLAR_ACCESS_TOKEN = 'polar_at_x';
     process.env.POLAR_WEBHOOK_SECRET = 'whsec_x';
@@ -48,45 +46,9 @@ describe('buildPolarAuthPlugins', () => {
 
     expect(plugins).toHaveLength(1);
     expect(plugins[0].id).toBe('polar');
-  });
-});
-
-describe('handleSubscriptionPayload', () => {
-  afterEach(() => jest.resetAllMocks());
-
-  it('applies the webhook when metadata.referenceId is present', async () => {
-    await handleSubscriptionPayload({
-      data: {
-        id: 'sub_1',
-        customerId: 'cus_1',
-        status: 'active',
-        recurringInterval: 'month',
-        metadata: { referenceId: 'company-1' },
-      },
-    });
-
-    expect(applyMock).toHaveBeenCalledWith({
-      companyId: 'company-1',
-      polarSubscriptionId: 'sub_1',
-      polarCustomerId: 'cus_1',
-      status: 'active',
-      recurringInterval: 'month',
-    });
-  });
-
-  it('drops a payload with no referenceId in its metadata, without throwing', async () => {
-    await expect(
-      handleSubscriptionPayload({
-        data: {
-          id: 'sub_1',
-          customerId: 'cus_1',
-          status: 'active',
-          recurringInterval: 'month',
-          metadata: {},
-        },
-      }),
-    ).resolves.toBeUndefined();
-
-    expect(applyMock).not.toHaveBeenCalled();
+    // Locks in the 2026-09-15 removal: `webhooks()` is no longer part of `use`, only checkout+portal
+    // — the real Polar webhook receiver is `PolarWebhookController`, not this plugin any more.
+    const use = (plugins[0] as unknown as { __opts: { use: { __plugin: string }[] } }).__opts.use;
+    expect(use.map((p) => p.__plugin)).toEqual(['checkout', 'portal']);
   });
 });

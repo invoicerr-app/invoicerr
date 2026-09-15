@@ -22,11 +22,26 @@
  *    `billing.controller.ts`'s own `POST /billing/portal` calls the raw SDK instead.
  *  - `usage()` mounts `/usage/meters/list` + `/usage/ingest` — NOT used by this feature (seat-based
  *    billing, not metered usage); included nowhere below.
- *  - `webhooks()` mounts `POST /api/auth/polar/webhooks` — verifies the Polar signature itself
- *    (`@polar-sh/sdk/webhooks`'s `validateEvent`, called BEFORE any handler here ever runs — an
- *    invalid/missing signature is a 400 from the plugin itself, never reaching `webhook-handlers.ts`)
- *    then dispatches to whichever named handler below matches the event type.
- *  - Seat-QUANTITY sync (`PATCH subscriptions/{id}` with `{ seats }`) is NOT one of these four
+ *  - `webhooks()` USED TO mount `POST /api/auth/polar/webhooks` here, verifying the Polar signature
+ *    via `@polar-sh/sdk/webhooks`'s `validateEvent` before dispatching to a named handler. REMOVED
+ *    2026-09-15: per Polar's OWN documentation (polar.sh/docs/integrate/webhooks/delivery, "Custom
+ *    validation"), Polar switched its webhook signing scheme on 8 September 2026, 00:00 UTC — secrets
+ *    from before that instant are signed with the literal UTF-8 bytes of the `whsec_…` string as the
+ *    HMAC key, secrets from on/after it with genuine Standard Webhooks (strip `whsec_`, base64-decode
+ *    the remainder). `validateEvent` (`@polar-sh/sdk@0.49`) only ever computes the FIRST (pre-cutover)
+ *    derivation — so it is a guaranteed 400 for any endpoint created after the cutover, which every
+ *    hosted-billing instance stood up from here on necessarily has. Confirmed against a real captured
+ *    delivery to this app's own sandbox endpoint (created 2026-09-15) — see
+ *    `status-reconcile.ts`'s own header for the production incident this caused, and
+ *    `polar-webhook.controller.ts`'s own header for the full account and the fix (Polar's own SDK
+ *    fixes this properly in 1.0.0-alpha.19+, trying both keys — this repo pins `^0.49.0`). `@polar-sh/
+ *    better-auth`'s `webhooks()` calls `validateEvent` internally with no way to inject a different
+ *    verifier, so the only fix was to stop using it: the real receiver is now
+ *    `POST /api/billing/webhooks/polar` (`PolarWebhookController`, `BillingModule`'s own controller,
+ *    trying both key derivations itself via `standardwebhooks` directly), never
+ *    `/api/auth/polar/webhooks`, which no longer exists as a route at all. `checkout`/`portal` above
+ *    are unaffected — neither ever went through `validateEvent`.
+ *  - Seat-QUANTITY sync (`PATCH subscriptions/{id}` with `{ seats }`) is NOT one of these
  *    routes — it is a privileged, server-to-server-only call, made directly against the raw
  *    `@polar-sh/sdk` client (`polar-client.ts`) from `seat-sync.ts`, never through this plugin.
  *
@@ -35,21 +50,21 @@
  * every plugin route above) as plain EXPRESS MIDDLEWARE on `/api/auth/*`
  * (`node_modules/@thallesp/nestjs-better-auth/dist/index.mjs`'s own `configure()`), registered via
  * `MiddlewareConsumer.forRoutes(this.basePath)` — middleware runs and RESPONDS before Nest's routing
- * layer ever dispatches to a controller, so these four routes never reach our global `AuthGuard`/
+ * layer ever dispatches to a controller, so these routes never reach our global `AuthGuard`/
  * `RolesGuard` `APP_GUARD`s at all. Each route is gated ENTIRELY by better-auth's OWN mechanism
  * instead: `checkout`/`portal` check `getSessionFromCtx(ctx)` themselves (`authenticatedUsersOnly:
- * true` below makes checkout 401 without a session), and `webhooks` checks the Polar signature. This
- * is a real, load-bearing fact, not a nicety — it is WHY the webhook route can be public (no session)
- * while still being safe (signature-verified) using a mechanism entirely outside this app's own
- * guards.
+ * true` below makes checkout 401 without a session). The webhook route USED to be a third example of
+ * this same shape (public, but signature-verified by better-auth's own mechanism) — see this file's
+ * own header for why it was removed and moved to a plain `@Public()` Nest controller instead, gated
+ * the ordinary way (that decorator, read by OUR OWN `AuthGuard` — see `polar-webhook.controller.ts`'s
+ * own header).
  */
 import { Polar } from '@polar-sh/sdk';
-import { checkout, polar, portal, webhooks } from '@polar-sh/better-auth';
+import { checkout, polar, portal } from '@polar-sh/better-auth';
 
 import { isBillingEnabled } from './billing-flag';
 import { resolvePolarServerEnvironment } from './polar-env';
 import { FALLBACK_RETURN_URL } from './portal-return-url';
-import { applySubscriptionWebhook } from './webhook-handlers';
 
 /** `polar()`'s own return type, structurally — never exported by `@polar-sh/better-auth` itself, so
  *  `ReturnType<typeof polar>` is how `lib/auth.ts`'s `plugins: [...buildPolarAuthPlugins()]` array
@@ -58,9 +73,10 @@ type PolarBetterAuthPlugin = ReturnType<typeof polar>;
 
 /**
  * `[]` when billing is disabled. When enabled, the ONE `polar()` plugin, carrying `checkout` +
- * `portal` + `webhooks` (never `usage` — see this file's own header). Called from `lib/auth.ts`,
- * itself gated the same way (`isBillingEnabled()` checked again there before even importing this at
- * all is unnecessary — this function is already the single source of truth for the gate).
+ * `portal` (never `webhooks` or `usage` — see this file's own header for why each is absent). Called
+ * from `lib/auth.ts`, itself gated the same way (`isBillingEnabled()` checked again there before even
+ * importing this at all is unnecessary — this function is already the single source of truth for the
+ * gate).
  */
 export function buildPolarAuthPlugins(): PolarBetterAuthPlugin[] {
   if (!isBillingEnabled()) return [];
@@ -104,58 +120,11 @@ export function buildPolarAuthPlugins(): PolarBetterAuthPlugin[] {
           authenticatedUsersOnly: true,
         }),
         portal({ returnUrl: FALLBACK_RETURN_URL() }),
-        webhooks({
-          // Non-null: `assertPolarEnvConfiguredForBoot` (called from `main.ts`, and from `lib/auth.ts`
-          // itself right before this function runs) already refuses to boot at all when billing is
-          // enabled and this var is blank — by the time this line executes for real, it is set.
-          secret: process.env.POLAR_WEBHOOK_SECRET!,
-          // ONE shared handler for every subscription event — see `webhook-handlers.ts`'s own header
-          // for why the subscription object's own `status`/`recurringInterval` fields are
-          // authoritative regardless of which specific event name fired. `metadata.referenceId` is
-          // the companyId `checkout()`'s own `referenceId` body param stamped on at checkout time
-          // (this file's own header) — a payload with no `referenceId` at all (a checkout that never
-          // went through THIS app, or a stale/malformed test event) is logged and dropped, never
-          // guessed at.
-          onSubscriptionCreated: (payload) => handleSubscriptionPayload(payload),
-          onSubscriptionActive: (payload) => handleSubscriptionPayload(payload),
-          onSubscriptionUpdated: (payload) => handleSubscriptionPayload(payload),
-          onSubscriptionCanceled: (payload) => handleSubscriptionPayload(payload),
-          onSubscriptionUncanceled: (payload) => handleSubscriptionPayload(payload),
-          onSubscriptionRevoked: (payload) => handleSubscriptionPayload(payload),
-        }),
+        // `webhooks(...)` used to be here — see this file's own header for why it was removed
+        // 2026-09-15 and replaced by `polar-webhook.controller.ts`'s own `POST
+        // /api/billing/webhooks/polar`, which reuses `handleSubscriptionPayload`
+        // (`webhook-handlers.ts`) for the exact same six subscription event types.
       ],
     }),
   ];
-}
-
-/** Structurally typed from whatever `webhooks()`'s own `onSubscription*` options accept — every one
- *  of them carries `{ data: Subscription }`, so one narrow local shape (just the fields
- *  `applySubscriptionWebhook` actually reads) covers all six without importing the SDK's full
- *  `Subscription` model. */
-interface SubscriptionWebhookPayload {
-  data: {
-    id: string;
-    customerId: string;
-    status: string;
-    recurringInterval: string;
-    metadata: Record<string, string | number | boolean>;
-  };
-}
-
-export async function handleSubscriptionPayload(payload: SubscriptionWebhookPayload): Promise<void> {
-  const referenceId = payload.data.metadata?.referenceId;
-  if (referenceId === undefined) {
-    // No companyId to resolve to — see this file's own header. Never thrown: a malformed/foreign
-    // event must not fail the whole webhook delivery (Polar retries a non-2xx response), it simply
-    // has nothing for this app to do.
-    return;
-  }
-
-  await applySubscriptionWebhook({
-    companyId: String(referenceId),
-    polarSubscriptionId: payload.data.id,
-    polarCustomerId: payload.data.customerId,
-    status: payload.data.status,
-    recurringInterval: payload.data.recurringInterval,
-  });
 }

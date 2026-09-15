@@ -2,12 +2,23 @@
  * Repair path for `GET /api/billing/status` when the LOCAL `CompanySubscription` row is stale because
  * the webhook delivery that should have updated it never landed — `webhook-handlers.ts` is otherwise
  * the ONLY writer of a real Polar status, and a concrete 2026-09-15 sandbox incident proved that path
- * can fail silently end-to-end: a redeployed container kept a stale `POLAR_WEBHOOK_SECRET` baked into
- * its process env (a `docker restart`, not a compose recreate, does not re-read `.env`), so every one
- * of 18 delivery attempts for a real paid subscription came back `400 "No matching signature found"`
- * — visible only in Polar's OWN delivery log, never in this app's logs (the signature check happens
- * inside `@polar-sh/sdk/webhooks`, before `webhook-handlers.ts` ever runs) — and the company's own
- * `GET /api/billing/status` kept answering `TRIAL` indefinitely with no way to self-heal.
+ * can fail silently end-to-end: every one of 18 delivery attempts for a real paid subscription came
+ * back `400 "No matching signature found"` — visible only in Polar's OWN delivery log, never in this
+ * app's logs (the signature check happened inside `@polar-sh/sdk/webhooks`, before
+ * `webhook-handlers.ts` ever ran) — and the company's own `GET /api/billing/status` kept answering
+ * `TRIAL` indefinitely with no way to self-heal.
+ *
+ * CORRECTED same day: the ORIGINAL diagnosis here blamed a stale `POLAR_WEBHOOK_SECRET` baked into a
+ * redeployed container's process env (a `docker restart`, not a compose recreate, does not re-read
+ * `.env`). That was never it — reading `@polar-sh/sdk`'s own `dist/commonjs/webhooks.js` line by line
+ * against a captured real delivery found `validateEvent` derives the WRONG HMAC key for ANY
+ * `whsec_`-prefixed secret, stale or fresh (it base64-re-encodes the whole secret string before
+ * handing it to `standardwebhooks#Webhook`, ending up using the secret's own literal UTF-8 bytes as
+ * the key) — see `modules/billing/polar-webhook.controller.ts`'s own header for the full account. The
+ * "stale secret" theory fit the same observed symptom (18/18 failures, identical error message) but
+ * was never actually tested against a real capture; this file's own repair path is unaffected either
+ * way — it never depended on which theory was right, only on webhooks being able to fail silently at
+ * all. The fix is `polar-webhook.controller.ts`'s own signature verification, not this file.
  *
  * This is a REPAIR path, not a replacement for the webhook: it only fires when there is already a
  * `polarCustomerId` to reconcile FROM (a company that never reached Polar at all has nothing to check)

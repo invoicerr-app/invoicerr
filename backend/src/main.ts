@@ -54,8 +54,9 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
 
   // better-auth must read its OWN request body itself: `@thallesp/nestjs-better-auth`'s handler
   // wraps the raw Node request in a Web-standard `Request` (`toNodeHandler`, `better-auth/node`) and
-  // downstream code — e.g. `@polar-sh/better-auth`'s webhook route — calls `ctx.request.text()` on
-  // it. That only works if the request stream hasn't already been consumed by something else.
+  // downstream code — e.g. better-auth's own sign-in/sign-up routes, or `@polar-sh/better-auth`'s
+  // checkout/portal routes — calls `ctx.request.text()` on it. That only works if the request stream
+  // hasn't already been consumed by something else.
   // `@thallesp/nestjs-better-auth`'s own `AuthModule.configure()` registers exactly the middleware
   // meant to guarantee that (`SkipBodyParsingMiddleware`, skips its OWN json/urlencoded parsing for
   // `/api/auth/*`) — but `configure()` on every `NestModule` is wired up by
@@ -72,6 +73,15 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // `@polar-sh/better-auth`'s `ctx.request.text()` read an EMPTY body downstream and
   // `validateEvent()` rejected the correctly-signed webhook with "No matching signature found" — 21
   // consecutive deliveries, identical secret, all 400.
+  // `POST /api/auth/polar/webhooks` no longer exists at all as of the same day: `@polar-sh/better-
+  // auth`'s own `webhooks()` sub-plugin was removed (its `validateEvent` turned out to ALSO derive the
+  // wrong HMAC key for a real delivery — a second, independent bug, layered under this one; see
+  // `modules/billing/polar-webhook.controller.ts`'s own header). The real receiver is now `POST
+  // /api/billing/webhooks/polar` (`PolarWebhookController`) — deliberately NOT under `/api/auth`, so
+  // it reads its own `req.rawBody` straight from the SAME `bodyParser.json({ verify })` below rather
+  // than needing this skip at all. This fix stays necessary regardless: every OTHER `/api/auth/*`
+  // route (sign-in, sign-up, checkout, portal, …) still reads its own body itself, exactly as
+  // described below, and would hit the identical draining bug without it.
   // Fix: have our own parsers skip the whole `/api/auth` subtree themselves (`skipBodyParserFor`,
   // `lib/body-parser-auth-skip.ts` — pulled into its own file so it's unit-testable without importing
   // `lib/auth.ts`, see that file's own header), using the SAME test `SkipBodyParsingMiddleware` uses

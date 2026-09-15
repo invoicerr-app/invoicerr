@@ -45,6 +45,15 @@
  * (an OS-picked ephemeral port), real HTTP over that socket — not `app.init()` alone — so the full
  * `NestApplication.init()` → `registerModules()` → `configure()` sequence this bug is about actually
  * runs, exactly like a real `bootstrap()`.
+ *
+ * `WEBHOOK_PATH`/`TestPolarWebhookMiddleware` below stand in for "whatever real `/api/auth/*` route
+ * reads its own raw body" — as of 2026-09-15 that is no longer literally true of a Polar webhook:
+ * `POST /api/auth/polar/webhooks` was removed along with `@polar-sh/better-auth`'s own `webhooks()`
+ * sub-plugin (see `modules/billing/polar-webhook.controller.ts`'s own header), and the real Polar
+ * receiver now lives at `POST /api/billing/webhooks/polar` — deliberately NOT under `/api/auth`, so it
+ * never exercises this skip at all. The mechanism this file proves is still exactly as necessary for
+ * every OTHER `/api/auth/*` route (sign-in, checkout, portal, …), so the illustrative path/middleware
+ * names below are kept rather than renamed away from their original, real-incident example.
  */
 import { Injectable, Module } from '@nestjs/common';
 import type { INestApplication, MiddlewareConsumer, NestMiddleware, NestModule } from '@nestjs/common';
