@@ -141,6 +141,7 @@ describe('MailService#sendForCompany — the société → instance → refus no
 
   it('falls back to the instance provider when the company has none configured', async () => {
     process.env.RESEND_API_KEY = 're_instance_key';
+    process.env.MAIL_FROM = 'noreply@instance.example.com';
     mockedResolveCompanyMailSettings.mockResolvedValue(null);
     mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '{"id":"x"}' } as Response);
 
