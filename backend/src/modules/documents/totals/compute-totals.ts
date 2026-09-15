@@ -274,6 +274,16 @@ function findLineArrayFields(descriptor: DocumentTypeDescriptor): DocumentFieldD
  * Looks for a 'select' field whose key contains 'vat' (case-insensitive),
  * or whose options look numeric (first option's value is numeric/percentage-like).
  * Returns the rate as a number, or null if not found or not parseable.
+ *
+ * TODO_FEATURES.md rank 19 ("bons de commande") — the "no VAT-like subfield declared on this line
+ * shape AT ALL" case (below) is a STRUCTURAL fact about the document TYPE (e.g.
+ * `purchase-order.descriptor.ts`, whose lines carry no rate at all — it is not a tax document), never
+ * a per-ROW data problem to warn about. Every type that shipped before this rank (quote/invoice/
+ * received-invoice) always declares SOME vat-like 'select' subfield on its own line shape, so this
+ * distinction was previously unreachable — the purchase order is the first type to exercise it. This
+ * is why the check below is done ONCE, before the "missing/non-numeric value" branch that still warns
+ * exactly as before for every EXISTING type: a rate that genuinely EXISTS as a concept on this line
+ * shape but is unset/unparseable on one particular row is still worth flagging.
  */
 function extractVatRate(
   arrayField: DocumentFieldDescriptor,
@@ -284,33 +294,30 @@ function extractVatRate(
 ): number | null {
   if (!arrayField.fields) return null;
 
-  for (const subField of arrayField.fields) {
-    if (subField.kind !== 'select') continue;
-
-    const isVatField =
+  const vatField = arrayField.fields.find((subField) => {
+    if (subField.kind !== 'select') return false;
+    return (
       subField.key.toLowerCase().includes('vat') ||
-      (subField.options && subField.options.length > 0 && looksNumeric(subField.options[0].value));
+      (!!subField.options && subField.options.length > 0 && looksNumeric(subField.options[0].value))
+    );
+  });
 
-    if (!isVatField) continue;
+  // Silently counted in net only — see this function's own header just above.
+  if (!vatField) return null;
 
-    const value = row[subField.key];
-    if (value === undefined || value === null || value === '') {
-      warnings.push(`line ${lineNumber} has no usable VAT rate — counted in net only`);
-      return null;
-    }
-
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) {
-      warnings.push(`line ${lineNumber} has no usable VAT rate — counted in net only`);
-      return null;
-    }
-
-    return parsed;
+  const value = row[vatField.key];
+  if (value === undefined || value === null || value === '') {
+    warnings.push(`line ${lineNumber} has no usable VAT rate — counted in net only`);
+    return null;
   }
 
-  // No select field found with VAT-like characteristics
-  warnings.push(`line ${lineNumber} has no usable VAT rate — counted in net only`);
-  return null;
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    warnings.push(`line ${lineNumber} has no usable VAT rate — counted in net only`);
+    return null;
+  }
+
+  return parsed;
 }
 
 /**

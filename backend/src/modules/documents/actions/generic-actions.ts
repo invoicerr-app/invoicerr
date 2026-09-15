@@ -145,11 +145,23 @@ export function registerDeleteAction(
  * UNCHANGED: pre-filling a typed recipient from the document's own client has nothing to do with
  * whether the actual delivery is synchronous or queued.
  *
+ * `fieldKey` (default `'client'`, every pre-existing caller's own behavior unchanged) is WHICH of the
+ * document's own top-level fields carries the counterparty id to look up — added for
+ * `purchase-order.descriptor.ts`'s own `supplier` field (`actions/purchase-order-actions.ts` calls this
+ * with `'supplier'`): a purchase order addresses its recipient under a DIFFERENT key than "client" (see
+ * that descriptor's own header on why — `client-reference.provider.ts`'s "client" entity deliberately
+ * EXCLUDES pure suppliers from its own search, so a purchase order cannot reuse that same field key),
+ * but the resolver logic itself (look up the referenced `Client`, pre-fill its contact email) is
+ * identical either way — `Client.contactEmail` means the same thing regardless of which document field
+ * pointed at the row. `clientsService.getClientById` never filters by `isSupplier` in either direction
+ * (see that field's own schema comment: "resolve never filters"), so this needs no other change to
+ * serve a "supplier" field.
+ *
  * BEFORE reusing this for a new document type: ask whether that type's delivery is genuinely,
- * unconditionally "always email" the way the quote's is — a signed quote going to one known
- * counterparty by email is a defensible default. The moment delivery could plausibly depend on
- * configuration, jurisdiction, or a company setting, it needs its own mechanism reading that
- * configuration (invoice-actions.ts is the template for that shape), not this one.
+ * unconditionally "always email" the way the quote's (and now the purchase order's) is — a signed
+ * document going to one known counterparty by email is a defensible default. The moment delivery could
+ * plausibly depend on configuration, jurisdiction, or a company setting, it needs its own mechanism
+ * reading that configuration (invoice-actions.ts is the template for that shape), not this one.
  * documents.service.spec.ts's "quote and invoice use a different send path" coverage is the test that
  * is meant to go red the day this guidance is ignored.
  */
@@ -157,9 +169,10 @@ export function registerEmailRecipientDefaultFromClient(
   registry: ActionRegistry,
   typeId: string,
   clientsService: ClientsService,
+  fieldKey = 'client',
 ): void {
   registry.registerParamsDefaults(typeId, 'send', async ({ companyId, data }) => {
-    const clientId = typeof data.client === 'string' ? data.client : undefined;
+    const clientId = typeof data[fieldKey] === 'string' ? (data[fieldKey] as string) : undefined;
     if (!clientId) return {};
     const client = await clientsService.getClientById(companyId, clientId);
     return client?.contactEmail ? { recipient: client.contactEmail } : {};

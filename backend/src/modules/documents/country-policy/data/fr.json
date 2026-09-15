@@ -1,6 +1,6 @@
 {
   "countryCode": "FR",
-  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice"],
+  "documentTypes": ["quote", "invoice", "credit-note", "expense", "received-invoice", "purchase-order"],
   "rules": [
     {
       "typeId": "quote",
@@ -240,6 +240,35 @@
       "provenance": {
         "kind": "unverified",
         "resolutionNote": "RECHERCHE MENÉE, QUESTION NON TRANCHÉE (2026-09-12, textes primaires lus en texte brut) — et la tension est ici plus forte que pour `expense.delete`, parce qu'un texte vise nommément les factures REÇUES. (1) LPF art. L. 102 C : « Pour l'application des dispositions de l'article L. 102 B, les factures émises par les assujettis ou, en leur nom et pour leur compte, par leur client ou par un tiers, ainsi que toutes les factures qu'ils ont reçues, doivent être stockées sur le territoire français, lorsque ce stockage n'est pas effectué par voie électronique garantissant un accès immédiat, complet et en ligne aux données concernées. » (2) LPF art. L. 102 B, I, qui fixe à six ans la conservation des « livres, registres, documents ou pièces sur lesquels peuvent s'exercer les droits de communication, d'enquête et de contrôle de l'administration ». (3) C. com. art. L. 123-22 : « Les documents comptables et les pièces justificatives sont conservés pendant dix ans. » (4) C. com. art. L. 441-9, I, qui impose à l'acheteur comme au vendeur de conserver « chacun un exemplaire de toute facture émise ». CE QUE CES TEXTES RÈGLENT : la conservation et le stockage de LA FACTURE reçue. CE QU'ILS NE RÈGLENT PAS : si l'enregistrement créé par cet écran est cet exemplaire à conserver, ou une simple fiche de suivi du document reçu par ailleurs — l'obligation porte sur la facture, et ce module ne se présente pas comme l'archive légale. Supprimer un enregistrement avant toute décision de revue (doublon, mauvais fichier importé) n'est donc atteint par aucun des textes lus, sans que leur silence vaille autorisation. Le descripteur restreint déjà cette action au statut 'received' seul (received-invoice.descriptor.ts) : une fois une décision de revue enregistrée, la suppression n'est plus offerte. Sources : codes.droit.org (miroir Légifrance), LPF édition 2026-09-01 https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf , code de commerce édition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf ; Légifrance de nouveau 403 aux requêtes automatisées (2026-09-12). CE QUI TRANCHERAIT, question d'architecture et non de droit : si le fichier importé est l'unique exemplaire conservé, l'art. L. 102 C et l'art. L. 123-22 s'appliquent directement et cette suppression doit cesser d'être offerte, même avant revue."
+      }
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "save-draft",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Enregistrer un brouillon de bon de commande est une opération interne au produit, sans lien avec la TVA ou la facturation — même raisonnement que quote.save-draft ci-dessus (voir sa propre note pour la recherche menée sur les codes applicables) : aucun texte identifié qui encadrerait spécifiquement l'enregistrement d'un tel brouillon. Un bon de commande engage d'ailleurs moins qu'un devis (il ne constitue pas une offre de vente, seulement une intention d'achat de la société elle-même émettrice), ce qui rend d'autant moins probable l'existence d'un texte le visant. Recherche non reprise spécifiquement pour ce type/action (2026-09-15) — à revoir si un besoin réel l'exige."
+      }
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "send",
+      "allowed": true,
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "L'écrit électronique a la même force probante que l'écrit sur support papier, sous réserve que puisse être dûment identifiée la personne dont il émane et qu'il soit établi et conservé dans des conditions de nature à en garantir l'intégrité.",
+        "sourceCheckedAt": "2026-09-01"
+      },
+      "notes": "Code civil, art. 1366 — le MÊME texte, à la même date de vérification, que quote.send ci-dessus (voir sa propre note). Un bon de commande n'est pas un devis ni une facture, mais c'est ce même régime général de la valeur probante de l'écrit électronique qui fonde son envoi par voie électronique — aucun texte propre à la facturation ou à la TVA ne concerne ce type (voir purchase-order.descriptor.ts's own header)."
+    },
+    {
+      "typeId": "purchase-order",
+      "actionId": "cancel-order",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Annuler un bon de commande envoyé à un fournisseur est un acte purement commercial (l'entreprise renonce à sa propre commande), jamais la correction d'un document fiscal déjà transmis — ce n'est PAS une voie de correction au sens de correction-routes/ (CANCEL_AND_REPLACE et les autres routes de ce module ne concernent qu'un document fiscal DÉJÀ ÉMIS à un tiers dont la loi encadre la correction, ce qu'un bon de commande n'est pas — voir purchase-order-actions.ts's own header). Les conséquences contractuelles d'une telle annulation vis-à-vis du fournisseur relèvent du droit commun des contrats, hors du périmètre de cette règle (qui ne dit que si CET OUTIL peut enregistrer l'écriture, jamais si l'annulation est opposable au fournisseur). Aucune recherche dédiée menée pour ce type/action (2026-09-15) — à revoir si un besoin réel l'exige."
       }
     }
   ],

@@ -10,6 +10,7 @@ import { buildQuoteDescriptor } from '../../descriptors/quote.descriptor';
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { buildCreditNoteDescriptor } from '../../descriptors/credit-note.descriptor';
 import { buildExpenseDescriptor } from '../../descriptors/expense.descriptor';
+import { buildPurchaseOrderDescriptor } from '../../descriptors/purchase-order.descriptor';
 import { buildReceivedInvoiceDescriptor } from '../../descriptors/received-invoice.descriptor';
 import { ALL_COUNTRY_POLICY_FILES } from './all';
 
@@ -35,9 +36,21 @@ const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   ...buildCreditNoteDescriptor().actions.map((a) => ({ typeId: 'credit-note', actionId: a.id })),
   ...buildExpenseDescriptor().actions.map((a) => ({ typeId: 'expense', actionId: a.id })),
   ...buildReceivedInvoiceDescriptor().actions.map((a) => ({ typeId: 'received-invoice', actionId: a.id })),
+  // TODO_FEATURES.md rank 19 — no exclusion needed here, unlike invoice's own "cancel" above:
+  // "cancel-order" is read from the ORDINARY country-policy table like every other action, never
+  // `correction-routes/cancel-policy.ts` (see purchase-order-actions.ts's own header for why the
+  // action id itself is different from the invoice's "cancel").
+  ...buildPurchaseOrderDescriptor().actions.map((a) => ({ typeId: 'purchase-order', actionId: a.id })),
 ];
 
-const ALL_DOCUMENT_TYPE_IDS = ['quote', 'invoice', 'credit-note', 'expense', 'received-invoice'];
+const ALL_DOCUMENT_TYPE_IDS = [
+  'quote',
+  'invoice',
+  'credit-note',
+  'expense',
+  'received-invoice',
+  'purchase-order',
+];
 
 function fileFor(countryCode: string) {
   const file = ALL_COUNTRY_POLICY_FILES.find((f) => f.countryCode === countryCode);

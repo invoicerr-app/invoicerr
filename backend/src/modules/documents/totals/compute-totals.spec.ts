@@ -174,6 +174,45 @@ describe('computeDocumentTotals', () => {
     expect(result.vatBreakdown[0].baseMinor).toBe(10000); // Only the 100 EUR with rate
   });
 
+  it('a line shape with NO vat-like select field at all (e.g. purchase-order.descriptor.ts) never warns — net === gross', () => {
+    // Hand-built, not `buildTestDescriptor()`: that helper always adds a `vatRate` select subfield —
+    // this test is exactly for the type that has none at all (see compute-totals.ts's own header on
+    // `extractVatRate`, TODO_FEATURES.md rank 19).
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test-type',
+      label: 'Test Type',
+      fields: [
+        { key: 'currency', kind: 'select', label: 'Currency', options: [] },
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Description' },
+            { key: 'quantity', kind: 'number', label: 'Quantity' },
+            { key: 'unitPrice', kind: 'money', label: 'Unit Price' },
+          ],
+        },
+      ],
+      actions: [],
+    };
+    const data = {
+      currency: 'EUR',
+      lines: [
+        { description: 'Widgets', quantity: 2, unitPrice: 50 },
+        { description: 'Gadgets', quantity: 1, unitPrice: 100 },
+      ],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.netMinor).toBe(20000);
+    expect(result.vatMinor).toBe(0);
+    expect(result.grossMinor).toBe(20000);
+    expect(result.vatBreakdown).toEqual([]);
+  });
+
   it('handles missing currency with null and warning', () => {
     const descriptor = buildTestDescriptor({ currencyField: false });
     const data = {

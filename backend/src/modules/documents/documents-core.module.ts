@@ -17,6 +17,7 @@ import { registerConvertToInvoiceAction } from './actions/convert-to-invoice';
 import { registerDuplicateExtension } from './actions/duplicate-extension';
 import { registerExpenseActions } from './actions/expense-actions';
 import { registerInvoiceActions } from './actions/invoice-actions';
+import { registerPurchaseOrderActions } from './actions/purchase-order-actions';
 import { registerQuoteActions } from './actions/quote-actions';
 import { registerRequestDepositAction } from './actions/request-deposit';
 import { registerRequestInstallmentsAction } from './actions/request-installments';
@@ -48,6 +49,7 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
 import { buildExpenseDescriptor } from './descriptors/expense.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
+import { buildPurchaseOrderDescriptor } from './descriptors/purchase-order.descriptor';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { buildReceivedInvoiceDescriptor } from './descriptors/received-invoice.descriptor';
 import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from './queue/document-webhooks';
@@ -112,6 +114,10 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   // The FIFTH type, and the first in the "inbound"
   // category: see received-invoice.descriptor.ts for the full reasoning.
   registry.register(buildReceivedInvoiceDescriptor());
+  // TODO_FEATURES.md rank 19 — the SIXTH type: see purchase-order.descriptor.ts for the full
+  // reasoning (first pass: EMIT a purchase order; 3-way match against a received invoice is a
+  // deliberately separate, second pass).
+  registry.register(buildPurchaseOrderDescriptor());
   return registry;
 }
 
@@ -463,6 +469,18 @@ function buildActionRegistry(
   });
   registerExpenseActions(registry, webhookDispatcher);
   registerReceivedInvoiceActions(registry, webhookDispatcher);
+  // TODO_FEATURES.md rank 19 — see purchase-order-actions.ts's own header. Same dependency shape as
+  // "quote" above (unconditional email send), never the invoice's transport-registry one.
+  registerPurchaseOrderActions(registry, {
+    clientsService,
+    mailService,
+    typeRegistry,
+    referenceRegistry,
+    queueDispatcher,
+    signingCertificates,
+    events: eventsPublisher,
+    webhooks: webhookDispatcher,
+  });
   // "record-payment" (invoice) IS registered — see registerInvoiceActions inside invoice-actions.ts.
   // "export-accounting" (invoice) is intentionally left unregistered here — see that file's header.
   return registry;

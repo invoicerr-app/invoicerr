@@ -28,9 +28,9 @@ describe('PT — country-policy/data/pt.json', () => {
     expect(pt.countryCode).toBe('PT');
   });
 
-  it('declares the same five document types every other shipped country does', () => {
+  it('declares the same six document types every other shipped country does', () => {
     expect((pt.documentTypes ?? []).slice().sort()).toEqual(
-      ['credit-note', 'expense', 'invoice', 'quote', 'received-invoice'].sort(),
+      ['credit-note', 'expense', 'invoice', 'quote', 'received-invoice', 'purchase-order'].sort(),
     );
   });
 
@@ -40,7 +40,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 24 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 27 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -73,12 +73,16 @@ describe('PT — country-policy/data/pt.json', () => {
         'received-invoice::approve',
         'received-invoice::reject',
         'received-invoice::delete',
+        // TODO_FEATURES.md rank 19 — see purchase-order.descriptor.ts's own header.
+        'purchase-order::save-draft',
+        'purchase-order::send',
+        'purchase-order::cancel-order',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(24);
+    expect(new Set(declared).size).toBe(27);
   });
 
-  it('allows every one of its 24 rules — PT never itself needs an unblock', () => {
+  it('allows every one of its 27 rules — PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 

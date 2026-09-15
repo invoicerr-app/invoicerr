@@ -3800,6 +3800,66 @@
             "label": "Received invoices pending (consolidated, converted)"
           }
         }
+      },
+      "purchase-order": {
+        "label": "Purchase order",
+        "fields": {
+          "supplier": {
+            "label": "Supplier"
+          },
+          "issueDate": {
+            "label": "Date"
+          },
+          "expectedDeliveryDate": {
+            "label": "Expected delivery date"
+          },
+          "currency": {
+            "label": "Currency"
+          },
+          "reference": {
+            "label": "Reference"
+          },
+          "notes": {
+            "label": "Notes"
+          },
+          "lines": {
+            "label": "Lines",
+            "fields": {
+              "description": {
+                "label": "Designation"
+              },
+              "quantity": {
+                "label": "Quantity"
+              },
+              "unitPrice": {
+                "label": "Unit price"
+              }
+            }
+          }
+        },
+        "actions": {
+          "save-draft": {
+            "label": "Save draft"
+          },
+          "send": {
+            "label": "Send",
+            "params": {
+              "recipient": {
+                "label": "Recipient email"
+              }
+            }
+          },
+          "cancel-order": {
+            "label": "Cancel"
+          }
+        },
+        "statuses": {
+          "draft": "Draft",
+          "sending": "Sending",
+          "sent": "Sent",
+          "send_failed": "Send failed",
+          "cancelled": "Cancelled"
+        }
       }
     },
     "numbering": {
