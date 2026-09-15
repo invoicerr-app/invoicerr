@@ -196,11 +196,25 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
 
 type UseRequestOptions = RequestInit & { body?: any }
 
+/** An `Error` enriched with the failed response's own `code`/`status`, when it had a JSON body — see
+ *  `createMethodHook`'s own `!res.ok` branch below. */
+export interface ApiHookError extends Error {
+  code?: string
+  status?: number
+}
+
 type UsePostResult<T> = {
   trigger: (body?: any, extraOptions?: RequestInit) => Promise<T | null>
   data: T | null
   loading: boolean
   error: Error | null
+  /** The SAME error `trigger`'s catch just set, exposed as a ref rather than only as the `error` state
+   *  above. `trigger` never throws (see its own comment) — a caller wrapping it (`useMutationWithToast`)
+   *  needs the actual error right after `await`ing `trigger`, but reading THIS render's `error` state
+   *  in that same tick would only see the STALE pre-call value (the component hasn't re-rendered to
+   *  receive the fresh one yet). The ref object itself is stable across renders, so `.current` is
+   *  already up to date the instant the catch block below runs, no re-render required. */
+  lastError: { current: ApiHookError | null }
 }
 
 function createMethodHook(method: string) {
@@ -208,10 +222,12 @@ function createMethodHook(method: string) {
     const [data, setData] = useState<T | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
+    const lastError = useRef<ApiHookError | null>(null)
 
     const trigger = async (body?: any, extraOptions: RequestInit = {}): Promise<T | null> => {
       setLoading(true)
       setError(null)
+      lastError.current = null
 
       const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
 
@@ -228,7 +244,22 @@ function createMethodHook(method: string) {
           ...extraOptions,
         })
 
-        if (!res.ok) throw new Error(`${method} ${url} failed`)
+        if (!res.ok) {
+          // Nest exceptions (ForbiddenException, ConflictException, ...) reply with a JSON body
+          // carrying `{ message, code? }` — parsed here, best-effort, so a caller can show the
+          // SERVER's own specific message (e.g. `billing/write-gate.ts`'s `COMPANY_BLOCKED`) instead
+          // of the generic fallback below. Mirrors `use-api-query.ts#apiFetch`'s own `ApiError`.
+          const responseBody = await res
+            .clone()
+            .json()
+            .catch(() => undefined)
+          const message =
+            typeof responseBody?.message === "string" ? responseBody.message : `${method} ${url} failed`
+          const err: ApiHookError = new Error(message)
+          if (typeof responseBody?.code === "string") err.code = responseBody.code
+          err.status = res.status
+          throw err
+        }
 
         // Some endpoints reply 200 with an empty body; treat that as
         // success instead of letting res.json() throw and make the
@@ -238,6 +269,7 @@ function createMethodHook(method: string) {
         setData(json)
         return json
       } catch (err: any) {
+        lastError.current = err
         setError(err)
         return null
       } finally {
@@ -245,7 +277,7 @@ function createMethodHook(method: string) {
       }
     }
 
-    return { trigger, data, loading, error }
+    return { trigger, data, loading, error, lastError }
   }
 }
 

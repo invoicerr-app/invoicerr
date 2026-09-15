@@ -39,6 +39,7 @@ import { LoggerModule } from './modules/logger/logger.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { auth } from './lib/auth';
 import { BillingModule } from './modules/billing/billing.module';
+import { CompanyWriteGuard } from './modules/billing/company-write.guard';
 import { isBillingEnabled } from './modules/billing/billing-flag';
 
 /**
@@ -179,6 +180,14 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
+    // Hosted billing's read-only gate (product decision 2026-09-15) — refuses every WRITE from a
+    // `blocked`/`zipped` company. Registered ONLY under the flag, like `BillingModule` right above:
+    // with it unset, this guard doesn't merely no-op, it never enters the graph at all. See
+    // `billing/write-gate.ts`'s own header for the full exemption list (GET/HEAD/OPTIONS, no active
+    // company, `/api/auth/*` bypassing Nest routing entirely). `send-gate.ts#assertCanSend` (the
+    // narrower, TRIAL-only gate on `send` specifically) stays a direct call from
+    // `documents.service.ts#runAction` — unrelated, not duplicated here.
+    ...(billingEnabled ? [{ provide: APP_GUARD, useClass: CompanyWriteGuard }] : []),
     // Global rate limiting, see ThrottlerModule.forRoot's own comment
     // above. A THIRD global APP_GUARD: Nest runs every registered one, ANDing their results, so this
     // adds a check rather than replacing AuthGuard/RolesGuard's own.
