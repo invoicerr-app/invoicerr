@@ -179,6 +179,12 @@ MOLLIE_LIVE=1 MOLLIE_API_KEY=test_... \
 # creation only, no webhook verification round-trip — see the spec's own header).
 PAYPAL_LIVE=1 PAYPAL_CLIENT_ID=<id> PAYPAL_CLIENT_SECRET=<secret> \
   npx jest paypal.live --no-coverage --runInBand
+
+# PAYMENT_PROVIDERS_REAL=1 wires the REAL Stripe/Mollie/PayPal clients into the RUNNING app itself
+# (e.g. `npm run start:test`) instead of only inside a `*.live.spec.ts` process — the two code paths
+# `documents-core.module.ts#shouldUseRealPaymentClients`'s own header explains. No effect outside
+# NODE_ENV=test.
+PAYMENT_PROVIDERS_REAL=1 npm run start:test
 ```
 
 ---

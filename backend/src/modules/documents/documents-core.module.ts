@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 
 import { ArticlesModule } from '@/modules/articles/articles.module';
 import { ArticlesService } from '@/modules/articles/articles.service';
@@ -68,6 +68,7 @@ import { buildDocumentReferenceProvider } from './references/document-reference.
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { PaymentProviderRegistry } from './payments/payment-provider-registry';
 import { PaymentSessionsService } from './payments/payment-sessions.service';
+import { shouldUseRealPaymentClients } from './payments/should-use-real-clients';
 import { FakeMollieClient, RealMollieClient } from './payments/providers/mollie/mollie-client';
 import { MollieProvider } from './payments/providers/mollie/mollie-provider';
 import { FakePayPalClient, RealPayPalClient } from './payments/providers/paypal/paypal-client';
@@ -368,18 +369,32 @@ function buildAuthorityStatusPollerRegistry(
  * VERIFICATION is never faked, in any environment (`stripe-provider.ts`'s own header) — Mollie's and
  * PayPal's own verification calls ARE, of necessity, faked under test too (see `mollie-client.ts`'s own
  * header on why that asymmetry with Stripe is real, not an oversight).
+ *
+ * `PAYMENT_PROVIDERS_REAL=1` is the ONE escape hatch from that: it wires the REAL clients even under
+ * `NODE_ENV=test`, for the one case the Fake can never stand in for — proving, from the RUNNING app
+ * (`npm run start:test`), that a real Checkout Session opens end-to-end (browser → Stripe → webhook →
+ * `record-payment`), the same round-trip `stripe.live.spec.ts` already proves but by constructing
+ * `RealStripeCheckoutClient` itself, a second code path this app's own boot never takes. Scoped
+ * narrowly on purpose: it reads only under `NODE_ENV=test` (`shouldUseRealPaymentClients`, its own file
+ * — see that file's header for why it is NOT defined here) and touches only THIS registry — every other
+ * `NODE_ENV=test` fake in this codebase (VIES, transports' own sandboxes) is untouched, so a
+ * `start:test` run stays safe to point at real card networks only when this one flag is deliberately
+ * set.
  */
 function buildPaymentProviderRegistry(): PaymentProviderRegistry {
   const registry = new PaymentProviderRegistry();
-  const isTest = process.env.NODE_ENV === 'test';
+  const useReal = shouldUseRealPaymentClients(process.env);
+  if (useReal && process.env.NODE_ENV === 'test') {
+    Logger.log('payment providers: REAL clients under NODE_ENV=test', 'DocumentsCoreModule');
+  }
 
-  const stripeCheckoutClient = isTest ? new FakeStripeCheckoutClient() : new RealStripeCheckoutClient();
+  const stripeCheckoutClient = useReal ? new RealStripeCheckoutClient() : new FakeStripeCheckoutClient();
   registry.register(new StripeProvider(stripeCheckoutClient));
 
-  const mollieClient = isTest ? new FakeMollieClient() : new RealMollieClient();
+  const mollieClient = useReal ? new RealMollieClient() : new FakeMollieClient();
   registry.register(new MollieProvider(mollieClient));
 
-  const paypalClient = isTest ? new FakePayPalClient() : new RealPayPalClient();
+  const paypalClient = useReal ? new RealPayPalClient() : new FakePayPalClient();
   registry.register(new PayPalProvider(paypalClient));
 
   return registry;
