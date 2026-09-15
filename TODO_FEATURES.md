@@ -22,7 +22,9 @@
 > new topic (instance vs. company mail server). The ranks and numbered titles in this file carry
 > over from the historical §3 — they were not restarted from zero.
 >
-> **CI status (2026-09-15, 19:40).** **Run `34986378950` (`8a18853f`) is fully green — all six jobs (lint, i18n, backend jest, queue-integration, e2e typecheck, Cypress 64/64)** — the first fully green run since `fb00877b`. Between the two: 40+ commits, every red root-caused and fixed (viewport 1000×660, computed dates, Radix popover timing, 201 vs 200 on action POSTs, TipTap resync race, goods-receipt lines never rendered, DatePicker "Today"). Later commits (`cfded939`, `ee099682`) only touch docs and the PWA install banner; their runs are queued.
+> **CI status (2026-09-15, 21:30).** Three consecutive fully green runs: `8a18853f` (34986378950), `ee099682` (PWA install banner) and `e144f398` (14-day trial, pricing) — all six jobs, Cypress 64/64 each time. The dev instance `invoicerr.chevrier.dev` runs `e144f398`; later commits are documentation only.
+>
+> **Where this file stands.** Every feature it tracks is shipped and proven; what remains needs the owner, not code: regional payment providers (deferred by decision), Apple Pay / Google Pay activation in the Mollie dashboard, the hosting provider for the paid offering (`[HOSTING PROVIDER, COUNTRY]` in the Terms of Service), hardening DMARC to `p=quarantine` once reports are clean, the Docusaurus rework and the big clean-up planned after the PR.
 
 ---
 
