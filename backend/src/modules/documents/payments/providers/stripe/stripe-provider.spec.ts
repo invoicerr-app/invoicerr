@@ -59,55 +59,66 @@ describe('StripeProvider.createCheckoutSession', () => {
 describe('StripeProvider.parseWebhookEvent', () => {
   const provider = new StripeProvider({ createSession: jest.fn() });
 
-  it('maps a paid checkout.session.completed event to "checkout.completed"', () => {
+  function headersFor(signature: string): Record<string, string> {
+    return { 'stripe-signature': signature };
+  }
+
+  it('maps a paid checkout.session.completed event to "checkout.completed"', async () => {
     const payload = eventPayload('checkout.session.completed', { id: 'cs_1', payment_status: 'paid' });
     const timestamp = Math.floor(Date.now() / 1000);
     const header = sign(payload, CREDENTIALS.webhookSecret, timestamp);
 
-    const event = provider.parseWebhookEvent(payload, header, CREDENTIALS);
+    const event = await provider.parseWebhookEvent(payload, headersFor(header), CREDENTIALS);
     expect(event).toEqual({ type: 'checkout.completed', providerSessionId: 'cs_1' });
   });
 
-  it('does NOT treat an UNPAID checkout.session.completed as completed', () => {
+  it('does NOT treat an UNPAID checkout.session.completed as completed', async () => {
     const payload = eventPayload('checkout.session.completed', { id: 'cs_1', payment_status: 'unpaid' });
     const timestamp = Math.floor(Date.now() / 1000);
     const header = sign(payload, CREDENTIALS.webhookSecret, timestamp);
 
-    const event = provider.parseWebhookEvent(payload, header, CREDENTIALS);
+    const event = await provider.parseWebhookEvent(payload, headersFor(header), CREDENTIALS);
     expect(event.type).toBe('ignored');
   });
 
-  it('maps checkout.session.expired to "checkout.failed"', () => {
+  it('maps checkout.session.expired to "checkout.failed"', async () => {
     const payload = eventPayload('checkout.session.expired', { id: 'cs_1' });
     const timestamp = Math.floor(Date.now() / 1000);
     const header = sign(payload, CREDENTIALS.webhookSecret, timestamp);
 
-    const event = provider.parseWebhookEvent(payload, header, CREDENTIALS);
+    const event = await provider.parseWebhookEvent(payload, headersFor(header), CREDENTIALS);
     expect(event).toEqual({ type: 'checkout.failed', providerSessionId: 'cs_1' });
   });
 
-  it('maps an unrelated event type to "ignored", never an error', () => {
+  it('maps an unrelated event type to "ignored", never an error', async () => {
     const payload = eventPayload('customer.created', { id: 'cus_1' });
     const timestamp = Math.floor(Date.now() / 1000);
     const header = sign(payload, CREDENTIALS.webhookSecret, timestamp);
 
-    const event = provider.parseWebhookEvent(payload, header, CREDENTIALS);
+    const event = await provider.parseWebhookEvent(payload, headersFor(header), CREDENTIALS);
     expect(event.type).toBe('ignored');
   });
 
-  it('refuses a webhook when this company has no webhookSecret on file', () => {
+  it('refuses a webhook when this company has no webhookSecret on file', async () => {
     const payload = eventPayload('checkout.session.completed', { id: 'cs_1', payment_status: 'paid' });
-    expect(() => provider.parseWebhookEvent(payload, 't=1,v1=x', { secretKey: 'sk_test_123' })).toThrow(
-      PaymentWebhookVerificationError,
-    );
+    await expect(
+      provider.parseWebhookEvent(payload, headersFor('t=1,v1=x'), { secretKey: 'sk_test_123' }),
+    ).rejects.toThrow(PaymentWebhookVerificationError);
   });
 
-  it("refuses a signature computed against a DIFFERENT company's webhook secret", () => {
+  it("refuses a signature computed against a DIFFERENT company's webhook secret", async () => {
     const payload = eventPayload('checkout.session.completed', { id: 'cs_1', payment_status: 'paid' });
     const timestamp = Math.floor(Date.now() / 1000);
     const header = sign(payload, 'whsec_someone_elses_secret', timestamp);
 
-    expect(() => provider.parseWebhookEvent(payload, header, CREDENTIALS)).toThrow(
+    await expect(provider.parseWebhookEvent(payload, headersFor(header), CREDENTIALS)).rejects.toThrow(
+      PaymentWebhookVerificationError,
+    );
+  });
+
+  it('refuses when the stripe-signature header is missing entirely', async () => {
+    const payload = eventPayload('checkout.session.completed', { id: 'cs_1', payment_status: 'paid' });
+    await expect(provider.parseWebhookEvent(payload, {}, CREDENTIALS)).rejects.toThrow(
       PaymentWebhookVerificationError,
     );
   });

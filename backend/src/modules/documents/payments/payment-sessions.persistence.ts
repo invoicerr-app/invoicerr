@@ -16,6 +16,21 @@ import { PaymentCheckoutSessionStatus } from '../../../../prisma/generated/prism
  * that needs a provider (`DocumentsService`) injected.
  */
 
+/** This company's own chosen payment provider (`Company.paymentProviderId` — see that column's own
+ *  schema.prisma comment), read here rather than inline in `PaymentSessionsService` for the SAME
+ *  reason every other Prisma access in this file is: `payment-sessions.service.spec.ts` mocks this
+ *  WHOLE module (`jest.mock('./payment-sessions.persistence')`), so `PaymentSessionsService` itself
+ *  never touches the real Prisma client, even indirectly, in an offline unit test. Returns `null` for
+ *  "never explicitly chosen" — `PaymentSessionsService` is the one that decides what that falls back
+ *  to (`DEFAULT_PROVIDER_ID`), never this function. */
+export async function resolveCompanyPaymentProviderId(companyId: string): Promise<string | null> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { paymentProviderId: true },
+  });
+  return company?.paymentProviderId ?? null;
+}
+
 export interface PaymentCheckoutSessionResult {
   id: string;
   companyId: string;

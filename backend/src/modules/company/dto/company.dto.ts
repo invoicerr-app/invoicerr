@@ -41,6 +41,13 @@ export class EditCompanyDto {
    *  "send" action uses — e.g. "email". Null/empty clears the choice, which blocks sending until a
    *  new one is chosen; see Company.invoiceTransportId's own comment in schema.prisma. */
   invoiceTransportId?: string | null;
+  /** Which registered payment provider (documents/payments/payment-provider-registry.ts) the client
+   *  portal's "Pay" link opens a checkout session against. Null/empty falls back to "stripe" — see
+   *  Company.paymentProviderId's own comment in schema.prisma for why this one degrades silently
+   *  rather than blocking, unlike invoiceTransportId right above. Written by its OWN small selector
+   *  on the Payments settings screen (payments.settings.tsx), not the big company-info form — but
+   *  through this SAME allow-listed endpoint, the same way invoiceTransportId already is. */
+  paymentProviderId?: string | null;
   /** Opts the company INTO multi-currency consolidation — null/absent keeps
    *  every aggregate grouped by currency, unchanged; see Company.referenceCurrency's own comment. */
   referenceCurrency?: string | null;

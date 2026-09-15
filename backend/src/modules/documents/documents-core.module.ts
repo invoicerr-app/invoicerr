@@ -68,6 +68,10 @@ import { buildDocumentReferenceProvider } from './references/document-reference.
 import { EntityReferenceRegistry } from './references/reference-registry';
 import { PaymentProviderRegistry } from './payments/payment-provider-registry';
 import { PaymentSessionsService } from './payments/payment-sessions.service';
+import { FakeMollieClient, RealMollieClient } from './payments/providers/mollie/mollie-client';
+import { MollieProvider } from './payments/providers/mollie/mollie-provider';
+import { FakePayPalClient, RealPayPalClient } from './payments/providers/paypal/paypal-client';
+import { PayPalProvider } from './payments/providers/paypal/paypal-provider';
 import {
   FakeStripeCheckoutClient,
   RealStripeCheckoutClient,
@@ -348,24 +352,36 @@ function buildAuthorityStatusPollerRegistry(
 
 /**
  * TODO_FEATURES.md rank 1 ("paiement en ligne") — same "a provider registers itself under an id"
- * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above, one entry today
- * ("stripe" — `payments/provider.ts`'s own header on why this is its own narrow registry, never
- * `PluginRegistry`). Credentials are resolved the SAME way every other channel already does
- * (`ChannelCredentialsService`, injected into `PaymentSessionsService` below, never into the provider
- * itself — a `PaymentProvider` implementation is handed already-decrypted config by its caller, the
- * same shape `DocumentTransport.send()` is handed a `ResolvedChannelConfig`'s own `config`).
+ * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above. Stripe → Mollie →
+ * PayPal, in that order (product decision 2026-09-15) — see `payments/provider.ts`'s own header on why
+ * this is its own narrow registry, never `PluginRegistry`. Credentials are resolved the SAME way every
+ * other channel already does (`ChannelCredentialsService`, injected into `PaymentSessionsService`
+ * below, never into a provider itself — a `PaymentProvider` implementation is handed already-decrypted
+ * config by its caller, the same shape `DocumentTransport.send()` is handed a `ResolvedChannelConfig`'s
+ * own `config`).
  *
- * The ONE environment-conditional wiring decision in this whole feature: `NODE_ENV=test` (every jest
- * run, and the e2e backend — `.env.test` sets it) gets `FakeStripeCheckoutClient`, never a real
- * network call to `api.stripe.com` — the identical "swap a network-calling client for a deterministic
- * fake under test" discipline `clients.module.ts#vatValidationClient` already holds for VIES. Webhook
- * SIGNATURE VERIFICATION is never faked, in any environment — see `stripe-provider.ts`'s own header.
+ * The ONE environment-conditional wiring decision every provider here shares: `NODE_ENV=test` (every
+ * jest run, and the e2e backend — `.env.test` sets it) gets each provider's own Fake network client,
+ * never a real call to `api.stripe.com`/`api.mollie.com`/`api-m.(sandbox.)paypal.com` — the identical
+ * "swap a network-calling client for a deterministic fake under test" discipline
+ * `clients.module.ts#vatValidationClient` already holds for VIES. Stripe's webhook SIGNATURE
+ * VERIFICATION is never faked, in any environment (`stripe-provider.ts`'s own header) — Mollie's and
+ * PayPal's own verification calls ARE, of necessity, faked under test too (see `mollie-client.ts`'s own
+ * header on why that asymmetry with Stripe is real, not an oversight).
  */
 function buildPaymentProviderRegistry(): PaymentProviderRegistry {
   const registry = new PaymentProviderRegistry();
-  const checkoutClient =
-    process.env.NODE_ENV === 'test' ? new FakeStripeCheckoutClient() : new RealStripeCheckoutClient();
-  registry.register(new StripeProvider(checkoutClient));
+  const isTest = process.env.NODE_ENV === 'test';
+
+  const stripeCheckoutClient = isTest ? new FakeStripeCheckoutClient() : new RealStripeCheckoutClient();
+  registry.register(new StripeProvider(stripeCheckoutClient));
+
+  const mollieClient = isTest ? new FakeMollieClient() : new RealMollieClient();
+  registry.register(new MollieProvider(mollieClient));
+
+  const paypalClient = isTest ? new FakePayPalClient() : new RealPayPalClient();
+  registry.register(new PayPalProvider(paypalClient));
+
   return registry;
 }
 

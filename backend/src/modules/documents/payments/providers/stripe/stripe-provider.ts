@@ -54,11 +54,13 @@ export class StripeProvider implements PaymentProvider {
     return this.checkoutClient.createSession(stripeCredentials.secretKey, input);
   }
 
-  parseWebhookEvent(
+  // `async` only to satisfy `PaymentProvider`'s shared signature — see this class's own header. No
+  // `await` below: Stripe's signature check is genuinely synchronous, unlike Mollie's/PayPal's.
+  async parseWebhookEvent(
     rawBody: Buffer | string,
-    signatureHeader: string | undefined,
+    headers: Record<string, string | string[] | undefined>,
     credentials: Record<string, unknown>,
-  ): PaymentProviderEvent {
+  ): Promise<PaymentProviderEvent> {
     const stripeCredentials = extractStripeCredentials(credentials);
     // A signature can never be checked without a secret to check it against — refused the SAME way
     // `verifyStripeSignature` refuses an empty secret handed to it directly (its own defensive guard),
@@ -70,7 +72,16 @@ export class StripeProvider implements PaymentProvider {
       );
     }
 
-    const event = verifyStripeSignature(rawBody, signatureHeader, stripeCredentials.webhookSecret);
+    // Stripe's header is always a single value in practice (Express only ever produces an array for a
+    // header repeated across multiple raw lines, which Stripe's own client never does) — an array here
+    // would mean something is already wrong upstream, treated as "no usable signature" rather than
+    // guessed at.
+    const signatureHeader = headers['stripe-signature'];
+    const event = verifyStripeSignature(
+      rawBody,
+      typeof signatureHeader === 'string' ? signatureHeader : undefined,
+      stripeCredentials.webhookSecret,
+    );
     const object = event.data.object;
     const providerSessionId = typeof object.id === 'string' ? object.id : null;
 

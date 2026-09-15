@@ -87,7 +87,14 @@ describe('payment-methods/persistence', () => {
   describe('listCompanyPaymentMethods', () => {
     it('returns all five built-in methods, disabled and empty for a company that never configured any', async () => {
       const views = await listCompanyPaymentMethods('company-1');
-      expect(views.map((v) => v.id)).toEqual(['bank_transfer', 'paypal', 'cash', 'cheque', 'stripe']);
+      expect(views.map((v) => v.id)).toEqual([
+        'bank_transfer',
+        'paypal',
+        'cash',
+        'cheque',
+        'stripe',
+        'mollie',
+      ]);
       expect(views.every((v) => v.enabled === false)).toBe(true);
       expect(views.find((v) => v.id === 'cash')?.config).toEqual({});
     });

@@ -22,21 +22,26 @@ interface RequestWithRawBody extends Request {
  * `@/decorators/public.decorator.ts`).
  *
  * `:companyId`/`:providerId` in the URL are a ROUTING hint ONLY — what tells this endpoint which
- * company's credentials to check the signature against, nothing more. They are NOT secret and they are
- * NOT what authorizes this call: a company connects Stripe once and pastes THIS exact URL into their
- * OWN Stripe dashboard's webhook settings (bring-your-own-account — see
- * `payment-sessions.service.ts`'s own header, decision 2), and the only thing that actually proves a
- * request came from Stripe is `PaymentSessionsService.handleWebhookEvent` verifying the
- * `Stripe-Signature` header against that company's own webhook secret. A forged request naming the
- * right ids but the wrong (or no) signature is refused with the SAME 400 as a malformed one — see
- * `stripe-signature.ts`'s own header for exactly what that check covers (a valid HMAC over the raw
- * body AND a fresh timestamp, so a captured-and-replayed request years later is refused too).
+ * company's credentials to verify against, nothing more, and which registered `PaymentProvider` (see
+ * `payment-provider-registry.ts`) actually does the verifying. They are NOT secret and they are NOT
+ * what authorizes this call: a company connects a provider once (Stripe/Mollie/PayPal, bring-your-own-
+ * account — see `payment-sessions.service.ts`'s own header, decision 2) and registers THIS exact URL as
+ * that provider's own webhook endpoint, and the only thing that actually proves a request is genuine is
+ * `PaymentSessionsService.handleWebhookEvent` delegating to `provider.parseWebhookEvent` — a signature
+ * check for Stripe/PayPal, an authenticated re-fetch for Mollie (see `provider.ts`'s own header on why
+ * the three differ). A forged/unverifiable request naming the right ids is refused with the SAME 400 as
+ * a malformed one, regardless of which provider's own check caught it.
  *
- * Reads the RAW body Express already captured (`main.ts`'s own `bodyParser.json({ verify })` — Stripe
- * always sends `application/json`, so the global parser's `verify` callback already ran and stashed
- * `req.rawBody` before this handler is ever reached) rather than re-serializing `req.body`: a re-
- * serialized JSON object can differ byte-for-byte from what was actually signed (key order, whitespace),
- * which would make EVERY signature check fail — the exact same reasoning `main.ts`'s own comment gives.
+ * The FULL header map (`req.headers`) is handed to `handleWebhookEvent`, not one named header — Stripe
+ * needs `stripe-signature`, PayPal needs five `paypal-*` headers, Mollie needs none at all (see
+ * `provider.ts`'s own header on why the shared interface was widened for this).
+ *
+ * Reads the RAW body Express already captured (`main.ts`'s own `bodyParser.json({ verify })` for
+ * Stripe/PayPal's `application/json` webhooks, `bodyParser.urlencoded({ verify })` for Mollie's
+ * `application/x-www-form-urlencoded` one — both stash `req.rawBody` before this handler is ever
+ * reached) rather than re-serializing `req.body`: a re-serialized body can differ byte-for-byte from
+ * what was actually signed (key order, whitespace), which would make a signature check fail — the exact
+ * same reasoning `main.ts`'s own comment gives.
  */
 @ApiExcludeController()
 @Controller('public/payments')
@@ -62,7 +67,7 @@ export class PaymentsWebhookController {
         companyId,
         providerId,
         req.rawBody,
-        req.headers['stripe-signature'] as string | undefined,
+        req.headers,
       );
       // Always 200 for anything that got PAST signature verification — see
       // `PaymentSessionsService.handleWebhookEvent`'s own header on why an "ignored"/"unknown_session"

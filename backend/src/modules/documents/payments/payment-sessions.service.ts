@@ -21,12 +21,15 @@ import {
   markSessionFailed,
   PaymentCheckoutSessionResult,
   releaseSessionClaim,
+  resolveCompanyPaymentProviderId,
 } from './payment-sessions.persistence';
 
-/** Today's ONE supported provider — see `payment-provider-registry.ts`'s own header on why adding a
- *  second is a registration, never a rewrite of this service. Hardcoded here (rather than a per-company
- *  choice) because exactly one provider ships; the day a second does, this becomes a company setting
- *  the same way `Company.invoiceTransportId` already is for delivery channels. */
+/** The FALLBACK when a company has never set its own `Company.paymentProviderId` (null/empty) — see
+ *  that column's own schema.prisma comment: "stripe" was the sole hardcoded provider before Mollie/
+ *  PayPal existed (2026-09-15), so an untouched company must keep resolving to it, never silently lose
+ *  its payment provider the day this became a real per-company choice. A company that HAS picked one
+ *  (Settings → Payments' own small selector) always uses that choice instead — see
+ *  `createInvoiceCheckoutSession` below. */
 const DEFAULT_PROVIDER_ID = 'stripe';
 
 export interface CreateInvoiceCheckoutSessionInput {
@@ -55,10 +58,12 @@ export interface InvoiceCheckoutSessionResult {
  *     nowhere to put. Bring-your-own-account costs a company one more settings screen to fill in and
  *     buys total parity with how PDP/KSeF/SdI/Chorus Pro credentials already work — one
  *     mechanism, one encryption key, one settings pattern, for every external integration this app has.
- *  3. WEBHOOK TRUST: `parseWebhookEvent` (delegated to the resolved provider) verifies a cryptographic
- *     signature over the RAW request body against THIS company's own webhook secret before this class
- *     ever looks at the event's contents — see `stripe-signature.ts`'s own header for exactly what that
- *     checks. REPLAY is made inert by `PaymentCheckoutSession.status`'s own atomic
+ *  3. WEBHOOK TRUST: `parseWebhookEvent` (delegated to the resolved provider) verifies the inbound
+ *     event against THIS company's own credentials before this class ever looks at its contents —
+ *     a cryptographic signature over the RAW request body for Stripe/PayPal (see `stripe-signature.ts`'s
+ *     own header for exactly what that checks), an AUTHENTICATED re-fetch of the payment for Mollie
+ *     (which sends no signature at all — see `mollie-provider.ts`'s own header). REPLAY is made inert by
+ *     `PaymentCheckoutSession.status`'s own atomic
  *     PENDING→COMPLETED claim (`claimSessionForCompletion` — the exact same conditional-write shape
  *     `bank-reconciliation/persistence.ts#claimLineForReconciliation` already uses for the identical "an
  *     external event must credit a document AT MOST ONCE" problem): a second delivery of the SAME event
@@ -117,14 +122,18 @@ export class PaymentSessionsService {
       throw new ConflictException(`Invoice "${documentId}" has no currency recorded.`);
     }
 
-    const provider = this.providerRegistry.resolve(DEFAULT_PROVIDER_ID);
-    const config = await this.channelCredentials.resolveActive(companyId, DEFAULT_PROVIDER_ID);
+    // This company's OWN choice (Settings → Payments) — falls back to `DEFAULT_PROVIDER_ID` when
+    // never set, see that constant's own header.
+    const providerId = (await resolveCompanyPaymentProviderId(companyId)) || DEFAULT_PROVIDER_ID;
+    const provider = this.providerRegistry.resolve(providerId);
+    const config = await this.channelCredentials.resolveActive(companyId, providerId);
     if (!provider || !config) {
       // Same 501 shape `pdp-transport.ts#requireConnectedPdp` already uses for "no channel connected" —
-      // a company has simply never filled in Settings → Payments, never a server-side bug.
+      // a company has simply never filled in Settings → Payments (or picked a provider it never
+      // actually connected credentials for) — never a server-side bug.
       throw new NotImplementedException(
-        'Online payment is not connected for this company yet. Connect a payment provider in company ' +
-          'settings (Payments) before sharing a Pay link.',
+        `Online payment via "${providerId}" is not connected for this company yet. Connect this ` +
+          'payment provider in company settings (Payments) before sharing a Pay link.',
       );
     }
 
@@ -133,7 +142,7 @@ export class PaymentSessionsService {
     // meantime) must never hand back a session quoting a now-wrong figure. The stale PENDING session is
     // simply left behind, harmless: at worst it becomes an abandoned link on the provider's own hosted
     // page (Stripe expires an unused checkout session after 24h on its own side).
-    const pending = await findPendingSessionForDocument(companyId, documentId, DEFAULT_PROVIDER_ID);
+    const pending = await findPendingSessionForDocument(companyId, documentId, providerId);
     if (pending && pending.amountMinor === settlement.outstandingMinor && pending.currency === currency) {
       return { checkoutUrl: pending.checkoutUrl };
     }
@@ -154,7 +163,7 @@ export class PaymentSessionsService {
     const session = await createCheckoutSession({
       companyId,
       documentId,
-      providerId: DEFAULT_PROVIDER_ID,
+      providerId,
       providerSessionId: created.providerSessionId,
       amountMinor: settlement.outstandingMinor,
       currency,
@@ -219,7 +228,7 @@ export class PaymentSessionsService {
     companyId: string,
     providerId: string,
     rawBody: Buffer | string,
-    signatureHeader: string | undefined,
+    headers: Record<string, string | string[] | undefined>,
   ): Promise<{ outcome: 'processed' | 'ignored' | 'unknown_session' }> {
     const provider = this.providerRegistry.resolve(providerId);
     if (!provider) {
@@ -233,9 +242,10 @@ export class PaymentSessionsService {
       );
     }
 
-    // Throws PaymentWebhookVerificationError on anything that fails signature/timestamp verification —
-    // nothing below this line ever runs for a forged or stale request.
-    const event = provider.parseWebhookEvent(rawBody, signatureHeader, config.config);
+    // Throws PaymentWebhookVerificationError on anything that fails verification (a signature check
+    // for Stripe/PayPal, an authenticated re-fetch for Mollie — see `provider.ts`'s own header) —
+    // nothing below this line ever runs for a forged, stale, or unverifiable request.
+    const event = await provider.parseWebhookEvent(rawBody, headers, config.config);
 
     if (event.type === 'checkout.failed' && event.providerSessionId) {
       await markSessionFailed(providerId, event.providerSessionId);

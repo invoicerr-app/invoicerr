@@ -11,6 +11,20 @@ import { PaymentMethodDescriptor, PaymentMethodRenderContext, presentFromFields 
  * know a PayPal payment actually completed the way `payments/payment-sessions.service.ts` knows for
  * Stripe (a signed webhook) — recording that it arrived stays a "record-payment" action a human (or a
  * bank-reconciliation line) performs afterward, unchanged by this link existing at all.
+ *
+ * KEPT, not replaced, now that `payments/providers/paypal/paypal-provider.ts` adds the REAL,
+ * credential-based, webhook-verified PayPal Orders API integration (2026-09-15 — Stripe → Mollie →
+ * PayPal product decision). The two serve genuinely different companies, not a "legacy vs. current"
+ * pair — same coexistence `stripe.descriptor.ts` already has with `payments/providers/stripe/`:
+ *  - A company with NO PayPal API credentials (the overwhelming majority of small sellers who just
+ *    want "a PayPal button") still gets one, zero onboarding, via THIS descriptor's own `email` field
+ *    — id `'paypal'` in `PaymentMethodRegistry` (this file), a settings-screen "accept PayPal" toggle.
+ *  - A company that DOES connect real PayPal credentials (Settings → Payments, same encrypted
+ *    `CompanyChannelConfig` storage every provider uses) gets the real, webhook-confirmed Orders API
+ *    flow instead — id `'paypal'` in the SEPARATE `PaymentProviderRegistry` (`payments/
+ *    payment-provider-registry.ts`). Same literal id, two different registries with two different
+ *    purposes (a DISPLAY method vs. a CHECKOUT provider) — exactly the split `'stripe'` already
+ *    demonstrates: `stripe.descriptor.ts` never builds a link either, for the identical reason.
  */
 function buildPayPalLink(email: string, ctx: PaymentMethodRenderContext): string | undefined {
   if (ctx.amountMinor === undefined || ctx.currency === undefined) return undefined;

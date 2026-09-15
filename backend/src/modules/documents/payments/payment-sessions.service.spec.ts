@@ -21,6 +21,7 @@ const claimSessionForCompletion = persistence.claimSessionForCompletion as jest.
 const attachSessionPayment = persistence.attachSessionPayment as jest.Mock;
 const releaseSessionClaim = persistence.releaseSessionClaim as jest.Mock;
 const markSessionFailed = persistence.markSessionFailed as jest.Mock;
+const resolveCompanyPaymentProviderId = persistence.resolveCompanyPaymentProviderId as jest.Mock;
 
 function buildService() {
   const documentsService = {
@@ -181,13 +182,101 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession', () => {
   });
 });
 
+describe('PaymentSessionsService.createInvoiceCheckoutSession — provider selection', () => {
+  const INPUT = {
+    successUrl: 'https://app.example.com/portal?payment=success',
+    cancelUrl: 'https://app.example.com/portal?payment=cancelled',
+  };
+
+  it('falls back to "stripe" when the company never chose a provider (Company.paymentProviderId null)', async () => {
+    const { service, documentsService, channelCredentials, providerRegistry } = buildService();
+    documentsService.getDocument.mockResolvedValue({
+      id: 'inv-1',
+      status: 'sent',
+      data: { currency: 'EUR' },
+    });
+    documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 5000 } });
+    channelCredentials.resolveActive.mockResolvedValue({ config: { secretKey: 'sk' } });
+    findPendingSessionForDocument.mockResolvedValue(null);
+    resolveCompanyPaymentProviderId.mockResolvedValue(null);
+
+    const stripeProvider = { id: 'stripe', createCheckoutSession: jest.fn(), parseWebhookEvent: jest.fn() };
+    stripeProvider.createCheckoutSession.mockResolvedValue({
+      providerSessionId: 'cs_1',
+      checkoutUrl: 'https://x',
+    });
+    providerRegistry.resolve.mockImplementation((id: string) =>
+      id === 'stripe' ? stripeProvider : undefined,
+    );
+    createCheckoutSession.mockResolvedValue({ checkoutUrl: 'https://x' });
+
+    await service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT);
+
+    expect(providerRegistry.resolve).toHaveBeenCalledWith('stripe');
+    expect(channelCredentials.resolveActive).toHaveBeenCalledWith('company-1', 'stripe');
+    expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ providerId: 'stripe' }));
+  });
+
+  it('uses the company\'s OWN chosen provider (e.g. "mollie") instead of the stripe default', async () => {
+    const { service, documentsService, channelCredentials, providerRegistry } = buildService();
+    documentsService.getDocument.mockResolvedValue({
+      id: 'inv-1',
+      status: 'sent',
+      data: { currency: 'EUR' },
+    });
+    documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 5000 } });
+    channelCredentials.resolveActive.mockResolvedValue({ config: { apiKey: 'test_key' } });
+    findPendingSessionForDocument.mockResolvedValue(null);
+    resolveCompanyPaymentProviderId.mockResolvedValue('mollie');
+
+    const mollieProvider = { id: 'mollie', createCheckoutSession: jest.fn(), parseWebhookEvent: jest.fn() };
+    mollieProvider.createCheckoutSession.mockResolvedValue({
+      providerSessionId: 'tr_1',
+      checkoutUrl: 'https://mollie.com/x',
+    });
+    providerRegistry.resolve.mockImplementation((id: string) =>
+      id === 'mollie' ? mollieProvider : undefined,
+    );
+    createCheckoutSession.mockResolvedValue({ checkoutUrl: 'https://mollie.com/x' });
+
+    const result = await service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT);
+
+    expect(result).toEqual({ checkoutUrl: 'https://mollie.com/x' });
+    expect(providerRegistry.resolve).toHaveBeenCalledWith('mollie');
+    expect(channelCredentials.resolveActive).toHaveBeenCalledWith('company-1', 'mollie');
+    expect(findPendingSessionForDocument).toHaveBeenCalledWith('company-1', 'inv-1', 'mollie');
+    expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ providerId: 'mollie' }));
+  });
+
+  it('a NAMED 501 (never a 500) when the company selected a provider it never actually connected', async () => {
+    const { service, documentsService, channelCredentials, providerRegistry } = buildService();
+    documentsService.getDocument.mockResolvedValue({
+      id: 'inv-1',
+      status: 'sent',
+      data: { currency: 'EUR' },
+    });
+    documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 5000 } });
+    resolveCompanyPaymentProviderId.mockResolvedValue('paypal');
+    channelCredentials.resolveActive.mockResolvedValue(null); // "paypal" chosen but never connected
+    providerRegistry.resolve.mockReturnValue({
+      id: 'paypal',
+      createCheckoutSession: jest.fn(),
+      parseWebhookEvent: jest.fn(),
+    });
+
+    await expect(service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT)).rejects.toThrow(
+      /paypal.*not connected/,
+    );
+  });
+});
+
 describe('PaymentSessionsService.handleWebhookEvent', () => {
   it('404s for an unregistered provider id, before ever resolving credentials', async () => {
     const { service, channelCredentials, providerRegistry } = buildService();
     providerRegistry.resolve.mockReturnValue(undefined);
 
     await expect(
-      service.handleWebhookEvent('company-1', 'unknown-provider', 'body', 'sig'),
+      service.handleWebhookEvent('company-1', 'unknown-provider', 'body', { 'stripe-signature': 'sig' }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(channelCredentials.resolveActive).not.toHaveBeenCalled();
   });
@@ -196,9 +285,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
     const { service, channelCredentials, provider } = buildService();
     channelCredentials.resolveActive.mockResolvedValue(null);
 
-    await expect(service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig')).rejects.toBeInstanceOf(
-      PaymentWebhookVerificationError,
-    );
+    await expect(
+      service.handleWebhookEvent('company-1', 'stripe', 'body', { 'stripe-signature': 'sig' }),
+    ).rejects.toBeInstanceOf(PaymentWebhookVerificationError);
     expect(provider.parseWebhookEvent).not.toHaveBeenCalled();
   });
 
@@ -209,9 +298,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       throw new PaymentWebhookVerificationError('bad signature');
     });
 
-    await expect(service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig')).rejects.toThrow(
-      'bad signature',
-    );
+    await expect(
+      service.handleWebhookEvent('company-1', 'stripe', 'body', { 'stripe-signature': 'sig' }),
+    ).rejects.toThrow('bad signature');
     expect(claimSessionForCompletion).not.toHaveBeenCalled();
   });
 
@@ -220,7 +309,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
     channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec' } });
     provider.parseWebhookEvent.mockReturnValue({ type: 'checkout.failed', providerSessionId: 'cs_1' });
 
-    const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig');
+    const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', {
+      'stripe-signature': 'sig',
+    });
 
     expect(result).toEqual({ outcome: 'processed' });
     expect(markSessionFailed).toHaveBeenCalledWith('stripe', 'cs_1');
@@ -232,7 +323,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
     channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec' } });
     provider.parseWebhookEvent.mockReturnValue({ type: 'ignored', providerSessionId: 'cus_1' });
 
-    const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig');
+    const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', {
+      'stripe-signature': 'sig',
+    });
 
     expect(result).toEqual({ outcome: 'ignored' });
     expect(claimSessionForCompletion).not.toHaveBeenCalled();
@@ -251,7 +344,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       // the FIRST delivery already flipped the row to COMPLETED, so this second one matches zero rows.
       claimSessionForCompletion.mockResolvedValue(null);
 
-      const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig');
+      const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', {
+        'stripe-signature': 'sig',
+      });
 
       expect(result).toEqual({ outcome: 'unknown_session' });
       expect(documentsService.runAction).not.toHaveBeenCalled();
@@ -279,7 +374,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         createdPaymentId: 'payment-new',
       });
 
-      const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig');
+      const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', {
+        'stripe-signature': 'sig',
+      });
 
       expect(result).toEqual({ outcome: 'processed' });
       expect(documentsService.runAction).toHaveBeenCalledWith('company-1', 'invoice', 'record-payment', {
@@ -314,9 +411,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
       documentsService.runAction.mockRejectedValue(new Error('country-policy refused this action'));
 
-      await expect(service.handleWebhookEvent('company-1', 'stripe', 'body', 'sig')).rejects.toThrow(
-        'country-policy refused this action',
-      );
+      await expect(
+        service.handleWebhookEvent('company-1', 'stripe', 'body', { 'stripe-signature': 'sig' }),
+      ).rejects.toThrow('country-policy refused this action');
       expect(releaseSessionClaim).toHaveBeenCalledWith('stripe', 'cs_1');
       expect(attachSessionPayment).not.toHaveBeenCalled();
     });
@@ -370,8 +467,8 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         );
 
         const [resultA, resultB] = await Promise.all([
-          service.handleWebhookEvent('company-1', 'stripe', 'body-A', 'sig'),
-          service.handleWebhookEvent('company-1', 'stripe', 'body-B', 'sig'),
+          service.handleWebhookEvent('company-1', 'stripe', 'body-A', { 'stripe-signature': 'sig' }),
+          service.handleWebhookEvent('company-1', 'stripe', 'body-B', { 'stripe-signature': 'sig' }),
         ]);
 
         expect(resultA).toEqual({ outcome: 'processed' });

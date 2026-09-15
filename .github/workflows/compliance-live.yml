@@ -59,6 +59,9 @@ jobs:
       SDI_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
       CHORUSPRO_LIVE: '1'     # FR B2G (PISTE OAuth2) — see its own block below
+      STRIPE_LIVE: '1'        # Online payment (TODO_FEATURES.md rank 1) — see its own block below
+      MOLLIE_LIVE: '1'        # Online payment — see its own block below
+      PAYPAL_LIVE: '1'        # Online payment — see its own block below
 
       # --- Real Postgres for the specs that touch the `prisma` singleton directly (see the
       # `services:` comment above for which ones and why) — a fresh, empty, freshly-migrated DB is
@@ -96,6 +99,16 @@ jobs:
       SDI_ENDPOINT:        ${{ secrets.SDI_ENDPOINT }}
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
+
+      # --- Online payment (TODO_FEATURES.md rank 1) — Stripe → Mollie → PayPal (2026-09-15). All
+      # three self-skip with no secrets set, same as every other row here; none has ever run for real
+      # in this repo (see live-testing.md's own table).
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      MOLLIE_API_KEY:    ${{ secrets.MOLLIE_API_KEY }}
+      PAYPAL_CLIENT_ID:     ${{ secrets.PAYPAL_CLIENT_ID }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+      PAYPAL_WEBHOOK_ID:    ${{ secrets.PAYPAL_WEBHOOK_ID }}
+      PAYPAL_ENVIRONMENT: 'sandbox'
 
       # Encryption key for any credential-store round-trip the specs may touch.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}

@@ -13,10 +13,25 @@
  * `AuthorityStatusPollerRegistry`/`DeclarationProviderRegistry` already hold for the identical
  * "a provider registers itself under an id, credentials come from `ChannelCredentialsService`" problem.
  *
- * Only Stripe implements this today (`providers/stripe/stripe-provider.ts`) — PayPal or any other
- * provider is exactly one more file implementing this same interface plus one more
- * `PaymentProviderRegistry.register()` call, never a change to `PaymentSessionsService` or either
- * controller that calls it.
+ * Stripe was first (`providers/stripe/stripe-provider.ts`); Mollie (`providers/mollie/`) and PayPal
+ * (`providers/paypal/`) followed the same shape — a provider is exactly one more file implementing
+ * this interface plus one more `PaymentProviderRegistry.register()` call, never a change to
+ * `PaymentSessionsService` or either controller that calls it.
+ *
+ * `parseWebhookEvent` WIDENED for Mollie/PayPal (originally Stripe-only, synchronous, one signature
+ * header): it is now `Promise`-returning and takes the FULL inbound header map, not one named header.
+ * Two reasons, both real, neither Stripe-specific machinery leaking in:
+ *  1. Stripe's own scheme needs exactly one header (`Stripe-Signature`) and no network call — a pure,
+ *     synchronous function. PayPal's `verify-webhook-signature` needs FIVE headers (`PAYPAL-
+ *     TRANSMISSION-ID/-TIME/-CERT-URL/-AUTH-ALGO/-TRANSMISSION-SIG`) plus an OAuth-authenticated POST
+ *     to PayPal's own API — a single named "signature header" parameter has no way to carry that.
+ *  2. Mollie sends NO signature at all — a webhook is a bare `POST` body `id=tr_xxx`; the OFFICIAL
+ *     verification is re-reading the payment via an AUTHENTICATED `GET /v2/payments/{id}` with this
+ *     company's own API key and trusting THAT response, never the webhook body itself (see
+ *     `mollie-provider.ts`'s own header). That is unavoidably a network call, so this method being
+ *     synchronous stopped being true the moment Mollie needed to implement it.
+ * `StripeProvider.parseWebhookEvent` itself does no I/O even now — it is declared `async` purely to
+ * satisfy this shared signature, not because Stripe suddenly needs a network round trip.
  */
 
 /** What a caller asks a provider to open — deliberately narrow: no card fields, no bank details, ever
@@ -91,16 +106,23 @@ export interface PaymentProvider {
   ): Promise<CreateCheckoutSessionResult>;
 
   /**
-   * Verifies the inbound webhook's signature against `credentials`' own webhook secret and, only once
+   * Verifies the inbound webhook against `credentials`' own secret(s) — a signature check for Stripe/
+   * PayPal, an authenticated re-fetch for Mollie (see this interface's own header) — and, only once
    * verified, parses it into the narrow event shape above. Throws `PaymentWebhookVerificationError` for
-   * a missing/invalid/stale signature — NEVER returns a "verified: false" flag a caller could
-   * forget to check (the same "make the wrong thing impossible to express" discipline
-   * `channels.service.ts`'s own `ChannelConfigStatus` holds for "never let a secret reach this shape at
-   * all" — here, "never let an unverified event reach the caller at all").
+   * a missing/invalid/stale signature, an authenticated re-fetch that fails, or any other verification
+   * failure — NEVER returns a "verified: false" flag a caller could forget to check (the same "make the
+   * wrong thing impossible to express" discipline `channels.service.ts`'s own `ChannelConfigStatus`
+   * holds for "never let a secret reach this shape at all" — here, "never let an unverified event reach
+   * the caller at all").
+   *
+   * `headers` is the FULL inbound header map, lowercased keys (Express's own convention) — every
+   * provider reads only the header(s) it actually needs (Stripe: `stripe-signature`; PayPal: the five
+   * `paypal-transmission-*`/`paypal-cert-url`/`paypal-auth-algo` headers; Mollie: none, it verifies by
+   * re-fetching instead).
    */
   parseWebhookEvent(
     rawBody: Buffer | string,
-    signatureHeader: string | undefined,
+    headers: Record<string, string | string[] | undefined>,
     credentials: Record<string, unknown>,
-  ): PaymentProviderEvent;
+  ): Promise<PaymentProviderEvent>;
 }
