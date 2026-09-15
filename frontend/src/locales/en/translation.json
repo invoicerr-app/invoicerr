@@ -2764,6 +2764,10 @@
         "BLOCKED": "Blocked",
         "ZIPPED": "Pending deletion",
         "DELETED": "Deleted"
+      },
+      "messages": {
+        "checkoutError": "Failed to start checkout",
+        "portalError": "Failed to open the subscription portal"
       }
     }
   },
