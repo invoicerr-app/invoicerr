@@ -1,4 +1,5 @@
 import { ExternalLink, Loader2 } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -24,6 +25,28 @@ export default function BillingSettings() {
   const startCheckout = useStartCheckout()
   const openPortal = useOpenCustomerPortal()
 
+  // `mutate*.isPending` falls back to false as soon as the mutation's own promise resolves — i.e. as
+  // soon as `onSuccess` runs — but `window.location.*` navigation still takes a beat (up to a few
+  // seconds) before the browser actually leaves this page. Without this, the button re-enables and
+  // the spinner stops while the user is still staring at this screen waiting for Polar to load. These
+  // stay `true` all the way through navigation and are only cleared on `onError` (the promise
+  // rejected, so we never leave) or by the `pageshow` guard below (bfcache back-navigation).
+  const [navigatingPortal, setNavigatingPortal] = useState(false)
+  const [navigatingCheckoutSlug, setNavigatingCheckoutSlug] = useState<"monthly" | "yearly" | null>(null)
+
+  // Coming back to this page via the browser's back button can restore it from the bfcache instead of
+  // re-rendering it fresh — `event.persisted === true` — which would otherwise leave a spinner stuck
+  // forever on a button whose navigation never actually completed from this page's point of view.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      setNavigatingPortal(false)
+      setNavigatingCheckoutSlug(null)
+    }
+    window.addEventListener("pageshow", onPageShow)
+    return () => window.removeEventListener("pageshow", onPageShow)
+  }, [])
+
   if (!isSuccess || !status) return null
 
   const returnUrl = `${window.location.origin}/settings/billing`
@@ -42,9 +65,11 @@ export default function BillingSettings() {
         // via `successUrl` on THIS route, so there is no separate tab to manage and no focus/
         // visibilitychange dance needed here.
         onSuccess: (data) => {
+          setNavigatingCheckoutSlug(interval)
           window.location.href = data.url
         },
         onError: (error) => {
+          setNavigatingCheckoutSlug(null)
           toast.error(
             error instanceof ApiError
               ? error.message
@@ -57,14 +82,17 @@ export default function BillingSettings() {
 
   const manageSubscription = () => {
     // Same-tab navigation to the Polar customer portal — no popup, no iframe (Polar's portal refuses
-    // to be framed anyway). The button stays disabled + spinning from `openPortal.isPending` through
-    // to the actual navigation below, so there's no window for a double click to fire a second
-    // portal-session request.
+    // to be framed anyway). The button stays disabled + spinning from `openPortal.isPending` (the
+    // request itself) through `navigatingPortal` (the redirect that follows) so there's no window for
+    // a double click to fire a second portal-session request, and no gap where the button looks idle
+    // while Polar is still loading.
     openPortal.mutate(undefined, {
       onSuccess: (data) => {
+        setNavigatingPortal(true)
         window.location.assign(data.url)
       },
       onError: (error) => {
+        setNavigatingPortal(false)
         toast.error(
           error instanceof ApiError
             ? error.message
@@ -118,10 +146,11 @@ export default function BillingSettings() {
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={() => subscribe("monthly")}
-                disabled={startCheckout.isPending}
+                disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
                 data-cy="billing-subscribe-monthly"
               >
-                {startCheckout.isPending && startCheckout.variables?.slug === "monthly" ? (
+                {(startCheckout.isPending && startCheckout.variables?.slug === "monthly") ||
+                navigatingCheckoutSlug === "monthly" ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <ExternalLink className="h-4 w-4 mr-2" />
@@ -131,10 +160,11 @@ export default function BillingSettings() {
               <Button
                 variant="outline"
                 onClick={() => subscribe("yearly")}
-                disabled={startCheckout.isPending}
+                disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
                 data-cy="billing-subscribe-yearly"
               >
-                {startCheckout.isPending && startCheckout.variables?.slug === "yearly" ? (
+                {(startCheckout.isPending && startCheckout.variables?.slug === "yearly") ||
+                navigatingCheckoutSlug === "yearly" ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <ExternalLink className="h-4 w-4 mr-2" />
@@ -147,10 +177,10 @@ export default function BillingSettings() {
           <Button
             variant="secondary"
             onClick={manageSubscription}
-            disabled={openPortal.isPending}
+            disabled={openPortal.isPending || navigatingPortal}
             data-cy="billing-manage-portal"
           >
-            {openPortal.isPending ? (
+            {openPortal.isPending || navigatingPortal ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <ExternalLink className="h-4 w-4 mr-2" />
