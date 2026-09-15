@@ -456,7 +456,7 @@ export function Sidebar() {
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-medium">
                         {/* @ts-ignore */}
-                        {data?.user?.lastname} {data?.user?.firstname}
+                        {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
                       </span>
                       <span className="truncate text-xs">{data?.user?.email}</span>
                     </div>
@@ -475,7 +475,7 @@ export function Sidebar() {
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-medium">
                         {/* @ts-ignore */}
-                        {data?.user?.lastname} {data?.user?.firstname}
+                        {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
                       </span>
                       <span className="truncate text-xs">{data?.user?.email}</span>
                     </div>
