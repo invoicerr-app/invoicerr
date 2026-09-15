@@ -89,9 +89,12 @@ export default function DangerZoneSettings() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-orange-200 dark:border-orange-900/50">
+        {/* Lower severity: reset app data. Warning tone (amber), not destructive (red) — see
+            resetDatabase below for the fully destructive level. Both keep the audit's own "two
+            severity levels" distinction (AUDIT.md §3.8), just on theme tokens instead of raw hues. */}
+        <Card className="border-warning-foreground/30">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-lg">
+            <CardTitle className="flex items-center gap-2 text-warning-foreground text-lg">
               <RotateCcw className="h-4 w-4" />
               {t("settings.dangerZone.resetApp.title")}
             </CardTitle>
@@ -102,7 +105,7 @@ export default function DangerZoneSettings() {
           <CardContent className="pt-0">
             <Button
               variant="outline"
-              className="w-full border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-900/50 dark:text-orange-400 dark:hover:bg-orange-950/50 bg-transparent"
+              className="w-full border-warning-foreground/30 text-warning-foreground hover:bg-warning bg-transparent"
               onClick={() => requestOtp("app")}
               loading={isLoadingOtp}
             >
@@ -111,9 +114,9 @@ export default function DangerZoneSettings() {
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 dark:border-red-900/50">
+        <Card className="border-destructive/30">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400 text-lg">
+            <CardTitle className="flex items-center gap-2 text-destructive text-lg">
               <Database className="h-4 w-4" />
               {t("settings.dangerZone.resetDatabase.title")}
             </CardTitle>
@@ -124,7 +127,7 @@ export default function DangerZoneSettings() {
           <CardContent className="pt-0">
             <Button
               variant="outline"
-              className="w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/50 bg-transparent"
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive-soft bg-transparent"
               onClick={() => requestOtp("all")}
               disabled={isLoadingOtp}
             >
@@ -143,7 +146,7 @@ export default function DangerZoneSettings() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-warning-foreground" />
               {t("settings.dangerZone.modal.title")}
             </DialogTitle>
             <DialogDescription>{t("settings.dangerZone.modal.description")}</DialogDescription>

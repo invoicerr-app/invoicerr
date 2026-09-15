@@ -44,11 +44,12 @@ export default defineConfig({
         // Free — the app has no fixed orientation requirement, unlike e.g. a game or a scanner tool.
         orientation: "any",
         categories: ["business", "finance", "productivity"],
-        // Matches --background / --foreground in src/index.css (light theme): the app itself is
-        // monochrome (no distinct brand hue), so the install/splash chrome uses the same white the
-        // page already paints rather than inventing a brand color.
-        background_color: "#ffffff",
-        theme_color: "#ffffff",
+        // Matches --background in src/index.css, light theme (identity "Lagune", decision
+        // 2026-09-15: oklch(0.975 0.005 230) = #f3f7f9) — the manifest has no dark-mode variant, so
+        // this stays the light background rather than inventing a separate splash color; the meta
+        // tags in index.html carry the dark-mode equivalent for the browser chrome, which DOES vary.
+        background_color: "#f3f7f9",
+        theme_color: "#f3f7f9",
         icons: [
           { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
           { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },

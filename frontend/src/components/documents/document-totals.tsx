@@ -89,12 +89,12 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
   }
 
   return (
-    <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4" data-cy="document-totals">
+    <div className="mt-6 rounded-lg border border-border bg-muted p-4" data-cy="document-totals">
       <div className="space-y-2 text-sm">
         {/* Net */}
         <div className="flex justify-between font-medium">
           <span>{t("documents.totals.net")}</span>
-          <span>
+          <span className="amount">
             {netDisplay} {currency}
           </span>
         </div>
@@ -104,14 +104,17 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
           const baseDisplay = fromMinor(entry.baseMinor, currency).toFixed(decimals)
           const vatDisplay = fromMinor(entry.vatMinor, currency).toFixed(decimals)
           return (
-            <div key={`vat-${entry.ratePercent}`} className="flex justify-between text-xs text-gray-600">
+            <div
+              key={`vat-${entry.ratePercent}`}
+              className="flex justify-between text-xs text-muted-foreground"
+            >
               <span>
                 {t("documents.totals.vat", {
                   rate: entry.ratePercent.toString(),
                   base: baseDisplay,
                 })}
               </span>
-              <span>
+              <span className="amount">
                 {vatDisplay} {currency}
               </span>
             </div>
@@ -119,9 +122,9 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
         })}
 
         {/* Gross total */}
-        <div className="flex justify-between border-t border-gray-300 pt-2 font-bold">
+        <div className="flex justify-between border-t border-border pt-2 font-bold">
           <span>{t("documents.totals.gross")}</span>
-          <span data-cy="document-totals-gross">
+          <span className="amount" data-cy="document-totals-gross">
             {grossDisplay} {currency}
           </span>
         </div>
@@ -129,9 +132,9 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
 
       {/* Warnings */}
       {totals.warnings.length > 0 && (
-        <div className="mt-3 space-y-1 rounded bg-yellow-50 p-2">
+        <div className="mt-3 space-y-1 rounded bg-warning p-2">
           {totals.warnings.map((warning) => (
-            <p key={warning} className="text-xs text-yellow-800">
+            <p key={warning} className="text-xs text-warning-foreground">
               {warning}
             </p>
           ))}

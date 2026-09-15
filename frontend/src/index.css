@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Self-hosted fonts (identity "Lagune", decision 2026-09-15) — no Google Fonts runtime call, so the
+   PWA works offline and no font request leaks to a third party. Inter/Space Grotesk ship as variable
+   fonts (one file covers the whole weight axis); Space Mono only ships static 400/700 — italics are
+   never used in this app (numbers and codes only), so neither is imported. */
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/space-grotesk/index.css";
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/space-mono/700.css";
+
 @plugin 'tailwind-scrollbar';
 
 @custom-variant dark (&:is(.dark *));
@@ -10,6 +19,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -25,6 +37,22 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  /* Soft pair (light fill + saturated-but-readable text) for badge-weight destructive content —
+     distinct from --destructive/--destructive-foreground above, which stay the solid, full-strength
+     pair for buttons and other high-emphasis destructive controls. */
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  /* success/warning/info: the three semantic tones the shadcn default palette never had (only
+     "destructive" existed — see AUDIT.md §1). Each is a soft-fill/saturated-text pair, same recipe as
+     --success below, so a badge only ever needs `bg-<tone> text-<tone>-foreground`. Green is reserved
+     for --success anywhere in this app (identity decision 2026-09-15) — never introduce a second green. */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -43,73 +71,100 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Identity "Lagune" (direction C, decision 2026-09-15) — source of truth is the reviewed proposal
+   itself (`.C-light`/`.C-dark` blocks, scratchpad/identity-proposals.html), copied here verbatim for
+   background/foreground/primary/…/sidebar tokens and chart-1..5. --success and --destructive-soft
+   were already sketched there as a preview of the badge system; --warning and --info are new here,
+   following the exact same soft-fill/saturated-text recipe — same lightness/chroma magnitudes as
+   --success, hue rotated to amber (~70) and teal (~210, kept off the 230 hue primary itself uses so
+   an "info" badge never reads as a mistaken primary button) — verified ≥9.3:1 fill-to-text contrast
+   and ≥10.6:1 text-on-card contrast in both themes, with the same OKLCH-to-sRGB-to-WCAG pipeline the
+   proposal used. */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(0.975 0.005 230);
+  --foreground: oklch(0.200 0.030 230);
+  --card: oklch(0.995 0.003 230);
+  --card-foreground: oklch(0.200 0.030 230);
+  --popover: oklch(0.995 0.003 230);
+  --popover-foreground: oklch(0.200 0.030 230);
+  --primary: oklch(0.640 0.130 230);
+  --primary-foreground: oklch(0.180 0.028 230);
+  --secondary: oklch(0.940 0.012 230);
+  --secondary-foreground: oklch(0.280 0.030 230);
+  --muted: oklch(0.940 0.008 230);
+  --muted-foreground: oklch(0.470 0.020 230);
+  --accent: oklch(0.910 0.030 230);
+  --accent-foreground: oklch(0.280 0.050 230);
+  --destructive: oklch(0.530 0.210 27);
+  --destructive-foreground: oklch(0.990 0.010 27);
+  --destructive-soft: oklch(0.930 0.060 27);
+  --destructive-soft-foreground: oklch(0.350 0.160 27);
+  --success: oklch(0.920 0.060 145);
+  --success-foreground: oklch(0.300 0.110 145);
+  --warning: oklch(0.920 0.070 70);
+  --warning-foreground: oklch(0.320 0.130 55);
+  --info: oklch(0.920 0.045 210);
+  --info-foreground: oklch(0.300 0.080 225);
+  --border: oklch(0.890 0.010 230);
+  --input: oklch(0.890 0.010 230);
+  --ring: oklch(0.760 0.121 230);
+  --chart-1: oklch(0.640 0.130 230);
+  --chart-2: oklch(0.650 0.110 230);
+  --chart-3: oklch(0.350 0.059 230);
+  --chart-4: oklch(0.780 0.119 230);
+  --chart-5: oklch(0.550 0.020 230);
+  --sidebar: oklch(0.965 0.006 230);
+  --sidebar-foreground: oklch(0.200 0.030 230);
+  --sidebar-primary: oklch(0.640 0.130 230);
+  --sidebar-primary-foreground: oklch(0.180 0.028 230);
+  --sidebar-accent: oklch(0.910 0.030 230);
+  --sidebar-accent-foreground: oklch(0.280 0.050 230);
+  --sidebar-border: oklch(0.890 0.010 230);
+  --sidebar-ring: oklch(0.760 0.121 230);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --background: oklch(0.175 0.014 230);
+  --foreground: oklch(0.950 0.006 230);
+  --card: oklch(0.225 0.016 230);
+  --card-foreground: oklch(0.950 0.006 230);
+  --popover: oklch(0.225 0.016 230);
+  --popover-foreground: oklch(0.950 0.006 230);
+  --primary: oklch(0.760 0.136 230);
+  --primary-foreground: oklch(0.160 0.024 230);
+  --secondary: oklch(0.270 0.018 230);
+  --secondary-foreground: oklch(0.920 0.008 230);
+  --muted: oklch(0.270 0.014 230);
+  --muted-foreground: oklch(0.680 0.020 230);
+  --accent: oklch(0.320 0.045 230);
+  --accent-foreground: oklch(0.930 0.012 230);
+  --destructive: oklch(0.550 0.190 25);
+  --destructive-foreground: oklch(0.970 0.010 25);
+  --destructive-soft: oklch(0.280 0.070 25);
+  --destructive-soft-foreground: oklch(0.850 0.130 25);
+  --success: oklch(0.280 0.060 145);
+  --success-foreground: oklch(0.850 0.130 145);
+  --warning: oklch(0.280 0.070 55);
+  --warning-foreground: oklch(0.850 0.140 80);
+  --info: oklch(0.280 0.050 225);
+  --info-foreground: oklch(0.850 0.090 210);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.760 0.114 230);
+  --chart-1: oklch(0.760 0.136 230);
+  --chart-2: oklch(0.600 0.102 230);
+  --chart-3: oklch(0.850 0.079 230);
+  --chart-4: oklch(0.450 0.076 230);
+  --chart-5: oklch(0.680 0.020 230);
+  --sidebar: oklch(0.200 0.016 230);
+  --sidebar-foreground: oklch(0.950 0.006 230);
+  --sidebar-primary: oklch(0.760 0.136 230);
+  --sidebar-primary-foreground: oklch(0.160 0.024 230);
+  --sidebar-accent: oklch(0.320 0.045 230);
+  --sidebar-accent-foreground: oklch(0.930 0.012 230);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.760 0.114 230);
 }
 
 @layer base {
@@ -123,33 +178,56 @@
     @apply overflow-hidden;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
   button,
   a {
     @apply cursor-pointer;
   }
+  /* Space Grotesk for every heading level — Inter stays the body/UI face (better-typography: at most
+     three families, paired for contrast, not similarity). Sizes are unchanged here: they stay set
+     per-component (see AUDIT.md §1 — a full type-scale pass is a later, screen-by-screen lot). */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+  }
+  /* Dead weight, kept as-is: these two blocks are shadowed by the unlayered :root/.dark above (v4
+     resolves unlayered rules before @layer ones regardless of source order — see
+     tailwind-v4-shadcn skill, error #8), so they have had zero effect since the file was generated.
+     Updated to the same Lagune values anyway rather than removed, since neither block is in scope for
+     this lot and deleting "unreachable" CSS is its own review to do deliberately, not as a drive-by. */
   :root {
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.965 0.006 230);
+    --sidebar-foreground: oklch(0.200 0.030 230);
+    --sidebar-primary: oklch(0.640 0.130 230);
+    --sidebar-primary-foreground: oklch(0.180 0.028 230);
+    --sidebar-accent: oklch(0.910 0.030 230);
+    --sidebar-accent-foreground: oklch(0.280 0.050 230);
+    --sidebar-border: oklch(0.890 0.010 230);
+    --sidebar-ring: oklch(0.760 0.121 230);
   }
 
   .dark {
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar: oklch(0.200 0.016 230);
+    --sidebar-foreground: oklch(0.950 0.006 230);
+    --sidebar-primary: oklch(0.760 0.136 230);
+    --sidebar-primary-foreground: oklch(0.160 0.024 230);
+    --sidebar-accent: oklch(0.320 0.045 230);
+    --sidebar-accent-foreground: oklch(0.930 0.012 230);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.439 0 0);
+    --sidebar-ring: oklch(0.760 0.114 230);
   }
+}
+
+/* Monetary/numeric cells (identity "Lagune": Space Mono for figures). Tailwind's own `tabular-nums`
+   utility only sets font-variant-numeric — this also switches the face, so a price column digits
+   stay a fixed width AND read in the mono face the identity reserves for numbers. Named after the
+   identity proposal own `td.amount` demo class, for continuity with that source of truth. */
+@utility amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 button:disabled {

@@ -37,12 +37,14 @@ function toneOf(status: string): Tone {
   return "neutral"
 }
 
+// Theme tokens (@theme inline in index.css) rather than hardcoded Tailwind stock colors: each one
+// already switches with the .dark class, so no separate dark: variant is needed per tone anymore.
 const TONE_CLASSES: Record<Tone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
-  info: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300",
-  success: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
-  warning: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
-  destructive: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+  info: "bg-info text-info-foreground",
+  success: "bg-success text-success-foreground",
+  warning: "bg-warning text-warning-foreground",
+  destructive: "bg-destructive-soft text-destructive-soft-foreground",
 }
 
 // Generic — never keyed to any one status name: a snake_case id (e.g. "send_failed", the async

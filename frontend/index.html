@@ -8,11 +8,12 @@
     <!--
       Two static tags rather than one: the manifest's own theme_color can't vary with the OS
       scheme, but this meta tag can — browsers pick whichever `media` query matches, same as a CSS
-      media query. Values match --background in src/index.css (light: oklch(1 0 0) = #ffffff, dark:
-      oklch(0.145 0 0) = #0a0a0a), not invented colors.
+      media query. Values match --background in src/index.css, identity "Lagune" (decision
+      2026-09-15): light oklch(0.975 0.005 230) = #f3f7f9, dark oklch(0.175 0.014 230) = #0a1215 —
+      not invented colors.
     -->
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a1215" media="(prefers-color-scheme: dark)" />
     <!--
       iOS Safari ignores the manifest's `display: standalone` entirely — these three tags are its
       own, separate mechanism for the same outcome: no browser chrome once added to the Home

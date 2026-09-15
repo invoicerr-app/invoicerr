@@ -78,7 +78,7 @@ function DocumentArchiveRow({ typeId, documentId, archive }: DocumentArchiveRowP
 
       {isRetentionCalcStale(archive) && (
         <p
-          className="rounded bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300"
+          className="rounded bg-warning p-2 text-xs text-warning-foreground"
           data-cy="document-archive-retention-stale"
         >
           {/* No date is interpolated on purpose. The only date this row holds IS the suspect one,
@@ -108,8 +108,8 @@ function DocumentArchiveRow({ typeId, documentId, archive }: DocumentArchiveRowP
             variant="outline"
             className={cn(
               "border-transparent font-semibold",
-              isIntact && "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
-              isCorrupted && "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+              isIntact && "bg-success text-success-foreground",
+              isCorrupted && "bg-destructive-soft text-destructive-soft-foreground",
             )}
             data-cy={`document-archive-verify-result-${archive.id}`}
           >
@@ -120,11 +120,11 @@ function DocumentArchiveRow({ typeId, documentId, archive }: DocumentArchiveRowP
 
       {isCorrupted && (
         <ul
-          className="space-y-1 rounded bg-red-50 p-2 dark:bg-red-950/30"
+          className="space-y-1 rounded bg-destructive-soft p-2"
           data-cy="document-archive-corrupted-details"
         >
           {result.details.map((mismatch) => (
-            <li key={mismatch.role} className="text-xs text-red-800 dark:text-red-300">
+            <li key={mismatch.role} className="text-xs text-destructive-soft-foreground">
               {t("documents.archive.corruptedDetail", {
                 role: mismatch.role,
                 expected: mismatch.expected,

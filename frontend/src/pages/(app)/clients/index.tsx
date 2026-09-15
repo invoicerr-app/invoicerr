@@ -98,7 +98,7 @@ export default function Clients() {
 
   const emptyState = (
     <div className="text-center py-12">
-      <Users className="mx-auto h-12 w-12 text-gray-400" />
+      <Users className="mx-auto h-12 w-12 text-muted-foreground" />
       <h3 className="mt-2 text-sm font-medium text-foreground">
         {searchTerm ? t("clients.emptyState.noResults") : t("clients.emptyState.noClients")}
       </h3>
@@ -121,7 +121,7 @@ export default function Clients() {
       <Card className="gap-0">
         <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
           <div className="relative w-full sm:w-fit sm:flex-1 sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t("clients.search.placeholder")}
               value={searchTerm}
@@ -136,8 +136,8 @@ export default function Clients() {
                 variant="outline"
                 className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
                   activeFilter === "active"
-                    ? "bg-green-600 text-white font-semibold shadow-sm scale-105"
-                    : "bg-green-50 text-green-700/70 hover:bg-green-100"
+                    ? "bg-success text-success-foreground font-semibold shadow-sm scale-105"
+                    : "bg-success/40 text-success-foreground hover:bg-success/70"
                 }`}
               >
                 {t("clients.stats.active")} ({activeCounts.active})
@@ -147,8 +147,8 @@ export default function Clients() {
                 variant="outline"
                 className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
                   activeFilter === "inactive"
-                    ? "bg-gray-500 text-white font-semibold shadow-sm scale-105"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-muted-foreground text-background font-semibold shadow-sm scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/70"
                 }`}
               >
                 {t("clients.stats.inactive")} ({activeCounts.inactive})
@@ -159,8 +159,8 @@ export default function Clients() {
                 variant="outline"
                 className={`cursor-pointer text-sm px-3 py-1 rounded-full transition-all border-transparent ${
                   roleFilter === "supplier"
-                    ? "bg-purple-600 text-white font-semibold shadow-sm scale-105"
-                    : "bg-purple-50 text-purple-700/70 hover:bg-purple-100"
+                    ? "bg-accent-foreground text-accent font-semibold shadow-sm scale-105"
+                    : "bg-accent text-accent-foreground hover:bg-accent/70"
                 }`}
                 data-cy="clients-filter-supplier"
               >
@@ -183,8 +183,8 @@ export default function Clients() {
                 <div key={index} className="p-4 sm:p-6">
                   <div className="flex flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex flex-row items-center gap-4 w-full">
-                      <div className="p-2 bg-blue-100 rounded-lg mb-4 md:mb-0 w-fit h-fit">
-                        <User className="h-5 w-5 text-blue-600" />
+                      <div className="p-2 bg-primary/10 rounded-lg mb-4 md:mb-0 w-fit h-fit">
+                        <User className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -193,7 +193,9 @@ export default function Clients() {
                           </h3>
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              client.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                              client.isActive
+                                ? "bg-success text-success-foreground"
+                                : "bg-secondary text-secondary-foreground"
                             } w-fit`}
                             data-cy={
                               client.isActive
@@ -208,8 +210,8 @@ export default function Clients() {
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               client.type === "INDIVIDUAL"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-yellow-100 text-yellow-800"
+                                ? "bg-secondary text-secondary-foreground"
+                                : "bg-muted text-muted-foreground"
                             } w-fit ml-2`}
                           >
                             {client.type === "INDIVIDUAL"
@@ -219,7 +221,7 @@ export default function Clients() {
                           {/* The "supplier" role, visible without opening the record. */}
                           {client.isSupplier && (
                             <span
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit ml-2"
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent text-accent-foreground w-fit ml-2"
                               data-cy={`client-role-supplier-${client.contactEmail}`}
                             >
                               {t("clients.list.role.supplier")}
@@ -253,7 +255,7 @@ export default function Clients() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleView(client)}
-                        className="text-gray-600 hover:text-blue-600 mr-2"
+                        className="text-muted-foreground hover:text-primary mr-2"
                         dataCy={`view-client-button-${client.contactEmail}`}
                       >
                         <Eye className="h-4 w-4" />
@@ -263,7 +265,7 @@ export default function Clients() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEdit(client)}
-                        className="text-gray-600 hover:text-green-600 mr-2"
+                        className="text-muted-foreground hover:text-primary mr-2"
                         dataCy={`edit-client-button-${client.contactEmail}`}
                       >
                         <Edit className="h-4 w-4" />
@@ -273,7 +275,7 @@ export default function Clients() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleStatement(client)}
-                        className="text-gray-600 hover:text-blue-600 mr-2"
+                        className="text-muted-foreground hover:text-primary mr-2"
                         dataCy={`statement-client-button-${client.contactEmail}`}
                       >
                         <FileText className="h-4 w-4" />
@@ -283,7 +285,7 @@ export default function Clients() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handlePortalAccess(client)}
-                        className="text-gray-600 hover:text-blue-600 mr-2"
+                        className="text-muted-foreground hover:text-primary mr-2"
                         dataCy={`portal-access-client-button-${client.contactEmail}`}
                       >
                         <UserRoundCheck className="h-4 w-4" />
@@ -293,7 +295,7 @@ export default function Clients() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(client)}
-                        className="text-gray-600 hover:text-red-600 mr-2"
+                        className="text-muted-foreground hover:text-destructive mr-2"
                         dataCy={`delete-client-button-${client.contactEmail}`}
                       >
                         <Trash2 className="h-4 w-4" />
