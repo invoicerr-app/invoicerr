@@ -524,14 +524,14 @@ model CompanySubscription {
 
   status CompanySubscriptionStatus @default(TRIAL)
 
-  // The 7-day trial window, stamped once at lazy creation (`computeTrialWindow`, lifecycle.ts) and
+  // The 14-day trial window, stamped once at lazy creation (`computeTrialWindow`, lifecycle.ts) and
   // NEVER recomputed afterward — a company that later becomes ACTIVE (paid) or BLOCKED keeps its
   // original trial dates as a historical fact, even though `lifecycle.ts` stops reading them once
   // `status` has moved past TRIAL.
   trialStartedAt DateTime
   trialEndsAt    DateTime
 
-  // Set the moment `status` becomes BLOCKED (from TRIAL's own 7 days, or from PAST_DUE with no
+  // Set the moment `status` becomes BLOCKED (from TRIAL's own 14 days, or from PAST_DUE with no
   // window of its own — see lifecycle.ts's header) — the anchor `lifecycle.ts#computeLifecycleTransition`
   // adds BLOCKED_DAYS (14) to.
   blockedAt DateTime?

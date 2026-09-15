@@ -41,7 +41,7 @@ export async function assertCanSend(companyId: string): Promise<void> {
   if (sub.status === 'TRIAL') {
     throw new ForbiddenException({
       message:
-        'This company is still on its 7-day trial — every other action works, but sending a ' +
+        'This company is still on its 14-day trial — every other action works, but sending a ' +
         'document (email, PDP/Chorus Pro/KSeF deposit…) requires an active subscription first.',
       code: TRIAL_SEND_BLOCKED,
     });

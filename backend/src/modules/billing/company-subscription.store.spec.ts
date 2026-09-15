@@ -34,7 +34,7 @@ describe('getOrCreateCompanySubscription', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it('lazily creates a fresh 7-day TRIAL window, starting at `now`, when none exists', async () => {
+  it('lazily creates a fresh 14-day TRIAL window, starting at `now`, when none exists', async () => {
     findUnique.mockResolvedValue(null);
     const now = new Date('2026-09-15T12:00:00.000Z');
     const created = { id: 'sub-1', companyId: 'company-1', status: 'TRIAL' };

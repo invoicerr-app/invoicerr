@@ -51,7 +51,7 @@ that organization, and "you" then refers to that organization.
 notes, and related records), including country-specific compliance features (tax treatment,
 e-invoicing transmission, legal archiving) described in the product documentation.
 
-3.2. New Companies receive a **seven (7)-day free trial**, with no payment card required. During the
+3.2. New Companies receive a **fourteen (14)-day free trial**, with no payment card required. During the
 trial, every feature of the Service is available **except the ability to send or issue documents** —
 this includes transmission to e-invoicing platforms or government portals (e.g. KSeF, a PDP, SdI,
 Chorus Pro) and any outgoing email the Service sends on your behalf.
@@ -214,3 +214,4 @@ Terms shall be submitted to the exclusive jurisdiction of the courts of **[CITY]
 ### Changelog
 
 - **2026-09-15** — Initial draft.
+- **2026-09-15** — Section 3.2: free trial extended from seven (7) to fourteen (14) days.

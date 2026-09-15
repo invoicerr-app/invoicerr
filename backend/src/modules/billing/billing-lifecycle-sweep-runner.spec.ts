@@ -55,7 +55,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it('blocks a trial whose 7 days elapsed', async () => {
+  it('blocks a trial whose 14 days elapsed', async () => {
     listSubs.mockResolvedValue([
       {
         companyId: 'c1',

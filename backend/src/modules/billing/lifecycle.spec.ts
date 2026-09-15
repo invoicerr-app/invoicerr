@@ -23,7 +23,7 @@ function facts(overrides: Partial<CompanySubscriptionLifecycleFacts>): CompanySu
 }
 
 describe('computeTrialWindow', () => {
-  it('is exactly 7 days from the given start', () => {
+  it('is exactly 14 days from the given start', () => {
     const { trialStartedAt, trialEndsAt } = computeTrialWindow(T0);
     expect(trialStartedAt).toEqual(T0);
     expect(trialEndsAt).toEqual(addDays(T0, TRIAL_DAYS));

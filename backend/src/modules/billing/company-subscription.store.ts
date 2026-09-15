@@ -11,7 +11,7 @@ import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { computeTrialWindow } from './lifecycle';
 
 /**
- * Returns this company's subscription row, creating it LAZILY (status TRIAL, a fresh 7-day window
+ * Returns this company's subscription row, creating it LAZILY (status TRIAL, a fresh 14-day window
  * starting `now`) the first time anything asks. This is what makes "no retroactive enrolment" true:
  * an existing company that predates the billing flag simply has no row until the first time it is
  * actually needed (a send attempt, a `GET /api/billing/status`, a membership change) — at which point

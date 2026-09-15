@@ -6,7 +6,7 @@
  *
  * ## The two cycles this drives (product decision, 2026-09-15)
  *
- *  1. NEVER-PAID: `trial` (7 days, EVERYTHING allowed except actually sending — see
+ *  1. NEVER-PAID: `trial` (14 days, EVERYTHING allowed except actually sending — see
  *     `send-gate.ts#assertCanSend`) --[trialEndsAt reached]--> `blocked` (14 days, read-only, every
  *     action refused) --[14 days elapse]--> zip sent, `zipped` --[next sweep tick]--> deleted.
  *  2. PAID-THEN-STOPPED: `active` --[Polar webhook reports the subscription stopped renewing]-->
@@ -51,7 +51,7 @@ export interface CompanySubscriptionLifecycleFacts {
   polarSubscriptionId: string | null;
 }
 
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 14;
 export const BLOCKED_DAYS = 14;
 /** Grace period between a PAID company's zip being sent and its real deletion. A never-paid company
  *  gets none (see `LifecycleAction`'s own `send_zip_and_enter_zipped` case below) — deliberate, see
@@ -67,7 +67,7 @@ export function addDays(date: Date, days: number): Date {
 export type LifecycleAction =
   /** Nothing to do this tick — the common case; most subscriptions sit in `active` or mid-window. */
   | { type: 'none' }
-  /** `trial` (its 7 days elapsed) or `past_due` (no window of its own — see header) enters `blocked`. */
+  /** `trial` (its 14 days elapsed) or `past_due` (no window of its own — see header) enters `blocked`. */
   | { type: 'enter_blocked'; blockedAt: Date }
   /** `blocked`'s own 14 days elapsed: the runner sends the zip, THEN this transition is applied —
    *  `deletionDueAt` is computed here (pure) so the runner never re-derives the "which cycle" logic
@@ -123,7 +123,7 @@ export function computeLifecycleTransition(
 
 /** The trial window a brand-new `CompanySubscription` gets — `trialStartedAt`/`trialEndsAt` at the
  *  moment of lazy creation (`company-subscription.store.ts#getOrCreateCompanySubscription`). Pulled
- *  out as its own function so both the store and its spec share exactly one definition of "7 days". */
+ *  out as its own function so both the store and its spec share exactly one definition of "14 days". */
 export function computeTrialWindow(startedAt: Date): { trialStartedAt: Date; trialEndsAt: Date } {
   return { trialStartedAt: startedAt, trialEndsAt: addDays(startedAt, TRIAL_DAYS) };
 }
