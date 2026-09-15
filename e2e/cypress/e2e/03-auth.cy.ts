@@ -185,7 +185,20 @@ describe('Authentication E2E', () => {
                 // The fact this actually worked: log back in as the invited user and check
                 // they landed IN Acme Corp (the inviter's company) with no onboarding prompt —
                 // not merely that the sign-up form stopped complaining.
-                cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).clear().type(VALID_CODE_EMAIL);
+                //
+                // The sign-in page's own email field fires a real request on blur
+                // (`onBlur={(e) => lookupSso(e.target.value)}`, sign-in.tsx) that can insert an
+                // SSO button above the form once it resolves. Moving straight on to `.type()` the
+                // password — a fresh `cy.get()`, but one whose own focus-in is what fires that
+                // blur — raced that request landing mid-command: "subject is no longer attached to
+                // the DOM" (run 34973167392, intermittent). Force the blur ourselves and wait the
+                // request out before touching password.
+                cy.intercept('GET', '**/api/sso/lookup*').as('ssoLookupOnReLogin');
+                cy.get('[data-cy="auth-email-input"]', { timeout: 5000 })
+                    .clear()
+                    .type(VALID_CODE_EMAIL)
+                    .blur();
+                cy.wait('@ssoLookupOnReLogin');
                 cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
                 cy.get('[data-cy="auth-submit-btn"]').click();
                 cy.url({ timeout: 20000 }).should('include', '/dashboard');

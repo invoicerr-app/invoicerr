@@ -124,7 +124,16 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		// header): never "add row" here, which would stack a SECOND, blank row on top of this one.
 		cy.get('[data-cy="document-field-lines-row-0"]', { timeout: 10000 }).should("exist");
 		cy.get('input[name="lines.0.description"]', { timeout: 10000 }).should("have.value", "Widgets");
-		cy.get('input[name="lines.0.quantityReceived"]').clear({ force: true }).type("6", { force: true });
+		// `quantityReceived` arrives PRE-FILLED with the PO's own ordered quantity ("10") — the SAME
+		// `form.setValue("lines", ...)` call that also fills `description` above (document-form.tsx's
+		// "isGoodsReceipt" effect). Assert that value landed on THIS field before touching it (mirrors
+		// the `description` check above), then replace it atomically with `{selectall}` inside one
+		// `.type()` rather than a separate `.clear()` command followed by `.type()`: split across two
+		// commands there was a window where the field still read "10" between them, so "6" landed next
+		// to it instead of in place of it — recorded as "610", not "6" (runs 34973167392, 34974390827).
+		cy.get('input[name="lines.0.quantityReceived"]', { timeout: 10000 })
+			.should("have.value", "10")
+			.type("{selectall}6", { force: true });
 
 		cy.intercept("POST", `${api}/api/documents/types/goods-receipt/actions/save-draft`).as(
 			"saveGoodsReceiptDraft",
