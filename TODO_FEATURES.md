@@ -25,7 +25,7 @@
 
 ---
 
-## Livré (15)
+## Livré (20)
 
 | Rang | Feature | Preuve |
 |---:|---|---|
@@ -38,28 +38,29 @@
 | 7 | Référence client / n° de commande | `46-client-reference` |
 | 8 | QR de paiement SEPA (EPC069-12) | `48-payment-qr` |
 | 9 | Taux de change automatiques | Livré le 2026-09-14 — `backend/src/modules/company/currency-rates/` (sweep BullMQ quotidien, flux BCE `ecb-rates-client.ts` + repli `open-er-api-rates-client.ts` sans clé). Pas d'écran : preuve = jest + round-trip live réel contre le flux BCE (`ECB_LIVE=1`), pas de spec Cypress. |
+| 10 | Écran « déclarations » (Portugal seul) | `c6a06617`, sans migration. `reporting-runner.ts` persistait déjà chaque résultat dans `DocumentAuthorityEvent` — ce qui manquait était la lecture au niveau société : `reporting/list-declarations.ts` (liste paginée, filtrable par statut, fournisseurs découverts dynamiquement depuis `reporting/data/*.json`), route `GET /documents/declarations`, écran « Declarations », SSE qui invalide désormais aussi cette liste. Spec Cypress `64-declarations` écrite mais **pas exécutée** (backend en cours d'édition au moment du commit) — à confirmer par la CI. |
 | 11 | Suivi du temps & facturation de projets | `57-time-tracking` |
 | 12 | Facturation échelonnée multi-jalons | `51-installments` |
+| 13 | Notes de frais enrichies (pièce jointe, catégorie, kilométrage) | `6cb60096`, sans migration. Réutilise le stockage des factures reçues (`received-invoices/storage.ts`, volume `documents_data`) et le hash SHA-256 de `archive/hashing.ts` ; nouveau type de champ générique `file` au descripteur. Deux choix de produit pris au plus simple, **à valider** (voir Questions ouvertes) : dix catégories fixes + « Other », taille max 750 Kio (dérivée de la limite globale bodyParser 1 Mo — refusera la plupart des photos de téléphone). |
 | 14 | Langue du document par destinataire | `58-document-recipient-language` — cascade `Client.language` → `Company.language` → `en` (`rendering/language/resolve-recipient-language.ts`), vérifiée dans le code : c'est exactement la cascade que la Décision B redemande pour le PDF, déjà en place. |
+| 15 | Champs personnalisés (clients + documents) | `3ff59800`, avec migration `20260920170000_company_custom_fields` (nom à date future, voir Questions ouvertes #1). CRUD scopé société, clé immuable dérivée du libellé, suppression = archivage (`archivedAt`), rendu fusionné avec les descripteurs génériques côté formulaire et PDF. **Fusion en cours** : la validation du champ requis bloquant `send` (au-delà du brouillon, déjà bloqué) est en cours de câblage dans `documents.service.ts` par un autre agent au moment d'écrire ces lignes — commit à venir, ne PAS lire comme terminé sur ce point précis. Trois choix à valider : voir Questions ouvertes. |
 | 17 | Workflow d'approbation interne | `50-approval` |
 | 18 | Gestion de stock basique | `49-stock` |
+| 21 | Application mobile — PWA (Décision D) | `b7a6581d` (manifeste, service worker, icônes générées depuis le logo, `vite-plugin-pwa`, `/api/*` jamais mis en cache) puis `acbc2011` (le SW s'enregistrait sans garde et faisait tomber `29-document-recurrence` en CI — corrigé : enregistrement manuel sous garde `!("Cypress" in window)`, rechargement réel à l'activation d'un nouveau SW via `virtual:pwa-register`). README corrigé dans le même commit, ne promet plus d'app native. **Non établi** : installabilité réelle sur iOS/Android, aucun appareil ni simulateur ici. |
+| G (partiel) | Serveur de mail — instance→société, fournisseur Resend (Décision G) | Backend livré : `f1ed72e4`, `63b42ef9`, `1958c47a` — voir Décision G pour le détail. **L'écran de réglages société n'existe PAS encore** — reste à faire. |
 | *(hors liste)* | Méthodes de paiement typées par société | `61-payment-methods`, livré le 2026-09-14 (`backend/src/modules/documents/payment-methods/`) |
 
 ---
 
-## Restent (7) — vérifiés dans le code au 2026-09-15
+## Restent (3) — vérifiés dans le code au 2026-09-15
 
 | Rang | Feature | État vérifié (2026-09-15) | e2e à prouver |
 |---:|---|---|---|
-| 10 | Écran « déclarations » — reformulé (voir détail ci-dessous) | Presque sans objet depuis le pivot 5 pays : `find`/`grep` sur `backend/src/modules/documents/reporting/` confirment qu'aucun fichier `mydata`/`nav` ne subsiste (supprimés avec la sortie GR/HU du périmètre) ; seul `reporting/data/pt.json` + `reporting/providers/pt-at-client.ts`/`pt-declaration-provider.ts` existent, statut **implemented-awaiting-accreditation** (jamais éprouvé en réel — 2 gaps dans `TODO_ISSUES.md`). Aucun écran frontend ne lit `reporting/` ni `DocumentAuthorityEvent` (`grep` sur `frontend/src/pages` : rien). | Envoyer une facture PT déclenche `pt-at` ; un écran liste le statut de la déclaration (même en échec) — reste à construire, un seul pays à couvrir désormais. |
-| 13 | Notes de frais enrichies | Voir Décision F. | Une dépense avec image stocke le fichier et permet de le retélécharger ; une catégorie apparaît dans les stats. |
-| 15 | Champs personnalisés / tags | Voir Décision F. | Un champ personnalisé créé en Settings apparaît sur le formulaire et le PDF des documents suivants. |
 | 16 | Personnalisation de template — **redéfini** en préréglages visuels (plus un éditeur) | Voir Décision B. | Un utilisateur choisit un préréglage (couleur/logo/police) et voit le PDF changer, sans toucher au HTML. |
 | 19 | Bons de commande / achats fournisseurs | Voir Décision F. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
 | 20 | Facturation par abonnement avancée (usage-based) | Sans objet côté produit invoicerr — redirigé vers l'offre hébergée du propriétaire, voir Décision E. | N/A côté produit self-hosted. |
-| 21 | Application mobile native | **Plafonnée à une PWA**, voir Décision D. | Manifeste + service worker installables ; hors échelle Cypress pour le reste. |
 
-### Rang 10 en détail — pourquoi le mécanisme `reporting/` ne concerne plus que le Portugal
+### Rang 10 — pourquoi le mécanisme `reporting/` ne concerne toujours que le Portugal
 
 `reporting/` modélise « le vendeur DÉCLARE les données de la facture à SON autorité fiscale en temps
 réel et reçoit un identifiant émis par l'autorité » (`DeclarationResult.authorityId` obligatoire).
@@ -71,11 +72,11 @@ complet) : FR (e-reporting via PDP→PPF, transport périodique, pas une déclar
 (KSeF/SdI = clearance/transport, déjà modélisé ailleurs), DE (Meldesystem pas encore législé). **PT
 reste le seul candidat honnête** et a déjà reçu son provider (`pt-at`, DL 198/2012 art. 3º n.º1,
 provenance `legal`) — implémenté mais jamais éprouvé en réel (mTLS non câblé, padding RSA
-`unverified`). Le besoin produit d'origine (« donner du contenu à l'écran ») reste ouvert : soit
-construire l'écran de suivi PT une fois l'accréditation obtenue, soit l'élargir génériquement aux
-`DocumentAuthorityEvent` (FR/PL/IT ont déjà des événements d'autorité temps réel dans cette table,
-sans lien avec le mécanisme `reporting/`) — **ne pas mélanger les deux mécanismes**, c'est exactement
-l'anti-pattern que l'en-tête de `reporting/schema.ts` proscrit.
+`unverified`). Le besoin produit d'origine (« donner du contenu à l'écran ») **est réglé** : l'écran
+est livré (`c6a06617`, rang 10 — voir Livré) et lit `DocumentAuthorityEvent` en le distinguant d'un
+événement de conformité ordinaire par `providerId`, sans mélanger les deux mécanismes — exactement ce
+que l'en-tête de `reporting/schema.ts` demande. Reste, à part ça, la mise en réel du fournisseur PT
+(mTLS, padding RSA) une fois l'accréditation obtenue.
 
 ---
 
@@ -192,14 +193,19 @@ préserver si l'éditeur change.
 ### D. Mobile — PWA, pas plus
 
 Mandat du propriétaire : « le max qu'on peut faire c'est une PWA, pas plus ». Remplace l'ancien
-rang 21 (application native iOS/Android). État vérifié : **aucune trace de PWA aujourd'hui** — ni
-`manifest.json`, ni service worker, ni `vite-plugin-pwa`/`workbox` dans `frontend/package.json` ou
-`vite.config.*` (recherche vide). Reste à construire : manifeste (nom, icônes, couleur de thème),
-service worker (mise en cache minimale, installabilité), et éventuellement le scan de reçu via
-l'appareil photo du navigateur (`<input type="file" capture>` ou `MediaDevices` — pertinent pour le
-rang 13, notes de frais, voir Décision F). **Le README promet plus que ça** :
-`README.md:40` — « REST API backend, ready for future integrations (mobile & desktop apps) » — à
-corriger pour ne plus laisser entendre une app native à venir.
+rang 21 (application native iOS/Android). **Livré cette nuit** (voir Livré, rang 21) : `b7a6581d`
+(manifeste, icônes générées depuis le seul logo du dépôt, service worker avec `/api/*` en
+`NetworkOnly` — jamais mis en cache, pour raison multi-tenant) puis `acbc2011` (le SW s'enregistrait
+sans garde `window.Cypress` et faisait tomber le spec `29-document-recurrence` en CI ; corrigé par un
+enregistrement manuel gardé, et un effet de bord bienvenu : le runtime `virtual:pwa-register` porte
+désormais le vrai rechargement à l'activation d'un nouveau SW, ce que l'`autoUpdate` du premier commit
+n'avait pas). **Le README a été corrigé dans le même commit** (`b7a6581d`) : il dit désormais
+« Installable as a Progressive Web App (PWA) » et ne promet plus d'app native mobile/desktop.
+
+**Non établi** : l'installabilité réelle sur iOS et Android, et le rendu du splash Android — aucun
+appareil ni simulateur disponible ici, à vérifier par le propriétaire sur un vrai téléphone. Le scan
+de reçu via l'appareil photo (pertinent pour le rang 13, notes de frais) n'a pas été construit — hors
+du périmètre de ces deux commits.
 
 ### E. Abonnement à l'usage — une offre HÉBERGÉE payante
 
@@ -364,30 +370,25 @@ l'implémentation à venir :
 
 ### F. Les autres (13 notes de frais, 15 champs personnalisés, 19 bons de commande)
 
-Mandat du propriétaire : « j'ai rien contre, faut mettre ça dans TODO_FEATURES et détailler ». Aucune
-de ces trois fonctionnalités n'a de trace dans le code (`grep` vide sur `customField`/`CustomField`,
-sur `purchase.order`/`PurchaseOrder`/`PurchaseOrderReference` hors formats vendorés E-invoicing —
-seule occurrence réelle : le champ `clientReference`, rang 7, qui est un simple numéro de commande
-client imprimé, pas un bon de commande structuré ni un rapprochement 3-way).
+Mandat du propriétaire : « j'ai rien contre, faut mettre ça dans TODO_FEATURES et détailler ». Au
+moment de cette décision (2026-09-15), aucune des trois fonctionnalités n'avait de trace dans le code
+(`grep` vide sur `customField`/`CustomField`, sur `purchase.order`/`PurchaseOrder`/
+`PurchaseOrderReference` hors formats vendorés E-invoicing). **Rang 13 et rang 15 sont livrés depuis**
+(voir Livré) ; seul le rang 19 (bons de commande) reste tel que décrit ci-dessous.
 
-**Rang 13 — notes de frais enrichies.** Le type `expense` (`descriptors/expense.descriptor.ts`) est
-volontairement minimal : `description`/`amount`/`currency`/`date`/`notes`, aucun champ pièce jointe,
-aucune catégorie, pas d'action `send` (une dépense n'est jamais transmise à un tiers). Point d'appui
-déjà présent à réutiliser : `received-invoices/storage.ts`, le mécanisme de stockage de fichier déjà
-câblé pour les factures fournisseurs (upload + retéléchargement), à brancher sur `expense` plutôt
-qu'à réinventer. Le pipeline OCR existant (`received-invoices/ocr/`, Mistral et moteur local
-`ocrmypdf`) est également réutilisable pour extraire un montant depuis une photo de reçu. Ce que
-l'e2e devra prouver : une dépense avec image stocke le fichier et permet de le retélécharger ; une
-catégorie choisie apparaît dans les stats (`contributions/expense-contributions.ts`).
+**Rang 13 — notes de frais enrichies.** Livré (`6cb60096`, voir Livré) : pièce jointe, catégorie et
+kilométrage, en réutilisant le stockage de `received-invoices/storage.ts` plutôt qu'en le dupliquant.
+OCR non branché, délibérément : le pipeline existant (`received-invoices/ocr/`) extrait un vocabulaire
+de facture (`grossAmount`, `supplier`), pas de dépense, et ne tente l'OCR que sur un PDF alors que le
+cas principal ici est une photo — un adaptateur à écrire, pas fait ici. Pas de barème kilométrique
+fiscal : deux champs informationnels seulement, l'utilisateur reporte lui-même le résultat.
 
-**Rang 15 — champs personnalisés / tags.** Rien dans l'architecture actuelle ne permet à un
-utilisateur d'ajouter un champ sans toucher au code : chaque type de document est un
-`DocumentTypeDescriptor` figé (`descriptors/*.descriptor.ts`), ses champs déclarés en dur par
-`fields: DocumentFieldDescriptor[]`. Construire ce rang suppose un mécanisme parallèle (des champs
-définis en base, mergés au rendu du formulaire ET du PDF) — une extension du système de descripteurs,
-pas une modification d'un descripteur existant. Ce que l'e2e devra prouver : un champ personnalisé
-créé en Settings apparaît sur le formulaire et sur le PDF des documents suivants, jamais sur les
-documents déjà émis.
+**Rang 15 — champs personnalisés / tags.** Livré (`3ff59800`, voir Livré) : un mécanisme parallèle de
+champs définis en base par société, mergés au rendu du formulaire et du PDF, sans toucher aux
+`DocumentTypeDescriptor` figés existants. Clé dérivée du libellé et immuable ; suppression = archivage,
+jamais une perte du lien avec les valeurs déjà saisies sur des documents émis. Point en cours au moment
+d'écrire ces lignes : la validation du champ requis bloquant l'envoi (`send`, au-delà du brouillon,
+déjà bloqué) — fusion dans `documents.service.ts`, commit à venir.
 
 **Rang 19 — bons de commande / achats fournisseurs.** Seul le rapprochement AVAL existe
 (`received-invoices/supplier-reconciliation.ts` : rapprocher une facture reçue avec un fournisseur
@@ -403,47 +404,73 @@ pas ») : « une instance peut déclarer un serveur de mail global, c'est lui qu
 si une entreprise n'a pas défini le sien dans les paramètres. Pour le serveur de mail de l'instance ça
 peut être soit SMTP soit Resend (Resend en priorité si les deux sont définis). »
 
-**Ce qui existe déjà, vérifié dans le code** : `backend/src/mail/mail.service.ts` sélectionne son
-fournisseur au démarrage via `MAIL_PROVIDER=smtp|brevo` (`providers/smtp.provider.ts` /
-`providers/brevo.provider.ts`) — **Brevo, pas Resend : Resend n'existe pas aujourd'hui dans ce
-dépôt, à construire**, `brevo.provider.ts` étant le modèle d'implémentation `IMailProvider` à suivre.
-`SmtpMailProvider` prévient déjà au démarrage si `SMTP_HOST` est vide (commit `5aed5154`,
-2026-09-14) plutôt que d'attendre le premier envoi échoué. Une **surcharge SMTP par appel** existe
-déjà pour un cas précis : `MailService.sendMail(options, smtpOverrides)` — la seule utilisation
-actuelle de `smtpOverrides` dans tout le code est `transports/sdi-pec-transport.ts`, le canal PEC
-italien, qui construit ses identifiants SMTP à la volée pour UN envoi. C'est le point d'accroche
-naturel désigné pour généraliser cette surcharge à tous les envois d'une société, pas seulement la
-PEC — mais **aucun écran de réglages société pour un serveur de mail n'existe aujourd'hui** (grep sur
-`frontend/src/pages/(app)/settings/_components/` : aucun composant SMTP/mail de société ; grep sur le
-schéma Prisma : aucun champ `smtp*`/`mailProvider` sur `Company`) : à construire entièrement.
+**Livré cette nuit, côté backend** (voir Livré) :
+- `f1ed72e4` — fournisseur Resend (`providers/resend.provider.ts`, REST brute plutôt que le SDK :
+  deux pièges rencontrés et traités, pièces jointes en `content_type` snake_case et `User-Agent`
+  obligatoire sous peine de 403). Résolution au niveau instance quand `MAIL_PROVIDER` est absent :
+  rien→smtp, SMTP seul→smtp, Resend seul→resend, les deux→resend — **un `MAIL_PROVIDER` explicite
+  continue de gagner**, choix soumis au propriétaire (voir Questions ouvertes), pas tranché par le
+  mandat qui ne couvrait que le cas implicite. `CompanyChannelConfig` (déjà chiffrée AES-256-GCM par
+  `ChannelCredentialsService`) réutilisée avec `providerId='mail'`, **aucune migration**. Quatre
+  routes sur le contrôleur company : lire, définir, effacer, tester l'envoi. Câblage DI prouvé par un
+  boot réel sur le port 4100.
+- `63b42ef9` — la cascade société→instance branchée sur les six chemins d'envoi réels : document
+  (devis/facture, `send-document-email.ts`), relances d'impayés, demande de signature et son OTP, OTP
+  de la zone de danger (route corrigée pour porter `@ActiveCompany()`, vérifié avant d'y toucher que
+  `RolesGuard`/`AuthGuard` garantissent déjà une société active à ce point), invitation au portail
+  client. **Volontairement non branché** : le transport PEC italien, qui envoie par la boîte PEC
+  certifiée de la société sous son propre identifiant de canal `sdi-pec` — un canal réglementaire
+  distinct du serveur de mail courant, documenté comme seul holdout.
+- `1958c47a` — un test qui dépendait de l'environnement ambiant (`.env.test` fournissait un
+  expéditeur par défaut que la CI n'a pas) rendu hermétique.
 
-**À consigner, détaillé** :
-1. **Deux niveaux distincts** : un serveur de mail d'**INSTANCE** (variables d'environnement, posé par
-   l'hébergeur — l'existant `MAIL_PROVIDER`/`SMTP_*` d'aujourd'hui) et un serveur de mail de
-   **SOCIÉTÉ** (à construire, réglages dans l'interface, généralisant `smtpOverrides`). Cascade de
-   résolution à chaque envoi : société si elle en a défini un → sinon instance → **sinon refus nommé,
-   jamais un envoi silencieusement perdu**. L'avertissement au démarrage ajouté le 2026-09-14
-   (`5aed5154`) couvre déjà le niveau instance ; il faudra construire l'équivalent (un refus explicite,
-   pas un échec silencieux) pour le niveau société.
-2. **Au niveau instance, deux fournisseurs possibles : SMTP ou Resend** (Resend à construire — voir
-   ci-dessus). **Règle de priorité explicite : si les deux sont configurés, Resend gagne.** Exemple :
-   `SMTP_HOST` ET `RESEND_API_KEY` tous deux présents dans l'environnement → Resend est utilisé, la
-   configuration SMTP est ignorée pour l'instance (elle resterait disponible comme repli si Resend
-   échouait à l'exécution — non précisé, à trancher à l'implémentation).
+**PAS livré : l'écran de réglages société.** Les quatre routes backend existent ; aucun composant
+frontend ne les appelle — grep sur `frontend/src/pages/(app)/settings/_components/` toujours vide de
+tout composant SMTP/mail de société. C'est le reste à faire sur ce chantier.
 
 **Questions ouvertes, à ne pas trancher ici** :
 - **Que devient Brevo ?** Le propriétaire a une clé Brevo compromise à régénérer (trouvée en clair
-  dans un `compose` de PR) et envisageait déjà de passer à Resend. Il n'a pas dit si Brevo reste un
-  troisième fournisseur d'instance à côté de SMTP/Resend, ou s'il est purement remplacé par Resend —
-  laissé ouvert.
+  dans un `compose` de PR) et envisageait déjà de passer à Resend. `brevo.provider.ts` reste dans le
+  code ; il n'a pas dit s'il reste un troisième fournisseur d'instance à côté de SMTP/Resend, ou s'il
+  est purement remplacé par Resend — laissé ouvert.
+- **`MAIL_PROVIDER` explicite gagnant sur `RESEND_API_KEY`** (choix pris par défaut dans `f1ed72e4`,
+  au-delà de ce que le mandat tranchait) — à valider.
+- Le comportement de repli exact si Resend est configuré mais échoue à l'exécution (retombée sur
+  SMTP, ou refus direct) — non précisé, non implémenté.
 - **Lien avec la production** : `invoicerr.chevrier.dev` n'a aujourd'hui AUCUN serveur de mail
-  configuré, donc aucun email ne part (établi le 2026-09-14, voir `5aed5154`). Cette entrée G est ce
-  qui rendra la configuration propre une fois construite ; en attendant, renseigner les cinq variables
-  SMTP sur l'hôte reste une action immédiate distincte, déjà notée dans `TODO_MANDANT.md`.
+  configuré, donc aucun email ne part (établi le 2026-09-14, voir `5aed5154`). Cette entrée G réduit
+  ce risque une fois l'écran société construit ; en attendant, renseigner les cinq variables SMTP sur
+  l'hôte reste une action immédiate distincte, déjà notée dans `TODO_MANDANT.md`.
 
 ---
 
 ## Questions ouvertes
+
+**À trancher par le propriétaire dès son réveil — la liste courte, actionnable :**
+
+1. **Migrations à date future.** Sept migrations de cette branche portent le préfixe `20260920…` alors
+   qu'elles datent du 14-15 septembre (`20260920103000_client_portal_token`,
+   `…120000_time_tracking`, `…140000_document_recipient_language`, `…150000_bank_reconciliation`,
+   `…160000_payment_checkout_sessions`, `…161500_payment_methods`, `…170000_company_custom_fields`).
+   Un horodatage faux est définitif une fois appliqué en production — et la production ne les a PAS
+   encore appliquées (elle a ~50 commits de retard). Proposition : les renommer toutes d'un bloc AVANT
+   le prochain déploiement, en réalignant `_prisma_migrations` sur les bases locales. Décision à
+   prendre par lui, ça touche sa base de dev.
+2. **Choix de produit pris au plus simple cette nuit, à valider** :
+   - Notes de frais (`6cb60096`) : dix catégories fixes + « Other » ; taille maximale 750 Kio
+     (refusera la plupart des photos de téléphone).
+   - Champs personnalisés (`3ff59800`) : sous-ensemble de kinds admis (text/longText/number/money/
+     date/boolean/select — pas array/reference/file) ; accès à l'écran réservé OWNER/ADMIN ; si un
+     champ requis doit aussi bloquer l'envoi (pas seulement le brouillon).
+3. **`MAIL_PROVIDER` explicite gagne sur `RESEND_API_KEY`** (commit `f1ed72e4`) — un déploiement en
+   `smtp` n'est pas court-circuité par une clé Resend ajoutée par erreur ; la décision du mandant ne
+   tranchait que le cas implicite (aucun `MAIL_PROVIDER` posé), ce choix explicite lui est soumis, pas
+   acquis.
+4. **Comptes sandbox** (Polar, Stripe, Mollie, PayPal) — il a dit qu'il les crée demain matin ; le
+   guide est publié. Les chantiers A (paiements) et E (abonnement) attendent ces clés.
+5. **Bibliothèque WYSIWYG pour les emails** (Décision C) — non choisie.
+
+---
 
 Regroupées ici pour relecture rapide — aucune n'est tranchée par ce fichier, toutes attendent une
 décision ou une vérification du propriétaire :
@@ -470,8 +497,12 @@ décision ou une vérification du propriétaire :
   que couvre exactement le plugin `@polar-sh/better-auth` (vérification annoncée séparément) et si ses
   routes passent par `AuthGuard`/`RolesGuard` ou les contournent (`app.module.ts:75`,
   `disableGlobalAuthGuard: true`).
-- **G (serveur de mail)** — ce que devient Brevo (troisième fournisseur d'instance à côté de
-  SMTP/Resend, ou remplacé par Resend) ; le comportement de repli exact si Resend est configuré mais
+- **G (serveur de mail)** — **backend livré cette nuit** (`f1ed72e4`, `63b42ef9`, `1958c47a` :
+  fournisseur Resend, cascade société→instance branchée sur tous les envois sauf la PEC italienne,
+  volontairement) ; **l'écran de réglages société n'existe pas encore**, reste à construire. Restent
+  ouverts : ce que devient Brevo (troisième fournisseur d'instance à côté de SMTP/Resend, ou remplacé
+  par Resend) ; si `MAIL_PROVIDER` explicite doit continuer à gagner sur `RESEND_API_KEY` (choix pris
+  par défaut, pas demandé par le mandat) ; le comportement de repli exact si Resend est configuré mais
   échoue à l'exécution (retombée sur SMTP, ou refus direct) — non précisé.
 
 **Ce que ce fichier n'a pas pu établir** : les frais de Payplug/Nexi/Przelewy24/Easypay/IfThenPay ; si
@@ -499,8 +530,9 @@ Preuves e2e : `17-document-descriptor`, `19-document-pdf`, `20-document-totals`,
   `26-document-deposit`, `51-installments`.
 - **Avoirs (credit notes)** : type dédié, seul type autorisé à réduire une facture
   (`settlement/credits.ts`) — e2e via `24-document-payments`/`25-document-settlement`.
-- **Dépenses** : type "expense" minimal — description/montant/devise/date/notes, **aucune pièce
-  jointe, aucune catégorie** (voir Décision F, rang 13 — gap confirmé).
+- **Dépenses** : pièce jointe, catégorie (liste fermée + « Other ») et kilométrage — livré rang 13,
+  `6cb60096` (voir Livré), en réutilisant le stockage et le hash de `received-invoices/`, avec un
+  nouveau type de champ générique `file` au descripteur.
 - **Factures reçues (AP)** : module dédié `received-invoices/` avec extraction (`extraction.ts`),
   OCR (`received-invoices/ocr/`, moteurs Mistral **et** local `ocrmypdf`), stockage de fichier
   (`storage.ts`) et rapprochement fournisseur automatique/manuel
@@ -540,10 +572,11 @@ document, non reproduit ici en détail) :
 - **Mentions légales calculées** : ex. FR — indemnité forfaitaire de recouvrement (40 €) et taux de
   pénalités de retard (taux BCE + 10 pts, figé à l'émission) générés automatiquement
   (`mentions/data/fr.json`) — une sophistication que peu de concurrents grand public égalent.
-- **Déclarations temps réel** : mécanisme `reporting/`, **un seul pays livré aujourd'hui** — le
-  Portugal (`reporting/providers/pt-at-*`, statut implemented-awaiting-accreditation). Les
-  fournisseurs Grèce/Hongrie qui existaient avant le pivot cinq pays ont été supprimés avec lui —
-  aucun écran dédié n'expose l'historique de ces déclarations (voir rang 10, section « Restent »).
+- **Déclarations temps réel** : mécanisme `reporting/`, **un seul pays livré** — le Portugal
+  (`reporting/providers/pt-at-*`, statut implemented-awaiting-accreditation). Les fournisseurs
+  Grèce/Hongrie qui existaient avant le pivot cinq pays ont été supprimés avec lui. **Écran de suivi
+  livré** (rang 10, `c6a06617`, voir Livré) : liste paginée scopée société, lue depuis
+  `DocumentAuthorityEvent`.
 
 ### 1.3 Clients, articles, fournisseurs
 - `modules/clients/` : CRUD complet, `ClientType` (particulier/société), `ClientKind`
