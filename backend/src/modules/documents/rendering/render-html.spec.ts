@@ -1152,4 +1152,122 @@ describe('renderDocumentHtml', () => {
       expect(html).toContain('Paid in full');
     });
   });
+
+  describe('branding (chantier B, 2026-09-15)', () => {
+    const richDescriptor: DocumentTypeDescriptor = {
+      id: 'invoice',
+      label: 'Invoice',
+      actions: [],
+      usesLegalMentions: true,
+      usesPaymentQr: true,
+      usesPaymentMethods: true,
+      fields: [
+        { key: 'title', kind: 'text', label: 'Title' },
+        { key: 'currency', kind: 'select', label: 'Currency', options: [{ value: 'EUR', label: 'EUR' }] },
+        {
+          key: 'items',
+          kind: 'array',
+          label: 'Items',
+          fields: [
+            { key: 'description', kind: 'text', label: 'Description' },
+            { key: 'quantity', kind: 'number', label: 'Quantity' },
+            { key: 'unitPrice', kind: 'money', label: 'Unit price', currencyField: 'currency' },
+          ],
+        },
+      ],
+    };
+
+    const richInstance = {
+      ...baseInstance,
+      displayNumber: 'INV-2026-0001',
+      data: {
+        title: 'Consulting',
+        currency: 'EUR',
+        items: [{ description: 'Consulting hours', quantity: 2, unitPrice: 100 }],
+      },
+    };
+
+    const richInput = {
+      descriptor: richDescriptor,
+      instance: richInstance,
+      company: { ...baseCompany, iban: 'FR1420041010050500013M02606' },
+      referenceLabels: {},
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 20000,
+        vatMinor: 4000,
+        grossMinor: 24000,
+        vatBreakdown: [{ ratePercent: 20, baseMinor: 20000, vatMinor: 4000 }],
+        warnings: [],
+      },
+      legalMentions: [{ text: 'Autoliquidation', legalRef: 'CGI art. 283-2' }],
+      paymentQr: { dataUri: 'data:image/png;base64,AAAA' },
+      paymentMethods: [
+        { id: 'bank_transfer', label: 'Bank transfer', lines: ['IBAN FR14 2004 1010 0505 0001 3M02 606'] },
+      ],
+      customFields: [],
+    };
+
+    it('a company with NO branding renders the exact pre-branding accent color and font stack', () => {
+      const html = renderDocumentHtml(richInput);
+
+      // The four rules that used to hardcode this literal — see render-html.ts's own
+      // `DEFAULT_ACCENT_COLOR` header.
+      expect(html.split('#007bff').length - 1).toBe(4);
+      expect(html).toContain(
+        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+      );
+      // No branding input at all: no @font-face block, no logo image — nothing added. The ONE <img>
+      // in this rich fixture is the SEPA payment QR (`richInput.paymentQr`), unrelated to branding.
+      expect(html).not.toContain('@font-face');
+      expect(html.split('<img').length - 1).toBe(1);
+    });
+
+    it('an EMPTY branding object renders byte-for-byte the same HTML as no branding at all', () => {
+      const withoutBranding = renderDocumentHtml(richInput);
+      const withEmptyBranding = renderDocumentHtml({ ...richInput, branding: {} });
+
+      expect(withEmptyBranding).toBe(withoutBranding);
+    });
+
+    it('pins the full unbranded render — any accidental byte change here must be a deliberate diff', () => {
+      expect(renderDocumentHtml(richInput)).toMatchSnapshot();
+    });
+
+    it('applies a custom accent color to the header rule, field labels, totals label and custom-fields heading', () => {
+      const html = renderDocumentHtml({ ...richInput, branding: { accentColor: '#b91c1c' } });
+
+      expect(html.split('#b91c1c').length - 1).toBe(4);
+      expect(html).not.toContain('#007bff');
+    });
+
+    it('an unrecognized font key falls back to the default system stack, exactly like no font at all', () => {
+      const html = renderDocumentHtml({ ...richInput, branding: { font: 'not-a-real-font' } });
+
+      expect(html).toContain(
+        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;',
+      );
+      expect(html).not.toContain('@font-face');
+    });
+
+    it('a recognized font key embeds @font-face rules and switches the body stack to it', () => {
+      const html = renderDocumentHtml({ ...richInput, branding: { font: 'inter' } });
+
+      expect(html).toContain('@font-face');
+      expect(html).toContain('InvoicerrBrandInter');
+      expect(html).toContain('font-family: "InvoicerrBrandInter", -apple-system');
+    });
+
+    it('a logo data URI prints an <img> at the top of the header, nowhere else', () => {
+      const html = renderDocumentHtml({
+        ...richInput,
+        branding: { logoDataUri: 'data:image/png;base64,LOGO' },
+      });
+
+      expect(html).toContain('<img src="data:image/png;base64,LOGO"');
+      // Comes before the company name, i.e. sits at the very top of the header block.
+      expect(html.indexOf('data:image/png;base64,LOGO')).toBeLessThan(html.indexOf('Acme Corp'));
+    });
+  });
 });

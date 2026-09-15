@@ -23,11 +23,12 @@
 > intitulés numérotés dans ce fichier reprennent ceux du §3 historique — ils ne sont pas repartis de
 > zéro.
 >
-> **État de la CI, honnêtement (dernière mise à jour de la nuit).** Aucun run entièrement vert depuis
-> la reprise des chantiers ce soir : chaque commit a corrigé le rouge du précédent et le suivant en a
-> apporté un nouveau. Dernier vert complet : `fb00877b` (spec 30) ; depuis, 29 commits, rouges
-> successifs tous identifiés et traités ; résultat des trois derniers runs (`de30e2a4`, `d24a7c6e`,
-> `c7e80579`) à lire au réveil.
+> **État de la CI, honnêtement (2026-09-15, 12 h).** Dernier vert complet : `fb00877b` (spec 30).
+> Run `34930840117` (`cfae3605`, relancé après un runner perdu sans log) : backend/lint/i18n verts,
+> Cypress 296/303, **3 specs sur 59 rouges** — 14 (sélecteur d'article hors viewport du dialogue),
+> 65 (le test attend 201, l'API répond 200 ; test 4 dépendant du 3), 66 (`[data-day="9/15/2026"]`,
+> le piège de la date calculée par le test, malgré la consigne). Spec 64 passé. Correctifs en cours ;
+> les runs de `c4e1d1a0`, `9ce4a558`, `0f39d2e5`, `94924a36` (matin) sont en file.
 
 ---
 
@@ -67,7 +68,7 @@
 | 20 → E | Facturation par abonnement avancée (usage-based) | Sans objet côté produit invoicerr — redirigé vers l'offre hébergée du propriétaire (Décision E), elle-même bloquée par la clé sandbox Polar que le propriétaire crée demain matin (Questions ouvertes #4). | N/A côté produit self-hosted. |
 | A | Paiements — Mollie, PayPal réel, régionaux | Stripe seul est câblé (rang 1, voir Livré) et jamais prouvé avec un vrai compte ; Mollie, PayPal (vrai encaissement Orders API v2) et les régionaux restent à construire — bloqués par les clés sandbox (Polar, Stripe, Mollie, PayPal), le propriétaire les crée demain matin (Questions ouvertes #4). Voir Décision A. | Un paiement Stripe réel encaissé ; Mollie et PayPal câblés et testés en sandbox. |
 | C | Emails — éditeur WYSIWYG | Bibliothèque d'édition riche non choisie (TipTap/Lexical/Quill…, Questions ouvertes #5) — l'éditeur texte brut actuel (`templates.settings.tsx`) reste en place tant que ce choix n'est pas fait. Voir Décision C. | Non définissable avant le choix de bibliothèque. |
-| 19 (2ᵉ passe) | Bons de commande — rapprochement 3-way | Émission livrée en première passe (`de30e2a4`, voir Livré). Le rapprochement avec la facture reçue reste à construire sur `received-invoices/supplier-reconciliation.ts` existant, une fois choisis les écarts tolérés, qui valide, et blocage vs avertissement. Voir Décision F. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
+| 19 (2ᵉ passe) | Bons de commande — rapprochement 3-way | **Tranché le 2026-09-15, en cours** : vrai 3-way (BC ↔ nouveau type « bon de réception » ↔ facture reçue) ; écarts = avertissement jamais bloquant, tolérance en % réglable par société (défaut 2 %), badge « à vérifier » au-delà ; acceptation d'un écart réservée OWNER/ADMIN, tracée (qui, quand). Construit sur `received-invoices/supplier-reconciliation.ts`. Voir Décision F. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
 
 ### Rang 10 — pourquoi le mécanisme `reporting/` ne concerne toujours que le Portugal
 

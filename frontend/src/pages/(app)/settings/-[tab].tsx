@@ -8,6 +8,7 @@ import {
   Hash,
   KeyRound,
   Mail,
+  Palette,
   Plug,
   Radio,
   Repeat,
@@ -27,6 +28,7 @@ import AccountSettings from "./_components/account.settings"
 import AccountingExportSettings from "./_components/accounting-export.settings"
 import ApiKeysSettings from "./_components/api-keys.settings"
 import AtcudSettings from "./_components/atcud.settings"
+import BrandingSettings from "./_components/branding.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
 import CustomFieldsSettings from "./_components/custom-fields.settings"
@@ -68,6 +70,7 @@ export default function Settings() {
 
   const validTabs = [
     "company",
+    "branding",
     "email",
     "mail",
     "webhooks",
@@ -99,6 +102,11 @@ export default function Settings() {
       value: "company",
       label: t("settings.tabs.company"),
       icon: Building2,
+    },
+    {
+      value: "branding",
+      label: t("settings.tabs.branding", "Branding"),
+      icon: Palette,
     },
     {
       value: "email",
@@ -216,6 +224,7 @@ export default function Settings() {
           "customFields",
           "expenseCategories",
           "mail",
+          "branding",
         ].includes(item.value),
     )
     // "atcud" only ever applies to a company registered in Portugal — see `atcud.settings.tsx`'s own
@@ -233,6 +242,8 @@ export default function Settings() {
     switch (currentTab) {
       case "company":
         return <CompanySettings />
+      case "branding":
+        return <BrandingSettings />
       case "email":
         return <EmailTemplatesSettings />
       case "mail":

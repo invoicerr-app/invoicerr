@@ -2,8 +2,18 @@ import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
+import { fontFaceCssFor, fontStackFor } from './branding/font-catalog';
 import { pdfChromeStrings, PdfChromeStrings } from './language/pdf-chrome-strings';
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from './language/supported-languages';
+
+/** The EXACT pre-branding values (chantier B, 2026-09-15) — what every render used unconditionally
+ *  before `RenderDocumentHtmlInput.branding` existed, and what a company with no branding set still
+ *  gets, verbatim: see `renderDocumentHtml`'s own header for the byte-for-byte guarantee this pair
+ *  exists to uphold. Never read anywhere else — `fontStackFor`/an explicit `accentColor` are the only
+ *  two ways to override either. */
+const DEFAULT_ACCENT_COLOR = '#007bff';
+const DEFAULT_BODY_FONT_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 /**
  * Escapes HTML special characters — applied to ALL values from data to prevent injection.
@@ -267,6 +277,33 @@ export interface RenderDocumentHtmlInput {
    * an i18n key").
    */
   language?: RenderLanguage;
+  /**
+   * Chantier B (TODO_FEATURES.md rank 16, 2026-09-15 product decision) — the company's OWN document
+   * branding, resolved by the caller (`render-instance-pdf.ts`) from `Company.brandingAccentColor`/
+   * `brandingFont`/`brandingLogoId`. The PDF itself stays a FIXED document — no user-editable HTML or
+   * template, ever; this is three presentation values applied over the one hardcoded layout below,
+   * the same "a country is data" discipline this codebase already holds elsewhere, turned toward
+   * typography/color instead of law.
+   *
+   * Absent, or every field inside it absent/null, renders BYTE-FOR-BYTE the same HTML this function
+   * always produced — `render-html.spec.ts`'s own non-regression test pins exactly that. Each field
+   * degrades independently: an unrecognized `font` key (a stale value from a since-shrunk catalog)
+   * falls back to the system stack exactly like an absent one, never a broken `font-family`; a missing
+   * `logoDataUri` prints no logo block at all, not an empty frame — the same "nothing, not an empty
+   * frame" discipline `legalMentions`/`paymentQr` above already hold for their own absent case.
+   */
+  branding?: {
+    /** Hex `#rrggbb`, validated by `company/branding/branding.service.ts` before it ever reaches
+     *  here — this function trusts it verbatim and applies it to the four rules that used to
+     *  hardcode `#007bff` (the header rule, field labels, totals label, custom-fields heading). */
+    accentColor?: string | null;
+    /** A `branding/font-catalog.ts` key. */
+    font?: string | null;
+    /** Already a `data:image/...;base64,...` URI — resolved by the caller, never fetched by this
+     *  pure function itself (the same discipline `paymentQr`'s own header documents for its own
+     *  pre-rendered image). */
+    logoDataUri?: string | null;
+  };
 }
 
 /**
@@ -278,6 +315,23 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   const strings = pdfChromeStrings(input.language ?? DEFAULT_RENDER_LANGUAGE);
 
   const createdDate = new Date(instance.createdAt).toISOString().split('T')[0];
+
+  // Chantier B — see `RenderDocumentHtmlInput.branding`'s own header for the byte-for-byte guarantee
+  // every one of these three defaults exists to uphold when `input.branding` (or a given field on it)
+  // is absent.
+  const accentColor = input.branding?.accentColor || DEFAULT_ACCENT_COLOR;
+  const bodyFontStack = fontStackFor(input.branding?.font) ?? DEFAULT_BODY_FONT_STACK;
+  const fontFaceCss = fontFaceCssFor(input.branding?.font);
+  // A trailing `\n  ` (matching this file's own indentation) ONLY when non-empty, so splicing this
+  // right after the main `</style>` below adds nothing at all — not even a blank line — for the
+  // default, unbranded case.
+  const fontFaceStyleBlock = fontFaceCss ? `\n  <style>${fontFaceCss}</style>` : '';
+  const logoDataUri = input.branding?.logoDataUri || null;
+  // Same "adds nothing at all when absent" discipline as `fontFaceStyleBlock` above — see this
+  // block's own splice point in the header markup below.
+  const logoBlockHtml = logoDataUri
+    ? `<img src="${escapeHtmlSafe(logoDataUri)}" alt="" style="max-height:64px;max-width:240px;margin-bottom:12px;display:block;">\n      `
+    : '';
 
   let html = `
 <!DOCTYPE html>
@@ -292,7 +346,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       box-sizing: border-box;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: ${bodyFontStack};
       line-height: 1.6;
       color: #333;
       background: white;
@@ -304,7 +358,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       background: white;
     }
     .header {
-      border-bottom: 2px solid #007bff;
+      border-bottom: 2px solid ${accentColor};
       padding-bottom: 20px;
       margin-bottom: 30px;
     }
@@ -352,7 +406,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     .field-label {
       font-weight: bold;
       font-size: 13px;
-      color: #007bff;
+      color: ${accentColor};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 6px;
@@ -408,7 +462,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     .totals-label {
       font-weight: bold;
       font-size: 13px;
-      color: #007bff;
+      color: ${accentColor};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 12px;
@@ -460,7 +514,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     .custom-fields-heading {
       font-weight: bold;
       font-size: 13px;
-      color: #007bff;
+      color: ${accentColor};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 12px;
@@ -524,12 +578,12 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       color: #1a5fb4;
       word-break: break-all;
     }
-  </style>
+  </style>${fontFaceStyleBlock}
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="company-info">
+      ${logoBlockHtml}<div class="company-info">
         <div class="company-name">${escapeHtmlSafe(company.name)}</div>
         <div class="company-address">
           ${company.address ? escapeHtmlSafe(company.address) : ''}

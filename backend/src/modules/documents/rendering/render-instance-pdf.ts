@@ -16,6 +16,7 @@ import { EntityReferenceRegistry } from '../references/reference-registry';
 import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals';
 import { RenderLanguage } from './language/supported-languages';
 import { resolveRecipientLanguage } from './language/resolve-recipient-language';
+import { logoDataUriFor } from './branding/logo-storage';
 import { renderDocumentHtml } from './render-html';
 import { renderPdf } from './render-pdf';
 import { buildEpcPayload, renderSepaQrDataUri } from './sepa-qr';
@@ -279,7 +280,8 @@ export async function renderDocumentInstance(
     // `iban: true` — "QR SEPA / GiroCode": read here for `sepaPaymentQrFor`
     // below, never rendered directly in the company header block (`render-html.ts` has no field for
     // it there). `language: true` — the FALLBACK layer for `recipientLanguageFor` below, read
-    // unconditionally (it's one column on a row this function fetches anyway).
+    // unconditionally (it's one column on a row this function fetches anyway). The three
+    // `branding*` columns (chantier B) feed `render-html.ts`'s own `branding` input below.
     select: {
       name: true,
       address: true,
@@ -288,6 +290,9 @@ export async function renderDocumentInstance(
       country: true,
       iban: true,
       language: true,
+      brandingAccentColor: true,
+      brandingFont: true,
+      brandingLogoId: true,
     },
   });
   if (!company) {
@@ -361,6 +366,11 @@ export async function renderDocumentInstance(
     paymentQr: await sepaPaymentQrFor(descriptor, company, totals, instanceData, instance.displayNumber),
     paymentMethods,
     customFields,
+    branding: {
+      accentColor: company.brandingAccentColor,
+      font: company.brandingFont,
+      logoDataUri: logoDataUriFor(companyId, company.brandingLogoId),
+    },
   });
 
   // Portugal's ATCUD "on every page" (Portaria n.º 195/2020, art. 4.º n.º 3) — the SAME string just

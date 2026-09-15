@@ -6,6 +6,8 @@ import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { AtcudSeriesController } from './atcud-series/atcud-series.controller';
 import { AtcudSeriesService } from './atcud-series/atcud-series.service';
+import { BrandingController } from './branding/branding.controller';
+import { BrandingService } from './branding/branding.service';
 import { ChannelsController } from './channels/channels.controller';
 import { ChannelCredentialsService } from './channels/channels.service';
 import { CurrencyRatesController } from './currency-rates/currency-rates.controller';
@@ -24,6 +26,7 @@ import { SsoService } from './sso/sso.service';
     CompanyController,
     CurrencyRatesController,
     ChannelsController,
+    BrandingController,
     SigningCertificatesController,
     AtcudSeriesController,
     SsoController,
@@ -36,6 +39,7 @@ import { SsoService } from './sso/sso.service';
     JwtService,
     CurrencyRatesService,
     ChannelCredentialsService,
+    BrandingService,
     SigningCertificatesService,
     AtcudSeriesService,
     SsoService,

@@ -352,6 +352,37 @@ model Company {
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
+  // Chantier B ("branding", TODO_FEATURES.md rank 16, 2026-09-15 product decision) — the PDF stays a
+  // FIXED document (no user-editable HTML/Handlebars, ever); what personalizes it is exactly these
+  // THREE brand fields, applied by `documents/rendering/render-html.ts` as CSS over the one hardcoded
+  // layout. Every field is independently NULLable, and NULL is the state every existing company was
+  // already in before this migration — `render-html.ts` renders the exact pre-branding default for
+  // each one absent (see that file's own `DEFAULT_ACCENT_COLOR`/`DEFAULT_BODY_FONT_STACK`), so a
+  // company that never opens the Branding settings screen gets byte-for-byte the same PDF it always
+  // got, forever, not merely on the day of this migration.
+  //
+  // `brandingLogoId` — the uploaded logo's own SHA-256 (`documents/rendering/branding/
+  // logo-storage.ts#uploadLogo`), content-addressed and company-scoped the SAME way
+  // `attachments/attachments.service.ts` already stores a receipt — see that file's own header for
+  // why this is ONE column (the mime is recovered by trying the three allowed image extensions on
+  // read, never a second nullable column that could drift out of sync with this one).
+  brandingLogoId String?
+  // Hex `#rrggbb`, validated by `company/branding/branding.service.ts` BEFORE it is ever written here
+  // — never a CSS/Tailwind token or a named color, so `render-html.ts` can drop it straight into an
+  // inline style with no lookup table.
+  brandingAccentColor String?
+  // A KEY into the CLOSED, embedded font set (`documents/rendering/branding/font-catalog.ts`) —
+  // deliberately never a raw CSS `font-family` string a caller could point at an arbitrary,
+  // unlicensed webfont. An unrecognized value here (a stale key from a since-shrunk catalog) is
+  // treated by the renderer exactly like NULL — never a broken `font-family` declaration.
+  brandingFont String?
+  // The last NAMED preset (`documents/rendering/branding/presets.ts`) the company explicitly picked —
+  // a label of where `brandingAccentColor`/`brandingFont` started from, never a LIVE binding: picking
+  // "Modern" and then hand-adjusting the accent color does NOT clear this back to null (see
+  // `branding.service.ts#setBranding`'s own header). NULL means "no preset ever chosen" — either no
+  // branding at all, or colour/font set by hand without ever picking a named starting point.
+  brandingPreset String?
+
   // Per-document-type number FORMAT, keyed by DocumentTypeDescriptor.id — e.g.
   // `{ "invoice": "FAC-{year}-{number:5}" }`. A type absent here falls back to
   // documents/numbering/format-number.ts's own `defaultNumberFormatFor(typeId)` — never a hole in the
