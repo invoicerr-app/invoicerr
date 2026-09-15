@@ -44,6 +44,7 @@ import {
 } from './actions/email-template';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
+import { listDeclarations, ListDeclarationsResult } from './reporting/list-declarations';
 import { ActionRegistry, ActionResult } from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
@@ -1441,5 +1442,16 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<DocumentAuthorityEventResult[]> {
     await findOwnedDocument(companyId, typeId, id);
     return listAuthorityEvents(companyId, id);
+  }
+
+  /**
+   * "GET .../declarations" — every DECLARATIVE-REPORTING event journaled for the active company,
+   * ACROSS every document (never scoped to one — unlike `listAuthorityEvents` above, so no
+   * `findOwnedDocument` gate here: there is no single document to own). See
+   * `reporting/list-declarations.ts`'s own header for how a "declaration" is told apart from an
+   * ordinary conformity poll event on the SAME `DocumentAuthorityEvent` table.
+   */
+  async listDeclarations(companyId: string, page: number, status?: string): Promise<ListDeclarationsResult> {
+    return listDeclarations(companyId, page, status);
   }
 }

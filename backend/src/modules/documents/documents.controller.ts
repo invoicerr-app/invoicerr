@@ -301,6 +301,36 @@ export class DocumentsController {
     return (await this.documentsService.getB2gRoutingRule(countryCode)) ?? null;
   }
 
+  @Get('declarations')
+  @ApiOperation({
+    summary: "List the active company's declarative-reporting events",
+    description:
+      'Every DECLARATION journaled onto `DocumentAuthorityEvent` for the active company — see ' +
+      "reporting/report-on-send.ts's own header: a country's own tax-authority declaration " +
+      'obligation (e.g. Portugal’s "pt-at"), never an ordinary post-deposit conformity poll event ' +
+      '(pdp/ksef/chorus-pro — those stay on `GET :id/authority-events` only). Paginated, most ' +
+      'recent first, optionally narrowed to an exact `status` code. `hasObligation` is `false` for ' +
+      'a country with no `reporting/data/*.json` fact at all (and `undefined` only when the ' +
+      'company’s own country cannot even be resolved) — what lets the screen say so plainly instead ' +
+      'of showing a permanently empty list with no explanation.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: String,
+    description: 'Page number (1-indexed). Defaults to 1.',
+  })
+  @ApiQuery({ name: 'status', required: false, type: String, description: 'Exact statusCode filter.' })
+  @ApiResponse({ status: 200, description: 'Declarations retrieved (possibly empty)' })
+  listDeclarations(
+    @ActiveCompany() companyId: string,
+    @Query('page') page?: string,
+    @Query('status') status?: string,
+  ) {
+    const pageNumber = parseInt(page ?? '', 10) || 1;
+    return this.documentsService.listDeclarations(companyId, pageNumber, status);
+  }
+
   @Get('dashboard')
   @ApiOperation({
     summary: 'Dashboard widgets',

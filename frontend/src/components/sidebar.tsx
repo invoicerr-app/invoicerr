@@ -8,6 +8,7 @@ import {
   CreditCard,
   FileStack,
   FileText,
+  Gavel,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -155,6 +156,12 @@ export function Sidebar() {
       icon: <CreditCard className="w-4 h-4" />,
       url: "/payment-methods",
       dataCy: "sidebar-payment-methods-link",
+    },
+    {
+      title: t("sidebar.navigation.declarations"),
+      icon: <Gavel className="w-4 h-4" />,
+      url: "/declarations",
+      dataCy: "sidebar-declarations-link",
     },
   ]
 

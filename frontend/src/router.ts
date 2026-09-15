@@ -12,6 +12,7 @@ export type Path =
   | `/bank-reconciliation`
   | `/clients`
   | `/dashboard`
+  | `/declarations`
   | `/documents`
   | `/documents/:typeId`
   | `/payment-methods`
