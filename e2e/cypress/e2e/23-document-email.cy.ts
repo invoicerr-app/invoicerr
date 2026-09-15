@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Sending carries the PDF along (root TODO, item 4) — proven by the screen, not only in memory, the
+ * Sending carries the PDF along — proven by the screen, not only in memory, the
  * same discipline as 17/21/22: the ACTION goes through a real click on "Send", the ASSERTIONS read
  * the record back via the API (never the screen as proof of what is in the database) AND the real
  * message in Mailpit (the e2e stack's real SMTP — no gate needed here, unlike the jest

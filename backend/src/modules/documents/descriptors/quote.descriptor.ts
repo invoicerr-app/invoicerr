@@ -106,7 +106,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
         '{totalGross}.\n\n' +
         'Best regards,\n{companyName}',
     },
-    // TODO_FEATURES.md rank 14 — see types.ts's own comment on `emailTranslations`, and
+    // Per-recipient document language — see types.ts's own comment on `emailTranslations`, and
     // standard-email-translations.ts's own header on why this is shared, word-for-word, with
     // invoice.descriptor.ts rather than duplicated.
     emailTranslations: standardDocumentEmailTranslations(),

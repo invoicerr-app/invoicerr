@@ -2,8 +2,9 @@ import { transitionsAvailableWhen } from './lifecycle';
 import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /**
- * TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — the SEVENTH type, written the
- * same way every type since the third (credit-note) has been: entirely as data, on the model of
+ * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * SEVENTH type, written the same way every type since the third (credit-note) has been: entirely as
+ * data, on the model of
  * `purchase-order.descriptor.ts` (its own closest sibling — see that file's own header for the full
  * "why data, not code" account this header does not repeat).
  *

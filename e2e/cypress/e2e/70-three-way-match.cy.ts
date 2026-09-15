@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — the full chain: a purchase
+ * Three-way match ("rapprochement à 3 voies") — the full chain: a purchase
  * order (BC) is sent, a PARTIAL goods receipt is recorded against it (6 of the 10 ordered), a
  * received invoice is entered LINKED to the same BC but billing for the full 10 — an honest
  * over-billing relative to what was actually received (see `reconciliation/three-way-match.ts`'s own

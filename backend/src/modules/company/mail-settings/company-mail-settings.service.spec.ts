@@ -1,6 +1,7 @@
 /**
- * `CompanyMailSettingsService` — TODO_FEATURES.md entry G. Mocks `@/prisma/prisma.service` at its own
- * entry point (the same discipline `channels.service.spec.ts` already holds), so this proves this
+ * `CompanyMailSettingsService` — the write side of the mail-server cascade (société → instance →
+ * refus nommé). Mocks `@/prisma/prisma.service` at its own entry point (the same discipline
+ * `channels.service.spec.ts` already holds), so this proves this
  * SERVICE's own logic — the encryption round-trip through the REAL `ChannelCredentialsService`
  * (never mocked away), per-kind validation, and that `sendTest` propagates the REAL underlying error
  * rather than a generic one — never a real database.

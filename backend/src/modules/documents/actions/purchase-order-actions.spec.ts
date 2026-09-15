@@ -20,7 +20,7 @@ jest.mock('../rendering/render-instance-pdf');
 jest.mock('./company-email-templates');
 
 /**
- * TODO_FEATURES.md rank 19 ("bons de commande") — proves the purchase order's own GLUE (this file),
+ * Purchase orders & goods receipts ("bons de commande") — proves the purchase order's own GLUE (this file),
  * never re-proving the shared engines it reuses (`runAsyncSendAction` — async-send.spec.ts's own job;
  * `sendDocumentInstanceEmail` — send-document-email.spec.ts's own job). Every boundary this handler
  * actually crosses (persistence, numbering, rendering, archiving, reporting) is mocked at its own

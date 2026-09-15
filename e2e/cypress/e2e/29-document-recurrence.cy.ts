@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Recurrences (root TODO, item 5) — proven through the screen, same discipline as 17/21/24/28:
+ * Recurrences — proven through the screen, same discipline as 17/21/24/28:
  * the recurrence is created by a real click on "Recurrence" + filling in the dialog, the appearance
  * of the duplicate is observed in the LIST (a reloaded screen, never a DOM poll on a
  * React Query request that does not restart on its own for a plain draft), and the
@@ -98,7 +98,7 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 
 				// Cadence: "Yearly", not the default value ("Monthly") — with a first occurrence
 				// chosen 2 MONTHS in the past (see below), a monthly cycle would require several
-				// catch-ups (one occurrence per sweep pass, root TODO item 5) before
+				// catch-ups (one occurrence per sweep pass) before
 				// coming back into the future, producing SEVERAL duplicates during this test — a yearly
 				// cycle only needs ONE, which is precisely what this test verifies.
 				cy.get('[data-cy="document-field-cadence-input"] button').click();

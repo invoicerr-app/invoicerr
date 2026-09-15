@@ -112,7 +112,7 @@ export interface DocumentTypeDescriptor {
    */
   email?: DocumentEmailTemplate;
   /**
-   * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — per-language variants of
+   * Per-recipient document language ("langue du document par destinataire") — per-language variants of
    * `email` above, keyed by `rendering/language/supported-languages.ts#RenderLanguage`. Deliberately
    * NEVER carries an `'en'` entry: `email` above already IS the English default, so
    * `actions/email-template.ts#resolveEmailTemplate` only ever consults this map for a NON-English
@@ -540,7 +540,7 @@ export const CORE_FIELD_KINDS = [
   // The 11th — a reference stored but never shown to a human anywhere:
   // see `entity`'s own doc comment above for the full "why a dedicated kind, not just a flag" account.
   'hiddenReference',
-  // The 12th (TODO_FEATURES.md rank 13, "notes de frais enrichies") — a company-scoped, content-
+  // The 12th (Enriched expense categories, "notes de frais enrichies") — a company-scoped, content-
   // addressed attachment (a photo or PDF of a receipt, first). The stored value is
   // `{ fileRef, fileName, mime }` — `fileRef` a SHA-256 (see `attachments/attachments.service.ts`,
   // which reuses `received-invoices/storage.ts`'s own persistence rather than a second one), never

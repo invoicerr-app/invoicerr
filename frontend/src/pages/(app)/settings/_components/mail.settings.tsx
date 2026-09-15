@@ -394,7 +394,7 @@ function MailSettingsForm({
 }
 
 /**
- * Company settings → Mail (`/settings/mail`) — TODO_FEATURES.md entry G. The backend's own
+ * Company settings → Mail (`/settings/mail`). The backend's own
  * société → instance → refus-nommé cascade (`MailService#sendForCompany`) already governs every
  * send in this repo; without this screen a company had no way to ever reach the "société" branch of
  * it. `GET /api/company/mail-settings` reports status only (`configured`, `kind`, `fromAddress`) —

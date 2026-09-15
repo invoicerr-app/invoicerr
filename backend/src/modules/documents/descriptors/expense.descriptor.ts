@@ -16,8 +16,8 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * Fields were originally a 1:1 carry-over of the old `CreateExpenseDto`/`EditExpenseDto`
  * (the removed expense module's own service): description, amount, currency, date, notes.
  *
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") added four more, all `required: false` (an
- * expense with none of them is exactly as valid a record as before this rank existed — the same
+ * Enriched expense categories ("notes de frais enrichies") added four more, all `required: false` (an
+ * expense with none of them is exactly as valid a record as before this feature existed — the same
  * "enrichment, never a new requirement" posture `received-invoice.descriptor.ts`'s own optional
  * fields already hold):
  *  - `attachment` (kind 'file', the 12th core field kind — see descriptors/types.ts's own header):
@@ -26,7 +26,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    addressed, `DOCUMENTS_INBOUND_DIR`-rooted persistence (the same volume-backed directory that
  *    already survives a `docker pull`), never a second storage mechanism invented for this type.
  *  - `category` (kind 'select', `options: []` here — deliberately EMPTY in the trunk descriptor).
- *    Product decision 2026-09-15, OVERRIDING this rank's own original design (a hardcoded, closed
+ *    Product decision 2026-09-15, OVERRIDING this feature's own original design (a hardcoded, closed
  *    `EXPENSE_CATEGORY_OPTIONS` list, still readable via git history on this file's introducing
  *    commit): categories are per-COMPANY data now, CRUD'd in Settings and resolved at
  *    `describeTypeForCompany`/`runAction` time by `expense-categories/persistence.ts`'s
@@ -44,7 +44,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    distance and a rate the USER TYPES IN, exactly like `vat-rates/`'s own catalog is "the seller's
  *    own sourced rate, not a tax authority" — nothing here sources a legal mileage scale (a
  *    per-country fiscal barème is legally sourced data, e.g. France's own barème kilométrique
- *    published yearly by the tax authority, and is deliberately OUT of this rank's scope — see this
+ *    published yearly by the tax authority, and is deliberately OUT of this feature's scope — see this
  *    feature's own report). Deliberately NOT auto-multiplied into `amount`: no generic
  *    "derive field X from Y × Z" mechanism exists in this descriptor model (compute-totals.ts's own
  *    generic arithmetic only ever recognizes an 'array' field carrying a money+number PAIR inside

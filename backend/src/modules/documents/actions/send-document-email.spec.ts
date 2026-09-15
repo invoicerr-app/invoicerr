@@ -59,7 +59,7 @@ function mockSuccessfulRender(overrides: { language?: string } = {}) {
     },
     referenceLabels: {},
     companyName: 'Acme Corp',
-    // TODO_FEATURES.md rank 14 — `renderDocumentInstance` always resolves and returns this now (see
+    // Per-recipient document language — `renderDocumentInstance` always resolves and returns this now (see
     // `rendering/render-instance-pdf.ts`'s own `RenderedDocumentInstance.language`); 'en' matches every
     // pre-existing test's expectations exactly (the English descriptor default), and is the same value
     // `resolveEmailTemplate`'s own default parameter would apply if this were omitted entirely.
@@ -435,7 +435,7 @@ describe('sendDocumentInstanceEmail', () => {
     );
   });
 
-  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the email must go out in the
+  // Per-recipient document language ("langue du document par destinataire") — the email must go out in the
   // SAME language `rendered.language` says the attached PDF was just rendered in, never a second,
   // independently-resolved value (see send-document-email.ts's own comment on this call).
   it("sends the descriptor's FRENCH default when the render resolved the recipient's language to 'fr'", async () => {

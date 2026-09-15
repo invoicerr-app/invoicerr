@@ -1,5 +1,5 @@
 /**
- * The CLOSED font set document branding may choose from (chantier B / TODO_FEATURES.md rank 16,
+ * The CLOSED font set document branding may choose from (chantier B,
  * 2026-09-15 product decision: a preset picks a font from a fixed, embedded catalog — never an
  * arbitrary webfont a company could point at, exactly the same "a country is data" discipline this
  * codebase already holds for its compliance catalogs, applied here to typography instead). Five

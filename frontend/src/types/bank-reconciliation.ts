@@ -1,4 +1,4 @@
-// TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé"). Mirrors the backend's
+// Bank reconciliation by statement import. Mirrors the backend's
 // BankReconciliationService response shapes (backend/src/modules/documents/bank-reconciliation/).
 
 export type BankStatementFormat = "CSV" | "OFX"

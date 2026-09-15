@@ -9,7 +9,7 @@ import { PortalService } from './portal.service';
 import { PortalTokensService } from './portal-tokens.service';
 
 /**
- * The client portal (TODO_FEATURES.md rank 3) — ONE module for both halves (staff-facing invite CRUD,
+ * The client portal — ONE module for both halves (staff-facing invite CRUD,
  * client-facing read/respond), unlike the documents module's own three-way Core/HTTP/Public split:
  * this feature has no worker-process concern (nothing here is queued or replayed) and no re-export
  * complication (`PortalTokensService`/`PortalService` are both providers OF this exact module, not

@@ -81,11 +81,12 @@ describe('PT — country-policy/data/pt.json', () => {
         'received-invoice::approve',
         'received-invoice::reject',
         'received-invoice::delete',
-        // TODO_FEATURES.md rank 19 — see purchase-order.descriptor.ts's own header.
+        // Purchase orders & goods receipts — see purchase-order.descriptor.ts's own header.
         'purchase-order::save-draft',
         'purchase-order::send',
         'purchase-order::cancel-order',
-        // TODO_FEATURES.md rank 19, second pass — see goods-receipt.descriptor.ts's own header.
+        // Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) —
+        // see goods-receipt.descriptor.ts's own header.
         'goods-receipt::save-draft',
         'goods-receipt::record',
         'goods-receipt::delete',

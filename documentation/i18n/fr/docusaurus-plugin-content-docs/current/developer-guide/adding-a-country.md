@@ -111,7 +111,7 @@ clairsemé doit être énoncé fait par fait, jamais sous-entendu par une clé m
 
 Chacun est indépendant : aucun ne lit les fichiers des autres, et un pays peut en avoir certains sans
 avoir les autres. Sur les cinq pays couverts par ce produit aujourd'hui (FR, DE, IT, PL, PT — voir
-`TODO_ISSUES.md` pour l'historique de l'élagage jusqu'à ces cinq), aucun n'a de fichier dans chaque
+`TODO_FEATURES.md` pour l'historique de l'élagage jusqu'à ces cinq), aucun n'a de fichier dans chaque
 mécanisme — voir la [matrice de conformité par pays](./country-support/index.md) pour savoir
 précisément lesquels restent ouverts par pays, et les encarts « Pas encore configuré » de chaque page
 pays pour comprendre pourquoi il s'agit d'un manque honnête plutôt que d'une supposition.
@@ -246,7 +246,7 @@ miroir n'était rafraîchi que par `prisma/seed.ts`, exécuté lors d'un `migrat
 `db seed` explicite — **pas** lors d'un redémarrage ordinaire d'une base déjà migrée, ce qui était
 exactement la brèche qui laissait une modification JSON seule renvoyer silencieusement un 403 sur
 chaque action documentaire jusqu'à ce que quelqu'un se souvienne de réensemencer à la main (la note
-« `resetAndSeed` ne re-sème pas la politique pays » de `TODO_ISSUES.md`).
+« `resetAndSeed` ne re-sème pas la politique pays » de `TODO_FEATURES.md`).
 
 Les deux tables s'auto-corrigent désormais à **chaque démarrage backend**, dans chaque environnement
 y compris en production (`country-policy/boot-reseed.service.ts` et

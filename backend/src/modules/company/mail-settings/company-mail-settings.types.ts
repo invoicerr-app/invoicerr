@@ -1,6 +1,7 @@
 /**
- * A company's own mail-server override — TODO_FEATURES.md entry G ("Serveur de mail — instance puis
- * société"). Stored in the EXISTING `CompanyChannelConfig` table (encrypted at rest, the same
+ * A company's own mail-server override — the company-level step of the mail-server cascade
+ * ("Serveur de mail — instance puis société": société → instance → refus nommé). Stored in the
+ * EXISTING `CompanyChannelConfig` table (encrypted at rest, the same
  * `CREDENTIALS_ENCRYPTION_KEY`/`ChannelCredentialsService` mechanism every national transport already
  * uses — see that model's own schema.prisma comment: "A method whose FUTURE field genuinely IS a
  * credential ... belongs in `CompanyChannelConfig`") rather than a new table — a company has at most

@@ -524,7 +524,7 @@ function DefinitionRow({ definition, documentTypeLabel }: DefinitionRowProps) {
 }
 
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — Settings -> Custom Fields: list, create, edit,
+ * Settings -> Custom Fields: list, create, edit,
  * archive/restore. The document FORM/LIST and the CLIENT form never import anything from this file —
  * they only ever consume `GET /custom-fields/resolved` (see `use-company-custom-fields.ts`), which is
  * what keeps this screen entirely optional machinery: a company that never opens it sees no change

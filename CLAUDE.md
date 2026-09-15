@@ -147,7 +147,7 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
   Hungarian (NAV) and Greek (myDATA) providers were deleted with the five-country prune, so this
   catalog is now the thinnest of the thirteen rather than the broadest. France's own obligation IS
   established (CGI art. 290) but is discharged through the accredited platform (the PDP), which this
-  catalog cannot express — a fact here names a `providerId`. See `TODO_ISSUES.md`.
+  catalog cannot express — a fact here names a `providerId`.
 - `domestic-reverse-charge/` — the statutory categories in which the BUYER, not the seller, owes the
   VAT on a purely domestic supply (construction subcontracting, waste, scrap, greenhouse-gas
   allowances, gas and electricity to a reseller…). DE/FR/IT/PT, 32 sourced categories; Poland has none

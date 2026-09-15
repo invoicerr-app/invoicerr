@@ -121,11 +121,11 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   // The FIFTH type, and the first in the "inbound"
   // category: see received-invoice.descriptor.ts for the full reasoning.
   registry.register(buildReceivedInvoiceDescriptor());
-  // TODO_FEATURES.md rank 19 — the SIXTH type: see purchase-order.descriptor.ts for the full
+  // Purchase orders & goods receipts — the SIXTH type: see purchase-order.descriptor.ts for the full
   // reasoning (first pass: EMIT a purchase order; 3-way match against a received invoice is a
   // deliberately separate, second pass).
   registry.register(buildPurchaseOrderDescriptor());
-  // TODO_FEATURES.md rank 19, SECOND PASS ("rapprochement à 3 voies") — the SEVENTH type: see
+  // Purchase orders & goods receipts, SECOND PASS ("rapprochement à 3 voies") — the SEVENTH type: see
   // goods-receipt.descriptor.ts for the full reasoning.
   registry.register(buildGoodsReceiptDescriptor());
   return registry;
@@ -352,7 +352,7 @@ function buildAuthorityStatusPollerRegistry(
 }
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — same "a provider registers itself under an id"
+ * Online payment ("paiement en ligne") — same "a provider registers itself under an id"
  * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above. Stripe → Mollie →
  * PayPal, in that order (product decision 2026-09-15) — see `payments/provider.ts`'s own header on why
  * this is its own narrow registry, never `PluginRegistry`. Credentials are resolved the SAME way every
@@ -505,7 +505,7 @@ function buildActionRegistry(
   });
   registerExpenseActions(registry, webhookDispatcher);
   registerReceivedInvoiceActions(registry, webhookDispatcher);
-  // TODO_FEATURES.md rank 19 — see purchase-order-actions.ts's own header. Same dependency shape as
+  // Purchase orders & goods receipts — see purchase-order-actions.ts's own header. Same dependency shape as
   // "quote" above (unconditional email send), never the invoice's transport-registry one.
   registerPurchaseOrderActions(registry, {
     clientsService,
@@ -517,7 +517,8 @@ function buildActionRegistry(
     events: eventsPublisher,
     webhooks: webhookDispatcher,
   });
-  // TODO_FEATURES.md rank 19, second pass — see goods-receipt-actions.ts's own header. Needs no extra
+  // Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — see
+  // goods-receipt-actions.ts's own header. Needs no extra
   // dependency (like "expense" above), so it registers exactly like that call: pure function of the
   // ActionRegistry it's handed, plus the shared webhook dispatcher.
   registerGoodsReceiptActions(registry, webhookDispatcher);
@@ -568,7 +569,8 @@ function buildEntityReferenceRegistry(
   // to be one file hard-coded to "quote" and is now generic instead of duplicated.
   registry.register('quote', buildDocumentReferenceProvider('quote', 'Quote', clientsService));
   registry.register('invoice', buildDocumentReferenceProvider('invoice', 'Invoice', clientsService));
-  // TODO_FEATURES.md rank 19, second pass — the goods receipt's own "purchaseOrder" field AND the
+  // Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+  // goods receipt's own "purchaseOrder" field AND the
   // received invoice's new "purchaseOrder" field (received-invoice.descriptor.ts) both target this:
   // one more call to the SAME generic factory, exactly like "quote"/"invoice" just above.
   registry.register(
@@ -623,7 +625,7 @@ function buildEntityReferenceRegistry(
     // this module's own `exports` array) so `PublicDocumentsModule`'s controller — a DIFFERENT
     // module, importing `DocumentsCoreModule` directly — can inject it for the public OTP flow.
     SignaturesService,
-    // TODO_FEATURES.md rank 1 ("paiement en ligne") — see `buildPaymentProviderRegistry`'s own header
+    // Online payment ("paiement en ligne") — see `buildPaymentProviderRegistry`'s own header
     // just above. A plain class provider (like `AuthorityStatusPollerRegistry`/
     // `DeclarationProviderRegistry`, never a string token — nothing outside this feature's own two
     // controllers and `PortalService` ever needs to `@Inject()` it by name). `PaymentSessionsService`

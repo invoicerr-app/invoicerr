@@ -43,7 +43,7 @@ interface ClientUpsertProps {
 }
 
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — this company's ACTIVE CLIENT-target custom
+ * This company's ACTIVE CLIENT-target custom
  * fields, rendered through the exact same generic, per-KIND `DocumentField` component the document
  * form already uses (zero kind-specific code here). `name` is `customFields.<key>` — a NESTED
  * react-hook-form path, unlike a document's own flat `custom:<key>` (see the backend's
@@ -126,14 +126,14 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       state: z.string().optional(),
       country: z.string().min(1, t("clients.upsert.validation.country.required")),
       countryCode: z.string().optional(),
-      // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — `null`/unset falls back to
+      // The client's own document language. `null`/unset falls back to
       // the company's own default, then to English (see DocumentLanguageSelect's own header).
       language: z.string().nullable().optional(),
       identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
       // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
       peppolSchemeId: z.string().optional(),
       peppolEndpointId: z.string().optional(),
-      // TODO_FEATURES.md rank 15 ("champs personnalisés") — one company-defined CLIENT-target field
+      // This company's custom fields — one company-defined CLIENT-target field
       // per key (the backend's own `assertClientCustomFieldValuesValid` is the actual authority on
       // required-ness/shape; this schema only needs to let the value through, whatever kind it is).
       customFields: z.record(z.string(), z.unknown()).optional(),

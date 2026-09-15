@@ -300,7 +300,7 @@ model Company {
   state        String? // State/Province (for US addresses, etc.)
   country      String
   countryCode  String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
-  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the FALLBACK layer only: a
+  // Per-recipient document language ("langue du document par destinataire") — the FALLBACK layer only: a
   // client with no `Client.language` of its own renders in this language rather than jumping straight
   // to English. Free-text, like `country` above, never a Prisma enum — see
   // documents/rendering/language/supported-languages.ts for the validated set a render actually
@@ -352,7 +352,7 @@ model Company {
 
   invoicePDFFormat String @default("facturx") // Ex: 'pdf' | 'facturx' | 'zugferd' | 'xrechnung' | 'ubl' | 'cii'
 
-  // Chantier B ("branding", TODO_FEATURES.md rank 16, 2026-09-15 product decision) — the PDF stays a
+  // Chantier B ("branding", 2026-09-15 product decision) — the PDF stays a
   // FIXED document (no user-editable HTML/Handlebars, ever); what personalizes it is exactly these
   // THREE brand fields, applied by `documents/rendering/render-html.ts` as CSS over the one hardcoded
   // layout. Every field is independently NULLable, and NULL is the state every existing company was
@@ -444,7 +444,7 @@ model Company {
   // column needs to satisfy too. See CurrencyRate.from/to's own comment for the same choice.
   referenceCurrency String?
 
-  // TODO_FEATURES.md rank 2 ("relances automatiques") — OPT-IN, default `false`: auto-emailing a
+  // Automatic reminders ("relances automatiques") — OPT-IN, default `false`: auto-emailing a
   // company's own CLIENTS is side-effectful in a way none of this module's other background sweeps
   // are (the conformity/currency-rate sweeps only ever touch this company's own rows) — a company
   // that never asked for it must never have a client suddenly receive a dunning email the day this
@@ -452,7 +452,7 @@ model Company {
   // company left at the default is invisible to it, not merely "not yet due" for one.
   remindersEnabled Boolean @default(false)
 
-  // TODO_FEATURES.md rank 17 ("workflow d'approbation interne au-delà d'un seuil") — the QUICK-WIN
+  // Internal approval workflow above a threshold ("workflow d'approbation interne au-delà d'un seuil") — the QUICK-WIN
   // scope: a ROLE+VALUE GATE on the "send" action, not a full request→approve state machine with its
   // own pending-approval records (that remains a future extension — see
   // documents/approval/approval-gate.ts's own header). NULL — the default, and the only state every
@@ -487,19 +487,19 @@ model Company {
   signatures              Signature[]
   clientPortalTokens      ClientPortalToken[]
   ssoProvider             CompanySsoProvider?
-  // TODO_FEATURES.md rank 11 — see Project/TimeEntry below.
+  // Time tracking & project invoicing — see Project/TimeEntry below.
   projects                Project[]
   timeEntries             TimeEntry[]
-  // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — see BankStatement/BankStatementLine below.
+  // Bank reconciliation ("rapprochement bancaire") — see BankStatement/BankStatementLine below.
   bankStatements          BankStatement[]
   bankStatementLines      BankStatementLine[]
-  // TODO_FEATURES.md rank 1 ("paiement en ligne") — see PaymentCheckoutSession below.
+  // Online payment ("paiement en ligne") — see PaymentCheckoutSession below.
   paymentCheckoutSessions PaymentCheckoutSession[]
   // See CompanyPaymentMethodConfig below.
   paymentMethodConfigs    CompanyPaymentMethodConfig[]
-  // TODO_FEATURES.md rank 15 ("champs personnalisés") — see CompanyCustomField below.
+  // Custom fields ("champs personnalisés") — see CompanyCustomField below.
   customFieldDefinitions  CompanyCustomField[]
-  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — see ExpenseCategory below. Product
+  // Enriched expense categories ("notes de frais enrichies") — see ExpenseCategory below. Product
   // decision 2026-09-15: expense categories are per-company DATA, not the fixed catalog
   // expense.descriptor.ts used to hardcode (see that file's own current header).
   expenseCategories       ExpenseCategory[]
@@ -668,7 +668,7 @@ model Client {
   state            String? // State/Province (for US addresses, etc.)
   country          String
   countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
-  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the ONE explicit,
+  // Per-recipient document language ("langue du document par destinataire") — the ONE explicit,
   // authoritative source a recipient's PDF/email language is resolved from
   // (documents/rendering/language/resolve-recipient-language.ts). Deliberately NOT derived from
   // `country` above: a country names a jurisdiction, not a language (Belgium, Switzerland — a client
@@ -708,13 +708,13 @@ model Client {
   // the same "one row per grant, soft-revoked" posture DocumentDownloadToken/Signature already hold.
   portalTokens ClientPortalToken[]
 
-  // TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — see Project below. A
+  // Time tracking & project invoicing ("suivi du temps & facturation de projets") — see Project below. A
   // client can have several concurrent projects (an agency running two engagements for the same
   // client needs its hours kept apart), which is the whole reason Project exists as its own model
   // rather than TimeEntry hanging directly off Client — see project.service.ts's own header.
   projects Project[]
 
-  // TODO_FEATURES.md rank 15 ("champs personnalisés") — a company-defined, per-client value, keyed by
+  // Custom fields ("champs personnalisés") — a company-defined, per-client value, keyed by
   // the OWNING `CompanyCustomField.key` (never prefixed here — unlike a DOCUMENT instance's own `data`,
   // this JSON blob is ALREADY an isolated namespace of its own, so no key here can ever collide with a
   // real `Client` column the way an unprefixed key could collide with a document type's native field
@@ -781,7 +781,7 @@ model Article {
   unitPriceMinor    Int?
   vatRate           Float    @default(0)
   isActive          Boolean  @default(true)
-  // TODO_FEATURES.md rank 18 ("gestion de stock basique") — NULL means "not stock-tracked" (a SERVICE
+  // Basic stock management ("gestion de stock basique") — NULL means "not stock-tracked" (a SERVICE
   // article has no stock; only a GOODS/PRODUCT article opts in by having this set at all). Only a
   // non-null `quantity` is ever decremented (documents/stock/apply-stock-on-issuance.ts) or alerted on
   // (articles.service.ts's `isLowStock`) — deliberately NOT keyed off `type` itself, so a company that
@@ -795,7 +795,7 @@ model Article {
   updatedAt         DateTime @updatedAt
 }
 
-// TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — the layer TimeEntry hangs
+// Time tracking & project invoicing ("suivi du temps & facturation de projets") — the layer TimeEntry hangs
 // off. See project.service.ts's own header for why this is a THIRD model between Client and
 // TimeEntry rather than either of the two cheaper shapes (entries straight on Client, or entries
 // hanging off an existing quote): an agency running several concurrent engagements for the SAME
@@ -976,8 +976,8 @@ enum WebhookEvent {
   WEBHOOK_UPDATED
   WEBHOOK_DELETED
 
-  // Purge (2026-09-03) of the remaining dead vocabulary flagged by a TODO_ISSUES.md
-  // entry ("une soixantaine de valeurs supplémentaires tout aussi mortes"): the
+  // Purge (2026-09-03) of the remaining dead vocabulary flagged during an audit
+  // ("une soixantaine de valeurs supplémentaires tout aussi mortes"): the
   // RECURRING_INVOICE_* family (7 + 3 item events — the feature itself has no `RecurringInvoice`
   // Prisma model any more, superseded by the generic document `schedules/cadence.ts`), every PLUGIN_*
   // member (9 — the external plugin mechanism's own removal took the only thing that could
@@ -1264,7 +1264,7 @@ model DocumentInstance {
   // lifecycle, no draft, no send), only a record hanging off an existing document instance.
   payments DocumentPayment[]
 
-  // TODO_FEATURES.md rank 2 — see DocumentReminder below (reminders/). One row per ESCALATION TIER
+  // Automatic reminders — see DocumentReminder below (reminders/). One row per ESCALATION TIER
   // CLAIMED for this document, created BEFORE the email is sent and released again if the send then
   // fails (reminder-sweep-runner.ts#claimReminderTier/releaseReminderClaim) — a document can
   // accumulate up to `REMINDER_TIERS.length` surviving rows over its overdue life (reminder-sweep.ts),
@@ -1286,21 +1286,21 @@ model DocumentInstance {
   // per grant" posture `shareLinkTokens` above already holds.
   signatures Signature[]
 
-  // TODO_FEATURES.md rank 11 — see TimeEntry below. Every time entry this INVOICE (never any other
+  // Time tracking & project invoicing — see TimeEntry below. Every time entry this INVOICE (never any other
   // type — nothing bills a quote or a credit note) was generated from, once billed. `onDelete:
   // SetNull` on TimeEntry's own side (not a cascade): deleting a still-draft invoice must free the
   // entries it consumed back to "unbilled", never take them down with it — a time entry is a fact
   // about work actually performed, independent of whether the invoice it was once attached to survives.
   timeEntries TimeEntry[]
 
-  // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — see BankStatementLine below. Every bank
+  // Bank reconciliation ("rapprochement bancaire") — see BankStatementLine below. Every bank
   // statement line that was reconciled AGAINST this invoice — `onDelete: SetNull` on
   // BankStatementLine's own side (not a cascade), the same reasoning `timeEntries` above already
   // gives: a bank line is a fact about money that really arrived, independent of whether the invoice
   // it was matched to survives.
   bankStatementReconciliations BankStatementLine[]
 
-  // TODO_FEATURES.md rank 1 ("paiement en ligne") — see PaymentCheckoutSession below. Every checkout
+  // Online payment ("paiement en ligne") — see PaymentCheckoutSession below. Every checkout
   // session ever opened against this invoice (a client can abandon one and try again, so this is a
   // list, not a nullable single row).
   paymentCheckoutSessions PaymentCheckoutSession[]
@@ -1414,9 +1414,9 @@ model DocumentPayment {
   // `amountMinor` is denominated in.
   currency    String
 
-  // The TODO_ISSUES.md entry closed here ("les taux existent, mais...
-  // ne convertissent toujours pas") recorded its WHY as "un taux PAR OPÉRATION
-  // (saisi au moment du paiement, STOCKÉ SUR LUI), pas le taux ambiant de la société" — exactly
+  // Fixes a past gap in this schema ("les taux existent, mais...
+  // ne convertissent toujours pas") — the WHY is "un taux PAR OPÉRATION
+  // (saisi au moment du paiement, STOCKÉ SUR LUI), pas le taux ambiant de la société": exactly
   // these four fields. `documentAmountMinor` is `amountMinor` converted into the DOCUMENT's own
   // currency at the rate dated to `paidAt` (settlement/convert-payment.ts's `resolvePaymentConversion`),
   // resolved ONCE, at record time, and NEVER recomputed on a later read — `CurrencyRate` rows are
@@ -1457,7 +1457,7 @@ model DocumentPayment {
 
   createdAt DateTime @default(now())
 
-  // TODO_FEATURES.md rank 5 ("rapprochement bancaire") — the bank statement line that CAUSED this
+  // Bank reconciliation ("rapprochement bancaire") — the bank statement line that CAUSED this
   // payment to be recorded, when it was created by a reconciliation rather than typed in by hand
   // (`bank-reconciliation/bank-reconciliation.service.ts`). At most one line ever points here (a line
   // can be reconciled once — see BankStatementLine's own `@@unique`), but this side is still declared
@@ -1465,7 +1465,7 @@ model DocumentPayment {
   // this exact model (see e.g. `DocumentInstance.timeEntries` for the identical pattern with TimeEntry).
   reconciledBy BankStatementLine[]
 
-  // TODO_FEATURES.md rank 1 ("paiement en ligne") — the checkout session that PRODUCED this payment,
+  // Online payment ("paiement en ligne") — the checkout session that PRODUCED this payment,
   // when it was recorded by a provider webhook rather than typed in by hand or reconciled from a bank
   // statement (`payments/payment-sessions.service.ts`). `onDelete: SetNull` on the session's own side
   // (see `PaymentCheckoutSession.payment` below), the exact same "a payment is a fact about money that
@@ -1476,7 +1476,7 @@ model DocumentPayment {
   @@index([companyId, documentId])
 }
 
-// TODO_FEATURES.md rank 1 ("paiement en ligne") — one attempt to pay an invoice through an external
+// Online payment ("paiement en ligne") — one attempt to pay an invoice through an external
 // payment provider's OWN hosted page (Stripe Checkout today — see `payments/provider.ts`'s own header
 // for why this is a narrow interface + registry, never a `PluginRegistry` entry). This table exists
 // for exactly two reasons neither `DocumentPayment` nor the provider itself can give:
@@ -1562,7 +1562,7 @@ enum PaymentCheckoutSessionStatus {
   FAILED
 }
 
-// TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé") — a single imported bank
+// Bank reconciliation ("rapprochement bancaire par import de relevé") — a single imported bank
 // statement file (CSV or OFX) and the individual transaction lines read from it. Deliberately its OWN
 // pair of tables, never folded into DocumentInstance/DocumentPayment: a statement is not a document
 // this company issues (no lifecycle, no descriptor, no numbering — the same reasoning DocumentPayment's
@@ -1666,7 +1666,7 @@ model BankStatementLine {
   @@index([statementId])
 }
 
-// TODO_FEATURES.md rank 2 ("relances automatiques") — one row per ESCALATION TIER actually emailed
+// Automatic reminders ("relances automatiques") — one row per ESCALATION TIER actually emailed
 // for an overdue document. The `@@unique([documentId, tier])` below IS the "once per tier, ever"
 // guarantee this whole feature runs on: `reminders/reminder-sweep-runner.ts` writes this row ONLY
 // AFTER `MailService.sendMail` has already succeeded for that tier, and a row already present for
@@ -1679,7 +1679,7 @@ model BankStatementLine {
 // never a crash (the identical "belt and suspenders" posture `authority-events.persistence.ts`'s own
 // `skipDuplicates` gives the conformity journal).
 //
-// Invoices only, for now — TODO_FEATURES.md rank 2's own acceptance, and `reminder-sweep.ts`'s own
+// Invoices only, for now — this feature's own accepted scope, and `reminder-sweep.ts`'s own
 // header on unsigned quotes being a deliberate non-goal THIS pass — but nothing about this table
 // names "invoice": `documentId` is a bare FK to ANY `DocumentInstance`, exactly like
 // `DocumentPayment.documentId` above, so extending this to a quote-signature reminder later needs no
@@ -1725,7 +1725,7 @@ model DocumentReminder {
 // "verify" endpoint RE-HASHES the stored bytes and compares against `contentHash` on every call; it
 // never writes the result back here, so even a corruption-discovery run cannot mutate this table.
 //
-// ## `kind` — added because TODO_ISSUES.md flagged that "le poller ... n'archive PAS le
+// ## `kind` — added because an audit flagged that "le poller ... n'archive PAS le
 // VERDICT, seulement le DÉPÔT"
 //
 // A DELIVERY row (the default, and the only kind that ever existed before this column) archives
@@ -2055,7 +2055,7 @@ model Signature {
   @@index([companyId])
 }
 
-// The client portal (TODO_FEATURES.md rank 3) — a long-lived, revocable, hashed-random-token
+// The client portal — a long-lived, revocable, hashed-random-token
 // credential scoped to ONE (company, client) pair, generalizing DocumentDownloadToken's "one
 // document's own public link" shape to "one client's own account" (every document the descriptors'
 // own `clientVisible` flag exposes, plus their aggregate balance). Minted by a company member
@@ -2208,8 +2208,8 @@ model CountryIdentifierRequirement {
 // Upserted AT BACKEND BOOT (b2g-routing/boot-upsert.service.ts's OnModuleInit), DELIBERATELY NOT
 // `prisma/seed.ts` (the Prisma migrate/reset hook `DocumentCountryActionRule` above still uses) — see
 // that service's own header for why. In short: `prisma/seed.ts` only runs after `migrate dev`/
-// `migrate reset`/`db seed`, exactly the gap TODO_ISSUES.md's own "`resetAndSeed` ne re-sème pas la
-// politique pays" note names for DocumentCountryActionRule — a NEW rule added to data/*.json would
+// `migrate reset`/`db seed`, exactly the gap an earlier finding named as "`resetAndSeed` ne re-sème pas la
+// politique pays" for DocumentCountryActionRule — a NEW rule added to data/*.json would
 // otherwise only reach an already-migrated, already-booted database (e2e's own `cy.resetAndSeed()`,
 // a self-hosted instance that never re-runs `db seed`) via a manual reseed nobody remembers to run.
 // Running the identical idempotent upsert from `OnModuleInit` instead means EVERY process that boots
@@ -2273,7 +2273,7 @@ model B2gRoutingRule {
 // `documents/transports/transport-registry.ts` entry (e.g. "pdp") — the value `Company.
 // invoiceTransportId` (above) is set to once connected; `channel` is the broader category
 // (`"PDP"`) that groups whatever specific provider implementation a company picked, matching
-// TODO_ISSUES.md's item-10 wave-1 scope (KSeF/SdI, item 10 wave 2, are just more rows the exact
+// this catalog's own first-wave scope (KSeF/SdI belong to a later wave — just more rows the exact
 // same shape covers). `config` is the credential blob — AES-256-GCM encrypted at rest
 // (`utils/secret-crypto.ts`, which survived the compliance-engine demolition unchanged) — a
 // plain, unencrypted JSON column would put a client secret directly in a DB dump. `ChannelEnvironment`
@@ -2335,7 +2335,7 @@ model CompanyPaymentMethodConfig {
   @@index([companyId])
 }
 
-// TODO_FEATURES.md rank 15 ("champs personnalisés") — which kind of record a `CompanyCustomField`
+// Custom fields ("champs personnalisés") — which kind of record a `CompanyCustomField`
 // attaches to. Kept a closed, two-value enum (never a free string, unlike `documentTypeId` below):
 // unlike a document TYPE (open, third-party-extensible — DocumentTypeRegistry), "client" vs. "document"
 // is a property of THIS core's own data model, the same reason `WidgetLocation` (descriptors/types.ts)
@@ -2345,7 +2345,7 @@ enum CompanyCustomFieldTarget {
   DOCUMENT
 }
 
-// TODO_FEATURES.md rank 15 ("champs personnalisés") — a company's own field, added to its clients or
+// Custom fields ("champs personnalisés") — a company's own field, added to its clients or
 // to one (or every) document type, without touching code: the SAME "a country is data" principle
 // country-fields/ already applies to a COUNTRY's difference from the trunk, scaled to a COMPANY's own
 // difference from the trunk. See `company-custom-fields/types.ts`'s `toFieldDescriptor` for how a row
@@ -2418,12 +2418,12 @@ model CompanyCustomField {
   @@index([companyId])
 }
 
-// TODO_FEATURES.md rank 13 ("notes de frais enrichies") — per-company expense categories. Product
-// decision 2026-09-15, OVERRIDING this rank's own original shipped design: `expense.descriptor.ts`
+// Enriched expense categories ("notes de frais enrichies") — per-company expense categories. Product
+// decision 2026-09-15, OVERRIDING this feature's own original shipped design: `expense.descriptor.ts`
 // used to hardcode a closed `EXPENSE_CATEGORY_OPTIONS` list (with an "Other" catch-all), reasoning at
 // the time that no per-company "write your own list" mechanism existed anywhere in this codebase (see
 // that file's OWN prior header, still readable via git history on this model's introducing commit).
-// `CompanyCustomField` (rank 15) shipped that exact mechanism afterwards — but a company custom field
+// `CompanyCustomField` (the custom-fields feature) shipped that exact mechanism afterwards — but a company custom field
 // is always a NEW field bolted on top of a type (`company-custom-fields/persistence.ts#toFieldDescriptor`,
 // `custom:`-prefixed key), never a per-company override of an EXISTING native field's own `options`.
 // Expense categories need the latter: the expense descriptor's own `category` field keeps its native,

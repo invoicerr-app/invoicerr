@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Bank reconciliation by statement import (TODO_FEATURES.md rank 5) — "jugée la plus importante par
+ * Bank reconciliation by statement import — "jugée la plus importante par
  * les utilisateurs dans les comparatifs". Proven through the screen for the ACTIONS (a real file
  * upload, a real column-mapping form, a real click to confirm the match), the API for the ASSERTIONS
  * — same discipline as the rest of this suite (17/24/52).

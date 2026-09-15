@@ -10,7 +10,7 @@ import { SetBrandingDto, UploadBrandingLogoDto } from './branding.dto';
 import { BrandingService } from './branding.service';
 
 /**
- * Chantier B (TODO_FEATURES.md rank 16) — document branding settings: accent color, one font from a
+ * Chantier B — document branding settings: accent color, one font from a
  * closed embedded catalog, and a logo, plus the named presets that set both color and font at once.
  * The PDF itself stays a FIXED document (no user-editable content ever reaches it) — see
  * `branding.service.ts`'s own header. GET routes are open to any active-company member (the same

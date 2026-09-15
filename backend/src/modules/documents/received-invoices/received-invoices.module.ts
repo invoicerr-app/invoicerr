@@ -12,7 +12,8 @@ import { ReceivedInvoicesService } from './received-invoices.service';
  * Registered directly in `AppModule`, alongside (not inside) `DocumentsModule` — the same
  * "type-adjacent, standalone module" placement `modules/company/signing-certificates/` already has.
  *
- * `ReconciliationService` (TODO_FEATURES.md rank 19, second pass) is registered here rather than in
+ * `ReconciliationService` — purchase orders & goods receipts, second pass (three-way match /
+ * rapprochement à 3 voies) — is registered here rather than in
  * `DocumentsCoreModule`: it, too, reaches Prisma only through `persistence.ts`'s free functions and
  * the bare `prisma` singleton (`reconciliation-settings.ts`, `variance-acceptance.ts`'s own imports),
  * so it needs nothing from the Core module either — the identical reasoning `ReceivedInvoicesService`

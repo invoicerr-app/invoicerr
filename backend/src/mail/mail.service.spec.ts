@@ -1,5 +1,5 @@
 /**
- * `MailService` — the instance-level provider RESOLUTION TABLE (TODO_FEATURES.md entry G) and the
+ * `MailService` — the instance-level provider RESOLUTION TABLE and the
  * "société → instance → refus nommé" `sendForCompany` cascade. `resolveCompanyMailSettings` (the
  * company-level READ side, `modules/company/mail-settings/company-mail-settings.resolver.ts`) is
  * mocked here — its own round-trip/encryption behavior is proven by

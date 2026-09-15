@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Per-company expense categories (TODO_FEATURES.md rank 13, product decision 2026-09-15) — Settings ->
+ * Per-company expense categories (product decision 2026-09-15) — Settings ->
  * Expense categories. Same discipline as 62-expense-attachments.cy.ts and 65-company-mail-settings.cy.ts:
  * ACTIONS (create/rename/archive) go through the SCREEN, a real click; every ASSERTION that matters
  * reads the record back via `cy.request` on the API, never the screen's own DOM as proof of what got

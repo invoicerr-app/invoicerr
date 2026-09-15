@@ -15,7 +15,7 @@ services:
       - APP_URL=https://invoicerr.example.com # Required for email templates (redirects to the app) and is also better-auth's own base URL
       - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
 
-      # INSTANCE-level mail (TODO_FEATURES.md entry G) - choose ONE provider below. A company can
+      # INSTANCE-level mail - choose ONE provider below. A company can
       # also set its OWN mail server in Settings -> Mail; that always wins over whatever is set here
       # for that one company. Leave MAIL_PROVIDER unset to auto-detect: RESEND_API_KEY present picks
       # Resend (wins even if SMTP_* is also set), otherwise SMTP is used.

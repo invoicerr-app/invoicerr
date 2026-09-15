@@ -101,9 +101,8 @@ fallback to a generic B2B channel. If you ship a file that is *sparse* rather th
 ### The mechanisms — a map
 
 Each is independent: none of them read each other's files, and a country can have some without
-having others. Of the five countries this product covers today (FR, DE, IT, PL, PT — see
-`TODO_ISSUES.md` for the history of the prune down to these five), none has a file in every single
-mechanism — see the [country compliance matrix](./country-support/index.md) for exactly which ones
+having others. Of the five countries this product covers today (FR, DE, IT, PL, PT), none has a
+file in every single mechanism — see the [country compliance matrix](./country-support/index.md) for exactly which ones
 are still open per country, and each country's own "Not yet configured" callouts for why that's an
 honest gap rather than a guess.
 
@@ -227,8 +226,7 @@ time from the DB, not from the JSON files directly) — `DocumentCountryActionRu
 mirror was only refreshed by `prisma/seed.ts`, which runs on `migrate dev`/`migrate reset`/an
 explicit `db seed` — **not** on an ordinary restart of an already-migrated database, which is
 exactly the gap that let a JSON-only edit silently 403 every document action until someone
-remembered to reseed by hand — the gap `TODO_ISSUES.md` records as "`resetAndSeed` does not
-reseed the country policy".
+remembered to reseed by hand — `resetAndSeed` does not reseed the country policy.
 
 Both tables now also self-correct on **every single backend boot**, in every environment including
 production (`country-policy/boot-reseed.service.ts` and `country-identifiers/boot-reseed.service.ts`,

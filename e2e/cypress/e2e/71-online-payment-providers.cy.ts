@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — Mollie and PayPal, added 2026-09-15 alongside Stripe
+ * Online payment ("paiement en ligne") — Mollie and PayPal, added 2026-09-15 alongside Stripe
  * (Stripe → Mollie → PayPal, product decision). Same UI-driven discipline as `60-online-payment.cy.ts`
  * (actions by clicking through Settings → Payments and the client portal, assertions by reading the
  * record via `cy.request`) and the SAME honesty: this backend runs `NODE_ENV=test`
@@ -132,7 +132,7 @@ function openCheckoutAndReadSessionId(invoiceId: string, mockHost: string): Cypr
 		});
 }
 
-describe("Online payment — Mollie (TODO_FEATURES.md rank 1)", () => {
+describe("Online payment — Mollie", () => {
 	beforeEach(() => {
 		cy.login();
 	});
@@ -235,7 +235,7 @@ describe("Online payment — Mollie (TODO_FEATURES.md rank 1)", () => {
 	});
 });
 
-describe("Online payment — PayPal (TODO_FEATURES.md rank 1)", () => {
+describe("Online payment — PayPal", () => {
 	beforeEach(() => {
 		cy.login();
 	});

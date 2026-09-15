@@ -1,5 +1,6 @@
 /**
- * TODO_FEATURES.md rank 19, second pass — `Controller → Service → Prisma` for the 3-way-match HTTP
+ * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) —
+ * `Controller → Service → Prisma` for the 3-way-match HTTP
  * surface (`received-invoices.controller.ts`'s own new routes): a thin `Injectable` wrapping the pure
  * composition (`resolve-received-invoice-reconciliation.ts`), the acceptance write
  * (`variance-acceptance.ts`), and the company-wide tolerance setting (`reconciliation-settings.ts`) —

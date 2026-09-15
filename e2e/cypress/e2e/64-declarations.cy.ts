@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * The "Declarations" screen (TODO_FEATURES.md rank 10) — makes visible what
+ * The "Declarations" screen — makes visible what
  * `reporting/report-on-send.ts` already does silently after every "send". Since the five-country
  * pivot only Portugal ("pt-at") has a declaration provider at all (status:
  * implemented-awaiting-accreditation — `reporting/providers/pt-declaration-provider.ts`'s own

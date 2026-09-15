@@ -125,21 +125,21 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // not folded into `PublicDocumentsModule`).
     SdiNotificheModule,
     ReceivedInvoicesModule,
-    // The authenticated client portal (TODO_FEATURES.md rank 3) — its own module, importing
+    // The authenticated client portal — its own module, importing
     // `DocumentsCoreModule` directly, the same "never the HTTP `DocumentsModule`" reasoning
     // `PublicDocumentsModule`/`DocumentsQueueWorkerModule` already document. See
     // `client-portal.module.ts`'s own header for why this feature does not need a Core/HTTP split of
     // its own.
     ClientPortalModule,
-    // TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — self-contained, no
+    // Time tracking & project invoicing ("suivi du temps & facturation de projets") — self-contained, no
     // dependency on DocumentsCoreModule (see time-tracking.module.ts's own header).
     TimeTrackingModule,
-    // TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé") — its own module,
+    // Bank reconciliation via statement import ("rapprochement bancaire par import de relevé") — its own module,
     // importing DocumentsCoreModule directly so its one write path (reconciling a line) can call the
     // real "record-payment" action rather than a second one (see bank-reconciliation.module.ts's own
     // header).
     BankReconciliationModule,
-    // TODO_FEATURES.md rank 1 ("paiement en ligne") — its own module, importing DocumentsCoreModule
+    // Online payment ("paiement en ligne") — its own module, importing DocumentsCoreModule
     // directly for the exact same reason BankReconciliationModule does just above (its webhook path
     // calls the real "record-payment" action, never a second write path — see
     // payment-sessions.service.ts's own header). Carries the ONE public route this feature adds

@@ -1,7 +1,7 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 /**
- * TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — mirrors the backend's own
+ * Three-way match reconciliation (rapprochement à 3 voies) — mirrors the backend's own
  * `reconciliation/` types verbatim (`three-way-match.ts`'s `LineMatchVerdict`/`ThreeWayMatchLine`,
  * `resolve-received-invoice-reconciliation.ts`'s `ReceivedInvoiceReconciliationResult`,
  * `variance-acceptance.ts`'s `VarianceAcceptance`, `reconciliation-settings.ts`'s

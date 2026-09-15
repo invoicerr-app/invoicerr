@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — the CLIENT-target half: `ClientsService`
+ * Custom fields ("champs personnalisés") — the CLIENT-target half: `ClientsService`
  * constructed directly (same "ClientsModule inimportable sous ts-jest" convention
  * `clients.mass-assignment.spec.ts`/`clients.vat-validation.spec.ts` already hold), real Prisma.
  */

@@ -1,8 +1,8 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Document branding (`Settings > Branding`, `/settings/branding` tab — chantier B, TODO_FEATURES.md
- * rank 16, 2026-09-15 product decision). The PDF itself stays a FIXED document — nothing here edits
+ * Document branding (`Settings > Branding`, `/settings/branding` tab — 2026-09-15 product decision).
+ * The PDF itself stays a FIXED document — nothing here edits
  * its content or layout; only THREE brand fields do: logo, one accent color, one font from a closed
  * catalog, plus named presets that set the last two at once.
  *

@@ -175,12 +175,12 @@ export const buildExpenseDashboardWidgetsWithConsolidation: ContributionHandler 
  * "urgency" ordering the way invoice-contributions.ts's pending list has (nearest due date first) —
  * only recency. Rows with no parseable date sort last rather than crashing the sort.
  *
- * `category` (TODO_FEATURES.md rank 13) reads `data.category` verbatim — the raw option VALUE
+ * `category` (Enriched expense categories) reads `data.category` verbatim — the raw option VALUE
  * (e.g. "office_supplies"), not its human LABEL: same convention as `currency` right next to it (a
  * plain enum code, translated/labelled only by the SCREEN that renders this table, never by the
  * contribution itself — see `translateWidget`'s own header, frontend, for why a table's own
  * `columns[]`/row DATA stay untranslated on purpose). An expense with no category set (every record
- * saved before this rank existed, or one a user genuinely left uncategorized) is an empty string
+ * saved before this feature existed, or one a user genuinely left uncategorized) is an empty string
  * here, exactly the same "a still-being-filled draft is a normal state to aggregate over" rule
  * `expenseAmount` already holds for a missing `amount` — never a crash, never a fabricated bucket.
  */

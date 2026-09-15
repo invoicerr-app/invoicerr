@@ -23,7 +23,7 @@ jest.mock('./persistence');
 jest.mock('./country-policy/country-policy');
 
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — proves `DocumentsService` actually composes a
+ * Custom fields ("champs personnalisés") — proves `DocumentsService` actually composes a
  * company's own custom field DEFINITIONS onto the field view BOTH `describeTypeForCompany` (the
  * create/edit FORM) and `runAction` (what actually gets VALIDATED) use, right after the country field
  * overlay — the field-level analogue of what documents.service.country-fields.spec.ts already proves
@@ -92,7 +92,7 @@ const validQuoteData = {
   lines: [{ description: 'Widget', quantity: 2, unitPrice: 9.9 }],
 };
 
-describe('DocumentsService — wiring company custom fields (TODO_FEATURES.md rank 15) into the quote', () => {
+describe('DocumentsService — wiring company custom fields into the quote', () => {
   let companyId: string;
 
   beforeAll(async () => {

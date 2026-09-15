@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the backing service for the 12th field
+ * Enriched expense categories ("notes de frais enrichies") — the backing service for the 12th field
  * kind, 'file' (descriptors/types.ts). Deliberately NOT "the expense's own upload service": like
  * `received-invoices/received-invoices.service.ts`, uploading a file is a SEPARATE operation with no
  * document instance to act on yet, but UNLIKE that service, this one is company-scoped only, never

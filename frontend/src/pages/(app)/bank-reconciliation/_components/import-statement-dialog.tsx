@@ -53,7 +53,7 @@ interface ImportStatementDialogProps {
 }
 
 /**
- * TODO_FEATURES.md rank 5. Design decision #1 made real on screen: a CSV file gets a per-import
+ * The bank-reconciliation CSV import flow, made real on screen: a CSV file gets a per-import
  * COLUMN MAPPING form (never a saved profile, never a guess — see the backend's own `parse-csv.ts`
  * header), populated from the file's OWN header row so the human only ever picks from what the file
  * actually contains; an OFX/QFX file skips the mapping entirely (self-describing).

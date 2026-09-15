@@ -24,7 +24,8 @@ import { DocumentEventsBridge } from './queue/document-events-bridge';
  * Nothing outside this file currently needs that (AppModule only ever wants the controller), but it
  * costs nothing to keep the door open the same way the old architecture did.
  *
- * `AttachmentsService` (TODO_FEATURES.md rank 13) lives here for the same reason
+ * `AttachmentsService` (backs enriched expense categories, "notes de frais enrichies") lives here for
+ * the same reason
  * `DocumentEventsBridge` does — HTTP-only surface a BullMQ worker never needs (uploading/downloading
  * an attachment is never something a queue job does) — never in `DocumentsCoreModule`.
  */

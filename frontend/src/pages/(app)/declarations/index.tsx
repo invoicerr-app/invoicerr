@@ -12,7 +12,7 @@ import { usePageHeader } from "@/hooks/use-page-header"
 import { cn } from "@/lib/utils"
 
 /**
- * TODO_FEATURES.md rank 10 — makes visible what `reporting/report-on-send.ts` already does silently
+ * Makes visible what `reporting/report-on-send.ts` already does silently
  * after every "send": which declaration went out, when, with what status, and its error if any. Since
  * the five-country pivot only Portugal ("pt-at") has a declaration provider at all (status:
  * implemented-awaiting-accreditation — see `reporting/providers/pt-declaration-provider.ts`'s own

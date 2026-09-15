@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets"). Actions run through the
+ * Time tracking & project billing ("suivi du temps & facturation de projets"). Actions run through the
  * screen (create the project, log the two entries, select+generate), assertions read back through
  * the API — the same discipline every other spec in this suite holds. The property this test proves
  * hardest is the one the feature exists to guarantee: an entry, once billed, can never be billed

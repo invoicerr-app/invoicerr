@@ -5,7 +5,7 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsWebhookController } from './payments-webhook.controller';
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — the HTTP half. `PaymentSessionsService` itself is a
+ * Online payment ("paiement en ligne") — the HTTP half. `PaymentSessionsService` itself is a
  * provider OF `DocumentsCoreModule` (next to `ShareLinksService`/`SignaturesService`, for the identical
  * reason that module's own header gives for those two: "so a DIRECT consumer of `DocumentsCoreModule`
  * can inject it too" — here, TWO consumers do, this module's own `PaymentsController`/

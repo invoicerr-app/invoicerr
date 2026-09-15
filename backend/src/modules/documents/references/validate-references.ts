@@ -17,8 +17,9 @@
  *    top-level field's plain key lookup does (see "changed vs unchanged" below) — extending here is
  *    future work, not an oversight.
  *
- *    FOLLOW-UP, TODO_ISSUES.md's own "`hiddenReference` n'est pas couvert" entry — investigated and
- *    closed by MEASUREMENT, not by code: every consumer that actually resolves an `articleId` already
+ *    FOLLOW-UP on the `hiddenReference` gap this scope note documents ("`hiddenReference` n'est pas
+ *    couvert") — investigated and closed by MEASUREMENT, not by code: every consumer that actually
+ *    resolves an `articleId` already
  *    scopes by the ACTING company's own `companyId`, never by a company implied by the id itself —
  *    `ArticlesService.findOne`/`findAll` (`modules/articles/articles.service.ts`, `where: { id,
  *    companyId }`) and `stock/apply-stock-on-issuance.ts`'s own `prisma.article.findMany({ where: {

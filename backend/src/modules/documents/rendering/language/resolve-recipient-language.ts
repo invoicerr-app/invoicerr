@@ -6,7 +6,7 @@ function normalize(value: string | null | undefined): string | undefined {
 }
 
 /**
- * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the ONE place the recipient's
+ * Per-recipient document language ("langue du document par destinataire") — the ONE place the recipient's
  * language is decided, for both the PDF (`rendering/render-instance-pdf.ts`) and the send email
  * (`actions/send-document-email.ts`), so the two can never disagree about which language a given
  * document goes out in.
@@ -24,7 +24,7 @@ function normalize(value: string | null | undefined): string | undefined {
  *  - **The company's own default, alone, with no per-client override** — this is exactly the CURRENT
  *    behavior (every document renders in whatever the descriptor's hardcoded strings happen to be) and
  *    defeats the feature outright: a company invoicing across FR/PL/IT/PT/DE by construction serves
- *    clients who do not all share one language, which is the whole reason rank 14 exists.
+ *    clients who do not all share one language, which is the whole reason this feature exists.
  *
  * An explicit field is the only one of the four candidates that is EVER certainly right — it costs the
  * user one extra choice per client (or none, if they never set it and accept the fallback below), which

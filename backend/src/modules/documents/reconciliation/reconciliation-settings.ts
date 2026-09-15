@@ -1,5 +1,6 @@
 /**
- * TODO_FEATURES.md rank 19, second pass — the COMPANY-WIDE reconciliation TOLERANCE (a percentage,
+ * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * COMPANY-WIDE reconciliation TOLERANCE (a percentage,
  * default 2 — see `DEFAULT_TOLERANCE_PERCENT` below), settable from the closest existing company
  * settings screen (`settings/_components/company.settings.tsx`, "Reconciliation" card).
  *

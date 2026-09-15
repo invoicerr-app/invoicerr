@@ -131,9 +131,8 @@ export default function CompanySettings() {
     state: z.string().optional(),
     country: z.string().min(1, t("settings.company.form.country.errors.empty")),
     countryCode: z.string().optional(),
-    // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the FALLBACK for a client
-    // with no `Client.language` of its own (see DocumentLanguageSelect's own header). `null`/unset
-    // falls all the way back to English.
+    // The document-language FALLBACK for a client with no `Client.language` of its own (see
+    // DocumentLanguageSelect's own header). `null`/unset falls all the way back to English.
     language: z.string().nullable().optional(),
     phone: z
       .string()
@@ -213,7 +212,7 @@ export default function CompanySettings() {
     // reminders/reminder-sweep-runner.ts). Off by default; see Company.remindersEnabled's own
     // schema.prisma comment.
     remindersEnabled: z.boolean().optional(),
-    // TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — the 3-way-match TOLERANCE,
+    // The 3-way-match (rapprochement à 3 voies) TOLERANCE,
     // a percentage (default 2, see the backend's `reconciliation-settings.ts`). Backed by its OWN
     // endpoint (`GET`/`PUT /api/documents/received-invoices/reconciliation-settings`), saved
     // separately below — NOT part of `Company.numberFormats`/a `Company` column at all, see that
@@ -228,7 +227,7 @@ export default function CompanySettings() {
 
   const { data } = useGet<Company>("/api/company/info")
   const { data: invoiceTransports } = useDocumentTransports()
-  // TODO_FEATURES.md rank 19, second pass — a SEPARATE endpoint/query, not part of `/api/company/info`
+  // The 3-way-match tolerance is a SEPARATE endpoint/query, not part of `/api/company/info`
   // (see this field's own zod comment above).
   const { data: reconciliationSettings } = useReconciliationSettings()
   const setReconciliationSettings = useSetReconciliationSettings()

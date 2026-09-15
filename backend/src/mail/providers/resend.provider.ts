@@ -2,7 +2,7 @@ import { IMailProvider, MailOptions } from '@/mail/types';
 
 /**
  * Resend transactional email transport, calling the official HTTP API directly
- * (`POST https://api.resend.com/emails`) rather than the `resend` npm SDK — TODO_FEATURES.md entry G
+ * (`POST https://api.resend.com/emails`) rather than the `resend` npm SDK — the mail-server cascade
  * asked for the raw API, and this keeps the dependency footprint identical to `smtp.provider.ts`
  * (nodemailer only) instead of adding a second HTTP-wrapping library.
  *

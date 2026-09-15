@@ -92,8 +92,8 @@ describe('archive/persistence', () => {
       ]);
       expect(written.retentionBasis).toMatch(/10y/);
       expect(written.retentionBasis).toMatch(/6y/);
-      // The discriminator `TODO_ISSUES.md`'s "archives already written keep too early a retention
-      // date" entry asked for: every NEW archive stamps the version of the
+      // The discriminator — a finding from an audit: "archives already written keep too early a retention
+      // date" — asked for: every NEW archive stamps the version of the
       // algorithm that computed it, so a future reader (`document-archive-section.tsx#
       // isRetentionCalcStale`) can tell it apart from a row written before this column existed.
       expect(written.retentionCalcVersion).toBe(CURRENT_RETENTION_CALC_VERSION);

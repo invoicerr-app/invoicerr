@@ -24,8 +24,9 @@ const BREVO_REMOVED_MESSAGE =
   "MAIL_PROVIDER=brevo is no longer supported; use smtp (Brevo's SMTP relay works) or resend";
 
 /**
- * Instance-level provider SELECTION — TODO_FEATURES.md entry G ("Serveur de mail — instance puis
- * société"): "ça peut être soit SMTP soit Resend (Resend en priorité si les deux sont définis)".
+ * Instance-level provider SELECTION — the instance-level step of the mail-server cascade ("Serveur de
+ * mail — instance puis société"): "ça peut être soit SMTP soit Resend (Resend en priorité si les deux
+ * sont définis)".
  * `MAIL_PROVIDER`, when set explicitly, is always authoritative (backward-compatible: an existing
  * `MAIL_PROVIDER=smtp` deployment keeps selecting smtp regardless of a stray `RESEND_API_KEY` in its
  * environment — a deliberate choice, since an operator who pinned a value did so on purpose and a
@@ -41,9 +42,10 @@ const BREVO_REMOVED_MESSAGE =
  * |               |                 |           | below since nothing was actually configured)       |
  * | (unset)       | absent          | present   | smtp  — "SMTP seul"                                |
  * | (unset)       | present         | absent    | resend — "Resend seul"                             |
- * | (unset)       | present         | present   | resend — "les deux" (Resend wins per entry G; SMTP  |
- * |               |                 |           | is not used as a runtime fallback if Resend fails —|
- * |               |                 |           | entry G leaves that open, not implemented here)    |
+ * | (unset)       | present         | present   | resend — "les deux" (Resend wins per this cascade's |
+ * |               |                 |           | own rule; SMTP is not used as a runtime fallback if |
+ * |               |                 |           | Resend fails — deliberately left open, not          |
+ * |               |                 |           | implemented here)                                   |
  * | 'smtp'        | *               | *         | smtp   — explicit request, always honored          |
  * | 'brevo'       | *               | *         | throws — removed (see BREVO_REMOVED_MESSAGE above); |
  * |               |                 |           | Brevo's own SMTP relay still works via 'smtp'       |
@@ -69,8 +71,8 @@ export function isInstanceMailProviderConfigured(env: NodeJS.ProcessEnv = proces
 }
 
 /** Thrown by `sendForCompany` when NEITHER this company NOR this instance has a mail server
- *  configured — the "société → instance → refus nommé" cascade's own last step (TODO_FEATURES.md
- *  entry G). Exported so callers/tests can assert on it without string-matching. */
+ *  configured — the "société → instance → refus nommé" cascade's own last step. Exported so
+ *  callers/tests can assert on it without string-matching. */
 export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
   'No mail server is configured: this company has none set in Settings → Mail, and this instance ' +
   'has neither RESEND_API_KEY nor SMTP_HOST configured either. Configure one before sending.';
@@ -98,9 +100,9 @@ export class MailService {
         //
         // This only fires when "smtp" is what got SELECTED (see resolveInstanceMailProviderId's own
         // resolution table) — the "rien" row, where auto-detect falls through to this branch with an
-        // empty SMTP_HOST, is exactly the case entry G's own "avertissement sinon" describes; a
-        // deployment with a working RESEND_API_KEY or a real SMTP_HOST never reaches this branch at
-        // all, so it never sees it.
+        // empty SMTP_HOST, is exactly the case the mail-server cascade's own "avertissement sinon"
+        // describes; a deployment with a working RESEND_API_KEY or a real SMTP_HOST never reaches this
+        // branch at all, so it never sees it.
         if (!process.env.SMTP_HOST?.trim()) {
           logger.warn(
             'MAIL_PROVIDER is "smtp" but SMTP_HOST is empty — every outgoing email will fail until it is set.',
@@ -168,8 +170,8 @@ export class MailService {
   }
 
   /**
-   * The "société → instance → refus nommé" cascade (TODO_FEATURES.md entry G): sends AS this
-   * company, using — in order — (1) this company's OWN mail server (Settings → Mail, SMTP or Resend,
+   * The "société → instance → refus nommé" cascade: sends AS this company, using — in order — (1)
+   * this company's OWN mail server (Settings → Mail, SMTP or Resend,
    * `modules/company/mail-settings/`), (2) this INSTANCE's own provider (`this.provider`, selected
    * once at construction — see `resolveInstanceMailProviderId`'s own resolution table), or (3) a
    * NAMED refusal, thrown before any network attempt, when neither level has anything configured —

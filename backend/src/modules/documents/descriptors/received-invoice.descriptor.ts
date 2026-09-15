@@ -43,10 +43,11 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *  - `currency`, `netAmount`, `vatAmount`, `grossAmount`: FLAT money fields — the totals are whatever
  *    the supplier's own document says, taken (extracted or typed) as-is, never re-priced or
  *    re-computed by this company.
- *  - `purchaseOrder` (`reference`, entity "purchase-order") — TODO_FEATURES.md rank 19, second pass
- *    ("rapprochement à 3 voies"): the purchase order this received invoice is checked against, when
- *    there is one. There was NO existing link between a received invoice and a purchase order before
- *    this field — added here, in this type's own generic `data` (no migration needed, the same "a new
+ *  - `purchaseOrder` (`reference`, entity "purchase-order") — Purchase orders & goods receipts, second
+ *    pass (three-way match / rapprochement à 3 voies): the purchase order this received invoice is
+ *    checked against, when there is one. There was NO existing link between a received invoice and a
+ *    purchase order before this field — added here, in this type's own generic `data` (no migration
+ *    needed, the same "a new
  *    fact is a new key in an existing JSON column" mechanism every other field on this descriptor
  *    already uses), rather than inventing a dedicated join table for one optional reference.
  *    `required: false`, like every other field here: most received invoices (a phone bill, a SaaS
@@ -347,8 +348,8 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
  *    UPLOADING a file, never by a channel pushing
  *    one in automatically.
  *  - supplier reconciliation (matching a received invoice against this company's own purchase
- *    records) — no such records exist in this core today. SUPERSEDED (TODO_FEATURES.md rank 19,
- *    second pass, 2026-09-15): `purchaseOrder` above is exactly that record now, and
+ *    records) — no such records exist in this core today. SUPERSEDED (purchase orders & goods
+ *    receipts, second pass, 2026-09-15): `purchaseOrder` above is exactly that record now, and
  *    `reconciliation/three-way-match.ts` is the matching engine — kept as a NEW field and a separate
  *    module rather than a rewrite of this bullet's own original claim, which stays true about the
  *    state of this descriptor BEFORE that pass.

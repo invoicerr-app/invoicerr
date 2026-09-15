@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets") — turning billed time entries
+ * Time tracking & project invoicing ("suivi du temps & facturation de projets") — turning billed time entries
  * into invoice LINES. Split the same way `documents/stock/apply-stock-on-issuance.ts` is (a pure
  * computation, unit-testable with no DB, plus a thin Prisma writer — see time-entries.service.ts's
  * `billToInvoice` for that half): this file only ever decides WHAT the lines should say, never
@@ -70,9 +70,9 @@ function describeLine(entry: TimeEntryForBilling): string {
  * data"). The user picks a real rate once, in the opened draft, the same as any hand-typed line.
  *
  * ONE LINE PER ENTRY, never aggregated — a merged line would have to average mismatched
- * descriptions/rates across entries, a real design decision this feature does not make (see
- * TODO_FEATURES.md's own rank-11 entry: "logger des heures... les convertir en lignes HOUR", never
- * "en UNE ligne"). An entry with NO resolvable rate (neither its own override nor its project's
+ * descriptions/rates across entries, a real design decision this feature does not make (see time
+ * tracking & project invoicing's own product scope: "logger des heures... les convertir en lignes
+ * HOUR", never "en UNE ligne"). An entry with NO resolvable rate (neither its own override nor its project's
  * default) is reported as an error instead of silently priced at 0 — a free line is not what "no
  * rate set yet" means.
  */

@@ -2,7 +2,7 @@ import { DocumentTypeRegistry } from './type-registry';
 import { buildExpenseDescriptor } from './expense.descriptor';
 
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the descriptor's own shape, independent of
+ * Enriched expense categories ("notes de frais enrichies") — the descriptor's own shape, independent of
  * DocumentsService wiring, same split `received-invoice.descriptor.spec.ts` already holds for its own
  * type. The "suppression" behaviour the frontend's "Remove" button relies on (clearing the field and
  * saving) is proven separately below, against `persistence.ts#upsertDocument` directly — see that
@@ -86,7 +86,7 @@ describe('expense.descriptor — passes validateLifecycle and has the declared s
     });
   });
 
-  it('still declares no numbering, no non-"draft" status — unchanged by this rank', () => {
+  it('still declares no numbering, no non-"draft" status — unchanged by this feature', () => {
     const descriptor = buildExpenseDescriptor();
     expect(descriptor.numbering).toBeUndefined();
     expect(descriptor.statuses?.map((s) => s.id)).toEqual(['draft']);

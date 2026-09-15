@@ -37,12 +37,12 @@ const NATIVE_TYPE_ACTIONS: { typeId: string; actionId: string }[] = [
   ...buildCreditNoteDescriptor().actions.map((a) => ({ typeId: 'credit-note', actionId: a.id })),
   ...buildExpenseDescriptor().actions.map((a) => ({ typeId: 'expense', actionId: a.id })),
   ...buildReceivedInvoiceDescriptor().actions.map((a) => ({ typeId: 'received-invoice', actionId: a.id })),
-  // TODO_FEATURES.md rank 19 — no exclusion needed here, unlike invoice's own "cancel" above:
+  // Purchase orders & goods receipts — no exclusion needed here, unlike invoice's own "cancel" above:
   // "cancel-order" is read from the ORDINARY country-policy table like every other action, never
   // `correction-routes/cancel-policy.ts` (see purchase-order-actions.ts's own header for why the
   // action id itself is different from the invoice's "cancel").
   ...buildPurchaseOrderDescriptor().actions.map((a) => ({ typeId: 'purchase-order', actionId: a.id })),
-  // TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — same reasoning as
+  // Purchase orders & goods receipts, second pass ("rapprochement à 3 voies") — same reasoning as
   // purchase-order's own entry just above: "record"/"delete" are read from the ORDINARY country-
   // policy table like every other action, no correction-routes special case involved.
   ...buildGoodsReceiptDescriptor().actions.map((a) => ({ typeId: 'goods-receipt', actionId: a.id })),
@@ -313,7 +313,8 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
   it('every kept file declares the SAME (typeId, actionId) pairs as fr.json — no silent gap versus the reference jurisdiction', () => {
     // Widened from the original DE/IT/PL/ES/MX list to every kept country (also PT) — strictly more
     // coverage than before the prune, not less. Count widened again from 27 to 30 by the
-    // goods-receipt addition (TODO_FEATURES.md rank 19, second pass) — see pt.spec.ts's own pinned count.
+    // goods-receipt addition (three-way match / rapprochement à 3 voies, second pass) — see
+    // pt.spec.ts's own pinned count.
     const frKeys = fileFor('FR')
       .rules.map((r) => `${r.typeId}::${r.actionId}`)
       .sort();

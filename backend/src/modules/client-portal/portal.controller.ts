@@ -82,7 +82,7 @@ export class PortalController {
   @ApiOperation({
     summary: "Opens a payment checkout session for this client's own invoice",
     description:
-      'The Pay link (TODO_FEATURES.md rank 1). Delegates to `PaymentSessionsService` — never writes a ' +
+      'The Pay link (online payment). Delegates to `PaymentSessionsService` — never writes a ' +
       "DocumentPayment or touches a provider secret itself. See that service's own header for the " +
       'amount guard (always the fresh outstanding balance), the provider connectivity check (501), and ' +
       'the status check (409) this route can surface.',

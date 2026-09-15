@@ -163,7 +163,7 @@ export const GENERIC_FALLBACK_EMAIL_TEMPLATE: DocumentEmailTemplate = {
 };
 
 /**
- * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — non-English variants of
+ * Per-recipient document language ("langue du document par destinataire") — non-English variants of
  * `GENERIC_FALLBACK_EMAIL_TEMPLATE` above, same precedence rule and same reason for existing as
  * `DocumentTypeDescriptor.emailTranslations` (see that field's own header): never carries an `'en'`
  * entry, since `GENERIC_FALLBACK_EMAIL_TEMPLATE` already is the English default. Reachable only for a
@@ -202,7 +202,7 @@ export type EmailTemplateSource = 'company' | 'descriptor' | 'generic';
  * Which template actually applies for `descriptor`, given the active company's OWN overrides
  * (`Company.documentEmailTemplates`, keyed by `DocumentTypeDescriptor.id` — see
  * actions/company-email-templates.ts for how that column is read and written) and the resolved
- * recipient `language` (TODO_FEATURES.md rank 14 — see
+ * recipient `language` (per-recipient document language — see
  * `rendering/language/resolve-recipient-language.ts`). Priority, highest first:
  *  1. the company's own override for this type, if it set one — a company's own wording is sent
  *     exactly as written, in whatever language the company wrote it in, REGARDLESS of `language`: this
@@ -290,7 +290,8 @@ const RECIPIENT_REFERENCE_ENTITIES = new Set(['client', 'supplier']);
  * be offered a placeholder the send would then treat as unknown, and can never have its language
  * resolved from a field this module wouldn't otherwise recognize as "the recipient".
  *
- * Widening this from "client" only to also "supplier" (TODO_FEATURES.md rank 19) has one small,
+ * Widening this from "client" only to also "supplier" (purchase orders & goods receipts, "bons de
+ * commande") has one small,
  * accepted side effect: `received-invoice`'s own settings-screen email-template preview now also
  * advertises `{recipientName}` as an available placeholder, even though that type never actually
  * sends anything (`received-invoice.descriptor.ts` declares no `email` at all) — harmless, since a

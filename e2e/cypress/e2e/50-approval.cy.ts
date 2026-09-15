@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Internal approval workflow (TODO_FEATURES.md rank 17) — a MEMBER can NOT SEND an
+ * Internal approval workflow — a MEMBER can NOT SEND an
  * invoice whose total exceeds the company's approval threshold without an ADMIN/OWNER; an
  * OWNER can (their send IS the approval). Proven end-to-end with a REAL MEMBER session
  * (created via invitation), which the jest tests don't cover: the controller's own `@ActiveRole`

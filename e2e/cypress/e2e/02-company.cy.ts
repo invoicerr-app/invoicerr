@@ -350,7 +350,7 @@ describe("Company Settings E2E", () => {
 		// honored them — `numbering/sequence.ts` always starts a counter (company, type) at 1 — so
 		// the "positive" constraint was validating a field whose value never reached a
 		// document. The "start my numbering at 500" capability is therefore absent from the product,
-		// and named as such in `TODO_ISSUES.md` rather than simulated by a decorative check.
+		// tracked as a real feature to build rather than simulated by a decorative check.
 		// The day it exists, it is an END-TO-END test that will need to be written: enter 500,
 		// issue, and read the document's number — not a form-validation test.
 	});

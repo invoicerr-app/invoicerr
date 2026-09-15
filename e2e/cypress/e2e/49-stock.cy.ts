@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Basic stock management (TODO_FEATURES.md rank 18) — invoicing N units of a stock-tracked article
+ * Basic stock management — invoicing N units of a stock-tracked article
  * DECREMENTS its balance at ISSUANCE, and an alert becomes visible below the threshold. Discipline: the
  * action (creation + send) goes through the real server chain (the decrement happens at issuance, in
  * `documents.service.ts#runAction`, never client-side), the assertions read the stock back via the API

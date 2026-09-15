@@ -1301,7 +1301,7 @@ function transportWithModel(id, locale) {
 }
 
 // The 5 countries this product covers today (2026-09-10 prune — every other country's data files
-// were removed; see TODO_ISSUES.md and the root git log for that change). Every one of these gets
+// were removed; see the root git log for that change). Every one of these gets
 // a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details"); `unionCountries`
 // below is, as a direct consequence, ALSO exactly this set — there is no country left with data in
 // only some mechanisms and no page at all, unlike the pre-prune matrix, which had rows with no

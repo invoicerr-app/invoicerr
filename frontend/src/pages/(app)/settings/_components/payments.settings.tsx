@@ -35,7 +35,7 @@ interface PaymentProviderField {
 }
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — Settings → Payments. One `PaymentProviderCard` per
+ * Online payment — Settings → Payments. One `PaymentProviderCard` per
  * registered `PaymentProvider` (`backend/.../payments/payment-provider-registry.ts`) — Stripe → Mollie
  * → PayPal, in that product-decided order (2026-09-15) — all sharing the SAME storage mechanism
  * (`PUT/DELETE /api/company/channels/:providerId`, the encrypted `CompanyChannelConfig` table every

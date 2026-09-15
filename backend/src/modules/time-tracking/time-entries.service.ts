@@ -82,7 +82,7 @@ function withRate(entry: RawTimeEntry, currency: string): TimeEntryWithRate {
 class TimeEntriesAlreadyBilledRaceError extends Error {}
 
 /**
- * TODO_FEATURES.md rank 11 — logging time against a Project and turning it into invoice lines. See
+ * Time tracking & project invoicing — logging time against a Project and turning it into invoice lines. See
  * ProjectsService's own header for why a project layer exists between Client and TimeEntry at all.
  *
  * The property this module protects hardest: an entry can be billed EXACTLY ONCE. `billToInvoice`

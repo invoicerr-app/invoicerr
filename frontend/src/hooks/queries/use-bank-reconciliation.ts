@@ -8,7 +8,7 @@ import type {
 } from "@/types/bank-reconciliation"
 
 /**
- * TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé"). Kept in its own file,
+ * Bank reconciliation by statement import. Kept in its own file,
  * mirroring `use-time-tracking.ts`'s own placement — a genuinely separate concern from the generic
  * document machinery (a bank statement is not a `DocumentInstance` at all).
  */

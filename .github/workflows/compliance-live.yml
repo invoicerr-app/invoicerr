@@ -59,7 +59,7 @@ jobs:
       SDI_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
       CHORUSPRO_LIVE: '1'     # FR B2G (PISTE OAuth2) — see its own block below
-      STRIPE_LIVE: '1'        # Online payment (TODO_FEATURES.md rank 1) — see its own block below
+      STRIPE_LIVE: '1'        # Online payment — see its own block below
       MOLLIE_LIVE: '1'        # Online payment — see its own block below
       PAYPAL_LIVE: '1'        # Online payment — see its own block below
 
@@ -100,7 +100,7 @@ jobs:
       SDI_CERTIFICATE:     ${{ secrets.SDI_CERTIFICATE }}
       SDI_CERT_PASSWORD:   ${{ secrets.SDI_CERT_PASSWORD }}
 
-      # --- Online payment (TODO_FEATURES.md rank 1) — Stripe → Mollie → PayPal (2026-09-15). All
+      # --- Online payment — Stripe → Mollie → PayPal (2026-09-15). All
       # three self-skip with no secrets set, same as every other row here; none has ever run for real
       # in this repo (see live-testing.md's own table).
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}

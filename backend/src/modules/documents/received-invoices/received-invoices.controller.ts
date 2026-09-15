@@ -22,7 +22,7 @@ import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './receive
  * `company/signing-certificates/signing-certificates.controller.ts` already documents for its own
  * small, type-adjacent controller.
  *
- * TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") added the FOUR routes below —
+ * Purchase orders & goods receipts, second pass ("rapprochement à 3 voies") added the FOUR routes below —
  * genuinely new operations too (a 3-way-match RESULT is not a document instance itself, and neither
  * is a company-wide setting), so they live here on the same "bespoke, type-adjacent" reasoning, rather
  * than being shoehorned through `documents.controller.ts`'s generic action-runner

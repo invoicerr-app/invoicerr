@@ -204,7 +204,7 @@ describe('FieldKindRegistry', () => {
     });
   });
 
-  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the 12th kind, an uploaded attachment.
+  // Enriched expense categories ("notes de frais enrichies") — the 12th kind, an uploaded attachment.
   // Purely structural, like every other kind: existence-on-disk is never checked here (see the
   // registration's own comment in field-kinds.ts).
   describe("'file'", () => {

@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — the narrow interface a payment provider implements,
+ * Online payment ("paiement en ligne") — the narrow interface a payment provider implements,
  * and nothing more. Modeled on `transports/transport-registry.ts`'s own `DocumentTransport` (a
  * provider registers itself under an id, the caller never branches on which one it got) rather than
  * going through `PluginRegistry` (`backend/src/plugins/`) — see

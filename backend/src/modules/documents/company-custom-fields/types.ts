@@ -13,7 +13,7 @@ import { DocumentFieldDescriptor } from '../descriptors/types';
  *    re-implement `country-fields/apply-overlay.ts`'s own nested-path handling for company data too.
  *  - 'file' — attachments/attachments.service.ts's upload/download surface is company-scoped but
  *    NOT keyed by an arbitrary field id today; wiring a company-defined attachment field is real,
- *    unstarted work (TODO_ISSUES.md), not a one-line addition to this list.
+ *    unstarted work, not a one-line addition to this list.
  *
  * PRODUCT CHOICE TO VALIDATE: this list — text/longText/number/money/date/boolean/select — is the
  * simplest reading of the feature request's own "au minimum text, number, date, select, boolean";

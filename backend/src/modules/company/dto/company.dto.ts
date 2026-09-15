@@ -16,7 +16,7 @@ export class EditCompanyDto {
   state?: string;
   country: string;
   countryCode?: string;
-  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the FALLBACK for a client with
+  // Per-recipient document language ("langue du document par destinataire") — the FALLBACK for a client with
   // no `Client.language` of its own; see Company.language's own schema.prisma comment and
   // documents/rendering/language/resolve-recipient-language.ts for the resolution order. Free-text,
   // never validated here — same reasoning as `EditClientsDto.language`.

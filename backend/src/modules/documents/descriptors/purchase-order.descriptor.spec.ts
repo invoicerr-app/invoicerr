@@ -2,7 +2,7 @@ import { DocumentTypeRegistry } from './type-registry';
 import { buildPurchaseOrderDescriptor } from './purchase-order.descriptor';
 
 /**
- * TODO_FEATURES.md rank 19 ("bons de commande") — the descriptor's own shape, independent of
+ * Purchase orders & goods receipts ("bons de commande") — the descriptor's own shape, independent of
  * DocumentsService wiring, the same split every other descriptor spec in this module already holds
  * for its own type (see e.g. expense.descriptor.spec.ts, received-invoice.descriptor.spec.ts).
  */

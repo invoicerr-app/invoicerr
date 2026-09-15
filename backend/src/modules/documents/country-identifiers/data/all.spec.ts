@@ -346,7 +346,7 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
       expect(legalId.provenance.sourceText).toMatch(/SIREN/);
       expect(legalId.provenance.sourceCheckedAt).toBe('2026-09-01');
     }
-    expect(legalId.notes).toMatch(/TODO_ISSUES\.md/);
+    expect(legalId.notes).toMatch(/SIRET vs SIREN/);
     expect(legalId.notes).toMatch(/RÉSOLUE/);
   });
 

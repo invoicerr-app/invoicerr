@@ -42,6 +42,5 @@ colours, spacing, label overrides, live preview).
 
 Those descriptions did not match the application, so they have been removed rather than left in place:
 the fields either do not exist, are not stored, or are not read by anything that produces a document.
-They are tracked as defects in the repository's own `TODO_ISSUES.md`. When a capability genuinely
-lands, it is documented here again — this page describes what the product does, never what it is
-expected to do.
+When a capability genuinely lands, it is documented here again — this page describes what the
+product does, never what it is expected to do.

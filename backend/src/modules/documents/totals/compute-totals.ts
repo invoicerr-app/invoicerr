@@ -275,10 +275,10 @@ function findLineArrayFields(descriptor: DocumentTypeDescriptor): DocumentFieldD
  * or whose options look numeric (first option's value is numeric/percentage-like).
  * Returns the rate as a number, or null if not found or not parseable.
  *
- * TODO_FEATURES.md rank 19 ("bons de commande") — the "no VAT-like subfield declared on this line
- * shape AT ALL" case (below) is a STRUCTURAL fact about the document TYPE (e.g.
+ * Purchase orders & goods receipts ("bons de commande") — the "no VAT-like subfield declared on this
+ * line shape AT ALL" case (below) is a STRUCTURAL fact about the document TYPE (e.g.
  * `purchase-order.descriptor.ts`, whose lines carry no rate at all — it is not a tax document), never
- * a per-ROW data problem to warn about. Every type that shipped before this rank (quote/invoice/
+ * a per-ROW data problem to warn about. Every type that shipped before purchase orders (quote/invoice/
  * received-invoice) always declares SOME vat-like 'select' subfield on its own line shape, so this
  * distinction was previously unreachable — the purchase order is the first type to exercise it. This
  * is why the check below is done ONCE, before the "missing/non-numeric value" branch that still warns

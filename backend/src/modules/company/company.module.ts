@@ -50,7 +50,8 @@ import { SsoService } from './sso/sso.service';
     // Plain, empty-constructor leaf provider (see mail.service.ts's own header) — listed here the
     // same way plugins.module.ts/danger.module.ts/documents-core.module.ts each independently list
     // it in their OWN providers array; a second instance costs nothing.
-    // `CompanyMailSettingsService#sendTest` (TODO_FEATURES.md entry G) is this module's own caller.
+    // `CompanyMailSettingsService#sendTest` (the mail-server cascade's test-send) is this module's own
+    // caller.
     MailService,
     CompanyMailSettingsService,
   ],

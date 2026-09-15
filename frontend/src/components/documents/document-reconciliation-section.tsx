@@ -18,7 +18,7 @@ import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 /**
- * TODO_FEATURES.md rank 19, second pass ("rapprochement à 3 voies") — the "Reconciliation" panel on
+ * Three-way match (rapprochement à 3 voies) — the "Reconciliation" panel on
  * a received invoice's own edit dialog: purchase order × goods receipt(s) × this invoice, per line,
  * with the company's own tolerance already applied (backend's `reconciliation/three-way-match.ts`).
  *

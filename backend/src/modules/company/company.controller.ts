@@ -126,10 +126,10 @@ export class CompanyController {
   }
 
   /**
-   * GET /api/company/mail-settings — TODO_FEATURES.md entry G: whether this company has its OWN mail
-   * server configured (status only — never the SMTP password / Resend API key, see
-   * `CompanyMailSettingsStatus`'s own header). Absent/`configured: false` means sends for this company
-   * fall back to this INSTANCE's own provider (`MailService#sendForCompany`'s own cascade).
+   * GET /api/company/mail-settings — the company-level step of the mail-server cascade: whether this
+   * company has its OWN mail server configured (status only — never the SMTP password / Resend API
+   * key, see `CompanyMailSettingsStatus`'s own header). Absent/`configured: false` means sends for this
+   * company fall back to this INSTANCE's own provider (`MailService#sendForCompany`'s own cascade).
    */
   @Get('mail-settings')
   @ApiOperation({

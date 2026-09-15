@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — the last of the five. A company connects Stripe
+ * Online payment ("paiement en ligne") — the last of the five. A company connects Stripe
  * (fake test-mode credentials, through the real Settings → Payments screen), an invoice gains a Pay
  * link in the client portal, clicking it opens a REAL checkout session against the backend's own
  * `NODE_ENV=test` fake Stripe client (no network, no account — see `stripe-checkout-client.ts`'s own
@@ -109,7 +109,7 @@ function inviteToPortal(clientId: string): Cypress.Chainable<string> {
 		.its("body.token") as Cypress.Chainable<string>;
 }
 
-describe("Online payment (TODO_FEATURES.md rank 1)", () => {
+describe("Online payment — Stripe", () => {
 	beforeEach(() => {
 		cy.login();
 	});

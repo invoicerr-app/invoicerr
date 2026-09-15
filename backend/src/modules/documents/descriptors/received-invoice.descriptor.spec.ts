@@ -57,7 +57,7 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     );
   });
 
-  it('"purchaseOrder" is an optional reference to the "purchase-order" entity — TODO_FEATURES.md rank 19', () => {
+  it('"purchaseOrder" is an optional reference to the "purchase-order" entity', () => {
     const descriptor = buildReceivedInvoiceDescriptor();
     const purchaseOrder = descriptor.fields.find((f) => f.key === 'purchaseOrder');
     expect(purchaseOrder?.kind).toBe('reference');

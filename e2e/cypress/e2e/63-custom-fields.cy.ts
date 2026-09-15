@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — proven THROUGH THE SCREEN like the rest of this
+ * Custom fields ("champs personnalisés") — proven THROUGH THE SCREEN like the rest of this
  * suite: ACTIONS go through the interface (Settings -> Custom fields to define, the expense/client
  * forms to fill), content ASSERTIONS go through the API. Backend module:
  * `backend/src/modules/documents/company-custom-fields/`.
@@ -113,7 +113,7 @@ function createDefinitionThroughScreen(input: {
 	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 }
 
-describe("Custom fields (rank 15) — settings-defined, appear on the form/list/PDF", () => {
+describe("Custom fields — settings-defined, appear on the form/list/PDF", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});

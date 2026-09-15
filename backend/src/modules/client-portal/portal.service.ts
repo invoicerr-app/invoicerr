@@ -47,7 +47,7 @@ export interface PortalQuoteRow {
 }
 
 /**
- * The client-facing half of the client portal (TODO_FEATURES.md rank 3) — every method takes BOTH
+ * The client-facing half of the client portal — every method takes BOTH
  * `companyId` AND `clientId` (the two halves `ActivePortalClient` resolves from the caller's own
  * bearer token, never from a request parameter) and scopes every read/write by both. This is the
  * actual enforcement of the security boundary the portal exists to hold: a document is reachable
@@ -180,7 +180,7 @@ export class PortalService {
   }
 
   /**
-   * TODO_FEATURES.md rank 1 ("paiement en ligne") — opens (or reuses) a Stripe Checkout session for
+   * Online payment ("paiement en ligne") — opens (or reuses) a Stripe Checkout session for
    * one of THIS client's own invoices. `assertVisibleToClient(..., 'invoice', ...)` is what stands in
    * for the ownership/visibility check every other write in this class already runs through (see this
    * class's own header) — a 404, never a 403, for an invoice belonging to another client of this same

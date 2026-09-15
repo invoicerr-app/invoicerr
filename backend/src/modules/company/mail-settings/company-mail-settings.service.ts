@@ -1,6 +1,7 @@
 /**
- * The WRITE side (plus status + test-send) of a company's own mail-server override —
- * TODO_FEATURES.md entry G. Backs `PUT`/`DELETE`/`GET`/`POST test` on `company.controller.ts`
+ * The WRITE side (plus status + test-send) of a company's own mail-server override — the
+ * company-level step of the mail-server cascade (société → instance → refus nommé). Backs
+ * `PUT`/`DELETE`/`GET`/`POST test` on `company.controller.ts`
  * (`Controller → Service → Prisma`: this is the only place that touches `ChannelCredentialsService`
  * for the `'mail'` provider id — the controller never does). The READ side used at actual send time
  * lives in the sibling `company-mail-settings.resolver.ts` — split there specifically so

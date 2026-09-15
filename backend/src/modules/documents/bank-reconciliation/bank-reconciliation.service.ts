@@ -81,7 +81,8 @@ export interface StatementLinesView {
 }
 
 /**
- * TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé"). Controller -> Service ->
+ * Bank reconciliation via statement import ("rapprochement bancaire par import de relevé"). Controller
+ * -> Service ->
  * Prisma, same as every other module here — but `reconcileLine` below is the ONE place this service
  * does NOT reach `DocumentPayment` directly: it calls `DocumentsService.runAction('invoice',
  * 'record-payment', …)`, the exact SAME action a hand-entered payment goes through

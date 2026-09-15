@@ -50,7 +50,7 @@ function withRate(project: RawProject, currency: string): ProjectWithRate {
 }
 
 /**
- * TODO_FEATURES.md rank 11 — the layer between Client and TimeEntry. See this file's own
+ * Time tracking & project invoicing — the layer between Client and TimeEntry. See this file's own
  * schema.prisma comment (Project model) for WHY a project layer exists at all rather than either of
  * the two cheaper shapes: entries straight on Client (an agency running two concurrent engagements
  * for the SAME client could never separate their hours) or entries hanging off an existing quote (the

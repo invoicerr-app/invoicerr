@@ -42,7 +42,7 @@ function publicUrlFor(path: string): string {
 }
 
 /**
- * "Invite to portal" — the staff-facing half of the client portal (TODO_FEATURES.md rank 3), on the
+ * "Invite to portal" — the staff-facing half of the client portal, on the
  * EXACT model of `ShareLinkDialog`: create a long-lived link (shown, and copyable, ONCE — the backend
  * never lets it be re-consulted), list/revoke the client's currently active invites. The backend also
  * best-effort emails the link to the client's own `contactEmail` — this dialog surfaces that outcome

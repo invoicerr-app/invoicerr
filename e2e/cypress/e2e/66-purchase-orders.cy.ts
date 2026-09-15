@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 19 ("bons de commande / achats fournisseurs") — FIRST PASS: EMITTING a
+ * Purchase orders / supplier billing ("bons de commande / achats fournisseurs") — FIRST PASS: EMITTING a
  * purchase order (create, send, cancel). The 3-way match against a received invoice is a
  * deliberately separate, second pass — see purchase-order.descriptor.ts's own header.
  *

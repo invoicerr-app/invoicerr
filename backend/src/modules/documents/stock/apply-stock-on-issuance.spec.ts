@@ -158,7 +158,7 @@ describe('applyStockOnIssuance (thin Prisma writer)', () => {
     expect(prisma.article.update).not.toHaveBeenCalled();
   });
 
-  // TODO_ISSUES.md's "hiddenReference n'est pas couvert" finding: a line's `articleId` is a
+  // The `hiddenReference` gap ("hiddenReference n'est pas couvert"): a line's `articleId` is a
   // 'hiddenReference', never scoped by `validate-references.ts` (nested rows are out of that pass's
   // scope — see that file's own header). This proves the READ side closes the gap anyway, at the ONE
   // consumer that would actually cost something if it didn't: even a REAL, stock-tracked article

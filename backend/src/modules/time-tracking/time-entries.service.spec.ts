@@ -1,8 +1,9 @@
 /**
  * TimeEntriesService in isolation, mocked at `@/prisma/prisma.service` — same discipline
  * articles.service.spec.ts/projects.service.spec.ts already hold. `billToInvoice` is the property
- * this whole feature exists to guarantee (TODO_FEATURES.md rank 11: "that last property is the one
- * to test hardest — double-billing a client is the failure that matters"), so it gets the deepest
+ * this whole feature exists to guarantee (time tracking & project invoicing's own rationale: "that
+ * last property is the one to test hardest — double-billing a client is the failure that matters"),
+ * so it gets the deepest
  * coverage here: every pre-flight refusal, the happy path's exact persisted shape, AND the real
  * concurrency guard — simulated by making the mocked `$transaction`'s own `timeEntry.updateMany`
  * claim FEWER rows than requested, exactly what a genuine Postgres race would produce (see

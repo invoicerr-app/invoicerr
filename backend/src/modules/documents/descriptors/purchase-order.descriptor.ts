@@ -7,7 +7,7 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
 
 /**
- * TODO_FEATURES.md rank 19 ("bons de commande / achats fournisseurs") — the SIXTH type written
+ * Purchase orders & goods receipts ("bons de commande / achats fournisseurs") — the SIXTH type written
  * entirely as data, on the model of quote.descriptor.ts (the closest sibling: a document this company
  * ISSUES to a single counterparty, sent by email, with no compliance/tax engine involvement). This is
  * the FIRST PASS only: EMITTING a purchase order. The second pass — reconciling a received invoice

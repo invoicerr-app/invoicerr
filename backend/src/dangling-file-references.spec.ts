@@ -22,11 +22,12 @@ import * as ts from 'typescript';
  *  - Only looks INSIDE comments — via the TypeScript parser's own token trivia, so a `//` inside a
  *    string literal or a URL is never mistaken for a comment start. An import path is already
  *    checked by `tsc` itself and would fail the build long before this test runs.
- *  - Only a candidate containing at least one "/" counts as a path. A bare filename
- *    ("TODO_ISSUES.md", "CLAUDE.md") is how this codebase deliberately cites its own root-level
- *    docs from inside source comments, and is not "unambiguously" one specific file the way a
- *    multi-segment path is — treating it as one would flag dozens of legitimate citations for every
- *    real one.
+ *  - Only a candidate containing at least one "/" counts as a path. A bare filename ("CLAUDE.md") is
+ *    how this codebase deliberately cites its own root-level docs from inside source comments, and is
+ *    not "unambiguously" one specific file the way a multi-segment path is — treating it as one would
+ *    flag dozens of legitimate citations for every real one. (A tracking file shaped like
+ *    `TODO_<NAME>.md` is also a bare filename by this same rule, but backend/src never cites one — see
+ *    the separate guard below.)
  *  - A candidate resolves if ANY file this repo currently tracks (or holds, uncommitted, as a plain
  *    working-tree file — `git ls-files -c -o --exclude-standard`) ends with that candidate as a
  *    "/"-delimited suffix. Comments here cite paths several different ways — from the repo root,
@@ -378,6 +379,43 @@ describe('dangling file references in comments', () => {
     throw new Error(
       `Found ${findings.length} comment(s) citing a file path that does not exist in this repository ` +
         `(checked against \`git ls-files -c -o --exclude-standard\`):\n${report}\n\n${fixAdvice}`,
+    );
+  });
+});
+
+/** This repo's TODO_<NAME>.md tracking files (currently two of them) point AT the code — never the
+ *  other way around (owner rule, 2026-09-15): a comment, a test name, or a catalog's own
+ *  `notes`/`resolutionNote` field must carry the reasoning itself, not a pointer to whichever tracking
+ *  file happens to enumerate it today, which a rename, a merge, or an item closing would silently
+ *  orphan. Matches ANY TODO_<NAME>.md-shaped citation, not just today's two, so a future tracking file
+ *  falls under the same rule without this test needing to learn its name. Written with the pattern
+ *  spelled `[A-Z]+` rather than the two current names, on purpose: a literal match here would trip
+ *  this very guard on itself. */
+const TRACKING_FILE_CITATION_RE = /\bTODO_[A-Z]+\.md\b/g;
+
+describe('no tracking-file citations under backend/src', () => {
+  it('never cites a TODO_<NAME>.md tracking file from inside backend/src', () => {
+    const findings: Finding[] = [];
+    for (const relPath of listRepoFiles()) {
+      if (!relPath.startsWith('backend/src/')) continue;
+      // This spec's own header explains the pattern it guards against, which needs to describe a
+      // TODO_<NAME>.md shape without ever spelling out a real one — excluded rather than risk this
+      // guard tripping on its own explanation the next time that header is edited.
+      if (relPath.endsWith('/dangling-file-references.spec.ts')) continue;
+      const absolutePath = resolve(REPO_ROOT, relPath);
+      if (!existsSync(absolutePath)) continue; // deleted-but-still-tracked — see the guard above
+      const sourceText = readFileSync(absolutePath, 'utf8');
+      for (const match of matchAll(TRACKING_FILE_CITATION_RE, sourceText)) {
+        findings.push({ file: relPath, line: lineNumberAt(sourceText, match.index), candidate: match[0] });
+      }
+    }
+    if (findings.length === 0) return;
+
+    const report = findings.map((f) => `  ${f.file}:${f.line} -> ${f.candidate}`).join('\n');
+    throw new Error(
+      `Found ${findings.length} tracking-file citation(s) under backend/src (the tracking file points ` +
+        `at the code, never the other way around — keep the WHY in the comment/test/data and drop the ` +
+        `pointer):\n${report}`,
     );
   });
 });

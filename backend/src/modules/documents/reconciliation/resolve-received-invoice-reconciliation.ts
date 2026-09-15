@@ -1,5 +1,6 @@
 /**
- * TODO_FEATURES.md rank 19, second pass — the WIRING layer: turns one received invoice, the purchase
+ * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * WIRING layer: turns one received invoice, the purchase
  * order it references, and every RECORDED goods receipt against that same purchase order into
  * `three-way-match.ts`'s own plain input shape, runs the pure engine, then layers this company's own
  * stored acceptance (`variance-acceptance.ts`) on top — the exact same three-step shape

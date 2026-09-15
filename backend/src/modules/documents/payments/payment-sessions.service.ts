@@ -60,7 +60,7 @@ export interface InvoiceCheckoutSessionResult {
 }
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne"). Three decisions this class embodies — spelled out
+ * Online payment ("paiement en ligne"). Three decisions this class embodies — spelled out
  * here once rather than re-derived at every call site:
  *
  *  1. PROVIDER SHAPE: a `PaymentProvider` (`provider.ts`) resolved through `PaymentProviderRegistry` —

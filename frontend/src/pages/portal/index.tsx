@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils"
 import type { ClientStatementCurrencyTotals, ClientStatementDocumentRow, PortalQuoteRow } from "@/types"
 
 /**
- * The authenticated client portal (TODO_FEATURES.md rank 3) — the client's own space: every document
+ * The authenticated client portal — the client's own space: every document
  * they can see (`clientVisible` — see the backend's own `DocumentStatusDescriptor` header), their
  * balance (`GET /api/portal/statement`, exactly `resolveClientStatement`'s own output, never
  * recomputed here), and their quotes, with "request a signature" (the EXISTING, OTP-hardened flow —
@@ -91,7 +91,7 @@ async function downloadPortalPdf(typeId: string, id: string, errorMessage: strin
 }
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — the Pay link. Shown only for an invoice
+ * The online-payment Pay link. Shown only for an invoice
  * (`row.typeId === "invoice"`, never a quote or a credit note) still carrying an outstanding balance.
  * Opens the provider's own hosted checkout page in a NEW TAB (`window.open`, the exact same mechanism
  * `downloadPortalPdf` right above already uses for an external artifact) rather than a full-page
@@ -208,7 +208,7 @@ export default function ClientPortalDashboard() {
   const statement = usePortalStatement(hasToken && !!profile.data)
   const quotes = usePortalQuotes(hasToken && !!profile.data)
 
-  // TODO_FEATURES.md rank 1 ("paiement en ligne") — the return leg of a Pay redirect
+  // The return leg of the online-payment Pay redirect
   // (`PayButton`'s own `successUrl`/`cancelUrl`). Purely a UX courtesy: the query flag is NEVER trusted
   // as proof of payment (a client could type `?payment=success` into the address bar for nothing) — it
   // only decides which toast to show and whether to ask `GET .../statement` for a fresh read, the same

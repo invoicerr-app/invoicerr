@@ -1,5 +1,6 @@
 /**
- * TODO_FEATURES.md rank 19, second pass — the ACCEPTANCE record: "Un écart est accepté par OWNER ou
+ * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * ACCEPTANCE record: "Un écart est accepté par OWNER ou
  * ADMIN, tracé : qui, quand" (product decision, 2026-09-15). ONE acceptance per received invoice, for
  * the WHOLE reconciliation — not per line: the screen offers a single "Accept the variance" button
  * (`document-reconciliation-section.tsx`), so there is exactly one decision to record, the same

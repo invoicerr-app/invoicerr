@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — proven THROUGH THE SCREEN, like
+ * Expense attachments, category, and mileage ("notes de frais enrichies") — proven THROUGH THE SCREEN, like
  * 17-document-descriptor.cy.ts and the rest of this suite: ACTIONS go through the interface, content
  * ASSERTIONS go through the API. The three new expense fields this rank added
  * (`descriptors/expense.descriptor.ts`): `attachment` (the 12th core field kind, 'file'), `category`
@@ -91,7 +91,7 @@ function saveDraft() {
 	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 }
 
-describe("Expense attachments, category, and mileage (rank 13)", () => {
+describe("Expense attachments, category, and mileage", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});
@@ -154,8 +154,8 @@ describe("Expense attachments, category, and mileage (rank 13)", () => {
 			});
 
 			// The chosen category flows through to the Statistics screen's own detailed table
-			// (contributions/expense-contributions.ts) — the e2e proof TODO_FEATURES.md's own rank 13
-			// entry names explicitly.
+			// (contributions/expense-contributions.ts) — the e2e proof this feature's own brief
+			// (enriched expense notes, "notes de frais enrichies") names explicitly.
 			cy.request<{ id: string; kind: string; rows: Record<string, unknown>[] }[]>({
 				url: `${api}/api/documents/statistics`,
 			})

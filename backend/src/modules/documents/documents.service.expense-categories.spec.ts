@@ -24,7 +24,7 @@ jest.mock('./persistence');
 jest.mock('./country-policy/country-policy');
 
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — product decision 2026-09-15. Proves
+ * Enriched expense categories ("notes de frais enrichies") — product decision 2026-09-15. Proves
  * `DocumentsService` actually composes a company's own expense category DEFINITIONS onto the
  * "category" field's `options`, on BOTH `describeTypeForCompany` (the create/edit FORM) and
  * `runAction` (what actually gets VALIDATED) — the field-level analogue
@@ -83,7 +83,7 @@ const baseExpenseData = {
   date: '2026-01-15',
 };
 
-describe('DocumentsService — wiring expense categories (TODO_FEATURES.md rank 13) into the expense type', () => {
+describe('DocumentsService — wiring expense categories into the expense type', () => {
   let companyId: string;
 
   beforeAll(async () => {

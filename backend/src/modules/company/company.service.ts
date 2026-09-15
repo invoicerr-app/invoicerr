@@ -296,7 +296,7 @@ export class CompanyService {
     // (a no-op entirely when billing is disabled, never throws).
     await syncCompanySeatsOnMembershipChange(newCompany.id);
 
-    // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — this brand-new company's default
+    // Enriched expense categories ("notes de frais enrichies") — this brand-new company's default
     // expense category set (the ten categories + "Other" `expense.descriptor.ts` used to hardcode).
     // Idempotent (`ensureDefaultExpenseCategoriesSeeded`'s own header) — count is trivially 0 here, so
     // this always inserts; the SAME function also runs lazily, on first read, for a company that

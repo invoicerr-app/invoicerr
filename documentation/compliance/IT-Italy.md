@@ -70,10 +70,10 @@ cannot represent both roles at once.
 
 **Not declared here, deliberately**: the *Codice Destinatario* / PEC (the recipient's SdI routing
 code). It is transmission data, not party identity, and it is established by the FatturaPA technical
-specifications rather than by DPR 633/1972's own invoice-content article. A consequence worth knowing
-is recorded in the repository's `TODO_ISSUES.md`: there is currently no screen on which to enter it
-for an ordinary business client, so a domestic Italian B2B invoice routes with the placeholder
-reserved for recipients with no Italian code.
+specifications rather than by DPR 633/1972's own invoice-content article. A consequence worth
+knowing: there is currently no screen on which to enter it for an ordinary business client, so a
+domestic Italian B2B invoice routes with the placeholder reserved for recipients with no Italian
+code.
 
 ## Correcting or cancelling an invoice
 

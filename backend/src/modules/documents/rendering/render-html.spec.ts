@@ -994,11 +994,11 @@ describe('renderDocumentHtml', () => {
     });
   });
 
-  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — `language` translates ONLY this
+  // Per-recipient document language ("langue du document par destinataire") — `language` translates ONLY this
   // render layer's OWN chrome vocabulary (`language/pdf-chrome-strings.ts`); `descriptor.label`/
   // `field.label`/`option.label` stay exactly what the descriptor wrote, in every test below, proving
   // the split described in that field's own header (types.ts) holds in practice, not just in comments.
-  describe('recipient language (rank 14)', () => {
+  describe('recipient language', () => {
     const totalsFixture = {
       currency: 'EUR',
       lines: [],

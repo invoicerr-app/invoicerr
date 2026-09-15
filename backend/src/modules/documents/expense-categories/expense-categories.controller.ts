@@ -9,7 +9,7 @@ import { ExpenseCategoriesService } from './expense-categories.service';
 import { CreateExpenseCategoryInput, UpdateExpenseCategoryInput } from './types';
 
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the settings screen's own controller for
+ * Enriched expense categories ("notes de frais enrichies") — the settings screen's own controller for
  * the per-company expense category list, product decision 2026-09-15 (see `persistence.ts`'s own
  * header for the full "why"). Nested under `documents/` (`/api/documents/expense-categories`, not a
  * bespoke top-level path the way `PaymentMethodsController`/`CompanyCustomFieldsController` are) since

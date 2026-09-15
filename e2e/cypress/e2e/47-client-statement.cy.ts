@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Client account statement (TODO_FEATURES.md rank 6, ⚡) — an aggregated view per client: open
+ * Client account statement — an aggregated view per client: open
  * invoices, balance, and aged balance (current / 0-30 / 31-60 / 60+). The aggregation (buckets,
  * company isolation) is covered in jest (`settlement/client-statement.spec.ts`); here the real
  * journey is proven: two "sent" invoices with different due dates → the endpoint sorts them into

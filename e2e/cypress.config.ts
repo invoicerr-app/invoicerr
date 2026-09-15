@@ -143,7 +143,7 @@ export default defineConfig({
             // `migrations.seed` hook — see prisma.config.ts) — a JSON-only edit to
             // `country-policy/data/*.json` reached neither an already-migrated e2e database nor a
             // simply-restarted dev backend without someone remembering to run `prisma db seed` by
-            // hand, and silently 403'd every document action in the meantime (TODO_ISSUES.md's
+            // hand, and silently 403'd every document action in the meantime (the bug this fix closed:
             // "`resetAndSeed` ne re-sème pas la politique pays"). `B2gRoutingRule` never had that
             // problem: it was always upserted at BACKEND BOOT (`B2gRoutingBootUpsertService`, an
             // `OnModuleInit` — see `schema.prisma`'s own comment on that model). Both other tables
@@ -298,7 +298,7 @@ export default defineConfig({
         },
 
         /**
-         * TODO_FEATURES.md rank 1 ("paiement en ligne") — `60-online-payment.cy.ts`'s ONE piece of
+         * Online payment ("paiement en ligne") — `60-online-payment.cy.ts`'s ONE piece of
          * Node-side help: a real `Stripe-Signature` header, computed exactly the way the backend's own
          * `stripe-signature.ts#verifyStripeSignature` verifies one (HMAC-SHA256 over
          * `${timestamp}.${payload}`), using node's own `crypto` — the browser has no `node:crypto`, and

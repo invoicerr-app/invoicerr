@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Per-company mail server (`Settings > Mail`, `/settings/mail` tab) — TODO_FEATURES.md entry G. The
+ * Per-company mail server (`Settings > Mail`, `/settings/mail` tab). The
  * backend's société → instance → refus-nommé cascade (`MailService#sendForCompany`, commits
  * f1ed72e4/63b42ef9) already governs every send in this repo; before this screen existed, a company
  * had no way to ever reach the "société" branch of it.

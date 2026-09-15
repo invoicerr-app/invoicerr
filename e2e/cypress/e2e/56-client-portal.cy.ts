@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * The authenticated client portal (TODO_FEATURES.md rank 3) — a client with an invoice AND a quote
+ * The authenticated client portal — a client with an invoice AND a quote
  * signs in through a company-issued invite link (no staff session, no per-document email — the exact
  * friction share-link/signature both still have), sees their own documents and balance, and responds
  * to a quote. Two disciplines this suite already holds elsewhere, both proven here:

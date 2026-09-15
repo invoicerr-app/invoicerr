@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * "Automatic reminders" toggle in Settings (rank 2, continued) — exposes the
+ * "Automatic reminders" toggle in Settings — exposes the
  * `Company.remindersEnabled` flag (which gates the reminder sweep) in the UI. The sweep's own LOGIC
  * is already covered elsewhere; here it is just proven that the flag round-trips through the API and
  * that the on-screen toggle reflects its state. Discipline: action/reread via the API, reflection

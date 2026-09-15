@@ -16,8 +16,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  1. draft created by the API, sent by a REAL click (transport "email" configured beforehand);
  *  2. a PARTIAL payment of 60 € through the action dialog (real fields) → "Partially paid" badge,
  *     exact balance verified by the API (computed by hand here, not copied from the code);
- *  3. the payment completed (60 € more) → "Settled" badge (renamed from "Paid" — root TODO item 8,
- *     "reconciliation": see 25-document-settlement.cy.ts), `outstandingMinor: 0`;
+ *  3. the payment completed (60 € more) → "Settled" badge (renamed from "Paid" as part of
+ *     reconciliation: see 25-document-settlement.cy.ts), `outstandingMinor: 0`;
  *  4. a payment in another currency (USD) is refused — visible on screen (error message), with
  *     no effect at all on the already-recorded balance;
  *  5. on a draft, the action is not offered on screen, and the API refuses it too (409).

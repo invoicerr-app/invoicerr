@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Generic CSV accounting export (TODO_FEATURES.md rank 4) — an export over a period produces a CSV
+ * Generic CSV accounting export — an export over a period produces a CSV
  * where each row is a real invoice / credit note / payment, amounts consistent with the settlement
  * pipeline. RFC-4180 escaping and amount consistency are covered/bitten in jest
  * (`accounting-export/*.spec.ts`, including credit-note rows); here we prove the real endpoint

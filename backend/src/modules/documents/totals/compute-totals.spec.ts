@@ -177,7 +177,7 @@ describe('computeDocumentTotals', () => {
   it('a line shape with NO vat-like select field at all (e.g. purchase-order.descriptor.ts) never warns — net === gross', () => {
     // Hand-built, not `buildTestDescriptor()`: that helper always adds a `vatRate` select subfield —
     // this test is exactly for the type that has none at all (see compute-totals.ts's own header on
-    // `extractVatRate`, TODO_FEATURES.md rank 19).
+    // `extractVatRate`, purchase orders & goods receipts).
     const descriptor: DocumentTypeDescriptor = {
       id: 'test-type',
       label: 'Test Type',

@@ -1,5 +1,5 @@
 /**
- * The client portal (TODO_FEATURES.md rank 3) — mirrors the backend's own
+ * The client portal — mirrors the backend's own
  * `client-portal/portal-tokens.service.ts` (staff-facing invite CRUD) and `client-portal/portal.service.ts`
  * (the client-facing read/respond surface) shapes, the same "one interface per backend response shape"
  * convention `types/client.ts` already holds for `ClientStatement`.
@@ -52,7 +52,7 @@ export interface PortalQuoteRow {
 }
 
 /** What `POST /api/portal/documents/invoice/:id/checkout-session` returns — mirrors the backend's
- *  `InvoiceCheckoutSessionResult` (TODO_FEATURES.md rank 1, "paiement en ligne"). Nothing but a URL:
+ *  `InvoiceCheckoutSessionResult`, the online-payment checkout session. Nothing but a URL:
  *  the payment page itself is the provider's own hosted surface, never rendered by this app. */
 export interface PortalCheckoutSession {
   checkoutUrl: string

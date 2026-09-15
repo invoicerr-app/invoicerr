@@ -9,7 +9,7 @@ import { ProjectList } from "./_components/project-list"
 import { TimeEntryList } from "./_components/time-entry-list"
 
 /**
- * TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets"). Two panels, generic on
+ * Time tracking & project billing. Two panels, generic on
  * purpose the way every other CRUD screen in this app is (articles, clients): the left/top one lists
  * Projects (this company's billing buckets per client — see Project's own schema comment for why that
  * layer exists), the bottom one shows the SELECTED project's own logged time and is where an invoice

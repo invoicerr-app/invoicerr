@@ -539,11 +539,11 @@ export class DocumentsService implements OnModuleInit {
    *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
    *        field like the invoice line's `vatRate`.
    *     2. `expense-categories/persistence.ts#applyExpenseCategoriesView` — this company's own ACTIVE
-   *        expense categories (TODO_FEATURES.md rank 13, product decision 2026-09-15), patched onto
+   *        expense categories (enriched expense categories, product decision 2026-09-15), patched onto
    *        the "category" field's `options` via a `country-fields/apply-overlay.ts` 'modify' operation
    *        — a no-op for every type but "expense" (see that function's own header).
    *     3. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` — this company's own
-   *        ACTIVE custom field definitions (TODO_FEATURES.md rank 15), appended as plain `add`
+   *        ACTIVE custom field definitions (custom fields), appended as plain `add`
    *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
    *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
    *        that happens to be scoped by company instead of by country — see that function's own
@@ -626,7 +626,7 @@ export class DocumentsService implements OnModuleInit {
       fieldOverlayCatalog: this.countryFieldOverlayCatalog,
       vatRateCatalog: this.vatRateCatalog,
     });
-    // TODO_FEATURES.md rank 13 — this company's own expense categories, patched onto the "category"
+    // Enriched expense categories — this company's own expense categories, patched onto the "category"
     // field's `options` (a no-op for every type other than "expense" — see that module's own header).
     // Composed BEFORE custom fields: both are company-level overlays on the SAME company-view fields,
     // and neither can collide (this one 'modify's a NATIVE key, custom fields only ever 'add's a
@@ -929,9 +929,9 @@ export class DocumentsService implements OnModuleInit {
     // The FIELDS this company actually gets — the SAME view describeTypeForCompany hands the frontend
     // (that method's own header): the country-field-overlay + VAT-rate-catalog view
     // (descriptors/company-view.ts), THEN this company's own expense categories where applicable
-    // (expense-categories/persistence.ts#applyExpenseCategoriesView, TODO_FEATURES.md rank 13, a no-op
-    // outside typeId "expense"), THEN this company's own ACTIVE custom field definitions
-    // (company-custom-fields/persistence.ts#applyCompanyCustomFieldsView, TODO_FEATURES.md rank 15)
+    // (expense-categories/persistence.ts#applyExpenseCategoriesView, enriched expense categories, a
+    // no-op outside typeId "expense"), THEN this company's own ACTIVE custom field definitions
+    // (company-custom-fields/persistence.ts#applyCompanyCustomFieldsView, custom fields)
     // composed on top of it. Validating against the BASE descriptor.fields here would let a scripted
     // client bypass whatever a country's overlay added/required (or accept a value a REMOVEd field
     // could no longer carry), post an archived/nonexistent expense category, and skip a company's own

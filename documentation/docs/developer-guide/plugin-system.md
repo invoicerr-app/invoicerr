@@ -90,6 +90,5 @@ no real extension point behind it — the only two generic consumers a loaded pl
 (`canGenerateXml`/`generateXml`) were permanent stubs (`return false` / `throw`), so an externally
 installed plugin could not actually do anything. Keeping a code-loading endpoint alive with no
 capability behind it was pure attack surface (arbitrary Git URL → arbitrary code execution in the
-backend process) for zero product value. See `TODO_ISSUES.md`, "Le système de plugins, vu par son
-premier vrai consommateur" for the investigation that led to this decision, and the section above
-for the extensibility path that replaces it. Nothing about in-app plugins changed.
+backend process) for zero product value. See the section above for the extensibility path that
+replaces it. Nothing about in-app plugins changed.

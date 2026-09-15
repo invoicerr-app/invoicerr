@@ -28,15 +28,15 @@ export interface Client {
   state?: string
   country?: string
   countryCode?: string | null
-  // TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the language THIS client's
-  // documents (PDF + covering email) render in. `null`/absent falls back to the company's own default
-  // language, then to English — see the backend's `Client.language` schema.prisma comment and
+  // The document language for THIS client — which language their documents (PDF + covering email)
+  // render in. `null`/absent falls back to the company's own default language, then to English — see
+  // the backend's `Client.language` schema.prisma comment and
   // documents/rendering/language/resolve-recipient-language.ts for the full resolution order.
   language?: string | null
   currency?: string // Assuming currency is a string, e.g., "USD", "EUR"
   isActive?: boolean
   partyIdentifiers?: PartyIdentifier[]
-  // TODO_FEATURES.md rank 15 ("champs personnalisés") — one entry per company-defined CLIENT-target
+  // This company's custom fields for this client — one entry per company-defined CLIENT-target
   // custom field, keyed by that definition's own immutable `key` (never prefixed — see the backend's
   // own `Client.customFields` schema.prisma header). Absent/`{}` for a client with none filled in yet.
   customFields?: Record<string, unknown>

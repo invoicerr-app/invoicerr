@@ -2,7 +2,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTranslation } from "react-i18next"
 
 /**
- * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — mirrors the backend's own
+ * Document language per recipient ("langue du document par destinataire") — mirrors the backend's own
  * `documents/rendering/language/supported-languages.ts#SUPPORTED_RENDER_LANGUAGES` exactly: offering a
  * language here that render layer has no chrome/email translations for would let a user pick a choice
  * that silently falls back to English at render time, which is worse than not offering it at all.

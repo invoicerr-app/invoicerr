@@ -1,5 +1,5 @@
 /**
- * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — the closed set of languages the
+ * Per-recipient document language ("langue du document par destinataire") — the closed set of languages the
  * PDF/email render layer actually carries a translation for. Deliberately the five in-scope countries
  * (see CLAUDE.md's own "documents module" header — FR/PL/IT/PT/DE) plus 'en', the language every
  * hardcoded string in this render layer was already written in before this feature existed: adding

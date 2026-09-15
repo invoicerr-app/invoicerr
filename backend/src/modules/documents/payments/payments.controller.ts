@@ -6,7 +6,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { PaymentSessionsService } from './payment-sessions.service';
 
 /**
- * TODO_FEATURES.md rank 1 ("paiement en ligne") — the STAFF-facing half. Company-authenticated
+ * Online payment ("paiement en ligne") — the STAFF-facing half. Company-authenticated
  * (`@ActiveCompany()`, the global `AuthGuard`/`RolesGuard` apply as usual — no `@Public()` here),
  * unlike `PaymentsWebhookController` right next to it. A bespoke top-level path (`/payments/...`),
  * never folded into `documents.controller.ts`'s own generic `:id/...` routes — the same

@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Multi-currency (root TODO, item 9) — proven through the screen, not only in memory.
+ * Multi-currency consolidation — proven through the screen, not only in memory.
  *
  * The rule that comes first, written for this file as much as for the code it tests: a conversion
  * is a piece of information, never a replacement. Every assertion that matters here reads either

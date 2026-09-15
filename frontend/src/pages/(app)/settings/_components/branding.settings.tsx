@@ -41,8 +41,8 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * Company settings → Branding (`/settings/branding`, chantier B / TODO_FEATURES.md rank 16,
- * 2026-09-15 product decision). The PDF itself stays a FIXED document — nothing here edits its
+ * Company settings → Branding (`/settings/branding`, 2026-09-15 product decision). The PDF itself
+ * stays a FIXED document — nothing here edits its
  * content or layout; only THREE brand fields do: logo, one accent color, one font from a closed
  * catalog — plus named presets that set the last two at once. `GET /api/company/branding` is the
  * single source of truth for BOTH catalogs (`status.presets`/`status.fonts`), never duplicated here.

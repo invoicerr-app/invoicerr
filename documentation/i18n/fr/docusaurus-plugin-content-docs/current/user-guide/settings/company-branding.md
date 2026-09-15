@@ -41,6 +41,6 @@ section **modèles PDF** (typographie, couleurs, marges, libellés personnalisé
 
 Ces descriptions ne correspondaient pas à l'application : les champs ou bien n'existent pas, ou bien
 ne sont pas stockés, ou bien ne sont lus par rien de ce qui produit un document. Elles ont donc été
-retirées plutôt que maintenues. Ces écarts sont suivis comme défauts dans le `TODO_ISSUES.md` du
+retirées plutôt que maintenues. Ces écarts sont suivis comme défauts dans le `TODO_FEATURES.md` du
 dépôt. Le jour où une capacité existe vraiment, elle est de nouveau documentée ici : cette page décrit
 ce que le produit fait, jamais ce qu'on attend de lui.

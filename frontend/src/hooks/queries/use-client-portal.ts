@@ -49,7 +49,7 @@ export function useRefusePortalQuote() {
   )
 }
 
-/** TODO_FEATURES.md rank 1 ("paiement en ligne") — the Pay button's own mutation. Never invalidates
+/** The online-payment Pay button's own mutation. Never invalidates
  *  the statement: opening a session changes NOTHING about the balance (only a verified webhook does —
  *  see the backend's own `PaymentSessionsService` header), so re-fetching it here would be pure waste. */
 export function useCreatePortalCheckoutSession() {

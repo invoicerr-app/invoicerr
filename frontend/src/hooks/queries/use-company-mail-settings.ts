@@ -1,7 +1,7 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 
 /**
- * This company's OWN mail-server override — TODO_FEATURES.md entry G. Mirrors
+ * This company's OWN mail-server override. Mirrors
  * `backend/src/modules/company/mail-settings/company-mail-settings.types.ts` (wire shapes,
  * deliberately duplicated rather than shared — see `use-company-custom-fields.ts`'s own header for
  * why). `CompanyMailSettingsStatus` NEVER carries a secret: `GET /api/company/mail-settings` reports

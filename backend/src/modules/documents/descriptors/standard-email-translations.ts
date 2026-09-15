@@ -2,7 +2,7 @@ import { DocumentEmailTemplate } from './types';
 import { RenderLanguage } from '../rendering/language/supported-languages';
 
 /**
- * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — `invoice.descriptor.ts` and
+ * Per-recipient document language ("langue du document par destinataire") — `invoice.descriptor.ts` and
  * `quote.descriptor.ts` ship the EXACT SAME English `email` default, word for word (compare the two
  * files' own `email` blocks), so their translated variants are written ONCE here rather than twice —
  * kept in sync by construction, not by discipline. A future type with genuinely different wording

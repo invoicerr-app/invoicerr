@@ -485,7 +485,7 @@ export class DocumentsController {
     return this.documentsService.getReferenceFields(companyId, entity, refId);
   }
 
-  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — backs the 12th field kind, 'file'
+  // Enriched expense categories ("notes de frais enrichies") — backs the 12th field kind, 'file'
   // (descriptors/types.ts). Company-scoped only, deliberately never document-id-scoped — see
   // AttachmentsService's own header for why this stays as generic as 'reference's own
   // "references/:entity/..." routes right above, rather than a bespoke "expense attachment" endpoint.

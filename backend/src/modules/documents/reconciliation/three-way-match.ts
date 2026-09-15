@@ -1,5 +1,6 @@
 /**
- * TODO_FEATURES.md rank 19, second pass — the 3-WAY MATCH ENGINE: purchase order (BC) × goods
+ * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * 3-WAY MATCH ENGINE: purchase order (BC) × goods
  * receipt(s) × received invoice, PER LINE, matched by DESCRIPTION. A pure function, deliberately
  * knowing nothing about `DocumentInstance`, Prisma, or a company — the same "engine composes plain
  * data, never touches persistence itself" discipline `tax/tax-engine.ts` already holds for cross-

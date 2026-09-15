@@ -1,5 +1,5 @@
 /**
- * Chantier B (TODO_FEATURES.md rank 16, 2026-09-15 product decision) — "the PDF stays a FIXED
+ * Chantier B (2026-09-15 product decision) — "the PDF stays a FIXED
  * document, only THREE brand fields personalize it: logo, accent color, font". This is the
  * `Controller → Service → Prisma` surface for `Company.brandingLogoId`/`brandingAccentColor`/
  * `brandingFont`/`brandingPreset` — `branding.controller.ts` never touches Prisma or the logo store

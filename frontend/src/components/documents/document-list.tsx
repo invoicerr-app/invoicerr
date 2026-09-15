@@ -172,7 +172,7 @@ interface DocumentCustomFieldsInfoProps {
 }
 
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — the list's own counterpart to
+ * Custom fields ("champs personnalisés") — the list's own counterpart to
  * `DocumentCardSecondaryInfo` above, for a company's custom fields: same "<label>: <value>" shape,
  * same `DocumentFieldValue` renderer, same `hideWhenEmpty` skip (every company custom field descriptor
  * sets it unconditionally — see the backend's `company-custom-fields/types.ts#toFieldDescriptor`), so

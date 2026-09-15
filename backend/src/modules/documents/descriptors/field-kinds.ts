@@ -165,7 +165,7 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     typeof value === 'string' && value.length > 0 ? null : 'must reference an existing record.',
   );
 
-  // The 12th ("notes de frais enrichies", TODO_FEATURES.md rank 13) — a company-scoped attachment.
+  // The 12th — Enriched expense categories ("notes de frais enrichies") — a company-scoped attachment.
   // Purely structural, like every other kind here: only checks the shape `attachments/
   // attachments.service.ts` actually hands back (`{ fileRef, fileName, mime }`, three non-empty
   // strings) — never that the file still exists on disk, the SAME deliberate limitation 'reference'

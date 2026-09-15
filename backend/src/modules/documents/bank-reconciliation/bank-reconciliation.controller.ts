@@ -9,7 +9,8 @@ import { BankReconciliationService } from './bank-reconciliation.service';
 import { ImportBankStatementDto, ReconcileBankStatementLineDto } from './bank-reconciliation.dto';
 
 /**
- * TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé"). Three bespoke routes —
+ * Bank reconciliation via statement import ("rapprochement bancaire par import de relevé"). Three
+ * bespoke routes —
  * importing a statement and reconciling one line have no generic-document counterpart at all (the
  * same reasoning `received-invoices.controller.ts`'s own header gives for its own two bespoke
  * routes), and listing/reading a statement's own lines is this feature's own read model, not a

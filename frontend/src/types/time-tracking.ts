@@ -1,4 +1,4 @@
-// TODO_FEATURES.md rank 11 ("suivi du temps & facturation de projets"). Mirrors the backend's
+// Time tracking & project billing types. Mirrors the backend's
 // ProjectsService/TimeEntriesService response shapes — `hourlyRate` in MAJOR units on both, never the
 // minor-unit column the backend keeps to itself (see ProjectsService's own `withRate` header).
 

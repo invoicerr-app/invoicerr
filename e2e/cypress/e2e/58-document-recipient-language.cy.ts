@@ -1,7 +1,8 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — proves the two-language outcome
+ * A document's language follows its recipient ("langue du document par destinataire") — proves the
+ * two-language outcome
  * end to end: the ACTION (creating each client, then clicking "Send" on its quote) goes through a real
  * screen, exactly like 05-clients.cy.ts and 23-document-email.cy.ts already do; the ASSERTION reads the
  * real message Mailpit received — the e2e stack's own SMTP server, no gate needed (same discipline
@@ -93,7 +94,7 @@ function sendQuoteAndReadEmail(clientId: string) {
 		});
 }
 
-describe("A document's language follows its recipient (rank 14)", () => {
+describe("A document's language follows its recipient", () => {
 	before(() => {
 		cy.resetAndSeed();
 	});

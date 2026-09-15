@@ -8,7 +8,7 @@ import { StatementList } from "./_components/statement-list"
 import { StatementLines } from "./_components/statement-lines"
 
 /**
- * TODO_FEATURES.md rank 5 ("rapprochement bancaire par import de relevé") — "jugée la plus importante
+ * Bank reconciliation by statement import — "jugée la plus importante
  * par les utilisateurs dans les comparatifs". Two panels, the same generic shape
  * time-tracking/index.tsx already holds for its own Project/TimeEntry pair: the top one lists imported
  * statements (and is where a new one gets imported), the bottom one shows the SELECTED statement's own

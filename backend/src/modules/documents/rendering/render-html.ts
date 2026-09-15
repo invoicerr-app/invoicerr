@@ -244,7 +244,7 @@ export interface RenderDocumentHtmlInput {
    */
   paymentMethods?: PaymentMethodPresentation[];
   /**
-   * TODO_FEATURES.md rank 15 ("champs personnalisés") — the company's OWN custom fields that
+   * Custom fields ("champs personnalisés") — the company's OWN custom fields that
    * actually carry a value on THIS instance, resolved by the caller
    * (`render-instance-pdf.ts#companyCustomFieldsFor`) from `company-custom-fields/`. Deliberately its
    * OWN top-level block, never merged into the ordinary `descriptor.fields` loop above: the feature's
@@ -263,7 +263,7 @@ export interface RenderDocumentHtmlInput {
    */
   customFields?: { field: DocumentFieldDescriptor; value: unknown }[];
   /**
-   * TODO_FEATURES.md rank 14 ("langue du document par destinataire") — which language this render's
+   * Per-recipient document language ("langue du document par destinataire") — which language this render's
    * OWN chrome vocabulary (`language/pdf-chrome-strings.ts`: "Status", "Totals", "VAT … on …", …) is
    * printed in. Resolved by the caller (`render-instance-pdf.ts`, from the document's own client and
    * the company's default — see `language/resolve-recipient-language.ts`), never guessed here.
@@ -278,7 +278,7 @@ export interface RenderDocumentHtmlInput {
    */
   language?: RenderLanguage;
   /**
-   * Chantier B (TODO_FEATURES.md rank 16, 2026-09-15 product decision) — the company's OWN document
+   * Chantier B (2026-09-15 product decision) — the company's OWN document
    * branding, resolved by the caller (`render-instance-pdf.ts`) from `Company.brandingAccentColor`/
    * `brandingFont`/`brandingLogoId`. The PDF itself stays a FIXED document — no user-editable HTML or
    * template, ever; this is three presentation values applied over the one hardcoded layout below,
@@ -746,7 +746,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     html += `    </div>\n`;
   }
 
-  // TODO_FEATURES.md rank 15 ("champs personnalisés") — the company's own custom fields, LAST on the
+  // Custom fields ("champs personnalisés") — the company's own custom fields, LAST on the
   // page (after the legal mentions footer): see `RenderDocumentHtmlInput.customFields`'s own header
   // for why this is a dedicated, end-of-document block rather than an insertion into the ordinary
   // fields loop above. Absent or empty prints NOTHING here — same "nothing, not an empty frame"

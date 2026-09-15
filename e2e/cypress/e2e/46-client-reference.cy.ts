@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * "Client reference / PO number" field (TODO_FEATURES.md rank 7, ⚡) — a first-class
+ * "Client reference / PO number" field — a first-class
  * `clientReference` field on quotes/invoices, entered on the screen, persisted, rendered on the PDF
  * and the list WHEN filled in, ABSENT otherwise (`hideWhenEmpty`). Discipline: action via the
  * screen, assertions read back via the API + the screen. The exact PDF rendering is covered in jest

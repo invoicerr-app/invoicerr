@@ -11,7 +11,7 @@ import {
 } from './types';
 
 /**
- * TODO_FEATURES.md rank 15 ("champs personnalisés") — the settings screen's own controller, the same
+ * Custom fields ("champs personnalisés") — the settings screen's own controller, the same
  * "bespoke top-level path, company-authenticated, no generic-document counterpart" placement
  * `PaymentMethodsController` already holds: a custom field DEFINITION is a company-level setting, not
  * a `DocumentInstance`, and has no business inside the generic document controller. `GET .../resolved`

@@ -1,4 +1,4 @@
-# TODO_MANDANT — what's in your hands (2026-09-14)
+# TODO_MANDANT — what's in your hands (2026-09-15)
 
 Contains only what remains to be done, sorted by what it unblocks. Everything that used to be here
 and is done has been removed — the history lives in the commits, not in this file. Nothing here
@@ -11,24 +11,11 @@ RUNNING `invoicerr.chevrier.dev`, or staging (UAT) accounts to prove a channel l
 
 ---
 
-## 1. Email — DONE on 2026-09-15 (instance server + mailbox)
+## 1. Email — two small remainders
 
-Was: the dev instance sent nothing (SMTP variables empty since weeks). Now:
-
-- [x] Instance mail server on `invoicerr.chevrier.dev`: `MAIL_PROVIDER=resend`,
-      `MAIL_FROM=no-reply@invoicerr.app`, `RESEND_API_KEY` — present in the container (verified
-      by name). One clean-up left: the key is written **in clear in `docker-compose.yml`** on the
-      host instead of `.env` — move it to `.env` and reference it as `${RESEND_API_KEY}` like the
-      other secrets.
-- [x] Domain: Resend verified on `invoicerr.app` (DKIM `resend._domainkey`, return-path on
-      `send.invoicerr.app`), Cloudflare Email Routing on the root (MX `route1/2/3.mx.cloudflare.net`),
-      DMARC `p=none` with reports to `dmarc@invoicerr.app` — added 2026-09-15.
-- [x] Inbound mailbox: Cloudflare catch-all `*@invoicerr.app` → a dedicated Gmail account, `noreply@`
-      dropped; Gmail filters label `contact`/`privacy`, `support`, `security`, `abuse`/`postmaster`,
-      `dmarc`. Outbound identities `contact@`, `support@`, `security@` send through `smtp.resend.com`
-      (dedicated sending-only key). **Proven end to end 2026-09-15**: 7 test mails routed and
-      labelled, a reply from `support@` reached Gmail with `spf=pass`, `dkim=pass (invoicerr.app)`,
-      `dmarc=pass`, no "via", and the customer's reply came back under the Support label.
+- [ ] The instance mail server's `RESEND_API_KEY` is written in clear in `docker-compose.yml` on
+      the esteban host instead of `.env` — move it to `.env` and reference it as
+      `${RESEND_API_KEY}` like the other secrets.
 - [ ] In a few weeks, once DMARC reports show only PASS: harden to `p=quarantine`.
 
 ## 2. Chorus Pro (French B2G) — qualification proven, production remaining
@@ -51,15 +38,11 @@ in its absence: everything is properly gated.
 
 | Account / step | Unblocks | What's blocking |
 |---|---|---|
-| 🇮🇹 Italian PEC mailbox | SdI-via-PEC (already written, never proven live) | Purely administrative — a subscription with a provider (Aruba, Legalmail…), no accreditation or commercial contract required. The only channel in this case. |
-| 💳 Stripe account | Online payment from the client portal (shipped today) | No provider account exists for this project; the channel is written and dry-run tested, never proven without one. |
+| 🇮🇹 Italian PEC mailbox | SdI-via-PEC (already written, never proven live) | Purely administrative — a subscription with a provider (Aruba, Legalmail…), no accreditation or commercial contract required. |
 | 🇵🇹 Portuguese AT credentials | Live Portuguese tax declaration | Portuguese NIF, subutilizador, X.509 certificate signed by the AT |
-| 🌍 Account with a commercial Peppol Access Point | Peppol in production | Contract with an Access Point, or OpenPeppol membership |
 | 🇮🇹 Direct SdI (outside PEC) | The official SdI channel (independent of the PEC route above) | Partita IVA registered on Entratel + certificates issued by the AdE |
 | 🇵🇱 KSeF **production** | KSeF in production (already proven in the test environment, 2026-06-28) | Polish NIP + trusted profile or qualified signature |
 | 🇫🇷 PDP **production** | PDP in production (already proven live, 2026-08-29) | Commercial contract with a registered PDP |
-| 🇪🇸 FACe | Spanish channel | FNMT certificate, in-person identity verification |
-| 🇭🇺 NAV · 🇬🇷 myDATA · 🇷🇴 ANAF · 🇲🇽 CFDI | These four channels | Local taxpayer status + national tax identity in each country |
 
 ## 4. Administrative
 
@@ -72,6 +55,12 @@ in its absence: everything is properly gated.
 - [ ] (Optional) GitHub `live-tests` environment with a *required reviewer*, so that no live run
       goes out without validation.
 
+## 6. Before the first paying customer
+
+- [ ] Off-site encrypted backups of the database and `documents/` (daily `pg_dump` + object
+      storage, restore tested once), and an uptime alert on `/api/health` — self-hosting on the
+      owner's own servers is fine until then.
+
 ---
 
-*`TODO_ISSUES.md` is not for you: it's the technical logbook. You have nothing to do with it.*
+*`TODO_FEATURES.md` is not for you: it's the engineering backlog. You have nothing to do with it.*

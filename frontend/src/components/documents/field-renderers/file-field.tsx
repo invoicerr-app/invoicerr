@@ -42,7 +42,7 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * 'file' — the 12th core field kind (TODO_FEATURES.md rank 13, "notes de frais enrichies"): an
+ * 'file' — the 12th core field kind, for enriched expense notes ("notes de frais enrichies"): an
  * attachment scoped to this company, stored content-addressed by the backend's `attachments/` module
  * (reusing `received-invoices/storage.ts`'s own mechanism — see that module's header) and referenced
  * from the field's own value as `{ fileRef, fileName, mime }`, never the bytes themselves — the same

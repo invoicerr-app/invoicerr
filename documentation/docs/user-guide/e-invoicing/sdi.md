@@ -100,7 +100,7 @@ without an Italian routing code, which is not what a domestic Italian recipient 
 
 Until that field exists, an Italian seller invoicing another Italian business should expect SDI
 delivery to that recipient to be unreliable, and should not rely on this path for production
-invoicing. The gap is tracked in the repository's own `TODO_ISSUES.md`.
+invoicing.
 
 ---
 

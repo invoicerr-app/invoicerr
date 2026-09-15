@@ -2,7 +2,7 @@ import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 
 /**
- * Chantier B (TODO_FEATURES.md rank 16, 2026-09-15 product decision) — document branding: a logo, one
+ * Document branding (2026-09-15 product decision): a logo, one
  * accent color, one font from a closed catalog, and named presets combining the last two. Mirrors
  * `backend/src/modules/company/branding/branding.service.ts` (wire shapes, deliberately duplicated
  * rather than shared — see `use-company-custom-fields.ts`'s own header for why). The PDF itself stays

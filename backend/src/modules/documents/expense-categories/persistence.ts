@@ -6,12 +6,13 @@
  * — and validate against — exactly THIS company's own list, on every action the expense type has
  * ("save-draft" and "delete", see `expense.descriptor.ts`), not merely the settings screen's own read.
  *
- * Product decision (2026-09-15) — OVERRIDES this rank's original shipped design: `expense.descriptor.ts`
- * used to hardcode a closed `EXPENSE_CATEGORY_OPTIONS` list, reasoning at the time that no per-company
- * "write your own list" mechanism existed anywhere in this codebase (see that file's own CURRENT
- * header, and its prior one via git history on this file's introducing commit). `CompanyCustomField`
- * (rank 15) shipped that exact mechanism afterwards, but a company custom field is always a NEW field
- * bolted onto a type (`company-custom-fields/persistence.ts#toFieldDescriptor`, `custom:`-prefixed
+ * Product decision (2026-09-15) — OVERRIDES this feature's original shipped design:
+ * `expense.descriptor.ts` used to hardcode a closed `EXPENSE_CATEGORY_OPTIONS` list, reasoning at the
+ * time that no per-company "write your own list" mechanism existed anywhere in this codebase (see that
+ * file's own CURRENT header, and its prior one via git history on this file's introducing commit).
+ * `CompanyCustomField` (the Custom fields feature) shipped that exact mechanism afterwards, but a
+ * company custom field is always a NEW field bolted onto a type
+ * (`company-custom-fields/persistence.ts#toFieldDescriptor`, `custom:`-prefixed
  * key) — never a per-company override of an EXISTING native field's own `options`. Expense categories
  * need the latter: `category` keeps its native, un-prefixed key (every already-recorded expense's
  * `data.category` value stays meaningful), while WHICH values are offered/valid becomes per-company

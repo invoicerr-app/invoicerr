@@ -43,7 +43,7 @@ describe('persistence — upsertDocument', () => {
   });
 
   /**
-   * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the exact mechanism "suppression" (the
+   * Enriched expense categories ("notes de frais enrichies") — the exact mechanism "suppression" (the
    * frontend's file-field.tsx "Remove" button) relies on: `upsertDocument` REPLACES `data` wholesale
    * with whatever the caller hands it, never merges it onto what was there before. A previously saved
    * `attachment` key that the second save's own `data` argument simply does not carry is therefore

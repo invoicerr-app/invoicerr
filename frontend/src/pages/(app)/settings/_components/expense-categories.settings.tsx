@@ -228,8 +228,8 @@ function CategoryRow({ category }: CategoryRowProps) {
 }
 
 /**
- * TODO_FEATURES.md rank 13 ("notes de frais enrichies") — Settings -> Expense categories, product
- * decision 2026-09-15 (see the backend's own `expense-categories/persistence.ts` header for the full
+ * Settings -> Expense categories, part of the enriched expense notes ("notes de frais enrichies")
+ * feature, product decision 2026-09-15 (see the backend's own `expense-categories/persistence.ts` header for the full
  * "why"). The expense FORM never imports anything from this file — it only ever consumes
  * `describeTypeForCompany`'s own resolved "category" field `options` (same "this screen is entirely
  * optional machinery" posture `custom-fields.settings.tsx`'s own header documents for its case), so a

@@ -127,7 +127,7 @@ describe('buildExpenseStatisticsWidgets', () => {
     ]);
   });
 
-  // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — the category a user actually picked
+  // Enriched expense categories ("notes de frais enrichies") — the category a user actually picked
   // flows through to the statistics table verbatim (the raw option value, not its label — see this
   // file's own header on `translateWidget`'s "row data stays untranslated" convention).
   it('a chosen category flows through to the statistics table', async () => {
