@@ -17,11 +17,15 @@ commitments, fees, or limitations below apply to a self-hosted deployment.
 
 ## 1. Acceptance and Eligibility
 
-1.1. These Terms form a binding agreement between **[COMPANY NAME]**, a **[LEGAL FORM]** registered
-under number **[REGISTRATION NUMBER]**, with its registered office at **[REGISTERED ADDRESS]**, VAT
-number **[VAT NUMBER]** ("**we**", "**us**", "**the Provider**"), and the entity that subscribes to the
-Service ("**you**", "**the Customer**"). By creating an account, starting a trial, or subscribing to
-the Service, you accept these Terms in full.
+1.1. These Terms form a binding agreement between **Roméo Chevrier, sole trader (entrepreneur
+individuel)**, an **entrepreneur individuel (micro-entreprise) under French law**, registered under
+number **SIREN 982 187 676 (SIRET 982 187 676 00019)**, with his registered address at **4 rue du
+Puits, 26120 Montélier, France**, VAT number **not applicable — VAT franchise (art. 293 B CGI);
+subscription invoices are issued by Polar as merchant of record** (this VAT status is a representation
+by the Provider — the public Sirene registry does not itself return a VAT regime field) ("**we**",
+"**us**", "**the Provider**"), and the entity that subscribes to the Service ("**you**", "**the
+Customer**"). By creating an account, starting a trial, or subscribing to the Service, you accept
+these Terms in full.
 
 1.2. **The Service is offered strictly business-to-business (B2B).** By entering into this Agreement
 you represent and warrant that you are acting for purposes within your trade, business, craft, or
@@ -31,6 +35,12 @@ right of withdrawal (*droit de rétractation*)** in respect of your subscription
 
 1.3. If you subscribe on behalf of an organization, you represent that you have the authority to bind
 that organization, and "you" then refers to that organization.
+
+1.4. **Future transfer to a company.** The Provider is currently a sole trader. He may, at his sole
+discretion, transfer this Agreement — together with the Service — to a company he incorporates to
+operate the Service, upon at least **thirty (30) days' prior notice** to you by email. Such a transfer
+does not reduce the rights you hold under these Terms; the transferee company assumes the Provider's
+obligations under this Agreement in full.
 
 ## 2. Definitions
 
@@ -171,8 +181,8 @@ encrypted at rest (AES-256-GCM); all traffic to and from the Service is encrypte
 CSV at any time from within the Service. A full export of Your Data — the stored fields and, where
 renderable, a PDF copy of every document — is generated automatically and sent to your Owner when your
 Company reaches end-of-subscription (Section 7.2). Outside of that automatic export, you may request a
-full export of Your Data at any time by writing to **[CONTACT EMAIL]**; we will provide it within a
-reasonable time.
+full export of Your Data at any time by writing to **contact@invoicerr.app**; we will provide it within
+a reasonable time.
 
 ## 10. Availability, Disclaimers and Limitation of Liability
 
@@ -205,9 +215,9 @@ notice by email** before a change takes effect. If you do not agree with a chang
 subscription, under Section 6, before it takes effect.
 
 12.2. These Terms are governed by **French law**. Any dispute arising out of or relating to these
-Terms shall be submitted to the exclusive jurisdiction of the courts of **[CITY]**, France.
+Terms shall be submitted to the exclusive jurisdiction of the courts of **Montélier**, France.
 
-12.3. Questions about these Terms can be sent to **[CONTACT EMAIL]**.
+12.3. Questions about these Terms can be sent to **contact@invoicerr.app**.
 
 ---
 
@@ -215,3 +225,10 @@ Terms shall be submitted to the exclusive jurisdiction of the courts of **[CITY]
 
 - **2026-09-15** — Initial draft.
 - **2026-09-15** — Section 3.2: free trial extended from seven (7) to fourteen (14) days.
+- **2026-09-15** — Section 1.1: `[COMPANY NAME]` / `[LEGAL FORM]` / `[REGISTRATION NUMBER]` /
+  `[REGISTERED ADDRESS]` / `[VAT NUMBER]` placeholders resolved to the actual Provider — Roméo
+  Chevrier, sole trader (SIREN 982 187 676 / SIRET 982 187 676 00019), sourced from the public Sirene
+  registry (`recherche-entreprises.api.gouv.fr`). Added Section 1.4 (future transfer of the Agreement
+  to a company the Provider may incorporate, 30 days' notice). Section 12.2: `[CITY]` resolved to
+  Montélier (Provider's registered address). Sections 9.4 and 12.3: `[CONTACT EMAIL]` resolved to
+  contact@invoicerr.app.
