@@ -16,6 +16,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * matter read the API back — never the DOM we just filled in as proof of what is
  * actually stored.
  *
+ * The body field is a TipTap WYSIWYG editor (`components/ui/rich-text-editor.tsx`), not a
+ * textarea: it edits `html` only, and always saves `body: ""` alongside it — the server DERIVES
+ * the plain-text part from the html at render time (`deriveTextFromHtml`), a state the engine
+ * already had to support for every html-only template. So a save's own assertion below reads
+ * `stored.html`, never `stored.body`, and typing goes through
+ * `[data-testid="rich-text-editor"] .ProseMirror`, the editor's own contenteditable root.
+ *
  * Two types chosen deliberately for their different SHAPES (see this same file on the backend,
  * `derives the right vocabulary for each shipped type`):
  *  - `quote` / `invoice`: a client (`recipientName`) and priced lines (`totalGross`).
@@ -119,7 +126,13 @@ describe("Settings — email templates per document type", () => {
 							"have.value",
 							invoiceTemplate!.subject,
 						);
-						cy.get('[data-cy="email-template-body-invoice"]').should("have.value", invoiceTemplate!.body);
+						// The body field is a rich-text editor now, not an input — pre-fill is proven by its
+						// rendered TEXT containing the resolved template's own first line, rather than by an
+						// exact `.value` match that a `\n` → paragraph/`<br>` conversion could never satisfy.
+						cy.get('[data-testid="rich-text-editor"] .ProseMirror').should(
+							"contain.text",
+							invoiceTemplate!.body.split("\n")[0],
+						);
 					});
 			});
 	});
@@ -131,19 +144,39 @@ describe("Settings — email templates per document type", () => {
 		cy.visit("/settings/email");
 		openTemplateEditor("quote");
 
+		// Named BEFORE the click, asserted BEFORE the toast: a toast is UI state the screen could show
+		// for the wrong reason, the request's own status code cannot lie about whether the save actually
+		// reached the server (same discipline as `65-company-mail-settings.cy.ts`'s own save test).
+		cy.intercept("PUT", `${api}/api/documents/types/quote/email-template`).as("saveQuoteTemplate");
+
 		// `{displayNumber}` contains braces that a cypress `.type()` would otherwise interpret as
 		// a special sequence (`{selectall}`, etc.) — disabled here to type the literal brace.
 		cy.get('[data-cy="email-template-subject-quote"]')
 			.clear()
 			.type(distinctiveSubject, { parseSpecialCharSequences: false });
-		cy.get('[data-cy="email-template-body-quote"]').clear().type(distinctiveBody);
+		// The body field is the TipTap editor's own contenteditable root — `.clear()` works on a
+		// `contenteditable` element exactly like it does on an input/textarea.
+		cy.get('[data-testid="rich-text-editor"] .ProseMirror').clear().type(distinctiveBody);
 		cy.get('[data-cy="email-template-save-quote"]').click();
+
+		cy.wait("@saveQuoteTemplate").then((interception) => {
+			expect(
+				interception.response?.statusCode,
+				"PUT /api/documents/types/quote/email-template must succeed",
+			).to.eq(200);
+		});
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "saved successfully");
 
 		getDocumentEmailTemplate("quote").then((stored) => {
 			expect(stored.subject, "exactement ce qui a été tapé, sans altération").to.eq(distinctiveSubject);
-			expect(stored.body, "exactement ce qui a été tapé, sans altération").to.eq(distinctiveBody);
+			// The rich-text editor stores html, not the plain-text `body` column the old textarea wrote —
+			// see this file's own header.
+			expect(stored.html, "exactement ce qui a été tapé, sans altération").to.contain(distinctiveBody);
+			expect(
+				stored.body,
+				"le texte brut n'est plus écrit par cet éditeur — il est dérivé côté serveur à l'envoi",
+			).to.eq("");
 			expect(stored.source, "la société a maintenant sa propre surcharge pour ce type").to.eq("company");
 		});
 	});

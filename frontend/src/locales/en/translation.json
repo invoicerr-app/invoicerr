@@ -2202,7 +2202,7 @@
         "subject": "Subject",
         "subjectPlaceholder": "Enter email subject",
         "body": "Email Body",
-        "bodyPlaceholder": "Enter the plain-text message...",
+        "bodyPlaceholder": "Write the email message...",
         "textTip": "The plain-text part, shown to a recipient whose mail client displays no HTML",
         "htmlBody": "HTML body (optional)",
         "htmlPlaceholder": "Enter HTML content...",
@@ -2779,6 +2779,26 @@
     "description": "This feature is only available on desktop devices for optimal experience."
   },
   "component": {
+    "rich-text-editor": {
+      "editorAriaLabel": "Email body",
+      "paragraph": "Paragraph",
+      "heading1": "Heading 1",
+      "heading2": "Heading 2",
+      "heading3": "Heading 3",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "bulletList": "Bullet list",
+      "orderedList": "Numbered list",
+      "blockquote": "Quote",
+      "link": "Link",
+      "removeLink": "Remove link",
+      "linkUrlPlaceholder": "https://example.com",
+      "linkApply": "Apply",
+      "undo": "Undo",
+      "redo": "Redo",
+      "insertVariable": "Insert a variable"
+    },
     "currency-select": {
       "placeholder": "Select your currency",
       "searchPlaceholder": "Search currencies...",

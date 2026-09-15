@@ -230,3 +230,119 @@ button:disabled {
   border-top: 1px solid var(--border);
   margin: 10px 0;
 }
+
+/* The TipTap-rendered content of `components/ui/rich-text-editor.tsx` — StarterKit's own nodes
+   (paragraph, heading, list, blockquote, link…) with no library CSS of their own, so this repo's
+   Tailwind preflight resets them all to flat, unstyled text. Same properties as
+   `.markdown-notes-preview` above (same 8px paragraph rhythm, same `var(--primary)`/`var(--muted)`/
+   `var(--muted-foreground)`/`var(--border)` tokens), so the two rich-content surfaces this app has
+   stay visually consistent, in both themes, without either one hard-coding a color. */
+.rich-text-editor .ProseMirror {
+  outline: none;
+  min-height: 160px;
+  padding: 12px;
+}
+
+.rich-text-editor .ProseMirror p {
+  margin: 0 0 8px;
+}
+
+.rich-text-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-editor .ProseMirror h1,
+.rich-text-editor .ProseMirror h2,
+.rich-text-editor .ProseMirror h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 16px 0 8px;
+}
+
+.rich-text-editor .ProseMirror h1:first-child,
+.rich-text-editor .ProseMirror h2:first-child,
+.rich-text-editor .ProseMirror h3:first-child {
+  margin-top: 0;
+}
+
+.rich-text-editor .ProseMirror h1 {
+  font-size: 1.5em;
+}
+
+.rich-text-editor .ProseMirror h2 {
+  font-size: 1.25em;
+}
+
+.rich-text-editor .ProseMirror h3 {
+  font-size: 1.1em;
+}
+
+.rich-text-editor .ProseMirror ul,
+.rich-text-editor .ProseMirror ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.rich-text-editor .ProseMirror ul {
+  list-style: disc;
+}
+
+.rich-text-editor .ProseMirror ol {
+  list-style: decimal;
+}
+
+.rich-text-editor .ProseMirror li {
+  margin: 2px 0;
+}
+
+.rich-text-editor .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+.rich-text-editor .ProseMirror blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--primary);
+  color: var(--muted-foreground);
+}
+
+.rich-text-editor .ProseMirror code {
+  font-family: monospace;
+  background-color: var(--muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.rich-text-editor .ProseMirror pre {
+  font-family: monospace;
+  background-color: var(--muted);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  margin: 0 0 8px;
+}
+
+.rich-text-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+.rich-text-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+
+/* TipTap's Placeholder extension marks the empty first paragraph this way and carries the text in
+   `data-placeholder` — CSS is how that extension has always expected its host to render it. */
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}

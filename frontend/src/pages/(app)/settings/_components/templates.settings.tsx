@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
 import { useCompanies } from "@/hooks/queries"
 import { useDelete, useGet, usePut } from "@/hooks/use-fetch"
 import { descriptorTypeLabel } from "@/lib/descriptor-i18n"
@@ -64,6 +64,47 @@ function substitutePlaceholders(text: string, variables: Record<string, string>)
   return text.replace(PLACEHOLDER_PATTERN, (literal, key: string) =>
     Object.hasOwn(variables, key) ? variables[key] : literal,
   )
+}
+
+/** Whether a rich-text editor's HTML value is, once its markup is stripped, actually empty — a fresh
+ *  TipTap document is `<p></p>`, not `""`, so a plain `.trim() === ""` would never disable Save on an
+ *  emptied-out template. */
+function isHtmlEmpty(html: string): boolean {
+  return html.replace(/<[^>]*>/g, "").trim() === ""
+}
+
+/** True for a string that already carries real markup — used only to decide whether a legacy body
+ *  should be escaped-and-wrapped (below) or handed to the editor as-is. Every shipped descriptor
+ *  default and every pre-existing company override's `body` is plain text (see this screen's own
+ *  header on the backend's `MailTemplate.body`/`DocumentEmailTemplate.body` shape), so this is a
+ *  defensive check, not the expected path. */
+function looksLikeHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text)
+}
+
+function escapeForHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+/** Turns a plain-text body into the paragraphs a rich-text editor can show and keep editing — a blank
+ *  line starts a new paragraph, a single line break inside one becomes `<br>`. This is what makes an
+ *  old text-only template (every descriptor default, and every company override saved before this
+ *  editor existed) still "afficher/éditer" rather than greeting the author with a blank editor. */
+function plainTextToHtml(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${escapeForHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
+    .join("")
+}
+
+/** The single source the rich-text editor is seeded from: the stored `html` part when there is one,
+ *  else the stored `body` converted from plain text, else (a genuinely empty template) nothing. Once
+ *  the author saves, `html` is always what is sent — see `DocumentTemplateCard.handleSave` — so this
+ *  conversion only ever runs once, on load, never on every keystroke. */
+function seedEditorHtml(template: { body: string; html?: string }): string {
+  if (template.html?.trim()) return template.html
+  if (!template.body.trim()) return ""
+  return looksLikeHtml(template.body) ? template.body : plainTextToHtml(template.body)
 }
 
 function EmailPreview({
@@ -265,7 +306,7 @@ function SystemTemplateCard({
   }, [template])
 
   const name = t(`settings.emailTemplates.system.families.${template.id}`, { defaultValue: template.name })
-  const incomplete = subject.trim() === "" || body.trim() === ""
+  const incomplete = subject.trim() === "" || isHtmlEmpty(body)
 
   async function handleSave() {
     // `dbId` only exists once this company has actually stored an override; the family `id` is what
@@ -305,16 +346,15 @@ function SystemTemplateCard({
               placeholder={t("settings.emailTemplates.editor.subjectPlaceholder")}
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" data-cy={`email-template-body-${template.id}`}>
             <Label htmlFor={`body-${template.id}`}>{t("settings.emailTemplates.editor.htmlBody")}</Label>
-            <Textarea
+            <RichTextEditor
               id={`body-${template.id}`}
               value={body}
+              onChange={setBody}
               readOnly={!canEdit}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={t("settings.emailTemplates.editor.htmlPlaceholder")}
-              className="min-h-[320px] font-mono text-sm"
-              style={{ resize: "vertical" }}
+              variables={template.variables}
+              className="min-h-[280px]"
             />
             <p className="text-xs text-muted-foreground">
               {t("settings.emailTemplates.editor.systemHtmlTip")}
@@ -360,8 +400,12 @@ function DocumentTemplateCard({
 }) {
   const { t } = useTranslation()
   const [subject, setSubject] = useState(template.subject)
-  const [body, setBody] = useState(template.body)
-  const [html, setHtml] = useState(template.html ?? "")
+  // ONE rich-text field now covers what used to be two textareas (plain-text `body` + optional raw
+  // `html`) — seeded from whichever the server actually has (see `seedEditorHtml`'s own header). The
+  // plain-text part is never edited directly any more: it is sent empty and the server DERIVES it from
+  // this html at render time (`email-template.ts`'s own `deriveTextFromHtml`), which is a state that
+  // engine already had to support for every legacy html-only template.
+  const [content, setContent] = useState(() => seedEditorHtml(template))
   const [warnings, setWarnings] = useState<string[]>([])
   const url = `/api/documents/types/${template.typeId}/email-template`
   const { trigger: save, loading: saving } = usePut<{ warnings?: string[] }>(url)
@@ -371,17 +415,16 @@ function DocumentTemplateCard({
   // a reset the editor must show the shipped default rather than the text that was just dropped.
   useEffect(() => {
     setSubject(template.subject)
-    setBody(template.body)
-    setHtml(template.html ?? "")
+    setContent(seedEditorHtml(template))
   }, [template])
 
   const name = descriptorTypeLabel(t, template.typeId, template.label)
-  // What the server refuses outright (no subject, or neither body): disabled here rather than sent and
+  // What the server refuses outright (no subject, or an empty body): disabled here rather than sent and
   // bounced as a 400.
-  const incomplete = subject.trim() === "" || (body.trim() === "" && html.trim() === "")
+  const incomplete = subject.trim() === "" || isHtmlEmpty(content)
 
   async function handleSave() {
-    const saved = await save({ subject, body, html })
+    const saved = await save({ subject, body: "", html: content })
     if (!saved) {
       toast.error(t("settings.emailTemplates.messages.saveError"))
       return
@@ -430,37 +473,26 @@ function DocumentTemplateCard({
               placeholder={t("settings.emailTemplates.editor.subjectPlaceholder")}
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" data-cy={`email-template-body-${template.typeId}`}>
             <Label htmlFor={`body-${template.typeId}`}>{t("settings.emailTemplates.editor.body")}</Label>
-            <Textarea
+            <RichTextEditor
               id={`body-${template.typeId}`}
-              data-cy={`email-template-body-${template.typeId}`}
-              value={body}
+              value={content}
+              onChange={setContent}
               readOnly={!canEdit}
-              onChange={(e) => setBody(e.target.value)}
               placeholder={t("settings.emailTemplates.editor.bodyPlaceholder")}
-              className="min-h-[200px] text-sm"
-              style={{ resize: "vertical" }}
+              variables={template.variables}
+              className="min-h-[220px]"
             />
-            <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.textTip")}</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`html-${template.typeId}`}>{t("settings.emailTemplates.editor.htmlBody")}</Label>
-            <Textarea
-              id={`html-${template.typeId}`}
-              data-cy={`email-template-html-${template.typeId}`}
-              value={html}
-              readOnly={!canEdit}
-              onChange={(e) => setHtml(e.target.value)}
-              placeholder={t("settings.emailTemplates.editor.htmlPlaceholder")}
-              className="min-h-[200px] font-mono text-sm"
-              style={{ resize: "vertical" }}
-            />
-            <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.htmlTip")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("settings.emailTemplates.editor.systemHtmlTip")}
+            </p>
           </div>
           <PlaceholderHints variables={template.variables} />
         </div>
-        <EmailPreview subject={subject} text={body} html={html} variables={template.variables} />
+        {/* `text={template.body}` is a defensive fallback only (see `EmailPreview`'s own header): once
+            this editor has been opened at all, `content` is already seeded from it and never blank. */}
+        <EmailPreview subject={subject} text={template.body} html={content} variables={template.variables} />
       </div>
 
       <PlaceholderWarnings warnings={warnings} />
