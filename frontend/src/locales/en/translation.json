@@ -4180,7 +4180,7 @@
         "startCreatingHint": "Get started by creating your first {{label}}."
       },
       "tooltips": {
-        "edit": "Edit"
+        "open": "Open"
       },
       "fieldValue": {
         "yes": "Yes",
@@ -4206,13 +4206,6 @@
       "lastActionError": "Last error: {{message}}"
     },
     "custom": {
-      "invoicePreview": {
-        "button": "Preview",
-        "title": "Preview: {{label}}",
-        "previewTitle": "Data Preview",
-        "previewBody": "Below is the invoice's stored data as saved. Use the button to download a rendered PDF.",
-        "downloadPdf": "Download PDF"
-      },
       "receivedInvoiceUpload": {
         "button": "Upload",
         "title": "Upload a received invoice",
@@ -4366,6 +4359,14 @@
       "acceptButton": "Accept the variance",
       "acceptSuccess": "Variance accepted",
       "acceptError": "Failed to accept the variance"
+    },
+    "detail": {
+      "backToList": "Back to the list",
+      "actions": "Actions",
+      "unsavedChanges": "Unsaved changes",
+      "discard": "Discard",
+      "totalsTitle": "Totals",
+      "notFound": "This document could not be found."
     }
   },
   "declarations": {

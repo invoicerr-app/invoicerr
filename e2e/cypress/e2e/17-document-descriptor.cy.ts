@@ -71,7 +71,7 @@ describe("A document is a descriptor, and the screen follows it", () => {
 					).to.have.length.greaterThan(0);
 
 					// The screen since the redesign: a list page by default, a modal for creation — see
-					// frontend/src/pages/(app)/documents/[typeId].tsx and document-upsert-dialog.tsx. The
+					// frontend/src/pages/(app)/documents/[typeId]/index.tsx and document-create-dialog.tsx. The
 					// form itself (data-cy="document-form", one "document-field-*" per descriptor field)
 					// is unchanged; only reaching it now takes one click, on a button the descriptor's own
 					// `label` names ("New {{label}}") rather than nothing at all.
@@ -79,8 +79,8 @@ describe("A document is a descriptor, and the screen follows it", () => {
 					cy.get('[data-cy="document-create-button"]', {
 						timeout: 15000,
 					}).click();
-					// `exist`, not `be.visible`: the dialog (document-upsert-dialog.tsx) is a
-					// `max-h-[90vh] overflow-y-auto` panel, and the 7th type (goods-receipt) plus the
+					// `exist`, not `be.visible`: the dialog (document-create-dialog.tsx) scrolls its
+					// fields inside a `max-h-[90vh]` panel, and the 7th type (goods-receipt) plus the
 					// received invoice's own added `purchaseOrder` field are together tall enough that
 					// the outer `<form>` no longer fits inside a CI-sized (1000×660) viewport in one
 					// screenful — Cypress reports a `<form>` straddling a scrollable ancestor's edge as

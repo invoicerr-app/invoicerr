@@ -6,41 +6,28 @@ import type { DocumentTypeDescriptor } from "@/components/documents/types"
 import { computeTotals, decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
 import { extractCurrency, findLineArrayFields } from "@/components/documents/totals-shape"
 
-interface DocumentTotalsProps {
-  descriptor: DocumentTypeDescriptor
-}
-
 /**
- * Displays computed totals (net, VAT breakdown, gross) for a document form.
- * Mirrors backend compute-totals.ts logic exactly, recomputed on every form change.
- * Displays warnings about ignored/unresolvable fields inline.
+ * The LIVE totals (net, VAT breakdown, gross) of the document form currently mounted around this
+ * hook — mirrors the backend's compute-totals.ts logic exactly, recomputed on every form change.
+ * Null when the form has no line rows yet, no money subfield to sum, or sums to nothing. Must be
+ * called inside a react-hook-form `<Form>` (it watches the whole form): DocumentTotals below renders
+ * it, and the detail page's header reads it once more for the headline amount.
  */
-export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
-  const { t } = useTranslation()
-
+export function useDocumentTotals(descriptor: DocumentTypeDescriptor) {
   const arrayFields = useMemo(() => findLineArrayFields(descriptor), [descriptor])
-
-  // ALL hooks before any early return: a `return null` placed between two hooks makes them
-  // conditional, and React crashes on the very first variation in hook count between two
-  // renders — precisely when the descriptor changes shape, i.e. at the worst possible moment.
   const formValues = useWatch()
 
-  // Memoize totals computation (changes only when relevant fields change)
-  const totals = useMemo(() => {
-    if (!formValues) return null
+  return useMemo(() => {
+    if (!formValues || arrayFields.length === 0) return null
 
     // Collect all lines from all array fields
     const allLines: Array<Record<string, unknown>> = []
-
     for (const arrayField of arrayFields) {
       const arrayValue = formValues[arrayField.key]
       const rows = Array.isArray(arrayValue) ? (arrayValue as Record<string, unknown>[]) : []
       allLines.push(...rows)
     }
-
-    if (allLines.length === 0) {
-      return null
-    }
+    if (allLines.length === 0) return null
 
     // Use the first array field for field key detection (all should have same structure)
     const firstArrayField = arrayFields[0]
@@ -58,14 +45,10 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
       if (f.kind !== "select") return false
       return f.key.toLowerCase().includes("vat") || (f.options && f.options.length > 0)
     })
-
-    if (!moneyField) {
-      return null
-    }
+    if (!moneyField) return null
 
     const currency = extractCurrency(descriptor, formValues)
-
-    return computeTotals(
+    const totals = computeTotals(
       allLines,
       currency,
       moneyField.key,
@@ -73,66 +56,68 @@ export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
       vatRateField?.key,
       discountField?.key,
     )
+    return totals.netMinor === 0 ? null : totals
   }, [formValues, arrayFields, descriptor])
+}
 
-  if (!totals || totals.netMinor === 0) {
-    return null
-  }
+/** `1234.50 EUR` — one formatter for every figure this module shows, so the header amount and the
+ *  totals block never round differently. */
+export function formatTotal(minor: number, currency: string): string {
+  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency || "—"}`
+}
+
+interface DocumentTotalsProps {
+  descriptor: DocumentTypeDescriptor
+}
+
+/**
+ * Net, VAT breakdown, gross, and the calculator's own warnings — as a plain block, deliberately
+ * without a frame of its own: the create dialog shows it under the lines, the detail page inside its
+ * own card, and a bordered box inside either would be a card in a card. Renders nothing at all
+ * while there is nothing to total (see useDocumentTotals).
+ */
+export function DocumentTotals({ descriptor }: DocumentTotalsProps) {
+  const { t } = useTranslation()
+  const totals = useDocumentTotals(descriptor)
+
+  if (!totals) return null
 
   const currency = totals.currency || "—"
   const decimals = decimalsFor(currency)
-  const netDisplay = fromMinor(totals.netMinor, currency).toFixed(decimals)
-  const grossDisplay = fromMinor(totals.grossMinor, currency).toFixed(decimals)
-
-  if (arrayFields.length === 0) {
-    return null // No "lines" field: nothing to total
-  }
 
   return (
-    <div className="mt-6 rounded-lg border border-border bg-muted p-4" data-cy="document-totals">
-      <div className="space-y-2 text-sm">
-        {/* Net */}
-        <div className="flex justify-between font-medium">
-          <span>{t("documents.totals.net")}</span>
-          <span className="amount">
-            {netDisplay} {currency}
-          </span>
+    <div data-cy="document-totals">
+      <dl className="space-y-2 text-sm">
+        <div className="flex justify-between gap-4 font-medium">
+          <dt>{t("documents.totals.net")}</dt>
+          <dd className="amount">{formatTotal(totals.netMinor, currency)}</dd>
         </div>
 
-        {/* VAT breakdown */}
-        {totals.vatBreakdown.map((entry) => {
-          const baseDisplay = fromMinor(entry.baseMinor, currency).toFixed(decimals)
-          const vatDisplay = fromMinor(entry.vatMinor, currency).toFixed(decimals)
-          return (
-            <div
-              key={`vat-${entry.ratePercent}`}
-              className="flex justify-between text-xs text-muted-foreground"
-            >
-              <span>
-                {t("documents.totals.vat", {
-                  rate: entry.ratePercent.toString(),
-                  base: baseDisplay,
-                })}
-              </span>
-              <span className="amount">
-                {vatDisplay} {currency}
-              </span>
-            </div>
-          )
-        })}
+        {totals.vatBreakdown.map((entry) => (
+          <div
+            key={`vat-${entry.ratePercent}`}
+            className="flex justify-between gap-4 text-xs text-muted-foreground"
+          >
+            <dt>
+              {t("documents.totals.vat", {
+                rate: entry.ratePercent.toString(),
+                base: fromMinor(entry.baseMinor, currency).toFixed(decimals),
+              })}
+            </dt>
+            <dd className="amount">{formatTotal(entry.vatMinor, currency)}</dd>
+          </div>
+        ))}
 
-        {/* Gross total */}
-        <div className="flex justify-between border-t border-border pt-2 font-bold">
-          <span>{t("documents.totals.gross")}</span>
-          <span className="amount" data-cy="document-totals-gross">
-            {grossDisplay} {currency}
-          </span>
+        <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+          <dt>{t("documents.totals.gross")}</dt>
+          <dd className="amount text-base" data-cy="document-totals-gross">
+            {formatTotal(totals.grossMinor, currency)}
+          </dd>
         </div>
-      </div>
+      </dl>
 
-      {/* Warnings */}
       {totals.warnings.length > 0 && (
-        <div className="mt-3 space-y-1 rounded bg-warning p-2">
+        <div className="mt-3 space-y-1 rounded-md bg-warning p-2">
           {totals.warnings.map((warning) => (
             <p key={warning} className="text-xs text-warning-foreground">
               {warning}

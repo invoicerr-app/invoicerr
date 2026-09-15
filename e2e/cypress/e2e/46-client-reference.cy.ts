@@ -88,10 +88,7 @@ describe("Client reference / PO number — on the screen", () => {
 				}).should("contain.text", ref);
 
 				// Redisplayed in the edit form (the first-class field round-trips).
-				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`).click();
-				cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should(
-					"be.visible",
-				);
+				cy.openDocument(invoiceId);
 				cy.get('[data-cy="document-field-clientReference-input"]').should(
 					"have.value",
 					ref,
@@ -111,7 +108,7 @@ describe("Client reference / PO number — on the screen", () => {
 						cy.contains(/reference/i).should("not.exist");
 					});
 				// The field still exists in the form (always editable), simply empty.
-				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`).click();
+				cy.openDocument(invoiceId);
 				cy.get('[data-cy="document-field-clientReference-input"]', {
 					timeout: 5000,
 				}).should("have.value", "");

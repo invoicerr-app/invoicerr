@@ -79,9 +79,9 @@ interface DocumentFieldValueProps {
 /**
  * Read-only rendering of one field's VALUE, by KIND — the display counterpart to field-renderers/*
  * (which render an EDITABLE control for the same kind). Used wherever a value is shown rather than
- * edited: the document list's columns (document-list.tsx) and the honest data preview a custom slot
- * can add (custom/invoice-preview-button.tsx) both go through this, so a kind is formatted exactly
- * the same way in both places.
+ * edited: the document list's columns (document-list.tsx) and the detail page's own header
+ * (document-detail.tsx) both go through this, so a kind is formatted exactly the same way in both
+ * places.
  *
  * Never switches on a document TYPE, only on `field.kind`. An unrecognized kind still shows the raw
  * value rather than nothing — the same "never hide" discipline DocumentField's own fallback holds

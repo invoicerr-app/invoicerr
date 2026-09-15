@@ -54,19 +54,11 @@ function pickSelectOption(fieldKey: string, optionSlug: string) {
 }
 
 function saveDraft() {
-	// CI run 34909400701 (commit 6cb60096), spec's own first execution: this used to also assert
-	// `cy.get('[data-cy="document-form"]').should("not.exist")` here, and all three tests that called
-	// it timed out on exactly that line — "Expected <form.space-y-6> not to exist in the DOM, but it
-	// was continuously found." That assertion was simply wrong, not a product bug: the generic
-	// "+ New" create dialog deliberately stays OPEN after a same-type action succeeds — see
-	// document-upsert-dialog.tsx's own header ("closes itself only when the action's result is a
-	// DIFFERENT document type") and [typeId].tsx's own handleActionSuccess ("same-type success needs
-	// nothing here at all ... the dialog just stays open, showing the same record"). The ONE place
-	// that closes unconditionally is the received-invoice upload flow's OWN
-	// `handleActionSuccess` override, which says so explicitly — the exception, not the rule. The
-	// backend logs for this exact run show no error at all in this test's window: the save always
-	// succeeded, the dialog just never went away, per that design. Content assertions belong to the
-	// API either way (this file's own header) — no DOM check stands in for the API check below.
+	// No DOM assertion on what the save leaves on screen: a successful FIRST save closes the create
+	// dialog and lands on the new record's own page (document-create-dialog.tsx), while a save on an
+	// already-saved record stays on that page (document-detail.tsx) — the two callers of this helper
+	// differ, and neither outcome is the fact under test. Content assertions belong to the API either
+	// way (this file's own header) — no DOM check stands in for the API check below.
 	//
 	// The `[data-sonner-toast]` selector used to be asserted right after the click with no
 	// interception behind it — but it matches ANY toast already mounted, including a REFUSAL toast a
@@ -242,10 +234,13 @@ describe("Expense attachments, category, and mileage", () => {
 			expect(target?.data.attachment, "elle porte bien une pièce jointe au départ").to.exist;
 
 			cy.visit("/documents/expense");
-			cy.get(`[data-cy="document-list-row-${target!.id}"]`, { timeout: 10000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 10000 }).should("be.visible");
+			cy.openDocument(target!.id);
 
-			cy.get('[data-cy="document-field-attachment-value"]', { timeout: 10000 }).should("be.visible");
+			// `scrollIntoView()`: on the CI viewport (1000×660) the attachment field sits past one
+			// screenful of the record page's own scroll area — clipped, not absent.
+			cy.get('[data-cy="document-field-attachment-value"]', { timeout: 10000 })
+				.scrollIntoView()
+				.should("be.visible");
 			cy.get('[data-cy="document-field-attachment-remove"]').click();
 			cy.get('[data-cy="document-field-attachment-value"]').should("not.exist");
 			cy.get('[data-cy="document-field-attachment-input"]').should("be.visible");

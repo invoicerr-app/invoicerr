@@ -113,11 +113,10 @@ describe("Post-deposit conformity tracking — a send by email shows nothing", (
 				.find(`[data-cy="document-conformity-badge-${invoiceId}"]`)
 				.should("not.exist");
 
-			// PROOF 3 — in the edit dialog, NO conformity section at all — never a falsely
+			// PROOF 3 — on the record's own page, NO conformity section at all — never a falsely
 			// empty block (the same choice as document-archive-section.tsx for a document with no archive).
-			cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
-			// The archive, on the other hand, IS shown (regression 34) — the proof the dialog has
+			cy.openDocument(invoiceId);
+			// The archive, on the other hand, IS shown (regression 34) — the proof the page has
 			// genuinely finished loading, before asserting the ABSENCE of the conformity section right below.
 			cy.get('[data-cy="document-archive-section"]', { timeout: 15000 })
 				.scrollIntoView()

@@ -138,7 +138,7 @@ describe('Articles E2E', () => {
 
     // Adapted to the generic document model (frontend/src/components/documents/): the old, bespoke
     // invoice form ("invoice-dialog", "items.N.*") is gone, replaced by the descriptor-driven
-    // DocumentForm every document type now shares (documents/[typeId].tsx). The INTENT this test
+    // DocumentForm every document type now shares (documents/[typeId]/index.tsx). The INTENT this test
     // proves is unchanged — picking a catalog article really fills a line's own fields, with real
     // values asserted, not just "a callback fired" — only the path to it changed: the generic
     // `prefillFrom` mechanism (descriptors/types.ts, backend; field-renderers/array-field.tsx,

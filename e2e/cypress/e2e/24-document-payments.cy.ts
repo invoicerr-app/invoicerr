@@ -87,10 +87,9 @@ describe("An invoice's payments — a record, not a document type", () => {
 			invoiceId = id;
 
 			cy.visit("/documents/invoice");
-			cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+			cy.openDocument(invoiceId);
 
-			cy.get('[data-cy="document-action-send"]', { timeout: 15000 }).click();
+			cy.runDocumentAction("send");
 			// The proof that sending genuinely succeeded: "record-payment" is only offered on a
 			// "sent" invoice (availableWhen: ['sent']) — its mere appearance is enough.
 			cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).should("exist");
@@ -99,9 +98,9 @@ describe("An invoice's payments — a record, not a document type", () => {
 				.its("body.status")
 				.should("eq", "sent");
 
-			// The balance, on screen: nothing paid, never settled. `scrollIntoView()`: the section lives
-			// in the scrollable dialog (document-upsert-dialog.tsx, `overflow-y-auto`), below the
-			// fold until the dialog has scrolled — same pattern as 21's transition-hint.
+			// The balance, on screen: nothing paid, never settled. `scrollIntoView()`: under the page's
+			// `lg` breakpoint (CI viewport 1000×660) the side sections stack under the form
+			// (document-detail.tsx), below the fold until scrolled — same pattern as 21's transition-hint.
 			cy.get('[data-cy="document-settlement-section"]', { timeout: 15000 })
 				.scrollIntoView()
 				.should("be.visible");
@@ -129,10 +128,9 @@ describe("An invoice's payments — a record, not a document type", () => {
 		expect(invoiceId, "la facture du test précédent existe toujours").to.be.a("string");
 
 		cy.visit("/documents/invoice");
-		cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+		cy.openDocument(invoiceId);
 
-		cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+		cy.runDocumentAction("record-payment");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 
 		// Fields SCOPED to the action dialog: the invoice itself ALSO has a "currency" field (its
@@ -181,10 +179,9 @@ describe("An invoice's payments — a record, not a document type", () => {
 		expect(invoiceId, "la facture des tests précédents existe toujours").to.be.a("string");
 
 		cy.visit("/documents/invoice");
-		cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+		cy.openDocument(invoiceId);
 
-		cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+		cy.runDocumentAction("record-payment");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 		// The exact remainder — not a cent more, to prove an EXACT settlement, not an
 		// overpayment (covered separately by computeSettlement's own jest tests).
@@ -219,10 +216,9 @@ describe("An invoice's payments — a record, not a document type", () => {
 		expect(invoiceId, "la facture des tests précédents existe toujours").to.be.a("string");
 
 		cy.visit("/documents/invoice");
-		cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+		cy.openDocument(invoiceId);
 
-		cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+		cy.runDocumentAction("record-payment");
 		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 
 		// Scoped to the dialog — see the previous test's own comment: the invoice ALSO has its own
@@ -262,8 +258,7 @@ describe("An invoice's payments — a record, not a document type", () => {
 	it("the \"record-payment\" action is not offered on a draft, and the API refuses it too (409)", () => {
 		createDraftInvoice().then((id) => {
 			cy.visit("/documents/invoice");
-			cy.get(`[data-cy="document-edit-button-${id}"]`, { timeout: 15000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+			cy.openDocument(id);
 
 			// ON SCREEN: no button at all for a "draft" invoice.
 			cy.get('[data-cy="document-action-record-payment"]').should("not.exist");
@@ -305,12 +300,11 @@ describe("An invoice's payments — a record, not a document type", () => {
 
 			createDraftInvoice().then((id) => {
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-edit-button-${id}"]`, { timeout: 15000 }).click();
-				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
-				cy.get('[data-cy="document-action-send"]', { timeout: 15000 }).click();
+				cy.openDocument(id);
+				cy.runDocumentAction("send");
 				cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).should("exist");
 
-				cy.get('[data-cy="document-action-record-payment"]').click();
+				cy.runDocumentAction("record-payment");
 				cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 				const dialog = () => cy.get('[data-cy="document-action-params-dialog"]');
 

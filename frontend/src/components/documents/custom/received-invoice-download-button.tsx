@@ -11,8 +11,8 @@ import { authenticatedFetch } from "@/hooks/use-fetch"
 
 /**
  * The "download the original file" button — registered at "list-row-extra"
- * (custom-slots.ts), the SAME slot custom/invoice-preview-button.tsx already uses for "invoice", next
- * to the generic edit/pdf icons every row already renders. `GET /api/documents/received-invoices/:id/
+ * (custom-slots.ts), the SAME slot custom/invoice-correction-routes-button.tsx uses for "invoice",
+ * next to the generic pdf icon every row already renders. `GET /api/documents/received-invoices/:id/
  * file` (received-invoices.controller.ts) streams back the ORIGINAL uploaded bytes, verbatim, with
  * their own filename/mime — never re-derived, never re-rendered.
  */
@@ -23,7 +23,7 @@ function ReceivedInvoiceDownloadButton({ instance }: DocumentCustomSlotProps) {
     if (!instance) return // Unreachable in practice — this slot is only ever rendered per-row.
     try {
       // `authenticatedFetch`, not a plain `<a href>` — same cross-port/cookie reasoning
-      // invoice-preview-button.tsx's own header explains for its PDF download.
+      // document-downloads.ts's own header explains for the PDF download.
       const response = await authenticatedFetch(`/api/documents/received-invoices/${instance.id}/file`)
       if (!response.ok) {
         const body = await response.json().catch(() => null)
@@ -44,6 +44,7 @@ function ReceivedInvoiceDownloadButton({ instance }: DocumentCustomSlotProps) {
       type="button"
       variant="ghost"
       size="icon"
+      aria-label={t("documents.custom.receivedInvoiceDownload.button")}
       tooltip={t("documents.custom.receivedInvoiceDownload.button")}
       onClick={(event) => {
         event.stopPropagation()

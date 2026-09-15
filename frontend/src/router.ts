@@ -19,6 +19,7 @@ export type Path =
   | `/declarations`
   | `/documents`
   | `/documents/:typeId`
+  | `/documents/:typeId/:id`
   | `/payment-methods`
   | `/portal`
   | `/portal/:token`
@@ -29,6 +30,7 @@ export type Path =
 
 export type Params = {
   '/documents/:typeId': { typeId: string }
+  '/documents/:typeId/:id': { typeId: string; id: string }
   '/portal/:token': { token: string }
   '/settings/:tab?': { tab?: string }
   '/signature/:token': { token: string }

@@ -17,16 +17,18 @@ import {
 import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
+import { SectionCard } from "./section-card"
+
 /**
  * Three-way match (rapprochement à 3 voies) — the "Reconciliation" panel on
- * a received invoice's own edit dialog: purchase order × goods receipt(s) × this invoice, per line,
+ * a received invoice's own detail page: purchase order × goods receipt(s) × this invoice, per line,
  * with the company's own tolerance already applied (backend's `reconciliation/three-way-match.ts`).
  *
  * TYPE-SPECIFIC on purpose, unlike `DocumentArchiveSection`/`DocumentConformitySection` (both
- * type-BLIND, self-hiding components document-form.tsx renders for every type): the backend route
+ * type-BLIND, self-hiding components document-detail.tsx renders for every type): the backend route
  * this reads (`GET /documents/received-invoices/:id/reconciliation`) exists ONLY for
- * "received-invoice" — see that controller's own header. `document-form.tsx` gates its own render on
- * `descriptor.id === "received-invoice"` for exactly this reason; THIS component additionally
+ * "received-invoice" — see that controller's own header. `document-detail.tsx` gates its own render
+ * on `descriptor.id === "received-invoice"` for exactly this reason; THIS component additionally
  * self-hides for the routine case where the CURRENT received invoice has no purchase order linked at
  * all (`hasPurchaseOrder: false` — never an error, see the backend composition's own header).
  *
@@ -102,108 +104,111 @@ export function DocumentReconciliationSection({ documentId }: DocumentReconcilia
   const { overallVerdict, tolerancePercent, lines, acceptance } = data
 
   return (
-    <div className="space-y-4 rounded-lg border p-4" data-cy="document-reconciliation-section">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">{t("documents.reconciliation.title")}</h4>
+    <SectionCard
+      title={t("documents.reconciliation.title")}
+      aside={
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {t("documents.reconciliation.tolerance", { percent: tolerancePercent })}
           </span>
           <VerdictBadge verdict={overallVerdict} dataCy="document-reconciliation-overall-badge" />
         </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <Table data-cy="document-reconciliation-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("documents.reconciliation.columns.description")}</TableHead>
-              <TableHead className="text-right">{t("documents.reconciliation.columns.ordered")}</TableHead>
-              <TableHead className="text-right">{t("documents.reconciliation.columns.received")}</TableHead>
-              <TableHead className="text-right">{t("documents.reconciliation.columns.invoiced")}</TableHead>
-              <TableHead className="text-right">
-                {t("documents.reconciliation.columns.priceOrdered")}
-              </TableHead>
-              <TableHead className="text-right">
-                {t("documents.reconciliation.columns.priceInvoiced")}
-              </TableHead>
-              <TableHead className="text-right">
-                {t("documents.reconciliation.columns.totalVariance")}
-              </TableHead>
-              <TableHead>{t("documents.reconciliation.columns.verdict")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lines.map((line, index) => (
-              <TableRow
-                // A LINE's OWN normalized description is already the engine's own matching key
-                // (three-way-match.ts) — one entry per distinct description, never duplicated.
-                key={line.description}
-                data-cy={`document-reconciliation-line-${index}`}
-                className={line.verdict === "to-review" ? "bg-amber-50 dark:bg-amber-950/20" : undefined}
-              >
-                <TableCell className="font-medium">{line.description}</TableCell>
-                <TableCell className="text-right">{formatNumber(line.quantityOrdered)}</TableCell>
-                <TableCell className="text-right">{formatNumber(line.quantityReceived)}</TableCell>
-                <TableCell className="text-right">{formatNumber(line.quantityInvoiced)}</TableCell>
-                <TableCell className="text-right">
-                  {line.unitPriceOrdered === null ? "—" : formatNumber(line.unitPriceOrdered)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {line.unitPriceInvoiced === null ? "—" : formatNumber(line.unitPriceInvoiced)}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    "text-right",
-                    line.totalVarianceValue > 0 && "text-amber-700 dark:text-amber-400",
-                    line.totalVarianceValue < 0 && "text-blue-700 dark:text-blue-400",
-                  )}
-                  data-cy={`document-reconciliation-line-${index}-variance`}
-                >
-                  {formatNumber(line.totalVarianceValue)} ({formatPercent(line.totalVariancePercent)})
-                </TableCell>
-                <TableCell>
-                  <VerdictBadge
-                    verdict={line.verdict}
-                    dataCy={`document-reconciliation-line-${index}-badge`}
-                  />
-                </TableCell>
+      }
+      dataCy="document-reconciliation-section"
+    >
+      <div className="space-y-4">
+        <div className="overflow-x-auto">
+          <Table data-cy="document-reconciliation-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("documents.reconciliation.columns.description")}</TableHead>
+                <TableHead className="text-right">{t("documents.reconciliation.columns.ordered")}</TableHead>
+                <TableHead className="text-right">{t("documents.reconciliation.columns.received")}</TableHead>
+                <TableHead className="text-right">{t("documents.reconciliation.columns.invoiced")}</TableHead>
+                <TableHead className="text-right">
+                  {t("documents.reconciliation.columns.priceOrdered")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("documents.reconciliation.columns.priceInvoiced")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("documents.reconciliation.columns.totalVariance")}
+                </TableHead>
+                <TableHead>{t("documents.reconciliation.columns.verdict")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {acceptance && (
-        <p className="text-xs text-muted-foreground" data-cy="document-reconciliation-acceptance">
-          {t("documents.reconciliation.acceptedBy", {
-            name: acceptance.acceptedByLabel,
-            date: new Date(acceptance.acceptedAt).toLocaleString(),
-          })}
-          {acceptance.reason ? ` — ${acceptance.reason}` : ""}
-        </p>
-      )}
-
-      {overallVerdict === "to-review" && canAccept && (
-        <div className="space-y-2 border-t pt-3">
-          <Textarea
-            placeholder={t("documents.reconciliation.reasonPlaceholder")}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            className="text-sm"
-            data-cy="document-reconciliation-accept-reason"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            loading={acceptVariance.isPending}
-            onClick={handleAccept}
-            dataCy="document-reconciliation-accept-button"
-          >
-            {t("documents.reconciliation.acceptButton")}
-          </Button>
+            </TableHeader>
+            <TableBody>
+              {lines.map((line, index) => (
+                <TableRow
+                  // A LINE's OWN normalized description is already the engine's own matching key
+                  // (three-way-match.ts) — one entry per distinct description, never duplicated.
+                  key={line.description}
+                  data-cy={`document-reconciliation-line-${index}`}
+                  className={line.verdict === "to-review" ? "bg-warning/60" : undefined}
+                >
+                  <TableCell className="font-medium">{line.description}</TableCell>
+                  <TableCell className="text-right">{formatNumber(line.quantityOrdered)}</TableCell>
+                  <TableCell className="text-right">{formatNumber(line.quantityReceived)}</TableCell>
+                  <TableCell className="text-right">{formatNumber(line.quantityInvoiced)}</TableCell>
+                  <TableCell className="text-right">
+                    {line.unitPriceOrdered === null ? "—" : formatNumber(line.unitPriceOrdered)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {line.unitPriceInvoiced === null ? "—" : formatNumber(line.unitPriceInvoiced)}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right",
+                      line.totalVarianceValue > 0 && "text-warning-foreground",
+                      line.totalVarianceValue < 0 && "text-info-foreground",
+                    )}
+                    data-cy={`document-reconciliation-line-${index}-variance`}
+                  >
+                    {formatNumber(line.totalVarianceValue)} ({formatPercent(line.totalVariancePercent)})
+                  </TableCell>
+                  <TableCell>
+                    <VerdictBadge
+                      verdict={line.verdict}
+                      dataCy={`document-reconciliation-line-${index}-badge`}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-      )}
-    </div>
+
+        {acceptance && (
+          <p className="text-xs text-muted-foreground" data-cy="document-reconciliation-acceptance">
+            {t("documents.reconciliation.acceptedBy", {
+              name: acceptance.acceptedByLabel,
+              date: new Date(acceptance.acceptedAt).toLocaleString(),
+            })}
+            {acceptance.reason ? ` — ${acceptance.reason}` : ""}
+          </p>
+        )}
+
+        {overallVerdict === "to-review" && canAccept && (
+          <div className="space-y-2 border-t pt-3">
+            <Textarea
+              placeholder={t("documents.reconciliation.reasonPlaceholder")}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className="text-sm"
+              data-cy="document-reconciliation-accept-reason"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              loading={acceptVariance.isPending}
+              onClick={handleAccept}
+              dataCy="document-reconciliation-accept-button"
+            >
+              {t("documents.reconciliation.acceptButton")}
+            </Button>
+          </div>
+        )}
+      </div>
+    </SectionCard>
   )
 }

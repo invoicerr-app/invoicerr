@@ -196,17 +196,12 @@ describe("The cross-border case, through the screen", () => {
 					// 0% VAT), never €1200.00 (the 20% typed at draft time). Before the fix,
 					// `instance.data` kept the typed rate and this total would have shown 1200.00 —
 					// this is the assertion that would have failed on the defect.
-					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
-						timeout: 15000,
-					}).click();
-					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should(
-						"be.visible",
-					);
+					cy.openDocument(invoiceId);
 					cy.get('[data-cy="document-totals-gross"]', { timeout: 10000 })
 						.should("contain", "1000.00")
 						.and("not.contain", "1200.00");
-					cy.get("body").type("{esc}");
-					cy.get('[data-cy="document-edit-dialog"]').should("not.exist");
+					// Back to the list: the PDF button below is the ROW's own.
+					cy.visit("/documents/invoice");
 
 					// 5. The RE-downloaded PDF — a second download, after the fact, not just the one
 					// that accompanied the send — also carries the resolved treatment (0%): the
@@ -229,15 +224,8 @@ describe("The cross-border case, through the screen", () => {
 					// total, never €1200.00) fully settles the invoice: the badge becomes "Settled",
 					// and the API confirms it against the STORED totals (never a hidden recomputation
 					// that would mask the defect).
-					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
-						timeout: 15000,
-					}).click();
-					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should(
-						"be.visible",
-					);
-					cy.get('[data-cy="document-action-record-payment"]', {
-						timeout: 15000,
-					}).click();
+					cy.openDocument(invoiceId);
+					cy.runDocumentAction("record-payment");
 					cy.get('[data-cy="document-action-params-dialog"]', {
 						timeout: 10000,
 					}).should("be.visible");

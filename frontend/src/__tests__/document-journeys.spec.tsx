@@ -8,15 +8,18 @@ import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/docu
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
 import * as useFetchModule from "@/hooks/use-fetch"
 
-import DocumentTypePage from "@/pages/(app)/documents/[typeId]"
+import DocumentTypePage from "@/pages/(app)/documents/[typeId]/index"
+import DocumentDetailPage from "@/pages/(app)/documents/[typeId]/[id]"
 
 /**
  * Journey coverage, not line coverage: five NAMED tests, one
- * per journey (issuance, rejection, correction, credit note, cancellation), each rendering the REAL screen this
- * app actually ships (`DocumentTypePage` — the exact component `[typeId].tsx`'s own route mounts, the
- * SAME tree `document-list.tsx`/`document-form.tsx`/`document-conformity-section.tsx`/
+ * per journey (issuance, rejection, correction, credit note, cancellation), each rendering the REAL screens this
+ * app actually ships (`DocumentTypePage` and `DocumentDetailPage` — the exact components
+ * `[typeId]/index.tsx` and `[typeId]/[id].tsx`'s own routes mount, the SAME tree `document-list.tsx`/
+ * `document-detail.tsx`/`document-form.tsx`/`document-conformity-section.tsx`/
  * `document-settlement.tsx` compose into in production), never an isolated component standing in for
- * it. The API boundary is mocked at `fetch` — this codebase's own boundary (`use-fetch.ts`'s
+ * it. Opening a saved record is a real navigation from the list's own link to the record's page,
+ * exactly as in production. The API boundary is mocked at `fetch` — this codebase's own boundary (`use-fetch.ts`'s
  * `authenticatedFetch`, wrapped by `use-api-query.ts`'s `apiFetch`) — never a re-implementation of any
  * business rule, so a descriptor/action/event handed back here is exactly the shape a real backend
  * response would carry. i18n is the REAL instance (`src/test/setup.ts`), never mocked. Each `it()`
@@ -96,6 +99,7 @@ function documentTypeTree(queryClient: QueryClient, typeId: string, extra?: Reac
                 </>
               }
             />
+            <Route path="/documents/:typeId/:id" element={<DocumentDetailPage />} />
           </Routes>
         </MemoryRouter>
       </PageHeaderProvider>
@@ -187,13 +191,11 @@ describe("Issuance — draft sent, the screen follows without reload (SSE mechan
   // key the mounted list never reads). Reverted; suite green again.
 })
 
-describe("Custom slots — the TWO list-row-extra components coexist (list-registry tripwire)", () => {
-  /** The mutation "only the LAST registered component
-   *  survives" (the old Map-overwrites behavior of the custom-slots registry)
-   *  left the 55 tests green — nothing proved that the preview button
-   *  AND the correction button coexist on the same issued-invoice row. This test is that
-   *  tripwire: both triggers present, on the same row. */
-  it("an issued invoice carries BOTH the preview button and the correction button", async () => {
+describe("Custom slots — the list-row-extra component renders on the row AND on the record's page", () => {
+  /** The same registration (custom/invoice-correction-routes-button.tsx) must reach both surfaces
+   *  that consult the "list-row-extra" slot — the list's row cluster and the detail page's header —
+   *  or a user who opens the record loses the Correct button the row just offered. */
+  it("an issued invoice carries the correction button on its row, then on its own page", async () => {
     const descriptor = {
       id: "invoice", // document-list resolves the slot by descriptor.id — the tripwire NEEDS it
       typeId: "invoice",
@@ -219,17 +221,22 @@ describe("Custom slots — the TWO list-row-extra components coexist (list-regis
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
       "GET /api/documents": () => [instance],
+      "GET /api/documents/inv-slots": () => instance,
       "GET /api/documents/inv-slots/authority-events": () => [],
+      "GET /api/documents/inv-slots/archives": () => [],
     })
     renderDocumentTypeScreen("invoice")
     await screen.findByTestId("document-list-row-inv-slots")
-    expect(screen.getByTestId("document-custom-invoice-preview-button")).toBeInTheDocument()
+    expect(screen.getByTestId("document-correction-button-inv-slots")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("document-open-link-inv-slots"))
+    await screen.findByTestId("document-detail-page")
     expect(screen.getByTestId("document-correction-button-inv-slots")).toBeInTheDocument()
   })
 
   /** Same validation pass: the status gating ("only an ISSUED document can be corrected") mutated to
    *  `true` also left the suite green — pinned here: a draft does NOT have a Correct button. */
-  it("a DRAFT does not carry the correction button (the preview, though, stays)", async () => {
+  it("a DRAFT does not carry the correction button", async () => {
     const descriptor = {
       id: "invoice",
       typeId: "invoice",
@@ -259,13 +266,12 @@ describe("Custom slots — the TWO list-row-extra components coexist (list-regis
     })
     renderDocumentTypeScreen("invoice")
     await screen.findByTestId("document-list-row-inv-draft-slots")
-    expect(screen.getByTestId("document-custom-invoice-preview-button")).toBeInTheDocument()
     expect(screen.queryByTestId("document-correction-button-inv-draft-slots")).not.toBeInTheDocument()
   })
 })
 
 describe("Rejection — a logged negative authority verdict appears on the conformity panel", () => {
-  it("shows the Rejected badge on the list row and the reason in the edit dialog's timeline", async () => {
+  it("shows the Rejected badge on the list row and the reason in the record page's timeline", async () => {
     const descriptor: DocumentTypeDescriptor = {
       id: "invoice",
       label: "Invoice",
@@ -296,6 +302,7 @@ describe("Rejection — a logged negative authority verdict appears on the confo
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
       "GET /api/documents": () => [instance],
+      "GET /api/documents/inv-2": () => instance,
       "GET /api/documents/inv-2/authority-events": () => [
         {
           id: "evt-1",
@@ -319,14 +326,14 @@ describe("Rejection — a logged negative authority verdict appears on the confo
 
     renderDocumentTypeScreen("invoice")
 
-    // The list itself, with the dialog still closed — the rejected-deposit indicator, proven end to
+    // The list itself, before the record is opened — the rejected-deposit indicator, proven end to
     // end through the real query, not just `computeConformityVerdict`'s
     // own pure-function unit tests (document-conformity-section.spec.tsx).
     await waitFor(() =>
       expect(screen.getByTestId("document-conformity-badge-inv-2")).toHaveTextContent("Rejected"),
     )
 
-    fireEvent.click(screen.getByTestId("document-edit-button-inv-2"))
+    fireEvent.click(screen.getByTestId("document-open-link-inv-2"))
 
     await waitFor(() => expect(screen.getByTestId("document-conformity-badge")).toHaveTextContent("Rejected"))
     expect(screen.getByTestId("document-conformity-event-reason")).toHaveTextContent("BR-FR-05/BT-22")
@@ -392,15 +399,19 @@ describe("Correction — what the screen REALLY offers today (not a dedicated sc
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
       "GET /api/documents": () => [instance],
+      "GET /api/documents/inv-3": () => instance,
       "GET /api/documents/inv-3/authority-events": () => [],
       "GET /api/documents/inv-3/archives": () => [],
     })
 
     renderDocumentTypeScreen("invoice")
 
-    await waitFor(() => expect(screen.getByTestId("document-edit-button-inv-3")).toBeInTheDocument())
-    fireEvent.click(screen.getByTestId("document-edit-button-inv-3"))
+    await waitFor(() => expect(screen.getByTestId("document-open-link-inv-3")).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId("document-open-link-inv-3"))
 
+    // The one action this record offers is blocked — it still takes the page's primary slot (a
+    // visibly disabled rule rather than an empty header — see action-presentation.ts's
+    // `pickPrimaryAction`), its reason printed right under it.
     const saveDraftButton = await screen.findByTestId("document-action-save-draft")
     expect(saveDraftButton).toBeDisabled()
     expect(screen.getByTestId("document-blocked-reason-save-draft")).toHaveTextContent("CGI art. 289, I.5")
@@ -520,8 +531,8 @@ describe("Credit note — the mandatory reference, the locked currency, the cred
     expect(saved?.data).toMatchObject({ invoice: "inv-9", currency: "EUR", correctedLines: ["line-1"] })
 
     // Second half of the journey: the invoice this credit note corrects now shows it at settlement —
-    // a SEPARATE mount of the real invoice screen (document-settlement.tsx renders inside ITS OWN
-    // edit dialog, on ITS OWN type route), fed the settlement the backend would now compute once the
+    // a SEPARATE mount of the real invoice screens (document-settlement.tsx renders on the invoice's
+    // OWN page, under ITS OWN type route), fed the settlement the backend would now compute once the
     // credit note above is persisted.
     const invoiceDescriptor: DocumentTypeDescriptor = {
       id: "invoice",
@@ -546,6 +557,7 @@ describe("Credit note — the mandatory reference, the locked currency, the cred
     installFetchMock({
       "GET /api/documents/types/invoice": () => invoiceDescriptor,
       "GET /api/documents": () => [invoiceInstance],
+      "GET /api/documents/inv-9": () => invoiceInstance,
       "GET /api/documents/inv-9/authority-events": () => [],
       "GET /api/documents/inv-9/archives": () => [],
       "GET /api/documents/inv-9/settlement": () => ({
@@ -566,7 +578,7 @@ describe("Credit note — the mandatory reference, the locked currency, the cred
 
     renderDocumentTypeScreen("invoice")
 
-    fireEvent.click(await screen.findByTestId("document-edit-button-inv-9"))
+    fireEvent.click(await screen.findByTestId("document-open-link-inv-9"))
     await screen.findByTestId("document-settlement-section")
     expect(screen.getByTestId("document-settlement-credit-cn-1")).toHaveTextContent("120.00 EUR")
     expect(screen.getByTestId("document-settlement-credited")).toHaveTextContent("120.00 EUR")
@@ -628,6 +640,7 @@ describe("Cancellation — the journey as it exists (GAP logged: no dedicated sc
     installFetchMock({
       "GET /api/documents/types/invoice": () => descriptor,
       "GET /api/documents": () => [instance],
+      "GET /api/documents/inv-5": () => instance,
       "GET /api/documents/inv-5/authority-events": () => [],
       "GET /api/documents/inv-5/archives": () => [],
     })
@@ -637,15 +650,21 @@ describe("Cancellation — the journey as it exists (GAP logged: no dedicated sc
     await waitFor(() => expect(screen.getByTestId("document-status-badge")).toHaveTextContent("Sent"))
     expect(screen.queryByTestId("document-row-action-cancel-inv-5")).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId("document-edit-button-inv-5"))
+    fireEvent.click(screen.getByTestId("document-open-link-inv-5"))
     await screen.findByTestId("document-form")
+    // Neither as the page's primary button nor inside its actions menu. Opened from the keyboard: a
+    // Radix menu trigger listens to pointerdown (never a synthetic `click`) and to Enter/Space, and
+    // jsdom has no real pointer events to offer.
+    expect(screen.queryByTestId("document-action-cancel")).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByTestId("document-actions-menu"), { key: "Enter" })
+    await screen.findByTestId("document-actions-menu-content")
     expect(screen.queryByTestId("document-action-cancel")).not.toBeInTheDocument()
   })
   // MUTATION (proven, reverted): types.ts — `isActionAvailable`'s own status gate,
   // `const availableByDescriptor = action.availableWhen === "always" || (status !== undefined &&
   // action.availableWhen.includes(status))` -> `const availableByDescriptor = true`. RED: the
   // draft-only "cancel" action now renders for the SENT instance too, in both the list row
-  // ("document-row-action-cancel-inv-5") and the edit dialog ("document-action-cancel") — exactly
+  // ("document-row-action-cancel-inv-5") and the record's page ("document-action-cancel") — exactly
   // the failure mode that would silently expose a future cancel action on a document it was never
   // scoped for. Reverted; suite green again.
 })
@@ -653,7 +672,7 @@ describe("Cancellation — the journey as it exists (GAP logged: no dedicated sc
 /**
  * The "Correct" screen: a country-is-data dialog rendered off the
  * `GET .../correction-routes`, on the REAL screen (custom/invoice-correction-routes-button.tsx,
- * registered the same way invoice-preview-button.tsx already is), never a re-implementation of the
+ * registered through custom-registrations.ts like every other slot), never a re-implementation of the
  * status/label vocabulary. Four journeys: FR sees the internal credit
  * note IMPOSED and reaches the real, pre-linked credit-note screen; PL sees the SAME routeId
  * FORBIDDEN, disabled, with its own reason; a declared-but-unwired route shows the honest

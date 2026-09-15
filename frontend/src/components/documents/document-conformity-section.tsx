@@ -5,13 +5,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentAuthorityEvents } from "@/hooks/queries"
 import { cn } from "@/lib/utils"
 
+import { SectionCard } from "./section-card"
 import type { DocumentAuthorityEvent } from "./types"
 
 /**
  * Post-deposit conformity tracking (PDP: fr:200 deposited →
  * fr:201 issued → fr:202 received, or fr:213 rejected; KSeF: gated, see the backend's own
- * `ksef-status-poller.ts`). Same mould as `document-archive-section.tsx`: shown inside the document
- * edit dialog for ANY document type/status once it has at least one event, renders NOTHING for a
+ * `ksef-status-poller.ts`). Same mould as `document-archive-section.tsx`: shown on the document
+ * detail page for ANY document type/status once it has at least one event, renders NOTHING for a
  * document with zero events yet — a "sent" quote/credit-note (no transport, no poller at all) never
  * gets one, and neither does a fresh PDP deposit before the sweep's first pass. Nothing here mutates
  * `DocumentInstance.status` — the badge is a PROJECTION of this table, exactly like the backend's own
@@ -86,12 +87,16 @@ export function latestConformityReason(events: DocumentAuthorityEvent[]): string
   return rejection?.reason ?? undefined
 }
 
+// Theme tokens (index.css) rather than stock Tailwind colors — each pair already switches with
+// `.dark`. "declarationIssue" shares the warning tone with "pending" on purpose: both mean "not
+// settled, someone has to look", and the label (not the hue) is what tells them apart; a fifth,
+// orange-ish tone would have been a second amber the identity deliberately doesn't have.
 const VERDICT_TONE: Record<ConformityVerdict, string> = {
-  accepted: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+  accepted: "bg-success text-success-foreground",
+  rejected: "bg-destructive-soft text-destructive-soft-foreground",
   gaveUp: "bg-secondary text-secondary-foreground",
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
-  declarationIssue: "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300",
+  pending: "bg-warning text-warning-foreground",
+  declarationIssue: "bg-warning text-warning-foreground",
 }
 
 const VERDICT_LABEL_KEY: Record<ConformityVerdict, string> = {
@@ -131,7 +136,7 @@ export function ConformityBadge({ events, className, dataCySuffix }: ConformityB
  *  declarative-reporting failure follows the SAME discipline — see
  *  `DECLARATION_ISSUE_CODES`'s own header on why that is its own verdict, never folded into
  *  "rejected"). An accepted or still-pending deposit shows nothing on the list row at all; the full
- *  timeline (all five states) lives in the section below, inside the edit dialog. */
+ *  timeline (all five states) lives in the section below, on the detail page. */
 export function DocumentConformityListIndicator({
   typeId,
   documentId,
@@ -192,7 +197,7 @@ interface DocumentConformitySectionProps {
   documentId: string
 }
 
-/** The data-fetching half, shown inside the document edit dialog (document-form.tsx), next to the
+/** The data-fetching half, shown on the document detail page (document-detail.tsx), next to the
  *  archive section. Renders NOTHING for a document with no conformity events at all — never a
  *  falsely-empty "Compliance tracking" block for a document sent by email, or by any channel with no
  *  poller registered (see the backend's `authority-status-poller.ts` on why "sdi" never gets one). */
@@ -212,12 +217,12 @@ export function DocumentConformitySection({ typeId, documentId }: DocumentConfor
   if (!events || events.length === 0) return null
 
   return (
-    <div className="space-y-2 rounded-lg border p-4" data-cy="document-conformity-section">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">{t("documents.conformity.title")}</h4>
-        <ConformityBadge events={events} />
-      </div>
+    <SectionCard
+      title={t("documents.conformity.title")}
+      aside={<ConformityBadge events={events} />}
+      dataCy="document-conformity-section"
+    >
       <ConformityTimeline events={events} />
-    </div>
+    </SectionCard>
   )
 }

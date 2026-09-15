@@ -194,11 +194,10 @@ describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", ()
 							expect(sent.status, "facture envoyée").to.be.oneOf([200, 201]);
 
 							cy.visit("/documents/invoice");
-							cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-							cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+							cy.openDocument(invoiceId);
 
 							// PARTIAL payment: €60.00 of the €120.00 due (€100 net + 20% VAT).
-							cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+							cy.runDocumentAction("record-payment");
 							cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
 								"be.visible",
 							);
@@ -222,7 +221,7 @@ describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", ()
 							});
 
 							// FINAL payment: the remaining €60.00 — the invoice crosses the "settled" threshold.
-							cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+							cy.runDocumentAction("record-payment");
 							cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should(
 								"be.visible",
 							);

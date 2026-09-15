@@ -57,8 +57,7 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 					expect(quoteId, "le brouillon a un identifiant").to.be.a("string");
 
 					cy.visit("/documents/quote");
-					cy.get(`[data-cy="document-edit-button-${quoteId}"]`, { timeout: 15000 }).click();
-					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+					cy.openDocument(quoteId);
 
 					// "send" declares (item 22, the asynchronous send) a FIRST transition draft ->
 					// sending (quote.descriptor.ts): the quote is currently "draft", so the expected
@@ -74,7 +73,10 @@ describe("A document's lifecycle — declared statuses and transitions", () => {
 
 					// "convert-to-invoice" is offered (both draft AND sent qualify) but declares
 					// NO transition at all (it never changes the QUOTE's own status — see
-					// convert-to-invoice.ts): no label at all, even though the button itself is there.
+					// convert-to-invoice.ts): no label at all, even though the entry itself is there.
+					// It sits in the page's "Actions" menu, next to "save-draft" — only "send" is the
+					// header's own primary button for an unedited draft (action-presentation.ts).
+					cy.openDocumentActionsMenu();
 					cy.get('[data-cy="document-action-convert-to-invoice"]').should("exist");
 					cy.get('[data-cy="document-transition-hint-convert-to-invoice"]').should("not.exist");
 

@@ -55,6 +55,27 @@ declare namespace Cypress {
         ensureClient(): Chainable<void>
 
         /**
+         * Opens a saved document's own page from the list currently on screen (the row's title
+         * link), and waits for the page and its form to be mounted. Replaces the old
+         * "click the edit button, wait for the edit dialog" pair everywhere.
+         * @example cy.openDocument(invoiceId)
+         */
+        openDocument(documentId: string): Chainable<void>
+
+        /**
+         * Opens the detail page's "Actions" menu and waits for its content to be visible.
+         * @example cy.openDocumentActionsMenu()
+         */
+        openDocumentActionsMenu(): Chainable<void>
+
+        /**
+         * Clicks one declared action on the detail page — the header's primary button when that is
+         * where the page put it, otherwise the same entry inside the "Actions" menu.
+         * @example cy.runDocumentAction('record-payment')
+         */
+        runDocumentAction(actionId: string): Chainable<void>
+
+        /**
          * Picks "today" on a `DatePicker` via its own "Today" footer button (never a computed
          * `[data-day="M/D/YYYY"]` selector — see the implementation for the CI races that caused).
          * Scrolls the trigger into view, clicks it, waits for the "Today" button, clicks it, then

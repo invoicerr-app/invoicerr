@@ -7,8 +7,7 @@ import {
   type DocumentCustomSlotProps,
   registerDocumentCustomComponent,
 } from "@/components/documents/custom-slots"
-import { DocumentUpsertDialog } from "@/components/documents/document-upsert-dialog"
-import type { DocumentInstance } from "@/components/documents/types"
+import { DocumentCreateDialog } from "@/components/documents/document-create-dialog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ApiError } from "@/hooks/use-api-query"
@@ -50,8 +49,9 @@ function buildInitialData(preview: UploadReceivedInvoicePreview): Record<string,
 /**
  * The entry point into creating a received-invoice: a file (PDF, or XML CII/
  * UBL, or Factur-X) is uploaded FIRST, structurally extracted best-effort, and the result seeds a
- * normal `DocumentUpsertDialog` — the user reviews/edits exactly like any other document type's
- * create form, then the generic "receive" action persists it. Registered at "list-header-extra"
+ * normal `DocumentCreateDialog` — the user reviews/edits exactly like any other document type's
+ * create form, then the generic "receive" action persists it and the dialog itself lands on the
+ * new record's own page (see that component's header). Registered at "list-header-extra"
  * (custom-slots.ts) — additive, next to the generic "New" button document-list.tsx always renders.
  *
  * Two dialogs, two stages, deliberately not merged into one: the upload step has no document fields
@@ -127,14 +127,6 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
     if (file) void handleFile(file)
   }
 
-  const handleActionSuccess = (result: DocumentInstance) => {
-    // "receive" never targets a different document type (unlike the quote's "convert-to-invoice") —
-    // closing unconditionally here is what makes "confirm -> the document is received, badge
-    // visible" true: the list behind this dialog already refetched (useRunDocumentAction's own
-    // `invalidateKeys`), so closing just reveals it.
-    if (result.status === "received") setPreview(null)
-  }
-
   return (
     <>
       <Button
@@ -207,12 +199,11 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
       </Dialog>
 
       {preview && (
-        <DocumentUpsertDialog
+        <DocumentCreateDialog
           descriptor={descriptor}
           open
           onOpenChange={(open) => !open && setPreview(null)}
           initialData={buildInitialData(preview)}
-          onActionSuccess={handleActionSuccess}
         />
       )}
     </>

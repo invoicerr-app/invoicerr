@@ -215,6 +215,55 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
     cy.wait(50);
 });
 
+/**
+ * Opens a saved document's OWN page from its type's list: clicks the row's title link
+ * (`document-open-link-<id>`, the one keyboard-reachable "open" control document-list.tsx renders)
+ * and waits for the page root (`document-detail-page`, document-detail.tsx). The page is what
+ * replaced the old edit dialog — every spec that used to click `document-edit-button-<id>` and wait
+ * for `document-edit-dialog` goes through here, so a change to how a record is opened is one edit.
+ * Assumes the list is already on screen (`cy.visit('/documents/<typeId>')` first).
+ * @example cy.openDocument(invoiceId)
+ */
+Cypress.Commands.add('openDocument', (documentId: string) => {
+    cy.get(`[data-cy="document-open-link-${documentId}"]`, { timeout: 15000 }).scrollIntoView().click();
+    cy.get('[data-cy="document-detail-page"]', { timeout: 15000 }).should('be.visible');
+    // The record's own GET has resolved and the form is mounted — `document-form` is the fields
+    // block (document-form.tsx); the header's badges and the side sections keep loading after it,
+    // each with its own selector, so a caller asserting one of those still waits on it explicitly.
+    cy.get('[data-cy="document-form"]', { timeout: 15000 }).should('exist');
+});
+
+/**
+ * Opens the detail page's "Actions" menu (document-detail.tsx) and waits for its content — every
+ * secondary action (`document-action-<id>`), PDF/XML downloads, share link and recurrence live in
+ * there; only the ONE primary action is a plain button in the header.
+ * @example cy.openDocumentActionsMenu()
+ */
+Cypress.Commands.add('openDocumentActionsMenu', () => {
+    cy.get('[data-cy="document-actions-menu"]', { timeout: 15000 }).scrollIntoView().click();
+    cy.get('[data-cy="document-actions-menu-content"]', { timeout: 10000 }).should('be.visible');
+});
+
+/**
+ * Runs one declared action from the detail page, wherever the page put it: the header's primary
+ * button when `document-action-<id>` is visible on its own, otherwise the same selector inside the
+ * "Actions" menu (opened first). Which one it is depends on the record's status and on whether the
+ * form has unsaved edits (action-presentation.ts's `pickPrimaryAction`) — a spec should not have to
+ * know, the same way a user does not: the label reads the same in both places.
+ * @example cy.runDocumentAction('send')
+ */
+Cypress.Commands.add('runDocumentAction', (actionId: string) => {
+    const selector = `[data-cy="document-action-${actionId}"]`;
+    cy.get('body').then(($body) => {
+        if ($body.find(`${selector}:visible`).length > 0) {
+            cy.get(selector).scrollIntoView().click();
+            return;
+        }
+        cy.openDocumentActionsMenu();
+        cy.get(selector, { timeout: 10000 }).should('be.visible').click();
+    });
+});
+
 Cypress.Commands.add('ensureClient', () => {
     const apiUrl = Cypress.env('apiUrl');
     cy.request({ url: `${apiUrl}/api/clients`, failOnStatusCode: false }).then(({ status, body }: any) => {

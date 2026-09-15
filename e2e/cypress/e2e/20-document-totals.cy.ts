@@ -178,8 +178,7 @@ describe("Document totals", () => {
 					);
 
 					cy.visit("/documents/quote", { timeout: 20000 });
-					cy.get(`[data-cy="document-edit-button-${id}"]`, { timeout: 15000 }).click();
-					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+					cy.openDocument(id);
 
 					// With no discount (the quote was created without one): 100 EUR net at 20% = 120 EUR gross.
 					cy.get('[data-cy="document-totals-gross"]', { timeout: 10000 }).should(

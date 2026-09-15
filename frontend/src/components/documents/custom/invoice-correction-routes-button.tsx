@@ -23,9 +23,10 @@ import { cn } from "@/lib/utils"
  * correct, and the backend's own gate 4 would 409 anyway — see correction-routes.spec.ts) opens a
  * dialog rendering THIS INVOICE'S OWN SELLER COUNTRY's correction routes, exactly as
  * `GET .../correction-routes` hands them back. Same custom-slot mechanism, same file location
- * (custom/) as `invoice-preview-button.tsx` right next to it — this is the SECOND "invoice" ×
- * "list-row-extra" registration (see custom-slots.ts's own header on why that used to be impossible,
- * a real bug found and fixed while wiring this button).
+ * (custom/) as `received-invoice-download-button.tsx` right next to it — registered at
+ * "list-row-extra", which the list row AND the detail page's header both render (see
+ * custom-slots.ts's own header, including why two registrations for one type used to be
+ * impossible, a real bug found and fixed while wiring this button).
  *
  * The dialog never invents a legal fact: `status` and `label` are rendered EXACTLY as the API sends
  * them — `label` in particular is the country file's own legal citation (or, for `unverified`, its
@@ -39,8 +40,8 @@ import { cn } from "@/lib/utils"
  * "unverified" is "nobody has settled this", not "permitted" (see `isChoosable` below). Choosing a
  * choosable route that is also `implemented` (today: only INTERNAL_CREDIT_NOTE) navigates to the
  * REAL credit-note creation screen, PRE-LINKED to this invoice (`invoice: instance.id` handed through
- * router `state.initialData` — the exact same generic seed `DocumentUpsertDialog.initialData` already
- * serves the received-invoice upload flow, see [typeId].tsx's own consumption of it);
+ * router `state.initialData` — the exact same generic seed `DocumentCreateDialog.initialData` already
+ * serves the received-invoice upload flow, see [typeId]/index.tsx's own consumption of it);
  * `lockedFromReference` then locks the currency the moment that id resolves, with NO further wiring
  * needed here. Choosing a choosable-but-NOT-implemented route (every other route, for every country,
  * today) never pretends to run anything — it shows the honest "declared by the law, not implemented
@@ -84,7 +85,7 @@ function isChoosable(route: CorrectionRouteView): boolean {
 const STATUS_BADGE_CLASS: Record<CorrectionRouteView["status"], string> = {
   required: "border-transparent bg-primary text-primary-foreground",
   allowed: "border-transparent bg-secondary text-secondary-foreground",
-  forbidden: "border-transparent bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+  forbidden: "border-transparent bg-destructive-soft text-destructive-soft-foreground",
   unverified: "text-muted-foreground",
 }
 
@@ -186,9 +187,9 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   const handleChoose = (route: CorrectionRouteView) => {
     if (route.routeId === INTERNAL_CREDIT_NOTE_ROUTE_ID && route.implemented) {
       // THE real mechanism, pre-linked — never a new one built for this screen. `state.initialData`
-      // is the SAME generic seed `DocumentUpsertDialog` already accepts for a brand-new record (see
+      // is the SAME generic seed `DocumentCreateDialog` already accepts for a brand-new record (see
       // that component's own header — the received-invoice upload flow is the other user of it);
-      // [typeId].tsx reads it off `useLocation().state` the moment the credit-note page mounts and
+      // [typeId]/index.tsx reads it off `useLocation().state` the moment the credit-note page mounts and
       // opens the create dialog with it already applied. Setting only `invoice` is enough:
       // `lockedFromReference` on the credit note's `currency` field watches that sibling field
       // and locks itself the instant it resolves — no currency value needs to be guessed here.
@@ -348,6 +349,7 @@ function InvoiceCorrectionRoutesButton({ instance }: DocumentCustomSlotProps) {
         type="button"
         variant="ghost"
         size="icon"
+        aria-label={t("documents.correction.button")}
         tooltip={t("documents.correction.button")}
         onClick={(event) => {
           event.stopPropagation()
@@ -368,8 +370,7 @@ function InvoiceCorrectionRoutesButton({ instance }: DocumentCustomSlotProps) {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Mounted only while open, like invoice-preview-button.tsx's own dialog content — a
-              closed dialog fetches nothing. */}
+          {/* Mounted only while open — a closed dialog fetches nothing. */}
           {open && <CorrectionRoutesDialogBody instance={instance} onClose={() => setOpen(false)} />}
         </DialogContent>
       </Dialog>

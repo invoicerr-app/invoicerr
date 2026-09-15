@@ -18,9 +18,9 @@ export interface DocumentFieldDescriptor {
   /** Mirrors the backend's `DocumentFieldDescriptor.hideWhenEmpty` (descriptors/types.ts) — skips this
    *  field entirely (no label, no "—" placeholder) wherever a consumer honors the hint and its value
    *  is unset on this instance, instead of the otherwise-universal "always show the row" rule every
-   *  other field gets. Honored by `document-list.tsx`'s secondary-info line; NOT by the create/edit
-   *  form (an empty, optional input must still be visible to fill in) nor by the raw data-preview
-   *  dialog (`custom/invoice-preview-button.tsx` — an honest, unfiltered dump by design). */
+   *  other field gets. Honored by `document-list.tsx`'s secondary-info line and the detail page's
+   *  header (`document-detail.tsx`); NOT by the form itself (an empty, optional input must still be
+   *  visible to fill in). */
   hideWhenEmpty?: boolean
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
@@ -184,7 +184,7 @@ export interface DocumentTypeDescriptor {
   /** Mirrors the backend's `DocumentTypeDescriptor.numbering` (descriptors/types.ts) — which status
    *  this type's instances receive a NUMBER on first entering. Absent means this type is NEVER
    *  numbered (e.g. "expense", "credit-note") — the one flag every number-displaying UI (the list
-   *  card, the edit dialog, the PDF) gates on, so a type that never declares this shows no number
+   *  card, the detail page's header, the PDF) gates on, so a type that never declares this shows no number
    *  badge at all rather than a permanent "no number yet" placeholder that would never make sense. */
   numbering?: { onEnterStatus: string }
 }

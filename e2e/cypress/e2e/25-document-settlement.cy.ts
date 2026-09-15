@@ -99,10 +99,9 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 						lineARowId = lineA?.$rowId as string;
 
 						cy.visit("/documents/invoice");
-						cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-						cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+						cy.openDocument(invoiceId);
 
-						cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).click();
+						cy.runDocumentAction("record-payment");
 						cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 						const dialog = () => cy.get('[data-cy="document-action-params-dialog"]');
 						dialog()
@@ -212,8 +211,7 @@ describe("Settlement — a SENT credit note reduces what an invoice owes, a DRAF
 		expect(invoiceId, "la facture des tests précédents existe toujours").to.be.a("string");
 
 		cy.visit("/documents/invoice");
-		cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+		cy.openDocument(invoiceId);
 
 		cy.get('[data-cy="document-settlement-section"]', { timeout: 15000 })
 			.scrollIntoView()

@@ -71,7 +71,9 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 
 			// See 66-purchase-orders.cy.ts's own comment for why this stays nested here: a value this
 			// `.then()` just produced is used only inside it, never captured for a sibling command.
-			cy.get("body").type("{esc}");
+			// The first save landed on the new record's own page (document-create-dialog.tsx); the
+			// "send" below is the LIST row's, so go back to the list first.
+			cy.visit("/documents/purchase-order");
 
 			cy.get('[data-cy="document-row-action-send-' + purchaseOrderId + '"]', { timeout: 15000 }).click();
 			cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
@@ -218,23 +220,29 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		).as("getReconciliation");
 
 		cy.visit("/documents/received-invoice");
-		cy.get(`[data-cy="document-list-row-${receivedInvoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should("be.visible");
+		cy.openDocument(receivedInvoiceId);
 
-		cy.wait("@getReconciliation").then((interception) => {
-			expect(interception.response?.statusCode, "rapprochement chargé").to.eq(200);
-			expect(interception.response?.body?.hasPurchaseOrder, "un BC est bien lié").to.eq(true);
-			expect(
-				interception.response?.body?.overallVerdict,
-				"10 facturés contre 6 reçus doit être signalé",
-			).to.eq("to-review");
-		});
+		// The intercept only proves the page asked for the reconciliation. Its BODY is never asserted:
+		// a second identical GET in the same run comes back a genuine HTTP 304 Not Modified (Express's
+		// weak ETag + the browser's conditional GET), and a 304 has no body per HTTP spec — the screen
+		// still renders from the browser's own cache, but the raw intercepted response is empty, and
+		// `statusCode … to.eq(200)` was red in CI for exactly that reason. The facts are read back
+		// through `cy.request` (Cypress's own Node-side client, never subject to the browser cache) —
+		// the same fix 65-mail-cascade.cy.ts documents for its own page-load GET.
+		cy.wait("@getReconciliation");
+		cy.request({
+			url: `${api}/api/documents/received-invoices/${receivedInvoiceId}/reconciliation`,
+		})
+			.its("body")
+			.then((body) => {
+				expect(body.hasPurchaseOrder, "un BC est bien lié").to.eq(true);
+				expect(body.overallVerdict, "10 facturés contre 6 reçus doit être signalé").to.eq("to-review");
+			});
 
-		// scrollIntoView(): the received-invoice edit dialog (document-upsert-dialog.tsx, `max-h-[90vh]
-		// overflow-y-auto`) renders Supplier/Linked supplier/Invoice number/Purchase order/Issue
-		// date/… before this section — on the CI viewport (1000×660) that's already past one
-		// screenful, so the panel is below the fold of the dialog's own scroll area rather than
-		// absent. Same pattern as 17-document-descriptor.cy.ts's own per-field scrollIntoView().
+		// scrollIntoView(): on the CI viewport (1000×660, under the page's `lg` breakpoint) the record
+		// page stacks its side sections UNDER the form (document-detail.tsx), so the panel sits past
+		// one screenful rather than absent. Same pattern as 17-document-descriptor.cy.ts's own
+		// per-field scrollIntoView().
 		cy.get('[data-cy="document-reconciliation-section"]', { timeout: 10000 })
 			.scrollIntoView()
 			.should("be.visible");
@@ -250,9 +258,8 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		expect(receivedInvoiceId, "la facture reçue existe toujours").to.be.a("string");
 
 		cy.visit("/documents/received-invoice");
-		cy.get(`[data-cy="document-list-row-${receivedInvoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 5000 }).should("be.visible");
-		// scrollIntoView() — same "dialog taller than the CI viewport" reasoning as the previous test's
+		cy.openDocument(receivedInvoiceId);
+		// scrollIntoView() — same "page taller than the CI viewport" reasoning as the previous test's
 		// own comment on `document-reconciliation-section`.
 		cy.get('[data-cy="document-reconciliation-accept-button"]', { timeout: 10000 })
 			.scrollIntoView()
@@ -275,8 +282,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		});
 
 		// The panel re-renders straight from the mutation's own response — see
-		// document-reconciliation-section.tsx's own header. Never asserted here: the document dialog's
-		// own open/closed state — it stays open by design and this step does not touch it.
+		// document-reconciliation-section.tsx's own header.
 		cy.get('[data-cy="document-reconciliation-overall-badge"]').should("contain.text", "Accepted");
 		cy.get('[data-cy="document-reconciliation-acceptance"]').should("contain.text", "John Doe");
 

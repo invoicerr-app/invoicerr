@@ -286,11 +286,10 @@ export interface DocumentFieldDescriptor {
    * information — this is what lets a consumer opt a field OUT of the otherwise-universal
    * "always show the row" rule, without that consumer ever having to know WHICH field key this is.
    * Honored by `rendering/render-html.ts` (the PDF's own field loop) and the frontend's
-   * `document-list.tsx` (the card's secondary-info line) — deliberately NOT by the create/edit FORM
-   * (the user needs to see the empty input to fill it in) nor by the raw, unfiltered data-preview
-   * dialog (`custom/invoice-preview-button.tsx`, frontend — its own stated purpose is an HONEST,
-   * complete dump of every field, so hiding one there would contradict it). Absent/false: unchanged,
-   * universal behavior for every field that existed before this hint did.
+   * `document-list.tsx` (the card's secondary-info line) and `document-detail.tsx` (the record
+   * page's header) — deliberately NOT by the FORM itself (the user needs to see the empty input to
+   * fill it in). Absent/false: unchanged, universal behavior for every field that existed before
+   * this hint did.
    */
   hideWhenEmpty?: boolean;
   /** 'select': the choices offered. */
@@ -369,10 +368,8 @@ export interface DocumentFieldDescriptor {
    * no table column when nested in an 'array' row — by every human-facing renderer:
    * `rendering/render-html.ts`'s own field loop (top-level AND inside its 'array' case's row/header
    * loop) for the PDF, and the frontend's `field-renderers/index.ts` registers a renderer that draws
-   * nothing at all for the create/edit form (there is nothing for a human to see or edit — the value
-   * only ever moves via the prefill mechanism above). Deliberately NOT skipped by the raw, unfiltered
-   * data-preview dialog (`custom/invoice-preview-button.tsx`, frontend) — the same "an honest,
-   * complete dump" carve-out `hideWhenEmpty` documents for itself.
+   * nothing at all for the form (there is nothing for a human to see or edit — the value only ever
+   * moves via the prefill mechanism above).
    */
   entity?: string;
   /**

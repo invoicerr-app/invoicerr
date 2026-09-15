@@ -10,7 +10,7 @@ interface UseDocumentActionRunnerOptions {
   typeId: string
   documentId?: string
   /** Read lazily, at the moment an action actually runs — a live react-hook-form's current values
-   *  for the create/edit modal (document-form.tsx), or simply an already-saved instance's own
+   *  for a mounted form (use-document-form.ts), or simply an already-saved instance's own
    *  `data` for a list row acting directly on it (document-list.tsx). Neither caller owns the
    *  other's idea of "where does the current data come from". */
   getData: () => Record<string, unknown>
@@ -40,9 +40,10 @@ interface UseDocumentActionRunnerOptions {
  * The one place a declared action actually RUNS: opens the params dialog when the action declares
  * `params`, resolves best-effort defaults for it first, executes, and reports the result — exactly
  * what document-form.tsx used to do entirely inline. Extracted so a document's action buttons are
- * not one screen's private logic: document-form.tsx (the create/edit modal, acting on a live,
- * possibly-unsaved form) and document-list.tsx (a row acting directly on an already-saved instance,
- * no form involved at all) now share this instead of keeping two copies of the same state machine.
+ * not one screen's private logic: use-document-form.ts (the create dialog and the detail page,
+ * acting on a live, possibly-unsaved form) and document-list.tsx (a row acting directly on an
+ * already-saved instance, no form involved at all) share this instead of keeping two copies of the
+ * same state machine.
  */
 export function useDocumentActionRunner({
   typeId,

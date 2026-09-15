@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
+import { SectionCard } from "./section-card"
 import type { DocumentSettlement } from "./types"
 import { decimalsFor, fromMinor } from "./totals-calculator"
 
@@ -54,11 +55,12 @@ export function settlementBadgeInfo(settlement: DocumentSettlement): SettlementB
 
 // Exported so a different screen rendering the same tone/label pair (clients/_components/
 // client-statement.tsx's own per-row badge) never invents a second color
-// mapping for the exact same three states.
+// mapping for the exact same three states. Theme tokens (index.css), the same three
+// document-status-badge.tsx already uses — they switch with `.dark` on their own.
 export const TONE_CLASSES: Record<SettlementTone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
-  success: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
-  warning: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+  success: "bg-success text-success-foreground",
+  warning: "bg-warning text-warning-foreground",
 }
 
 function formatMinor(minor: number, currency: string): string {
@@ -106,12 +108,12 @@ interface DocumentSettlementSectionProps {
 }
 
 /**
- * The settlement section inside the edit dialog — THREE blocks, never mixed:
+ * The settlement section on the document detail page — THREE blocks, never mixed:
  *  1. the badge + the balance itself (paid / credited / outstanding / excess);
  *  2. the PAYMENTS recorded so far;
  *  3. the CREDIT NOTES correcting this document ("le lettrage").
  * Does NOT render the "record-payment" button itself — that is the descriptor's own action, already
- * rendered generically by document-form.tsx's action loop (the mechanism this section relies on: the
+ * offered generically by the page's action header (the mechanism this section relies on: the
  * declared params are enough for that existing screen, nothing bespoke needed here). It does not
  * render a "send" button for a credit note either, for the identical reason.
  */
@@ -141,135 +143,142 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
   const { settlement, payments, credits, warnings } = data
 
   return (
-    <div className="space-y-4 rounded-lg border p-4" data-cy="document-settlement-section">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">{t("documents.settlement.title")}</h4>
-        <DocumentSettlementBadge typeId={typeId} documentId={documentId} />
-      </div>
-
-      {/* Block 1: the balance itself. */}
-      <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-        <div data-cy="document-settlement-paid">
-          <dt className="text-muted-foreground">{t("documents.settlement.paid")}</dt>
-          <dd className="font-medium">{formatMinor(settlement.paidMinor, currency)}</dd>
-        </div>
-        {settlement.creditedMinor > 0 && (
-          <div data-cy="document-settlement-credited">
-            <dt className="text-muted-foreground">{t("documents.settlement.credited")}</dt>
-            <dd className="font-medium">{formatMinor(settlement.creditedMinor, currency)}</dd>
+    <SectionCard
+      title={t("documents.settlement.title")}
+      aside={<DocumentSettlementBadge typeId={typeId} documentId={documentId} />}
+      dataCy="document-settlement-section"
+    >
+      <div className="space-y-4">
+        {/* Block 1: the balance itself. */}
+        <dl className="grid grid-cols-2 gap-2 text-sm">
+          <div data-cy="document-settlement-paid">
+            <dt className="text-muted-foreground">{t("documents.settlement.paid")}</dt>
+            <dd className="amount font-medium">{formatMinor(settlement.paidMinor, currency)}</dd>
           </div>
-        )}
-        <div data-cy="document-settlement-outstanding">
-          <dt className="text-muted-foreground">{t("documents.settlement.outstanding")}</dt>
-          <dd className="font-medium">{formatMinor(settlement.outstandingMinor, currency)}</dd>
-        </div>
-        {settlement.excessMinor > 0 && (
-          <div data-cy="document-settlement-excess">
-            <dt className="text-muted-foreground">{t("documents.settlement.excess")}</dt>
-            <dd className="font-medium">{formatMinor(settlement.excessMinor, currency)}</dd>
+          {settlement.creditedMinor > 0 && (
+            <div data-cy="document-settlement-credited">
+              <dt className="text-muted-foreground">{t("documents.settlement.credited")}</dt>
+              <dd className="amount font-medium">{formatMinor(settlement.creditedMinor, currency)}</dd>
+            </div>
+          )}
+          <div data-cy="document-settlement-outstanding">
+            <dt className="text-muted-foreground">{t("documents.settlement.outstanding")}</dt>
+            <dd className="amount font-medium">{formatMinor(settlement.outstandingMinor, currency)}</dd>
           </div>
-        )}
-      </dl>
+          {settlement.excessMinor > 0 && (
+            <div data-cy="document-settlement-excess">
+              <dt className="text-muted-foreground">{t("documents.settlement.excess")}</dt>
+              <dd className="amount font-medium">{formatMinor(settlement.excessMinor, currency)}</dd>
+            </div>
+          )}
+        </dl>
 
-      {/* Block 2: payments — never mixed with credits below. */}
-      <div className="space-y-2">
-        <h5 className="text-xs font-semibold uppercase text-muted-foreground">
-          {t("documents.settlement.paymentsTitle")}
-        </h5>
-        {payments.length === 0 ? (
-          <p className="text-sm text-muted-foreground" data-cy="document-settlement-empty">
-            {t("documents.settlement.empty")}
-          </p>
-        ) : (
-          <ul className="divide-y" data-cy="document-settlement-payments-list">
-            {payments.map((payment) => (
-              <li
-                key={payment.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
-                data-cy={`document-settlement-payment-${payment.id}`}
-              >
-                <span className="text-muted-foreground">{new Date(payment.paidAt).toLocaleDateString()}</span>
-                <span className="flex flex-col items-end">
-                  <span className="font-medium">{formatMinor(payment.amountMinor, payment.currency)}</span>
-                  {/* "jamais silencieux": a payment recorded in a currency other
+        {/* Block 2: payments — never mixed with credits below. */}
+        <div className="space-y-2">
+          <h5 className="text-xs font-semibold uppercase text-muted-foreground">
+            {t("documents.settlement.paymentsTitle")}
+          </h5>
+          {payments.length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-cy="document-settlement-empty">
+              {t("documents.settlement.empty")}
+            </p>
+          ) : (
+            <ul className="divide-y" data-cy="document-settlement-payments-list">
+              {payments.map((payment) => (
+                <li
+                  key={payment.id}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                  data-cy={`document-settlement-payment-${payment.id}`}
+                >
+                  <span className="text-muted-foreground">
+                    {new Date(payment.paidAt).toLocaleDateString()}
+                  </span>
+                  <span className="flex flex-col items-end">
+                    <span className="amount font-medium">
+                      {formatMinor(payment.amountMinor, payment.currency)}
+                    </span>
+                    {/* "jamais silencieux": a payment recorded in a currency other
                       than the document's own is CONVERTED (never refused any more), and the pinned,
                       dated rate that conversion used is shown here, verbatim — the same "never a
                       converted amount without its proof" discipline the dashboard's own consolidated
                       widgets already hold (contributions/currency-consolidation.ts). Absent whenever
                       `conversionRate` is null — a same-currency payment was never converted, nothing
                       to disclose. */}
-                  {payment.conversionRate != null && (
-                    <span
-                      className="text-xs text-muted-foreground"
-                      data-cy={`document-settlement-payment-${payment.id}-conversion`}
-                    >
-                      {t("documents.settlement.convertedNote", {
-                        converted: formatMinor(payment.documentAmountMinor, currency),
-                        from: payment.currency,
-                        to: currency,
-                        rate: payment.conversionRate,
-                        date: payment.conversionRateAsOf
-                          ? new Date(payment.conversionRateAsOf).toISOString().slice(0, 10)
-                          : "",
-                      })}
-                    </span>
+                    {payment.conversionRate != null && (
+                      <span
+                        className="text-xs text-muted-foreground"
+                        data-cy={`document-settlement-payment-${payment.id}-conversion`}
+                      >
+                        {t("documents.settlement.convertedNote", {
+                          converted: formatMinor(payment.documentAmountMinor, currency),
+                          from: payment.currency,
+                          to: currency,
+                          rate: payment.conversionRate,
+                          date: payment.conversionRateAsOf
+                            ? new Date(payment.conversionRateAsOf).toISOString().slice(0, 10)
+                            : "",
+                        })}
+                      </span>
+                    )}
+                  </span>
+                  {payment.method && (
+                    <span className="text-muted-foreground">{methodLabel(payment.method)}</span>
                   )}
-                </span>
-                {payment.method && (
-                  <span className="text-muted-foreground">{methodLabel(payment.method)}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      {/* Block 3: credit notes — a DIFFERENT list, a DIFFERENT kind of fact (a withdrawal from the
+        {/* Block 3: credit notes — a DIFFERENT list, a DIFFERENT kind of fact (a withdrawal from the
           claim, not cash received — see compute-settlement.ts's own header). Only rendered at all
           once this document type actually HAS a notion of credits (documents.service.ts's
           `resolveCreditsForDocument` returns `credits: []` for every type but "invoice" today) —
           hiding the whole block rather than showing a permanently-empty one for a type that can never
           have credits, the same "no dashboard for a type that would show empty nearly always" choice
           credit-note-contributions.ts already makes for ITS OWN dashboard presence. */}
-      {credits.length > 0 || warnings.length > 0 ? (
-        <div className="space-y-2">
-          <h5 className="text-xs font-semibold uppercase text-muted-foreground">
-            {t("documents.settlement.creditsTitle")}
-          </h5>
-          {credits.length === 0 ? (
-            <p className="text-sm text-muted-foreground" data-cy="document-settlement-credits-empty">
-              {t("documents.settlement.creditsEmpty")}
-            </p>
-          ) : (
-            <ul className="divide-y" data-cy="document-settlement-credits-list">
-              {credits.map((credit) => (
-                <li
-                  key={credit.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
-                  data-cy={`document-settlement-credit-${credit.id}`}
-                >
-                  {/* The credit note's own displayNumber IS the visual link back to it — the same
+        {credits.length > 0 || warnings.length > 0 ? (
+          <div className="space-y-2">
+            <h5 className="text-xs font-semibold uppercase text-muted-foreground">
+              {t("documents.settlement.creditsTitle")}
+            </h5>
+            {credits.length === 0 ? (
+              <p className="text-sm text-muted-foreground" data-cy="document-settlement-credits-empty">
+                {t("documents.settlement.creditsEmpty")}
+              </p>
+            ) : (
+              <ul className="divide-y" data-cy="document-settlement-credits-list">
+                {credits.map((credit) => (
+                  <li
+                    key={credit.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                    data-cy={`document-settlement-credit-${credit.id}`}
+                  >
+                    {/* The credit note's own displayNumber IS the visual link back to it — the same
                       identifier the credit-note list itself would show for this same record. Falls
                       back to the raw id (never blank) for one issued before this type declares
                       `numbering` — the same fallback credit-note-contributions.ts's own
                       `resolveInvoiceLabel` already uses for the identical "no number yet" case. */}
-                  <span className="font-medium">{credit.displayNumber ?? credit.id}</span>
-                  <span className="font-medium">{formatMinor(credit.amountMinor, credit.currency)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {warnings.length > 0 && (
-            <div className="space-y-1 rounded bg-yellow-50 p-2" data-cy="document-settlement-warnings">
-              {warnings.map((warning) => (
-                <p key={warning} className="text-xs text-yellow-800">
-                  {warning}
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
-    </div>
+                    <span className="font-mono font-medium">{credit.displayNumber ?? credit.id}</span>
+                    <span className="amount font-medium">
+                      {formatMinor(credit.amountMinor, credit.currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {warnings.length > 0 && (
+              <div className="space-y-1 rounded-md bg-warning p-2" data-cy="document-settlement-warnings">
+                {warnings.map((warning) => (
+                  <p key={warning} className="text-xs text-warning-foreground">
+                    {warning}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </SectionCard>
   )
 }

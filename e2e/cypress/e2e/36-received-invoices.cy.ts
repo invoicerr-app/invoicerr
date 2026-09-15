@@ -106,7 +106,11 @@ function uploadAndOpenForm(fixturePath: string) {
 function confirmReceive() {
 	cy.get('[data-cy="document-action-receive"]').click();
 	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
-	cy.get('[data-cy="document-form"]').should("not.exist");
+	// A successful first save closes the create dialog and lands on the new record's own page
+	// (document-create-dialog.tsx) — the callers below all read the LIST next, so go back to it.
+	cy.get('[data-cy="document-create-dialog"]').should("not.exist");
+	cy.get('[data-cy="document-detail-page"]', { timeout: 15000 }).should("be.visible");
+	cy.visit("/documents/received-invoice");
 }
 
 // Creates a client THROUGH THE SCREEN (never seeded/via API): the whole point of
@@ -343,8 +347,7 @@ describe("Receiving invoices", () => {
 
 			// … and it is VISIBLE ON SCREEN when reopening the document from the list (not only at
 			// creation time — the document CARRIES it).
-			cy.get(`[data-cy="document-list-row-${created!.id}"]`, { timeout: 10000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 10000 }).should("be.visible");
+			cy.openDocument(created!.id);
 			// The dialog itself IS visible; the warning banner sits below the lines field, past the
 			// fold of the dialog's own scrollable content — scrollIntoView() is what genuinely proves
 			// "visible on screen" for an element a real reviewer would just scroll down to see, rather
@@ -361,8 +364,7 @@ describe("Receiving invoices", () => {
 			const target = instances.find((i) => i.data.supplier === "Fixture Fournisseur Discordant SARL");
 			expect(target, "le document créé par le test précédent existe toujours").to.exist;
 
-			cy.get(`[data-cy="document-list-row-${target!.id}"]`, { timeout: 10000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 10000 }).should("be.visible");
+			cy.openDocument(target!.id);
 
 			// Before editing: a single warning (gross/TTC — see the previous test).
 			cy.get('[data-cy="document-line-total-warnings"] p').should("have.length", 1);
@@ -371,13 +373,12 @@ describe("Receiving invoices", () => {
 			// no longer agrees with ANY of the three deposited totals (500 / 100 / 650) — the three
 			// warnings must appear, the proof that the check REACTS to editing a line.
 			cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("10", { force: true });
-			cy.get('[data-cy="document-action-receive"]').click();
+			cy.runDocumentAction("receive");
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 
-			// The edit dialog (unlike the deposit one) stays OPEN after a successful "receive"
-			// on an already-existing record ([typeId].tsx — "same-type success needs
-			// nothing here at all"): the banner, ON SCREEN, must therefore already show the THREE
-			// warnings without even reopening the document.
+			// The record's page stays where it is after a successful "receive" on an already-existing
+			// record (document-detail.tsx adopts the response as the form's new baseline): the banner,
+			// ON SCREEN, must therefore already show the THREE warnings without reopening the document.
 			cy.get('[data-cy="document-line-total-warnings"] p', { timeout: 10000 }).should("have.length", 3);
 
 			cy.request<ReceivedInvoiceInstance>({
@@ -459,8 +460,7 @@ describe("Receiving invoices", () => {
 			const target = instances.find((i) => i.data.supplier === "Fixture Fournisseur Inconnu SARL");
 			expect(target, "le document 'vendeur inconnu' du test précédent existe toujours").to.exist;
 
-			cy.get(`[data-cy="document-list-row-${target!.id}"]`, { timeout: 10000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 10000 }).should("be.visible");
+			cy.openDocument(target!.id);
 
 			cy.get('[data-cy="document-field-supplierClient-input"] button').first().click({ force: true });
 			cy.get('[data-cy="document-field-supplierClient-input-options"]', { timeout: 10000 }).should(
@@ -472,7 +472,7 @@ describe("Receiving invoices", () => {
 				{ timeout: 10000 },
 			).click();
 
-			cy.get('[data-cy="document-action-receive"]').click();
+			cy.runDocumentAction("receive");
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 
 			cy.request<ReceivedInvoiceInstance>({
@@ -497,7 +497,9 @@ describe("Receiving invoices", () => {
 	});
 
 	it("the same file re-uploaded (same hash — the CII XML already received above) is refused, named, as a duplicate", () => {
-		cy.get('[data-cy="received-invoice-upload-button"]').click();
+		// The previous test ends on a record's own page; the upload button is the LIST's.
+		cy.visit("/documents/received-invoice");
+		cy.get('[data-cy="received-invoice-upload-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="received-invoice-upload-file-input"]').selectFile(CII_FIXTURE, { force: true });
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "duplicate");
 		// Refused at the upload stage: no creation form appears.

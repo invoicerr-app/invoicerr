@@ -23,8 +23,8 @@ export default function TimeTrackingPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
   // Keeps the selected project's own data fresh after an edit (rate change, archive) without a
-  // second fetch — the same "read the live row back out of the list query" pattern
-  // documents/[typeId].tsx already holds for its own dialog target.
+  // second fetch — "read the live row back out of the list query" rather than a snapshot taken when
+  // the row was picked.
   const liveSelectedProject = selectedProject
     ? (projects.find((project) => project.id === selectedProject.id) ?? selectedProject)
     : null

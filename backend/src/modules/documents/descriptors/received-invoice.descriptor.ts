@@ -113,7 +113,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * codebase avoids — see `field-kinds.ts`'s own closed `CORE_FIELD_KINDS`). Downloading the original
  * file is instead a dedicated custom-slot button (frontend `custom/received-invoice-download-button.
  * tsx`, registered at the existing "list-row-extra" slot — the exact mechanism
- * `custom/invoice-preview-button.tsx` already established) and a dedicated backend route
+ * `custom/invoice-correction-routes-button.tsx` also uses) and a dedicated backend route
  * (`GET /documents/received-invoices/:id/file`), never a generic field render.
  *
  * ## Lifecycle: `received` -> `approved` | `rejected`, no `draft`

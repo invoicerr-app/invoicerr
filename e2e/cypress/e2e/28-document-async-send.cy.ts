@@ -14,13 +14,14 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * through a real BullMQ/Redis queue, not a mock. 21 (lifecycle), 22 (numbering) and 23 (email)
  * keep passing with the intermediate "Sending" status label they did not know about yet.
  *
- * The second test covers an angle the first one doesn't touch: the edit dialog
- * ([typeId].tsx's `dialogInstance`) must follow the LIVE `lastActionError`, never stay frozen on
- * the snapshot taken at opening. A real "send_failed" document (an invoice whose client has no
- * email — transports/email-transport.ts) is opened in the dialog AFTER the fact, once the error is
- * already in the database; the cause is fixed and then "Send" is clicked again INSIDE that same
- * dialog, and the error must disappear from the screen while it stays open, not only after a
- * close/reopen.
+ * The second test covers an angle the first one doesn't touch: the record's own page
+ * (document-detail.tsx reads `lastActionError` off the LIVE query, never off the form's snapshot)
+ * must follow the LIVE `lastActionError`, never stay frozen on what it showed when opened. A real
+ * "send_failed" document (an invoice whose client has no
+ * email — transports/email-transport.ts) is opened on its page AFTER the fact, once the error is
+ * already in the database; the cause is fixed and then "Send" is clicked again ON that same
+ * page, and the error must disappear from the screen while it stays open, not only after a
+ * reload.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
@@ -116,8 +117,8 @@ describe("A document's asynchronous send goes through the queue — all the way 
 	});
 
 	it(
-		'a "send_failed" document keeps its error frozen on screen once the dialog is OPENED on it ' +
-			'— clicking "Send" again INSIDE that dialog, when it succeeds, must make it DISAPPEAR while it ' +
+		'a "send_failed" document keeps its error frozen on screen once its page is OPENED ' +
+			'— clicking "Send" again ON that page, when it succeeds, must make it DISAPPEAR while it ' +
 			"stays open, never keeping it stuck on the snapshot taken at opening",
 		() => {
 			// The INVOICE, not the quote: its "email" transport (invoice-actions.ts) resolves the
@@ -179,7 +180,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					cy.visit("/documents/invoice");
 
 					// The FIRST "send" is triggered from the list ROW, dialog CLOSED — the very
-					// reason for this test: `dialogTarget` (see [typeId].tsx) must be captured AFTER
+					// reason for this test: `dialogTarget` (see [typeId]/index.tsx) must be captured AFTER
 					// the fact, once the document is already "send_failed", so that its own snapshot
 					// genuinely carries the frozen error that the fix must know how to clear. A real
 					// click — never a direct call to the action, which would bypass the screen.
@@ -260,12 +261,11 @@ describe("A document's asynchronous send goes through the queue — all the way 
 							);
 						});
 
-					// NOW the edit dialog is opened — `dialogTarget` (see [typeId].tsx) takes
-					// ITS OWN snapshot HERE, with the document already "send_failed": it's THIS
+					// NOW the record's page is opened — document-detail.tsx takes the form's
+					// OWN snapshot HERE, with the document already "send_failed": it's THIS
 					// non-null `lastActionError` that the fix must know how to drop once the live
 					// value goes back to `null`, not a `null` captured earlier that would prove nothing.
-					cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-					cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+					cy.openDocument(invoiceId);
 					cy.get('[data-cy="document-form-last-error"]').should(
 						"contain.text",
 						"no contact email on file",
@@ -284,28 +284,29 @@ describe("A document's asynchronous send goes through the queue — all the way 
 						expect(patched.status, "email ajouté au client").to.eq(200);
 					});
 
-					// Clicking "Send" again INSIDE THE DIALOG OPENED ON A "send_failed" — the exact
-					// scenario of the bug: the dialog stays this very same dialog from start to end,
-					// never closed nor reopened. "send" stays available from "send_failed"
+					// Clicking "Send" again ON THE PAGE OPENED ON A "send_failed" — the exact
+					// scenario of the bug: the page stays this very same page from start to end,
+					// never left nor reloaded. "send" stays available from "send_failed"
 					// (invoice.descriptor.ts's SEND_TRANSITIONS), and this invoice has NO "send" param
 					// at all (the transport reads the client, not a typed field — see
 					// invoice-actions.ts): no params dialog to go through here.
-					cy.get('[data-cy="document-action-send"]', { timeout: 15000 }).click();
+					cy.runDocumentAction("send");
 
 					// The proof that delivery GENUINELY succeeded this time, as in
 					// 24-document-payments.cy.ts: "record-payment" is only offered on a "sent" invoice
 					// (availableWhen: ['sent']) — its mere appearance is enough, without depending on
-					// a status text displayed anywhere in THIS dialog.
+					// a status text displayed anywhere on THIS page.
 					cy.get('[data-cy="document-action-record-payment"]', { timeout: 30000 }).should("exist");
 
 					// The heart of the fixed bug: the stale error must NO LONGER be there, even
-					// though the dialog is still the SAME one, never closed in the meantime. Before
-					// the fix, `liveDialogTarget?.lastActionError ?? dialogTarget.lastActionError`
-					// fell back to the frozen snapshot (the very real error captured at opening,
-					// above) as soon as the live value was `null` (the "sending" write on the
-					// re-click already clears it, see persistence.ts), leaving this message displayed
-					// indefinitely next to a document that was genuinely "sent".
-					cy.get('[data-cy="document-edit-dialog"]').should("be.visible");
+					// though the page is still the SAME one, never left in the meantime. Before
+					// the fix, the old edit dialog's `liveDialogTarget?.lastActionError ??
+					// dialogTarget.lastActionError` fell back to the frozen snapshot (the very real
+					// error captured at opening, above) as soon as the live value was `null` (the
+					// "sending" write on the re-click already clears it, see persistence.ts), leaving
+					// this message displayed indefinitely next to a document that was genuinely
+					// "sent". The page reads the error off the LIVE query alone (document-detail.tsx).
+					cy.get('[data-cy="document-detail-page"]').should("be.visible");
 					cy.get('[data-cy="document-form-last-error"]').should("not.exist");
 
 					cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })

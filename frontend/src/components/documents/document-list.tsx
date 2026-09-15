@@ -1,7 +1,6 @@
-import { toast } from "sonner"
-import { authenticatedFetch } from "@/hooks/use-fetch"
-import { Download, FileCode, FileStack, Link2, Pencil, Plus, Repeat, Search } from "lucide-react"
+import { Download, FileCode, FileStack, Link2, Plus, Repeat, Search } from "lucide-react"
 import { useMemo, useState } from "react"
+import { Link } from "react-router"
 import { useTranslation } from "react-i18next"
 
 // Side-effect only: makes whatever is registered in custom-slots.ts available. This is the exact
@@ -12,18 +11,21 @@ import { useTranslation } from "react-i18next"
 import "@/components/documents/custom-registrations"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
+import { extraActionGates } from "@/components/documents/action-presentation"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
+import {
+  DOCUMENT_XML_SYNTAXES,
+  downloadDocumentPdf,
+  downloadDocumentXml,
+} from "@/components/documents/document-downloads"
 import { ShareLinkDialog } from "@/components/documents/share-link-dialog"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { DocumentConformityListIndicator } from "@/components/documents/document-conformity-section"
 import { DocumentSettlementBadge } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
-import type {
-  DocumentFieldDescriptor,
-  DocumentInstance,
-  DocumentTypeDescriptor,
-} from "@/components/documents/types"
+import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
+import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { useResolvedCompanyCustomFields } from "@/hooks/queries"
@@ -42,25 +44,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 10
-
-/** Looks up `keys` among `descriptor.fields` (top-level only), in order, silently DROPPING any key
- *  that doesn't resolve — a typo in `listItem`, or a field a country overlay removed for this
- *  company (see the backend's company-view.ts) — rather than throwing. Shared by the title and the
- *  secondary-info line below: both are "a few named fields, rendered by kind", never anything a
- *  document TYPE has to special-case. */
-function resolveListFields(
-  descriptor: DocumentTypeDescriptor,
-  keys: string[] | undefined,
-): DocumentFieldDescriptor[] {
-  if (!keys?.length) return []
-  return keys
-    .map((key) => descriptor.fields.find((field) => field.key === key))
-    .filter((field): field is DocumentFieldDescriptor => !!field)
-}
-
-function isEmptyFieldValue(value: unknown): boolean {
-  return value === undefined || value === null || value === ""
-}
 
 interface DocumentCardTitleProps {
   descriptor: DocumentTypeDescriptor
@@ -204,17 +187,17 @@ function DocumentCustomFieldsInfo({ descriptor, instance }: DocumentCustomFields
 interface DocumentRowActionsProps {
   descriptor: DocumentTypeDescriptor
   instance: DocumentInstance
-  onEdit: (instance: DocumentInstance) => void
   onActionSuccess: (result: DocumentInstance, actionId: string) => void
 }
 
 /**
- * One card's action cluster: an explicit "edit" (opens the create/edit modal, the only way to change
- * FIELD values), every action the descriptor declares for this record's current status — run
- * directly against the SAVED instance, no modal involved — and, last, whatever a custom slot adds
- * for this type alone (see custom-slots.ts). None of this branches on which document type it is.
+ * One card's action cluster: every action the descriptor declares for this record's current status
+ * — run directly against the SAVED instance, no form involved — and, last, whatever a custom slot
+ * adds for this type alone (see custom-slots.ts). Changing FIELD values is the record's own page's
+ * job (document-detail.tsx), reached by the row's title link / click. None of this branches on
+ * which document type it is.
  */
-function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: DocumentRowActionsProps) {
+function DocumentRowActions({ descriptor, instance, onActionSuccess }: DocumentRowActionsProps) {
   const { t } = useTranslation()
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
   const [shareLinkDialogOpen, setShareLinkDialogOpen] = useState(false)
@@ -226,82 +209,16 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
       onActionSuccess,
     })
 
-  // Generic gate, the same shape `showSettlementBadge` below already holds for "record-payment":
-  // a "Recurrence" row action is offered ONLY once the type declares "duplicate" at all (native or
-  // third-party extension — documents-core.module.ts) and it is available from this record's own
-  // current status. Never a per-type name — a plugin's own type gets this for free the moment it
-  // registers "duplicate" too.
-  const duplicateAction = descriptor.actions.find((action) => action.id === "duplicate")
-  const showRecurrenceButton = !!duplicateAction && isActionAvailable(duplicateAction, instance.status)
-  // "then send" (the recurrence dialog's own optional toggle) only makes sense for a type that
-  // ALSO declares "send" — offered, never assumed, the same way `showRecurrenceButton` itself never
-  // assumes every type has "duplicate".
-  const offerThenSend = descriptor.actions.some((action) => action.id === "send")
-
-  const handleDownloadPdf = async () => {
-    try {
-      // `authenticatedFetch`, NOT `fetch`: the frontend and the API live on different ports. A
-      // relative fetch goes to the Vite dev server -- which has no API -- without a session cookie.
-      // The button was therefore DEAD, and the e2e didn't catch it: it only checked that it existed.
-      // Third dead button of this family in this repo.
-      const response = await authenticatedFetch(`/api/documents/${instance.id}/pdf?typeId=${descriptor.id}`)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      window.open(url, "_blank")
-    } catch (error) {
-      // The backend's own message, not a generic one: "the PDF engine is unavailable" and "document
-      // not found" don't call for the same reaction.
-      toast.error(error instanceof Error ? error.message : t("documents.list.downloadPdfError"))
-    }
-  }
-
-  // "download-xml" is declared on the descriptor — that is
-  // what `isActionAvailable` reads for status/country-policy gating below — but, like the PDF button
-  // just above, its actual download is a plain GET, never `runAction` (see
-  // `documents.service.ts#downloadDocumentFormat`'s own header, and `invoice.descriptor.ts`'s comment
-  // on why "download-xml" is never registered as an `ActionRegistry` handler): a scripted client
-  // POSTing to `.../actions/download-xml` would only ever get a 501, so this button must NOT be
-  // rendered through the generic `availableActions` cluster below (which DOES POST through
-  // `useDocumentActionRunner`) — it gets its OWN dropdown (CII/UBL), same shape as the PDF button.
-  const downloadXmlAction = descriptor.actions.find((action) => action.id === "download-xml")
-  const showDownloadXml = !!downloadXmlAction && isActionAvailable(downloadXmlAction, instance.status)
-
-  const handleDownloadXml = async (syntax: "cii" | "ubl" | "facturx" | "peppol-bis" | "xrechnung") => {
-    try {
-      const response = await authenticatedFetch(
-        `/api/documents/${instance.id}/formats/${syntax}?typeId=${descriptor.id}`,
-      )
-      if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        // `body.message` alone is the GENERIC "failed EN 16931 validation" wrapper — the actual named
-        // rule (BR-DE-1, BR-DE-15, ...) lives in `body.errors` (documents.service.ts#downloadDocument
-        // Format's own "THE GATE" comment). A named refusal (e.g. "download an xrechnung export with
-        // no IBAN on file") must actually SAY which rule/field
-        // is missing, not just that something failed — the generic message alone used to hide it.
-        const detail = Array.isArray(body?.errors) && body.errors.length ? body.errors.join(" — ") : null
-        throw new Error(detail || body?.message || `HTTP ${response.status}`)
-      }
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      window.open(url, "_blank")
-    } catch (error) {
-      // The backend's OWN message — it cites the failing BR-* rule when validation is what refused
-      // it, and a generic fallback would hide exactly the information the gate exists
-      // to surface.
-      toast.error(error instanceof Error ? error.message : t("documents.list.downloadXmlError"))
-    }
-  }
-
-  // "share-link" — same reasoning as "download-xml" right above: declared on the
-  // descriptor purely for the country-policy/status gates (see invoice.descriptor.ts's own comment
-  // on that action), but its create/list/revoke are REST resources (share-links/), never a POST
-  // through `runAction` — so it gets its OWN dialog (share-link-dialog.tsx), not the generic
-  // `availableActions` button cluster below.
-  const shareLinkAction = descriptor.actions.find((action) => action.id === "share-link")
-  const showShareLink = !!shareLinkAction && isActionAvailable(shareLinkAction, instance.status)
+  // "download-xml" / "share-link" / the recurrence gate — all declared on the descriptor for the
+  // status/country-policy gates, none of them a POST through `runAction`: "download-xml" is a plain
+  // GET (see `documents.service.ts#downloadDocumentFormat`'s own header, and `invoice.descriptor.ts`'s
+  // comment on why it is never registered as an `ActionRegistry` handler — a scripted client POSTing
+  // to `.../actions/download-xml` would only ever get a 501), "share-link" is a set of REST resources
+  // behind its own dialog, and the recurrence rides on "duplicate" being declared at all. So none
+  // of them may be rendered through the generic `availableActions` cluster below (which DOES POST
+  // through `useDocumentActionRunner`) — each gets its own control, gated by
+  // action-presentation.ts's `extraActionGates`, the same read the detail page's menu uses.
+  const gates = extraActionGates(descriptor, instance.status)
 
   // "sending" is the generic queue-processing status the async "send" mechanism introduces
   // (actions/async-send.ts on the backend) — not a per-document-type name, a property of the
@@ -325,9 +242,9 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
           action.id !== "cancel" &&
           isActionAvailable(action, instance.status),
       )
-  // A LIST, not a single component — a second "invoice"/"list-row-extra" registration (the
-  // correction-routes button) exists alongside the preview button; see custom-slots.ts's own header
-  // for why a single `Map.set` used to make the second silently replace the first.
+  // A LIST, not a single component — more than one extension may register for the same
+  // (type, slot); see custom-slots.ts's own header for why a single `Map.set` used to make the
+  // second silently replace the first.
   const customRowExtras = getDocumentCustomComponents(descriptor.id, "list-row-extra")
   // A disabled <button> (Button's own `disabled:pointer-events-none`, see ui/button.tsx) never
   // receives a REAL hover at all — the `tooltip` prop below still opens it for a keyboard/
@@ -340,36 +257,26 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
 
   return (
     // Stops a click on any action here from also bubbling up to the card's own onClick (which opens
-    // the edit modal) — an action button and "open this record" are two different intents.
+    // the record's page) — an action button and "open this record" are two different intents.
     <div
-      className="flex flex-col items-end gap-1"
+      className="flex flex-col items-start gap-1 sm:items-end"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <div className="flex flex-wrap items-center justify-end gap-1">
+      <div className="flex flex-wrap items-center gap-1 sm:justify-end">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          tooltip={t("documents.list.tooltips.edit")}
-          onClick={() => onEdit(instance)}
-          dataCy={`document-edit-button-${instance.id}`}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
+          aria-label={t("documents.list.downloadPdf")}
           tooltip={t("documents.list.downloadPdf")}
-          onClick={handleDownloadPdf}
+          onClick={() => void downloadDocumentPdf(descriptor.id, instance.id, t)}
           dataCy={`document-pdf-button-${instance.id}`}
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-4 w-4" aria-hidden="true" />
         </Button>
 
-        {showDownloadXml && (
+        {gates.downloadXml && (
           <DropdownMenu>
             {/* No `tooltip` prop here, deliberately: `Button`'s own tooltip wraps its DOM node in a
                 Radix `<Tooltip>` component, which breaks `DropdownMenuTrigger`'s `asChild` Slot
@@ -382,82 +289,64 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
                 type="button"
                 variant="ghost"
                 size="icon"
-                disabled={!!downloadXmlAction?.policyBlockedReason}
+                disabled={!!gates.downloadXml.policyBlockedReason}
+                aria-label={t("documents.list.downloadXml")}
                 title={
-                  downloadXmlAction?.policyBlockedReason
+                  gates.downloadXml.policyBlockedReason
                     ? t("documents.form.actionBlockedByPolicy", {
-                        reason: downloadXmlAction.policyBlockedReason,
+                        reason: gates.downloadXml.policyBlockedReason,
                       })
                     : t("documents.list.downloadXml")
                 }
                 dataCy={`document-xml-button-${instance.id}`}
               >
-                <FileCode className="h-4 w-4" />
+                <FileCode className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => handleDownloadXml("cii")}
-                data-cy={`document-xml-cii-${instance.id}`}
-              >
-                {t("documents.list.downloadXmlCii")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleDownloadXml("ubl")}
-                data-cy={`document-xml-ubl-${instance.id}`}
-              >
-                {t("documents.list.downloadXmlUbl")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleDownloadXml("facturx")}
-                data-cy={`document-xml-facturx-${instance.id}`}
-              >
-                {t("documents.list.downloadXmlFacturx")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleDownloadXml("peppol-bis")}
-                data-cy={`document-xml-peppol-bis-${instance.id}`}
-              >
-                {t("documents.list.downloadXmlPeppolBis")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleDownloadXml("xrechnung")}
-                data-cy={`document-xml-xrechnung-${instance.id}`}
-              >
-                {t("documents.list.downloadXmlXrechnung")}
-              </DropdownMenuItem>
+              {DOCUMENT_XML_SYNTAXES.map(({ syntax, labelKey }) => (
+                <DropdownMenuItem
+                  key={syntax}
+                  onClick={() => void downloadDocumentXml(descriptor.id, instance.id, syntax, t)}
+                  data-cy={`document-xml-${syntax}-${instance.id}`}
+                >
+                  {t(labelKey)}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
 
-        {showRecurrenceButton && (
+        {gates.recurrence && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
+            aria-label={t("documents.schedules.rowAction.tooltip")}
             tooltip={t("documents.schedules.rowAction.tooltip")}
             onClick={() => setRecurrenceDialogOpen(true)}
             dataCy={`document-recurrence-button-${instance.id}`}
           >
-            <Repeat className="h-4 w-4" />
+            <Repeat className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
 
-        {showShareLink && (
+        {gates.shareLink && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            disabled={!!shareLinkAction?.policyBlockedReason}
+            disabled={!!gates.shareLink.policyBlockedReason}
+            aria-label={t("documents.list.shareLink")}
             tooltip={
-              shareLinkAction?.policyBlockedReason
-                ? t("documents.form.actionBlockedByPolicy", { reason: shareLinkAction.policyBlockedReason })
+              gates.shareLink.policyBlockedReason
+                ? t("documents.form.actionBlockedByPolicy", { reason: gates.shareLink.policyBlockedReason })
                 : t("documents.list.shareLink")
             }
             onClick={() => setShareLinkDialogOpen(true)}
             dataCy={`document-share-link-button-${instance.id}`}
           >
-            <Link2 className="h-4 w-4" />
+            <Link2 className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
 
@@ -536,17 +425,17 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
         />
       )}
 
-      {showRecurrenceButton && recurrenceDialogOpen && (
+      {gates.recurrence && recurrenceDialogOpen && (
         <CreateRecurrenceDialog
           typeId={descriptor.id}
           sourceDocumentId={instance.id}
-          offerThenSend={offerThenSend}
+          offerThenSend={gates.offerThenSend}
           open={recurrenceDialogOpen}
           onOpenChange={setRecurrenceDialogOpen}
         />
       )}
 
-      {showShareLink && shareLinkDialogOpen && (
+      {gates.shareLink && shareLinkDialogOpen && (
         <ShareLinkDialog
           typeId={descriptor.id}
           documentId={instance.id}
@@ -561,7 +450,7 @@ function DocumentRowActions({ descriptor, instance, onEdit, onActionSuccess }: D
 interface DocumentListCardRowProps {
   descriptor: DocumentTypeDescriptor
   instance: DocumentInstance
-  onEdit: (instance: DocumentInstance) => void
+  onOpen: (instance: DocumentInstance) => void
   onActionSuccess: (result: DocumentInstance, actionId: string) => void
 }
 
@@ -573,23 +462,31 @@ interface DocumentListCardRowProps {
  * .../articles/_components/article-list.tsx) and from this app's own pre-redesign invoice/quote
  * lists (git tag `avant-refonte-documents`) — only WHICH fields fill the title/secondary slots comes
  * from the descriptor.
+ *
+ * Opening the record: the whole card is clickable for a pointer, AND the title is a real link to
+ * the same page — the one control a keyboard or screen-reader user can reach (a `div` with an
+ * onClick is invisible to both), and the one a middle-click opens in a new tab.
  */
-function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: DocumentListCardRowProps) {
-  // Same generic gate document-form.tsx's own settlement section uses: shown once "record-payment"
+function DocumentListCardRow({ descriptor, instance, onOpen, onActionSuccess }: DocumentListCardRowProps) {
+  const { t } = useTranslation()
+  // Same generic gate use-document-form.ts's own settlement section uses: shown once "record-payment"
   // is actually OFFERED for this record's current status — never by naming a document type.
   const recordPaymentAction = descriptor.actions.find((action) => action.id === "record-payment")
   const showSettlementBadge = !!recordPaymentAction && isActionAvailable(recordPaymentAction, instance.status)
 
   return (
     <div
-      className="cursor-pointer p-4 sm:p-6"
-      onClick={() => onEdit(instance)}
+      className="cursor-pointer p-4 transition-colors hover:bg-accent/40 sm:p-6"
+      onClick={() => onOpen(instance)}
       data-cy={`document-list-row-${instance.id}`}
     >
-      <div className="flex flex-row items-start gap-4 sm:items-center sm:justify-between">
+      {/* Below `sm` the action cluster drops UNDER the identity block instead of squeezing it into a
+          third of the card's width — one column, full width, the way every other list in this app
+          already stacks on a phone. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full min-w-0 flex-row items-center gap-4">
-          <div className="h-fit w-fit shrink-0 rounded-lg bg-blue-100 p-2 dark:bg-blue-950/50">
-            <FileStack className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="h-fit w-fit shrink-0 rounded-lg bg-info p-2">
+            <FileStack className="h-5 w-5 text-info-foreground" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -598,7 +495,15 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
                 className="break-words font-medium text-foreground"
                 data-cy={`document-list-title-${instance.id}`}
               >
-                <DocumentCardTitle descriptor={descriptor} instance={instance} />
+                <Link
+                  to={`/documents/${descriptor.id}/${instance.id}`}
+                  className="rounded-sm outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  title={t("documents.list.tooltips.open")}
+                  onClick={(event) => event.stopPropagation()}
+                  data-cy={`document-open-link-${instance.id}`}
+                >
+                  <DocumentCardTitle descriptor={descriptor} instance={instance} />
+                </Link>
               </h3>
               <DocumentStatusBadge
                 status={instance.status}
@@ -620,12 +525,7 @@ function DocumentListCardRow({ descriptor, instance, onEdit, onActionSuccess }: 
           </div>
         </div>
 
-        <DocumentRowActions
-          descriptor={descriptor}
-          instance={instance}
-          onEdit={onEdit}
-          onActionSuccess={onActionSuccess}
-        />
+        <DocumentRowActions descriptor={descriptor} instance={instance} onActionSuccess={onActionSuccess} />
       </div>
     </div>
   )
@@ -653,7 +553,8 @@ interface DocumentListProps {
   instances: DocumentInstance[]
   isLoading: boolean
   onCreate: () => void
-  onEdit: (instance: DocumentInstance) => void
+  /** A row was clicked: the page navigates to the record's own screen. */
+  onOpen: (instance: DocumentInstance) => void
   onActionSuccess: (result: DocumentInstance, actionId: string) => void
 }
 
@@ -670,7 +571,7 @@ export function DocumentList({
   instances,
   isLoading,
   onCreate,
-  onEdit,
+  onOpen,
   onActionSuccess,
 }: DocumentListProps) {
   const { t } = useTranslation()
@@ -798,7 +699,7 @@ export function DocumentList({
                 key={instance.id}
                 descriptor={descriptor}
                 instance={instance}
-                onEdit={onEdit}
+                onOpen={onOpen}
                 onActionSuccess={onActionSuccess}
               />
             ))}

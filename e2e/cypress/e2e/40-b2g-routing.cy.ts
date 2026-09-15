@@ -468,12 +468,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		createBusinessClient("Client Ordinaire SARL").then((businessClientId) => {
 			createInvoiceDraft(businessClientId).then((invoiceId) => {
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, {
-					timeout: 15000,
-				}).click();
-				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should(
-					"be.visible",
-				);
+				cy.openDocument(invoiceId);
 
 				// BEFORE any change: the loaded client is BUSINESS — no Leitweg field on screen.
 				cy.get('[data-cy="document-field-buyerReference"]').should("not.exist");

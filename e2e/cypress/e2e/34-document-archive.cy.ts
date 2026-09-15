@@ -111,13 +111,13 @@ describe('Legal archiving ⚖ — hash, date, verification and FR retention, pro
 				expect(message.Attachments, "le PDF réellement envoyé — l'artefact archivé").to.have.length(1);
 			});
 
-			// The document screen shows the archive: opening the edit dialog on the invoice, now
+			// The document screen shows the archive: opening the invoice's own page, now
 			// "sent".
-			cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-			cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+			cy.openDocument(invoiceId);
 
-			// The dialog scrolls (overflow-y-auto, [typeId].tsx) — the archive section sits lower than
-			// the form fields, so it must be scrolled into view before any visibility assertion.
+			// Under the page's `lg` breakpoint (CI viewport 1000×660) the side sections stack under the
+			// form (document-detail.tsx), so the archive must be scrolled into view before any
+			// visibility assertion.
 			cy.get('[data-cy="document-archive-section"]', { timeout: 15000 })
 				.scrollIntoView()
 				.should("be.visible");

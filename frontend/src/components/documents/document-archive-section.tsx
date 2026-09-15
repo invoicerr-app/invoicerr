@@ -6,10 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentArchives, useVerifyDocumentArchive } from "@/hooks/queries"
 import { cn } from "@/lib/utils"
 
+import { SectionCard } from "./section-card"
 import type { DocumentArchive } from "./types"
 
 /**
- * Legal archiving ⚖ — shown inside the document edit dialog, next to the
+ * Legal archiving ⚖ — shown on the document detail page, next to the
  * settlement section (document-settlement.tsx), for ANY document type that has at least one archive:
  * nothing here names "invoice" — a quote sent by email archives its own PDF exactly the same way.
  * Renders NOTHING at all for a document with zero archives yet (a draft, or a type whose "send"
@@ -161,13 +162,12 @@ export function DocumentArchiveSection({ typeId, documentId }: DocumentArchiveSe
   if (!archives || archives.length === 0) return null
 
   return (
-    <div className="space-y-2 rounded-lg border p-4" data-cy="document-archive-section">
-      <h4 className="text-sm font-semibold">{t("documents.archive.title")}</h4>
-      <ul className="divide-y" data-cy="document-archive-list">
+    <SectionCard title={t("documents.archive.title")} dataCy="document-archive-section">
+      <ul className="-my-3 divide-y" data-cy="document-archive-list">
         {archives.map((archive) => (
           <DocumentArchiveRow key={archive.id} typeId={typeId} documentId={documentId} archive={archive} />
         ))}
       </ul>
-    </div>
+    </SectionCard>
   )
 }

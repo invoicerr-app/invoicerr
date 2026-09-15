@@ -123,16 +123,15 @@ describe("Country policy — Poland can now issue, and its own sourced restricti
 				invoiceId = id;
 
 				cy.visit("/documents/invoice");
-				cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-				cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+				cy.openDocument(invoiceId);
 
 				// The "Send" button is genuinely OFFERED on screen for this Polish company (no
 				// `policyBlockedReason` on it) — the most direct proof that `invoice.send` is
 				// `allowed: true` in `pl.json`, sourced on art. 106m/106na of the ustawa o VAT.
 				cy.get('[data-cy="document-action-send"]', { timeout: 15000 })
 					.should("exist")
-					.and("not.be.disabled")
-					.click();
+					.and("not.be.disabled");
+				cy.runDocumentAction("send");
 
 				// The proof that sending genuinely succeeded: "record-payment" is only offered on a
 				// "sent" invoice (same pattern as 24-document-payments.cy.ts).
@@ -183,8 +182,11 @@ describe("Country policy — Poland can now issue, and its own sourced restricti
 		// makes the "Save draft" button disappear rather than leaving it clickable to silently fail
 		// (same discipline as `policyBlockedReason`: a visible rule, never a trap).
 		cy.visit("/documents/invoice");
-		cy.get(`[data-cy="document-edit-button-${invoiceId}"]`, { timeout: 15000 }).click();
-		cy.get('[data-cy="document-edit-dialog"]', { timeout: 15000 }).should("be.visible");
+		cy.openDocument(invoiceId);
+		// Neither as the header's primary nor inside the "Actions" menu (opened, so the absence is
+		// proven against a rendered menu rather than a closed one).
+		cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
+		cy.openDocumentActionsMenu();
 		cy.get('[data-cy="document-action-save-draft"]').should("not.exist");
 
 		// And the invoice genuinely stays "sent", never downgraded — the negative proof that closes the loop.

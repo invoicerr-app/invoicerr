@@ -78,7 +78,7 @@ export function useAvailableDocumentTypes() {
  * folded into `fields` too. Omitting it (every call site before this one) keeps the EXACT same query
  * key/URL as before — `document-form.tsx` is the one caller that passes it, watching its own "client"
  * field and re-fetching reactively; when it passes `undefined` (no client picked yet, or the
- * descriptor has no client field at all) this collapses to the SAME key `[typeId].tsx`'s own call
+ * descriptor has no client field at all) this collapses to the SAME key `[typeId]/index.tsx`'s own call
  * already populated, so React Query serves the cached descriptor instantly rather than a second
  * network round-trip for the common case.
  */

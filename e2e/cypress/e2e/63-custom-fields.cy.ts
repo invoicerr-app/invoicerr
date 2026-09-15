@@ -43,7 +43,7 @@ function listExpenses() {
 function openExpenseCreateDialog() {
 	cy.visit("/documents/expense");
 	cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-	// The DIALOG itself (document-upsert-dialog.tsx's `max-h-[90vh] overflow-y-auto`) is size-constrained
+	// The DIALOG itself (document-create-dialog.tsx's `max-h-[90vh]` panel) is size-constrained
 	// and centered, so checking ITS visibility is reliable. The <form> it wraps is not: this spec's own
 	// first test permanently adds two custom fields to "expense" (Cost Center + Internal Notes), and the
 	// native descriptor already has several fields of its own (expense.descriptor.ts) — tall enough,
@@ -181,10 +181,8 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			"A distinctly long internal note that should add real, measurable bytes to the rendered PDF.",
 		);
 
-		// CI run 34912640646 (commit c6a0a617): the generic document dialog stays DELIBERATELY open
-		// after a successful same-type action — see document-upsert-dialog.tsx's own header and
-		// [typeId].tsx's handleActionSuccess — same false assertion already fixed on spec 62
-		// (fda9a579). Content assertions belong to the API below either way.
+		// A successful first save lands on the new record's own page (document-create-dialog.tsx) —
+		// nothing about that screen is asserted here: content assertions belong to the API below.
 		cy.get('[data-cy="document-action-save-draft"]').click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 
@@ -242,9 +240,8 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			if (notes) {
 				cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(notes);
 			}
-			// Dialog stays open by design after a same-type success — see openExpenseCreateDialog's own
-			// comment and the earlier test above for the same false assertion, already fixed on spec 62
-			// (fda9a579).
+			// A successful first save lands on the new record's own page — see the earlier test above;
+			// the size comparison below reads the API, never that screen.
 			cy.get('[data-cy="document-action-save-draft"]').click();
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 
