@@ -17,6 +17,8 @@ import {
   trustedProviderIds,
 } from './sso-policy';
 import { registeredCompanyProviderIds } from './sso-registry';
+import { buildPolarAuthPlugins } from '../modules/billing/polar-plugin';
+import { syncCompanySeatsOnMembershipChange } from '../modules/billing/seat-sync';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -121,6 +123,10 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
         create: { userId, companyId: invitation.companyId, role: invitation.role },
         update: {},
       });
+      // A brand-new user accepted via invitation code is a new seat — see `seat-sync.ts`'s own
+      // header for why this is a plain, best-effort, never-throwing call (a no-op entirely when
+      // billing is disabled).
+      await syncCompanySeatsOnMembershipChange(invitation.companyId);
     } catch (error) {
       console.warn(`Could not mark invitation code as used: ${error}`);
     }
@@ -159,6 +165,8 @@ const attachSsoProvisionedMembership = async (companyId: string, userId: string)
     create: { userId, companyId, role: SSO_PROVISIONED_ROLE },
     update: {},
   });
+  // Same reason `markInvitationAsUsed` syncs — a new SSO-provisioned membership is a new seat.
+  await syncCompanySeatsOnMembershipChange(companyId);
 };
 
 const userHookFunction = async (user, context) => {
@@ -280,6 +288,13 @@ export const auth = betterAuth({
     // registered — but it is now expressed ONCE, as the same fact the frontend reads, instead of
     // being re-derived here and again from `OIDC_NAME` in the browser.
     ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
+    // Hosted billing (product decision 2026-09-15) — `[]` unless
+    // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` is set (see `billing/polar-plugin.ts`'s own
+    // header for exactly which four routes this mounts under `/api/auth/*`, and why none of them
+    // ever reach the global `AuthGuard`/`RolesGuard`). Boot-time credential validation
+    // (`assertPolarEnvConfiguredForBoot`, `main.ts`) runs separately — this line only ever builds an
+    // EMPTY array for a self-hosted instance that never set the flag, never throws on its own.
+    ...buildPolarAuthPlugins(),
     // Enriches every session with the caller's company memberships and
     // resolves which one is active, so `AuthGuard` can thread a
     // companyId/role through every request without an extra query.

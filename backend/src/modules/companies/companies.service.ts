@@ -3,6 +3,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
+import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -91,6 +92,9 @@ export class CompaniesService {
     await prisma.userCompany.delete({
       where: { userId_companyId: { userId: targetUserId, companyId } },
     });
+    // One fewer seat — see `billing/seat-sync.ts`'s own header (a no-op entirely when billing is
+    // disabled, never throws).
+    await syncCompanySeatsOnMembershipChange(companyId);
 
     logger.info('Member removed', { category: 'companies', details: { companyId, targetUserId } });
 

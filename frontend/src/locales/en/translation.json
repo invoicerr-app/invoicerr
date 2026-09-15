@@ -1674,7 +1674,8 @@
       "sso": "SSO",
       "customFields": "Custom fields",
       "expenseCategories": "Expense categories",
-      "branding": "Branding"
+      "branding": "Branding",
+      "billing": "Subscription"
     },
     "branding": {
       "title": "Branding",
@@ -2452,10 +2453,14 @@
       },
       "description": "Connect a payment provider so a Pay link appears on invoices in the client portal.",
       "fields": {
+        "apiKey": "API key",
+        "clientId": "Client ID",
+        "clientSecret": "Client secret",
         "environment": "Environment",
         "environmentProd": "Live",
         "environmentTest": "Test",
         "secretKey": "Secret key",
+        "webhookId": "Webhook ID",
         "webhookSecret": "Webhook signing secret"
       },
       "messages": {
@@ -2464,8 +2469,10 @@
         "copied": "Copied to clipboard",
         "disconnectError": "Failed to disconnect the payment provider",
         "disconnectSuccess": "Payment provider disconnected",
-        "fieldsRequired": "Secret key and webhook secret are both required"
+        "fieldsRequired": "All fields for this provider are required"
       },
+      "mollieDescription": "Bring your own Mollie account — paste your API key, nothing else to register: invoicerr passes the webhook URL automatically on every payment it creates.",
+      "paypalDescription": "Bring your own PayPal account — this app never sees card or bank details, and the payment page is always PayPal's own.",
       "status": {
         "connected": "Connected ({{environment}})",
         "notConnected": "Not connected"
@@ -2474,6 +2481,7 @@
       "title": "Payments",
       "webhookUrl": {
         "hint": "Register this exact URL as a webhook endpoint in your Stripe dashboard (event: checkout.session.completed), then paste the signing secret it gives you below.",
+        "hintPaypal": "Register this exact URL as a webhook in your PayPal app (events: CHECKOUT.ORDER.APPROVED and PAYMENT.CAPTURE.COMPLETED), then paste the Webhook ID it gives you below.",
         "label": "Webhook URL"
       }
     },
@@ -2726,6 +2734,30 @@
         "updateError": "Failed to update the expense category.",
         "archived": "Expense category archived.",
         "archiveError": "Failed to archive the expense category."
+      }
+    },
+    "billing": {
+      "title": "Subscription",
+      "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
+      "currentPlan": "Current plan",
+      "seats": "{{count}} seat",
+      "seats_other": "{{count}} seats",
+      "daysRemaining": "{{count}} day remaining",
+      "daysRemaining_other": "{{count}} days remaining",
+      "subscribeMonthly": "Subscribe monthly",
+      "subscribeYearly": "Subscribe yearly",
+      "managePortal": "Manage subscription",
+      "interval": {
+        "MONTH": "Monthly",
+        "YEAR": "Yearly"
+      },
+      "status": {
+        "TRIAL": "Trial",
+        "ACTIVE": "Active",
+        "PAST_DUE": "Payment failed",
+        "BLOCKED": "Blocked",
+        "ZIPPED": "Pending deletion",
+        "DELETED": "Deleted"
       }
     }
   },
@@ -4299,6 +4331,29 @@
       "rejected": "Rejected",
       "blocked": "Blocked",
       "failed": "Failed"
+    }
+  },
+  "billing": {
+    "banner": {
+      "cta": "Manage subscription",
+      "trial": {
+        "title_one": "{{count}} day left in your trial",
+        "title_other": "{{count}} days left in your trial",
+        "title": "{{count}} days left in your trial",
+        "description": "Everything works except sending documents (email, PDP/Chorus Pro/KSeF deposits). Subscribe to unlock sending."
+      },
+      "pastDue": {
+        "title": "Your last payment failed",
+        "description": "Update your payment method to keep sending documents."
+      },
+      "blocked": {
+        "title": "This company is blocked",
+        "description": "This account is read-only. Subscribe to restore full access before your data is exported and removed."
+      },
+      "zipped": {
+        "title": "This company will be deleted soon",
+        "description": "A full export of your documents has been emailed to the account owner. Subscribe now to cancel the deletion."
+      }
     }
   }
 }

@@ -38,6 +38,17 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { auth } from './lib/auth';
+import { BillingModule } from './modules/billing/billing.module';
+import { isBillingEnabled } from './modules/billing/billing-flag';
+
+/**
+ * Hosted billing (product decision 2026-09-15) — `BillingModule` is imported ONLY when
+ * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` is set. With it unset (the self-hosted default), this
+ * module simply never enters the graph: no `BillingController` (so `GET /api/billing/status` 404s,
+ * Nest's own default for an unmatched route), no BullMQ queue/repeatable sweep job, nothing. See that
+ * module's own header for the full "invisible and inert" guarantee this is the structural half of.
+ */
+const billingEnabled = isBillingEnabled();
 
 /**
  * `DocumentsModule` (via `DocumentsCoreModule`) always imports the document-action queue's
@@ -143,6 +154,9 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // PaymentsModule right above — see payment-methods.module.ts's own header.
     PaymentMethodsModule,
     CompanyCustomFieldsModule,
+    // Hosted billing (product decision 2026-09-15) — see this file's own `billingEnabled` comment
+    // right above the class. `[]` for the self-hosted default.
+    ...(billingEnabled ? [BillingModule] : []),
     // ExpenseCategoriesModule is registered further up, BEFORE DocumentsModule — see that entry's own
     // comment for why (HTTP route-shadowing, not DI).
     ...(workerInline ? [DocumentsQueueWorkerModule] : []),

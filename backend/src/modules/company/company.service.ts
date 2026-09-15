@@ -17,6 +17,7 @@ import { renderEmailTemplate } from '@/modules/documents/actions/email-template'
 import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
 import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
+import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 import prisma from '@/prisma/prisma.service';
 
 /**
@@ -173,6 +174,7 @@ export class CompanyService {
         email: rest.email,
         iban: rest.iban,
         invoiceTransportId: rest.invoiceTransportId,
+        paymentProviderId: rest.paymentProviderId,
         referenceCurrency: rest.referenceCurrency,
         approvalThresholdMinor: rest.approvalThresholdMinor,
         remindersEnabled: rest.remindersEnabled,
@@ -290,6 +292,9 @@ export class CompanyService {
     await prisma.userCompany.create({
       data: { userId, companyId: newCompany.id, role: 'OWNER' },
     });
+    // A brand-new company's own OWNER is its first seat — see `billing/seat-sync.ts`'s own header
+    // (a no-op entirely when billing is disabled, never throws).
+    await syncCompanySeatsOnMembershipChange(newCompany.id);
 
     // TODO_FEATURES.md rank 13 ("notes de frais enrichies") — this brand-new company's default
     // expense category set (the ten categories + "Other" `expense.descriptor.ts` used to hardcode).

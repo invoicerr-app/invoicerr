@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { decideRegistration, registrationDenialMessage } from '@/lib/registration-policy';
+import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 import { logger } from '@/logger/logger.service';
 
 @Injectable()
@@ -121,6 +122,9 @@ export class InvitationsService {
       create: { userId, companyId: invitation.companyId, role: invitation.role },
       update: {},
     });
+    // An EXISTING user accepting an invitation is a new seat — see `billing/seat-sync.ts`'s own
+    // header (a no-op entirely when billing is disabled, never throws).
+    await syncCompanySeatsOnMembershipChange(invitation.companyId);
 
     return updatedInvitation;
   }

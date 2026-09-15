@@ -9,6 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { syncDatabaseSchema } from './prisma/sync-schema';
 import { assertSecretsConfiguredForBoot } from './lib/secret-guard';
+import { assertPolarEnvConfiguredForBoot } from './modules/billing/polar-env';
 
 async function bootstrap() {
   // SECURITY_AUDIT.md finding #3: refuse to boot on a known-placeholder or empty auth secret
@@ -16,6 +17,17 @@ async function bootstrap() {
   // before anything else touches `lib/auth.ts` — see secret-guard.ts's own header for why this is
   // gated to production only.
   assertSecretsConfiguredForBoot();
+  // Hosted billing (product decision 2026-09-15): refuse to boot with
+  // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real Polar credentials — a no-op when the
+  // flag is unset, see that function's own header for why the gate lives inside it rather than here.
+  // `lib/auth.ts`'s own module-scope `betterAuth({ plugins: [...buildPolarAuthPlugins()] })` call has
+  // ALREADY run by this point (the `import { AppModule } ...` above already pulled it in) — but that
+  // construction never throws on a missing credential itself (`@polar-sh/better-auth`'s own
+  // `checkout`/`portal`/`webhooks` sub-plugins only read `options.client`/`secret` LAZILY, inside each
+  // route's own request handler), so without this explicit call the process would boot "successfully"
+  // and only fail, opaquely, on the FIRST real checkout/webhook request. This turns that into a clean,
+  // named, immediate refusal instead — before `app.listen()` ever runs.
+  assertPolarEnvConfiguredForBoot();
 
   if (process.env.NODE_ENV === 'production') {
     try {
@@ -54,6 +66,25 @@ async function bootstrap() {
       limit: '1mb',
       // Capture the raw body buffer so webhook HMAC verification can operate on the
       // original bytes (re-serialising a parsed JSON object is unreliable for HMAC).
+      verify: (req, _res, buf) => {
+        (req as any).rawBody = buf;
+      },
+    }),
+  );
+  app.use(
+    // Mollie's webhook (`payments/providers/mollie/mollie-provider.ts`) is the one inbound request
+    // this backend accepts as `application/x-www-form-urlencoded` (`id=tr_xxx`, nothing else) —
+    // `bodyParser.json` above only ever parses `application/json` and silently skips anything else, so
+    // without this, `req.rawBody` would never be set for it and `PaymentsWebhookController` would 400
+    // on "Missing request body." before the provider ever got a chance to re-fetch and verify. Same
+    // `verify` capture as the JSON parser, for the same reason (Mollie's own body is trivial — an id,
+    // never HMAC'd — but the OFFICIAL verification is an authenticated re-fetch, not a body signature,
+    // so nothing here needs the raw bytes for cryptographic comparison; captured anyway for parity and
+    // because `req.body.id` alone, post-parse, is exactly as sufficient and this keeps both webhook
+    // paths shaped the same way).
+    bodyParser.urlencoded({
+      extended: false,
+      limit: '64kb',
       verify: (req, _res, buf) => {
         (req as any).rawBody = buf;
       },

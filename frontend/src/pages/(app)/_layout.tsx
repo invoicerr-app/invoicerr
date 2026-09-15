@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
+import { BillingBanner } from "@/components/billing-banner"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { Sidebar } from "@/components/sidebar"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
@@ -42,6 +43,7 @@ const AuthenticatedLayout = () => {
           <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
             <Sidebar />
             <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+              <BillingBanner />
               <header className="p-4 bg-header border-b flex items-center gap-4">
                 <SidebarTrigger />
                 <PageHeaderTitle />

@@ -19,6 +19,7 @@ import {
   TicketIcon,
   User,
   Users,
+  Wallet,
   Webhook,
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -28,6 +29,7 @@ import AccountSettings from "./_components/account.settings"
 import AccountingExportSettings from "./_components/accounting-export.settings"
 import ApiKeysSettings from "./_components/api-keys.settings"
 import AtcudSettings from "./_components/atcud.settings"
+import BillingSettings from "./_components/billing.settings"
 import BrandingSettings from "./_components/branding.settings"
 import ChannelsSettings from "./_components/channels.settings"
 import CompanySettings from "./_components/company.settings"
@@ -46,7 +48,7 @@ import SsoSettings from "./_components/sso.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/use-page-header"
-import { useCompanies } from "@/hooks/queries"
+import { useBillingStatus, useCompanies } from "@/hooks/queries"
 import { useGet } from "@/hooks/use-fetch"
 import { useTranslation } from "react-i18next"
 import { LogsSettings } from "./_components/logs.settings"
@@ -67,6 +69,13 @@ export default function Settings() {
   const { data: company } = useGet<CompanyCountryInfo>("/api/company/info")
   const companyCountryValue = (company?.countryCode || company?.country || "").trim().toUpperCase()
   const isPortugueseCompany = companyCountryValue === "PT" || companyCountryValue === "PORTUGAL"
+  // Hosted billing (product decision 2026-09-15) — `GET /api/billing/status` 200 is the ONLY signal
+  // this frontend has that the feature exists on this instance at all (`use-billing.ts`'s own
+  // header). `isSuccess` false (404 on a self-hosted instance, or still loading) hides the tab
+  // entirely, both from the nav below AND from `validTabs` — so a direct `/settings/billing`
+  // navigation on an instance without billing falls back to "company" rather than rendering a
+  // half-populated screen.
+  const { isSuccess: billingAvailable } = useBillingStatus()
 
   const validTabs = [
     "company",
@@ -89,6 +98,7 @@ export default function Settings() {
     "customFields",
     "expenseCategories",
     "accountingExport",
+    ...(billingAvailable ? ["billing"] : []),
     "danger",
   ]
   const currentTab = validTabs.includes(tab!) ? tab! : "company"
@@ -198,6 +208,11 @@ export default function Settings() {
       label: t("settings.tabs.accountingExport"),
       icon: FileSpreadsheet,
     },
+    // Hosted billing — see this component's own `billingAvailable` comment above `validTabs`. Filtered
+    // OUT below (never even added to the array) when `GET /api/billing/status` has not answered 200.
+    ...(billingAvailable
+      ? [{ value: "billing", label: t("settings.tabs.billing", "Subscription"), icon: Wallet }]
+      : []),
     {
       value: "danger",
       label: t("settings.tabs.dangerZone"),
@@ -209,7 +224,8 @@ export default function Settings() {
         !isMember ||
         // "sso" joins the administrative tabs a MEMBER never sees: the identity provider decides who
         // gets into the company at all, so it belongs with members/invitations rather than with the
-        // per-user account settings.
+        // per-user account settings. "billing" joins them too — subscription management is an
+        // OWNER/ADMIN concern.
         ![
           "invitations",
           "members",
@@ -225,6 +241,7 @@ export default function Settings() {
           "expenseCategories",
           "mail",
           "branding",
+          "billing",
         ].includes(item.value),
     )
     // "atcud" only ever applies to a company registered in Portugal — see `atcud.settings.tsx`'s own
@@ -280,6 +297,8 @@ export default function Settings() {
         return <ExpenseCategoriesSettings />
       case "accountingExport":
         return <AccountingExportSettings />
+      case "billing":
+        return <BillingSettings />
       case "danger":
         return <DangerZoneSettings />
       default:

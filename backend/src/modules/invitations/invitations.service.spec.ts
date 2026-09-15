@@ -2,6 +2,7 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ForbiddenException } from '@nestjs/common';
 import { InvitationsService } from '@/modules/invitations/invitations.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 
 jest.mock('@/logger/logger.service', () => ({
   logger: {
@@ -11,6 +12,13 @@ jest.mock('@/logger/logger.service', () => ({
     debug: jest.fn(),
   },
 }));
+// billing/seat-sync.ts's own header: called directly (never via DI) from the four places a
+// UserCompany row changes — `useInvitation` (an EXISTING user accepting an invitation) is one of
+// them. Mocked here so this file's own assertions on it never depend on the real function's
+// behavior (already covered in full by seat-sync.spec.ts).
+jest.mock('@/modules/billing/seat-sync');
+
+const syncSeats = syncCompanySeatsOnMembershipChange as jest.Mock;
 
 describe('InvitationsService', () => {
   let service: InvitationsService;
@@ -110,6 +118,10 @@ describe('InvitationsService', () => {
           create: { userId: 'user2', companyId: 'company1', role: CompanyRole.ADMIN },
         }),
       );
+      // Seats recounted for the company the invitation was accepted into (product decision
+      // 2026-09-15, hosted billing) — a no-op in an environment without the billing flag, but the
+      // call itself must always happen.
+      expect(syncSeats).toHaveBeenCalledWith('company1');
     });
 
     it('rejects an already-used invitation without touching membership', async () => {

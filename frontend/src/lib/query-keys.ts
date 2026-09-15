@@ -59,6 +59,9 @@ export const queryKeys = {
   company: {
     info: () => ["company", "info"] as const,
   },
+  billing: {
+    status: () => ["billing", "status"] as const,
+  },
   declarations: {
     list: (page: number, status?: string) => ["declarations", "list", page, status] as const,
   },

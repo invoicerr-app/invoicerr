@@ -394,6 +394,19 @@ model Company {
   // spreading the request body.
   numberFormats Json?
 
+  // Which registered payment provider (documents/payments/payment-provider-registry.ts) an invoice's
+  // "Pay" link in the client portal opens a checkout session against — "stripe" | "mollie" | "paypal".
+  // UNLIKE invoiceTransportId right below, this one DOES fall back silently when unset (never a loud
+  // block) — `payments/payment-sessions.service.ts`'s own DEFAULT_PROVIDER_ID resolves a null/empty
+  // value to "stripe", the sole hardcoded provider this app had before Mollie/PayPal existed
+  // (2026-09-15): a company that connected Stripe under the OLD hardcoded-only system and never
+  // touches this new setting must keep working exactly as before, not silently lose its payment
+  // provider the day this column ships with every existing row NULL. Read+written the SAME allow-
+  // listed way as invoiceTransportId (EditCompanyDto, company.service.ts#editCompanyInfo) — but from
+  // its own small selector on the Payments settings screen (payments.settings.tsx), never the big
+  // company-info form, since the two settings screens are otherwise unrelated concepts.
+  paymentProviderId String?
+
   // Which registered document transport (documents/transports/transport-registry.ts) an invoice's
   // "send" action delivers through — e.g. "email". No default, deliberately: a company that has
   // never chosen one gets a clear, loud block when it tries to send an invoice (see
@@ -490,6 +503,87 @@ model Company {
   // decision 2026-09-15: expense categories are per-company DATA, not the fixed catalog
   // expense.descriptor.ts used to hardcode (see that file's own current header).
   expenseCategories       ExpenseCategory[]
+  // Hosted-billing offer (product decision 2026-09-15, `backend/src/modules/billing/`) — see
+  // CompanySubscription below. Optional: the row is created LAZILY, on first need, by
+  // `billing/company-subscription.store.ts#getOrCreateCompanySubscription` — never by a migration
+  // backfill, and never for a self-hosted instance that has not set
+  // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`, which is what keeps an existing company from ever
+  // being retroactively enrolled the day that flag first flips to true (see that store's own header).
+  subscription            CompanySubscription?
+}
+
+// Hosted-billing offer (product decision 2026-09-15) — ONE row per company, created lazily. See
+// `backend/src/modules/billing/lifecycle.ts`'s own header for the full two-cycle state machine this
+// drives (never-paid trial→blocked→zipped→deleted, vs paid-then-stopped active→past_due→blocked→
+// zipped→deleted) — this model only stores the FACTS that machine reads; every transition decision
+// itself lives in that pure module, never duplicated here.
+model CompanySubscription {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  status CompanySubscriptionStatus @default(TRIAL)
+
+  // The 7-day trial window, stamped once at lazy creation (`computeTrialWindow`, lifecycle.ts) and
+  // NEVER recomputed afterward — a company that later becomes ACTIVE (paid) or BLOCKED keeps its
+  // original trial dates as a historical fact, even though `lifecycle.ts` stops reading them once
+  // `status` has moved past TRIAL.
+  trialStartedAt DateTime
+  trialEndsAt    DateTime
+
+  // Set the moment `status` becomes BLOCKED (from TRIAL's own 7 days, or from PAST_DUE with no
+  // window of its own — see lifecycle.ts's header) — the anchor `lifecycle.ts#computeLifecycleTransition`
+  // adds BLOCKED_DAYS (14) to.
+  blockedAt DateTime?
+  // Set the moment the zip export is actually mailed to the OWNER (`export-zip.ts`) — the DAY this
+  // stamps, never the day BLOCKED was entered, is what a human auditing this row would want to see
+  // "how long ago did we warn them" against.
+  zipSentAt DateTime?
+  // When the real, cascading deletion (`deletion.ts`) may run — computed once, when `zipSentAt` is
+  // stamped: `zipSentAt` itself (never-paid — no grace) or `zipSentAt + 180 days` (this company once
+  // had a real `polarSubscriptionId` — see lifecycle.ts's header for why that field alone is what
+  // distinguishes the two cycles here, with no separate boolean).
+  deletionDueAt DateTime?
+
+  // Polar's own ids for this company's paying customer/subscription — `null` until a checkout
+  // actually completes (`webhook-handlers.ts`). `polarSubscriptionId` is NEVER cleared once set, even
+  // once the subscription is later canceled/revoked — see lifecycle.ts's own header for why that
+  // permanence is exactly what makes it usable as the never-paid/paid-then-stopped discriminator.
+  polarCustomerId     String?
+  polarSubscriptionId String?
+
+  // One seat == one `UserCompany` row for this company (the OWNER counts; an invitation counts only
+  // once ACCEPTED) — recomputed and pushed to Polar by `seat-sync.ts` on every membership change.
+  // Defaults to 1 (the OWNER, present from the moment the company itself is created) rather than 0,
+  // so a brand-new company's very first seat-sync call is a genuine "seats changed 0→1" no code path
+  // needs to special-case.
+  seats Int @default(1)
+
+  // The billing cadence Polar reports for the active product (`webhook-handlers.ts`) — `null` until a
+  // real subscription exists (TRIAL has no interval of its own). The price/plan itself is never
+  // stored here — see this model's own header: Polar owns the pricing grid, this only mirrors WHICH
+  // of the two configured products (`POLAR_PRODUCT_ID_MONTHLY`/`POLAR_PRODUCT_ID_YEARLY`) is active.
+  interval CompanySubscriptionInterval?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("company_subscription")
+}
+
+enum CompanySubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  BLOCKED
+  ZIPPED
+  DELETED
+}
+
+enum CompanySubscriptionInterval {
+  MONTH
+  YEAR
 }
 
 // Manually entered exchange rates. The rule that governs

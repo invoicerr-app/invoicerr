@@ -43,6 +43,10 @@ Hard-success contract (enforced per-spec):
 | Company lookup, through the onboarding wizard UI (same provider chain, driven by Cypress rather than calling the service directly) | `COMPANY_LOOKUP_LIVE=1` (passed as `--env COMPANY_LOOKUP_LIVE=1` to Cypress — note Cypress delivers it as a NUMBER, so the spec compares with `String(...)`, not `===`) | _(none, same reason as above)_ | `e2e/cypress/e2e/18-onboarding-wizard.cy.ts` (one `it` inside a shared `describe`, not a separate file — its title itself states the gate) | ✅ Proven live (created 2026-08-30; re-run 2026-09-14) — `4/4` passing with the gate open, EDF's real SIRET pre-filling the form and the persisted company read back from the database. Not run by any CI workflow (neither `cypress.yml`'s default `Tests` job nor a Cypress equivalent of `compliance-live.yml`, which does not exist) — offline, this test shows as Cypress "Pending", by design, same as the row above. |
 | Mistral OCR (received-invoice PDF extraction, T5(c)) ⚙ *not a channel — the dedicated `ROLE=ocr` service's own CLOUD engine, never the main backend* | `MISTRAL_OCR_LIVE=1` | `MISTRAL_API_KEY` | `ocr-service/mistral-client.live.spec.ts` | 🟡 Credential-free reachability block **proven live 2026-09-03** (`api.mistral.ai/v1/ocr`, no/garbage auth → real `401 {"detail":"Invalid API Key"}`) — full round-trip 🔴 deferred, no Mistral API key provisioned for this task |
 | Local OCR engine (the `ocr-image` repo, our own `ocrmypdf`-based image) ⚙ *not a channel — the SAME `ROLE=ocr` service's LOCAL engine, `OCR_ENGINE=local`, running our own Docker image and server rather than depending on a third-party OCR provider* | `LOCAL_OCR_LIVE=1` | _(none — no cloud key, that is the entire point; the spec `docker pull`s + runs the published image (ghcr.io/invoicerr-app/ocr-image) via `docker`, gated on a usable local Docker daemon — `docker info` — checked at load time)_ | `ocr-service/local-client.live.spec.ts` | ✅ **Round-trip proven on 2026-09-11** (engine switched from `apache/tika:latest-full` to our own image, same day) — the spec pulls and launches the real container, `POST`s a real `pdf-lib`-built invoice PDF to it, and the heuristic mapping correctly reads HT/TVA/TTC and the VAT id back; because this server force-OCRs every page (see `server.py`'s own header), this jest run now exercises REAL Tesseract recognition automatically, unlike the Tika era which needed a separate manual proof for that. A SEPARATE, MANUAL round-trip the same day against genuinely RASTERIZED (image-only) invoice PDFs — one French, one Polish (the new language pack Tika's own stock image never had) — proved the broader language coverage too; see `local-client.ts`'s own header for that citation |
+| Stripe (online payment, TODO_FEATURES.md rank 1) | `STRIPE_LIVE=1` | `STRIPE_SECRET_KEY` | `payments/providers/stripe/stripe.live.spec.ts` | 🔴 Deferred — no Stripe test-mode account provisioned for this task; this row and workflow wiring were themselves missing until the Mollie/PayPal work (2026-09-15) added them retroactively for consistency. Get a key: [dashboard.stripe.com](https://dashboard.stripe.com) → Developers → API keys → "Secret key" (test mode), `sk_test_...`. |
+| Mollie (online payment) | `MOLLIE_LIVE=1` | `MOLLIE_API_KEY` | `payments/providers/mollie/mollie.live.spec.ts` | 🔴 Deferred — no Mollie account provisioned for this task (2026-09-15, "aucune clé sandbox n'est encore disponible" — see this feature's own PR). Get a key: [my.mollie.com](https://my.mollie.com) → Developers → API keys → the "Test" key, `test_...`. |
+| PayPal (online payment) | `PAYPAL_LIVE=1` | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` (`PAYPAL_WEBHOOK_ID`, `PAYPAL_ENVIRONMENT` optional for this narrower spec — see its own header) | `payments/providers/paypal/paypal.live.spec.ts` | 🔴 Deferred — no PayPal sandbox app provisioned for this task (2026-09-15). Get credentials: [developer.paypal.com](https://developer.paypal.com) → Apps & Credentials → Sandbox → create/open an app → Client ID + Secret. |
+| Polar (hosted billing, `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`) | `POLAR_LIVE=1` | `POLAR_ACCESS_TOKEN` (sandbox organization access token — `POLAR_ORGANIZATION_ID` optional, only narrows the listing) | `billing/polar.live.spec.ts` | 🔴 Deferred — no Polar sandbox organization provisioned for this task (2026-09-15). Lists the organization's own products (`polarClient.products.list`) — proves the token/organization are real, never a full checkout→webhook round-trip. Get a token: [polar.sh](https://polar.sh) → Organization Settings → Developers → Access Tokens (use a **sandbox** one — sandbox and production tokens/products are entirely separate). |
 
 ---
 
@@ -161,6 +165,20 @@ MISTRAL_OCR_LIVE=1 MISTRAL_API_KEY=<key> \
 # uses, and tears down the published container itself; nothing needs to be started manually first
 # (the first run pulls ghcr.io/invoicerr-app/ocr-image; every run after reuses Docker's layer cache).
 LOCAL_OCR_LIVE=1 npx jest local-client.live --no-coverage --forceExit
+
+# Stripe (online payment) — test-mode secret key from the Stripe dashboard
+STRIPE_LIVE=1 STRIPE_SECRET_KEY=sk_test_... \
+  npx jest stripe.live --no-coverage --runInBand
+
+# Mollie (online payment) — test API key from the Mollie dashboard
+MOLLIE_LIVE=1 MOLLIE_API_KEY=test_... \
+  npx jest mollie.live --no-coverage --runInBand
+
+# PayPal (online payment) — sandbox app Client ID/Secret from the PayPal developer dashboard.
+# PAYPAL_WEBHOOK_ID/PAYPAL_ENVIRONMENT are read but not required by this narrower spec (order
+# creation only, no webhook verification round-trip — see the spec's own header).
+PAYPAL_LIVE=1 PAYPAL_CLIENT_ID=<id> PAYPAL_CLIENT_SECRET=<secret> \
+  npx jest paypal.live --no-coverage --runInBand
 ```
 
 ---

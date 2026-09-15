@@ -68,6 +68,7 @@ import {
   resolveCorrectionRoutesForCountry,
 } from './correction-routes/correction-routes';
 import { applyCompanyCustomFieldsView } from './company-custom-fields/persistence';
+import { assertCanSend } from '../billing/send-gate';
 import { applyExpenseCategoriesView } from './expense-categories/persistence';
 import { applyFieldOverlay } from './country-fields/apply-overlay';
 import { FieldOverlayOperation } from './country-fields/schema';
@@ -999,6 +1000,21 @@ export class DocumentsService implements OnModuleInit {
     // prerequisite a selection needs, applied only where something actually selects from, and only to
     // data that has already passed every check above (never to data about to be rejected anyway).
     const data = stampRowIds(fields, payload.data ?? {}, referencedArrayFieldKeys(this.typeRegistry, typeId));
+
+    // The hosted-billing emission gate (product decision 2026-09-15,
+    // `billing/send-gate.ts#assertCanSend`) — placed BEFORE the approval-threshold gate right below
+    // (cheaper: no DB round trip for `computeDocumentTotals`/threshold lookup is worth paying before
+    // knowing the company is even allowed to send at all) but, like it, strictly BEFORE `handler`
+    // runs. `actionId === 'send'` is the SAME literal recognition the approval gate right below
+    // already uses — the one action id every type that has an emitting action declares
+    // (`actions/async-send.ts`'s own header: "the two-phase send every type declaring one shares");
+    // PDP/Chorus Pro/KSeF deposits and the outbound email itself happen INSIDE that action's
+    // `deliver()` phase, never as a separately-recognized action, so gating this one id is what gates
+    // all of them. A no-op call (returns immediately, no query) when billing is disabled — see that
+    // function's own header.
+    if (actionId === 'send') {
+      await assertCanSend(companyId);
+    }
 
     // The approval-threshold gate. Placed HERE, after every gate above
     // (country policy, per-status restriction, impl/501, field+param+row-selection validation) but
