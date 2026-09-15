@@ -106,7 +106,8 @@ function createPortugueseInvoiceDraft(clientId: string) {
 
 describe("Declarations — a country with no reporting obligation says so plainly", () => {
 	before(() => {
-		cy.resetAndSeed(); // the default seeded company is French — no reporting/data/fr.json file exists.
+		cy.resetAndSeed(); // the default seeded company is French — the reporting catalog ships no file for
+		// France at all (only pt.json exists under reporting/data/), which is the whole point of this suite.
 	});
 
 	beforeEach(() => {
@@ -161,6 +162,34 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 			},
 		}).then((res) => {
 			expect(res.status, "société bascule au Portugal").to.be.oneOf([200, 201]);
+		});
+
+		// ATCUD (Portaria n.º 195/2020) — a Portuguese invoice's "send" preflight hard-blocks (400,
+		// `actions/atcud-issuance.ts#ensureAtcudIssuable`, wired in via `invoice-actions.ts`'s own
+		// `runInvoiceAtcudPreflight`) BEFORE the record ever leaves "draft" unless BOTH of these are
+		// configured: this product's own shipped default number format has no "/" at all
+		// (`numbering/atcud.ts`'s own header names it explicitly as NOT ATCUD-compatible), and even a
+		// compatible format still needs its series' AT validation code registered
+		// (`company/atcud-series/`) before any document in it is issued (AT FAQ 4308). Established by
+		// reading that gate's own code, not by guessing: the invoice never left "draft" without this.
+		const atcudSeriesId = `FT ${new Date().getFullYear()}`;
+		cy.request({
+			method: "PUT",
+			url: `${api}/api/company/number-format`,
+			body: { typeId: "invoice", pattern: "FT {year}/{number:4}" },
+		}).then((res) => {
+			expect(res.status, "format de numérotation compatible ATCUD ('/' + {number})").to.be.oneOf([
+				200, 201,
+			]);
+		});
+		cy.request({
+			method: "PUT",
+			url: `${api}/api/company/atcud-series`,
+			body: { typeId: "invoice", seriesId: atcudSeriesId, validationCode: "JCVPTS0J" },
+		}).then((res) => {
+			expect(res.status, "code de validation AT enregistré pour la série ATCUD").to.be.oneOf([
+				200, 201,
+			]);
 		});
 	});
 

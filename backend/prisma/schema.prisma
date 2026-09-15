@@ -589,8 +589,9 @@ model Client {
   // the OWNING `CompanyCustomField.key` (never prefixed here — unlike a DOCUMENT instance's own `data`,
   // this JSON blob is ALREADY an isolated namespace of its own, so no key here can ever collide with a
   // real `Client` column the way an unprefixed key could collide with a document type's native field
-  // key — see `company-custom-fields/resolve.ts`'s own header for the document-side prefix this same
-  // reasoning rules out needing). Absent/`{}` for every client with no company-defined field filled in
+  // key — see `company-custom-fields/types.ts`'s `toFieldDescriptor` header for the document-side
+  // prefix this same reasoning rules out needing). Absent/`{}` for every client with no company-defined
+  // field filled in
   // yet — the routine case, not a migration gap. A definition being renamed or archived (soft-delete,
   // `CompanyCustomField.archivedAt`) never touches this column at all: the value stays keyed by the
   // definition's immutable `key`, exactly as entered.
@@ -2218,10 +2219,10 @@ enum CompanyCustomFieldTarget {
 // TODO_FEATURES.md rank 15 ("champs personnalisés") — a company's own field, added to its clients or
 // to one (or every) document type, without touching code: the SAME "a country is data" principle
 // country-fields/ already applies to a COUNTRY's difference from the trunk, scaled to a COMPANY's own
-// difference from the trunk. See `company-custom-fields/resolve.ts` for how a row here becomes a real
-// `DocumentFieldDescriptor` (DOCUMENT target) or a `Client.customFields` entry (CLIENT target), and
-// that file's own header for why a DOCUMENT-target value is stored under a `custom:`-prefixed key
-// rather than the bare one below.
+// difference from the trunk. See `company-custom-fields/types.ts`'s `toFieldDescriptor` for how a row
+// here becomes a real `DocumentFieldDescriptor` (DOCUMENT target) or a `Client.customFields` entry
+// (CLIENT target), and that function's own header for why a DOCUMENT-target value is stored under a
+// `custom:`-prefixed key rather than the bare one below.
 //
 // `key` is chosen ONCE, at creation (slugified from `label` — see the persistence layer), and NEVER
 // changes afterward: it is the join between an ALREADY-PERSISTED document/client's stored value and

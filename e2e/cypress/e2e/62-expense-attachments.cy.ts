@@ -54,9 +54,21 @@ function pickSelectOption(fieldKey: string, optionSlug: string) {
 }
 
 function pickToday(fieldKey: string) {
-	cy.get(`[data-cy="document-field-${fieldKey}-input"]`).click();
-	const today = new Date().toLocaleDateString();
-	cy.get(`[data-day="${today}"]`).click();
+	// `today` is computed INSIDE the `.then()`, never above it: Cypress commands are queued, not
+	// executed immediately (cy.get().click() enqueues and returns at once), so a plain `new Date()`
+	// statement between two commands captures the wall clock at TEST-BODY-EXECUTION time — seconds, and
+	// several other queued commands, before this click actually opens the calendar in the browser. The
+	// calendar (react-day-picker) computes its OWN "today" only once it mounts, right when the click
+	// resolves — established the hard way on CI run 34914384074, which straddled the 2026-09-14/15 UTC
+	// midnight: the eagerly-computed date had already rolled over to the 15th by the time the test body
+	// ran, while the calendar (mounting later, after the click actually resolved) was still on the
+	// 14th. Deferring the computation to here shrinks that window to the click's own settle time.
+	cy.get(`[data-cy="document-field-${fieldKey}-input"]`)
+		.click()
+		.then(() => {
+			const today = new Date().toLocaleDateString();
+			cy.get(`[data-day="${today}"]`).click();
+		});
 }
 
 function saveDraft() {

@@ -43,8 +43,17 @@ function listExpenses() {
 function openExpenseCreateDialog() {
 	cy.visit("/documents/expense");
 	cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+	// The DIALOG itself (document-upsert-dialog.tsx's `max-h-[90vh] overflow-y-auto`) is size-constrained
+	// and centered, so checking ITS visibility is reliable. The <form> it wraps is not: this spec's own
+	// first test permanently adds two custom fields to "expense" (Cost Center + Internal Notes), and the
+	// native descriptor already has several fields of its own (expense.descriptor.ts) — tall enough,
+	// once both are on screen, that `<form>` no longer fits inside the dialog's own max-height. Cypress's
+	// `be.visible` on an element genuinely taller than its scrollable ancestor's client height fails
+	// (however it's scrolled — some portion is always clipped, see "How about scrolling to the element
+	// with cy.scrollIntoView()?"), so `exist` — reached by every caller of this helper regardless of
+	// how tall the form has grown — is what actually proves the dialog opened.
 	cy.get('[data-cy="document-create-dialog"]', { timeout: 15000 }).should("be.visible");
-	cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+	cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 }
 
 function pickSelectOption(fieldKey: string, optionSlug: string) {
@@ -54,9 +63,17 @@ function pickSelectOption(fieldKey: string, optionSlug: string) {
 }
 
 function pickToday(fieldKey: string) {
-	cy.get(`[data-cy="document-field-${fieldKey}-input"]`).click();
-	const today = new Date().toLocaleDateString();
-	cy.get(`[data-day="${today}"]`).click();
+	// `today` is computed INSIDE the `.then()`, never above it — see the identical helper in
+	// 62-expense-attachments.cy.ts for the established, deterministic (not flaky) midnight-crossing bug
+	// this avoids: Cypress commands are queued, not executed immediately, so a plain `new Date()`
+	// between two commands captures the wall clock at test-body-execution time, well before this click
+	// actually opens the calendar in the browser.
+	cy.get(`[data-cy="document-field-${fieldKey}-input"]`)
+		.click()
+		.then(() => {
+			const today = new Date().toLocaleDateString();
+			cy.get(`[data-day="${today}"]`).click();
+		});
 }
 
 function fillMinimalExpenseNativeFields(description: string) {
@@ -164,8 +181,10 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 		cy.get('[data-cy="document-action-save-draft"]').click();
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
-		// The dialog never closes — an invalid submit never reaches the API.
-		cy.get('[data-cy="document-form"]').should("be.visible");
+		// The dialog never closes — an invalid submit never reaches the API. `exist`, not `be.visible`
+		// — see openExpenseCreateDialog's own comment on why this form no longer fits its dialog's
+		// max-height once this spec's own custom fields exist.
+		cy.get('[data-cy="document-form"]').should("exist");
 	});
 
 	it("filling both custom fields through the screen saves, and the API shows them under their PREFIXED keys", () => {
@@ -176,9 +195,12 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 			"A distinctly long internal note that should add real, measurable bytes to the rendered PDF.",
 		);
 
+		// CI run 34912640646 (commit c6a0a617): the generic document dialog stays DELIBERATELY open
+		// after a successful same-type action — see document-upsert-dialog.tsx's own header and
+		// [typeId].tsx's handleActionSuccess — same false assertion already fixed on spec 62
+		// (fda9a579). Content assertions belong to the API below either way.
 		cy.get('[data-cy="document-action-save-draft"]').click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
-		cy.get('[data-cy="document-form"]').should("not.exist");
 
 		listExpenses().then((expenses) => {
 			const created = expenses.find((e) => e.data.description === "Client dinner with cost center");
@@ -234,9 +256,11 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 			if (notes) {
 				cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(notes);
 			}
+			// Dialog stays open by design after a same-type success — see openExpenseCreateDialog's own
+			// comment and the earlier test above for the same false assertion, already fixed on spec 62
+			// (fda9a579).
 			cy.get('[data-cy="document-action-save-draft"]').click();
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
-			cy.get('[data-cy="document-form"]').should("not.exist");
 
 			return listExpenses().then((expenses) => {
 				const created = expenses.find((e) => e.data.description === description);
@@ -289,12 +313,15 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 		cy.contains("Custom Fields Client SARL", { timeout: 10000 });
 
-		cy.request<{ id: string; name: string; customFields?: Record<string, unknown> }[]>({
+		// `GET /api/clients` returns `{ pageCount, clients }` (clients.service.ts#getClients), never a
+		// bare array — same paginated shape 58-document-recipient-language.cy.ts's own
+		// findClientIdByEmail already accounts for.
+		cy.request<{ clients: { id: string; name: string; customFields?: Record<string, unknown> }[] }>({
 			url: `${api}/api/clients`,
 		})
 			.its("body")
-			.then((clients) => {
-				const created = clients.find((c) => c.name === "Custom Fields Client SARL");
+			.then((body) => {
+				const created = body.clients.find((c) => c.name === "Custom Fields Client SARL");
 				expect(created, "le client créé est bien retrouvé par l'API").to.exist;
 				expect(created?.customFields?.loyalty_tier).to.eq("gold");
 			});
@@ -346,7 +373,9 @@ describe("Custom fields (rank 15) — settings-defined, appear on the form/list/
 			cy.get(`[data-cy="custom-field-row-archived-${costCenter.id}"]`).should("not.exist");
 
 			openExpenseCreateDialog();
-			cy.get('[data-cy="document-field-custom:cost_center-input"]').should("be.visible");
+			// `exist`, not `be.visible` — same reasoning as the archived counterpart just above
+			// (`not.exist`, never a visibility check), and as openExpenseCreateDialog's own comment.
+			cy.get('[data-cy="document-field-custom:cost_center-input"]').should("exist");
 		});
 	});
 });
