@@ -120,6 +120,45 @@ describe('listDeclarations', () => {
     },
   );
 
+  it(
+    'surfaces a BLOCKED declaration’s own reason too — the exact 64-declarations.cy.ts scenario ' +
+      '(a missing "pt-at" credential, journaled by `journalSyntheticEvent` via `reporting-runner.ts`), ' +
+      'proven here at the unit level rather than only inferred from the e2e run',
+    async () => {
+      mockedPrisma.documentAuthorityEvent.findMany.mockResolvedValue([
+        {
+          id: 'evt-3',
+          documentId: 'doc-3',
+          providerId: 'pt-at',
+          statusCode: 'report:blocked',
+          statusText: null,
+          reason: 'The "pt-at" channel is not connected (or its credentials are incomplete).',
+          observedAt: new Date('2026-09-14T12:00:00Z'),
+          document: { typeId: 'invoice', displayNumber: 'INV-2026-0044' },
+        },
+      ]);
+      mockedPrisma.documentAuthorityEvent.count.mockResolvedValue(1);
+      mockedResolveCountry.mockResolvedValue('PT');
+
+      const result = await listDeclarations('company-A', 1, undefined, fixtureCatalog);
+
+      expect(result.declarations).toEqual([
+        {
+          id: 'evt-3',
+          documentId: 'doc-3',
+          typeId: 'invoice',
+          displayNumber: 'INV-2026-0044',
+          providerId: 'pt-at',
+          countryCode: 'PT',
+          statusCode: 'report:blocked',
+          statusText: null,
+          reason: 'The "pt-at" channel is not connected (or its credentials are incomplete).',
+          observedAt: new Date('2026-09-14T12:00:00Z'),
+        },
+      ]);
+    },
+  );
+
   it('a genuine success (ACCEPTED) carries no reason at all', async () => {
     mockedPrisma.documentAuthorityEvent.findMany.mockResolvedValue([
       {

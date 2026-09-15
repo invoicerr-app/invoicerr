@@ -2254,6 +2254,7 @@
         "validation": {
           "hostRequired": "Host is required",
           "portRequired": "Port is required",
+          "portOutOfRange": "Port must be 65535 or lower",
           "usernameRequired": "Username is required",
           "passwordRequired": "Password is required",
           "apiKeyRequired": "API key is required",

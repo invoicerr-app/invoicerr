@@ -245,7 +245,14 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 					.should("be.visible")
 					.within(() => {
 						cy.get('[data-cy="declaration-status-badge"]').should("contain.text", "Blocked");
-						cy.get('[data-cy="declaration-error"]').should("not.contain.text", "-");
+						// NOT `.should("not.contain.text", "-")`: that is a SUBSTRING check, and the real,
+						// correct blocked reason ('The "pt-at" channel is not connected...') itself contains a
+						// "-" inside "pt-at" — so that assertion fails even when the column shows the exact
+						// right text, a false red confirmed live (2026-09-15) with the API-level PROOF 1
+						// above already green (`declaration.reason` non-empty) while this line still failed.
+						// `not.have.text` is an EXACT-match check — it only fails if the cell is LITERALLY the
+						// placeholder dash, which is the actual thing this assertion means to rule out.
+						cy.get('[data-cy="declaration-error"]').should("not.have.text", "-");
 					});
 
 				// The status FILTER's own logic is proven at the API directly (assertions-through-the-API,

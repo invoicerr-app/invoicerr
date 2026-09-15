@@ -53,7 +53,13 @@ interface MailSettingsFormValues {
 const EMPTY_FORM_VALUES: MailSettingsFormValues = {
   kind: "smtp",
   host: "",
-  port: 587,
+  // Empty, never a pre-filled "587" — every OTHER numeric field in this codebase starts empty too
+  // (`schema.ts#defaultValuesFor`), and this one is the sole exception, for no functional reason: a
+  // pre-filled value is one a user (or a test's `.clear()`) can fail to fully remove before typing a
+  // new one, silently concatenating into an out-of-range value the port field's own comment in
+  // `buildSchema` covers. "587" survives only as the `placeholder` below — a hint, never a value that
+  // has to be cleared first.
+  port: undefined,
   secure: false,
   username: "",
   password: "",
@@ -74,7 +80,23 @@ function buildSchema(t: (key: string, fallback: string) => string) {
     .object({
       kind: z.enum(["smtp", "resend"]),
       host: z.string(),
-      port: z.number().int().positive().optional(),
+      // The native `<input type="number" min={1} max={65535}>` below carries the SAME bound — this
+      // is not redundant. A browser's own constraint validation runs BEFORE any React code on a
+      // real `<button type="submit">` click, and rejects an out-of-range value by silently
+      // cancelling the "submit" event: no `onSubmit`, no zod error, no toast, no network request —
+      // indistinguishable from a dead button. Confirmed live (2026-09-15): starting from the
+      // pre-filled default (587) and typing "1025" WITHOUT first clearing the field concatenates to
+      // "5871025", and clicking Save then fires literally zero requests. Zod alone can never be the
+      // gate for a field that also carries a native constraint the browser enforces first — this
+      // bound, plus `noValidate` on the `<form>` below (which disables the browser's silent gate
+      // entirely), together guarantee THIS validation — the one that actually shows a message — is
+      // what decides submission, on every browser.
+      port: z
+        .number()
+        .int()
+        .positive()
+        .max(65535, t("settings.mail.form.validation.portOutOfRange", "Port must be 65535 or lower"))
+        .optional(),
       secure: z.boolean(),
       username: z.string(),
       password: z.string(),
@@ -202,7 +224,12 @@ function MailSettingsForm({
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={onSubmit} data-cy="mail-settings-form">
+          {/* `noValidate`: without it, the browser's OWN constraint validation (the `port` input's
+              native `min`/`max` below) runs before this `onSubmit` and can cancel the click's submit
+              event outright on an out-of-range value — see the port field's own comment in
+              `buildSchema` above for the confirmed repro. zod is the only validator this form trusts
+              to ever run, on every browser, so its own errors are the only ones a user can see. */}
+          <form className="space-y-4" onSubmit={onSubmit} noValidate data-cy="mail-settings-form">
             <FormField
               control={form.control}
               name="kind"
@@ -255,6 +282,7 @@ function MailSettingsForm({
                           type="number"
                           min={1}
                           max={65535}
+                          placeholder="587"
                           value={field.value ?? ""}
                           onChange={(e) =>
                             field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
