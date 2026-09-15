@@ -96,10 +96,18 @@
   --muted-foreground: oklch(0.470 0.020 230);
   --accent: oklch(0.910 0.030 230);
   --accent-foreground: oklch(0.280 0.050 230);
-  --destructive: oklch(0.530 0.210 27);
-  --destructive-foreground: oklch(0.990 0.010 27);
-  --destructive-soft: oklch(0.930 0.060 27);
-  --destructive-soft-foreground: oklch(0.350 0.160 27);
+  /* Owner feedback on the Lagune tokens (6e604b2f): "le rouge est trop sombre". Raised L 0.530→0.570
+     (still short of the 0.58 floor floated as a starting point — 0.575 already lands text-destructive
+     on background at 4.66:1, and 0.58 with the same C/H drops that to 4.47:1, under AA), nudged H
+     27→24 (cooler, less orange), kept destructive-foreground as the near-white ink since the light
+     base stays dark enough for it. Computed OKLCH→sRGB→WCAG (scratchpad script, not eyeballed):
+     destructive/-foreground 4.81:1, destructive vs background 4.66:1, text-destructive vs card 4.93:1
+     — all ≥4.5:1. destructive-soft/-soft-foreground only had their hue realigned to 24 (8.90:1,
+     untouched otherwise: the badge fill was never the "too dark" complaint). */
+  --destructive: oklch(0.570 0.220 24);
+  --destructive-foreground: oklch(0.990 0.010 24);
+  --destructive-soft: oklch(0.930 0.060 24);
+  --destructive-soft-foreground: oklch(0.350 0.160 24);
   --success: oklch(0.920 0.060 145);
   --success-foreground: oklch(0.300 0.110 145);
   --warning: oklch(0.920 0.070 70);
@@ -139,10 +147,21 @@
   --muted-foreground: oklch(0.680 0.020 230);
   --accent: oklch(0.320 0.045 230);
   --accent-foreground: oklch(0.930 0.012 230);
-  --destructive: oklch(0.550 0.190 25);
-  --destructive-foreground: oklch(0.970 0.010 25);
-  --destructive-soft: oklch(0.280 0.070 25);
-  --destructive-soft-foreground: oklch(0.850 0.130 25);
+  /* Same owner feedback as the :root block above, dark side. Here the old value failed AA outright as
+     plain text (text-destructive vs background was only 3.54:1, vs card 3.19:1 — "too dark" was
+     right), so L had to move further: 0.550→0.680 (inside the 0.68-0.72 range floated, at its low end
+     to stay in sRGB gamut at C 0.200 — 0.21+ clips). At that L the base color is now light, so
+     destructive-foreground FLIPS from near-white to dark ink (oklch 0.160 0.030 24) — the same
+     light-base/dark-ink pairing --primary-foreground already uses in this theme — because near-white
+     text on a light-L=0.68 red no longer clears AA (would sit under 4:1). Computed:
+     destructive/-foreground 6.17:1, destructive vs background 5.99:1, text-destructive vs card 5.40:1.
+     Known residual: components/ui/multi-select.tsx's destructive tag and the dark:bg-destructive/60
+     used by badge.tsx/button.tsx composite this color differently (full solid vs. 60%-over-background)
+     — out of scope here (index.css only), flagged for whoever next touches those files. */
+  --destructive: oklch(0.680 0.200 24);
+  --destructive-foreground: oklch(0.160 0.030 24);
+  --destructive-soft: oklch(0.280 0.070 24);
+  --destructive-soft-foreground: oklch(0.850 0.130 24);
   --success: oklch(0.280 0.060 145);
   --success-foreground: oklch(0.850 0.130 145);
   --warning: oklch(0.280 0.070 55);
