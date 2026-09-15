@@ -22,10 +22,16 @@
 > abonnement) et ajoutent un sujet nouveau (serveur de mail d'instance vs. de société). Les rangs et
 > intitulés numérotés dans ce fichier reprennent ceux du §3 historique — ils ne sont pas repartis de
 > zéro.
+>
+> **État de la CI, honnêtement (dernière mise à jour de la nuit).** Aucun run entièrement vert depuis
+> la reprise des chantiers ce soir : chaque commit a corrigé le rouge du précédent et le suivant en a
+> apporté un nouveau. Dernier vert complet : `fb00877b` (spec 30) ; depuis, 29 commits, rouges
+> successifs tous identifiés et traités ; résultat des trois derniers runs (`de30e2a4`, `d24a7c6e`,
+> `c7e80579`) à lire au réveil.
 
 ---
 
-## Livré (20)
+## Livré (21)
 
 | Rang | Feature | Preuve |
 |---:|---|---|
@@ -43,22 +49,25 @@
 | 12 | Facturation échelonnée multi-jalons | `51-installments` |
 | 13 | Notes de frais enrichies (pièce jointe, catégorie, kilométrage) | `6cb60096`, sans migration. Réutilise le stockage des factures reçues (`received-invoices/storage.ts`, volume `documents_data`) et le hash SHA-256 de `archive/hashing.ts` ; nouveau type de champ générique `file` au descripteur. Deux choix de produit pris au plus simple, **à valider** (voir Questions ouvertes) : dix catégories fixes + « Other », taille max 750 Kio (dérivée de la limite globale bodyParser 1 Mo — refusera la plupart des photos de téléphone). |
 | 14 | Langue du document par destinataire | `58-document-recipient-language` — cascade `Client.language` → `Company.language` → `en` (`rendering/language/resolve-recipient-language.ts`), vérifiée dans le code : c'est exactement la cascade que la Décision B redemande pour le PDF, déjà en place. |
-| 15 | Champs personnalisés (clients + documents) | `3ff59800`, avec migration `20260920170000_company_custom_fields` (nom à date future, voir Questions ouvertes #1). CRUD scopé société, clé immuable dérivée du libellé, suppression = archivage (`archivedAt`), rendu fusionné avec les descripteurs génériques côté formulaire et PDF. **Fusion en cours** : la validation du champ requis bloquant `send` (au-delà du brouillon, déjà bloqué) est en cours de câblage dans `documents.service.ts` par un autre agent au moment d'écrire ces lignes — commit à venir, ne PAS lire comme terminé sur ce point précis. Trois choix à valider : voir Questions ouvertes. |
+| 15 | Champs personnalisés (clients + documents) | `3ff59800`, avec migration `20260920170000_company_custom_fields` (nom à date future, voir Questions ouvertes #1). CRUD scopé société, clé immuable dérivée du libellé, suppression = archivage (`archivedAt`), rendu fusionné avec les descripteurs génériques côté formulaire et PDF. **Fusion terminée** (`9f2e3585`) : un champ personnalisé requis bloque désormais toute action, `send` compris, avant tout effet de bord — ce n'est plus « en cours ». Bug latent de collision de clés corrigé au passage (`findAvailableKey`, deux libellés se réduisant au même slug sous des scopes différents). Choix à valider : voir Questions ouvertes. |
 | 17 | Workflow d'approbation interne | `50-approval` |
 | 18 | Gestion de stock basique | `49-stock` |
+| 19 (1ʳᵉ passe) | Bons de commande à un fournisseur — émission | `de30e2a4`, sans migration : un `DocumentTypeDescriptor` de plus (fournisseur, date, date de livraison attendue, devise, référence, lignes), statuts calqués sur la facture, numérotation `PURCHASE-ORDER-` à l'entrée en `sending`, envoi réutilisant tel quel `runAsyncSendAction`/`sendDocumentInstanceEmail`. **Aucun code frontend touché** — menu, liste et formulaire pilotés par le descripteur. Country-policy étendu aux cinq pays (sinon 403 partout et invisible au menu). Bug latent corrigé en passant : `compute-totals.ts` plantait (« no usable VAT rate ») sur un type dont les lignes n'ont aucun champ de TVA — jamais exercé avant. **Le rapprochement 3-way avec la facture reçue est une seconde passe, non livrée** — voir Restent. Trois choix pris pour l'émission, à valider : voir Questions ouvertes. **Non établi** : l'exécution réelle du spec Cypress 66 (Cypress non lancé). |
 | 21 | Application mobile — PWA (Décision D) | `b7a6581d` (manifeste, service worker, icônes générées depuis le logo, `vite-plugin-pwa`, `/api/*` jamais mis en cache) puis `acbc2011` (le SW s'enregistrait sans garde et faisait tomber `29-document-recurrence` en CI — corrigé : enregistrement manuel sous garde `!("Cypress" in window)`, rechargement réel à l'activation d'un nouveau SW via `virtual:pwa-register`). README corrigé dans le même commit, ne promet plus d'app native. **Non établi** : installabilité réelle sur iOS/Android, aucun appareil ni simulateur ici. |
-| G (partiel) | Serveur de mail — instance→société, fournisseur Resend (Décision G) | Backend livré : `f1ed72e4`, `63b42ef9`, `1958c47a` — voir Décision G pour le détail. **L'écran de réglages société n'existe PAS encore** — reste à faire. |
+| G | Serveur de mail — instance→société, fournisseur Resend (Décision G) | **COMPLÈTE : backend + écran.** Backend : `f1ed72e4`, `63b42ef9`, `1958c47a`. Écran Réglages → Mail : `7a61f3f7` — état courant sans jamais rendre de secret, formulaire SMTP/Resend, « Tester l'envoi » toujours disponible (erreur backend affichée mot pour mot), retour au serveur de l'instance après confirmation, onglet masqué aux MEMBER. Voir Décision G pour le détail. **Réserve** : son spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4) ; instrumenté (`c7e80579`, un vrai défaut d'écran corrigé au passage), mais la cause du premier échec reste NON établie — voir Questions ouvertes. |
 | *(hors liste)* | Méthodes de paiement typées par société | `61-payment-methods`, livré le 2026-09-14 (`backend/src/modules/documents/payment-methods/`) |
 
 ---
 
-## Restent (3) — vérifiés dans le code au 2026-09-15
+## Restent (5) — vérifiés dans le code au 2026-09-15
 
 | Rang | Feature | État vérifié (2026-09-15) | e2e à prouver |
 |---:|---|---|---|
-| 16 | Personnalisation de template — **redéfini** en préréglages visuels (plus un éditeur) | Voir Décision B. | Un utilisateur choisit un préréglage (couleur/logo/police) et voit le PDF changer, sans toucher au HTML. |
-| 19 | Bons de commande / achats fournisseurs | Voir Décision F. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
-| 20 | Facturation par abonnement avancée (usage-based) | Sans objet côté produit invoicerr — redirigé vers l'offre hébergée du propriétaire, voir Décision E. | N/A côté produit self-hosted. |
+| 16 | Personnalisation de template — **redéfini** en préréglages visuels (plus un éditeur) | Suspendu : construire les préréglages suppose d'ajouter des champs de marque à `Company` (logo, couleur, police) via une nouvelle migration — le renommage en bloc des sept migrations à date future (Questions ouvertes #1) n'est pas tranché, donc aucune nouvelle migration n'est ajoutée avant cette décision. Voir Décision B. | Un utilisateur choisit un préréglage (couleur/logo/police) et voit le PDF changer, sans toucher au HTML. |
+| 20 → E | Facturation par abonnement avancée (usage-based) | Sans objet côté produit invoicerr — redirigé vers l'offre hébergée du propriétaire (Décision E), elle-même bloquée par la clé sandbox Polar que le propriétaire crée demain matin (Questions ouvertes #4). | N/A côté produit self-hosted. |
+| A | Paiements — Mollie, PayPal réel, régionaux | Stripe seul est câblé (rang 1, voir Livré) et jamais prouvé avec un vrai compte ; Mollie, PayPal (vrai encaissement Orders API v2) et les régionaux restent à construire — bloqués par les clés sandbox (Polar, Stripe, Mollie, PayPal), le propriétaire les crée demain matin (Questions ouvertes #4). Voir Décision A. | Un paiement Stripe réel encaissé ; Mollie et PayPal câblés et testés en sandbox. |
+| C | Emails — éditeur WYSIWYG | Bibliothèque d'édition riche non choisie (TipTap/Lexical/Quill…, Questions ouvertes #5) — l'éditeur texte brut actuel (`templates.settings.tsx`) reste en place tant que ce choix n'est pas fait. Voir Décision C. | Non définissable avant le choix de bibliothèque. |
+| 19 (2ᵉ passe) | Bons de commande — rapprochement 3-way | Émission livrée en première passe (`de30e2a4`, voir Livré). Le rapprochement avec la facture reçue reste à construire sur `received-invoices/supplier-reconciliation.ts` existant, une fois choisis les écarts tolérés, qui valide, et blocage vs avertissement. Voir Décision F. | Un BC envoyé puis une facture reçue rapprochée affiche les écarts quantité/montant. |
 
 ### Rang 10 — pourquoi le mécanisme `reporting/` ne concerne toujours que le Portugal
 
@@ -373,8 +382,9 @@ l'implémentation à venir :
 Mandat du propriétaire : « j'ai rien contre, faut mettre ça dans TODO_FEATURES et détailler ». Au
 moment de cette décision (2026-09-15), aucune des trois fonctionnalités n'avait de trace dans le code
 (`grep` vide sur `customField`/`CustomField`, sur `purchase.order`/`PurchaseOrder`/
-`PurchaseOrderReference` hors formats vendorés E-invoicing). **Rang 13 et rang 15 sont livrés depuis**
-(voir Livré) ; seul le rang 19 (bons de commande) reste tel que décrit ci-dessous.
+`PurchaseOrderReference` hors formats vendorés E-invoicing). **Rang 13, rang 15 et la première passe
+du rang 19 sont livrés depuis** (voir Livré) ; seule la seconde passe du rang 19 (rapprochement
+3-way) reste ouverte, décrite ci-dessous.
 
 **Rang 13 — notes de frais enrichies.** Livré (`6cb60096`, voir Livré) : pièce jointe, catégorie et
 kilométrage, en réutilisant le stockage de `received-invoices/storage.ts` plutôt qu'en le dupliquant.
@@ -386,16 +396,19 @@ fiscal : deux champs informationnels seulement, l'utilisateur reporte lui-même 
 **Rang 15 — champs personnalisés / tags.** Livré (`3ff59800`, voir Livré) : un mécanisme parallèle de
 champs définis en base par société, mergés au rendu du formulaire et du PDF, sans toucher aux
 `DocumentTypeDescriptor` figés existants. Clé dérivée du libellé et immuable ; suppression = archivage,
-jamais une perte du lien avec les valeurs déjà saisies sur des documents émis. Point en cours au moment
-d'écrire ces lignes : la validation du champ requis bloquant l'envoi (`send`, au-delà du brouillon,
-déjà bloqué) — fusion dans `documents.service.ts`, commit à venir.
+jamais une perte du lien avec les valeurs déjà saisies sur des documents émis. **Fusion terminée**
+(`9f2e3585`) : un champ personnalisé requis bloque désormais toute action, `send` compris, avant tout
+effet de bord — plus une « fusion en cours ». Bug latent de collision de clés trouvé et corrigé au
+passage (`findAvailableKey`).
 
-**Rang 19 — bons de commande / achats fournisseurs.** Seul le rapprochement AVAL existe
-(`received-invoices/supplier-reconciliation.ts` : rapprocher une facture reçue avec un fournisseur
-connu) ; rien n'émet de bon de commande ni ne le rapproche a priori avec la facture reçue (3-way
-match quantité/montant/BC). Ce que l'e2e devra prouver : un BC envoyé puis une facture reçue
-rapprochée affiche les écarts quantité/montant, en s'appuyant sur `supplier-reconciliation.ts`
-existant plutôt qu'en le dupliquant.
+**Rang 19 — bons de commande / achats fournisseurs.** Première passe livrée (`de30e2a4`, voir
+Livré) : émettre un bon de commande à un fournisseur, un `DocumentTypeDescriptor` de plus, aucune
+migration. Le rapprochement 3-way avec la facture reçue reste une seconde passe, décrite dans le
+commit : elle demande des décisions produit (quels écarts tolérer, qui valide, blocage ou
+avertissement) et d'établir ce que « 3-way » désigne ici — un troisième document de réception
+n'existe pas dans le modèle. Le mécanisme à réutiliser alors est
+`received-invoices/supplier-reconciliation.ts`, jamais une mécanique dupliquée. Trois choix pris pour
+l'émission, à valider : voir Questions ouvertes.
 
 ### G. Serveur de mail — instance puis société
 
@@ -424,9 +437,28 @@ peut être soit SMTP soit Resend (Resend en priorité si les deux sont définis)
 - `1958c47a` — un test qui dépendait de l'environnement ambiant (`.env.test` fournissait un
   expéditeur par défaut que la CI n'a pas) rendu hermétique.
 
-**PAS livré : l'écran de réglages société.** Les quatre routes backend existent ; aucun composant
-frontend ne les appelle — grep sur `frontend/src/pages/(app)/settings/_components/` toujours vide de
-tout composant SMTP/mail de société. C'est le reste à faire sur ce chantier.
+**Livré cette nuit, côté écran** (`7a61f3f7`) — Réglages → Mail, ce qui manquait à la décision G.
+**La décision G est donc COMPLÈTE (backend + écran).**
+- État courant : instance par défaut, ou serveur de société avec son fournisseur et son expéditeur.
+  **Aucun secret n'est jamais rendu** : la route de lecture ne renvoie que
+  `{configured, kind, fromAddress}`, le formulaire d'édition repart toujours vide sur le mot de passe
+  et la clé API.
+- SMTP ou Resend, validation zod par fournisseur en écho de celle du serveur.
+- **Tester l'envoi** disponible en permanence, même sans configuration de société, parce qu'il exerce
+  la cascade réelle : l'erreur affichée est celle du backend, mot pour mot.
+- **Revenir au serveur de l'instance** efface la configuration, après confirmation. Onglet masqué aux
+  MEMBER, cohérent avec les routes d'écriture réservées à OWNER/ADMIN.
+
+**Réserve, non résolue** : le spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4, tous
+en « toast jamais apparu » ou « bouton de retour introuvable ») — écrit sans être lancé, comme les
+specs 62/63/64. Instrumenté (`c7e80579` — assertions sur le code HTTP avant chaque attente de toast ;
+un vrai défaut d'écran corrigé au passage, indépendant de la cause : le toast de succès de « Tester
+l'envoi » affichait le message générique de `sendForCompany`, jamais le texte dédié attendu). **Cause
+du premier échec NON établie** : le journal backend du run prouve que `PUT /api/company/mail-settings`
+n'a jamais abouti (piste `CredentialAudit` : six `mail:* RESOLVE_ACTIVE MISS`, jamais un `UPLOAD`),
+sans dire pourquoi — ni 400/403/503 (chacun produirait un toast d'erreur, absent), donc soit une
+requête qui ne part jamais du navigateur, soit une réponse jamais reçue ; à trancher au prochain run,
+avec le journal navigateur/accès cette fois.
 
 **Questions ouvertes, à ne pas trancher ici** :
 - **Que devient Brevo ?** Le propriétaire a une clé Brevo compromise à régénérer (trouvée en clair
@@ -438,9 +470,10 @@ tout composant SMTP/mail de société. C'est le reste à faire sur ce chantier.
 - Le comportement de repli exact si Resend est configuré mais échoue à l'exécution (retombée sur
   SMTP, ou refus direct) — non précisé, non implémenté.
 - **Lien avec la production** : `invoicerr.chevrier.dev` n'a aujourd'hui AUCUN serveur de mail
-  configuré, donc aucun email ne part (établi le 2026-09-14, voir `5aed5154`). Cette entrée G réduit
-  ce risque une fois l'écran société construit ; en attendant, renseigner les cinq variables SMTP sur
-  l'hôte reste une action immédiate distincte, déjà notée dans `TODO_MANDANT.md`.
+  configuré, donc aucun email ne part (établi le 2026-09-14, voir `5aed5154`). L'écran société
+  (`7a61f3f7`) réduit ce risque désormais qu'il est construit ; renseigner les cinq variables SMTP sur
+  l'hôte, ou configurer un serveur de société via l'écran, reste une action immédiate distincte, déjà
+  notée dans `TODO_MANDANT.md`.
 
 ---
 
@@ -461,7 +494,12 @@ tout composant SMTP/mail de société. C'est le reste à faire sur ce chantier.
      (refusera la plupart des photos de téléphone).
    - Champs personnalisés (`3ff59800`) : sous-ensemble de kinds admis (text/longText/number/money/
      date/boolean/select — pas array/reference/file) ; accès à l'écran réservé OWNER/ADMIN ; si un
-     champ requis doit aussi bloquer l'envoi (pas seulement le brouillon).
+     champ requis doit aussi bloquer l'envoi — **implémenté cette nuit** (`9f2e3585`, bloque désormais
+     `send` en plus du brouillon) : à confirmer que c'est le comportement voulu.
+   - Bons de commande (`de30e2a4`) : fournisseur = entité `Client` via son flag `supplier` (déjà
+     utilisé par les factures reçues) ; cycle de statuts calqué sur celui de la facture plutôt que
+     celui du devis ; préfixe de numérotation `PURCHASE-ORDER-` par défaut (aucun mécanisme de préfixe
+     par type n'existait avant cette nuit, `Company.numberFormats` permet déjà de le changer).
 3. **`MAIL_PROVIDER` explicite gagne sur `RESEND_API_KEY`** (commit `f1ed72e4`) — un déploiement en
    `smtp` n'est pas court-circuité par une clé Resend ajoutée par erreur ; la décision du mandant ne
    tranchait que le cas implicite (aucun `MAIL_PROVIDER` posé), ce choix explicite lui est soumis, pas
@@ -469,6 +507,14 @@ tout composant SMTP/mail de société. C'est le reste à faire sur ce chantier.
 4. **Comptes sandbox** (Polar, Stripe, Mollie, PayPal) — il a dit qu'il les crée demain matin ; le
    guide est publié. Les chantiers A (paiements) et E (abonnement) attendent ces clés.
 5. **Bibliothèque WYSIWYG pour les emails** (Décision C) — non choisie.
+6. **Spec 65 (réglages mail), cause du premier échec non établie.** Le journal backend du run prouve
+   que `PUT /api/company/mail-settings` n'a jamais abouti, sans dire pourquoi (aucune hypothèse
+   vérifiable par lecture — 400/403/503 — n'explique l'absence totale de toast). Le spec (`c7e80579`)
+   nomme désormais l'appel qui échoue au lieu d'attendre un toast ; à lire au prochain run.
+
+*Note de méthode, en une phrase : quatre specs Cypress écrits sans être lancés sur cinq ont cassé à
+leur première exécution en CI cette nuit (62, 63, 64, 65) — jamais un bug produit, toujours une
+hypothèse fausse du spec lui-même.*
 
 ---
 
@@ -497,9 +543,13 @@ décision ou une vérification du propriétaire :
   que couvre exactement le plugin `@polar-sh/better-auth` (vérification annoncée séparément) et si ses
   routes passent par `AuthGuard`/`RolesGuard` ou les contournent (`app.module.ts:75`,
   `disableGlobalAuthGuard: true`).
-- **G (serveur de mail)** — **backend livré cette nuit** (`f1ed72e4`, `63b42ef9`, `1958c47a` :
-  fournisseur Resend, cascade société→instance branchée sur tous les envois sauf la PEC italienne,
-  volontairement) ; **l'écran de réglages société n'existe pas encore**, reste à construire. Restent
+- **G (serveur de mail)** — **COMPLÈTE, backend + écran** (`f1ed72e4`, `63b42ef9`, `1958c47a` pour le
+  backend — fournisseur Resend, cascade société→instance branchée sur tous les envois sauf la PEC
+  italienne, volontairement — puis `7a61f3f7` pour l'écran Réglages → Mail, qui ne rend jamais de
+  secret). **Réserve** : le spec Cypress 65 a échoué à sa première exécution (3 échecs sur 4) ;
+  instrumenté (`c7e80579`, un vrai défaut d'écran corrigé au passage) mais la cause du premier échec
+  reste NON établie — le journal backend prouve que `PUT /api/company/mail-settings` n'a jamais abouti
+  pendant ce run, sans dire pourquoi ; à lire au prochain run (voir Questions ouvertes #6). Restent
   ouverts : ce que devient Brevo (troisième fournisseur d'instance à côté de SMTP/Resend, ou remplacé
   par Resend) ; si `MAIL_PROVIDER` explicite doit continuer à gagner sur `RESEND_API_KEY` (choix pris
   par défaut, pas demandé par le mandat) ; le comportement de repli exact si Resend est configuré mais
