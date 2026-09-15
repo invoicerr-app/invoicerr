@@ -8,6 +8,16 @@ export {
 export { useCompany } from "./use-company"
 export { useCompanies } from "./use-companies"
 export {
+  useCompanyMailSettings,
+  useSetCompanyMailSettings,
+  useClearCompanyMailSettings,
+  useTestCompanyMailSettings,
+  type CompanyMailSettingsStatus,
+  type SetCompanyMailSettingsInput,
+  type SetCompanyMailSmtpSettings,
+  type SetCompanyMailResendSettings,
+} from "./use-company-mail-settings"
+export {
   useDeclarations,
   type DeclarationEntry,
   type DeclarationsListResponse,

@@ -11,6 +11,7 @@ import {
   Plug,
   Radio,
   Repeat,
+  Server,
   ShieldCheck,
   SlidersHorizontal,
   TicketIcon,
@@ -32,6 +33,7 @@ import DangerZoneSettings from "./_components/danger.settings"
 import PaymentsSettings from "./_components/payments.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
 import InvitationsSettings from "./_components/invitations.settings"
+import MailSettings from "./_components/mail.settings"
 import MembersSettings from "./_components/members.settings"
 import PluginsSettings from "./_components/plugins.settings"
 import RecurringSettings from "./_components/recurring.settings"
@@ -65,6 +67,7 @@ export default function Settings() {
   const validTabs = [
     "company",
     "email",
+    "mail",
     "webhooks",
     "apiKeys",
     "logs",
@@ -98,6 +101,11 @@ export default function Settings() {
       value: "email",
       label: t("settings.tabs.emailTemplates"),
       icon: Mail,
+    },
+    {
+      value: "mail",
+      label: t("settings.tabs.mail", "Mail"),
+      icon: Server,
     },
     {
       value: "webhooks",
@@ -198,6 +206,7 @@ export default function Settings() {
           "atcud",
           "sso",
           "customFields",
+          "mail",
         ].includes(item.value),
     )
     // "atcud" only ever applies to a company registered in Portugal — see `atcud.settings.tsx`'s own
@@ -217,6 +226,8 @@ export default function Settings() {
         return <CompanySettings />
       case "email":
         return <EmailTemplatesSettings />
+      case "mail":
+        return <MailSettings />
       case "webhooks":
         return <WebhooksSettings />
       case "apiKeys":

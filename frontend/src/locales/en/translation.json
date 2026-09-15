@@ -1656,6 +1656,7 @@
     "tabs": {
       "company": "Company",
       "emailTemplates": "Email Templates",
+      "mail": "Mail",
       "account": "Account",
       "logs": "Logs",
       "invitations": "Invitations",
@@ -2227,6 +2228,56 @@
         "saveError": "Failed to save template",
         "resetSuccess": "{{name}} template reset to its default",
         "resetError": "Failed to reset template"
+      }
+    },
+    "mail": {
+      "title": "Mail",
+      "description": "By default this company sends through the instance mail server. Define your own to send from your domain.",
+      "status": {
+        "title": "Current mail server",
+        "loading": "Loading…",
+        "configured": "Company server ({{kind}})",
+        "usingInstance": "Using the instance's mail server",
+        "fromAddress": "From: {{address}}"
+      },
+      "form": {
+        "connectTitle": "Connect your own mail server",
+        "updateTitle": "Update your mail server",
+        "provider": "Provider",
+        "host": "SMTP host",
+        "port": "Port",
+        "username": "Username",
+        "password": "Password",
+        "secure": "Use TLS",
+        "apiKey": "Resend API key",
+        "fromAddress": "From address",
+        "validation": {
+          "hostRequired": "Host is required",
+          "portRequired": "Port is required",
+          "usernameRequired": "Username is required",
+          "passwordRequired": "Password is required",
+          "apiKeyRequired": "API key is required",
+          "fromAddressRequired": "From address is required"
+        }
+      },
+      "actions": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "test": "Test send",
+        "revert": "Revert to instance server"
+      },
+      "revertModal": {
+        "title": "Revert to the instance mail server?",
+        "description": "This clears this company's own mail server. Future sends fall back to the instance's mail server (or fail if the instance has none configured either)."
+      },
+      "messages": {
+        "saveSuccess": "Mail server saved",
+        "saveError": "Failed to save mail settings",
+        "testSuccess": "Test email sent — check your inbox",
+        "testError": "Failed to send the test email",
+        "revertSuccess": "Reverted to the instance mail server",
+        "revertError": "Failed to revert to the instance mail server"
       }
     },
     "webhooks": {
