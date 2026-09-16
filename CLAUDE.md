@@ -229,3 +229,14 @@ other locales are Weblate-managed, `npm run i18n:check` gates PRs.
   round-trip.
 - `documentation/docs/developer-guide/credentials-guide.md` — per-authority onboarding notes.
 - `documentation/docs/developer-guide/` — plugin system, webhooks, MCP server, auth.
+
+## Working with the owner
+
+- **Every decision goes through the question tool (`AskUserQuestion`), never through prose.** The
+  owner is not always looking at the screen: a choice written at the end of a report, in a tracking
+  file or in a bullet list is a choice nobody makes. Before the tool call, fire the desktop
+  notification + sound (`notify-send -u critical … && paplay …`). Group the decisions that belong
+  together in one call, state the real consequence of each option, and recommend one.
+- The owner writes in French; answer in French. Every `.md` file in this repository is in English.
+- Sub-agents write the code; the main session orchestrates, verifies (real builds, real runs) and
+  commits. Every sub-agent is launched with `model: "sonnet"`.
