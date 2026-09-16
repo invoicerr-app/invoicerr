@@ -14,16 +14,7 @@
  * `checkout`/`portal` both carry `@BillingGateExempt()` (`billing-gate-exempt.decorator.ts`) — see
  * that decorator's own header for why a BLOCKED company must still be able to reach them.
  */
-import {
-  BadRequestException,
-  Body,
-  ConflictException,
-  Controller,
-  Get,
-  NotFoundException,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
@@ -45,23 +36,28 @@ import {
   SubscriptionAlreadyActiveError,
 } from './checkout-session';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
-import { isLegacyUserLevelSubscription } from './legacy-customer';
+import { getCompanyCustomerFacts, hasLegacyPolarCustomer } from './legacy-customer';
 import { FALLBACK_RETURN_URL } from './portal-return-url';
 import {
   createCustomerPortalSession,
+  createLegacyCustomerPortalSession,
   PolarCustomerNotFoundError,
   PortalSessionResult,
 } from './portal-session';
 import { reconcileFromPolarIfStale } from './status-reconcile';
 
 /** `BillingStatusView` plus the ONE field computed outside that pure function — kept out of
- *  `billing-status-view.ts` itself so its own spec never has to mock a Polar client (this field is the
- *  only one in the whole response that ever calls Polar — see `legacy-customer.ts`'s own header). */
+ *  `billing-status-view.ts` itself so its own spec never has to mock a Polar client (`hasCompanyCustomer`/
+ *  `legacySubscription` are now part of that pure view's own return shape, computed by
+ *  `legacy-customer.ts#getCompanyCustomerFacts` and passed IN — see that module's own header; this ONE
+ *  extra field is scoped to the CALLING USER, not the company, so it stays here instead). */
 export interface BillingStatusViewResponse extends BillingStatusView {
-  /** `true` when this company's stored subscription still points at the pre-2026-09-16 per-USER Polar
-   *  customer — see `legacy-customer.ts`'s own header. The settings screen shows a re-subscribe
-   *  notice instead of trying (there is no Polar API to migrate an existing subscription). */
-  legacySubscription: boolean;
+  /** `true` when a plain-text link to the pre-migration per-USER Polar portal
+   *  (`portal-session.ts#createLegacyCustomerPortalSession`) has a real chance of opening — checked
+   *  ONLY while `legacySubscription` is true (`legacy-customer.ts#hasLegacyPolarCustomer`'s own header
+   *  on why this stays a rare extra Polar call rather than a per-request one). `false` whenever
+   *  `legacySubscription` itself is false — there is nothing to link to. */
+  legacyPortalAvailable: boolean;
 }
 
 const CHECKOUT_SLUGS: readonly CheckoutProductSlug[] = ['monthly', 'yearly'];
@@ -74,18 +70,25 @@ export class BillingController {
     summary: "This company's hosted-billing status",
     description:
       'Status, days remaining until the next lifecycle boundary, seat count, the checkout/portal ' +
-      'route paths, and whether this is a pre-migration subscription that needs re-subscribing under ' +
-      'the company. Lazily creates a fresh TRIAL subscription row on first call for a company that has ' +
-      'never been touched yet (see company-subscription.store.ts). Before computing the view, gives ' +
-      'Polar a chance to correct a stale local row that a failed webhook delivery never updated (see ' +
-      'status-reconcile.ts) — a no-op on every call once the row is genuinely ACTIVE.',
+      'route paths, whether this company has its own Polar customer yet, and whether this is a ' +
+      'pre-migration subscription that needs re-subscribing under the company. Lazily creates a fresh ' +
+      'TRIAL subscription row on first call for a company that has never been touched yet (see ' +
+      'company-subscription.store.ts). Before computing the view, gives Polar a chance to correct a ' +
+      'stale local row that a failed webhook delivery never updated (see status-reconcile.ts) — a ' +
+      'no-op on every call once the row is genuinely ACTIVE.',
   })
   @ApiResponse({ status: 200, description: 'Billing status computed' })
-  async getStatus(@ActiveCompany() companyId: string): Promise<BillingStatusViewResponse> {
+  async getStatus(
+    @ActiveCompany() companyId: string,
+    @User() user: CurrentUser,
+  ): Promise<BillingStatusViewResponse> {
     const sub = await getOrCreateCompanySubscription(companyId);
     const reconciled = await reconcileFromPolarIfStale(sub);
-    const legacySubscription = await isLegacyUserLevelSubscription(reconciled);
-    return { ...computeBillingStatusView(reconciled), legacySubscription };
+    const facts = await getCompanyCustomerFacts(reconciled);
+    // Only checked while genuinely legacy — see `hasLegacyPolarCustomer`'s own header on why this must
+    // stay a rare extra Polar call, never one every company's every status poll pays for.
+    const legacyPortalAvailable = facts.legacySubscription ? await hasLegacyPolarCustomer(user.id) : false;
+    return { ...computeBillingStatusView(reconciled, facts), legacyPortalAvailable };
   }
 
   @Post('checkout')
@@ -142,10 +145,12 @@ export class BillingController {
       "portal-session.ts's header for why that route is unconditionally broken for a seat-based " +
       'TEAM customer. Scoped by COMPANY, never by user, but the session itself opens for the Polar ' +
       'MEMBER matching the CALLING user (created on demand if none matches yet) — never ' +
-      'unconditionally the auto-created owner. A MEMBER never reaches this route at all.',
+      'unconditionally the auto-created owner. A MEMBER never reaches this route at all. Refuses ' +
+      '(409, BILLING_NO_COMPANY_CUSTOMER) when this company has no Polar customer yet — check ' +
+      '`hasCompanyCustomer` on GET /billing/status before offering this action at all.',
   })
   @ApiResponse({ status: 201, description: 'Portal session URL' })
-  @ApiResponse({ status: 404, description: 'This company has no Polar customer yet' })
+  @ApiResponse({ status: 409, description: 'This company has no Polar customer yet' })
   async openPortal(
     @ActiveCompany() companyId: string,
     @User() user: CurrentUser,
@@ -157,7 +162,41 @@ export class BillingController {
         FALLBACK_RETURN_URL(),
       );
     } catch (error) {
-      if (error instanceof PolarCustomerNotFoundError) throw new NotFoundException(error.message);
+      if (error instanceof PolarCustomerNotFoundError) {
+        // Same `{ message, code }` shape as the checkout route's own three named refusals — see this
+        // controller's own comment on `startCheckout` for why a data-state conflict reads as 409, not
+        // 404: the frontend already has a generic error toast, but this ONE case gets its own
+        // translated notice instead (`billing.settings.tsx`) rather than showing this raw message.
+        throw new ConflictException({ message: error.message, code: error.code });
+      }
+      throw error;
+    }
+  }
+
+  @Post('portal/legacy')
+  @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @BillingGateExempt()
+  @ApiOperation({
+    summary: "Open a Polar customer-portal session for the CALLING user's own PRE-MIGRATION customer",
+    description:
+      'For a `legacySubscription: true` company only — lets the OWNER/ADMIN cancel the OLD, ' +
+      'per-USER Polar subscription by hand after re-subscribing under the company (there is no Polar ' +
+      'API to migrate it automatically — see legacy-customer.ts). Refuses (409, ' +
+      'BILLING_NO_COMPANY_CUSTOMER) when no Polar customer is registered at this user id at all — ' +
+      'check `legacyPortalAvailable` on GET /billing/status before offering this action.',
+  })
+  @ApiResponse({ status: 201, description: 'Legacy portal session URL' })
+  @ApiResponse({ status: 409, description: 'This user has no legacy Polar customer' })
+  async openLegacyPortal(@User() user: CurrentUser): Promise<PortalSessionResult> {
+    try {
+      return await createLegacyCustomerPortalSession(
+        { id: user.id, email: user.email, name: `${user.firstname} ${user.lastname}`.trim() || null },
+        FALLBACK_RETURN_URL(),
+      );
+    } catch (error) {
+      if (error instanceof PolarCustomerNotFoundError) {
+        throw new ConflictException({ message: error.message, code: error.code });
+      }
       throw error;
     }
   }

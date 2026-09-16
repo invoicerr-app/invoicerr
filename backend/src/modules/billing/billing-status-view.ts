@@ -4,6 +4,7 @@
  * Nest (the same "pure core, thin controller shell" split every other billing file holds).
  */
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
+import { CompanyCustomerFacts } from './legacy-customer';
 import { addDays, BLOCKED_DAYS } from './lifecycle';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,10 +46,23 @@ export interface BillingStatusView {
    *  entirely different reason (the whole subscription lapsed) AFTER a stale, unrelated seat failure
    *  from days earlier must not show a misleading, out-of-date cause. */
   seatPaymentFailureExplainsStatus: boolean;
+  /** `true` when this company already has its OWN, company-scoped Polar customer (`legacy-customer.ts`'s
+   *  own `getCompanyCustomerFacts`) — `false` for a company that has never touched billing yet (a fresh
+   *  TRIAL, or one `customer-provisioning.ts`'s boot/sweep sync has not yet reached or could not create
+   *  a customer for, e.g. a taken billing email). `billing.settings.tsx` uses this to decide whether
+   *  "Manage subscription" can even be shown — a concrete 2026-09-16 dev-instance incident proved a
+   *  company WITHOUT one still saw that button, and clicking it surfaced `portal-session.ts`'s own raw
+   *  `PolarCustomerNotFoundError` message verbatim instead of a translated notice. */
+  hasCompanyCustomer: boolean;
+  /** `true` when this company's stored subscription still points at the pre-2026-09-16 per-USER Polar
+   *  customer (`legacy-customer.ts`'s own header) rather than this company's own. There is no automatic
+   *  migration — the settings screen shows a plain re-subscribe notice instead of trying. */
+  legacySubscription: boolean;
 }
 
 export function computeBillingStatusView(
   sub: CompanySubscription,
+  facts: CompanyCustomerFacts,
   now: Date = new Date(),
 ): BillingStatusView {
   let daysRemaining: number | null = null;
@@ -78,5 +92,7 @@ export function computeBillingStatusView(
     checkoutUrl: '/api/billing/checkout',
     portalUrl: '/api/billing/portal',
     seatPaymentFailureExplainsStatus,
+    hasCompanyCustomer: facts.hasCompanyCustomer,
+    legacySubscription: facts.legacySubscription,
   };
 }

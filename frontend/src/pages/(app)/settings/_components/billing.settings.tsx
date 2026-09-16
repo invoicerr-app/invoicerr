@@ -14,6 +14,7 @@ import {
   useBillingStatus,
   useCompanies,
   useOpenCustomerPortal,
+  useOpenLegacyCustomerPortal,
   useSetBillingEmail,
   useStartCheckout,
 } from "@/hooks/queries"
@@ -42,6 +43,12 @@ const STATUS_VARIANT: Record<
  *  `use-mutation-with-toast.ts`'s own `COMPANY_BLOCKED_CODE` already documents. */
 const BILLING_EMAIL_TAKEN_CODE = "BILLING_EMAIL_TAKEN"
 
+/** Server-side code both `POST /billing/portal` and `POST /billing/portal/legacy` name a 409 with
+ *  (`portal-session.ts`'s own `BILLING_NO_COMPANY_CUSTOMER_CODE`) — this screen normally avoids ever
+ *  triggering it at all (`hasCompanyCustomer`/`legacyPortalAvailable` gate which buttons even render),
+ *  this is only the click-time safety net for the narrow race where that fact changed a moment ago. */
+const BILLING_NO_COMPANY_CUSTOMER_CODE = "BILLING_NO_COMPANY_CUSTOMER"
+
 function apiErrorCode(error: unknown): string | undefined {
   if (!(error instanceof ApiError)) return undefined
   return (error.body as { code?: string } | undefined)?.code
@@ -68,6 +75,7 @@ export default function BillingSettings() {
   const { data: billingEmail } = useBillingEmail()
   const startCheckout = useStartCheckout()
   const openPortal = useOpenCustomerPortal()
+  const openLegacyPortal = useOpenLegacyCustomerPortal()
   const setBillingEmail = useSetBillingEmail()
 
   const [billingEmailDraft, setBillingEmailDraft] = useState("")
@@ -82,6 +90,7 @@ export default function BillingSettings() {
   // stay `true` all the way through navigation and are only cleared on `onError` (the promise
   // rejected, so we never leave) or by the `pageshow` guard below (bfcache back-navigation).
   const [navigatingPortal, setNavigatingPortal] = useState(false)
+  const [navigatingLegacyPortal, setNavigatingLegacyPortal] = useState(false)
   const [navigatingCheckoutSlug, setNavigatingCheckoutSlug] = useState<"monthly" | "yearly" | null>(null)
 
   // Coming back to this page via the browser's back button can restore it from the bfcache instead of
@@ -91,6 +100,7 @@ export default function BillingSettings() {
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return
       setNavigatingPortal(false)
+      setNavigatingLegacyPortal(false)
       setNavigatingCheckoutSlug(null)
     }
     window.addEventListener("pageshow", onPageShow)
@@ -151,6 +161,44 @@ export default function BillingSettings() {
       },
       onError: (error) => {
         setNavigatingPortal(false)
+        if (apiErrorCode(error) === BILLING_NO_COMPANY_CUSTOMER_CODE) {
+          // Should not normally be reachable — this button only renders while `hasCompanyCustomer` is
+          // true — but the fact could have changed a moment ago; a translated notice beats the raw
+          // backend message a real 2026-09-16 incident proved was reaching the user verbatim.
+          toast.error(
+            t(
+              "settings.billing.messages.noCompanyCustomer",
+              "This company has no billing customer yet — subscribe first.",
+            ),
+          )
+          return
+        }
+        toast.error(
+          error instanceof ApiError
+            ? error.message
+            : t("settings.billing.messages.portalError", "Failed to open the subscription portal"),
+        )
+      },
+    })
+  }
+
+  const manageLegacySubscription = () => {
+    // Same navigation discipline as `manageSubscription` above, targeting the OLD, pre-migration
+    // per-user Polar customer instead (`POST /api/billing/portal/legacy`) — lets the OWNER/ADMIN cancel
+    // it by hand once the company has its own, new subscription.
+    openLegacyPortal.mutate(undefined, {
+      onSuccess: (data) => {
+        setNavigatingLegacyPortal(true)
+        window.location.assign(data.url)
+      },
+      onError: (error) => {
+        setNavigatingLegacyPortal(false)
+        if (apiErrorCode(error) === BILLING_NO_COMPANY_CUSTOMER_CODE) {
+          toast.error(
+            t("settings.billing.messages.noLegacyCustomer", "No previous subscription was found to manage."),
+          )
+          return
+        }
         toast.error(
           error instanceof ApiError
             ? error.message
@@ -201,10 +249,23 @@ export default function BillingSettings() {
             {t("settings.billing.legacyNotice.title", "Re-subscribe under this company")}
           </AlertTitle>
           <AlertDescription>
-            {t(
-              "settings.billing.legacyNotice.description",
-              "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company.",
-            )}
+            <p>
+              {t(
+                "settings.billing.legacyNotice.description",
+                "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company.",
+              )}
+            </p>
+            <p>
+              {status.legacyPortalAvailable
+                ? t(
+                    "settings.billing.legacyNotice.cancelWithButton",
+                    'Once you\'ve subscribed, cancel the previous subscription using "Manage the previous subscription" below.',
+                  )
+                : t(
+                    "settings.billing.legacyNotice.cancelNoButton",
+                    "Once you've subscribed, cancel the previous subscription from its own customer portal.",
+                  )}
+            </p>
           </AlertDescription>
         </Alert>
       )}
@@ -225,12 +286,18 @@ export default function BillingSettings() {
             {status.interval
               ? ` · ${t(`settings.billing.interval.${status.interval}`, status.interval)}`
               : ""}
+            {status.legacySubscription
+              ? ` · ${t("settings.billing.legacyNotice.previousCustomerSuffix", "previous customer")}`
+              : ""}
           </>
         }
         footer={
           canManageBilling ? (
             <SettingsFormFooter>
-              {status.status !== "ACTIVE" && (
+              {/* Subscribe stays offered — as the SOLE primary action when this company has no billing
+                  customer of its own yet, `status` alone (which can read ACTIVE off an unrelated legacy
+                  customer, see `legacySubscription`) is never enough on its own to hide it. */}
+              {(status.status !== "ACTIVE" || !status.hasCompanyCustomer) && (
                 <>
                   <Button
                     variant="outline"
@@ -261,19 +328,44 @@ export default function BillingSettings() {
                   </Button>
                 </>
               )}
-              <Button
-                variant={status.status === "ACTIVE" ? "default" : "secondary"}
-                onClick={manageSubscription}
-                disabled={openPortal.isPending || navigatingPortal}
-                data-cy="billing-manage-portal"
-              >
-                {openPortal.isPending || navigatingPortal ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <ExternalLink />
-                )}
-                {t("settings.billing.managePortal", "Manage subscription")}
-              </Button>
+              {/* "Manage subscription" never renders without a company-scoped Polar customer to open a
+                  portal session for — that used to surface `portal-session.ts`'s own raw
+                  `PolarCustomerNotFoundError` message verbatim (2026-09-16 dev-instance incident). In
+                  the legacy case, it is replaced by a button targeting the OLD, per-user customer
+                  instead, so cancelling it never depends on finding that portal by hand. */}
+              {status.hasCompanyCustomer && (
+                <Button
+                  variant={status.status === "ACTIVE" ? "default" : "secondary"}
+                  onClick={manageSubscription}
+                  disabled={openPortal.isPending || navigatingPortal}
+                  data-cy="billing-manage-portal"
+                >
+                  {openPortal.isPending || navigatingPortal ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ExternalLink />
+                  )}
+                  {t("settings.billing.managePortal", "Manage subscription")}
+                </Button>
+              )}
+              {status.legacySubscription && status.legacyPortalAvailable && (
+                <Button
+                  variant="secondary"
+                  onClick={manageLegacySubscription}
+                  disabled={openLegacyPortal.isPending || navigatingLegacyPortal}
+                  data-cy="billing-manage-legacy-portal"
+                >
+                  {openLegacyPortal.isPending || navigatingLegacyPortal ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ExternalLink />
+                  )}
+                  {t(
+                    "settings.billing.manageLegacyPortal",
+                    "Manage the previous subscription (cancel it here)",
+                  )}
+                </Button>
+              )}
             </SettingsFormFooter>
           ) : undefined
         }

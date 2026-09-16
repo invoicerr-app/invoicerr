@@ -1,17 +1,30 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 
 import { BillingController } from './billing.controller';
 import { BillingEmailTakenError } from './billing-customer';
 import { getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { createCheckoutSession } from './checkout-session';
-import { isLegacyUserLevelSubscription } from './legacy-customer';
-import { createCustomerPortalSession, PolarCustomerNotFoundError } from './portal-session';
+import { getCompanyCustomerFacts, hasLegacyPolarCustomer } from './legacy-customer';
+import {
+  BILLING_NO_COMPANY_CUSTOMER_CODE,
+  createCustomerPortalSession,
+  createLegacyCustomerPortalSession,
+  PolarCustomerNotFoundError,
+} from './portal-session';
 import { reconcileFromPolarIfStale } from './status-reconcile';
 
 jest.mock('./company-subscription.store');
 jest.mock('./status-reconcile');
-jest.mock('./portal-session');
+// Partial mock, deliberately: only the two Polar-calling functions are faked — `PolarCustomerNotFoundError`
+// (and its `code`) and `BILLING_NO_COMPANY_CUSTOMER_CODE` stay the REAL exports, so a fixture built with
+// `new PolarCustomerNotFoundError(...)` below carries a real `.message`/`.code` the controller actually
+// reads, instead of whatever an auto-mocked class constructor would (or wouldn't) leave on the instance.
+jest.mock('./portal-session', () => ({
+  ...jest.requireActual('./portal-session'),
+  createCustomerPortalSession: jest.fn(),
+  createLegacyCustomerPortalSession: jest.fn(),
+}));
 jest.mock('./checkout-session');
 jest.mock('./legacy-customer');
 jest.mock('./billing-email');
@@ -19,15 +32,24 @@ jest.mock('./billing-email');
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
 const reconcile = reconcileFromPolarIfStale as jest.Mock;
 const createPortalSession = createCustomerPortalSession as jest.Mock;
+const createLegacyPortalSession = createLegacyCustomerPortalSession as jest.Mock;
 const startCheckoutSession = createCheckoutSession as jest.Mock;
-const isLegacy = isLegacyUserLevelSubscription as jest.Mock;
+const getFacts = getCompanyCustomerFacts as jest.Mock;
+const hasLegacyCustomer = hasLegacyPolarCustomer as jest.Mock;
 const getBillingEmail = getCompanyBillingEmail as jest.Mock;
 const setBillingEmail = setCompanyBillingEmail as jest.Mock;
+
+const CLICKING_USER = {
+  id: 'user-1',
+  email: 'owner@acme.test',
+  firstname: 'Ada',
+  lastname: 'Owner',
+} as never;
 
 describe('BillingController.getStatus', () => {
   afterEach(() => jest.resetAllMocks());
 
-  it('lazily gets-or-creates the subscription for the active company, reconciles it, checks for a legacy customer, and returns the computed view', async () => {
+  it('lazily gets-or-creates the subscription for the active company, reconciles it, reads the customer facts, and returns the computed view', async () => {
     const stored = {
       companyId: 'company-1',
       status: 'TRIAL',
@@ -41,21 +63,24 @@ describe('BillingController.getStatus', () => {
     };
     getOrCreate.mockResolvedValue(stored);
     reconcile.mockResolvedValue(stored);
-    isLegacy.mockResolvedValue(false);
+    getFacts.mockResolvedValue({ hasCompanyCustomer: false, legacySubscription: false });
     const controller = new BillingController();
 
-    const view = await controller.getStatus('company-1');
+    const view = await controller.getStatus('company-1', CLICKING_USER);
 
     expect(getOrCreate).toHaveBeenCalledWith('company-1');
     expect(reconcile).toHaveBeenCalledWith(stored);
-    expect(isLegacy).toHaveBeenCalledWith(stored);
+    expect(getFacts).toHaveBeenCalledWith(stored);
+    expect(hasLegacyCustomer).not.toHaveBeenCalled();
     expect(view.status).toBe('TRIAL');
     expect(view.checkoutUrl).toBe('/api/billing/checkout');
     expect(view.portalUrl).toBe('/api/billing/portal');
+    expect(view.hasCompanyCustomer).toBe(false);
     expect(view.legacySubscription).toBe(false);
+    expect(view.legacyPortalAvailable).toBe(false);
   });
 
-  it("returns the reconciled row's status when Polar repaired it, and surfaces a legacy subscription", async () => {
+  it("returns the reconciled row's status when Polar repaired it, and surfaces a legacy subscription with its portal availability", async () => {
     getOrCreate.mockResolvedValue({
       companyId: 'company-1',
       status: 'TRIAL',
@@ -79,13 +104,17 @@ describe('BillingController.getStatus', () => {
       polarCustomerId: 'cus_old_user_level',
     };
     reconcile.mockResolvedValue(reconciled);
-    isLegacy.mockResolvedValue(true);
+    getFacts.mockResolvedValue({ hasCompanyCustomer: false, legacySubscription: true });
+    hasLegacyCustomer.mockResolvedValue(true);
     const controller = new BillingController();
 
-    const view = await controller.getStatus('company-1');
+    const view = await controller.getStatus('company-1', CLICKING_USER);
 
     expect(view.status).toBe('ACTIVE');
+    expect(view.hasCompanyCustomer).toBe(false);
     expect(view.legacySubscription).toBe(true);
+    expect(hasLegacyCustomer).toHaveBeenCalledWith('user-1');
+    expect(view.legacyPortalAvailable).toBe(true);
   });
 });
 
@@ -137,13 +166,6 @@ describe('BillingController.startCheckout', () => {
   });
 });
 
-const CLICKING_USER = {
-  id: 'user-1',
-  email: 'owner@acme.test',
-  firstname: 'Ada',
-  lastname: 'Owner',
-} as never;
-
 describe('BillingController.openPortal', () => {
   afterEach(() => jest.resetAllMocks());
 
@@ -161,11 +183,41 @@ describe('BillingController.openPortal', () => {
     expect(result).toEqual({ url: 'https://polar.sh/portal/abc', redirect: true });
   });
 
-  it('turns a PolarCustomerNotFoundError into a 404', async () => {
+  it('turns a PolarCustomerNotFoundError into a named 409, not the raw message', async () => {
     createPortalSession.mockRejectedValue(new PolarCustomerNotFoundError('company-1'));
     const controller = new BillingController();
 
-    await expect(controller.openPortal('company-1', CLICKING_USER)).rejects.toBeInstanceOf(NotFoundException);
+    const error = await controller.openPortal('company-1', CLICKING_USER).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect(error.getResponse()).toMatchObject({ code: BILLING_NO_COMPANY_CUSTOMER_CODE });
+  });
+});
+
+describe('BillingController.openLegacyPortal', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it("opens a portal session for the calling user's own legacy customer", async () => {
+    createLegacyPortalSession.mockResolvedValue({ url: 'https://polar.sh/portal/legacy', redirect: true });
+    const controller = new BillingController();
+
+    const result = await controller.openLegacyPortal(CLICKING_USER);
+
+    expect(createLegacyPortalSession).toHaveBeenCalledWith(
+      { id: 'user-1', email: 'owner@acme.test', name: 'Ada Owner' },
+      expect.any(String),
+    );
+    expect(result).toEqual({ url: 'https://polar.sh/portal/legacy', redirect: true });
+  });
+
+  it('turns a PolarCustomerNotFoundError into a named 409', async () => {
+    createLegacyPortalSession.mockRejectedValue(new PolarCustomerNotFoundError('user-1'));
+    const controller = new BillingController();
+
+    const error = await controller.openLegacyPortal(CLICKING_USER).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect(error.getResponse()).toMatchObject({ code: BILLING_NO_COMPANY_CUSTOMER_CODE });
   });
 });
 

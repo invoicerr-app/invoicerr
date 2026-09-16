@@ -1,5 +1,7 @@
 import {
+  BILLING_NO_COMPANY_CUSTOMER_CODE,
   createCustomerPortalSession,
+  createLegacyCustomerPortalSession,
   PolarCustomerNotFoundError,
   PortalSessionClient,
 } from './portal-session';
@@ -131,9 +133,15 @@ describe('createCustomerPortalSession', () => {
       },
     });
 
-    await expect(
-      createCustomerPortalSession('company-5', CLICKING_USER, 'https://app/settings/billing', client),
-    ).rejects.toThrow(PolarCustomerNotFoundError);
+    const error = await createCustomerPortalSession(
+      'company-5',
+      CLICKING_USER,
+      'https://app/settings/billing',
+      client,
+    ).catch((e) => e);
+
+    expect(error).toBeInstanceOf(PolarCustomerNotFoundError);
+    expect(error.code).toBe(BILLING_NO_COMPANY_CUSTOMER_CODE);
     expect(client.customerSessions.create).not.toHaveBeenCalled();
   });
 
@@ -148,5 +156,50 @@ describe('createCustomerPortalSession', () => {
     await expect(
       createCustomerPortalSession('company-6', CLICKING_USER, 'https://app/settings/billing', client),
     ).rejects.toThrow('polar is down');
+  });
+});
+
+describe('createLegacyCustomerPortalSession', () => {
+  it("opens a session keyed by the CLICKING user's own id, not a company id", async () => {
+    const create = jest.fn().mockResolvedValue({ customerPortalUrl: 'https://polar.sh/portal/legacy' });
+    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_legacy', type: 'individual' });
+    const client = fakeClient({
+      customers: {
+        getExternal,
+        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+      },
+      customerSessions: { create },
+    });
+
+    const result = await createLegacyCustomerPortalSession(
+      CLICKING_USER,
+      'https://app/settings/billing',
+      client,
+    );
+
+    expect(getExternal).toHaveBeenCalledWith({ externalId: CLICKING_USER.id });
+    expect(create).toHaveBeenCalledWith({
+      externalCustomerId: CLICKING_USER.id,
+      returnUrl: 'https://app/settings/billing',
+    });
+    expect(result).toEqual({ url: 'https://polar.sh/portal/legacy', redirect: true });
+  });
+
+  it('throws PolarCustomerNotFoundError (keyed by the user id) when no legacy customer exists', async () => {
+    const client = fakeClient({
+      customers: {
+        getExternal: jest.fn().mockRejectedValue(Object.assign(new Error('not found'), { statusCode: 404 })),
+        members: { getExternal: jest.fn(), createExternal: jest.fn(), delete: jest.fn() },
+      },
+    });
+
+    const error = await createLegacyCustomerPortalSession(
+      CLICKING_USER,
+      'https://app/settings/billing',
+      client,
+    ).catch((e) => e);
+
+    expect(error).toBeInstanceOf(PolarCustomerNotFoundError);
+    expect(error.externalId).toBe(CLICKING_USER.id);
   });
 });

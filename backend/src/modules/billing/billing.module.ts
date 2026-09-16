@@ -25,6 +25,7 @@ import { redisConnection } from '../documents/queue/redis.config';
 import { DocumentsCoreModule } from '../documents/documents-core.module';
 import { BillingController } from './billing.controller';
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
+import { BillingCustomerProvisioningBootService } from './customer-provisioning-boot.service';
 import { BillingExportService } from './export-zip.service';
 import { PolarWebhookController } from './polar-webhook.controller';
 import { BillingLifecycleProcessor } from './queue/billing-lifecycle.processor';
@@ -46,7 +47,15 @@ import { MailService } from '@/mail/mail.service';
     BullModule.registerQueue({ name: Q_BILLING_LIFECYCLE }),
   ],
   controllers: [BillingController, PolarWebhookController],
-  providers: [MailService, BillingExportService, BillingLifecycleSweepRunner, BillingLifecycleProcessor],
+  providers: [
+    MailService,
+    BillingExportService,
+    BillingLifecycleSweepRunner,
+    BillingLifecycleProcessor,
+    // `OnModuleInit` — runs the Polar customer-provisioning boot sync (`customer-provisioning.ts`'s own
+    // header) once, only in this (API-role) process — see that service's own header.
+    BillingCustomerProvisioningBootService,
+  ],
 })
 export class BillingModule implements OnApplicationBootstrap {
   constructor(@InjectQueue(Q_BILLING_LIFECYCLE) private readonly queue: Queue) {}

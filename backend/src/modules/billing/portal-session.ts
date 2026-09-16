@@ -62,13 +62,24 @@ export interface PortalSessionResult {
   redirect: boolean;
 }
 
+/** Named the same way every other business-state refusal in this module family is
+ *  (`BillingEmailTakenError`'s own `BILLING_EMAIL_TAKEN_CODE`, `checkout-session.ts`'s two codes) — a
+ *  `{ message, code }` shape `billing.controller.ts` turns into a 409 the frontend can branch on,
+ *  instead of the raw message a real dev-instance incident (2026-09-16) proved was reaching the user
+ *  verbatim as a toast. */
+export const BILLING_NO_COMPANY_CUSTOMER_CODE = 'BILLING_NO_COMPANY_CUSTOMER';
+
 /** Thrown when this company has no Polar customer at all yet — a TRIAL company that never started a
  *  checkout (`getOrCreatePolarCustomerForCompany` is only ever called from `checkout-session.ts`, so a
- *  company can genuinely reach "open the portal" first). `billing.controller.ts` turns this into a
- *  plain `NotFoundException`. */
+ *  company can genuinely reach "open the portal" first — `customer-provisioning.ts`'s boot/sweep sync
+ *  narrows this to the email-taken case going forward, but never fully closes it). `billing.controller.ts`
+ *  turns this into a named 409. Also reused, keyed by USER id instead of company id, by
+ *  `createLegacyCustomerPortalSession` below. */
 export class PolarCustomerNotFoundError extends Error {
-  constructor(readonly companyId: string) {
-    super(`Company ${companyId} has no Polar customer yet — nothing to manage.`);
+  readonly code = BILLING_NO_COMPANY_CUSTOMER_CODE;
+
+  constructor(readonly externalId: string) {
+    super(`No Polar customer registered at external id "${externalId}" yet — nothing to manage.`);
     this.name = 'PolarCustomerNotFoundError';
   }
 }
@@ -105,4 +116,28 @@ export async function createCustomerPortalSession(
       : await client.customerSessions.create({ externalCustomerId: companyId, returnUrl });
 
   return { url: session.customerPortalUrl, redirect: true };
+}
+
+/**
+ * Same call as `createCustomerPortalSession` above, just keyed by the CLICKING user's own id instead of
+ * the company's — opens a portal session for the pre-2026-09-16 per-USER Polar customer a
+ * `legacySubscription: true` company's OWNER/ADMIN needs to cancel by hand (there is no Polar API to
+ * migrate a subscription onto the new company-scoped customer — see `legacy-customer.ts`'s own header).
+ * Reuses `createCustomerPortalSession` wholesale rather than duplicating the team/individual/member
+ * dance: that function's own `companyId` parameter is really just "the customer's own external id"
+ * throughout its implementation (and `member-resolution.ts`'s, which it calls into) — nothing in either
+ * actually assumes it names a `Company` row, so passing the user's own id works unchanged. Throws the
+ * SAME `PolarCustomerNotFoundError` (keyed by `user.id` this time) when no Polar customer is registered
+ * at all under this user's id — `billing.controller.ts`'s own `POST /billing/portal/legacy` turns that
+ * into the same named 409 `POST /billing/portal` does. `billing.settings.tsx` avoids ever hitting this
+ * in the first place by checking `legacyPortalAvailable` (`legacy-customer.ts#hasLegacyPolarCustomer`)
+ * before rendering the link at all — this is the button's own click-time safety net, not the primary
+ * gate.
+ */
+export function createLegacyCustomerPortalSession(
+  user: ResolvedMemberUser,
+  returnUrl: string,
+  client: PortalSessionClient = getPolarClient() as unknown as PortalSessionClient,
+): Promise<PortalSessionResult> {
+  return createCustomerPortalSession(user.id, user, returnUrl, client);
 }

@@ -2,6 +2,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
+import { reconcileMissingCompanyCustomers } from './customer-provisioning';
 import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
 import { addDays, BLOCKED_DAYS, PAID_ZIP_GRACE_DAYS } from './lifecycle';
@@ -16,6 +17,7 @@ jest.mock('@/prisma/prisma.service', () => ({
   },
 }));
 jest.mock('./company-subscription.store');
+jest.mock('./customer-provisioning');
 jest.mock('./deletion');
 jest.mock('./seat-reconcile');
 jest.mock('./customer-sync');
@@ -28,6 +30,14 @@ const listSubs = listAdvanceableCompanySubscriptions as jest.Mock;
 const deleteCompany = deleteCompanyPermanently as jest.Mock;
 const reconcileSeats = reconcileCompanySeats as jest.Mock;
 const syncCustomer = syncPolarCustomerOnCompanyChange as jest.Mock;
+const provisionCustomers = reconcileMissingCompanyCustomers as jest.Mock;
+
+/** Every test gets this NO-OP-shaped default — `runSweep` calls `reconcileMissingCompanyCustomers`
+ *  unconditionally, company-WIDE, on every single tick (see that call's own comment in
+ *  `billing-lifecycle-sweep-runner.ts`), so every pre-existing scenario in this file that never cared
+ *  about it needs a resolved value to compare its own `result` against a `customersProvisioned: 0`
+ *  baseline (`baseResult`'s own default) rather than an unrelated rejection polluting its assertions. */
+const NO_CUSTOMERS_PROVISIONED = { total: 0, alreadyExisted: 0, created: 0, emailTaken: 0, failed: 0 };
 
 function fakeExportService(zip: Buffer = Buffer.from('zip-bytes')) {
   return {
@@ -72,6 +82,7 @@ function baseResult(overrides: Partial<Record<string, number>> = {}) {
     deleted: 0,
     seatsReconciled: 0,
     customerSyncRetried: 0,
+    customersProvisioned: 0,
     warningsSent: 0,
     ...overrides,
   };
@@ -80,6 +91,7 @@ function baseResult(overrides: Partial<Record<string, number>> = {}) {
 const NOW = new Date('2026-09-15T00:00:00.000Z');
 
 describe('BillingLifecycleSweepRunner.runSweep', () => {
+  beforeEach(() => provisionCustomers.mockResolvedValue(NO_CUSTOMERS_PROVISIONED));
   afterEach(() => jest.resetAllMocks());
 
   it('does nothing for a subscription still mid-trial', async () => {
@@ -282,6 +294,58 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       const result = await runner.runSweep(NOW);
 
       expect(result.processed).toBe(2);
+    });
+  });
+
+  describe('Polar customer provisioning', () => {
+    it('surfaces the created count from reconcileMissingCompanyCustomers, unconditionally, even with no subscriptions at all', async () => {
+      listSubs.mockResolvedValue([]);
+      provisionCustomers.mockResolvedValue({
+        total: 3,
+        alreadyExisted: 1,
+        created: 2,
+        emailTaken: 0,
+        failed: 0,
+      });
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(NOW);
+
+      expect(provisionCustomers).toHaveBeenCalledWith();
+      expect(result.customersProvisioned).toBe(2);
+    });
+
+    it('never blocks the rest of the sweep when the provisioning pass itself throws', async () => {
+      listSubs.mockResolvedValue([subRow({ status: 'TRIAL', trialEndsAt: NOW })]);
+      provisionCustomers.mockRejectedValue(new Error('polar is down'));
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(NOW);
+
+      // The provisioning pass failed outright (no count to report), but the ordinary lifecycle
+      // transition below it still ran and is reflected in the result untouched.
+      expect(result.customersProvisioned).toBeUndefined();
+      expect(result.blocked).toBe(1);
+      expect(update).toHaveBeenCalledWith({
+        where: { companyId: 'c1' },
+        data: { status: 'BLOCKED', blockedAt: NOW },
+      });
+    });
+
+    it('counts an emailTaken/failed-only pass as zero created, without throwing', async () => {
+      listSubs.mockResolvedValue([]);
+      provisionCustomers.mockResolvedValue({
+        total: 2,
+        alreadyExisted: 0,
+        created: 0,
+        emailTaken: 1,
+        failed: 1,
+      });
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(NOW);
+
+      expect(result.customersProvisioned).toBe(0);
     });
   });
 

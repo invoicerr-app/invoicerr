@@ -15,6 +15,7 @@ import { buildBlockedZipWarningEmail, buildDeletionWarningEmail } from '@/mail/s
 import { BillingExportService } from './export-zip.service';
 import { computeDueBillingWarnings, computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
+import { reconcileMissingCompanyCustomers } from './customer-provisioning';
 import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
 import { reconcileCompanySeats } from './seat-reconcile';
@@ -41,6 +42,14 @@ export interface RunBillingLifecycleSweepResult {
    *  `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1` milestones) — never twice for the same
    *  milestone on the same subscription, see `CompanySubscription.billingWarningMilestonesSent`. */
   warningsSent: number;
+  /** This tick's `customer-provisioning.ts#reconcileMissingCompanyCustomers` pass — every company
+   *  (not just the ones this sweep otherwise walks, since a company can exist with no
+   *  `CompanySubscription` row at all yet) checked for its own Polar customer, one created where
+   *  missing. Covers a company created AFTER boot, or whose creation attempt failed earlier (a
+   *  transient Polar outage — a duplicate billing email is NOT retried here, see that module's own
+   *  header). `undefined` when the pass itself failed outright (never thrown into the rest of the
+   *  sweep — see `runSweep`'s own try/catch around this step). */
+  customersProvisioned?: number;
 }
 
 @Injectable()
@@ -68,6 +77,29 @@ export class BillingLifecycleSweepRunner {
       customerSyncRetried: 0,
       warningsSent: 0,
     };
+
+    // Company-WIDE, deliberately outside the per-subscription loop below: a company created after the
+    // last boot (or whose creation attempt failed then, e.g. a transient Polar outage) has no
+    // `CompanySubscription` row to be walked by that loop at all yet, but still needs its own Polar
+    // customer — `reconcileMissingCompanyCustomers` reads `Company` directly, not this sweep's own
+    // subscription list. Own try/catch, same "one failure must never sink the rest of this pass"
+    // discipline every step in this method already holds — a Polar outage here must not skip the
+    // status transitions, seat reconciliation, or warning mails below.
+    try {
+      const provisioned = await reconcileMissingCompanyCustomers();
+      result.customersProvisioned = provisioned.created;
+      if (provisioned.created > 0 || provisioned.emailTaken > 0 || provisioned.failed > 0) {
+        this.logger.log(
+          `Billing customer provisioning: ${provisioned.total} compan${provisioned.total === 1 ? 'y' : 'ies'} ` +
+            `checked, ${provisioned.created} created, ${provisioned.emailTaken} refused (billing email ` +
+            `taken), ${provisioned.failed} failed (retried next tick).`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Polar customer provisioning pass failed outright — retried next tick', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     for (const sub of subscriptions) {
       // Computed from the subscription as read at the TOP of this iteration, deliberately BEFORE
@@ -127,6 +159,7 @@ export class BillingLifecycleSweepRunner {
         `${result.blocked} newly blocked, ${result.zipped} zipped (${result.zipFailed} zip send ` +
         `failures, retried next tick), ${result.deleted} deleted, ${result.seatsReconciled} seat ` +
         `count(s) corrected against Polar, ${result.customerSyncRetried} customer sync retry(ies), ` +
+        `${result.customersProvisioned ?? 0} Polar customer(s) provisioned, ` +
         `${result.warningsSent} OWNER warning mail(s) sent.`,
     );
 

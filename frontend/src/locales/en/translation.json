@@ -2870,6 +2870,7 @@
       "subscribeMonthly": "Subscribe monthly",
       "subscribeYearly": "Subscribe yearly",
       "managePortal": "Manage subscription",
+      "manageLegacyPortal": "Manage the previous subscription (cancel it here)",
       "memberNotice": "Only the company's owner or an admin can manage the subscription.",
       "interval": {
         "MONTH": "Monthly",
@@ -2885,7 +2886,10 @@
       },
       "legacyNotice": {
         "title": "Re-subscribe under this company",
-        "description": "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company."
+        "description": "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company.",
+        "cancelWithButton": "Once you've subscribed, cancel the previous subscription using \"Manage the previous subscription\" below.",
+        "cancelNoButton": "Once you've subscribed, cancel the previous subscription from its own customer portal.",
+        "previousCustomerSuffix": "previous customer"
       },
       "billingEmail": {
         "title": "Billing email",
@@ -2896,6 +2900,8 @@
       "messages": {
         "checkoutError": "Failed to start checkout",
         "portalError": "Failed to open the subscription portal",
+        "noCompanyCustomer": "This company has no billing customer yet — subscribe first.",
+        "noLegacyCustomer": "No previous subscription was found to manage.",
         "billingEmailTaken": "Choose a distinct billing email for this company",
         "billingEmailSaved": "Billing email saved",
         "billingEmailSaveError": "Failed to save the billing email"

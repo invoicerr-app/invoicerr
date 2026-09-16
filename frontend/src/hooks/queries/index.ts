@@ -167,6 +167,7 @@ export {
   useBillingStatus,
   useStartCheckout,
   useOpenCustomerPortal,
+  useOpenLegacyCustomerPortal,
   useBillingEmail,
   useSetBillingEmail,
   type BillingStatusView,

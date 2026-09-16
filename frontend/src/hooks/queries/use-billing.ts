@@ -11,10 +11,20 @@ export interface BillingStatusView {
   daysRemaining: number | null
   checkoutUrl: string
   portalUrl: string
+  /** `true` when this company already has its OWN, company-scoped Polar customer (backend's own
+   *  `legacy-customer.ts#getCompanyCustomerFacts`). `billing.settings.tsx` uses this — NOT `status` —
+   *  to decide whether "Manage subscription" can even be shown: a concrete 2026-09-16 dev-instance
+   *  incident proved a company reconciled to ACTIVE from a pre-migration customer still had none of
+   *  its own, and the button surfaced a raw backend error message when clicked. */
+  hasCompanyCustomer: boolean
   /** `true` when this company's subscription still points at the pre-2026-09-16 per-USER Polar
    *  customer (backend's own `legacy-customer.ts`) — there is no automatic migration, the settings
    *  screen shows a plain re-subscribe notice instead. */
   legacySubscription: boolean
+  /** `true` when a link to the OLD, pre-migration per-USER Polar portal
+   *  (`POST /api/billing/portal/legacy`) has a real chance of opening — checked only while
+   *  `legacySubscription` is true. `false` (plain text, no link) otherwise. */
+  legacyPortalAvailable: boolean
   /** `true` only while PAST_DUE AND a seat INCREASE's own card decline is still the most likely
    *  reason (backend's own `billing-status-view.ts`) — lets the banner/settings screen say "the
    *  payment for the seat you just added failed" instead of the generic "your last payment failed". */
@@ -71,6 +81,17 @@ export function useStartCheckout() {
  */
 export function useOpenCustomerPortal() {
   return useApiMutation<undefined, PolarRouteResponse>("POST", "/api/billing/portal")
+}
+
+/**
+ * `POST /api/billing/portal/legacy` — opens a Polar customer-portal session for the CALLING user's own
+ * PRE-MIGRATION customer (backend's own `portal-session.ts#createLegacyCustomerPortalSession`), so an
+ * OWNER/ADMIN stuck in the `legacySubscription: true` case can cancel the old subscription by hand.
+ * Only ever offered when `legacyPortalAvailable` is true (`useBillingStatus`) — see that field's own
+ * doc comment.
+ */
+export function useOpenLegacyCustomerPortal() {
+  return useApiMutation<undefined, PolarRouteResponse>("POST", "/api/billing/portal/legacy")
 }
 
 export interface BillingEmailView {

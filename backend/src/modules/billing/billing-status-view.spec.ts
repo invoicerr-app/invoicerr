@@ -1,8 +1,17 @@
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
+import { CompanyCustomerFacts } from './legacy-customer';
 import { addDays, BLOCKED_DAYS } from './lifecycle';
 import { computeBillingStatusView } from './billing-status-view';
 
 const NOW = new Date('2026-09-15T00:00:00.000Z');
+
+const DEFAULT_FACTS: CompanyCustomerFacts = { hasCompanyCustomer: true, legacySubscription: false };
+
+/** Thin wrapper so most of this file's existing calls, which never cared about the two Polar-derived
+ *  facts, don't have to spell out `DEFAULT_FACTS` every time. */
+function computeView(sub: CompanySubscription, now: Date = NOW, facts: CompanyCustomerFacts = DEFAULT_FACTS) {
+  return computeBillingStatusView(sub, facts, now);
+}
 
 function sub(overrides: Partial<CompanySubscription>): CompanySubscription {
   return {
@@ -31,47 +40,45 @@ function sub(overrides: Partial<CompanySubscription>): CompanySubscription {
 
 describe('computeBillingStatusView', () => {
   it('counts down to trialEndsAt while TRIAL', () => {
-    const view = computeBillingStatusView(sub({ status: 'TRIAL', trialEndsAt: addDays(NOW, 3) }), NOW);
+    const view = computeView(sub({ status: 'TRIAL', trialEndsAt: addDays(NOW, 3) }), NOW);
     expect(view.daysRemaining).toBe(3);
     expect(view.status).toBe('TRIAL');
   });
 
   it('counts down to blockedAt + 14 days while BLOCKED', () => {
     const blockedAt = addDays(NOW, -10);
-    const view = computeBillingStatusView(sub({ status: 'BLOCKED', blockedAt }), NOW);
+    const view = computeView(sub({ status: 'BLOCKED', blockedAt }), NOW);
     expect(view.daysRemaining).toBe(BLOCKED_DAYS - 10);
   });
 
   it('counts down to deletionDueAt while ZIPPED', () => {
     const deletionDueAt = addDays(NOW, 45);
-    const view = computeBillingStatusView(sub({ status: 'ZIPPED', deletionDueAt }), NOW);
+    const view = computeView(sub({ status: 'ZIPPED', deletionDueAt }), NOW);
     expect(view.daysRemaining).toBe(45);
   });
 
   it('never goes negative once a boundary has passed', () => {
-    const view = computeBillingStatusView(sub({ status: 'TRIAL', trialEndsAt: addDays(NOW, -5) }), NOW);
+    const view = computeView(sub({ status: 'TRIAL', trialEndsAt: addDays(NOW, -5) }), NOW);
     expect(view.daysRemaining).toBe(0);
   });
 
   it('is null for ACTIVE and PAST_DUE', () => {
-    expect(computeBillingStatusView(sub({ status: 'ACTIVE' }), NOW).daysRemaining).toBeNull();
-    expect(computeBillingStatusView(sub({ status: 'PAST_DUE' }), NOW).daysRemaining).toBeNull();
+    expect(computeView(sub({ status: 'ACTIVE' }), NOW).daysRemaining).toBeNull();
+    expect(computeView(sub({ status: 'PAST_DUE' }), NOW).daysRemaining).toBeNull();
   });
 
   it('is null defensively when BLOCKED carries no blockedAt', () => {
-    expect(
-      computeBillingStatusView(sub({ status: 'BLOCKED', blockedAt: null }), NOW).daysRemaining,
-    ).toBeNull();
+    expect(computeView(sub({ status: 'BLOCKED', blockedAt: null }), NOW).daysRemaining).toBeNull();
   });
 
   it('always carries the checkout/portal route paths', () => {
-    const view = computeBillingStatusView(sub({}), NOW);
+    const view = computeView(sub({}), NOW);
     expect(view.checkoutUrl).toBe('/api/billing/checkout');
     expect(view.portalUrl).toBe('/api/billing/portal');
   });
 
   it('carries seats and interval through unchanged', () => {
-    const view = computeBillingStatusView(sub({ seats: 7, interval: 'YEAR' }), NOW);
+    const view = computeView(sub({ seats: 7, interval: 'YEAR' }), NOW);
     expect(view.seats).toBe(7);
     expect(view.interval).toBe('YEAR');
   });
@@ -79,13 +86,11 @@ describe('computeBillingStatusView', () => {
 
 describe('computeBillingStatusView — seatPaymentFailureExplainsStatus', () => {
   it('is false by default (no seat failure recorded)', () => {
-    expect(computeBillingStatusView(sub({ status: 'PAST_DUE' }), NOW).seatPaymentFailureExplainsStatus).toBe(
-      false,
-    );
+    expect(computeView(sub({ status: 'PAST_DUE' }), NOW).seatPaymentFailureExplainsStatus).toBe(false);
   });
 
   it('is true when PAST_DUE with a recorded seat-payment failure and no newer Polar fact', () => {
-    const view = computeBillingStatusView(
+    const view = computeView(
       sub({ status: 'PAST_DUE', seatPaymentFailedAt: addDays(NOW, -1), lastPolarFactAt: null }),
       NOW,
     );
@@ -95,14 +100,14 @@ describe('computeBillingStatusView — seatPaymentFailureExplainsStatus', () => 
   it('is false for ACTIVE/TRIAL/BLOCKED/ZIPPED even with a seatPaymentFailedAt on file', () => {
     for (const status of ['ACTIVE', 'TRIAL', 'BLOCKED', 'ZIPPED'] as const) {
       expect(
-        computeBillingStatusView(sub({ status, seatPaymentFailedAt: addDays(NOW, -1) }), NOW)
+        computeView(sub({ status, seatPaymentFailedAt: addDays(NOW, -1) }), NOW)
           .seatPaymentFailureExplainsStatus,
       ).toBe(false);
     }
   });
 
   it('is false once a NEWER general Polar fact has landed since the seat failure — a stale reason must not survive an unrelated, more recent cause', () => {
-    const view = computeBillingStatusView(
+    const view = computeView(
       sub({
         status: 'PAST_DUE',
         seatPaymentFailedAt: addDays(NOW, -5),
@@ -115,10 +120,27 @@ describe('computeBillingStatusView — seatPaymentFailureExplainsStatus', () => 
 
   it('is true when the seat failure is itself the MOST RECENT fact, even if lastPolarFactAt is also set (equal instant)', () => {
     const failedAt = addDays(NOW, -1);
-    const view = computeBillingStatusView(
+    const view = computeView(
       sub({ status: 'PAST_DUE', seatPaymentFailedAt: failedAt, lastPolarFactAt: failedAt }),
       NOW,
     );
     expect(view.seatPaymentFailureExplainsStatus).toBe(true);
+  });
+});
+
+describe('computeBillingStatusView — hasCompanyCustomer / legacySubscription', () => {
+  it('carries both facts straight through, unchanged', () => {
+    const view = computeView(sub({}), NOW, { hasCompanyCustomer: true, legacySubscription: false });
+    expect(view.hasCompanyCustomer).toBe(true);
+    expect(view.legacySubscription).toBe(false);
+  });
+
+  it('carries the legacy case through: a customer exists but points at the old, per-user one', () => {
+    const view = computeView(sub({ status: 'ACTIVE' }), NOW, {
+      hasCompanyCustomer: false,
+      legacySubscription: true,
+    });
+    expect(view.hasCompanyCustomer).toBe(false);
+    expect(view.legacySubscription).toBe(true);
   });
 });
