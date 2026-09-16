@@ -38,6 +38,7 @@ import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '../modu
 import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
 import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
 import { MailService } from '../mail/mail.service';
+import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -284,7 +285,27 @@ const userAfterCreateHook = async (user, context) => {
   }
 
   if (user.email) {
-    await markInvitationAsUsed(user.email, user.id);
+    try {
+      await markInvitationAsUsed(user.email, user.id);
+    } catch (error) {
+      // `markInvitationAsUsed` runs from a `user.create.after` hook, which better-auth fires only
+      // once the `user` row's own INSERT has already committed (see `seat-refusal-cleanup.ts`'s own
+      // header for the full mechanism) — so a `NoFreeSeatError` here can no longer prevent the
+      // account from existing, only compensate for it. Without this, the account survives with zero
+      // company memberships AND a burned invitation code, a dead end the SSO signup path explicitly
+      // does NOT share (its own trade-off is documented and accepted in
+      // `attachSsoProvisionedMembership`'s header) — this thread is specifically about the invitation
+      // path never having made that same deliberate choice.
+      if (isNoFreeSeatRefusal(error)) {
+        await deleteOrphanedUserAfterSeatRefusal(
+          user.id,
+          (id) => prisma.user.delete({ where: { id } }),
+          (cleanupError) =>
+            console.warn(`Could not delete orphaned user ${user.id} after a refused seat: ${cleanupError}`),
+        );
+      }
+      throw error;
+    }
   }
 
   // Reaching here in SaaS mode, on the plain email/password branch, means `userHookFunction` already

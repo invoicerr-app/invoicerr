@@ -1,8 +1,9 @@
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InvitationsService } from '@/modules/invitations/invitations.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
+import { logger } from '@/logger/logger.service';
 
 jest.mock('@/logger/logger.service', () => ({
   logger: {
@@ -81,6 +82,23 @@ describe('InvitationsService', () => {
       expect(result.role).toBe(CompanyRole.MEMBER);
     });
 
+    it('logs the invitation id, never the code itself — a still-valid code is a bearer secret', async () => {
+      prisma.invitationCode.create.mockResolvedValue({
+        id: 'inv1',
+        code: 'CODE123',
+        role: CompanyRole.MEMBER,
+        createdAt: new Date(),
+        expiresAt: null,
+      });
+
+      await service.createInvitation('user1', 'company1', CompanyRole.MEMBER);
+
+      expect(logger.info).toHaveBeenCalledWith('Invitation created', {
+        category: 'invitation',
+        details: { id: 'inv1', createdById: 'user1', companyId: 'company1', role: CompanyRole.MEMBER },
+      });
+    });
+
     it('rejects a non-owner trying to create an OWNER-role invitation', async () => {
       prisma.userCompany.findUnique.mockResolvedValue({ role: CompanyRole.ADMIN });
 
@@ -136,6 +154,11 @@ describe('InvitationsService', () => {
         where: { id: 'inv1' },
         data: { usedAt: expect.any(Date), usedById: 'user2' },
       });
+      // Never the code itself — see `createInvitation`'s own test on why.
+      expect(logger.info).toHaveBeenCalledWith('Invitation code used', {
+        category: 'invitation',
+        details: { id: 'inv1', userId: 'user2' },
+      });
     });
 
     it('refuses, named NO_FREE_SEAT, when the company has no free seat — the invitation stays unused', async () => {
@@ -154,6 +177,22 @@ describe('InvitationsService', () => {
       await expect(action).rejects.toBeInstanceOf(ForbiddenException);
       const err = await action.catch((e) => e);
       expect(err.getResponse()).toMatchObject({ code: 'NO_FREE_SEAT' });
+      expect(logger.warn).toHaveBeenCalledWith('Invitation refused — no free seat', {
+        category: 'invitation',
+        details: { id: 'inv1', userId: 'user2', companyId: 'full-company' },
+      });
+    });
+
+    it('rejects an unknown code, logging only a short prefix — the full code never existed to point an id at', async () => {
+      prisma.invitationCode.findUnique.mockResolvedValue(null);
+
+      await expect(service.useInvitation('DEADBEEF00000000DEADBEEF00000000', 'user2')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(logger.warn).toHaveBeenCalledWith('Invitation code not found', {
+        category: 'invitation',
+        details: { codePrefix: 'DEADBEEF' },
+      });
     });
 
     it('accepting an invitation into a company whose subscription is PAST_DUE/BLOCKED still succeeds — this service never queries CompanySubscription at all', async () => {
@@ -198,6 +237,10 @@ describe('InvitationsService', () => {
 
       await expect(service.useInvitation('CODE123', 'user2')).rejects.toThrow();
       expect(prisma.userCompany.upsert).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith('Invitation code already used', {
+        category: 'invitation',
+        details: { id: 'inv1' },
+      });
     });
   });
 

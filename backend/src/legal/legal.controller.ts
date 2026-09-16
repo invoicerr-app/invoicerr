@@ -6,6 +6,7 @@ import { User } from '@/decorators/user.decorator';
 import { RequestWithUser } from '@/types/request';
 import { CurrentUser } from '@/types/user';
 
+import { AcceptLegalDto, parseAcceptLegalSlugs } from './legal.dto';
 import { LegalService } from './legal.service';
 
 @ApiTags('legal')
@@ -52,12 +53,13 @@ export class LegalController {
       '(`{ accepted: [] }`) outside SaaS mode.',
   })
   @ApiResponse({ status: 201, description: 'Acceptance recorded' })
+  @ApiResponse({ status: 400, description: 'slugs was present but not an array of strings' })
   accept(
     @User() user: CurrentUser,
-    @Body() body: { slugs?: string[] } | undefined,
+    @Body() body: AcceptLegalDto | undefined,
     @Req() request: RequestWithUser,
   ) {
-    return this.legalService.accept(user.id, body?.slugs, {
+    return this.legalService.accept(user.id, parseAcceptLegalSlugs(body), {
       ipAddress: request.ip ?? null,
       userAgent: request.headers['user-agent'] ?? null,
     });

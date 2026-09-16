@@ -7,6 +7,8 @@ jest.mock('@thallesp/nestjs-better-auth', () => ({
   Public: () => () => undefined,
 }));
 
+import { BadRequestException } from '@nestjs/common';
+
 import { LegalController } from './legal.controller';
 import { LegalService } from './legal.service';
 
@@ -78,5 +80,14 @@ describe('LegalController.accept', () => {
       ipAddress: '203.0.113.9',
       userAgent: null,
     });
+  });
+
+  it('rejects a non-array slugs body with a 400 instead of reaching the service (was a raw 500 via .filter)', () => {
+    const { controller, service } = buildController();
+
+    expect(() =>
+      controller.accept(CLICKING_USER, { slugs: 'terms-of-service' } as never, fakeRequest()),
+    ).toThrow(BadRequestException);
+    expect(service.accept).not.toHaveBeenCalled();
   });
 });

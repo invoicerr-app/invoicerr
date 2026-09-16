@@ -74,9 +74,13 @@ export class InvitationsService {
       },
     });
 
+    // Never log `invitation.code` itself: a still-valid code IS the bearer credential that grants
+    // access to a company, so it must not end up in application logs (and whatever log-shipping
+    // chain collects them) any more than a password would. `id` identifies the row for support/
+    // debugging without leaking the capability.
     logger.info('Invitation created', {
       category: 'invitation',
-      details: { id: invitation.id, code: invitation.code, createdById, companyId, role },
+      details: { id: invitation.id, createdById, companyId, role },
     });
 
     return {
@@ -94,17 +98,23 @@ export class InvitationsService {
     });
 
     if (!invitation) {
-      logger.warn('Invitation code not found', { category: 'invitation', details: { code } });
+      // No row to point at by `id` here — the code itself doesn't exist. Logging a short prefix
+      // (not the full 32-hex-char secret `generateCode()` mints) keeps enough to correlate a support
+      // report without leaving 96 bits of the still-guessable remainder in the logs.
+      logger.warn('Invitation code not found', {
+        category: 'invitation',
+        details: { codePrefix: code.slice(0, 8) },
+      });
       throw new NotFoundException('Invitation code not found');
     }
 
     if (invitation.usedAt) {
-      logger.warn('Invitation code already used', { category: 'invitation', details: { code } });
+      logger.warn('Invitation code already used', { category: 'invitation', details: { id: invitation.id } });
       throw new BadRequestException('This invitation code has already been used');
     }
 
     if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      logger.warn('Invitation code expired', { category: 'invitation', details: { code } });
+      logger.warn('Invitation code expired', { category: 'invitation', details: { id: invitation.id } });
       throw new BadRequestException('This invitation code has expired');
     }
 
@@ -132,14 +142,14 @@ export class InvitationsService {
       if (error instanceof NoFreeSeatError) {
         logger.warn('Invitation refused — no free seat', {
           category: 'invitation',
-          details: { code, userId, companyId: invitation.companyId },
+          details: { id: invitation.id, userId, companyId: invitation.companyId },
         });
         throw new ForbiddenException({ message: error.message, code: NO_FREE_SEAT_CODE });
       }
       throw error;
     }
 
-    logger.info('Invitation code used', { category: 'invitation', details: { code, userId } });
+    logger.info('Invitation code used', { category: 'invitation', details: { id: invitation.id, userId } });
 
     // An invitation can carry OWNER/ADMIN — see `billing/member-sync.ts`'s own header.
     await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
