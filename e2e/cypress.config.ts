@@ -485,6 +485,55 @@ export default defineConfig({
         triggerPdpReceptionSweep() {
           return triggerPdpReceptionSweep();
         },
+
+        /**
+         * `75-legal-acceptance.cy.ts`'s ONE piece of Node-side help: backdates a user's
+         * `LegalAcceptance` row to an arbitrary, deliberately STALE `version` — the sign-in
+         * re-acceptance interstitial (`pages/legal/accept.tsx`, redirected to from
+         * `(app)/_layout.tsx`) only fires when a required document's CURRENT version (whatever ships
+         * in `documentation/docs/legal/*.md` today) differs from what the user last accepted, and
+         * nothing this offline suite controls can make the shipped document's own version go
+         * backwards. Writing the row directly is what lets the spec prove the interstitial fires
+         * without waiting for an actual text change to land.
+         */
+        async setStaleLegalAcceptance({
+          email,
+          slug,
+          version,
+        }: {
+          email: string;
+          slug: string;
+          version: string;
+        }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rows } = await client.query(`SELECT id FROM "user" WHERE email = $1`, [email]);
+            if (rows.length === 0) throw new Error(`setStaleLegalAcceptance: no user found for ${email}`);
+            const userId = rows[0].id as string;
+            // DELETE first, not just INSERT: sign-up already wrote a row for this exact
+            // (userId, slug) at TODAY's real version (backend's own `recordLegalAcceptance`) —
+            // `getPendingAcceptanceSlugs` only asks "is there ANY row at the CURRENT version", so a
+            // stale row living ALONGSIDE that real one would change nothing. Removing the real one is
+            // what actually simulates "this user accepted an older text before a new version shipped".
+            await client.query(`DELETE FROM "legal_acceptance" WHERE "userId" = $1 AND "documentSlug" = $2`, [
+              userId,
+              slug,
+            ]);
+            await client.query(
+              `INSERT INTO "legal_acceptance" (id, "userId", "documentSlug", version, "acceptedAt")
+               VALUES (gen_random_uuid()::text, $1, $2, $3, now())`,
+              [userId, slug, version],
+            );
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
       });
     },
   }
