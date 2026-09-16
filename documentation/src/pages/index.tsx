@@ -25,12 +25,12 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/getting-started/introduction">
+            to="/docs/user-guide/introduction">
             <Translate id="homepage.cta.getStarted">Get Started</Translate>
           </Link>
           <Link
             className="button button--outline button--secondary button--lg"
-            to="/docs/getting-started/docker-installation">
+            to="/docs/user-guide/docker-installation">
             <Translate id="homepage.cta.deployDocker">Deploy with Docker</Translate>
           </Link>
         </div>

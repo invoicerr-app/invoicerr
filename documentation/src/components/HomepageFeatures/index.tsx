@@ -25,7 +25,7 @@ const FeatureList: FeatureItem[] = [
         Create, send, and track invoices and quotes. Convert a signed quote into an invoice in a single click.
       </Translate>
     ),
-    to: '/docs/getting-started/introduction',
+    to: '/docs/user-guide/introduction',
   },
   {
     title: (
@@ -49,7 +49,7 @@ const FeatureList: FeatureItem[] = [
         Generate clean PDF documents for quotes, invoices, and receipts, and send them by email directly from the app.
       </Translate>
     ),
-    to: '/docs/getting-started/introduction',
+    to: '/docs/user-guide/introduction',
   },
   {
     title: (
@@ -63,7 +63,7 @@ const FeatureList: FeatureItem[] = [
         Manage clients and customize your company identity — logo, name, VAT, colors, and email templates.
       </Translate>
     ),
-    to: '/docs/getting-started/introduction',
+    to: '/docs/user-guide/introduction',
   },
   {
     title: (
@@ -75,7 +75,7 @@ const FeatureList: FeatureItem[] = [
         Docker & docker-compose ready, from a single container to a scaled multi-worker deployment.
       </Translate>
     ),
-    to: '/docs/getting-started/docker-installation',
+    to: '/docs/user-guide/docker-installation',
   },
   {
     title: (

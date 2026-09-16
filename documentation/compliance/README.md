@@ -24,6 +24,5 @@ jurisdictions, written ahead of any implementation. That research was not lost â
 history â€” but it described a product that did not exist; this directory now only documents the five
 countries the product actually supports today.
 
-For the retired v1 compliance-engine design docs (kept as short pointers), see
-`COMPLIANCE_ARCHITECTURE.md`, `COMPLIANCE_LIFECYCLE.md`, `COMPLIANCE_BUILD_ORDER.md` and
-`COMPLIANCE_STATUS.md` in this same directory.
+For the retired v1 compliance-engine design (kept as a short pointer), see `HISTORY.md` in this same
+directory.

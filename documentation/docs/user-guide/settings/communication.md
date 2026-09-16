@@ -9,7 +9,7 @@ sidebar_position: 2
 Customise the email body sent to clients when you send quotes for signature or invoices by email. Supports placeholders for dynamic content.
 
 :::info[Mail provider]
-Email delivery itself (SMTP or Resend) is configured at the instance level via environment variables, not from this page. See [Docker Installation](../../getting-started/docker-installation.md#email-delivery).
+Email delivery itself (SMTP or Resend) is configured at the instance level via environment variables, not from this page. See [Docker Installation](../docker-installation.md#email-delivery).
 :::
 
 :::info[Language]

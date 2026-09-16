@@ -11,7 +11,7 @@ Rather than duplicating that reference here, use the live, always-up-to-date Swa
 - **Interactive UI**: `https://<your-instance>/api/docs`
 - **Raw OpenAPI spec (JSON)**: `https://<your-instance>/api/docs-json`
 
-For a local development setup (see [Local Development](../getting-started/local-development.md)), this is typically:
+For a local development setup (see [Local Development](./local-development.md)), this is typically:
 
 - `http://localhost:3000/api/docs`
 - `http://localhost:3000/api/docs-json`

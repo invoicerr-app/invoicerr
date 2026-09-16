@@ -5,18 +5,21 @@
  * version's own header): nobody hand-writes "Poland allows X" in a markdown file that can silently
  * rot the day someone edits `backend/src/modules/documents/**\/data/pl.json` and forgets the doc.
  *
- * THIS REWRITE fixes six things the previous
- * version got wrong, all at once, because they are the same underlying bug wearing six hats: THE
- * SCRIPT WAS NOT LOCALE-AWARE, so English page and French data prose ended up mixed on both sides
- * of the fence.
+ * THIS REWRITE (see git history for the "Vague A" locale rewrite that originally added it) fixed
+ * six things the previous version got wrong, all at once, because they were the same underlying bug
+ * wearing six hats: THE SCRIPT WAS NOT LOCALE-AWARE, so English page and French data prose ended up
+ * mixed on both sides of the fence.
  *
- *   1. LANGUAGE: this script now emits TWO trees — English into `../docs/developer-guide/
- *      country-support/` and French into `../i18n/fr/docusaurus-plugin-content-docs/current/
- *      developer-guide/country-support/` (the exact path Docusaurus's i18n plugin expects a
- *      translated doc page at — see any other hand-translated page under that same `i18n/fr/...`
- *      tree). Every label (yes/no/restricted, headers, explanatory sentences, glossary
- *      definitions) is read from the `STRINGS` table below, per locale — NEVER typed once and
- *      reused for both. Both trees are gitignored (`../.gitignore`).
+ *   1. LANGUAGE: this script emits ONE tree — English into `../docs/developer-guide/
+ *      country-support/`, gitignored (`../.gitignore`). It used to also emit a French tree under
+ *      `../i18n/fr/docusaurus-plugin-content-docs/current/developer-guide/country-support/`; the
+ *      docs site dropped its i18n locale entirely 2026-09-16 (English only now), so `LOCALES` below
+ *      is `['en']` and `OUT_DIRS` only has an `en` entry — the `STRINGS`/`GLOSSARY`/`*_LABELS`
+ *      tables below still carry a `fr` half (removing ~1400 lines of dead-but-correct string tables
+ *      wasn't worth the risk in the same change that dropped the locale; every render function
+ *      still takes `locale` as a parameter, it is just never called with anything but `'en'` any
+ *      more). Every label (yes/no/restricted, headers, explanatory sentences, glossary definitions)
+ *      is read from the `STRINGS` table below, per locale — NEVER typed once and reused for both.
  *   2. NO DATA PROSE LEAK: a data file's own `notes`/`resolutionNote` fields — free-form, hand-
  *      written, usually in French regardless of which page will read them — are NEVER rendered.
  *      What IS rendered is a STRUCTURED fact: a localized status (`legal`/`unverified`), a short
@@ -47,7 +50,7 @@
  *
  * DETERMINISM: no `Date.now()`, no `Math.random()`, no network call — every byte of output is a
  * pure function of the JSON/TS files this script reads, and every directory listing is sorted
- * before use. Two runs against the same source tree produce byte-identical output in BOTH trees.
+ * before use. Two runs against the same source tree produce byte-identical output.
  *
  * SCOPE: this script does not validate the data (the backend's own `assertValid*` gates at
  * `data/all.ts` load time already do that) — it only READS and RENDERS. A malformed file here
@@ -63,19 +66,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..', '..');
 const DOCUMENTS_ROOT = join(REPO_ROOT, 'backend', 'src', 'modules', 'documents');
 
-const LOCALES = ['en', 'fr'];
+// English only since the docs site dropped its i18n locale (2026-09-16) — see this file's own
+// header, point 1. Kept as a locale map (rather than hardcoding 'en' throughout) so every render
+// function below still takes an explicit `locale` parameter instead of silently assuming one.
+const LOCALES = ['en'];
 const OUT_DIRS = {
   en: join(__dirname, '..', 'docs', 'developer-guide', 'country-support'),
-  fr: join(
-    __dirname,
-    '..',
-    'i18n',
-    'fr',
-    'docusaurus-plugin-content-docs',
-    'current',
-    'developer-guide',
-    'country-support',
-  ),
 };
 
 // =================================================================================================

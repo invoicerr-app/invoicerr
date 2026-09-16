@@ -26,18 +26,14 @@ const config: Config = {
   organizationName: 'invoicerr-app', // Usually your GitHub org/user name.
   projectName: 'invoicerr', // Usually your repo name.
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
 
-  // Even if you don't use internationalization, you can use this field to set
-  // useful metadata like html lang. For example, if your site is Chinese, you
-  // may want to replace "en" with "zh-Hans".
+  // The docs used to ship an i18n (French) locale, generated via Weblate — retired 2026-09-16: the
+  // site is English-only now. Even without internationalization, this field is still useful to set
+  // metadata like html lang.
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'fr'],
-    localeConfigs: {
-      en: {label: 'English'},
-      fr: {label: 'Français'},
-    },
+    locales: ['en'],
   },
 
   plugins: [
@@ -49,7 +45,7 @@ const config: Config = {
         indexBlog: true,
         indexPages: false,
         hashed: true,
-        language: ['en', 'fr'],
+        language: ['en'],
       },
     ],
   ],
@@ -100,20 +96,14 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'gettingStartedSidebar',
-          label: 'Getting Started',
+          sidebarId: 'userGuideSidebar',
+          label: 'User Guide',
           position: 'left',
         },
         {
           type: 'docSidebar',
           sidebarId: 'developerGuideSidebar',
           label: 'Developer Guide',
-          position: 'left',
-        },
-        {
-          type: 'docSidebar',
-          sidebarId: 'userGuideSidebar',
-          label: 'User Guide',
           position: 'left',
         },
         {
@@ -125,10 +115,6 @@ const config: Config = {
           to: '/changelog',
           label: 'Changelog',
           position: 'left',
-        },
-        {
-          type: 'localeDropdown',
-          position: 'right',
         },
         {
           href: 'https://github.com/invoicerr-app/invoicerr',
@@ -144,8 +130,8 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Getting Started',
-              to: '/docs/getting-started/introduction',
+              label: 'User Guide',
+              to: '/docs/user-guide/introduction',
             },
             {
               label: 'Developer Guide',
@@ -167,10 +153,6 @@ const config: Config = {
             {
               label: 'GitHub Issues',
               href: 'https://github.com/invoicerr-app/invoicerr/issues',
-            },
-            {
-              label: 'Translations (Weblate)',
-              href: 'https://hosted.weblate.org/engage/invoicerr/',
             },
           ],
         },
