@@ -1,0 +1,17 @@
+{{- if not .Values.redis.external.host }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "redis") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "redis") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+  selector:
+    {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "redis") | nindent 4 }}
+{{- end }}

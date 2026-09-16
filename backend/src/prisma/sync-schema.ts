@@ -60,6 +60,25 @@ const SCHEMA_PATH = join(BACKEND_ROOT, 'prisma', 'schema.prisma');
 // baselineIfNeeded(). Never pushed against an already-migrated DB.
 const V1_4_4A_SCHEMA_PATH = join(BACKEND_ROOT, 'prisma', 'schema-v1.4.4a.prisma');
 
+/**
+ * `DATABASE_URL_UNPOOLED` — Neon's own name for the direct (non-PgBouncer) connection string
+ * (https://neon.com/docs/guides/prisma: pooled = `...-pooler.<region>.aws.neon.tech`, direct drops
+ * the `-pooler` segment). `prisma.service.ts`'s runtime client always uses the POOLED `DATABASE_URL`
+ * — many short-lived connections from replicated api/worker pods is exactly what a pooler is for.
+ * `migrate deploy`/`db push` are the opposite: a handful of DDL statements per deploy, but Prisma
+ * Migrate takes a session-level advisory lock that PgBouncer's transaction-mode pooling does not
+ * reliably preserve across statements — so these two CLI subprocesses get the DIRECT URL instead,
+ * by overriding just THEIR OWN env (never `process.env` itself): `prisma.config.ts`'s
+ * `datasource.url` resolves `env('DATABASE_URL')` at the time the CLI subprocess reads it, so this
+ * override is invisible to the long-lived Nest process's own `PrismaPg` adapter (already
+ * constructed, pooled, in `prisma.service.ts` before `syncDatabaseSchema()` ever runs).
+ * Unset on a non-pooled setup (plain `docker-compose.yml` Postgres, or self-hosted) — falls back to
+ * `DATABASE_URL` and behaves exactly as before this variable existed.
+ */
+function directDatabaseUrlEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, DATABASE_URL: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL };
+}
+
 function runPrisma(args: string[]): void {
   // `prisma.config.ts`'s `migrations.path` is resolved relative to the
   // subprocess's cwd, not to --schema — run from the backend root (where
@@ -68,6 +87,7 @@ function runPrisma(args: string[]): void {
   execFileSync('npx', ['prisma', ...args, '--schema', SCHEMA_PATH], {
     stdio: 'inherit',
     cwd: BACKEND_ROOT,
+    env: directDatabaseUrlEnv(),
   });
 }
 
@@ -127,6 +147,7 @@ async function baselineIfNeeded(): Promise<void> {
   execFileSync('npx', ['prisma', 'db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH], {
     stdio: 'inherit',
     cwd: BACKEND_ROOT,
+    env: directDatabaseUrlEnv(),
   });
 
   console.log('[sync-schema] Baselining migrations confirmed already live as applied.');

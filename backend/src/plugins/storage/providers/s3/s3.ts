@@ -1,3 +1,21 @@
+/**
+ * UNRELATED to `modules/documents/archive/s3-storage.ts` — that one is the LEGAL ARCHIVE's own
+ * content-hash-addressed, WORM-discipline S3 provider, configured via `ARCHIVE_S3_*` env vars and
+ * selected only by `ARCHIVE_STORAGE=s3`. This file is a completely different mechanism: an
+ * admin-configured, DB-config-driven, multi-provider file broadcaster (config lives in the `Plugin`
+ * Postgres table, not env vars — see `getConfig()` below), used by `utils/storage-upload.ts` to hand a
+ * signed quote or a paid invoice's PDF a public URL. The two share nothing — not the bucket, not the
+ * key layout, not the config source — and this file does not import from, or get imported by, the
+ * archive module.
+ *
+ * A real, confirmed gap this creates: a file broadcast through THIS provider (a signed quote PDF, a
+ * paid invoice PDF handed to a client) never touches the archive's content-hash storage at all — it
+ * is uploaded here, under its own `key`, with no `contentHash`/`DocumentArchive` row, no WORM
+ * guarantee, and no retention calculation. The legal archive only ever gets populated through
+ * `archive/persistence.ts#createDocumentArchive`, called from `archive-on-send.ts` at document-send
+ * time — a file pushed through this S3 plugin outside that path is not an archived artifact in the
+ * sense the rest of this codebase means by that word, however similar "a PDF in an S3 bucket" sounds.
+ */
 import {
   DeleteObjectCommand,
   GetObjectCommand,

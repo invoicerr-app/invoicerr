@@ -1,0 +1,31 @@
+{{/*
+Optional OCR engine for scanned received invoices — rendered ONLY when ocr.enabled=true. Our own
+image (ghcr.io/invoicerr-app/ocr-image: ocrmypdf + this product's Tesseract language packs).
+Stateless (no PVC): a request is a PDF in, plain text out, nothing kept between calls.
+*/}}
+{{- if .Values.ocr.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "ocr") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "ocr") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "ocr") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "ocr") | nindent 8 }}
+    spec:
+      containers:
+        - name: ocr
+          image: "{{ .Values.ocr.image.repository }}:{{ .Values.ocr.image.tag }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.ocr.service.port }}
+          resources:
+            {{- toYaml .Values.ocr.resources | nindent 12 }}
+{{- end }}

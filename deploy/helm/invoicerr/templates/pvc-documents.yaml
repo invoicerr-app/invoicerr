@@ -1,0 +1,22 @@
+{{/*
+Shared local storage for /data, mounted on BOTH api and worker — see values.yaml's own `documents`
+header for what it's for (always DOCUMENTS_INBOUND_DIR, additionally DOCUMENTS_ARCHIVE_DIR when
+archive.storage=local) and its ReadWriteOnce-at-replicaCount-1 caveat.
+*/}}
+{{- if .Values.documents.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "documents") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "documents") | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.documents.persistence.accessMode }}
+  {{- if .Values.documents.persistence.storageClassName }}
+  storageClassName: {{ .Values.documents.persistence.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.documents.persistence.size }}
+{{- end }}

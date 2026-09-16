@@ -1,0 +1,202 @@
+{{/*
+api Deployment — nginx (port 80) + the Nest API (port 3000 internally, proxied by nginx; see the
+repo's nginx.conf). Runs Prisma migrations at boot (backend/src/prisma/sync-schema.ts — production
+only, api role only). ALWAYS WORKER_INLINE=false: unlike docker-compose.yml's single-container
+default, this chart never runs the queue consumer inline — see templates/deployment-worker.yaml for
+the always-separate worker Deployment.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "api") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "api") | nindent 8 }}
+      {{- with .Values.api.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "invoicerr.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Redis is REQUIRED for this app to boot at all (BullMQ) — `DocumentQueueRedisRequiredGuard`
+      # refuses to start the Nest app with no degraded fallback (see backend/src/modules/documents/
+      # queue/redis-required.guard.ts and CLAUDE.md's own "Redis is required" line). OBSERVED on a
+      # real `kind` install, 2026-09-17: a bundled Redis pod created at the same moment as this api
+      # pod is not always ready first — the api container crashed twice with ECONNREFUSED before
+      # settling once kubelet's restart backoff happened to land after Redis came up. Self-healing,
+      # but the same "waste the first minute of a fresh install on CrashLoopBackOff noise" problem
+      # deployment-worker.yaml's own `wait-for-api` initContainer already fixes for the migration
+      # race — this is the same fix for the Redis race instead.
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for {{ include "invoicerr.redisHost" . }}:{{ include "invoicerr.redisPort" . }}...";
+              until nc -z -w 2 "{{ include "invoicerr.redisHost" . }}" "{{ include "invoicerr.redisPort" . }}"; do
+                echo "redis not reachable yet — retrying in 3s...";
+                sleep 3;
+              done;
+              echo "redis is reachable. Starting the api container.";
+      containers:
+        - name: invoicerr
+          image: "{{ .Values.image.repository }}{{ if .Values.image.tag }}:{{ .Values.image.tag }}{{ end }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: ROLE
+              value: "api"
+            # Hardcoded, not a values.yaml toggle: this chart never runs the queue worker inline —
+            # see this file's own header.
+            - name: WORKER_INLINE
+              value: "false"
+            - name: APP_URL
+              value: {{ .Values.app.appUrl | quote }}
+            - name: CORS_ORIGINS
+              value: {{ .Values.app.corsOrigins | quote }}
+
+            # BETTER_AUTH_SECRET — REQUIRED. Signs every session cookie/JWT; the backend refuses to
+            # boot in production without it.
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: BETTER_AUTH_SECRET
+            # Optional — left unset, isEncryptionAvailable() returns false and channel-credential
+            # storage (KSeF/PDP/SdI…) silently disables itself. No error, no log.
+            - name: CREDENTIALS_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: CREDENTIALS_ENCRYPTION_KEY
+                  optional: true
+
+            {{- if .Values.postgresql.enabled }}
+            # Bundled DEV/KIND-ONLY Postgres — see values.yaml's own postgresql.* header. Plaintext
+            # connection string built from postgresql.auth.*, matching this chart's dev-only nature;
+            # production (postgresql.enabled=false, the default) reads DATABASE_URL from the Secret
+            # instead, right below.
+            - name: DATABASE_URL
+              value: {{ include "invoicerr.bundledDatabaseUrl" . | quote }}
+            {{- else }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: DATABASE_URL
+            {{- end }}
+            # DATABASE_URL_UNPOOLED — optional, api pod ONLY (the worker never runs migrations, so it
+            # never needs Neon's direct/non-pooled connection string). Falls back to DATABASE_URL in
+            # the application itself when unset — see backend/src/prisma/sync-schema.ts.
+            - name: DATABASE_URL_UNPOOLED
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: DATABASE_URL_UNPOOLED
+                  optional: true
+
+            # Redis — REQUIRED for the backend to boot at all (BullMQ). Bundled Deployment unless
+            # redis.external.host is set.
+            - name: REDIS_HOST
+              value: {{ include "invoicerr.redisHost" . | quote }}
+            - name: REDIS_PORT
+              value: {{ include "invoicerr.redisPort" . | quote }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: REDIS_PASSWORD
+                  optional: true
+
+            # Legal archive storage — see values.yaml's own `archive` header for why `s3` is this
+            # chart's default. Read by backend/src/modules/documents/archive/storage.ts.
+            - name: ARCHIVE_STORAGE
+              value: {{ .Values.archive.storage | quote }}
+            {{- if eq .Values.archive.storage "s3" }}
+            - name: ARCHIVE_S3_BUCKET
+              value: {{ .Values.archive.s3.bucket | quote }}
+            - name: ARCHIVE_S3_ENDPOINT
+              value: {{ .Values.archive.s3.endpoint | quote }}
+            - name: ARCHIVE_S3_REGION
+              value: {{ .Values.archive.s3.region | quote }}
+            - name: ARCHIVE_S3_FORCE_PATH_STYLE
+              value: {{ .Values.archive.s3.forcePathStyle | quote }}
+            - name: ARCHIVE_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: ARCHIVE_S3_ACCESS_KEY_ID
+            - name: ARCHIVE_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "invoicerr.secretName" . }}
+                  key: ARCHIVE_S3_SECRET_ACCESS_KEY
+            {{- end }}
+
+            # DOCUMENTS_INBOUND_DIR has no S3 backend today (received-invoices/storage.ts is
+            # local-disk only) — always set, always mounted, regardless of archive.storage. See
+            # values.yaml's own `documents` header.
+            - name: DOCUMENTS_INBOUND_DIR
+              value: "/data/documents-inbound"
+            {{- if eq .Values.archive.storage "local" }}
+            - name: DOCUMENTS_ARCHIVE_DIR
+              value: "/data/documents-archive"
+            {{- end }}
+
+            {{- if .Values.ocr.enabled }}
+            - name: OCR_SERVICE_URL
+              value: {{ include "invoicerr.ocrServiceUrl" . | quote }}
+            {{- end }}
+
+            {{- with .Values.app.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.app.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.documents.persistence.enabled }}
+          volumeMounts:
+            - name: documents-data
+              mountPath: /data
+          {{- end }}
+          readinessProbe:
+            {{- toYaml .Values.api.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.api.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      {{- if .Values.documents.persistence.enabled }}
+      volumes:
+        - name: documents-data
+          persistentVolumeClaim:
+            claimName: {{ include "invoicerr.componentFullname" (dict "context" . "component" "documents") }}
+      {{- end }}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

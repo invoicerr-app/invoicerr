@@ -147,7 +147,7 @@ export async function createDocumentArchive(
     throw new Error(`Cannot archive document "${documentId}": no artifacts were actually delivered.`);
   }
 
-  const { uri, contentHash } = persistArtifacts(documentId, artifacts);
+  const { uri, contentHash } = await persistArtifacts(documentId, artifacts);
   const artifactMetas = toArtifactMetas(artifacts);
   const archivedAt = new Date();
 
@@ -247,7 +247,7 @@ export async function createAuthorityVerdictArchive(
   // uses, and the same reason: `persistArtifacts` is idempotent (content-hash-addressed), so a
   // `createMany` that turns out to be a duplicate below has already, harmlessly, re-written the exact
   // same bytes to the exact same path rather than left a DB row pointing at nothing.
-  const { uri, contentHash } = persistArtifacts(documentId, [artifact]);
+  const { uri, contentHash } = await persistArtifacts(documentId, [artifact]);
   const verdictKey = `${documentId}|${providerId}|${statusCode}`;
 
   const { count } = await prisma.documentArchive.createMany({
@@ -344,7 +344,7 @@ export async function verifyDocumentArchive(
   const rehashed: ArchivedArtifactInput[] = [];
 
   for (const meta of archive.artifacts) {
-    const bytes = readArchivedArtifact(archive.uri, meta.role, meta.mime);
+    const bytes = await readArchivedArtifact(archive.uri, meta.role, meta.mime);
     if (bytes === null) {
       mismatches.push({ role: meta.role, expected: meta.sha256, actual: null });
       continue;

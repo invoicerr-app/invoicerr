@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "invoicerr.componentFullname" (dict "context" . "component" "worker") }}
+  labels:
+    {{- include "invoicerr.componentLabels" (dict "context" . "component" "worker") | nindent 4 }}
+spec:
+  type: {{ .Values.worker.service.type }}
+  ports:
+    - name: health
+      port: {{ .Values.worker.service.port }}
+      targetPort: health
+      protocol: TCP
+  selector:
+    {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "worker") | nindent 4 }}
