@@ -65,7 +65,9 @@ export function computeDocumentTotals(
   if (!moneyField) return null
 
   const currency = extractCurrency(descriptor, values)
-  const totals = computeTotals(
+  // A net total of exactly 0 is a real, showable total (a fully offered line, a 100% discount) —
+  // only the absence of any line to sum (checked above) means "nothing to show".
+  return computeTotals(
     allLines,
     currency,
     moneyField.key,
@@ -73,7 +75,6 @@ export function computeDocumentTotals(
     vatRateField?.key,
     discountField?.key,
   )
-  return totals.netMinor === 0 ? null : totals
 }
 
 /** `1234.50 EUR` — one formatter for every figure this module shows, so the header amount and the

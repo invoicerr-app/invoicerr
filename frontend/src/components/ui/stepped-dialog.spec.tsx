@@ -110,6 +110,40 @@ function Harness({
   )
 }
 
+/** A harness whose step COUNT can change between renders — reproduces steps.length shifting while
+ *  the dialog stays open, the way a GOVERNMENT client re-fetches B2G fields mid-session
+ *  (document-create-dialog.tsx / use-document-form.ts). */
+function GrowingHarness({ extraStep }: { extraStep: boolean }) {
+  const schema = z.object({ name: z.string().min(1, "Required") })
+  const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: "" } })
+
+  const steps: SteppedDialogStep[] = [
+    {
+      id: "a",
+      label: "First",
+      fields: ["name"],
+      render: () => <input aria-label="name" {...form.register("name")} />,
+    },
+    { id: "b", label: "Second", fields: [], render: () => <p>step b content</p> },
+  ]
+  if (extraStep) {
+    steps.push({ id: "c", label: "Third", fields: [], render: () => <p>step c content</p> })
+  }
+
+  return (
+    <SteppedDialog
+      steps={steps}
+      form={form as unknown as UseFormReturn<FieldValues>}
+      onSubmit={() => {}}
+      submitLabel="Save draft"
+      open
+      onOpenChange={() => {}}
+      title="Growing harness dialog"
+      dataCy="grow"
+    />
+  )
+}
+
 describe("<SteppedDialog> — behavior", () => {
   it("blocks Continue on an invalid current step, and shows the error under the field", async () => {
     const onSubmit = vi.fn()
@@ -186,5 +220,20 @@ describe("<SteppedDialog> — behavior", () => {
 
     fireEvent.click(screen.getByTestId("harness-step-c"))
     expect(await screen.findByText("step c content")).toBeInTheDocument()
+  })
+
+  it("does not snap back to step 1 when steps.length changes mid-session, while the dialog stays open", async () => {
+    const { rerender } = render(<GrowingHarness extraStep={false} />)
+
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Léa" } })
+    fireEvent.click(screen.getByTestId("grow-continue")) // a -> b
+    await screen.findByText("step b content")
+
+    // A new field group turns non-empty (e.g. picking a GOVERNMENT client) — steps.length grows
+    // from 2 to 3 while `open` never changes.
+    rerender(<GrowingHarness extraStep={true} />)
+
+    expect(screen.getByText("step b content")).toBeInTheDocument()
+    expect(screen.queryByLabelText("name")).not.toBeInTheDocument()
   })
 })

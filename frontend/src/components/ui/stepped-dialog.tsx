@@ -105,6 +105,14 @@ export interface SteppedDialogProps {
    *  attribute the previous flat form already carried) instead of adopting this component's own
    *  generic one. */
   submitDataCy?: string
+  /** Disables the LAST step's primary button and, if given, shows `submitTooltip` on hover — for a
+   *  caller whose final action isn't runnable at all right now (e.g. every action the country's
+   *  policy allows is blocked). Never touched on any step but the last: an earlier step's own
+   *  "Continue" always just advances. Without this, a caller with no runnable action left the button
+   *  reading "Continue" and `onSubmit` doing nothing when pressed — a dead button with no
+   *  explanation. */
+  submitDisabled?: boolean
+  submitTooltip?: string
   className?: string
   /** Seeds `maxReached` on open — lets a caller EDITING an already-valid record open every step's
    *  header chip clickable from the very first render, instead of gating step 2+ behind walking
@@ -141,6 +149,8 @@ export function SteppedDialog({
   submitting = false,
   dataCy,
   submitDataCy,
+  submitDisabled = false,
+  submitTooltip,
   className,
   initialMaxReached = 0,
 }: SteppedDialogProps) {
@@ -163,14 +173,24 @@ export function SteppedDialog({
   // `maxReached` alone takes the caller's seed (an edit dialog's own steps start "done"); `index`
   // always starts at 0 regardless — the first step is still what the user sees first, only the
   // header chips past it become clickable immediately.
-  const lastStepIndex = Math.max(steps.length - 1, 0)
+  //
+  // Depends on `open` ALONE — not on `steps.length`/`initialMaxReached`. A caller's step count can
+  // change WHILE the dialog stays open (document-create-dialog.tsx: picking a GOVERNMENT client
+  // re-fetches B2G fields and can turn an empty field group non-empty, changing `steps.length`);
+  // including it here would re-run this effect and snap the user back to step 1 mid-typing. Instead,
+  // `lastStepIndex` below clamps `maxReached` at READ time, so a step count that changes mid-session
+  // can only ever narrow what's clickable, never reset where the user already is.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberately open-only, see comment above.
   useEffect(() => {
     if (open) {
-      setState({ index: 0, maxReached: Math.min(Math.max(initialMaxReached, 0), lastStepIndex) })
+      setState({ index: 0, maxReached: Math.max(initialMaxReached, 0) })
     }
-  }, [open, initialMaxReached, lastStepIndex])
+  }, [open])
 
-  const current = steps[state.index]
+  const lastStepIndex = Math.max(steps.length - 1, 0)
+  const currentIndex = Math.min(state.index, lastStepIndex)
+  const maxReached = Math.min(state.maxReached, lastStepIndex)
+  const current = steps[currentIndex]
 
   // Focus the first field of whichever step just mounted — a CALLBACK ref rather than a
   // `useRef`+`useEffect(…, [state.index])` pair: the body div below is keyed by `current.id`, so
@@ -193,7 +213,7 @@ export function SteppedDialog({
     )
     first?.focus({ preventScroll: true })
   }, [])
-  const last = isLastStep(state, steps.length)
+  const last = isLastStep({ index: currentIndex, maxReached }, steps.length)
 
   async function handleContinue() {
     const valid = current.fields.length === 0 ? true : await form.trigger(current.fields as never)
@@ -245,7 +265,7 @@ export function SteppedDialog({
             {/* Compact "2/4 · Lines" — the only header a phone-width step gets room for. */}
             <p className="text-sm font-medium text-foreground sm:hidden" aria-live="polite">
               {t("documents.form.stepped.compactIndicator", "{{current}}/{{total}} · {{label}}", {
-                current: state.index + 1,
+                current: currentIndex + 1,
                 total: steps.length,
                 label: current.label,
               })}
@@ -257,7 +277,7 @@ export function SteppedDialog({
               data-cy={dataCy && `${dataCy}-steps`}
             >
               {steps.map((step, i) => {
-                const status = stepStatus(state, i)
+                const status = stepStatus({ index: currentIndex, maxReached }, i)
                 const clickable = status !== "upcoming"
                 return (
                   <div key={step.id} className="flex items-center gap-1">
@@ -313,7 +333,7 @@ export function SteppedDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={state.index === 0 || submitting}
+              disabled={currentIndex === 0 || submitting}
               onClick={handleBack}
               dataCy={dataCy && `${dataCy}-back`}
             >
@@ -323,6 +343,8 @@ export function SteppedDialog({
               type="button"
               variant="default"
               loading={submitting}
+              disabled={last && submitDisabled}
+              tooltip={last && submitDisabled ? submitTooltip : undefined}
               onClick={handleContinue}
               dataCy={
                 last ? (submitDataCy ?? (dataCy && `${dataCy}-submit`)) : dataCy && `${dataCy}-continue`

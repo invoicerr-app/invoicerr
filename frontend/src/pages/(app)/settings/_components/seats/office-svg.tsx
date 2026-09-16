@@ -264,6 +264,7 @@ function DeskFurnitureCell({
 }
 
 function DeskChairCell({
+  deskIndex,
   member,
   currentUserId,
   facing,
@@ -272,6 +273,7 @@ function DeskChairCell({
   scrollShift,
   isOver,
 }: {
+  deskIndex: number
   member: SeatMemberView | null
   currentUserId: string | undefined
   facing: "up" | "down"
@@ -280,7 +282,15 @@ function DeskChairCell({
   scrollShift: { x: number; y: number }
   isOver: boolean
 }) {
-  const draggable = useDraggable({ id: `seat-${member?.userId}`, disabled: !dragEnabled || !member })
+  // A free desk has no member id to key on — falling back to `member?.userId` alone would register
+  // "seat-undefined" for EVERY empty chair in the same `DndContext` (its registry is keyed by id),
+  // colliding across desks. Harmless while every free chair is `disabled`, but a real registry
+  // collision and a dev-mode warning regardless — `deskIndex` is unique per chair whether occupied
+  // or not.
+  const draggable = useDraggable({
+    id: member ? `seat-${member.userId}` : `desk-${deskIndex}`,
+    disabled: !dragEnabled || !member,
+  })
 
   // Subtract how far the room has scrolled since the drag started (`scrollShift`, in screen px) from
   // the raw pointer delta BEFORE dividing by the room's own screen-to-user-unit ratio — this file's own
@@ -524,6 +534,7 @@ export function OfficeRoom({
         {deskPlacements.map((p) => (
           <g key={p.deskIndex} transform={`translate(${p.x} ${p.y})`}>
             <DeskChairCell
+              deskIndex={p.deskIndex}
               member={p.member}
               currentUserId={currentUserId}
               facing={p.facing}

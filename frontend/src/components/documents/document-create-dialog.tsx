@@ -257,6 +257,20 @@ export function DocumentCreateDialog({
   const secondaryActions = state.availableActions.filter((action) => action.id !== primaryAction?.id)
   const pendingAction = state.runner.pendingAction
 
+  // Every declared action can be blocked by the active company's country policy at once (e.g. every
+  // action a type offers is forbidden for this country right now) — `primaryAction` is then
+  // `undefined` and there is nothing `onSubmit` could run. Without this, the wizard's own final
+  // "Continue" button stayed enabled and silently did nothing when pressed, with no clue that the
+  // law — not a bug — is what's stopping it; the aggregated reason (one policy reason PER blocked
+  // action, several actions can disagree on why) is what the disabled button's tooltip shows instead.
+  const blockedReasons = Array.from(
+    new Set(
+      state.availableActions
+        .map((action) => action.policyBlockedReason)
+        .filter((reason): reason is string => !!reason),
+    ),
+  )
+
   const steps: SteppedDialogStep[] = []
   if (detailsFields.length > 0) {
     steps.push({
@@ -313,6 +327,12 @@ export function DocumentCreateDialog({
         submitLabel={primaryAction?.label ?? t("common.next")}
         submitDataCy={primaryAction ? `document-action-${primaryAction.id}` : undefined}
         submitting={state.runner.isRunning && state.runner.pendingAction === undefined}
+        submitDisabled={!primaryAction}
+        submitTooltip={
+          !primaryAction && blockedReasons.length > 0
+            ? t("documents.form.actionBlockedByPolicy", { reason: blockedReasons.join(" · ") })
+            : undefined
+        }
         onSubmit={() => {
           if (primaryAction) state.runner.handleAction(primaryAction)
         }}

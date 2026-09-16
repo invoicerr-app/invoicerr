@@ -217,6 +217,21 @@ type UsePostResult<T> = {
   lastError: { current: ApiHookError | null }
 }
 
+/** A body already in a shape `fetch` accepts as-is — `JSON.stringify`-ing any of these would mangle
+ *  it (a `FormData` becomes the useless string `"{}"`, since `JSON.stringify` only sees its own
+ *  non-enumerable internals). `createMethodHook`'s own `trigger` only serializes what falls through
+ *  this check — a plain object/array. */
+function isPreSerializedBody(value: unknown): value is BodyInit {
+  return (
+    typeof value === "string" ||
+    value instanceof FormData ||
+    value instanceof Blob ||
+    value instanceof ArrayBuffer ||
+    ArrayBuffer.isView(value) ||
+    value instanceof URLSearchParams
+  )
+}
+
 function createMethodHook(method: string) {
   return function useRequest<T = any>(url: string, options: UseRequestOptions = {}): UsePostResult<T> {
     const [data, setData] = useState<T | null>(null)
@@ -232,16 +247,28 @@ function createMethodHook(method: string) {
       const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
 
       try {
+        const rawBody = body !== undefined ? body : options.body
+        // Objects are serialized to JSON; a body already in a wire-ready shape (FormData, string,
+        // Blob…) is passed through as-is instead.
+        const serializedBody =
+          rawBody === undefined ? undefined : isPreSerializedBody(rawBody) ? rawBody : JSON.stringify(rawBody)
+
+        // `headers`/`body` are spread AFTER `...options`/`...extraOptions`, not before: an object
+        // literal keeps the LAST occurrence of a key, so a caller's own raw `options.headers` (a plain
+        // object, never merged with `extraOptions.headers`) or `options.body` (unserialized) would
+        // otherwise silently win over the merge/serialization computed above and above them — dormant
+        // until the first caller actually passed either, then a duplicate-key footgun with no error at
+        // all: the LATER `...options`/`...extraOptions` spread simply overwrote the correct headers
+        // and body with the raw, unmerged ones.
         const res = await authenticatedFetch(fullUrl, {
+          ...options,
+          ...extraOptions,
           method,
           headers: {
             ...(options.headers || {}),
             ...(extraOptions.headers || {}),
           },
-          // Objects are serialized to JSON; anything else (FormData, string…) is passed through as is
-          body: body ? JSON.stringify(body) : options.body ? JSON.stringify(options.body) : undefined,
-          ...options,
-          ...extraOptions,
+          body: serializedBody,
         })
 
         if (!res.ok) {

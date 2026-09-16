@@ -36,6 +36,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { FormSection } from "../../_shared/form-dialog"
 import { SteppedDialog, type SteppedDialogStep } from "@/components/ui/stepped-dialog"
 import { ClientPortalAccessDialog } from "./client-portal-access"
+import { isValidPostalCode } from "./postal-code"
 
 interface ClientUpsertProps {
   client?: Client | null
@@ -282,7 +283,10 @@ function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
           name="postalCode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel required>{t("clients.upsert.fields.postalCode.label")}</FormLabel>
+              {/* Not `required`: the schema accepts blank (see postal-code.ts's own header — some
+                  countries have no postal code system, and no catalog here makes it conditional on
+                  country today). */}
+              <FormLabel>{t("clients.upsert.fields.postalCode.label")}</FormLabel>
               <FormControl>
                 <Input {...field} placeholder={t("clients.upsert.fields.postalCode.placeholder")} />
               </FormControl>
@@ -861,9 +865,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
         }, t("clients.upsert.validation.contactEmail.format")),
       address: z.string().min(1, t("clients.upsert.validation.address.required")),
       addressLine2: z.string().optional(),
-      postalCode: z.string().refine((val) => {
-        return /^[0-9A-Z\s-]{3,10}$/.test(val)
-      }, t("clients.upsert.validation.postalCode.format")),
+      postalCode: z
+        .string()
+        .refine((val) => isValidPostalCode(val), t("clients.upsert.validation.postalCode.format")),
       city: z.string().min(1, t("clients.upsert.validation.city.required")),
       state: z.string().optional(),
       country: z.string().min(1, t("clients.upsert.validation.country.required")),
