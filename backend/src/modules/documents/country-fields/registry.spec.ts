@@ -35,9 +35,9 @@ describe('CountryFieldOverlayCatalog', () => {
     expect(catalog.operationsFor('FR', 'quote')).toEqual([]);
   });
 
-  it('defaults to the real shipped catalog — France and Germany each ship a real overlay (see data/all.ts)', () => {
+  it('defaults to the real shipped catalog — France, Germany and Poland each ship a real overlay (see data/all.ts)', () => {
     const catalog = new CountryFieldOverlayCatalog();
-    expect(catalog.countries()).toEqual(['DE', 'FR']);
+    expect(catalog.countries()).toEqual(['DE', 'FR', 'PL']);
     expect(catalog.operationsFor('FR', 'invoice')).toEqual([
       {
         op: 'add',
@@ -50,6 +50,17 @@ describe('CountryFieldOverlayCatalog', () => {
         op: 'add',
         path: '',
         field: expect.objectContaining({ key: 'buyerReference', kind: 'text' }),
+      },
+    ]);
+    expect(catalog.operationsFor('PL', 'invoice')).toEqual([
+      {
+        op: 'add',
+        path: '',
+        field: expect.objectContaining({
+          key: 'correctionReason',
+          kind: 'text',
+          requiredIfPresent: 'correctsInvoiceId',
+        }),
       },
     ]);
     // A country with no file at all still resolves to an empty list, never a throw.

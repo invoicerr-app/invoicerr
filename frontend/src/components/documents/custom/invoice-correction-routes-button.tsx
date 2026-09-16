@@ -38,7 +38,8 @@ import { cn } from "@/lib/utils"
  * `required`/`allowed` routes are CHOOSABLE (a country's own law permits attempting them);
  * `forbidden`/`unverified` never are, whatever `implemented` might say for that routeId elsewhere —
  * "unverified" is "nobody has settled this", not "permitted" (see `isChoosable` below). Choosing a
- * choosable route that is also `implemented` (today: only INTERNAL_CREDIT_NOTE) navigates to the
+ * choosable route that is also `implemented` (today: INTERNAL_CREDIT_NOTE, CORRECTIVE_INVOICE for a
+ * Polish seller — see below) navigates to the
  * REAL credit-note creation screen, PRE-LINKED to this invoice (`invoice: instance.id` handed through
  * router `state.initialData` — the exact same generic seed `DocumentCreateDialog.initialData` already
  * serves the received-invoice upload flow, see [typeId]/index.tsx's own consumption of it);
@@ -58,10 +59,23 @@ import { cn } from "@/lib/utils"
  * one-click navigation to a DRAFT (a draft is never irreversible by itself). Confirming runs the
  * REAL "cancel" action (`useRunDocumentAction`, the exact same mutation every generic action button
  * elsewhere in this module already uses) — never a second, bespoke endpoint.
+ *
+ * CORRECTIVE_INVOICE is the THIRD routeId this dialogue wires — Poland's own faktura korygująca
+ * (KOR) pattern, `implemented` only for a Polish seller (the backend's own
+ * `correction-routes.ts#isImplemented`, country-aware exactly like CANCEL_AND_REPLACE). Choosing it
+ * navigates one-click, same as INTERNAL_CREDIT_NOTE, but to the INVOICE creation screen (not the
+ * credit-note one — Poland's own law has no separate credit-note instrument, see
+ * `correction-routes/data/pl.json`'s own CREDIT_NOTE citation): pre-filled with `correctsInvoiceId:
+ * instance.id` (`descriptors/invoice.descriptor.ts`'s own trunk field), which is what makes
+ * `formats/national/fa3-provider.ts` build `RodzajFaktury = KOR` once this invoice is sent. Poland's
+ * own `country-fields/data/pl.json` overlay is what puts the "Correction reason" field on that screen,
+ * conditionally required the moment `correctsInvoiceId` resolves — no bespoke wiring needed here for
+ * that part either, the generic field-overlay + `requiredIfPresent` mechanism already does it.
  */
 
 const INTERNAL_CREDIT_NOTE_ROUTE_ID = "INTERNAL_CREDIT_NOTE"
 const CANCEL_AND_REPLACE_ROUTE_ID = "CANCEL_AND_REPLACE"
+const CORRECTIVE_INVOICE_ROUTE_ID = "CORRECTIVE_INVOICE"
 
 /** An invoice has something to correct once it has actually been ISSUED — "sent"/"send_failed" are
  *  the two post-issuance statuses this module's own descriptor uses (see invoice.descriptor.ts); a
@@ -201,6 +215,14 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       // Irreversible — one more click, spelling that out, before anything actually runs. See this
       // file's own header on why this differs from INTERNAL_CREDIT_NOTE's own one-click navigation.
       setView({ kind: "confirm-cancel", route })
+      return
+    }
+    if (route.routeId === CORRECTIVE_INVOICE_ROUTE_ID && route.implemented) {
+      // THE real mechanism, pre-linked — the INVOICE screen (not credit-note: see this file's own
+      // header), seeded with `correctsInvoiceId`. Same one-click navigation as INTERNAL_CREDIT_NOTE —
+      // never a second, bespoke flow.
+      onClose()
+      navigate("/documents/invoice", { state: { initialData: { correctsInvoiceId: instance.id } } })
       return
     }
     // Declared by the country's own law (required/allowed) but not one this repo wires to a real

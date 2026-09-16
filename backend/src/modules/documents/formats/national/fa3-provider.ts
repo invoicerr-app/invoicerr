@@ -31,7 +31,23 @@
  * counted in the P_15 grand total) is preserved VERBATIM from that same builder — a genuine, known
  * limitation for a rate outside {23,22,8,7,5,0} (e.g. a reduced rate this catalog doesn't carry for
  * Poland), not a new gap introduced here.
+ *
+ * ## KOR — the faktura korygująca gap this file's own header used to name, now closed
+ * `RodzajFaktury = KOR` + the `PrzyczynaKorekty`/`DaneFaKorygowanej` block, when `data.correctsInvoiceId`
+ * (`descriptors/invoice.descriptor.ts`) names the invoice this one corrects — same XSD elements, same
+ * relative order (`RodzajFaktury`, then this optional block, then `FaWiersz`) fa-vat.ts's own KOR mode
+ * used at the reference, re-verified directly against THIS file's own vendored `schemat_FA3.xsd`
+ * (`DaneFaKorygowanej`'s `xsd:choice` between `NrKSeF`+`NrKSeFFaKorygowanej` and `NrKSeFN` — see
+ * `fa3-kor.ts`'s own header for which branch applies and why). `PrzyczynaKorekty` reads
+ * `data.correctionReason` (`country-fields/data/pl.json`) when set, or else a generic, honest fallback
+ * naming the corrected invoice — never an empty element (the schema allows omitting it entirely, but a
+ * KOR that names no reason at all when a human COULD have typed one is a worse document than a
+ * generic one). `TZnakowy`'s own `maxLength` is 240 (verified against `ElementarneTypyDanych_v10-0E.xsd`
+ * directly — NOT the 256 fa-vat.ts's own comment assumed at the reference, a real, if harmless,
+ * discrepancy in that file worth not repeating here).
  */
+import { BadRequestException } from '@nestjs/common';
+
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { fromMinor } from '@/utils/financial';
@@ -42,6 +58,7 @@ import { computeDocumentTotals } from '../../totals/compute-totals';
 import { toDateOnly } from '../shared-build';
 import { DocumentFormatBuildResult, DocumentFormatParty, DocumentFormatProvider } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
+import { FaVatKorContext, resolveFaVatKorContext } from './fa3-kor';
 import { extractNationalLines, NationalLine } from './national-lines';
 
 const FA_VAT_3_NAMESPACE = 'http://crd.gov.pl/wzor/2025/06/25/13775/';
@@ -97,11 +114,36 @@ async function build(
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status' | 'createdAt'>,
   company: DocumentFormatParty,
   client: DocumentFormatParty,
+  // OPTIONAL, matching `DocumentFormatProvider.build`'s own 5th parameter (format-provider.ts) —
+  // needed HERE (unlike every other provider so far, bar facturx-provider.ts's own PDF reference
+  // labels) to look up the ORIGINAL invoice this one corrects, tenant-scoped: see fa3-kor.ts's own
+  // header. Absent only for a caller that has no companyId to give (none today — both real callers,
+  // `ksef-transport.ts` and `documents.service.ts#downloadDocumentFormat`, already pass one) — a
+  // document that names `correctsInvoiceId` with no `companyId` on hand refuses loudly below, rather
+  // than silently building an ordinary (RodzajFaktury=VAT) invoice for what the data itself flags as a
+  // correction.
+  companyId?: string,
 ): Promise<DocumentFormatBuildResult> {
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
   const currency = totals.currency || 'PLN';
+
+  // ── KOR (faktura korygująca) — see this file's own header and fa3-kor.ts's for the full design. ──
+  const correctsInvoiceId =
+    typeof data.correctsInvoiceId === 'string' && data.correctsInvoiceId.trim()
+      ? data.correctsInvoiceId
+      : undefined;
+  let korContext: FaVatKorContext | undefined;
+  if (correctsInvoiceId) {
+    if (!companyId) {
+      throw new BadRequestException(
+        'Cannot build a Polish faktura korygująca (KOR): no company context was supplied to the FA(3) ' +
+          'builder to look up the corrected invoice — this is an internal wiring gap, not a data problem.',
+      );
+    }
+    korContext = await resolveFaVatKorContext(companyId, correctsInvoiceId);
+  }
 
   const invoiceNumber = document.displayNumber ?? 'DRAFT';
   const issueDate = toDateOnly(data.issueDate);
@@ -166,6 +208,30 @@ async function build(
     GV: 2,
   };
 
+  // ── KOR block — PrzyczynaKorekty (optional per the XSD, always sent when correcting: see this
+  //    file's own header on why an empty one is worse than a generic fallback) + the mandatory
+  //    DaneFaKorygowanej entry, `xsd:choice`d between `korContext.originalKsefNumber` and `NrKSeFN`
+  //    (fa3-kor.ts's own header). Spread right after `RodzajFaktury`, before `FaWiersz` — the exact
+  //    relative order `schemat_FA3.xsd` declares for this optional sequence. ──
+  const reason = (
+    (typeof data.correctionReason === 'string' ? data.correctionReason.trim() : '') ||
+    `Korekta faktury ${korContext?.originalDisplayNumber ?? ''}`.trim()
+  ).slice(0, 240);
+  const korFields = korContext
+    ? {
+        PrzyczynaKorekty: reason,
+        DaneFaKorygowanej: [
+          {
+            DataWystFaKorygowanej: korContext.originalIssueDate,
+            NrFaKorygowanej: korContext.originalDisplayNumber.slice(0, 240),
+            ...(korContext.originalKsefNumber
+              ? { NrKSeF: '1', NrKSeFFaKorygowanej: korContext.originalKsefNumber }
+              : { NrKSeFN: '1' }),
+          },
+        ],
+      }
+    : {};
+
   const fa = {
     Faktura: {
       '@': {
@@ -208,7 +274,8 @@ async function build(
           P_23: '2',
           PMarzy: { P_PMarzyN: '1' },
         },
-        RodzajFaktury: 'VAT',
+        RodzajFaktury: korContext ? 'KOR' : 'VAT',
+        ...korFields,
         FaWiersz: lines.map((line) => buildFaWiersz(line, currency)),
       },
       Stopka: {

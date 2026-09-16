@@ -173,6 +173,10 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         ctx.document,
         companyToFormatParty(company),
         clientToFormatParty(client),
+        // Needed to resolve a KOR's own corrected-invoice lookup (`formats/national/fa3-kor.ts`) when
+        // `ctx.document.data.correctsInvoiceId` is set — every OTHER (non-correcting) invoice ignores
+        // this parameter entirely, same as before this was added.
+        ctx.companyId,
       );
       if (!buildResult.validation.valid) {
         // Same gate `pdp-transport.ts` enforces for its own Factur-X build — an invalid FA(3)

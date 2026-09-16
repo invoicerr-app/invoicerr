@@ -4,12 +4,27 @@
  * own header), that an amount TRACES from the document's own data through `compute-totals.ts` to a
  * specific XML field (never recomputed by this provider), and that the gate is not decorative: strip
  * one mandatory element from an otherwise-valid document and the SAME schema says so.
+ *
+ * The KOR describe block below proves the SAME thing for `RodzajFaktury = KOR` — the real XSD accepts
+ * a well-formed correction, refuses when it isn't — and that a non-Polish/non-correcting invoice is
+ * byte-for-byte unaffected by any of this (`fa3-kor.spec.ts` already proves the branching logic in
+ * isolation; this file proves the full XML this provider actually emits from it).
  */
+import { BadRequestException } from '@nestjs/common';
+
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
+import * as authorityEventsPersistence from '../../conformity/authority-events.persistence';
+import * as persistence from '../../persistence';
 import { DocumentFormatParty } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
 import { fa3FormatProvider } from './fa3-provider';
+
+jest.mock('../../persistence');
+jest.mock('../../conformity/authority-events.persistence');
+
+const findOwnedDocument = persistence.findOwnedDocument as jest.Mock;
+const listAuthorityEvents = authorityEventsPersistence.listAuthorityEvents as jest.Mock;
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
@@ -129,5 +144,121 @@ describe('fa3-provider — FA(3) gated by the REAL vendored schemat_FA3.xsd', ()
     expect(directResult.errors.length).toBeGreaterThan(0);
     // The error cites the missing element by name — the gate is not decorative.
     expect(directResult.errors.join(' ')).toMatch(/P_1/);
+  });
+});
+
+// A structurally valid `TNumerKSeF` (schemat_FA3.xsd's own pattern).
+const VALID_KSEF_NUMBER = '5260001246-20260901-010203-040506-AB';
+
+describe('fa3-provider — KOR (faktura korygująca) mode', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('data.correctsInvoiceId set, the original was cleared through KSeF: RodzajFaktury=KOR, the real XSD accepts it, and the choice+choice element names the ORIGINAL by its own KSeF number', async () => {
+    findOwnedDocument.mockResolvedValue({
+      id: 'orig-1',
+      displayNumber: 'FA-2026-0001',
+      channelProviderId: 'ksef',
+      data: { issueDate: '2026-09-01' },
+    });
+    listAuthorityEvents.mockResolvedValue([
+      { providerId: 'ksef', rawPayload: { ksefNumber: VALID_KSEF_NUMBER }, observedAt: new Date() },
+    ]);
+
+    const correctionData = {
+      ...VALID_DATA,
+      correctsInvoiceId: 'orig-1',
+      correctionReason: 'Correction de la quantité de la ligne 1',
+    };
+    const result = await fa3FormatProvider.build(
+      descriptor,
+      document(correctionData, 'FA-2026-0099'),
+      SELLER,
+      BUYER,
+      'company-1',
+    );
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    const xml = new TextDecoder().decode(result.bytes);
+
+    expect(xml).toMatch(/<RodzajFaktury>KOR<\/RodzajFaktury>/);
+    expect(xml).toMatch(/<PrzyczynaKorekty>Correction de la quantité de la ligne 1<\/PrzyczynaKorekty>/);
+    expect(xml).toMatch(/<DataWystFaKorygowanej>2026-09-01<\/DataWystFaKorygowanej>/);
+    expect(xml).toMatch(/<NrFaKorygowanej>FA-2026-0001<\/NrFaKorygowanej>/);
+    expect(xml).toMatch(/<NrKSeF>1<\/NrKSeF>/);
+    expect(xml).toMatch(new RegExp(`<NrKSeFFaKorygowanej>${VALID_KSEF_NUMBER}</NrKSeFFaKorygowanej>`));
+    expect(xml).not.toMatch(/NrKSeFN/);
+  });
+
+  it('data.correctsInvoiceId set, the original was never sent through KSeF (a different channel): still builds+validates, using NrKSeFN — the statutory exception, never a refusal', async () => {
+    findOwnedDocument.mockResolvedValue({
+      id: 'orig-2',
+      displayNumber: 'FA-2026-0002',
+      channelProviderId: 'email',
+      data: { issueDate: '2026-09-02' },
+    });
+
+    const correctionData = { ...VALID_DATA, correctsInvoiceId: 'orig-2' };
+    const result = await fa3FormatProvider.build(
+      descriptor,
+      document(correctionData, 'FA-2026-0098'),
+      SELLER,
+      BUYER,
+      'company-1',
+    );
+
+    expect(result.validation.valid).toBe(true);
+    expect(result.validation.errors).toEqual([]);
+    const xml = new TextDecoder().decode(result.bytes);
+
+    expect(xml).toMatch(/<RodzajFaktury>KOR<\/RodzajFaktury>/);
+    expect(xml).toMatch(/<NrKSeFN>1<\/NrKSeFN>/);
+    expect(xml).not.toMatch(/<NrKSeFFaKorygowanej>/);
+    expect(listAuthorityEvents).not.toHaveBeenCalled();
+    // No `correctionReason` submitted — falls back to a generic, honest reason naming the corrected
+    // invoice, never an empty PrzyczynaKorekty.
+    expect(xml).toMatch(/<PrzyczynaKorekty>Korekta faktury FA-2026-0002<\/PrzyczynaKorekty>/);
+  });
+
+  it('refuses (never silently builds an ordinary invoice) when the original was submitted through KSeF but no CLEARED ksefNumber is on file yet', async () => {
+    findOwnedDocument.mockResolvedValue({
+      id: 'orig-3',
+      displayNumber: 'FA-2026-0003',
+      channelProviderId: 'ksef',
+      data: { issueDate: '2026-09-03' },
+    });
+    listAuthorityEvents.mockResolvedValue([]);
+
+    const correctionData = { ...VALID_DATA, correctsInvoiceId: 'orig-3' };
+    await expect(
+      fa3FormatProvider.build(descriptor, document(correctionData), SELLER, BUYER, 'company-1'),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('refuses when correctsInvoiceId is set but no companyId is supplied to the builder — an internal wiring gap, never a silent RodzajFaktury=VAT for data that flags a correction', async () => {
+    const correctionData = { ...VALID_DATA, correctsInvoiceId: 'orig-1' };
+    await expect(
+      fa3FormatProvider.build(descriptor, document(correctionData), SELLER, BUYER),
+    ).rejects.toThrow(BadRequestException);
+    expect(findOwnedDocument).not.toHaveBeenCalled();
+  });
+
+  it('an ORDINARY invoice (no correctsInvoiceId): byte-for-byte unaffected — RodzajFaktury=VAT, no KOR block, and the persistence/authority-events stores are never even touched', async () => {
+    const result = await fa3FormatProvider.build(
+      descriptor,
+      document(VALID_DATA),
+      SELLER,
+      BUYER,
+      'company-1',
+    );
+    expect(result.validation.valid).toBe(true);
+    const xml = new TextDecoder().decode(result.bytes);
+
+    expect(xml).toMatch(/<RodzajFaktury>VAT<\/RodzajFaktury>/);
+    expect(xml).not.toMatch(/PrzyczynaKorekty|DaneFaKorygowanej|NrKSeFN/);
+    expect(findOwnedDocument).not.toHaveBeenCalled();
+    expect(listAuthorityEvents).not.toHaveBeenCalled();
   });
 });

@@ -75,15 +75,43 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
   }
 }
 
+function isPresentValue(value: unknown): boolean {
+  return typeof value === "string" ? value.trim() !== "" : value != null
+}
+
 export function buildZodSchema(fields: DocumentFieldDescriptor[]) {
   const shape: Record<string, z.ZodTypeAny> = {}
+  // `requiredIfPresent` (types.ts) can't be expressed on a single field's own schema — it depends on
+  // a SIBLING field's value — so it's collected here and enforced by ONE `superRefine` on the whole
+  // object below, the same "one extra pass over the shape" approach every zod conditional-field
+  // recipe uses. Mirrors the backend's own `validateAgainstDescriptor#isRequiredFor` exactly (same
+  // predicate, same message shape) — this is client-side, in-form feedback ONLY; the backend is still
+  // the one authority (this file's own header).
+  const conditionallyRequired: { key: string; label: string; requiredIfPresent: string }[] = []
 
   for (const field of fields) {
     const schema = baseSchemaFor(field)
     shape[field.key] = field.required ? schema : schema.optional().nullable()
+    if (field.requiredIfPresent) {
+      conditionallyRequired.push({
+        key: field.key,
+        label: field.label,
+        requiredIfPresent: field.requiredIfPresent,
+      })
+    }
   }
 
-  return z.object(shape)
+  const base = z.object(shape)
+  if (conditionallyRequired.length === 0) return base
+
+  return base.superRefine((data, ctx) => {
+    const record = data as Record<string, unknown>
+    for (const { key, label, requiredIfPresent } of conditionallyRequired) {
+      if (!isPresentValue(record[requiredIfPresent])) continue
+      if (isPresentValue(record[key])) continue
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `"${label}" is required.` })
+    }
+  })
 }
 
 export function defaultValuesFor(fields: DocumentFieldDescriptor[]): Record<string, unknown> {

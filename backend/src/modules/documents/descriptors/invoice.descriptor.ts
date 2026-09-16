@@ -403,6 +403,31 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         entities: ['quote', 'invoice'],
         helpText: 'The quote or invoice this invoice was raised from, if any.',
       },
+      // `correctsInvoiceId` — DELIBERATELY a separate field from `origin` just above, not a reuse of
+      // it: `origin`'s own comment already documents that a bare "traces back to another invoice" link
+      // covers TWO different cases ("a corrective re-issue, a follow-up on a partial one") without
+      // judging which one applies — exactly the ambiguity a LEGAL correction cannot afford. This field
+      // means one thing only: this invoice IS a correction of the one it names, in the sense
+      // `correction-routes/data/pl.json`'s own `CORRECTIVE_INVOICE` route describes (Poland's post-
+      // clearance `faktura korygująca`, art. 106j ustawy o VAT — today the ONLY country whose format
+      // provider reads it, `formats/national/fa3-provider.ts`'s KOR mode; the field itself is trunk-
+      // level, structural, and country-blind, the same "an invoice can point at another invoice" fact
+      // `origin` already is, in case a second country's own correction mechanism needs the same link
+      // later). `entity: 'invoice'` (single-target, not `entities`) — a correction only ever points at
+      // ANOTHER INVOICE, never a quote, so there is no ambiguity for a multi-target value to resolve
+      // (see credit-note.descriptor.ts's own `invoice` field for the identical single-target reasoning).
+      // Optional: an ordinary, non-correcting invoice sets nothing here, ever — this is what keeps the
+      // whole KOR mechanism a no-op for every invoice that isn't one.
+      {
+        key: 'correctsInvoiceId',
+        kind: 'reference',
+        label: 'Corrects invoice',
+        required: false,
+        entity: 'invoice',
+        helpText:
+          "The invoice this one corrects, if any — a post-clearance correction (e.g. Poland's " +
+          'faktura korygująca). Leave empty for an ordinary invoice.',
+      },
       {
         key: 'issueDate',
         kind: 'date',

@@ -11,6 +11,16 @@ function isMissing(value: unknown): boolean {
   return value === undefined || value === null || value === '';
 }
 
+/** Whether `field` is required RIGHT NOW for this `data` — `required` (unconditional) OR
+ *  `requiredIfPresent` (conditional on a sibling field actually being set, see that hint's own
+ *  header in types.ts). Folded into ONE predicate so the ordinary "is this field required" check
+ *  below never has to know there are two different ways a field can end up that way. */
+function isRequiredFor(field: DocumentFieldDescriptor, data: Record<string, unknown>): boolean {
+  if (field.required) return true;
+  if (field.requiredIfPresent) return !isMissing(data[field.requiredIfPresent]);
+  return false;
+}
+
 /**
  * Validates `data` against `fields` — the ONLY place that knows how a document's data is checked
  * against its descriptor. Presence/required-ness is decided here, once, for every kind; a kind's
@@ -31,7 +41,7 @@ export function validateAgainstDescriptor(
     const value = data[field.key];
 
     if (isMissing(value)) {
-      if (field.required) {
+      if (isRequiredFor(field, data)) {
         errors.push({ key: field.key, message: `"${field.label}" is required.` });
       }
       continue;

@@ -52,6 +52,14 @@ export interface DocumentInstanceResult {
    *  transport has ever reported one for. Same "absent ≠ no reference, only that this result didn't
    *  carry it" convention `lastActionError` above already holds. */
   transportRef?: string | null;
+  /** See `DocumentInstance.channelProviderId`'s own schema comment — the transport ("ksef"/"pdp"/…)
+   *  that ACTUALLY delivered this document, or null/undefined for one email delivered (no concept of
+   *  a channel) or never sent at all. Read by `formats/national/fa3-kor.ts` to tell "sent through KSeF
+   *  but not yet CLEARED" (refuse — see that file's own header) apart from "genuinely never went
+   *  through KSeF at all" (the corrected invoice's own KOR falls back to the FA(3) schema's own
+   *  `NrKSeFN` marker, per art. 106j ust. 2 pkt 2a's own exception for exactly this case) — the same
+   *  "absent ≠ unset, only that this result didn't carry it" convention `transportRef` above holds. */
+  channelProviderId?: string | null;
 }
 
 /**

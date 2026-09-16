@@ -495,6 +495,20 @@ async function runInvoiceAtcudPreflight(companyId: string): Promise<void> {
 }
 
 /**
+ * NOTE on Poland's `correctionReason` (country-fields/data/pl.json): unlike ATCUD/cross-border-tax
+ * above, this needs NO dedicated preflight function here. `requiredIfPresent: "correctsInvoiceId"`
+ * (descriptors/types.ts) is read by `validateAgainstDescriptor` (descriptors/validate.ts), and
+ * `documents.service.ts#runAction` runs that validation against the MERGED (country-overlaid)
+ * descriptor for EVERY action — "save-draft" included — BEFORE any handler (this file's own or
+ * generic-actions.ts's) ever runs. A Polish invoice with `correctsInvoiceId` set and no
+ * `correctionReason` is therefore already refused (400, naming the field) at the generic gate, the
+ * SAME gate every other required field already goes through — confirmed empirically:
+ * `43-correction-routes.cy.ts`'s own Poland describe block posts exactly this shape at "save-draft"
+ * and gets the 400 there, "send" never even reached. A bespoke send-time guard here would be
+ * unreachable dead code, not a second layer of safety.
+ */
+
+/**
  * The invoice's OWN base descriptor, imported directly here rather than resolved through
  * `DocumentTypeRegistry` — deliberate, and only defensible because this file is ALREADY 100%
  * invoice-specific (every handler below hardcodes `'invoice'` as the typeId; unlike
@@ -632,6 +646,8 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
         // country; for Portugal, the LOAD-BEARING check (before `numberOnEnqueue` below can ever spend
         // a sequence number this codebase can never hand back — numbering/sequence.ts's own header).
         await runInvoiceAtcudPreflight(companyId);
+        // Poland's `correctionReason` — see this file's own NOTE just above `registerInvoiceActions`'s
+        // header: no dedicated preflight needed, the generic descriptor gate already enforces it.
         // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
         // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
         // `data`, so the record that just left "draft" already carries the resolved treatment, not

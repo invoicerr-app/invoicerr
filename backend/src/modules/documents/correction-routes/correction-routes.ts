@@ -44,27 +44,39 @@ export const CORRECTION_ROUTES_DATA_DIR_HINT = 'backend/src/modules/documents/co
  * about a STATUS can never accidentally change what the API claims is IMPLEMENTED, and vice versa.
  *
  * DELIBERATELY NOT `AUTHORITY_ANNULMENT` — no channel this repo wires (KSeF/SdI/PDP) has an
- * annulment OPERATION behind it today, for ANY country, `required` or not — nor `CANCEL_AND_REPLACE`
- * as a BLANKET entry here: unlike INTERNAL_CREDIT_NOTE (the
- * credit-note screen works identically for every country), whether a local cancel is genuinely
- * implementable for CANCEL_AND_REPLACE differs PER COUNTRY (two of the seven pivots declare it
- * `required` with no real mechanism behind it — see cancel-policy.ts's own header) — `isImplemented`
- * below asks `cancel-policy.ts`'s own per-country decision for that ONE route id instead of trusting a
- * flat, country-blind set the way this one still can for INTERNAL_CREDIT_NOTE.
+ * annulment OPERATION behind it today, for ANY country, `required` or not — nor `CANCEL_AND_REPLACE`/
+ * `CORRECTIVE_INVOICE` as BLANKET entries here: unlike INTERNAL_CREDIT_NOTE (the
+ * credit-note screen works identically for every country), whether a real mechanism grounds these two
+ * differs PER COUNTRY — `isImplemented` below asks a per-country decision for both instead of trusting
+ * a flat, country-blind set the way this one still can for INTERNAL_CREDIT_NOTE.
  */
 const IMPLEMENTED_ROUTE_IDS: ReadonlySet<CorrectionRouteId> = new Set(['INTERNAL_CREDIT_NOTE']);
 
 /**
+ * `CORRECTIVE_INVOICE` is genuinely wired for Poland ONLY: `descriptors/invoice.descriptor.ts`'s own
+ * `correctsInvoiceId` field creates the linked invoice, `formats/national/fa3-provider.ts` builds it
+ * as a real `RodzajFaktury = KOR` FA(3) document (`fa3-kor.ts`), and `transports/ksef-transport.ts`
+ * submits it — the whole point of THIS particular route being the one Poland's own law actually
+ * requires (`correction-routes/data/pl.json`'s own `CORRECTIVE_INVOICE`, `status: 'required'`). No
+ * other country's format provider reads `correctsInvoiceId` at all today, even though DE/FR/PT also
+ * declare this route (`required`/`allowed`) in their own files — an honest, named gap, not a silent
+ * over-claim: this predicate is the ONE place that decides it, the same role it already plays for
+ * `CANCEL_AND_REPLACE` just below.
+ */
+const CORRECTIVE_INVOICE_IMPLEMENTED_COUNTRIES: ReadonlySet<string> = new Set(['PL']);
+
+/**
  * `implemented`'s real computation — see `IMPLEMENTED_ROUTE_IDS`'s own header for why
- * `CANCEL_AND_REPLACE` alone needs the country, not just the route id. Calls `cancel-policy.ts`'s own
- * `resolveCancelPolicyForCountry` directly (never a locally-cached copy of its whitelist) so THIS read
- * path gets the exact same data-drift cross-check `documents.service.ts#runAction`'s own "cancel" gate
- * already gets — a country file edited without revisiting `cancel-policy.ts`'s whitelist fails loudly
- * here too, the moment a caller so much as LISTS the routes, not only once someone actually tries to
- * cancel.
+ * `CANCEL_AND_REPLACE`/`CORRECTIVE_INVOICE` alone need the country, not just the route id. Calls
+ * `cancel-policy.ts`'s own `resolveCancelPolicyForCountry` directly (never a locally-cached copy of
+ * its whitelist) so THIS read path gets the exact same data-drift cross-check
+ * `documents.service.ts#runAction`'s own "cancel" gate already gets — a country file edited without
+ * revisiting `cancel-policy.ts`'s whitelist fails loudly here too, the moment a caller so much as
+ * LISTS the routes, not only once someone actually tries to cancel.
  */
 function isImplemented(routeId: CorrectionRouteId, countryCode: string): boolean {
   if (routeId === 'CANCEL_AND_REPLACE') return resolveCancelPolicyForCountry(countryCode).allowed;
+  if (routeId === 'CORRECTIVE_INVOICE') return CORRECTIVE_INVOICE_IMPLEMENTED_COUNTRIES.has(countryCode);
   return IMPLEMENTED_ROUTE_IDS.has(routeId);
 }
 

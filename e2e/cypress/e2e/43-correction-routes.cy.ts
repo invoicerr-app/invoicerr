@@ -660,3 +660,287 @@ describe("Cancellation — a country that grounds it, a country that doesn't", (
 		});
 	});
 });
+
+/**
+ * Poland's faktura korygująca (the KOR pattern) — CORRECTIVE_INVOICE, genuinely implemented for a
+ * Polish seller only (`correction-routes.ts#isImplemented`, country-aware exactly like
+ * CANCEL_AND_REPLACE above). Same country switch as `44-country-policy.cy.ts`'s own "THE UNBLOCKING"
+ * (a Polish company FROM ITS OWN CREATION, `country: "Poland"`/`countryCode: "PL"`), and the same
+ * "email" transport — `KSEF_AUTH_TOKEN` is absent from this environment, so a REAL KSeF round-trip
+ * (and therefore the actual `RodzajFaktury = KOR` XML this correction eventually builds) is NOT
+ * provable here; that half is covered by the REAL vendored `schemat_FA3.xsd`, against real fixtures,
+ * in `backend/src/modules/documents/formats/national/fa3-provider.spec.ts` and `fa3-kor.spec.ts`.
+ * This spec proves what the SCREEN can prove without KSeF: the route is offered and genuinely
+ * implemented, choosing it opens the REAL invoice-creation screen pre-linked (never a stub), and
+ * Poland's own conditionally-required "Correction reason" field (country-fields/data/pl.json) shows
+ * up and is actually required once `correctsInvoiceId` resolves.
+ */
+describe("Correction routes — Poland's faktura korygująca (the KOR route)", () => {
+	before(() => {
+		cy.resetAndSeed();
+
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: {
+				name: "Acme Corp",
+				country: "Poland",
+				countryCode: "PL",
+				invoiceTransportId: "email",
+			},
+		}).then((res) => {
+			expect(res.status, "pays vendeur réglé sur la Pologne dès la création").to.be.oneOf([
+				200, 201,
+			]);
+		});
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	function createPolishClient(name: string) {
+		return cy
+			.request({
+				method: "POST",
+				url: `${api}/api/clients`,
+				body: {
+					name,
+					contactEmail: "klient.korekta@example.com",
+					address: "ul. Przykładowa 1",
+					postalCode: "00-001",
+					city: "Warszawa",
+					country: "Poland",
+					countryCode: "PL",
+					currency: "EUR",
+					isActive: true,
+				},
+			})
+			.then((res) => {
+				expect(res.status, "client polonais créé par API").to.be.oneOf([200, 201]);
+				const id = res.body?.id as string;
+				expect(id, "le client créé a un identifiant").to.be.a("string");
+				return id;
+			});
+	}
+
+	function polishInvoiceData(clientId: string) {
+		return {
+			client: clientId,
+			issueDate: "2026-09-03",
+			dueDate: "2026-10-03",
+			currency: "EUR",
+			lines: [
+				{
+					description: "Usługi doradcze",
+					quantity: 1,
+					unit: "day",
+					unitPrice: 1000,
+					vatRate: "23",
+				},
+			],
+		};
+	}
+
+	it("CORRECTIVE_INVOICE is required by Polish law AND genuinely implemented — clicking it opens the REAL invoice screen, pre-linked to the corrected invoice, and Poland's own conditionally-required \"Correction reason\" field shows up (required only because this invoice corrects another)", () => {
+		createPolishClient("Klient Korekta Sp. z o.o.").then((clientId) => {
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data: polishInvoiceData(clientId) },
+			}).then((saved) => {
+				expect(saved.status, "brouillon de la facture originale créé").to.be.oneOf([200, 201]);
+				const originalId = saved.body?.document?.id as string;
+				expect(originalId, "la facture originale a un identifiant").to.be.a("string");
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/send`,
+					body: { documentId: originalId, data: polishInvoiceData(clientId) },
+				}).then((res) => {
+					expect(
+						res.status,
+						"la facture originale part (email — aucun canal n'est mandaté en Pologne)",
+					).to.be.oneOf([200, 201]);
+				});
+
+				cy.visit("/documents/invoice");
+				cy.get(`[data-cy="document-correction-button-${originalId}"]`, {
+					timeout: 20000,
+				}).click({ force: true });
+				cy.get('[data-cy="document-correction-dialog"]', { timeout: 5000 }).should(
+					"be.visible",
+				);
+
+				// The imposed route: status AND its own real mechanism, never the "not implemented" panel.
+				cy.get(
+					'[data-cy="document-correction-route-CORRECTIVE_INVOICE-status"]',
+				).should("contain.text", "Required by law");
+				cy.get(
+					'[data-cy="document-correction-route-CORRECTIVE_INVOICE-button"]',
+				)
+					.should("not.be.disabled")
+					.click();
+
+				// THE REAL mechanism, pre-linked — never a stub: navigation to the INVOICE screen (never
+				// credit-note: Poland has no separate credit-note instrument, correction-routes/data/pl.json's
+				// own CREDIT_NOTE citation), a fresh create dialog opens.
+				cy.location("pathname", { timeout: 10000 }).should("eq", "/documents/invoice");
+				cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
+					"be.visible",
+				);
+
+				// Details: client / issueDate / dueDate / currency — every field this descriptor
+				// REQUIRES (`correctsInvoiceId` itself is optional at the descriptor level, so it does
+				// NOT land here — see document-create-dialog.tsx's own buildFieldGroups).
+				cy.get('[data-cy="document-field-client-input"] button')
+					.first()
+					.click({ force: true });
+				cy.get('[data-cy="document-field-client-input-options"]', {
+					timeout: 10000,
+				}).should("be.visible");
+				cy.contains(
+					'[data-cy="document-field-client-input-options"] button',
+					"Klient Korekta",
+				).click();
+				cy.pickToday('[data-cy="document-field-issueDate-input"]');
+				cy.pickToday('[data-cy="document-field-dueDate-input"]');
+				cy.get('[data-cy="document-field-currency-input"] button')
+					.first()
+					.click({ force: true });
+				cy.get('[data-cy="document-field-currency-input-options"]', {
+					timeout: 10000,
+				}).should("be.visible");
+				cy.get('[data-cy^="document-field-currency-input-option-eur"]')
+					.first()
+					.click();
+				cy.continueDocumentWizard(); // Details -> Lines
+
+				cy.get('[data-cy="document-field-lines-add-row"]').click();
+				cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
+				cy.get('input[name="lines.0.description"]').type("Korekta ilości", {
+					force: true,
+				});
+				cy.get('input[name="lines.0.quantity"]')
+					.clear({ force: true })
+					.type("1", { force: true });
+				cy.get('input[name="lines.0.unit"]').type("dzień", { force: true });
+				cy.get('input[name="lines.0.unitPrice"]')
+					.clear({ force: true })
+					.type("1000", { force: true });
+				// The VAT rate is a real SearchSelect for Poland (vat-rates/data/pl.json ships a
+				// catalog) — "23% — Stawka podstawowa" is that catalog's own label for the standard rate.
+				cy.get('[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button')
+					.last()
+					.click({ force: true });
+				cy.get('[data-cy$="-input-options"]', { timeout: 10000 }).should(
+					"be.visible",
+				);
+				cy.contains('[data-cy*="-option-"]', /23\s?%/)
+					.first()
+					.click();
+				cy.continueDocumentWizard(); // Lines -> Options
+
+				// Options: correctsInvoiceId (pre-linked, resolved to a label — never a bare id or an
+				// empty picker) and Poland's own correctionReason, REQUIRED (the asterisk this app
+				// renders for `field.required`/conditionally-`requiredIfPresent` alike, form.tsx's own
+				// FormLabel) ONLY because correctsInvoiceId is now set — an ordinary Polish invoice
+				// would never show this field as required.
+				cy.get('[data-cy="document-field-correctsInvoiceId-input"] button', {
+					timeout: 10000,
+				}).should("contain.text", "Klient Korekta");
+				cy.get('[data-cy="document-field-correctionReason"]').should(
+					"contain.text",
+					"*",
+				);
+				cy.get('[data-cy="document-field-correctionReason-input"]').type(
+					"Erreur de quantité sur la ligne 1",
+					{ force: true },
+				);
+				cy.continueDocumentWizard(); // Options -> Recap
+
+				cy.intercept(
+					"POST",
+					`${api}/api/documents/types/invoice/actions/save-draft`,
+				).as("saveCorrectionDraft");
+				cy.get('[data-cy="document-action-save-draft"]')
+					.scrollIntoView()
+					.click();
+				cy.wait("@saveCorrectionDraft").then((interception) => {
+					expect(
+						interception.response?.statusCode,
+						"la facture de correction se crée",
+					).to.be.oneOf([200, 201]);
+					const correctionId = interception.response?.body?.document?.id as string;
+					expect(correctionId, "la facture de correction a un identifiant").to.be.a(
+						"string",
+					);
+					expect(correctionId).not.to.eq(originalId);
+
+					// The proof that matters, read back via the API: the correction is genuinely
+					// LINKED to the original, and carries the reason typed on screen.
+					cy.request({
+						url: `${api}/api/documents/${correctionId}?typeId=invoice`,
+					})
+						.its("body")
+						.then((doc) => {
+							expect(
+								doc.data?.correctsInvoiceId,
+								"la nouvelle facture est bien liée à la facture originale",
+							).to.eq(originalId);
+							expect(
+								doc.data?.correctionReason,
+								"le motif tapé à l'écran est bien persisté",
+							).to.eq("Erreur de quantité sur la ligne 1");
+						});
+				});
+			});
+		});
+	});
+
+	it("the server-side guard: a correction invoice with correctsInvoiceId set but NO correctionReason is refused, naming the field — never silently accepted, and the block fires as early as \"save-draft\" (the generic requiredIfPresent gate every action already runs through — documents.service.ts#runAction — not a bespoke send-time check)", () => {
+		createPolishClient("Klient Sans Motif Sp. z o.o.").then((clientId) => {
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data: polishInvoiceData(clientId) },
+			}).then((saved) => {
+				const originalId = saved.body?.document?.id as string;
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/send`,
+					body: { documentId: originalId, data: polishInvoiceData(clientId) },
+				});
+
+				// The correction invoice itself — a scripted client bypassing the screen entirely,
+				// correctsInvoiceId set, correctionReason deliberately left OUT.
+				const correctionData = { ...polishInvoiceData(clientId), correctsInvoiceId: originalId };
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data: correctionData },
+					failOnStatusCode: false,
+				}).then((res) => {
+					expect(
+						res.status,
+						"400 nommé dès save-draft — jamais un brouillon accepté avec un motif manquant",
+					).to.eq(400);
+					expect(JSON.stringify(res.body)).to.match(/[Cc]orrection reason/);
+				});
+
+				// Filled in, the SAME request succeeds — proving the gate is genuinely conditional, not
+				// an unconditional block on correctsInvoiceId itself.
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data: { ...correctionData, correctionReason: "Erreur de quantité" } },
+				}).then((res) => {
+					expect(
+						res.status,
+						"le même brouillon, motif rempli, se crée normalement",
+					).to.be.oneOf([200, 201]);
+				});
+			});
+		});
+	});
+});

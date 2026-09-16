@@ -25,10 +25,10 @@
       "status": "required",
       "provenance": {
         "kind": "legal",
-        "sourceText": "« podatnik WYSTAWIA fakturę korygującą » — obligation, pas faculté, pour les 5 cas de l'art. 106j ust. 1, dont pkt 5 « stwierdzono pomyłkę w jakiejkolwiek pozycji faktury ». Deux verrous de forme s'y ajoutent : ust. 2 pkt 2a impose d'y porter le numéro KSeF de la facture corrigée, ust. 4 impose la forme structurée. Source : Art. 106j ust. 1, ust. 2 pkt 2a, ust. 4 (remplacé au 2026-02-01 par Dz.U. 2025 poz. 1203 art. 1 pkt 4).",
-        "sourceCheckedAt": "2026-08-29"
+        "sourceText": "« podatnik WYSTAWIA fakturę korygującą » — obligation, pas faculté, pour les 5 cas de l'art. 106j ust. 1, dont pkt 5 « stwierdzono pomyłkę w jakiejkolwiek pozycji faktury ». Un verrou de forme s'y ajoute : ust. 2 pkt 2a impose d'y porter le numéro KSeF de la facture corrigée — SAUF, exception statutaire lue dans le même point : « z wyjątkiem faktur korygujących wystawianych do faktur, dla których nie został nadany numer identyfikujący w Krajowym Systemie e-Faktur » (« sauf pour les factures correctives visant des factures auxquelles aucun numéro KSeF n'a été attribué »), et ust. 4 impose la forme structurée. Source : Art. 106j ust. 1, ust. 2 pkt 2a (avec son exception), ust. 4 — ustawa o VAT, tekst jednolity Dz.U. 2025 poz. 775 (isap.sejm.gov.pl, vérifié 2026-09-16, texte brut).",
+        "sourceCheckedAt": "2026-09-16"
       },
-      "notes": "This is THE Polish route (switchover on 2026-02-01, repeal of art. 106k, the buyer's own nota korygująca disappears — see the YAML's own headline)."
+      "notes": "This is THE Polish route (switchover on 2026-02-01, repeal of art. 106k, the buyer's own nota korygująca disappears — see the YAML's own headline). IMPLEMENTED as of 2026-09-16 (KOR pattern) — `correctsInvoiceId` (descriptors/invoice.descriptor.ts) links the correction to the original invoice; `formats/national/fa3-provider.ts` builds it as a real `RodzajFaktury = KOR` FA(3) document, choosing between the schema's own `NrKSeF`/`NrKSeFN` branches per the exception this citation now carries (see `formats/national/fa3-kor.ts`'s own header); `transports/ksef-transport.ts` submits it like any other FA(3). The screen: the SAME 'Correct' dialog every route already uses (custom/invoice-correction-routes-button.tsx) navigates to the invoice creation screen pre-linked, where Poland's own `country-fields/data/pl.json` overlay adds a conditionally-required `correctionReason` field. `correctionReason` itself is a PRODUCT choice, not this citation's own legal claim — see that overlay file's own header: art. 106j ust. 2a leaves the reason optional."
     },
     {
       "routeId": "CANCEL_AND_REPLACE",

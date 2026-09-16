@@ -273,6 +273,23 @@ export interface DocumentFieldDescriptor {
   kind: string;
   label: string;
   required?: boolean;
+  /**
+   * Makes this field required ONLY once a named SIBLING field (elsewhere in the SAME document) is
+   * itself present — e.g. a correction invoice's own `correctionReason` (`country-fields/data/pl.json`),
+   * required on THIS SCREEN once `correctsInvoiceId` actually names an original invoice (a product
+   * choice, not a legal one — see that file's own header for why art. 106j ustawy o VAT leaves the
+   * reason OPTIONAL); an ordinary, non-correcting Polish invoice needs no reason at all, so
+   * `required: true` unconditionally would be over-broad (forcing every invoice, correcting or not, to
+   * carry one). This is the conditional counterpart to `required` above — the two are never
+   * both meaningful at once (an unconditionally required field has no business also naming a sibling
+   * that could excuse it), but nothing here enforces that mutual exclusion; a descriptor author simply
+   * has no reason to set both. `descriptors/validate.ts#validateAgainstDescriptor` is the ONE place
+   * that reads this (folded into the same "is this field required right now" decision `required`
+   * already drives), so a scripted client posting a mismatched submission is refused server-side
+   * exactly like any other required-field gap — the frontend's own visual "required" marker
+   * (field-renderers/primitive-fields.tsx) is the screen convenience on top, never the enforcement.
+   */
+  requiredIfPresent?: string;
   helpText?: string;
   /**
    * "client reference / PO number" — ANY kind, not just this field's

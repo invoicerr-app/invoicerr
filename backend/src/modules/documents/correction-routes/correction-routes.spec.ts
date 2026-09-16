@@ -46,7 +46,7 @@ describe('resolveCorrectionRoutesForCountry', () => {
     expect(route.label).toMatch(/^unverified — /);
   });
 
-  it('every route across all five shipped countries is implemented=false EXCEPT INTERNAL_CREDIT_NOTE (always) and CANCEL_AND_REPLACE (country-aware) — the hard, honest mapping', () => {
+  it('every route across all five shipped countries is implemented=false EXCEPT INTERNAL_CREDIT_NOTE (always), CANCEL_AND_REPLACE (country-aware) and CORRECTIVE_INVOICE (Poland only) — the hard, honest mapping', () => {
     // FR/DE ground an unrestricted local cancel, IT a narrower one (see cancel-policy.ts's own
     // header) — PL/PT do NOT, despite PL declaring CANCEL_AND_REPLACE `required` (the exact nuance
     // cancel-policy.ts's whitelist exists to hold). (ES/MX/US used to widen this same set — all three
@@ -59,6 +59,8 @@ describe('resolveCorrectionRoutesForCountry', () => {
           expect(route.implemented).toBe(true);
         } else if (route.routeId === 'CANCEL_AND_REPLACE') {
           expect(route.implemented).toBe(localCancelCountries.has(countryCode));
+        } else if (route.routeId === 'CORRECTIVE_INVOICE') {
+          expect(route.implemented).toBe(countryCode === 'PL');
         } else {
           expect(route.implemented).toBe(false);
         }
@@ -75,6 +77,19 @@ describe('resolveCorrectionRoutesForCountry', () => {
     for (const countryCode of ['PL', 'PT']) {
       const decision = resolveCorrectionRoutesForCountry(countryCode)!;
       const route = decision.routes.find((r) => r.routeId === 'CANCEL_AND_REPLACE')!;
+      expect(route.implemented).toBe(false);
+    }
+  });
+
+  it('CORRECTIVE_INVOICE (the KOR pattern) is implemented for PL only — DE/FR/PT declare it too (required/allowed) but have no real KOR-equivalent mechanism wired', () => {
+    const pl = resolveCorrectionRoutesForCountry('PL')!;
+    const plRoute = pl.routes.find((r) => r.routeId === 'CORRECTIVE_INVOICE')!;
+    expect(plRoute.status).toBe('required');
+    expect(plRoute.implemented).toBe(true);
+
+    for (const countryCode of ['FR', 'DE', 'PT']) {
+      const decision = resolveCorrectionRoutesForCountry(countryCode)!;
+      const route = decision.routes.find((r) => r.routeId === 'CORRECTIVE_INVOICE')!;
       expect(route.implemented).toBe(false);
     }
   });

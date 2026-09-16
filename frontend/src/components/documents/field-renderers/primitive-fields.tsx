@@ -23,10 +23,11 @@ function FieldChrome({
   field,
   children,
   note,
-}: Pick<FieldRendererProps, "field"> & { children: React.ReactNode; note?: string }) {
+  required,
+}: Pick<FieldRendererProps, "field"> & { children: React.ReactNode; note?: string; required?: boolean }) {
   return (
     <FormItem data-cy={`document-field-${field.key}`}>
-      <FormLabel required={field.required}>{field.label}</FormLabel>
+      <FormLabel required={required ?? field.required}>{field.label}</FormLabel>
       <FormControl>{children}</FormControl>
       {field.helpText && <FormDescription>{field.helpText}</FormDescription>}
       {/* The ONLY caller today is SelectField's own `lockedFromReference`
@@ -38,14 +39,35 @@ function FieldChrome({
   )
 }
 
+function isPresentValue(value: unknown): boolean {
+  return typeof value === "string" ? value.trim() !== "" : value != null
+}
+
+/** `requiredIfPresent` (DocumentFieldDescriptor, backend types.ts): this field is required only once
+ *  a named SIBLING field is itself set — e.g. a Polish correction invoice's own `correctionReason`,
+ *  required the moment `correctsInvoiceId` resolves (country-fields/data/pl.json). Watches a dummy,
+ *  never-real field name when the hint is absent so the `watch()` call itself stays unconditional
+ *  (react-hook-form's own hook-order requirement) without ever subscribing to the WHOLE form the way
+ *  `watch()` with no argument at all would. This is a SCREEN convenience only — the backend's own
+ *  `descriptors/validate.ts#validateAgainstDescriptor` (which every action already runs against, per
+ *  `documents.service.ts#runAction`) is what actually enforces it, the same "never trusted alone"
+ *  split every other conditional guard in this module already holds. */
+function useConditionallyRequired(field: FieldRendererProps["field"]): boolean {
+  const { watch } = useFormContext()
+  const siblingValue = watch(field.requiredIfPresent || "__requiredIfPresent_unset__")
+  if (field.required) return true
+  return !!field.requiredIfPresent && isPresentValue(siblingValue)
+}
+
 export function TextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
+  const required = useConditionallyRequired(field)
   return (
     <FormField
       control={control}
       name={name}
       render={({ field: rhfField }) => (
-        <FieldChrome field={field}>
+        <FieldChrome field={field} required={required}>
           <BetterInput
             {...rhfField}
             value={rhfField.value ?? ""}
