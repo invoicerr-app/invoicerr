@@ -250,8 +250,15 @@ describe("Per-company SSO — configuration screen", () => {
 		cy.contains('[data-cy="sso-domain-row"]', UNVERIFIABLE_DOMAIN, { timeout: 15000 })
 			.find('[data-cy="sso-domain-menu"]')
 			.click();
-		cy.wait(50);
-		cy.get('[data-cy="sso-domain-remove-button"]').click();
+		// A fixed `cy.wait(50)` here either wastes time (the menu usually opens well under that) or,
+		// under CI contention, is not enough. A standalone `.should("be.visible")` assertion is NOT
+		// the right bounded-wait substitute here, though (tried, and it failed reliably): this menu's
+		// Radix `DropdownMenuContent` renders in a `position: fixed` portal, and Cypress's own
+		// visibility algorithm judged the item "overflowed" there even right after opening, while a
+		// bare `.click()` — which runs the SAME actionability wait (retries, auto-scrolls) as part of
+		// clicking, not as a separate assertion — has always worked. So the bounded, event-driven
+		// wait is `.click()`'s own default retry, just given a longer budget than its normal 4s.
+		cy.get('[data-cy="sso-domain-remove-button"]', { timeout: 10000 }).click({ timeout: 10000 });
 
 		cy.contains('[data-cy="sso-domain-row"]', UNVERIFIABLE_DOMAIN).should("not.exist");
 

@@ -9,7 +9,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set, so `/api/billing/*` (and this whole tab) does not
  * exist at all on the ordinary CI stack.
  *
- * Seat QUANTITY is never pushed to Polar by this app (`backend/seat-sync.ts`'s own header) — it only
+ * Seat QUANTITY is never pushed to Polar by this app (`backend/src/modules/billing/seat-sync.ts`'s
+ * own header) — it only
  * ever reads what Polar says (a `subscription.*` webhook, or `seat-reconcile.ts`'s own SDK read).
  * `cy.task('setCompanySubscriptionSeats', ...)` stands in for that read, the same "write the row a
  * real event would otherwise set" shape `setStaleLegalAcceptance` already holds for `LegalAcceptance`.

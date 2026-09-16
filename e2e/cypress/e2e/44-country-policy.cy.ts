@@ -96,6 +96,14 @@ function createInvoiceDraft(clientId: string) {
 }
 
 describe("Country policy — Poland can now issue, and its own sourced restriction blocks where KSeF says so", () => {
+	// `invoiceId` is set by the FIRST test below and read by the SECOND — a sequential business
+	// narrative sharing one document, deliberately, the same house convention
+	// `scenarios/full-lifecycle.cy.ts` (and dozens of other numbered specs — 43/66 among them) already
+	// use rather than each `it` re-deriving its own fixture from scratch. This means the second test
+	// cannot run meaningfully in isolation (`it.only`, a name-grep, or a re-ordered file) — but nothing
+	// this suite's own documented tooling does ever runs a single `it` out of a spec: every command in
+	// CLAUDE.md's E2E section runs a WHOLE spec file (`npx cypress run --spec
+	// "cypress/e2e/44-country-policy.cy.ts"`), in file order, every time.
 	let invoiceId: string;
 
 	before(() => {

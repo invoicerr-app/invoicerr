@@ -96,9 +96,25 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 	it("an empty PDP inbox: the real sweep runs and imports nothing", () => {
 		cy.task("setFakePdpInbox", []);
 		cy.task("triggerPdpReceptionSweep");
-		// No positive wait to prove a negative reliably — a short settle time, then the list must
-		// still be empty. The two legs below are the real, positive proof the sweep DOES import.
-		cy.wait(1500);
+		// An empty `listReceivedInvoices()` result alone cannot distinguish "the sweep ran and
+		// genuinely found nothing" from "the sweep never started at all" — both look identical. Poll
+		// the fake PDP server's own request counter instead: it only increments on a REAL hit to the
+		// "list inbound invoices" endpoint, so a nonzero count is proof `PdpReceptionSweepRunner`
+		// actually reached the network, not merely that no row got written. Same bounded-poll shape
+		// `waitForPdpImport` below already holds for the identical "an async worker will eventually do
+		// X" problem.
+		function pollForSweepToRun(attemptsLeft: number): Cypress.Chainable<number> {
+			return cy.task<number>("getFakePdpListCallCount").then((count) => {
+				if (count > 0 || attemptsLeft <= 0) return cy.wrap(count);
+				cy.wait(200);
+				return pollForSweepToRun(attemptsLeft - 1);
+			});
+		}
+		pollForSweepToRun(20).then((count) => {
+			expect(count, "the real sweep actually called the fake PDP's list endpoint — not just a no-op").to.be.greaterThan(
+				0,
+			);
+		});
 		listReceivedInvoices().should("have.length", 0);
 	});
 
@@ -148,7 +164,11 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 
 			cy.visit("/documents/received-invoice");
 			cy.runDocumentRowAction(id, "approve");
-			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+			// `received-invoice-actions.ts#registry.register('received-invoice', 'approve', ...)` returns
+			// `message: 'Approved.'`, echoed VERBATIM by the toast (`use-document-action-runner.ts`'s own
+			// `toast.success(result.message ?? ...)`) — a bare `.should("exist")` would stay green for
+			// ANY toast, including an error one fired by an unrelated, still-in-flight request.
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "Approved.");
 			cy.get(`[data-cy="document-list-row-${id}"]`)
 				.find('[data-cy="document-status-badge"]')
 				.should("contain.text", "Approved");

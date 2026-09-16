@@ -142,8 +142,11 @@ describe('Legal archiving ⚖ — hash, date, verification and FR retention, pro
 			cy.request({ url: `${api}/api/documents/${invoiceId}/archives?typeId=invoice` })
 				.its("body")
 				.then((archives: DocumentArchive[]) => {
-					expect(archives, "au moins une archive pour cette facture envoyée").to.have.length.greaterThan(
-						0,
+					// Exactly one — never merely "at least one": this invoice was sent exactly ONCE, and
+					// a `length.greaterThan(0)` check would stay green even for a double archive (an
+					// on-terminal hook firing twice, or a retry) going unnoticed.
+					expect(archives, "une seule archive pour cette facture envoyée une seule fois").to.have.length(
+						1,
 					);
 					const archive = archives[0];
 					expect(archive.contentHash, "un hash SHA-256 réel").to.match(/^[0-9a-f]{64}$/);

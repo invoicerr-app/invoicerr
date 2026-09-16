@@ -83,6 +83,12 @@ interface FakePdpInboundInvoice {
 let fakePdpServerUrl: string | null = null;
 let fakePdpInbox: FakePdpInboundInvoice[] = [];
 const fakePdpLifecycleEvents: Array<{ invoiceId: string; code: string }> = [];
+// Counts real hits to the "list inbound invoices" endpoint — `74-received-invoice-inbound.cy.ts`'s
+// own "empty inbox" test needs to tell "the sweep ran and genuinely found nothing" apart from "the
+// sweep never ran at all" (an empty `listReceivedInvoices()` result looks identical either way). A
+// count that actually incremented is proof the REAL `PdpReceptionSweepRunner` reached this fake
+// server over the network, not merely that no row got written.
+let fakePdpListCallCount = 0;
 
 function startFakePdpServer(): Promise<string> {
   if (fakePdpServerUrl) return Promise.resolve(fakePdpServerUrl);
@@ -97,6 +103,7 @@ function startFakePdpServer(): Promise<string> {
       }
 
       if (req.method === "GET" && url.pathname === "/v1.beta/invoices" && url.searchParams.get("direction") === "in") {
+        fakePdpListCallCount += 1;
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -333,108 +340,16 @@ export default defineConfig({
           }
         },
 
-        /**
-         * F-008 — put an invoice into an authority-failure state so the SCREEN can be asserted.
-         *
-         * Driving this through a real authority is impossible offline: no channel has credentials
-         * in CI, which is the whole of F-009/F-013. The backend projection that writes these rows
-         * is covered by 19 jest tests in apply-signal-reject-projection.spec.ts; what no jest test
-         * can cover is whether the invoice list and detail view actually SHOW the failure, which is
-         * the finding. So this task writes exactly what ApplySignalService writes — the invoice
-         * status, plus a compliance document carrying the authority's wording on its event — and
-         * the spec asserts what the user sees.
-         *
-         * It writes the same shape, not a convenient one: if the projection's output changes, this
-         * task has to change with it, and the spec fails until it does.
-         */
-        async failLastInvoice({ status, detail }: { status: string; detail: string }) {
-          const client = new Client({
-            connectionString:
-              process.env.DATABASE_URL ||
-              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
-          });
-          await client.connect();
-          try {
-            const { rows } = await client.query(
-              `SELECT id FROM "Invoice" ORDER BY "createdAt" DESC LIMIT 1`,
-            );
-            if (rows.length === 0) throw new Error("failLastInvoice: no invoice to fail");
-            const invoiceId = rows[0].id as string;
-            const documentId = `e2e-doc-${invoiceId}`;
-
-            await client.query(`UPDATE "Invoice" SET status = $1::"InvoiceStatus" WHERE id = $2`, [
-              status,
-              invoiceId,
-            ]);
-            await client.query(
-              `INSERT INTO "ComplianceDocument" (id, "invoiceId", status, ctx, "updatedAt")
-               VALUES ($1, $2, $3::"ComplianceStatus", '{}'::jsonb, now())
-               ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status`,
-              [documentId, invoiceId, status],
-            );
-            // A unique id per call: the same invoice is deliberately driven through several
-            // failure states in one spec, and a fixed id collided on the primary key the second
-            // time round.
-            await client.query(
-              `INSERT INTO "ComplianceEvent" (id, "documentId", type, actor, detail)
-               VALUES (gen_random_uuid()::text, $1, 'REJECT', 'system', $2)`,
-              [documentId, detail],
-            );
-            return invoiceId;
-          } finally {
-            await client.end();
-          }
-        },
-
-        /**
-         * Read back everything the compliance layer recorded for one invoice.
-         *
-         * The transmission reference an authority hands back — for the FR PDP,
-         * `"<companyId>|<superpdp invoice id>"` — is on no HTTP response. `POST /api/invoices/send`
-         * answers `{ delivered: false }` and nothing else, because the send is queued; the ref
-         * arrives later and is written to `ScheduledJob.ref` (the poll job) and to
-         * `ComplianceCallbackRegistration.correlationKey`. Neither table is exposed by
-         * `GET /api/invoices/:id`.
-         *
-         * So the only way to assert "the platform really answered, and this is the number it gave"
-         * is to read the rows the runtime wrote. That is the FACT; the invoice screen's wording,
-         * which lags a queue, is not.
-         */
-        async complianceRefs(invoiceId: string) {
-          const client = new Client({
-            connectionString:
-              process.env.DATABASE_URL ||
-              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
-          });
-          await client.connect();
-          try {
-            const { rows: docs } = await client.query(
-              `SELECT id, status, number, kind FROM "ComplianceDocument" WHERE "invoiceId" = $1`,
-              [invoiceId],
-            );
-            if (docs.length === 0) return null;
-            const documentId = docs[0].id as string;
-            const { rows: events } = await client.query(
-              `SELECT type, detail, at FROM "ComplianceEvent" WHERE "documentId" = $1 ORDER BY at`,
-              [documentId],
-            );
-            const { rows: jobs } = await client.query(
-              `SELECT kind, status, "providerId", ref, awaiting FROM "ScheduledJob" WHERE "documentId" = $1`,
-              [documentId],
-            );
-            const { rows: callbacks } = await client.query(
-              `SELECT channel, "correlationKey", awaiting, status FROM "ComplianceCallbackRegistration" WHERE "documentId" = $1`,
-              [documentId],
-            );
-            const { rows: authorityIds } = await client.query(
-              `SELECT scheme, value FROM "ComplianceAuthorityId" WHERE "documentId" = $1`,
-              [documentId],
-            );
-            return { ...docs[0], events, jobs, callbacks, authorityIds };
-          } finally {
-            await client.end();
-          }
-        },
+        // `failLastInvoice` and `complianceRefs` used to live here — Node-side helpers for the OLD
+        // compliance engine (`ComplianceDocument`, `ComplianceEvent`, `ScheduledJob`,
+        // `ComplianceCallbackRegistration`, `ComplianceAuthorityId`), all removed wholesale in
+        // `fffbae77` ("refactor!: suppression des documents légaux et du moteur de conformité" — see
+        // CLAUDE.md's "documents module" section). No spec called either task — the models don't
+        // exist in `schema.prisma` any more, so a first call would have failed on
+        // `relation "ComplianceDocument" does not exist` rather than doing what their own comments
+        // described. Removed rather than ported: what replaced the old engine has no single
+        // "compliance document" row to read back at all (about a dozen independent catalogs instead —
+        // see CLAUDE.md), so there is no equivalent task to write in their place today.
 
         /**
          * Online payment ("paiement en ligne") — `60-online-payment.cy.ts`'s ONE piece of
@@ -477,9 +392,13 @@ export default defineConfig({
         getFakePdpLifecycleEvents() {
           return [...fakePdpLifecycleEvents];
         },
+        getFakePdpListCallCount() {
+          return fakePdpListCallCount;
+        },
         resetFakePdpServer() {
           fakePdpInbox = [];
           fakePdpLifecycleEvents.length = 0;
+          fakePdpListCallCount = 0;
           return null;
         },
         triggerPdpReceptionSweep() {

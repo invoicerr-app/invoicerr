@@ -85,6 +85,16 @@ describe("Clients E2E", () => {
 			cy.get('[name="city"]').clear().type("Los Angeles");
 			cy.continueSteppedDialog("client-dialog");
 
+			// The United States has no per-country identifiers catalog of its own (only the five
+			// in-scope countries — FR/DE/IT/PL/PT — have one) — the Tax & identifiers step must show
+			// the honest "unknown country" placeholder rather than silently rendering nothing. This is
+			// the ONLY place in the suite that proves the placeholder's
+			// POSITIVE existence: `35-cross-border-tax.cy.ts` only ever asserts its ABSENCE (for a
+			// country that DOES have a file), and `scenarios/full-lifecycle.cy.ts`'s own equivalent
+			// branch is unreachable — every one of its six legs pairs two of the five in-scope
+			// countries, all five of which ship a catalog.
+			cy.get('[data-cy="client-identifiers-unknown-country"]', { timeout: 10000 }).should("exist");
+
 			// The "Supplier" switch and currency select share the Identity/Tax steps with everything
 			// else now — no more scrolling past unrelated fields to reach the currency select.
 			cy.get('[data-cy="client-currency-select"] button')
@@ -786,12 +796,49 @@ describe("Clients E2E", () => {
 	});
 
 	describe("Delete Clients", () => {
+		// This describe used to target "contact@german.de", a client created by an EARLIER test in
+		// this same file's "Create Clients" describe (~15 client-creating tests run before this one,
+		// none of them resetting) — and `clients/index.tsx`'s own list is PAGE-SCOPED client-side
+		// filtering (10 clients per page, `useClients(page)`'s own page, never a server-wide search —
+		// see the "Supplier role" describe's own header below for the same, already-documented product
+		// limit). Whether "contact@german.de" still landed on page 1 by the time this test ran
+		// depended on exactly how many clients every earlier test in the file happened to create — an
+		// ordering accident, not something this test controls. Resetting first, then creating the
+		// client THIS TEST deletes, removes that dependency entirely: at most two clients exist
+		// (the baseline "Test Client" `resetAndSeed` creates, plus this one), both on page 1, whatever
+		// order Cypress ends up running specs in.
+		before(() => {
+			cy.resetAndSeed();
+		});
+
 		it("deletes a client", () => {
 			cy.visit("/clients");
-			cy.wait(2000);
+			cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
-			cy.get('[data-cy="client-row-menu-contact@german.de"]').click();
-			cy.get('[data-cy="delete-client-button-contact@german.de"]').click();
+			cy.get('[name="name"]').clear().type("Client À Supprimer SARL");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.selectCountry("client-country-select", "France");
+			cy.get('[name="address"]').clear().type("1 Rue Delete");
+			cy.get('[name="postalCode"]').clear().type("75000");
+			cy.get('[name="city"]').clear().type("Paris");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("999888777");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("delete-me@example.com");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-dialog"]').should("not.exist");
+			cy.contains("Client À Supprimer SARL", { timeout: 10000 });
+
+			cy.get('[data-cy="client-row-menu-delete-me@example.com"]').click();
+			cy.get('[data-cy="delete-client-button-delete-me@example.com"]').click();
 
 			cy.get('[data-cy="confirm-delete-client-button"]', {
 				timeout: 5000,
@@ -799,7 +846,7 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="confirm-delete-client-button"]').click();
 
 			cy.wait(2000);
-			cy.get('[data-cy="client-status-inactive-contact@german.de"]').should(
+			cy.get('[data-cy="client-status-inactive-delete-me@example.com"]').should(
 				"exist",
 			);
 		});

@@ -262,7 +262,17 @@ describe("Online payment — Stripe", () => {
 								"createSessionForged",
 							);
 							cy.get(`[data-cy="portal-pay-button-${invoiceId}"]`).click();
-							cy.wait("@createSessionForged");
+							// Same proof as its twin test above (lines ~148-151) — a session that failed to
+							// open server-side would leave nothing for the forged webhook below to even target,
+							// and the failure would then surface as a confusing empty `sessions` read instead
+							// of here, where the actual cause would be.
+							cy.wait("@createSessionForged").then((interception) => {
+								expect(interception.response?.statusCode, "session opened").to.eq(201);
+								expect(
+									interception.response?.body?.checkoutUrl,
+									"a checkout URL came back",
+								).to.contain("mock-stripe.invalid");
+							});
 
 							cy.request({ url: `${api}/api/payments/${invoiceId}/sessions` })
 								.its("body.0.providerSessionId")

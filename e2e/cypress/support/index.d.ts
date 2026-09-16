@@ -8,12 +8,6 @@ declare namespace Cypress {
         login(): Chainable<void>
 
         /**
-         * Custom command to reset the database
-         * @example cy.resetDatabase()
-         */
-        resetDatabase(): Chainable<void>
-
-        /**
          * Truncate, then rebuild the baseline world (user john.doe + company Acme Corp) via the API.
          * Runs before every spec; see the implementation for why one reset for seventeen specs was
          * producing order-dependent failures.
@@ -47,12 +41,6 @@ declare namespace Cypress {
          * @example cy.selectCountry('client-country-select', 'France')
          */
         selectCountry(dataCy: string, countryName: string): Chainable<void>
-
-        /**
-         * Custom command to ensure a test client exists (creates one via API if none found)
-         * @example cy.ensureClient()
-         */
-        ensureClient(): Chainable<void>
 
         /**
          * Opens a saved document's own page from the list currently on screen (the row's title

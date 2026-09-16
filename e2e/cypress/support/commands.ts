@@ -23,21 +23,16 @@
 //
 // -- This will overwrite an existing command --
 
-import { exec } from "child_process";
-
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-Cypress.Commands.add('resetDatabase', () => {
-    new Promise((resolve, reject) => {
-        exec('node ../backend/prisma/reset-db.test.ts', (err: any, stdout: any, stderr: any) => {
-            if (err) {
-                console.error(stderr);
-                return reject(err);
-            }
-            console.log(stdout);
-        });
-    });
-});
-
+// `cy.resetDatabase` used to live here — a browser-side `Cypress.Commands.add` whose body called
+// Node's `child_process.exec`, which does not exist in a browser at all. Its own `Promise` was
+// never returned or awaited either, so the command resolved (as a no-op) before that `exec` call
+// could ever throw. Nothing in the suite called it — the ACTUAL reset (`cy.task('resetDatabase')`
+// in `resetAndSeed` below) runs in the Node plugin process (`cypress.config.ts`'s own `on("task",
+// ...)`), which is the only place `child_process`/`pg` can run at all. Removed along with its
+// `index.d.ts` declaration and the `"child_process": "^1.0.2"` entry in `package.json`
+// (`npm/security-holder`, a placeholder package — not the real Node builtin — that this file's
+// `import` pulled into the browser bundle for nothing).
 Cypress.Commands.add('login', () => {
     cy.session('user-session', () => {
         cy.visit('/auth/sign-in');
@@ -489,31 +484,14 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
 // above (no dedicated `continueClientWizard` — one dialog-agnostic command for every
 // stepped-dialog.tsx wizard, client included, rather than a copy per dialog).
 
-Cypress.Commands.add('ensureClient', () => {
-    const apiUrl = Cypress.env('apiUrl');
-    cy.request({ url: `${apiUrl}/api/clients`, failOnStatusCode: false }).then(({ status, body }: any) => {
-        if (status !== 200) return; // auth failed, skip
-        const clients = Array.isArray(body) ? body : body?.clients ?? [];
-        if (clients.length === 0) {
-            cy.request({
-                method: 'POST',
-                url: `${apiUrl}/api/clients`,
-                body: {
-                    name: 'Test Client',
-                    contactEmail: 'test.client@example.com',
-                    currency: 'EUR',
-                    country: 'FR',
-                    address: '123 Test St',
-                    city: 'Paris',
-                    postalCode: '75001',
-                    isActive: true,
-                    type: 'COMPANY',
-                },
-                failOnStatusCode: false,
-            });
-        }
-    });
-});
+// `cy.ensureClient` used to live here — unused by any spec (every spec that needs a baseline client
+// gets one from `resetAndSeed` below), and latently broken for the callers it was written for: a
+// non-200 status silently `return`ed ("auth failed, skip") and the follow-up POST ran with
+// `failOnStatusCode: false` and no assertion at all, so a session that had gone invalid, or a 500 on
+// creation, would let the command return cleanly while leaving no client behind — the failure would
+// only surface much later, at whatever screen actually needed one, in a form that gave no hint this
+// command was the reason. Removed along with its `index.d.ts` declaration rather than fixed, since
+// nothing calls it.
 
 Cypress.on('window:before:load', (window) => {
     Object.defineProperty(window.navigator, 'language', { value: 'en-US' })

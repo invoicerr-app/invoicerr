@@ -27,6 +27,12 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 		cy.login();
 	});
 
+	// `purchaseOrderId`/`displayNumber` are set by "creates a purchase order..." below and read by
+	// "sends it..."/"cancels it..." — one sequential narrative sharing a single record, the same house
+	// convention `44-country-policy.cy.ts`'s own header documents in full (also used by
+	// `scenarios/full-lifecycle.cy.ts` and dozens of other numbered specs): no documented command in
+	// this repo ever runs a single `it` out of a spec file, so the ordering this relies on always
+	// holds in practice.
 	let purchaseOrderId: string;
 	let displayNumber: string;
 	const recipient = `purchase-order-${Date.now()}@example.com`;

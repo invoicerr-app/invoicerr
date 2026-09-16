@@ -169,5 +169,31 @@ describe('Company lookup — client form', () => {
             .first()
             .invoke('attr', 'title')
             .should('match', /SIRET/);
+
+        // Existence and title alone prove nothing was ever wired behind the button — the onboarding
+        // wizard's own equivalent (18-onboarding-wizard.cy.ts) proves its lookup fires through a real
+        // click; this button deserves the same. "abc" fails the French structural check offline (same
+        // identifier the "query contract" describe above already proves never leaves the process), so
+        // this stays within the file's own header discipline (no real registry touched) while still
+        // proving the click reaches `use-company-lookup.ts#lookup` and back.
+        cy.intercept({ method: 'GET', pathname: '/api/company-lookup' }).as('clientLookup');
+        cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type('abc');
+        cy.get('[data-cy="client-company-lookup"]').first().should('not.be.disabled').click();
+        cy.wait('@clientLookup').then((interception) => {
+            const sentParams = Object.fromEntries(new URL(interception.request.url).searchParams);
+            expect(sentParams, 'country/value/scheme actually sent').to.include({
+                country: 'FR',
+                value: 'abc',
+                scheme: 'LEGAL_ID',
+            });
+            expect(interception.response?.statusCode).to.eq(200);
+            expect(interception.response?.body.found, 'no fabricated match for an impossible identifier').to.eq(
+                false,
+            );
+            expect(interception.response?.body.error).to.eq('INVALID_IDENTIFIER');
+        });
+        // The real response actually reaches the screen — the same SIRET-naming message the API
+        // contract test above already proves the backend returns for this exact identifier.
+        cy.get('[data-sonner-toast]', { timeout: 10000 }).should('contain.text', 'SIRET');
     });
 });

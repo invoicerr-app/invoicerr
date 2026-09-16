@@ -39,14 +39,28 @@ describe("Hosted billing — invisible and inert without the flag", () => {
 		cy.visit("/settings");
 		cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("exist"); // the default tab loaded
 
-		cy.get("aside", { timeout: 15000 }).should("exist").and("not.contain.text", "Subscription");
+		// `[data-cy="settings-nav-<value>"]` (settings/-[tab].tsx's own TAB_GROUPS, `value: "billing"`
+		// for this one) is the tab's IDENTITY, immune to a label rename/relocalization the way
+		// `.not.contain.text("Subscription")` was not — English text asserted only because this
+		// harness forces `navigator.language` to en-US (support/commands.ts), not because the app
+		// guarantees that string. A positive control alongside it: `settings-nav-company` (a tab that
+		// is NEVER hidden) must still exist, so a broken nav that renders NOTHING would fail this test
+		// instead of vacuously passing the absence check.
+		cy.get('[data-cy="settings-nav"]', { timeout: 15000 }).should("exist");
+		cy.get('[data-cy="settings-nav-company"]').should("exist");
+		cy.get('[data-cy="settings-nav-billing"]').should("not.exist");
 	});
 
 	it("no billing banner is mounted anywhere in the authenticated app", () => {
+		// A positive control on EACH page before the absence check: a renamed `data-cy`, or the
+		// feature being deleted outright, would otherwise leave this test green forever even if the
+		// page itself failed to render at all.
 		cy.visit("/dashboard");
+		cy.get('[data-cy^="widget-"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy="billing-banner"]').should("not.exist");
 
 		cy.visit("/settings");
+		cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("exist");
 		cy.get('[data-cy="billing-banner"]').should("not.exist");
 	});
 });

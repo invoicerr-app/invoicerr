@@ -108,11 +108,10 @@ describe("Bank reconciliation — import a statement through the screen, confirm
 			"CSV",
 		);
 
-		cy.wait(300);
-		cy.get('[data-cy="bank-reconciliation-import-currency"] button').first().click();
-		cy.get('[data-cy="bank-reconciliation-import-currency-options"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
+		// Same `SearchSelect` primitive `cy.openSearchSelect` (support/commands.ts) already opens with
+		// bounded, event-driven retries — a fixed `cy.wait(300)` here would either waste time on a
+		// healthy run or, under CI contention, still not be enough.
+		cy.openSearchSelect("bank-reconciliation-import-currency");
 		cy.get('[data-cy="bank-reconciliation-import-currency"] input').type("EUR");
 		cy.get('[data-cy="bank-reconciliation-import-currency-options"] button').first().click();
 
@@ -122,17 +121,24 @@ describe("Bank reconciliation — import a statement through the screen, confirm
 		// file's OWN header row, never typed freehand.
 		cy.get('[data-cy="bank-reconciliation-import-mapping"]', { timeout: 10000 }).should("exist");
 
-		cy.get('[data-cy="bank-reconciliation-import-mapping-date"]').click();
-		cy.wait(200);
-		cy.get('[role="option"]').contains("Date").click();
-
-		cy.get('[data-cy="bank-reconciliation-import-mapping-amount"]').click();
-		cy.wait(200);
-		cy.get('[role="option"]').contains("Montant").click();
-
-		cy.get('[data-cy="bank-reconciliation-import-mapping-label"]').click();
-		cy.wait(200);
-		cy.get('[role="option"]').contains("Libelle").click();
+		// `cy.openSelect` (support/commands.ts) already opens a Radix `Select` with bounded,
+		// event-driven retries (polls for the option, retries the trigger click if a sibling layer's
+		// still-detaching listener swallowed it) — the exact race a fixed `cy.wait(200)` only papers
+		// over on a good day. `:first` matters here specifically: a bounded retry can (and, run once,
+		// did) leave a transient SECOND matching node mid-animation, and `cy.get(...).click()` refuses
+		// to click a multi-element subject outright rather than guess which one was meant.
+		cy.openSelect(
+			'[data-cy="bank-reconciliation-import-mapping-date"]',
+			'[role="option"]:contains("Date"):first',
+		);
+		cy.openSelect(
+			'[data-cy="bank-reconciliation-import-mapping-amount"]',
+			'[role="option"]:contains("Montant"):first',
+		);
+		cy.openSelect(
+			'[data-cy="bank-reconciliation-import-mapping-label"]',
+			'[role="option"]:contains("Libelle"):first',
+		);
 
 		// dateFormat (DD/MM/YYYY) and decimalSeparator (,) are already the dialog's own defaults,
 		// which happen to match this fixture — left untouched on purpose.

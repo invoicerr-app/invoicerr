@@ -41,8 +41,14 @@ describe("Dashboard E2E", () => {
 
 		it("shows invoices section", () => {
 			cy.visit("/dashboard");
-			cy.wait(2000);
-			cy.contains(/invoices|factures/i);
+			// A bare `cy.contains(/invoices|factures/i)`, unscoped, matches the SIDEBAR's own
+			// "Invoices" document-type link (`sidebar-document-type-link-invoice`, present as soon as
+			// the type is registered, whatever the dashboard itself renders) — an empty or entirely
+			// missing invoice widget would still pass. `invoice-contributions.ts` (backend) ids every
+			// invoice widget `invoice:<name>` (`invoice:pending`, `invoice:all`, `invoice:count`, ...),
+			// and each renderer stamps `data-cy="widget-<id>"` — scope to that instead, so a genuinely
+			// empty dashboard contribution actually fails this test.
+			cy.get('[data-cy^="widget-invoice:"]', { timeout: 20000 }).should("have.length.at.least", 1);
 		});
 	});
 });

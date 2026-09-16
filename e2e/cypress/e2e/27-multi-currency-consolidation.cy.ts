@@ -30,7 +30,6 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 
 	it("types in the reference currency and a manual USD→EUR rate through real fields", () => {
 		cy.visit("/settings/company");
-		cy.wait(3000);
 		cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
 
 		// The reference currency — a field on the existing company form, saved by the usual
@@ -42,13 +41,16 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 		cy.get('[data-cy="company-reference-currency-select"]').scrollIntoView();
 		cy.openSearchSelect("company-reference-currency-select");
 		cy.get('[data-cy="company-reference-currency-select-option-euro-(€)"]').click();
+		// A fixed sleep here could either outlast the save (wasted time) or, under CI contention,
+		// undercut it (a re-visit racing an unfinished write) — waiting on the REAL request/response
+		// this click triggers is both faster on a healthy run and immune to that race either way.
+		cy.intercept("POST", "**/api/company/info").as("saveCompany");
 		cy.get('[data-cy="company-submit-btn"]').scrollIntoView().click();
-		cy.wait(3000);
+		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
 
 		// Re-visits to prove it's genuinely stored server-side, not only in the form's local
 		// state — the same discipline as 02-company.cy.ts.
 		cy.visit("/settings/company");
-		cy.wait(3000);
 		cy.get('[data-cy="company-reference-currency-select"]', { timeout: 15000 }).should(
 			"contain.text",
 			"Euro",
@@ -78,8 +80,9 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 		cy.get('[data-cy="currency-rate-to-select-option-euro-(€)"]').click();
 
 		cy.get('[data-cy="currency-rate-rate-input"]').clear().type("0.9");
+		cy.intercept("POST", "**/api/company/currency-rates").as("saveRate");
 		cy.get('[data-cy="currency-rate-add-btn"]').click();
-		cy.wait(1000);
+		cy.wait("@saveRate").its("response.statusCode").should("be.oneOf", [200, 201]);
 
 		// The rate appears in the table — the proof it was genuinely saved, read on screen.
 		cy.get('[data-cy="currency-rates-table"]', { timeout: 10000 }).should("contain.text", "USD→EUR");

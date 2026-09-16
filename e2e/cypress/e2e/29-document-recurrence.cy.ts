@@ -20,10 +20,31 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * assertion that would fail with a 60s interval would fail just as honestly here.
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
-// >= 3 sweep passes (5s/pass in test) + network/render margin. Used to WAIT for the
-// sweep to have had a chance to run several times — never to tighten an assertion: whether
-// the real interval is 5s (here) or 60s (by default), the following assertion stays the same.
+// >= 3 sweep passes (5s/pass in test) + network/render margin. Still used below for the ONE wait
+// that has no positive fact to poll for (proving nothing new appears after disabling) — never to
+// tighten an assertion: whether the real interval is 5s (here) or 60s (by default), that assertion
+// stays the same.
 const SWEEP_WAIT = 18000;
+
+/**
+ * Polls `GET /api/documents?typeId=invoice` until it carries more than `beforeCount` documents, or
+ * ~20s (bounded, matching `SWEEP_WAIT`'s own margin) elapse — replaces a fixed `cy.wait(SWEEP_WAIT)`
+ * for the ONE outcome here that IS positively observable (unlike the "nothing more appears after
+ * disabling" case further down, which genuinely has nothing to poll for). A fixed sleep either wastes
+ * time past a quick sweep pass or, under CI contention, is not long enough — the same "bounded
+ * polling loop" shape `waitForDocumentStatus`/`getLastEmail` (support/commands.ts) already hold for
+ * the identical "an async worker will eventually do X" problem.
+ */
+function waitForDuplicate(beforeCount: number, attemptsLeft = 20): Cypress.Chainable<{ id: string }[]> {
+	return cy
+		.request({ url: `${api}/api/documents?typeId=invoice` })
+		.its("body")
+		.then((docs: { id: string }[]) => {
+			if (docs.length > beforeCount || attemptsLeft <= 0) return cy.wrap(docs);
+			cy.wait(1000);
+			return waitForDuplicate(beforeCount, attemptsLeft - 1);
+		});
+}
 
 describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, from the screen", () => {
 	before(() => {
@@ -126,11 +147,11 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 				cy.get('[data-cy="create-recurrence-dialog"]').should("not.exist");
 			})
 			.then(() => {
-				// The real sweep (BullMQ/Redis) has time to run several times — never a
-				// synchronous response from the click, which only returns the recurrence itself.
-				cy.wait(SWEEP_WAIT);
+				// The real sweep (BullMQ/Redis) needs time to run several times — polled, never a fixed
+				// sleep (see `waitForDuplicate`'s own header above).
+				waitForDuplicate(beforeCount);
 
-				// The duplicate's appearance is observed IN THE LIST — a screen reload,
+				// The duplicate's appearance is ALSO observed IN THE LIST — a screen reload,
 				// never a DOM poll on a React Query request that does not restart on its
 				// own for a draft with no "sending" action in progress (see use-document-types.ts).
 				cy.visit("/documents/invoice");

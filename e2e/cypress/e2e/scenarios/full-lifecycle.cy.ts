@@ -372,6 +372,18 @@ function connectFakeSdiAndMakeItTheTransport() {
 	cy.get('[data-cy="channel-sdi-connect-button"]').click();
 	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Channel connected");
 	cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should("contain.text", "Connected");
+	// The toast/status-badge pair above only proves the SCREEN'S OWN local state changed — a request
+	// that failed server-side after an optimistic UI update would look identical. Read the row back
+	// from the API, the same proof `31-national-channels.cy.ts` already holds for this exact button.
+	cy.request({ url: `${api}/api/company/channels` })
+		.its("body")
+		.then((body: { configured: { providerId: string; isActive: boolean; environment: string }[] }) => {
+			const sdi = body.configured.find((c) => c.providerId === "sdi");
+			expect(sdi, "the sdi channel is actually stored, active, server-side").to.include({
+				isActive: true,
+				environment: "TEST",
+			});
+		});
 
 	cy.request({
 		method: "POST",
@@ -413,12 +425,28 @@ function configurePortugueseAtcud() {
 		.type("FT {year}/{number:4}", { parseSpecialCharSequences: false });
 	cy.get('[data-cy="atcud-number-format-save-button"]').click();
 	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Invoice number format saved");
+	// The toast only proves the SCREEN believes the save succeeded — read `Company.numberFormats`
+	// back to prove it actually reached the row this leg's own "the number is not an empty string"
+	// assertion (later in this file) depends on for its ATCUD-shaped regex to even have a chance of
+	// matching.
+	cy.request({ url: `${api}/api/company/info` })
+		.its("body.numberFormats.invoice")
+		.should("eq", "FT {year}/{number:4}");
 
 	const seriesId = `FT ${new Date().getFullYear()}`;
 	cy.get('[data-cy="atcud-series-id-input"]').type(seriesId);
 	cy.get('[data-cy="atcud-validation-code-input"]').type("E2EATCUDCODE1");
 	cy.get('[data-cy="atcud-series-save-button"]').click();
 	cy.get("[data-sonner-toast]", { timeout: 10000 }).should("contain.text", "Series saved");
+	// Same toast-only gap as the number format above — read the registered series back.
+	cy.request({ url: `${api}/api/company/atcud-series` })
+		.its("body")
+		.then((rows: { typeId: string; seriesId: string; validationCode: string }[]) => {
+			const row = rows.find((r) => r.typeId === "invoice" && r.seriesId === seriesId);
+			expect(row, "the ATCUD series is actually registered server-side").to.include({
+				validationCode: "E2EATCUDCODE1",
+			});
+		});
 }
 
 describe(`Full lifecycle — ${scenarioId}`, () => {
@@ -534,6 +562,16 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		// missing input and an extra one are both wrong, and a country that gained a file (Italy and
 		// Poland both did on 2026-09-13) must be noticed here rather than silently tolerated. Both now
 		// live on the Tax & identifiers step.
+		//
+		// The `formOffers.length === 0` branch below is DEAD for all six legs this file's own matrix
+		// runs: every buyer country these scenarios pair (fr-pl, de-fr, it-it, pt-de, it-pt, pl-de) is
+		// one of the five in-scope countries, and all five now ship a `country-identifiers/data/<cc>.json`
+		// file. Left in place rather than deleted — a seventh scenario pairing a genuinely uncatalogued
+		// buyer country would take it. The placeholder's own POSITIVE existence (rendered when a country
+		// truly has no file) is proven where a real leg reaches it: `05-clients.cy.ts`'s "creates an
+		// individual client" test, whose United-States buyer has no per-country identifiers catalog of
+		// its own — `35-cross-border-tax.cy.ts`'s own assertion at this same data-cy only proves the OPPOSITE
+		// direction (`not.exist` for a country that DOES have a file).
 		if (buyer.formOffers.length === 0) {
 			cy.get('[data-cy="client-identifiers-unknown-country"]', { timeout: 10000 }).should("exist");
 		} else {
@@ -668,6 +706,16 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						"string",
 					);
 					expect(doc.displayNumber.length, "the number is not an empty string").to.be.greaterThan(0);
+					if (scenarioId === "pt-de") {
+						// This leg configured an ATCUD-shaped number format above
+						// (`configurePortugueseAtcud`: "FT {year}/{number:4}") — a bare non-empty-string check
+						// would stay green even if numbering silently fell back to the product's own default
+						// pattern ("INVOICE-{year}-{number:4}"), which has no "/" at all and would itself have
+						// failed the ATCUD preflight this leg exists to get past. Assert the actual shape.
+						expect(doc.displayNumber, "ATCUD-shaped: \"FT <year>/<4-digit sequence>\"").to.match(
+							/^FT \d{4}\/\d{4}$/,
+						);
+					}
 				});
 
 			// The PDF path — Chromium-provisioned, playwright-based renderer (see CLAUDE.md). Never
@@ -681,6 +729,21 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			cy.wait("@pdfDownload", { timeout: 20000 }).then((x) => {
 				expect(x.response?.statusCode, "the PDF renders").to.eq(200);
 			});
+			// A 200 alone would pass for an empty body or an HTML error page served with the wrong
+			// status suppressed — the same "action through a click, assertion through the API" house
+			// discipline this file's own header names, applied to the BYTES rather than just the status,
+			// exactly like 19-document-pdf.cy.ts / 33-signing-certificates.cy.ts already do.
+			cy.request({ url: `${api}/api/documents/${id}/pdf?typeId=invoice`, encoding: "binary" }).then((res) => {
+				expect(res.status, "the PDF endpoint itself answers 200").to.eq(200);
+				const pdfStart = String.fromCharCode(
+					res.body.charCodeAt(0),
+					res.body.charCodeAt(1),
+					res.body.charCodeAt(2),
+					res.body.charCodeAt(3),
+				);
+				expect(pdfStart, "the body actually starts with the PDF magic bytes").to.eq("%PDF");
+				expect(res.body.length, "not a near-empty error stub").to.be.greaterThan(1000);
+			});
 
 			if (scenarioId === "it-it") {
 				// DOMESTIC (seller country === buyer country): `resolve-invoice-tax.ts` never calls the
@@ -689,15 +752,26 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 				// doesn't exist for Italy (`vat-rates/data/` ships only fr.json/pt.json) — so nothing here
 				// composes anything, on purpose; this leg's own tax proof IS that the typed rate survives
 				// unchanged.
+				// Hardcoded, never recomputed with the app's own formula: `Math.round(qty * price * 1.22 *
+				// 100)` here would mirror the EXACT rounding strategy this line exists to check, so a
+				// regression in that rounding (or a copy-paste of the wrong formula into this test) would
+				// move in lockstep with the app and this assertion would stay green either way. 10 × 90 ×
+				// 1.22 = 1098.00 € (`fixtures/scenarios.ts`'s own it-it item: quantity 10, unitPrice 90) →
+				// 109800 minor units.
 				cy.request(`${api}/api/documents/${id}/settlement?typeId=invoice`)
 					.its("body.totals.grossMinor")
-					.should("eq", Math.round(s.item.quantity * s.item.unitPrice * 1.22 * 100));
+					.should("eq", 109800);
 				return;
 			}
 
 			// Every OTHER leg is genuinely cross-border — download the CII export and read the RESOLVED
 			// treatment (never the typed vatRate, which `resolve-invoice-tax.ts` always overwrites for a
 			// cross-border line — see that file's own header, "the engine DECIDES").
+			// `document-downloads.ts#openBlob` hands the downloaded XML to `window.open(objectUrl,
+			// "_blank")` — stubbed so this run never actually spawns a real new tab/window, but the stub
+			// is asserted below (`@windowOpen`) rather than left as a bare side-effect-suppressor: it is
+			// the only proof in this test that the click's OWN result (not just the network request) was
+			// actually handed off to the browser.
 			cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
 			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/formats/cii` }).as("cii");
 			cy.openDocumentRowMenu(id);
@@ -725,6 +799,13 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/,
 					);
 					expect(body, "category K").to.contain("<ram:CategoryCode>K</ram:CategoryCode>");
+					// The two checks above match a substring ANYWHERE in the document — a stray, unrelated
+					// tax subtotal at a nonzero rate sitting next to this 0% line would still pass them.
+					// Pinning the document-level TaxTotalAmount closes that gap: 20 × 35 = 700.00 € net, 0%
+					// VAT (intra-Community supply) → 0.00.
+					expect(body, "TaxTotalAmount 0.00 (intra-Community supply, no VAT due)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
+					);
 					// The mention is now the one the SELLER's own law names, not the generic text citing
 					// the directive: the seller is Italian, and D.L. 331/1993 art. 46 comma 2 requires
 					// stating, in place of the tax amount, « che si tratta di
@@ -764,6 +845,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					expect(body, "category S (OSS is destination-STANDARD-rated, not exempt)").to.contain(
 						"<ram:CategoryCode>S</ram:CategoryCode>",
 					);
+					// Same substring-anywhere gap as it-pt's own category K check above — pin the actual
+					// amount due, not just a rate/category appearing somewhere in the document: 2 × 150 =
+					// 300.00 € net, 19% (Germany's own OSS destination rate) → 57.00.
+					expect(body, "TaxTotalAmount 57.00 (300.00 € net × 19%)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">57\.00<\/ram:TaxTotalAmount>/,
+					);
 					return;
 				}
 
@@ -777,6 +864,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					expect(body, "0% (reverse charge)").to.match(/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/);
 					expect(body, "category AE").to.contain("<ram:CategoryCode>AE</ram:CategoryCode>");
 					expect(body, "Art. 196 mention").to.contain("Autoliquidation / Reverse charge — Art. 196 Directive 2006/112/EC");
+					// The rate/category checks above match a substring ANYWHERE in the document — a stray
+					// nonzero tax subtotal next to this 0% line would still pass them. Pin the actual amount
+					// due: 5 × 200 = 1000.00 € net, 0% VAT (reverse charge) → 0.00.
+					expect(body, "TaxTotalAmount 0.00 (reverse charge, no VAT due)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
+					);
 				}
 
 				if (scenarioId === "de-fr") {
@@ -796,6 +889,11 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					expect(body, "category S (OSS is destination-STANDARD-rated, not exempt)").to.contain(
 						"<ram:CategoryCode>S</ram:CategoryCode>",
 					);
+					// Same substring-anywhere gap as fr-pl's own check above — pin the actual amount due:
+					// 1 × 1200 = 1200.00 € net, 20% (France's own OSS destination rate) → 240.00.
+					expect(body, "TaxTotalAmount 240.00 (1200.00 € net × 20%)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">240\.00<\/ram:TaxTotalAmount>/,
+					);
 				}
 
 				if (scenarioId === "pt-de") {
@@ -811,9 +909,18 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// no specific wording, and that contrast is what proves the engine follows the
 					// SELLER's own law instead of applying one sentence to everyone.
 					expect(body, "mention portugaise d'autoliquidation").to.contain("IVA - autoliquidação");
+					// Same substring-anywhere gap as fr-pl/it-pt's own checks above — pin the actual amount
+					// due: 3 × 500 = 1500.00 € net, 0% VAT (reverse charge) → 0.00.
+					expect(body, "TaxTotalAmount 0.00 (reverse charge, no VAT due)").to.match(
+						/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
+					);
 				}
 
 			});
+			// `openBlob` (document-downloads.ts) only reaches `window.open` after the fetch above
+			// resolves and the blob URL is built — every branch above returns 200, so every leg's own
+			// click genuinely results in a hand-off to the browser, not just a network request.
+			cy.get("@windowOpen").should("have.been.calledOnce");
 		});
 	});
 

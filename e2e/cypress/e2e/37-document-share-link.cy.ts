@@ -168,6 +168,21 @@ describe("Public download links (item 24) — created, copied, revoked from the 
 			// open that menu and assert the entry is absent from it.
 			cy.openDocumentRowMenu(invoiceId);
 			cy.get(`[data-cy="document-share-link-button-${invoiceId}"]`).should("not.exist");
+
+			// The button's absence only proves the SCREEN hid it — a display bug could do the exact
+			// same thing while the API would still happily create a link the screen never shows. Double
+			// with the API itself: `share-links.service.ts#create` refuses a draft with a NAMED 409
+			// ("a draft has no number and no legal existence yet..."), never a silent 200/201.
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/${invoiceId}/share-link?typeId=invoice`,
+				failOnStatusCode: false,
+			}).then((res) => {
+				expect(res.status, "409 — jamais un lien public créé pour un brouillon").to.eq(409);
+				expect(JSON.stringify(res.body), "le message nomme l'absence de statut légal du brouillon").to.match(
+					/a draft has no number and no legal existence/,
+				);
+			});
 		});
 	});
 });
