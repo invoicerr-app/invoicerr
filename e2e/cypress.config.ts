@@ -534,6 +534,53 @@ export default defineConfig({
             await client.end();
           }
         },
+
+        /**
+         * `76-seats.cy.ts`'s ONE piece of Node-side help: sets a company's own BOUGHT seat quantity
+         * directly — the same "write the row a real event would otherwise set" shape
+         * `setStaleLegalAcceptance` already uses for `LegalAcceptance` rows, here standing in for a
+         * real Polar `subscription.updated` webhook or `seat-reconcile.ts`'s own SDK read (see
+         * `backend/src/modules/billing/seat-sync.ts`'s own header: this app never pushes a seat count
+         * to Polar, only reads one — this task is the offline suite's substitute for that read).
+         * Resolves the company via its OWNER's email rather than needing a companyId threaded through
+         * the whole spec, the same "resolve by email" convention `setStaleLegalAcceptance` holds.
+         */
+        async setCompanySubscriptionSeats({ email, seats }: { email: string; seats: number }) {
+          const client = new Client({
+            connectionString:
+              process.env.DATABASE_URL ||
+              "postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db?schema=public",
+          });
+          await client.connect();
+          try {
+            const { rows } = await client.query(
+              `SELECT uc."companyId" AS "companyId"
+               FROM "user" u
+               JOIN "user_company" uc ON uc."userId" = u.id
+               WHERE u.email = $1 AND uc.role = 'OWNER'
+               ORDER BY uc."createdAt" ASC
+               LIMIT 1`,
+              [email],
+            );
+            if (rows.length === 0) {
+              throw new Error(`setCompanySubscriptionSeats: no OWNER company found for ${email}`);
+            }
+            const companyId = rows[0].companyId as string;
+            // Upsert: this spec's very first call may race the lazy row creation
+            // (`getOrCreateCompanySubscription`) that only actually happens once billing is first
+            // touched for this company — never assume the row already exists.
+            await client.query(
+              `INSERT INTO "company_subscription"
+                 (id, "companyId", status, "trialStartedAt", "trialEndsAt", seats, "createdAt", "updatedAt")
+               VALUES (gen_random_uuid()::text, $1, 'TRIAL', now(), now() + interval '14 days', $2, now(), now())
+               ON CONFLICT ("companyId") DO UPDATE SET seats = EXCLUDED.seats, "updatedAt" = now()`,
+              [companyId, seats],
+            );
+            return null;
+          } finally {
+            await client.end();
+          }
+        },
       });
     },
   }
