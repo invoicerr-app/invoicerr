@@ -9,6 +9,18 @@
  */
 export const Q_BILLING_LIFECYCLE = 'billing-lifecycle';
 
+/** `@nestjs/bullmq`'s own `BullModule.forRoot()` ALWAYS returns a `global: true` dynamic module,
+ *  regardless of who imports it — so `billing.module.ts`'s own `forRoot()` call and
+ *  `document-queue.module.ts`'s (`@Global()`) one BOTH end up registering a provider in the SAME
+ *  application-wide container. Left unnamed, both would provide the exact same default shared-config
+ *  token (`BULL_CONFIG_DEFAULT_TOKEN`) — harmless only because both happen to compute identical
+ *  `redisConnection()` options today; the moment either diverges (TLS, a distinct Redis DB, a
+ *  prefix), whichever module's `forRoot()` the DI container resolves last silently wins for BOTH
+ *  queues. Naming this module's own config key (used by both `BullModule.forRoot()` below and
+ *  `BillingLifecycleProcessor`'s own `@Processor()` options) makes the self-containment
+ *  `billing.module.ts`'s own header already claims actually true, not just assumed. */
+export const BILLING_BULL_CONFIG_KEY = 'billing';
+
 export const BILLING_LIFECYCLE_SWEEP_JOB_NAME = 'billing-lifecycle-sweep';
 export const BILLING_LIFECYCLE_SWEEP_JOB_ID = 'billing-lifecycle-sweep-singleton';
 

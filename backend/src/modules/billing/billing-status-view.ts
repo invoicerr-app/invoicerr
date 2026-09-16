@@ -24,9 +24,13 @@ export interface BillingStatusView {
   interval: CompanySubscription['interval'];
   trialEndsAt: string;
   /** Counts down to whatever date NEXT matters for the CURRENT status — trial's own end, blocked's
-   *  own 14-day zip deadline, zipped's own deletion date. `null` for ACTIVE/PAST_DUE (nothing here is
-   *  counting down for a currently-paying — or currently-still-billed — company) and for a
-   *  defensively-incomplete row (e.g. BLOCKED with no `blockedAt`, which should never happen). */
+   *  own 14-day zip deadline, zipped's own deletion date. `null` for ACTIVE (a paying company with
+   *  nothing counting down) and for a defensively-incomplete row (e.g. BLOCKED with no `blockedAt`,
+   *  which should never happen). `0`, never `null`, for PAST_DUE — `lifecycle.ts`'s own header says
+   *  `past_due` carries no window of its own and folds straight into `blocked` on the very next sweep
+   *  tick, so there is nothing to count DOWN from, but showing `null` here reads as "nothing urgent"
+   *  to a company that can be blocked within the hour; `0` reuses the same "day(s) remaining" wording
+   *  the screen already renders for every other status to say "this could happen any moment now". */
   daysRemaining: number | null;
   /** This app's OWN route (`billing.controller.ts`'s `POST /billing/checkout`) — not a link this
    *  controller can meaningfully "generate": the frontend supplies its own `slug`/`successUrl`/
@@ -68,6 +72,10 @@ export function computeBillingStatusView(
   let daysRemaining: number | null = null;
   if (sub.status === 'TRIAL') {
     daysRemaining = daysUntil(sub.trialEndsAt, now);
+  } else if (sub.status === 'PAST_DUE') {
+    // See this view's own field comment — no window of its own (`lifecycle.ts`), so `0` is the
+    // truthful "could be blocked any moment" reading, never `null`'s "nothing urgent".
+    daysRemaining = 0;
   } else if (sub.status === 'BLOCKED' && sub.blockedAt) {
     daysRemaining = daysUntil(addDays(sub.blockedAt, BLOCKED_DAYS), now);
   } else if (sub.status === 'ZIPPED' && sub.deletionDueAt) {

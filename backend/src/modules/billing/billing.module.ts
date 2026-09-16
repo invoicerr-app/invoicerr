@@ -31,6 +31,7 @@ import { PolarWebhookController } from './polar-webhook.controller';
 import { SeatsController } from './seats.controller';
 import { BillingLifecycleProcessor } from './queue/billing-lifecycle.processor';
 import {
+  BILLING_BULL_CONFIG_KEY,
   BILLING_LIFECYCLE_SWEEP_JOB_ID,
   BILLING_LIFECYCLE_SWEEP_JOB_NAME,
   Q_BILLING_LIFECYCLE,
@@ -41,11 +42,13 @@ import { MailService } from '@/mail/mail.service';
 @Module({
   imports: [
     DocumentsCoreModule,
-    // Its own `connection` (rather than relying on `DocumentQueueModule`'s own global
-    // `BullModule.forRoot()`) so this module stays self-contained — provable/testable on its own,
-    // never dependent on import ORDER with the documents module elsewhere in the graph.
-    BullModule.forRoot({ connection: redisConnection() }),
-    BullModule.registerQueue({ name: Q_BILLING_LIFECYCLE }),
+    // Its own `connection`, under its OWN `configKey` (rather than relying on `DocumentQueueModule`'s
+    // own global, UNNAMED `BullModule.forRoot()`) so this module stays genuinely self-contained —
+    // provable/testable on its own, never dependent on import ORDER with the documents module
+    // elsewhere in the graph. See `BILLING_BULL_CONFIG_KEY`'s own comment for why an unnamed
+    // `forRoot()` here would NOT actually have achieved that.
+    BullModule.forRoot(BILLING_BULL_CONFIG_KEY, { connection: redisConnection() }),
+    BullModule.registerQueue({ configKey: BILLING_BULL_CONFIG_KEY, name: Q_BILLING_LIFECYCLE }),
   ],
   controllers: [BillingController, PolarWebhookController, SeatsController],
   providers: [

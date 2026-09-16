@@ -157,6 +157,25 @@ describe('PolarWebhookController.handleWebhook', () => {
     );
   });
 
+  it(
+    'passes factAt as undefined (never an Invalid Date) when webhook-timestamp has trailing garbage ' +
+      'that parseInt-based signature verification tolerates but a strict numeric read does not',
+    async () => {
+      const controller = new PolarWebhookController();
+      const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_garbage_ts');
+      // `standardwebhooks#verifyTimestamp` reads this with `parseInt`, which stops at the first
+      // non-digit and still yields the SAME integer the signature above was computed over — so this
+      // delivery verifies successfully, exactly like a genuine one; only `Number(...)` (a stricter,
+      // whole-string parse) sees it differently.
+      headers['webhook-timestamp'] = `${headers['webhook-timestamp']}garbage`;
+
+      const result = await controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers));
+
+      expect(result).toEqual({ received: true });
+      expect(handleMock).toHaveBeenCalledWith(expect.anything(), undefined);
+    },
+  );
+
   it('200s and dispatches for a pre-cutover (Polar HMAC) signature — the @polar-sh/sdk#validateEvent derivation', async () => {
     process.env.POLAR_WEBHOOK_SECRET = PRE_CUTOVER_SECRET;
     const controller = new PolarWebhookController();

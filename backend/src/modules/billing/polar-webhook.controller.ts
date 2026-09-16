@@ -221,10 +221,19 @@ export class PolarWebhookController {
     // `webhook-timestamp` is Standard Webhooks' own delivery timestamp (unix seconds, the same header
     // `verifyPolarWebhook` above already required to be present and within tolerance) — threaded
     // through as the fact's own timestamp so a later, slower `status-reconcile.ts` read can never
-    // clobber whatever this delivery is about to apply. `Number(...)` on an already-validated numeric
-    // string never produces `NaN` here in practice; `new Date(NaN)` would simply compare as neither
-    // older nor newer than anything, which is a safe (if inert) fallback rather than a thrown error.
-    const factAt = new Date(Number(headers['webhook-timestamp']) * 1000);
+    // clobber whatever this delivery is about to apply. `verifyPolarWebhook` validates it with
+    // `parseInt` (tolerant of trailing garbage — `"1758066400junk"` parses to `1758066400`), so a
+    // header that PASSES verification can still fail a stricter `Number(...)` read here. `new
+    // Date(NaN)` is NOT the inert fallback a caller might expect — it is a truthy `Invalid Date`
+    // object, so it survives every `facts.factAt ?` truthiness check downstream and reaches
+    // `prisma.companySubscription.update({ data: { lastPolarFactAt: ... } })`, which Prisma rejects,
+    // turning this delivery into a 500 AFTER the dedup ledger row above was already committed — a
+    // retry then 200s on the "already processed" branch without ever having actually applied the
+    // fact, losing it for good. Validating numerically and falling back to `undefined` avoids ever
+    // constructing that Invalid Date; `undefined` is the exact shape `handleSubscriptionPayload`'s own
+    // optional `factAt` already expects for "no fact to compare/persist".
+    const timestampSeconds = Number(headers['webhook-timestamp']);
+    const factAt = Number.isFinite(timestampSeconds) ? new Date(timestampSeconds * 1000) : undefined;
 
     await handleSubscriptionPayload(toSubscriptionWebhookPayload(event), factAt);
 

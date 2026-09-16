@@ -11,6 +11,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { MoveSeatDto } from './billing.dto';
 import { getSeatsView, moveMemberSeat, SeatsView } from './seats-view';
 
 @ApiTags('billing')
@@ -39,7 +40,7 @@ export class SeatsController {
   async moveSeat(
     @ActiveCompany() companyId: string,
     @Param('userId') userId: string,
-    @Body() body: { seatIndex: number },
+    @Body() body: MoveSeatDto,
   ): Promise<SeatsView> {
     return moveMemberSeat(companyId, userId, body.seatIndex);
   }

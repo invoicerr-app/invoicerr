@@ -62,10 +62,18 @@ describe('computeBillingStatusView', () => {
     expect(view.daysRemaining).toBe(0);
   });
 
-  it('is null for ACTIVE and PAST_DUE', () => {
+  it('is null for ACTIVE', () => {
     expect(computeView(sub({ status: 'ACTIVE' }), NOW).daysRemaining).toBeNull();
-    expect(computeView(sub({ status: 'PAST_DUE' }), NOW).daysRemaining).toBeNull();
   });
+
+  it(
+    'is 0, never null, for PAST_DUE — it folds into BLOCKED on the very next sweep tick (no window ' +
+      'of its own, lifecycle.ts), so `null` would wrongly read as "nothing urgent" an hour before the ' +
+      'company is locked out',
+    () => {
+      expect(computeView(sub({ status: 'PAST_DUE' }), NOW).daysRemaining).toBe(0);
+    },
+  );
 
   it('is null defensively when BLOCKED carries no blockedAt', () => {
     expect(computeView(sub({ status: 'BLOCKED', blockedAt: null }), NOW).daysRemaining).toBeNull();
