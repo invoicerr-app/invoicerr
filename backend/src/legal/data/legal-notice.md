@@ -31,9 +31,11 @@ publication director within the meaning of LCEN art. 6-III.
 
 ## 3. Host
 
-**[HOSTING PROVIDER, COUNTRY]** — placeholder pending the final hosting decision (see Terms of
-Service, Section 12.1). This section will be completed with the host's corporate name, registered
-address, and contact details as required by LCEN art. 6-I-2 once that decision is made.
+**Scaleway SAS** — a *société par actions simplifiée* registered under SIREN **433 115 904** (RCS
+Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris, France**, as required by
+LCEN art. 6-I-2. Scaleway operates the Kubernetes cluster and the object storage the Service runs on,
+in its Paris region. Contact: same postal address; see Scaleway's own published legal notice
+(scaleway.com) for their support channels.
 
 ## 4. Intellectual Property
 
@@ -76,3 +78,7 @@ this Agreement.
   Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère) — the court with jurisdiction over the
   Provider's registered office in Montélier, which itself has no commercial court of its own — subject
   to any mandatory rule of law that provides otherwise, matching Terms of Service Section 18.2.
+- **2026-09-17** — Owner decision applied: hosting resolved to Scaleway (Kubernetes + object storage,
+  Paris, France) and Neon (managed Postgres database, EU region) — see Terms of Service Section 12.1.
+  Section 3 completed with Scaleway SAS's corporate name, SIREN/RCS, and registered office, discharging
+  the LCEN art. 6-I-2 requirement this section previously left as a placeholder pending that decision.

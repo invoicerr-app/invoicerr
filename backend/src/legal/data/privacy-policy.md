@@ -70,9 +70,12 @@ own data-processing terms:
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
   is received (support correspondence only; Google never sees the data contained in the documents you
   create through the Service).
-- **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service. **The Service and Customer
-  Data are hosted in the European Union**; the specific provider and country are still pending the
-  final hosting decision — see Terms of Service Section 12.1.
+- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on and the
+  object storage that holds archived documents. **The Service and Customer Data are hosted in the
+  European Union**, in Scaleway's Paris (France) region.
+- **Neon, LLC** (a Databricks, Inc. affiliate) — the managed PostgreSQL database that stores the
+  Company and account data described in Section 3, and the documents you create through the Service.
+  The Company's database runs in Neon's EU region (AWS Europe, Frankfurt).
 
 **OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
 third-party OCR provider.**
@@ -87,12 +90,14 @@ not in this controller-facing Policy.
 
 ## 5. International Transfers
 
-Some of the sub-processors above (Polar, Resend, Cloudflare, Google LLC) may process data outside the
-European Economic Area, including in the United States. Where that is the case, the transfer relies on that
+Some of the sub-processors above (Polar, Resend, Cloudflare, Google LLC, Neon/Databricks) may process
+data outside the European Economic Area, including in the United States. Where that is the case, the transfer relies on that
 provider's own appropriate safeguards under GDPR Chapter V (such as the European Commission's Standard
 Contractual Clauses). This section is a general statement, not a representation about any individual
 provider's current certification — write to contact@invoicerr.app for the specific mechanism a given
-provider relies on today.
+provider relies on today. (Neon, LLC's own database infrastructure for our account runs in the EU —
+see Section 4; the point here is the operating entity's own jurisdiction — its parent, Databricks,
+Inc., is a US company — not where the data itself is stored.)
 
 ## 6. Retention
 
@@ -175,6 +180,12 @@ or by post to the address in Section 1.
   disclose as a sub-processor for that feature (the `OCR_ENGINE=mistral` option this used to describe
   is gone from the product, not just from this Policy). Section 4's hosting bullet and Section 5 updated
   to match. Section 4: added an explicit commitment that the Service and Customer Data are hosted in
-  the European Union — the `[HOSTING PROVIDER, COUNTRY]` placeholder itself is unchanged, pending that
-  decision. Section 5: the named US-based sub-processors list dropped Mistral AI and gained Cloudflare
-  and Google LLC.
+  the European Union. Section 5: the named US-based sub-processors list dropped Mistral AI and gained
+  Cloudflare and Google LLC.
+- **2026-09-17** — Owner decision applied: hosting provider resolved. Section 4's hosting bullet now
+  names **Scaleway SAS** (Kubernetes infrastructure and document object storage, Paris/France region)
+  and **Neon, LLC** (a Databricks, Inc. affiliate; managed PostgreSQL database, EU region — AWS Europe,
+  Frankfurt) in place of the `[HOSTING PROVIDER, COUNTRY]` placeholder. Section 5's US-based-provider
+  list gained **Neon/Databricks**: Neon, LLC's parent, Databricks, Inc., is a US company, even though
+  the Company's own database runs in Neon's EU region — the same distinction already drawn for the
+  other named US-based sub-processors.

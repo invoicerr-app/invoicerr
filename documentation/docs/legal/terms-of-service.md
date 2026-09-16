@@ -194,11 +194,16 @@ the underlying data, beyond the deletion described in Section 11.3.
 
 ## 12. Hosting and Subprocessors
 
-12.1. **The Service and Customer Data are hosted in the European Union**, with
-**[HOSTING PROVIDER, COUNTRY]**.
+12.1. **The Service and Customer Data are hosted in the European Union**, with **Scaleway SAS**
+(Kubernetes infrastructure and document object storage, Paris region, France) and **Neon, LLC**
+(a Databricks, Inc. affiliate; managed PostgreSQL database, EU region).
 
 12.2. We use the following subprocessors in connection with the Service:
 
+   - **Scaleway SAS** — Kubernetes infrastructure and object storage for the Service and its archived
+     documents (Paris region, France).
+   - **Neon, LLC** (a Databricks, Inc. affiliate) — managed PostgreSQL database hosting for the Service
+     (EU region).
    - **Polar Software Inc.** — payment processing and billing for your subscription (Section 7).
    - **Resend** — delivery of transactional email sent by the Service.
    - The **national e-invoicing and government platforms you choose to connect** (for example, the
@@ -355,9 +360,13 @@ Questions about these Terms can be sent to **contact@invoicerr.app**.
   only, same regime). Section 7.1 now states explicitly that Fees published on our pricing page are
   exclusive of VAT and any similar tax, which Polar adds at checkout. Section 3.2 now states explicitly
   that the free trial gives rise to no payment of any kind. Section 12.1 commits that the Service and
-  Customer Data are hosted in the European Union — the `[HOSTING PROVIDER, COUNTRY]` placeholder itself
-  is unchanged, pending that decision. Section 15.1 clarifies the liability cap runs **to you**
+  Customer Data are hosted in the European Union. Section 15.1 clarifies the liability cap runs **to you**
   specifically (same amount, same 12-month window — wording only). Section 18.2's jurisdiction clause
   restated as the Commercial Court of Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère) — the
   court with jurisdiction over the Provider's registered office in Montélier, which itself has no
   commercial court of its own — subject to any mandatory rule of law that provides otherwise.
+- **2026-09-17** — Owner decision applied: hosting provider resolved. Section 12.1 now names
+  **Scaleway SAS** (Kubernetes infrastructure and document object storage, Paris region, France) and
+  **Neon, LLC** (a Databricks, Inc. affiliate; managed PostgreSQL database, EU region) in place of the
+  `[HOSTING PROVIDER, COUNTRY]` placeholder. Section 12.2's subprocessor list gained matching entries
+  for both.

@@ -103,9 +103,13 @@ that carry Customer Personal Data:
 - **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
   is received (support correspondence only; never the Customer Personal Data contained in the documents
   you create through the Service).
-- **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service. **The Service and Customer
-  Data are hosted in the European Union**; the specific provider and country are still pending — see
-  Terms of Service Section 12.1.
+- **Scaleway SAS** — infrastructure hosting for the Service: the Kubernetes cluster it runs on and the
+  object storage that holds archived documents, including those carrying Customer Personal Data.
+  **The Service and Customer Data are hosted in the European Union**, in Scaleway's Paris (France)
+  region.
+- **Neon, LLC** (a Databricks, Inc. affiliate) — the managed PostgreSQL database in which the documents
+  you create, and the Customer Personal Data they contain, are stored. The Company's database runs in
+  Neon's EU region (AWS Europe, Frankfurt).
 
 **OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
 third-party OCR provider.**
@@ -202,5 +206,9 @@ this DPA as well.
   third-party API — it now runs entirely on infrastructure we operate (matching the Privacy Policy's
   own Section 4 change), so there is no third-party OCR sub-processor left to authorize here. Section
   7's hosting bullet now states explicitly that the Service and Customer Data are hosted in the
-  European Union — the `[HOSTING PROVIDER, COUNTRY]` placeholder itself is unchanged, pending that
-  decision.
+  European Union.
+- **2026-09-17** — Owner decision applied: hosting provider resolved. Section 7's hosting bullet now
+  names **Scaleway SAS** (Kubernetes infrastructure and object storage for archived documents,
+  Paris/France region) and **Neon, LLC** (a Databricks, Inc. affiliate; the managed PostgreSQL database
+  in which Customer Personal Data is stored, EU region — AWS Europe, Frankfurt) in place of the
+  `[HOSTING PROVIDER, COUNTRY]` placeholder.
