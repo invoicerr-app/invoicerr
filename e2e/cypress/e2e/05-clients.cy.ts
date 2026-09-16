@@ -995,3 +995,142 @@ describe("Supplier role", () => {
 			});
 	});
 });
+
+/**
+ * Italian recipient identifiers (IT_SDI / PEC) — country-identifiers/data/it.json declared only
+ * VAT/LEGAL_ID until 2026-09-13 (afc986f9): `fatturapa-provider.ts` already read `IT_SDI`/`PEC` off
+ * the client to route CodiceDestinatario/FormatoTrasmissione, but this data-driven form (one
+ * `<Input>` per catalog scheme, `client-identifier-${req.scheme}`) had no scheme to render, so a
+ * genuinely domestic Italian B2B invoice fell through every branch to `XXXXXXX` — the placeholder
+ * this same specification reserves for a recipient not resident/established/identified in Italy.
+ * Proven here through the SCREEN for the collection half (the Cypress spec `fatturapa-provider.spec.ts`
+ * itself cannot reach) and through a real downloaded artifact for the routing half — never the screen
+ * alone as proof of what was actually served, same discipline as 30-document-xml-format.cy.ts.
+ */
+describe("Italian recipient identifiers (IT_SDI) — FatturaPA routing", () => {
+	const api = Cypress.env("apiUrl") || "http://localhost:4000";
+
+	before(() => {
+		cy.resetAndSeed();
+		cy.login();
+		// resetAndSeed's baseline company sets no transport — "send" refuses at its own preflight
+		// otherwise (invoice-actions.ts's `resolveInvoiceTransport`), and the invoice would never get
+		// its number (BT-1) at all. Same setup as 30-document-xml-format.cy.ts's own `before()`.
+		cy.request({
+			method: "POST",
+			url: `${api}/api/company/info`,
+			body: { invoiceTransportId: "email" },
+		}).then((res) => {
+			expect(res.status, "transport configured").to.be.oneOf([200, 201]);
+		});
+	});
+
+	beforeEach(() => {
+		cy.login();
+	});
+
+	it("entering a Codice Destinatario on an Italian B2B client's screen persists it and routes a real domestic invoice's downloaded FatturaPA XML off it — never the foreign-recipient XXXXXXX placeholder", () => {
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Ditta Italiana SdI Srl");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.selectCountry("client-country-select", "Italy");
+		cy.get('[name="address"]').clear().type("Via Roma 10");
+		cy.get('[name="postalCode"]').clear().type("00100");
+		cy.get('[name="city"]').clear().type("Roma");
+		cy.continueSteppedDialog("client-dialog");
+
+		// The field only exists on screen because country-identifiers/data/it.json declares IT_SDI —
+		// this is the exact screen that catalog change unlocks (see it.json's own top-level notes).
+		// PEC (the other fallback the same specification allows) is asserted present too, for free,
+		// off the same generic mechanism — no extra field-specific code anywhere in client-upsert.tsx.
+		cy.get('[data-cy="client-identifier-IT_SDI"]', { timeout: 10000 })
+			.should("exist")
+			.clear()
+			.type("ABC123X");
+		cy.get('[data-cy="client-identifier-PEC"]', { timeout: 10000 }).should("exist");
+		cy.openSearchSelect("client-currency-select");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contactEmail"]').clear().type("fatturazione@ditta-sdi.example");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Ditta Italiana SdI Srl", { timeout: 10000 });
+
+		cy.request<{ id: string; partyIdentifiers: { scheme: string; value: string }[] }[]>({
+			url: `${api}/api/clients/search?query=${encodeURIComponent("Ditta Italiana SdI Srl")}`,
+		})
+			.its("body")
+			.then((clients) => {
+				const client = clients[0];
+				const sdi = client.partyIdentifiers.find((pi) => pi.scheme === "IT_SDI");
+				expect(sdi, "IT_SDI really persisted, not just rendered").to.exist;
+				expect(sdi!.value).to.eq("ABC123X");
+
+				const invoiceData = {
+					client: client.id,
+					// BEFORE the FR PDP channel-mandate date (2026-09-01, transports/channel-policy) —
+					// same fixture date as 30-document-xml-format.cy.ts's own `createAndSendInvoice` —
+					// or "send" 501s on the seller's own French seat (the seeded baseline company),
+					// which has nothing to do with the ITALIAN recipient this test actually exercises.
+					issueDate: "2026-08-30",
+					dueDate: "2026-09-30",
+					currency: "EUR",
+					lines: [
+						{
+							description: "Consulenza",
+							quantity: 1,
+							unit: "day",
+							unitPrice: 500,
+							// A valid vatRate CHOICE is resolved from the SELLER's own vat-rates catalog
+							// (resetAndSeed's baseline company is French) — never the client's country, and
+							// never a free-form value (invoice.descriptor.ts's own header). "20" is the same
+							// FR rate every other spec in this suite already uses.
+							vatRate: "20",
+						},
+					],
+				};
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data: invoiceData },
+				}).then((saved) => {
+					expect(saved.status).to.be.oneOf([200, 201]);
+					const invoiceId = saved.body?.document?.id as string;
+					// "send" — the number (BT-1) only needs to be ASSIGNED, never the async email worker
+					// to finish — the download-xml action never waits on it (same reasoning
+					// 30-document-xml-format.cy.ts's own `createAndSendInvoice` documents). The action
+					// re-validates the FULL document data, same shape as save-draft — never just `{client}`.
+					cy.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/send`,
+						body: { documentId: invoiceId, data: invoiceData },
+					}).then((sent) => {
+						expect(sent.status).to.be.oneOf([200, 201]);
+
+						cy.request({
+							url: `${api}/api/documents/${invoiceId}/formats/fatturapa?typeId=invoice`,
+							encoding: "binary",
+						}).then((res) => {
+							expect(res.status, "a real, validated FatturaPA export").to.eq(200);
+							expect(res.body).to.contain(
+								"<FormatoTrasmissione>FPR12</FormatoTrasmissione>",
+							);
+							expect(res.body).to.contain("<CodiceDestinatario>ABC123X</CodiceDestinatario>");
+							expect(
+								res.body,
+								"a domestic recipient must never be announced to SdI as a foreign one",
+							).to.not.contain("XXXXXXX");
+						});
+					});
+				});
+			});
+	});
+});
