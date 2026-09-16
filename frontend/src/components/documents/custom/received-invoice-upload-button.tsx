@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { FileUp, Upload } from "lucide-react"
@@ -66,6 +66,18 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
   const [preview, setPreview] = useState<UploadReceivedInvoicePreview | null>(null)
 
   const upload = useUploadReceivedInvoice()
+
+  // `use-document-form.ts`'s own reset effect keys off `initialData`'s OBJECT IDENTITY, not its
+  // content, specifically so a background refetch (`refetchOnWindowFocus`, an SSE tick) never wipes
+  // out what the user is mid-typing — see that effect's own comment. Calling `buildInitialData(preview)`
+  // straight in the JSX below defeated that: it allocates a NEW object on every render of THIS
+  // component, and this component re-renders for reasons that have nothing to do with `preview`
+  // itself (any parent re-render, `dragOver`/`uploadDialogOpen` flipping, an unrelated SSE event
+  // higher up the tree) — each one silently reset the review form back to the extracted values,
+  // discarding whatever the user had just corrected. Memoizing on `preview`'s own reference (which
+  // only ever changes via `setPreview` above) is what keeps the object — and the form — stable across
+  // every OTHER re-render.
+  const initialData = useMemo(() => (preview ? buildInitialData(preview) : undefined), [preview])
 
   const resetUploadDialog = () => {
     setDragOver(false)
@@ -203,7 +215,7 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
           descriptor={descriptor}
           open
           onOpenChange={(open) => !open && setPreview(null)}
-          initialData={buildInitialData(preview)}
+          initialData={initialData}
         />
       )}
     </>

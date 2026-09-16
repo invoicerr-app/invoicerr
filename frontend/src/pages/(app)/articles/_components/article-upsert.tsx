@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { type Control, type FieldValues, useForm, type UseFormReturn } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -19,7 +19,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-dialog"
+import {
+  type SteppedDialogHandle,
+  type SteppedDialogStep,
+  SteppedDialog,
+  stepForField,
+} from "@/components/ui/stepped-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { useCompany } from "@/hooks/queries"
 import { usePatch, usePost } from "@/hooks/use-fetch"
@@ -39,12 +44,27 @@ import type { Article } from "@/types"
 // on an EDIT is how a user turns stock tracking (or the alert) back off, not a no-op.
 const nullableNonNegativeInt = z.number().int().min(0, { message: "Must be >= 0" }).nullable()
 
+/** `unitPrice`/`vatRate` are, unlike stock's `quantity`/`lowStockThreshold` above, genuinely REQUIRED
+ *  on the `Article` model (`unitPrice Float @default(0)`, `vatRate Float @default(0)` —
+ *  backend/prisma/schema.prisma — neither column is nullable), so an emptied box here has to become a
+ *  VALIDATION ERROR, never a stored value. `NaN`, not `undefined`, is the two inputs' own "the box is
+ *  empty" sentinel below: `typeof NaN === "number"`, so it stays assignable through
+ *  `Control<ArticleForm>`'s strictly-typed `onChange` without widening either field's inferred type to
+ *  `number | undefined` (the generic document-field renderers can use `undefined` for exactly this
+ *  reason instead — their `Control` is untyped `FieldValues`). `z.number()` treats `NaN` exactly like
+ *  `undefined` (`received: "nan"`, the same `invalid_type` branch) — the reason this used to slip
+ *  through was `z.coerce.number()`, which reads `Number("") === 0` as a perfectly valid price. */
+const requiredAmount = (requiredMessage: string, rangeMessage: string) =>
+  z.number({ required_error: requiredMessage, invalid_type_error: requiredMessage }).min(0, {
+    message: rangeMessage,
+  })
+
 const articleSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   description: z.string().optional(),
   type: z.enum(["HOUR", "DAY", "DEPOSIT", "SERVICE", "PRODUCT"]),
-  unitPrice: z.coerce.number().min(0, { message: "Price must be >= 0" }),
-  vatRate: z.coerce.number().min(0, { message: "VAT must be >= 0" }),
+  unitPrice: requiredAmount("Price is required", "Price must be >= 0"),
+  vatRate: requiredAmount("VAT rate is required", "VAT must be >= 0"),
   quantity: nullableNonNegativeInt,
   lowStockThreshold: nullableNonNegativeInt,
 })
@@ -150,9 +170,22 @@ function PricingStep({
         control={control}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t("articles.fields.unitPrice.label")}</FormLabel>
+            <FormLabel required>{t("articles.fields.unitPrice.label")}</FormLabel>
             <FormControl>
-              <BetterInput {...field} type="number" step="0.01" min="0" postAdornment={currencySymbol} />
+              <BetterInput
+                name={field.name}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                // Never a bare `{...field}` — see `requiredAmount`'s own comment on why an emptied
+                // box turns into `NaN` here, not the raw string a `{...field}` binding would leave in
+                // react-hook-form's state (which `z.coerce.number()` used to read as a silent 0).
+                value={Number.isNaN(field.value) ? "" : field.value}
+                onChange={(e) => field.onChange(e.target.value === "" ? Number.NaN : Number(e.target.value))}
+                type="number"
+                step="0.01"
+                min="0"
+                postAdornment={currencySymbol}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -164,9 +197,19 @@ function PricingStep({
         control={control}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t("articles.fields.vatRate.label")}</FormLabel>
+            <FormLabel required>{t("articles.fields.vatRate.label")}</FormLabel>
             <FormControl>
-              <BetterInput {...field} type="number" step="0.01" min="0" postAdornment="%" />
+              <BetterInput
+                name={field.name}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                value={Number.isNaN(field.value) ? "" : field.value}
+                onChange={(e) => field.onChange(e.target.value === "" ? Number.NaN : Number(e.target.value))}
+                type="number"
+                step="0.01"
+                min="0"
+                postAdornment="%"
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -255,6 +298,10 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
 
   const { trigger: createTrigger, loading: creating } = usePost("/api/articles")
   const { trigger: updateTrigger, loading: updating } = usePatch(`/api/articles/${article?.id || ""}`)
+  // Imperative handle onto `SteppedDialog` — see that component's own `SteppedDialogHandle` header:
+  // used ONLY by `onSubmit`'s own `safeParse` fallback below, to jump to whichever step actually
+  // shows the first field a stale, unrevalidated step let through.
+  const dialogRef = useRef<SteppedDialogHandle>(null)
 
   const form = useForm<ArticleForm>({
     resolver: zodResolver(articleSchema),
@@ -295,15 +342,67 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
     }
   }, [article, open, form])
 
+  const steps: SteppedDialogStep[] = [
+    {
+      id: "identity",
+      label: t("articles.upsert.steps.identity"),
+      fields: ["name", "description"],
+      render: () => <IdentityStep control={form.control} />,
+    },
+    {
+      id: "pricing",
+      label: t("articles.upsert.steps.pricing"),
+      fields: ["type", "unitPrice", "vatRate"],
+      render: () => <PricingStep control={form.control} currencySymbol={currencySymbol} />,
+    },
+    {
+      id: "stock",
+      label: t("articles.upsert.steps.stock"),
+      fields: ["quantity", "lowStockThreshold"],
+      render: () => <StockStep control={form.control} />,
+    },
+  ]
+
   const onSubmit = async (raw: ArticleForm) => {
-    // `SteppedDialog` hands back `form.getValues()` (whatever's currently in the DOM inputs), never
-    // the RESOLVER's coerced output the way a plain `form.handleSubmit(onSubmit)` used to — so
-    // unitPrice/vatRate, bound with a bare `{...field}` on a `type="number"` input, are still the
-    // RAW string the browser put there (`z.coerce.number()` on the schema only ever ran inside
-    // `handleSubmit`, which this dialog no longer calls). Re-parsing through the same schema here is
-    // what actually applies that coercion before the request leaves — skipping it sent `unitPrice:
-    // "120"` to the API and Prisma 500'd on the type mismatch (caught by 14-articles.cy.ts).
-    const data = articleSchema.parse(raw)
+    // `SteppedDialog` hands back `form.getValues()` (whatever's currently in the DOM inputs) and only
+    // ever validates the CURRENT step's own fields before calling this — `stepperJumpTo` lets an edit
+    // (every chip clickable from the start, `initialMaxReached`) land on any step already reached
+    // WITHOUT revalidating it, so a field cleared on a step the user then jumps away from — never
+    // revisiting it before hitting the final "Save" — reaches this handler unvalidated. Re-parsing
+    // through the same schema here is the actual last line of defense before the request leaves.
+    //
+    // `articleSchema.parse()` used to sit OUTSIDE this try/catch: a `ZodError` thrown from an `async`
+    // function invoked by `onClick` (`SteppedDialog.handleContinue`, never itself `await`ed by its
+    // caller) became an unhandled promise rejection — no toast, no field error, the dialog just sat
+    // there with the button back to normal, exactly as invisible as the mismatched-type 500
+    // `parse()`'s coercion was originally added to catch. `safeParse` turns that failure into DATA
+    // instead of a throw: every issue is attached to its own field via `form.setError` so
+    // `FormMessage` renders it, and (below) the wizard jumps to whichever step actually shows the
+    // first one, so that message is never left sitting behind a step the user isn't even looking at.
+    const parsed = articleSchema.safeParse(raw)
+    if (!parsed.success) {
+      let firstErrorField: string | undefined
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0]
+        if (typeof key !== "string") continue
+        form.setError(key as never, { type: "manual", message: issue.message })
+        firstErrorField ??= key
+      }
+      // Attaching the error to the field alone isn't enough — the step currently on screen (Stock,
+      // in the exact scenario this guards) may not be the one that RENDERS it, so `FormMessage`
+      // would sit invisible until the user happened to click back. Jump to whichever step actually
+      // declares the first invalid field instead, the same way clicking that step's own header chip
+      // would.
+      if (firstErrorField) {
+        const stepIndex = stepForField(steps, firstErrorField)
+        if (stepIndex !== undefined) dialogRef.current?.goToStep(stepIndex)
+      }
+      toast.error(
+        t("articles.upsert.messages.validationError") || "Please fix the highlighted fields before saving",
+      )
+      return
+    }
+    const data = parsed.data
     try {
       // usePost/usePatch swallow request failures internally and resolve to
       // `null` instead of throwing, so the result must be checked explicitly
@@ -329,29 +428,9 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
     }
   }
 
-  const steps: SteppedDialogStep[] = [
-    {
-      id: "identity",
-      label: t("articles.upsert.steps.identity"),
-      fields: ["name", "description"],
-      render: () => <IdentityStep control={form.control} />,
-    },
-    {
-      id: "pricing",
-      label: t("articles.upsert.steps.pricing"),
-      fields: ["type", "unitPrice", "vatRate"],
-      render: () => <PricingStep control={form.control} currencySymbol={currencySymbol} />,
-    },
-    {
-      id: "stock",
-      label: t("articles.upsert.steps.stock"),
-      fields: ["quantity", "lowStockThreshold"],
-      render: () => <StockStep control={form.control} />,
-    },
-  ]
-
   return (
     <SteppedDialog
+      ref={dialogRef}
       steps={steps}
       form={form as unknown as UseFormReturn<FieldValues>}
       onSubmit={(values) => onSubmit(values as ArticleForm)}

@@ -1523,7 +1523,8 @@
         "updateSuccess": "Article updated",
         "updateError": "Failed to update article",
         "deleteSuccess": "Article deleted",
-        "deleteError": "Failed to delete article"
+        "deleteError": "Failed to delete article",
+        "validationError": "Please fix the highlighted fields before saving"
       }
     },
     "delete": {

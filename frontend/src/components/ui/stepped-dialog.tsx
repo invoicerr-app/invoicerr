@@ -1,7 +1,7 @@
 "use client"
 
 import { Check } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react"
 import type React from "react"
 import type { FieldValues, UseFormReturn } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -82,6 +82,30 @@ export function stepStatus(state: StepperState, index: number): StepStatus {
   return index <= state.maxReached ? "done" : "upcoming"
 }
 
+/** Which step (by index) declares `fieldName` among its own `fields` — `undefined` when none does
+ *  (a computed field, a typo, or one every step left out). Pure and DOM-free like the stepper state
+ *  functions above: a caller that re-validates the WHOLE form itself after `SteppedDialog`'s own
+ *  per-step gate (e.g. a final `schema.safeParse()` before submit — see `article-upsert.tsx`'s own
+ *  `onSubmit`) uses this to find which step actually shows a field an error landed on, so it can hand
+ *  that index to `SteppedDialogHandle.goToStep` below instead of leaving the error attached to a
+ *  field the current step never renders. */
+export function stepForField(steps: SteppedDialogStep[], fieldName: string): number | undefined {
+  const index = steps.findIndex((step) => step.fields.includes(fieldName))
+  return index === -1 ? undefined : index
+}
+
+/** Imperative escape hatch — additive, no existing caller needs it — for a caller whose OWN
+ *  validation (run outside this component's per-step `form.trigger`) finds an error on a step that
+ *  isn't the one currently showing. Attaching the error to the field (`form.setError`) alone isn't
+ *  enough: `FormMessage` only renders once that field's OWN step is mounted, and `SteppedDialog`
+ *  never re-derives its current step from `form.formState.errors` on its own (doing so unconditionally
+ *  would fight the user navigating normally). `goToStep` is deliberately the ONLY thing exposed —
+ *  never a way to read or replace the whole stepper state — so a caller can jump to a step it already
+ *  knows about without reaching into this component's internals. */
+export interface SteppedDialogHandle {
+  goToStep: (index: number) => void
+}
+
 export interface SteppedDialogProps {
   steps: SteppedDialogStep[]
   form: UseFormReturn<FieldValues>
@@ -138,25 +162,42 @@ export interface SteppedDialogProps {
  * value once registered even while its input is unmounted, as long as nothing sets
  * `shouldUnregister`, which nothing here does).
  */
-export function SteppedDialog({
-  steps,
-  form,
-  onSubmit,
-  submitLabel,
-  open,
-  onOpenChange,
-  title,
-  submitting = false,
-  dataCy,
-  submitDataCy,
-  submitDisabled = false,
-  submitTooltip,
-  className,
-  initialMaxReached = 0,
-}: SteppedDialogProps) {
+export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>(function SteppedDialog(
+  {
+    steps,
+    form,
+    onSubmit,
+    submitLabel,
+    open,
+    onOpenChange,
+    title,
+    submitting = false,
+    dataCy,
+    submitDataCy,
+    submitDisabled = false,
+    submitTooltip,
+    className,
+    initialMaxReached = 0,
+  },
+  ref,
+) {
   const { t } = useTranslation()
   const [state, setState] = useState<StepperState>(initStepper)
   const [confirmingClose, setConfirmingClose] = useState(false)
+
+  // See `SteppedDialogHandle`'s own header — `goToStep` bumps `maxReached` too (never just `index`),
+  // so a step this jumps to ALSO becomes a clickable header chip, exactly as if the user had walked
+  // there normally, rather than a `current` step whose own chip looks unreached.
+  useImperativeHandle(
+    ref,
+    () => ({
+      goToStep: (index: number) => {
+        const clamped = Math.min(Math.max(index, 0), Math.max(steps.length - 1, 0))
+        setState((s) => ({ index: clamped, maxReached: Math.max(s.maxReached, clamped) }))
+      },
+    }),
+    [steps.length],
+  )
 
   // `form.formState` is itself a lazy Proxy: react-hook-form only starts COMPUTING `isDirty` (its own
   // internal `useForm` effect, gated behind `_proxyFormState.isDirty`) once something reads it during
@@ -387,4 +428,5 @@ export function SteppedDialog({
       </AlertDialog>
     </>
   )
-}
+})
+SteppedDialog.displayName = "SteppedDialog"
