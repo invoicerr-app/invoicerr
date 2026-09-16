@@ -24,12 +24,38 @@ import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { useNavigate } from "react-router"
 import { usePost } from "@/hooks/use-fetch"
-import { useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
+import type React from "react"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
+
+/**
+ * Whether the "create a company" dialog below is open — lifted out of `Sidebar` so the dialog
+ * itself can mount at the LAYOUT level, a sibling of `Sidebar` rather than a child of it. On mobile,
+ * `Sidebar`'s own root is a Radix `Sheet` that renders nothing at all while closed (not just
+ * hidden — unmounted), so a child mounted inside it never gets a chance to open its own dialog. The
+ * sidebar's "create new company" menu item and its first-run auto-open effect both call `setOpen`
+ * from here; the layout is the one that actually renders `<OnBoarding>`.
+ */
+const OnboardingDialogContext = createContext<{ open: boolean; setOpen: (open: boolean) => void } | null>(
+  null,
+)
+
+export function OnboardingDialogProvider({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <OnboardingDialogContext.Provider value={{ open, setOpen }}>{children}</OnboardingDialogContext.Provider>
+  )
+}
+
+export function useOnboardingDialog() {
+  const ctx = useContext(OnboardingDialogContext)
+  if (!ctx) throw new Error("useOnboardingDialog must be used within an OnboardingDialogProvider")
+  return ctx
+}
 
 interface OnBoardingProps {
   isLoading?: boolean
@@ -618,7 +644,12 @@ export default function OnBoarding({
                                         onClick={() =>
                                           onCompanyLookup(field.value, req.scheme as LookupScheme)
                                         }
-                                        title={
+                                        aria-label={
+                                          lookupIdentifierLabel
+                                            ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                            : t("clients.upsert.actions.lookupCompany")
+                                        }
+                                        tooltip={
                                           lookupIdentifierLabel
                                             ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
                                             : t("clients.upsert.actions.lookupCompany")
@@ -723,5 +754,34 @@ export default function OnBoarding({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Mounts the actual dialog for `useOnboardingDialog`'s shared state — rendered once, at the layout
+ * level (a sibling of `Sidebar`, not a child), so it stays reachable on mobile. `endpoint`/`onSuccess`
+ * are fixed to "create a new company" (see this component's own header on why: both the sidebar's
+ * first-run auto-open and its "create new company" menu item drive the exact same flow, just from
+ * different triggers).
+ */
+export function OnboardingDialogHost() {
+  const { open, setOpen } = useOnboardingDialog()
+  const { trigger: switchCompanyApi } = usePost<{ success: boolean }>("/api/companies/switch")
+
+  const handleCompanyCreated = async (created: Company) => {
+    await switchCompanyApi({ companyId: created.id })
+    // Same full-reload rationale as Sidebar's own switchCompany: company-scoped data is split across
+    // TanStack Query and the older use-fetch.ts hooks, and only a reload guarantees both re-fetch
+    // under the newly active company.
+    window.location.reload()
+  }
+
+  return (
+    <OnBoarding
+      isOpen={open}
+      onOpenChange={setOpen}
+      endpoint="/api/companies"
+      onSuccess={handleCompanyCreated}
+    />
   )
 }

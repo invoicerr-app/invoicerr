@@ -23,8 +23,8 @@ export function StepIndicator({ steps, currentStep, completedSteps }: StepIndica
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full font-semibold transition-colors border",
               completedSteps.includes(index) || index === currentStep
-                ? "bg-white text-black border-black"
-                : "bg-black text-white border border-neutral-300",
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted text-muted-foreground border-border",
             )}
           >
             {completedSteps.includes(index) ? <Check className="h-5 w-5" /> : index + 1}
@@ -34,7 +34,7 @@ export function StepIndicator({ steps, currentStep, completedSteps }: StepIndica
             <div
               className={cn(
                 "flex-1 h-1 mx-2 transition-colors",
-                completedSteps.includes(index) ? "bg-white" : "bg-neutral-800",
+                completedSteps.includes(index) ? "bg-primary" : "bg-muted",
               )}
             />
           )}

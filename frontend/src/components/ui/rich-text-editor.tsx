@@ -87,6 +87,7 @@ function LinkControl({ disabled }: { disabled: boolean }) {
           size="icon"
           disabled={disabled}
           tooltip={t("component.rich-text-editor.link")}
+          aria-label={t("component.rich-text-editor.link")}
           data-cy="rich-text-editor-link"
         >
           <LinkIcon />
@@ -339,6 +340,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled}
                 tooltip={t("component.rich-text-editor.bold")}
+                aria-label={t("component.rich-text-editor.bold")}
                 data-cy="rich-text-editor-bold"
                 onClick={() => editor?.chain().focus().toggleBold().run()}
               >
@@ -350,6 +352,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled}
                 tooltip={t("component.rich-text-editor.italic")}
+                aria-label={t("component.rich-text-editor.italic")}
                 data-cy="rich-text-editor-italic"
                 onClick={() => editor?.chain().focus().toggleItalic().run()}
               >
@@ -361,6 +364,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled}
                 tooltip={t("component.rich-text-editor.underline")}
+                aria-label={t("component.rich-text-editor.underline")}
                 data-cy="rich-text-editor-underline"
                 onClick={() => editor?.chain().focus().toggleUnderline().run()}
               >
@@ -373,6 +377,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled}
                 tooltip={t("component.rich-text-editor.bulletList")}
+                aria-label={t("component.rich-text-editor.bulletList")}
                 data-cy="rich-text-editor-bullet-list"
                 onClick={() => editor?.chain().focus().toggleBulletList().run()}
               >
@@ -384,6 +389,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled}
                 tooltip={t("component.rich-text-editor.orderedList")}
+                aria-label={t("component.rich-text-editor.orderedList")}
                 data-cy="rich-text-editor-ordered-list"
                 onClick={() => editor?.chain().focus().toggleOrderedList().run()}
               >
@@ -395,6 +401,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled}
                 tooltip={t("component.rich-text-editor.blockquote")}
+                aria-label={t("component.rich-text-editor.blockquote")}
                 data-cy="rich-text-editor-blockquote"
                 onClick={() => editor?.chain().focus().toggleBlockquote().run()}
               >
@@ -408,6 +415,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled || !editor?.can().undo()}
                 tooltip={t("component.rich-text-editor.undo")}
+                aria-label={t("component.rich-text-editor.undo")}
                 onClick={() => editor?.chain().focus().undo().run()}
               >
                 <Undo2 />
@@ -418,6 +426,7 @@ export function RichTextEditor({
                 size="icon"
                 disabled={disabled || !editor?.can().redo()}
                 tooltip={t("component.rich-text-editor.redo")}
+                aria-label={t("component.rich-text-editor.redo")}
                 onClick={() => editor?.chain().focus().redo().run()}
               >
                 <Redo2 />

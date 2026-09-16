@@ -111,13 +111,24 @@ export function LogsFilters({
           const active = levelFilter.includes(level)
           const { variant, className } = levelBadgeProps(level)
           return (
+            // A real <button> under the badge's own styling (`asChild`), not a <span onClick> — a
+            // toggle a mouse user can click must also be reachable and operable by keyboard, and
+            // `aria-pressed` is what tells assistive tech this chip is a two-state filter, not a
+            // static label.
             <Badge
               key={level}
+              asChild
               variant={active ? variant : "outline"}
               className={cnCursor(active ? className : undefined)}
-              onClick={() => toggleLevel(level)}
             >
-              {level}
+              <button
+                type="button"
+                aria-pressed={active}
+                onClick={() => toggleLevel(level)}
+                data-cy={`logs-level-filter-${level.toLowerCase()}`}
+              >
+                {level}
+              </button>
             </Badge>
           )
         })}

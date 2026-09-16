@@ -1,16 +1,33 @@
 import { Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
-import { useFieldArray, useFormContext } from "react-hook-form"
+import type React from "react"
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { DocumentField } from "@/components/documents/document-field"
+import { formatTotal } from "@/components/documents/document-totals"
 import SearchSelect from "@/components/search-input"
+import { toMinor } from "@/components/documents/totals-calculator"
 import type { DocumentFieldDescriptor } from "@/components/documents/types"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { fetchPrefillFields, useReferenceSearch } from "@/hooks/queries"
 
 import type { FieldRendererProps } from "./registry"
+
+/**
+ * The "quantity × unit price, less any discount" a row's own subfields describe — same field-KIND
+ * detection `document-totals.tsx`'s `computeDocumentTotals` uses for the document-wide totals, so a
+ * descriptor never has to name this shape by key. `undefined` when the row has no money subfield at
+ * all (an array field that isn't priced lines, e.g. a plain list of identifiers): this is a mobile
+ * convenience preview, not a value the form stores or a total anything downstream reads.
+ */
+function detectPriceFields(rowFields: DocumentFieldDescriptor[]) {
+  const moneyField = rowFields.find((f) => f.kind === "money")
+  const numberField = rowFields.find((f) => f.kind === "number" && !f.key.toLowerCase().includes("discount"))
+  const discountField = rowFields.find((f) => f.kind === "number" && f.key.toLowerCase().includes("discount"))
+  return { moneyField, numberField, discountField }
+}
 
 /**
  * A 'select' target's stored value is always a string (field-kinds.ts's own 'select' validator); an
@@ -89,6 +106,114 @@ function RowPrefillPicker({
   )
 }
 
+interface LineRowCardProps {
+  arrayFieldKey: string
+  name: string
+  index: number
+  rowFields: DocumentFieldDescriptor[]
+  documentTypeId?: string
+  onRemove: () => void
+  removeLabel: string
+  /** The "fill from catalog" picker, when the array field declares `prefillFrom` — rendered inside
+   *  this card, above the designation row, rather than threading that whole feature down here. */
+  prefillSlot?: React.ReactNode
+}
+
+/**
+ * One line, as a mobile-first card: the row's FIRST subfield (every descriptor that reuses this
+ * shape declares its free-text designation there — description.tsx's own header on `invoice.
+ * descriptor.ts`) spans the full width up top, a live subtotal preview sits at its right when the
+ * row prices something, and everything else wraps into a 2-column grid below — 3 at `sm:` and up,
+ * unchanged from before this card treatment. Owner feedback (2026-09-16): the previous flat grid of
+ * 4-6 equally-sized fields read as "too compressed" at 390px, with no visual anchor for which field
+ * was the one that actually names the line.
+ */
+function LineRowCard({
+  arrayFieldKey,
+  name,
+  index,
+  rowFields,
+  documentTypeId,
+  onRemove,
+  removeLabel,
+  prefillSlot,
+}: LineRowCardProps) {
+  const { control, watch } = useFormContext()
+  const [headField, ...restFields] = rowFields
+  const { moneyField, numberField, discountField } = detectPriceFields(rowFields)
+
+  const rowPath = `${name}.${index}`
+  const row = useWatch({ control, name: rowPath }) as Record<string, unknown> | undefined
+  const currency = moneyField?.currencyField ? watch(moneyField.currencyField) : moneyField?.currency
+
+  let subtotal: string | null = null
+  if (moneyField && row) {
+    const unitPriceRaw = row[moneyField.key]
+    if (typeof unitPriceRaw === "number") {
+      const quantityRaw = numberField ? row[numberField.key] : undefined
+      const quantity = typeof quantityRaw === "number" ? quantityRaw : 1
+      const discountRaw = discountField ? row[discountField.key] : undefined
+      const discountPercent = typeof discountRaw === "number" ? discountRaw : 0
+      const minor = Math.round(
+        toMinor(unitPriceRaw, currency || "EUR") * quantity * (1 - discountPercent / 100),
+      )
+      subtotal = formatTotal(minor, currency || "")
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-4" data-cy={`document-field-${arrayFieldKey}-row-${index}`}>
+      {prefillSlot && <div className="flex justify-end">{prefillSlot}</div>}
+      {/* Column on mobile so the designation gets the FULL row width instead of sharing it with the
+          subtotal/remove cluster (that pairing squeezed the one field a user actually reads down to
+          about half the screen) — back to one row at `sm:` and up, unchanged from before. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        {headField && (
+          <div className="w-full sm:min-w-0 sm:flex-1">
+            <DocumentField
+              field={headField}
+              name={`${rowPath}.${headField.key}`}
+              documentTypeId={documentTypeId}
+            />
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 sm:mt-1 sm:shrink-0">
+          {subtotal && (
+            <span
+              className="font-mono tabular-nums text-sm font-medium text-foreground"
+              data-cy={`document-field-${arrayFieldKey}-row-${index}-subtotal`}
+            >
+              {subtotal}
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={onRemove}
+            tooltip={removeLabel}
+            dataCy={`document-field-${arrayFieldKey}-remove-row-${index}`}
+            aria-label={removeLabel}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-3">
+        {restFields.map((rowField) => (
+          <DocumentField
+            key={rowField.key}
+            field={rowField}
+            name={`${rowPath}.${rowField.key}`}
+            documentTypeId={documentTypeId}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /**
  * The one recursive core kind: a row is just another `data` object rendered against `field.fields`
  * — the same DocumentField every top-level field goes through, which is what makes "a table of
@@ -112,22 +237,29 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
   const arrayError = (errors as Record<string, { message?: string }>)[name]?.message
 
   return (
-    <div className="space-y-2" data-cy={`document-field-${field.key}`}>
-      <Label>
+    <div className="space-y-3" data-cy={`document-field-${field.key}`}>
+      {/* Bumped past the plain field-label size — this is the one array field a document form
+          reliably has (lines), and at 390px it reads as the form's own "section", not just another
+          field, now that each row is its own card rather than a dense inline grid. */}
+      <Label className="text-base font-semibold">
         {field.label}
         {field.required && <span className="text-destructive">*</span>}
       </Label>
       {field.helpText && <p className="text-sm text-muted-foreground">{field.helpText}</p>}
 
-      <div className="space-y-3">
+      <div className="space-y-4 sm:space-y-3">
         {rows.map((row, index) => (
-          <div
+          <LineRowCard
             key={row.id}
-            className="space-y-2 rounded-md border p-3"
-            data-cy={`document-field-${field.key}-row-${index}`}
-          >
-            {field.prefillFrom && (
-              <div className="flex justify-end">
+            arrayFieldKey={field.key}
+            name={name}
+            index={index}
+            rowFields={rowFields}
+            documentTypeId={documentTypeId}
+            onRemove={() => remove(index)}
+            removeLabel={t("documents.form.array.removeRow")}
+            prefillSlot={
+              field.prefillFrom && (
                 <RowPrefillPicker
                   arrayFieldKey={field.key}
                   rowIndex={index}
@@ -143,32 +275,9 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
                     }
                   }}
                 />
-              </div>
-            )}
-            <div className="flex items-start gap-2">
-              <div className="grid flex-1 gap-3 sm:grid-cols-3">
-                {rowFields.map((rowField) => (
-                  <DocumentField
-                    key={rowField.key}
-                    field={rowField}
-                    name={`${name}.${index}.${rowField.key}`}
-                    documentTypeId={documentTypeId}
-                  />
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="mt-1 shrink-0"
-                onClick={() => remove(index)}
-                dataCy={`document-field-${field.key}-remove-row-${index}`}
-                aria-label={t("documents.form.array.removeRow")}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+              )
+            }
+          />
         ))}
       </div>
 

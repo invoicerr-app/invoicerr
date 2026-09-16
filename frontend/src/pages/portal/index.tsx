@@ -177,6 +177,11 @@ function PayButton({ row }: { row: ClientStatementDocumentRow }) {
   return (
     <Button
       type="button"
+      // Not `default`: this button repeats once per outstanding invoice row, and "Accept" below
+      // repeats once per pending quote row — several can be on screen together, and the page itself
+      // has no other single primary to defer to (see document-list.tsx's own comment on the same
+      // per-row-vs-page-primary trade-off).
+      variant="secondary"
       size="sm"
       loading={createSession.isPending}
       onClick={handlePay}
@@ -284,6 +289,8 @@ function QuoteRowActions({ quote }: { quote: PortalQuoteRow }) {
       </Button>
       <Button
         type="button"
+        // Not `default` — see PayButton's own comment: this repeats once per pending quote row.
+        variant="secondary"
         size="sm"
         loading={requestSignature.isPending}
         onClick={handleRequestSignature}

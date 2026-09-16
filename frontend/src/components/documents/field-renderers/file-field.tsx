@@ -201,6 +201,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                     size="icon"
                     onClick={handleRemove}
                     tooltip={t("documents.form.file.remove")}
+                    aria-label={t("documents.form.file.remove")}
                     dataCy={`document-field-${field.key}-remove`}
                   >
                     <X className="h-4 w-4" />

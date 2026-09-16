@@ -29,7 +29,9 @@ export function DocumentFormFields({ descriptor, state }: DocumentFormFieldsProp
   const { effectiveDescriptor, lineTotalWarnings } = state
 
   return (
-    <form className="space-y-4" data-cy="document-form" onSubmit={(e) => e.preventDefault()}>
+    // Larger gap on mobile — owner feedback (2026-09-16): a flat list of fields with the desktop
+    // gap (space-y-4) read as "too compressed" at 390px, unchanged from `sm:` up.
+    <form className="space-y-6 sm:space-y-4" data-cy="document-form" onSubmit={(e) => e.preventDefault()}>
       {effectiveDescriptor.fields.map((field) => (
         <DocumentField key={field.key} field={field} name={field.key} documentTypeId={descriptor.id} />
       ))}

@@ -3180,6 +3180,7 @@
     "cancel": "Cancel",
     "previous": "Previous",
     "next": "Continue",
+    "clearFilterNamed": "Clear {{label}} filter",
     "units": {
       "day": "Day",
       "week": "Week",
@@ -3447,6 +3448,11 @@
       "secret": "Webhook Secret",
       "secretDescription": "Keep this secret secure. It will be used to verify webhook authenticity.",
       "instructions": "Configuration Instructions",
+      "copyUrl": "Copy webhook URL",
+      "copySecret": "Copy webhook secret",
+      "showSecret": "Show webhook secret",
+      "hideSecret": "Hide webhook secret",
+      "warningLabel": "Important:",
       "warning": "Configure both the webhook URL and secret in your {{pluginName}} settings to receive authenticated real-time updates. Store the secret securely - it won't be shown again.",
       "gotIt": "Got it!"
     }

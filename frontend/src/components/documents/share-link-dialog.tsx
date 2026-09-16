@@ -126,6 +126,7 @@ export function ShareLinkDialog({ typeId, documentId, open, onOpenChange }: Shar
                 variant="outline"
                 size="icon"
                 tooltip={t("documents.shareLink.copy")}
+                aria-label={t("documents.shareLink.copy")}
                 onClick={() => handleCopy(justCreatedUrl)}
                 dataCy="share-link-copy-button"
               >

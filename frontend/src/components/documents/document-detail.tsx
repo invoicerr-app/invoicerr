@@ -230,15 +230,25 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
           className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t bg-background/95 px-6 py-3 backdrop-blur-sm"
           data-cy="document-unsaved-bar"
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Column on mobile with full-width buttons (easier targets than a cramped side-by-side
+              pair at 390px — owner feedback, 2026-09-16), row again from `sm:` up, unchanged from
+              before. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium">{t("documents.detail.unsavedChanges")}</p>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={onDiscard} dataCy="document-unsaved-discard">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={onDiscard}
+                dataCy="document-unsaved-discard"
+              >
                 {t("documents.detail.discard")}
               </Button>
               {saveAction && (
                 <Button
                   type="button"
+                  className="w-full sm:w-auto"
                   loading={state.runner.isRunning && state.runner.pendingAction === undefined}
                   disabled={!!saveAction.policyBlockedReason}
                   tooltip={

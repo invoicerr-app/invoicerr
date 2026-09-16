@@ -211,7 +211,11 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
           <span className="text-sm text-muted-foreground" data-cy="time-entry-selection-summary">
             {t("timeTracking.entries.selectionSummary", { count: selectedEntries.length })}
           </span>
+          {/* `secondary`, not the default filled button — this panel's one primary is "Add" in the
+              header (creating a new time entry, the same "New <type>" role document-list.tsx keeps
+              as the page's sole default), and this bar can be on screen at the same time as it. */}
           <Button
+            variant="secondary"
             onClick={() => setGenerateOpen(true)}
             disabled={selectedEntries.length === 0}
             dataCy="generate-invoice-button"

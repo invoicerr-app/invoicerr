@@ -43,13 +43,12 @@ import {
 } from "@/components/ui/sidebar"
 
 import { Badge } from "./ui/badge"
-import OnBoarding from "./onboarding"
+import { useOnboardingDialog } from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
 import { useEffect, useRef, useState } from "react"
 import { usePost } from "@/hooks/use-fetch"
-import type { Company } from "@/types"
 
 import { useAvailableDocumentTypes, useCompanies, useCompany } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -66,8 +65,7 @@ export function Sidebar() {
   const { data: company } = useCompany()
   const navigate = useNavigate()
 
-  const [onboardingOpen, setOnboardingOpen] = useState(false)
-  const [createCompanyOpen, setCreateCompanyOpen] = useState(false)
+  const { setOpen: setOnboardingOpen } = useOnboardingDialog()
   const hasAutoOpenedOnboarding = useRef(false)
 
   const { trigger: switchCompanyApi } = usePost<{ success: boolean }>("/api/companies/switch")
@@ -82,7 +80,7 @@ export function Sidebar() {
       hasAutoOpenedOnboarding.current = true
       setOnboardingOpen(true)
     }
-  }, [companiesLoading, companies, location.pathname])
+  }, [companiesLoading, companies, location.pathname, setOnboardingOpen])
 
   const switchCompany = async (companyId: string) => {
     if (companyId === activeCompanyId) return
@@ -93,11 +91,6 @@ export function Sidebar() {
     // invalidateQueries() only refreshes the former, leaving the latter
     // showing the previous company's data — a reload guarantees every
     // page re-fetches under the newly active company.
-    window.location.reload()
-  }
-
-  const handleCompanyCreated = async (created: Company) => {
-    await switchCompanyApi({ companyId: created.id })
     window.location.reload()
   }
 
@@ -196,21 +189,10 @@ export function Sidebar() {
 
   return (
     <RootSidebar collapsible="icon">
-      {/* Both the first-run auto-opened onboarding and the switcher's
-                "create new company" action create a brand-new company via
-                POST /api/companies — POST /api/company/info is edit-only and
-                requires an already-active company, which doesn't exist yet
-                in either case. */}
-      <OnBoarding
-        isOpen={onboardingOpen || createCompanyOpen}
-        onOpenChange={(open) => {
-          setOnboardingOpen(open)
-          setCreateCompanyOpen(open)
-        }}
-        endpoint="/api/companies"
-        onSuccess={handleCompanyCreated}
-      />
-
+      {/* The dialog itself no longer mounts here — see useOnboardingDialog's own comment on why: on
+          mobile this whole subtree is unmounted (not just hidden) while the Sheet is closed, which
+          silently prevented the dialog from ever opening. It is rendered once, at the layout level,
+          alongside this same shared open state. */}
       <SidebarHeader className="px-2">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -271,7 +253,7 @@ export function Sidebar() {
                     // keystroke typed into it. Deferring to the next tick lets
                     // the dropdown finish closing first.
                     e.preventDefault()
-                    setTimeout(() => setCreateCompanyOpen(true), 0)
+                    setTimeout(() => setOnboardingOpen(true), 0)
                   }}
                 >
                   <Plus className="size-4" />

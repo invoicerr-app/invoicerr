@@ -246,6 +246,8 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       variant="ghost"
       size="icon"
       className={cn("size-7", className)}
+      aria-label="Toggle Sidebar"
+      tooltip="Toggle Sidebar"
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -253,7 +255,6 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
 }

@@ -383,6 +383,7 @@ export default function SsoSettings() {
                 variant="outline"
                 size="icon"
                 tooltip={t("settings.sso.actions.copy", "Copy")}
+                aria-label={t("settings.sso.actions.copy", "Copy")}
                 onClick={() => copy(redirectUri)}
               >
                 <Copy className="h-4 w-4" />
@@ -413,6 +414,7 @@ export default function SsoSettings() {
                   variant="outline"
                   size="icon"
                   tooltip={t("settings.sso.actions.copy", "Copy")}
+                  aria-label={t("settings.sso.actions.copy", "Copy")}
                   onClick={() => copy(directLink)}
                 >
                   <Copy className="h-4 w-4" />
@@ -534,6 +536,7 @@ export default function SsoSettings() {
                           variant="outline"
                           size="icon"
                           tooltip={t("settings.sso.actions.copy", "Copy")}
+                          aria-label={t("settings.sso.actions.copy", "Copy")}
                           onClick={() => copy(domainStatus.recordName)}
                         >
                           <Copy className="h-4 w-4" />
@@ -550,6 +553,7 @@ export default function SsoSettings() {
                           variant="outline"
                           size="icon"
                           tooltip={t("settings.sso.actions.copy", "Copy")}
+                          aria-label={t("settings.sso.actions.copy", "Copy")}
                           onClick={() => copy(domainStatus.recordValue)}
                         >
                           <Copy className="h-4 w-4" />

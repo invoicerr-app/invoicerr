@@ -43,6 +43,13 @@
      pair for buttons and other high-emphasis destructive controls. */
   --color-destructive-soft: var(--destructive-soft);
   --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  /* For a destructive SURFACE composited at partial opacity over the page background — button.tsx's
+     `dark:bg-destructive/60` — never for destructive as plain text. --destructive-foreground flips to
+     dark ink in the dark theme because --destructive itself lightens there (see that block's own
+     comment); at only 60% opacity the composite stays dark enough that dark ink fails AA (measured
+     ~2.9-3.1:1, scratchpad) while light text keeps 6.1-6.5:1. So this token is deliberately the SAME
+     near-white value in both themes — do not add a `.dark` override for it. */
+  --color-destructive-solid-foreground: var(--destructive-solid-foreground);
   /* success/warning/info: the three semantic tones the shadcn default palette never had (only
      "destructive" existed — see AUDIT.md §1). Each is a soft-fill/saturated-text pair, same recipe as
      --success below, so a badge only ever needs `bg-<tone> text-<tone>-foreground`. Green is reserved
@@ -56,6 +63,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  /* The scrim behind a modal/sheet/alert-dialog — a structural dimming layer, not content, so it
+     stays plain black at the same opacity in both themes (a themed scrim would either wash out in
+     dark mode or barely darken anything in light mode). Named rather than left as a literal
+     half-opacity black utility class, so it still reads as a deliberate token, not a stray stock
+     palette color. */
+  --color-overlay: var(--overlay);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -108,6 +121,9 @@
   --destructive-foreground: oklch(0.990 0.010 24);
   --destructive-soft: oklch(0.930 0.060 24);
   --destructive-soft-foreground: oklch(0.350 0.160 24);
+  /* Same near-white ink as --destructive-foreground here, but NOT redefined in .dark below — see
+     --color-destructive-solid-foreground's own comment on why. */
+  --destructive-solid-foreground: oklch(0.990 0.010 24);
   --success: oklch(0.920 0.060 145);
   --success-foreground: oklch(0.300 0.110 145);
   --warning: oklch(0.920 0.070 70);
@@ -117,6 +133,8 @@
   --border: oklch(0.890 0.010 230);
   --input: oklch(0.890 0.010 230);
   --ring: oklch(0.760 0.121 230);
+  /* Not redefined in .dark — see --color-overlay's own comment on why it stays constant. */
+  --overlay: oklch(0 0 0 / 50%);
   --chart-1: oklch(0.640 0.130 230);
   --chart-2: oklch(0.650 0.110 230);
   --chart-3: oklch(0.350 0.059 230);
@@ -188,7 +206,11 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 scrollbar scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-neutral-100 dark:scrollbar-thumb-neutral-700 dark:scrollbar-track-neutral-900;
+    /* thumb/track ride --border/--muted rather than the stock neutral scale, so the scrollbar tints
+       with the Lagune azure hue like everything else instead of a flat, theme-independent grey — one
+       pair of classes works for both themes since those two tokens already redefine themselves
+       under .dark. */
+    @apply border-border outline-ring/50 scrollbar scrollbar-thin scrollbar-thumb-border scrollbar-track-muted;
   }
   *::-webkit-scrollbar-thumb {
     @apply rounded-xl;
@@ -237,6 +259,22 @@
     --sidebar-accent-foreground: oklch(0.930 0.012 230);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.760 0.114 230);
+  }
+
+  /* Collapses every CSS animation/transition to near-instant rather than hiding them outright — a
+     loading spinner stays a visible, static-looking circle instead of disappearing, which would read
+     as "nothing is happening" rather than "no motion, still loading". Elements already gated by
+     Tailwind's `motion-reduce:` variant (the loading spinner's own `animate-spin`) additionally drop
+     the animation entirely; this rule is the app-wide floor for everything else. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

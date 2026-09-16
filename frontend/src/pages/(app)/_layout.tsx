@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
+import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
@@ -38,30 +39,36 @@ const AuthenticatedLayout = () => {
   useDocumentEventsSse()
 
   return (
-    <SidebarProvider>
-      <PageHeaderProvider>
-        <section className="flex flex-col min-h-screen h-screen max-h-screen w-full max-w-screen overflow-y-auto overflow-x-hidden">
-          <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
-            <Sidebar />
-            <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
-              <BillingBanner />
-              <header className="p-4 bg-header border-b flex items-center gap-4">
-                <SidebarTrigger />
-                <PageHeaderTitle />
-                <PageHeaderActions />
-              </header>
-              <section className="h-full overflow-y-auto overflow-x-hidden">
-                <Outlet />
+    <OnboardingDialogProvider>
+      <SidebarProvider>
+        <PageHeaderProvider>
+          <section className="flex flex-col min-h-screen h-screen max-h-screen w-full max-w-screen overflow-y-auto overflow-x-hidden">
+            <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
+              <Sidebar />
+              <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+                <BillingBanner />
+                <header className="p-4 bg-header border-b flex items-center gap-4">
+                  <SidebarTrigger />
+                  <PageHeaderTitle />
+                  <PageHeaderActions />
+                </header>
+                <section className="h-full overflow-y-auto overflow-x-hidden">
+                  <Outlet />
+                </section>
               </section>
-            </section>
-          </main>
-        </section>
-      </PageHeaderProvider>
-      {/* Fixed to the viewport bottom (see the component's own className) — mounted here, not
-          inside any scrolling section, purely for readability; its positioning doesn't depend on
-          where in the tree it sits. */}
-      <PwaInstallPrompt />
-    </SidebarProvider>
+            </main>
+          </section>
+        </PageHeaderProvider>
+        {/* Fixed to the viewport bottom (see the component's own className) — mounted here, not
+            inside any scrolling section, purely for readability; its positioning doesn't depend on
+            where in the tree it sits. */}
+        <PwaInstallPrompt />
+        {/* A sibling of Sidebar, not a child of it — see useOnboardingDialog's own comment: Sidebar's
+            root unmounts entirely while its mobile Sheet is closed, which used to make this dialog
+            unreachable on mobile no matter how it was triggered. */}
+        <OnboardingDialogHost />
+      </SidebarProvider>
+    </OnboardingDialogProvider>
   )
 }
 
@@ -93,12 +100,18 @@ const Layout = () => {
     return null
   }
 
-  if (!session) {
-    const isAllowedPath = ALLOWED_PATHS.some((path) => location.pathname.match(new RegExp(path)))
-    if (!isAllowedPath) {
-      return <Navigate to="/auth/sign-in" />
-    }
+  // A public route stays outside the app shell UNCONDITIONALLY — a signed-in staff member opening
+  // a client's own signature link must see the same bare, public page a client does, never the
+  // sidebar/header chrome wrapped around someone else's document. Checked before the session
+  // branch below (which used to gate this), not after: that order let a logged-in visit fall
+  // through to AuthenticatedLayout regardless of path.
+  const isAllowedPath = ALLOWED_PATHS.some((path) => location.pathname.match(new RegExp(path)))
+  if (isAllowedPath) {
     return <UnauthenticatedLayout />
+  }
+
+  if (!session) {
+    return <Navigate to="/auth/sign-in" />
   }
 
   return <AuthenticatedLayout />

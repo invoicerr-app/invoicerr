@@ -34,6 +34,8 @@ export function TableSearchFilter({
   noResultsText,
   dataCy,
 }: TableSearchFilterProps) {
+  const { t } = useTranslation()
+  const clearLabel = t("common.clearFilterNamed", "Clear {{label}} filter", { label })
   return (
     <div className="flex flex-col gap-2 min-w-[220px]">
       <label className="text-sm font-medium">{label}</label>
@@ -54,6 +56,8 @@ export function TableSearchFilter({
             size="icon"
             className="shrink-0"
             onClick={() => onValueChange(undefined)}
+            tooltip={clearLabel}
+            aria-label={clearLabel}
           >
             <X className="h-4 w-4" />
           </Button>

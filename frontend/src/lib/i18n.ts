@@ -167,6 +167,22 @@ i18n
     load: "languageOnly",
   })
 
+// `index.html` ships a static `lang="en" dir="ltr"` (there is no server render to fill it in), and
+// nothing ever touched it after that — confirmed live: a French-browser visitor got the fully
+// translated app while `document.documentElement.lang` stayed "en". Besides misleading assistive
+// tech, that mismatch is exactly what makes a browser's own translate offer fire on the wrong
+// signal (or not fire at all): Chromium decides whether to prompt from `lang`, not from the text it
+// renders. Kept in sync on every change, not just at boot, since `changeLanguage` (the preferences
+// picker) never remounts the document.
+function syncDocumentLanguage() {
+  document.documentElement.lang = i18n.resolvedLanguage || i18n.language || "en"
+  document.documentElement.dir = i18n.dir()
+}
+i18n.on("languageChanged", syncDocumentLanguage)
+// `languageChanged` can fire synchronously inside `.init()` above, before this listener existed —
+// apply once more here to cover that race instead of depending on event-registration order.
+syncDocumentLanguage()
+
 export function languageToLocale(lang: string): Locale {
   switch (lang) {
     case "af":
