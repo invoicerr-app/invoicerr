@@ -1,5 +1,8 @@
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import {
+  getOrCreateCompanySubscription,
+  recomputeStatusForVanishedSubscription,
+} from './company-subscription.store';
 import {
   ReconcileSubscriptionsClient,
   reconcileFromPolarIfStale,
@@ -12,6 +15,7 @@ jest.mock('./webhook-handlers');
 
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
 const applyWebhook = applySubscriptionWebhook as jest.Mock;
+const recomputeVanished = recomputeStatusForVanishedSubscription as jest.Mock;
 
 async function* asPages(items: unknown[]) {
   yield { result: { items } };
@@ -26,6 +30,8 @@ function sub(overrides: Record<string, unknown> = {}): CompanySubscription {
     companyId: 'company-1',
     status: 'TRIAL',
     polarCustomerId: null,
+    trialEndsAt: new Date('2020-01-01T00:00:00.000Z'),
+    lastPolarFactAt: null,
     ...overrides,
   } as CompanySubscription;
 }
@@ -33,16 +39,6 @@ function sub(overrides: Record<string, unknown> = {}): CompanySubscription {
 describe('reconcileFromPolarIfStale', () => {
   beforeEach(() => resetStatusReconcileCacheForTests());
   afterEach(() => jest.resetAllMocks());
-
-  it('does nothing when already ACTIVE — never calls Polar', async () => {
-    const client = fakeClient([]);
-    const row = sub({ status: 'ACTIVE', polarCustomerId: 'cus_1' });
-
-    const result = await reconcileFromPolarIfStale(row, client, 0);
-
-    expect(result).toBe(row);
-    expect(client.subscriptions.list as jest.Mock).not.toHaveBeenCalled();
-  });
 
   it('does nothing when there is no polarCustomerId yet', async () => {
     const client = fakeClient([]);
@@ -145,6 +141,79 @@ describe('reconcileFromPolarIfStale', () => {
     await reconcileFromPolarIfStale(row, client, 0);
 
     expect(applyWebhook).toHaveBeenCalledWith(expect.objectContaining({ factAt: new Date(createdAt) }));
+  });
+
+  it('recomputes an ACTIVE row whose own company-scoped customer has NO subscription at all', async () => {
+    const client = fakeClient([]);
+    const row = sub({
+      status: 'ACTIVE',
+      polarCustomerId: 'cus_company',
+      trialEndsAt: new Date('2020-01-01T00:00:00.000Z'),
+      lastPolarFactAt: new Date('2026-08-01T00:00:00.000Z'),
+    });
+    const recomputed = { ...row, status: 'PAST_DUE' };
+    recomputeVanished.mockResolvedValue(recomputed);
+
+    const result = await reconcileFromPolarIfStale(row, client, 5_000);
+
+    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledWith({
+      externalCustomerId: 'company-1',
+      limit: 10,
+    });
+    expect(recomputeVanished).toHaveBeenCalledWith(
+      'company-1',
+      row.trialEndsAt,
+      row.lastPolarFactAt,
+      new Date(5_000),
+    );
+    expect(applyWebhook).not.toHaveBeenCalled();
+    expect(result).toBe(recomputed);
+  });
+
+  it('anchors the recompute on now when this row has no lastPolarFactAt to fall back to', async () => {
+    const client = fakeClient([]);
+    const row = sub({ status: 'ACTIVE', polarCustomerId: 'cus_company', lastPolarFactAt: null });
+    recomputeVanished.mockResolvedValue({ ...row, status: 'PAST_DUE' });
+
+    await reconcileFromPolarIfStale(row, client, 9_000);
+
+    expect(recomputeVanished).toHaveBeenCalledWith(
+      'company-1',
+      row.trialEndsAt,
+      new Date(9_000),
+      new Date(9_000),
+    );
+  });
+
+  it('never recomputes a NON-ACTIVE row with no subscription — that is a normal, unrelated state', async () => {
+    const client = fakeClient([]);
+    const row = sub({ status: 'BLOCKED', polarCustomerId: 'cus_company' });
+
+    const result = await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(result).toBe(row);
+    expect(recomputeVanished).not.toHaveBeenCalled();
+  });
+
+  it('applies a real subscription found for an ACTIVE row exactly like a non-ACTIVE one', async () => {
+    const client = fakeClient([
+      {
+        id: 'polar_sub_1',
+        customerId: 'cus_company',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: {},
+      },
+    ]);
+    const row = sub({ status: 'ACTIVE', polarCustomerId: 'cus_company' });
+    getOrCreate.mockResolvedValue({ ...row, status: 'ACTIVE' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(applyWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ companyId: 'company-1', polarSubscriptionId: 'polar_sub_1' }),
+    );
+    expect(recomputeVanished).not.toHaveBeenCalled();
   });
 
   it('swallows a Polar failure and returns the row unchanged', async () => {

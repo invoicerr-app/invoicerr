@@ -20,6 +20,7 @@ export class BillingCustomerProvisioningBootService implements OnModuleInit {
         `Polar customer boot sync: ${summary.total} compan${summary.total === 1 ? 'y' : 'ies'} checked, ` +
           `${summary.alreadyExisted} already had a customer, ${summary.created} created, ` +
           `${summary.emailTaken} refused (billing email already taken elsewhere — will retry once fixed), ` +
+          `${summary.skipped} skipped (no billing email set — see WARN log per company), ` +
           `${summary.failed} failed (retried on the next boot or lifecycle-sweep tick).`,
       );
     } catch (error) {

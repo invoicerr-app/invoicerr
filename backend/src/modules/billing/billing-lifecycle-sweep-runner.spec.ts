@@ -37,7 +37,14 @@ const provisionCustomers = reconcileMissingCompanyCustomers as jest.Mock;
  *  `billing-lifecycle-sweep-runner.ts`), so every pre-existing scenario in this file that never cared
  *  about it needs a resolved value to compare its own `result` against a `customersProvisioned: 0`
  *  baseline (`baseResult`'s own default) rather than an unrelated rejection polluting its assertions. */
-const NO_CUSTOMERS_PROVISIONED = { total: 0, alreadyExisted: 0, created: 0, emailTaken: 0, failed: 0 };
+const NO_CUSTOMERS_PROVISIONED = {
+  total: 0,
+  alreadyExisted: 0,
+  created: 0,
+  emailTaken: 0,
+  skipped: 0,
+  failed: 0,
+};
 
 function fakeExportService(zip: Buffer = Buffer.from('zip-bytes')) {
   return {
@@ -83,6 +90,7 @@ function baseResult(overrides: Partial<Record<string, number>> = {}) {
     seatsReconciled: 0,
     customerSyncRetried: 0,
     customersProvisioned: 0,
+    customersSkipped: 0,
     warningsSent: 0,
     ...overrides,
   };
@@ -305,6 +313,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         alreadyExisted: 1,
         created: 2,
         emailTaken: 0,
+        skipped: 0,
         failed: 0,
       });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
@@ -313,6 +322,34 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
       expect(provisionCustomers).toHaveBeenCalledWith();
       expect(result.customersProvisioned).toBe(2);
+    });
+
+    it('surfaces the skipped count (no billing email anywhere) separately from created/failed', async () => {
+      listSubs.mockResolvedValue([]);
+      provisionCustomers.mockResolvedValue({
+        total: 4,
+        alreadyExisted: 1,
+        created: 1,
+        emailTaken: 0,
+        skipped: 2,
+        failed: 0,
+      });
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(NOW);
+
+      expect(result.customersSkipped).toBe(2);
+      expect(result.customersProvisioned).toBe(1);
+    });
+
+    it('leaves customersSkipped undefined, same as customersProvisioned, when the provisioning pass throws', async () => {
+      listSubs.mockResolvedValue([]);
+      provisionCustomers.mockRejectedValue(new Error('polar is down'));
+      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+      const result = await runner.runSweep(NOW);
+
+      expect(result.customersSkipped).toBeUndefined();
     });
 
     it('never blocks the rest of the sweep when the provisioning pass itself throws', async () => {
@@ -339,6 +376,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         alreadyExisted: 0,
         created: 0,
         emailTaken: 1,
+        skipped: 0,
         failed: 1,
       });
       const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());

@@ -26,10 +26,33 @@
  * 2026-09-16 per-company migration, whose `external_id` is a USER id, not a company id at all
  * (`legacy-customer.ts`'s own header — option A only ever mints customers with `external_id =
  * company.id`, but an old customer can still fire real webhooks). Both read identically from here:
- * `prisma.company` has no row for the resolved id. Rather than let `getOrCreateCompanySubscription`
- * attempt an `upsert` that would fail the request outright on the `CompanySubscription.companyId`
- * foreign key (a genuine 500 — Polar retries a non-2xx delivery forever), this is checked FIRST and
- * treated as "nothing for this app to do", exactly like an unresolvable `companyId` already was.
+ * `prisma.company` has no row for the resolved id. A genuinely-deleted company has nothing left to
+ * recover either way — but a LEGACY per-user customer might still be exactly what a real company's row
+ * is stuck pointing at (see the next section), so this is no longer an unconditional drop.
+ *
+ * ## Recovering a legacy per-user cancellation/revocation (2026-09-16)
+ *
+ * A real dev-instance incident: the OWNER deleted their OLD, pre-migration per-user Polar customer
+ * straight from Polar's own dashboard. That customer's `external_id` is still a USER id (never
+ * rewritten — Polar customers are immutable on that field once set), so its `subscription.canceled`
+ * webhook resolves to a `companyId` no `Company` row matches, and used to be silently dropped here —
+ * the affected company's `CompanySubscription` row stayed `ACTIVE` forever, correctable only by
+ * `status-reconcile.ts`'s own separate repair path (see that file's own header for the other half of
+ * this same fix).
+ *
+ * Recovered here instead: when the primary company lookup misses, check whether SOME company's stored
+ * row already carries THIS EXACT Polar subscription id (`polarSubscriptionId` — written back when that
+ * legacy subscription was first applied, before the per-company migration ever existed, so it is the
+ * one fact still correctly tying a legacy delivery to its real company). If one matches, and the
+ * mapped status is no longer billable, the row is recomputed the SAME anchored way
+ * `status-reconcile.ts` recomputes a vanished subscription (`lifecycle.ts#computeRecoveredStatus`) —
+ * never by trusting the raw mapped status blindly, since a webhook for an old, rarely-touched customer
+ * can be delivered well after the fact. Idempotent: a repeat delivery of the same (or a later) event
+ * for the same subscription recomputes to the same (or a further-advanced, correctly so) state, never
+ * a duplicated side effect — `recomputeStatusForVanishedSubscription` is a plain, deterministic write.
+ * An `ACTIVE`-mapped fact on this fallback path is left untouched rather than reviving a company via a
+ * customer this app no longer considers authoritative for it — see this function's own `mappedStatus`
+ * guard below.
  */
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -38,7 +61,10 @@ import {
   CompanySubscriptionInterval,
   CompanySubscriptionStatus,
 } from '../../../prisma/generated/prisma/client';
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import {
+  getOrCreateCompanySubscription,
+  recomputeStatusForVanishedSubscription,
+} from './company-subscription.store';
 
 /**
  * Polar's own `SubscriptionStatus` values (`@polar-sh/sdk`'s `models/components/subscriptionstatus`)
@@ -105,13 +131,80 @@ export interface PolarSubscriptionWebhookFacts {
  * never cleared. `seatPaymentFailedAt` (`seat-sync.ts`'s own header) is the same idea for the
  * seat-specific "why is this company PAST_DUE" reason `billing-status-view.ts` shows.
  */
+/**
+ * The fallback this file's own header describes: `facts.companyId` matched no `Company` row, so try
+ * recovering the REAL company from a stored `polarSubscriptionId` match instead — a legacy per-user
+ * customer's `subscription.canceled`/`.revoked` delivery, previously an unconditional no-op. A
+ * genuinely deleted/foreign event (no row anywhere carries this subscription id either) is still a
+ * silent no-op, logged the same way it always was.
+ */
+async function recoverLegacySubscriptionCancellation(facts: PolarSubscriptionWebhookFacts): Promise<void> {
+  const legacyRow = await prisma.companySubscription.findFirst({
+    where: { polarSubscriptionId: facts.polarSubscriptionId },
+    select: { companyId: true, trialEndsAt: true, lastPolarFactAt: true },
+  });
+
+  if (!legacyRow) {
+    logger.info(
+      'Polar webhook: no company for the resolved id, and no stored row matches this subscription ' +
+        'either — deleted, or a foreign event. Ignored.',
+      {
+        category: 'billing',
+        details: { companyId: facts.companyId, polarSubscriptionId: facts.polarSubscriptionId },
+      },
+    );
+    return;
+  }
+
+  const mappedStatus = mapPolarSubscriptionStatus(facts.status);
+  if (mappedStatus === 'ACTIVE') {
+    // Not the scenario this fallback exists for (see this file's own header) — never let a stray
+    // `active`/`trialing` fact from a customer this app no longer considers authoritative for the
+    // company revive it. Left untouched, no log: an `ACTIVE` re-delivery from an old, rarely-touched
+    // customer is not itself a sign of anything wrong.
+    return;
+  }
+
+  if (
+    facts.factAt &&
+    legacyRow.lastPolarFactAt &&
+    facts.factAt.getTime() < legacyRow.lastPolarFactAt.getTime()
+  ) {
+    logger.warn(
+      'Ignored a stale legacy-customer Polar fact — a fresher one was already applied for this company',
+      {
+        category: 'billing',
+        details: {
+          companyId: legacyRow.companyId,
+          factAt: facts.factAt,
+          lastPolarFactAt: legacyRow.lastPolarFactAt,
+        },
+      },
+    );
+    return;
+  }
+
+  logger.warn(
+    'Polar webhook: recovered a legacy per-user subscription cancellation/revocation by matching ' +
+      'polarSubscriptionId — company row recomputed',
+    {
+      category: 'billing',
+      details: {
+        companyId: legacyRow.companyId,
+        polarSubscriptionId: facts.polarSubscriptionId,
+        status: facts.status,
+      },
+    },
+  );
+
+  const anchor = facts.factAt ?? legacyRow.lastPolarFactAt ?? new Date();
+  await recomputeStatusForVanishedSubscription(legacyRow.companyId, legacyRow.trialEndsAt, anchor);
+}
+
 export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFacts): Promise<void> {
   const company = await prisma.company.findUnique({ where: { id: facts.companyId }, select: { id: true } });
   if (!company) {
-    logger.info(
-      'Polar webhook: no company for the resolved id — deleted, or a pre-migration per-user customer. Ignored.',
-      { category: 'billing', details: { companyId: facts.companyId } },
-    );
+    await recoverLegacySubscriptionCancellation(facts);
     return;
   }
 

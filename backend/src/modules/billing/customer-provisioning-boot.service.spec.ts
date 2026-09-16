@@ -9,7 +9,14 @@ describe('BillingCustomerProvisioningBootService', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('runs the reconciliation once and never throws on success', async () => {
-    reconcile.mockResolvedValue({ total: 3, alreadyExisted: 1, created: 2, emailTaken: 0, failed: 0 });
+    reconcile.mockResolvedValue({
+      total: 3,
+      alreadyExisted: 1,
+      created: 2,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 0,
+    });
     const service = new BillingCustomerProvisioningBootService();
 
     await expect(service.onModuleInit()).resolves.toBeUndefined();

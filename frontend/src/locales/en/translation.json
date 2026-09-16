@@ -2862,6 +2862,7 @@
       "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
       "currencyNotice": "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
       "currentPlan": "Current plan",
+      "noSubscription": "No subscription",
       "seats": "{{count}} seat",
       "seats_other": "{{count}} seats",
       "daysRemaining": "{{count}} day remaining",

@@ -50,6 +50,13 @@ export interface RunBillingLifecycleSweepResult {
    *  header). `undefined` when the pass itself failed outright (never thrown into the rest of the
    *  sweep — see `runSweep`'s own try/catch around this step). */
   customersProvisioned?: number;
+  /** This tick's `customer-provisioning.ts#reconcileMissingCompanyCustomers` pass's own `skipped`
+   *  count — a company with neither `Company.billingEmail` nor `Company.email` set, so Polar would
+   *  refuse the create outright (that module's own header). Distinct from `customersProvisioned`
+   *  (created only): surfaced separately so an operator reading the log line can tell "nothing to do"
+   *  apart from "some companies are stuck on a data problem only a human can fix (set an email)".
+   *  `undefined` when the provisioning pass itself failed outright, same as `customersProvisioned`. */
+  customersSkipped?: number;
 }
 
 @Injectable()
@@ -88,11 +95,18 @@ export class BillingLifecycleSweepRunner {
     try {
       const provisioned = await reconcileMissingCompanyCustomers();
       result.customersProvisioned = provisioned.created;
-      if (provisioned.created > 0 || provisioned.emailTaken > 0 || provisioned.failed > 0) {
+      result.customersSkipped = provisioned.skipped;
+      if (
+        provisioned.created > 0 ||
+        provisioned.emailTaken > 0 ||
+        provisioned.skipped > 0 ||
+        provisioned.failed > 0
+      ) {
         this.logger.log(
           `Billing customer provisioning: ${provisioned.total} compan${provisioned.total === 1 ? 'y' : 'ies'} ` +
             `checked, ${provisioned.created} created, ${provisioned.emailTaken} refused (billing email ` +
-            `taken), ${provisioned.failed} failed (retried next tick).`,
+            `taken), ${provisioned.skipped} skipped (no billing email), ${provisioned.failed} failed ` +
+            `(retried next tick).`,
         );
       }
     } catch (error) {

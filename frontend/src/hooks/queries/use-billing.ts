@@ -4,6 +4,11 @@ import { queryKeys } from "@/lib/query-keys"
 export type CompanySubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "BLOCKED" | "ZIPPED" | "DELETED"
 
 export interface BillingStatusView {
+  /** The company-scoped subscription's own status — `ACTIVE` here is what actually gates "Manage
+   *  subscription" in `billing.settings.tsx` (2026-09-15 incident): `hasCompanyCustomer` below alone
+   *  only means a Polar customer OBJECT exists, never that it has a live subscription to manage — a
+   *  company whose customer has none must land on "Subscribe", not a portal session opening to Polar's
+   *  own empty "No Active Subscriptions". */
   status: CompanySubscriptionStatus
   seats: number
   interval: "MONTH" | "YEAR" | null
@@ -12,14 +17,18 @@ export interface BillingStatusView {
   checkoutUrl: string
   portalUrl: string
   /** `true` when this company already has its OWN, company-scoped Polar customer (backend's own
-   *  `legacy-customer.ts#getCompanyCustomerFacts`). `billing.settings.tsx` uses this — NOT `status` —
-   *  to decide whether "Manage subscription" can even be shown: a concrete 2026-09-16 dev-instance
-   *  incident proved a company reconciled to ACTIVE from a pre-migration customer still had none of
-   *  its own, and the button surfaced a raw backend error message when clicked. */
+   *  `legacy-customer.ts#getCompanyCustomerFacts`). `billing.settings.tsx` uses this — combined with
+   *  `status === "ACTIVE"` (see that field's own doc comment below, 2026-09-15 incident) — to decide
+   *  whether "Manage subscription" can even be shown: a concrete 2026-09-16 dev-instance incident
+   *  proved a company reconciled to ACTIVE from a pre-migration customer still had none of its own, and
+   *  the button surfaced a raw backend error message when clicked. Merely `true` here does NOT mean
+   *  there is anything to manage — see `status`'s own comment. */
   hasCompanyCustomer: boolean
-  /** `true` when this company's subscription still points at the pre-2026-09-16 per-USER Polar
-   *  customer (backend's own `legacy-customer.ts`) — there is no automatic migration, the settings
-   *  screen shows a plain re-subscribe notice instead. */
+  /** `true` when this company's subscription still points at a pre-2026-09-16 per-USER Polar customer
+   *  (backend's own `legacy-customer.ts`) that ITSELF still exists and still has an active/trialing
+   *  subscription — `false` the moment either stops being true (the old customer was deleted, or its
+   *  subscription was canceled), not merely because the stored id differs from the company-scoped one.
+   *  There is no automatic migration, the settings screen shows a plain re-subscribe notice instead. */
   legacySubscription: boolean
   /** `true` when a link to the OLD, pre-migration per-USER Polar portal
    *  (`POST /api/billing/portal/legacy`) has a real chance of opening — checked only while

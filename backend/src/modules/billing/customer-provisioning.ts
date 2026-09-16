@@ -36,6 +36,7 @@ import {
   BillingEmailTakenError,
   getOrCreatePolarCustomerForCompany,
   isResourceNotFoundError,
+  resolveBillingEmail,
 } from './billing-customer';
 import { callPolarWithRetry, getPolarClient } from './polar-client';
 
@@ -48,8 +49,32 @@ export interface ReconcileMissingCompanyCustomersSummary {
   /** Refused by Polar (422, duplicate billing email) — left without a customer on purpose; see this
    *  file's own header. Logged by name, `Company.billingEmail` is the fix. */
   emailTaken: number;
+  /** Neither `Company.billingEmail` nor `Company.email` resolves to anything (`resolveBillingEmail`
+   *  returns an empty string) — Polar always refuses a customer with no email, so this is never even
+   *  attempted as a create call. Distinct from `failed`: this is not a transient Polar problem, it is a
+   *  data problem on OUR side (a company created without a contact email — seen on a dev-instance test
+   *  company, 2026-09-16), so it gets its own named-by-company WARN instead of the generic "failed"
+   *  log an on-call reader can't act on. Naturally self-heals on the NEXT boot/sweep pass once
+   *  `Company.email` or `Company.billingEmail` is set — this function re-reads both from the DB every
+   *  pass, so there is nothing to persist to know "the email changed since last time". */
+  skipped: number;
   /** Any other failure (existence check or creation) — logged, left for the next boot/sweep pass. */
   failed: number;
+}
+
+/** Pulls `statusCode`/`message` off a thrown Polar error for logging, without ever assuming the shape
+ *  (a network-level throw, e.g., carries no `statusCode` at all) and without touching any header or
+ *  credential the error object might also carry — same minimal, structurally-typed read as
+ *  `isResourceNotFoundError` in `billing-customer.ts`. */
+function extractPolarErrorDetails(error: unknown): { statusCode: number | 'unknown'; message: string } {
+  const statusCode =
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof (error as { statusCode: unknown }).statusCode === 'number'
+      ? (error as { statusCode: number }).statusCode
+      : 'unknown';
+  return { statusCode, message: error instanceof Error ? error.message : String(error) };
 }
 
 /** `false` (never throws) on anything other than "no customer registered at all" — the caller treats
@@ -69,7 +94,7 @@ async function checkCustomerExists(
     if (isResourceNotFoundError(error)) return false;
     logger.warn('Polar customer existence check failed during provisioning — retried next pass', {
       category: 'billing',
-      details: { companyId, error: error instanceof Error ? error.message : String(error) },
+      details: { companyId, ...extractPolarErrorDetails(error) },
     });
     return 'error';
   }
@@ -92,6 +117,7 @@ export async function reconcileMissingCompanyCustomers(
     alreadyExisted: 0,
     created: 0,
     emailTaken: 0,
+    skipped: 0,
     failed: 0,
   };
 
@@ -103,6 +129,21 @@ export async function reconcileMissingCompanyCustomers(
     }
     if (exists) {
       summary.alreadyExisted++;
+      continue;
+    }
+
+    // No email anywhere on the company — Polar will refuse the create outright, so don't even attempt
+    // it (and don't log it as an opaque "failed"). Re-evaluated fresh from the DB row every pass, so a
+    // company only stops showing up here once someone actually sets an email — nothing is persisted to
+    // track "did the email change since last tick".
+    if (!resolveBillingEmail(company)) {
+      summary.skipped++;
+      logger.warn(
+        'Polar customer provisioning skipped: company has no billing email (Company.email and ' +
+          'Company.billingEmail are both empty) — Polar refuses a customer with no email. Set one in ' +
+          'Settings > Billing (or Company.email) and it will be picked up on the next pass.',
+        { category: 'billing', details: { companyId: company.id, companyName: company.name } },
+      );
       continue;
     }
 
@@ -129,7 +170,7 @@ export async function reconcileMissingCompanyCustomers(
       summary.failed++;
       logger.warn('Polar customer provisioning failed for one company — retried next pass', {
         category: 'billing',
-        details: { companyId: company.id, error: error instanceof Error ? error.message : String(error) },
+        details: { companyId: company.id, ...extractPolarErrorDetails(error) },
       });
     }
   }

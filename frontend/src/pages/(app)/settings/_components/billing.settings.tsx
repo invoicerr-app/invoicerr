@@ -224,7 +224,17 @@ export default function BillingSettings() {
     )
   }
 
-  const statusLabel = t(`settings.billing.status.${status.status}`, status.status)
+  // `PAST_DUE` with no `interval` means there is no REAL Polar subscription behind it at all — either
+  // this company never had one (a legacy per-user subscription recovered by the backend,
+  // `status-reconcile.ts`/`webhook-handlers.ts`'s own header) — as opposed to `PAST_DUE` WITH an
+  // `interval` still set, a genuinely existing subscription Polar itself reports as failing to bill,
+  // where the enum label ("Payment failed") stays the more useful, specific one. A concrete 2026-09-15
+  // dev-instance incident showed the alternative: this block kept reading "Active · Yearly" for a
+  // company with nothing left behind it at all — a ghost plan, not a real one.
+  const hasNoRealSubscription = status.status === "PAST_DUE" && status.interval === null
+  const statusLabel = hasNoRealSubscription
+    ? t("settings.billing.noSubscription", "No subscription")
+    : t(`settings.billing.status.${status.status}`, status.status)
 
   return (
     <SettingsPage
@@ -332,8 +342,14 @@ export default function BillingSettings() {
                   portal session for — that used to surface `portal-session.ts`'s own raw
                   `PolarCustomerNotFoundError` message verbatim (2026-09-16 dev-instance incident). In
                   the legacy case, it is replaced by a button targeting the OLD, per-user customer
-                  instead, so cancelling it never depends on finding that portal by hand. */}
-              {status.hasCompanyCustomer && (
+                  instead, so cancelling it never depends on finding that portal by hand.
+
+                  ALSO requires `status === "ACTIVE"` (2026-09-15 incident, backend's own
+                  `status-reconcile.ts`/`webhook-handlers.ts`): `hasCompanyCustomer` alone only means a
+                  Polar customer object exists, not that it has anything to manage — a company whose
+                  company-scoped customer has no active/trialing subscription must land on "Subscribe",
+                  never a portal session that opens to Polar's own empty "No Active Subscriptions". */}
+              {status.hasCompanyCustomer && status.status === "ACTIVE" && (
                 <Button
                   variant={status.status === "ACTIVE" ? "default" : "secondary"}
                   onClick={manageSubscription}

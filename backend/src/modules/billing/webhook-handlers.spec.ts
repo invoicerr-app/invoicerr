@@ -1,6 +1,9 @@
 import prisma from '@/prisma/prisma.service';
 
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import {
+  getOrCreateCompanySubscription,
+  recomputeStatusForVanishedSubscription,
+} from './company-subscription.store';
 import {
   applySubscriptionWebhook,
   handleSubscriptionPayload,
@@ -11,15 +14,17 @@ import {
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    companySubscription: { update: jest.fn() },
+    companySubscription: { update: jest.fn(), findFirst: jest.fn() },
     company: { findUnique: jest.fn() },
   },
 }));
 jest.mock('./company-subscription.store');
 
 const update = prisma.companySubscription.update as jest.Mock;
+const findLegacyRow = prisma.companySubscription.findFirst as jest.Mock;
 const findCompany = prisma.company.findUnique as jest.Mock;
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
+const recomputeVanished = recomputeStatusForVanishedSubscription as jest.Mock;
 
 describe('mapPolarSubscriptionStatus', () => {
   it.each(['active', 'trialing'])('%s maps to ACTIVE', (status) => {
@@ -137,8 +142,9 @@ describe('applySubscriptionWebhook', () => {
     expect(data).not.toHaveProperty('interval');
   });
 
-  it('ignores a webhook whose resolved companyId matches no company — deleted, never a 500', async () => {
+  it('ignores a webhook whose resolved companyId matches no company AND no stored row matches its subscription id — deleted, never a 500', async () => {
     findCompany.mockResolvedValue(null);
+    findLegacyRow.mockResolvedValue(null);
 
     await expect(
       applySubscriptionWebhook({
@@ -152,24 +158,101 @@ describe('applySubscriptionWebhook', () => {
 
     expect(getOrCreate).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
+    expect(recomputeVanished).not.toHaveBeenCalled();
   });
 
-  it('ignores a webhook for a pre-migration, per-USER customer (external_id is a user id, not a company id) the same way', async () => {
-    // Under option A a real company's customer external_id is always `company.id` — an old customer's
-    // external_id is a USER id, which simply matches no row in `Company` either.
-    findCompany.mockResolvedValue(null);
+  describe('legacy per-user customer fallback (companyId resolves to no Company row)', () => {
+    beforeEach(() => {
+      // Under option A a real company's customer external_id is always `company.id` — an old
+      // customer's external_id is a USER id, which simply matches no row in `Company` either.
+      findCompany.mockResolvedValue(null);
+    });
 
-    await expect(
-      applySubscriptionWebhook({
+    it('recovers the real company by polarSubscriptionId and recomputes on a canceled/revoked fact', async () => {
+      findLegacyRow.mockResolvedValue({
+        companyId: 'company-1',
+        trialEndsAt: new Date('2026-01-01T00:00:00Z'),
+        lastPolarFactAt: null,
+      });
+      recomputeVanished.mockResolvedValue({ companyId: 'company-1', status: 'PAST_DUE' });
+      const factAt = new Date('2026-09-16T10:00:00Z');
+
+      await expect(
+        applySubscriptionWebhook({
+          companyId: 'user_cGfd91',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_legacy',
+          status: 'canceled',
+          recurringInterval: 'year',
+          factAt,
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(prisma.companySubscription.findFirst).toHaveBeenCalledWith({
+        where: { polarSubscriptionId: 'sub_1' },
+        select: { companyId: true, trialEndsAt: true, lastPolarFactAt: true },
+      });
+      expect(recomputeVanished).toHaveBeenCalledWith('company-1', new Date('2026-01-01T00:00:00Z'), factAt);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the row's own lastPolarFactAt as the anchor when this delivery carries no factAt", async () => {
+      const lastPolarFactAt = new Date('2026-08-01T00:00:00Z');
+      findLegacyRow.mockResolvedValue({
+        companyId: 'company-1',
+        trialEndsAt: new Date('2026-01-01'),
+        lastPolarFactAt,
+      });
+      recomputeVanished.mockResolvedValue({ companyId: 'company-1', status: 'PAST_DUE' });
+
+      await applySubscriptionWebhook({
+        companyId: 'user_cGfd91',
+        polarSubscriptionId: 'sub_1',
+        polarCustomerId: 'cus_legacy',
+        status: 'revoked',
+        recurringInterval: 'year',
+      });
+
+      expect(recomputeVanished).toHaveBeenCalledWith('company-1', new Date('2026-01-01'), lastPolarFactAt);
+    });
+
+    it('never recomputes on an ACTIVE-mapped fact from a legacy customer — not the scenario this fallback exists for', async () => {
+      findLegacyRow.mockResolvedValue({
+        companyId: 'company-1',
+        trialEndsAt: new Date('2026-01-01'),
+        lastPolarFactAt: null,
+      });
+
+      await applySubscriptionWebhook({
         companyId: 'user_cGfd91',
         polarSubscriptionId: 'sub_1',
         polarCustomerId: 'cus_legacy',
         status: 'active',
-        recurringInterval: 'month',
-      }),
-    ).resolves.toBeUndefined();
+        recurringInterval: 'year',
+      });
 
-    expect(update).not.toHaveBeenCalled();
+      expect(recomputeVanished).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("ignores a legacy fact OLDER than the row's own lastPolarFactAt", async () => {
+      findLegacyRow.mockResolvedValue({
+        companyId: 'company-1',
+        trialEndsAt: new Date('2026-01-01'),
+        lastPolarFactAt: new Date('2026-09-16T10:05:00Z'),
+      });
+
+      await applySubscriptionWebhook({
+        companyId: 'user_cGfd91',
+        polarSubscriptionId: 'sub_1',
+        polarCustomerId: 'cus_legacy',
+        status: 'canceled',
+        recurringInterval: 'year',
+        factAt: new Date('2026-09-16T10:00:00Z'),
+      });
+
+      expect(recomputeVanished).not.toHaveBeenCalled();
+    });
   });
 
   it('applies a fact unconditionally when no prior fact was ever recorded, and persists factAt', async () => {

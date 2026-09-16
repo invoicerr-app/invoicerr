@@ -7,27 +7,37 @@
  *    `billing.settings.tsx` uses this to decide whether "Manage subscription" can even be shown — a
  *    concrete 2026-09-16 dev-instance incident proved a company WITHOUT one still saw that button, and
  *    clicking it surfaced `portal-session.ts`'s own raw `PolarCustomerNotFoundError` message verbatim.
- *  - `legacySubscription` — does the STORED subscription still point at the pre-migration, per-USER
- *    Polar customer (`legacy-customer.ts` used to be this file's whole reason to exist, before
- *    `hasCompanyCustomer` joined it) — surfaced so the settings screen shows a plain re-subscribe
- *    notice instead of trying (there is no Polar API to migrate an existing subscription: checked
- *    directly against the SDK's own `Customers`/`Subscriptions` operation lists, 2026-09-16 — neither
- *    exposes a `merge`/`transfer`, and `Subscriptions.update` has no `customerId` field).
+ *  - `legacySubscription` — does the STORED subscription still point at a pre-migration, per-USER Polar
+ *    customer that ITSELF still exists and still carries a live (active/trialing) subscription —
+ *    surfaced so the settings screen shows a plain re-subscribe notice instead of trying (there is no
+ *    Polar API to migrate an existing subscription: checked directly against the SDK's own
+ *    `Customers`/`Subscriptions` operation lists, 2026-09-16 — neither exposes a `merge`/`transfer`,
+ *    and `Subscriptions.update` has no `customerId` field).
  *
- * Computed TOGETHER, from the SAME single `customers.getExternal({ externalId: companyId })` call,
- * deliberately: both questions turn on the exact same fact (does a company-scoped customer exist, and
- * if so, is it the one the subscription row actually points at), so splitting them into two Polar round
- * trips would double this endpoint's own Polar traffic for nothing. Detection reasoning:
+ * ## `legacySubscription` is VERIFIED directly against the old customer, not merely inferred (2026-09-16)
  *
- *  - The call SUCCEEDS → `hasCompanyCustomer: true`. `legacySubscription` is then true only if the
- *    stored `polarCustomerId` is BOTH set and DIFFERENT from this company-scoped customer's own id —
- *    covers the case where a company-scoped customer already exists (pre-filled by
- *    `getOrCreatePolarCustomerForCompany`, or by `customer-provisioning.ts`'s own boot/sweep sync) but
- *    the currently-stored subscription still belongs to the OLD per-user one.
- *  - The call 404s → `hasCompanyCustomer: false`. `legacySubscription` is then true only if this row
- *    already has SOME `polarCustomerId` on file — nothing else could have written that id besides the
- *    pre-migration per-user flow, since option A never stores a customer id without first confirming
- *    (or creating) the company-scoped one.
+ * Originally this only compared the STORED `polarCustomerId` against the company-scoped customer's own
+ * id — "differs (or 404s with something on file) ⇒ legacy" — never actually checking whether that OLD
+ * customer was still real. A concrete dev-instance incident broke that: the OWNER deleted the old
+ * per-user customer by hand in Polar's own dashboard (its subscription went `canceled`, the customer
+ * itself now 404s), yet the inference alone had no way to notice — it would have kept reporting
+ * `legacySubscription: true` (a "re-subscribe" notice pointing at a customer that no longer exists)
+ * forever. Now the OLD customer identified by `sub.polarCustomerId` (when it differs from the
+ * company-scoped one) is checked DIRECTLY via `customers.getState` — a single call that both confirms
+ * existence (404 if gone) and reports its own `activeSubscriptions` in one round trip, so
+ * `legacySubscription` is true only while there is something real left to warn about.
+ *
+ * `hasCompanyCustomer` is unaffected by this and still comes from the SAME single
+ * `customers.getExternal({ externalId: companyId })` call it always has (does a company-scoped customer
+ * exist at all) — the two questions no longer share one Polar round trip, but `legacySubscription`'s own
+ * extra `getState` call only ever fires when a legacy candidate id is actually on file, the rare path,
+ * so a company that has never touched a legacy customer costs nothing extra.
+ *
+ *  - The `getExternal` call SUCCEEDS → `hasCompanyCustomer: true`, and the legacy candidate is
+ *    `sub.polarCustomerId` when it is set and DIFFERENT from this company-scoped customer's own id.
+ *  - The call 404s → `hasCompanyCustomer: false`, and the legacy candidate is simply `sub.polarCustomerId`
+ *    when set — nothing else could have written that id besides the pre-migration per-user flow, since
+ *    option A never stores a customer id without first confirming (or creating) the company-scoped one.
  *  - Any OTHER failure (a Polar outage, a bad token) never throws: the codebase-wide convention this
  *    whole module family holds (`status-reconcile.ts`'s own header) is that a Polar outage must not turn
  *    `GET /api/billing/status` into a 500 — both facts default to the SAFER reading (no scary notice, no
@@ -59,11 +69,39 @@ export function resetCompanyCustomerFactsCacheForTests(): void {
 }
 
 /** Narrow, mockable subset of the `Polar` SDK client this module calls — same convention every other
- *  billing file narrows its own client shape to. */
+ *  billing file narrows its own client shape to. `getState` — "Get Customer State by ID" — is the ONE
+ *  call `hasActiveSubscriptionOnLegacyCustomer` below needs: it 404s the same way `getExternal` does
+ *  when the customer is gone, and its own `activeSubscriptions` array is Polar's own answer to "does
+ *  this customer still have anything live", no separate `subscriptions.list` round trip required. */
 export interface CompanyCustomerFactsClient {
   customers: {
     getExternal(request: { externalId: string }): Promise<{ id: string }>;
+    getState(request: { id: string }): Promise<{ activeSubscriptions: unknown[] }>;
   };
+}
+
+/** Whether the OLD per-user Polar customer at `customerId` (Polar's own internal id, NOT an external
+ *  id) still exists AND still carries at least one active/trialing subscription — see this file's own
+ *  header (2026-09-16) on why `legacySubscription` must go FALSE the moment either stops being true,
+ *  rather than staying true forever purely because the row's `polarCustomerId` happens to differ from
+ *  the company-scoped one. A 404 (the customer itself was deleted — the exact reported incident) reads
+ *  as "no", the same safe default every other check in this module already applies to an outage. */
+async function hasActiveSubscriptionOnLegacyCustomer(
+  customerId: string,
+  client: CompanyCustomerFactsClient,
+): Promise<boolean> {
+  try {
+    const state = await client.customers.getState({ id: customerId });
+    return state.activeSubscriptions.length > 0;
+  } catch (error) {
+    if (!isResourceNotFoundError(error)) {
+      logger.warn('Legacy Polar-customer subscription check failed — defaulting to not legacy', {
+        category: 'billing',
+        details: { customerId, error: error instanceof Error ? error.message : String(error) },
+      });
+    }
+    return false;
+  }
 }
 
 export async function getCompanyCustomerFacts(
@@ -78,25 +116,40 @@ export async function getCompanyCustomerFacts(
     );
   }
 
-  let facts: CompanyCustomerFacts;
+  let hasCompanyCustomer = false;
+  let companyScopedCustomerId: string | null = null;
   try {
     const companyScopedCustomer = await client.customers.getExternal({ externalId: sub.companyId });
-    facts = {
-      hasCompanyCustomer: true,
-      legacySubscription: sub.polarCustomerId !== null && companyScopedCustomer.id !== sub.polarCustomerId,
-    };
+    hasCompanyCustomer = true;
+    companyScopedCustomerId = companyScopedCustomer.id;
   } catch (error) {
-    if (isResourceNotFoundError(error)) {
-      facts = { hasCompanyCustomer: false, legacySubscription: sub.polarCustomerId !== null };
-    } else {
+    if (!isResourceNotFoundError(error)) {
       logger.warn('Company Polar-customer facts check failed — defaulting to the safer reading', {
         category: 'billing',
         details: { companyId: sub.companyId, error: error instanceof Error ? error.message : String(error) },
       });
-      facts = { hasCompanyCustomer: false, legacySubscription: false };
+      const facts: CompanyCustomerFacts = { hasCompanyCustomer: false, legacySubscription: false };
+      lastCheckedAtByCompanyId.set(sub.companyId, now);
+      lastFactsByCompanyId.set(sub.companyId, facts);
+      return facts;
     }
+    // 404 — a company with no company-scoped customer of its own (yet). `hasCompanyCustomer` stays
+    // `false`; the legacy check below still runs against `sub.polarCustomerId`, if any.
   }
 
+  // The candidate legacy customer — the STORED id, only when it is not the SAME id as the company's
+  // own (see this file's own header on why this, rather than the old "just infer it" heuristic, is now
+  // the correct signal).
+  const legacyCandidateId =
+    sub.polarCustomerId !== null && sub.polarCustomerId !== companyScopedCustomerId
+      ? sub.polarCustomerId
+      : null;
+
+  const legacySubscription = legacyCandidateId
+    ? await hasActiveSubscriptionOnLegacyCustomer(legacyCandidateId, client)
+    : false;
+
+  const facts: CompanyCustomerFacts = { hasCompanyCustomer, legacySubscription };
   lastCheckedAtByCompanyId.set(sub.companyId, now);
   lastFactsByCompanyId.set(sub.companyId, facts);
   return facts;

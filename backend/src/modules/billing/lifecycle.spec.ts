@@ -5,6 +5,7 @@ import {
   addDays,
   computeDueBillingWarnings,
   computeLifecycleTransition,
+  computeRecoveredStatus,
   computeTrialWindow,
   CompanySubscriptionLifecycleFacts,
 } from './lifecycle';
@@ -216,5 +217,51 @@ describe('computeDueBillingWarnings — OWNER warning-email milestones', () => {
         deletionDueAt,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('computeRecoveredStatus', () => {
+  const trialEndsAt = addDays(T0, TRIAL_DAYS);
+
+  it('reverts to TRIAL while the original trial window has not ended yet', () => {
+    const anchor = addDays(T0, 5);
+    const now = addDays(T0, 10); // still before trialEndsAt (day 14)
+    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({ status: 'TRIAL', blockedAt: null });
+  });
+
+  it('is PAST_DUE, blockedAt null, right at the trialEndsAt boundary with a fresh anchor', () => {
+    expect(computeRecoveredStatus(trialEndsAt, trialEndsAt, trialEndsAt)).toEqual({
+      status: 'PAST_DUE',
+      blockedAt: null,
+    });
+  });
+
+  it('stays PAST_DUE for fewer than BLOCKED_DAYS since the anchor', () => {
+    const anchor = addDays(trialEndsAt, 10);
+    const now = addDays(anchor, BLOCKED_DAYS - 1);
+    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({ status: 'PAST_DUE', blockedAt: null });
+  });
+
+  it('becomes BLOCKED, backdated to the anchor (never now), once BLOCKED_DAYS elapsed since it', () => {
+    const anchor = addDays(trialEndsAt, 10);
+    const now = addDays(anchor, BLOCKED_DAYS);
+    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({
+      status: 'BLOCKED',
+      blockedAt: anchor,
+    });
+  });
+
+  it('stays BLOCKED with the SAME backdated blockedAt long after the anchor, never resetting to now', () => {
+    const anchor = addDays(trialEndsAt, 10);
+    const now = addDays(anchor, 90); // long past BLOCKED_DAYS
+    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({
+      status: 'BLOCKED',
+      blockedAt: anchor,
+    });
+  });
+
+  it('falls back to PAST_DUE when the anchor itself is `now` (no better anchor known)', () => {
+    const now = addDays(trialEndsAt, 30);
+    expect(computeRecoveredStatus(trialEndsAt, now, now)).toEqual({ status: 'PAST_DUE', blockedAt: null });
   });
 });

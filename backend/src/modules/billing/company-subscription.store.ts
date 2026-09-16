@@ -8,7 +8,7 @@
 import prisma from '@/prisma/prisma.service';
 
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
-import { computeTrialWindow } from './lifecycle';
+import { computeRecoveredStatus, computeTrialWindow } from './lifecycle';
 
 /**
  * Returns this company's subscription row, creating it LAZILY (status TRIAL, a fresh 14-day window
@@ -35,6 +35,44 @@ export async function getOrCreateCompanySubscription(
     where: { companyId },
     create: { companyId, trialStartedAt, trialEndsAt },
     update: {},
+  });
+}
+
+/**
+ * Persists `lifecycle.ts#computeRecoveredStatus`'s own decision — the ONE writer for the "this
+ * company's Polar subscription facts are gone" repair, shared by `status-reconcile.ts` (a
+ * company-scoped customer with no active/trialing subscription) and `webhook-handlers.ts` (a legacy
+ * per-user cancellation recovered by `polarSubscriptionId` — see each caller's own header).
+ *
+ * Clears `interval` (the vanished subscription's own cadence — nothing real left to describe) and
+ * `seatPaymentFailedAt` (a seat-specific reason tied to a subscription that no longer exists), the same
+ * "fields that stop applying get cleared on the status write that invalidates them" discipline
+ * `webhook-handlers.ts#applySubscriptionWebhook` already holds for its own ACTIVE branch. Never clears
+ * `polarSubscriptionId` — `lifecycle.ts`'s own header on why that field must stay permanent (the
+ * never-paid/paid-then-stopped zip-grace discriminator) or `seats` — a LOCAL count of real `UserCompany`
+ * rows (`seat-sync.ts`), never something a subscription's own disappearance makes stale.
+ *
+ * Stamps `lastPolarFactAt = anchor` too — belt-and-braces alongside the explicit `seatPaymentFailedAt`
+ * clear above: `billing-status-view.ts`'s own `seatPaymentFailureExplainsStatus` staleness check is
+ * already keyed on this field, so any FUTURE seat-failure fact is correctly compared against this
+ * repair's own timestamp rather than a stale one from before the subscription vanished.
+ */
+export async function recomputeStatusForVanishedSubscription(
+  companyId: string,
+  trialEndsAt: Date,
+  anchor: Date,
+  now: Date = new Date(),
+): Promise<CompanySubscription> {
+  const recovered = computeRecoveredStatus(trialEndsAt, anchor, now);
+  return prisma.companySubscription.update({
+    where: { companyId },
+    data: {
+      status: recovered.status,
+      blockedAt: recovered.blockedAt,
+      interval: null,
+      seatPaymentFailedAt: null,
+      lastPolarFactAt: anchor,
+    },
   });
 }
 

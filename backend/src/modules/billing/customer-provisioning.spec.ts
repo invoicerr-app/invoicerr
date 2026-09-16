@@ -1,3 +1,4 @@
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { BillingCustomerClient } from './billing-customer';
@@ -8,7 +9,12 @@ jest.mock('@/prisma/prisma.service', () => ({
   default: { company: { findMany: jest.fn() } },
 }));
 
+jest.mock('@/logger/logger.service', () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
 const findMany = prisma.company.findMany as jest.Mock;
+const warn = logger.warn as jest.Mock;
 
 function notFoundError(): Error {
   return Object.assign(new Error('ResourceNotFound'), { statusCode: 404 });
@@ -32,6 +38,7 @@ function fakeClient(overrides: Partial<BillingCustomerClient> = {}): BillingCust
 
 const COMPANY_A = { id: 'company-a', name: 'Acme', email: 'a@acme.test', billingEmail: null };
 const COMPANY_B = { id: 'company-b', name: 'Beta', email: 'b@beta.test', billingEmail: null };
+const COMPANY_NO_EMAIL = { id: 'company-c', name: 'Ghost Test Co', email: '', billingEmail: null };
 
 describe('reconcileMissingCompanyCustomers', () => {
   afterEach(() => jest.resetAllMocks());
@@ -44,7 +51,14 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 1, alreadyExisted: 1, created: 0, emailTaken: 0, failed: 0 });
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 1,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 0,
+    });
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -56,7 +70,14 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 1, alreadyExisted: 0, created: 1, emailTaken: 0, failed: 0 });
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 0,
+      created: 1,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 0,
+    });
     expect(create).toHaveBeenCalledWith({
       type: 'individual',
       externalId: 'company-a',
@@ -73,7 +94,14 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 1, alreadyExisted: 0, created: 0, emailTaken: 1, failed: 0 });
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 0,
+      created: 0,
+      emailTaken: 1,
+      skipped: 0,
+      failed: 0,
+    });
   });
 
   it('counts any other creation failure as failed, never throwing out of the pass', async () => {
@@ -84,7 +112,14 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 1, alreadyExisted: 0, created: 0, emailTaken: 0, failed: 1 });
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 0,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 1,
+    });
   });
 
   it('counts an existence-check outage as failed, without attempting to create (avoids a possible duplicate)', async () => {
@@ -95,7 +130,14 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 1, alreadyExisted: 0, created: 0, emailTaken: 0, failed: 1 });
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 0,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 1,
+    });
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -114,7 +156,14 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 2, alreadyExisted: 1, created: 0, emailTaken: 0, failed: 1 });
+    expect(summary).toEqual({
+      total: 2,
+      alreadyExisted: 1,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 1,
+    });
   });
 
   it('is a no-op summary when there are no companies at all', async () => {
@@ -123,6 +172,66 @@ describe('reconcileMissingCompanyCustomers', () => {
 
     const summary = await reconcileMissingCompanyCustomers(client);
 
-    expect(summary).toEqual({ total: 0, alreadyExisted: 0, created: 0, emailTaken: 0, failed: 0 });
+    expect(summary).toEqual({
+      total: 0,
+      alreadyExisted: 0,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 0,
+    });
+  });
+
+  it('classifies a company with no billing email as skipped, logs it by name, and never attempts a create', async () => {
+    findMany.mockResolvedValue([COMPANY_NO_EMAIL]);
+    const getExternal = jest.fn().mockRejectedValue(notFoundError());
+    const create = jest.fn();
+    const client = fakeClient({ customers: { getExternal, create } });
+
+    const summary = await reconcileMissingCompanyCustomers(client);
+
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 0,
+      created: 0,
+      emailTaken: 0,
+      skipped: 1,
+      failed: 0,
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('no billing email'),
+      expect.objectContaining({
+        category: 'billing',
+        details: { companyId: 'company-c', companyName: 'Ghost Test Co' },
+      }),
+    );
+  });
+
+  it('a real Polar failure (500) is counted as failed and logs the company id, HTTP status and Polar message', async () => {
+    findMany.mockResolvedValue([COMPANY_A]);
+    const getExternal = jest.fn().mockRejectedValue(notFoundError());
+    const create = jest
+      .fn()
+      .mockRejectedValue(Object.assign(new Error('Internal Server Error'), { statusCode: 500 }));
+    const client = fakeClient({ customers: { getExternal, create } });
+
+    const summary = await reconcileMissingCompanyCustomers(client);
+
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 0,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 1,
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('failed'),
+      expect.objectContaining({
+        category: 'billing',
+        details: { companyId: 'company-a', statusCode: 500, message: 'Internal Server Error' },
+      }),
+    );
   });
 });

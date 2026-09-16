@@ -121,6 +121,46 @@ export function computeLifecycleTransition(
   }
 }
 
+export type RecoveredNonActiveStatus = 'TRIAL' | 'PAST_DUE' | 'BLOCKED';
+
+export interface RecoveredLifecycleState {
+  status: RecoveredNonActiveStatus;
+  /** Only ever non-null for the `BLOCKED` case, and deliberately BACKDATED to `anchor` (never
+   *  whichever `now` this recompute happens to run at) — see this function's own header. */
+  blockedAt: Date | null;
+}
+
+/**
+ * Recomputes what a company's status SHOULD be, given the ONE fact both this repair's callers already
+ * established before calling this: the company no longer has ANY live (active/trialing) Polar
+ * subscription of its own — never called for a company that does. Anchored at `anchor`, the moment
+ * that stopped being true (a webhook's own delivery timestamp, or the last real fact this row ever had
+ * — `lastPolarFactAt` — when no better anchor is known), rather than trusting whatever `status` the row
+ * was last (possibly incorrectly) left in.
+ *
+ * Two callers, one real 2026-09-15 dev-instance incident behind both: a company's `CompanySubscription`
+ * row stayed `ACTIVE` forever after the OWNER deleted the pre-migration per-user Polar customer it had
+ * come from — `status-reconcile.ts` uses this when the company's OWN, company-scoped customer reports
+ * no subscription at all; `webhook-handlers.ts` uses it when a `canceled`/`revoked` webhook for that
+ * SAME legacy customer is recovered by `polarSubscriptionId` rather than being silently dropped.
+ *
+ * - Still inside the ORIGINAL trial window (`now < trialEndsAt`) → `TRIAL`: a company that subscribed
+ *   before its own trial had even ended keeps its unused trial days rather than being penalized for a
+ *   subscription vanishing later.
+ * - Otherwise → `PAST_DUE` while fewer than `BLOCKED_DAYS` have elapsed since `anchor`, else `BLOCKED`
+ *   with `blockedAt` backdated to `anchor` — never `now` — so the ordinary sweep computes the SAME
+ *   `BLOCKED` deadline (and, eventually, the same zip/deletion cascade) it would have, had the real
+ *   transition been observed the moment it actually happened, instead of resetting a fresh 14-day
+ *   countdown from whenever this repair happens to run.
+ */
+export function computeRecoveredStatus(trialEndsAt: Date, anchor: Date, now: Date): RecoveredLifecycleState {
+  if (now.getTime() < trialEndsAt.getTime()) return { status: 'TRIAL', blockedAt: null };
+
+  const zipDueAt = addDays(anchor, BLOCKED_DAYS);
+  if (now.getTime() >= zipDueAt.getTime()) return { status: 'BLOCKED', blockedAt: anchor };
+  return { status: 'PAST_DUE', blockedAt: null };
+}
+
 /** The trial window a brand-new `CompanySubscription` gets — `trialStartedAt`/`trialEndsAt` at the
  *  moment of lazy creation (`company-subscription.store.ts#getOrCreateCompanySubscription`). Pulled
  *  out as its own function so both the store and its spec share exactly one definition of "14 days". */
