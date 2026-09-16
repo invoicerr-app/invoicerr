@@ -65,6 +65,17 @@ cat > /usr/share/nginx/html/config.json <<EOF
 }
 EOF
 
+# HSTS opt-in (nginx.conf's own `__HSTS_HEADER__` marker, and the header's own comment there, explain
+# why this is never sent unconditionally): only an operator who has confirmed THIS instance is reached
+# exclusively over HTTPS should set ENABLE_HSTS=true. `includeSubDomains` is part of that same explicit
+# opt-in, never assumed — an operator running something else on a sibling subdomain over plain HTTP
+# would otherwise have HSTS sprung on them by invoicerr's own response.
+if [ "${ENABLE_HSTS:-false}" = "true" ]; then
+  echo "[DEBUG] - ENABLE_HSTS=true — sending Strict-Transport-Security"
+  sed -i 's|# __HSTS_HEADER__|add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;|' \
+    /etc/nginx/conf.d/default.conf
+fi
+
 # Schema convergence (baseline + migrate deploy, and the one-off v1.4.4a
 # leveling push for legacy db-push instances) is handled inside the backend
 # at startup — see backend/src/prisma/sync-schema.ts. Doing it here

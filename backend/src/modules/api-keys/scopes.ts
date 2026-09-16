@@ -32,6 +32,22 @@ export const API_KEY_SCOPES = [
   'expenses:read',
   'received-invoices:write',
   'received-invoices:read',
+  // Added when `@RequiresScope` (utils/scope-check.ts) was wired into `AuthGuard` and applied to the
+  // REST controllers themselves, not just the MCP layer — until then `hasScope()` had exactly one
+  // real caller in the whole backend, so a key minted for one narrow purpose still reached every
+  // REST route its holder's CompanyRole allowed. These four resources have no per-descriptor shape
+  // the way a document type does (they are each exactly one controller), so one read/write pair
+  // apiece is the whole story: `company` covers BOTH `company.controller.ts` (this company's own
+  // settings) and `companies.controller.ts` (creation/membership) — the two route prefixes a caller
+  // would call "my company", not two separately-grantable concerns.
+  'company:read',
+  'company:write',
+  'api-keys:read',
+  'api-keys:write',
+  'webhooks:read',
+  'webhooks:write',
+  'billing:read',
+  'billing:write',
 ] as const;
 
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];

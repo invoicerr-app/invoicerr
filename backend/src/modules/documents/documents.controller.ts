@@ -20,8 +20,13 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { ActiveRole } from '@/decorators/active-role.decorator';
 import { Roles } from '@/decorators/roles.decorator';
+import { RequiresDocumentTypeScope } from '@/utils/scope-check';
 
-import { AttachmentRef, AttachmentsService } from './attachments/attachments.service';
+import {
+  ALLOWED_ATTACHMENT_MIMES,
+  AttachmentRef,
+  AttachmentsService,
+} from './attachments/attachments.service';
 import { DocumentsService } from './documents.service';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import { DocumentEventMessage } from './queue/document-events';
@@ -44,6 +49,15 @@ interface MessageEvent {
   type?: string;
 }
 
+// Every route below carries `@RequiresDocumentTypeScope('read'|'write')` (`utils/scope-check.ts`) —
+// GET/SSE get 'read', everything that creates or mutates gets 'write', matching the same HTTP-verb
+// convention this codebase's other scope-gated controllers follow. `AuthGuard` resolves the ACTUAL
+// scope at request time from whatever `typeId` the call names (a path param for most routes, a query
+// string for the read side of a handful, the body for `POST .../schedules`) — a fixed `@RequiresScope`
+// list cannot express "the required scope depends on the document type", the same reason
+// `mcp/tools/scope-mapping.ts` already resolves it per call rather than at tool-registration time.
+// Session (human) callers are entirely unaffected: `request.scopes` is `null` for them, which every
+// scope check in this codebase already treats as "always satisfied".
 @ApiTags('documents')
 @Controller('documents')
 export class DocumentsController {
@@ -60,6 +74,7 @@ export class DocumentsController {
   // first — see documents.module.ts's comment header for why this ordering matters here.
 
   @Get('schedules')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List recurrences',
     description: 'Every DocumentSchedule for the active company — optionally narrowed to one document type.',
@@ -71,6 +86,7 @@ export class DocumentsController {
   }
 
   @Post('schedules')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Create a recurrence',
     description:
@@ -85,6 +101,7 @@ export class DocumentsController {
   }
 
   @Patch('schedules/:id')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Enable or disable a recurrence',
     description:
@@ -102,6 +119,7 @@ export class DocumentsController {
   }
 
   @Delete('schedules/:id')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({ summary: 'Delete a recurrence' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Schedule deleted' })
@@ -111,6 +129,7 @@ export class DocumentsController {
   }
 
   @Get('types')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List document types',
     description: 'Every registered document type descriptor, id and label only.',
@@ -125,6 +144,7 @@ export class DocumentsController {
   // `@Get(':id')` route further down.
 
   @Get('email-templates')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List every document type email template',
     description:
@@ -140,6 +160,7 @@ export class DocumentsController {
   }
 
   @Get('types/:typeId/email-template')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "One document type's email template",
     description: 'The same resolved template and derived vocabulary as the list route, for one type.',
@@ -153,6 +174,7 @@ export class DocumentsController {
 
   @Put('types/:typeId/email-template')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: "Save one document type's email template",
     description:
@@ -187,6 +209,7 @@ export class DocumentsController {
 
   @Delete('types/:typeId/email-template')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: "Revert one document type's email template to the shipped default",
     description:
@@ -201,6 +224,7 @@ export class DocumentsController {
   }
 
   @Get('types/:typeId')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Get a document type descriptor',
     description:
@@ -225,6 +249,7 @@ export class DocumentsController {
   }
 
   @Get('types/:typeId/fields/:fieldKey/rows')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "A 'rowSelection' field's currently selectable rows",
     description:
@@ -248,6 +273,7 @@ export class DocumentsController {
   }
 
   @Get('available-types')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "List document types available for the active company's country",
     description:
@@ -262,6 +288,7 @@ export class DocumentsController {
   }
 
   @Get('required-identifiers')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Legal identifier requirements for a country and party type',
     description:
@@ -283,6 +310,7 @@ export class DocumentsController {
   }
 
   @Get('b2g-routing')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'The B2G routing rule declared for a country, if any',
     description:
@@ -302,6 +330,7 @@ export class DocumentsController {
   }
 
   @Get('declarations')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "List the active company's declarative-reporting events",
     description:
@@ -332,6 +361,7 @@ export class DocumentsController {
   }
 
   @Get('dashboard')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Dashboard widgets',
     description:
@@ -345,6 +375,7 @@ export class DocumentsController {
   }
 
   @Get('statistics')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Statistics widgets',
     description: 'Same mechanism as GET documents/dashboard, for the Statistics screen.',
@@ -355,6 +386,7 @@ export class DocumentsController {
   }
 
   @Get('transports')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List document transports',
     description:
@@ -397,6 +429,7 @@ export class DocumentsController {
    * heartbeat for a real document event and never invalidates a query over one.
    */
   @Sse('events')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Live document status/conformity events (SSE)',
     description:
@@ -431,6 +464,7 @@ export class DocumentsController {
   }
 
   @Get('references/:entity/search')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Search a reference entity',
     description: 'Generic search behind a "reference" field, regardless of which entity it targets.',
@@ -448,6 +482,7 @@ export class DocumentsController {
   }
 
   @Get('references/:entity/:refId')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Resolve a reference value',
     description: 'The {id, label} for one entity id — used to display an already-set reference field.',
@@ -465,6 +500,7 @@ export class DocumentsController {
   }
 
   @Get('references/:entity/:refId/fields')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "A reference entity's own raw fields, for prefilling a row",
     description:
@@ -490,6 +526,7 @@ export class DocumentsController {
   // AttachmentsService's own header for why this stays as generic as 'reference's own
   // "references/:entity/..." routes right above, rather than a bespoke "expense attachment" endpoint.
   @Post('attachments/upload')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Upload an attachment (a photo or PDF of a receipt, today)',
     description:
@@ -528,6 +565,7 @@ export class DocumentsController {
   }
 
   @Get('attachments/:fileRef')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({ summary: "An attachment's original uploaded bytes" })
   @ApiParam({
     name: 'fileRef',
@@ -556,11 +594,33 @@ export class DocumentsController {
       throw new BadRequestException('The "mime" query parameter is required.');
     }
     const { bytes, mime: resolvedMime } = await this.attachmentsService.download(companyId, fileRef, mime);
-    res.setHeader('Content-Type', resolvedMime);
+
+    // `resolvedMime` is the CALLER-supplied `mime` query param, echoed straight back by
+    // `AttachmentsService.download` (it never re-derives it from what is actually stored) — so a
+    // caller who names a `fileRef` originally uploaded through a DIFFERENT route with no mime
+    // allowlist (`received-invoices.service.ts#upload`, which maps an unrecognised type to a bare
+    // `.bin` on the SAME shared, content-addressed storage — see `received-invoices/storage.ts`) can
+    // ask for it back as `text/html` (or `image/svg+xml`, `application/javascript`…) and have this
+    // endpoint hand a browser exactly that Content-Type on the app's own origin: a stored file becomes
+    // a same-origin script execution the moment a victim opens the link. Only a mime this app itself
+    // considers safe to render inline (`ALLOWED_ATTACHMENT_MIMES` — a closed set of a PDF and three
+    // image types, none of which execute script under their own correct Content-Type) is ever echoed
+    // back; anything else is served as an inert octet stream instead — the BYTES are still returned
+    // (this is not an authorization check, `AttachmentsService.download` already scoped that), only
+    // what the BROWSER is told they are changes. `Content-Disposition: attachment` and `nosniff` are
+    // kept regardless, as defense in depth: even a mime this app trusts should not execute in a page
+    // navigated to directly, and `nosniff` stops the browser from ever second-guessing either header.
+    const safeMime = ALLOWED_ATTACHMENT_MIMES.includes(resolvedMime)
+      ? resolvedMime
+      : 'application/octet-stream';
+    res.setHeader('Content-Type', safeMime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', 'attachment');
     res.send(bytes);
   }
 
   @Post('types/:typeId/actions/:actionId')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Run a document action',
     description:
@@ -597,6 +657,7 @@ export class DocumentsController {
   }
 
   @Post('types/:typeId/actions/:actionId/params/defaults')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "Get default values for an action's own parameters",
     description:
@@ -617,6 +678,7 @@ export class DocumentsController {
   }
 
   @Get()
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List document instances',
     description: 'Saved instances for the active company, newest first.',
@@ -628,6 +690,7 @@ export class DocumentsController {
   }
 
   @Get(':id/totals')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Compute document totals',
     description: 'Computes net, VAT, and gross totals (in minor units) for a document instance.',
@@ -648,6 +711,7 @@ export class DocumentsController {
   }
 
   @Get(':id/settlement')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "Compute a document instance's payment settlement",
     description:
@@ -667,6 +731,7 @@ export class DocumentsController {
   }
 
   @Get(':id/correction-routes')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: "A document's correction routes, for its SELLER country",
     description:
@@ -699,6 +764,7 @@ export class DocumentsController {
   }
 
   @Get(':id/pdf')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Get a document instance as PDF',
     description: 'Renders a document instance as a PDF file.',
@@ -721,6 +787,7 @@ export class DocumentsController {
   }
 
   @Get(':id/formats/:syntax')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'Get a normalized EN 16931 export of a document instance',
     description:
@@ -762,6 +829,7 @@ export class DocumentsController {
   }
 
   @Get(':id/archives')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List the legal archives of a document instance',
     description:
@@ -783,6 +851,7 @@ export class DocumentsController {
   }
 
   @Get(':id/authority-events')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List the post-deposit conformity events of a document instance',
     description:
@@ -803,6 +872,7 @@ export class DocumentsController {
   }
 
   @Post(':id/archives/:archiveId/verify')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Verify one legal archive’s integrity',
     description:
@@ -828,6 +898,7 @@ export class DocumentsController {
   }
 
   @Post(':id/share-link')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Create a public share link',
     description:
@@ -854,6 +925,7 @@ export class DocumentsController {
   }
 
   @Get(':id/share-links')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({
     summary: 'List the public share links of a document instance',
     description:
@@ -873,6 +945,7 @@ export class DocumentsController {
   }
 
   @Delete(':id/share-link/:tokenId')
+  @RequiresDocumentTypeScope('write')
   @ApiOperation({
     summary: 'Revoke a public share link',
     description:
@@ -896,6 +969,7 @@ export class DocumentsController {
   }
 
   @Get(':id')
+  @RequiresDocumentTypeScope('read')
   @ApiOperation({ summary: 'Get a document instance', description: 'One saved document instance by id.' })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'typeId', required: true, type: String })

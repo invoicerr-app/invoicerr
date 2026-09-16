@@ -48,6 +48,7 @@ jest.mock('@/prisma/prisma.service', () => ({
 import prisma from '@/prisma/prisma.service';
 import { PluginsController } from './plugins.controller';
 import { PluginsService } from './plugins.service';
+import { MASKED_SECRET } from './plugins.service';
 
 const mockedPrisma = prisma as unknown as {
   plugin: {
@@ -67,6 +68,16 @@ describe('Plugins — the in-app mechanism survives the external mechanism remov
     service = new PluginsService();
     controller = new PluginsController(service);
   });
+
+  describe(
+    'every route requires OWNER/ADMIN — SEC-03: this table has no companyId, it configures ' +
+      'the storage/signing provider for the whole instance',
+    () => {
+      it('the controller is gated by @Roles(OWNER, ADMIN)', () => {
+        expect(Reflect.getMetadata('roles', PluginsController)).toEqual(['OWNER', 'ADMIN']);
+      });
+    },
+  );
 
   describe('the four surviving routes are GENUINELY ROUTED — path metadata pinned (validation tripwire)', () => {
     /** Added by the removal's VALIDATION (2026-09-03): stripping `@Get('in-app')` off the controller
@@ -177,6 +188,82 @@ describe('Plugins — the in-app mechanism survives the external mechanism remov
       });
       expect(mockedPrisma.plugin.update).not.toHaveBeenCalled();
     });
+
+    it(
+      "never discloses a re-toggled S3 plugin's stored accessKey/secretKey in the clear — SEC-03: " +
+        "this is an INSTANCE-wide credential, not a setting the caller's own company owns",
+      async () => {
+        mockedPrisma.plugin.findFirst
+          .mockResolvedValueOnce({
+            id: 's3',
+            name: 'S3',
+            type: 'STORAGE',
+            isActive: false,
+            config: { accessKey: 'AKIAREALVALUE', secretKey: 'sh1sh1sh1', region: 'eu-west-3', bucket: 'b' },
+          })
+          .mockResolvedValueOnce(null);
+        mockRegistry.getProviderForm.mockResolvedValueOnce({ form: { fields: [{ name: 'accessKey' }] } });
+
+        const result = await controller.toggleInAppPlugin({ pluginId: 's3' });
+
+        expect(result).toEqual({
+          requiresConfiguration: true,
+          formConfig: { form: { fields: [{ name: 'accessKey' }] } },
+          currentConfig: {
+            accessKey: MASKED_SECRET,
+            secretKey: MASKED_SECRET,
+            region: 'eu-west-3',
+            bucket: 'b',
+          },
+        });
+      },
+    );
+  });
+
+  describe('POST /plugins/in-app/configure — never overwrites a real secret with its own mask', () => {
+    it('resubmitting the masked placeholder for accessKey/secretKey preserves the stored value', async () => {
+      mockedPrisma.plugin.findFirst
+        .mockResolvedValueOnce({
+          id: 's3',
+          name: 'S3',
+          type: 'STORAGE',
+          isActive: false,
+          config: {
+            accessKey: 'AKIAREALVALUE',
+            secretKey: 'sh1sh1sh1',
+            region: 'eu-west-3',
+            bucket: 'old-bucket',
+          },
+        })
+        .mockResolvedValueOnce(null) // no other active plugin of the same type
+        .mockResolvedValueOnce({ id: 's3', name: 'S3', type: 'STORAGE' }); // pluginValidation's own re-fetch
+      mockRegistry.getProvider.mockResolvedValueOnce(null); // no handleWebhook/validatePlugin
+
+      // The settings form was pre-filled with the masked placeholder for the two secret fields and
+      // the caller only actually changed `bucket` — exactly what a real edit round-trip submits.
+      await controller.configureInAppPlugin({
+        pluginId: 's3',
+        config: {
+          accessKey: MASKED_SECRET,
+          secretKey: MASKED_SECRET,
+          region: 'eu-west-3',
+          bucket: 'new-bucket',
+        },
+      });
+
+      expect(mockedPrisma.plugin.update).toHaveBeenCalledWith({
+        where: { id: 's3' },
+        data: {
+          config: {
+            accessKey: 'AKIAREALVALUE',
+            secretKey: 'sh1sh1sh1',
+            region: 'eu-west-3',
+            bucket: 'new-bucket',
+          },
+          isActive: true,
+        },
+      });
+    });
   });
 
   describe('POST /plugins/in-app/validate — webhook provisioning', () => {
@@ -193,11 +280,37 @@ describe('Plugins — the in-app mechanism survives the external mechanism remov
 
       expect(result.success).toBe(true);
       expect(result.webhookUrl).toMatch(/\/api\/webhooks\/documenso$/);
-      expect(result.webhookSecret).toEqual(expect.any(String));
-      expect(mockedPrisma.plugin.update).toHaveBeenCalledWith({
+      // The REAL secret is what got persisted — never what this HTTP response carries back.
+      const persistedCall = mockedPrisma.plugin.update.mock.calls.find(
+        (call) => call[0]?.data?.webhookSecret,
+      );
+      expect(persistedCall?.[0]).toEqual({
         where: { id: 'documenso' },
-        data: { webhookUrl: result.webhookUrl, webhookSecret: result.webhookSecret },
+        data: { webhookUrl: result.webhookUrl, webhookSecret: expect.any(String) },
       });
     });
+
+    it(
+      'never returns the real webhookSecret to the caller — SEC-03 follow-up: this is an ' +
+        "INSTANCE-wide credential, masked exactly like a storage provider's own secret fields",
+      async () => {
+        mockedPrisma.plugin.findFirst.mockResolvedValueOnce({
+          id: 'documenso',
+          name: 'Documenso',
+          type: 'SIGNING',
+          config: {},
+        });
+        mockRegistry.getProvider.mockResolvedValueOnce({ handleWebhook: jest.fn() });
+
+        const result = await controller.validatePlugin({ pluginId: 'documenso' });
+
+        expect(result.webhookSecret).toBe(MASKED_SECRET);
+        const persistedSecret = mockedPrisma.plugin.update.mock.calls.find(
+          (call) => call[0]?.data?.webhookSecret,
+        )?.[0]?.data?.webhookSecret;
+        expect(persistedSecret).not.toBe(MASKED_SECRET);
+        expect(persistedSecret).toEqual(expect.any(String));
+      },
+    );
   });
 });

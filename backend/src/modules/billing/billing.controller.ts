@@ -21,6 +21,7 @@ import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
+import { RequiresScope } from '@/utils/scope-check';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { BillingEmailTakenError } from './billing-customer';
@@ -66,6 +67,7 @@ const CHECKOUT_SLUGS: readonly CheckoutProductSlug[] = ['monthly', 'yearly'];
 @Controller('billing')
 export class BillingController {
   @Get('status')
+  @RequiresScope('billing:read')
   @ApiOperation({
     summary: "This company's hosted-billing status",
     description:
@@ -93,6 +95,7 @@ export class BillingController {
 
   @Post('checkout')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('billing:write')
   @BillingGateExempt()
   @ApiOperation({
     summary: 'Start a Polar checkout session for the active company',
@@ -137,6 +140,7 @@ export class BillingController {
 
   @Post('portal')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('billing:write')
   @BillingGateExempt()
   @ApiOperation({
     summary: 'Open a Polar customer-portal session for the CALLING OWNER/ADMIN',
@@ -175,6 +179,7 @@ export class BillingController {
 
   @Post('portal/legacy')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('billing:write')
   @BillingGateExempt()
   @ApiOperation({
     summary: "Open a Polar customer-portal session for the CALLING user's own PRE-MIGRATION customer",
@@ -202,6 +207,7 @@ export class BillingController {
   }
 
   @Get('billing-email')
+  @RequiresScope('billing:read')
   @ApiOperation({
     summary: "This company's billing email override",
     description:
@@ -215,6 +221,7 @@ export class BillingController {
 
   @Put('billing-email')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('billing:write')
   @ApiOperation({
     summary: "Set (or clear) this company's billing email override",
     description:

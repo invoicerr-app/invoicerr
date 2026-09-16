@@ -5,6 +5,7 @@ import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { Roles } from '@/decorators/roles.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('clients')
 @Controller('clients')
@@ -12,6 +13,7 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Get()
+  @RequiresScope('clients:read')
   @ApiOperation({ summary: 'List clients', description: 'Returns a paginated list of clients.' })
   @ApiQuery({
     name: 'page',
@@ -25,6 +27,7 @@ export class ClientsController {
   }
 
   @Get('search')
+  @RequiresScope('clients:read')
   @ApiOperation({
     summary: 'Search clients',
     description: 'Searches clients by query string (name, email, etc.).',
@@ -41,6 +44,7 @@ export class ClientsController {
   }
 
   @Get(':id/statement')
+  @RequiresScope('clients:read')
   @ApiOperation({
     summary: "A client's account statement",
     description:
@@ -57,6 +61,7 @@ export class ClientsController {
   }
 
   @Post()
+  @RequiresScope('clients:write')
   @ApiOperation({
     summary: 'Create a client',
     description: 'Creates a new client with the provided information.',
@@ -67,6 +72,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
+  @RequiresScope('clients:write')
   @ApiOperation({ summary: 'Update a client', description: 'Updates an existing client by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Client ID' })
   @ApiResponse({ status: 200, description: 'Client updated' })
@@ -80,6 +86,7 @@ export class ClientsController {
 
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('clients:write')
   @ApiOperation({ summary: 'Delete a client', description: 'Permanently removes a client by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Client ID' })
   @ApiResponse({ status: 200, description: 'Client deleted' })

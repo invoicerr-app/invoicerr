@@ -1,6 +1,8 @@
 import { PluginsService } from '@/modules/plugins/plugins.service';
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { Roles } from '@/decorators/roles.decorator';
 
 // Until 2026-09-03 this controller used to ALSO expose the external, git-clone
 // plugin mechanism: `GET /plugins`, `GET /plugins/formats`, `POST /plugins` (clone a Git URL and
@@ -8,8 +10,20 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 // those paths any more. See `plugins.service.ts`'s own header ("The plugin system, as
 // seen by its first real consumer") for why. Only the in-app plugins API
 // (`PluginRegistry`/`PluginType`, the Settings > Plugins screen) remains below.
+//
+// `Plugin` has no `companyId` — it configures the storage/signing provider for the WHOLE instance,
+// consumed by every company's documents (`utils/storage-upload.ts`, `webhooks.service.ts`), not a
+// setting scoped to whichever company happens to be active. `@Roles(OWNER, ADMIN)` is the same
+// ceiling this codebase already puts on every other instance/company-sensitive settings surface
+// (`webhooks.controller.ts`, `api-keys.controller.ts`, the danger zone) — there is no stronger
+// "instance operator" role anywhere in this app to reach for instead, so this is the correct role
+// gate even though the resource behind it is instance-wide rather than per-company. Session auth
+// only: `RolesGuard` reads the caller's real `request.role`, which for an API key is now the key
+// holder's own live membership role (`guards/auth.guard.ts`) rather than a synthetic ADMIN — an API
+// key therefore reaches these routes only when its holder is genuinely an OWNER/ADMIN today.
 @ApiTags('plugins')
 @Controller('plugins')
+@Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
 export class PluginsController {
   constructor(private readonly pluginsService: PluginsService) {}
 

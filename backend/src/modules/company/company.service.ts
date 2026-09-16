@@ -49,6 +49,79 @@ function appUrl(): string {
   return process.env.APP_URL || 'http://localhost:3000';
 }
 
+/**
+ * The only `Company` columns a caller may ever set through `EditCompanyDto` — the single allow-list
+ * BOTH `createCompany` and `editCompanyInfo` write through, so the two can never drift into accepting
+ * different fields. `EditCompanyDto` is a TypeScript interface (erased at compile time) and this API
+ * has no `ValidationPipe`, so this function is the only thing standing between the raw JSON request
+ * body and `prisma.company.create`/`update`. Without it, a caller-named `subscription`, `documents`,
+ * `clients`, `signingCertificates`, `channelConfigs`, `id`, or any of the ~30 other relations
+ * `CompanyCreateInput`/`CompanyUpdateInput` accept would reach Prisma verbatim — and because the
+ * foreign key on a one-to-many/one-to-one relation lives on the CHILD row, a nested `connect` there
+ * REASSIGNS an existing row (someone else's active subscription, signing certificate, or transmission
+ * channel) to the caller's own company rather than merely failing. Every field named here is a plain
+ * scalar column with no such nested-write surface. Each key is always present on the returned object
+ * (possibly `undefined`) — Prisma treats an `undefined` value exactly like an absent key for both
+ * `create` and `update`, so this matches `editCompanyInfo`'s pre-existing literal-object write below.
+ */
+// `Pick<EditCompanyDto, ...>` rather than letting the return type be inferred: it preserves each
+// field's own OPTIONALITY exactly as `EditCompanyDto` declares it (`phone?: string`, not the
+// mandatory-but-possibly-`undefined` `phone: string | undefined` a bare object-literal return type
+// would infer). That distinction is what lets `createCompany` spread this result AFTER its own
+// `phone: ''`/`email: ''`/... fallbacks without TypeScript flagging every one of them as "always
+// overwritten by an `undefined`-typed spread" — Prisma's generated `CompanyCreateInput` itself marks
+// these columns as optional-with-a-caller-can-omit-them semantics for exactly this reason.
+type PickedCompanyInput = Pick<
+  EditCompanyDto,
+  | 'description'
+  | 'foundedAt'
+  | 'name'
+  | 'currency'
+  | 'exemptVat'
+  | 'address'
+  | 'addressLine2'
+  | 'postalCode'
+  | 'city'
+  | 'state'
+  | 'country'
+  | 'countryCode'
+  | 'language'
+  | 'phone'
+  | 'email'
+  | 'iban'
+  | 'invoiceTransportId'
+  | 'paymentProviderId'
+  | 'referenceCurrency'
+  | 'approvalThresholdMinor'
+  | 'remindersEnabled'
+>;
+
+export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
+  return {
+    description: input.description,
+    foundedAt: input.foundedAt,
+    name: input.name,
+    currency: input.currency,
+    exemptVat: input.exemptVat,
+    address: input.address,
+    addressLine2: input.addressLine2,
+    postalCode: input.postalCode,
+    city: input.city,
+    state: input.state,
+    country: input.country,
+    countryCode: input.countryCode,
+    language: input.language,
+    phone: input.phone,
+    email: input.email,
+    iban: input.iban,
+    invoiceTransportId: input.invoiceTransportId,
+    paymentProviderId: input.paymentProviderId,
+    referenceCurrency: input.referenceCurrency,
+    approvalThresholdMinor: input.approvalThresholdMinor,
+    remindersEnabled: input.remindersEnabled,
+  };
+}
+
 @Injectable()
 export class CompanyService {
   private lastCompanyHash?: string;
@@ -155,32 +228,11 @@ export class CompanyService {
     // `id`, `createdAt`, and, directly relevant to numbering, `numberFormats` itself, which would
     // bypass `assertValidNumberPattern` (the check `updateNumberFormat` below always runs) and let an
     // invalid pattern sit in the database until it fails loudly, far from here, at issuance. Every
-    // field this settings screen is actually allowed to write is named once, here.
+    // field this settings screen is actually allowed to write is named once, in `pickCompanyInput`
+    // above — shared with `createCompany` so the two paths can never diverge.
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
-      data: {
-        description: rest.description,
-        foundedAt: rest.foundedAt,
-        name: rest.name,
-        currency: rest.currency,
-        exemptVat: rest.exemptVat,
-        address: rest.address,
-        addressLine2: rest.addressLine2,
-        postalCode: rest.postalCode,
-        city: rest.city,
-        state: rest.state,
-        country: rest.country,
-        countryCode: rest.countryCode,
-        language: rest.language,
-        phone: rest.phone,
-        email: rest.email,
-        iban: rest.iban,
-        invoiceTransportId: rest.invoiceTransportId,
-        paymentProviderId: rest.paymentProviderId,
-        referenceCurrency: rest.referenceCurrency,
-        approvalThresholdMinor: rest.approvalThresholdMinor,
-        remindersEnabled: rest.remindersEnabled,
-      },
+      data: pickCompanyInput(rest),
     });
 
     await this.upsertPartyIdentifiers(
@@ -290,17 +342,34 @@ export class CompanyService {
       }
     }
 
+    // Same allow-list `editCompanyInfo` writes through — never `...data` (the raw JSON body minus
+    // `identifiers`). This is the ONE route on this DTO open to any authenticated user regardless of
+    // company membership (`companies.controller.ts`'s own comment), so an unchecked spread here was
+    // the more exploitable half of the mass-assignment hole: a caller who knows no other id at all
+    // can hand Prisma a nested `subscription: { create: { status: 'ACTIVE', ... } } }` and get an
+    // ACTIVE subscription with no Polar customer behind it, or a `connect` naming another tenant's
+    // row (subscription, signing certificate, channel config, client, document) and reassign it here
+    // on creation. See `pickCompanyInput`'s own header.
+    const picked = pickCompanyInput(data);
     const newCompany = await prisma.company.create({
       data: {
-        // Sensible blanks for the fields the simplified onboarding (name + country
-        // only) doesn't collect — the user fills these in later via Settings.
-        foundedAt: new Date(),
-        address: '',
-        postalCode: '',
-        city: '',
-        phone: '',
-        email: '',
-        ...data,
+        ...picked,
+        foundedAt: picked.foundedAt ?? new Date(),
+        // Sensible blanks for the fields the simplified onboarding (name + country only) doesn't
+        // collect — the user fills these in later via Settings. `??`, not the previous
+        // spread-after-literal ordering, because `Company`'s columns are non-nullable `string`
+        // (`prisma/generated/prisma/models/Company.ts`) while `pickCompanyInput`'s fields are all
+        // OPTIONAL (`EditCompanyDto`): the old `{ city: '', ...picked }` shape let an explicit
+        // `city: undefined` key from the spread silently win over the blank default — which
+        // `tsc` catches as a type error (`picked.city` is `string | undefined`, the column wants
+        // `string`) precisely because it WOULD have reached Prisma as `undefined`, i.e. "field not
+        // provided" — throwing at runtime on a required column with no schema default, the exact
+        // simplified-onboarding path (name + country only) this comment says must stay blank instead.
+        address: picked.address ?? '',
+        postalCode: picked.postalCode ?? '',
+        city: picked.city ?? '',
+        phone: picked.phone ?? '',
+        email: picked.email ?? '',
       },
     });
 

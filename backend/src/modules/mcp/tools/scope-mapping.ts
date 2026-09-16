@@ -32,38 +32,17 @@
  * two ENTITY scopes (`clients`/`articles`) — so adding a sixth document type's own scopes to
  * `api-keys/scopes.ts` is the ONLY change ever needed to extend both the registration gate and the
  * per-call gate to it; nothing in this file is ever edited by hand for a new document type.
+ *
+ * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`/`scopeForDocumentType` themselves now live in
+ * `utils/scope-check.ts` (re-exported below, unchanged, for every existing import site in this
+ * module) — `documents.controller.ts`'s own `@RequiresDocumentTypeScope` needs the EXACT same
+ * per-typeId computation this MCP layer pioneered, and a REST controller has no business importing
+ * from the `mcp/` module to get it (the dependency belongs the other way around).
  */
-import { API_KEY_SCOPES, ApiKeyScope, isApiKeyScope } from '@/modules/api-keys/scopes';
-import { hasScope } from '@/utils/scope-check';
+import { ApiKeyScope } from '@/modules/api-keys/scopes';
+import { hasScope, scopeForDocumentType } from '@/utils/scope-check';
 
-/** Real business entities the MCP tools read/write DIRECTLY (list_clients, create_client,
- *  list_articles) — never resolved through DocumentTypeRegistry, so never part of the "any document
- *  scope" predicates below. */
-const ENTITY_SCOPES: readonly ApiKeyScope[] = [
-  'clients:read',
-  'clients:write',
-  'articles:read',
-  'articles:write',
-];
-
-export const DOCUMENT_READ_SCOPES: ApiKeyScope[] = API_KEY_SCOPES.filter(
-  (scope) => scope.endsWith(':read') && !ENTITY_SCOPES.includes(scope),
-);
-
-export const DOCUMENT_WRITE_SCOPES: ApiKeyScope[] = API_KEY_SCOPES.filter(
-  (scope) => scope.endsWith(':write') && !ENTITY_SCOPES.includes(scope),
-);
-
-/**
- * The scope a `typeId` needs for `mode` — `${typeId}s:${mode}` ("quote" -> "quotes:read",
- * "received-invoice" -> "received-invoices:write", ...). `undefined` (never a thrown error) when
- * that computed name isn't a real, declared `ApiKeyScope` — see this file's own header for why that
- * is the correct, fail-closed answer rather than a crash.
- */
-export function scopeForDocumentType(typeId: string, mode: 'read' | 'write'): ApiKeyScope | undefined {
-  const candidate = `${typeId}s:${mode}`;
-  return isApiKeyScope(candidate) ? candidate : undefined;
-}
+export { DOCUMENT_READ_SCOPES, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from '@/utils/scope-check';
 
 /** Registration-time predicate: at least one of `candidates` is granted. `scopes === null` (session
  *  auth) is never scope-restricted — see hasScope's own header; unreachable in practice since only

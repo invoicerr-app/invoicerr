@@ -10,6 +10,7 @@ import { CurrentUser } from '@/types/user';
 
 import { SetCompanyMailSettingsDto } from '@/modules/company/mail-settings/company-mail-settings.dto';
 import { CompanyMailSettingsService } from '@/modules/company/mail-settings/company-mail-settings.service';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('company')
 @Controller('company')
@@ -20,6 +21,7 @@ export class CompanyController {
   ) {}
 
   @Get('info')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'Get company info',
     description: 'Returns the company name, address, contact details, and numbering configuration.',
@@ -32,6 +34,7 @@ export class CompanyController {
 
   @Post('info')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Update company info',
     description:
@@ -53,6 +56,7 @@ export class CompanyController {
    */
   @Put('number-format')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: "Set one document type's own number-format pattern",
     description:
@@ -78,6 +82,7 @@ export class CompanyController {
   }
 
   @Get('email-templates')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: 'Get the system email templates',
     description:
@@ -94,6 +99,7 @@ export class CompanyController {
 
   @Put('email-templates')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Update a system email template',
     description:
@@ -132,6 +138,7 @@ export class CompanyController {
    * company fall back to this INSTANCE's own provider (`MailService#sendForCompany`'s own cascade).
    */
   @Get('mail-settings')
+  @RequiresScope('company:read')
   @ApiOperation({
     summary: "Get this company's own mail server status",
     description:
@@ -150,6 +157,7 @@ export class CompanyController {
    */
   @Put('mail-settings')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: "Set this company's own mail server",
     description:
@@ -195,6 +203,7 @@ export class CompanyController {
    *  fall back to the instance level (or a named refusal — see `MailService#sendForCompany`). */
   @Delete('mail-settings')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: "Clear this company's own mail server",
     description: 'Falls back to the instance-level provider (or a named refusal if none is set either).',
@@ -211,6 +220,7 @@ export class CompanyController {
    * than a generic "check your configuration" message.
    */
   @Post('mail-settings/test')
+  @RequiresScope('company:write')
   // Nest's default for POST is 201 (Created) — wrong here, this action creates nothing (see
   // `verifyDomain` in sso.controller.ts for the same "action, not creation" precedent). Without this,
   // the route's own `@ApiResponse({ status: 200 })` right below was already lying about what it

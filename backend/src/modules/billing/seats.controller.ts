@@ -13,11 +13,13 @@ import { Roles } from '@/decorators/roles.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { MoveSeatDto } from './billing.dto';
 import { getSeatsView, moveMemberSeat, SeatsView } from './seats-view';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('billing')
 @Controller('billing/seats')
 export class SeatsController {
   @Get()
+  @RequiresScope('billing:read')
   @ApiOperation({
     summary: "The active company's seat plan",
     description:
@@ -31,6 +33,7 @@ export class SeatsController {
 
   @Patch(':userId')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('billing:write')
   @ApiOperation({
     summary: 'Move a member to a different desk',
     description: 'Purely visual — a desk number never grants or revokes access.',

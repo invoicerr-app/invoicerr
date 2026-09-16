@@ -6,6 +6,60 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 import { backendPublicUrl } from '@/utils/backend-public-url';
 
+/** Placeholder a masked credential is shown as — never `''`/`undefined`, which a settings form would
+ *  read as "not yet configured" and prompt the user to fill in again for a value that already exists. */
+export const MASKED_SECRET = '••••••••';
+
+// Matched by NAME, never an allow-list of known provider fields: `Plugin.config` is a schema-less
+// `Json?` (`prisma/schema.prisma`) and each provider (`plugins/storage/providers/*`) declares its own
+// shape in its own `*-form.json`, which this module does not own and has no visibility into a NEW
+// provider adding. A field must be safe to disclose BY DEFAULT — an allow-list would silently leak a
+// future provider's secret; a deny-by-pattern list only ever widens what gets redacted.
+const SECRET_FIELD_NAME = /key|secret|password|token|credential/i;
+
+/**
+ * What a settings screen is allowed to see of an in-app plugin's stored config. `Plugin` is an
+ * INSTANCE-WIDE table (no `companyId`, see `plugins.controller.ts`'s own header) — the credential
+ * behind an active STORAGE provider (S3's `accessKey`/`secretKey`) is a secret for the whole
+ * deployment, not "this company's own setting", so even a caller who legitimately passes this
+ * controller's `@Roles(OWNER, ADMIN)` gate (an OWNER of whichever company merely happens to be
+ * active) must never read it back in the clear. Non-credential fields (`region`, `bucket`,
+ * `endpoint`, `storagePath`…) pass through unchanged — the form these values re-populate still needs
+ * to show what is currently configured.
+ */
+export function maskSecretConfig(
+  config: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!config) return {};
+  const masked: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(config)) {
+    masked[key] = value != null && value !== '' && SECRET_FIELD_NAME.test(key) ? MASKED_SECRET : value;
+  }
+  return masked;
+}
+
+/**
+ * The write-side counterpart of `maskSecretConfig`: a settings screen that only ever SEES the masked
+ * placeholder for a credential field has no real value to resubmit for it. Without this, saving the
+ * form after changing an unrelated field (region, bucket…) would overwrite the real `accessKey`/
+ * `secretKey` with the literal mask string — a self-inflicted, silent credential loss, not a security
+ * fix. A field is only ever preserved from the EXISTING config when the incoming value is exactly the
+ * mask sentinel; an incoming value that merely happens to look similar, or a genuinely new secret, is
+ * still stored as submitted.
+ */
+export function mergeConfigPreservingMaskedSecrets(
+  existingConfig: Record<string, unknown> | null | undefined,
+  incomingConfig: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...incomingConfig };
+  for (const [key, value] of Object.entries(incomingConfig)) {
+    if (value === MASKED_SECRET && SECRET_FIELD_NAME.test(key)) {
+      merged[key] = (existingConfig ?? {})[key];
+    }
+  }
+  return merged;
+}
+
 // Until 2026-09-03 this service used to ALSO run a second, entirely separate
 // mechanism: git-clone-and-dynamic-`import()` "external" plugins (POST /api/plugins, an in-memory
 // `IPlugin[]` array, a `PLUGIN_DIR` on disk). It was removed: `IPlugin` there was `{__uuid,
@@ -115,7 +169,7 @@ export class PluginsService {
       return {
         requiresConfiguration: true,
         formConfig: formConfig,
-        currentConfig: plugin.config || {},
+        currentConfig: maskSecretConfig(plugin.config as Record<string, unknown> | null),
       };
     }
 
@@ -166,10 +220,15 @@ export class PluginsService {
       );
     }
 
+    const storedConfig = mergeConfigPreservingMaskedSecrets(
+      plugin.config as Record<string, unknown> | null,
+      config,
+    );
+
     await prisma.plugin.update({
       where: { id },
       data: {
-        config: config,
+        config: storedConfig,
         isActive: true,
       },
     });
@@ -299,7 +358,19 @@ export class PluginsService {
 
     const instructions = this.generatePluginInstructions(plugin, webhookUrl, webhookSecret);
 
-    return { ...(webhookUrl && { webhookUrl }), ...(webhookSecret && { webhookSecret }), instructions };
+    // The REAL secret is already persisted above (`prisma.plugin.update`) — what a caller gets back
+    // here only ever needs to say "provisioned, and its own credential looks like this", never the
+    // plaintext value: `Plugin` is instance-wide (see `plugins.controller.ts`'s own header), so even
+    // an OWNER/ADMIN of whichever company merely happens to be active must never read the shared
+    // instance's own webhook secret back in the clear — the same reasoning `maskSecretConfig` above
+    // already applies to `accessKey`/`secretKey`. Masked here, once, rather than at each of this
+    // method's three callers (`validatePlugin`, `toggleInAppPlugin`, `configureInAppPlugin`): masking
+    // at the source makes a future caller safe by default instead of one more place to remember.
+    return {
+      ...(webhookUrl && { webhookUrl }),
+      ...(webhookSecret && { webhookSecret: MASKED_SECRET }),
+      instructions,
+    };
   }
 
   /**

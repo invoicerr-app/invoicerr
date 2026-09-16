@@ -9,6 +9,7 @@ import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import { RequestWithUser } from '@/types/request';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('companies')
 @Controller('companies')
@@ -16,6 +17,7 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   @Post()
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Create a new company',
     description:
@@ -27,6 +29,7 @@ export class CompaniesController {
   }
 
   @Post('switch')
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: 'Switch active company',
     description: "Switches the current session's active company to one the caller belongs to.",
@@ -40,6 +43,7 @@ export class CompaniesController {
   }
 
   @Get('members')
+  @RequiresScope('company:read')
   @ApiOperation({ summary: 'List the active company members' })
   @ApiResponse({ status: 200, description: 'Members retrieved' })
   async listMembers(@ActiveCompany() companyId: string) {
@@ -48,6 +52,7 @@ export class CompaniesController {
 
   @Patch('members/:userId')
   @Roles(CompanyRole.OWNER)
+  @RequiresScope('company:write')
   @ApiOperation({
     summary: "Change a member's role",
     description: 'Owner-only: promoting/demoting owners is ownership-sensitive.',
@@ -71,6 +76,7 @@ export class CompaniesController {
 
   @Delete('members/:userId')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('company:write')
   @ApiOperation({ summary: 'Remove a member from the active company' })
   @ApiParam({ name: 'userId', type: String })
   @ApiResponse({ status: 200, description: 'Member removed' })

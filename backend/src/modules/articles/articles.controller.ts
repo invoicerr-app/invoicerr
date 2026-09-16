@@ -4,6 +4,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/commo
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { Roles } from '@/decorators/roles.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('articles')
 @Controller('articles')
@@ -11,6 +12,7 @@ export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 
   @Get()
+  @RequiresScope('articles:read')
   @ApiOperation({
     summary: 'List articles',
     description: 'Returns all active catalog articles for the company.',
@@ -24,6 +26,7 @@ export class ArticlesController {
   // matching never treats the literal segment "low-stock" as an `:id` value (Nest matches routes in
   // declaration order within a controller).
   @Get('low-stock')
+  @RequiresScope('articles:read')
   @ApiOperation({
     summary: 'List low-stock articles',
     description:
@@ -36,6 +39,7 @@ export class ArticlesController {
   }
 
   @Get(':id')
+  @RequiresScope('articles:read')
   @ApiOperation({ summary: 'Get an article', description: 'Returns a single catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })
   @ApiResponse({ status: 200, description: 'Article retrieved' })
@@ -49,6 +53,7 @@ export class ArticlesController {
   }
 
   @Post()
+  @RequiresScope('articles:write')
   @ApiOperation({
     summary: 'Create an article',
     description: 'Adds a new reusable catalog article (product or service).',
@@ -59,6 +64,7 @@ export class ArticlesController {
   }
 
   @Patch(':id')
+  @RequiresScope('articles:write')
   @ApiOperation({ summary: 'Update an article', description: 'Updates an existing catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })
   @ApiResponse({ status: 200, description: 'Article updated' })
@@ -68,6 +74,7 @@ export class ArticlesController {
 
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('articles:write')
   @ApiOperation({ summary: 'Delete an article', description: 'Soft-deletes a catalog article by ID.' })
   @ApiParam({ name: 'id', type: String, description: 'Article ID' })
   @ApiResponse({ status: 200, description: 'Article deleted' })

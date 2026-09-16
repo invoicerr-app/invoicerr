@@ -10,6 +10,7 @@ import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { CurrentUser } from '@/types/user';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('api-keys')
 @Controller('api-keys')
@@ -19,6 +20,7 @@ export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Get('options')
+  @RequiresScope('api-keys:read')
   @ApiOperation({ summary: 'List available API key scopes' })
   @ApiResponse({ status: 200, description: 'Scopes retrieved' })
   async options() {
@@ -26,6 +28,7 @@ export class ApiKeysController {
   }
 
   @Post()
+  @RequiresScope('api-keys:write')
   @ApiOperation({
     summary: 'Create a new API key',
     description:
@@ -37,6 +40,7 @@ export class ApiKeysController {
   }
 
   @Get()
+  @RequiresScope('api-keys:read')
   @ApiOperation({ summary: 'List API keys for the active company' })
   @ApiResponse({ status: 200, description: 'List of API keys (without the plaintext key)' })
   async list(@ActiveCompany() companyId: string) {
@@ -44,6 +48,7 @@ export class ApiKeysController {
   }
 
   @Delete(':id')
+  @RequiresScope('api-keys:write')
   @ApiOperation({ summary: 'Revoke an API key' })
   @ApiParam({ name: 'id', type: String, description: 'API key ID' })
   @ApiResponse({ status: 200, description: 'API key revoked' })

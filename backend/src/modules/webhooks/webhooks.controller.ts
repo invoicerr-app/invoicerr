@@ -21,6 +21,7 @@ import { WebhookEvent, WebhookType, CompanyRole } from '../../../prisma/generate
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
+import { RequiresScope } from '@/utils/scope-check';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -34,6 +35,7 @@ export class WebhooksController {
 
   @Get('options')
   @UseGuards(AuthGuard)
+  @RequiresScope('webhooks:read')
   @ApiOperation({
     summary: 'List webhook types and events',
     description: 'Returns the available webhook types and event types for configuring a webhook.',
@@ -48,6 +50,7 @@ export class WebhooksController {
 
   @Get(':id')
   @UseGuards(AuthGuard)
+  @RequiresScope('webhooks:read')
   @ApiOperation({
     summary: 'Get a webhook by ID',
     description: 'Returns a single webhook configuration (without the secret).',
@@ -97,6 +100,7 @@ export class WebhooksController {
   // Protected CRUD endpoints for managing webhooks (company-scoped)
   @Get()
   @UseGuards(AuthGuard)
+  @RequiresScope('webhooks:read')
   @ApiOperation({
     summary: 'List all webhooks',
     description: 'Returns all webhook configurations for the current company (secrets are excluded).',
@@ -109,6 +113,7 @@ export class WebhooksController {
   @Post()
   @UseGuards(AuthGuard)
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('webhooks:write')
   @ApiOperation({
     summary: 'Create a webhook',
     description: 'Creates a new webhook configuration. The secret is returned only in this response.',
@@ -146,6 +151,7 @@ export class WebhooksController {
   @Patch(':id')
   @UseGuards(AuthGuard)
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('webhooks:write')
   @ApiOperation({
     summary: 'Update a webhook',
     description: 'Updates the URL, type, events, or secret of an existing webhook configuration.',
@@ -179,6 +185,7 @@ export class WebhooksController {
   @Delete(':id')
   @UseGuards(AuthGuard)
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @RequiresScope('webhooks:write')
   @ApiOperation({ summary: 'Delete a webhook', description: 'Permanently removes a webhook configuration.' })
   @ApiParam({ name: 'id', type: String, description: 'Webhook ID' })
   @ApiResponse({ status: 200, description: 'Webhook deleted' })
