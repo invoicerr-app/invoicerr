@@ -31,7 +31,7 @@ interface InAppPluginCategories {
 // the "Add Plugin" git URL form, the installed-plugins list with delete) was removed: it had no
 // real extension point behind it ("The plugin system, seen through its first
 // real consumer"). Extensibility is now the narrow-interface-at-the-core pattern
-// (ReceivedDocumentExtractor + registry, the OCR/Mistral plugin) — not third-party code loading.
+// (ReceivedDocumentExtractor + registry, the local-OCR plugin) — not third-party code loading.
 // Only the in-app plugins screen (PluginRegistry/PluginType, toggle + configure + webhook
 // instructions) remains, and it is everything below.
 export default function PluginsSettings() {

@@ -59,9 +59,9 @@ const CONVENTIONAL_CHROMIUM_PATHS = [
  * not ship (see this file's module comment), producing a confusing low-level "browser not found at
  * .cache/ms-playwright/..." error instead of one that names the actual fix. This repo's own
  * discipline for an unresolvable configuration is a named failure over a silent fallback — the same
- * choice `ocr-server.ts` makes for a typo'd `OCR_ENGINE` (a named 501, never a silently-guessed
- * engine) — and a PDF renderer that returned an empty or broken buffer instead would be worse than
- * an explicit error, not better.
+ * choice `plugins/index.ts`'s `getPluginTypeEnum` makes for an unrecognized plugin type (a named
+ * thrown error, never a silently-guessed type) — and a PDF renderer that returned an empty or
+ * broken buffer instead would be worse than an explicit error, not better.
  *
  * Order matters:
  *  1. `CHROMIUM_EXECUTABLE_PATH` — the current, explicit setting for this engine.
