@@ -3,13 +3,18 @@ import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   type CompanySubscriptionStatus,
+  useBillingEmail,
   useBillingStatus,
   useCompanies,
   useOpenCustomerPortal,
+  useSetBillingEmail,
   useStartCheckout,
 } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
@@ -32,6 +37,16 @@ const STATUS_VARIANT: Record<
   DELETED: "secondary",
 }
 
+/** Server-side code `billing.controller.ts`'s `POST /billing/checkout` names a 409 with — mirrors that
+ *  constant by hand, the same "no shared package between the four projects" convention
+ *  `use-mutation-with-toast.ts`'s own `COMPANY_BLOCKED_CODE` already documents. */
+const BILLING_EMAIL_TAKEN_CODE = "BILLING_EMAIL_TAKEN"
+
+function apiErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined
+  return (error.body as { code?: string } | undefined)?.code
+}
+
 /**
  * Settings > Subscription — only ever reached when `-[tab].tsx` decided to show the "billing" tab at
  * all, which it does ONLY once `useBillingStatus()` itself has already resolved 200 (see that hook's
@@ -39,13 +54,26 @@ const STATUS_VARIANT: Record<
  * all IS the only signal). Still guards its own render on `isSuccess` below regardless — a direct
  * navigation to `/settings/billing` (a stale bookmark, a self-hosted instance where the tab was
  * visible a moment ago but the flag just got unset) must render nothing, not a half-populated screen.
+ *
+ * OWNER/ADMIN only past this point for anything that touches Polar (`@Roles` on the backend's own
+ * `POST /billing/checkout`/`/billing/portal`, product decision 2026-09-16's multi-user follow-up) — a
+ * plain MEMBER sees the current plan/status read-only, with an explanatory line instead of the
+ * subscribe/manage buttons, rather than a button that would 403 if clicked.
  */
 export default function BillingSettings() {
   const { t } = useTranslation()
-  const { activeCompanyId } = useCompanies()
+  const { activeCompanyId, activeRole } = useCompanies()
+  const canManageBilling = activeRole === "OWNER" || activeRole === "ADMIN"
   const { data: status, isSuccess } = useBillingStatus()
+  const { data: billingEmail } = useBillingEmail()
   const startCheckout = useStartCheckout()
   const openPortal = useOpenCustomerPortal()
+  const setBillingEmail = useSetBillingEmail()
+
+  const [billingEmailDraft, setBillingEmailDraft] = useState("")
+  useEffect(() => {
+    if (billingEmail) setBillingEmailDraft(billingEmail.billingEmail ?? "")
+  }, [billingEmail])
 
   // `mutate*.isPending` falls back to false as soon as the mutation's own promise resolves — i.e. as
   // soon as `onSuccess` runs — but `window.location.*` navigation still takes a beat (up to a few
@@ -78,7 +106,6 @@ export default function BillingSettings() {
     startCheckout.mutate(
       {
         slug: interval,
-        referenceId: activeCompanyId,
         successUrl: `${returnUrl}?checkout=success`,
         returnUrl,
       },
@@ -92,6 +119,15 @@ export default function BillingSettings() {
         },
         onError: (error) => {
           setNavigatingCheckoutSlug(null)
+          if (apiErrorCode(error) === BILLING_EMAIL_TAKEN_CODE) {
+            toast.error(
+              t(
+                "settings.billing.messages.billingEmailTaken",
+                "Choose a distinct billing email for this company",
+              ),
+            )
+            return
+          }
           toast.error(
             error instanceof ApiError
               ? error.message
@@ -124,6 +160,22 @@ export default function BillingSettings() {
     })
   }
 
+  const saveBillingEmail = () => {
+    setBillingEmail.mutate(
+      { billingEmail: billingEmailDraft.trim() || null },
+      {
+        onSuccess: () =>
+          toast.success(t("settings.billing.messages.billingEmailSaved", "Billing email saved")),
+        onError: (error) =>
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : t("settings.billing.messages.billingEmailSaveError", "Failed to save the billing email"),
+          ),
+      },
+    )
+  }
+
   const statusLabel = t(`settings.billing.status.${status.status}`, status.status)
 
   return (
@@ -131,6 +183,20 @@ export default function BillingSettings() {
       title={t("settings.billing.title", "Subscription")}
       description={t("settings.billing.description")}
     >
+      {status.legacySubscription && (
+        <Alert variant="warning" data-cy="billing-legacy-notice">
+          <AlertTitle>
+            {t("settings.billing.legacyNotice.title", "Re-subscribe under this company")}
+          </AlertTitle>
+          <AlertDescription>
+            {t(
+              "settings.billing.legacyNotice.description",
+              "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company.",
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <SettingsSection
         dataCy="billing-settings"
         title={
@@ -150,52 +216,54 @@ export default function BillingSettings() {
           </>
         }
         footer={
-          <SettingsFormFooter>
-            {status.status !== "ACTIVE" && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => subscribe("yearly")}
-                  disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
-                  data-cy="billing-subscribe-yearly"
-                >
-                  {(startCheckout.isPending && startCheckout.variables?.slug === "yearly") ||
-                  navigatingCheckoutSlug === "yearly" ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <ExternalLink />
-                  )}
-                  {t("settings.billing.subscribeYearly", "Subscribe yearly")}
-                </Button>
-                <Button
-                  onClick={() => subscribe("monthly")}
-                  disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
-                  data-cy="billing-subscribe-monthly"
-                >
-                  {(startCheckout.isPending && startCheckout.variables?.slug === "monthly") ||
-                  navigatingCheckoutSlug === "monthly" ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <ExternalLink />
-                  )}
-                  {t("settings.billing.subscribeMonthly", "Subscribe monthly")}
-                </Button>
-              </>
-            )}
-            <Button
-              variant={status.status === "ACTIVE" ? "default" : "secondary"}
-              onClick={manageSubscription}
-              disabled={openPortal.isPending || navigatingPortal}
-              data-cy="billing-manage-portal"
-            >
-              {openPortal.isPending || navigatingPortal ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <ExternalLink />
+          canManageBilling ? (
+            <SettingsFormFooter>
+              {status.status !== "ACTIVE" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => subscribe("yearly")}
+                    disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
+                    data-cy="billing-subscribe-yearly"
+                  >
+                    {(startCheckout.isPending && startCheckout.variables?.slug === "yearly") ||
+                    navigatingCheckoutSlug === "yearly" ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <ExternalLink />
+                    )}
+                    {t("settings.billing.subscribeYearly", "Subscribe yearly")}
+                  </Button>
+                  <Button
+                    onClick={() => subscribe("monthly")}
+                    disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
+                    data-cy="billing-subscribe-monthly"
+                  >
+                    {(startCheckout.isPending && startCheckout.variables?.slug === "monthly") ||
+                    navigatingCheckoutSlug === "monthly" ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <ExternalLink />
+                    )}
+                    {t("settings.billing.subscribeMonthly", "Subscribe monthly")}
+                  </Button>
+                </>
               )}
-              {t("settings.billing.managePortal", "Manage subscription")}
-            </Button>
-          </SettingsFormFooter>
+              <Button
+                variant={status.status === "ACTIVE" ? "default" : "secondary"}
+                onClick={manageSubscription}
+                disabled={openPortal.isPending || navigatingPortal}
+                data-cy="billing-manage-portal"
+              >
+                {openPortal.isPending || navigatingPortal ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <ExternalLink />
+                )}
+                {t("settings.billing.managePortal", "Manage subscription")}
+              </Button>
+            </SettingsFormFooter>
+          ) : undefined
         }
       >
         {status.daysRemaining !== null && (
@@ -205,7 +273,52 @@ export default function BillingSettings() {
             })}
           </p>
         )}
+        {!canManageBilling && (
+          <p className="text-sm text-muted-foreground" data-cy="billing-member-notice">
+            {t(
+              "settings.billing.memberNotice",
+              "Only the company's owner or an admin can manage the subscription.",
+            )}
+          </p>
+        )}
       </SettingsSection>
+
+      {canManageBilling && (
+        <SettingsSection
+          dataCy="billing-email-settings"
+          title={t("settings.billing.billingEmail.title", "Billing email")}
+          description={t(
+            "settings.billing.billingEmail.description",
+            "Used for this company's own Polar customer. Defaults to the company's contact email — set a distinct one if another company already uses it.",
+          )}
+          footer={
+            <SettingsFormFooter>
+              <Button
+                onClick={saveBillingEmail}
+                disabled={setBillingEmail.isPending}
+                data-cy="billing-email-save"
+              >
+                {setBillingEmail.isPending ? <Loader2 className="animate-spin" /> : null}
+                {t("settings.billing.billingEmail.save", "Save")}
+              </Button>
+            </SettingsFormFooter>
+          }
+        >
+          <div className="space-y-2">
+            <Label htmlFor="billing-email-input">
+              {t("settings.billing.billingEmail.label", "Billing email")}
+            </Label>
+            <Input
+              id="billing-email-input"
+              type="email"
+              data-cy="billing-email-input"
+              placeholder={billingEmail?.companyEmail}
+              value={billingEmailDraft}
+              onChange={(event) => setBillingEmailDraft(event.target.value)}
+            />
+          </div>
+        </SettingsSection>
+      )}
     </SettingsPage>
   )
 }

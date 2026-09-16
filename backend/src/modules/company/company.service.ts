@@ -18,6 +18,7 @@ import { assertValidNumberPattern } from '@/modules/documents/numbering/format-n
 import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
 import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
+import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import prisma from '@/prisma/prisma.service';
 
 /**
@@ -295,6 +296,10 @@ export class CompanyService {
     // A brand-new company's own OWNER is its first seat — see `billing/seat-sync.ts`'s own header
     // (a no-op entirely when billing is disabled, never throws).
     await syncCompanySeatsOnMembershipChange(newCompany.id);
+    // Practically always a no-op here (a brand-new company has no `polarSubscriptionId` yet), kept
+    // for the rare case a company row is created for one already billed elsewhere — see
+    // `billing/member-sync.ts`'s own header.
+    await syncCompanyMemberOnMembershipChange(newCompany.id, userId);
 
     // Enriched expense categories ("notes de frais enrichies") — this brand-new company's default
     // expense category set (the ten categories + "Other" `expense.descriptor.ts` used to hardcode).

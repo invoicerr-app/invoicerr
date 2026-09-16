@@ -5,6 +5,7 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { decideRegistration, registrationDenialMessage } from '@/lib/registration-policy';
 import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
+import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { logger } from '@/logger/logger.service';
 
 @Injectable()
@@ -125,6 +126,8 @@ export class InvitationsService {
     // An EXISTING user accepting an invitation is a new seat — see `billing/seat-sync.ts`'s own
     // header (a no-op entirely when billing is disabled, never throws).
     await syncCompanySeatsOnMembershipChange(invitation.companyId);
+    // An invitation can carry OWNER/ADMIN — see `billing/member-sync.ts`'s own header.
+    await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
 
     return updatedInvitation;
   }

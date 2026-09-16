@@ -11,6 +11,10 @@ export interface BillingStatusView {
   daysRemaining: number | null
   checkoutUrl: string
   portalUrl: string
+  /** `true` when this company's subscription still points at the pre-2026-09-16 per-USER Polar
+   *  customer (backend's own `legacy-customer.ts`) — there is no automatic migration, the settings
+   *  screen shows a plain re-subscribe notice instead. */
+  legacySubscription: boolean
 }
 
 /**
@@ -35,25 +39,23 @@ interface PolarRouteResponse {
 }
 
 export interface StartCheckoutBody {
-  /** Matches one of the two `checkout({ products: [...] })` entries `polar-plugin.ts` registers. */
+  /** Matches one of the two `POLAR_PRODUCT_ID_MONTHLY`/`YEARLY` products (backend's own
+   *  `checkout-session.ts#resolveCheckoutProductId`). */
   slug: "monthly" | "yearly"
-  /** The ACTIVE COMPANY's id — this product bills per company, never per user (see
-   *  `polar-plugin.ts`'s own header on why `referenceId` is what ties the resulting Polar
-   *  checkout/subscription back to a company at all). */
-  referenceId: string
   successUrl: string
   returnUrl: string
 }
 
 /**
- * Posts straight to better-auth's own `/api/auth/checkout` route (mounted by the `polar()` plugin,
- * never one of this app's own `/api/*` controller routes — see `polar-plugin.ts`'s header for why it
- * never goes through `@ActiveCompany()`, which is exactly why `referenceId` has to be supplied
- * explicitly in the body here). The caller navigates the browser itself
- * (`window.location.href = data.url`) — this hook only performs the POST.
+ * `POST /api/billing/checkout` — this app's OWN route (option A, product decision 2026-09-16: one
+ * Polar customer PER COMPANY, never per user — see backend's `checkout-session.ts` header). The
+ * ACTIVE COMPANY is resolved server-side (`@ActiveCompany()`); no company id is ever passed in the
+ * body. The caller navigates the browser itself (`window.location.href = data.url`) — this hook only
+ * performs the POST. Can reject with a `BILLING_EMAIL_TAKEN` code (see `ApiError.body`) when another
+ * Polar customer already uses this company's resolved billing email.
  */
 export function useStartCheckout() {
-  return useApiMutation<StartCheckoutBody, PolarRouteResponse>("POST", "/api/auth/checkout")
+  return useApiMutation<StartCheckoutBody, PolarRouteResponse>("POST", "/api/billing/checkout")
 }
 
 /**
@@ -65,4 +67,31 @@ export function useStartCheckout() {
  */
 export function useOpenCustomerPortal() {
   return useApiMutation<undefined, PolarRouteResponse>("POST", "/api/billing/portal")
+}
+
+export interface BillingEmailView {
+  /** The raw override, or `null` when the company has never set one. */
+  billingEmail: string | null
+  /** The company's own contact email — what checkout falls back to when `billingEmail` is `null`. */
+  companyEmail: string
+}
+
+/** `GET /api/billing/billing-email` — the value pre-filled into Settings > Billing's own billing-email
+ *  field (backend's own `billing-email.ts`). */
+export function useBillingEmail() {
+  return useApiQuery<BillingEmailView>(queryKeys.billing.email(), "/api/billing/billing-email", {
+    retry: false,
+    staleTime: 60_000,
+  })
+}
+
+/** `PUT /api/billing/billing-email` — sets (or, given `null`, clears) this company's billing-email
+ *  override. Never talks to Polar itself; a duplicate-email refusal can only surface from
+ *  `useStartCheckout` above, at actual checkout time. */
+export function useSetBillingEmail() {
+  return useApiMutation<{ billingEmail: string | null }, BillingEmailView>(
+    "PUT",
+    "/api/billing/billing-email",
+    { invalidateKeys: [queryKeys.billing.email()] },
+  )
 }

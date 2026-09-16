@@ -3,22 +3,22 @@
  * why, first — it matters for reading everything below:
  *
  * `createApp()` (`main.ts`) is not called here. It imports `auth` from `lib/auth.ts` unconditionally,
- * and importing `lib/auth.ts` AT ALL turns out to be impossible under this repo's Jest setup — not
- * merely because of `@polar-sh/better-auth` (`polar-plugin.spec.ts`'s own header: its bundled
- * `dist/index.cjs` unconditionally `require`s the browser-only, ESM-only `@polar-sh/checkout/embed`,
- * mockable one package at a time), but because `better-auth` ITSELF is ESM-only across nearly every
- * subpath export `lib/auth.ts` needs — confirmed by reading `node_modules/better-auth/package.json`'s
- * own "exports" map: `./node`, `./api`, `./plugins`, `./adapters/prisma` each carry only a
- * `"default"` condition pointing at an `.mjs` file, no `"require"` condition, no CJS build at all.
- * Real Node (this repo's runtime, v22+) `require()`s ESM like that transparently and `lib/auth.ts`
- * boots fine; Jest's own CJS module loader cannot load a single one of them
- * ("SyntaxError: Cannot use import statement outside a module") — confirmed directly while writing
- * this file: a first version of this spec built a real `@thallesp/nestjs-better-auth` `AuthModule`
- * for its own test-only auth instance and failed on exactly this, at
- * `@thallesp/nestjs-better-auth/dist/index.cjs:5` (`require('better-auth/node')`), before any
- * Polar-related code ever ran. This is the real reason this codebase's own convention is that no spec
- * imports `lib/auth.ts` (`polar-plugin.spec.ts` and `sso-policy.ts` both note the convention without
- * spelling out the full depth of it) — Polar was only ever the first place that got written down.
+ * and importing `lib/auth.ts` AT ALL turns out to be impossible under this repo's Jest setup:
+ * `better-auth` ITSELF is ESM-only across nearly every subpath export `lib/auth.ts` needs — confirmed
+ * by reading `node_modules/better-auth/package.json`'s own "exports" map: `./node`, `./api`,
+ * `./plugins`, `./adapters/prisma` each carry only a `"default"` condition pointing at an `.mjs` file,
+ * no `"require"` condition, no CJS build at all. Real Node (this repo's runtime, v22+) `require()`s
+ * ESM like that transparently and `lib/auth.ts` boots fine; Jest's own CJS module loader cannot load a
+ * single one of them ("SyntaxError: Cannot use import statement outside a module") — confirmed
+ * directly while writing this file: a first version of this spec built a real
+ * `@thallesp/nestjs-better-auth` `AuthModule` for its own test-only auth instance and failed on
+ * exactly this, at `@thallesp/nestjs-better-auth/dist/index.cjs:5` (`require('better-auth/node')`),
+ * before any Polar-related code ever ran. This is the real reason this codebase's own convention is
+ * that no spec imports `lib/auth.ts` (`sso-policy.ts` notes the convention too) — this used to ALSO be
+ * true of `@polar-sh/better-auth` (its bundled `dist/index.cjs` unconditionally `require`d the
+ * browser-only, ESM-only `@polar-sh/checkout/embed`), until that whole dependency was removed
+ * 2026-09-16 when hosted billing moved off it entirely (`billing.controller.ts`'s own header) — the
+ * `better-auth`-itself reason alone was always sufficient on its own, Polar was never the only cause.
  *
  * So the fix itself lives in two places: `main.ts` wires it up (unchanged, still what `bootstrap()`
  * runs in production), but the actual skip PREDICATE + WRAPPER — the part a test can actually reach

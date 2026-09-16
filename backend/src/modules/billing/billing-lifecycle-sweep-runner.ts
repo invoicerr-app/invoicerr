@@ -15,6 +15,7 @@ import { BillingExportService } from './export-zip.service';
 import { computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
 import { deleteCompanyPermanently } from './deletion';
+import { reconcileCompanySeats } from './seat-reconcile';
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -27,6 +28,10 @@ export interface RunBillingLifecycleSweepResult {
    *  leaves a pair `skipped` rather than guessing. */
   zipFailed: number;
   deleted: number;
+  /** Incremented once per ACTIVE, subscribed company whose seat count had actually drifted from
+   *  Polar's own subscription and was just corrected — see `seat-reconcile.ts`'s own header. Zero on
+   *  a tick where every count already matched, which is the overwhelming common case. */
+  seatsReconciled: number;
 }
 
 @Injectable()
@@ -50,6 +55,7 @@ export class BillingLifecycleSweepRunner {
       zipped: 0,
       zipFailed: 0,
       deleted: 0,
+      seatsReconciled: 0,
     };
 
     for (const sub of subscriptions) {
@@ -61,12 +67,28 @@ export class BillingLifecycleSweepRunner {
           { error: error instanceof Error ? error.message : String(error) },
         );
       }
+
+      // A separate try/catch, deliberately: a failure here must never re-run (or skip) the status
+      // transition above for the SAME company, and vice versa — the two are independent concerns
+      // sharing only the subscription row read at the top of this loop.
+      if (sub.status === 'ACTIVE') {
+        try {
+          const reconciled = await reconcileCompanySeats(sub);
+          if (reconciled?.corrected) result.seatsReconciled++;
+        } catch (error) {
+          this.logger.error(
+            `Seat reconciliation failed for company ${sub.companyId} — left untouched, retried next tick`,
+            { error: error instanceof Error ? error.message : String(error) },
+          );
+        }
+      }
     }
 
     this.logger.log(
       `Billing lifecycle sweep: ${result.processed} subscription(s) looked at, ` +
         `${result.blocked} newly blocked, ${result.zipped} zipped (${result.zipFailed} zip send ` +
-        `failures, retried next tick), ${result.deleted} deleted.`,
+        `failures, retried next tick), ${result.deleted} deleted, ${result.seatsReconciled} seat ` +
+        'count(s) corrected against Polar.',
     );
 
     return result;

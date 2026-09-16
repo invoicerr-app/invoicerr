@@ -4,6 +4,7 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
+import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
@@ -66,6 +67,10 @@ export class CompaniesService {
       where: { userId_companyId: { userId: targetUserId, companyId } },
       data: { role },
     });
+    // Seat COUNT is unaffected (the person was already counted) but Polar member ACCESS may need to
+    // gain or lose them — see `billing/member-sync.ts`'s own header (a no-op entirely when billing is
+    // disabled, never throws).
+    await syncCompanyMemberOnMembershipChange(companyId, targetUserId);
 
     logger.info('Member role changed', { category: 'companies', details: { companyId, targetUserId, role } });
 
@@ -95,6 +100,9 @@ export class CompaniesService {
     // One fewer seat — see `billing/seat-sync.ts`'s own header (a no-op entirely when billing is
     // disabled, never throws).
     await syncCompanySeatsOnMembershipChange(companyId);
+    // The removed row is already gone by this point, so this reads as "no membership" and removes
+    // any Polar member for them — see `billing/member-sync.ts`'s own header.
+    await syncCompanyMemberOnMembershipChange(companyId, targetUserId);
 
     logger.info('Member removed', { category: 'companies', details: { companyId, targetUserId } });
 

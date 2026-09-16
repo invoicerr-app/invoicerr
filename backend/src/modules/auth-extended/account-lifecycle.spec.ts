@@ -1,5 +1,6 @@
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
+import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 
 import {
   ACCOUNT_IS_SOLE_OWNER_CODE,
@@ -26,6 +27,7 @@ jest.mock('@/prisma/prisma.service', () => ({
 // billing/seat-sync.ts's own header: called directly (never via DI) — mocked here so these
 // assertions never depend on its real Polar-calling behavior (covered by seat-sync.spec.ts).
 jest.mock('@/modules/billing/seat-sync');
+jest.mock('@/modules/billing/member-sync');
 jest.mock('@/logger/logger.service', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -36,6 +38,7 @@ const mockPrisma = prisma as unknown as {
   userCompany: { findMany: jest.Mock; count: jest.Mock };
 };
 const syncSeats = syncCompanySeatsOnMembershipChange as jest.Mock;
+const syncMember = syncCompanyMemberOnMembershipChange as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -119,19 +122,27 @@ describe('assertNotSoleOwner', () => {
 });
 
 describe('cleanupAfterUserDelete', () => {
-  it('resyncs seats for every company the deleted user belonged to', async () => {
-    await cleanupAfterUserDelete([
-      { companyId: 'co-1', companyName: 'Acme', role: CompanyRole.OWNER },
-      { companyId: 'co-2', companyName: 'Beta', role: CompanyRole.MEMBER },
-    ]);
+  const deletedUser = { id: 'user-1', email: 'deleted@acme.test', name: 'Deleted User' };
+
+  it('resyncs seats and Polar members for every company the deleted user belonged to', async () => {
+    await cleanupAfterUserDelete(
+      [
+        { companyId: 'co-1', companyName: 'Acme', role: CompanyRole.OWNER },
+        { companyId: 'co-2', companyName: 'Beta', role: CompanyRole.MEMBER },
+      ],
+      deletedUser,
+    );
 
     expect(syncSeats).toHaveBeenCalledWith('co-1');
     expect(syncSeats).toHaveBeenCalledWith('co-2');
     expect(syncSeats).toHaveBeenCalledTimes(2);
+    expect(syncMember).toHaveBeenCalledWith('co-1', 'user-1', undefined, deletedUser);
+    expect(syncMember).toHaveBeenCalledWith('co-2', 'user-1', undefined, deletedUser);
   });
 
   it('is a no-op for a user who belonged to no company', async () => {
-    await cleanupAfterUserDelete([]);
+    await cleanupAfterUserDelete([], deletedUser);
     expect(syncSeats).not.toHaveBeenCalled();
+    expect(syncMember).not.toHaveBeenCalled();
   });
 });

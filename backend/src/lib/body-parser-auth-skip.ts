@@ -4,18 +4,16 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
  * Skips a body parser for the whole `/api/auth` subtree — pulled out of `main.ts` into its own file
  * specifically so it can be unit- and integration-tested WITHOUT importing `lib/auth.ts` (which
  * `main.ts` itself needs, for the real `auth.options.basePath` this logic is keyed on in production).
- * Importing `lib/auth.ts` at all — `main.ts` included, transitively — needs `@polar-sh/better-auth`
- * mocked away under Jest (see `polar-plugin.spec.ts`'s own header) AND, established while writing
- * `main.middleware.spec.ts`, hits a second, more fundamental wall even past that: `better-auth`'s own
- * package.json declares almost every subpath export (`/node`, `/api`, `/plugins`,
+ * Importing `lib/auth.ts` at all — `main.ts` included, transitively — hits a fundamental wall:
+ * `better-auth`'s own package.json declares almost every subpath export (`/node`, `/api`, `/plugins`,
  * `/adapters/prisma`, …) with ONLY a `"default"` condition pointing at an `.mjs` file — no `"require"`
  * condition, no CJS build at all. Real Node (this repo's runtime, v22+) transparently `require()`s
  * ESM like that and `lib/auth.ts` boots fine; Jest's own CJS module loader cannot load it at all
- * ("Cannot use import statement outside a module") — the same class of wall
- * `polar-plugin.spec.ts` already documents for `@polar-sh/checkout/embed`, just one dependency layer
- * further down, and unavoidable by mocking a single package this time (it's `better-auth` itself,
- * which `lib/auth.ts` cannot function without). This is the real reason no spec in this codebase
- * imports `lib/auth.ts` — Polar was only ever the first place that got written down.
+ * ("Cannot use import statement outside a module"), and it's `better-auth` itself, which `lib/auth.ts`
+ * cannot function without — not mockable away the way a single dependency (`@polar-sh/better-auth`,
+ * until it was removed entirely 2026-09-16 — hosted billing moved off it, `billing.controller.ts`'s
+ * own header) used to be. This is the real reason no spec in this codebase imports `lib/auth.ts` —
+ * Polar was only ever the first place that got written down.
  *
  * `main.ts`'s own header/comments carry the FULL story of the bug this logic fixes (the ordering
  * of `app.use()` vs. `NestApplication.init()`'s own middleware registration) — this file is

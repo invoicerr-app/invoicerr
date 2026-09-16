@@ -22,8 +22,12 @@
  * NEVER throws into its caller: a Polar outage or a bad access token must not turn "accept an
  * invitation" or "remove a member" into a 500 — errors are logged and swallowed, the same
  * "never blocks the write it rides along with" discipline `applyStockOnIssuance`'s own header states
- * for stock effects. The NEXT membership change (or the periodic lifecycle sweep, which could also
- * reconcile seats opportunistically) is the natural retry.
+ * for stock effects. The NEXT membership change is one natural retry; `seat-reconcile.ts` is the
+ * OTHER one — `billing-lifecycle-sweep-runner.ts` calls it every tick for every ACTIVE, subscribed
+ * company, comparing this module's own `countCompanySeats` against what Polar's subscription actually
+ * has on file and re-pushing the correction when a failed push here was never retried by a later
+ * membership change (the "one person pays for a seat, then invites ten more, but the very last push
+ * happened to fail" case).
  */
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';

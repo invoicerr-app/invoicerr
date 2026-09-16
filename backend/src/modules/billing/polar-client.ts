@@ -1,10 +1,12 @@
 /**
- * The ONE `@polar-sh/sdk` client instance this process uses for every server-to-server Polar call
- * that is NOT one of the four routes `@polar-sh/better-auth`'s own `polar()` plugin mounts under
- * `/api/auth/*` (checkout, customer portal, usage, webhooks — see `polar-plugin.ts`'s own header) —
- * today that is exactly one thing: `seat-sync.ts`'s `subscriptions.update({ subscriptionUpdate:
- * { seats } })`. Never constructed unless something actually calls `getPolarClient()`, so an instance
- * with the billing flag off never even imports `@polar-sh/sdk`'s runtime.
+ * The ONE `@polar-sh/sdk` client instance this process uses for every server-to-server Polar call —
+ * `checkout-session.ts`'s `checkouts.create`/`customers.*`, `portal-session.ts`'s
+ * `customerSessions.create`, `seat-sync.ts`'s `subscriptions.update({ subscriptionUpdate: { seats } })`,
+ * `status-reconcile.ts`'s `subscriptions.list`, `legacy-customer.ts`'s `customers.getExternal` — every
+ * one of them a plain Nest route or function now (option A, product decision 2026-09-16), never
+ * `@polar-sh/better-auth`'s own middleware, which this backend no longer depends on at all. Never
+ * constructed unless something actually calls `getPolarClient()`, so an instance with the billing flag
+ * off never even imports `@polar-sh/sdk`'s runtime.
  */
 import { Polar } from '@polar-sh/sdk';
 

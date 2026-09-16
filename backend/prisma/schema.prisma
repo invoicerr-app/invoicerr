@@ -311,6 +311,17 @@ model Company {
   phone        String
   email        String
 
+  // Polar customer email for THIS company's own hosted-billing customer (option A, product decision
+  // 2026-09-16: one Polar customer PER COMPANY, `external_id = company.id` — see
+  // `modules/billing/billing-customer.ts`'s own header). Polar requires a customer's email to be
+  // unique within the organization; `email` above is reused by default, but two companies sharing one
+  // contact address (a single owner's several companies, e.g.) would collide on the SECOND company's
+  // first checkout — this optional override is what a company sets to pick its own distinct billing
+  // address instead of changing its real contact `email`. `null` (the default) means "use `email`
+  // above" — never defaulted to a synthetic address, the same "no fabricated value" discipline `iban`'s
+  // own comment holds.
+  billingEmail String?
+
   // BT-84 (Payment account identifier) — the seller's OWN receiving account, threaded into
   // `formats/semantic/build-semantic-invoice.ts` as `cac:PaymentMeans/cac:PayeeFinancialAccount`
   // (BG-16/BG-17) whenever set. Optional, and never invented: XRechnung's BR-DE-1 (a PAYMENT

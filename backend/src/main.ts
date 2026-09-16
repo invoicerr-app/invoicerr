@@ -54,9 +54,9 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
 
   // better-auth must read its OWN request body itself: `@thallesp/nestjs-better-auth`'s handler
   // wraps the raw Node request in a Web-standard `Request` (`toNodeHandler`, `better-auth/node`) and
-  // downstream code — e.g. better-auth's own sign-in/sign-up routes, or `@polar-sh/better-auth`'s
-  // checkout/portal routes — calls `ctx.request.text()` on it. That only works if the request stream
-  // hasn't already been consumed by something else.
+  // downstream code — e.g. better-auth's own sign-in/sign-up/change-email routes — calls
+  // `ctx.request.text()` on it. That only works if the request stream hasn't already been consumed by
+  // something else.
   // `@thallesp/nestjs-better-auth`'s own `AuthModule.configure()` registers exactly the middleware
   // meant to guarantee that (`SkipBodyParsingMiddleware`, skips its OWN json/urlencoded parsing for
   // `/api/auth/*`) — but `configure()` on every `NestModule` is wired up by
@@ -80,8 +80,10 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // /api/billing/webhooks/polar` (`PolarWebhookController`) — deliberately NOT under `/api/auth`, so
   // it reads its own `req.rawBody` straight from the SAME `bodyParser.json({ verify })` below rather
   // than needing this skip at all. This fix stays necessary regardless: every OTHER `/api/auth/*`
-  // route (sign-in, sign-up, checkout, portal, …) still reads its own body itself, exactly as
-  // described below, and would hit the identical draining bug without it.
+  // route (sign-in, sign-up, change-email, …) still reads its own body itself, exactly as described
+  // below, and would hit the identical draining bug without it — hosted billing's own checkout/portal
+  // moved OFF `/api/auth/*` entirely 2026-09-16 (`billing.controller.ts`'s own header), so they are no
+  // longer examples here either, but nothing else about this fix changed.
   // Fix: have our own parsers skip the whole `/api/auth` subtree themselves (`skipBodyParserFor`,
   // `lib/body-parser-auth-skip.ts` — pulled into its own file so it's unit-testable without importing
   // `lib/auth.ts`, see that file's own header), using the SAME test `SkipBodyParsingMiddleware` uses
@@ -154,13 +156,12 @@ async function bootstrap() {
   // Hosted billing (product decision 2026-09-15): refuse to boot with
   // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real Polar credentials — a no-op when the
   // flag is unset, see that function's own header for why the gate lives inside it rather than here.
-  // `lib/auth.ts`'s own module-scope `betterAuth({ plugins: [...buildPolarAuthPlugins()] })` call has
-  // ALREADY run by this point (the `import { AppModule } ...` above already pulled it in) — but that
-  // construction never throws on a missing credential itself (`@polar-sh/better-auth`'s own
-  // `checkout`/`portal`/`webhooks` sub-plugins only read `options.client`/`secret` LAZILY, inside each
-  // route's own request handler), so without this explicit call the process would boot "successfully"
-  // and only fail, opaquely, on the FIRST real checkout/webhook request. This turns that into a clean,
-  // named, immediate refusal instead — before `app.listen()` ever runs.
+  // `billing/polar-client.ts`'s own `getPolarClient()` (checkout, portal, seat-sync, the webhook
+  // receiver's dispatch path) never validates `POLAR_ACCESS_TOKEN` eagerly either — it only reads
+  // `process.env` the first time something actually calls it, LAZILY, inside that request's own
+  // handler — so without this explicit call the process would boot "successfully" and only fail,
+  // opaquely, on the FIRST real checkout/webhook request. This turns that into a clean, named,
+  // immediate refusal instead — before `app.listen()` ever runs.
   assertPolarEnvConfiguredForBoot();
 
   if (process.env.NODE_ENV === 'production') {

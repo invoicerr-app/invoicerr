@@ -5,8 +5,9 @@
  *   POLAR_LIVE=1 POLAR_ACCESS_TOKEN=polar_at_... npx jest polar.live --no-coverage --runInBand
  *
  * WHAT A GREEN RUN PROVES: that the configured access token authenticates against a real Polar
- * organization and that `@polar-sh/sdk`'s `products.list()` call this feature's own docs describe
- * (see `polar-plugin.ts`'s header) actually reaches Polar and gets back real product rows.
+ * organization and that `@polar-sh/sdk`'s `products.list()` call — the same client
+ * `checkout-session.ts`/`portal-session.ts`/`seat-sync.ts` all use via `polar-client.ts`'s own
+ * `getPolarClient()` — actually reaches Polar and gets back real product rows.
  *
  * WHAT IT DOES NOT PROVE: a full checkout → webhook → `CompanySubscription` round-trip. That needs a
  * completed (sandbox) checkout AND a webhook endpoint Polar can actually reach (a public URL, or the
@@ -15,8 +16,10 @@
  * is a reachable public webhook target. `webhook-handlers.spec.ts` proves the SIGNATURE-VERIFIED
  * payload → DB write in isolation; this spec never touches that path.
  *
- * NEVER RUN in this task: no Polar sandbox organization/access token was provisioned — see the
- * feature's own final report. Written directly against `@polar-sh/sdk`'s own shipped `.d.ts` files
+ * NEVER RUN when first written (no Polar sandbox organization/access token was provisioned for that
+ * task) — RUN and GREEN 2026-09-16, sandbox credentials from `.env.test.local` (see
+ * `billing-option-a.live.spec.ts`'s own header for the fuller option-A round-trip run the same day).
+ * Written directly against `@polar-sh/sdk`'s own shipped `.d.ts` files
  * (`Products.list()` returns a `PageIterator<{ result: { items: Product[] } }>` — confirmed by
  * reading `node_modules/@polar-sh/sdk`'s own type declarations), never executed against a real
  * account, so treat a first real run as the actual proof, not this file's existence.

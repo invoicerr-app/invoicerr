@@ -44,7 +44,11 @@
  * (`node_modules/@polar-sh/sdk/dist/commonjs/models/components/subscription.js`), which remaps these
  * via zod before ever handing a payload to a handler. This controller never calls that schema (see
  * above), so `toSubscriptionWebhookPayload` below does the same two-field remap by hand. `id`/
- * `status`/`metadata` are single words, unaffected either way.
+ * `status`/`metadata` are single words, unaffected either way. The nested `data.customer.external_id`
+ * (option A, product decision 2026-09-16 — `webhook-handlers.ts`'s own header on why this is the
+ * PRIMARY company-resolution signal, `metadata.companyId` the fallback) is confirmed present on a
+ * real wire delivery's `data.customer` object, sandbox 2026-09-16, for both `subscription.*` and
+ * `order.*` events.
  *
  * ## Idempotency
  * No dedup table by `webhook-id` — deliberately. `applySubscriptionWebhook` is a plain
@@ -94,13 +98,15 @@ const HANDLED_SUBSCRIPTION_EVENT_TYPES = new Set([
 ]);
 
 /** Polar's raw wire shape for a subscription event's own `data` — see this file's own header on why
- *  the two fields below are snake_case here and need remapping. */
+ *  the two fields below are snake_case here and need remapping. `customer` is the nested customer
+ *  object Polar echoes onto the subscription payload — only `external_id` is read here. */
 interface PolarSubscriptionWireData {
   id: string;
   customer_id: string;
   status: string;
   recurring_interval: string;
   metadata?: Record<string, string | number | boolean>;
+  customer?: { external_id?: string | null };
 }
 
 interface PolarWebhookEvent {
@@ -122,6 +128,7 @@ function toSubscriptionWebhookPayload(event: PolarWebhookEvent): SubscriptionWeb
       status: event.data.status,
       recurringInterval: event.data.recurring_interval,
       metadata: event.data.metadata ?? {},
+      customerExternalId: event.data.customer?.external_id ?? undefined,
     },
   };
 }

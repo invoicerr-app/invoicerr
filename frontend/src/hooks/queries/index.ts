@@ -167,7 +167,10 @@ export {
   useBillingStatus,
   useStartCheckout,
   useOpenCustomerPortal,
+  useBillingEmail,
+  useSetBillingEmail,
   type BillingStatusView,
   type CompanySubscriptionStatus,
   type StartCheckoutBody,
+  type BillingEmailView,
 } from "./use-billing"

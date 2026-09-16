@@ -27,9 +27,11 @@ export interface BillingStatusView {
    *  counting down for a currently-paying — or currently-still-billed — company) and for a
    *  defensively-incomplete row (e.g. BLOCKED with no `blockedAt`, which should never happen). */
   daysRemaining: number | null;
-  /** The better-auth route the frontend POSTs to start a checkout — see `polar-plugin.ts`'s own
-   *  header for why this is a raw path, not a link this controller can meaningfully "generate": the
-   *  frontend supplies its own `products`/`referenceId`/`successUrl` in the request body. */
+  /** This app's OWN route (`billing.controller.ts`'s `POST /billing/checkout`) — not a link this
+   *  controller can meaningfully "generate": the frontend supplies its own `slug`/`successUrl`/
+   *  `returnUrl` in the request body, and the ACTIVE COMPANY is resolved server-side
+   *  (`@ActiveCompany()`), never from a client-supplied id (option A, `checkout-session.ts`'s own
+   *  header). */
   checkoutUrl: string;
   /** This app's OWN route (`billing.controller.ts`'s `POST /billing/portal`) — NOT better-auth's own
    *  `/api/auth/customer/portal`, which cannot open a session for this product's TEAM customers (see
@@ -56,7 +58,7 @@ export function computeBillingStatusView(
     interval: sub.interval,
     trialEndsAt: sub.trialEndsAt.toISOString(),
     daysRemaining,
-    checkoutUrl: '/api/auth/checkout',
+    checkoutUrl: '/api/billing/checkout',
     portalUrl: '/api/billing/portal',
   };
 }

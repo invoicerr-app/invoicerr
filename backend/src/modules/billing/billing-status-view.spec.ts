@@ -61,7 +61,7 @@ describe('computeBillingStatusView', () => {
 
   it('always carries the checkout/portal route paths', () => {
     const view = computeBillingStatusView(sub({}), NOW);
-    expect(view.checkoutUrl).toBe('/api/auth/checkout');
+    expect(view.checkoutUrl).toBe('/api/billing/checkout');
     expect(view.portalUrl).toBe('/api/billing/portal');
   });
 

@@ -117,7 +117,7 @@ describe('applySubscriptionWebhook', () => {
 describe('handleSubscriptionPayload', () => {
   afterEach(() => jest.resetAllMocks());
 
-  it('applies the webhook when metadata.referenceId is present', async () => {
+  it('applies the webhook using the customer external id (primary signal, option A)', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1' });
 
     await handleSubscriptionPayload({
@@ -126,7 +126,8 @@ describe('handleSubscriptionPayload', () => {
         customerId: 'cus_1',
         status: 'active',
         recurringInterval: 'month',
-        metadata: { referenceId: 'company-1' },
+        metadata: {},
+        customerExternalId: 'company-1',
       },
     });
 
@@ -145,7 +146,41 @@ describe('handleSubscriptionPayload', () => {
     });
   });
 
-  it('drops a payload with no referenceId in its metadata, without throwing or touching the DB', async () => {
+  it('falls back to metadata.companyId when the payload carries no customer external id', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1' });
+
+    await handleSubscriptionPayload({
+      data: {
+        id: 'sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'month',
+        metadata: { companyId: 'company-1' },
+      },
+    });
+
+    expect(getOrCreate).toHaveBeenCalledWith('company-1');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { companyId: 'company-1' } }));
+  });
+
+  it('prefers the customer external id over metadata.companyId when both are present', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-primary' });
+
+    await handleSubscriptionPayload({
+      data: {
+        id: 'sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'month',
+        metadata: { companyId: 'company-fallback' },
+        customerExternalId: 'company-primary',
+      },
+    });
+
+    expect(getOrCreate).toHaveBeenCalledWith('company-primary');
+  });
+
+  it('drops a payload with no companyId anywhere, without throwing or touching the DB', async () => {
     await expect(
       handleSubscriptionPayload({
         data: {

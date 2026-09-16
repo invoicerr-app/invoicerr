@@ -8,7 +8,7 @@
  * `APP_URL` cannot serve this alone: it is ALSO the frontend's own origin (every browser-redirect URL
  * in this codebase — `client-portal/portal.service.ts`'s checkout return URLs, `client-portal/
  * portal-tokens.service.ts`'s emailed invite link, `documents/signatures/signatures.service.ts`'s
- * signature-request link, `billing/polar-plugin.ts`'s Polar return URL) and better-auth's own
+ * signature-request link, `billing/portal-return-url.ts`'s Polar return URL) and better-auth's own
  * `baseURL`/`trustedOrigins` (`lib/auth.ts`) — so it must stay whatever origin the operator's BROWSER
  * actually uses (`http://localhost:5173` in dev, the real public domain in production). A developer
  * testing a webhook-driven integration locally (no public domain yet) typically runs the frontend

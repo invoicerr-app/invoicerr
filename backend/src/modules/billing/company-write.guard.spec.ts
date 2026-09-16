@@ -1,5 +1,7 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
+import { BillingGateExempt } from './billing-gate-exempt.decorator';
 import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { CompanyWriteGuard } from './company-write.guard';
@@ -10,16 +12,22 @@ const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
-function createContext(method: string, companyId: string | null | undefined): ExecutionContext {
+function createContext(
+  method: string,
+  companyId: string | null | undefined,
+  handler: (...args: unknown[]) => unknown = () => undefined,
+): ExecutionContext {
   return {
     switchToHttp: () => ({
       getRequest: () => ({ method, companyId }),
     }),
+    getHandler: () => handler,
+    getClass: () => class {},
   } as unknown as ExecutionContext;
 }
 
 describe('CompanyWriteGuard', () => {
-  const guard = new CompanyWriteGuard();
+  const guard = new CompanyWriteGuard(new Reflector());
 
   afterEach(() => {
     jest.resetAllMocks();
@@ -72,6 +80,23 @@ describe('CompanyWriteGuard', () => {
       const err = await guard.canActivate(createContext('PATCH', 'company-1')).catch((e) => e);
       expect(err).toBeInstanceOf(ForbiddenException);
       expect(err.getResponse()).toMatchObject({ code: 'COMPANY_BLOCKED' });
+    });
+
+    it('lets a @BillingGateExempt() route through even for a BLOCKED company — checkout/portal must stay reachable', async () => {
+      getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
+
+      class FakeController {
+        @BillingGateExempt()
+        checkout() {
+          return undefined;
+        }
+      }
+      const controller = new FakeController();
+
+      await expect(guard.canActivate(createContext('POST', 'company-1', controller.checkout))).resolves.toBe(
+        true,
+      );
+      expect(getOrCreate).not.toHaveBeenCalled();
     });
   });
 });

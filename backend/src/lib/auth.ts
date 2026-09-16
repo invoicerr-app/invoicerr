@@ -24,8 +24,8 @@ import {
   sendChangeEmailMail,
 } from '../modules/auth-extended/account-lifecycle';
 import { registeredCompanyProviderIds } from './sso-registry';
-import { buildPolarAuthPlugins } from '../modules/billing/polar-plugin';
 import { syncCompanySeatsOnMembershipChange } from '../modules/billing/seat-sync';
+import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
 import { MailService } from '../mail/mail.service';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -153,6 +153,8 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
       // header for why this is a plain, best-effort, never-throwing call (a no-op entirely when
       // billing is disabled).
       await syncCompanySeatsOnMembershipChange(invitation.companyId);
+      // The invitation can carry OWNER/ADMIN — see `member-sync.ts`'s own header.
+      await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
     } catch (error) {
       console.warn(`Could not mark invitation code as used: ${error}`);
     }
@@ -193,6 +195,8 @@ const attachSsoProvisionedMembership = async (companyId: string, userId: string)
   });
   // Same reason `markInvitationAsUsed` syncs — a new SSO-provisioned membership is a new seat.
   await syncCompanySeatsOnMembershipChange(companyId);
+  // `SSO_PROVISIONED_ROLE` can be OWNER/ADMIN — see `member-sync.ts`'s own header.
+  await syncCompanyMemberOnMembershipChange(companyId, userId);
 };
 
 const userHookFunction = async (user, context) => {
@@ -341,7 +345,14 @@ export const auth = betterAuth({
       afterDelete: async (user) => {
         const memberships = pendingMembershipsForDeletedUser.get(user.id) ?? [];
         pendingMembershipsForDeletedUser.delete(user.id);
-        await cleanupAfterUserDelete(memberships);
+        await cleanupAfterUserDelete(memberships, {
+          id: user.id,
+          email: user.email,
+          // better-auth's own `user` object (its core shape, not our Prisma model) only carries a
+          // single `name` field here, not `firstname`/`lastname` — good enough for a Polar member's
+          // display name, which is all this is used for.
+          name: user.name || null,
+        });
       },
     },
   },
@@ -370,13 +381,16 @@ export const auth = betterAuth({
     // registered — but it is now expressed ONCE, as the same fact the frontend reads, instead of
     // being re-derived here and again from `OIDC_NAME` in the browser.
     ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
-    // Hosted billing (product decision 2026-09-15) — `[]` unless
-    // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` is set (see `billing/polar-plugin.ts`'s own
-    // header for exactly which four routes this mounts under `/api/auth/*`, and why none of them
-    // ever reach the global `AuthGuard`/`RolesGuard`). Boot-time credential validation
-    // (`assertPolarEnvConfiguredForBoot`, `main.ts`) runs separately — this line only ever builds an
-    // EMPTY array for a self-hosted instance that never set the flag, never throws on its own.
-    ...buildPolarAuthPlugins(),
+    // Hosted billing (product decision 2026-09-15, moved to per-COMPANY Polar customers 2026-09-16 —
+    // option A) no longer mounts anything HERE at all: `@polar-sh/better-auth`'s own `checkout()`/
+    // `portal()` hard-code `externalCustomerId: session.user.id` with no way to override it, which is
+    // exactly wrong for a product that bills per company, not per user — see
+    // `modules/billing/checkout-session.ts`/`portal-session.ts`'s own headers. Both now live as plain
+    // Nest routes instead (`BillingController`'s `POST /billing/checkout`/`/billing/portal`), gated by
+    // `@ActiveCompany()` + `@BillingGateExempt()` the ordinary way, not by better-auth's own
+    // middleware. Boot-time credential validation (`assertPolarEnvConfiguredForBoot`, `main.ts`)
+    // still runs unconditionally — it gates `POLAR_ACCESS_TOKEN` etc. for those routes' own
+    // `getPolarClient()`, not for anything constructed at this module's load time any more.
     // Enriches every session with the caller's company memberships and
     // resolves which one is active, so `AuthGuard` can thread a
     // companyId/role through every request without an extra query.

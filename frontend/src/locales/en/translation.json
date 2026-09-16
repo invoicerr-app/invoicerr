@@ -2868,6 +2868,7 @@
       "subscribeMonthly": "Subscribe monthly",
       "subscribeYearly": "Subscribe yearly",
       "managePortal": "Manage subscription",
+      "memberNotice": "Only the company's owner or an admin can manage the subscription.",
       "interval": {
         "MONTH": "Monthly",
         "YEAR": "Yearly"
@@ -2880,9 +2881,22 @@
         "ZIPPED": "Pending deletion",
         "DELETED": "Deleted"
       },
+      "legacyNotice": {
+        "title": "Re-subscribe under this company",
+        "description": "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company."
+      },
+      "billingEmail": {
+        "title": "Billing email",
+        "description": "Used for this company's own Polar customer. Defaults to the company's contact email — set a distinct one if another company already uses it.",
+        "label": "Billing email",
+        "save": "Save"
+      },
       "messages": {
         "checkoutError": "Failed to start checkout",
-        "portalError": "Failed to open the subscription portal"
+        "portalError": "Failed to open the subscription portal",
+        "billingEmailTaken": "Choose a distinct billing email for this company",
+        "billingEmailSaved": "Billing email saved",
+        "billingEmailSaveError": "Failed to save the billing email"
       }
     }
   },

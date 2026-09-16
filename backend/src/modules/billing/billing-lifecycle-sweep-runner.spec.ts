@@ -4,6 +4,7 @@ import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
 import { deleteCompanyPermanently } from './deletion';
 import { addDays } from './lifecycle';
+import { reconcileCompanySeats } from './seat-reconcile';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -14,11 +15,13 @@ jest.mock('@/prisma/prisma.service', () => ({
 }));
 jest.mock('./company-subscription.store');
 jest.mock('./deletion');
+jest.mock('./seat-reconcile');
 
 const update = prisma.companySubscription.update as jest.Mock;
 const findFirstOwner = prisma.userCompany.findFirst as jest.Mock;
 const listSubs = listAdvanceableCompanySubscriptions as jest.Mock;
 const deleteCompany = deleteCompanyPermanently as jest.Mock;
+const reconcileSeats = reconcileCompanySeats as jest.Mock;
 
 function fakeExportService(zip: Buffer = Buffer.from('zip-bytes')) {
   return {
@@ -51,7 +54,14 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
     const result = await runner.runSweep(NOW);
 
-    expect(result).toEqual({ processed: 1, blocked: 0, zipped: 0, zipFailed: 0, deleted: 0 });
+    expect(result).toEqual({
+      processed: 1,
+      blocked: 0,
+      zipped: 0,
+      zipFailed: 0,
+      deleted: 0,
+      seatsReconciled: 0,
+    });
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -208,5 +218,80 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     expect(result.processed).toBe(2);
     expect(result.blocked).toBe(1); // only "good" succeeded
     expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconciles seats for every ACTIVE, subscribed company and counts a correction', async () => {
+    listSubs.mockResolvedValue([
+      {
+        companyId: 'c1',
+        status: 'ACTIVE',
+        trialEndsAt: NOW,
+        blockedAt: null,
+        zipSentAt: null,
+        deletionDueAt: null,
+        polarSubscriptionId: 'sub_1',
+      },
+    ]);
+    reconcileSeats.mockResolvedValue({ corrected: true, localSeats: 5, polarSeats: 2 });
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+    const result = await runner.runSweep(NOW);
+
+    expect(reconcileSeats).toHaveBeenCalledWith(
+      expect.objectContaining({ companyId: 'c1', polarSubscriptionId: 'sub_1' }),
+    );
+    expect(result.seatsReconciled).toBe(1);
+  });
+
+  it('never reconciles seats for a non-ACTIVE subscription', async () => {
+    listSubs.mockResolvedValue([
+      {
+        companyId: 'c1',
+        status: 'TRIAL',
+        trialEndsAt: addDays(NOW, 1),
+        blockedAt: null,
+        zipSentAt: null,
+        deletionDueAt: null,
+        polarSubscriptionId: 'sub_1',
+      },
+    ]);
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+    await runner.runSweep(NOW);
+
+    expect(reconcileSeats).not.toHaveBeenCalled();
+  });
+
+  it('a seat reconciliation failure for one company never blocks the rest of the sweep', async () => {
+    listSubs.mockResolvedValue([
+      {
+        companyId: 'bad',
+        status: 'ACTIVE',
+        trialEndsAt: NOW,
+        blockedAt: null,
+        zipSentAt: null,
+        deletionDueAt: null,
+        polarSubscriptionId: 'sub_bad',
+      },
+      {
+        companyId: 'good',
+        status: 'ACTIVE',
+        trialEndsAt: NOW,
+        blockedAt: null,
+        zipSentAt: null,
+        deletionDueAt: null,
+        polarSubscriptionId: 'sub_good',
+      },
+    ]);
+    reconcileSeats
+      .mockRejectedValueOnce(new Error('polar unreachable'))
+      .mockResolvedValueOnce({ corrected: true, localSeats: 4, polarSeats: 1 });
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.processed).toBe(2);
+    expect(result.seatsReconciled).toBe(1); // only "good" succeeded
+    expect(reconcileSeats).toHaveBeenCalledTimes(2);
   });
 });

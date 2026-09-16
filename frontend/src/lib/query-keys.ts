@@ -61,6 +61,7 @@ export const queryKeys = {
   },
   billing: {
     status: () => ["billing", "status"] as const,
+    email: () => ["billing", "email"] as const,
   },
   declarations: {
     list: (page: number, status?: string) => ["declarations", "list", page, status] as const,

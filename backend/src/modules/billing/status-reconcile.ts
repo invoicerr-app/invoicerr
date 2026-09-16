@@ -64,21 +64,27 @@ interface ReconcileSubscriptionFacts {
 export interface ReconcileSubscriptionsClient {
   subscriptions: {
     list(request: {
-      customerId: string;
+      externalCustomerId: string;
       limit: number;
     }): Promise<AsyncIterable<{ result: { items: ReconcileSubscriptionFacts[] } }>>;
   };
 }
 
-/** The most recently created subscription for this customer, Polar-side — `subscriptions.list` has
- *  no "most recent only" shortcut, so this just reads the (small, page-1-sized for a per-company
- *  customer) list and takes the first item; a customer with no subscription at all (checkout started
- *  but never completed) reads as `undefined`, a genuine "nothing to reconcile" rather than an error. */
+/** The most recently created subscription for this COMPANY, Polar-side — filtered by
+ *  `externalCustomerId` (= `company.id` under option A, `billing-customer.ts`'s own header), never by
+ *  the locally-stored `polarCustomerId`: this is the fix for a bug this feature's own research found
+ *  in the pre-option-A code (a shared per-USER customer meant `items[0]` here could belong to a
+ *  DIFFERENT company owned by the same user) — under option A every company has its own dedicated
+ *  Polar customer, so this filter is now also strictly correct rather than merely defense in depth.
+ *  `subscriptions.list` has no "most recent only" shortcut, so this just reads the (small,
+ *  page-1-sized for a per-company customer) list and takes the first item; a customer with no
+ *  subscription at all (checkout started but never completed) reads as `undefined`, a genuine
+ *  "nothing to reconcile" rather than an error. */
 async function findMostRecentSubscription(
   client: ReconcileSubscriptionsClient,
-  polarCustomerId: string,
+  companyId: string,
 ): Promise<ReconcileSubscriptionFacts | undefined> {
-  const pages = await client.subscriptions.list({ customerId: polarCustomerId, limit: 10 });
+  const pages = await client.subscriptions.list({ externalCustomerId: companyId, limit: 10 });
   for await (const page of pages) {
     if (page.result.items.length > 0) return page.result.items[0];
   }
@@ -105,7 +111,7 @@ export async function reconcileFromPolarIfStale(
   lastCheckedAtByCompanyId.set(sub.companyId, now);
 
   try {
-    const latest = await findMostRecentSubscription(client, sub.polarCustomerId);
+    const latest = await findMostRecentSubscription(client, sub.companyId);
     if (!latest) return sub;
 
     await applySubscriptionWebhook({

@@ -27,8 +27,8 @@ export type RequiredPolarVar = (typeof REQUIRED_VARS)[number];
 const blank = (raw: string | undefined): boolean => (raw ?? '').trim().length === 0;
 
 /** `POLAR_SERVER` is not in `REQUIRED_VARS` above — it has a safe, explicit default ('sandbox', see
- *  `polar-plugin.ts`) rather than a missing-credential failure mode, so a deployment that forgets it
- *  gets the SAFER environment rather than a refused boot. */
+ *  `resolvePolarServerEnvironment` below) rather than a missing-credential failure mode, so a
+ *  deployment that forgets it gets the SAFER environment rather than a refused boot. */
 export function findMissingPolarEnv(env: NodeJS.ProcessEnv = process.env): RequiredPolarVar[] {
   return REQUIRED_VARS.filter((name) => blank(env[name]));
 }

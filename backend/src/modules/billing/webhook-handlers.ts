@@ -94,9 +94,10 @@ export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFa
  *  the six handled event types carries `{ data: Subscription }` with these fields in common, so one
  *  narrow local shape (just the fields `applySubscriptionWebhook` actually reads) covers all six
  *  without importing the SDK's full `Subscription` model. Already CAMELCASE
- *  (`customerId`/`recurringInterval`) — `polar-webhook.controller.ts` is the one responsible for
- *  remapping Polar's snake_case WIRE fields (`customer_id`/`recurring_interval`) into this shape
- *  before calling `handleSubscriptionPayload`; see that file's own header for why. */
+ *  (`customerId`/`recurringInterval`/`customerExternalId`) — `polar-webhook.controller.ts` is the one
+ *  responsible for remapping Polar's snake_case WIRE fields (`customer_id`/`recurring_interval`/
+ *  `customer.external_id`) into this shape before calling `handleSubscriptionPayload`; see that file's
+ *  own header for why. */
 export interface SubscriptionWebhookPayload {
   data: {
     id: string;
@@ -104,21 +105,31 @@ export interface SubscriptionWebhookPayload {
     status: string;
     recurringInterval: string;
     metadata: Record<string, string | number | boolean>;
+    /** The subscription's own customer's `external_id` — option A (product decision 2026-09-16):
+     *  `external_id = company.id` for every Polar customer this app creates (`billing-customer.ts`'s
+     *  own header), so this IS the companyId whenever Polar includes it. Present on a real webhook's
+     *  WIRE payload (confirmed live in sandbox, 2026-09-16, for both `subscription.*` and
+     *  `order.*` events) — `undefined` only for a hand-built payload (a spec, or a future event type
+     *  that genuinely omits it), never for a real delivery. */
+    customerExternalId?: string;
   };
 }
 
 export async function handleSubscriptionPayload(payload: SubscriptionWebhookPayload): Promise<void> {
-  const referenceId = payload.data.metadata?.referenceId;
-  if (referenceId === undefined) {
-    // No companyId to resolve to — `metadata.referenceId` is the companyId `checkout()`'s own
-    // `referenceId` body param stamps on at checkout time (`polar-plugin.ts`'s own header). Never
-    // thrown: a malformed/foreign event must not fail the whole webhook delivery (Polar retries a
-    // non-2xx response), it simply has nothing for this app to do.
+  // PRIMARY: the checkout's own customer, `external_id = company.id` under option A. FALLBACK:
+  // `metadata.companyId` (stamped at checkout time, `checkout-session.ts`) — covers the rare case
+  // Polar's own payload omits the nested `customer` object (never observed live, but the metadata
+  // fallback costs nothing to keep). Never a `referenceId` metadata key any more — that was
+  // `@polar-sh/better-auth`'s own checkout body param, gone along with the rest of `polar-plugin.ts`.
+  const companyId = payload.data.customerExternalId || payload.data.metadata?.companyId;
+  if (companyId === undefined || companyId === '') {
+    // No companyId to resolve to. Never thrown: a malformed/foreign event must not fail the whole
+    // webhook delivery (Polar retries a non-2xx response), it simply has nothing for this app to do.
     return;
   }
 
   await applySubscriptionWebhook({
-    companyId: String(referenceId),
+    companyId: String(companyId),
     polarSubscriptionId: payload.data.id,
     polarCustomerId: payload.data.customerId,
     status: payload.data.status,

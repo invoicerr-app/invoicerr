@@ -61,7 +61,7 @@ describe('reconcileFromPolarIfStale', () => {
         customerId: 'cus_1',
         status: 'active',
         recurringInterval: 'year',
-        metadata: { referenceId: 'company-1' },
+        metadata: { companyId: 'company-1' },
       },
     ]);
     const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1' });
@@ -69,6 +69,10 @@ describe('reconcileFromPolarIfStale', () => {
 
     const result = await reconcileFromPolarIfStale(row, client, 0);
 
+    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledWith({
+      externalCustomerId: 'company-1',
+      limit: 10,
+    });
     expect(applyWebhook).toHaveBeenCalledWith({
       companyId: 'company-1',
       polarSubscriptionId: 'polar_sub_1',
@@ -78,6 +82,18 @@ describe('reconcileFromPolarIfStale', () => {
     });
     expect(getOrCreate).toHaveBeenCalledWith('company-1');
     expect(result.status).toBe('ACTIVE');
+  });
+
+  it('filters the Polar list call by this company — not by the stored polarCustomerId', async () => {
+    const client = fakeClient([]);
+    const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_shared_with_another_company' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(client.subscriptions.list as jest.Mock).toHaveBeenCalledWith({
+      externalCustomerId: 'company-1',
+      limit: 10,
+    });
   });
 
   it('returns the row unchanged when Polar has no subscription for this customer yet', async () => {

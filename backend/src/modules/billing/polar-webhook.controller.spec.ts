@@ -45,7 +45,8 @@ const SUBSCRIPTION_ACTIVE_BODY = JSON.stringify({
     customer_id: 'cus_1',
     status: 'active',
     recurring_interval: 'month',
-    metadata: { referenceId: 'company-1' },
+    metadata: { companyId: 'company-1' },
+    customer: { id: 'cus_1', external_id: 'company-1' },
   },
 });
 
@@ -109,7 +110,36 @@ describe('PolarWebhookController.handleWebhook', () => {
         customerId: 'cus_1',
         status: 'active',
         recurringInterval: 'month',
-        metadata: { referenceId: 'company-1' },
+        metadata: { companyId: 'company-1' },
+        customerExternalId: 'company-1',
+      },
+    });
+  });
+
+  it('remaps to customerExternalId: undefined when the wire payload carries no nested customer object', async () => {
+    const body = JSON.stringify({
+      type: 'subscription.active',
+      data: {
+        id: 'sub_2',
+        customer_id: 'cus_2',
+        status: 'active',
+        recurring_interval: 'year',
+        metadata: { companyId: 'company-2' },
+      },
+    });
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(body, CURRENT_ERA_SECRET);
+
+    await controller.handleWebhook(fakeRequest(body, headers));
+
+    expect(handleMock).toHaveBeenCalledWith({
+      data: {
+        id: 'sub_2',
+        customerId: 'cus_2',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: { companyId: 'company-2' },
+        customerExternalId: undefined,
       },
     });
   });

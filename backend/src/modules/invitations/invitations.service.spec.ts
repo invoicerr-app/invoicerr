@@ -12,6 +12,7 @@ jest.mock('@/logger/logger.service', () => ({
     debug: jest.fn(),
   },
 }));
+jest.mock('@/modules/billing/member-sync');
 // billing/seat-sync.ts's own header: called directly (never via DI) from the four places a
 // UserCompany row changes — `useInvitation` (an EXISTING user accepting an invitation) is one of
 // them. Mocked here so this file's own assertions on it never depend on the real function's

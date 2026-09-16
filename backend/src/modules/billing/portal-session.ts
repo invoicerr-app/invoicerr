@@ -1,38 +1,51 @@
 /**
- * Opens a Polar customer-portal session — NOT via `@polar-sh/better-auth`'s own `portal()` plugin
- * route (`GET/POST /api/auth/customer/portal`, still mounted by `polar-plugin.ts` for its other
- * read-only routes), because that route is unconditionally broken for THIS product.
+ * Opens a Polar customer-portal session for THIS COMPANY — never a user (option A, product decision
+ * 2026-09-16: one Polar customer PER COMPANY, `external_id = company.id` — see `billing-customer.ts`'s
+ * own header). NOT via `@polar-sh/better-auth`'s own `portal()` plugin route (removed along with the
+ * rest of `polar-plugin.ts`), because that route was unconditionally broken for THIS product even
+ * before the per-company move: read directly (`node_modules/@polar-sh/better-auth/dist/index.cjs`'s
+ * `portal` endpoint), it always calls
+ * `polar2.customerSessions.create({ externalCustomerId: session.user.id, returnUrl })` — no `memberId`,
+ * no way to configure one, hard-coded to the SESSION USER besides. Polar rejects a `memberId`-less call
+ * with `"member_id is required for team customers"` for a TEAM customer. This product's hosted plan IS
+ * seat-based (`POLAR_PRODUCT_ID_MONTHLY`/`YEARLY` are `amountType: "seat_based"` prices, confirmed by
+ * reading the live sandbox products 2026-09-15) — and Polar's own model requires a customer that
+ * checks out against a seat-based price to be a TEAM customer (so seats can be assigned to individual
+ * members), regardless of what `type` the customer row started as. Confirmed live in sandbox: a paying
+ * company's Polar customer reads back `type: "team"` with exactly one Polar-auto-created `role: "owner"`
+ * member.
  *
- * Read directly (`node_modules/@polar-sh/better-auth/dist/index.cjs`'s `portal` endpoint): it always
- * calls `polar2.customerSessions.create({ externalCustomerId: session.user.id, returnUrl })` — no
- * `memberId`, no way to configure one, the plugin's `portal({ returnUrl, theme })` options accept
- * neither. Polar rejects that call with `"member_id is required for team customers"` for a TEAM
- * customer. This product's hosted plan IS seat-based (`POLAR_PRODUCT_ID_MONTHLY`/`YEARLY` are
- * `amountType: "seat_based"` prices, confirmed by reading the live sandbox products 2026-09-15) —
- * and Polar's own model requires a customer that checks out against a seat-based price to be a TEAM
- * customer (so seats can be assigned to individual members), regardless of what `type` (or lack of
- * one) `@polar-sh/better-auth`'s `createCustomerOnSignUp` hook sent when the customer row was first
- * created at sign-up. Confirmed live in the same sandbox incident: the paying company owner's Polar
- * customer read back `type: "team"` with exactly one Polar-auto-created `role: "owner"` member — so
- * every team customer this app will ever see already has the member this function needs; there is no
- * separate "invite your team on Polar's side" step for a company that only ever has one paying user.
+ * Multi-user follow-up (same product decision, same day): the portal session is opened for the Polar
+ * MEMBER matching the CLICKING user — never unconditionally the owner member — via
+ * `member-resolution.ts#resolveOrCreateMemberIdForUser` (creates one, keyed by this user's own id, if
+ * neither an app-created nor a Polar-auto-created member matches them yet). Reachable only for
+ * OWNER/ADMIN in the first place (`@Roles` on `billing.controller.ts`'s own `POST /billing/portal`) —
+ * a plain MEMBER never calls this at all.
  *
- * `individual` customers (a company whose Polar customer predates any checkout, or that Polar never
- * promoted) keep working exactly the way the plugin's own route did — same call, no `memberId`.
+ * `individual` customers (a company that has never completed a checkout yet, so Polar never promoted
+ * it to `team`) keep working with a plain `externalCustomerId` call, no `memberId` — proven in sandbox
+ * (2026-09-16) for a customer with no `memberId` supplied at all.
+ *
+ * A company with NO Polar customer at all yet (never started a checkout — the common case for a
+ * TRIAL company) reads as `PolarCustomerNotFoundError` below rather than an unhandled SDK rejection —
+ * `billing.controller.ts` turns that into a plain 404 the frontend already has a generic error toast
+ * for.
  */
+import { isResourceNotFoundError } from './billing-customer';
+import {
+  MemberResolutionClient,
+  ResolvedMemberUser,
+  resolveOrCreateMemberIdForUser,
+} from './member-resolution';
 import { getPolarClient } from './polar-client';
 
 /** Structurally typed subset of the `Polar` SDK client this function actually calls — the same
  *  "narrow, mockable client shape" `seat-sync.spec.ts` already exercises against `getPolarClient()`,
- *  rather than importing the SDK's full generated `Polar` type here. */
-export interface PortalSessionClient {
-  customers: {
+ *  rather than importing the SDK's full generated `Polar` type here. Extends `MemberResolutionClient`
+ *  because a TEAM customer needs that module's own member lookup/creation. */
+export interface PortalSessionClient extends MemberResolutionClient {
+  customers: MemberResolutionClient['customers'] & {
     getExternal(request: { externalId: string }): Promise<{ id: string; type: string }>;
-  };
-  members: {
-    listMembers(request: {
-      customerId: string;
-    }): Promise<AsyncIterable<{ result: { items: Array<{ id: string; role: string }> } }>>;
   };
   customerSessions: {
     create(request: {
@@ -49,41 +62,47 @@ export interface PortalSessionResult {
   redirect: boolean;
 }
 
-/** The single member Polar auto-creates (`role: "owner"`) for a fresh team customer — see this
- *  file's own header. Falls back to the first member listed for a team Polar populated differently
- *  (should not happen for this product, which never invites additional named members), and throws
- *  a named error — rather than letting Polar's own less legible rejection surface — for the one case
- *  that truly has nothing to select. */
-async function findMemberIdForTeamCustomer(client: PortalSessionClient, customerId: string): Promise<string> {
-  const pages = await client.members.listMembers({ customerId });
-  for await (const page of pages) {
-    const owner = page.result.items.find((member) => member.role === 'owner') ?? page.result.items[0];
-    if (owner) return owner.id;
+/** Thrown when this company has no Polar customer at all yet — a TRIAL company that never started a
+ *  checkout (`getOrCreatePolarCustomerForCompany` is only ever called from `checkout-session.ts`, so a
+ *  company can genuinely reach "open the portal" first). `billing.controller.ts` turns this into a
+ *  plain `NotFoundException`. */
+export class PolarCustomerNotFoundError extends Error {
+  constructor(readonly companyId: string) {
+    super(`Company ${companyId} has no Polar customer yet — nothing to manage.`);
+    this.name = 'PolarCustomerNotFoundError';
   }
-  throw new Error(`Polar team customer ${customerId} has no member to open a portal session for`);
 }
 
 /**
- * `userId` is this app's own user id — the same value `createCustomerOnSignUp`/`checkout()` already
- * stamp as the Polar customer's `externalId` (`polar-plugin.ts`'s own header). `returnUrl` mirrors
- * `polar-plugin.ts`'s `FALLBACK_RETURN_URL()` — passed in rather than re-read from `process.env` here
- * so this function stays a pure client call, easy to unit test without env plumbing.
+ * `companyId` is what `checkout-session.ts`'s own `getOrCreatePolarCustomerForCompany` already stamps
+ * as the Polar customer's `externalId` (option A, `billing-customer.ts`'s own header). `user` is the
+ * CLICKING user (id/email/name) — see this file's own header on why the session is opened for THEM,
+ * not the auto-created owner. `returnUrl` mirrors `portal-return-url.ts`'s `FALLBACK_RETURN_URL()` —
+ * passed in rather than re-read from `process.env` here so this function stays a pure client call,
+ * easy to unit test without env plumbing.
  */
 export async function createCustomerPortalSession(
-  userId: string,
+  companyId: string,
+  user: ResolvedMemberUser,
   returnUrl: string,
   client: PortalSessionClient = getPolarClient() as unknown as PortalSessionClient,
 ): Promise<PortalSessionResult> {
-  const customer = await client.customers.getExternal({ externalId: userId });
+  let customer: { id: string; type: string };
+  try {
+    customer = await client.customers.getExternal({ externalId: companyId });
+  } catch (error) {
+    if (isResourceNotFoundError(error)) throw new PolarCustomerNotFoundError(companyId);
+    throw error;
+  }
 
   const session =
     customer.type === 'team'
       ? await client.customerSessions.create({
           customerId: customer.id,
-          memberId: await findMemberIdForTeamCustomer(client, customer.id),
+          memberId: await resolveOrCreateMemberIdForUser(client, customer.id, companyId, user),
           returnUrl,
         })
-      : await client.customerSessions.create({ externalCustomerId: userId, returnUrl });
+      : await client.customerSessions.create({ externalCustomerId: companyId, returnUrl });
 
   return { url: session.customerPortalUrl, redirect: true };
 }
