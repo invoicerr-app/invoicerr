@@ -7,7 +7,7 @@ export interface LegalDocumentView {
   version: string
   effectiveDate: string
   sidebarPosition: number
-  /** Raw markdown — render it yourself (see `lib/legal-markdown.ts`). */
+  /** Raw markdown — render it yourself (see `lib/legal-markdown.tsx`). */
   content: string
 }
 
