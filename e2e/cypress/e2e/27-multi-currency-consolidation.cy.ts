@@ -35,11 +35,12 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 
 		// The reference currency — a field on the existing company form, saved by the usual
 		// "Save" button. The field is far down the page (the form's last card) — scrollIntoView
-		// first, the same discipline as company-legalid-input in 02-company.cy.ts.
+		// first, the same discipline as company-legalid-input in 02-company.cy.ts. It's a
+		// `CurrencySelect` (components/currency-select.tsx), built on `SearchSelect`, not a plain
+		// Radix `Select` — so it goes through `cy.openSearchSelect`, the bounded-retry helper for
+		// that exact primitive, rather than a bare trigger click.
 		cy.get('[data-cy="company-reference-currency-select"]').scrollIntoView();
-		cy.get('[data-cy="company-reference-currency-select"] button').first().click();
-		cy.wait(300);
-		cy.get('[data-cy="company-reference-currency-select-options"]').should("be.visible");
+		cy.openSearchSelect("company-reference-currency-select");
 		cy.get('[data-cy="company-reference-currency-select-option-euro-(€)"]').click();
 		cy.get('[data-cy="company-submit-btn"]').scrollIntoView().click();
 		cy.wait(3000);
@@ -53,35 +54,27 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 			"Euro",
 		);
 
-		// The rate — its OWN card, its own button, never tied to the company form's submit.
+		// The rate — its OWN card, its own button, never tied to the company form's submit. Both
+		// "from" and "to" are `CurrencySelect` too (see above) — `cy.openSearchSelect` again.
 		cy.get('[data-cy="currency-rate-from-select"]').scrollIntoView();
-		cy.get('[data-cy="currency-rate-from-select"] button').first().click();
-		cy.wait(300);
-		cy.get('[data-cy="currency-rate-from-select-options"]').should("be.visible");
+		cy.openSearchSelect("currency-rate-from-select");
 		cy.get('[data-cy="currency-rate-from-select-option-united-states-dollar-($)"]').click();
 
-		// The "from" popover's own portal must be gone before the "to" trigger is clicked — CI has
-		// twice (2026-09-14 runs 34898300265 and 34899605329, both on otherwise-unrelated commits;
-		// the diff between the last known-green run and these carries no change to this screen, this
-		// component, or currency-select at all) failed exactly here with
+		// The "from" popover's own portal must be gone before the "to" trigger is opened — CI has
+		// twice (2026-09-14 runs 34898300265 and 34899605329) and once more in Firefox (2026-09-16
+		// run 35122179901, 1000×660) failed exactly here with
 		// `[data-cy="currency-rate-to-select-options"]` never appearing, immediately followed by the
 		// next test's consolidated widget missing too — a direct consequence, not a second bug: the
 		// dashboard was correctly reporting "No USD→EUR rate is set" because the rate this test exists
-		// to create was never added (see the next `it`'s own screenshot evidence in that CI run).
-		// This is the one place in the whole suite where a select is opened with NOTHING between it
-		// and the previous select's own closing click — every other multi-select flow here
-		// (05-clients.cy.ts, selectCountry in support/commands.ts) has a real field typed into, or a
-		// `cy.wait`, in between. On top of that, `support/e2e.ts` overwrites `.click()` suite-wide to
-		// always pass `force: true` (a Radix Dialog/Sheet scroll-lock workaround), which as a side
-		// effect also skips Cypress's own built-in wait-until-actionable check on EVERY click,
-		// including this one — so nothing was left to absorb the gap. Waiting on a concrete DOM fact
-		// (the sibling popover is actually gone), not a fixed sleep, closes that gap without hiding a
-		// real timeout behind a bigger number.
+		// to create was never added. This is the one place in the whole suite where a select is
+		// opened right after another select's own closing click, on the SAME Radix Popover primitive
+		// family — the exact race `cy.openSearchSelect` (support/commands.ts) exists to absorb: it
+		// waits 50ms, clicks with `force: true`, polls for the options list, and retries the click up
+		// to 3 times if a sibling layer's still-detaching outside-pointerdown listener swallowed it.
+		// Explicitly waiting for the "from" popover to be gone first still avoids wasting a retry.
 		cy.get('[data-cy="currency-rate-from-select-options"]').should("not.exist");
 
-		cy.get('[data-cy="currency-rate-to-select"] button').first().click();
-		cy.wait(300);
-		cy.get('[data-cy="currency-rate-to-select-options"]').should("be.visible");
+		cy.openSearchSelect("currency-rate-to-select");
 		cy.get('[data-cy="currency-rate-to-select-option-euro-(€)"]').click();
 
 		cy.get('[data-cy="currency-rate-rate-input"]').clear().type("0.9");
