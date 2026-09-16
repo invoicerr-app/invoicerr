@@ -3,13 +3,15 @@
  * `data/all.ts`) — proves each one is well-formed AND that the countries actually shipped
  * are exactly what's there, no more, no less.
  *
- * Re-pinned by the 5-country prune (2026-09-10): this mechanism now ships
- * DE/FR/IT/PL only. ES (its own "face"/facturae/DIR3 triad), NL (NLCIUS), and the nine countries the
- * 2026-09-02 B2G audit added as "generic Peppol BIS, no national CIUS"
- * (BE/CY/EE/GR/LT/LU/LV/MT/SE) were all `git rm`'d along with their data/xx.json — none of the four
+ * Re-pinned by the 5-country prune (2026-09-10): this mechanism shipped
+ * DE/FR/IT/PL only until PT was added back on 2026-09-16 (Portaria n.º 289/2019 — see pt.json's own
+ * provenance), bringing the count to five. ES (its own "face"/facturae/DIR3 triad), NL (NLCIUS), and
+ * the nine countries the 2026-09-02 B2G audit added as "generic Peppol BIS, no national CIUS"
+ * (BE/CY/EE/GR/LT/LU/LV/MT/SE) were all `git rm`'d along with their data/xx.json — none of the five
  * kept countries shares that generic peppol-bis shape (DE overrides to "xrechnung", FR routes to
- * "chorus-pro", IT to "fatturapa" via "sdi", PL to its own "fa3" via "ksef"), so the peppol-bis-only
- * cases below have no honest re-anchor and are deleted rather than weakened.
+ * "chorus-pro", IT to "fatturapa" via "sdi", PL to its own "fa3" via "ksef", PT to "fe-ap" via UBL
+ * 2.1), so the peppol-bis-only cases below have no honest re-anchor and are deleted rather than
+ * weakened.
  */
 import { fa3FormatProvider } from '../../formats/national/fa3-provider';
 import { ALL_B2G_ROUTING_FILES } from './all';
@@ -19,9 +21,9 @@ describe('b2g-routing/data/all.ts', () => {
     expect(ALL_B2G_ROUTING_FILES.length).toBeGreaterThan(0);
   });
 
-  it('ships exactly the four kept countries (DE/FR/IT/PL)', () => {
+  it('ships exactly the five kept countries (DE/FR/IT/PL/PT)', () => {
     const countries = ALL_B2G_ROUTING_FILES.map((f) => f.countryCode).sort();
-    expect(countries).toEqual(['DE', 'FR', 'IT', 'PL']);
+    expect(countries).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every shipped rule carries LEGAL provenance with a real citation', () => {

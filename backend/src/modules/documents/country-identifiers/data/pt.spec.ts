@@ -43,10 +43,11 @@ describe('PT — country-identifiers/data/pt.json', () => {
     expect(legalId.notes).toMatch(/sempre obrigatória quando este o solicite/);
   });
 
-  it('LEGAL_ID declares NO pattern — the 9-digit format was not confirmed against a primary text in this pass, and this is documented honestly rather than filled in from general knowledge', () => {
+  it('LEGAL_ID declares NO pattern — the digit count is now confirmed (DL 14/2013, natural persons) but the check-digit arithmetic remains unsourced, documented honestly rather than filled in from general knowledge', () => {
     const legalId = pt.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
     expect(legalId.pattern).toBeUndefined();
-    expect(legalId.notes).toMatch(/NOT CONFIRMED/);
+    expect(legalId.notes).toMatch(/UNCONFIRMED/);
+    expect(legalId.notes).toMatch(/Decreto-Lei n\.º 14\/2013/);
     expect(legalId.notes).toMatch(/Decreto-Lei n\.º 463\/79/);
   });
 

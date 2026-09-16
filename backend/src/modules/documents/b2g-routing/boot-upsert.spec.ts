@@ -157,19 +157,20 @@ describe('upsertB2gRoutingRules', () => {
   // `B2gRoutingBootUpsertService`'s own boot log line ("N upserted, M deleted") reports for a REAL
   // boot reflects what `data/*.json` actually ships, not just what a synthetic fixture claims. Pins
   // the count so it moves — deliberately — the moment a country is added or removed from that
-  // directory, never silently drifting between the two. 15 → 4 (5-country prune, 2026-09-10):
-  // only DE/FR/IT/PL survive — ES, NL and the nine 2026-09-02 B2G-audit
-  // countries were all `git rm`'d along with their data/xx.json.
-  it('the REAL default catalog (every file under data/*.json) upserts exactly 4 rows at boot — the kept DE/FR/IT/PL', async () => {
+  // directory, never silently drifting between the two. 15 → 4 (5-country prune, 2026-09-10): only
+  // DE/FR/IT/PL survived — ES, NL and the nine 2026-09-02 B2G-audit countries were all `git rm`'d
+  // along with their data/xx.json. 4 → 5 (2026-09-16): PT was added back with sourced provenance
+  // (Portaria n.º 289/2019 — see pt.json).
+  it('the REAL default catalog (every file under data/*.json) upserts exactly 5 rows at boot — the kept DE/FR/IT/PL/PT', async () => {
     const { client, rows } = buildFakePrisma();
 
     const summary = await upsertB2gRoutingRules(client, defaultB2gRoutingCatalog);
 
-    expect(summary).toEqual({ upserted: 4, deleted: 0 });
+    expect(summary).toEqual({ upserted: 5, deleted: 0 });
     expect(
       rows()
         .map((r) => r.countryCode)
         .sort(),
-    ).toEqual(['DE', 'FR', 'IT', 'PL']);
+    ).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
   });
 });
