@@ -69,15 +69,30 @@ export interface DomesticReverseChargeCategoryFact {
    *  article without reprinting the whole quoted paragraph. */
   legalRef: string;
   provenance: PolicyProvenance;
+  /** ISO date (`YYYY-MM-DD`), INCLUSIVE — the category is in force ON this day. Optional; absence
+   *  means "no known start", i.e. in force for as long as `legalRef` itself has existed. Named
+   *  `validFrom`/`validUntil` rather than reusing `mentions/schema.ts`'s own `Temporal<T>`
+   *  `validFrom`/`validTo` pair deliberately: that pair is EXCLUSIVE on its upper bound
+   *  (`[validFrom, validTo)`), which fits a mention's own "this wording stopped applying the day a new
+   *  one took over" shape. A statutory sunset reads the opposite way in the source text itself — DPR
+   *  633/1972 art. 17 comma 6's own closing sentence says categories b)/c)/d-bis)/d-ter)/d-quater)
+   *  "si applicano alle operazioni effettuate fino al 31 dicembre 2026" ("apply to operations carried
+   *  out THROUGH 31 December 2026") — so encoding `validUntil: '2026-12-31'` as EXCLUSIVE would be an
+   *  off-by-one translation of the statute's own words into this field, not a neutral convention
+   *  choice. `isCategoryInForce` below is the one place this inclusive rule is implemented; a caller
+   *  should never re-derive it by hand. */
+  validFrom?: string;
+  /** ISO date (`YYYY-MM-DD`), INCLUSIVE — the category is still in force ON this day, no longer in
+   *  force the day after. See `validFrom`'s own doc comment for why this is inclusive rather than
+   *  following `mentions/schema.ts`'s own exclusive `validTo`. Optional; absence means "no known
+   *  end" — most categories in this catalog carry no sunset clause at all. */
+  validUntil?: string;
   /** Free-form caveats — same convention as `country-policy/schema.ts`'s own per-rule `notes`. Used
-   *  here for the two things a bare `legalRef`/`sourceText` pair cannot say on its own: a condition
-   *  this catalog deliberately does NOT model (a buyer-status test, a EUR threshold, the Italian
-   *  "contraente generale" carve-out), and a category's own sunset/effective date when the statute
-   *  itself carries one (Italy's own comma 6 lett. b/c/d-bis/d-ter/d-quater sunset on 2026-12-31;
-   *  Portugal's own alínea j) takes effect 2026-07-01, optionally 2026-01-01) — this schema has no
-   *  temporal-validity field of its own (contrast `mentions/schema.ts`'s `Temporal<T>`); see this
-   *  catalog's own `data/it.json`/`data/pt.json` for why that gap is named rather than silently
-   *  worked around, and `DESIGN.md` (this same directory) for what a real fix would need. */
+   *  here for conditions a bare `legalRef`/`sourceText` pair cannot say on its own: a buyer-status
+   *  test, a EUR threshold, the Italian "contraente generale" carve-out — none of which this schema
+   *  models as a structured field (see `DESIGN.md`, this same directory, for what a real fix would
+   *  need for each). The temporal axis itself (sunset/effective dates) is now a real field
+   *  (`validFrom`/`validUntil` above), not merely named in prose here as it used to be. */
   notes?: string;
 }
 
@@ -122,6 +137,15 @@ export function assertValidDomesticReverseChargeCategory(
     );
   }
 
+  assertValidTemporalBound(fact, 'validFrom', context);
+  assertValidTemporalBound(fact, 'validUntil', context);
+  if (fact.validFrom && fact.validUntil && fact.validFrom > fact.validUntil) {
+    throw new InvalidDomesticReverseChargeProvenanceError(
+      `${context}: category "${fact.key}" has "validFrom" (${fact.validFrom}) after "validUntil" ` +
+        `(${fact.validUntil}) — a category cannot end before it starts.`,
+    );
+  }
+
   const provenance = fact.provenance as { kind?: unknown } | null | undefined;
   if (!provenance || (provenance.kind !== 'legal' && provenance.kind !== 'unverified')) {
     throw new InvalidDomesticReverseChargeProvenanceError(
@@ -147,6 +171,27 @@ export function assertValidDomesticReverseChargeCategory(
     throw new InvalidDomesticReverseChargeProvenanceError(
       `${context}: category "${fact.key}" is "unverified" but has no resolutionNote — an unverified ` +
         'category must say what would settle it.',
+    );
+  }
+}
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Shared shape check for `validFrom`/`validUntil` — both are optional, so `undefined` is always
+ *  valid; a PRESENT value must be a well-formed, parseable `YYYY-MM-DD` calendar date, since
+ *  `isCategoryInForce` (`in-force.ts`) compares these as plain strings and a malformed one would
+ *  silently mis-sort against a real date rather than fail loudly at load time. */
+function assertValidTemporalBound(
+  fact: DomesticReverseChargeCategoryFact,
+  field: 'validFrom' | 'validUntil',
+  context: string,
+): void {
+  const value = fact[field];
+  if (value === undefined) return;
+  if (!ISO_DATE_PATTERN.test(value) || Number.isNaN(new Date(value).getTime())) {
+    throw new InvalidDomesticReverseChargeProvenanceError(
+      `${context}: category "${fact.key}" has an invalid "${field}" ("${value}") — expected an ISO ` +
+        '"YYYY-MM-DD" calendar date.',
     );
   }
 }

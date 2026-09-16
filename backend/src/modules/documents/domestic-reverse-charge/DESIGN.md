@@ -256,14 +256,38 @@ here for one read:
   textually conditioned on an EU Council authorisation under Directive 2006/112/EC art. 395 that this
   wave did not check is currently in force. Settled by: reading the Council's own implementing decision,
   a different research task from reading DPR 633/1972 itself.
-- **Sunset/effective dates** — Italy's own comma 6 lett. b)/c)/d-bis)/d-ter)/d-quater) expire
-  2026-12-31 (already in the retrieved text, quoted in `data/it.json`'s own file-level `notes`);
-  Portugal's own alínea j) took effect 2026-07-01 (optionally 2026-01-01). This schema has NO temporal-
-  validity field (contrast `mentions/schema.ts`'s own `Temporal<T>`) — a category past its own sunset
-  is currently indistinguishable, TO CODE, from one still in force. Settled by: either a `validFrom`/
-  `validTo` pair on `DomesticReverseChargeCategoryFact` (the `mentions/` precedent already exists to
-  copy), or — cheaper, given today's actual expiry list is short — a calendar reminder to re-check
-  Italy's five sunset-bound categories before 2027-01-01. Named here so it is not forgotten silently.
+- **Sunset/effective dates — HAS a temporal-validity field as of 2026-09-16, still read by nothing.**
+  `DomesticReverseChargeCategoryFact` now carries optional `validFrom`/`validUntil` (`schema.ts`,
+  both ISO `YYYY-MM-DD`, both INCLUSIVE — see that file's own doc comment on `validUntil` for why this
+  deliberately does NOT reuse `mentions/schema.ts`'s own EXCLUSIVE `validTo` convention: the statute's
+  own words, "fino al 31 dicembre 2026", read as THROUGH that day, not up to it), validated at load
+  time by `assertValidDomesticReverseChargeCategory` (well-formed date, `validFrom` not after
+  `validUntil`), and a pure `isCategoryInForce(category, onDate)` (`in-force.ts`, spec in
+  `in-force.spec.ts`) that answers the before/on/after question against a caller-supplied date —
+  `mandate.ts`'s own "judge against the invoice's own date, never the server clock" precedent applies
+  here too, though nothing wires that in yet (see below).
+  Italy's own DPR 633/1972 art. 17 **comma 8** (re-read 2026-09-16, corrigendum: earlier drafts of this
+  note said "the statute's own closing paragraph" without a comma number — it is comma 8, counted from
+  the article's own comma sequence, see `data/it.json`'s own file-level `notes` for the count) sunsets
+  comma 6 lett. b)/c)/d-bis)/d-ter)/d-quater) — FOUR catalog facts (`it-mobile-network-terminal-equipment`,
+  `it-consumer-electronics-preretail`, `greenhouse-gas-and-energy-certificates`,
+  `gas-and-electricity-to-reseller`; the last of those four facts covers TWO lettere, d-bis and d-ter,
+  combined per this catalog's own key-sharing note above) — now carry `validUntil: '2026-12-31'`,
+  cited to comma 8's own quoted text. The EU-law basis for that date (Directive 2006/112/EC art. 199a,
+  most likely as last extended by Directive (EU) 2022/890) was NOT independently re-verified: EUR-Lex
+  serves every CELEX URL tried behind an AWS WAF JavaScript challenge curl cannot pass (HTTP 202, empty
+  body) — recorded as a named gap in `data/it.json`'s own notes rather than guessed at. Portugal's own
+  alínea j) effective-date question (2026-07-01, optionally 2026-01-01) is NOT resolved by this wave
+  either — `data/pt.json` was not re-read, so no `validFrom` was added there; doing so needs the same
+  primary-source re-check as Italy's own comma 8 got, not an inference from this note.
+  **Nothing reads this field yet** — same posture as the rest of this catalog (see `schema.ts`'s own
+  header): `isCategoryInForce` is exported and tested in isolation, but no caller in `tax-engine.ts`,
+  `resolve-invoice-tax.ts` or a future `country-fields/` overlay invokes it. Wiring it in is bundled
+  with the rest of the next wave's work described above (the `domesticVat` branch, the
+  `country-fields/` overlay) — when that wave adds the category picker, it should filter a country's
+  `categoriesFor(cc)` through `isCategoryInForce(category, invoice.issueDate)` before turning the
+  survivors into select options, the same "judge by the document's own date" rule `mandate.ts` already
+  holds for channel mandates, not by the server's `new Date()`.
 - **Annex/list contents** — Germany's own Anlage 3 (Nr. 7, scrap/waste) and Anlage 4 (Nr. 11, base
   metals), Portugal's own Anexo E (alínea i, waste/scrap/recyclables). This catalog sources the
   TRIGGERING provision (the fact that "goods in Anlage 3" is a category), never the annex's own item

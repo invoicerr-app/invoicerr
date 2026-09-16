@@ -2,11 +2,11 @@
   "form": {
     "fields": [
       {
-        "type": "folder",
+        "type": "text",
         "name": "storagePath",
         "label": "Storage Path",
         "required": true,
-        "placeholder": "Select a folder for storing files"
+        "placeholder": "/data/storage"
       }
     ]
   }

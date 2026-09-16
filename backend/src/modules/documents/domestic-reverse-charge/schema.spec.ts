@@ -88,4 +88,52 @@ describe('assertValidDomesticReverseChargeCategory', () => {
       /no "legalRef"/,
     );
   });
+
+  it('accepts a category with a well-formed validUntil', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory({ ...legal, validUntil: '2026-12-31' }, 'test'),
+    ).not.toThrow();
+  });
+
+  it('accepts a category with a well-formed validFrom', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory({ ...legal, validFrom: '2026-07-01' }, 'test'),
+    ).not.toThrow();
+  });
+
+  it('accepts a category with both, validFrom on or before validUntil', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory(
+        { ...legal, validFrom: '2026-01-01', validUntil: '2026-12-31' },
+        'test',
+      ),
+    ).not.toThrow();
+  });
+
+  it('refuses a malformed validUntil', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory({ ...legal, validUntil: '31/12/2026' }, 'test'),
+    ).toThrow(/invalid "validUntil"/);
+  });
+
+  it('refuses a malformed validFrom', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory({ ...legal, validFrom: 'not-a-date' }, 'test'),
+    ).toThrow(/invalid "validFrom"/);
+  });
+
+  it('refuses a validUntil that does not correspond to a real calendar date', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory({ ...legal, validUntil: '2026-13-40' }, 'test'),
+    ).toThrow(/invalid "validUntil"/);
+  });
+
+  it('refuses validFrom after validUntil', () => {
+    expect(() =>
+      assertValidDomesticReverseChargeCategory(
+        { ...legal, validFrom: '2027-01-01', validUntil: '2026-12-31' },
+        'test',
+      ),
+    ).toThrow(/after "validUntil"/);
+  });
 });
