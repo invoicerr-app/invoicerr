@@ -19,7 +19,7 @@
  *
  * ## What the guard around this function exempts, and why (see `company-write.guard.ts`)
  *  - GET/HEAD/OPTIONS — read-only by construction; a blocked company must still be able to see its own
- *    data (the product brief's own "lecture seule", not "aucun accès").
+ *    data (the product brief's own "read-only", not "no access").
  *  - Any request with no active company on it (`request.companyId` unset/null) — a route that is not
  *    company-scoped (session/user-level endpoints, `@Public()` routes — which never even reach
  *    `request.companyId` being set, see `guards/auth.guard.ts`) has nothing to gate.

@@ -14,9 +14,9 @@
  *
  * Gated the same way every other live spec is (`POLAR_LIVE=1` + `POLAR_ACCESS_TOKEN` — `live-gate.ts`,
  * reused verbatim). HARD FAILS (never a soft warning) if a trial is found on either product — per the
- * product decision (`polar-edge-cases-brief.md`'s own §15 as relayed by the owner): "sinon, le
- * documenter et retirer l'un des deux" — a failure here means the SANDBOX product configuration itself
- * needs fixing in Polar's own dashboard, not this code.
+ * product decision relayed by the owner: "otherwise, document it and remove one of the two" — a
+ * failure here means the SANDBOX product configuration itself needs fixing in Polar's own dashboard,
+ * not this code.
  *
  *   set -a; . .env.test.local; set +a
  *   POLAR_LIVE=1 POLAR_PRODUCT_ID_MONTHLY=... POLAR_PRODUCT_ID_YEARLY=... \

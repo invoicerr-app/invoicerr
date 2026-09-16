@@ -26,11 +26,11 @@
  * outright with a foreign-key violation for any company that ever configured a webhook. Rather than
  * touch that unrelated model's own migration history for this feature, this function deletes that
  * ONE leftover table explicitly, in the same transaction, strictly BEFORE the company row itself —
- * literally "ordre des FK" for the single case where the schema does not already give it for free.
+ * literally "FK order" for the single case where the schema does not already give it for free.
  *
  * Deliberately does NOT touch `User` rows: a user can belong to other companies, and even one whose
  * last membership was this company is a login/identity the product brief never asked this feature to
- * remove — only the SOCIÉTÉ and everything scoped to it.
+ * remove — only the COMPANY and everything scoped to it.
  */
 import prisma from '@/prisma/prisma.service';
 

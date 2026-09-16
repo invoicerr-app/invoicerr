@@ -1,6 +1,6 @@
 /**
  * Opportunistic seat-count reconciliation (product decision 2026-09-16's multi-user follow-up —
- * "un mec paie un siège et invite dix personnes"): `seat-sync.ts` pushes the DB's own seat count to
+ * "a guy pays for one seat and invites ten people"): `seat-sync.ts` pushes the DB's own seat count to
  * Polar synchronously on every membership change, but that push is BEST-EFFORT (never throws into its
  * caller, see that file's own header). If Polar is unreachable at the exact moment a member is
  * added/removed and NOTHING else changes membership afterward, the two counts silently diverge
