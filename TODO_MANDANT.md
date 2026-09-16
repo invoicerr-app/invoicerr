@@ -43,6 +43,7 @@ in its absence: everything is properly gated.
 | 🇮🇹 Direct SdI (outside PEC) | The official SdI channel (independent of the PEC route above) | Partita IVA registered on Entratel + certificates issued by the AdE |
 | 🇵🇱 KSeF **production** | KSeF in production (already proven in the test environment, 2026-06-28) | Polish NIP + trusted profile or qualified signature |
 | 🇫🇷 PDP **production** | PDP in production (already proven live, 2026-08-29) | Commercial contract with a registered PDP |
+| Re-subscribe the dev-instance company in the Polar sandbox | The billing customer is now one per company (`external_id = company.id`); your current sandbox subscription still hangs off the old per-user customer and Polar has no transfer endpoint. From Settings > Billing: set a billing email if the company email is already taken on Polar, then « Subscribe monthly », then cancel the old subscription from the old customer's portal. |
 
 ## 4. Administrative
 

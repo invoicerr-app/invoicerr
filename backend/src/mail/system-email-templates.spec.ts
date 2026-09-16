@@ -3,6 +3,8 @@ import { MailTemplateType } from '../../prisma/generated/prisma/client';
 import { renderEmailTemplate } from '@/modules/documents/actions/email-template';
 
 import {
+  buildBlockedZipWarningEmail,
+  buildDeletionWarningEmail,
   describeSystemEmailVocabulary,
   resolveSystemEmailTemplate,
   SYSTEM_EMAIL_DEFAULTS,
@@ -129,5 +131,33 @@ describe('systemEmailFamilyLabel', () => {
   it('reads as a human name, not an enum member', () => {
     expect(systemEmailFamilyLabel(MailTemplateType.SIGNATURE_REQUEST)).toBe('Signature Request');
     expect(systemEmailFamilyLabel(MailTemplateType.VERIFICATION_CODE)).toBe('Verification Code');
+  });
+});
+
+describe('OWNER warning emails (J-7/J-1 before the zip, and before the permanent deletion) are in English and link to Settings > Billing', () => {
+  it('buildBlockedZipWarningEmail names the day count and links to the billing settings screen', () => {
+    const email = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 7 });
+    expect(email.subject).toContain('7 days');
+    expect(email.text).toContain(`${APP_URL}/settings/billing`);
+    expect(email.html).toContain(`${APP_URL}/settings/billing`);
+  });
+
+  it('buildBlockedZipWarningEmail uses the singular "day" at J-1', () => {
+    const email = buildBlockedZipWarningEmail({ appUrl: APP_URL, daysRemaining: 1 });
+    expect(email.subject).toContain('1 day');
+    expect(email.subject).not.toContain('1 days');
+  });
+
+  it('buildDeletionWarningEmail is unambiguous about permanent, irreversible deletion', () => {
+    const email = buildDeletionWarningEmail({ appUrl: APP_URL, daysRemaining: 7 });
+    expect(email.subject.toLowerCase()).toContain('permanently deleted');
+    expect(email.text.toLowerCase()).toContain('cannot be undone');
+    expect(email.text).toContain(`${APP_URL}/settings/billing`);
+  });
+
+  it('buildDeletionWarningEmail uses the singular "day" at J-1', () => {
+    const email = buildDeletionWarningEmail({ appUrl: APP_URL, daysRemaining: 1 });
+    expect(email.subject).toContain('1 day');
+    expect(email.subject).not.toContain('1 days');
   });
 });

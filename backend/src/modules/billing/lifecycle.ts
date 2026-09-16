@@ -127,3 +127,62 @@ export function computeLifecycleTransition(
 export function computeTrialWindow(startedAt: Date): { trialStartedAt: Date; trialEndsAt: Date } {
   return { trialStartedAt: startedAt, trialEndsAt: addDays(startedAt, TRIAL_DAYS) };
 }
+
+/**
+ * OWNER warning-email milestones (product decision) — J-7 and J-1 ahead of each of the TWO moments
+ * `lifecycle.ts`'s own transitions above compute, so the OWNER never finds out about the zip or the
+ * permanent deletion only once it has already happened:
+ *  - `blocked_d7`/`blocked_d1`: 7 and 1 day(s) before `BLOCKED`'s own `send_zip_and_enter_zipped`
+ *    transition (day 7 and day 13 of the 14-day BLOCKED window).
+ *  - `zipped_d7`/`zipped_d1`: 7 and 1 day(s) before `ZIPPED`'s own `delete_company` transition,
+ *    counted back from `deletionDueAt` directly (rather than re-deriving it) since that field is
+ *    already the one fact that correctly distinguishes the never-paid (no grace at all — see
+ *    `deletionDueAt`'s own comment above) from the paid-then-stopped (180-day grace) cycle: a
+ *    never-paid company's `deletionDueAt` equals its own `zipSentAt`, so `zipped_d7`/`zipped_d1` never
+ *    become due for it (there is no 7-or-1-day window to warn inside), which is correct — it was
+ *    already warned twice, at `blocked_d7`/`blocked_d1`, and the zip mail itself doubles as its own
+ *    final notice.
+ */
+export type BillingWarningMilestone = 'blocked_d7' | 'blocked_d1' | 'zipped_d7' | 'zipped_d1';
+
+export interface BillingWarningFacts {
+  status: CompanySubscriptionStatus;
+  blockedAt: Date | null;
+  zipSentAt: Date | null;
+  deletionDueAt: Date | null;
+}
+
+/**
+ * Every milestone whose OWN threshold has been reached as of `now` — independently of one another
+ * (never `else if`), so a sweep tick that was missed still catches up on BOTH once it finally runs,
+ * each checked against the caller's own "already sent" set before actually mailing anything
+ * (`billing-lifecycle-sweep-runner.ts`'s own idempotency, `CompanySubscription.billingWarningMilestonesSent`).
+ * Pure, and — like `computeLifecycleTransition` above — never reads the clock itself.
+ *
+ * `zipped_d7`/`zipped_d1` additionally require a REAL grace window (`deletionDueAt` at least 7 days
+ * after `zipSentAt`) — a never-paid company's `deletionDueAt` equals its own `zipSentAt` (no grace at
+ * all, see this file's own header), so without this guard both would read as trivially "due" the
+ * instant ZIPPED is entered, moments before `delete_company` fires on the very next tick — a warning
+ * promising "N days left" when there are none is worse than no warning at all.
+ */
+export function computeDueBillingWarnings(sub: BillingWarningFacts, now: Date): BillingWarningMilestone[] {
+  const due: BillingWarningMilestone[] = [];
+
+  if (sub.status === 'BLOCKED' && sub.blockedAt) {
+    if (now.getTime() >= addDays(sub.blockedAt, 7).getTime()) due.push('blocked_d7');
+    if (now.getTime() >= addDays(sub.blockedAt, BLOCKED_DAYS - 1).getTime()) due.push('blocked_d1');
+  }
+
+  const hasRealZippedGraceWindow =
+    sub.status === 'ZIPPED' &&
+    sub.zipSentAt !== null &&
+    sub.deletionDueAt !== null &&
+    sub.deletionDueAt.getTime() - sub.zipSentAt.getTime() >= 7 * DAY_MS;
+
+  if (hasRealZippedGraceWindow && sub.deletionDueAt) {
+    if (now.getTime() >= addDays(sub.deletionDueAt, -7).getTime()) due.push('zipped_d7');
+    if (now.getTime() >= addDays(sub.deletionDueAt, -1).getTime()) due.push('zipped_d1');
+  }
+
+  return due;
+}

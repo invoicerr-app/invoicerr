@@ -37,7 +37,13 @@ import { BillingGateExempt } from './billing-gate-exempt.decorator';
 import { BillingEmailView, getCompanyBillingEmail, setCompanyBillingEmail } from './billing-email';
 import { SetBillingEmailDto, StartCheckoutDto } from './billing.dto';
 import { BillingStatusView, computeBillingStatusView } from './billing-status-view';
-import { CheckoutProductSlug, CheckoutSessionResult, createCheckoutSession } from './checkout-session';
+import {
+  CheckoutAlreadyInProgressError,
+  CheckoutProductSlug,
+  CheckoutSessionResult,
+  createCheckoutSession,
+  SubscriptionAlreadyActiveError,
+} from './checkout-session';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { isLegacyUserLevelSubscription } from './legacy-customer';
 import { FALLBACK_RETURN_URL } from './portal-return-url';
@@ -110,11 +116,16 @@ export class BillingController {
         returnUrl: body.returnUrl || FALLBACK_RETURN_URL(),
       });
     } catch (error) {
-      if (error instanceof BillingEmailTakenError) {
-        // 409, not 403 — this is a data conflict ("this email is already in use by another Polar
-        // customer"), not a permission refusal. Same `{ message, code }` shape write-gate.ts's own
-        // COMPANY_BLOCKED already established as this codebase's convention for a machine-readable
-        // refusal a frontend can branch on (use-mutation-with-toast.ts's own header).
+      if (
+        error instanceof BillingEmailTakenError ||
+        error instanceof SubscriptionAlreadyActiveError ||
+        error instanceof CheckoutAlreadyInProgressError
+      ) {
+        // 409, not 403 — every one of these is a data conflict (a duplicate email, a subscription
+        // that already exists, a checkout already in flight), not a permission refusal. Same
+        // `{ message, code }` shape write-gate.ts's own COMPANY_BLOCKED already established as this
+        // codebase's convention for a machine-readable refusal a frontend can branch on
+        // (use-mutation-with-toast.ts's own header).
         throw new ConflictException({ message: error.message, code: error.code });
       }
       throw error;

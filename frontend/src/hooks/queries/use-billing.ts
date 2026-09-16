@@ -15,6 +15,10 @@ export interface BillingStatusView {
    *  customer (backend's own `legacy-customer.ts`) — there is no automatic migration, the settings
    *  screen shows a plain re-subscribe notice instead. */
   legacySubscription: boolean
+  /** `true` only while PAST_DUE AND a seat INCREASE's own card decline is still the most likely
+   *  reason (backend's own `billing-status-view.ts`) — lets the banner/settings screen say "the
+   *  payment for the seat you just added failed" instead of the generic "your last payment failed". */
+  seatPaymentFailureExplainsStatus: boolean
 }
 
 /**

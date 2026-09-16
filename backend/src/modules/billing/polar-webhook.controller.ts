@@ -51,13 +51,19 @@
  * `order.*` events.
  *
  * ## Idempotency
- * No dedup table by `webhook-id` — deliberately. `applySubscriptionWebhook` is a plain
- * `prisma.companySubscription.update` keyed by `companyId`, writing the SAME field set every time for
- * the SAME subscription fact set (never an increment/append) — replaying an identical delivery (a
- * provider retry, or Polar's own "resend" button in its dashboard) converges to the identical row, not
- * a duplicate effect. This is "naturally idempotent" only because of that specific shape; a future
- * handler for a non-idempotent event (anything that increments a counter or sends a one-off
- * notification) would need its own dedup and must NOT assume this same guarantee.
+ * `PolarWebhookEvent` (`schema.prisma`) is a dedup ledger keyed by the delivery's own `webhook-id`
+ * header — a stable id Polar reuses VERBATIM on every retry of the SAME delivery (Standard Webhooks'
+ * own guarantee), never re-minted per attempt. This controller inserts a row for it BEFORE dispatching
+ * to a handler; a unique-constraint violation on that insert means this exact delivery already ran
+ * (a provider retry, or Polar's own dashboard "resend"), answered 200 immediately without re-running
+ * `handleSubscriptionPayload` a second time. `applySubscriptionWebhook`'s own field-set write (plain
+ * `prisma.companySubscription.update`, never an increment/append) was ALSO naturally idempotent on its
+ * own for the specific case of two deliveries carrying identical facts — this ledger additionally
+ * covers the case that shape alone cannot: two deliveries of the SAME `webhook-id` racing each other
+ * concurrently, which would otherwise run the handler twice regardless of how idempotent its own
+ * writes are. A future handler for a genuinely non-idempotent effect (anything that increments a
+ * counter or sends a one-off notification) can now rely on this same ledger rather than needing its
+ * own.
  *
  * ## Wiring
  * `@Public()` is `@thallesp/nestjs-better-auth`'s own decorator (the one `AuthGuard`,
@@ -77,9 +83,17 @@ import { Request } from 'express';
 import { Public } from '@thallesp/nestjs-better-auth';
 
 import { logger } from '@/logger/logger.service';
+import prisma from '@/prisma/prisma.service';
 
 import { verifyPolarWebhook, WebhookVerificationError } from './polar-webhook-verify';
 import { handleSubscriptionPayload, SubscriptionWebhookPayload } from './webhook-handlers';
+
+/** Postgres/Prisma's own unique-constraint-violation code — checked structurally (never importing
+ *  `Prisma.PrismaClientKnownRequestError` by name) the same way every other billing file duck-types a
+ *  third-party error shape (`billing-customer.ts#isResourceNotFoundError`'s own header). */
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002';
+}
 
 interface RequestWithRawBody extends Request {
   rawBody?: Buffer;
@@ -182,7 +196,31 @@ export class PolarWebhookController {
       return { received: true };
     }
 
-    await handleSubscriptionPayload(toSubscriptionWebhookPayload(event));
+    // Idempotency ledger — see this file's own header. Reserved BEFORE dispatch: a unique-constraint
+    // violation here means this exact delivery (by its own `webhook-id`) already ran, answered 200
+    // immediately without touching `handleSubscriptionPayload` a second time.
+    try {
+      await prisma.polarWebhookEvent.create({ data: { id: headers['webhook-id'] } });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        logger.info('Polar webhook: duplicate delivery (already processed), acknowledged without replay', {
+          category: 'billing',
+          details: { webhookId: headers['webhook-id'] },
+        });
+        return { received: true };
+      }
+      throw error;
+    }
+
+    // `webhook-timestamp` is Standard Webhooks' own delivery timestamp (unix seconds, the same header
+    // `verifyPolarWebhook` above already required to be present and within tolerance) — threaded
+    // through as the fact's own timestamp so a later, slower `status-reconcile.ts` read can never
+    // clobber whatever this delivery is about to apply. `Number(...)` on an already-validated numeric
+    // string never produces `NaN` here in practice; `new Date(NaN)` would simply compare as neither
+    // older nor newer than anything, which is a safe (if inert) fallback rather than a thrown error.
+    const factAt = new Date(Number(headers['webhook-timestamp']) * 1000);
+
+    await handleSubscriptionPayload(toSubscriptionWebhookPayload(event), factAt);
 
     return { received: true };
   }

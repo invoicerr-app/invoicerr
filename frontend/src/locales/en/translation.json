@@ -2860,11 +2860,13 @@
     "billing": {
       "title": "Subscription",
       "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
+      "currencyNotice": "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
       "currentPlan": "Current plan",
       "seats": "{{count}} seat",
       "seats_other": "{{count}} seats",
       "daysRemaining": "{{count}} day remaining",
       "daysRemaining_other": "{{count}} days remaining",
+      "seatPaymentFailedNotice": "We couldn't charge your card for the seat you just added — update your payment method below.",
       "subscribeMonthly": "Subscribe monthly",
       "subscribeYearly": "Subscribe yearly",
       "managePortal": "Manage subscription",
@@ -4693,7 +4695,11 @@
       },
       "pastDue": {
         "title": "Your last payment failed",
-        "description": "Update your payment method to keep sending documents."
+        "description": "Update your payment method to keep sending documents.",
+        "seatPaymentFailed": {
+          "title": "Payment for an added seat failed",
+          "description": "We couldn't charge your card for the seat you just added. Update your payment method to keep sending documents."
+        }
       },
       "blocked": {
         "title": "This company is blocked",

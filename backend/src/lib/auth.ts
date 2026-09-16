@@ -26,6 +26,7 @@ import {
 import { registeredCompanyProviderIds } from './sso-registry';
 import { syncCompanySeatsOnMembershipChange } from '../modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
+import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
 import { MailService } from '../mail/mail.service';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -373,6 +374,21 @@ export const auth = betterAuth({
       create: {
         before: userHookFunction,
         after: userAfterCreateHook,
+      },
+      // Fires after ANY user row update, including the one `updateUser` performs once a
+      // `changeEmail` confirmation link is actually opened (better-auth's own internal-adapter path,
+      // not the moment the link is merely SENT — `account-lifecycle.ts#sendChangeEmailMail`'s own
+      // header is that earlier step). `syncPolarMemberEmailForUser` itself is a cheap no-op for the
+      // overwhelming majority of these calls (billing disabled, or this user holds no OWNER/ADMIN
+      // membership anywhere) — see that module's own header for why running it unconditionally here,
+      // rather than trying to detect "was this SPECIFICALLY an email change" from this hook's own
+      // arguments (which carry no reliable before/after diff), is the pragmatic choice: a
+      // no-op-if-unchanged push to Polar costs nothing extra, and never firing is the one failure
+      // mode this hook must avoid.
+      update: {
+        after: async (user) => {
+          await syncPolarMemberEmailForUser(user.id, user.email, user.name || null);
+        },
       },
     },
   },

@@ -17,7 +17,21 @@
  * own receiver, verifying the signature itself — became its only caller: this file has zero
  * `@polar-sh/*` import, so nothing here needs that package's ESM-only transitive dependency mocked
  * away under Jest the way `polar-plugin.spec.ts` still has to for `buildPolarAuthPlugins`.
+ *
+ * ## A company that no longer exists (or never did)
+ *
+ * Two situations resolve a `companyId` that this app cannot use: a webhook for a customer whose
+ * company was since deleted (the DB's own `ON DELETE CASCADE` already took the `CompanySubscription`
+ * row with it — `deletion.ts`'s own header), and a webhook for a customer created BEFORE the
+ * 2026-09-16 per-company migration, whose `external_id` is a USER id, not a company id at all
+ * (`legacy-customer.ts`'s own header — option A only ever mints customers with `external_id =
+ * company.id`, but an old customer can still fire real webhooks). Both read identically from here:
+ * `prisma.company` has no row for the resolved id. Rather than let `getOrCreateCompanySubscription`
+ * attempt an `upsert` that would fail the request outright on the `CompanySubscription.companyId`
+ * foreign key (a genuine 500 — Polar retries a non-2xx delivery forever), this is checked FIRST and
+ * treated as "nothing for this app to do", exactly like an unresolvable `companyId` already was.
  */
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -58,6 +72,12 @@ export interface PolarSubscriptionWebhookFacts {
   status: string;
   /** Polar's raw `Subscription.recurringInterval` string, mapped by `mapPolarRecurringInterval` above. */
   recurringInterval: string;
+  /** WHEN this fact actually happened, Polar-side — the delivering webhook's own `webhook-timestamp`
+   *  header (`polar-webhook.controller.ts`) or, for a `status-reconcile.ts` repair read, the
+   *  reconciled subscription's own `modifiedAt`. `undefined` applies UNCONDITIONALLY (the historical
+   *  behavior, and what every hand-built fact set in this codebase's own specs still gets) — only a
+   *  caller that actually HAS a timestamp opts into the staleness check below. */
+  factAt?: Date;
 }
 
 /**
@@ -66,14 +86,44 @@ export interface PolarSubscriptionWebhookFacts {
  * jumped straight to checkout from a stale link) must still land somewhere real, never throw on a
  * missing row.
  *
- * When the mapped status is `ACTIVE`, this ALSO clears `blockedAt`/`zipSentAt`/`deletionDueAt` —
- * critical for a company that recovers from `PAST_DUE`/`BLOCKED`/`ZIPPED` by paying again: without
- * this reset, a `deletionDueAt` stamped while the company was struggling to pay would still be
- * ticking down in the background, and the NEXT lifecycle sweep tick would delete a now-current-paying
- * customer's data purely because a timestamp from before they fixed their card was never cleared.
+ * A company that no longer exists at all (deleted, or never real — see this file's own header) is a
+ * silent no-op, logged: never an unhandled DB foreign-key failure that would surface as a 500 to
+ * Polar, which would then retry the same delivery forever.
+ *
+ * A STALE fact — `factAt` older than the last one already applied (`lastPolarFactAt`) — is dropped the
+ * same way: `status-reconcile.ts`'s own live Polar read can, rarely, race a webhook that already
+ * landed a NEWER fact (Polar's own read replica lagging its own webhook delivery); applying the older
+ * read would incorrectly walk a company backward (e.g. re-declaring PAST_DUE a company a fresher
+ * webhook already reported ACTIVE again). `factAt` itself is always persisted when supplied, whichever
+ * branch runs, so the NEXT comparison is always against the most recent timestamp actually seen.
+ *
+ * When the mapped status is `ACTIVE`, this ALSO clears `blockedAt`/`zipSentAt`/`deletionDueAt`/
+ * `seatPaymentFailedAt` — critical for a company that recovers from `PAST_DUE`/`BLOCKED`/`ZIPPED` by
+ * paying again: without this reset, a `deletionDueAt` stamped while the company was struggling to pay
+ * would still be ticking down in the background, and the NEXT lifecycle sweep tick would delete a
+ * now-current-paying customer's data purely because a timestamp from before they fixed their card was
+ * never cleared. `seatPaymentFailedAt` (`seat-sync.ts`'s own header) is the same idea for the
+ * seat-specific "why is this company PAST_DUE" reason `billing-status-view.ts` shows.
  */
 export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFacts): Promise<void> {
-  await getOrCreateCompanySubscription(facts.companyId);
+  const company = await prisma.company.findUnique({ where: { id: facts.companyId }, select: { id: true } });
+  if (!company) {
+    logger.info(
+      'Polar webhook: no company for the resolved id — deleted, or a pre-migration per-user customer. Ignored.',
+      { category: 'billing', details: { companyId: facts.companyId } },
+    );
+    return;
+  }
+
+  const sub = await getOrCreateCompanySubscription(facts.companyId);
+
+  if (facts.factAt && sub.lastPolarFactAt && facts.factAt.getTime() < sub.lastPolarFactAt.getTime()) {
+    logger.warn('Ignored a stale Polar fact — a fresher one was already applied for this company', {
+      category: 'billing',
+      details: { companyId: facts.companyId, factAt: facts.factAt, lastPolarFactAt: sub.lastPolarFactAt },
+    });
+    return;
+  }
 
   const status = mapPolarSubscriptionStatus(facts.status);
   const interval = mapPolarRecurringInterval(facts.recurringInterval);
@@ -85,7 +135,10 @@ export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFa
       polarSubscriptionId: facts.polarSubscriptionId,
       polarCustomerId: facts.polarCustomerId,
       ...(interval ? { interval } : {}),
-      ...(status === 'ACTIVE' ? { blockedAt: null, zipSentAt: null, deletionDueAt: null } : {}),
+      ...(facts.factAt ? { lastPolarFactAt: facts.factAt } : {}),
+      ...(status === 'ACTIVE'
+        ? { blockedAt: null, zipSentAt: null, deletionDueAt: null, seatPaymentFailedAt: null }
+        : {}),
     },
   });
 }
@@ -115,7 +168,16 @@ export interface SubscriptionWebhookPayload {
   };
 }
 
-export async function handleSubscriptionPayload(payload: SubscriptionWebhookPayload): Promise<void> {
+/**
+ * `factAt` — the delivering webhook's own `webhook-timestamp` (`polar-webhook.controller.ts`, Standard
+ * Webhooks' own delivery timestamp header) — threaded straight through to `applySubscriptionWebhook`'s
+ * staleness check (see that function's own header). Optional so every hand-built payload in this
+ * file's own spec keeps applying unconditionally, exactly as before.
+ */
+export async function handleSubscriptionPayload(
+  payload: SubscriptionWebhookPayload,
+  factAt?: Date,
+): Promise<void> {
   // PRIMARY: the checkout's own customer, `external_id = company.id` under option A. FALLBACK:
   // `metadata.companyId` (stamped at checkout time, `checkout-session.ts`) — covers the rare case
   // Polar's own payload omits the nested `customer` object (never observed live, but the metadata
@@ -134,5 +196,6 @@ export async function handleSubscriptionPayload(payload: SubscriptionWebhookPayl
     polarCustomerId: payload.data.customerId,
     status: payload.data.status,
     recurringInterval: payload.data.recurringInterval,
+    factAt,
   });
 }

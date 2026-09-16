@@ -22,8 +22,15 @@ export function BillingBanner() {
 
   const isDestructive = status.status === "BLOCKED" || status.status === "ZIPPED"
 
-  const titleKey =
-    status.status === "TRIAL"
+  // A seat-specific card decline (`seat-sync.ts`'s own header, `billing-status-view.ts`'s
+  // `seatPaymentFailureExplainsStatus`) gets its OWN wording — "the payment for the seat you just
+  // added failed" is a more actionable, honest explanation than the generic "your last payment
+  // failed" when that really is the reason, and never shown once it is no longer the most likely one.
+  const isSeatPaymentFailure = status.status === "PAST_DUE" && status.seatPaymentFailureExplainsStatus
+
+  const titleKey = isSeatPaymentFailure
+    ? "billing.banner.pastDue.seatPaymentFailed.title"
+    : status.status === "TRIAL"
       ? "billing.banner.trial.title"
       : status.status === "BLOCKED"
         ? "billing.banner.blocked.title"
@@ -31,8 +38,9 @@ export function BillingBanner() {
           ? "billing.banner.zipped.title"
           : "billing.banner.pastDue.title"
 
-  const descriptionKey =
-    status.status === "TRIAL"
+  const descriptionKey = isSeatPaymentFailure
+    ? "billing.banner.pastDue.seatPaymentFailed.description"
+    : status.status === "TRIAL"
       ? "billing.banner.trial.description"
       : status.status === "BLOCKED"
         ? "billing.banner.blocked.description"

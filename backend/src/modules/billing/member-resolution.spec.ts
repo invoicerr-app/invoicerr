@@ -61,6 +61,21 @@ describe('findMemberIdForUser', () => {
     expect(result).toBe('member-match');
   });
 
+  it("resolves Polar's own auto-created owner member (no externalId — minted on the company's first seat-based checkout) by matching the clicking user's email, using ITS OWN Polar-internal id from then on", async () => {
+    // The exact shape a company's first seat-based checkout produces, Polar-side (this file's own
+    // header): ONE `role: "owner"` member, minted straight from the customer's own email/name, with
+    // no `externalId` this app ever set — never adopted into the externalId lookup path, matched by
+    // email every time this function is called.
+    const listMembers = jest
+      .fn()
+      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
+    const client = fakeClient({ members: { listMembers } });
+
+    const result = await findMemberIdForUser(client, 'cus_1', 'company-1', USER);
+
+    expect(result).toBe('member-auto-owner');
+  });
+
   it('returns null when nothing matches by externalId or email', async () => {
     const client = fakeClient();
 

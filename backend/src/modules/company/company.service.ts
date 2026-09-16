@@ -19,6 +19,7 @@ import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
 import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
+import { syncPolarCustomerOnCompanyChange } from '@/modules/billing/customer-sync';
 import prisma from '@/prisma/prisma.service';
 
 /**
@@ -187,6 +188,19 @@ export class CompanyService {
       identifiers,
       updatedCompany.countryCode ?? updatedCompany.country,
     );
+
+    // A rename or a changed contact email is also what this company's Polar CUSTOMER should show —
+    // pushed in the same request rather than waiting for the next lifecycle-sweep tick, best-effort
+    // (never blocks this write — see `customer-sync.ts`'s own header). Only fired when one of the two
+    // actually changed: every OTHER field this screen writes (address, currency, IBAN…) has no Polar
+    // customer counterpart worth a network call on every save.
+    if (existingCompany.name !== updatedCompany.name || existingCompany.email !== updatedCompany.email) {
+      await syncPolarCustomerOnCompanyChange(companyId, {
+        name: updatedCompany.name,
+        email: updatedCompany.email,
+        billingEmail: updatedCompany.billingEmail,
+      });
+    }
 
     logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
 

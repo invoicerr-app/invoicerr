@@ -3,6 +3,7 @@ import {
   PAID_ZIP_GRACE_DAYS,
   TRIAL_DAYS,
   addDays,
+  computeDueBillingWarnings,
   computeLifecycleTransition,
   computeTrialWindow,
   CompanySubscriptionLifecycleFacts,
@@ -141,5 +142,79 @@ describe('computeLifecycleTransition — zipped, paid-then-stopped cycle (180-da
   it('does nothing if deletionDueAt is somehow null on a zipped row', () => {
     const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt: null, polarSubscriptionId: 'x' });
     expect(computeLifecycleTransition(sub, addDays(T0, 999))).toEqual({ type: 'none' });
+  });
+});
+
+describe('computeDueBillingWarnings — OWNER warning-email milestones', () => {
+  it('is empty well before the blocked_d7 mark', () => {
+    const blockedAt = T0;
+    expect(
+      computeDueBillingWarnings(
+        { status: 'BLOCKED', blockedAt, zipSentAt: null, deletionDueAt: null },
+        addDays(T0, 3),
+      ),
+    ).toEqual([]);
+  });
+
+  it('blocked_d7 becomes due exactly 7 days into BLOCKED, blocked_d1 not yet', () => {
+    const blockedAt = T0;
+    expect(
+      computeDueBillingWarnings(
+        { status: 'BLOCKED', blockedAt, zipSentAt: null, deletionDueAt: null },
+        addDays(blockedAt, 7),
+      ),
+    ).toEqual(['blocked_d7']);
+  });
+
+  it('both blocked_d7 and blocked_d1 are due once 13 days have elapsed (a missed tick catches up on both)', () => {
+    const blockedAt = T0;
+    expect(
+      computeDueBillingWarnings(
+        { status: 'BLOCKED', blockedAt, zipSentAt: null, deletionDueAt: null },
+        addDays(blockedAt, BLOCKED_DAYS - 1),
+      ),
+    ).toEqual(['blocked_d7', 'blocked_d1']);
+  });
+
+  it('is empty for a status other than BLOCKED/ZIPPED, whatever the clock', () => {
+    expect(
+      computeDueBillingWarnings(
+        { status: 'ACTIVE', blockedAt: T0, zipSentAt: T0, deletionDueAt: T0 },
+        addDays(T0, 9999),
+      ),
+    ).toEqual([]);
+  });
+
+  it('zipped_d7 becomes due exactly 7 days before deletionDueAt (paid-then-stopped, 180-day grace), zipped_d1 not yet', () => {
+    const zipSentAt = T0;
+    const deletionDueAt = addDays(zipSentAt, PAID_ZIP_GRACE_DAYS);
+    expect(
+      computeDueBillingWarnings(
+        { status: 'ZIPPED', blockedAt: null, zipSentAt, deletionDueAt },
+        addDays(deletionDueAt, -7),
+      ),
+    ).toEqual(['zipped_d7']);
+  });
+
+  it('both zipped_d7 and zipped_d1 are due exactly at deletionDueAt', () => {
+    const zipSentAt = T0;
+    const deletionDueAt = addDays(zipSentAt, PAID_ZIP_GRACE_DAYS);
+    expect(
+      computeDueBillingWarnings(
+        { status: 'ZIPPED', blockedAt: null, zipSentAt, deletionDueAt },
+        deletionDueAt,
+      ),
+    ).toEqual(['zipped_d7', 'zipped_d1']);
+  });
+
+  it('a never-paid company (deletionDueAt == zipSentAt, no 7-day grace at all) never owes a ZIPPED warning', () => {
+    const zipSentAt = T0;
+    const deletionDueAt = T0; // no grace — deletionDueAt was set to zipSentAt itself
+    expect(
+      computeDueBillingWarnings(
+        { status: 'ZIPPED', blockedAt: null, zipSentAt, deletionDueAt },
+        deletionDueAt,
+      ),
+    ).toEqual([]);
   });
 });

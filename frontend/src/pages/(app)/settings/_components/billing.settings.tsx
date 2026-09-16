@@ -183,6 +183,18 @@ export default function BillingSettings() {
       title={t("settings.billing.title", "Subscription")}
       description={t("settings.billing.description")}
     >
+      {/* Polar prices this product's two plans in USD regardless of the company's own `currency`
+          (`documentation/docs/developer-guide/hosted-billing.md`'s own scope never covers pricing
+          currency) — a plain, always-visible note rather than a conversion this app has no rate for
+          (a card issuer applies its OWN exchange rate at charge time, not a rate this screen could
+          ever reproduce exactly). */}
+      <p className="text-sm text-muted-foreground" data-cy="billing-currency-notice">
+        {t(
+          "settings.billing.currencyNotice",
+          "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
+        )}
+      </p>
+
       {status.legacySubscription && (
         <Alert variant="warning" data-cy="billing-legacy-notice">
           <AlertTitle>
@@ -271,6 +283,14 @@ export default function BillingSettings() {
             {t("settings.billing.daysRemaining", "{{count}} day(s) remaining", {
               count: status.daysRemaining,
             })}
+          </p>
+        )}
+        {status.seatPaymentFailureExplainsStatus && (
+          <p className="text-sm text-destructive" data-cy="billing-seat-payment-failed-notice">
+            {t(
+              "settings.billing.seatPaymentFailedNotice",
+              "We couldn't charge your card for the seat you just added — update your payment method below.",
+            )}
           </p>
         )}
         {!canManageBilling && (

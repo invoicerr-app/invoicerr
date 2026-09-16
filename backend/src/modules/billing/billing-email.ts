@@ -11,6 +11,8 @@
  */
 import prisma from '@/prisma/prisma.service';
 
+import { syncPolarCustomerOnCompanyChange } from './customer-sync';
+
 export interface BillingEmailView {
   /** The raw override, or `null` when the company has never set one (falls back to its own contact
    *  `email` — see `billing-customer.ts#resolveBillingEmail`). */
@@ -39,7 +41,14 @@ export async function setCompanyBillingEmail(
   const company = await prisma.company.update({
     where: { id: companyId },
     data: { billingEmail: trimmed ? trimmed : null },
-    select: { email: true, billingEmail: true },
+    select: { name: true, email: true, billingEmail: true },
   });
+
+  // The resolved billing email (this override, once set, wins over the plain contact email — see
+  // `resolveBillingEmail`'s own header) is exactly what a company's Polar CUSTOMER should show —
+  // pushed here too, not only from `editCompanyInfo`, since this is its own separate write path (this
+  // file's own header on why). Best-effort, never blocks this write — see `customer-sync.ts`.
+  await syncPolarCustomerOnCompanyChange(companyId, company);
+
   return { billingEmail: company.billingEmail, companyEmail: company.email };
 }

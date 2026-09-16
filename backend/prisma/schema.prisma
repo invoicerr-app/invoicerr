@@ -576,11 +576,67 @@ model CompanySubscription {
   // of the two configured products (`POLAR_PRODUCT_ID_MONTHLY`/`POLAR_PRODUCT_ID_YEARLY`) is active.
   interval CompanySubscriptionInterval?
 
+  // Stamped by `seat-sync.ts` when a seat INCREASE's immediate-proration charge is refused by Polar
+  // (a declined card) — the ONE fact `billing-status-view.ts` needs to tell "your card failed to pay
+  // for a seat you just added" apart from every other reason a subscription can be PAST_DUE. Cleared
+  // the moment `webhook-handlers.ts` next reports ACTIVE (the same reset `blockedAt`/`zipSentAt`/
+  // `deletionDueAt` already get) — a stale reason must never survive the company paying again.
+  seatPaymentFailedAt DateTime?
+
+  // Stamped by `company/company.service.ts#editCompanyInfo` when pushing the company's new name/email
+  // to its Polar customer fails — `billing-lifecycle-sweep-runner.ts` retries the push on every tick
+  // while this is set, and clears it once the retry succeeds. `null` is the normal state (nothing to
+  // retry), not "never synced" — a company with no Polar customer at all is simply skipped by both
+  // the push and the retry (see `billing-customer.ts`'s own header: the customer is created lazily, at
+  // first checkout, never before).
+  customerSyncFailedAt DateTime?
+
+  // Stamped by `checkout-session.ts` the moment a checkout session is actually created — the "is a
+  // checkout already in flight for this company" signal `createCheckoutSession` refuses a SECOND
+  // concurrent checkout against, for a company with no active/trialing subscription yet (see that
+  // file's own header for the exact window).
+  lastCheckoutStartedAt DateTime?
+
+  // The timestamp of the last Polar-side FACT actually applied to this row — either the delivering
+  // webhook's own `webhook-timestamp` header, or, for a `status-reconcile.ts` repair read, the
+  // reconciled subscription's own `modifiedAt`. `applySubscriptionWebhook` compares an incoming fact's
+  // timestamp against this before overwriting `status`/`interval` — an OLDER fact (a reconcile read
+  // that raced a webhook already applied) is logged and dropped rather than clobbering a fresher
+  // state with a stale one. `null` for a subscription no fact has ever been timestamped against yet
+  // (every fact applied before this column existed) — treated as "apply unconditionally", the same
+  // permissive default `interval`'s own null-means-leave-alone convention already holds.
+  lastPolarFactAt DateTime?
+
+  // Which BLOCKED-window (J-7/J-1 before the zip) and ZIPPED-window (J-7/J-1 before the permanent
+  // deletion) OWNER warning emails have already gone out for this subscription — see
+  // `billing-lifecycle-sweep-runner.ts`'s own header for the milestone keys. A plain string array
+  // rather than four booleans/a separate table: milestones are looked up by membership
+  // (`milestone in sub.billingWarningMilestonesSent`), never joined against, and the set never shrinks
+  // — an `@default([])` array is the simplest additive column that is still trivially idempotent (the
+  // sweep only ever APPENDS a milestone once, checked before sending).
+  billingWarningMilestonesSent String[] @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
   @@map("company_subscription")
+}
+
+// Dedup ledger for `POST /api/billing/webhooks/polar` — one row per Polar delivery, keyed by that
+// delivery's own `webhook-id` header (a stable id Polar reuses verbatim on every RETRY of the SAME
+// delivery, per Standard Webhooks — never a UUID this app mints itself). `polar-webhook.controller.ts`
+// inserts a row BEFORE dispatching to a handler; a unique-constraint violation on that insert is a
+// replay (a provider retry, or Polar's own dashboard "resend"), answered 200 immediately without
+// re-running `handleSubscriptionPayload` a second time — the ONE case the type-of-write-based
+// idempotency `webhook-handlers.ts`'s own header used to rely on cannot cover on its own: two
+// deliveries racing each other concurrently, where "the write is naturally idempotent" is true of the
+// FINAL state but does not stop a handler from actually running twice.
+model PolarWebhookEvent {
+  id         String   @id
+  receivedAt DateTime @default(now())
+
+  @@map("polar_webhook_event")
 }
 
 enum CompanySubscriptionStatus {

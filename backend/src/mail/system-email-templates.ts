@@ -142,3 +142,89 @@ export function describeSystemEmailVocabulary(
   }
   return buildOtpEmailParts({ appUrl, otpCode: '1234-5678' });
 }
+
+/**
+ * The two hosted-billing OWNER warning emails (`billing-lifecycle-sweep-runner.ts`'s own J-7/J-1
+ * milestones, `lifecycle.ts#computeDueBillingWarnings`) — sent through this INSTANCE's own mail
+ * provider (`MailService#sendMail`, never `sendForCompany`: a company nearing the zip or permanent
+ * deletion is exactly the company whose OWN mail server, if it even has one, is the least trustworthy
+ * thing to rely on for telling it so), always in English. Deliberately plain functions, not a
+ * `SystemEmailFamily`/`MailTemplateType` entry: those are per-COMPANY overrides
+ * (`resolveSystemEmailTemplate`'s own precedence), and a company about to lose its data has no
+ * business customizing the wording of the notice warning it about that — this is instance-authored
+ * content, addressed to a specific OWNER, not a document-adjacent email a tenant configures.
+ */
+export interface BillingWarningEmailParams {
+  appUrl: string;
+  /** Whole days left until the event this warning is about — 7 or 1, matching the milestone that
+   *  triggered it (`lifecycle.ts`'s own `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1`). */
+  daysRemaining: number;
+}
+
+function billingSettingsUrl(appUrl: string): string {
+  return `${appUrl}/settings/billing`;
+}
+
+/** Warns that the company's data will be EXPORTED AND ZIPPED (the end of the read-only BLOCKED window)
+ *  in `daysRemaining` day(s) unless the subscription is regularized first. */
+export function buildBlockedZipWarningEmail(params: BillingWarningEmailParams): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const { appUrl, daysRemaining } = params;
+  const settingsUrl = billingSettingsUrl(appUrl);
+  const dayWord = daysRemaining === 1 ? 'day' : 'days';
+  return {
+    subject: `Action needed: your Invoicerr data will be archived in ${daysRemaining} ${dayWord}`,
+    text:
+      'Hello,\n\n' +
+      `Your company's Invoicerr subscription is not active, and in ${daysRemaining} ${dayWord} its ` +
+      'documents will be exported to a zip file and the account will remain read-only until you ' +
+      'subscribe again.\n\n' +
+      `Manage your subscription: ${settingsUrl}\n\n` +
+      'Best regards,\nThe Invoicerr Team\n\n' +
+      `This email was sent from ${appUrl}`,
+    html:
+      '<h2>Action needed</h2>' +
+      `<p>Hello,</p><p>Your company's Invoicerr subscription is not active, and in <strong>${daysRemaining} ` +
+      `${dayWord}</strong> its documents will be exported to a zip file and the account will remain ` +
+      'read-only until you subscribe again.</p>' +
+      `<p><a href="${settingsUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
+      'text-decoration: none; border-radius: 6px; display: inline-block;">Manage subscription</a></p>' +
+      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
+      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+  };
+}
+
+/** Warns that the company (and every document in it) will be PERMANENTLY DELETED in `daysRemaining`
+ *  day(s) unless the subscription is regularized first — the last of the two warnings ahead of
+ *  `deletion.ts`'s own cascading delete. */
+export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const { appUrl, daysRemaining } = params;
+  const settingsUrl = billingSettingsUrl(appUrl);
+  const dayWord = daysRemaining === 1 ? 'day' : 'days';
+  return {
+    subject: `Final notice: your Invoicerr company will be permanently deleted in ${daysRemaining} ${dayWord}`,
+    text:
+      'Hello,\n\n' +
+      `In ${daysRemaining} ${dayWord}, your company and every document in it will be PERMANENTLY ` +
+      'DELETED from Invoicerr. This cannot be undone. Subscribe again before then to keep your data.\n\n' +
+      `Manage your subscription: ${settingsUrl}\n\n` +
+      'Best regards,\nThe Invoicerr Team\n\n' +
+      `This email was sent from ${appUrl}`,
+    html:
+      '<h2>Final notice</h2>' +
+      `<p>Hello,</p><p>In <strong>${daysRemaining} ${dayWord}</strong>, your company and every document ` +
+      'in it will be <strong>permanently deleted</strong> from Invoicerr. This cannot be undone. ' +
+      'Subscribe again before then to keep your data.</p>' +
+      `<p><a href="${settingsUrl}" style="background: #dc3545; color: white; padding: 12px 24px; ` +
+      'text-decoration: none; border-radius: 6px; display: inline-block;">Manage subscription</a></p>' +
+      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
+      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+  };
+}

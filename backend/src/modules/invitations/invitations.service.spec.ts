@@ -125,6 +125,36 @@ describe('InvitationsService', () => {
       expect(syncSeats).toHaveBeenCalledWith('company1');
     });
 
+    it('accepting an invitation into a company whose subscription is PAST_DUE/BLOCKED still succeeds, and the seat is still counted — this service never queries CompanySubscription at all', async () => {
+      // The decision (product brief): an invitee must not be locked out of joining just because the
+      // COMPANY they are joining owes money — they land in the same "please regularize" screen every
+      // other member of a blocked company already sees (the billing banner reads status off
+      // `GET /billing/status`, gated by nothing role-specific). Proven here structurally: this
+      // service has no billing-status read/gate anywhere in it (`CompanyWriteGuard` itself never
+      // applies either — it only fires for a request carrying an ACTIVE company id, and invitation
+      // acceptance runs from better-auth's own hooks, outside Nest's guard pipeline entirely), so a
+      // blocked company's own subscription status is simply never consulted on this path.
+      prisma.invitationCode.findUnique.mockResolvedValue({
+        id: 'inv2',
+        code: 'CODE456',
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'blocked-company',
+        role: CompanyRole.MEMBER,
+      });
+      prisma.invitationCode.update.mockResolvedValue({ id: 'inv2', usedAt: new Date(), usedById: 'user3' });
+      prisma.userCompany.upsert.mockResolvedValue({});
+
+      await expect(service.useInvitation('CODE456', 'user3')).resolves.toBeDefined();
+
+      expect(prisma.userCompany.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: { userId: 'user3', companyId: 'blocked-company', role: CompanyRole.MEMBER },
+        }),
+      );
+      expect(syncSeats).toHaveBeenCalledWith('blocked-company');
+    });
+
     it('rejects an already-used invitation without touching membership', async () => {
       prisma.invitationCode.findUnique.mockResolvedValue({
         id: 'inv1',

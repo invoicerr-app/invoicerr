@@ -11,9 +11,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
+import { buildBlockedZipWarningEmail, buildDeletionWarningEmail } from '@/mail/system-email-templates';
 import { BillingExportService } from './export-zip.service';
-import { computeLifecycleTransition } from './lifecycle';
+import { computeDueBillingWarnings, computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
+import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
 import { reconcileCompanySeats } from './seat-reconcile';
 import { MailService } from '@/mail/mail.service';
@@ -32,6 +34,13 @@ export interface RunBillingLifecycleSweepResult {
    *  Polar's own subscription and was just corrected — see `seat-reconcile.ts`'s own header. Zero on
    *  a tick where every count already matched, which is the overwhelming common case. */
   seatsReconciled: number;
+  /** Incremented once per company whose Polar CUSTOMER name/email push had failed at write time
+   *  (`customer-sync.ts`) and was just retried successfully on this tick. */
+  customerSyncRetried: number;
+  /** Incremented once per OWNER warning email actually sent this tick (`lifecycle.ts`'s own
+   *  `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1` milestones) — never twice for the same
+   *  milestone on the same subscription, see `CompanySubscription.billingWarningMilestonesSent`. */
+  warningsSent: number;
 }
 
 @Injectable()
@@ -56,9 +65,23 @@ export class BillingLifecycleSweepRunner {
       zipFailed: 0,
       deleted: 0,
       seatsReconciled: 0,
+      customerSyncRetried: 0,
+      warningsSent: 0,
     };
 
     for (const sub of subscriptions) {
+      // Computed from the subscription as read at the TOP of this iteration, deliberately BEFORE
+      // `applyOne` below might advance its own status this same tick — see `lifecycle.ts`'s own header
+      // on `computeDueBillingWarnings` for why that never coincides with a real milestone in practice
+      // (a 7-or-1-day warning fires well inside a window, never at the exact transition boundary).
+      try {
+        await this.sendDueBillingWarnings(sub, now, result);
+      } catch (error) {
+        this.logger.error(`Billing warning mail failed for company ${sub.companyId} — retried next tick`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       try {
         await this.applyOne(sub, now, result);
       } catch (error) {
@@ -82,13 +105,29 @@ export class BillingLifecycleSweepRunner {
           );
         }
       }
+
+      // Same independence: a company's Polar CUSTOMER push (name/email) is unrelated to its own
+      // status transition or seat count — retried here only when the LAST attempt
+      // (`customer-sync.ts`, fired inline from `company.service.ts`/`billing-email.ts`) failed.
+      if (sub.customerSyncFailedAt) {
+        try {
+          const retried = await this.retryCustomerSync(sub.companyId);
+          if (retried) result.customerSyncRetried++;
+        } catch (error) {
+          this.logger.error(
+            `Polar customer sync retry failed for company ${sub.companyId} — left untouched, retried next tick`,
+            { error: error instanceof Error ? error.message : String(error) },
+          );
+        }
+      }
     }
 
     this.logger.log(
       `Billing lifecycle sweep: ${result.processed} subscription(s) looked at, ` +
         `${result.blocked} newly blocked, ${result.zipped} zipped (${result.zipFailed} zip send ` +
         `failures, retried next tick), ${result.deleted} deleted, ${result.seatsReconciled} seat ` +
-        'count(s) corrected against Polar.',
+        `count(s) corrected against Polar, ${result.customerSyncRetried} customer sync retry(ies), ` +
+        `${result.warningsSent} OWNER warning mail(s) sent.`,
     );
 
     return result;
@@ -144,11 +183,7 @@ export class BillingLifecycleSweepRunner {
    *  has at least one, `assertNotLastOwner`) or the mail send itself failed (e.g. `sendForCompany`'s
    *  own named refusal when neither the company nor the instance has a configured mail server). */
   private async sendZipToOwner(companyId: string): Promise<boolean> {
-    const ownerMembership = await prisma.userCompany.findFirst({
-      where: { companyId, role: 'OWNER' },
-      orderBy: { createdAt: 'asc' },
-      include: { user: { select: { email: true } } },
-    });
+    const ownerMembership = await this.findOldestOwnerEmail(companyId);
 
     if (!ownerMembership) {
       this.logger.error(`Company ${companyId} has no OWNER membership — cannot send its data export`);
@@ -158,7 +193,7 @@ export class BillingLifecycleSweepRunner {
     try {
       const zip = await this.exportService.buildCompanyZip(companyId);
       await this.mailService.sendForCompany(companyId, {
-        to: ownerMembership.user.email,
+        to: ownerMembership,
         subject: 'Your company data export',
         text:
           'Your Invoicerr subscription has been blocked for 14 days. Attached is a full export of ' +
@@ -172,5 +207,94 @@ export class BillingLifecycleSweepRunner {
       });
       return false;
     }
+  }
+
+  /** The company's OLDEST `OWNER` membership's own email — `null` when the company somehow has none
+   *  (should not normally happen, `assertNotLastOwner`). Shared by `sendZipToOwner` and
+   *  `sendDueBillingWarnings` below — both address the SAME "the OWNER" in the singular. */
+  private async findOldestOwnerEmail(companyId: string): Promise<string | null> {
+    const ownerMembership = await prisma.userCompany.findFirst({
+      where: { companyId, role: 'OWNER' },
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { email: true } } },
+    });
+    return ownerMembership?.user.email ?? null;
+  }
+
+  /**
+   * Sends any OWNER warning email whose milestone is due (`lifecycle.ts#computeDueBillingWarnings`)
+   * and has not already gone out (`sub.billingWarningMilestonesSent`) — through the INSTANCE's own
+   * mail provider (`MailService#sendMail`, never `sendForCompany`, see `system-email-templates.ts`'s
+   * own header on why). Each milestone is appended to `billingWarningMilestonesSent` right after it is
+   * actually sent, one at a time, so a mid-loop failure never marks a milestone sent that never
+   * reached anyone; a milestone already in that array is never recomputed as due a second time
+   * (`computeDueBillingWarnings` itself has no memory of what was already sent — this is the ONE place
+   * that checks).
+   */
+  private async sendDueBillingWarnings(
+    sub: CompanySubscription,
+    now: Date,
+    result: RunBillingLifecycleSweepResult,
+  ): Promise<void> {
+    const due = computeDueBillingWarnings(sub, now).filter(
+      (milestone) => !sub.billingWarningMilestonesSent.includes(milestone),
+    );
+    if (due.length === 0) return;
+
+    const ownerEmail = await this.findOldestOwnerEmail(sub.companyId);
+    if (!ownerEmail) {
+      this.logger.error(`Company ${sub.companyId} has no OWNER membership — cannot send billing warnings`);
+      return;
+    }
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    for (const milestone of due) {
+      const daysRemaining = milestone.endsWith('_d7') ? 7 : 1;
+      const email = milestone.startsWith('blocked_')
+        ? buildBlockedZipWarningEmail({ appUrl, daysRemaining })
+        : buildDeletionWarningEmail({ appUrl, daysRemaining });
+
+      try {
+        await this.mailService.sendMail({
+          to: ownerEmail,
+          subject: email.subject,
+          text: email.text,
+          html: email.html,
+        });
+      } catch (error) {
+        this.logger.error(`Billing warning mail (${milestone}) failed for company ${sub.companyId}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue; // never marked sent — the next tick retries THIS milestone specifically.
+      }
+
+      await prisma.companySubscription.update({
+        where: { companyId: sub.companyId },
+        data: { billingWarningMilestonesSent: { push: milestone } },
+      });
+      result.warningsSent++;
+    }
+  }
+
+  /** Re-reads the company's current name/email/billingEmail and retries the Polar customer push —
+   *  `syncPolarCustomerOnCompanyChange` itself already clears `customerSyncFailedAt` on success and
+   *  re-stamps it on a repeat failure, so this wrapper only needs to know whether it is WORTH calling
+   *  (a company that vanished between the failed push and this tick has nothing left to sync) and
+   *  whether the retry actually cleared the flag, to count it accurately. */
+  private async retryCustomerSync(companyId: string): Promise<boolean> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true, email: true, billingEmail: true },
+    });
+    if (!company) return false;
+
+    await syncPolarCustomerOnCompanyChange(companyId, company);
+
+    const sub = await prisma.companySubscription.findUnique({
+      where: { companyId },
+      select: { customerSyncFailedAt: true },
+    });
+    return sub?.customerSyncFailedAt === null;
   }
 }

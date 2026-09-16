@@ -106,6 +106,47 @@ describe('reconcileFromPolarIfStale', () => {
     expect(applyWebhook).not.toHaveBeenCalled();
   });
 
+  it("threads the Polar subscription's own modifiedAt through as factAt, so a stale read can never clobber a fresher webhook fact", async () => {
+    const modifiedAt = '2026-09-16T10:05:00.000Z';
+    const client = fakeClient([
+      {
+        id: 'polar_sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: { companyId: 'company-1' },
+        modifiedAt,
+      },
+    ]);
+    const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1' });
+    getOrCreate.mockResolvedValue({ ...row, status: 'ACTIVE' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(applyWebhook).toHaveBeenCalledWith(expect.objectContaining({ factAt: new Date(modifiedAt) }));
+  });
+
+  it('falls back to createdAt for factAt when Polar reports no modifiedAt at all', async () => {
+    const createdAt = '2026-09-10T08:00:00.000Z';
+    const client = fakeClient([
+      {
+        id: 'polar_sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'year',
+        metadata: { companyId: 'company-1' },
+        modifiedAt: null,
+        createdAt,
+      },
+    ]);
+    const row = sub({ status: 'TRIAL', polarCustomerId: 'cus_1' });
+    getOrCreate.mockResolvedValue({ ...row, status: 'ACTIVE' });
+
+    await reconcileFromPolarIfStale(row, client, 0);
+
+    expect(applyWebhook).toHaveBeenCalledWith(expect.objectContaining({ factAt: new Date(createdAt) }));
+  });
+
   it('swallows a Polar failure and returns the row unchanged', async () => {
     const client: ReconcileSubscriptionsClient = {
       subscriptions: { list: jest.fn().mockRejectedValue(new Error('polar is down')) },

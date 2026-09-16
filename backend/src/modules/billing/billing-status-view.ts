@@ -37,6 +37,14 @@ export interface BillingStatusView {
    *  `/api/auth/customer/portal`, which cannot open a session for this product's TEAM customers (see
    *  `portal-session.ts`'s header). */
   portalUrl: string;
+  /** `true` only when this company is `PAST_DUE` AND its OWN `seatPaymentFailedAt` is the reason —
+   *  `seat-sync.ts`'s own header on the recognized Polar `PaymentError`/`PaymentFailed` refusal a seat
+   *  INCREASE's immediate-proration charge can get back. Lets the Billing page say "the payment for
+   *  the extra seat you added failed" instead of the generic "your subscription is past due" — but
+   *  ONLY while that really is still the most likely explanation: a company that fell PAST_DUE for an
+   *  entirely different reason (the whole subscription lapsed) AFTER a stale, unrelated seat failure
+   *  from days earlier must not show a misleading, out-of-date cause. */
+  seatPaymentFailureExplainsStatus: boolean;
 }
 
 export function computeBillingStatusView(
@@ -52,6 +60,15 @@ export function computeBillingStatusView(
     daysRemaining = daysUntil(sub.deletionDueAt, now);
   }
 
+  // The seat failure only still EXPLAINS the current PAST_DUE status if no NEWER general Polar fact
+  // (a webhook, or a `status-reconcile.ts` repair read — both stamp `lastPolarFactAt`) has landed
+  // since — see this view's own field comment on why a stale seat-specific reason must not survive an
+  // unrelated, more recent cause.
+  const seatPaymentFailureExplainsStatus =
+    sub.status === 'PAST_DUE' &&
+    sub.seatPaymentFailedAt !== null &&
+    (sub.lastPolarFactAt === null || sub.seatPaymentFailedAt.getTime() >= sub.lastPolarFactAt.getTime());
+
   return {
     status: sub.status,
     seats: sub.seats,
@@ -60,5 +77,6 @@ export function computeBillingStatusView(
     daysRemaining,
     checkoutUrl: '/api/billing/checkout',
     portalUrl: '/api/billing/portal',
+    seatPaymentFailureExplainsStatus,
   };
 }

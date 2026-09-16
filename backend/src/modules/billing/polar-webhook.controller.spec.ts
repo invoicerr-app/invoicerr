@@ -29,11 +29,18 @@ jest.mock('./webhook-handlers', () => ({
 jest.mock('@/logger/logger.service', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+jest.mock('@/prisma/prisma.service', () => ({
+  __esModule: true,
+  default: { polarWebhookEvent: { create: jest.fn().mockResolvedValue({}) } },
+}));
+
+import prisma from '@/prisma/prisma.service';
 
 import { PolarWebhookController } from './polar-webhook.controller';
 import { handleSubscriptionPayload } from './webhook-handlers';
 
 const handleMock = handleSubscriptionPayload as jest.Mock;
+const createDedupRow = prisma.polarWebhookEvent.create as jest.Mock;
 
 const CURRENT_ERA_SECRET = 'whsec_BvK1GJTtxRCjrPFTQ9F0vWYiVWJGsquV7uaHOsDwgHc=';
 const PRE_CUTOVER_SECRET = 'whsec_kqzP3nJdV1sYcQmR8wXeH0fLtNbG6aE9pUxWyDoSjKl=';
@@ -104,16 +111,19 @@ describe('PolarWebhookController.handleWebhook', () => {
 
     expect(result).toEqual({ received: true });
     expect(handleMock).toHaveBeenCalledTimes(1);
-    expect(handleMock).toHaveBeenCalledWith({
-      data: {
-        id: 'sub_1',
-        customerId: 'cus_1',
-        status: 'active',
-        recurringInterval: 'month',
-        metadata: { companyId: 'company-1' },
-        customerExternalId: 'company-1',
+    expect(handleMock).toHaveBeenCalledWith(
+      {
+        data: {
+          id: 'sub_1',
+          customerId: 'cus_1',
+          status: 'active',
+          recurringInterval: 'month',
+          metadata: { companyId: 'company-1' },
+          customerExternalId: 'company-1',
+        },
       },
-    });
+      expect.any(Date),
+    );
   });
 
   it('remaps to customerExternalId: undefined when the wire payload carries no nested customer object', async () => {
@@ -132,16 +142,19 @@ describe('PolarWebhookController.handleWebhook', () => {
 
     await controller.handleWebhook(fakeRequest(body, headers));
 
-    expect(handleMock).toHaveBeenCalledWith({
-      data: {
-        id: 'sub_2',
-        customerId: 'cus_2',
-        status: 'active',
-        recurringInterval: 'year',
-        metadata: { companyId: 'company-2' },
-        customerExternalId: undefined,
+    expect(handleMock).toHaveBeenCalledWith(
+      {
+        data: {
+          id: 'sub_2',
+          customerId: 'cus_2',
+          status: 'active',
+          recurringInterval: 'year',
+          metadata: { companyId: 'company-2' },
+          customerExternalId: undefined,
+        },
       },
-    });
+      expect.any(Date),
+    );
   });
 
   it('200s and dispatches for a pre-cutover (Polar HMAC) signature — the @polar-sh/sdk#validateEvent derivation', async () => {
@@ -187,6 +200,37 @@ describe('PolarWebhookController.handleWebhook', () => {
     const result = await controller.handleWebhook(fakeRequest(body, headers));
 
     expect(result).toEqual({ received: true });
+    expect(handleMock).not.toHaveBeenCalled();
+  });
+
+  it('reserves a dedup row keyed by webhook-id before dispatching', async () => {
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_dedup_1');
+
+    await controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers));
+
+    expect(createDedupRow).toHaveBeenCalledWith({ data: { id: 'msg_dedup_1' } });
+  });
+
+  it('a REPLAYED delivery (same webhook-id, a provider retry or a dashboard resend) 200s WITHOUT dispatching a second time', async () => {
+    createDedupRow.mockRejectedValueOnce({ code: 'P2002' });
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_already_processed');
+
+    const result = await controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers));
+
+    expect(result).toEqual({ received: true });
+    expect(handleMock).not.toHaveBeenCalled();
+  });
+
+  it('propagates a genuine (non-duplicate) dedup-write failure rather than swallowing it', async () => {
+    createDedupRow.mockRejectedValueOnce(new Error('db is down'));
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_db_down');
+
+    await expect(controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers))).rejects.toThrow(
+      'db is down',
+    );
     expect(handleMock).not.toHaveBeenCalled();
   });
 

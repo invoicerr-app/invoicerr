@@ -18,6 +18,11 @@ function sub(overrides: Partial<CompanySubscription>): CompanySubscription {
     polarSubscriptionId: null,
     seats: 1,
     interval: null,
+    seatPaymentFailedAt: null,
+    customerSyncFailedAt: null,
+    lastCheckoutStartedAt: null,
+    lastPolarFactAt: null,
+    billingWarningMilestonesSent: [],
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -69,5 +74,51 @@ describe('computeBillingStatusView', () => {
     const view = computeBillingStatusView(sub({ seats: 7, interval: 'YEAR' }), NOW);
     expect(view.seats).toBe(7);
     expect(view.interval).toBe('YEAR');
+  });
+});
+
+describe('computeBillingStatusView — seatPaymentFailureExplainsStatus', () => {
+  it('is false by default (no seat failure recorded)', () => {
+    expect(computeBillingStatusView(sub({ status: 'PAST_DUE' }), NOW).seatPaymentFailureExplainsStatus).toBe(
+      false,
+    );
+  });
+
+  it('is true when PAST_DUE with a recorded seat-payment failure and no newer Polar fact', () => {
+    const view = computeBillingStatusView(
+      sub({ status: 'PAST_DUE', seatPaymentFailedAt: addDays(NOW, -1), lastPolarFactAt: null }),
+      NOW,
+    );
+    expect(view.seatPaymentFailureExplainsStatus).toBe(true);
+  });
+
+  it('is false for ACTIVE/TRIAL/BLOCKED/ZIPPED even with a seatPaymentFailedAt on file', () => {
+    for (const status of ['ACTIVE', 'TRIAL', 'BLOCKED', 'ZIPPED'] as const) {
+      expect(
+        computeBillingStatusView(sub({ status, seatPaymentFailedAt: addDays(NOW, -1) }), NOW)
+          .seatPaymentFailureExplainsStatus,
+      ).toBe(false);
+    }
+  });
+
+  it('is false once a NEWER general Polar fact has landed since the seat failure — a stale reason must not survive an unrelated, more recent cause', () => {
+    const view = computeBillingStatusView(
+      sub({
+        status: 'PAST_DUE',
+        seatPaymentFailedAt: addDays(NOW, -5),
+        lastPolarFactAt: addDays(NOW, -1), // a later, unrelated fact arrived since
+      }),
+      NOW,
+    );
+    expect(view.seatPaymentFailureExplainsStatus).toBe(false);
+  });
+
+  it('is true when the seat failure is itself the MOST RECENT fact, even if lastPolarFactAt is also set (equal instant)', () => {
+    const failedAt = addDays(NOW, -1);
+    const view = computeBillingStatusView(
+      sub({ status: 'PAST_DUE', seatPaymentFailedAt: failedAt, lastPolarFactAt: failedAt }),
+      NOW,
+    );
+    expect(view.seatPaymentFailureExplainsStatus).toBe(true);
   });
 });

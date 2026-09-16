@@ -16,6 +16,7 @@
  *     "adopted" into the externalId lookup path.
  */
 import { isResourceNotFoundError } from './billing-customer';
+import { callPolarWithRetry } from './polar-client';
 
 export interface ResolvedMemberUser {
   /** This app's own user id — becomes the member's `externalId` when THIS module creates one. */
@@ -56,16 +57,19 @@ export async function findMemberIdForUser(
   user: ResolvedMemberUser,
 ): Promise<string | null> {
   try {
-    const member = await client.customers.members.getExternal({
-      externalId: companyId,
-      memberExternalId: user.id,
-    });
+    const member = await callPolarWithRetry(
+      () => client.customers.members.getExternal({ externalId: companyId, memberExternalId: user.id }),
+      `members.getExternal for user ${user.id} in company ${companyId}`,
+    );
     return member.id;
   } catch (error) {
     if (!isResourceNotFoundError(error)) throw error;
   }
 
-  const pages = await client.members.listMembers({ customerId });
+  const pages = await callPolarWithRetry(
+    () => client.members.listMembers({ customerId }),
+    `members.listMembers for customer ${customerId}`,
+  );
   for await (const page of pages) {
     const match = page.result.items.find((item) => item.email === user.email);
     if (match) return match.id;
@@ -85,10 +89,14 @@ export async function resolveOrCreateMemberIdForUser(
   const existing = await findMemberIdForUser(client, customerId, companyId, user);
   if (existing) return existing;
 
-  const created = await client.customers.members.createExternal({
-    externalId: companyId,
-    memberCreateFromCustomer: { email: user.email, name: user.name ?? undefined, externalId: user.id },
-  });
+  const created = await callPolarWithRetry(
+    () =>
+      client.customers.members.createExternal({
+        externalId: companyId,
+        memberCreateFromCustomer: { email: user.email, name: user.name ?? undefined, externalId: user.id },
+      }),
+    `members.createExternal for user ${user.id} in company ${companyId}`,
+  );
   return created.id;
 }
 
@@ -101,5 +109,8 @@ export async function removeMemberForUser(
 ): Promise<void> {
   const memberId = await findMemberIdForUser(client, customerId, companyId, user);
   if (!memberId) return;
-  await client.customers.members.delete({ id: customerId, memberId });
+  await callPolarWithRetry(
+    () => client.customers.members.delete({ id: customerId, memberId }),
+    `members.delete for user ${user.id} in company ${companyId}`,
+  );
 }

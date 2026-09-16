@@ -50,13 +50,20 @@ export function resetStatusReconcileCacheForTests(): void {
 }
 
 /** The subset of a Polar `Subscription` this module actually reads — the same fields
- *  `webhook-handlers.ts`'s own `PolarSubscriptionWebhookFacts` carries, before mapping. */
+ *  `webhook-handlers.ts`'s own `PolarSubscriptionWebhookFacts` carries, before mapping, plus
+ *  `modifiedAt` (`@polar-sh/sdk`'s `Subscription.modifiedAt`, confirmed by reading
+ *  `node_modules/@polar-sh/sdk/dist/commonjs/models/components/subscription.d.ts` directly) — this
+ *  read's own fact timestamp, threaded through
+ *  as `factAt` so `applySubscriptionWebhook`'s staleness check can drop it if a webhook already
+ *  applied something NEWER (see that function's own header). */
 interface ReconcileSubscriptionFacts {
   id: string;
   customerId: string;
   status: string;
   recurringInterval: string;
   metadata: Record<string, string | number | boolean>;
+  modifiedAt?: string | Date | null;
+  createdAt?: string | Date | null;
 }
 
 /** Structurally typed subset of the `Polar` SDK client this function actually calls — see
@@ -114,12 +121,18 @@ export async function reconcileFromPolarIfStale(
     const latest = await findMostRecentSubscription(client, sub.companyId);
     if (!latest) return sub;
 
+    const factTimestamp = latest.modifiedAt ?? latest.createdAt;
+
     await applySubscriptionWebhook({
       companyId: sub.companyId,
       polarSubscriptionId: latest.id,
       polarCustomerId: latest.customerId,
       status: latest.status,
       recurringInterval: latest.recurringInterval,
+      // `undefined` (never a genuinely unparseable Date) when Polar reports neither — see
+      // `applySubscriptionWebhook`'s own header: an absent `factAt` applies unconditionally, the
+      // safe default when this read has no timestamp of its own to compare against a webhook's.
+      factAt: factTimestamp ? new Date(factTimestamp) : undefined,
     });
 
     return await getOrCreateCompanySubscription(sub.companyId);
