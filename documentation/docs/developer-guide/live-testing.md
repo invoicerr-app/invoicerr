@@ -34,6 +34,7 @@ Hard-success contract (enforced per-spec):
 |---|---|---|---|---|
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef.live.spec.ts` | 🟡 Credentials present, round-trip unverified — `KSEF_AUTH_TOKEN`/`KSEF_NIP` **do** exist as CI secrets today (confirmed by name via `gh secret list`, not by value). The same secrets authenticated successfully against `ksef-test.mf.gov.pl` as recently as 2026-07-14 (a CI run of the pre-refactor `compliance/providers/transmission/ksef/ksef-live.spec.ts`: real submission, a semantic `REJECTED` — code 450 — not an auth failure). No live run has exercised the current, post-refactor spec, and `compliance-live.yml` has not been triggered since the 2026-08-29 engine refactor — so whether the same credentials are still valid today is **unverified**, not proven expired. |
 | PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
+| PDP reception (FR) — inbound e-invoices | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (same credentials as the row above — one PDP account only, see below) | `pdp/pdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16** — a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡/🔴 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) is proven NOT reachable on this sandbox** — every code tried (`fr:203`/`fr:205`/`fr:206`/`fr:211`/`fr:212`) and every plausible path variant answered a generic 404 — see the dedicated section below |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
 | SdI via PEC (IT) | `PEC_LIVE=1` | `PEC_ID_TRASMITTENTE`, `PEC_ADDRESS`, `PEC_SMTP_HOST`, `PEC_SMTP_PORT`, `PEC_IMAP_HOST`, `PEC_IMAP_PORT`, `PEC_USERNAME`, `PEC_PASSWORD` | `transports/sdi-pec/pec.live.spec.ts` | 🟡 Implemented, awaiting credentials — **no PEC mailbox exists in this checkout**, and unlike SdICoop this channel needs NO accreditation at all (see `credentials-guide.md` §4bis and `pec-protocol.ts`'s own header for the primary-source citations) — provisioning any PEC mailbox is the only blocker to a real round-trip |
@@ -116,6 +117,78 @@ Hard-success contract (enforced per-spec):
 > Burger Queen (`000000002`) and Tricatel (`000000001`) — using a different SIREN means creating the
 > company on superpdp's side first.
 
+### PDP reception (FR) — inbound e-invoices, 2026-09-16
+
+> France's e-invoicing reform requires every company in scope to be able to RECEIVE structured
+> e-invoices through an accredited platform from 2026-09-01 (CGI art. 289 bis, I — see
+> `received-invoice.descriptor.ts`'s own "receive" country-policy note for the raw-text citation).
+> This session wired the READ side of the existing "pdp" channel: `transports/pdp/pdp-reception.ts`
+> (buyer-side lifecycle codes + the non-fatal status pusher), `conformity/pollers/
+> pdp-reception-poller.ts` (list + download + extract, reusing the SAME structural extraction the
+> manual upload screen already uses), `conformity/reception-sweep-runner.ts` (a BullMQ repeatable,
+> `PdpReceptionSweepRunner`, mirroring `ConformitySweepRunner`'s own "pure core / thin persistence
+> shell" split), and two new received-invoice actions (`reject` now takes a REQUIRED `reason`;
+> `record-payment` mirrors the invoice's own, minus cross-currency conversion).
+>
+> **Only ONE PDP account is available to this session** — `.env.test.local` carries a single
+> `client_id`/`client_secret` pair, not a separate seller+buyer pair (`credentials-guide.md`'s own
+> PDP section). A real cross-company B2B reception therefore could not be tested; a SELF-ADDRESSED
+> deposit was used instead — this company (`GET /v1.beta/companies/me` resolves to "Burger Queen",
+> VAT `FR18000000002`, SIREN-ish `000000002`, routing `315143296_1422`) depositing an invoice to its
+> OWN identifiers. Proven live, in one continuous run
+> (`pdp/pdp-reception.live.spec.ts`):
+>
+> 1. `POST /v1.beta/invoices` (multipart Factur-X) — a real deposit, e.g. id `604994`.
+> 2. `GET /v1.beta/invoices?direction=in&limit=…` — lists the deposit's own INBOUND TWIN, a
+>    **DIFFERENT id** (e.g. `604994` out → its own separate "in" record). Confirms the platform
+>    models sent and received as two distinct records even for a self-addressed deposit.
+> 3. `GET /v1.beta/invoices/{id}?format=original` — **the correct download endpoint** (an EARLIER
+>    version of this code guessed a `/file` sub-path that does not exist — a real, live 404 — before
+>    testing revealed this is the SAME endpoint `getInvoice()` already calls, just answered with
+>    `content-type: application/pdf` and real bytes instead of JSON). `PdpClient.downloadInvoiceFile()`
+>    reads this response as `arrayBuffer()`, never `res.text()` (which would UTF-8-corrupt the binary).
+> 4. The downloaded bytes ran through the EXACT SAME `received-invoices/extraction.ts` the manual
+>    upload dialog uses, and the result (`supplier`, `currency`, `grossAmount`, …) became a real
+>    `received-invoice` `DocumentInstance` via `DocumentsService.runAction('receive')` — the same
+>    entry point the HTTP controller uses, never a shortcut.
+> 5. `approve` then a full `record-payment` (900 units against a 900-unit `grossAmount`) both ran for
+>    real too, ending "fully settled".
+>
+> **The buyer-side lifecycle PUSH is a documented, LIVE-VERIFIED gap, not a guess.** The XP Z12-012
+> naming convention this codebase's own `pdp-client.ts` already documented (`fr:203` "prise en
+> charge", `fr:205` "accepted by buyer", `fr:211`/`fr:212` "payment sent/received") suggested a
+> `POST /v1.beta/invoices/{id}/lifecycle_events` push — this session tried it, live, against BOTH the
+> outbound id and its inbound twin, and against every plausible path variant
+> (`lifecycle-events`, `/events`, `/status`, `/statuses`, `/lifecycle`, a plain `PUT` on the invoice
+> itself): **every one answered the identical, generic `404 {"http_status_code":404}`** — the same
+> shape a genuinely unregistered route returns (compare a real validation failure, which answers
+> 400/422 with a specific message). Conclusion: superpdp's free sandbox ("API Flux") does not expose
+> ANY lifecycle-status-push route today, under any name this codebase or the XP Z12-012 convention
+> suggested. The code (`pushLifecycleStatus`, and `pdp-reception.ts`'s own `pushTakenInCharge`/
+> `pushApproved`/`pushRejected`/`pushPaid`) is kept, not deleted: a real PA (Plateforme Agréée,
+> production) may implement it, and every call already degrades to a LOGGED, NON-FATAL no-op on this
+> exact failure — the local status change is always persisted first and is never rolled back or
+> blocked by a platform that cannot (yet) accept the push. **What remains unverified**: the EXACT
+> numeric code for "refused by buyer" (no source found names it — `fr:206` is this codebase's own
+> best-effort guess, following the observed numbering pattern, never presented as researched fact —
+> see `pdp-reception.ts`'s own header) and whether a REAL PA implements this endpoint at all.
+>
+> **The buyer-side statuses THEMSELVES are real, not invented**: DGFiP's own "Facturation
+> électronique : guide pratique de démarrage au 1er septembre 2026"
+> (`impots.gouv.fr/sites/default/files/media/1_metier/2_professionnel/EV/2_gestion/
+> 290_facturation_electronique/guide_pratique_facturation_electronique.pdf`, read as raw PDF text, Q12
+> "Que faire si l'acheteur refuse ma facture ?") confirms a buyer's "refusée" status is a genuine,
+> distinct "statut de cycle de vie", "obligatoirement motivé et ne peut être utilisé que pour les
+> motifs prévus par la norme" — grounding this task's decision to make `reject`'s own `reason`
+> parameter REQUIRED, not merely offered.
+>
+> E2E coverage (`e2e/cypress/e2e/74-received-invoice-inbound.cy.ts`) proves the SCREEN side offline:
+> a real local `node:http` server shaped like the three endpoints above (`cypress.config.ts`'s
+> `startFakePdpServer`) stands in for superpdp, and the REAL `PdpReceptionSweepRunner` is triggered
+> on demand as a REAL BullMQ job on the backend's own `document-action` queue
+> (`triggerPdpReceptionSweep`, using the `bullmq` package directly — never a stub of the sweep
+> runner itself) rather than waiting on its own 5-minute default interval.
+
 ## Running a single live spec
 
 ```bash
@@ -127,6 +200,13 @@ KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
 # PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
 set -a; . .env.pdp.local; set +a
 PDP_LIVE=1 npx jest pdp.live --no-coverage --runInBand
+
+# PDP reception (FR) — inbound e-invoices: self-addressed deposit -> direction=in -> download ->
+# extract -> real received-invoice -> approve -> record-payment (see the dedicated section above).
+# DB-CONNECTED (like pdp-conformity.live.spec.ts) — reads backend/.env's own DATABASE_URL, creates
+# and cleans up one throwaway Company.
+set -a; . .env.test.local; set +a
+PDP_LIVE=1 npx jest pdp-reception.live --no-coverage --runInBand
 
 # Email (document "send" SMTP delivery to the local Mailpit container — no external creds needed,
 # but needs Mailpit running on :1025/:8025 and a DATABASE_URL for one throwaway Company row)
@@ -204,7 +284,7 @@ cd backend
 npx jest ksef.live --no-coverage
 # Expected: Test Suites: 1 skipped | Tests: 0 (suite skipped)
 
-npx jest pdp.live send-quote.live sdicoop.live tsa.live choruspro.live --no-coverage
+npx jest pdp.live pdp-reception.live send-quote.live sdicoop.live tsa.live choruspro.live --no-coverage
 # Expected: all suites skipped
 ```
 

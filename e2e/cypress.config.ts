@@ -1,8 +1,11 @@
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 import * as http from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
 
 import { defineConfig } from "cypress";
+import { Queue } from "bullmq";
 import { Client } from "pg";
 
 /**
@@ -45,6 +48,142 @@ function startWebhookReceiver(): Promise<string> {
       resolve(webhookReceiverUrl);
     });
   });
+}
+
+/**
+ * The "PDP sandbox" side for `74-received-invoice-inbound.cy.ts` — a vanilla `node:http` server,
+ * same "started once, module-level state, real network-reachable URL" shape as
+ * `startWebhookReceiver` just above, for the SAME underlying reason: `PdpReceptionSweepRunner`
+ * (backend) makes its own server-to-server HTTP calls (OAuth2 token, `listInvoices`,
+ * `downloadInvoiceFile`) — a `cy.intercept` only ever sees traffic the BROWSER makes.
+ *
+ * Answers the exact THREE endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call —
+ * shaped exactly like the REAL superpdp sandbox, LIVE-VERIFIED 2026-09-16
+ * (`backend/src/modules/documents/transports/pdp/pdp-reception.live.spec.ts`'s own header has the
+ * full evidence): `POST /oauth2/token`, `GET /v1.beta/invoices?direction=in`, and
+ * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakePdpInbox`'s
+ * own `contentType`). `POST /v1.beta/invoices/{id}/lifecycle_events` answers 200 — never re-proving
+ * the real sandbox's own documented 404 gap here (already proven live, see the file cited above);
+ * this fake stays a well-behaved PDP so the e2e assertions stay about the SCREEN, not this detail.
+ *
+ * The inbox is MUTABLE (`setFakePdpInbox`/`resetFakePdpServer`) rather than a fixed canned response:
+ * the spec drives it to first hold ZERO deposits (proving the sweep is a genuine no-op with nothing
+ * to import), then ONE, then a SECOND — the real BullMQ job is triggered fresh each time
+ * (`triggerPdpReceptionSweep`, below) rather than relying on the real repeatable's own interval.
+ */
+interface FakePdpInboundInvoice {
+  id: number;
+  createdAt: string;
+  /** Path under `cypress/fixtures/` to the ORIGINAL file bytes this deposit serves — reused real
+   *  fixtures (never hand-written), the same discipline `36-received-invoices.cy.ts` already holds. */
+  fixturePath: string;
+  contentType: string;
+}
+
+let fakePdpServerUrl: string | null = null;
+let fakePdpInbox: FakePdpInboundInvoice[] = [];
+const fakePdpLifecycleEvents: Array<{ invoiceId: string; code: string }> = [];
+
+function startFakePdpServer(): Promise<string> {
+  if (fakePdpServerUrl) return Promise.resolve(fakePdpServerUrl);
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url ?? "/", "http://fake-pdp.local");
+
+      if (req.method === "POST" && url.pathname === "/oauth2/token") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ access_token: "e2e-fake-pdp-token", token_type: "Bearer", expires_in: 3600 }));
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1.beta/invoices" && url.searchParams.get("direction") === "in") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            data: fakePdpInbox.map((inv) => ({
+              id: inv.id,
+              company_id: 1,
+              created_at: inv.createdAt,
+              direction: "in",
+            })),
+            count: fakePdpInbox.length,
+            has_before: false,
+            has_after: false,
+          }),
+        );
+        return;
+      }
+
+      const fileMatch = url.pathname.match(/^\/v1\.beta\/invoices\/(\d+)$/);
+      if (req.method === "GET" && fileMatch && url.searchParams.get("format") === "original") {
+        const invoice = fakePdpInbox.find((inv) => String(inv.id) === fileMatch[1]);
+        if (!invoice) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ http_status_code: 404 }));
+          return;
+        }
+        const bytes = readFileSync(join(__dirname, "cypress/fixtures", invoice.fixturePath));
+        res.writeHead(200, { "Content-Type": invoice.contentType });
+        res.end(bytes);
+        return;
+      }
+
+      const lifecycleMatch = url.pathname.match(/^\/v1\.beta\/invoices\/(\d+)\/lifecycle_events$/);
+      if (req.method === "POST" && lifecycleMatch) {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            fakePdpLifecycleEvents.push({ invoiceId: lifecycleMatch[1], code: body.code });
+          } catch {
+            // A malformed push body is itself not this fake's concern to validate — the real
+            // pdp-client.ts already shapes this request; this fake only records what arrived.
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({}));
+        });
+        return;
+      }
+
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ http_status_code: 404 }));
+    });
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo;
+      fakePdpServerUrl = `http://127.0.0.1:${address.port}`;
+      resolve(fakePdpServerUrl);
+    });
+  });
+}
+
+/**
+ * Enqueues ONE REAL `document-pdp-reception-sweep` job on the SAME BullMQ queue
+ * (`document-action`) the backend's own repeatable uses (`document-queue.dispatcher.ts`'s
+ * `registerPdpReceptionSweepRepeatable`) — the backend under test's own, already-running
+ * `DocumentActionProcessor` picks it up and runs the REAL `PdpReceptionSweepRunner.runSweep()`,
+ * exactly as it would on the repeatable's own schedule. Triggered on demand instead of waiting on
+ * that interval (a production default of 5 minutes — `reception-sweep.ts`'s own header) for the SAME
+ * reason `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS`/`DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS` are lowered in
+ * `backend/.env.test` for their own sweeps — except here as a fresh one-off job from THIS Node
+ * process rather than an env-var-lowered interval, since the backend under test may already be
+ * running (this harness's own "use :4000 if it already responds" convention) with no guarantee its
+ * own process re-read a freshly-lowered interval. A short, fixed jobId (timestamp-suffixed) avoids
+ * colliding with the real repeatable's own `document-pdp-reception-sweep-singleton` id.
+ */
+async function triggerPdpReceptionSweep(): Promise<null> {
+  const connection = { url: process.env.REDIS_URL || "redis://localhost:6399" };
+  const queue = new Queue("document-action", { connection });
+  try {
+    await queue.add(
+      "document-pdp-reception-sweep",
+      {},
+      { jobId: `e2e-reception-sweep-${Date.now()}`, attempts: 1, removeOnComplete: true, removeOnFail: true },
+    );
+  } finally {
+    await queue.close();
+  }
+  return null;
 }
 
 export default defineConfig({
@@ -324,6 +463,27 @@ export default defineConfig({
         clearWebhookRequests() {
           receivedWebhookRequests.length = 0;
           return null;
+        },
+
+        // See this file's own header just above ("PDP sandbox side") for why a real `node:http`
+        // server, not a `cy.intercept`, is what the backend's own server-to-server PDP calls need.
+        startFakePdpServer() {
+          return startFakePdpServer();
+        },
+        setFakePdpInbox(invoices: FakePdpInboundInvoice[]) {
+          fakePdpInbox = invoices;
+          return null;
+        },
+        getFakePdpLifecycleEvents() {
+          return [...fakePdpLifecycleEvents];
+        },
+        resetFakePdpServer() {
+          fakePdpInbox = [];
+          fakePdpLifecycleEvents.length = 0;
+          return null;
+        },
+        triggerPdpReceptionSweep() {
+          return triggerPdpReceptionSweep();
         },
       });
     },

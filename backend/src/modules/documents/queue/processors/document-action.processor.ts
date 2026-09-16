@@ -42,6 +42,13 @@
  * `document-queue-worker.module.ts` (not `documents-core.module.ts` — same rationale as
  * `CurrencyRateSweepRunner`: that runner's only Nest dependency, `MailService`, is a plain leaf
  * provider with no reason to live in the Core module either).
+ *
+ * PDP reception (inbound e-invoices) adds a SIXTH job name — ONE more repeatable
+ * (`conformity/reception-sweep.ts`'s `RECEPTION_SWEEP_JOB_NAME`), routed to `PdpReceptionSweepRunner`,
+ * `@Optional()`-injected for the identical reason. UNLIKE `CurrencyRateSweepRunner`/
+ * `ReminderSweepRunner`, this one DOES need `ChannelCredentialsService`/`DocumentsService` — the same
+ * shape `ConformitySweepRunner` already has — so it is provided by `documents-core.module.ts`, not
+ * this worker module, for the identical reason that file's own header gives for `ConformitySweepRunner`.
  */
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, Optional } from '@nestjs/common';
@@ -59,6 +66,8 @@ import {
   ConformityPollJobData,
 } from '../../conformity/conformity-sweep';
 import { ConformitySweepRunner, RunConformitySweepResult } from '../../conformity/conformity-sweep-runner';
+import { RECEPTION_SWEEP_JOB_NAME } from '../../conformity/reception-sweep';
+import { PdpReceptionSweepRunner, RunReceptionSweepResult } from '../../conformity/reception-sweep-runner';
 import { DocumentsService } from '../../documents.service';
 import { REMINDER_SWEEP_JOB_NAME } from '../../reminders/reminder-sweep';
 import { ReminderSweepRunner, RunReminderSweepResult } from '../../reminders/reminder-sweep-runner';
@@ -124,6 +133,10 @@ export class DocumentActionProcessor extends WorkerHost {
     // reminder-sweep-named job; production wiring (document-queue-worker.module.ts) always provides
     // a real one.
     @Optional() private readonly reminderSweepRunner?: ReminderSweepRunner,
+    // PDP reception — same `@Optional()` reasoning again: every EXISTING spec in this file constructs
+    // this processor without one and never sends a reception-sweep-named job; production wiring
+    // (documents-core.module.ts, via `DocumentsCoreModule`'s own export) always provides a real one.
+    @Optional() private readonly receptionSweepRunner?: PdpReceptionSweepRunner,
   ) {
     super();
   }
@@ -136,6 +149,7 @@ export class DocumentActionProcessor extends WorkerHost {
     | RunConformitySweepResult
     | RunCurrencyRateSweepResult
     | RunReminderSweepResult
+    | RunReceptionSweepResult
     | { journaled: number }
   > {
     if (job.name === SCHEDULE_SWEEP_JOB_NAME) {
@@ -173,6 +187,11 @@ export class DocumentActionProcessor extends WorkerHost {
     if (job.name === REMINDER_SWEEP_JOB_NAME) {
       this.logger.log(`Running the dunning-reminder sweep (job ${job.id})`);
       return this.requireReminderSweepRunner().runSweep();
+    }
+
+    if (job.name === RECEPTION_SWEEP_JOB_NAME) {
+      this.logger.log(`Running the PDP-reception sweep (job ${job.id})`);
+      return this.requireReceptionSweepRunner().runSweep();
     }
 
     if (job.name === DOCUMENT_REPORT_JOB_NAME) {
@@ -255,6 +274,15 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.reminderSweepRunner;
   }
 
+  private requireReceptionSweepRunner(): PdpReceptionSweepRunner {
+    if (!this.receptionSweepRunner) {
+      // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
+      // failure rather than a silent no-op if this is ever wired without it.
+      throw new Error('DocumentActionProcessor received a reception job but has no PdpReceptionSweepRunner.');
+    }
+    return this.receptionSweepRunner;
+  }
+
   /**
    * Fires after EVERY failed attempt, not only the last one — `job.attemptsMade` (already
    * incremented for this attempt by BullMQ before the event fires) compared against the job's own
@@ -323,7 +351,12 @@ export class DocumentActionProcessor extends WorkerHost {
       // send/record failure is caught and counted in its own `skipped`, never rethrown: see that
       // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
       // with `markSendFailed`'s vocabulary either.
-      job.name === REMINDER_SWEEP_JOB_NAME
+      job.name === REMINDER_SWEEP_JOB_NAME ||
+      // Same reasoning again — `PdpReceptionSweepRunner.runSweep` never throws either (a per-company
+      // list/import failure is caught and counted in its own `failed`, never rethrown: see that
+      // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
+      // with `markSendFailed`'s vocabulary either.
+      job.name === RECEPTION_SWEEP_JOB_NAME
     )
       return;
 

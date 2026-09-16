@@ -312,9 +312,10 @@ describe('country-policy/data — DE/IT/PL added by the 2026-09-03 sourcing pass
 
   it('every kept file declares the SAME (typeId, actionId) pairs as fr.json — no silent gap versus the reference jurisdiction', () => {
     // Widened from the original DE/IT/PL/ES/MX list to every kept country (also PT) — strictly more
-    // coverage than before the prune, not less. Count widened again from 27 to 30 by the
-    // goods-receipt addition (three-way match / rapprochement à 3 voies, second pass) — see
-    // pt.spec.ts's own pinned count.
+    // coverage than before the prune, not less. Count widened from 27 to 30 by the goods-receipt
+    // addition (three-way match / rapprochement à 3 voies, second pass), then to 31 by
+    // received-invoice's own "record-payment" (PDP reception, 2026-09-16) — see pt.spec.ts's own
+    // pinned count.
     const frKeys = fileFor('FR')
       .rules.map((r) => `${r.typeId}::${r.actionId}`)
       .sort();

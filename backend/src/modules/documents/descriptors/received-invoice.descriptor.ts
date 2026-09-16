@@ -1,9 +1,102 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
+import { BUILT_IN_PAYMENT_METHODS } from '../payment-methods/built-in';
 import { transitionsAvailableWhen } from './lifecycle';
-import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
+import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
 
 /** Same reused, un-invented list as every other document type's — see quote.descriptor.ts. */
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
+
+/** Same view over `payment-methods/built-in.ts` `invoice.descriptor.ts`'s own `PAYMENT_METHOD_OPTIONS`
+ *  already is — see that file's own comment. Recording how THIS company actually paid a SUPPLIER is
+ *  exactly as much "a bookkeeping fact, not a country fact" as recording how a client paid us. */
+const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
+  value: method.id,
+  label: method.label,
+}));
+
+/**
+ * "record-payment"'s own params — same four-field shape `invoice.descriptor.ts`'s own
+ * `RECORD_PAYMENT_PARAMS` already declares (amount/currency/paidAt/method/note), for the identical
+ * reason: this is the SAME `DocumentPayment` model (schema.prisma — not scoped to any one document
+ * type), recording money THIS company sent to a SUPPLIER rather than money a client sent to it. Two
+ * deliberate deltas from the invoice's own version:
+ *  - no cross-currency conversion support (`actions/received-invoice-actions.ts`'s own handler
+ *    refuses a payment whose currency does not match the record's own `currency` field outright,
+ *    never converts) — the invoice's own `settlement/convert-payment.ts` machinery is real scope this
+ *    task did not extend to a second document type; a genuine need can revisit this later.
+ *  - no partial-payment / balance tracking beyond "has the sum of payments reached the stated gross
+ *    amount yet" (see that same handler) — enough to know when to push PDP's own "paid" buyer status,
+ *    not a full ledger.
+ *
+ * KNOWN GAP, documented rather than silently shipped: registering this action also activates the
+ * GENERIC settlement badge/endpoint (`documents.service.ts#getSettlement`, `document-list.tsx`'s own
+ * `showSettlementBadge`) — which computes its own "gross total" via `totals/compute-totals.ts`, a
+ * type-agnostic engine that sums ONLY from a `kind: 'array'` `lines` field, with NO knowledge of this
+ * descriptor's own FLAT `grossAmount` field. For a PDP-sourced import (the ONLY reception source this
+ * task adds), `lines` is populated by the SAME structural extraction that reads `grossAmount`, so the
+ * two normally agree. For a MANUALLY-uploaded received invoice with genuinely no extractable lines (a
+ * plain scanned PDF — the base case this type exists to still accept, see this file's own header),
+ * `lines` stays empty and the GENERIC badge would compute a gross of ZERO, trivially "settled" before
+ * any payment — a real, narrow UI-badge inaccuracy, NOT a data-integrity issue: the "paid" PDP push
+ * threshold in `actions/received-invoice-actions.ts` reads `data.grossAmount` DIRECTLY, never this
+ * generic engine, so it stays correct regardless. Revisit if a real need makes this badge's own
+ * accuracy matter for a lines-less record specifically.
+ */
+const RECORD_PAYMENT_PARAMS: DocumentFieldDescriptor[] = [
+  {
+    key: 'amount',
+    kind: 'money',
+    label: 'Amount',
+    required: true,
+    currencyField: 'currency',
+  },
+  {
+    key: 'currency',
+    kind: 'select',
+    label: 'Currency',
+    required: true,
+    options: CURRENCY_OPTIONS,
+  },
+  {
+    key: 'paidAt',
+    kind: 'date',
+    label: 'Paid at',
+    required: true,
+  },
+  {
+    key: 'method',
+    kind: 'select',
+    label: 'Method',
+    required: false,
+    options: PAYMENT_METHOD_OPTIONS,
+  },
+  {
+    key: 'note',
+    kind: 'text',
+    label: 'Note',
+    required: false,
+  },
+];
+
+/**
+ * "reject"'s own single param — a free-text MOTIF, required: the DGFiP practical guide for the
+ * 2026-09-01 e-invoicing reform ("Facturation électronique : guide pratique de démarrage",
+ * impots.gouv.fr, Q12 "Que faire si l'acheteur refuse ma facture ?", read as raw PDF text — see
+ * `transports/pdp/pdp-reception.ts`'s own header for the full citation) is explicit that a buyer's
+ * "refusée" status is "obligatoirement motivé et ne peut être utilisé que pour les motifs prévus par
+ * la norme" — REQUIRED here for every received-invoice rejection, not only a PDP-linked one: an
+ * unexplained rejection is a poor audit trail regardless of the channel it arrived on, and this
+ * codebase found no reason to treat a manually-uploaded rejection more casually than a PDP one.
+ */
+const REJECT_PARAMS: DocumentFieldDescriptor[] = [
+  {
+    key: 'reason',
+    kind: 'text',
+    label: 'Reason',
+    required: true,
+    helpText: 'Why this invoice is refused — required, and reported back to the sender where applicable.',
+  },
+];
 
 /**
  * The RECEIVED INVOICE document type — the Inbound category's first (and only) type. Unlike every
@@ -329,6 +422,19 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
         label: 'Reject',
         transitions: REJECT_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(REJECT_TRANSITIONS),
+        params: REJECT_PARAMS,
+      },
+      {
+        id: 'record-payment',
+        label: 'Record payment',
+        // Only once approved — paying an invoice this company has not yet reviewed skips the review
+        // step this lifecycle exists to enforce; paying a REJECTED one makes no sense at all. NO
+        // `transitions`: same reasoning `invoice.descriptor.ts`'s own "record-payment" already gives —
+        // its effect lands on a NEW `DocumentPayment` row (and, when linked to a PDP-sourced deposit,
+        // a buyer-side "payée" status push — actions/received-invoice-actions.ts), never on this
+        // record's own declared status.
+        availableWhen: ['approved'],
+        params: RECORD_PAYMENT_PARAMS,
       },
       {
         id: 'delete',

@@ -349,6 +349,59 @@ export class PdpClient {
     return this.request<SuperPdpInvoice>('GET', `/v1.beta/invoices/${id}${params}`);
   }
 
+  /**
+   * Raw file bytes for one deposit — never JSON-parsed, unlike every other method on this class:
+   * `request<T>()` only ever branches on `content-type` between `res.json()` and `res.text()` (see
+   * that method's own body above), and `res.text()` decodes as UTF-8, which silently corrupts a
+   * binary PDF the moment a byte sequence isn't valid UTF-8. Added for RECEPTION (a poller downloading
+   * an INBOUND deposit's own original/Factur-X artifact to attach to a `received-invoice` — see
+   * `pdp-reception.ts`): `sendInvoice()`/`getInvoice()` above never needed this because outbound
+   * `send()` already holds the bytes it uploaded, in memory, before ever calling superpdp.
+   *
+   * `format` mirrors `getInvoice`'s own enum (`?format=` query param), same endpoint
+   * (`GET /v1.beta/invoices/{id}`), the ONE difference being how the response body is read. LIVE
+   * VERIFIED, 2026-09-16 (see `pdp-reception.live.spec.ts`): there is NO separate `/file`
+   * sub-resource — an earlier version of this method guessed one and got a real, live 404 against the
+   * sandbox for every deposit tried (fresh and old alike). `GET /v1.beta/invoices/{id}?format=original`
+   * is the SAME endpoint `getInvoice()` already calls, except the sandbox answers it with
+   * `content-type: application/pdf` (real PDF magic bytes confirmed live) rather than JSON — so
+   * `getInvoice()` itself would silently corrupt this exact same response via `request<T>()`'s own
+   * `res.text()` fallback (UTF-8-decoding binary bytes) if ever called with `format: 'original'`; this
+   * method exists specifically to read the SAME response as `arrayBuffer()` instead. `'original'` (the
+   * exact bytes as received, PDF or XML depending on what the sender actually deposited) is the
+   * default: the reception poller attaches THAT, never a re-derived EN16931/CII view of it, so the
+   * received-invoice record's own downloadable file is byte-identical to what superpdp itself received.
+   */
+  async downloadInvoiceFile(
+    id: number,
+    format: 'original' | 'en16931' | 'cii' | 'ubl' | 'factur-x' = 'original',
+  ): Promise<{ bytes: Buffer; contentType: string }> {
+    const token = await this.authenticate();
+    const path = `/v1.beta/invoices/${id}?format=${format}`;
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
+    if (!res.ok) {
+      // Same error-shaping discipline as `request<T>()` above — a JSON error body is read as JSON,
+      // anything else as text, so a failed download surfaces the platform's own explanation rather
+      // than a bare status code.
+      const isJson = contentType.includes('application/json');
+      const body = isJson ? await res.json() : await res.text();
+      const msg = isJson
+        ? ((body as { errorMessage?: string; error?: string; message?: string }).errorMessage ??
+          (body as { error?: string }).error ??
+          (body as { message?: string }).message ??
+          res.statusText)
+        : res.statusText;
+      throw new PdpApiError(msg, res.status, body, path);
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    return { bytes: Buffer.from(arrayBuffer), contentType };
+  }
+
   async listInvoices(opts?: {
     direction?: 'in' | 'out';
     date?: string;
@@ -440,17 +493,31 @@ export class PdpClient {
   }
 
   // -----------------------------------------------------------------------
-  // Lifecycle status push (outbound — seller notifying the PDP of a status change)
+  // Lifecycle status push (a party notifying the PDP of a status change — outbound seller codes like
+  // fr:211/fr:212, or BUYER-side codes like fr:203/fr:205 pushed from the RECEPTION side — see
+  // `pdp-reception.ts`'s own header for the received-invoice "approve"/"reject"/"paid" actions)
   // -----------------------------------------------------------------------
 
   /**
    * Push a lifecycle status event to the PDP for a deposited invoice.
    *
-   * SuperPDP proprietary endpoint: POST /v1.beta/invoices/{id}/lifecycle_events
-   * Body: { code: "fr:211" } (XP Z12-012 lifecycle code, e.g. fr:211 = payment sent,
-   *        fr:212 = payment received, fr:205 = accepted by buyer).
+   * SuperPDP proprietary endpoint (as documented, never independently confirmed until now):
+   * POST /v1.beta/invoices/{id}/lifecycle_events, body `{ code: "fr:211" }` (XP Z12-012 lifecycle
+   * code, e.g. fr:211 = payment sent, fr:212 = payment received, fr:205 = accepted by buyer).
    *
-   * LIVE PROOF: Deferred — requires live SuperPDP sandbox creds + invoice ID.
+   * LIVE PROOF, 2026-09-16 (`pdp-reception.live.spec.ts`): this endpoint answers a real, generic
+   * `404 {"http_status_code":404}` on the current superpdp sandbox — tried against a freshly deposited
+   * invoice (both its "out" id AND its "in" twin, see `pdp-reception.ts`'s own header on why a
+   * self-addressed deposit yields two distinct ids), and against every plausible path variant
+   * (`lifecycle-events`, `/events`, `/status`, `/statuses`, `/lifecycle`, a plain `PUT` on the invoice
+   * itself) — all 404, the identical shape a genuinely unregistered route returns (compare
+   * `authenticate()`'s own 4xx/5xx error shaping: a validation failure on a REAL route answers 400/422
+   * with a specific message, not this generic body). Conclusion, not a guess: the sandbox's "API Flux"
+   * does not expose ANY lifecycle-status-push route today, under any of the names this codebase or the
+   * XP Z12-012 naming convention suggested. This method is kept (never deleted) — a real production PA
+   * may still implement it, and `pdp-reception.ts`'s own status-push calls degrade to a LOGGED, non-fatal
+   * no-op on a 404 specifically, never a crashed poll — see `documentation/docs/developer-guide/
+   * live-testing.md`'s own PDP reception section for the full evidence and what remains unverified.
    */
   async pushLifecycleStatus(invoiceId: number, code: string): Promise<void> {
     await this.request<unknown>('POST', `/v1.beta/invoices/${invoiceId}/lifecycle_events`, {

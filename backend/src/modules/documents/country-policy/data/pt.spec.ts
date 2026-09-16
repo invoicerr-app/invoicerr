@@ -48,7 +48,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 30 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 31 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -80,6 +80,7 @@ describe('PT — country-policy/data/pt.json', () => {
         'received-invoice::receive',
         'received-invoice::approve',
         'received-invoice::reject',
+        'received-invoice::record-payment',
         'received-invoice::delete',
         // Purchase orders & goods receipts — see purchase-order.descriptor.ts's own header.
         'purchase-order::save-draft',
@@ -92,10 +93,10 @@ describe('PT — country-policy/data/pt.json', () => {
         'goods-receipt::delete',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(30);
+    expect(new Set(declared).size).toBe(31);
   });
 
-  it('allows every one of its 30 rules — PT never itself needs an unblock', () => {
+  it('allows every one of its 31 rules — PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 

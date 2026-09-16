@@ -75,5 +75,8 @@ export class DocumentsQueueWorkerModule implements OnApplicationBootstrap {
     // Dunning-reminder sweep — same idempotent-registration guarantee, same reasoning: see
     // `registerReminderSweepRepeatable`'s own header (document-queue.dispatcher.ts).
     await this.queueDispatcher.registerReminderSweepRepeatable();
+    // PDP reception sweep — same idempotent-registration guarantee, same reasoning: see
+    // `registerPdpReceptionSweepRepeatable`'s own header (document-queue.dispatcher.ts).
+    await this.queueDispatcher.registerPdpReceptionSweepRepeatable();
   }
 }

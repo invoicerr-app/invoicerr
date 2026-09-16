@@ -23,6 +23,11 @@ import {
   readConformitySweepIntervalMs,
 } from '../conformity/conformity-sweep';
 import {
+  RECEPTION_SWEEP_JOB_ID,
+  RECEPTION_SWEEP_JOB_NAME,
+  readReceptionSweepIntervalMs,
+} from '../conformity/reception-sweep';
+import {
   CURRENCY_RATE_SWEEP_JOB_ID,
   CURRENCY_RATE_SWEEP_JOB_NAME,
   readCurrencyRateSweepIntervalMs,
@@ -223,6 +228,27 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     });
     this.logger.log(
       `Registered the dunning-reminder sweep repeatable (every ${readReminderSweepIntervalMs()}ms).`,
+    );
+  }
+
+  /**
+   * Registers the ONE PDP-reception sweep repeatable — same idempotent-registration guarantee as
+   * `registerConformitySweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
+   * across the whole cluster), same `attempts: 1` reasoning (a sweep pass that itself throws is a real
+   * bug, loud now rather than silently retried — the next tick, `readReceptionSweepIntervalMs()` away,
+   * is already the natural retry for "the sweep didn't run this time"). See `reception-sweep.ts`'s own
+   * header for why this is ONE repeatable, not one per company.
+   */
+  async registerPdpReceptionSweepRepeatable(): Promise<void> {
+    await this.queue.add(RECEPTION_SWEEP_JOB_NAME, {} as unknown as DocumentActionJobData, {
+      jobId: RECEPTION_SWEEP_JOB_ID,
+      repeat: { every: readReceptionSweepIntervalMs() },
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    this.logger.log(
+      `Registered the PDP-reception sweep repeatable (every ${readReceptionSweepIntervalMs()}ms).`,
     );
   }
 

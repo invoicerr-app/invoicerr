@@ -243,6 +243,15 @@
     },
     {
       "typeId": "received-invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE (research of 2026-09-16, primary texts read in raw text, same corpus already read for 'approve'/'reject' above): recording that THIS company paid a SUPPLIER is the mirror of `invoice.record-payment` (money a client sent to this company, sourced there under CGI art. 269, 2, c and C. com. art. L. 123-12) — but the mirror text does not carry over cleanly: art. 269 fixes the SELLER's own VAT chargeability date, which is irrelevant on the buyer side of a purchase (this company's own input-VAT deduction right is governed instead by CGI art. 271, which conditions deductibility on the tax having become 'exigible chez le redevable qui la facture' — the SUPPLIER's own exigibility, not on anything this screen records). No text read makes the ACT of recording a supplier payment in this tool a legal trigger of its own; the underlying facts (the debt, the payment, the VAT deduction timing) exist and produce their legal effects independently of whether this screen tracks them — same 'the record is a bookkeeping convenience, not the accounting ledger itself' posture `expense.save-draft` above already holds. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests (2026-09-16). WHAT WOULD SETTLE THIS: a text conditioning the INPUT-VAT deduction on a fact this tool alone could record — none found; art. 271's own trigger is the SUPPLIER's exigibility, a fact external to this tool."
+      }
+    },
+    {
+      "typeId": "received-invoice",
       "actionId": "delete",
       "allowed": true,
       "provenance": {

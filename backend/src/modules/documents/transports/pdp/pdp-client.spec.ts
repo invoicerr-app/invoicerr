@@ -156,6 +156,34 @@ describe('PdpClient', () => {
       expect(result.status_code).toEqual(['api:uploaded', 'fr:200', 'fr:201']);
     });
 
+    it('downloadInvoiceFile() returns raw bytes, never JSON-parsed', async () => {
+      const pdfBytes = Buffer.from('%PDF-1.4 fake pdf bytes');
+      mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Map([['content-type', 'application/pdf']]),
+        arrayBuffer: async () =>
+          pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength),
+      } as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      const result = await client.downloadInvoiceFile(42);
+
+      expect(result.contentType).toBe('application/pdf');
+      expect(result.bytes.toString()).toBe(pdfBytes.toString());
+      const [url] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(url).toBe('https://api.superpdp.tech/v1.beta/invoices/42?format=original');
+    });
+
+    it('downloadInvoiceFile() throws PdpApiError on a non-OK response, reading the JSON error body', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(mockJsonResponse({ errorMessage: 'not found' }, 404) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await expect(client.downloadInvoiceFile(999)).rejects.toThrow(PdpApiError);
+    });
+
     it('getCompany() fetches current company', async () => {
       mockFetch
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)

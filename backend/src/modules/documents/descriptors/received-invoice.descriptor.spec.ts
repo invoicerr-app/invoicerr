@@ -113,6 +113,30 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     expect(buildReceivedInvoiceDescriptor().contributions).toEqual(['dashboard']);
   });
 
+  it('declares the five actions, "reject" requiring a reason and "record-payment" only once "approved"', () => {
+    const descriptor = buildReceivedInvoiceDescriptor();
+    expect(descriptor.actions.map((a) => a.id)).toEqual([
+      'receive',
+      'approve',
+      'reject',
+      'record-payment',
+      'delete',
+    ]);
+    const reject = descriptor.actions.find((a) => a.id === 'reject');
+    expect(reject?.params?.map((p) => p.key)).toEqual(['reason']);
+    expect(reject?.params?.[0]?.required).toBe(true);
+    const recordPayment = descriptor.actions.find((a) => a.id === 'record-payment');
+    expect(recordPayment?.availableWhen).toEqual(['approved']);
+    expect(recordPayment?.transitions).toBeUndefined();
+    expect(recordPayment?.params?.map((p) => p.key)).toEqual([
+      'amount',
+      'currency',
+      'paidAt',
+      'method',
+      'note',
+    ]);
+  });
+
   it('listItem leads with supplier/supplierNumber, then issueDate/grossAmount', () => {
     const descriptor = buildReceivedInvoiceDescriptor();
     expect(descriptor.listItem).toEqual({

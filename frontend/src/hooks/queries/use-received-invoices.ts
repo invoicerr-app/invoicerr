@@ -3,7 +3,10 @@ import { useApiMutation } from "@/hooks/use-api-query"
 /**
  * Invoice reception — the ONE bespoke endpoint this type needs beyond the
  * fully generic document machinery (`use-document-types.ts` already covers listing, the descriptor,
- * and running "receive"/"approve"/"reject"/"delete" through `useRunDocumentAction`). Kept in its own
+ * and running "receive"/"approve"/"reject"/"record-payment"/"delete" through `useRunDocumentAction` —
+ * "reject" and "record-payment" both declare `params`, so `useDocumentActionRunner` opens the SAME
+ * generic params dialog every other parameterized action already uses, no bespoke UI needed). Kept in
+ * its own
  * file, mirroring `use-document-schedules.ts`'s own placement, rather than folded into
  * `use-document-types.ts` — a genuinely separate concern (uploading a file has no document instance
  * to act on yet), the same reasoning the backend's own `received-invoices/` module gives for not

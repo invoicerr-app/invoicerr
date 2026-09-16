@@ -228,6 +228,15 @@
     },
     {
       "typeId": "received-invoice",
+      "actionId": "record-payment",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no Portuguese text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+      }
+    },
+    {
+      "typeId": "received-invoice",
       "actionId": "delete",
       "allowed": true,
       "provenance": {

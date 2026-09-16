@@ -12,6 +12,8 @@ import { DocumentTypeRegistry } from './descriptors/type-registry';
 import * as persistence from './persistence';
 import { EntityReferenceRegistry } from './references/reference-registry';
 import * as supplierReconciliation from './received-invoices/supplier-reconciliation';
+import * as settlementPayments from './settlement/payments';
+import { PdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
 import { TransportRegistry } from './transports/transport-registry';
 
 jest.mock('./persistence');
@@ -26,13 +28,28 @@ jest.mock('./country-policy/country-policy');
 // (companyId scoping, idempotence — proven for real in
 // `received-invoices/supplier-reconciliation.spec.ts`).
 jest.mock('./received-invoices/supplier-reconciliation');
+// "record-payment" writes through settlement/payments.ts, which reaches Prisma directly — mocked for
+// the identical reason `documents.service.invoice.spec.ts` already mocks it for the invoice's own
+// "record-payment": this file's concern is the ACTION's wiring, not `DocumentPayment` persistence
+// itself (proven for real elsewhere).
+jest.mock('./settlement/payments');
 
 /**
  * Received-invoice reception — the FIFTH document type written entirely as data.
  * Same wiring discipline as documents.service.credit-note.spec.ts (the THIRD): a real descriptor,
  * real core field kinds, real action registration, only persistence.ts and country-policy.ts mocked.
  */
-function buildService() {
+/** A bare stub, never a real `ChannelCredentialsService`/`PdpClient` — the same "depend on the
+ *  narrow interface" discipline `transports/pdp/pdp-reception.ts`'s own header documents; tests that
+ *  care which method fired pass their own `jest.fn()`-backed stub instead. */
+const NOOP_PDP_STATUS_PUSHER: PdpReceptionStatusPusher = {
+  pushTakenInCharge: async () => {},
+  pushApproved: async () => {},
+  pushRejected: async () => {},
+  pushPaid: async () => {},
+};
+
+function buildService(pdpStatusPusher: PdpReceptionStatusPusher = NOOP_PDP_STATUS_PUSHER) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildReceivedInvoiceDescriptor());
 
@@ -40,7 +57,7 @@ function buildService() {
   registerCoreFieldKinds(fieldKindRegistry);
 
   const actionRegistry = new ActionRegistry();
-  registerReceivedInvoiceActions(actionRegistry);
+  registerReceivedInvoiceActions(actionRegistry, undefined, pdpStatusPusher);
 
   const service = new DocumentsService(
     typeRegistry,
@@ -72,13 +89,19 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
   });
   afterEach(() => jest.resetAllMocks());
 
-  it('is registered, with exactly the four declared actions', () => {
+  it('is registered, with exactly the five declared actions', () => {
     const { service } = buildService();
     expect(service.listTypes()).toEqual(
       expect.arrayContaining([{ id: 'received-invoice', label: 'Received invoice' }]),
     );
     const descriptor = service.getType('received-invoice');
-    expect(descriptor.actions.map((a) => a.id)).toEqual(['receive', 'approve', 'reject', 'delete']);
+    expect(descriptor.actions.map((a) => a.id)).toEqual([
+      'receive',
+      'approve',
+      'reject',
+      'record-payment',
+      'delete',
+    ]);
   });
 
   it('declares no numbering — a received invoice is never numbered by this company', () => {
@@ -236,17 +259,212 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     );
   });
 
-  it('"reject": received -> rejected', async () => {
+  it('"approve" pushes the PDP "approved" buyer status when this record carries a `pdpInboundId`', async () => {
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
-    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(fakeRecord({ status: 'rejected' }));
+    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(
+      fakeRecord({ status: 'approved', data: { pdpInboundId: '604667' } }),
+    );
+    const pusher: PdpReceptionStatusPusher = {
+      pushTakenInCharge: jest.fn(),
+      pushApproved: jest.fn(),
+      pushRejected: jest.fn(),
+      pushPaid: jest.fn(),
+    };
 
-    const { service } = buildService();
-    const result = await service.runAction('company-1', 'received-invoice', 'reject', {
+    await buildService(pusher).service.runAction('company-1', 'received-invoice', 'approve', {
       documentId: 'ri-1',
       data: {},
     });
 
+    expect(pusher.pushApproved).toHaveBeenCalledWith('company-1', '604667');
+  });
+
+  it('"approve" pushes NOTHING to PDP for a manually-uploaded record (no `pdpInboundId`)', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
+    (persistence.updateDocumentStatus as jest.Mock).mockResolvedValue(fakeRecord({ status: 'approved' }));
+    const pusher: PdpReceptionStatusPusher = {
+      pushTakenInCharge: jest.fn(),
+      pushApproved: jest.fn(),
+      pushRejected: jest.fn(),
+      pushPaid: jest.fn(),
+    };
+
+    await buildService(pusher).service.runAction('company-1', 'received-invoice', 'approve', {
+      documentId: 'ri-1',
+      data: {},
+    });
+
+    expect(pusher.pushApproved).not.toHaveBeenCalled();
+  });
+
+  it('"reject": received -> rejected, requires and persists a `reason`, pushes PDP\'s "rejected" status', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+      fakeRecord({ status: 'received', data: { pdpInboundId: '604667' } }),
+    );
+    (persistence.upsertDocument as jest.Mock).mockResolvedValue(
+      fakeRecord({
+        status: 'rejected',
+        data: { pdpInboundId: '604667', rejectionReason: 'Wrong purchase order' },
+      }),
+    );
+    const pusher: PdpReceptionStatusPusher = {
+      pushTakenInCharge: jest.fn(),
+      pushApproved: jest.fn(),
+      pushRejected: jest.fn(),
+      pushPaid: jest.fn(),
+    };
+
+    const result = await buildService(pusher).service.runAction('company-1', 'received-invoice', 'reject', {
+      documentId: 'ri-1',
+      data: {},
+      params: { reason: 'Wrong purchase order' },
+    });
+
     expect(result.document).toMatchObject({ status: 'rejected' });
+    expect(persistence.upsertDocument).toHaveBeenCalledWith(
+      'company-1',
+      'received-invoice',
+      'ri-1',
+      'rejected',
+      expect.objectContaining({ pdpInboundId: '604667', rejectionReason: 'Wrong purchase order' }),
+    );
+    expect(pusher.pushRejected).toHaveBeenCalledWith('company-1', '604667', 'Wrong purchase order');
+  });
+
+  it('"reject" is refused (400) without a reason — the DGFiP buyer-refusal status is "obligatoirement motivé"', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
+
+    await expect(
+      buildService().service.runAction('company-1', 'received-invoice', 'reject', {
+        documentId: 'ri-1',
+        data: {},
+        params: {},
+      }),
+    ).rejects.toThrow(/Invalid document data/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  describe('"record-payment" — this company paying a SUPPLIER, mirroring invoice-actions.ts\'s own', () => {
+    const approvedRecord = fakeRecord({
+      status: 'approved',
+      data: { currency: 'EUR', grossAmount: 120, pdpInboundId: '604667' },
+    });
+
+    beforeEach(() => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(approvedRecord);
+      (settlementPayments.recordPayment as jest.Mock).mockResolvedValue({
+        id: 'payment-1',
+        documentId: 'ri-1',
+        amountMinor: 12000,
+        currency: 'EUR',
+        documentAmountMinor: 12000,
+        conversionRate: null,
+        conversionRateAsOf: null,
+        conversionSource: null,
+        method: null,
+        paidAt: new Date('2026-09-16'),
+        note: null,
+        createdAt: new Date('2026-09-16'),
+      });
+      (settlementPayments.listPayments as jest.Mock).mockResolvedValue([]);
+      (settlementPayments.toSettlementPaymentInputs as jest.Mock).mockImplementation(
+        (payments: Array<{ amountMinor: number }>) => payments.map((p) => ({ amountMinor: p.amountMinor })),
+      );
+    });
+
+    it('is only offered once "approved" — refused (409) while still "received"', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
+
+      await expect(
+        buildService().service.runAction('company-1', 'received-invoice', 'record-payment', {
+          documentId: 'ri-1',
+          data: {},
+          params: { amount: 120, currency: 'EUR', paidAt: '2026-09-16' },
+        }),
+      ).rejects.toThrow(/not available for a document with status "received"/);
+    });
+
+    it('records a full payment, in minor units, against the SAME currency as the document', async () => {
+      const { service } = buildService();
+
+      const result = await service.runAction('company-1', 'received-invoice', 'record-payment', {
+        documentId: 'ri-1',
+        data: {},
+        params: { amount: 120, currency: 'EUR', paidAt: '2026-09-16', method: 'bank_transfer' },
+      });
+
+      expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'company-1',
+          documentId: 'ri-1',
+          amountMinor: 12000,
+          currency: 'EUR',
+          documentAmountMinor: 12000,
+          method: 'bank_transfer',
+        }),
+      );
+      expect(result.changed).toBe(true);
+      expect(result.createdPaymentId).toBe('payment-1');
+    });
+
+    it("refuses a payment currency that does not match the received-invoice's own — no silent conversion", async () => {
+      await expect(
+        buildService().service.runAction('company-1', 'received-invoice', 'record-payment', {
+          documentId: 'ri-1',
+          data: {},
+          params: { amount: 100, currency: 'USD', paidAt: '2026-09-16' },
+        }),
+      ).rejects.toThrow(/does not match/);
+      expect(settlementPayments.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it('pushes PDP\'s "paid" buyer status the pass the payment reaches the full gross amount', async () => {
+      const pusher: PdpReceptionStatusPusher = {
+        pushTakenInCharge: jest.fn(),
+        pushApproved: jest.fn(),
+        pushRejected: jest.fn(),
+        pushPaid: jest.fn(),
+      };
+
+      await buildService(pusher).service.runAction('company-1', 'received-invoice', 'record-payment', {
+        documentId: 'ri-1',
+        data: {},
+        params: { amount: 120, currency: 'EUR', paidAt: '2026-09-16' },
+      });
+
+      expect(pusher.pushPaid).toHaveBeenCalledWith('company-1', '604667');
+    });
+
+    it('does NOT push "paid" for a partial payment that does not reach the full gross amount', async () => {
+      const pusher: PdpReceptionStatusPusher = {
+        pushTakenInCharge: jest.fn(),
+        pushApproved: jest.fn(),
+        pushRejected: jest.fn(),
+        pushPaid: jest.fn(),
+      };
+      (settlementPayments.recordPayment as jest.Mock).mockResolvedValue({
+        id: 'payment-1',
+        documentId: 'ri-1',
+        amountMinor: 5000,
+        currency: 'EUR',
+        documentAmountMinor: 5000,
+        conversionRate: null,
+        conversionRateAsOf: null,
+        conversionSource: null,
+        method: null,
+        paidAt: new Date('2026-09-16'),
+        note: null,
+        createdAt: new Date('2026-09-16'),
+      });
+
+      await buildService(pusher).service.runAction('company-1', 'received-invoice', 'record-payment', {
+        documentId: 'ri-1',
+        data: {},
+        params: { amount: 50, currency: 'EUR', paidAt: '2026-09-16' },
+      });
+
+      expect(pusher.pushPaid).not.toHaveBeenCalled();
+    });
   });
 
   it('"approve" is refused (409) once a record has already been approved — a review decision is one-way', async () => {
