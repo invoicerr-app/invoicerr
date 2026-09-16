@@ -63,7 +63,20 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
           </Button>
         </Wrapper>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 mt-2 rounded-lg outline-1" align="start">
+      {/* `max-h-(--radix-popover-content-available-height) overflow-y-auto` -- same pattern
+          select.tsx/dropdown-menu.tsx already use for their own Radix content: on a short viewport
+          (Cypress' own default 1000x660 measured it, ~39px of margin either side of the trigger) the
+          calendar grid + "Today" footer button (~340px) can outgrow BOTH the room above and below a
+          trigger positioned mid-page, and an uncapped popover then renders past the window's own
+          edge with no way to reach what's cut off -- a `position: fixed` portal is not brought back
+          by scrolling the page (nothing scrolls it), so without this cap "Today" is a real, if
+          narrow, dead click for whichever field a form happens to position low enough, not just a
+          Cypress artifact. Capping to Radix's own computed available height makes the CONTENT
+          scroll internally instead of the popover overflowing the window. */}
+      <PopoverContent
+        className="w-full max-h-(--radix-popover-content-available-height) overflow-y-auto p-0 mt-2 rounded-lg outline-1"
+        align="start"
+      >
         <Calendar
           required
           mode="single"

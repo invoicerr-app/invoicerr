@@ -191,7 +191,15 @@ Cypress.Commands.add('openDatePicker', (triggerSelector: string) => {
  */
 Cypress.Commands.add('pickToday', (triggerSelector: string) => {
     cy.openDatePicker(triggerSelector);
-    cy.get('[data-cy="date-picker-today"]', { timeout: 10000 }).should('be.visible').click();
+    // CI run 35095412354 (commit 8d85ad5c, spec 38): a `position: fixed` Radix popover anchored to a
+    // trigger sitting mid-page (e.g. the wizard's "Details" step, 3rd/4th field) has, at worst, only
+    // ~39px of headroom on either side of the trigger for the calendar grid + this footer button
+    // (~340px) to fit into at Cypress' own default 1000x660 viewport -- date-picker.tsx now caps the
+    // popover to Radix's own computed available height and scrolls internally instead of overflowing
+    // the window, but that means "Today" can genuinely start outside the now-scrollable popover's own
+    // viewport (scrollTop 0 shows the calendar header first). `scrollIntoView()` here scrolls THAT
+    // inner container -- unlike scrolling the page, which does nothing for a `position: fixed` portal.
+    cy.get('[data-cy="date-picker-today"]', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
     // The popover's content unmounts on close (Radix `Presence`, no `forceMount`) -- its own "Today"
     // button is gone, not merely hidden, which is what actually proves the popover closed.
     cy.get('[data-cy="date-picker-today"]').should('not.exist');
@@ -262,6 +270,61 @@ Cypress.Commands.add('openSelect', (triggerSelector: string, optionSelector: str
     cy.wait(50);
     openWithRetries(1);
     cy.get(optionSelector, { timeout: 10000 }).should('be.visible').click();
+});
+
+/**
+ * Opens a `SearchSelect` (components/search-input.tsx) popover WITHOUT picking an option — for the
+ * callers that type a filter into it afterward instead of clicking the first entry (CurrencySelect,
+ * used by both client-upsert.tsx's own currency field and every document "currency"/"client"/
+ * "vatRate" field this app has). `openSelect` above can't serve these: it always ends on ONE fixed
+ * option, but these callers narrow the list by typing first. Same bounded-retry shape as
+ * `openSelect`/`openDatePicker` above, on the SAME Radix Popover primitive family, guarding against
+ * the SAME open-side race — a trigger click landing inside the window a just-closed SIBLING layer
+ * (a `Select`, another `SearchSelect`) is still detaching its own outside-pointerdown listener on a
+ * deferred passive-effect cleanup. CI run 35095412354 (commit 8d85ad5c, spec 40): the DE case's own
+ * `client-currency-select` trigger fires right after the "kind" `Select` (client-upsert.tsx) closes
+ * on picking "Government" — a plain, unretried click there never opened the popover, and
+ * `[data-cy="client-currency-select-options"]` was never found (4000ms default timeout). The
+ * IDENTICAL code passed for the FR/IT/US cases in the very same run — proof this is a timing race,
+ * not something specific to DE, hence fixing it here rather than only where it happened to fire that
+ * one run.
+ * @example cy.openSearchSelect('client-currency-select')
+ */
+Cypress.Commands.add('openSearchSelect', (dataCy: string) => {
+    const triggerSelector = `[data-cy="${dataCy}"] button`;
+    const optionsSelector = `[data-cy="${dataCy}-options"]`;
+    const OPEN_POLL_MS = 100;
+    const OPEN_TIMEOUT_MS = 800;
+    const MAX_ATTEMPTS = 3;
+    const isOpen = () =>
+        cy.get('body', { log: false }).then(($body) => $body.find(`${optionsSelector}:visible`).length > 0);
+    const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
+        isOpen().then((visible) => {
+            if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible, { log: false });
+            cy.wait(OPEN_POLL_MS, { log: false });
+            return pollForOpen(elapsedMs + OPEN_POLL_MS);
+        });
+    const openWithRetries = (attempt: number): void => {
+        cy.get(triggerSelector).first().scrollIntoView().click({ force: true });
+        pollForOpen(0).then((opened) => {
+            if (opened || attempt >= MAX_ATTEMPTS) {
+                if (attempt > 1) {
+                    Cypress.log({
+                        name: 'openSearchSelect',
+                        message: opened
+                            ? `option list visible after ${attempt} attempt(s)`
+                            : `option list still not visible after ${attempt} attempt(s), giving up retries`,
+                    });
+                }
+                return;
+            }
+            Cypress.log({ name: 'openSearchSelect', message: `popover did not open on attempt ${attempt} -- retrying` });
+            openWithRetries(attempt + 1);
+        });
+    };
+    cy.wait(50);
+    openWithRetries(1);
+    cy.get(optionsSelector, { timeout: 10000 }).should('be.visible');
 });
 
 /**

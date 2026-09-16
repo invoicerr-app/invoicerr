@@ -116,6 +116,15 @@ declare namespace Cypress {
         openSelect(triggerSelector: string, optionSelector: string): Chainable<void>
 
         /**
+         * Opens a `SearchSelect` (components/search-input.tsx) popover WITHOUT picking an option —
+         * for callers that type a filter into it afterward (CurrencySelect and friends) instead of
+         * clicking a fixed entry. Same bounded-retry open-side guard as `openSelect`/`openDatePicker`
+         * above, on the same Radix Popover primitive family.
+         * @example cy.openSearchSelect('client-currency-select')
+         */
+        openSearchSelect(dataCy: string): Chainable<void>
+
+        /**
          * Advances the document CREATE dialog (`document-create-dialog.tsx`, a
          * `components/ui/stepped-dialog.tsx` wizard: Details -> Lines -> Options -> Summary, a step
          * dropped when it has nothing to show) from its CURRENT step to the next one — waits for the

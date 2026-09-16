@@ -309,10 +309,12 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 			.clear()
 			.type("21750001600017");
-		cy.get('[data-cy="client-currency-select"] button')
-			.scrollIntoView()
-			.click();
-		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		// `cy.openSearchSelect` (not a bare click) — the same open-side Radix Popover race
+		// `openSelect`/`openDatePicker` guard against elsewhere: this trigger fires right after the
+		// "kind" Select closes on picking "Government" above, and a plain click here missed the
+		// popover open for real on CI (run 35095412354, the DE case) even though the identical code
+		// passed for FR/IT/US in the same run — see the command's own header.
+		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
@@ -420,10 +422,12 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 			.and("contain.text", "xrechnung");
 		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "ERechV");
 		cy.get('[data-cy="client-b2g-hint"]').should("contain.text", "Leitweg");
-		cy.get('[data-cy="client-currency-select"] button')
-			.scrollIntoView()
-			.click();
-		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		// `cy.openSearchSelect` (not a bare click) — the same open-side Radix Popover race
+		// `openSelect`/`openDatePicker` guard against elsewhere: this trigger fires right after the
+		// "kind" Select closes on picking "Government" above, and a plain click here missed the
+		// popover open for real on CI (run 35095412354, the DE case) even though the identical code
+		// passed for FR/IT/US in the same run — see the command's own header.
+		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
@@ -639,10 +643,12 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 			.should("exist")
 			.clear()
 			.type("UFE0A1");
-		cy.get('[data-cy="client-currency-select"] button')
-			.scrollIntoView()
-			.click();
-		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		// `cy.openSearchSelect` (not a bare click) — the same open-side Radix Popover race
+		// `openSelect`/`openDatePicker` guard against elsewhere: this trigger fires right after the
+		// "kind" Select closes on picking "Government" above, and a plain click here missed the
+		// popover open for real on CI (run 35095412354, the DE case) even though the identical code
+		// passed for FR/IT/US in the same run — see the command's own header.
+		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 		cy.continueSteppedDialog("client-dialog");
@@ -738,10 +744,8 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		// (invoicing a GOVERNMENT buyer outside the 5 supported countries remains legitimate). The
 		// point of this test is the B2G refusal below ("No B2G routing rule is declared for US"),
 		// never the identifier.
-		cy.get('[data-cy="client-currency-select"] button')
-			.scrollIntoView()
-			.click();
-		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		// See the FR case above's identical comment — same `cy.openSearchSelect` open-side guard.
+		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Dollar");
 		cy.get(
 			'[data-cy="client-currency-select-option-united-states-dollar-($)"]',

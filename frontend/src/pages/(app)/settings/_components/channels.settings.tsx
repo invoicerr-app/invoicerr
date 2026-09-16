@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDocumentTransports } from "@/hooks/queries"
 import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-import { SettingsPage, SettingsRowMenu, SettingsSection } from "./settings-section"
+import { SettingsListSkeleton, SettingsPage, SettingsRowMenu, SettingsSection } from "./settings-section"
 
 type ChannelEnvironment = "TEST" | "PROD"
 
@@ -474,8 +474,39 @@ function ChannelRow({
  */
 export default function ChannelsSettings() {
   const { t } = useTranslation()
-  const { data: channels, mutate } = useGet<ChannelsResponse>("/api/company/channels")
-  const { data: transports } = useDocumentTransports()
+  const {
+    data: channels,
+    loading: channelsLoading,
+    mutate,
+  } = useGet<ChannelsResponse>("/api/company/channels")
+  const { data: transports, isLoading: transportsLoading } = useDocumentTransports()
+
+  // `ChannelRow` below freezes its own `editing` state from `configured?.isActive` at MOUNT time
+  // (`useState(!configured?.isActive)`, never revisited except on an explicit connect/disconnect) —
+  // correct once `channels` has actually loaded, wrong for good if this component (and so
+  // `ChannelRow`) first mounts with `channels` still `undefined` (`configuredMap` then empty,
+  // `configured` `undefined`, `editing` locked to `true`). `transports` and `channels` are two
+  // INDEPENDENT queries; `providerIds` used to be built the moment EITHER resolved, so whichever
+  // settled first decided every row's fate. Proven live (CI run 35095971350, spec 31's own "disconnects
+  // the chorus-pro channel via the screen": the status badge correctly read "Connected" — that text is
+  // recomputed every render, never frozen — but `[data-cy="channel-chorus-pro-menu"]` never existed,
+  // because `editing` had locked `true` on a first paint that raced ahead of `channels`). Gating the
+  // whole list on BOTH queries having resolved is what removes the race, rather than special-casing
+  // `ChannelRow`'s own initializer.
+  if (channelsLoading || transportsLoading) {
+    return (
+      <SettingsPage
+        title={t("settings.channels.title", "Channels")}
+        description={t(
+          "settings.channels.description",
+          "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
+        )}
+        dataCy="channels-section"
+      >
+        <SettingsListSkeleton rows={2} />
+      </SettingsPage>
+    )
+  }
 
   const knownProviderIds = (transports ?? []).map((tr) => tr.id).filter((id) => id !== "email")
   const configuredMap = new Map((channels?.configured ?? []).map((c) => [c.providerId, c] as const))
