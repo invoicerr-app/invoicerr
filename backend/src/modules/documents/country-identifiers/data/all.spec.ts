@@ -313,7 +313,7 @@ describe('country-identifiers/data — the shipped IT and PL files', () => {
 // (a French invoice must carry the SIREN, not necessarily the SIRET) while that answer diverged from
 // what the scheme encoded — that pass's scope was provenance, not behavior, so nothing changed yet.
 //
-// USER DECISION (2026-09-01, "SIRET vs SIREN sur la facture" — now RÉSOLU): the field
+// USER DECISION (2026-09-01, "SIRET vs SIREN on the invoice" — now RESOLVED): the field
 // accepts EITHER length. Label "SIREN / SIRET", pattern `^\d{9}(\d{5})?$`, provenance promoted to
 // "legal" (the citations settle the question; accepting the longer SIRET on top is a documented
 // product choice, not an unsourced claim — see the fact's own `notes`), `required` unchanged (true).

@@ -178,7 +178,7 @@ const CHORUS_PRO_INVOICE_NUMBER_PATTERN = /^[A-Za-z0-9 +_/-]{1,20}$/;
  *    in S2.05's own list corresponds to a PayPal-style wallet — a genuine absence, not an
  *    unresearched one.
  *
- * NON ÉTABLI: whether 'cheque'/'cash'/'stripe' are refused because French public accounting law
+ * NOT ESTABLISHED: whether 'cheque'/'cash'/'stripe' are refused because French public accounting law
  * (Décret n° 2012-1246 du 7 novembre 2012, "GBCP") forbids them outright, or merely because Chorus
  * Pro's own data model never exercises them for THIS flow — this annex does not say either way, and
  * this comment does not claim it does.

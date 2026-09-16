@@ -23,7 +23,7 @@ jest.mock('./persistence');
 jest.mock('./country-policy/country-policy');
 
 /**
- * Custom fields ("champs personnalisés") — proves `DocumentsService` actually composes a
+ * Custom fields — proves `DocumentsService` actually composes a
  * company's own custom field DEFINITIONS onto the field view BOTH `describeTypeForCompany` (the
  * create/edit FORM) and `runAction` (what actually gets VALIDATED) use, right after the country field
  * overlay — the field-level analogue of what documents.service.country-fields.spec.ts already proves

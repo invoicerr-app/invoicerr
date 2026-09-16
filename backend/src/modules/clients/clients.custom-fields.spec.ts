@@ -1,6 +1,6 @@
 /**
- * Custom fields ("champs personnalisés") — the CLIENT-target half: `ClientsService`
- * constructed directly (same "ClientsModule inimportable sous ts-jest" convention
+ * Custom fields — the CLIENT-target half: `ClientsService`
+ * constructed directly (same "ClientsModule not importable under ts-jest" convention
  * `clients.mass-assignment.spec.ts`/`clients.vat-validation.spec.ts` already hold), real Prisma.
  */
 jest.mock('../webhooks/webhook-dispatcher.service', () => ({

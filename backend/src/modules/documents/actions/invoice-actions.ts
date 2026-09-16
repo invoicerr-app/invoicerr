@@ -104,7 +104,7 @@ function describeMandateSource(mandate: ActiveChannelMandate): string {
  * `applies: false` and every line below this comment runs exactly as it did before B2G routing was added.
  *
  * ## The three outcomes `resolveB2gInvoiceTransport` below can reach, all HONEST, never a silent B2B
- * fallback ("le mauvais canal vers un gouvernement est pire qu'un blocage")
+ * fallback ("the wrong channel to a government is worse than a block")
  *
  *  - the client's own country cannot be resolved to an ISO code at all → refused, naming the client
  *    and asking for an explicit country code;
@@ -899,7 +899,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
 
     const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, documentData);
     const payments = await listPayments(companyId, documentId);
-    // CREDITS count towards this same balance ("le lettrage") — resolved here too, not just
+    // CREDITS count towards this same balance (credit matching) — resolved here too, not just
     // in documents.service.ts's own GET .../settlement, so the balance THIS message states (and the
     // "settled" fact logged below) never contradicts what a follow-up read of the settlement screen
     // shows: an invoice already partly credited before this payment must not be reported as owing

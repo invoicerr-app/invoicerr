@@ -8,7 +8,7 @@ import { SettlementCreditInput } from './compute-settlement';
 
 /**
  * WHICH credit notes reduce WHAT a document owes, and by HOW MUCH — the resolution step
- * compute-settlement.ts's own header points to ("le lettrage").
+ * compute-settlement.ts's own header points to (credit matching).
  *
  * Unlike settlement/payments.ts (a fully generic mechanism: `DocumentPayment` hangs off ANY document
  * type via a bare `documentId` FK, no type name anywhere in that file), a "credit" is NOT generic

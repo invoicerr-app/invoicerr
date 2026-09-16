@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Custom fields ("champs personnalisés") — proven THROUGH THE SCREEN like the rest of this
+ * Custom fields — proven THROUGH THE SCREEN like the rest of this
  * suite: ACTIONS go through the interface (Settings -> Custom fields to define, the expense/client
  * forms to fill), content ASSERTIONS go through the API. Backend module:
  * `backend/src/modules/documents/company-custom-fields/`.

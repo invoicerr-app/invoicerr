@@ -137,8 +137,8 @@ export interface ReportingObligationFact {
   periodicity?: string;
   /**
    * When THIS specific fact starts applying — omitted, never guessed, when the calendar itself
-   * could not be read in brut text (see `data/fr.json`'s own facts for why 289 bis/290/290 A's own
-   * size-tiered rollout, fixed by a décret this environment could not reach past Légifrance/JORF's
+   * could not be read in raw text (see `data/fr.json`'s own facts for why 289 bis/290/290 A's own
+   * size-tiered rollout, fixed by a decree this environment could not reach past Légifrance/JORF's
    * own blocking, stays unset rather than asserted from secondary commentary). Carries its OWN
    * provenance, independent of the fact's own `provenance`: the underlying obligation can be `legal`
    * while its start date stays `unverified`, or vice versa.

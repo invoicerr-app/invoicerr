@@ -5,8 +5,8 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 // Until 2026-09-03 this controller used to ALSO expose the external, git-clone
 // plugin mechanism: `GET /plugins`, `GET /plugins/formats`, `POST /plugins` (clone a Git URL and
 // dynamically `import()` it), `DELETE /plugins` (uninstall). Removed — no route above answers
-// those paths any more. See `plugins.service.ts`'s own header ("Le système de
-// plugins, vu par son premier vrai consommateur") for why. Only the in-app plugins API
+// those paths any more. See `plugins.service.ts`'s own header ("The plugin system, as
+// seen by its first real consumer") for why. Only the in-app plugins API
 // (`PluginRegistry`/`PluginType`, the Settings > Plugins screen) remains below.
 @ApiTags('plugins')
 @Controller('plugins')

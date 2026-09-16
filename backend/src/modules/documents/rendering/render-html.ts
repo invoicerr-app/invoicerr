@@ -244,7 +244,7 @@ export interface RenderDocumentHtmlInput {
    */
   paymentMethods?: PaymentMethodPresentation[];
   /**
-   * Custom fields ("champs personnalisés") — the company's OWN custom fields that
+   * Custom fields — the company's OWN custom fields that
    * actually carry a value on THIS instance, resolved by the caller
    * (`render-instance-pdf.ts#companyCustomFieldsFor`) from `company-custom-fields/`. Deliberately its
    * OWN top-level block, never merged into the ordinary `descriptor.fields` loop above: the feature's
@@ -263,7 +263,7 @@ export interface RenderDocumentHtmlInput {
    */
   customFields?: { field: DocumentFieldDescriptor; value: unknown }[];
   /**
-   * Per-recipient document language ("langue du document par destinataire") — which language this render's
+   * Per-recipient document language — which language this render's
    * OWN chrome vocabulary (`language/pdf-chrome-strings.ts`: "Status", "Totals", "VAT … on …", …) is
    * printed in. Resolved by the caller (`render-instance-pdf.ts`, from the document's own client and
    * the company's default — see `language/resolve-recipient-language.ts`), never guessed here.
@@ -746,7 +746,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     html += `    </div>\n`;
   }
 
-  // Custom fields ("champs personnalisés") — the company's own custom fields, LAST on the
+  // Custom fields — the company's own custom fields, LAST on the
   // page (after the legal mentions footer): see `RenderDocumentHtmlInput.customFields`'s own header
   // for why this is a dedicated, end-of-document block rather than an insertion into the ordinary
   // fields loop above. Absent or empty prints NOTHING here — same "nothing, not an empty frame"

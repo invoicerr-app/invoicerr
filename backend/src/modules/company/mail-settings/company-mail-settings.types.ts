@@ -1,6 +1,6 @@
 /**
  * A company's own mail-server override — the company-level step of the mail-server cascade
- * ("Serveur de mail — instance puis société": société → instance → refus nommé). Stored in the
+ * ("Mail server — instance then company": company → instance → named refusal). Stored in the
  * EXISTING `CompanyChannelConfig` table (encrypted at rest, the same
  * `CREDENTIALS_ENCRYPTION_KEY`/`ChannelCredentialsService` mechanism every national transport already
  * uses — see that model's own schema.prisma comment: "A method whose FUTURE field genuinely IS a

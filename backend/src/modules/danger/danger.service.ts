@@ -23,7 +23,7 @@ export class DangerService {
     this.otpExpirationTime = new Date(new Date().getTime() + this.otpExpirationMinutes * 60000);
 
     try {
-      // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — this route is
+      // The company → instance → named refusal cascade (`MailService#sendForCompany`) — this route is
       // OWNER-only and gated by the SAME active-company resolution `resetApp`/`resetAll` below already
       // require (`RolesGuard` only ever sets `request.role` from the session's `activeRole`, which is
       // itself derived from `activeCompanyId` — see `guards/auth.guard.ts` — so an OWNER reaching this

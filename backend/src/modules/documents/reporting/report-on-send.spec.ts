@@ -200,7 +200,7 @@ describe('reportOnSendIfObligated', () => {
     ).resolves.toBeUndefined();
   });
 
-  // "jamais silencieux… mais jamais bloquant" for the ENQUEUE call itself: a failure here must never
+  // "never silent… but never blocking" for the ENQUEUE call itself: a failure here must never
   // throw past this function (mirrors `archiveDeliveredArtifactsIfAny`'s own guarantee).
   it('never throws even when enqueueReport itself rejects', async () => {
     mockedResolveCountry.mockResolvedValue('HU');

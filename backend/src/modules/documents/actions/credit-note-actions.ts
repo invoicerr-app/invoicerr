@@ -38,8 +38,8 @@ export interface CreditNoteActionDeps {
 
 /**
  * Registers the credit note type's action IMPLEMENTATIONS — "save-draft" (the exact same generic
- * mechanism the quote and the invoice already share, generic-actions.ts) and, for lettrage
- * ("le lettrage"), "send" (see credit-note.descriptor.ts's own "Actions" paragraph for the
+ * mechanism the quote and the invoice already share, generic-actions.ts) and, for credit matching,
+ * "send" (see credit-note.descriptor.ts's own "Actions" paragraph for the
  * full reasoning). "send" is deliberately NOT the quote's own send-by-email mechanism
  * (quote-actions.ts), nor any bespoke transport lookup (the invoice's own, invoice-actions.ts): its
  * own `deliver` below does nothing at all — no transport, no email, no recipient — only the shared
@@ -47,7 +47,7 @@ export interface CreditNoteActionDeps {
  * still has no "client" field, no transport, and no policy on who a credit note goes to, exactly the
  * gap this file's own history already refused to invent. What DOES need this transition to exist:
  * settlement/credits.ts only counts a credit note that is "sent" — a draft settles nothing (its own
- * comment, carried over from the removed pre-refactor settlement module), so lettrage needed SOME way out of
+ * comment, carried over from the removed pre-refactor settlement module), so credit matching needed SOME way out of
  * "draft" to mean anything at all.
  *
  * This goes through `runAsyncSendAction` (actions/async-send.ts) like every
@@ -131,10 +131,10 @@ async function checkAndEmitInvoiceSettledFromCreditNote(
 
 /**
  * The currency a credit note declares has no business meaning independent of
- * the invoice it corrects: an avoir carries NO conversion of its own (settlement/
+ * the invoice it corrects: a credit note carries NO conversion of its own (settlement/
  * credits.ts credits whatever it declares directly against the invoice's own, un-converted balance —
- * see that file's own header: "avoirs : pas de conversion — structurellement en
- * devise facture") — so a credit note in a currency OTHER than its invoice's is not a second
+ * see that file's own header: no conversion — structurally in the invoice's own
+ * currency) — so a credit note in a currency OTHER than its invoice's is not a second
  * valid business case with its own rule, it is a data-entry mistake with no sensible reading at all,
  * refused outright rather than silently miscounted forever against the wrong total.
  *

@@ -12,7 +12,7 @@ import { backendPublicUrl } from '@/utils/backend-public-url';
 // __filepath, name, description}` with NO real extension point behind it — the two generic
 // consumers a caller could reach (`canGenerateXml`/`generateXml`) were permanent stubs (`return
 // false` / `throw`), so an external plugin, once loaded, could do nothing. See
-// "Le système de plugins, vu par son premier vrai consommateur" for the full account and the
+// "The plugin system, as seen by its first real consumer" for the full account and the
 // decision: extensibility is the narrow-interface-at-the-core pattern (the OCR provider,
 // `plugins/ocr/providers/local/local.ts`), not third-party code loading. Everything
 // below is the OTHER mechanism, which this service always also ran: IN-APP plugins

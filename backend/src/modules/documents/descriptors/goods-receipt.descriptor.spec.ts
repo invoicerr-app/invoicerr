@@ -2,7 +2,7 @@ import { DocumentTypeRegistry } from './type-registry';
 import { buildGoodsReceiptDescriptor } from './goods-receipt.descriptor';
 
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * Purchase orders & goods receipts, second pass (three-way match) — the
  * descriptor's own shape, independent of DocumentsService wiring, the same split every other
  * descriptor spec in this module
  * already holds for its own type (see e.g. purchase-order.descriptor.spec.ts, received-invoice.

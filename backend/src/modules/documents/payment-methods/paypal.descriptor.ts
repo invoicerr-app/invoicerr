@@ -45,8 +45,8 @@ function buildPayPalLink(email: string, ctx: PaymentMethodRenderContext): string
 }
 
 /**
- * "PayPal" — the account e-mail is both what gets PRINTED (the owner's own brief: "PayPal va afficher
- * le mail du compte") and what a "pay now" LINK is built from ("pourra générer un lien") — one field,
+ * "PayPal" — the account e-mail is both what gets PRINTED (the owner's own brief: "PayPal will display
+ * the account's email") and what a "pay now" LINK is built from ("can generate a link") — one field,
  * two uses, never a second one asked for. The link is OMITTED, not broken, whenever there is no
  * document amount/currency to anchor it to (the payment-methods screen's own preview, an unconfigured
  * e-mail) — see `PaymentMethodRenderContext`'s own header.

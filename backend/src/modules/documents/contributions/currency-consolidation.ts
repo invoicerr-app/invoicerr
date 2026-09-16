@@ -6,7 +6,7 @@ import {
 } from '../../company/currency-rates/currency-rates.store';
 
 /**
- * The ONE rule this whole feature exists to enforce ("le multi-devises"): **a
+ * The ONE rule this whole feature exists to enforce ("multi-currency"): **a
  * conversion is information, never a replacement.** Every per-currency total a contribution already
  * computes (expense-contributions.ts's `totalsByCurrency`, invoice-contributions.ts's pending totals)
  * stays exactly as it is — this module never touches those. It only ever ADDS one extra, clearly

@@ -132,7 +132,7 @@ describe('runAsyncSendAction — DOCUMENT_SENT, against a REAL local HTTP stub',
       // mocked `fetch`, never a bypass of `SlackDriver`/`ChatWebhookDriver`.
       expect(requestCount).toBe(1);
 
-      // "le payload passe par les formatters existants" — the Slack driver's own body shape
+      // "the payload goes through the existing formatters" — the Slack driver's own body shape
       // (`ChatWebhook.send`, drivers/chat-webhook.driver.ts) is `{ text, attachments: [...] }`, and
       // `attachments[0].text` is EXACTLY `formatPayloadForEvent`'s own return value
       // (drivers/event-formatters.ts's `DOCUMENT_SENT` formatter: `**${documentLabel(typeId)}

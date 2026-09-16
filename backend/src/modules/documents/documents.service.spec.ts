@@ -428,7 +428,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
       // Subject/body now come from quote.descriptor.ts's own `email` template, interpolated with the
       // (mocked) render result — 'Test Co' proves the real template pipeline ran, not a re-implementation.
       // The PDF (also mocked) is attached, never a bare text-only email.
-      // `sendForCompany`, not the plain `sendMail` — the société → instance → refus-nommé cascade,
+      // `sendForCompany`, not the plain `sendMail` — the company → instance → named refusal cascade,
       // addressed by THIS company's own id (never a hardcoded string, never the instance's provider
       // called directly).
       expect(mailService.sendForCompany).toHaveBeenCalledWith(

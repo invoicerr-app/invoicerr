@@ -16,7 +16,7 @@ jest.mock('../numbering/take-number');
 jest.mock('../rendering/render-instance-pdf');
 jest.mock('../stock/apply-stock-on-issuance');
 jest.mock('./company-email-templates');
-// Only used by the "société → instance" cascade tests near the bottom of this file — every other
+// Only used by the "company → instance" cascade tests near the bottom of this file — every other
 // test here keeps using a bare fake `mailService` object, never touching this at all.
 jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
   resolveCompanyMailSettings: jest.fn(),
@@ -104,7 +104,7 @@ describe('sendDocumentInstanceEmail', () => {
       attachments: [{ filename: 'quote-doc-1.pdf', content: FAKE_PDF, contentType: 'application/pdf' }],
     });
     expect(result.message).toMatch(/client@example\.com/);
-    // Legal archiving ("archivage légal") — the artifact handed back for archiving is the EXACT
+    // Legal archiving — the artifact handed back for archiving is the EXACT
     // same bytes just attached, never a freshly re-rendered copy.
     expect(result.artifacts).toEqual([
       { role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(FAKE_PDF) },
@@ -435,7 +435,7 @@ describe('sendDocumentInstanceEmail', () => {
     );
   });
 
-  // Per-recipient document language ("langue du document par destinataire") — the email must go out in the
+  // Per-recipient document language — the email must go out in the
   // SAME language `rendered.language` says the attached PDF was just rendered in, never a second,
   // independently-resolved value (see send-document-email.ts's own comment on this call).
   it("sends the descriptor's FRENCH default when the render resolved the recipient's language to 'fr'", async () => {

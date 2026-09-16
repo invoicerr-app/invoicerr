@@ -6,7 +6,7 @@ import * as settlementPayments from './payments';
 import { resolveAgingBucket, resolveClientStatement } from './client-statement';
 
 /**
- * "Relevé de compte client" — same mocking discipline as
+ * "Client account statement" — same mocking discipline as
  * contributions/invoice-contributions.spec.ts (this file's own model): `../persistence` and
  * `./payments` fully mocked (both reach Prisma directly), `./credits` mocked ONLY for
  * `listCreditNotes` (the one function here that reaches Prisma) — `creditsForInvoiceFromNotes`/

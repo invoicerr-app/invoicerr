@@ -22,7 +22,7 @@ import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './receive
  * `company/signing-certificates/signing-certificates.controller.ts` already documents for its own
  * small, type-adjacent controller.
  *
- * Purchase orders & goods receipts, second pass ("rapprochement à 3 voies") added the FOUR routes below —
+ * Purchase orders & goods receipts, second pass ("three-way match") added the FOUR routes below —
  * genuinely new operations too (a 3-way-match RESULT is not a document instance itself, and neither
  * is a company-wide setting), so they live here on the same "bespoke, type-adjacent" reasoning, rather
  * than being shoehorned through `documents.controller.ts`'s generic action-runner
@@ -100,8 +100,8 @@ export class ReceivedInvoicesController {
   }
 
   /**
-   * POST /api/documents/received-invoices/:id/accept-variance — "Un écart est accepté par OWNER ou
-   * ADMIN" (product decision, 2026-09-15): role-gated the same way `setReconciliationSettings` above
+   * POST /api/documents/received-invoices/:id/accept-variance — "A discrepancy is accepted by OWNER
+   * or ADMIN" (product decision, 2026-09-15): role-gated the same way `setReconciliationSettings` above
    * is. Records WHO (`@User()`, this session's own authenticated identity — never trusted from the
    * request body) and WHEN (server clock, `variance-acceptance.ts`), plus an optional free-text
    * `reason`. Returns the FRESHLY re-resolved reconciliation, `overallVerdict`/every line's own

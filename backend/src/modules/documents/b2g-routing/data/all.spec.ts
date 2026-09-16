@@ -42,7 +42,7 @@ describe('b2g-routing/data/all.ts', () => {
     expect(fr.requiredClientIdentifiers?.some((i) => i.scheme === 'LEGAL_ID')).toBe(true);
   });
 
-  // "Le trou allemand du B2G" — briefly CLOSED (2026-09-02 to 2026-09-15) by routing DE through a
+  // "The German B2G gap" — briefly CLOSED (2026-09-02 to 2026-09-15) by routing DE through a
   // "peppol" transport, carrying "xrechnung" CONTENT via that transport's own format override. That
   // transport was removed from the product on 2026-09-15 (no real Access Point account ever backed
   // it — see `b2g-routing/data/de.json`'s own `notes` for the full, dated history), so the rule

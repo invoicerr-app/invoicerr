@@ -1,5 +1,5 @@
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) —
+ * Purchase orders & goods receipts, second pass (three-way match) —
  * `Controller → Service → Prisma` for the 3-way-match HTTP
  * surface (`received-invoices.controller.ts`'s own new routes): a thin `Injectable` wrapping the pure
  * composition (`resolve-received-invoice-reconciliation.ts`), the acceptance write

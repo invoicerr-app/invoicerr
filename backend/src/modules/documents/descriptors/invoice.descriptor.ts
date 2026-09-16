@@ -54,7 +54,7 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * (see below).
  *
  *  - `unit` — STRUCTURAL, not legal, so it carries no citation (see this file's own closing note on
- *    that distinction). EN 16931 (the socle format for France's e-invoicing reform — see
+ *    that distinction). EN 16931 (the base format for France's e-invoicing reform — see
  *    documentation/compliance/FR-France.md §3.A, and the accepted-formats table there) models a
  *    line's quantity with a MANDATORY unit-of-measure code (BT-130, cardinality 1..1) sitting right
  *    next to the quantity itself (BT-129) — confirmed by the old canonical model's own fixtures at
@@ -136,7 +136,7 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  *    "invoice" — see documents.module.ts) — but the 'reference' field KIND itself and the generic
  *    /documents/references/:entity/... endpoints did not change at all to support it.
  *
- * Deliberately NOT added, and why — this is where the noyau could have been tempted, not where it
+ * Deliberately NOT added, and why — this is where the core could have been tempted, not where it
  * broke:
  *
  *  - An invoice "number" FIELD. This descriptor does NOT declare `number` among its `fields` — the
@@ -244,7 +244,7 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * status (transitions have no notion of "conditionally, only once the balance clears") — wrong, an
  * invoice with one euro paid out of a thousand is not "paid"; (b) the one built: no status change at
  * all, ever, from this action. (b) also keeps the door open for a future "paid" STATUS the day
- * reconciliation (credit notes — lettrage) needs one, without inventing it first on
+ * reconciliation (credit notes — credit matching) needs one, without inventing it first on
  * a guess. "export-accounting" likewise declares no `transitions`: unimplemented, so there is no
  * handler behavior yet to declare a status effect for.
  *
@@ -607,7 +607,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
               { value: 'cii', label: 'CII (UN/CEFACT Cross Industry Invoice)' },
               { value: 'ubl', label: 'UBL 2.1' },
               // See formats/facturx-provider.ts's own header for the
-              // reuse this resolves ("Factur-X : embarqueur existant au repère").
+              // reuse this resolves ("Factur-X: reuse of an existing embedder").
               { value: 'facturx', label: 'Factur-X (PDF/A-3 with embedded CII)' },
               // `fa3`/`fatturapa` are TRANSPORT-only by default (see
               // `ksef-transport.ts`/`sdi-transport.ts`'s own headers), added here too only because it

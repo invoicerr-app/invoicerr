@@ -1,6 +1,6 @@
 /**
  * `MailService` — the instance-level provider RESOLUTION TABLE and the
- * "société → instance → refus nommé" `sendForCompany` cascade. `resolveCompanyMailSettings` (the
+ * "company → instance → named refusal" `sendForCompany` cascade. `resolveCompanyMailSettings` (the
  * company-level READ side, `modules/company/mail-settings/company-mail-settings.resolver.ts`) is
  * mocked here — its own round-trip/encryption behavior is proven by
  * `company-mail-settings.service.spec.ts` instead; this file only proves MailService's OWN decision

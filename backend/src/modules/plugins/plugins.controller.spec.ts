@@ -4,7 +4,7 @@
  * them in `PluginsService`: `cloneRepo`/`loadPluginFromPath`/`loadExistingPlugins`/
  * `loadAllPlugins`/`getPlugins`/`deletePlugin`/`canGenerateXml`/`generateXml`/`getFormats`, and the
  * `IPlugin`/`InvoicePlugin`/`PdfFormatInfo` types that shaped it) was REMOVED (decision recorded
- * under "Le système de plugins, vu par son premier vrai consommateur"). This is a
+ * under "The plugin system, as seen by its first real consumer"). This is a
  * removal of behavior, not a weakened test: no spec exercised that mechanism before the removal (grep
  * found none), so there is nothing to "port" — this file's job is the OPPOSITE direction, proving
  * the OTHER, unrelated mechanism this same controller/service always also carried — in-app plugins

@@ -137,7 +137,7 @@ const REJECT_PARAMS: DocumentFieldDescriptor[] = [
  *    the supplier's own document says, taken (extracted or typed) as-is, never re-priced or
  *    re-computed by this company.
  *  - `purchaseOrder` (`reference`, entity "purchase-order") — Purchase orders & goods receipts, second
- *    pass (three-way match / rapprochement à 3 voies): the purchase order this received invoice is
+ *    pass (three-way match): the purchase order this received invoice is
  *    checked against, when there is one. There was NO existing link between a received invoice and a
  *    purchase order before this field — added here, in this type's own generic `data` (no migration
  *    needed, the same "a new
@@ -246,7 +246,7 @@ const REJECT_PARAMS: DocumentFieldDescriptor[] = [
  *    gets a sober default rather than a hole. That reasoning does not carry over here: this type has
  *    no "send" action AND STRUCTURALLY NEVER WILL (see this file's own header — recording a document
  *    someone else issued has no "deliver it" step at all, unlike a credit note's minimal, no-op
- *    "send" which still exists to satisfy lettrage). `actions/email-template.ts`'s own
+ *    "send" which still exists to satisfy credit matching). `actions/email-template.ts`'s own
  *    `GENERIC_FALLBACK_EMAIL_TEMPLATE` is not a gap for a type that can never reach the code path
  *    that would read it.
  *  - `usesLegalMentions`: BG-1 statutory mentions are an ISSUANCE concept (this company's own

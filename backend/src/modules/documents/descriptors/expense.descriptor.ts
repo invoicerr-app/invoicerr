@@ -16,7 +16,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * Fields were originally a 1:1 carry-over of the old `CreateExpenseDto`/`EditExpenseDto`
  * (the removed expense module's own service): description, amount, currency, date, notes.
  *
- * Enriched expense categories ("notes de frais enrichies") added four more, all `required: false` (an
+ * Enriched expense categories added four more, all `required: false` (an
  * expense with none of them is exactly as valid a record as before this feature existed — the same
  * "enrichment, never a new requirement" posture `received-invoice.descriptor.ts`'s own optional
  * fields already hold):
@@ -40,7 +40,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    plain string key, resolved against whichever options apply at read/write time, never itself a
  *    foreign key into `ExpenseCategory` (an archived or since-renamed category's key still reads back
  *    fine — see that model's own schema.prisma header).
- *  - `distanceKm`/`ratePerKm` ("kilométrage") — plain, INFORMATIONAL optional numeric fields, a
+ *  - `distanceKm`/`ratePerKm` (mileage) — plain, INFORMATIONAL optional numeric fields, a
  *    distance and a rate the USER TYPES IN, exactly like `vat-rates/`'s own catalog is "the seller's
  *    own sourced rate, not a tax authority" — nothing here sources a legal mileage scale (a
  *    per-country fiscal barème is legally sourced data, e.g. France's own barème kilométrique

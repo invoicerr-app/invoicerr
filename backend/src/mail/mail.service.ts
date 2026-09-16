@@ -24,9 +24,9 @@ const BREVO_REMOVED_MESSAGE =
   "MAIL_PROVIDER=brevo is no longer supported; use smtp (Brevo's SMTP relay works) or resend";
 
 /**
- * Instance-level provider SELECTION — the instance-level step of the mail-server cascade ("Serveur de
- * mail — instance puis société"): "ça peut être soit SMTP soit Resend (Resend en priorité si les deux
- * sont définis)".
+ * Instance-level provider SELECTION — the instance-level step of the mail-server cascade ("Mail
+ * server — instance then company"): it can be either SMTP or Resend (Resend takes priority if both
+ * are set).
  * `MAIL_PROVIDER`, when set explicitly, is always authoritative (backward-compatible: an existing
  * `MAIL_PROVIDER=smtp` deployment keeps selecting smtp regardless of a stray `RESEND_API_KEY` in its
  * environment — a deliberate choice, since an operator who pinned a value did so on purpose and a
@@ -37,12 +37,12 @@ const BREVO_REMOVED_MESSAGE =
  *
  * | MAIL_PROVIDER | RESEND_API_KEY | SMTP_HOST | Selected                                          |
  * |---------------|-----------------|-----------|---------------------------------------------------|
- * | (unset)       | absent          | absent    | smtp  — "rien" (falls through to the historical   |
+ * | (unset)       | absent          | absent    | smtp  — "nothing" (falls through to the historical |
  * |               |                 |           | default; SmtpMailProvider's own construction warns |
  * |               |                 |           | below since nothing was actually configured)       |
- * | (unset)       | absent          | present   | smtp  — "SMTP seul"                                |
- * | (unset)       | present         | absent    | resend — "Resend seul"                             |
- * | (unset)       | present         | present   | resend — "les deux" (Resend wins per this cascade's |
+ * | (unset)       | absent          | present   | smtp  — "SMTP only"                                |
+ * | (unset)       | present         | absent    | resend — "Resend only"                             |
+ * | (unset)       | present         | present   | resend — "both" (Resend wins per this cascade's    |
  * |               |                 |           | own rule; SMTP is not used as a runtime fallback if |
  * |               |                 |           | Resend fails — deliberately left open, not          |
  * |               |                 |           | implemented here)                                   |
@@ -71,7 +71,7 @@ export function isInstanceMailProviderConfigured(env: NodeJS.ProcessEnv = proces
 }
 
 /** Thrown by `sendForCompany` when NEITHER this company NOR this instance has a mail server
- *  configured — the "société → instance → refus nommé" cascade's own last step. Exported so
+ *  configured — the "company → instance → named refusal" cascade's own last step. Exported so
  *  callers/tests can assert on it without string-matching. */
 export const NO_MAIL_SERVER_CONFIGURED_MESSAGE =
   'No mail server is configured: this company has none set in Settings → Mail, and this instance ' +
@@ -170,7 +170,7 @@ export class MailService {
   }
 
   /**
-   * The "société → instance → refus nommé" cascade: sends AS this company, using — in order — (1)
+   * The "company → instance → named refusal" cascade: sends AS this company, using — in order — (1)
    * this company's OWN mail server (Settings → Mail, SMTP or Resend,
    * `modules/company/mail-settings/`), (2) this INSTANCE's own provider (`this.provider`, selected
    * once at construction — see `resolveInstanceMailProviderId`'s own resolution table), or (3) a

@@ -70,7 +70,7 @@ function ShortListRow({ item, documentTypeId }: ShortListRowProps) {
   )
 }
 
-/** A short, unpaginated list — "les factures en attente". Deliberately no pagination, no search: a
+/** A short, unpaginated list — "pending invoices". Deliberately no pagination, no search: a
  *  dashboard glance, not the detailed table (see table-widget.tsx) statistics gets. */
 export function ShortListWidgetRenderer({ widget }: WidgetRendererProps) {
   const { t } = useTranslation()

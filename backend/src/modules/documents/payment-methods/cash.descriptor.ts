@@ -1,8 +1,8 @@
 import { PaymentMethodDescriptor } from './types';
 
 /**
- * "Cash" — the empty case: NO company-level field at all. "espèce précise que c'est en espèce sans
- * plus" (the owner's own brief) — the method's own `label` already says everything there is to say;
+ * "Cash" — the empty case: NO company-level field at all. "cash just says it's cash, nothing
+ * more" (the owner's own brief) — the method's own `label` already says everything there is to say;
  * `present()` never has anything to append below it. This is what proves the architecture handles a
  * method with zero configuration honestly (an empty `fields` array renders an empty form — no dead
  * "nothing to configure" placeholder needed on the frontend, see payment-methods/index.tsx) rather

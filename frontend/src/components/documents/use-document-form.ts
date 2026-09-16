@@ -98,7 +98,7 @@ export function useDocumentForm({
   // the SAME cache entry `descriptor` itself came from, not a second request.
   const effectiveDescriptor = liveDescriptor ?? descriptor
 
-  // Custom fields ("champs personnalisés") — this company's OWN active custom fields for
+  // Custom fields — this company's OWN active custom fields for
   // THIS document type are already part of `effectiveDescriptor.fields`: the backend now merges them
   // in (`documents.service.ts#describeTypeForCompany`, right after the country field overlay — see
   // that method's own header), the exact same "an add operation composed onto the fields the form
@@ -154,7 +154,7 @@ export function useDocumentForm({
     }
   }, [initialData, status, displayNumber, form])
 
-  // Three-way match (rapprochement à 3 voies) — "pré-remplies depuis le BC": a
+  // Three-way match (rapprochement à 3 voies) — "pre-filled from the PO": a
   // NARROW, explicitly TYPE-GATED exception, unlike the B2G client-watching block above (which looks
   // for ANY field with `entity === "client"`, never a specific typeId): there is no generic descriptor
   // hint today for "populate this WHOLE array field from a top-level reference field's own sub-array"

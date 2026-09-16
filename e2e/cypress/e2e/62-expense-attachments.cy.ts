@@ -117,7 +117,7 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-attachment-value"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-attachment-value"]').should("contain.text", "receipt.jpg");
 
-		// Kilométrage — plain optional fields, filled here to prove they round-trip too (never a
+		// Mileage — plain optional fields, filled here to prove they round-trip too (never a
 		// per-country rate: the user's own number, see the descriptor's own header).
 		cy.get('[data-cy="document-field-distanceKm-input"]').type("12");
 		cy.get('[data-cy="document-field-ratePerKm-input"]').type("0.5");

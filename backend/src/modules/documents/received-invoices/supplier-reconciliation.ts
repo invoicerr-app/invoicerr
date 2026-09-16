@@ -56,11 +56,11 @@ export interface SupplierMatchCriteria {
    *  client book must never defeat an otherwise-real match. */
   vatId?: string;
   /** Raw text off `extraction.ts`'s own `supplier` (the seller's name) — compared EXACTLY (trimmed,
-   *  case-SENSITIVE): "si le nom correspond exactement", read literally on
+   *  case-SENSITIVE): "if the name matches exactly", read literally on
    *  purpose. Unlike a VAT number, a company name has no canonical normalized form this codebase can
    *  safely assume (case folding "Dupont" against "DUPONT" is far more likely to coincidentally
    *  collide two UNRELATED entities than a VAT checksum ever would) — exact-or-nothing is the honest,
-   *  conservative reading of "exactement", not a shortcut. */
+   *  conservative reading of "exactly", not a shortcut. */
   supplierName?: string;
 }
 
@@ -87,7 +87,7 @@ function normalizeVat(value: string): string {
  * pick one). VAT is tried FIRST ("VAT-first") and, on a clean miss (zero identifier
  * rows share the normalized value), name is tried as the fallback — but an AMBIGUOUS vat match returns
  * immediately as `ambiguous`, never silently falling through to a name guess: the safest reading of
- * "un identifiant qui pointe vers deux clients" is to name the ambiguity, not to paper over it with a
+ * "an identifier that points to two clients" is to name the ambiguity, not to paper over it with a
  * second, weaker heuristic.
  */
 export async function reconcileSupplierClient(

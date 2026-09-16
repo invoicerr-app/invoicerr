@@ -164,7 +164,7 @@ export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor,
 
 /** What `GET /documents/:id/settlement` hands back — see `DocumentsService.getSettlement`. Same
  *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
- *  `warnings` are new (item 8, "le lettrage" — settlement/credits.ts): empty arrays for any type that
+ *  `warnings` are new (item 8, credit matching — settlement/credits.ts): empty arrays for any type that
  *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
 /**
  * One document type's email template as a settings screen reads it — the template that CURRENTLY
@@ -1171,7 +1171,7 @@ export class DocumentsService implements OnModuleInit {
    * back). Works for ANY document type, not only the invoice: nothing here names one, the same way
    * `computeTotals` doesn't — a type simply has no payments recorded against it if it never declares
    * a "record-payment"-shaped action, and the settlement then trivially says "nothing paid". CREDITS
-   * (item 8, "le lettrage") are resolved the same way — `resolveCreditsForDocument`
+   * (item 8, credit matching) are resolved the same way — `resolveCreditsForDocument`
    * (settlement/credits.ts) is the one place that knows only "invoice" has any today; a quote or an
    * expense simply gets `credits: []` back, no special-casing needed here.
    */
@@ -1376,7 +1376,7 @@ export class DocumentsService implements OnModuleInit {
       );
     }
 
-    // Cross-border tax ("transfrontalier") — invoice-only: the download is otherwise a generic
+    // Cross-border tax — invoice-only: the download is otherwise a generic
     // export shared by any future document type's own `download-xml`-style action. Reuses the
     // company/client rows ALREADY fetched above (with their `partyIdentifiers`) rather than a second
     // round trip through `tax/load-and-resolve.ts` — the pure resolver

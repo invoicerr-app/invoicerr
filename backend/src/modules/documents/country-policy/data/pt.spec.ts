@@ -56,7 +56,7 @@ describe('PT — country-policy/data/pt.json', () => {
         'quote::send',
         'quote::convert-to-invoice',
         'quote::request-deposit',
-        // Installments ("échéancier") — see this rule's own resolutionNote in pt.json:
+        // Installments — see this rule's own resolutionNote in pt.json:
         // same product-convenience posture as 'quote::request-deposit' right above.
         'quote::request-installments',
         'quote::duplicate',
@@ -86,7 +86,7 @@ describe('PT — country-policy/data/pt.json', () => {
         'purchase-order::save-draft',
         'purchase-order::send',
         'purchase-order::cancel-order',
-        // Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) —
+        // Purchase orders & goods receipts, second pass (three-way match) —
         // see goods-receipt.descriptor.ts's own header.
         'goods-receipt::save-draft',
         'goods-receipt::record',

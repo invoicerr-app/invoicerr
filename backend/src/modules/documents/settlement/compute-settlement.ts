@@ -2,7 +2,7 @@ import { decimalsFor, fromMinor } from '@/utils/financial';
 
 /**
  * What is still owed on a document, once PAYMENTS and CREDITS are counted — nothing else
- * ("le lettrage" — a credit note reconciled against the document it corrects).
+ * (credit matching — a credit note reconciled against the document it corrects).
  *
  * A credit note is NOT a payment, and this module deliberately does not pretend otherwise: it is a
  * document that WITHDRAWS from the claim, not cash that arrived, and a settlement that filed one as

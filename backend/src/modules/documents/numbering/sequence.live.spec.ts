@@ -120,8 +120,8 @@ describeLive('numbering/sequence.ts — real concurrent Postgres', () => {
     );
 
     // What is actually IN THE DATABASE, not just what the function returned — the same discipline
-    // this branch's own e2e specs hold ("l'assertion qui compte lit l'API, jamais une relecture du
-    // DOM comme preuve de la base").
+    // this branch's own e2e specs hold ("the assertion that counts reads the API, never a DOM
+    // re-read as proof of the database").
     const [rowA, rowB] = await Promise.all([
       prisma.documentInstance.findUniqueOrThrow({ where: { id: docA.id } }),
       prisma.documentInstance.findUniqueOrThrow({ where: { id: docB.id } }),

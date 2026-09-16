@@ -33,7 +33,7 @@ describe('DangerService — F-012: the OTP reaches the requester', () => {
     expect(text).not.toContain('was sent to');
   });
 
-  // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — this route is
+  // The company → instance → named refusal cascade (`MailService#sendForCompany`) — this route is
   // OWNER-only and gated by the SAME active-company resolution `resetApp`/`resetAll` already require,
   // so the OTP now goes out through the ACTIVE company's own mail server, never straight to the
   // instance-level `sendMail`.

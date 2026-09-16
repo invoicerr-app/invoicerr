@@ -13,7 +13,7 @@
  * reach MailService.sendForCompany) and MEMORY "KSeF mock tests = false confidence" for why that
  * mocked coverage alone is never evidence a real PDF actually lands in a real inbox.
  *
- * Also exercises `sendForCompany`'s own société → instance → refus-nommé cascade for real: the Company
+ * Also exercises `sendForCompany`'s own company → instance → named refusal cascade for real: the Company
  * created below has no `CompanyChannelConfig` row for the `'mail'` provider, so
  * `resolveCompanyMailSettings` genuinely resolves to `null` against the real database and this test
  * falls through to the instance-level SMTP env vars set just below — never a mocked resolver standing

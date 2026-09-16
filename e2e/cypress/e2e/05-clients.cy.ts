@@ -549,7 +549,7 @@ describe("Clients E2E", () => {
 			cy.contains("Société Française", { timeout: 10000 });
 		});
 
-		// USER DECISION (2026-09-01, "SIRET vs SIREN sur la facture", now RÉSOLU) —
+		// USER DECISION (2026-09-01, "SIRET vs SIREN sur la facture", now RESOLVED) —
 		// `country-identifiers/data/fr.json`'s LEGAL_ID field accepts EITHER a 9-digit SIREN or a
 		// 14-digit SIRET (see that file's own `notes`). Every OTHER FR fixture in this spec types a
 		// 14-digit-shaped value (unaffected by the decision — both lengths pass); this is the one

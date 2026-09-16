@@ -127,7 +127,7 @@ function buildDocumentTypeRegistry(): DocumentTypeRegistry {
   // reasoning (first pass: EMIT a purchase order; 3-way match against a received invoice is a
   // deliberately separate, second pass).
   registry.register(buildPurchaseOrderDescriptor());
-  // Purchase orders & goods receipts, SECOND PASS ("rapprochement à 3 voies") — the SEVENTH type: see
+  // Purchase orders & goods receipts, SECOND PASS (three-way match) — the SEVENTH type: see
   // goods-receipt.descriptor.ts for the full reasoning.
   registry.register(buildGoodsReceiptDescriptor());
   return registry;
@@ -354,7 +354,7 @@ function buildAuthorityStatusPollerRegistry(
 }
 
 /**
- * Online payment ("paiement en ligne") — same "a provider registers itself under an id"
+ * Online payment — same "a provider registers itself under an id"
  * shape as `buildTransportRegistry`/`buildAuthorityStatusPollerRegistry` above. Stripe → Mollie →
  * PayPal, in that order (product decision 2026-09-15) — see `payments/provider.ts`'s own header on why
  * this is its own narrow registry, never `PluginRegistry`. Credentials are resolved the SAME way every
@@ -529,7 +529,7 @@ function buildActionRegistry(
     events: eventsPublisher,
     webhooks: webhookDispatcher,
   });
-  // Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — see
+  // Purchase orders & goods receipts, second pass (three-way match) — see
   // goods-receipt-actions.ts's own header. Needs no extra
   // dependency (like "expense" above), so it registers exactly like that call: pure function of the
   // ActionRegistry it's handed, plus the shared webhook dispatcher.
@@ -581,7 +581,7 @@ function buildEntityReferenceRegistry(
   // to be one file hard-coded to "quote" and is now generic instead of duplicated.
   registry.register('quote', buildDocumentReferenceProvider('quote', 'Quote', clientsService));
   registry.register('invoice', buildDocumentReferenceProvider('invoice', 'Invoice', clientsService));
-  // Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+  // Purchase orders & goods receipts, second pass (three-way match) — the
   // goods receipt's own "purchaseOrder" field AND the
   // received invoice's new "purchaseOrder" field (received-invoice.descriptor.ts) both target this:
   // one more call to the SAME generic factory, exactly like "quote"/"invoice" just above.
@@ -637,7 +637,7 @@ function buildEntityReferenceRegistry(
     // this module's own `exports` array) so `PublicDocumentsModule`'s controller — a DIFFERENT
     // module, importing `DocumentsCoreModule` directly — can inject it for the public OTP flow.
     SignaturesService,
-    // Online payment ("paiement en ligne") — see `buildPaymentProviderRegistry`'s own header
+    // Online payment — see `buildPaymentProviderRegistry`'s own header
     // just above. A plain class provider (like `AuthorityStatusPollerRegistry`/
     // `DeclarationProviderRegistry`, never a string token — nothing outside this feature's own two
     // controllers and `PortalService` ever needs to `@Inject()` it by name). `PaymentSessionsService`
@@ -659,8 +659,8 @@ function buildEntityReferenceRegistry(
     // extended to the two SIBLING country-data tables it didn't originally cover — see each
     // service's own header (country-policy/boot-reseed.service.ts,
     // country-identifiers/boot-reseed.service.ts) for the drift-detect-then-reseed mechanism and the
-    // decision to also run it in production. Closes the "`resetAndSeed` ne re-sème pas
-    // la politique pays" gap, which `B2gRoutingRule`'s own boot-upsert deliberately left open for
+    // decision to also run it in production. Closes the "`resetAndSeed` does not reseed
+    // the country policy" gap, which `B2gRoutingRule`'s own boot-upsert deliberately left open for
     // these two tables when it first shipped (see `schema.prisma`'s own comment on `B2gRoutingRule`).
     CountryPolicyBootReseedService,
     CountryIdentifierRequirementsBootReseedService,

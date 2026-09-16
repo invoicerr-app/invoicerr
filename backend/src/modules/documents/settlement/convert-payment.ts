@@ -1,10 +1,10 @@
 import { CurrencyRateLike, convertMinor, resolveLatestRate } from '../../company/currency-rates/convert';
 
 /**
- * The ONE per-operation conversion decision the issue "les taux existent, mais paiements et avoirs
- * ne convertissent toujours pas" demanded: "un
- * taux PAR OPÉRATION (saisi au moment du paiement, stocké sur lui), pas le taux ambiant de la
- * société." Pure and DB-free, same discipline as `contributions/currency-consolidation.ts`'s own
+ * The ONE per-operation conversion decision the issue "rates exist, but payments and credit notes
+ * still don't convert" demanded: "a
+ * rate PER OPERATION (captured at the moment of payment, stored on it), not the company's ambient
+ * rate." Pure and DB-free, same discipline as `contributions/currency-consolidation.ts`'s own
  * `consolidateByCurrency` — the caller (`actions/invoice-actions.ts`'s "record-payment") fetches
  * `rates` ONCE and hands them in.
  *

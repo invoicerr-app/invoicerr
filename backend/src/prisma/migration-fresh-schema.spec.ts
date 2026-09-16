@@ -1,6 +1,6 @@
 /**
- * The migration-vs-schema enum tripwire ("Dérive
- * migration-vs-schema sur les enums : aucun tripwire automatisé sur base fraîche").
+ * The migration-vs-schema enum tripwire ("Migration-vs-schema drift on enums: no
+ * automated tripwire on a fresh database").
  *
  * The class of bug this closes: `20260903170000_restore_document_settled_after_enum_rebuild`'s own
  * header (read it before touching this file) proves that `migrate deploy` on a FRESH database

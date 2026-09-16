@@ -46,7 +46,7 @@ export interface PdfChromeStrings {
    *  untranslated, the same "plain data" convention every descriptor label already holds — only this
    *  section's heading is this render layer's OWN chrome. */
   paymentMethodsHeading: string;
-  /** Heading of the "additional fields" section (custom fields, "champs personnalisés") —
+  /** Heading of the "additional fields" section (custom fields) —
    *  see `render-html.ts`'s own `customFields` input. Each definition's own `label` stays untranslated
    *  (plain data, a company's own wording), only this section's heading is this render layer's OWN
    *  chrome. */

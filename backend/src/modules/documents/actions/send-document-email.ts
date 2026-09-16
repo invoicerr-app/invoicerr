@@ -44,7 +44,7 @@ export interface SendDocumentEmailInput {
 export interface SendDocumentEmailResult {
   /** Human-facing outcome string — same convention as ActionResult.message. */
   message: string;
-  /** Legal archiving ("archivage légal") — the exact PDF bytes just attached (signed if a
+  /** Legal archiving — the exact PDF bytes just attached (signed if a
    *  certificate was configured — see `pdf` below), the ONE artifact this function ever hands back:
    *  it never builds a structured format, only ever a human-readable PDF. Both the quote's own "send"
    *  and the invoice's "email" transport return this straight through, so
@@ -192,7 +192,7 @@ export async function sendDocumentInstanceEmail(
   // see `renderEmailTemplate`), and `html` is added only when it genuinely exists, so a text-only
   // template still produces the exact same text-only message it always did. MailOptions has supported
   // both since before this mechanism existed (`mail/types.ts`), so no transport changes to carry it.
-  // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a company with its
+  // The company → instance → named refusal cascade (`MailService#sendForCompany`) — a company with its
   // own mail server (Settings → Mail) sends its quotes/invoices/credit-notes through it, never the
   // instance's. A refusal here (including the named "no mail server configured" one) propagates
   // exactly like a `renderDocumentInstance` failure already does — see this function's own header,

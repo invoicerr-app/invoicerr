@@ -1,6 +1,6 @@
 /**
  * Portugal's ATCUD — the settings-screen store for the AT "código de validação" a company obtains,
- * per (série documentaire × tipo de documento), from the Portal das Finanças (AT FAQ 4308/4312, quoted
+ * per (série × tipo de documento), from the Portal das Finanças (AT FAQ 4308/4312, quoted
  * verbatim in `documents/country-policy/data/pt.json`'s own `invoice.send` notes). Shaped after
  * `SigningCertificatesService` (list/upsert/delete, `prisma` singleton, no injected `PrismaService`)
  * with ONE deliberate difference: the validation code is NOT a secret (see this file's header on

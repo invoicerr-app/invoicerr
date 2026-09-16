@@ -6,8 +6,8 @@ import { PaymentMethodPresentation } from './types';
 /**
  * Appends the SAME "Payment methods" presentations the PDF just printed
  * (rendering/render-html.ts's own `paymentMethods` block) onto an already-composed email's `body`/
- * `html` — the owner's own brief for this feature ("PayPal va afficher le mail du compte et pourra
- * générer un lien dans le mail") names the EMAIL as where a method's own link actually belongs, since
+ * `html` — the owner's own brief for this feature ("PayPal will display the account's email and can
+ * generate a link in the email") names the EMAIL as where a method's own link actually belongs, since
  * the PDF is a static artifact a bank/accounting system may also file away, while the email is what a
  * payer reads and can click straight from.
  *

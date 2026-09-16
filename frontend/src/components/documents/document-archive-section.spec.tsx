@@ -5,8 +5,8 @@ import { DocumentArchiveSection, isRetentionCalcStale } from "./document-archive
 import type { DocumentArchive } from "./types"
 
 /**
- * `retentionCalcVersion` is the discriminator that addresses "les archives déjà écrites gardent
- * une date de conservation trop précoce" (2026-09-13): NULL on any row written before
+ * `retentionCalcVersion` is the discriminator that addresses "archives already written keep a
+ * retention date that is too early" (2026-09-13): NULL on any row written before
  * the backend started recording which version of `compute-retention.ts` produced it — which INCLUDES
  * every row from before the origin-axis fix (`cf2e7323`) that counted every duration from the
  * archiving instant instead of the statute's own origin (up to a year too EARLY). `retentionBasis`'s

@@ -262,7 +262,7 @@ export class ReminderSweepRunner {
       }
 
       try {
-        // The société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a company
+        // The company → instance → named refusal cascade (`MailService#sendForCompany`) — a company
         // with its own mail server sends its reminders through it, never the instance's. A named
         // refusal (no mail server configured anywhere) is caught right below exactly like any other
         // send failure: the claim is released and the reason is PERSISTED — see this file's own

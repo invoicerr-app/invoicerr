@@ -15,7 +15,7 @@ jest.mock('../persistence');
 // way `../persistence` already is, defaulting to "nothing paid" so every pre-existing test in this
 // file keeps meaning exactly what it always did.
 jest.mock('../settlement/payments');
-// Same reason, same discipline, for CREDITS ("le lettrage") — `listCreditNotes` also reaches
+// Same reason, same discipline, for CREDITS (credit matching) — `listCreditNotes` also reaches
 // Prisma directly. Defaulted to "no credit notes at all" so every pre-existing test keeps meaning
 // exactly what it always did; the dedicated test below overrides it.
 jest.mock('../settlement/credits', () => {
@@ -339,7 +339,7 @@ describe('buildInvoiceDashboardWidgets', () => {
     const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
 
     // No `computeSettlement`/credits logic was duplicated here — the SAME function this dashboard
-    // already reused for payments is what excludes `credited-1`, "gratuit" per the task's own wording.
+    // already reused for payments is what excludes `credited-1`, "free" per the task's own wording.
     expect(pending.items.map((i) => i.id)).toEqual(['still-pending-1']);
   });
 

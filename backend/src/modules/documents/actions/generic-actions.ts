@@ -16,7 +16,7 @@ import { ActionRegistry } from './action-registry';
  * Nothing here reads a single NATIVE field of `data`, which is exactly why one function still covers
  * every document type regardless of which caller invokes it.
  *
- * Custom fields ("champs personnalisés") — a company's OWN custom field definitions
+ * Custom fields — a company's OWN custom field definitions
  * (company-custom-fields/) are NOT validated here (an earlier revision of this branch did, as the
  * generic write seam every "save-draft" shares): they are wired straight into
  * `documents.service.ts#runAction`'s own `fields`/`validateAgainstDescriptor` pass instead, right

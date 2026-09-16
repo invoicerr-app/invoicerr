@@ -1,7 +1,7 @@
 /**
  * `Client.isSupplier`, the reused-role decision. `ClientsService` constructed
  * DIRECTLY (never `ClientsModule` — see `clients.vat-validation.spec.ts`'s own header, "ClientsModule
- * inimportable sous ts-jest"), real Prisma.
+ * not importable under ts-jest"), real Prisma.
  */
 jest.mock('../webhooks/webhook-dispatcher.service', () => ({
   WebhookDispatcherService: jest.fn(),

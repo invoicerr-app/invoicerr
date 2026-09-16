@@ -2,13 +2,13 @@ import { transitionsAvailableWhen } from './lifecycle';
 import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * Purchase orders & goods receipts, second pass (three-way match) — the
  * SEVENTH type, written the same way every type since the third (credit-note) has been: entirely as
  * data, on the model of
  * `purchase-order.descriptor.ts` (its own closest sibling — see that file's own header for the full
  * "why data, not code" account this header does not repeat).
  *
- * A GOODS RECEIPT ("bon de réception") records what this company's own warehouse actually received
+ * A GOODS RECEIPT records what this company's own warehouse actually received
  * against a purchase order it placed — the middle leg of the 3-way match (PO × receipt × received
  * invoice, `reconciliation/three-way-match.ts`). Structurally the mirror image of `received-invoice.
  * descriptor.ts`: this company is the one WRITING the record (unlike a received invoice, nothing here
@@ -56,7 +56,7 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
  * arrived); "record" is a PLAIN, terminal, ONE-WAY status flip — no data rewrite of its own (the data
  * was already persisted by whichever "save-draft" call preceded it, the exact same split invoice.
  * descriptor.ts's own "save-draft" -> "send" already holds) — once a receipt is `recorded` it is part
- * of the reconciliation trail the "Rapprochement" panel reads, and editing it further would silently
+ * of the reconciliation trail the "Reconciliation" panel reads, and editing it further would silently
  * rewrite history a received invoice may already have been checked against. No "cancel": nothing in
  * this pass's own product decision asks for one, and inventing a correction mechanism for an internal
  * bookkeeping record is exactly the kind of unrequested machinery this codebase avoids — a mistaken

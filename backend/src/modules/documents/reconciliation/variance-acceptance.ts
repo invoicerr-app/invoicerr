@@ -1,7 +1,7 @@
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
- * ACCEPTANCE record: "Un écart est accepté par OWNER ou
- * ADMIN, tracé : qui, quand" (product decision, 2026-09-15). ONE acceptance per received invoice, for
+ * Purchase orders & goods receipts, second pass (three-way match) — the
+ * ACCEPTANCE record: "A discrepancy is accepted by OWNER or
+ * ADMIN, tracked: who, when" (product decision, 2026-09-15). ONE acceptance per received invoice, for
  * the WHOLE reconciliation — not per line: the screen offers a single "Accept the variance" button
  * (`document-reconciliation-section.tsx`), so there is exactly one decision to record, the same
  * "one human decision, one record" shape `received-invoice.descriptor.ts`'s own "approve"/"reject"
@@ -30,7 +30,7 @@ export interface VarianceAcceptance {
   acceptedByLabel: string;
   /** ISO 8601 — captured server-side, never trusted from the caller. */
   acceptedAt: string;
-  /** Optional free-text motive — never required: the product decision names "qui, quand", a reason is
+  /** Optional free-text motive — never required: the product decision names "who, when", a reason is
    *  a bonus, not a gate. */
   reason?: string;
 }

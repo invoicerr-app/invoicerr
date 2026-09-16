@@ -362,7 +362,7 @@ export class SignaturesService {
    * contract the engine documents for document sends, applied here to the two emails where failing
    * closed would be worst.
    *
-   * Sends through the société → instance → refus-nommé cascade (`MailService#sendForCompany`) — a
+   * Sends through the company → instance → named refusal cascade (`MailService#sendForCompany`) — a
    * company with its own mail server sends its signature requests and OTP codes through it, never the
    * instance's. `sendForCompany`'s own named refusal (`NO_MAIL_SERVER_CONFIGURED_MESSAGE`, a
    * `BadRequestException`) is rethrown VERBATIM below, never folded into the generic

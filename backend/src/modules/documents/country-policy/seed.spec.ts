@@ -128,8 +128,8 @@ describe('seedCountryPolicies', () => {
     expect(table.rows.find((r) => r.actionId === 'send')?.statuses).toEqual([]);
   });
 
-  // The known remainder ("country-identifiers/seed.ts ne purge jamais un pays
-  // entièrement retiré") applies identically here: a country ENTIRELY removed from the catalog (not
+  // The known remainder ("country-identifiers/seed.ts never purges a country that has been
+  // entirely removed") applies identically here: a country ENTIRELY removed from the catalog (not
   // just one of its rules) must lose ALL of its rows on the next seed, not just be skipped because
   // the per-country loop never visits a country the catalog no longer names.
   it('a country ENTIRELY REMOVED from the catalog (not just one of its rules) purges every one of its rows', async () => {

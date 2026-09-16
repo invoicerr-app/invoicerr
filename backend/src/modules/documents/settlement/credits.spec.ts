@@ -4,7 +4,7 @@ import { ROW_ID_KEY } from '../row-selection/row-selection';
 import { creditsForInvoiceFromNotes, resolveCreditsForDocument, toSettlementCreditInputs } from './credits';
 
 /**
- * `creditsForInvoiceFromNotes` — the pure resolution step behind "le lettrage". Pure and DB-free
+ * `creditsForInvoiceFromNotes` — the pure resolution step behind credit matching. Pure and DB-free
  * (see this module's own header on why the status/currency rules live
  * here rather than in the Prisma query), so every rule is proven with plain fixtures, no mocking.
  */

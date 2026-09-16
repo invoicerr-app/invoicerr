@@ -1,5 +1,5 @@
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * Purchase orders & goods receipts, second pass (three-way match) — the
  * 3-WAY MATCH ENGINE: purchase order (BC) × goods
  * receipt(s) × received invoice, PER LINE, matched by DESCRIPTION. A pure function, deliberately
  * knowing nothing about `DocumentInstance`, Prisma, or a company — the same "engine composes plain

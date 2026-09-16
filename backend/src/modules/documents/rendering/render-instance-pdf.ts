@@ -161,7 +161,7 @@ export async function paymentMethodsFor(
 }
 
 /**
- * Custom fields ("champs personnalisés") — resolves the "additional fields" block for ONE
+ * Custom fields — resolves the "additional fields" block for ONE
  * instance: every DOCUMENT-target custom field definition for `companyId`/`typeId` that ACTUALLY
  * CARRIES A VALUE on `data`, paired with the raw value itself (`render-html.ts`'s own block formats
  * it, by kind — see `RenderDocumentHtmlInput.customFields`'s own header for why this hands over the
@@ -188,7 +188,7 @@ async function companyCustomFieldsFor(
 }
 
 /**
- * Per-recipient document language ("langue du document par destinataire") — resolves the document's own
+ * Per-recipient document language — resolves the document's own
  * recipient language, ahead of the render, from the SAME client id `referenceLabels` above already
  * resolves a display name for (`findClientReferenceField`, the one rule `actions/email-template.ts`
  * owns — see its own updated header). A document type with no "client" reference field at all

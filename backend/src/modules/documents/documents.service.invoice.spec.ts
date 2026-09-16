@@ -30,12 +30,12 @@ jest.mock('./transports/company-transport');
 // the mocked `./persistence` entirely, so a test that wants to observe or control it must mock this
 // module too, not assume `./persistence`'s mock covers it.
 jest.mock('./settlement/payments');
-// Same reason, same discipline, for CREDITS (item 8, "le lettrage") — `resolveCreditsForDocument`
+// Same reason, same discipline, for CREDITS (item 8, credit matching) — `resolveCreditsForDocument`
 // (settlement/credits.ts) also reaches Prisma directly. Defaulted to "no credits" in `beforeEach`
 // below so every pre-existing test in this file keeps meaning exactly what it always did; the
 // dedicated credits describe block overrides it to prove the balance actually changes.
 jest.mock('./settlement/credits');
-// Cross-border tax ("transfrontalier") — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
+// Cross-border tax — `resolveInvoiceCrossBorderTaxForCompany` (tax/load-and-
 // resolve.ts) ALSO reaches Prisma directly (the seller/buyer country + buyer VAT lookup), same
 // reason, same discipline as every mock above. Defaulted to a permissive PASS-THROUGH in
 // `beforeEach` below (this file's own fixtures never set up a real client/company row, so the real

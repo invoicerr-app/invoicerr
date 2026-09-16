@@ -18,7 +18,7 @@ import { decimalsFor, fromMinor } from "./totals-calculator"
  * (document-list.tsx, document-form.tsx), which gate on `descriptor.actions` alone, the same way
  * `descriptor.numbering` already gates the number badge without naming a type either.
  *
- * Lettering ("le lettrage") added CREDITS to the balance — a credit note is NOT a
+ * Credit matching added CREDITS to the balance — a credit note is NOT a
  * payment (see the backend's compute-settlement.ts header), so the section below renders them as a
  * THIRD block of their own, never merged into the "Payments" list: `paidMinor` and `creditedMinor`
  * stay two separate numbers, and the payments/credits LISTS stay two separate lists, all the way from
@@ -111,7 +111,7 @@ interface DocumentSettlementSectionProps {
  * The settlement section on the document detail page — THREE blocks, never mixed:
  *  1. the badge + the balance itself (paid / credited / outstanding / excess);
  *  2. the PAYMENTS recorded so far;
- *  3. the CREDIT NOTES correcting this document ("le lettrage").
+ *  3. the CREDIT NOTES correcting this document (credit matching).
  * Does NOT render the "record-payment" button itself — that is the descriptor's own action, already
  * offered generically by the page's action header (the mechanism this section relies on: the
  * declared params are enough for that existing screen, nothing bespoke needed here). It does not

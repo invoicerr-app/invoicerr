@@ -142,11 +142,11 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // constants the full 14-digit SIRET, as they already did, is therefore now ALSO the correct wire
     // value, not merely an accepted input the bridge happened to reduce.
     //
-    // Address/city/postal code are NOT sourced from the mattress (it supplies only the raison sociale
-    // and the SIRET) — kept as plausible placeholders; Chorus Pro identifies a structure by SIRET, not
-    // by postal address.
+    // Address/city/postal code are NOT sourced from the mattress (it supplies only the legal name
+    // (raison sociale) and the SIRET) — kept as plausible placeholders; Chorus Pro identifies a
+    // structure by SIRET, not by postal address.
     //
-    // Private-sector qualification structure, SIREN 332540215. Default raison sociale matches the
+    // Private-sector qualification structure, SIREN 332540215. Default legal name matches the
     // mattress's own "Fournisseur 33254021516357".
     //
     // DO NOT "FIX" THIS VALUE: 332540215 fails the standard SIREN Luhn checksum, and that is
@@ -158,8 +158,8 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     const sellerSiret = process.env.CHORUSPRO_SELLER_SIRET ?? '33254021516357';
     // "Destinataire sans paramètre" is deliberate: the mattress offers seven public-sector
     // destinataires, and this is the ONLY one that imposes no extra deposit parameter. The other six
-    // each require something this spec does not supply: an engagement juridique reference
-    // (12345678200036, "avec EJ obligatoire"), a service code (12345678200028, "avec service
+    // each require something this spec does not supply: a legal-commitment ("engagement juridique")
+    // reference (12345678200036, "avec EJ obligatoire"), a service code (12345678200028, "avec service
     // obligatoire", service SERVICE_DEST_SERV_OBL), both (12345678200044), or routing through the
     // SFACETAT service (11000201100044, "Destinataire Etat"). Do not swap this SIRET for one of those
     // without also adding the parameter it requires — the deposit will otherwise be rejected.

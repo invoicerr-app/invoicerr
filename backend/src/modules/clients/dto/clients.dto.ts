@@ -21,7 +21,7 @@ export class EditClientsDto {
   state?: string;
   country: string;
   countryCode?: string;
-  // Per-recipient document language ("langue du document par destinataire") — see Client.language's
+  // Per-recipient document language — see Client.language's
   // own schema.prisma comment for the resolution this feeds
   // (documents/rendering/language/resolve-recipient-language.ts). Free-text, never validated here
   // (this DTO is a TypeScript interface, not runtime-checked — see editClientsInfo's own comment on
@@ -44,7 +44,7 @@ export class EditClientsDto {
   isSupplier?: boolean;
   isActive: boolean;
   identifiers?: IdentifierEntry[];
-  // Custom fields ("champs personnalisés") — one entry per company-defined CLIENT-target
+  // Custom fields — one entry per company-defined CLIENT-target
   // `CompanyCustomField`, keyed by that definition's own immutable `key` (never prefixed — see
   // `Client.customFields`'s own schema.prisma header). Validated in `clients.service.ts` against this
   // company's ACTIVE definitions (`company-custom-fields/persistence.ts#assertClientCustomFieldValuesValid`)

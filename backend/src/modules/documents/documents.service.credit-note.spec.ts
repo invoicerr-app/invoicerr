@@ -228,7 +228,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
   });
 
-  // "L'avoir gagne le webhook au passage": the per-type vocabulary deliberately left this type
+  // "The credit note gets the webhook along the way": the per-type vocabulary deliberately left this type
   // with NO webhook at all (no `CREDIT_NOTE_SENT` ever existed in the schema); the generic
   // `DOCUMENT_SENT` removes the need for a per-type event, so the credit note gets one for free the
   // moment `deps.webhooks` is passed — the SAME wiring invoice/quote already have, no new mechanism.

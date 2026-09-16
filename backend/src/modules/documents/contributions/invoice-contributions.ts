@@ -22,7 +22,7 @@ import {
  * own comments for the reasoning, not just the shape. It covers exactly what was asked for the
  * invoice: a dashboard curve and a pending-invoices list, plus a statistics table so both locations
  * have one worked example. Everything here is ARITHMETIC (counting, summing a document's own line
- * amounts, or — since payments (and now credits — "le lettrage") landed — its own recorded
+ * amounts, or — since payments (and now credits — credit matching) landed — its own recorded
  * payments and the credit notes correcting it) — never a fiscal rule: no VAT INVENTED here (though
  * `computeDocumentTotals` and `computeSettlement` are reused verbatim from their own modules for the
  * "pending" filter below, not reimplemented), no rounding convention invented, no numbering. See
@@ -88,7 +88,7 @@ function recentMonths(now: Date): { key: string; label: string }[] {
 }
 
 /**
- * DASHBOARD: "les factures en attente" (a short list) and "la courbe des factures" (a time series) —
+ * DASHBOARD: pending invoices (a short list) and the invoices curve (a time series) —
  * the exact two examples the task cites.
  *
  * The curve COUNTS invoices per month; it deliberately does NOT sum their amounts. Invoices can be
@@ -104,7 +104,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
 
   // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
   // widget means — that part is unchanged. What changed once payments (and now credits —
-  // "le lettrage") landed (settlement/): a "sent" invoice that has since been SETTLED (paid in full,
+  // credit matching) landed (settlement/): a "sent" invoice that has since been SETTLED (paid in full,
   // credited in full, or a mix that exceeds it) is no longer awaiting anything either, so it is
   // excluded too — a fully-credited invoice sitting in "pending invoices" would be exactly the stale,
   // still-chasing-a-customer-for-nothing fact the settlement exclusion exists to fix. `computeDocumentTotals`/
@@ -202,7 +202,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
             value: Number(total.toFixed(2)),
           }));
 
-  // "le total des factures en attente" (the multi-currency wording) — grouped by
+  // "the pending invoices total" (the multi-currency wording) — grouped by
   // currency, same discipline as expense-contributions.ts's own monthly totals and this file's own
   // curve above: NEVER summed across currencies. `id` is prefixed `invoice:pending-total:` so
   // buildInvoiceDashboardWidgetsWithConsolidation (below) can find exactly these widgets, and only

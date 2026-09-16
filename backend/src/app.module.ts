@@ -131,15 +131,15 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // `client-portal.module.ts`'s own header for why this feature does not need a Core/HTTP split of
     // its own.
     ClientPortalModule,
-    // Time tracking & project invoicing ("suivi du temps & facturation de projets") — self-contained, no
+    // Time tracking & project invoicing — self-contained, no
     // dependency on DocumentsCoreModule (see time-tracking.module.ts's own header).
     TimeTrackingModule,
-    // Bank reconciliation via statement import ("rapprochement bancaire par import de relevé") — its own module,
+    // Bank reconciliation via statement import — its own module,
     // importing DocumentsCoreModule directly so its one write path (reconciling a line) can call the
     // real "record-payment" action rather than a second one (see bank-reconciliation.module.ts's own
     // header).
     BankReconciliationModule,
-    // Online payment ("paiement en ligne") — its own module, importing DocumentsCoreModule
+    // Online payment — its own module, importing DocumentsCoreModule
     // directly for the exact same reason BankReconciliationModule does just above (its webhook path
     // calls the real "record-payment" action, never a second write path — see
     // payment-sessions.service.ts's own header). Carries the ONE public route this feature adds

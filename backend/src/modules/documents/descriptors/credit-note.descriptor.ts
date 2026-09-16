@@ -6,7 +6,7 @@ import { DocumentActionTransition, DocumentTypeDescriptor } from './types';
 const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, label: code }));
 
 /**
- * The credit note ("avoir") document type — the THIRD type written entirely as data, on the model of
+ * The credit note document type — the THIRD type written entirely as data, on the model of
  * quote.descriptor.ts and invoice.descriptor.ts. Its purpose here is narrower than being a usable
  * accounting document: it is the type that answers "does the core actually hold up", not one more
  * example that happens to fit the same mold as the first two. It describes a FORM. It does NOT encode
@@ -43,17 +43,17 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * `credit-note-actions.ts`'s own `registerCreditNoteSaveDraftAction`, which wraps that same
  * persistence with ONE guard: the currency declared here must equal the `invoice` field's own
  * (see that function's own header for the full "why", and this file's own `currency` field for the
- * SCREEN-side half of the same rule, `lockedFromReference`). Plus, for lettrage, "send"
+ * SCREEN-side half of the same rule, `lockedFromReference`). Plus, for credit matching, "send"
  * (actions/credit-note-actions.ts): a plain STATUS transition that reads and writes NOTHING beyond
  * that status — no transport, no email, no recipient. This is deliberately NOT the quote's
  * `registerEmailSendAction`/`registerEmailRecipientDefaultFromClient` mechanism, and NOT the
  * invoice's own company-configured-transport one either: this type still has no "client" field (see
  * the `invoice` field's own comment above) and still no declared opinion on WHO a credit note goes to
  * or THROUGH WHICH channel — exactly the policy this file's own history already refused to invent for
- * "au minimum enregistrer le brouillon". What changed is narrower than that: a credit note only
+ * "at minimum save the draft". What changed is narrower than that: a credit note only
  * REDUCES what the invoice it corrects still owes once it is no longer a draft (settlement/credits.ts
  * — a draft is a document the user has not finished, and settles nothing), so SOME way to leave
- * "draft" had to exist for lettrage to mean anything at all. "send" is that minimal mechanism, and
+ * "draft" had to exist for credit matching to mean anything at all. "send" is that minimal mechanism, and
  * nothing more: it does not attempt delivery, and reusing this name (rather than, say, "issue") keeps
  * it the same verb the frontend already renders a button for on every other type (quote, invoice).
  *
@@ -76,7 +76,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *
  * Numbering: still NOT declared — see types.ts's own comment on `numbering`. Whether an ISSUED credit
  * note needs a legal, sequential number of its own is a real question for actual French bookkeeping,
- * but it is a DIFFERENT concern from lettrage: lettrage asks that a sent credit note reduce what its
+ * but it is a DIFFERENT concern from credit matching: credit matching asks that a sent credit note reduce what its
  * invoice owes, not that it be numbered. Adding `numbering` here would be exactly the kind of
  * unrequested scope this file's own header already declines elsewhere (no forced negative amounts, no
  * required reason code) — left for whichever need actually calls for it, not guessed at here.
@@ -152,7 +152,7 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         // A credit note has no business declaring a currency other than the
         // invoice it corrects: the amount it credits is structurally denominated in that invoice's
         // OWN currency (settlement/credits.ts's own header, and the "no conversion for
-        // avoirs" constat). Locks this field's value to whatever `currency` the picked `invoice`
+        // credit notes" finding). Locks this field's value to whatever `currency` the picked `invoice`
         // resolves to — see types.ts's own `lockedFromReference` header for the full mechanism, and
         // credit-note-actions.ts's own header for the SERVER-SIDE hard block this screen convenience
         // is backed by (never a substitute for it).

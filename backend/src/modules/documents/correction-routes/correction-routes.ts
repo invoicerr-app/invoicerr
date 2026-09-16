@@ -118,8 +118,8 @@ function describeLabel(provenance: LegalProvenance | UnverifiedProvenance): stri
 /**
  * The full correction-routes decision for one seller country, or `undefined` when no file is declared
  * for it at all (unresolved country code included) — the caller (`documents.service.ts`) turns
- * `undefined` into the NAMED 404 the catalog contract requires ("aucune règle de correction déclarée
- * pour XX"), never a silent empty list.
+ * `undefined` into the NAMED 404 the catalog contract requires ("no correction rule declared
+ * for XX"), never a silent empty list.
  */
 export function resolveCorrectionRoutesForCountry(
   countryCode: string | undefined | null,

@@ -49,7 +49,7 @@ const MOLLIE_API_BASE = 'https://api.mollie.com/v2';
  * provider needs.
  *
  * THIS CLASS HAS NEVER BEEN RUN AGAINST A REAL MOLLIE ACCOUNT — no `MOLLIE_API_KEY` exists for this
- * task (see this feature's own brief: "aucune clé sandbox n'est encore disponible"). It is exercised
+ * task (see this feature's own brief: "no sandbox key is available yet"). It is exercised
  * only by unit tests that stub `fetch` (`mollie-client.spec.ts`) and, in every offline environment,
  * replaced outright by `FakeMollieClient` below. Say so here, not just in a test file — the same
  * discipline `stripe-checkout-client.ts`'s own header holds for the identical, honest gap.

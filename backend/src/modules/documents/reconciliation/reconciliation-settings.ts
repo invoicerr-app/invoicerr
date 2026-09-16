@@ -1,5 +1,5 @@
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — the
+ * Purchase orders & goods receipts, second pass (three-way match) — the
  * COMPANY-WIDE reconciliation TOLERANCE (a percentage,
  * default 2 — see `DEFAULT_TOLERANCE_PERCENT` below), settable from the closest existing company
  * settings screen (`settings/_components/company.settings.tsx`, "Reconciliation" card).

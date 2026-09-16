@@ -15,7 +15,7 @@
  *  - `PdpClient.listInvoices({ direction: 'in' })` genuinely returns inbound deposits — proven by a
  *    SELF-ADDRESSED deposit (seller and buyer both this same sandbox tenant's own connected
  *    identifiers, `315143296_1422` / VAT `FR18000000002` / SIREN-ish `000000002`, exactly the
- *    "envoi vers notre propre SIREN" self-test the task named): the OUTBOUND id and the INBOUND
+ *    "send to our own SIREN" self-test the task named): the OUTBOUND id and the INBOUND
  *    twin the platform creates for it are two DIFFERENT ids, `direction=in` lists the SECOND one.
  *  - `PdpClient.downloadInvoiceFile()` genuinely returns the real bytes (`content-type:
  *    application/pdf`, real `%PDF-` magic bytes) — see that method's own header in `pdp-client.ts`

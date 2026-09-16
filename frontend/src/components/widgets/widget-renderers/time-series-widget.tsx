@@ -10,8 +10,8 @@ const CHART_CONFIG: ChartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
 }
 
-/** The curve — "les factures en attente" gets its own kind (shortList); this is "la courbe des
- *  factures". recharts (already a dependency, see components/ui/chart.tsx) is enough on its own:
+/** The curve — "pending invoices" gets its own kind (shortList); this is "the invoices
+ *  curve". recharts (already a dependency, see components/ui/chart.tsx) is enough on its own:
  *  no new package needed for this widget. The card leads with the SUM of every point — the one
  *  number a reader would otherwise have to add up themselves off the curve — next to the title,
  *  the same "title + total + graph" shape every chart card in this app now follows. */

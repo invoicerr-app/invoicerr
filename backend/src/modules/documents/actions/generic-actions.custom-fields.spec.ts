@@ -1,5 +1,5 @@
 /**
- * Custom fields ("champs personnalisés") — `performSaveDraft` (generic-actions.ts) itself
+ * Custom fields — `performSaveDraft` (generic-actions.ts) itself
  * no longer validates a company's custom field definitions: that check moved to
  * `documents.service.ts#runAction` (`company-custom-fields/persistence.ts#applyCompanyCustomFieldsView`),
  * which validates EVERY action's data — "send" included, not merely "save-draft" — against the SAME

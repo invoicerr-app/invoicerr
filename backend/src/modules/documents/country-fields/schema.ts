@@ -1,6 +1,6 @@
 /**
- * The country FIELD OVERLAY — the mechanism the user asked for in exactly these words: "on fait le
- * type invoice de base, et un pays peut ajouter, modifier ou supprimer un champ." Three operations,
+ * The country FIELD OVERLAY — the mechanism the user asked for, in these words: "build the invoice
+ * type as a base, and a country can add, modify, or remove a field." Three operations,
  * no more: `add`, `modify`, `remove`. The core (descriptors/*.descriptor.ts) never names a country;
  * this is where a country's DIFFERENCE from the trunk is expressed, as DATA, the same "a country is
  * data" principle country-policy/ already applies to which ACTIONS a country allows.

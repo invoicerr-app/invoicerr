@@ -17,7 +17,7 @@
  * from it, and reconcile a supplier — everything `received-invoices.service.ts#upload` already does
  * for a human-driven upload, called here for a platform-driven one instead.
  *
- * ## Idempotency — "par identifiant PDP", scanning `data.pdpInboundId`
+ * ## Idempotency — by PDP identifier, scanning `data.pdpInboundId`
  *
  * No dedicated column or unique constraint: `data.pdpInboundId` is a reserved `data` key, the exact
  * same "system fact lives in `data`, not a declared field" convention `fileRef`/`fileName`/`fileMime`

@@ -1,7 +1,7 @@
 /**
  * Pure drift comparison between `data/*.json` (via a `CountryIdentifierRequirementsCatalog`) and
  * whatever `CountryIdentifierRequirement` currently holds — the DETECTION half of the fix for
- * the "`resetAndSeed` ne re-sème pas la politique pays" note, extended to this sibling
+ * the "`resetAndSeed` does not reseed the country policy" note, extended to this sibling
  * table (the same gap applies here identically). See country-policy/drift.ts's own header for the
  * full "why a pure, DB-free function" reasoning — this file mirrors it field-for-field.
  */
@@ -17,8 +17,8 @@ export interface CountryIdentifierRequirementsDriftReport {
   changedCountries: string[];
   /**
    * Countries with rows in the DB but ENTIRELY ABSENT from the files — the exact case
-   * already named ("`country-identifiers/seed.ts` ne purge jamais un pays entièrement
-   * retiré"). Called out separately from `changedCountries` because a naive per-country diff (walk
+   * already named ("`country-identifiers/seed.ts` never purges a country that has been entirely
+   * removed"). Called out separately from `changedCountries` because a naive per-country diff (walk
    * `catalog.countries()`, compare each) would never even look at these.
    */
   removedCountries: string[];

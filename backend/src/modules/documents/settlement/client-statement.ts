@@ -6,7 +6,7 @@ import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs }
 import { sumPaidMinorByDocument } from './payments';
 
 /**
- * "Relevé de compte client" — a PER-CLIENT aggregation of facts that
+ * "Client account statement" — a PER-CLIENT aggregation of facts that
  * already exist: which of the client's invoices are open/settled, which credit notes correct them,
  * the total still owed, and an AGED BALANCE (how overdue each still-open franc/euro/dollar is).
  *

@@ -163,8 +163,8 @@ export async function seedCountryPolicies(
     });
   }
 
-  // Whole-country purge — the known remainder ("`country-identifiers/seed.ts` ne
-  // purge jamais un pays entièrement retiré") names this gap for the sibling table; this one shares
+  // Whole-country purge — the known remainder ("`country-identifiers/seed.ts` never
+  // purges a country that has been entirely removed") names this gap for the sibling table; this one shares
   // it identically, and for the same structural reason: the loop above only ever opens a
   // transaction for a country the FILES still name (`countries`, from `catalog.countries()`). A
   // country dropped from `data/*.json` entirely is never visited by that loop at all, so its rows

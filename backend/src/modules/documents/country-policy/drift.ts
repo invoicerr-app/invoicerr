@@ -1,7 +1,7 @@
 /**
  * Pure drift comparison between `data/*.json` (via a `CountryPolicyCatalog`) and whatever
- * `DocumentCountryActionRule` currently holds — the DETECTION half of the fix for
- * "`resetAndSeed` ne re-sème pas la politique pays" note (the WRITE half stays `seedCountryPolicies`
+ * `DocumentCountryActionRule` currently holds — the DETECTION half of the fix for the
+ * "`resetAndSeed` does not reseed the country policy" note (the WRITE half stays `seedCountryPolicies`
  * in seed.ts, unchanged; see boot-reseed.ts for how the two are wired together).
  *
  * Deliberately separate from any Prisma client and from all I/O: this function takes rows already
@@ -23,7 +23,7 @@ export interface CountryPolicyDriftReport {
   changedCountries: string[];
   /**
    * Countries with rows in the DB but ENTIRELY ABSENT from the files — the exact case
-   * already named for `country-identifiers/seed.ts` ("ne purge jamais un pays retiré") and
+   * already named for `country-identifiers/seed.ts` ("never purges a removed country") and
    * which this table shares (see seed.ts's own whole-country-purge comment). Called out separately
    * from `changedCountries` because a naive per-country diff (walk `catalog.countries()`, compare
    * each) would never even look at these — the catalog doesn't name them at all.

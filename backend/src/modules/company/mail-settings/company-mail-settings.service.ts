@@ -1,6 +1,6 @@
 /**
  * The WRITE side (plus status + test-send) of a company's own mail-server override — the
- * company-level step of the mail-server cascade (société → instance → refus nommé). Backs
+ * company-level step of the mail-server cascade (company → instance → named refusal). Backs
  * `PUT`/`DELETE`/`GET`/`POST test` on `company.controller.ts`
  * (`Controller → Service → Prisma`: this is the only place that touches `ChannelCredentialsService`
  * for the `'mail'` provider id — the controller never does). The READ side used at actual send time
@@ -64,7 +64,7 @@ export class CompanyMailSettingsService {
    * `POST test` — sends a real test email to the REQUESTER's own address (never an address supplied
    * in the request body: this proves "can *I* receive mail sent by this company's configuration",
    * never lets one member probe deliverability to an arbitrary third-party address) through the exact
-   * same société → instance → refus-nommé cascade a real document send would use
+   * same company → instance → named refusal cascade a real document send would use
    * (`MailService#sendForCompany`), and re-throws whatever it raised — the REAL provider error (a bad
    * SMTP password, an invalid Resend key, the named "no mail server configured" refusal, ...) rather
    * than a generic "check your configuration" string, which would defeat the point of a test button.

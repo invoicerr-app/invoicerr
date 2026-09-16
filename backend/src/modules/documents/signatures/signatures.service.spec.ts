@@ -12,7 +12,7 @@ import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 
 jest.mock('../persistence');
-// Only used by the "société → instance" cascade tests near the bottom of this file — every other
+// Only used by the "company → instance" cascade tests near the bottom of this file — every other
 // test here keeps using a bare fake `{ sendForCompany: jest.fn() }`, never touching this at all.
 jest.mock('@/modules/company/mail-settings/company-mail-settings.resolver', () => ({
   resolveCompanyMailSettings: jest.fn(),

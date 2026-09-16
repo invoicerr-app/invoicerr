@@ -45,7 +45,7 @@ export interface DocumentWebhookEmitter {
  * different, Prisma/Redis-only class — already does elsewhere) would force every file that imports
  * one of those three classes to pull in `webhook-dispatcher.service.ts` → `webhooks.service.ts` →
  * `drivers/discord.driver.ts` → `@teever/ez-hook`, the pure-ESM package ts-jest cannot compile
- * (the "ClientsModule inimportable sous ts-jest" constraint) — breaking not just those
+ * (the "ClientsModule not importable under ts-jest" constraint) — breaking not just those
  * three classes' own spec files but every OTHER spec that transitively imports them (found the hard
  * way: `document-action.processor.spec.ts`, the four `queue/__tests__/*.redis.spec.ts` integration
  * specs, `sdi-notifiche.controller.spec.ts`). Depending on this token (a plain `Symbol`, never a

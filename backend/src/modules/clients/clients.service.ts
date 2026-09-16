@@ -45,7 +45,7 @@ export class ClientsService {
   }
 
   /**
-   * Client account statement ("relevé de compte client") — the client's own statement (open/settled
+   * Client account statement — the client's own statement (open/settled
    * invoices, the credit notes correcting them, the total owed, and an aged balance), computed by
    * settlement/client-statement.ts's `resolveClientStatement`. 404s the same way every other
    * single-client read on this service does when `id` doesn't exist or belongs to another company —
@@ -267,7 +267,7 @@ export class ClientsService {
       }
     }
 
-    // Custom fields ("champs personnalisés") — checked BEFORE create for the same reason
+    // Custom fields — checked BEFORE create for the same reason
     // the identifier pattern check just above is: a client row with an invalid custom field value on
     // file, however briefly, is worse than refusing the write outright.
     await assertClientCustomFieldValuesValid(companyId, data.customFields as Record<string, unknown>);
@@ -324,7 +324,7 @@ export class ClientsService {
       }
     }
 
-    // Custom fields ("champs personnalisés") — checked BEFORE the write, same reasoning as
+    // Custom fields — checked BEFORE the write, same reasoning as
     // `createClient`'s own check above. `undefined` (the caller never sent `customFields` at all) is
     // treated the same as `{}` by `assertClientCustomFieldValuesValid` — a plain edit that never
     // touches custom fields never trips a "missing required field" error for one it wasn't editing.

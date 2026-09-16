@@ -17,8 +17,8 @@
  *    top-level field's plain key lookup does (see "changed vs unchanged" below) — extending here is
  *    future work, not an oversight.
  *
- *    FOLLOW-UP on the `hiddenReference` gap this scope note documents ("`hiddenReference` n'est pas
- *    couvert") — investigated and closed by MEASUREMENT, not by code: every consumer that actually
+ *    FOLLOW-UP on the `hiddenReference` gap this scope note documents ("`hiddenReference` is not
+ *    covered") — investigated and closed by MEASUREMENT, not by code: every consumer that actually
  *    resolves an `articleId` already
  *    scopes by the ACTING company's own `companyId`, never by a company implied by the id itself —
  *    `ArticlesService.findOne`/`findAll` (`modules/articles/articles.service.ts`, `where: { id,

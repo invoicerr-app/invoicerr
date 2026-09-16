@@ -1,6 +1,6 @@
 /**
  * `ClientsService` constructed DIRECTLY (never `ClientsModule` — see `clients.vat-validation.spec.ts`'s
- * own header, "ClientsModule inimportable sous ts-jest"), real Prisma.
+ * own header, "ClientsModule not importable under ts-jest"), real Prisma.
  *
  * Covers the mass-assignment close on `editClientsInfo`: there is no runtime request validation
  * anywhere in this API (no ValidationPipe, no class-validator — `EditClientsDto` is a TypeScript

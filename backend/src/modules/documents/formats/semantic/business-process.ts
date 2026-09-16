@@ -81,7 +81,7 @@ const LIMITATIVE = ['B1', 'S1', 'M1', 'B2', 'S2', 'M2', 'B4', 'S4', 'M4', 'S5', 
 export type FrenchBusinessProcessCode = (typeof LIMITATIVE)[number];
 
 /**
- * The letter is the category: B = biens (goods), S = services, M = mixte. The digit is the invoicing
+ * The letter is the category: B = biens (goods), S = services, M = mixte (mixed). The digit is the invoicing
  * frame — only frame 1 (a direct sale, the ordinary case) is derivable from supply type alone; frames
  * 2 (auto-facturation), 4 (mandat de facturation) and 5/6/7 depend on WHO issues the invoice for
  * WHOM, which no part of this codebase models. Inventing a frame would be worse than always

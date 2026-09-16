@@ -24,7 +24,7 @@ import { SettingsList, SettingsListRow, SettingsSection } from "./settings-secti
 const EXCHANGERATE_API_SOURCE = "exchangerate-api"
 
 /**
- * Minimal CRUD screen for manually-entered exchange rates ("le multi-devises") —
+ * Minimal CRUD screen for manually-entered exchange rates ("multi-currency") —
  * GET/POST /api/company/currency-rates. No delete, no edit: correcting a mis-entered rate means
  * entering a NEW one with a later `asOf` — it simply outranks the old one at resolution time (see
  * the backend's CurrencyRatesController header) — the same "never mutate history, add a new fact"

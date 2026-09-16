@@ -246,7 +246,7 @@ describe("Expense categories — Settings screen, and the API it drives", () => 
 					expect(res.status, "DELETE (archivage) refusé à un MEMBER").to.eq(403);
 				});
 
-				// Rien n'a changé : ni le libellé, ni l'archivage.
+				// Nothing changed: neither the label, nor the archiving.
 				listCategories().then((after) => {
 					const stillOther = after.find((c) => c.id === other!.id);
 					expect(stillOther?.label, "le libellé n'a pas bougé").to.eq(other!.label);

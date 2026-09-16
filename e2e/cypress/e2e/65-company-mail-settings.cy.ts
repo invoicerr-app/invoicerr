@@ -82,7 +82,7 @@ describe("Company mail settings — configuration screen", () => {
 		// The e2e stack's real Mailpit — already what the INSTANCE-level SMTP config in
 		// backend/.env.test points at (SMTP_HOST=localhost, SMTP_PORT=1025, SMTP_SECURE=false),
 		// so a company-level override here exercises the SAME real server, just through the
-		// "société" branch of the cascade instead of the instance one.
+		// "company" branch of the cascade instead of the instance one.
 		cy.get('[data-cy="mail-settings-host-input"]').clear().type("localhost");
 		cy.get('[data-cy="mail-settings-port-input"]').clear().type("1025");
 		cy.get('[data-cy="mail-settings-username-input"]')

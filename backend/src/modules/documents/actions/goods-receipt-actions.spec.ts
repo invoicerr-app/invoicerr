@@ -5,7 +5,7 @@ import { registerGoodsReceiptActions } from './goods-receipt-actions';
 jest.mock('../persistence');
 
 /**
- * Purchase orders & goods receipts, second pass (three-way match / rapprochement à 3 voies) — proves
+ * Purchase orders & goods receipts, second pass (three-way match) — proves
  * the goods receipt's own bespoke handler ("record")
  * plus the two generic ones it wires (`save-draft`/`delete`, generic-actions.ts's own job to prove —
  * not re-proven here, only that this file actually registers them under the right id).
