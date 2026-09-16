@@ -32,18 +32,38 @@ export class ReportingObligationCatalog {
   }
 
   /**
-   * The ONE fact (if any) that binds a document of type `typeId`, issued by a seller in
-   * `countryCode`, to a declarative provider — what `report-on-send.ts` actually calls. A country
-   * could in principle declare more than one provider for the same type (never shipped today); this
-   * returns the FIRST match, in file order, the same "first match wins, never merged" convention
-   * `channel-policy/mandate.ts`'s own `activeChannelMandateFor` already holds for its own lookup.
+   * The ONE fact (if any) `report-on-send.ts` should auto-enqueue a report job for — a NARROWER
+   * question than "does this country have ANY fact for this type" (`factsFor` answers that,
+   * unfiltered, for the settings screen). Two kinds of fact live in `reporting/data/*.json` but are
+   * DELIBERATELY excluded here, never silently auto-triggered:
+   *
+   *   - `dischargedBy: 'transport'` (France's B2B-domestic invoices, discharged by the PDP as a
+   *     side effect of delivery): there is nothing for THIS mechanism to enqueue — the transport
+   *     already carries the data. Enqueuing a report job under the transport's own id would also
+   *     wrongly conflate it with a genuine declaration provider — see `schema.ts`'s own
+   *     `providerId` doc for why that distinction matters to `list-declarations.ts`.
+   *   - a fact carrying a `scope` restriction (France's B2C/export/intra-EU/payments facts, CGI
+   *     art. 290/290 A): this codebase has no per-invoice classifier for "is this buyer domestic or
+   *     foreign, B2B or B2C" at send time — firing on EVERY invoice would over-report (a
+   *     B2B-domestic invoice is already covered by the transport row above), so until that
+   *     classifier exists this returns nothing rather than guess, the same "read by nothing yet,
+   *     deliberately" posture `domestic-reverse-charge/DESIGN.md` documents for its own catalog.
+   *
+   * Only an UNSCOPED, `dischargedBy: 'provider'` fact (Portugal today) is safe to fire
+   * unconditionally on every document of `appliesTo`'s type — the shape this catalog held before
+   * `scope`/`dischargedBy` existed at all. A country could in principle declare more than one such
+   * fact for the same type (never shipped today); this returns the FIRST match, in file order, the
+   * same "first match wins, never merged" convention `channel-policy/mandate.ts`'s own
+   * `activeChannelMandateFor` already holds for its own lookup.
    */
   obligationFor(
     countryCode: string | undefined,
     typeId: ReportableDocumentType | string,
   ): ReportingObligationFact | undefined {
     if (!countryCode) return undefined;
-    return this.factsFor(countryCode).find((fact) => fact.appliesTo === typeId);
+    return this.factsFor(countryCode).find(
+      (fact) => fact.appliesTo === typeId && fact.dischargedBy === 'provider' && !fact.scope,
+    );
   }
 }
 

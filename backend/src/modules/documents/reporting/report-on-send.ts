@@ -25,12 +25,17 @@
  * `DocumentInstance.lastActionError` (a reporting failure is not a "the send action itself failed"
  * fact — the invoice genuinely left; see `report-job.ts`'s own header on `REPORT_FAILED_STATUS_CODE`).
  *
- * ## A country with no obligation — "NOTHING changes"
+ * ## A country with no AUTO-TRIGGERABLE obligation — "NOTHING changes"
  *
- * `ReportingObligationCatalog.obligationFor` returns `undefined` for every country with no
- * `reporting/data/*.json` file (which is every country except HU and GR today) — this function
+ * `ReportingObligationCatalog.obligationFor` returns `undefined` for a country with no
+ * `reporting/data/*.json` file at all (every country except FR and PT today) — this function
  * returns immediately, having enqueued nothing, exactly the pre-existing "send" behaviour for every
- * type and every seller without an obligation.
+ * type and every seller without an obligation. It ALSO returns `undefined` for France specifically,
+ * despite `reporting/data/fr.json` existing: every FR fact is either `dischargedBy: 'transport'`
+ * (nothing for this trigger to do — the PDP already carries the data) or `scope`-restricted (no
+ * per-invoice B2B/B2C classifier exists yet to safely auto-fire on) — see `obligationFor`'s own
+ * header in `registry.ts` for the full reasoning. Portugal remains the one country this function
+ * still actually enqueues a job for.
  */
 import { logger } from '@/logger/logger.service';
 

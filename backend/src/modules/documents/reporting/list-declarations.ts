@@ -30,13 +30,23 @@ const PAGE_SIZE = 10;
  *  between "a declaration" and "an ordinary conformity poll event" (see this file's own header).
  *  Recomputed on every call, no caching: the same "read straight from these small files, there is no
  *  per-request performance case that would justify a mirror" tradeoff `ReportingObligationCatalog`'s
- *  own header already documents, applied here to a derived index rather than the facts themselves. */
+ *  own header already documents, applied here to a derived index rather than the facts themselves.
+ *
+ *  Filtered to `dischargedBy === 'provider'` — a `'transport'`-discharged fact's own `providerId`
+ *  names a `transports/transport-registry.ts` id (e.g. France's `"pdp"`), NEVER a genuine
+ *  `DeclarationProviderRegistry` one (see `schema.ts`'s own `providerId` doc). Collecting it here
+ *  unfiltered would make this function's own boundary claim false: PDP's OWN conformity-poll events
+ *  already use `"pdp"` as their `providerId` (`conformity/pollers/`) — including it would silently
+ *  leak every French PDP delivery confirmation into the Declarations screen as if it were a
+ *  tax-authority declaration, exactly the conflation this file's own header warns against. */
 export function declarationProviderIds(
   files: typeof ALL_REPORTING_OBLIGATION_FILES = ALL_REPORTING_OBLIGATION_FILES,
 ): string[] {
   const ids = new Set<string>();
   for (const file of files) {
-    for (const fact of file.facts) ids.add(fact.providerId);
+    for (const fact of file.facts) {
+      if (fact.dischargedBy === 'provider') ids.add(fact.providerId);
+    }
   }
   return Array.from(ids);
 }
@@ -46,12 +56,19 @@ export function declarationProviderIds(
  *  seller country at declaration time could, in principle, have since changed on the company record;
  *  this names the country the OBLIGATION itself belongs to). `undefined` only if a providerId a
  *  historical event still carries was later removed from every country file — never happens today,
- *  but a real possibility this function does not paper over with a guess. */
+ *  but a real possibility this function does not paper over with a guess. Same `dischargedBy ===
+ *  'provider'` filter as `declarationProviderIds` above, for the identical reason: a
+ *  `DocumentAuthorityEvent` row this function is ever asked about only ever came from
+ *  `reporting-runner.ts`'s own `declare()` call, which never runs for a `'transport'`-discharged
+ *  fact in the first place (see `registry.ts#obligationFor`) — so a transport id never legitimately
+ *  reaches here, and this filter keeps it that way rather than trusting the caller. */
 function countryCodeForProvider(
   providerId: string,
   files: typeof ALL_REPORTING_OBLIGATION_FILES = ALL_REPORTING_OBLIGATION_FILES,
 ): string | undefined {
-  return files.find((file) => file.facts.some((fact) => fact.providerId === providerId))?.countryCode;
+  return files.find((file) =>
+    file.facts.some((fact) => fact.dischargedBy === 'provider' && fact.providerId === providerId),
+  )?.countryCode;
 }
 
 export interface DeclarationListEntry {

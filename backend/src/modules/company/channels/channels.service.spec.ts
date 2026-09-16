@@ -289,9 +289,32 @@ describe('ChannelCredentialsService', () => {
       }
     });
 
-    it('a French company has no reporting obligation at all — not a guess', async () => {
+    // reporting/data/fr.json now ships three facts (CGI art. 289 E, transport-discharged; two
+    // scoped, unverified art. 290/290 A e-reporting facts) — `reportingObligations` returns
+    // `factsFor()` UNFILTERED (unlike `list-declarations.ts#declarationProviderIds`, which narrows to
+    // `dischargedBy === 'provider'` for the DB query), so all three now surface here. This is the
+    // settings-screen read, never the send-time auto-trigger (`registry.ts#obligationFor` still
+    // excludes the transport fact and both scoped facts — see that file's own header).
+    it("a French company's reporting obligations reflect the real fr.json facts — not a hard-coded empty guess", async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
-      await expect(service.reportingObligations('company-1')).resolves.toEqual([]);
+      const facts = await service.reportingObligations('company-1');
+      expect(facts).toEqual([
+        expect.objectContaining({
+          providerId: 'pdp',
+          appliesTo: 'invoice',
+          provenance: expect.objectContaining({ kind: 'legal' }),
+        }),
+        expect.objectContaining({
+          providerId: 'fr-ereporting',
+          appliesTo: 'invoice',
+          provenance: expect.objectContaining({ kind: 'unverified' }),
+        }),
+        expect.objectContaining({
+          providerId: 'fr-ereporting',
+          appliesTo: 'invoice',
+          provenance: expect.objectContaining({ kind: 'unverified' }),
+        }),
+      ]);
     });
   });
 

@@ -120,7 +120,7 @@ honest gap rather than a guess.
 | Content requirements | `content-requirements/data/` | Whether a specific EN 16931 field (e.g. BT-23) must carry a country-derived value from a date. | No — read live from the file. |
 | VAT rate catalog | `vat-rates/data/` | The rate **ladder** a user picks from on one invoice line (presentation data, not a tax computation). | No — read live from the file. |
 | Archive retention | `archive/retention/data/` | How long a document archived for this country must be kept, and — just as important — **what that duration is counted from** (`origin`: the archiving instant, the issue date, the end of its calendar year, or a safe reading of a financial-year close). A country may declare SEVERAL rules: they are simultaneous obligations, and the effective floor is their maximum, never a choice between them. | No — read live from the file; written onto `DocumentArchive.retentionUntil`/`retentionBasis` when an archive is created. |
-| Reporting obligation | `reporting/data/` | Whether this country requires the seller to **declare** an invoice's data to its own tax authority after issuance, independently of how the invoice was delivered. Distinct from channel policy, which is about delivery. | No — read live from the file. |
+| Reporting obligation | `reporting/data/` | Whether this country requires an invoice's data to reach its tax authority after issuance, independently of how the invoice was delivered — distinct from channel policy, which is about delivery. Each fact says WHO discharges it (`dischargedBy: "provider"`, the seller itself; or `"transport"`, when the delivery channel already carries the data as a legal side effect — France's PDP for a B2B-domestic invoice) and, optionally, WHICH transactions it covers (`scope`, e.g. `"b2c"`/`"international"`/`"payments"` — absent means "every transaction", the shape Portugal's own file still uses). Only an unscoped `"provider"` fact is auto-triggered at send time; a `"transport"` fact or a scoped one is catalog data only — see `reporting/schema.ts`'s own header. | No — read live from the file. |
 
 You will rarely need all of these for a new country. A country whose only need is "let the OSS tax
 engine compute a destination rate for it" needs *only* `tax/tax-systems/data/xx.json` — see
@@ -195,6 +195,19 @@ up front:
 - `tax/tax-systems/data/<cc>.json` may omit `standardRate` for a VAT/GST country **if**
   `vat-rates/data/<cc>.json` already has a `STANDARD`-category entry — it's derived from there
   rather than duplicated (see `tax/tax-systems/schema.ts`'s own "DELIBERATE NON-DUPLICATION").
+- `reporting/data/<cc>.json` every fact needs `dischargedBy`. Pick `"transport"` only when a
+  DELIVERY channel already carries the data to the authority as a legal side effect of sending the
+  invoice (its `providerId` then names a `transports/transport-registry.ts` id, e.g. `"pdp"` — never
+  validated against that registry here, the same "two independently maintained sources" risk every
+  sibling `providerId` field already accepts); otherwise `"provider"`, and `providerId` names a
+  `reporting/declaration-provider.ts` `DeclarationProviderRegistry` id — it may legitimately name one
+  nothing implements yet (an honest placeholder, same convention as `b2g-routing/data/pt.json`'s
+  `"fe-ap"`). Add `scope` only when the LAW ITSELF carves out specific transaction categories
+  (`"b2b-domestic"`/`"b2c"`/`"international"`/`"payments"`) — omit it when the law draws no such
+  distinction, never to "narrow" a fact for convenience. A scoped fact, or one with
+  `dischargedBy: "transport"`, is deliberately never auto-triggered at send time (this codebase has
+  no per-invoice B2B/B2C classifier yet) — it stays catalog data, read by the settings screen, until
+  that wiring exists.
 
 ### 4. Register the file — almost always a no-op
 
@@ -342,6 +355,17 @@ Some countries genuinely need code, not just data:
   useful resolution note. This is not an unfinished file to be ashamed of; it is exactly what
   honest, partial research looks like in this format, and it is just as loadable and just as
   enforced as a fully-`legal` file.
+- **`reporting/data/fr.json`** — the file that grew `reporting/schema.ts`'s `dischargedBy`/`scope`
+  fields in the first place. Reading CGI art. 289 E in brut text showed that a B2B-domestic French
+  invoice's data-transmission duty falls on the PDP platform, never the company — a fact this
+  catalog's original one-`providerId`-fires-unconditionally shape could not say at all — while
+  art. 290/290 A impose a SEPARATE, periodic obligation on the seller, but only for B2C, export/
+  intra-EU, and payment data. Three facts, three different `scope`s, one `dischargedBy: "transport"`
+  and two `dischargedBy: "provider"` (naming a provider nothing implements yet — see this page's own
+  bullet above on that being a legitimate, named placeholder) — and two of the three stay
+  `unverified` on purpose: the OBLIGATION itself was read in brut, but the calendar that says WHEN it
+  starts (a décret, size-tiered) was not, after several distinct attempts against Légifrance/JORF/
+  BOFiP all documented, dated, in the file's own `notes`.
 
 ## Seeing the result
 

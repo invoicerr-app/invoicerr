@@ -6,8 +6,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * pivot only Portugal ("pt-at") has a declaration provider at all (status:
  * implemented-awaiting-accreditation — `reporting/providers/pt-declaration-provider.ts`'s own
  * header), this spec proves the screen is honest in BOTH directions:
- *  - a French seller (the default seed) has NO reporting obligation at all — the empty state says so
- *    plainly, never a permanently-empty table that looks like a loading bug;
+ *  - a French seller (the default seed) now DOES have a reporting obligation on file
+ *    (`reporting/data/fr.json`: CGI art. 289 E, discharged by the PDP transport, plus two unverified
+ *    art. 290/290 A e-reporting facts) — `GET /documents/declarations` reflects that (`hasObligation:
+ *    true`), but nothing is ever auto-enqueued for it: the PDP fact is `dischargedBy: "transport"`
+ *    and the other two carry a `scope`, both deliberately excluded from `registry.ts#obligationFor`'s
+ *    auto-trigger (see that file's own header) — so the list itself stays empty and the screen shows
+ *    the "no declarations filed yet" state, never the (now factually wrong) "no obligation" one;
  *  - a Portuguese seller with NO "pt-at" credentials configured produces a REAL, journaled
  *    `report:blocked` declaration the moment an invoice is sent — proven through a REAL click on
  *    "Send", never a direct call to the reporting mechanism. The real AT webservice is NEVER called:
@@ -104,35 +109,43 @@ function createPortugueseInvoiceDraft(clientId: string) {
 		});
 }
 
-describe("Declarations — a country with no reporting obligation says so plainly", () => {
+describe("Declarations — a country with an obligation on file but nothing auto-enqueued yet", () => {
 	before(() => {
-		cy.resetAndSeed(); // the default seeded company is French — the reporting catalog ships no file for
-		// France at all (only pt.json exists under reporting/data/), which is the whole point of this suite.
+		cy.resetAndSeed(); // the default seeded company is French — reporting/data/fr.json now DOES
+		// declare France's own facts (289 E, transport-discharged; 290/290 A, scoped and unverified),
+		// but none of them is a fact registry.ts#obligationFor will ever auto-trigger a report job for.
 	});
 
 	beforeEach(() => {
 		cy.login();
 	});
 
-	it("the sidebar leads to the Declarations screen, which shows the no-obligation empty state for a French company", () => {
+	it("the sidebar leads to the Declarations screen, which shows the no-declarations-yet empty state for a French company", () => {
 		cy.visit("/dashboard");
 		cy.get('[data-cy="sidebar-declarations-link"]', { timeout: 15000 }).click();
 		cy.url().should("include", "/declarations");
 
-		cy.get('[data-cy="declarations-no-obligation"]', { timeout: 15000 }).should(
+		cy.get('[data-cy="declarations-empty"]', { timeout: 15000 }).should(
 			"contain.text",
-			"no declaration obligation",
+			"No declarations have been filed yet.",
 		);
+		cy.get('[data-cy="declarations-no-obligation"]').should("not.exist");
 		cy.get('[data-cy="declarations-table"]').should("not.exist");
 
-		// PROOF that matters: the API itself says so, not just the screen's own copy.
+		// PROOF that matters: the API itself says so, not just the screen's own copy. France now HAS an
+		// obligation on file (hasObligation: true) — but zero declarations exist, because every FR fact
+		// is either transport-discharged (289 E, the PDP already carries it) or scoped (290/290 A, no
+		// per-invoice B2B/B2C/domestic/export classifier exists yet) — see registry.ts#obligationFor.
 		cy.request({ url: `${api}/api/documents/declarations` })
 			.its("body")
 			.then((body) => {
-				expect(body.hasObligation, "la France n'a aucune obligation de déclaration aujourd'hui").to.eq(
-					false,
+				expect(
+					body.hasObligation,
+					"la France a désormais une obligation de déclaration au catalogue",
+				).to.eq(true);
+				expect(body.declarations, "aucune déclaration auto-déclenchée pour cette société").to.deep.equal(
+					[],
 				);
-				expect(body.declarations, "aucune déclaration pour cette société").to.deep.equal([]);
 				expect(body.pageCount).to.eq(0);
 			});
 	});

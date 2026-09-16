@@ -19,7 +19,34 @@ const fixtureCatalog = new ReportingObligationCatalog([
       {
         providerId: 'nav',
         appliesTo: 'invoice',
+        dischargedBy: 'provider',
         provenance: { kind: 'legal', sourceText: 'fixture', sourceCheckedAt: '2026-09-02' },
+      },
+    ],
+  },
+]);
+
+// The real shape France's own `reporting/data/fr.json` ships — a transport-discharged fact AND a
+// scope-restricted one, both for "invoice" — used by the two dedicated tests below to prove the
+// TRIGGER itself never fires for either, independently of `registry.spec.ts`'s own unit coverage of
+// `obligationFor`'s filter.
+const frShapedCatalog = new ReportingObligationCatalog([
+  {
+    countryCode: 'FR',
+    facts: [
+      {
+        providerId: 'pdp',
+        appliesTo: 'invoice',
+        dischargedBy: 'transport',
+        scope: [{ transactions: 'b2b-domestic' }],
+        provenance: { kind: 'legal', sourceText: 'fixture: CGI art. 289 E', sourceCheckedAt: '2026-09-16' },
+      },
+      {
+        providerId: 'fr-ereporting',
+        appliesTo: 'invoice',
+        dischargedBy: 'provider',
+        scope: [{ transactions: 'b2c' }, { transactions: 'international' }],
+        provenance: { kind: 'unverified', resolutionNote: 'fixture: CGI art. 290' },
       },
     ],
   },
@@ -73,6 +100,54 @@ describe('reportOnSendIfObligated', () => {
       typeId: 'invoice',
       providerId: 'nav',
     });
+  });
+
+  // THE MUTATION TARGET this fixture exists for: a trigger that fires on ANY fact matching
+  // `appliesTo`, ignoring `dischargedBy`, would enqueue a report job under "pdp" here — wrongly, since
+  // the PDP transport itself (never this mechanism) is what the law makes responsible for a
+  // B2B-domestic French invoice (CGI art. 289 E).
+  it('a French invoice-seller with a "transport"-discharged fact: nothing is enqueued — the transport already carries it', async () => {
+    mockedResolveCountry.mockResolvedValue('FR');
+    const enqueueReport = jest.fn().mockResolvedValue(true);
+
+    await reportOnSendIfObligated(
+      {
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+      },
+      frShapedCatalog,
+    );
+
+    expect(enqueueReport).not.toHaveBeenCalled();
+  });
+
+  // THE MUTATION TARGET here: a trigger that ignores `scope` would fire "fr-ereporting" on EVERY
+  // French invoice — including a B2B-domestic one already covered by the transport fact above — with
+  // no way to know from `(companyId, typeId, documentId)` alone whether THIS invoice is actually B2C
+  // or international. Nothing enqueues until that classifier exists (see `registry.ts#obligationFor`).
+  it('a French invoice-seller with only scope-restricted "provider" facts: nothing is enqueued either', async () => {
+    mockedResolveCountry.mockResolvedValue('FR');
+    const enqueueReport = jest.fn().mockResolvedValue(true);
+    const scopedOnlyCatalog = new ReportingObligationCatalog([
+      {
+        countryCode: 'FR',
+        facts: [frShapedCatalog.factsFor('FR')[1]],
+      },
+    ]);
+
+    await reportOnSendIfObligated(
+      {
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        queueDispatcher: { enqueueAction: jest.fn(), enqueueReport },
+      },
+      scopedOnlyCatalog,
+    );
+
+    expect(enqueueReport).not.toHaveBeenCalled();
   });
 
   it('a Hungarian seller but a document TYPE the fact does not apply to: nothing is enqueued', async () => {

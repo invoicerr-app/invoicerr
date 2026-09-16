@@ -4,6 +4,7 @@
     {
       "providerId": "pt-at",
       "appliesTo": "invoice",
+      "dischargedBy": "provider",
       "provenance": {
         "kind": "legal",
         "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 1: \"As pessoas, singulares ou coletivas, que se encontrem sujeitas às regras de emissão de faturação em território português nos termos do artigo 35.º-A do Código do IVA e aqui pratiquem operações sujeitas a IVA, são obrigadas a comunicar à Autoridade Tributária a Aduaneira (AT), por transmissão eletrónica de dados, os elementos das faturas emitidas nos termos do Código do IVA, bem como os elementos dos documentos que possibilitem a conferência de mercadorias ou de prestação de serviços e recibos, por uma das seguintes vias: a) Por transmissão eletrónica de dados em tempo real; b) Por transmissão eletrónica de dados, mediante remessa de ficheiro normalizado estruturado com base no ficheiro SAF-T (PT)...; c) Por inserção direta no Portal das Finanças; d) (Revogada.)\" — texto consolidado (em vigor), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012).",

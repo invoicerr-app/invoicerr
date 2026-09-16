@@ -33,7 +33,27 @@ const fixtureFiles: CountryReportingObligationFile[] = [
       {
         providerId: 'pt-at',
         appliesTo: 'invoice',
+        dischargedBy: 'provider',
         provenance: { kind: 'legal', sourceText: 'fixture', sourceCheckedAt: '2026-09-11' },
+      },
+    ],
+  },
+];
+
+// France's real shape (`reporting/data/fr.json`): a "transport"-discharged fact whose own
+// `providerId` ("pdp") is ALSO a `transports/transport-registry.ts` id, already used by PDP's own
+// conformity-poll events (`conformity/pollers/`) under that SAME string. `declarationProviderIds`'s
+// own filter (`dischargedBy === 'provider'`) is what keeps that collision from leaking a PDP
+// delivery-conformity event into this "declarations" list — the fixture below proves it directly.
+const transportShapedFiles: CountryReportingObligationFile[] = [
+  {
+    countryCode: 'FR',
+    facts: [
+      {
+        providerId: 'pdp',
+        appliesTo: 'invoice',
+        dischargedBy: 'transport',
+        provenance: { kind: 'legal', sourceText: 'fixture: CGI art. 289 E', sourceCheckedAt: '2026-09-16' },
       },
     ],
   },
@@ -48,6 +68,17 @@ describe('declarationProviderIds', () => {
 
   it('returns an empty list for zero country files — never a hand-maintained fallback', () => {
     expect(declarationProviderIds([])).toEqual([]);
+  });
+
+  // THE MUTATION TARGET: a version of this function that collected EVERY fact's `providerId`
+  // regardless of `dischargedBy` would include "pdp" here — conflating a transport's own
+  // conformity-poll id with a genuine tax-authority declaration (see this file's own header).
+  it('excludes a "transport"-discharged fact\'s own providerId — it is not a declaration provider', () => {
+    expect(declarationProviderIds(transportShapedFiles)).toEqual([]);
+  });
+
+  it('a mix of "provider" and "transport" facts keeps only the provider-discharged id', () => {
+    expect(declarationProviderIds([...fixtureFiles, ...transportShapedFiles])).toEqual(['pt-at']);
   });
 });
 
@@ -75,10 +106,17 @@ describe('listDeclarations', () => {
       mockedPrisma.documentAuthorityEvent.count.mockResolvedValue(0);
       mockedResolveCountry.mockResolvedValue('PT');
 
+      // `listDeclarations` computes its OWN `providerIds` from the real, shipped catalog
+      // (`declarationProviderIds()`, no `files` argument — see that function's own header), never
+      // from the `catalog` injected below (that one only drives `hasObligation`) — so this reflects
+      // the REAL `reporting/data/*.json` set: PT's "pt-at" AND France's own "fr-ereporting"
+      // (`dischargedBy: 'provider'`), but pointedly NOT France's "pdp" fact — that one is
+      // `dischargedBy: 'transport'`, the exact "pdp"/"ksef" conflation this test's own title names.
       await listDeclarations('company-A', 1, undefined, fixtureCatalog);
 
       const findManyArgs = mockedPrisma.documentAuthorityEvent.findMany.mock.calls[0][0];
-      expect(findManyArgs.where.providerId).toEqual({ in: ['pt-at'] });
+      expect(findManyArgs.where.providerId).toEqual({ in: ['fr-ereporting', 'pt-at'] });
+      expect(findManyArgs.where.providerId.in).not.toContain('pdp');
     },
   );
 
@@ -199,8 +237,12 @@ describe('listDeclarations', () => {
     await listDeclarations('company-A', 1, 'report:blocked', fixtureCatalog);
 
     // The SECOND findMany call (the distinct statusCodes query) must never carry the `status` filter.
+    // Same real-catalog `providerIds` set as the test above — see that test's own comment.
     const distinctCallArgs = mockedPrisma.documentAuthorityEvent.findMany.mock.calls[1][0];
-    expect(distinctCallArgs.where).toEqual({ companyId: 'company-A', providerId: { in: ['pt-at'] } });
+    expect(distinctCallArgs.where).toEqual({
+      companyId: 'company-A',
+      providerId: { in: ['fr-ereporting', 'pt-at'] },
+    });
     expect(distinctCallArgs.distinct).toEqual(['statusCode']);
   });
 
