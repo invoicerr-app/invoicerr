@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/sidebar"
 
 import { Badge } from "./ui/badge"
+import { BrandMark } from "./brand-mark"
 import { useOnboardingDialog } from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
@@ -194,6 +195,17 @@ export function Sidebar() {
           silently prevented the dialog from ever opening. It is rendered once, at the layout level,
           alongside this same shared open state. */}
       <SidebarHeader className="px-2">
+        {/* The product's own identity, above the company switcher — that dropdown is the ACTIVE
+            COMPANY, not the app, and conflating the two would leave no header that just says
+            "this is Invoicerr". The wordmark hides itself in icon-collapsed mode the same way every
+            other label in this sidebar does (`group-data-[collapsible=icon]:hidden`); the mark
+            alone stays, exactly like every other icon-only row when the sidebar is collapsed. */}
+        <div className="flex items-center gap-2 px-2 pt-1 pb-2">
+          <BrandMark className="size-5 text-sidebar-foreground" />
+          <span className="font-heading text-sm font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+            Invoicerr
+          </span>
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>

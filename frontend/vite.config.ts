@@ -23,7 +23,7 @@ export default defineConfig({
       // an unconditional service worker under Cypress broke 29-document-recurrence.cy.ts the moment
       // this PWA setup landed (b7a6581d).
       injectRegister: null,
-      includeAssets: ["favicon.svg", "favicon.png"],
+      includeAssets: ["favicon.svg", "favicon-16.png", "favicon-32.png", "favicon.ico"],
       manifest: {
         // `id` pins the installed app's identity independently of `start_url`, so a future change to
         // start_url (e.g. adding a query param) doesn't register as a second, separate install for
@@ -51,10 +51,15 @@ export default defineConfig({
         background_color: "#f3f7f9",
         theme_color: "#f3f7f9",
         icons: [
-          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
           {
-            src: "/maskable-icon-512x512.png",
+            // Full-bleed azure square, ink mark fit inside a centered 60% safe zone (20% margin
+            // each side) — no baked corner radius, since the OS applies its own mask shape
+            // (circle, squircle, rounded square…) for "maskable" and a second one baked in here
+            // would double up or get cropped unpredictably. See icon-512.png (purpose "any")
+            // above for the pre-rounded variant used everywhere the OS does NOT mask.
+            src: "/icon-512-maskable.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
@@ -69,19 +74,19 @@ export default defineConfig({
             name: "New invoice",
             short_name: "New invoice",
             url: "/documents/invoice",
-            icons: [{ src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "/icon-96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "Clients",
             short_name: "Clients",
             url: "/clients",
-            icons: [{ src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "/icon-96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "Dashboard",
             short_name: "Dashboard",
             url: "/dashboard",
-            icons: [{ src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "/icon-96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
         // form_factor "wide" (desktop) + "narrow" (mobile) is what PWABuilder's report card checks
