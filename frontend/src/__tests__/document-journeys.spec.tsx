@@ -523,10 +523,20 @@ describe("Credit note — the mandatory reference, the locked currency, the cred
     expect(currencyTrigger()).toBeDisabled()
     expect(screen.getByTestId("document-field-currency-note")).toHaveTextContent("cannot be edited directly")
 
+    // "invoice"/"currency" are the wizard's own "Details" step (both `required`) — `correctedLines`
+    // (kind 'rowSelection') is table-shaped and gets its own "Lines" step (stepped-dialog.tsx /
+    // document-create-dialog.tsx's `buildFieldGroups`), reached via "Continue".
+    fireEvent.click(screen.getByTestId("document-create-dialog-continue"))
+
     // The corrected line, picked from the invoice's own lines (rowSelection, live off `invoice`).
     fireEvent.click(await screen.findByTestId("document-field-correctedLines-row-line-1-checkbox"))
 
-    fireEvent.click(screen.getByTestId("document-action-save-draft"))
+    // No "Options" step here (every remaining field is already placed) — "Continue" on "Lines" lands
+    // straight on "Summary", whose primary button is the wizard's actual save. `findByTestId`, not
+    // `getByTestId`: `handleContinue` awaits `form.trigger(...)` before advancing, one microtask
+    // `fireEvent.click` does not itself wait out.
+    fireEvent.click(screen.getByTestId("document-create-dialog-continue"))
+    fireEvent.click(await screen.findByTestId("document-action-save-draft"))
     await waitFor(() => expect(saved).toBeDefined())
     expect(saved?.data).toMatchObject({ invoice: "inv-9", currency: "EUR", correctedLines: ["line-1"] })
 

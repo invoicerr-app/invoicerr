@@ -3180,6 +3180,7 @@
     "cancel": "Cancel",
     "previous": "Previous",
     "next": "Continue",
+    "back": "Back",
     "clearFilterNamed": "Clear {{label}} filter",
     "units": {
       "day": "Day",
@@ -4327,6 +4328,30 @@
       "transitionOr": "or",
       "customFields": {
         "heading": "Custom fields"
+      },
+      "stepped": {
+        "compactIndicator": "{{current}}/{{total}} · {{label}}",
+        "stepsNav": "Steps",
+        "discardTitle": "Discard changes?",
+        "discardDescription": "You have unsaved changes. Closing now will lose them.",
+        "keepEditing": "Keep editing",
+        "discardConfirm": "Discard",
+        "steps": {
+          "details": "Details",
+          "lines": "Lines",
+          "options": "Options",
+          "recap": "Summary"
+        },
+        "recap": {
+          "clientLabel": "Client",
+          "noClient": "No client selected",
+          "lineCountLabel": "Lines",
+          "lineCountValue": "{{count}} line",
+          "lineCountValue_other": "{{count}} lines",
+          "totalsTitle": "Totals",
+          "noTotals": "Add at least one line to see totals.",
+          "notesTitle": "Notes"
+        }
       }
     },
     "list": {

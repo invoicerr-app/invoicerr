@@ -99,6 +99,10 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-amount-input"]').type("45.90");
 		pickSelectOption("currency", "eur");
 		cy.pickToday('[data-cy="document-field-date-input"]');
+		// "description"/"amount"/"currency"/"date" (all `required`) are the wizard's own "Details"
+		// step; expense has no table-shaped field at all, so "Continue" lands straight on "Options"
+		// (document-create-dialog.tsx's `buildFieldGroups` — "a type with no lines skips that step").
+		cy.continueDocumentWizard();
 		pickSelectOption("category", "meals");
 
 		// The attachment: the hidden file input behind the "Choose file" button — same `{ force: true }`
@@ -118,6 +122,7 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-distanceKm-input"]').type("12");
 		cy.get('[data-cy="document-field-ratePerKm-input"]').type("0.5");
 
+		cy.continueDocumentWizard(); // Options -> Summary
 		saveDraft();
 
 		listExpenses().then((expenses) => {
@@ -168,6 +173,7 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-amount-input"]').type("10");
 		pickSelectOption("currency", "eur");
 		cy.pickToday('[data-cy="document-field-date-input"]');
+		cy.continueDocumentWizard(); // Details -> Options ("attachment" lives there)
 
 		cy.get('[data-cy="document-field-attachment-file-input"]').selectFile(
 			{
@@ -183,6 +189,7 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-attachment-input"]').should("be.visible");
 		cy.get('[data-cy="document-field-attachment-value"]').should("not.exist");
 
+		cy.continueDocumentWizard(); // Options -> Summary
 		saveDraft();
 
 		listExpenses().then((expenses) => {
@@ -202,6 +209,7 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-amount-input"]').type("10");
 		pickSelectOption("currency", "eur");
 		cy.pickToday('[data-cy="document-field-date-input"]');
+		cy.continueDocumentWizard(); // Details -> Options ("attachment" lives there)
 
 		// One byte over the documented 750 KiB limit (attachments.service.ts's own
 		// `MAX_ATTACHMENT_BYTES`) — an ALLOWED mime, refused purely for its size.
@@ -218,6 +226,7 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.get('[data-cy="document-field-attachment-input"]').should("be.visible");
 		cy.get('[data-cy="document-field-attachment-value"]').should("not.exist");
 
+		cy.continueDocumentWizard(); // Options -> Summary
 		saveDraft();
 
 		listExpenses().then((expenses) => {

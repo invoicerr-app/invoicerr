@@ -323,11 +323,20 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 					// stamped by save-draft above) — so the record actually persists.
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
+					// "invoice"/"currency"/"issueDate" (all `required`) are the wizard's own "Details"
+					// step; "correctedLines" (kind 'rowSelection', table-shaped) is its own "Lines" step
+					// — see document-create-dialog.tsx's `buildFieldGroups`.
+					cy.continueDocumentWizard();
+
 					cy.get('[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]', {
 						timeout: 10000,
 					})
 						.first()
 						.check({ force: true });
+
+					// "notes" (optional) is the "Options" step, nothing to fill to pass through it.
+					cy.continueDocumentWizard();
+					cy.continueDocumentWizard();
 
 					cy.intercept("POST", `${api}/api/documents/types/credit-note/actions/save-draft`).as(
 						"saveCreditNoteDraft",

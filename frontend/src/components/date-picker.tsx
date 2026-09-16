@@ -1,4 +1,4 @@
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 import { Button } from "./ui/button"
 import { Calendar } from "./ui/calendar"
@@ -63,7 +63,7 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
           </Button>
         </Wrapper>
       </PopoverTrigger>
-      <PopoverContent className="z-500 w-full p-0 mt-2 rounded-lg outline-1" align="start">
+      <PopoverContent className="w-full p-0 mt-2 rounded-lg outline-1" align="start">
         <Calendar
           required
           mode="single"

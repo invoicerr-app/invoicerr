@@ -93,12 +93,22 @@ describe("Document totals", () => {
 			});
 	});
 
-	it("displays totals on the form as the user fills in lines", () => {
+	it("shows the totals on the wizard's Summary step, recomputed from the lines just entered", () => {
 		cy.visit("/documents/quote", { timeout: 20000 });
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
 			"be.visible",
 		);
+
+		// "client"/"issueDate"/"currency" (all `required`) are the wizard's own "Details" step —
+		// see document-create-dialog.tsx's `buildFieldGroups`. Client: whichever the seed's default
+		// search already surfaces, same pattern as 66-purchase-orders.cy.ts's own "supplier" fill.
+		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		// The currency is a SearchSelect (button + filtered list), NOT a native <select>: the first
 		// draft of this test looked for `select, input` and found nothing. The pattern is the same as
@@ -114,6 +124,8 @@ describe("Document totals", () => {
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]')
 			.first()
 			.click();
+
+		cy.continueDocumentWizard(); // Details -> Lines
 
 		// One line: 100 at 20%. Fields addressed by NAME, like spec 17 — a line's input order is not
 		// a contract, their names are.
@@ -138,7 +150,11 @@ describe("Document totals", () => {
 			.first()
 			.click();
 
-		// The totals, live — the displayed fact comes from the client-side recalculation, mirroring the backend.
+		cy.continueDocumentWizard(); // Lines -> Options (dueDate/notes/clientReference, nothing required)
+		cy.continueDocumentWizard(); // Options -> Summary
+
+		// The totals, on the Summary step — the displayed fact comes from the client-side
+		// recalculation (document-totals.tsx), mirroring the backend.
 		cy.get('[data-cy="document-totals"]', { timeout: 10000 }).should("exist");
 		cy.get('[data-cy="document-totals-gross"]').should("contain", "120");
 	});

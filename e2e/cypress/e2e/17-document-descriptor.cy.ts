@@ -21,7 +21,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
-type Field = { key: string; kind: string; label: string; fields?: Field[] };
+type Field = { key: string; kind: string; label: string; required?: boolean; fields?: Field[] };
 type TypeSummary = { id: string; label: string };
 type Descriptor = {
 	id: string;
@@ -38,9 +38,237 @@ const descriptorFor = (typeId: string) =>
 		.request<Descriptor>({ url: `${api}/api/documents/types/${typeId}` })
 		.its("body");
 
+/**
+ * Fills ONE top-level field with SOME value its own client-side schema accepts — never the real,
+ * meaningful value another spec would use, just enough to clear `form.trigger` so the wizard's
+ * "Continue" (stepped-dialog.tsx) stops blocking on it. Line-item subfields are never reached here:
+ * every top-level 'array' field in this repo's descriptors has NO `min` (schema.ts's own
+ * `buildZodSchema`), so an EMPTY array already validates — this test never has to add a row.
+ * Skips a control found DISABLED (a `lockedFromReference` select, e.g. credit-note's own "currency"
+ * once "invoice" is picked): already correctly filled by the app itself, nothing to type.
+ */
+function fillFieldMinimal(field: Field) {
+	const inputDataCy = `document-field-${field.key}-input`;
+	const input = `[data-cy="${inputDataCy}"]`;
+	switch (field.kind) {
+		case "text":
+		case "longText":
+			cy.get(input).then(($el) => {
+				if ($el.is(":disabled")) return;
+				cy.wrap($el).clear({ force: true }).type("Coverage", { force: true });
+			});
+			return;
+		case "number":
+		case "money":
+			cy.get(input).then(($el) => {
+				if ($el.is(":disabled")) return;
+				cy.wrap($el).clear({ force: true }).type("1", { force: true });
+			});
+			return;
+		case "date":
+			cy.get(input).then(($el) => {
+				if ($el.is(":disabled")) return;
+				cy.pickToday(input);
+			});
+			return;
+		case "boolean":
+			// The default (`false`) already satisfies `z.boolean()` — nothing required to clear.
+			return;
+		case "select":
+		case "reference":
+			// Either a SearchSelect (a <div> wrapper around a <button> trigger — search-input.tsx) or,
+			// for a 'select' with NO known options at all, a plain <input> (SelectField's own
+			// `allowCustomValue` fallback, primitive-fields.tsx).
+			cy.get(input).then(($el) => {
+				if ($el.is(":disabled")) return;
+				if ($el.is("input")) {
+					cy.wrap($el).type("Coverage", { force: true });
+					return;
+				}
+				const trigger = $el.find("button").first();
+				if (trigger.is(":disabled")) return;
+				cy.wrap(trigger).click({ force: true });
+				cy.get(`[data-cy="${inputDataCy}-options"]`, { timeout: 10000 }).should("be.visible");
+				cy.get(`[data-cy="${inputDataCy}-options"]`).find("button").first().click();
+			});
+			return;
+		case "rowSelection":
+			// Checks the FIRST currently-offered row — see row-selection-field.tsx's own
+			// `document-field-<key>-row-<id>-checkbox`. The prerequisite source record (an invoice
+			// with a line, for credit-note's "correctedLines") is seeded in this file's own `before()`.
+			cy.get(
+				`[data-cy^="document-field-${field.key}-row-"][data-cy$="-checkbox"]`,
+				{ timeout: 10000 },
+			)
+				.first()
+				.check({ force: true });
+			return;
+		case "array":
+			// EVERY top-level 'array' field in this repo's descriptors that IS `required` also
+			// declares `min: 1` (invoice/quote/purchase-order/goods-receipt's own "lines") — an
+			// empty array does NOT validate for these, unlike this function's own header claims for
+			// the general case. A row may already exist — goods-receipt's own "lines" PRE-FILLS
+			// itself from the picked "purchaseOrder" (use-document-form.ts's "isGoodsReceipt" effect,
+			// unrelated to this test's own seeding) — so this only ADDS one when none is there yet;
+			// "add row" a SECOND time would leave a blank, REQUIRED, unfillable-by-this-generic-code
+			// row behind (min:1 is satisfied by count alone, never by which rows are non-empty).
+			if (!field.fields?.length) return;
+			cy.get("body").then(($body) => {
+				const hasRow = $body.find(`[data-cy="document-field-${field.key}-row-0"]`).length > 0;
+				if (!hasRow) {
+					cy.get(`[data-cy="document-field-${field.key}-add-row"]`).click();
+					cy.get(`[data-cy="document-field-${field.key}-row-0"]`).should("exist");
+				}
+				for (const rowField of field.fields ?? []) {
+					if (rowField.required) fillRowFieldMinimal(field.key, rowField);
+				}
+			});
+			return;
+		default:
+			// 'hiddenReference' (never rendered), 'file' (no REQUIRED one exists in this repo's own
+			// descriptors today) — nothing to fill to pass validation.
+			return;
+	}
+}
+
+/**
+ * `fillFieldMinimal`, scoped to ONE row of an 'array' field — addressed by NAME
+ * (`input[name="<arrayKey>.0.<key>"]`), never by `data-cy`: a row subfield's own `data-cy` is its
+ * BARE key (array-field.tsx renders it through the exact same `DocumentField` a top-level field
+ * uses, with that field's OWN `key` — never prefixed by the array's), so a row's "description"
+ * shares its `data-cy` with any unrelated TOP-LEVEL field literally named "description". Same
+ * "addressed by NAME" convention 20-document-totals.cy.ts's own header already documents for
+ * exactly this reason. A 'select'/'reference' subfield is the one exception: its OWN `data-cy` is
+ * scoped by the row container for the trigger, and its options popover portals OUTSIDE the row
+ * (Radix), so that part stays selector-based, matching every other spec's own row-select pattern.
+ */
+function fillRowFieldMinimal(arrayKey: string, rowField: Field) {
+	switch (rowField.kind) {
+		case "text":
+		case "longText":
+			// `.clear()` first — this row may already be PRE-FILLED (goods-receipt's own "lines",
+			// see the caller's own comment), and typing without clearing would only ever APPEND.
+			cy.get(`[name="${arrayKey}.0.${rowField.key}"]`).clear({ force: true }).type("Coverage", { force: true });
+			return;
+		case "number":
+		case "money":
+			cy.get(`[name="${arrayKey}.0.${rowField.key}"]`).clear({ force: true }).type("1", { force: true });
+			return;
+		case "select":
+		case "reference": {
+			const rowFieldWrap = `[data-cy="document-field-${arrayKey}-row-0"] [data-cy="document-field-${rowField.key}-input"]`;
+			cy.get(rowFieldWrap).then(($el) => {
+				if ($el.is(":disabled")) return;
+				if ($el.is("input")) {
+					cy.wrap($el).type("Coverage", { force: true });
+					return;
+				}
+				cy.wrap($el.find("button").first()).click({ force: true });
+				cy.get(`[data-cy="document-field-${rowField.key}-input-options"]`, { timeout: 10000 }).should(
+					"be.visible",
+				);
+				cy.get(`[data-cy="document-field-${rowField.key}-input-options"]`).find("button").first().click();
+			});
+			return;
+		}
+		default:
+			return;
+	}
+}
+
+/**
+ * Walks the wizard (stepped-dialog.tsx) from whichever step it opened on to its last one, checking
+ * every field in `fields` that is CURRENTLY MOUNTED against `seen` (scrolled to, visible, no
+ * "-unsupported" marker), filling any REQUIRED one so "Continue" stops blocking. Recurses through
+ * `cy.get('body').then()` — a `cy.` command queued inside a `.then()` runs after everything already
+ * queued, so this still executes strictly in order despite the recursion.
+ */
+function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0) {
+	if (guard > 6) return; // more steps than this wizard has ever had — a real bug, not a slow one.
+	cy.get("body").then(($body) => {
+		for (const f of fields) {
+			const sel = `[data-cy="document-field-${f.key}"]`;
+			if ($body.find(sel).length === 0) continue;
+			if (!seen.has(f.key)) {
+				seen.add(f.key);
+				cy.get(sel).scrollIntoView().should("be.visible");
+				cy.get(`[data-cy="document-field-${f.key}-unsupported"]`).should("not.exist");
+			}
+			if (f.required) fillFieldMinimal(f);
+		}
+		cy.get("body").then(($after) => {
+			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
+				cy.continueDocumentWizard();
+				walkWizardCheckingFields(fields, seen, guard + 1);
+			}
+		});
+	});
+}
+
+/**
+ * `walkWizardCheckingFields` without the coverage bookkeeping — for a caller that only needs to
+ * REACH the wizard's last step ("Summary", where the type's own action buttons finally render —
+ * see stepped-dialog.tsx: everywhere earlier, the primary button reads "Continue"), filling
+ * whatever's required along the way with the same minimal, disabled-aware values.
+ */
+function advanceWizardToLastStep(fields: Field[], guard = 0) {
+	if (guard > 6) return;
+	cy.get("body").then(($body) => {
+		for (const f of fields) {
+			if (!f.required) continue;
+			if ($body.find(`[data-cy="document-field-${f.key}"]`).length > 0) fillFieldMinimal(f);
+		}
+		cy.get("body").then(($after) => {
+			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
+				cy.continueDocumentWizard();
+				advanceWizardToLastStep(fields, guard + 1);
+			}
+		});
+	});
+}
+
 describe("A document is a descriptor, and the screen follows it", () => {
 	before(() => {
 		cy.resetAndSeed();
+
+		// Prerequisite records for two REQUIRED 'reference' fields the wizard's own "Details" step
+		// would otherwise block on with nothing to pick: credit-note's "invoice" (and, downstream,
+		// its "correctedLines" 'rowSelection') and goods-receipt's "purchaseOrder", both resolved
+		// against the ONE client `resetAndSeed` already creates ("supplier" is the same client
+		// entity under a different label — see 66-purchase-orders.cy.ts's own comment). Not read
+		// for their own content — the coverage test below only needs them to EXIST.
+		cy.request<{ id: string }[]>({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients) => {
+				const client = clients[0].id;
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: {
+						data: {
+							client,
+							issueDate: "2026-08-30",
+							dueDate: "2026-09-30",
+							currency: "EUR",
+							lines: [
+								{ description: "Coverage seed", quantity: 1, unit: "unit", unitPrice: 10, vatRate: "20" },
+							],
+						},
+					},
+				});
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/purchase-order/actions/save-draft`,
+					body: {
+						data: {
+							supplier: client,
+							issueDate: "2026-08-30",
+							currency: "EUR",
+							lines: [{ description: "Coverage seed", quantity: 1, unitPrice: 10 }],
+						},
+					},
+				});
+			});
 	});
 
 	beforeEach(() => {
@@ -79,29 +307,25 @@ describe("A document is a descriptor, and the screen follows it", () => {
 					cy.get('[data-cy="document-create-button"]', {
 						timeout: 15000,
 					}).click();
-					// `exist`, not `be.visible`: the dialog (document-create-dialog.tsx) scrolls its
-					// fields inside a `max-h-[90vh]` panel, and the 7th type (goods-receipt) plus the
-					// received invoice's own added `purchaseOrder` field are together tall enough that
-					// the outer `<form>` no longer fits inside a CI-sized (1000×660) viewport in one
-					// screenful — Cypress reports a `<form>` straddling a scrollable ancestor's edge as
-					// NOT visible even though every field in it is one scroll away, which a real user
-					// can do. Each field below is scrolled to and checked individually instead, which is
-					// both the genuine per-field coverage this test is FOR and immune to the form's own
-					// total height.
 					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
-					for (const f of d.fields) {
-						cy.get(`[data-cy="document-field-${f.key}"]`, {
-							timeout: 10000,
-						})
-							.scrollIntoView()
-							.should("be.visible");
-						// A field whose TYPE has no renderer shows an explicit marker rather
-						// than nothing. Seeing it here would mean the core is lying about its coverage.
-						cy.get(`[data-cy="document-field-${f.key}-unsupported"]`).should(
-							"not.exist",
-						);
-					}
+					// The create dialog is now a WIZARD (stepped-dialog.tsx): only the CURRENT step's fields
+					// are mounted at a time — "Details" (required fields) -> "Lines" (table-shaped ones) ->
+					// "Options" (the rest) -> "Summary", a step with nothing in it skipped
+					// (document-create-dialog.tsx's own `buildFieldGroups`). This walks forward, one
+					// "Continue" at a time, filling only what blocks it, until every field this type's own
+					// API descriptor declares has been seen mounted at least once — never a fixed step order
+					// or count assumed, the same "data-driven, not hand-copied" discipline this file's own
+					// header states for the type/field lists themselves.
+					const seen = new Set<string>();
+					walkWizardCheckingFields(d.fields, seen);
+					cy.wrap(null).then(() => {
+						const missing = d.fields.map((f) => f.key).filter((key) => !seen.has(key));
+						expect(
+							missing,
+							`${type.id} — tous ses champs sont passés par un écran du wizard — manquants : ${missing.join(", ")}`,
+						).to.have.length(0);
+					});
 				});
 			}
 		});
@@ -122,6 +346,12 @@ describe("A document is a descriptor, and the screen follows it", () => {
 					// `.then()` below regardless of scroll position, so the form only needs to exist.
 					cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
+
+					// The wizard's action buttons (the type's own, `document-action-<id>`) only render on
+					// its LAST step ("Summary") — every earlier step's primary button reads "Continue"
+					// instead (stepped-dialog.tsx). Reach it first, filling whatever's required along the
+					// way — see `advanceWizardToLastStep`'s own header.
+					advanceWizardToLastStep(d.fields);
 					cy.get('[data-cy^="document-action-"]').then(($btns) => {
 						const onScreen = [...$btns]
 							.map((b) =>

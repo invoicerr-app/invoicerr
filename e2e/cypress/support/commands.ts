@@ -265,6 +265,27 @@ Cypress.Commands.add('openSelect', (triggerSelector: string, optionSelector: str
 });
 
 /**
+ * Advances the document CREATE dialog (document-create-dialog.tsx, built on
+ * components/ui/stepped-dialog.tsx) from its current step to the next one. `handleContinue` there is
+ * ASYNC (`await form.trigger(step.fields)` before it advances) — a bare
+ * `cy.get('[data-cy="...-continue"]').click()` races that, which is exactly why every spec that
+ * fills a multi-step create dialog goes through here instead of repeating the wait. Captures the
+ * CURRENT step body's own `data-cy` (it carries the step id — `...-step-body-details`,
+ * `...-step-body-lines`, ...) before clicking, then waits for that attribute to actually change.
+ * @example cy.continueDocumentWizard()
+ */
+Cypress.Commands.add('continueDocumentWizard', () => {
+    cy.get('[data-cy^="document-create-dialog-step-body-"]')
+        .invoke('attr', 'data-cy')
+        .then((before) => {
+            cy.get('[data-cy="document-create-dialog-continue"]').should('be.visible').click();
+            cy.get('[data-cy^="document-create-dialog-step-body-"]', { timeout: 10000 }).should(($el) => {
+                expect($el.attr('data-cy')).not.to.eq(before);
+            });
+        });
+});
+
+/**
  * Opens a saved document's OWN page from its type's list: clicks the row's title link
  * (`document-open-link-<id>`, the one keyboard-reachable "open" control document-list.tsx renders)
  * and waits for the page root (`document-detail-page`, document-detail.tsx). The page is what

@@ -103,14 +103,32 @@ function uploadAndOpenForm(fixturePath: string) {
 	cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 }
 
-function confirmReceive() {
-	cy.get('[data-cy="document-action-receive"]').click();
-	cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
-	// A successful first save closes the create dialog and lands on the new record's own page
-	// (document-create-dialog.tsx) — the callers below all read the LIST next, so go back to it.
-	cy.get('[data-cy="document-create-dialog"]').should("not.exist");
-	cy.get('[data-cy="document-detail-page"]', { timeout: 15000 }).should("be.visible");
-	cy.visit("/documents/received-invoice");
+/**
+ * Reaches the wizard's last step ("Summary", where "receive" — the type's own action — finally
+ * renders; every earlier step's primary button reads "Continue" instead, stepped-dialog.tsx) and
+ * clicks it. Every received-invoice field is `required: false` (received-invoice.descriptor.ts's
+ * own header), so each "Continue" along the way is unconditional — nothing to fill first, unlike
+ * document-create-dialog.tsx's own generic wizard-walkers (17-document-descriptor.cy.ts), which
+ * exist only because OTHER types DO have required fields. A caller that already navigated to a
+ * LATER step for its own field assertions (most of this file does — see each `it`'s own comments)
+ * simply arrives here with fewer "Continue" clicks left to make.
+ */
+function confirmReceive(guard = 0) {
+	if (guard > 4) throw new Error("wizard never reached its last step");
+	cy.get("body").then(($body) => {
+		if ($body.find('[data-cy="document-create-dialog-continue"]').length > 0) {
+			cy.continueDocumentWizard();
+			confirmReceive(guard + 1);
+			return;
+		}
+		cy.get('[data-cy="document-action-receive"]').click();
+		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
+		// A successful first save closes the create dialog and lands on the new record's own page
+		// (document-create-dialog.tsx) — the callers below all read the LIST next, so go back to it.
+		cy.get('[data-cy="document-create-dialog"]').should("not.exist");
+		cy.get('[data-cy="document-detail-page"]', { timeout: 15000 }).should("be.visible");
+		cy.visit("/documents/received-invoice");
+	});
 }
 
 // Creates a client THROUGH THE SCREEN (never seeded/via API): the whole point of
@@ -156,6 +174,18 @@ describe("Receiving invoices", () => {
 	it("uploading a Factur-X: the extracted fields pre-fill the form, confirming creates a 'received' document, and the original downloads identically", () => {
 		uploadAndOpenForm(FACTURX_FIXTURE);
 
+		// Every received-invoice field is optional, so the wizard opens directly on "Lines" (no
+		// "Details" step exists — document-create-dialog.tsx's own `buildFieldGroups`). The line
+		// (BG-25) embedded in this same CII is extracted and pre-filled without retyping; its sum
+		// (3 x 250.00 @ 20% = 900.00 gross) agrees EXACTLY with the totals deposited below, so NO
+		// warning should appear — the regression this test genuinely covers, on a well-formed document.
+		cy.get('input[name="lines.0.description"]').should("have.value", "Prestation fixture");
+		cy.get('input[name="lines.0.quantity"]').should("have.value", "3");
+		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "250");
+		cy.get('input[name="lines.0.vatRate"]').should("have.value", "20");
+		cy.get('[data-cy="document-line-total-warnings"]').should("not.exist");
+		cy.continueDocumentWizard(); // Lines -> Options
+
 		cy.get('[data-cy="document-field-supplier-input"]').should(
 			"have.value",
 			"Fixture Fournisseur SARL",
@@ -168,16 +198,6 @@ describe("Receiving invoices", () => {
 		// both prove the pre-fill without depending on the exact format of their own internal rendering.
 		cy.get('[data-cy="document-field-currency-input"]').should("contain.text", "EUR");
 		cy.get('[data-cy="document-field-issueDate-input"]').should("not.contain.text", "Pick a date");
-
-		// The line (BG-25) embedded in this same CII is, too,
-		// extracted and pre-filled without retyping; its sum (3 x 250.00 @ 20% = 900.00 gross) agrees
-		// EXACTLY with the totals deposited above, so NO warning should appear —
-		// the regression this test genuinely covers, on a genuinely well-formed document.
-		cy.get('input[name="lines.0.description"]').should("have.value", "Prestation fixture");
-		cy.get('input[name="lines.0.quantity"]').should("have.value", "3");
-		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "250");
-		cy.get('input[name="lines.0.vatRate"]').should("have.value", "20");
-		cy.get('[data-cy="document-line-total-warnings"]').should("not.exist");
 
 		confirmReceive();
 
@@ -249,6 +269,10 @@ describe("Receiving invoices", () => {
 		// preserved by the three empty-field assertions right below.
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "OCR");
 
+		// No line was extracted from this PDF either — "Lines" (the wizard's own first step; see the
+		// previous test's comment) shows no row, nothing to check there. "supplier" etc. are on
+		// "Options", one step later.
+		cy.continueDocumentWizard(); // Lines -> Options
 		cy.get('[data-cy="document-field-supplier-input"]').should("have.value", "");
 		cy.get('[data-cy="document-field-supplierNumber-input"]').should("have.value", "");
 		cy.get('[data-cy="document-field-netAmount-input"]').should("have.value", "");
@@ -291,14 +315,17 @@ describe("Receiving invoices", () => {
 
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "OCR");
 
+		// "Lines" (the wizard's own first step) first, then "Options" for the rest.
+		cy.get('input[name="lines.0.description"]').should("have.value", "OCR Fake Line");
+		cy.get('input[name="lines.0.quantity"]').should("have.value", "1");
+		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "500");
+		cy.continueDocumentWizard(); // Lines -> Options
+
 		cy.get('[data-cy="document-field-supplier-input"]').should("have.value", "OCR Fake Fournisseur SARL");
 		cy.get('[data-cy="document-field-supplierNumber-input"]').should("have.value", "OCR-FAKE-0001");
 		cy.get('[data-cy="document-field-netAmount-input"]').should("have.value", "500");
 		cy.get('[data-cy="document-field-vatAmount-input"]').should("have.value", "100");
 		cy.get('[data-cy="document-field-grossAmount-input"]').should("have.value", "600");
-		cy.get('input[name="lines.0.description"]').should("have.value", "OCR Fake Line");
-		cy.get('input[name="lines.0.quantity"]').should("have.value", "1");
-		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "500");
 
 		// EDITABLE — never frozen: the human corrects the pre-filled name before confirming.
 		cy.get('[data-cy="document-field-supplier-input"]')
@@ -327,6 +354,7 @@ describe("Receiving invoices", () => {
 		cy.get('input[name="lines.0.quantity"]').should("have.value", "5");
 		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "100");
 		cy.get('input[name="lines.0.vatRate"]').should("have.value", "20");
+		cy.continueDocumentWizard(); // Lines -> Options ("grossAmount" lives there)
 
 		// The deposited gross total (650) is carried over AS-IS — never rewritten by the sum of the lines (600).
 		cy.get('[data-cy="document-field-grossAmount-input"]').should("have.value", "650");
@@ -400,6 +428,9 @@ describe("Receiving invoices", () => {
 
 		cy.visit("/documents/received-invoice");
 		uploadAndOpenForm(KNOWN_VAT_FIXTURE);
+		// "supplierClient"/"supplier" are on "Options", one step past the wizard's own first step
+		// ("Lines" — this fixture's own line isn't read by this test).
+		cy.continueDocumentWizard(); // Lines -> Options
 
 		// Visible BEFORE even confirming: the reference field already shows the resolved client — the
 		// same generic pre-fill as any other extracted field (buildInitialData).
@@ -433,6 +464,7 @@ describe("Receiving invoices", () => {
 
 	it("A deposit from an UNKNOWN seller links nothing, and the screen says so", () => {
 		uploadAndOpenForm(UNKNOWN_VAT_FIXTURE);
+		cy.continueDocumentWizard(); // Lines -> Options ("supplierClient" lives there)
 
 		// The field stays empty — never a guessed link.
 		cy.get('[data-cy="document-field-supplierClient-input"]').should(

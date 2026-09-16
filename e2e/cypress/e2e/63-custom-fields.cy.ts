@@ -168,26 +168,32 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		});
 	});
 
-	it("a REQUIRED custom field left empty blocks save-draft on screen, exactly like a native required field", () => {
+	it("a REQUIRED custom field left empty blocks the wizard's own 'Continue', exactly like a native required field", () => {
 		openExpenseCreateDialog();
 		fillMinimalExpenseNativeFields("Missing cost center");
-		// "Cost Center" is left empty on purpose.
-		cy.get('[data-cy="document-action-save-draft"]').click();
+		// "Cost Center" (required text, merged onto the SAME "Details" step as the native required
+		// fields — it is `required`, same criterion as document-create-dialog.tsx's `buildFieldGroups`)
+		// is left empty on purpose. "Continue" runs `form.trigger` on the step's OWN fields
+		// (stepped-dialog.tsx) — no API call happens at all, so this blocks locally, with no toast.
+		cy.get('[data-cy="document-create-dialog-continue"]').click();
 
-		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
-		// The dialog never closes — an invalid submit never reaches the API. `exist`, not `be.visible`
-		// — see openExpenseCreateDialog's own comment on why this form no longer fits its dialog's
-		// max-height once this spec's own custom fields exist.
-		cy.get('[data-cy="document-form"]').should("exist");
+		// Still on "Details" — the wizard never advances a step it can't validate.
+		cy.get('[data-cy="document-create-dialog-step-body-details"]', { timeout: 10000 }).should("exist");
+		cy.get('[data-cy="document-field-custom:cost_center-input"]').should("exist");
 	});
 
 	it("filling both custom fields through the screen saves, and the API shows them under their PREFIXED keys", () => {
 		openExpenseCreateDialog();
 		fillMinimalExpenseNativeFields("Client dinner with cost center");
+		// "Cost Center" is REQUIRED, so it merges onto the SAME "Details" step as the native
+		// required fields (document-create-dialog.tsx's `buildFieldGroups`) — fill it before
+		// "Continue"; "Internal Notes" is optional, on "Options", one step later.
 		cy.get('[data-cy="document-field-custom:cost_center-input"]').type("CC-42");
+		cy.continueDocumentWizard(); // Details -> Options
 		cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(
 			"A distinctly long internal note that should add real, measurable bytes to the rendered PDF.",
 		);
+		cy.continueDocumentWizard(); // Options -> Summary
 
 		// A successful first save lands on the new record's own page (document-create-dialog.tsx) —
 		// nothing about that screen is asserted here: content assertions belong to the API below.
@@ -244,10 +250,14 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		function saveExpenseAndGetPdfSize(description: string, notes: string | undefined) {
 			openExpenseCreateDialog();
 			fillMinimalExpenseNativeFields(description);
+			// "Cost Center" (required) is on "Details"; "Internal Notes" (optional) is one step
+			// later, on "Options" — see the earlier test's own comment.
 			cy.get('[data-cy="document-field-custom:cost_center-input"]').type("CC-PDF");
+			cy.continueDocumentWizard(); // Details -> Options
 			if (notes) {
 				cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(notes);
 			}
+			cy.continueDocumentWizard(); // Options -> Summary
 			// A successful first save lands on the new record's own page — see the earlier test above;
 			// the size comparison below reads the API, never that screen.
 			cy.get('[data-cy="document-action-save-draft"]').click();
@@ -327,9 +337,14 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 			cy.get(`[data-cy="custom-field-row-archived-${costCenter.id}"]`).should("be.visible");
 
-			// A FRESH create dialog no longer offers "Cost Center" at all.
+			// A FRESH create dialog no longer offers "Cost Center" at all — checked on "Details" (the
+			// wizard's first step, where a required custom field would otherwise have landed).
 			openExpenseCreateDialog();
 			cy.get('[data-cy="document-field-custom:cost_center-input"]').should("not.exist");
+			// "Internal Notes" (optional) is on "Options", one step later — the native required
+			// fields have to be filled first to reach it.
+			fillMinimalExpenseNativeFields("Checking archived custom field visibility");
+			cy.continueDocumentWizard(); // Details -> Options
 			cy.get('[data-cy="document-field-custom:internal_notes-input"]').should("exist");
 
 			// The document list still shows the value on the record that already had one — an
