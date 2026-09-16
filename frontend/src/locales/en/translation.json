@@ -2905,7 +2905,8 @@
         "noLegacyCustomer": "No previous subscription was found to manage.",
         "billingEmailTaken": "Choose a distinct billing email for this company",
         "billingEmailSaved": "Billing email saved",
-        "billingEmailSaveError": "Failed to save the billing email"
+        "billingEmailSaveError": "Failed to save the billing email",
+        "taxIdNotAccepted": "Your VAT number was not accepted by Polar (VIES); the checkout continues without it — Polar will ask for it if needed."
       }
     }
   },

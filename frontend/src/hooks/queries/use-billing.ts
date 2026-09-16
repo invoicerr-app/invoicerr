@@ -59,6 +59,11 @@ export function useBillingStatus() {
 interface PolarRouteResponse {
   url: string
   redirect: boolean
+  /** Checkout only (never set by the portal route): `true` when this company had a syntactically valid,
+   *  non-exempt VAT number on file and Polar still refused it as a checkout tax id — backend's own
+   *  `checkout-session.ts` retried automatically, WITHOUT it, so the checkout above still succeeded.
+   *  `billing.settings.tsx` uses this to tell the owner why their VAT number did not reach Polar. */
+  taxIdRejected?: true
 }
 
 export interface StartCheckoutBody {

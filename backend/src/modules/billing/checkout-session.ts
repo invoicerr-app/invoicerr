@@ -9,7 +9,20 @@
  * customer id), which is exactly wrong for a product that bills per COMPANY. `billing.controller.ts`'s
  * own `POST /billing/checkout` is the new route; `portal-session.ts` is this file's sibling for the
  * OTHER half of the same move.
+ *
+ * TAX ID handling (dev-instance incident, 2026-09-16 — "Subscribe" opened a Polar checkout that
+ * immediately answered "The provided tax ID is invalid."): `checkout-tax-id.ts#resolveCheckoutTaxId`
+ * gates what this file even ATTEMPTS to send (never for an `exemptVat` company, never a value that
+ * fails offline VAT syntax) — but a checksum-valid number can STILL be refused by Polar, which
+ * validates against VIES (the EU's live VAT-registration lookup): a franchise-en-base trader is by
+ * definition unregistered, so it has no VIES entry no matter how well-formed its VAT-shaped SIREN key
+ * looks (traced live: `FR54982187676`, checksum-valid, VIES-absent). `createCheckoutSession` below
+ * retries ONCE, without the tax id, on that specific 422 — the company keeps checking out, Polar's own
+ * hosted form asks for the tax id again if it actually needs one — and reports the retry back to the
+ * caller (`taxIdRejected`) so `billing.settings.tsx` can tell the owner why their VAT number did not
+ * make it to Polar, rather than silently dropping it.
  */
+import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import {
@@ -17,6 +30,7 @@ import {
   getOrCreatePolarCustomerForCompany,
   loadCompanyBillingIdentity,
 } from './billing-customer';
+import { resolveCheckoutTaxId } from './checkout-tax-id';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { getPolarClient } from './polar-client';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
@@ -51,6 +65,12 @@ export interface CheckoutSessionClient extends BillingCustomerClient {
 export interface CheckoutSessionResult {
   url: string;
   redirect: boolean;
+  /** `true` only when this company HAD a syntactically valid, non-exempt VAT number on file and Polar
+   *  still refused it (see this file's own header — the VIES-absent franchise-en-base case) — the
+   *  checkout above went through anyway, on the automatic retry, WITHOUT it. Omitted (never `false`)
+   *  on the ordinary path, so an existing frontend/spec destructuring only `{ url, redirect }` is
+   *  unaffected. */
+  taxIdRejected?: true;
 }
 
 export type CheckoutProductSlug = 'monthly' | 'yearly';
@@ -121,6 +141,9 @@ export interface CheckoutBillingDetails {
   state: string | null;
   country: string;
   countryCode: string | null;
+  /** `Company.exemptVat` — read here (rather than a separate query) because `resolveCheckoutTaxId`
+   *  needs it in the SAME place it already needs `countryCode`. See `checkout-tax-id.ts`'s own header. */
+  exemptVat: boolean;
 }
 
 async function loadCheckoutBillingDetails(
@@ -137,6 +160,7 @@ async function loadCheckoutBillingDetails(
         state: true,
         country: true,
         countryCode: true,
+        exemptVat: true,
       },
     }),
     prisma.partyIdentifier.findFirst({ where: { companyId, scheme: 'VAT' }, select: { value: true } }),
@@ -184,6 +208,28 @@ function buildCheckoutCustomerFields(
   };
 }
 
+/** Detects Polar's 422 refusal of the `customer_tax_id` field specifically (as opposed to some OTHER
+ *  validation failure the SAME `HTTPValidationError` shape also carries) — checked on the `detail`
+ *  array's own `loc`/`msg`, without importing `@polar-sh/sdk`'s own error class by name (same
+ *  convention as `billing-customer.ts#isResourceNotFoundError`/`isEmailAlreadyExistsError`). Observed
+ *  live in sandbox, 2026-09-16: `loc: ["body", "customer_tax_id"]`, `msg: "The provided tax ID is
+ *  invalid."` for a checksum-valid FR VAT number with no active VIES entry (this file's own header). */
+function isTaxIdInvalidError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { statusCode?: unknown; detail?: unknown };
+  if (candidate.statusCode !== 422 || !Array.isArray(candidate.detail)) return false;
+  return candidate.detail.some((item) => {
+    if (typeof item !== 'object' || item === null) return false;
+    const entry = item as { loc?: unknown; msg?: unknown };
+    const loc = Array.isArray(entry.loc) ? entry.loc : [];
+    return (
+      loc.some((seg) => typeof seg === 'string' && seg.includes('tax_id')) &&
+      typeof entry.msg === 'string' &&
+      /tax id/i.test(entry.msg)
+    );
+  });
+}
+
 /**
  * `metadata.companyId` (never `referenceId` — that was `@polar-sh/better-auth`'s own checkout body
  * param, this call goes through the raw SDK and controls the key freely) is the FALLBACK the webhook
@@ -194,6 +240,13 @@ function buildCheckoutCustomerFields(
  * Refuses a SECOND concurrent checkout (`SubscriptionAlreadyActiveError`/`CheckoutAlreadyInProgressError`
  * — see their own headers) rather than letting two competing Polar checkout sessions exist for the same
  * company; stamps `lastCheckoutStartedAt` on success so the NEXT call can make that check.
+ *
+ * TAX ID: `resolveCheckoutTaxId` (`checkout-tax-id.ts`) decides whether a tax id is even attempted. If
+ * one IS attempted and Polar still refuses it with the specific 422 `isTaxIdInvalidError` above detects
+ * (the VIES-absent case, this file's own header), this retries ONCE, with the exact same request minus
+ * `customerTaxId` — never for any OTHER refusal, which propagates unchanged. Any error the retry itself
+ * throws also propagates unchanged: the automatic recovery is for this one named cause, not a general
+ * "try again" around Polar.
  */
 export async function createCheckoutSession(
   params: StartCheckoutParams,
@@ -214,20 +267,49 @@ export async function createCheckoutSession(
   await getOrCreatePolarCustomerForCompany(company, client);
 
   const { details, vatNumber } = await loadCheckoutBillingDetails(params.companyId);
+  const taxId = resolveCheckoutTaxId({
+    rawVatNumber: vatNumber,
+    countryCode: details.countryCode,
+    exemptVat: details.exemptVat,
+  });
 
-  const checkout = await client.checkouts.create({
+  const baseRequest = {
     products: [resolveCheckoutProductId(params.slug)],
     externalCustomerId: params.companyId,
     metadata: { companyId: params.companyId },
     successUrl: params.successUrl,
     returnUrl: params.returnUrl,
-    ...buildCheckoutCustomerFields(company.name, details, vatNumber),
-  });
+  };
+
+  let checkout: { url: string };
+  let taxIdRejected: true | undefined;
+  try {
+    checkout = await client.checkouts.create({
+      ...baseRequest,
+      ...buildCheckoutCustomerFields(company.name, details, taxId),
+    });
+  } catch (error) {
+    if (!taxId || !isTaxIdInvalidError(error)) throw error;
+
+    // Named, no secret: the tax id VALUE itself is never logged, only the fact that this company's
+    // one was refused — see this file's own header for why a checksum-valid number can still land here.
+    logger.warn(
+      "Polar refused this company's VAT number as a checkout tax id (422) — retrying the checkout " +
+        'without it. Likely cause: a checksum-valid number with no active VIES registration (e.g. a ' +
+        'franchise-en-base trader) — see checkout-session.ts / checkout-tax-id.ts.',
+      { category: 'billing', details: { companyId: params.companyId } },
+    );
+    taxIdRejected = true;
+    checkout = await client.checkouts.create({
+      ...baseRequest,
+      ...buildCheckoutCustomerFields(company.name, details, null),
+    });
+  }
 
   await prisma.companySubscription.update({
     where: { companyId: params.companyId },
     data: { lastCheckoutStartedAt: new Date() },
   });
 
-  return { url: checkout.url, redirect: true };
+  return { url: checkout.url, redirect: true, ...(taxIdRejected ? { taxIdRejected } : {}) };
 }

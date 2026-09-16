@@ -124,6 +124,17 @@ export default function BillingSettings() {
         // via `successUrl` on THIS route, so there is no separate tab to manage and no focus/
         // visibilitychange dance needed here.
         onSuccess: (data) => {
+          if (data.taxIdRejected) {
+            // Non-blocking — the checkout above still succeeded (backend retried it without the tax
+            // id). See checkout-session.ts's own header for the VIES-absent franchise-en-base case
+            // this actually names.
+            toast.info(
+              t(
+                "settings.billing.messages.taxIdNotAccepted",
+                "Your VAT number was not accepted by Polar (VIES); the checkout continues without it — Polar will ask for it if needed.",
+              ),
+            )
+          }
           setNavigatingCheckoutSlug(interval)
           window.location.href = data.url
         },
