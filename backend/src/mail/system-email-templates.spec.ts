@@ -5,6 +5,7 @@ import { renderEmailTemplate } from '@/modules/documents/actions/email-template'
 import {
   buildBlockedZipWarningEmail,
   buildDeletionWarningEmail,
+  buildLegalDocumentChangedEmail,
   describeSystemEmailVocabulary,
   resolveSystemEmailTemplate,
   SYSTEM_EMAIL_DEFAULTS,
@@ -159,5 +160,32 @@ describe('OWNER warning emails (J-7/J-1 before the zip, and before the permanent
     const email = buildDeletionWarningEmail({ appUrl: APP_URL, daysRemaining: 1 });
     expect(email.subject).toContain('1 day');
     expect(email.subject).not.toContain('1 days');
+  });
+});
+
+describe('buildLegalDocumentChangedEmail', () => {
+  it('names the document, its version, and links to /legal/<slug>', () => {
+    const email = buildLegalDocumentChangedEmail({
+      appUrl: APP_URL,
+      documentTitle: 'Terms of Service',
+      version: '2026-09-17',
+      slug: 'terms-of-service',
+    });
+
+    expect(email.subject).toContain('Terms of Service');
+    expect(email.text).toContain('Terms of Service');
+    expect(email.text).toContain('2026-09-17');
+    expect(email.text).toContain(`${APP_URL}/legal/terms-of-service`);
+    expect(email.html).toContain(`href="${APP_URL}/legal/terms-of-service"`);
+  });
+
+  it('mentions that re-acceptance will be asked for at the next sign-in', () => {
+    const email = buildLegalDocumentChangedEmail({
+      appUrl: APP_URL,
+      documentTitle: 'Privacy Policy',
+      version: '2026-09-17',
+      slug: 'privacy-policy',
+    });
+    expect(email.text.toLowerCase()).toContain('next time you sign in');
   });
 });

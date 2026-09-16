@@ -228,3 +228,49 @@ export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
       `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
   };
 }
+
+/**
+ * "Our legal documents have changed" — sent to EVERY user of the instance (not just OWNERs, unlike
+ * the two warnings above) the first time `legal-release-boot.service.ts` notices a document's text
+ * hash moved past a release it had already recorded. Same posture as the billing warnings: instance
+ * mail (`MailService#sendMail`), always English, plain function rather than a `SystemEmailFamily` —
+ * this is instance-authored content about a legal text a company has no business rewording.
+ */
+export interface LegalDocumentChangedEmailParams {
+  appUrl: string;
+  /** The document's front-matter `title` (e.g. "Terms of Service"), not its slug. */
+  documentTitle: string;
+  /** The document's front-matter `version` — carried here purely for display, the same "kept for
+   *  display only" role it has on `LegalAcceptance` itself since decision 2026-09-17. */
+  version: string;
+  /** The document's slug — used to link to `/legal/<slug>` on the frontend. */
+  slug: string;
+}
+
+export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmailParams): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const { appUrl, documentTitle, version, slug } = params;
+  const documentUrl = `${appUrl}/legal/${slug}`;
+  return {
+    subject: `Our legal documents have changed: ${documentTitle}`,
+    text:
+      'Hello,\n\n' +
+      `We have updated our "${documentTitle}" (version ${version}). You can read the new version here:\n` +
+      `${documentUrl}\n\n` +
+      'You will be asked to accept it the next time you sign in.\n\n' +
+      'Best regards,\nThe Invoicerr Team\n\n' +
+      `This email was sent from ${appUrl}`,
+    html:
+      '<h2>Our legal documents have changed</h2>' +
+      `<p>Hello,</p><p>We have updated our <strong>${documentTitle}</strong> (version ${version}). ` +
+      'You can read the new version here:</p>' +
+      `<p><a href="${documentUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
+      `text-decoration: none; border-radius: 6px; display: inline-block;">Read ${documentTitle}</a></p>` +
+      '<p>You will be asked to accept it the next time you sign in.</p>' +
+      '<p>Best regards,<br>The Invoicerr Team</p><hr>' +
+      `<p style="font-size: 12px; color: #666;">This email was sent from ${appUrl}</p>`,
+  };
+}

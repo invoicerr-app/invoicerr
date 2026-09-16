@@ -1152,33 +1152,94 @@ model User {
   // mode only (`billing-flag.ts#isBillingEnabled`); empty on every self-hosted instance.
   legalAcceptances LegalAcceptance[]
 
+  // One row per (slug, contentHash) release this user has already been emailed about — see
+  // `LegalDocumentReleaseNotification`'s own comment. SaaS mode only, same as the acceptances above.
+  legalDocumentReleaseNotifications LegalDocumentReleaseNotification[]
+
   @@unique([email])
   @@map("user")
 }
 
-/// One row per (user, document, version) a user has explicitly accepted — the checkbox at sign-up
-/// ("I accept the Terms of Service and the Privacy Policy", SaaS mode only) and the re-acceptance
-/// interstitial a later version triggers at sign-in (`frontend/src/pages/legal/accept.tsx`). Never
-/// written on a self-hosted instance: `isBillingEnabled()` gates every write path
-/// (`backend/src/legal/legal.service.ts`). `version` is the document's own front-matter `version`
-/// field (`documentation/docs/legal/*.md`, mirrored at build time into `backend/src/legal/data/` —
-/// see that directory's own sync spec) at the moment of acceptance, so an operator can always answer
-/// "which exact text did this user agree to", and a later text change (a new `version`) is a new row,
-/// never an overwrite of this one. `ipAddress`/`userAgent` are best-effort evidence, not a data point
-/// the acceptance check itself ever reads.
+/// One row per (user, document, contentHash) a user has explicitly accepted — the checkbox at
+/// sign-up ("I accept the Terms of Service and the Privacy Policy", SaaS mode only) and the
+/// re-acceptance interstitial a later text change triggers at sign-in
+/// (`frontend/src/pages/legal/accept.tsx`). Never written on a self-hosted instance:
+/// `isBillingEnabled()` gates every write path (`backend/src/legal/legal.service.ts`).
+///
+/// DECISION 2026-09-17 — keyed on `contentHash`, not `version`: `version` is free text an author sets
+/// by hand in a document's front matter, and nothing stops two real text edits from landing under the
+/// same version string on the same day (a same-day follow-up fix, forgetting to bump it a second
+/// time) — which would make a stale acceptance silently keep counting as current. `contentHash` is a
+/// sha256 of the normalized body (`legal-documents.ts#computeContentHash`) and can't be fooled that
+/// way: any wording change is a different hash, full stop. `version` is kept as a column purely for
+/// DISPLAY (an operator or a support reply naming "the version accepted"); the acceptance CHECK
+/// (`legal-acceptance.ts#getPendingAcceptanceSlugs`) reads `contentHash` alone.
+///
+/// `contentHash` is nullable rather than backfilled: a migration that stamped every pre-existing row
+/// with today's current hash would be LYING about what text that user actually saw at accept time (we
+/// have no record of the wording as it was then). Leaving it `NULL` and treating a `NULL` as never
+/// matching the current hash (see that same function) means an old row simply falls back to "still
+/// pending" — the same outcome as if this column had existed from day one and that row had recorded a
+/// now-superseded hash. No user is silently grandfathered in; the next sign-in interstitial asks them
+/// to accept again, once, and the row gets a real hash from then on.
+///
+/// `ipAddress`/`userAgent` are best-effort evidence, not a data point the acceptance check itself ever
+/// reads.
 model LegalAcceptance {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   documentSlug String
   version      String
+  /// sha256 of the document body at accept time (`legal-documents.ts#computeContentHash`). `NULL` on
+  /// rows written before this column existed — see this model's own comment on why those are never
+  /// backfilled and simply read back as stale.
+  contentHash  String?
   acceptedAt   DateTime @default(now())
   ipAddress    String?
   userAgent    String?
 
-  @@unique([userId, documentSlug, version])
+  @@unique([userId, documentSlug, contentHash])
   @@index([userId])
   @@map("legal_acceptance")
+}
+
+/// One row per legal document text this instance has EVER shipped (its `(slug, contentHash)` pair),
+/// recorded the first time a boot notices a slug's current hash isn't the latest one already on file
+/// (`legal/legal-release-boot.service.ts`). Written on every instance, self-hosted included — this
+/// table is the append-only history of "what changed and when", independent of whether anyone gets
+/// emailed about it (that's `LegalDocumentReleaseNotification`, SaaS-only). `version` is carried along
+/// purely so a release can be described in a log line or a future admin screen without a second
+/// lookup into the (mutable, current-state-only) document files.
+model LegalDocumentRelease {
+  id          String   @id @default(cuid())
+  slug        String
+  version     String
+  contentHash String
+  publishedAt DateTime @default(now())
+
+  @@unique([slug, contentHash])
+  @@index([slug])
+  @@map("legal_document_release")
+}
+
+/// One row per (user, slug, contentHash) this instance has already emailed "our legal documents have
+/// changed" about — the idempotency key `legal-release-boot.service.ts` checks before sending, so a
+/// re-run of the same boot-time detection (a restart, a multi-replica deployment where more than one
+/// process notices the same new release) can never double-mail the same user for the same release.
+/// SaaS mode only: nothing ever writes this row on a self-hosted instance, since nothing ever emails
+/// there either (`billing-flag.ts#isBillingEnabled`).
+model LegalDocumentReleaseNotification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug        String
+  contentHash String
+  sentAt      DateTime @default(now())
+
+  @@unique([userId, slug, contentHash])
+  @@index([userId])
+  @@map("legal_document_release_notification")
 }
 
 model ApiKey {

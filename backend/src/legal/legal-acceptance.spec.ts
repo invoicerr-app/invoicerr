@@ -1,7 +1,7 @@
 import prisma from '@/prisma/prisma.service';
 
 import { getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
-import { currentVersionOf } from './legal-documents';
+import { currentContentHashOf, getLegalDocument } from './legal-documents';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -13,8 +13,9 @@ jest.mock('@/prisma/prisma.service', () => ({
 const upsert = prisma.legalAcceptance.upsert as jest.Mock;
 const findMany = prisma.legalAcceptance.findMany as jest.Mock;
 
-const tosVersion = currentVersionOf('terms-of-service')!;
-const privacyVersion = currentVersionOf('privacy-policy')!;
+const tosVersion = getLegalDocument('terms-of-service')!.version;
+const tosHash = currentContentHashOf('terms-of-service')!;
+const privacyHash = currentContentHashOf('privacy-policy')!;
 
 beforeEach(() => {
   upsert.mockReset().mockResolvedValue({});
@@ -22,7 +23,7 @@ beforeEach(() => {
 });
 
 describe('recordLegalAcceptance', () => {
-  it('upserts one row per slug, keyed on (userId, documentSlug, version)', async () => {
+  it('upserts one row per slug, keyed on (userId, documentSlug, contentHash)', async () => {
     await recordLegalAcceptance('user-1', ['terms-of-service', 'privacy-policy'], {
       ipAddress: '1.2.3.4',
       userAgent: 'jest',
@@ -32,16 +33,17 @@ describe('recordLegalAcceptance', () => {
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          userId_documentSlug_version: {
+          userId_documentSlug_contentHash: {
             userId: 'user-1',
             documentSlug: 'terms-of-service',
-            version: tosVersion,
+            contentHash: tosHash,
           },
         },
         create: expect.objectContaining({
           userId: 'user-1',
           documentSlug: 'terms-of-service',
           version: tosVersion,
+          contentHash: tosHash,
           ipAddress: '1.2.3.4',
           userAgent: 'jest',
         }),
@@ -72,23 +74,33 @@ describe('getPendingAcceptanceSlugs', () => {
     ]);
   });
 
-  it('excludes a slug accepted at its current version', async () => {
-    findMany.mockResolvedValue([{ documentSlug: 'terms-of-service', version: tosVersion }]);
+  it('excludes a slug accepted at its current content hash', async () => {
+    findMany.mockResolvedValue([{ documentSlug: 'terms-of-service', contentHash: tosHash }]);
     await expect(getPendingAcceptanceSlugs('user-1')).resolves.toEqual(['privacy-policy']);
   });
 
-  it('treats an acceptance at a STALE version as still pending', async () => {
+  it('treats an acceptance at a STALE hash as still pending, even at the CURRENT version string', async () => {
+    // The whole point of decision 2026-09-17: two text edits can share a version string (an author
+    // forgetting to bump it a second time on the same day) — the hash must catch what version can't.
     findMany.mockResolvedValue([
-      { documentSlug: 'terms-of-service', version: '2000-01-01' },
-      { documentSlug: 'privacy-policy', version: privacyVersion },
+      { documentSlug: 'terms-of-service', contentHash: 'stale-hash-not-matching-current-content' },
+      { documentSlug: 'privacy-policy', contentHash: privacyHash },
     ]);
     await expect(getPendingAcceptanceSlugs('user-1')).resolves.toEqual(['terms-of-service']);
   });
 
-  it('returns an empty list once both are accepted at their current version', async () => {
+  it('treats a pre-migration row (contentHash: null) as still pending, never grandfathered in', async () => {
     findMany.mockResolvedValue([
-      { documentSlug: 'terms-of-service', version: tosVersion },
-      { documentSlug: 'privacy-policy', version: privacyVersion },
+      { documentSlug: 'terms-of-service', contentHash: null },
+      { documentSlug: 'privacy-policy', contentHash: privacyHash },
+    ]);
+    await expect(getPendingAcceptanceSlugs('user-1')).resolves.toEqual(['terms-of-service']);
+  });
+
+  it('returns an empty list once both are accepted at their current content hash', async () => {
+    findMany.mockResolvedValue([
+      { documentSlug: 'terms-of-service', contentHash: tosHash },
+      { documentSlug: 'privacy-policy', contentHash: privacyHash },
     ]);
     await expect(getPendingAcceptanceSlugs('user-1')).resolves.toEqual([]);
   });

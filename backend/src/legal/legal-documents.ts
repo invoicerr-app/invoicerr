@@ -9,6 +9,7 @@
  * Front matter is a handful of flat `key: value` lines, never nested YAML — a five-line regex parser
  * here is proportionate; pulling in a YAML dependency for two required string fields would not be.
  */
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -22,6 +23,11 @@ export interface LegalDocument {
    *  (`markdown-it`, already a frontend dependency) so this API stays framework-agnostic for any other
    *  consumer (a future CLI, a plugin). */
   content: string;
+  /** sha256 of `content`, normalized first (see `computeContentHash` below) — the true identity a
+   *  `LegalAcceptance` and a `LegalDocumentRelease` are keyed on (decision 2026-09-17). `version` is
+   *  free text an author sets by hand and nothing stops two real wording changes landing under the
+   *  same version string the same day; the hash can't be fooled that way. */
+  contentHash: string;
 }
 
 /**
@@ -62,6 +68,30 @@ function parseFrontMatter(
   return { fields, content: content.trim() };
 }
 
+/**
+ * Normalizes a document body before hashing so the hash reflects wording, never incidental
+ * formatting noise: CRLF/CR collapsed to LF (a Windows checkout of the same text must hash
+ * identically to a Unix one — the front matter block is already stripped by `parseFrontMatter`, so
+ * only the body's own line endings matter here), trailing whitespace stripped from every line (a
+ * trailing space a markdown linter would silently fix must not register as a content change), and
+ * the whole result trimmed (leading/trailing blank lines are formatting, not wording).
+ */
+function normalizeForHash(content: string): string {
+  return content
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+$/, ''))
+    .join('\n')
+    .trim();
+}
+
+/** sha256 hex digest of `content`'s normalized form — exported so `legal-acceptance.spec.ts` and
+ *  `legal-release-boot.service.spec.ts` can assert stability (same text, different line endings,
+ *  hashes identically) without duplicating the normalization rule. */
+export function computeContentHash(content: string): string {
+  return createHash('sha256').update(normalizeForHash(content), 'utf-8').digest('hex');
+}
+
 function loadDocument(filename: string): LegalDocument {
   const slug = filename.replace(/\.md$/, '');
   const raw = readFileSync(join(DATA_DIR, filename), 'utf-8');
@@ -80,6 +110,7 @@ function loadDocument(filename: string): LegalDocument {
     effectiveDate: fields.effectiveDate,
     sidebarPosition: Number(fields.sidebar_position ?? '0'),
     content,
+    contentHash: computeContentHash(content),
   };
 }
 
@@ -101,4 +132,10 @@ export function getLegalDocument(slug: string): LegalDocument | undefined {
  *  error (see `legal-acceptance.ts`'s own header on why an unknown slug is skipped, not thrown). */
 export function currentVersionOf(slug: string): string | undefined {
   return getLegalDocument(slug)?.version;
+}
+
+/** The hash-based sibling of `currentVersionOf` — see `LegalDocument.contentHash`'s own comment for
+ *  why acceptance/release comparisons are keyed on this rather than on `version`. */
+export function currentContentHashOf(slug: string): string | undefined {
+  return getLegalDocument(slug)?.contentHash;
 }

@@ -1,5 +1,7 @@
 import {
   REQUIRED_ACCEPTANCE_SLUGS,
+  computeContentHash,
+  currentContentHashOf,
   currentVersionOf,
   getLegalDocument,
   listLegalDocuments,
@@ -43,6 +45,40 @@ describe('legal-documents', () => {
     expect(REQUIRED_ACCEPTANCE_SLUGS).toEqual(['terms-of-service', 'privacy-policy']);
     for (const slug of REQUIRED_ACCEPTANCE_SLUGS) {
       expect(getLegalDocument(slug)).toBeDefined();
+    }
+  });
+
+  describe('computeContentHash', () => {
+    it('is stable — the same content hashes the same on repeated calls', () => {
+      const content = 'Section 1\n\nSome legal prose.\n';
+      expect(computeContentHash(content)).toBe(computeContentHash(content));
+    });
+
+    it('is identical for the same text written with CRLF vs LF line endings', () => {
+      const lf = 'Section 1\n\nSome legal prose.\nSecond line.';
+      const crlf = lf.replace(/\n/g, '\r\n');
+      expect(computeContentHash(crlf)).toBe(computeContentHash(lf));
+    });
+
+    it('ignores trailing whitespace on a line', () => {
+      const clean = 'Section 1\nSome legal prose.';
+      const trailingSpaces = 'Section 1  \nSome legal prose.\t';
+      expect(computeContentHash(trailingSpaces)).toBe(computeContentHash(clean));
+    });
+
+    it('changes when the wording actually changes', () => {
+      expect(computeContentHash('Version A')).not.toBe(computeContentHash('Version B'));
+    });
+  });
+
+  it('currentContentHashOf mirrors getLegalDocument, undefined for an unknown slug', () => {
+    expect(currentContentHashOf('privacy-policy')).toBe(getLegalDocument('privacy-policy')?.contentHash);
+    expect(currentContentHashOf('does-not-exist')).toBeUndefined();
+  });
+
+  it('every loaded document carries a 64-hex-char sha256 contentHash', () => {
+    for (const doc of listLegalDocuments()) {
+      expect(doc.contentHash).toMatch(/^[0-9a-f]{64}$/);
     }
   });
 });
