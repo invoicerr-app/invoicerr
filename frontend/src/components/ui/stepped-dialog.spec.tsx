@@ -65,7 +65,13 @@ describe("stepper navigation — pure", () => {
 })
 
 /** A 3-step harness: step "a" has one required field, step "b" has none, step "c" is the recap. */
-function Harness({ onSubmit }: { onSubmit: (v: Record<string, unknown>) => void }) {
+function Harness({
+  onSubmit,
+  initialMaxReached,
+}: {
+  onSubmit: (v: Record<string, unknown>) => void
+  initialMaxReached?: number
+}) {
   const schema = z.object({ name: z.string().min(1, "Required") })
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { name: "" } })
 
@@ -99,6 +105,7 @@ function Harness({ onSubmit }: { onSubmit: (v: Record<string, unknown>) => void 
       onOpenChange={() => {}}
       title="Harness dialog"
       dataCy="harness"
+      initialMaxReached={initialMaxReached}
     />
   )
 }
@@ -167,5 +174,17 @@ describe("<SteppedDialog> — behavior", () => {
     expect(screen.getByTestId("harness-step-a")).not.toBeDisabled()
     fireEvent.click(screen.getByTestId("harness-step-a"))
     expect(await screen.findByLabelText("name")).toBeInTheDocument()
+  })
+
+  it("initialMaxReached opens every chip clickable up front — an EDIT dialog's own steps start done", async () => {
+    const onSubmit = vi.fn()
+    render(<Harness onSubmit={onSubmit} initialMaxReached={2} />)
+
+    // Still lands on step "a" first — only the chips ahead of it are unlocked, not the view itself.
+    expect(await screen.findByLabelText("name")).toBeInTheDocument()
+    expect(screen.getByTestId("harness-step-c")).not.toBeDisabled()
+
+    fireEvent.click(screen.getByTestId("harness-step-c"))
+    expect(await screen.findByText("step c content")).toBeInTheDocument()
   })
 })

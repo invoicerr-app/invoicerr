@@ -286,6 +286,24 @@ Cypress.Commands.add('continueDocumentWizard', () => {
 });
 
 /**
+ * The generic sibling of `continueDocumentWizard` above for any OTHER `stepped-dialog.tsx` wizard —
+ * takes the dialog's own `dataCy` prefix instead of hardcoding "document-create-dialog", so
+ * article-upsert.tsx and time-entry-upsert.tsx (and any later 3-step dialog) share this one command
+ * rather than each spec re-deriving the same before/after `data-cy` wait.
+ * @example cy.continueSteppedDialog('article-dialog')
+ */
+Cypress.Commands.add('continueSteppedDialog', (dataCy: string) => {
+    cy.get(`[data-cy^="${dataCy}-step-body-"]`)
+        .invoke('attr', 'data-cy')
+        .then((before) => {
+            cy.get(`[data-cy="${dataCy}-continue"]`).should('be.visible').click();
+            cy.get(`[data-cy^="${dataCy}-step-body-"]`, { timeout: 10000 }).should(($el) => {
+                expect($el.attr('data-cy')).not.to.eq(before);
+            });
+        });
+});
+
+/**
  * Opens a saved document's OWN page from its type's list: clicks the row's title link
  * (`document-open-link-<id>`, the one keyboard-reachable "open" control document-list.tsx renders)
  * and waits for the page root (`document-detail-page`, document-detail.tsx). The page is what
@@ -403,6 +421,10 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
         cy.get(selector, { timeout: 10000 }).should('be.visible').click();
     });
 });
+
+// The client dialog (client-upsert.tsx) uses the SAME generic `continueSteppedDialog('client-dialog')`
+// above (no dedicated `continueClientWizard` — one dialog-agnostic command for every
+// stepped-dialog.tsx wizard, client included, rather than a copy per dialog).
 
 Cypress.Commands.add('ensureClient', () => {
     const apiUrl = Cypress.env('apiUrl');

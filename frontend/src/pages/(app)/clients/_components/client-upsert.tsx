@@ -1,5 +1,4 @@
 import {
-  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -24,17 +23,19 @@ import DocumentLanguageSelect from "@/components/document-language-select"
 import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search } from "lucide-react"
-import { useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useEffect, useRef, useState } from "react"
+import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
-import { useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
-import { useB2gRoutingRule } from "@/hooks/use-b2g-routing"
+import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-import { FormDialog, FormSection } from "../../_shared/form-dialog"
+import { FormSection } from "../../_shared/form-dialog"
+import { SteppedDialog, type SteppedDialogStep } from "@/components/ui/stepped-dialog"
+import { ClientPortalAccessDialog } from "./client-portal-access"
 
 interface ClientUpsertProps {
   client?: Client | null
@@ -51,7 +52,9 @@ interface ClientUpsertProps {
  * `company-custom-fields/types.ts#toFieldDescriptor` header for why a CLIENT-target field needs no
  * prefix at all): `Client.customFields` is already its own isolated JSON column, so `customFields`
  * being a real, `z.record`-typed field on `clientSchema` is what carries this whole object through
- * `form.handleSubmit` intact. Renders nothing for a company that has defined none.
+ * `form.handleSubmit` intact. Renders nothing for a company that has defined none. Appended to the
+ * CONTACT step (see the wizard's own step-split comment below): an open-ended extension point with
+ * no inherent home among the other four, and the last thing worth filling in before the summary.
  */
 function CustomFieldsSection() {
   const { t } = useTranslation()
@@ -72,10 +75,736 @@ function CustomFieldsSection() {
   )
 }
 
+/**
+ * IDENTITY — what makes this client itself: type, its name (company) or first/last name
+ * (individual), a free-text description, when it was founded, and whether it is ALSO a supplier to
+ * this company (`isSupplier`, a role independent of "kind" below — see that field's own schema
+ * comment). None of this depends on the country chosen on the next step.
+ */
+function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; clientType: string }) {
+  const { t } = useTranslation()
+  return (
+    <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-identity">
+      <FormField
+        control={form.control}
+        name="type"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("clients.upsert.fields.type.label") || "Client type"}</FormLabel>
+            <FormControl>
+              <Select value={field.value || "COMPANY"} onValueChange={(value) => field.onChange(value)}>
+                <SelectTrigger dataCy="client-type-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="COMPANY" dataCy="client-type-company">
+                    {t("clients.upsert.fields.type.company") || "Company"}
+                  </SelectItem>
+                  <SelectItem value="INDIVIDUAL" dataCy="client-type-individual">
+                    {t("clients.upsert.fields.type.individual") || "Individual"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {clientType === "COMPANY" ? (
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.name.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.name.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : (
+        <>
+          <FormField
+            control={form.control}
+            name="contactFirstname"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder={t("clients.upsert.fields.contactFirstname.placeholder")} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="contactLastname"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder={t("clients.upsert.fields.contactLastname.placeholder")} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      )}
+
+      <div className="sm:col-span-2">
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.description.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.description.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <FormField
+        control={form.control}
+        name="foundedAt"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("clients.upsert.fields.foundedAt.label")}</FormLabel>
+            <FormControl>
+              <DatePicker
+                className="w-full"
+                value={field.value || null}
+                onChange={field.onChange}
+                placeholder={t("clients.upsert.fields.foundedAt.placeholder")}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="isSupplier"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 sm:col-span-2">
+            <div className="space-y-0.5">
+              <FormLabel>{t("clients.upsert.fields.isSupplier.label")}</FormLabel>
+              <FormDescription>{t("clients.upsert.fields.isSupplier.description")}</FormDescription>
+            </div>
+            <FormControl>
+              <Switch
+                checked={!!field.value}
+                onCheckedChange={(value) => field.onChange(value)}
+                data-cy="client-is-supplier-switch"
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+    </div>
+  )
+}
+
+/**
+ * ADDRESS — the postal address, country included. Country has to be set here (before the next step)
+ * because it drives BOTH the required-identifiers catalog and the currency default
+ * (`useCountryToCurrency`) the Fiscalité step shows.
+ */
+function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
+  const { t } = useTranslation()
+  return (
+    <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-address">
+      <div className="sm:col-span-2">
+        <FormField
+          control={form.control}
+          name="country"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
+              <FormControl>
+                <CountrySelect
+                  value={field.value}
+                  onChange={(value) => field.onChange(value)}
+                  onCountryCodeChange={(code) => form.setValue("countryCode", code as never)}
+                  data-cy="client-country-select"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <div className="sm:col-span-2">
+        <FormField
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel required>{t("clients.upsert.fields.address.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.address.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <div className="sm:col-span-2">
+        <FormField
+          control={form.control}
+          name="addressLine2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.addressLine2.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.addressLine2.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
+        <FormField
+          control={form.control}
+          name="postalCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel required>{t("clients.upsert.fields.postalCode.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.postalCode.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="city"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel required>{t("clients.upsert.fields.city.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.city.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="state"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.state.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.state.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * FISCALITÉ & IDENTIFIANTS — everything the tax/compliance engines need from this client: `kind`
+ * (BUSINESS/GOVERNMENT, gating the B2G hint), the billing currency (tied to the country chosen on the
+ * previous step, hence kept right next to `kind`), the country's own required identifiers (VAT,
+ * SIRET, Leitweg-ID…) merged with whatever a GOVERNMENT client's own B2G rule additionally requires,
+ * and the Peppol electronic-routing pair — every fact a cross-border invoice to this client needs
+ * resolved before it can send.
+ */
+function FiscalStep({
+  form,
+  isGovernment,
+  b2gRule,
+  b2gRuleLoading,
+  requiredIdentifiers,
+  requiredIdentifiersReason,
+  canLookupScheme,
+  onCompanyLookup,
+  companyLookupLoading,
+  lookupIdentifierLabel,
+}: {
+  form: UseFormReturn<FieldValues>
+  isGovernment: boolean
+  b2gRule: B2gRoutingRule | null | undefined
+  b2gRuleLoading: boolean
+  requiredIdentifiers: IdentifierRequirement[] | undefined
+  requiredIdentifiersReason: string | undefined
+  canLookupScheme: (scheme: string) => boolean
+  onCompanyLookup: (value: string | undefined, scheme?: LookupScheme) => void | Promise<void>
+  companyLookupLoading: boolean
+  lookupIdentifierLabel: string | undefined
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-6" data-cy="client-form-fiscal">
+      <FormSection title={t("clients.upsert.sections.classification")}>
+        <FormField
+          control={form.control}
+          name="kind"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.kind.label", "Client kind")}</FormLabel>
+              <FormControl>
+                <Select value={field.value || "BUSINESS"} onValueChange={(value) => field.onChange(value)}>
+                  <SelectTrigger dataCy="client-kind-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BUSINESS" dataCy="client-kind-business">
+                      {t("clients.upsert.fields.kind.business", "Business")}
+                    </SelectItem>
+                    <SelectItem value="GOVERNMENT" dataCy="client-kind-government">
+                      {t("clients.upsert.fields.kind.government", "Government / public body")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="currency"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.currency.label")}</FormLabel>
+              <FormControl>
+                <CurrencySelect
+                  value={field.value}
+                  onChange={(value) => field.onChange(value)}
+                  data-cy="client-currency-select"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {isGovernment ? (
+          <div
+            className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm sm:col-span-2"
+            data-cy="client-b2g-hint"
+          >
+            {b2gRuleLoading ? null : b2gRule ? (
+              <>
+                <p className="font-medium text-muted-foreground">
+                  {t(
+                    "clients.upsert.fields.b2gHint.knownTitle",
+                    "This country requires a specific channel/format for public-sector invoices",
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground" data-cy="client-b2g-hint-channel">
+                  {t(
+                    "clients.upsert.fields.b2gHint.channel",
+                    'Channel: "{{transportId}}" · Format: "{{formatSyntax}}"',
+                    { transportId: b2gRule.transportId, formatSyntax: b2gRule.formatSyntax },
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">{b2gRule.provenanceDescription}</p>
+                {b2gRule.requiredDocumentFields.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "clients.upsert.fields.b2gHint.documentFields",
+                      "The invoice itself will also need: {{fields}}",
+                      {
+                        fields: b2gRule.requiredDocumentFields.map((f) => f.label).join(", "),
+                      },
+                    )}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground" data-cy="client-b2g-hint-no-rule">
+                {t(
+                  "clients.upsert.fields.b2gHint.noRule",
+                  "No B2G routing rule is declared for this country yet — sending an invoice to this client will refuse until one is added.",
+                )}
+              </p>
+            )}
+          </div>
+        ) : null}
+      </FormSection>
+
+      {requiredIdentifiers?.length ? (
+        <FormSection title={t("clients.upsert.fields.identifiers.label") || "Country-specific identifiers"}>
+          {requiredIdentifiers.map((req) => {
+            const current = form.watch("identifiers" as never) || []
+            const formIndex = (current as { scheme: string }[]).findIndex((i) => i.scheme === req.scheme)
+            if (formIndex < 0) return null
+            return (
+              <FormField
+                key={req.scheme}
+                control={form.control}
+                name={`identifiers.${formIndex}.value`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required={req.required}>{req.label}</FormLabel>
+                    <FormControl>
+                      <div className="flex gap-2">
+                        <Input
+                          {...field}
+                          placeholder={req.label}
+                          data-cy={`client-identifier-${req.scheme}`}
+                        />
+                        {canLookupScheme(req.scheme) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            disabled={companyLookupLoading || !String(field.value || "").trim()}
+                            onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
+                            aria-label={t("clients.upsert.actions.lookupCompany")}
+                            title={
+                              lookupIdentifierLabel
+                                ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                : t("clients.upsert.actions.lookupCompany")
+                            }
+                            dataCy="client-company-lookup"
+                          >
+                            {companyLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                          </Button>
+                        )}
+                      </div>
+                    </FormControl>
+                    {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )
+          })}
+        </FormSection>
+      ) : requiredIdentifiersReason ? (
+        <p className="text-xs text-muted-foreground" data-cy="client-identifiers-unknown-country">
+          {t(
+            "clients.upsert.fields.identifiers.unknownCountry",
+            "No identifier requirements are known for this country yet — you can save the client without one.",
+          )}
+        </p>
+      ) : null}
+
+      <FormSection
+        title={t("clients.upsert.fields.peppol.label") || "Peppol / Electronic routing (optional)"}
+      >
+        <FormField
+          control={form.control}
+          name="peppolSchemeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.peppolSchemeId.label") || "Peppol scheme"}</FormLabel>
+              <FormControl>
+                <Select value={field.value || "0088"} onValueChange={field.onChange}>
+                  <SelectTrigger data-cy="client-peppol-scheme-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0088" dataCy="client-peppol-scheme-option-0088">
+                      0088 — GLN
+                    </SelectItem>
+                    <SelectItem value="0192" dataCy="client-peppol-scheme-option-0192">
+                      0192 — NO org.nr
+                    </SelectItem>
+                    <SelectItem value="0009" dataCy="client-peppol-scheme-option-0009">
+                      0009 — FR SIRET
+                    </SelectItem>
+                    <SelectItem value="9925" dataCy="client-peppol-scheme-option-9925">
+                      9925 — EU VAT
+                    </SelectItem>
+                    <SelectItem value="0007" dataCy="client-peppol-scheme-option-0007">
+                      0007 — SE org.nr
+                    </SelectItem>
+                    <SelectItem value="0208" dataCy="client-peppol-scheme-option-0208">
+                      0208 — BE org.nr
+                    </SelectItem>
+                    {/*
+                      Was "0106 — DK CVR", WRONG: 0106 is the Dutch
+                      KVK ("Vereniging van Kamers van Koophandel en Fabrieken in Nederland", NL,
+                      active) in the Peppol v9.7 Participant Identifier Schemes codelist
+                      (docs.peppol.eu/edelivery/codelists/), not a Danish scheme at all — found by
+                      the 2026-09-02 B2G audit, re-verified live against the v9.7 codelist JSON on
+                      2026-09-03. The real Danish CVR is 0184 (Peppol scheme name: "The Danish
+                      Business Authority - CVR-number (DK:CVR)"), added just below.
+                    */}
+                    <SelectItem value="0106" dataCy="client-peppol-scheme-option-0106">
+                      0106 — NL KVK
+                    </SelectItem>
+                    <SelectItem value="0184" dataCy="client-peppol-scheme-option-0184">
+                      0184 — DK CVR
+                    </SelectItem>
+                    <SelectItem value="0151" dataCy="client-peppol-scheme-option-0151">
+                      0151 — AU ABN
+                    </SelectItem>
+                    <SelectItem value="0060" dataCy="client-peppol-scheme-option-0060">
+                      0060 — DUNS
+                    </SelectItem>
+                    {/*
+                      The seven EAS the 2026-09-02 B2G audit added routing rules for
+                      (backend/src/modules/documents/b2g-routing/data/{ee,lt,lv,lu,cy,gr,mt}.json)
+                      but this selector never offered — each label below is the scheme name the
+                      audit itself already read from the Peppol v9.7 Participant Identifier Schemes
+                      codelist (that JSON's own `notes` field), re-verified live against
+                      docs.peppol.eu on 2026-09-03: 0191 EE "Company code", 0200 LT "Legal entity
+                      code", 0218 LV "Unified registration number", 0240 LU "Register of legal
+                      persons" (each country has its own business-register scheme);
+                      Cyprus/Greece/Malta have NO dedicated register scheme in the codelist — only
+                      their VAT scheme (9928/9933/9943) exists, per those same three files' own
+                      notes.
+                    */}
+                    <SelectItem value="0191" dataCy="client-peppol-scheme-option-0191">
+                      0191 — EE Company code
+                    </SelectItem>
+                    <SelectItem value="0200" dataCy="client-peppol-scheme-option-0200">
+                      0200 — LT Legal entity code
+                    </SelectItem>
+                    <SelectItem value="0218" dataCy="client-peppol-scheme-option-0218">
+                      0218 — LV Unified registration number
+                    </SelectItem>
+                    <SelectItem value="0240" dataCy="client-peppol-scheme-option-0240">
+                      0240 — LU Register of legal persons
+                    </SelectItem>
+                    <SelectItem value="9928" dataCy="client-peppol-scheme-option-9928">
+                      9928 — CY VAT number
+                    </SelectItem>
+                    <SelectItem value="9933" dataCy="client-peppol-scheme-option-9933">
+                      9933 — GR VAT number
+                    </SelectItem>
+                    <SelectItem value="9943" dataCy="client-peppol-scheme-option-9943">
+                      9943 — MT VAT number
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="peppolEndpointId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {t("clients.upsert.fields.peppolEndpointId.label") || "Peppol endpoint ID"}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={
+                    t("clients.upsert.fields.peppolEndpointId.placeholder") || "e.g. 7300010000001"
+                  }
+                  data-cy="client-peppol-endpoint-input"
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                {t("clients.upsert.fields.peppolEndpointId.helpText") ||
+                  "Leave blank if this client is not on the Peppol network"}
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </FormSection>
+    </div>
+  )
+}
+
+/**
+ * CONTACT & PORTAIL — how this client is reached: email, phone, document language, plus (editing
+ * only — a not-yet-created client has no id to invite) an entry point into the EXISTING portal-access
+ * dialog (`client-portal-access.tsx`), never a re-implementation of it. This company's own custom
+ * CLIENT-target fields close out the step (see `CustomFieldsSection`'s own header for why they live
+ * here).
+ */
+function ContactStep({
+  form,
+  isEditing,
+  onOpenPortalAccess,
+}: {
+  form: UseFormReturn<FieldValues>
+  isEditing: boolean
+  onOpenPortalAccess: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-6" data-cy="client-form-contact">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="contactEmail"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel required>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.contactEmail.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="contactPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder={t("clients.upsert.fields.contactPhone.placeholder")} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="sm:col-span-2">
+          <FormField
+            control={form.control}
+            name="language"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("clients.upsert.fields.language.label")}</FormLabel>
+                <FormControl>
+                  <DocumentLanguageSelect
+                    value={field.value}
+                    onChange={(value) => field.onChange(value)}
+                    data-cy="client-language-select"
+                  />
+                </FormControl>
+                <FormDescription>{t("clients.upsert.fields.language.description")}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+
+      {isEditing && (
+        <div className="flex flex-col items-start justify-between gap-3 rounded-lg border p-4 sm:flex-row sm:items-center">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">
+              {t("clients.upsert.fields.portalAccess.label", "Client portal")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "clients.upsert.fields.portalAccess.description",
+                "Invite this client to sign in and see their own invoices, quotes and balance.",
+              )}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onOpenPortalAccess}
+            dataCy="client-upsert-portal-access-button"
+          >
+            {t("clients.list.tooltips.portalAccess")}
+          </Button>
+        </div>
+      )}
+
+      <CustomFieldsSection />
+    </div>
+  )
+}
+
+/**
+ * SUMMARY — a compact, read-only recap (never re-validated on its own "Continue" click, see the
+ * wizard's own step-split comment for why: every fact here was already checked on the step that owns
+ * it) plus the primary action (`SteppedDialog`'s own fixed footer).
+ */
+function RecapStep({
+  form,
+  isGovernment,
+  requiredIdentifiers,
+}: {
+  form: UseFormReturn<FieldValues>
+  isGovernment: boolean
+  requiredIdentifiers: IdentifierRequirement[] | undefined
+}) {
+  const { t } = useTranslation()
+  // `form.watch(name)` resolves to react-hook-form's "watch an ARRAY of names" overload here (the
+  // form is loosely typed as `UseFormReturn<FieldValues>`, see this component's own callsite
+  // comment on why) — an extra `as unknown` step before the scalar cast is what tells TypeScript
+  // this is deliberate, not a mistake, the same shape `document-create-dialog.tsx`'s own RecapStep
+  // needs for its `state.form.watch(clientField.key) as string | undefined`.
+  const type = form.watch("type" as never) as unknown as string
+  const name = form.watch("name" as never) as unknown as string | undefined
+  const contactFirstname = form.watch("contactFirstname" as never) as unknown as string | undefined
+  const contactLastname = form.watch("contactLastname" as never) as unknown as string | undefined
+  const country = form.watch("country" as never) as unknown as string | undefined
+  const currency = form.watch("currency" as never) as unknown as string | undefined
+  const contactEmail = form.watch("contactEmail" as never) as unknown as string | undefined
+  const identifiers = (form.watch("identifiers" as never) as { scheme: string; value: string }[]) || []
+
+  const displayName =
+    type === "INDIVIDUAL" ? [contactFirstname, contactLastname].filter(Boolean).join(" ") : name
+  const primaryIdentifier = (requiredIdentifiers ?? [])
+    .map((req) => ({ req, value: identifiers.find((i) => i.scheme === req.scheme)?.value }))
+    .find((entry) => entry.value && entry.value.trim() !== "")
+  const fallback = "—"
+
+  return (
+    <dl className="space-y-3 text-sm" data-cy="client-upsert-recap">
+      <div className="flex items-center justify-between gap-4">
+        <dt className="text-muted-foreground">{t("clients.upsert.stepped.recap.typeLabel", "Type")}</dt>
+        <dd className="font-medium text-foreground">
+          {type === "INDIVIDUAL"
+            ? t("clients.upsert.fields.type.individual")
+            : t("clients.upsert.fields.type.company")}
+          {isGovernment ? ` · ${t("clients.upsert.fields.kind.government")}` : ""}
+        </dd>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <dt className="text-muted-foreground">{t("clients.upsert.stepped.recap.nameLabel", "Name")}</dt>
+        <dd className="font-medium text-foreground" data-cy="client-upsert-recap-name">
+          {displayName?.trim() || fallback}
+        </dd>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <dt className="text-muted-foreground">{t("clients.upsert.fields.country.label")}</dt>
+        <dd className="font-medium text-foreground">{country || fallback}</dd>
+      </div>
+      {primaryIdentifier && (
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-muted-foreground">{primaryIdentifier.req.label}</dt>
+          <dd className="font-mono font-medium tabular-nums text-foreground">{primaryIdentifier.value}</dd>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-4">
+        <dt className="text-muted-foreground">{t("clients.upsert.fields.currency.label")}</dt>
+        <dd className="font-mono font-medium tabular-nums text-foreground">{currency || fallback}</dd>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <dt className="text-muted-foreground">{t("clients.upsert.fields.contactEmail.label")}</dt>
+        <dd className="font-medium text-foreground">{contactEmail || fallback}</dd>
+      </div>
+    </dl>
+  )
+}
+
 export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUpsertProps) {
   const { t } = useTranslation()
   const isEditing = !!client
   const queryClient = useQueryClient()
+  const [portalAccessOpen, setPortalAccessOpen] = useState(false)
 
   const saveErrorMessage = t("clients.upsert.messages.saveError", "Failed to save client")
   const { trigger: createClient, loading: createLoading } = useMutationWithToast(
@@ -87,11 +816,22 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     saveErrorMessage,
   )
 
+  // The country's own required-identifiers list (+ a GOVERNMENT client's B2G additions) and the
+  // values already on file, mirrored into REFS rather than read directly by the schema below: both
+  // depend on `form.watch(...)`, which needs `form` to exist first, but `useForm`'s own resolver
+  // needs the schema built BEFORE that. A ref sidesteps the chicken-and-egg — its `.current` is
+  // reassigned every render (see the two assignments further down) and `clientSchema`'s superRefine
+  // only ever reads it at VALIDATION time (a later `form.trigger()` call), by which point the most
+  // recent render has already committed. Kept as plain refs (not `useMemo`d state) on purpose: a
+  // reassignment must never itself trigger a re-render, only observing user input should.
+  const requiredIdentifiersRef = useRef<IdentifierRequirement[]>([])
+  const originalIdentifierValuesRef = useRef<Map<string, string>>(new Map())
+
   const clientSchema = z
     .object({
       type: z.enum(["INDIVIDUAL", "COMPANY"]),
       // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
-      // this client must use, per its own country (see the B2G hint panel further down this form).
+      // this client must use, per its own country (see the B2G hint panel on the Fiscalité step).
       kind: z.enum(["BUSINESS", "GOVERNMENT"]),
       // The received-invoice reconciliation's own role, a PLAIN boolean
       // independent from "kind" above (see backend Client.isSupplier's own schema comment for why).
@@ -166,6 +906,50 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
             code: z.ZodIssueCode.custom,
             path: ["name"],
             message: t("clients.upsert.validation.name.required"),
+          })
+        }
+      }
+
+      // Country-specific identifiers (country-identifiers/ + a GOVERNMENT client's own B2G rule) —
+      // lives IN the schema (rather than a hand-rolled check in `onSubmit`, the pre-wizard shape) so
+      // the Fiscalité step's own "Continue" click (its `fields` list includes "identifiers", see the
+      // `steps` construction below) blocks THERE, with the error next to the actual input, instead of
+      // only surfacing once the wizard reaches the read-only Summary step, where nothing renders it.
+      for (const req of requiredIdentifiersRef.current) {
+        const idx = (val.identifiers ?? []).findIndex((i) => i.scheme === req.scheme)
+        const value = idx >= 0 ? val.identifiers?.[idx]?.value : undefined
+        if (req.required && (!value || value.trim() === "")) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: idx >= 0 ? ["identifiers", idx, "value"] : ["identifiers"],
+            message: `${req.label} is required`,
+          })
+          continue
+        }
+        // A same-origin, best-effort ECHO of the server's own pattern gate — never the enforcement
+        // itself (that only exists server-side, in country-identifiers/validate-identifier-value.ts).
+        // VAT is skipped here for the exact reason it is skipped there: `tax/vat-syntax.ts` owns VAT
+        // syntax exclusively, and a DE-shaped `pattern` on this same catalog entry must never be
+        // second-guessed by a weaker client-side regex. An unchanged legacy value is never
+        // re-validated either — the client-side twin of that same server rule.
+        if (!req.pattern || req.scheme === "VAT") continue
+        if (!value || value.trim() === "") continue
+        if (value === originalIdentifierValuesRef.current.get(req.scheme)) continue
+        let matches = true
+        try {
+          matches = new RegExp(req.pattern).test(value)
+        } catch {
+          matches = true // a malformed pattern never blocks here — the server is the real gate
+        }
+        if (!matches) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["identifiers", idx, "value"],
+            message: t(
+              "clients.upsert.validation.identifiers.patternMismatch",
+              "{{label}} format is invalid",
+              { label: req.label },
+            ),
           })
         }
       }
@@ -294,9 +1078,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     clientTypeWatch === "INDIVIDUAL" ? "INDIVIDUAL" : "COMPANY",
   )
   // B2G routing (documents/b2g-routing/) — asked for ONLY when this client is GOVERNMENT. `null`
-  // (not an error) means no B2G rule is declared for this country yet — rendered as HELP below, an
-  // invoice to this client will refuse at send time (never a silent B2B send), but the client itself
-  // can still be saved.
+  // (not an error) means no B2G rule is declared for this country yet — rendered as HELP on the
+  // Fiscalité step (an invoice to this client will refuse at send time — never a silent B2B send —
+  // but the client itself can still be saved).
   const { data: b2gRule, isLoading: b2gRuleLoading } = useB2gRoutingRule(
     countryCodeValue || undefined,
     isGovernment,
@@ -304,11 +1088,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   // The country's OWN identifier requirements (every client of that country, regardless of kind)
   // PLUS whatever the B2G rule additionally requires of a GOVERNMENT client specifically (e.g. Italy's
-  // Codice Univoco Ufficio) — merged into ONE list so the existing "country-specific identifiers"
-  // section below (and its own sync effect / submit validation) needs no separate B2G-only code path.
-  // A scheme already required by the country's own catalog is never duplicated. Stays `undefined`
-  // while the country-identifiers query itself hasn't resolved yet — same "no data yet" shape the
-  // rest of this form already relies on (the sync effect below short-circuits on it).
+  // Codice Univoco Ufficio) — merged into ONE list so the Fiscalité step's "country-specific
+  // identifiers" section (and its own sync effect / schema check above) needs no separate B2G-only
+  // code path. A scheme already required by the country's own catalog is never duplicated. Stays
+  // `undefined` while the country-identifiers query itself hasn't resolved yet — same "no data yet"
+  // shape the rest of this form already relies on (the sync effect below short-circuits on it).
   const requiredIdentifiers = (() => {
     const base = requiredIdentifiersResult?.requirements
     if (!base) return base
@@ -336,6 +1120,18 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const requiredIdentifiersReason = requiredIdentifiers?.length
     ? undefined
     : requiredIdentifiersResult?.reason
+
+  // What was actually on file when this form opened, keyed by scheme — the client-side twin of the
+  // server's own "an unchanged value is never re-validated" rule (country-identifiers/
+  // validate-identifier-value.ts): a legacy value that predates a pattern must not suddenly block
+  // saving an UNRELATED field. Empty for a brand-new client, where every entry is "new" either way.
+  const originalIdentifierValues = new Map(
+    (client?.partyIdentifiers || []).map((pi) => [pi.scheme, pi.value]),
+  )
+
+  // Reassigned every render, read only at validation time — see the refs' own declaration comment.
+  requiredIdentifiersRef.current = requiredIdentifiers ?? []
+  originalIdentifierValuesRef.current = originalIdentifierValues
 
   // Sync identifier fields with what the country (+ B2G rule, for a government client) requires
   useEffect(() => {
@@ -365,60 +1161,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // The backend owns the per-country format rules; the button only needs a value.
   const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
-  // What was actually on file when this form opened, keyed by scheme — the client-side twin of the
-  // server's own "an unchanged value is never re-validated" rule (country-identifiers/
-  // validate-identifier-value.ts): a legacy value that predates a pattern must not suddenly block
-  // saving an UNRELATED field. Empty for a brand-new client, where every entry is "new" either way.
-  const originalIdentifierValues = new Map(
-    (client?.partyIdentifiers || []).map((pi) => [pi.scheme, pi.value]),
-  )
-
   const onSubmit = (data: z.infer<typeof clientSchema>) => {
-    if (requiredIdentifiers) {
-      for (const req of requiredIdentifiers) {
-        if (req.required) {
-          const val = (data.identifiers || []).find((i) => i.scheme === req.scheme)?.value
-          if (!val || val.trim() === "") {
-            const idx = (data.identifiers || []).findIndex((i) => i.scheme === req.scheme)
-            form.setError(`identifiers.${idx}.value`, { message: `${req.label} is required` })
-            return
-          }
-        }
-      }
-
-      // A same-origin, best-effort ECHO of the server's own pattern gate — never the enforcement
-      // itself (that only exists server-side, in country-identifiers/validate-identifier-value.ts).
-      // VAT is skipped here for the exact reason it is skipped there: `tax/vat-syntax.ts` owns VAT
-      // syntax exclusively, and a DE-shaped `pattern` on this same catalog entry must never be
-      // second-guessed by a weaker client-side regex.
-      for (const req of requiredIdentifiers) {
-        if (!req.pattern || req.scheme === "VAT") continue
-        const val = (data.identifiers || []).find((i) => i.scheme === req.scheme)?.value
-        if (!val || val.trim() === "") continue
-        if (val === originalIdentifierValues.get(req.scheme)) continue // unchanged legacy value
-
-        let matches = true
-        try {
-          matches = new RegExp(req.pattern).test(val)
-        } catch {
-          matches = true // a malformed pattern never blocks here — the server is the real gate
-        }
-        if (!matches) {
-          const idx = (data.identifiers || []).findIndex((i) => i.scheme === req.scheme)
-          form.setError(`identifiers.${idx}.value`, {
-            message: t(
-              "clients.upsert.validation.identifiers.patternMismatch",
-              "{{label}} format is invalid",
-              {
-                label: req.label,
-              },
-            ),
-          })
-          return
-        }
-      }
-    }
-
     const trigger = isEditing ? updateClient : createClient
 
     // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
@@ -447,593 +1190,141 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
     })
   }
 
+  // The identifier VALUE paths currently on the form, added alongside the "identifiers" root below so
+  // the Fiscalité step's own "Continue" validates both the array as a whole AND each row directly —
+  // belt-and-suspenders against however react-hook-form's schema-resolver happens to propagate a
+  // nested array error up to a `trigger(['identifiers'])` call.
+  const identifierValuePaths = ((form.watch("identifiers") as { scheme: string }[]) || []).map(
+    (_, i) => `identifiers.${i}.value`,
+  )
+
+  /**
+   * The wizard's own step split (`components/ui/stepped-dialog.tsx`, the shape every "big" dialog in
+   * this app now takes). Unlike `document-create-dialog.tsx`'s split (derived from a runtime
+   * descriptor), a client's fields are fixed and few enough to assign by hand, so this is the one
+   * place that decision lives — see `IdentityStep`/`AddressStep`/`FiscalStep`/`ContactStep`'s own
+   * headers for the per-step rationale. `fields` below is what each step's "Continue" click
+   * validates (`form.trigger(...)`); the Summary step's stays empty on purpose (it renders nothing
+   * that could show an inline error) — everything it recaps was already checked on the step that
+   * owns it, and the backend remains the final gate for the rare "went back, broke it, jumped ahead
+   * via a header chip" case that per-step validation cannot see (see the schema's own superRefine
+   * comment).
+   */
+  const steps: SteppedDialogStep[] = [
+    {
+      id: "identity",
+      label: t("clients.upsert.stepped.steps.identity", "Identity"),
+      fields: ["type", "name", "contactFirstname", "contactLastname", "description", "foundedAt"],
+      render: () => (
+        <IdentityStep form={form as unknown as UseFormReturn<FieldValues>} clientType={clientType} />
+      ),
+    },
+    {
+      id: "address",
+      label: t("clients.upsert.stepped.steps.address", "Address"),
+      fields: ["country", "address", "addressLine2", "postalCode", "city", "state"],
+      render: () => <AddressStep form={form as unknown as UseFormReturn<FieldValues>} />,
+    },
+    {
+      id: "fiscal",
+      label: t("clients.upsert.stepped.steps.fiscal", "Tax & identifiers"),
+      fields: [
+        "kind",
+        "currency",
+        "identifiers",
+        ...identifierValuePaths,
+        "peppolSchemeId",
+        "peppolEndpointId",
+      ],
+      render: () => (
+        <FiscalStep
+          form={form as unknown as UseFormReturn<FieldValues>}
+          isGovernment={isGovernment}
+          b2gRule={b2gRule}
+          b2gRuleLoading={b2gRuleLoading}
+          requiredIdentifiers={requiredIdentifiers}
+          requiredIdentifiersReason={requiredIdentifiersReason}
+          canLookupScheme={canLookupScheme}
+          onCompanyLookup={onCompanyLookup}
+          companyLookupLoading={companyLookupLoading}
+          lookupIdentifierLabel={lookupIdentifierLabel}
+        />
+      ),
+    },
+    {
+      id: "contact",
+      label: t("clients.upsert.stepped.steps.contact", "Contact & portal"),
+      fields: ["contactEmail", "contactPhone", "language"],
+      render: () => (
+        <ContactStep
+          form={form as unknown as UseFormReturn<FieldValues>}
+          isEditing={isEditing}
+          onOpenPortalAccess={() => setPortalAccessOpen(true)}
+        />
+      ),
+    },
+    {
+      id: "recap",
+      label: t("clients.upsert.stepped.steps.recap", "Summary"),
+      fields: [],
+      render: () => (
+        <RecapStep
+          form={form as unknown as UseFormReturn<FieldValues>}
+          isGovernment={isGovernment}
+          requiredIdentifiers={requiredIdentifiers}
+        />
+      ),
+    },
+  ]
+
   return (
-    <Form {...form}>
-      <FormDialog
+    <>
+      <SteppedDialog
+        steps={steps}
+        // Concretely typed on this form (unlike document-create-dialog.tsx's runtime-built one) — the
+        // widening cast is the one `stepped-dialog.spec.tsx`'s own harness already documents as the
+        // TEST-only stand-in for dynamism; here it is what lets this static schema fit a component
+        // whose `fields: string[]` is deliberately not `Path<TFieldValues>[]` (see that prop's own
+        // comment) — a real, non-test need for the same cast.
+        form={form as unknown as UseFormReturn<FieldValues>}
+        // `SteppedDialog` hands the LAST step's "Continue" click `form.getValues()` directly — never
+        // through `form.handleSubmit`, which is what normally runs the zodResolver and hands `onSubmit`
+        // the SCHEMA-COERCED values instead of the form's raw internal state. This form has no
+        // `z.coerce`/`.transform()` field today (no numeric inputs, unlike a document's line items),
+        // so in practice the two are identical — but re-parsing here is what keeps that true if a
+        // coercing field is ever added, rather than relying on every future field author to remember
+        // this component's own submit path skips the resolver. `safeParse`, not `parse`: every field
+        // was already checked by its own step's `form.trigger()` on the common path, but the wizard's
+        // own "went back, broke it, jumped ahead via a header chip" gap (this schema's own superRefine
+        // comment) means a stale invalid value can still reach here — falling back to the raw values
+        // rather than throwing lets the ACTUAL gate (the backend) answer instead of crashing the tab.
+        onSubmit={(values) => {
+          const parsed = clientSchema.safeParse(values)
+          onSubmit(parsed.success ? parsed.data : (values as z.infer<typeof clientSchema>))
+        }}
+        submitLabel={isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
         open={open}
-        onOpenChange={(status) => {
-          form.reset()
-          onOpenChange(status)
+        onOpenChange={(next) => {
+          // A safety reset on every CLOSE (never on open, guarded by `!next`) — `SteppedDialog` itself
+          // only calls this once it has decided closing is fine (not dirty, or the user confirmed
+          // discarding), so by the time this runs there is nothing left to protect.
+          if (!next) form.reset()
+          onOpenChange(next)
         }}
         title={t(`clients.upsert.title.${isEditing ? "edit" : "create"}`)}
-        onSubmit={form.handleSubmit(onSubmit)}
-        formDataCy="client-form"
+        submitting={createLoading || updateLoading}
         dataCy="client-dialog"
-        className="max-w-[95vw] sm:max-w-2xl lg:max-w-3xl"
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              dataCy="client-cancel"
-            >
-              {t("clients.upsert.actions.cancel")}
-            </Button>
-            <Button type="submit" loading={createLoading || updateLoading} dataCy="client-submit">
-              {isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
-            </Button>
-          </>
-        }
-      >
-        <FormSection title={t("clients.upsert.sections.classification")}>
-          <FormField
-            control={form.control}
-            name="country"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
-                <FormControl>
-                  <CountrySelect
-                    value={field.value}
-                    onChange={(value) => field.onChange(value)}
-                    onCountryCodeChange={(code) => form.setValue("countryCode", code)}
-                    data-cy="client-country-select"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        submitDataCy="client-submit"
+        // An editing client's values are already valid (they came from a saved record) — every step
+        // opens clickable from the start, rather than gating step 2+ behind walking forward once
+        // first the way a brand-new create run must.
+        initialMaxReached={isEditing ? steps.length - 1 : 0}
+      />
 
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.type.label") || "Client type"}</FormLabel>
-                <FormControl>
-                  <Select value={field.value || "COMPANY"} onValueChange={(value) => field.onChange(value)}>
-                    <SelectTrigger dataCy="client-type-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="COMPANY" dataCy="client-type-company">
-                        {t("clients.upsert.fields.type.company") || "Company"}
-                      </SelectItem>
-                      <SelectItem value="INDIVIDUAL" dataCy="client-type-individual">
-                        {t("clients.upsert.fields.type.individual") || "Individual"}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="sm:col-span-2">
-            <FormField
-              control={form.control}
-              name="kind"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("clients.upsert.fields.kind.label", "Client kind")}</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={field.value || "BUSINESS"}
-                      onValueChange={(value) => field.onChange(value)}
-                    >
-                      <SelectTrigger dataCy="client-kind-select">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="BUSINESS" dataCy="client-kind-business">
-                          {t("clients.upsert.fields.kind.business", "Business")}
-                        </SelectItem>
-                        <SelectItem value="GOVERNMENT" dataCy="client-kind-government">
-                          {t("clients.upsert.fields.kind.government", "Government / public body")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="isSupplier"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 sm:col-span-2">
-                <div className="space-y-0.5">
-                  <FormLabel>{t("clients.upsert.fields.isSupplier.label")}</FormLabel>
-                  <FormDescription>{t("clients.upsert.fields.isSupplier.description")}</FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={!!field.value}
-                    onCheckedChange={(value) => field.onChange(value)}
-                    data-cy="client-is-supplier-switch"
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {isGovernment ? (
-            <div
-              className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm sm:col-span-2"
-              data-cy="client-b2g-hint"
-            >
-              {b2gRuleLoading ? null : b2gRule ? (
-                <>
-                  <p className="font-medium text-muted-foreground">
-                    {t(
-                      "clients.upsert.fields.b2gHint.knownTitle",
-                      "This country requires a specific channel/format for public-sector invoices",
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground" data-cy="client-b2g-hint-channel">
-                    {t(
-                      "clients.upsert.fields.b2gHint.channel",
-                      'Channel: "{{transportId}}" · Format: "{{formatSyntax}}"',
-                      { transportId: b2gRule.transportId, formatSyntax: b2gRule.formatSyntax },
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{b2gRule.provenanceDescription}</p>
-                  {b2gRule.requiredDocumentFields.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {t(
-                        "clients.upsert.fields.b2gHint.documentFields",
-                        "The invoice itself will also need: {{fields}}",
-                        {
-                          fields: b2gRule.requiredDocumentFields.map((f) => f.label).join(", "),
-                        },
-                      )}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground" data-cy="client-b2g-hint-no-rule">
-                  {t(
-                    "clients.upsert.fields.b2gHint.noRule",
-                    "No B2G routing rule is declared for this country yet — sending an invoice to this client will refuse until one is added.",
-                  )}
-                </p>
-              )}
-            </div>
-          ) : null}
-        </FormSection>
-
-        <FormSection title={t("clients.upsert.sections.identity")}>
-          {clientType === "COMPANY" ? (
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("clients.upsert.fields.name.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.name.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ) : (
-            <>
-              <FormField
-                control={form.control}
-                name="contactFirstname"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder={t("clients.upsert.fields.contactFirstname.placeholder")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="contactLastname"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder={t("clients.upsert.fields.contactLastname.placeholder")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </>
-          )}
-
-          <div className="sm:col-span-2">
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("clients.upsert.fields.description.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.description.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </FormSection>
-
-        {requiredIdentifiers?.length ? (
-          <FormSection title={t("clients.upsert.fields.identifiers.label") || "Country-specific identifiers"}>
-            {requiredIdentifiers.map((req) => {
-              const current = form.watch("identifiers") || []
-              const formIndex = current.findIndex((i) => i.scheme === req.scheme)
-              if (formIndex < 0) return null
-              return (
-                <FormField
-                  key={req.scheme}
-                  control={form.control}
-                  name={`identifiers.${formIndex}.value`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required={req.required}>{req.label}</FormLabel>
-                      <FormControl>
-                        <div className="flex gap-2">
-                          <Input
-                            {...field}
-                            placeholder={req.label}
-                            data-cy={`client-identifier-${req.scheme}`}
-                          />
-                          {canLookupScheme(req.scheme) && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              disabled={companyLookupLoading || !String(field.value || "").trim()}
-                              onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
-                              aria-label={t("clients.upsert.actions.lookupCompany")}
-                              title={
-                                lookupIdentifierLabel
-                                  ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
-                                  : t("clients.upsert.actions.lookupCompany")
-                              }
-                              dataCy="client-company-lookup"
-                            >
-                              {companyLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
-                            </Button>
-                          )}
-                        </div>
-                      </FormControl>
-                      {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )
-            })}
-          </FormSection>
-        ) : requiredIdentifiersReason ? (
-          <p className="text-xs text-muted-foreground" data-cy="client-identifiers-unknown-country">
-            {t(
-              "clients.upsert.fields.identifiers.unknownCountry",
-              "No identifier requirements are known for this country yet — you can save the client without one.",
-            )}
-          </p>
-        ) : null}
-
-        <FormSection
-          title={t("clients.upsert.fields.peppol.label") || "Peppol / Electronic routing (optional)"}
-        >
-          <FormField
-            control={form.control}
-            name="peppolSchemeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.peppolSchemeId.label") || "Peppol scheme"}</FormLabel>
-                <FormControl>
-                  <Select value={field.value || "0088"} onValueChange={field.onChange}>
-                    <SelectTrigger data-cy="client-peppol-scheme-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0088" dataCy="client-peppol-scheme-option-0088">
-                        0088 — GLN
-                      </SelectItem>
-                      <SelectItem value="0192" dataCy="client-peppol-scheme-option-0192">
-                        0192 — NO org.nr
-                      </SelectItem>
-                      <SelectItem value="0009" dataCy="client-peppol-scheme-option-0009">
-                        0009 — FR SIRET
-                      </SelectItem>
-                      <SelectItem value="9925" dataCy="client-peppol-scheme-option-9925">
-                        9925 — EU VAT
-                      </SelectItem>
-                      <SelectItem value="0007" dataCy="client-peppol-scheme-option-0007">
-                        0007 — SE org.nr
-                      </SelectItem>
-                      <SelectItem value="0208" dataCy="client-peppol-scheme-option-0208">
-                        0208 — BE org.nr
-                      </SelectItem>
-                      {/*
-                        Was "0106 — DK CVR", WRONG: 0106 is the Dutch
-                        KVK ("Vereniging van Kamers van Koophandel en Fabrieken in Nederland",
-                        NL, active) in the Peppol v9.7 Participant Identifier Schemes codelist
-                        (docs.peppol.eu/edelivery/codelists/), not a Danish scheme at all —
-                        found by the 2026-09-02 B2G audit, re-verified live
-                        against the v9.7 codelist JSON on 2026-09-03. The real Danish CVR is
-                        0184 (Peppol scheme name: "The Danish Business Authority - CVR-number
-                        (DK:CVR)"), added just below.
-                      */}
-                      <SelectItem value="0106" dataCy="client-peppol-scheme-option-0106">
-                        0106 — NL KVK
-                      </SelectItem>
-                      <SelectItem value="0184" dataCy="client-peppol-scheme-option-0184">
-                        0184 — DK CVR
-                      </SelectItem>
-                      <SelectItem value="0151" dataCy="client-peppol-scheme-option-0151">
-                        0151 — AU ABN
-                      </SelectItem>
-                      <SelectItem value="0060" dataCy="client-peppol-scheme-option-0060">
-                        0060 — DUNS
-                      </SelectItem>
-                      {/*
-                        The seven EAS the 2026-09-02 B2G audit added
-                        routing rules for (backend/src/modules/documents/b2g-routing/data/
-                        {ee,lt,lv,lu,cy,gr,mt}.json) but this selector never offered — each
-                        label below is the scheme name the audit itself already read from the
-                        Peppol v9.7 Participant Identifier Schemes codelist (that JSON's own
-                        `notes` field), re-verified live against docs.peppol.eu on 2026-09-03:
-                        0191 EE "Company code", 0200 LT "Legal entity code", 0218 LV "Unified
-                        registration number", 0240 LU "Register of legal persons" (each
-                        country has its own business-register scheme); Cyprus/Greece/Malta
-                        have NO dedicated register scheme in the codelist — only their VAT
-                        scheme (9928/9933/9943) exists, per those same three files' own notes.
-                      */}
-                      <SelectItem value="0191" dataCy="client-peppol-scheme-option-0191">
-                        0191 — EE Company code
-                      </SelectItem>
-                      <SelectItem value="0200" dataCy="client-peppol-scheme-option-0200">
-                        0200 — LT Legal entity code
-                      </SelectItem>
-                      <SelectItem value="0218" dataCy="client-peppol-scheme-option-0218">
-                        0218 — LV Unified registration number
-                      </SelectItem>
-                      <SelectItem value="0240" dataCy="client-peppol-scheme-option-0240">
-                        0240 — LU Register of legal persons
-                      </SelectItem>
-                      <SelectItem value="9928" dataCy="client-peppol-scheme-option-9928">
-                        9928 — CY VAT number
-                      </SelectItem>
-                      <SelectItem value="9933" dataCy="client-peppol-scheme-option-9933">
-                        9933 — GR VAT number
-                      </SelectItem>
-                      <SelectItem value="9943" dataCy="client-peppol-scheme-option-9943">
-                        9943 — MT VAT number
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="peppolEndpointId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t("clients.upsert.fields.peppolEndpointId.label") || "Peppol endpoint ID"}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={
-                      t("clients.upsert.fields.peppolEndpointId.placeholder") || "e.g. 7300010000001"
-                    }
-                    data-cy="client-peppol-endpoint-input"
-                  />
-                </FormControl>
-                <p className="text-xs text-muted-foreground">
-                  {t("clients.upsert.fields.peppolEndpointId.helpText") ||
-                    "Leave blank if this client is not on the Peppol network"}
-                </p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </FormSection>
-
-        <FormSection title={t("clients.upsert.sections.business")}>
-          <FormField
-            control={form.control}
-            name="currency"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.currency.label")}</FormLabel>
-                <FormControl>
-                  <CurrencySelect
-                    value={field.value}
-                    onChange={(value) => field.onChange(value)}
-                    data-cy="client-currency-select"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="foundedAt"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.foundedAt.label")}</FormLabel>
-                <FormControl>
-                  <DatePicker
-                    className="w-full"
-                    value={field.value || null}
-                    onChange={field.onChange}
-                    placeholder={t("clients.upsert.fields.foundedAt.placeholder")}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="sm:col-span-2">
-            <FormField
-              control={form.control}
-              name="language"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("clients.upsert.fields.language.label")}</FormLabel>
-                  <FormControl>
-                    <DocumentLanguageSelect
-                      value={field.value}
-                      onChange={(value) => field.onChange(value)}
-                      data-cy="client-language-select"
-                    />
-                  </FormControl>
-                  <FormDescription>{t("clients.upsert.fields.language.description")}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </FormSection>
-
-        <FormSection title={t("clients.upsert.sections.contact")}>
-          <FormField
-            control={form.control}
-            name="contactEmail"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel required>{t("clients.upsert.fields.contactEmail.label")}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={t("clients.upsert.fields.contactEmail.placeholder")} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="contactPhone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.contactPhone.label")}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={t("clients.upsert.fields.contactPhone.placeholder")} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </FormSection>
-
-        <FormSection title={t("clients.upsert.sections.address")}>
-          <div className="sm:col-span-2">
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel required>{t("clients.upsert.fields.address.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.address.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <FormField
-              control={form.control}
-              name="addressLine2"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("clients.upsert.fields.addressLine2.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.addressLine2.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="postalCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel required>{t("clients.upsert.fields.postalCode.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.postalCode.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel required>{t("clients.upsert.fields.city.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.city.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("clients.upsert.fields.state.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={t("clients.upsert.fields.state.placeholder")} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </FormSection>
-
-        <CustomFieldsSection />
-      </FormDialog>
-    </Form>
+      <ClientPortalAccessDialog
+        client={portalAccessOpen ? (client ?? null) : null}
+        onOpenChange={(nextOpen) => setPortalAccessOpen(nextOpen)}
+      />
+    </>
   )
 }

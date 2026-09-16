@@ -22,22 +22,26 @@ function createClientWithLanguage(name: string, contactEmail: string, languageOp
 	cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 	cy.get('[name="name"]').clear().type(name);
-	cy.selectCountry("client-country-select", "France");
-	cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
+	cy.continueSteppedDialog("client-dialog");
 
+	cy.selectCountry("client-country-select", "France");
+	cy.get('[name="address"]').clear().type("1 Rue de Test");
+	cy.get('[name="postalCode"]').clear().type("75001");
+	cy.get('[name="city"]').clear().type("Paris");
+	cy.continueSteppedDialog("client-dialog");
+
+	cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
 	cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 	cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 	cy.get('[data-cy="client-currency-select"] input').type("Euro");
 	cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-
-	// The field under test: an explicit document language, independent of the country picked above.
-	cy.get('[data-cy="client-language-select"]').scrollIntoView().click();
-	cy.get(`[data-cy="${languageOptionDataCy}"]`).click();
+	cy.continueSteppedDialog("client-dialog");
 
 	cy.get('[name="contactEmail"]').clear().type(contactEmail);
-	cy.get('[name="address"]').clear().type("1 Rue de Test");
-	cy.get('[name="postalCode"]').clear().type("75001");
-	cy.get('[name="city"]').clear().type("Paris");
+	// The field under test: an explicit document language, independent of the country picked earlier.
+	cy.get('[data-cy="client-language-select"]').scrollIntoView().click();
+	cy.get(`[data-cy="${languageOptionDataCy}"]`).click();
+	cy.continueSteppedDialog("client-dialog");
 
 	cy.get('[data-cy="client-submit"]').click();
 	cy.get('[data-cy="client-dialog"]').should("not.exist");

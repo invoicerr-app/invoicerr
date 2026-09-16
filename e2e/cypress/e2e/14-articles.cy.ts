@@ -4,6 +4,39 @@ beforeEach(() => {
     cy.login();
 });
 
+/**
+ * Fills the article wizard's own three steps (article-upsert.tsx, a components/ui/stepped-dialog.tsx
+ * wizard: Identity -> Price & VAT -> Stock, owner decision 2026-09-16) up to and including the LAST
+ * one, without submitting — the caller clicks `article-submit` itself. Assumes the dialog is already
+ * open, on the identity step.
+ */
+function fillArticleWizard(opts: {
+    name: string;
+    description?: string;
+    selectType?: RegExp;
+    unitPrice?: string;
+    vatRate?: string;
+}) {
+    cy.get('input[name="name"]').clear().type(opts.name);
+    if (opts.description !== undefined) {
+        cy.get('textarea[name="description"]').clear().type(opts.description);
+    }
+    cy.continueSteppedDialog('article-dialog'); // identity -> pricing
+
+    if (opts.selectType) {
+        cy.get('[data-cy="article-type-trigger"]').click();
+        cy.wait(200);
+        cy.get('[role="option"]').contains(opts.selectType).click();
+    }
+    if (opts.unitPrice !== undefined) {
+        cy.get('input[name="unitPrice"]').clear().type(opts.unitPrice);
+    }
+    if (opts.vatRate !== undefined) {
+        cy.get('input[name="vatRate"]').clear().type(opts.vatRate);
+    }
+    cy.continueSteppedDialog('article-dialog'); // pricing -> stock (the wizard's last step)
+}
+
 describe('Articles E2E', () => {
     describe('Page Load', () => {
         it('loads the articles page', () => {
@@ -24,7 +57,7 @@ describe('Articles E2E', () => {
     });
 
     describe('Create Dialog', () => {
-        it('opens the create dialog with all form fields', () => {
+        it('opens the create dialog with all form fields, across its three steps', () => {
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
@@ -32,9 +65,19 @@ describe('Articles E2E', () => {
             cy.get('[data-cy="article-dialog"]').should('be.visible');
             cy.get('input[name="name"]').should('exist');
             cy.get('textarea[name="description"]').should('exist');
+
+            // The identity step's own "name" is required — leaving it empty would block Continue
+            // (Validation describe block below covers that on its own), so a NAME here is what lets
+            // this test walk forward to inspect the later steps' fields.
+            cy.get('input[name="name"]').type(`Field Check ${Date.now()}`);
+            cy.continueSteppedDialog('article-dialog');
             cy.get('[data-cy="article-type-trigger"]').should('exist');
             cy.get('input[name="unitPrice"]').should('exist');
             cy.get('input[name="vatRate"]').should('exist');
+
+            cy.continueSteppedDialog('article-dialog');
+            cy.get('input[name="quantity"]').should('exist');
+            cy.get('input[name="lowStockThreshold"]').should('exist');
         });
 
         it('creates an article and the dialog closes', () => {
@@ -43,10 +86,12 @@ describe('Articles E2E', () => {
             cy.wait(500);
 
             const uniqueName = `Consulting Hour ${Date.now()}`;
-            cy.get('input[name="name"]').clear().type(uniqueName);
-            cy.get('textarea[name="description"]').clear().type('One hour of consulting');
-            cy.get('input[name="unitPrice"]').clear().type('120');
-            cy.get('input[name="vatRate"]').clear().type('20');
+            fillArticleWizard({
+                name: uniqueName,
+                description: 'One hour of consulting',
+                unitPrice: '120',
+                vatRate: '20',
+            });
 
             cy.get('[data-cy="article-submit"]').click();
             cy.wait(1500);
@@ -57,16 +102,19 @@ describe('Articles E2E', () => {
     });
 
     describe('Validation', () => {
-        it('shows an error for an empty name', () => {
+        it('shows an error for an empty name and blocks leaving the identity step', () => {
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
 
             cy.get('input[name="name"]').clear();
-            cy.get('[data-cy="article-submit"]').click();
+            cy.get('[data-cy="article-dialog-continue"]').click();
             cy.contains(/required|requis/i);
 
+            // Still on the identity step — pricing's own fields never mounted, proving Continue
+            // was actually refused rather than the dialog just being slow.
             cy.get('[data-cy="article-dialog"]').should('be.visible');
+            cy.get('input[name="unitPrice"]').should('not.exist');
         });
     });
 
@@ -75,6 +123,9 @@ describe('Articles E2E', () => {
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
+
+            cy.get('input[name="name"]').clear().type(`Type Check ${Date.now()}`);
+            cy.continueSteppedDialog('article-dialog');
 
             cy.get('[data-cy="article-type-trigger"]').click();
             cy.wait(200);
@@ -91,9 +142,7 @@ describe('Articles E2E', () => {
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
-            cy.get('input[name="name"]').clear().type(originalName);
-            cy.get('input[name="unitPrice"]').clear().type('50');
-            cy.get('input[name="vatRate"]').clear().type('10');
+            fillArticleWizard({ name: originalName, unitPrice: '50', vatRate: '10' });
             cy.get('[data-cy="article-submit"]').click();
             cy.wait(1500);
 
@@ -106,6 +155,12 @@ describe('Articles E2E', () => {
 
             cy.get('[data-cy="article-dialog"]').should('be.visible');
             cy.get('input[name="name"]').clear().type(updatedName);
+
+            // The edit dialog's own steps all open already "done" (initialMaxReached, since the
+            // record's existing values are already valid) — jump straight to the last one instead of
+            // walking Continue twice, proving that shortcut actually works rather than just trusting
+            // it from reading the component.
+            cy.get('[data-cy="article-dialog-step-stock"]').click();
             cy.get('[data-cy="article-submit"]').click();
             cy.wait(1500);
 
@@ -118,7 +173,7 @@ describe('Articles E2E', () => {
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
-            cy.get('input[name="name"]').clear().type(name);
+            fillArticleWizard({ name });
             cy.get('[data-cy="article-submit"]').click();
             cy.wait(1500);
 
@@ -155,13 +210,13 @@ describe('Articles E2E', () => {
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
-            cy.get('input[name="name"]').clear().type(articleName);
-            cy.get('textarea[name="description"]').clear().type('Full day of web design');
-            cy.get('[data-cy="article-type-trigger"]').click();
-            cy.wait(200);
-            cy.get('[role="option"]').contains(/^day$/i).click();
-            cy.get('input[name="unitPrice"]').clear().type('800');
-            cy.get('input[name="vatRate"]').clear().type('20');
+            fillArticleWizard({
+                name: articleName,
+                description: 'Full day of web design',
+                selectType: /^day$/i,
+                unitPrice: '800',
+                vatRate: '20',
+            });
             cy.get('[data-cy="article-submit"]').click();
             cy.wait(1500);
             cy.get('[data-cy="article-dialog"]').should('not.exist');
@@ -179,6 +234,18 @@ describe('Articles E2E', () => {
                 'be.visible',
             );
             cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+
+            // "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the invoice wizard's own
+            // "Details" step (document-create-dialog.tsx's `buildFieldGroups`) — same fill as
+            // 30-document-xml-format.cy.ts's own Details step, needed to reach "Lines" at all.
+            cy.pickToday('[data-cy="document-field-issueDate-input"]');
+            cy.pickToday('[data-cy="document-field-dueDate-input"]');
+            cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+            cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should(
+                'be.visible',
+            );
+            cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
+            cy.continueDocumentWizard(); // Details -> Lines
 
             cy.get('[data-cy="document-field-lines-add-row"]').click();
             cy.get('[data-cy="document-field-lines-row-0"]').should('exist');

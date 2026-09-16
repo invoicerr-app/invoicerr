@@ -53,11 +53,18 @@ describe("The cross-border case, through the screen", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Deutsche Autoliquidation GmbH");
+		cy.continueSteppedDialog("client-dialog");
+
 		cy.selectCountry("client-country-select", "Germany");
+		cy.get('[name="address"]').clear().type("Friedrichstraße 42");
+		cy.get('[name="postalCode"]').clear().type("10117");
+		cy.get('[name="city"]').clear().type("Berlin");
+		cy.continueSteppedDialog("client-dialog");
 
 		// Before this task, a country with no country-identifiers/data/xx.json showed only the
 		// "unknown country" message — never a field. Proving it ABSENT is what distinguishes "the
-		// field exists" from "the form just displays something".
+		// field exists" from "the form just displays something". Both now live on the Tax &
+		// identifiers step.
 		cy.get('[data-cy="client-identifiers-unknown-country"]').should(
 			"not.exist",
 		);
@@ -66,19 +73,18 @@ describe("The cross-border case, through the screen", () => {
 			.clear()
 			.type("DE136695976"); // checksum-valid (ISO 7064 Mod 11,10) — see vat-syntax.spec.ts
 
-		cy.get('[name="contactEmail"]')
-			.clear()
-			.type("buchhaltung@deutsche-autoliquidation.example");
-		cy.get('[name="address"]').clear().type("Friedrichstraße 42");
-		cy.get('[name="postalCode"]').clear().type("10117");
-		cy.get('[name="city"]').clear().type("Berlin");
-
 		cy.get('[data-cy="client-currency-select"] button')
 			.scrollIntoView()
 			.click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("buchhaltung@deutsche-autoliquidation.example");
+		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -355,7 +361,13 @@ describe("The cross-border case, through the screen", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Privatkunde Ohne USt-IdNr");
+		cy.continueSteppedDialog("client-dialog");
+
 		cy.selectCountry("client-country-select", "Germany");
+		cy.get('[name="address"]').clear().type("Alexanderplatz 1");
+		cy.get('[name="postalCode"]').clear().type("10178");
+		cy.get('[name="city"]').clear().type("Berlin");
+		cy.continueSteppedDialog("client-dialog");
 
 		// The VAT field is OFFERED (same country-identifiers/data/de.json as the first test) but
 		// deliberately left EMPTY — this is what makes `resolveBuyerRole` treat this buyer as B2C
@@ -364,20 +376,18 @@ describe("The cross-border case, through the screen", () => {
 		cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 }).should(
 			"exist",
 		);
-
-		cy.get('[name="contactEmail"]')
-			.clear()
-			.type("privatkunde@ohne-ustidnr.example");
-		cy.get('[name="address"]').clear().type("Alexanderplatz 1");
-		cy.get('[name="postalCode"]').clear().type("10178");
-		cy.get('[name="city"]').clear().type("Berlin");
-
 		cy.get('[data-cy="client-currency-select"] button')
 			.scrollIntoView()
 			.click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("privatkunde@ohne-ustidnr.example");
+		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");

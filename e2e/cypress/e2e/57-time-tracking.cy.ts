@@ -85,11 +85,17 @@ describe("Time tracking — logging hours, billing them, and the double-billing 
 		cy.contains("button", projectName, { timeout: 10000 }).click();
 		cy.get('[data-cy="time-entry-panel"]', { timeout: 10000 }).should("be.visible");
 
+		// Walks the entry wizard's own three steps (time-entry-upsert.tsx, a
+		// components/ui/stepped-dialog.tsx wizard: Task -> Duration -> Billing, owner decision
+		// 2026-09-16) — description on step 1, hours on step 2, then straight to the last step's
+		// own submit (billing is left at its defaults: billable, no rate override).
 		const logEntry = (hours: string, description: string) => {
 			cy.get('[data-cy="time-entry-add-button"]').click();
 			cy.get('[data-cy="time-entry-dialog"]').should("be.visible");
-			setNumberInput('[data-cy="time-entry-hours-input"]', hours);
 			cy.get('[data-cy="time-entry-description-input"]').type(description);
+			cy.continueSteppedDialog("time-entry-dialog"); // task -> duration
+			setNumberInput('[data-cy="time-entry-hours-input"]', hours);
+			cy.continueSteppedDialog("time-entry-dialog"); // duration -> billing
 			cy.get('[data-cy="time-entry-submit"]').click();
 			cy.get('[data-cy="time-entry-dialog"]').should("not.exist");
 		};

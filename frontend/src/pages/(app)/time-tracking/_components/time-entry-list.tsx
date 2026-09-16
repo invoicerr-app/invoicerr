@@ -226,9 +226,15 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
         </div>
       )}
 
-      <TimeEntryUpsert projectId={project.id} open={createOpen} onOpenChange={setCreateOpen} />
       <TimeEntryUpsert
         projectId={project.id}
+        projectName={project.name}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+      />
+      <TimeEntryUpsert
+        projectId={project.id}
+        projectName={project.name}
         entry={editEntry}
         open={!!editEntry}
         onOpenChange={(open) => {

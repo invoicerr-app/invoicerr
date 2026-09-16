@@ -1,7 +1,7 @@
 "use client"
 
 import { Check } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type React from "react"
 import type { FieldValues, UseFormReturn } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -106,6 +106,13 @@ export interface SteppedDialogProps {
    *  generic one. */
   submitDataCy?: string
   className?: string
+  /** Seeds `maxReached` on open — lets a caller EDITING an already-valid record open every step's
+   *  header chip clickable from the very first render, instead of gating step 2+ behind walking
+   *  forward once first (owner brief: "en modification, toutes les étapes déjà faites"). A create
+   *  flow has nothing validated yet, hence the default of 0 — unchanged behavior for every existing
+   *  caller that doesn't pass this. Clamped to the last step index so an out-of-range value (e.g. a
+   *  stale steps.length from a previous render) can never point past the end. */
+  initialMaxReached?: number
 }
 
 /**
@@ -135,16 +142,33 @@ export function SteppedDialog({
   dataCy,
   submitDataCy,
   className,
+  initialMaxReached = 0,
 }: SteppedDialogProps) {
   const { t } = useTranslation()
   const [state, setState] = useState<StepperState>(initStepper)
   const [confirmingClose, setConfirmingClose] = useState(false)
 
+  // `form.formState` is itself a lazy Proxy: react-hook-form only starts COMPUTING `isDirty` (its own
+  // internal `useForm` effect, gated behind `_proxyFormState.isDirty`) once something reads it during
+  // a RENDER — reading it only later, inside an event handler, is too late for that first read, which
+  // is exactly what `handleOpenChange` below used to do. Proven live (2026-09-16): typing into a
+  // single field then pressing Escape closed the dialog immediately, no confirm, on the VERY FIRST
+  // close attempt of the dialog's life — every later attempt in the same session worked, because by
+  // then something (this line) had already primed the proxy. Destructuring here, every render, is
+  // what keeps it primed from the start; the value itself is also what `handleOpenChange` reads.
+  const { isDirty } = form.formState
+
   // A fresh run every time the dialog is (re)opened — never resumes wherever a PREVIOUS open of the
   // same dialog instance left off (a discarded then reopened create dialog starts at step 1 again).
+  // `maxReached` alone takes the caller's seed (an edit dialog's own steps start "done"); `index`
+  // always starts at 0 regardless — the first step is still what the user sees first, only the
+  // header chips past it become clickable immediately.
+  const lastStepIndex = Math.max(steps.length - 1, 0)
   useEffect(() => {
-    if (open) setState(initStepper())
-  }, [open])
+    if (open) {
+      setState({ index: 0, maxReached: Math.min(Math.max(initialMaxReached, 0), lastStepIndex) })
+    }
+  }, [open, initialMaxReached, lastStepIndex])
 
   const current = steps[state.index]
 
@@ -152,12 +176,23 @@ export function SteppedDialog({
   // `useRef`+`useEffect(…, [state.index])` pair: the body div below is keyed by `current.id`, so
   // React already remounts it (and calls this) on every step change AND on the dialog's own first
   // open, with no dependency array of its own to keep in sync with the step index.
-  function focusFirstField(el: HTMLDivElement | null) {
+  //
+  // `useCallback([])` is NOT an optimization here, it is correctness: an inline function passed as
+  // a `ref` gets a NEW identity every render, and React treats a ref PROP identity change exactly
+  // like a DOM node change — it calls the old ref with `null` then the new ref with the (SAME) node,
+  // on every single re-render of this component, not just on the `key`-driven remount this comment
+  // above assumed was the only trigger. `state.form.watch(...)`-based steps (client-upsert.tsx's own
+  // Contact step, filling email then phone) re-render `SteppedDialog` on every keystroke of an
+  // EARLIER field, which kept re-stealing focus back to the step's first input mid-typing — proven
+  // live (2026-09-16): a `fill()` on the second text field landed in the first one instead, every
+  // time. An empty dependency array keeps this callback's identity stable across re-renders, so React
+  // only invokes it when the div's own DOM node actually changes (the `key={current.id}` remount).
+  const focusFirstField = useCallback((el: HTMLDivElement | null) => {
     const first = el?.querySelector<HTMLElement>(
       "input, textarea, select, button:not([disabled]), [role='combobox'], [tabindex]:not([tabindex='-1'])",
     )
     first?.focus({ preventScroll: true })
-  }
+  }, [])
   const last = isLastStep(state, steps.length)
 
   async function handleContinue() {
@@ -180,7 +215,7 @@ export function SteppedDialog({
   // `onOpenChange(false)` itself while the form is dirty), so Radix's attempt to close is simply a
   // no-op until the confirm dialog resolves it one way or the other.
   function handleOpenChange(next: boolean) {
-    if (next || !form.formState.isDirty) {
+    if (next || !isDirty) {
       onOpenChange(next)
       return
     }

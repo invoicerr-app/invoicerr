@@ -4,6 +4,16 @@ beforeEach(() => {
 	cy.login();
 });
 
+/**
+ * The client dialog (client-upsert.tsx) is a components/ui/stepped-dialog.tsx wizard: Identity
+ * (type, name/first+last name, description, founded date, supplier) -> Address (country, street,
+ * postal/city/state) -> Tax & identifiers (kind, currency, country-specific identifiers, Peppol) ->
+ * Contact & portal (email, phone, language) -> Summary. Every "fills the whole form then submits" test
+ * below walks that same order, `cy.continueSteppedDialog('client-dialog')` between steps (the command
+ * awaits `handleContinue`'s own async `form.trigger(...)` rather than racing a bare click) — and a
+ * validation test now only fills UP TO the step that owns the field under test, since an earlier
+ * step's own "Continue" already blocks before a later step ever mounts.
+ */
 describe("Clients E2E", () => {
 	describe("Create Clients", () => {
 		it("creates a company client", () => {
@@ -20,11 +30,17 @@ describe("Clients E2E", () => {
 			cy.get('[name="description"]')
 				.clear()
 				.type("A leading technology company");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
+			cy.get('[name="address"]').clear().type("123 Tech Boulevard");
+			cy.get('[name="postalCode"]').clear().type("12345");
+			cy.get('[name="city"]').clear().type("San Francisco");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
-
 			// The country-specific identifiers section (EIN, above) pushes this
 			// select further down the scrollable dialog — scroll it into view first
 			// or the opened options panel renders clipped by the dialog's overflow.
@@ -34,12 +50,11 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 			cy.get('[data-cy="client-currency-select"] input').type("Euro");
 			cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contactEmail"]').clear().type("contact@acme.org");
 			cy.get('[name="contactPhone"]').clear().type("+1 23 456 7890");
-			cy.get('[name="address"]').clear().type("123 Tech Boulevard");
-			cy.get('[name="postalCode"]').clear().type("12345");
-			cy.get('[name="city"]').clear().type("San Francisco");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -59,14 +74,19 @@ describe("Clients E2E", () => {
 
 			cy.get('[data-cy="client-type-select"]').click();
 			cy.get('[data-cy="client-type-individual"]').click();
-
 			cy.get('[name="contactFirstname"]').clear().type("Jane");
 			cy.get('[name="contactLastname"]').clear().type("Doe");
 			cy.get('[name="description"]').clear().type("Freelance developer");
+			cy.continueSteppedDialog("client-dialog");
 
-			// The "Supplier" switch (client-upsert.tsx) pushes the
-			// currency select further down the scrollable dialog, the same reason the company client
-			// test just above already scrolls its own currency select into view first.
+			cy.selectCountry("client-country-select", "United States");
+			cy.get('[name="address"]').clear().type("456 Developer Lane");
+			cy.get('[name="postalCode"]').clear().type("67890");
+			cy.get('[name="city"]').clear().type("Los Angeles");
+			cy.continueSteppedDialog("client-dialog");
+
+			// The "Supplier" switch and currency select share the Identity/Tax steps with everything
+			// else now — no more scrolling past unrelated fields to reach the currency select.
 			cy.get('[data-cy="client-currency-select"] button')
 				.scrollIntoView()
 				.click();
@@ -75,13 +95,11 @@ describe("Clients E2E", () => {
 			cy.get(
 				'[data-cy="client-currency-select-option-united-states-dollar-($)"]',
 			).click();
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contactEmail"]').clear().type("jane.doe@freelance.org");
 			cy.get('[name="contactPhone"]').clear().type("+1 98 765 4321");
-			cy.get('[name="address"]').clear().type("456 Developer Lane");
-			cy.get('[name="postalCode"]').clear().type("67890");
-			cy.get('[name="city"]').clear().type("Los Angeles");
-			cy.selectCountry("client-country-select", "United States");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -102,15 +120,10 @@ describe("Clients E2E", () => {
 				"be.visible",
 			);
 
+			// "name" is validated on the Identity step's own "Continue" — no need to reach any later
+			// step at all.
 			cy.get('[name="name"]').clear();
-			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("12345");
-			cy.get('[name="contactEmail"]').clear().type("test@test.com");
-			cy.get('[name="address"]').clear().type("123 Test St");
-			cy.get('[name="postalCode"]').clear().type("12345");
-			cy.get('[name="city"]').clear().type("Test City");
-
-			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|nom/i);
 		});
@@ -126,14 +139,16 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Test Company");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear();
-			cy.get('[name="contactEmail"]').clear().type("test@test.com");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
+			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|siret|legal/i);
 		});
@@ -152,16 +167,10 @@ describe("Clients E2E", () => {
 
 			cy.get('[data-cy="client-type-select"]').click();
 			cy.get('[data-cy="client-type-individual"]').click();
-
 			cy.get('[name="contactFirstname"]').clear();
 			cy.get('[name="contactLastname"]').clear().type("Smith");
-			cy.get('[name="contactEmail"]').clear().type("test@test.com");
-			cy.get('[name="address"]').clear().type("123 Test St");
-			cy.get('[name="postalCode"]').clear().type("12345");
-			cy.get('[name="city"]').clear().type("Test City");
-			cy.selectCountry("client-country-select", "France");
 
-			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|firstname|prénom/i);
 		});
@@ -178,16 +187,10 @@ describe("Clients E2E", () => {
 
 			cy.get('[data-cy="client-type-select"]').click();
 			cy.get('[data-cy="client-type-individual"]').click();
-
 			cy.get('[name="contactFirstname"]').clear().type("John");
 			cy.get('[name="contactLastname"]').clear();
-			cy.get('[name="contactEmail"]').clear().type("test@test.com");
-			cy.get('[name="address"]').clear().type("123 Test St");
-			cy.get('[name="postalCode"]').clear().type("12345");
-			cy.get('[name="city"]').clear().type("Test City");
-			cy.selectCountry("client-country-select", "France");
 
-			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|lastname|nom/i);
 		});
@@ -205,14 +208,24 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Test Company");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("12345");
-			cy.get('[name="contactEmail"]').clear();
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
+			cy.continueSteppedDialog("client-dialog");
 
-			cy.get('[data-cy="client-submit"]').click();
+			// A VALID SIREN — this test is about the email field; the Fiscal step's own "Continue" (its
+			// `fields` list includes "identifiers") would otherwise block HERE on the identifier's
+			// pattern, never reaching Contact at all.
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|email/i);
 		});
@@ -226,8 +239,24 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
+
+			cy.get('[name="name"]').clear().type("Test Company");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.selectCountry("client-country-select", "France");
+			cy.get('[name="address"]').clear().type("123 Test St");
+			cy.get('[name="postalCode"]').clear().type("12345");
+			cy.get('[name="city"]').clear().type("Test City");
+			cy.continueSteppedDialog("client-dialog");
+
+			// A VALID SIREN — see the previous test's identical comment.
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.get('[name="contactEmail"]').clear().type("not-an-email");
-			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/format|invalid|invalide|email/i);
 		});
@@ -241,20 +270,32 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
+
 			cy.get('[name="name"]').clear().type("Test Company");
+			cy.continueSteppedDialog("client-dialog");
+
+			// "postalCode" is validated on the Address step's own "Continue" — no need to reach Tax &
+			// identifiers or Contact at all.
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("12345");
-			cy.get('[name="contactEmail"]').clear().type("test@test.com");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("AB");
 			cy.get('[name="city"]').clear().type("Test City");
-
-			cy.get('[data-cy="client-submit"]').click();
+			cy.get('[data-cy="client-dialog-continue"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/format|invalid|invalide|postal|code/i);
 		});
 
-		it("shows error for invalid VAT format", () => {
+		// Re-scoped by the wizard split: VAT is deliberately EXEMPT from this screen's own pattern gate
+		// (client-upsert.tsx's own schema comment — `tax/vat-syntax.ts` owns VAT syntax exclusively),
+		// unlike LEGAL_ID just above. The single-page form's OLD version of this test asserted the
+		// SAME `/format|invalid|invalide|vat|tva/i` regex right after clicking "save" while still on
+		// one page carrying the static "VAT Number" field label — a label match, not a real check: the
+		// backend's own `clients.service.ts#syncPartyIdentifiers` ACCEPTS a syntactically bad VAT (201,
+		// `clients.vat-validation.spec.ts`'s own "never even asked of VIES" case) and persists it with
+		// `validationStatus: 'INVALID'` rather than rejecting the request — there is no user-facing
+		// error to find on ANY step. This asserts the real, documented behavior instead: the client
+		// saves through the screen, and the persisted verdict is read back via the API.
+		it("accepts an invalid VAT format at save time, but persists it as an unverified/invalid syntax verdict", () => {
 			cy.visit("/clients");
 			cy.contains("button", /add|new|créer|ajouter/i, {
 				timeout: 10000,
@@ -263,20 +304,41 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
-			cy.get('[name="name"]').clear().type("Test Company");
+
+			cy.get('[name="name"]').clear().type("Bad VAT Syntax SARL");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			// A VALID SIREN on purpose: this test is about the VAT field, and a bad LEGAL_ID would now be
-			// refused first, letting the test pass for a reason it does not claim to be testing.
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
-			cy.get('[data-cy="client-identifier-VAT"]').clear().type("123456");
-			cy.get('[name="contactEmail"]').clear().type("test@test.com");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.get('[data-cy="client-identifier-VAT"]').clear().type("123456");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("bad-vat-syntax@example.com");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
-			cy.get('[data-cy="client-dialog"]').should("be.visible");
-			cy.contains(/format|invalid|invalide|vat|tva/i);
+			cy.get('[data-cy="client-dialog"]').should("not.exist");
+			cy.contains("Bad VAT Syntax SARL", { timeout: 10000 });
+
+			cy.request<{ partyIdentifiers: { scheme: string; validationStatus: string | null }[] }[]>({
+				url: `${Cypress.env("apiUrl") || "http://localhost:4000"}/api/clients/search?query=${encodeURIComponent("Bad VAT Syntax SARL")}`,
+			})
+				.its("body")
+				.then((clients) => {
+					const vat = clients[0].partyIdentifiers.find((i) => i.scheme === "VAT");
+					expect(vat, "the VAT identifier was saved").to.exist;
+					expect(
+						vat?.validationStatus,
+						"a syntactically-bad VAT is persisted INVALID, never silently accepted as valid",
+					).to.eq("INVALID");
+				});
 		});
 	});
 
@@ -292,16 +354,23 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Tech Innovations LLC");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("112233445");
-			cy.get('[name="contactEmail"]').clear().type("info@techinnovations.com");
 			cy.get('[name="address"]').clear().type("456 Innovation Drive");
 			cy.get('[name="addressLine2"]').clear().type("Suite 200");
 			cy.get('[name="postalCode"]').clear().type("94105");
 			cy.get('[name="city"]').clear().type("San Francisco");
 			cy.get('[name="state"]').clear().type("CA");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("112233445");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("info@techinnovations.com");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -329,15 +398,22 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("European Solutions GmbH");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "Germany");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("DE987654321");
-			cy.get('[name="contactEmail"]').clear().type("contact@eusolutions.de");
 			cy.get('[name="address"]').clear().type("Hauptstrasse 42");
 			cy.get('[name="addressLine2"]').clear().type("3. Etage");
 			cy.get('[name="postalCode"]').clear().type("10115");
 			cy.get('[name="city"]').clear().type("Berlin");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("DE987654321");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("contact@eusolutions.de");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -356,14 +432,21 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Simple Company Ltd");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("123456789");
-			cy.get('[name="contactEmail"]').clear().type("info@simple.co.uk");
 			cy.get('[name="address"]').clear().type("10 Downing Street");
 			cy.get('[name="postalCode"]').clear().type("SW1A 2AA");
 			cy.get('[name="city"]').clear().type("London");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("info@simple.co.uk");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -380,7 +463,11 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
+			// Editing opens every step chip already "done" (SteppedDialog's own `initialMaxReached`) —
+			// jump straight to Address rather than walking Identity -> Address first.
+			cy.get('[data-cy="client-dialog-step-address"]').click();
 			cy.get('[name="addressLine2"]').clear().type("Building B");
+			cy.get('[data-cy="client-dialog-step-recap"]').click();
 			cy.get('[data-cy="client-submit"]').click();
 
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -403,14 +490,21 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("O'Reilly & Associates, Inc.");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("987654321");
-			cy.get('[name="contactEmail"]').clear().type("info@oreilly.com");
 			cy.get('[name="address"]').clear().type("789 Publishing Way");
 			cy.get('[name="postalCode"]').clear().type("11111");
 			cy.get('[name="city"]').clear().type("New York");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("987654321");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("info@oreilly.com");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -429,16 +523,25 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Société Française SAS");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			// SIREN is nine digits and nothing else (country-identifiers/data/fr.json, sourced to INSEE),
-			// and that shape is now enforced on save. The VAT field keeps its FR-prefixed value: VAT is
-			// deliberately exempt from the generic pattern check and validated by tax/vat-syntax.ts.
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
-			cy.get('[data-cy="client-identifier-VAT"]').clear().type("FR12345678901");
-			cy.get('[name="contactEmail"]').clear().type("contact@societe.fr");
 			cy.get('[name="address"]').clear().type("1 Rue de la Paix");
 			cy.get('[name="postalCode"]').clear().type("75001");
 			cy.get('[name="city"]').clear().type("Paris");
+			cy.continueSteppedDialog("client-dialog");
+
+			// SIREN is nine digits and nothing else (country-identifiers/data/fr.json, sourced to INSEE),
+			// and that shape is now enforced on save. The VAT field keeps its FR-prefixed value: VAT is
+			// deliberately exempt from the generic pattern check and validated by tax/vat-syntax.ts.
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.get('[data-cy="client-identifier-VAT"]').clear().type("FR12345678901");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("contact@societe.fr");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -462,14 +565,21 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("SIREN Seul SARL");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "France");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("123456789");
-			cy.get('[name="contactEmail"]').clear().type("contact@siren-seul.fr");
 			cy.get('[name="address"]').clear().type("2 Rue de la Paix");
 			cy.get('[name="postalCode"]').clear().type("75001");
 			cy.get('[name="city"]').clear().type("Paris");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("123456789");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("contact@siren-seul.fr");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -488,15 +598,22 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("German Company GmbH");
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.selectCountry("client-country-select", "Germany");
-			cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-				.clear()
-				.type("DE123456789");
-			cy.get('[data-cy="client-identifier-VAT"]').clear().type("DE123456789");
-			cy.get('[name="contactEmail"]').clear().type("contact@german.de");
 			cy.get('[name="address"]').clear().type("Hauptstrasse 1");
 			cy.get('[name="postalCode"]').clear().type("10115");
 			cy.get('[name="city"]').clear().type("Berlin");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+				.clear()
+				.type("DE123456789");
+			cy.get('[data-cy="client-identifier-VAT"]').clear().type("DE123456789");
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type("contact@german.de");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -505,10 +622,10 @@ describe("Clients E2E", () => {
 		});
 	});
 
-	// The Peppol scheme selector (`peppolSchemeId`,
-	// client-upsert.tsx). Every label asserted below is quoted VERBATIM from the Peppol v9.7
-	// Participant Identifier Schemes codelist (docs.peppol.eu/edelivery/codelists/) — see that
-	// component's own inline comments for the exact source citation on each entry.
+	// The Peppol scheme selector (`peppolSchemeId`, client-upsert.tsx, now on the Tax & identifiers
+	// step). Every label asserted below is quoted VERBATIM from the Peppol v9.7 Participant Identifier
+	// Schemes codelist (docs.peppol.eu/edelivery/codelists/) — see that component's own inline comments
+	// for the exact source citation on each entry.
 	describe("Peppol scheme selector", () => {
 		it("offers the 7 EAS the 2026-09-02 B2G audit added routing rules for, but this selector never offered", () => {
 			cy.visit("/clients");
@@ -518,6 +635,14 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
+
+			cy.get('[name="name"]').clear().type("Peppol Scheme Test SARL");
+			cy.continueSteppedDialog("client-dialog");
+			cy.selectCountry("client-country-select", "France");
+			cy.get('[name="address"]').clear().type("1 Rue Test");
+			cy.get('[name="postalCode"]').clear().type("75001");
+			cy.get('[name="city"]').clear().type("Paris");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-peppol-scheme-select"]')
 				.scrollIntoView()
@@ -564,6 +689,14 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
+
+			cy.get('[name="name"]').clear().type("Peppol Scheme Test 2 SARL");
+			cy.continueSteppedDialog("client-dialog");
+			cy.selectCountry("client-country-select", "France");
+			cy.get('[name="address"]').clear().type("1 Rue Test");
+			cy.get('[name="postalCode"]').clear().type("75001");
+			cy.get('[name="city"]').clear().type("Paris");
+			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-peppol-scheme-select"]')
 				.scrollIntoView()
@@ -625,7 +758,11 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
+			// "description" lives on the Identity step, the wizard's own default landing step — no
+			// navigation needed to reach it, even in edit mode.
 			cy.get('[name="description"]').clear().type("A global technology leader");
+			// Every step is already "done" in edit mode — jump straight to Summary to save.
+			cy.get('[data-cy="client-dialog-step-recap"]').click();
 			cy.get('[data-cy="client-submit"]').click();
 
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -641,7 +778,10 @@ describe("Clients E2E", () => {
 				"A global technology leader",
 			);
 
-			cy.get('[data-cy="client-cancel"]').click();
+			// No dedicated "Cancel" button any more (SteppedDialog's own fixed footer is Back/Continue
+			// only) — closing goes through the dialog's own header close button, same as every other
+			// stepped-dialog.tsx wizard.
+			cy.get('[data-cy="client-dialog"] [data-slot="dialog-close"]').click();
 		});
 	});
 
@@ -664,6 +804,7 @@ describe("Clients E2E", () => {
 			);
 		});
 	});
+
 });
 
 /**
@@ -694,15 +835,22 @@ describe("Supplier role", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Fournisseur T5b SARL");
-		cy.selectCountry("client-country-select", "France");
-		cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-			.clear()
-			.type("555666777");
 		cy.get('[data-cy="client-is-supplier-switch"]').scrollIntoView().click();
-		cy.get('[name="contactEmail"]').clear().type("fournisseur-t5b@example.com");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue Fournisseur");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+			.clear()
+			.type("555666777");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contactEmail"]').clear().type("fournisseur-t5b@example.com");
+		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -729,16 +877,23 @@ describe("Supplier role", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Client Ordinaire T5b SARL");
+		cy.continueSteppedDialog("client-dialog");
+
 		cy.selectCountry("client-country-select", "France");
-		cy.get('[data-cy="client-identifier-LEGAL_ID"]')
-			.clear()
-			.type("112233446");
-		cy.get('[name="contactEmail"]')
-			.clear()
-			.type("client-ordinaire-t5b@example.com");
 		cy.get('[name="address"]').clear().type("2 Rue Ordinaire");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
+			.clear()
+			.type("112233446");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contactEmail"]')
+			.clear()
+			.type("client-ordinaire-t5b@example.com");
+		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -765,5 +920,78 @@ describe("Supplier role", () => {
 
 		cy.contains("Fournisseur T5b SARL", { timeout: 10000 });
 		cy.contains("Client Ordinaire T5b SARL").should("not.exist");
+	});
+
+	// `SteppedDialog` hands its last step's "Continue" click `form.getValues()` directly, never through
+	// `form.handleSubmit` (which normally runs the zodResolver and hands back SCHEMA-COERCED values) —
+	// a real defect found on a SIBLING screen built the same way (numbers reached the API as strings).
+	// This form has no coercing field (no `z.coerce`, no numeric input), so client-upsert.tsx's own
+	// `clientSchema.safeParse(values)` at the submit boundary is a no-op here in practice — this test
+	// is the regression guard for that: every genuinely TYPED field (a country string, the GOVERNMENT
+	// enum, a real boolean switch) must reach the API as its own type, through BOTH create and an edit
+	// round-trip, not just render correctly on screen. Placed LAST in this describe (reusing its own
+	// `resetAndSeed()`, never a fresh one of its own) so the list stays at 3 clients total — the same
+	// page-scoped-list reasoning this describe's own header already gives for why it resets at all.
+	it("country, GOVERNMENT kind and the isSupplier boolean survive create AND an edit round-trip with their real types", () => {
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("Typed Fields Co");
+		cy.get('[data-cy="client-is-supplier-switch"]').click();
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.selectCountry("client-country-select", "Germany");
+		cy.get('[name="address"]').clear().type("Hauptstrasse 9");
+		cy.get('[name="postalCode"]').clear().type("10115");
+		cy.get('[name="city"]').clear().type("Berlin");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-kind-select"]').click();
+		cy.get('[data-cy="client-kind-government"]').click();
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contactEmail"]').clear().type("typed-fields@example.com");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("Typed Fields Co", { timeout: 10000 });
+
+		cy.request<{ country: string; kind: string; isSupplier: boolean }[]>({
+			url: `${api}/api/clients/search?query=${encodeURIComponent("Typed Fields Co")}`,
+		})
+			.its("body")
+			.then((clients) => {
+				const c = clients[0];
+				expect(c.country, "country persisted as the real string").to.eq("Germany");
+				expect(c.kind, "GOVERNMENT persisted as its own enum string").to.eq("GOVERNMENT");
+				expect(c.isSupplier, "isSupplier is a real boolean, never the STRING \"true\"").to.eq(true);
+				expect(typeof c.isSupplier).to.eq("boolean");
+			});
+
+		// Edit round-trip: flip the switch back off — every step is already "done" in edit mode
+		// (`initialMaxReached`), so jump straight to Summary instead of walking every step again.
+		cy.visit("/clients");
+		cy.get('[data-cy="edit-client-button-typed-fields@example.com"]', { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+		cy.get('[data-cy="client-is-supplier-switch"]').click();
+		cy.get('[data-cy="client-dialog-step-recap"]').click();
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+
+		cy.request<{ isSupplier: boolean; kind: string }[]>({
+			url: `${api}/api/clients/search?query=${encodeURIComponent("Typed Fields Co")}`,
+		})
+			.its("body")
+			.then((clients) => {
+				expect(
+					clients[0].isSupplier,
+					"the edit round-trip keeps isSupplier a real boolean, now false",
+				).to.eq(false);
+				expect(clients[0].kind, "kind untouched by the edit still reads GOVERNMENT").to.eq(
+					"GOVERNMENT",
+				);
+			});
 	});
 });

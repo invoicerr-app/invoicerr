@@ -126,5 +126,15 @@ declare namespace Cypress {
          * @example cy.continueDocumentWizard()
          */
         continueDocumentWizard(): Chainable<void>
+
+        /**
+         * The generic sibling of `continueDocumentWizard` for any OTHER `components/ui/stepped-dialog.tsx`
+         * wizard (article-upsert.tsx, time-entry-upsert.tsx, ...) — takes the dialog's own `dataCy`
+         * prefix (the same string passed to `<SteppedDialog dataCy="...">`) since those aren't hardcoded
+         * to "document-create-dialog". Same "wait for the step body's own data-cy to actually change"
+         * guard against `handleContinue`'s async `form.trigger(...)`.
+         * @example cy.continueSteppedDialog('article-dialog')
+         */
+        continueSteppedDialog(dataCy: string): Chainable<void>
     }
 }

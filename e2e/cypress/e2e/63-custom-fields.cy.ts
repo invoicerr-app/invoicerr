@@ -296,19 +296,26 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Custom Fields Client SARL");
+		cy.continueSteppedDialog("client-dialog");
+
 		cy.selectCountry("client-country-select", "France");
-		cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
+		cy.get('[name="address"]').clear().type("1 Rue des Champs Personnalisés");
+		cy.get('[name="postalCode"]').clear().type("75000");
+		cy.get('[name="city"]').clear().type("Paris");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
 		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.get('[name="contactEmail"]').clear().type("cf-client@example.com");
-		cy.get('[name="address"]').clear().type("1 Rue des Champs Personnalisés");
-		cy.get('[name="postalCode"]').clear().type("75000");
-		cy.get('[name="city"]').clear().type("Paris");
+		cy.continueSteppedDialog("client-dialog");
 
+		// Custom CLIENT-target fields now live at the end of the Contact & portal step.
+		cy.get('[name="contactEmail"]').clear().type("cf-client@example.com");
 		cy.get('[data-cy="client-custom-fields-section"]').scrollIntoView().should("be.visible");
 		pickSelectOption("loyalty_tier", "gold");
+		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");

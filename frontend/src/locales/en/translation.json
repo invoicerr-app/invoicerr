@@ -209,6 +209,23 @@
         "vat": {
           "label": "VAT Number",
           "placeholder": "Enter VAT number (e.g., FR12345678901)"
+        },
+        "portalAccess": {
+          "label": "Client portal",
+          "description": "Invite this client to sign in and see their own invoices, quotes and balance."
+        }
+      },
+      "stepped": {
+        "steps": {
+          "identity": "Identity",
+          "address": "Address",
+          "fiscal": "Tax & identifiers",
+          "contact": "Contact & portal",
+          "recap": "Summary"
+        },
+        "recap": {
+          "typeLabel": "Type",
+          "nameLabel": "Name"
         }
       },
       "validation": {
@@ -1495,6 +1512,11 @@
         "create": "Add Article",
         "edit": "Edit Article"
       },
+      "steps": {
+        "identity": "Identity",
+        "pricing": "Price & VAT",
+        "stock": "Stock"
+      },
       "messages": {
         "addSuccess": "Article added",
         "addError": "Failed to add article",
@@ -1602,7 +1624,13 @@
         "title": {
           "create": "Log time",
           "edit": "Edit time entry"
-        }
+        },
+        "steps": {
+          "task": "Task",
+          "duration": "Duration",
+          "billing": "Billing"
+        },
+        "projectLabel": "Project"
       },
       "delete": {
         "title": "Delete time entry",
@@ -1644,6 +1672,19 @@
       "dropHint": "Drag a CSV or OFX file here, or",
       "browse": "Browse",
       "currency": "Currency",
+      "detectedFormat": "Detected format: {{format}}",
+      "steps": {
+        "file": "File",
+        "columns": "Columns",
+        "preview": "Preview",
+        "import": "Import"
+      },
+      "errors": {
+        "fileRequired": "Select a file to import",
+        "fileUnreadable": "This file could not be read",
+        "currencyRequired": "Choose a currency",
+        "columnRequired": "Choose a column"
+      },
       "mapping": {
         "title": "Which column is which?",
         "dateColumn": "Date column",
@@ -1652,7 +1693,28 @@
         "referenceColumn": "Reference column",
         "none": "None",
         "dateFormat": "Date format",
-        "decimalSeparator": "Decimal separator"
+        "decimalSeparator": "Decimal separator",
+        "previewTitle": "First rows of the file"
+      },
+      "preview": {
+        "duplicate": "Possible duplicate",
+        "total": "Total",
+        "empty": "No importable line found in this file",
+        "errorNote": "{{count}} row(s) could not be read and will be skipped"
+      },
+      "recap": {
+        "title": "Ready to import",
+        "file": "File",
+        "currency": "Currency",
+        "lines": "Lines",
+        "duplicates": "Possible duplicates",
+        "ignored": "Rows that will be skipped"
+      },
+      "result": {
+        "title": "Import complete",
+        "imported": "Lines imported",
+        "ignored": "Lines ignored",
+        "submitCount": "Import {{count}} line(s)"
       },
       "submit": "Import",
       "success": "Statement imported: {{count}} line(s)",

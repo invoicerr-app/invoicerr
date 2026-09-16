@@ -367,8 +367,15 @@ describe("Correct — the screen, browser level", () => {
 
 					// What the descriptor still requires: the credit note's own issue date and the
 					// corrected line (taken from the linked invoice — the same pattern as 25's own
-					// `lockedFromReference` test).
+					// `lockedFromReference` test). The dialog is the same stepped
+					// document-create-dialog.tsx every other type uses (owner decision 2026-09-16):
+					// `invoice`/`issueDate`/`currency` (all `required`) sit on "Details",
+					// `correctedLines` (a `rowSelection`, table-shaped) gets its own "Lines" step
+					// (document-create-dialog.tsx's `isLinesKind`), and `notes` (optional) is
+					// "Options" — three `Continue` clicks stand between here and the Summary step
+					// that actually carries the `document-action-save-draft` button.
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
+					cy.continueDocumentWizard(); // Details -> Lines
 
 					cy.get(
 						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]',
@@ -376,6 +383,8 @@ describe("Correct — the screen, browser level", () => {
 					)
 						.first()
 						.check({ force: true });
+					cy.continueDocumentWizard(); // Lines -> Options
+					cy.continueDocumentWizard(); // Options -> Recap
 
 					cy.intercept(
 						"POST",

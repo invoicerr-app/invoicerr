@@ -94,6 +94,7 @@ describe("Bank reconciliation — import a statement through the screen, confirm
 		cy.get('[data-cy="bank-reconciliation-import-button"]').click();
 		cy.get('[data-cy="bank-reconciliation-import-dialog"]', { timeout: 10000 }).should("be.visible");
 
+		// Step 1/4 — File: drop the file, then the currency, through the real searchable picker.
 		cy.get('[data-cy="bank-reconciliation-import-file-input"]').selectFile(
 			{
 				contents: Cypress.Buffer.from(csvContents(displayNumber)),
@@ -102,11 +103,12 @@ describe("Bank reconciliation — import a statement through the screen, confirm
 			},
 			{ force: true },
 		);
+		cy.get('[data-cy="bank-reconciliation-import-format"]', { timeout: 10000 }).should(
+			"contain.text",
+			"CSV",
+		);
 
-		// The mapping form appeared (a CSV file, never OFX) — populated from the file's OWN header row.
-		cy.get('[data-cy="bank-reconciliation-import-mapping"]', { timeout: 10000 }).should("exist");
-
-		// Currency — explicit, through the real searchable picker.
+		cy.wait(300);
 		cy.get('[data-cy="bank-reconciliation-import-currency"] button').first().click();
 		cy.get('[data-cy="bank-reconciliation-import-currency-options"]', { timeout: 10000 }).should(
 			"be.visible",
@@ -114,7 +116,12 @@ describe("Bank reconciliation — import a statement through the screen, confirm
 		cy.get('[data-cy="bank-reconciliation-import-currency"] input').type("EUR");
 		cy.get('[data-cy="bank-reconciliation-import-currency-options"] button').first().click();
 
-		// The column mapping — picked from the file's own headers, never typed freehand.
+		cy.get('[data-cy="bank-reconciliation-import-dialog-continue"]').click();
+
+		// Step 2/4 — Columns: a CSV file (never OFX) gets its own mapping screen, populated from the
+		// file's OWN header row, never typed freehand.
+		cy.get('[data-cy="bank-reconciliation-import-mapping"]', { timeout: 10000 }).should("exist");
+
 		cy.get('[data-cy="bank-reconciliation-import-mapping-date"]').click();
 		cy.wait(200);
 		cy.get('[role="option"]').contains("Date").click();
@@ -130,8 +137,24 @@ describe("Bank reconciliation — import a statement through the screen, confirm
 		// dateFormat (DD/MM/YYYY) and decimalSeparator (,) are already the dialog's own defaults,
 		// which happen to match this fixture — left untouched on purpose.
 
+		cy.get('[data-cy="bank-reconciliation-import-dialog-continue"]').click();
+
+		// Step 3/4 — Preview: the one line this file would produce, before anything is imported.
+		cy.get('[data-cy="bank-reconciliation-import-preview-table"]', { timeout: 10000 }).should("exist");
+		cy.get('[data-cy="bank-reconciliation-import-preview-row-0"]').should("contain.text", "1200.00");
+
+		cy.get('[data-cy="bank-reconciliation-import-dialog-continue"]').click();
+
+		// Step 4/4 — Import: the primary button reads "Import N lines", then the SAME button shows the
+		// outcome in place and becomes "Finish" — the dialog only closes on the second click.
+		cy.get('[data-cy="bank-reconciliation-import-recap"]', { timeout: 10000 }).should("exist");
+		cy.get('[data-cy="bank-reconciliation-import-submit"]').should("contain.text", "1").click();
+
+		cy.get('[data-cy="bank-reconciliation-import-result"]', { timeout: 10000 }).should("exist");
+		cy.get('[data-cy="bank-reconciliation-import-result-imported"]').should("contain.text", "1");
+		cy.get('[data-cy="bank-reconciliation-import-result-ignored"]').should("contain.text", "0");
+
 		cy.get('[data-cy="bank-reconciliation-import-submit"]').click();
-		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 		cy.get('[data-cy="bank-reconciliation-import-dialog"]').should("not.exist");
 
 		// The freshly imported statement is auto-selected — its one line is already visible.

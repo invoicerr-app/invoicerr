@@ -521,12 +521,19 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		} else {
 			cy.get('[name="name"]').clear().type(s.client.name);
 		}
+		cy.continueSteppedDialog("client-dialog");
+
 		cy.selectCountry("client-country-select", s.client.country);
+		cy.get('[name="address"]').clear().type(s.client.address);
+		cy.get('[name="postalCode"]').clear().type(s.client.postalCode);
+		cy.get('[name="city"]').clear().type(s.client.city);
+		cy.continueSteppedDialog("client-dialog");
 
 		// The form must offer EXACTLY what the buyer country's own catalog declares — each declared
 		// scheme present, each undeclared one absent. Asserting both directions is the point: a
 		// missing input and an extra one are both wrong, and a country that gained a file (Italy and
-		// Poland both did on 2026-09-13) must be noticed here rather than silently tolerated.
+		// Poland both did on 2026-09-13) must be noticed here rather than silently tolerated. Both now
+		// live on the Tax & identifiers step.
 		if (buyer.formOffers.length === 0) {
 			cy.get('[data-cy="client-identifiers-unknown-country"]', { timeout: 10000 }).should("exist");
 		} else {
@@ -544,11 +551,6 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		if (buyer.vat && buyer.formOffers.includes("VAT")) {
 			cy.get('[data-cy="client-identifier-VAT"]', { timeout: 10000 }).clear().type(buyer.vat);
 		}
-
-		cy.get('[name="contactEmail"]').clear().type(s.client.email);
-		cy.get('[name="address"]').clear().type(s.client.address);
-		cy.get('[name="postalCode"]').clear().type(s.client.postalCode);
-		cy.get('[name="city"]').clear().type(s.client.city);
 		selectClientEuro();
 
 		if (buyer.vat && !buyer.formOffers.includes("VAT")) {
@@ -556,8 +558,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// finish creating the client through the API instead, exactly the documented exception
 			// `35-cross-border-tax.cy.ts` already establishes for its own "no country" client.
 			// Note the condition is about the SCHEME, not about the country having a file at all:
-			// Poland has a file and still offers no VAT input, which is precisely the case here.
-			cy.get('[data-cy="client-cancel"]').click();
+			// Poland has a file and still offers no VAT input, which is precisely the case here. No
+			// dedicated "Cancel" button any more (SteppedDialog's own fixed footer is Back/Continue
+			// only) — close via the header's own close button and confirm the discard (values were
+			// typed to reach this step, so the wizard is dirty).
+			cy.get('[data-cy="client-dialog"] [data-slot="dialog-close"]').click();
+			cy.get('[data-cy="client-dialog-discard-confirm-btn"]').click();
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
 
 			const clientBody: Record<string, unknown> = {
@@ -579,6 +585,11 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 				]);
 			});
 		} else {
+			cy.continueSteppedDialog("client-dialog");
+
+			cy.get('[name="contactEmail"]').clear().type(s.client.email);
+			cy.continueSteppedDialog("client-dialog");
+
 			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
 		}

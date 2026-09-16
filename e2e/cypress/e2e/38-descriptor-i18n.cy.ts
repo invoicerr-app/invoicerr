@@ -88,14 +88,29 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 
 		// Fields at TWO DEPTHS: top-level (documents.descriptors.invoice.fields.<key>.label)
 		// and a row of the "lines" array (…fields.lines.fields.<key>.label) — the same derivation
-		// covers both, wired only once on the hooks/queries/use-document-types.ts side.
+		// covers both, wired only once on the hooks/queries/use-document-types.ts side. The dialog is
+		// now the stepped wizard (owner decision 2026-09-16, document-create-dialog.tsx's
+		// `buildFieldGroups`): client/issueDate/dueDate/currency (all `required`) sit on "Details",
+		// "lines" (table-shaped) gets its own "Lines" step, and notes/origin/clientReference
+		// (optional) land on "Options" — filling each step's own required fields with REAL values
+		// (the same pattern as 20-document-totals.cy.ts) is what actually walks this test far enough
+		// to reach "notes" and the "save-draft" action on the closing Summary step.
 		cy.get('[data-cy="document-field-client"]').should("contain.text", "Client");
 		cy.get('[data-cy="document-field-issueDate"]').should("contain.text", "Date");
 		cy.get('[data-cy="document-field-dueDate"]').should("contain.text", "Due date");
 		cy.get('[data-cy="document-field-currency"]').should("contain.text", "Currency");
-		cy.get('[data-cy="document-field-notes"]').should("contain.text", "Notes");
-		cy.get('[data-cy="document-field-lines"]').should("contain.text", "Lines");
 
+		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
+		cy.pickToday('[data-cy="document-field-dueDate-input"]');
+		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
+		cy.continueDocumentWizard(); // Details -> Lines
+
+		cy.get('[data-cy="document-field-lines"]').should("contain.text", "Lines");
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]')
 			.should("contain.text", "Designation")
@@ -104,6 +119,22 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 			.and("contain.text", "Unit price")
 			.and("contain.text", "VAT rate")
 			.and("contain.text", "Discount %");
+
+		// A full, valid line — quantity/unitPrice are numeric (an untouched row leaves them
+		// `undefined`, which fails the wizard's own per-step `form.trigger` on Continue).
+		cy.get('input[name="lines.0.description"]').type("Conseil", { force: true });
+		cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("1", { force: true });
+		cy.get('input[name="lines.0.unit"]').type("hour", { force: true });
+		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("100", { force: true });
+		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
+			.first()
+			.click({ force: true });
+		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-field-vatRate-input-options"] button').first().click();
+		cy.continueDocumentWizard(); // Lines -> Options
+
+		cy.get('[data-cy="document-field-notes"]').should("contain.text", "Notes");
+		cy.continueDocumentWizard(); // Options -> Summary
 
 		// The actions — documents.descriptors.invoice.actions.<id>.label, the same EN value as before.
 		// "send" only appears once the document has been saved a first time (its derived
@@ -129,6 +160,19 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.visit("/documents/invoice");
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+
+		// "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the wizard's own "Details"
+		// step, ahead of "Lines" — nothing this test actually reads, just what has to be filled to
+		// reach the row the vatRate field lives on (document-create-dialog.tsx's `buildFieldGroups`).
+		cy.get('[data-cy="document-field-client-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-client-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-field-client-input-options"] button').first().click();
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
+		cy.pickToday('[data-cy="document-field-dueDate-input"]');
+		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
+		cy.continueDocumentWizard(); // Details -> Lines
 
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]')

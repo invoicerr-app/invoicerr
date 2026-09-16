@@ -139,11 +139,20 @@ function createClientByScreen(name: string, opts?: { vat?: string }) {
 	cy.contains("button", /add|new|créer|ajouter/i).click();
 	cy.get('[data-cy="client-dialog"]', { timeout: 10000 }).should("be.visible");
 	cy.get('[name="name"]').clear().type(name);
+	cy.continueSteppedDialog("client-dialog");
+
 	cy.selectCountry("client-country-select", "France");
-	cy.get('[data-cy="client-identifier-LEGAL_ID"]').clear().type("123456789");
+	cy.get('[name="address"]').clear().type("1 Rue du Test");
+	cy.get('[name="postalCode"]').clear().type("75000");
+	cy.get('[name="city"]').clear().type("Paris");
+	cy.continueSteppedDialog("client-dialog");
+
+	cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
 	if (opts?.vat) {
 		cy.get('[data-cy="client-identifier-VAT"]').clear().type(opts.vat);
 	}
+	cy.continueSteppedDialog("client-dialog");
+
 	// ASCII-only slug — an accented character (e.g. "Confirmé") makes an otherwise-plausible email
 	// fail the form's own RFC-ish check ("Email format is invalid"), which this mutation hit for real.
 	const emailSlug = name
@@ -154,9 +163,8 @@ function createClientByScreen(name: string, opts?: { vat?: string }) {
 	cy.get('[name="contactEmail"]')
 		.clear()
 		.type(`${emailSlug}@example.com`);
-	cy.get('[name="address"]').clear().type("1 Rue du Test");
-	cy.get('[name="postalCode"]').clear().type("75000");
-	cy.get('[name="city"]').clear().type("Paris");
+	cy.continueSteppedDialog("client-dialog");
+
 	cy.get('[data-cy="client-submit"]').click();
 	cy.get('[data-cy="client-dialog"]').should("not.exist");
 }
