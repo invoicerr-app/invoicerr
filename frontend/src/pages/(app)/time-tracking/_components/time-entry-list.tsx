@@ -118,7 +118,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                   <TableHead className="w-8">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-foreground"
+                      className="h-4 w-4 accent-primary"
                       checked={allSelected}
                       disabled={selectableEntries.length === 0}
                       onChange={(e) => toggleAll(e.target.checked)}
@@ -142,7 +142,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                         {selectable && (
                           <input
                             type="checkbox"
-                            className="h-4 w-4 accent-foreground"
+                            className="h-4 w-4 accent-primary"
                             checked={selectedIds.has(entry.id)}
                             onChange={(e) => toggleOne(entry.id, e.target.checked)}
                             data-cy={`time-entry-checkbox-${entry.id}`}

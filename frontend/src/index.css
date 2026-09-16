@@ -94,6 +94,13 @@
    and ≥10.6:1 text-on-card contrast in both themes, with the same OKLCH-to-sRGB-to-WCAG pipeline the
    proposal used. */
 :root {
+  /* Tells the browser which theme to draw NATIVE form-control chrome in (checkbox/radio unchecked
+     box, native <select>, scrollbar fallback…) — without it Chromium/Firefox always default to their
+     light native widget regardless of our own `.dark` class, which is exactly why unstyled
+     `<input type="checkbox">`s (time-entry-list.tsx, row-selection-field.tsx) rendered as plain white
+     boxes in both themes (owner report, "Lagune" redesign). `accent-color` below only tints the
+     CHECKED fill; the unchecked box and the OS-drawn tick both come from `color-scheme`. */
+  color-scheme: light;
   --radius: 0.625rem;
   --background: oklch(0.975 0.005 230);
   --foreground: oklch(0.200 0.030 230);
@@ -151,6 +158,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.175 0.014 230);
   --foreground: oklch(0.950 0.006 230);
   --card: oklch(0.225 0.016 230);

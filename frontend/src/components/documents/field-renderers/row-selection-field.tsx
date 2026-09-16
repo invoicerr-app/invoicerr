@@ -97,7 +97,7 @@ export function RowSelectionField({ field, name, documentTypeId }: FieldRenderer
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-foreground"
+                      className="h-4 w-4 accent-primary"
                       checked={selected.includes(row.id)}
                       onChange={(e) => toggle(row.id, e.target.checked)}
                       data-cy={`document-field-${field.key}-row-${row.id}-checkbox`}
