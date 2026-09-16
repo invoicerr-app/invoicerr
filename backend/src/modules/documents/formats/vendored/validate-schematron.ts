@@ -320,9 +320,23 @@ try {
     'xs:integer',
     (_ctx: unknown, arg: unknown, pari: unknown): number => addPIVA(String(arg), Number(pari)),
   );
-} catch {
-  // fontoxpath absent — harmless as long as Peppol BIS (the only ruleset that uses these functions)
-  // is not wired in; see the comment above.
+} catch (error) {
+  // STALE ASSUMPTION, corrected: this used to say "harmless as long as Peppol BIS is not wired in" —
+  // it now IS (`documents-core.module.ts` registers `peppolBisFormatProvider`), so a registration
+  // failure here is no longer inert. `fontoxpath`/`node-schematron` are ordinary `dependencies`
+  // (package.json), not optional ones, so `require` failing here should never happen in a correctly
+  // installed environment — but a silent, empty `catch` turned "should never happen" into "would be
+  // invisible if it ever did": the Peppol BIS Schematron run would then fail deep inside
+  // `node-schematron`/fontoxpath the first time a rule calls `u:slack`/`u:checkPIVA`/etc., far from
+  // this file and with no trace pointing back here. `console.error`, not the DB-backed `logger`
+  // service (`@/logger/logger.service`): this runs at MODULE LOAD TIME, before Nest's app context (or
+  // Prisma) is guaranteed to exist — the same reason `signing/signing-logger.ts` uses `console.*`
+  // rather than that service for its own out-of-request-lifecycle logging.
+  console.error(
+    '[schematron:vendored] Failed to register Peppol BIS custom XPath functions (u:slack, ' +
+      'u:checkPIVA, u:checkCF16, …) — Peppol BIS Schematron validation will fail on first use:',
+    error,
+  );
 }
 
 // Schema.fromString is expensive — cached by path, same as at the reference.

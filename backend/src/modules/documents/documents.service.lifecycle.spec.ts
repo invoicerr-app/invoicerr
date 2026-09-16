@@ -307,9 +307,14 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
 
   describe('describeTypeForCompany — the country restriction is its OWN field, never folded into availableWhen', () => {
     it("carries the country's restrictedToStatuses as policyRestrictedToStatuses, leaving availableWhen untouched", async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockImplementation(
-        async (_companyId: string, _typeId: string, actionId: string) =>
-          actionId === 'annotate' ? { allowed: true, restrictedToStatuses: ['draft'] } : { allowed: true },
+      // `describeTypeForCompany` decides every action in ONE batched call — see country-policy.ts's
+      // own header on `evaluateCountryPolicyForActions` for why it, not `evaluateCountryPolicy`, is
+      // what that method actually calls.
+      (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+        async (_companyId: string, _typeId: string, actionIds: string[]) =>
+          actionIds.map((actionId) =>
+            actionId === 'annotate' ? { allowed: true, restrictedToStatuses: ['draft'] } : { allowed: true },
+          ),
       );
 
       const service = buildService(new ActionRegistry());
@@ -331,9 +336,13 @@ describe('DocumentsService.runAction — lifecycle enforcement', () => {
     });
 
     it('an "always"-available action restricted by the country STAYS offered for a brand-new, never-saved record', async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockImplementation(
-        async (_companyId: string, _typeId: string, actionId: string) =>
-          actionId === 'save-draft' ? { allowed: true, restrictedToStatuses: ['draft'] } : { allowed: true },
+      (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+        async (_companyId: string, _typeId: string, actionIds: string[]) =>
+          actionIds.map((actionId) =>
+            actionId === 'save-draft'
+              ? { allowed: true, restrictedToStatuses: ['draft'] }
+              : { allowed: true },
+          ),
       );
 
       const service = buildService(new ActionRegistry());

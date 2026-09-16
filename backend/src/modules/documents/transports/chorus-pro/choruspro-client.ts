@@ -463,6 +463,15 @@ export class ChorusProClient {
     }
     const data = resp.data as Record<string, unknown>;
     const token = String(data.access_token ?? '');
+    // A 2xx response with no (or a blank) `access_token` used to be cached anyway (`String(undefined
+    // ?? '')` is `''`, not a throw) — every `deposerFlux`/`consulterCr` call for up to `expiresIn`
+    // seconds would then send `Authorization: Bearer ` (empty) and fail PISTE auth, without this
+    // client ever knowing WHY or re-authenticating on its own. Refusing loudly HERE, before caching
+    // anything, turns that into one immediate, diagnosable failure instead — same fix as
+    // `pdp-client.ts#authenticate()`'s own header explains for the identical shape of bug.
+    if (!token) {
+      throw new Error('Chorus Pro PISTE authentication response carried no usable access_token.');
+    }
     const expiresIn = Number(data.expires_in ?? 3600);
     // Cache with 60 s safety margin; never log the token value.
     this._cachedToken = { token, expiresAt: Date.now() + expiresIn * 1000 - 60_000 };

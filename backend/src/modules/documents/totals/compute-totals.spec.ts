@@ -174,6 +174,59 @@ describe('computeDocumentTotals', () => {
     expect(result.vatBreakdown[0].baseMinor).toBe(10000); // Only the 100 EUR with rate
   });
 
+  it('a non-numeric but PRESENT quantity is counted as 1 AND warned — never a silent guess', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', quantity: 'two', unitPrice: 100, vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.lines[0].netMinor).toBe(10000); // quantity treated as 1, exactly as before this fix
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric quantity'));
+  });
+
+  it('a non-numeric but PRESENT unit price is counted as 0 AND warned — never a silent guess', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', quantity: 2, unitPrice: 'free', vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.lines[0].netMinor).toBe(0);
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric unit price'));
+  });
+
+  it('an ABSENT quantity/unit price still defaults silently — a draft in progress, not a data problem', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(result.lines[0].netMinor).toBe(0); // quantity 1 * unitPrice 0
+    expect(result.warnings).not.toContainEqual(expect.stringContaining('non-numeric'));
+  });
+
+  it('a NaN quantity is never silently propagated into the arithmetic (typeof NaN === "number")', () => {
+    const descriptor = buildTestDescriptor();
+    const data = {
+      currency: 'EUR',
+      lines: [{ description: 'x', quantity: NaN, unitPrice: 100, vatRate: '20' }],
+    };
+
+    const result = computeDocumentTotals(descriptor, data);
+
+    expect(Number.isNaN(result.lines[0].netMinor)).toBe(false);
+    expect(result.lines[0].netMinor).toBe(10000); // NaN rejected, quantity falls back to 1
+    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric quantity'));
+  });
+
   it('a line shape with NO vat-like select field at all (e.g. purchase-order.descriptor.ts) never warns — net === gross', () => {
     // Hand-built, not `buildTestDescriptor()`: that helper always adds a `vatRate` select subfield —
     // this test is exactly for the type that has none at all (see compute-totals.ts's own header on

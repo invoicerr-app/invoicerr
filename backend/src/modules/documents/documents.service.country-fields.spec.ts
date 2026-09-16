@@ -97,6 +97,13 @@ const baseLine = { description: 'Widget', quantity: 2, unit: 'unit', unitPrice: 
 describe('DocumentsService — wiring the country field overlay + VAT rate catalog into the invoice', () => {
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    // `describeTypeForCompany` decides every action in ONE batched call — see country-policy.ts's
+    // own header on `evaluateCountryPolicyForActions` for why it, not `evaluateCountryPolicy`, is
+    // what that method actually calls.
+    (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+      async (_companyId: string, _typeId: string, actionIds: string[]) =>
+        actionIds.map(() => ({ allowed: true })),
+    );
   });
   afterEach(() => jest.resetAllMocks());
 

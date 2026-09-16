@@ -71,31 +71,22 @@ export async function resolveCompanyCountryCode(companyId: string): Promise<stri
   return resolvedCode || undefined;
 }
 
-export async function evaluateCountryPolicy(
-  companyId: string,
+type DocumentCountryActionRuleRow = Awaited<
+  ReturnType<typeof prisma.documentCountryActionRule.findMany>
+>[number];
+
+/**
+ * The pure per-action decision, once a country's FULL rule set is already in hand — extracted so
+ * `evaluateCountryPolicy` (below, one action) and `evaluateCountryPolicyForActions` (further below,
+ * every action of a type at once) share the exact same rule-matching/message-building logic rather
+ * than risking the two ever drifting apart on what "forbidden" or "not declared" actually says.
+ */
+function decideFromRules(
+  rules: DocumentCountryActionRuleRow[],
+  resolvedCode: string,
   typeId: string,
   actionId: string,
-): Promise<CountryPolicyDecision> {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { country: true, countryCode: true },
-  });
-
-  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
-    .trim()
-    .toUpperCase();
-
-  if (!resolvedCode) {
-    return {
-      allowed: false,
-      reason:
-        `This company's country ("${company?.country ?? 'unknown'}") does not resolve to a ` +
-        'recognized ISO 3166-1 country code, so no document action policy can be found for it. ' +
-        'Set an explicit country code in company settings, or use a recognized country name.',
-    };
-  }
-
-  const rules = await prisma.documentCountryActionRule.findMany({ where: { countryCode: resolvedCode } });
+): CountryPolicyDecision {
   if (rules.length === 0) {
     return {
       allowed: false,
@@ -136,6 +127,79 @@ export async function evaluateCountryPolicy(
   const restrictedToStatuses =
     Array.isArray(rule.statuses) && rule.statuses.length > 0 ? rule.statuses : undefined;
   return restrictedToStatuses ? { allowed: true, restrictedToStatuses } : { allowed: true };
+}
+
+export async function evaluateCountryPolicy(
+  companyId: string,
+  typeId: string,
+  actionId: string,
+): Promise<CountryPolicyDecision> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { country: true, countryCode: true },
+  });
+
+  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+
+  if (!resolvedCode) {
+    return {
+      allowed: false,
+      reason:
+        `This company's country ("${company?.country ?? 'unknown'}") does not resolve to a ` +
+        'recognized ISO 3166-1 country code, so no document action policy can be found for it. ' +
+        'Set an explicit country code in company settings, or use a recognized country name.',
+    };
+  }
+
+  const rules = await prisma.documentCountryActionRule.findMany({ where: { countryCode: resolvedCode } });
+  return decideFromRules(rules, resolvedCode, typeId, actionId);
+}
+
+/**
+ * The SAME decision as `evaluateCountryPolicy`, for every `actionId` in one call — TWO Prisma queries
+ * TOTAL (one company lookup, one rules lookup for the resolved country), never one pair PER action.
+ *
+ * `documents.service.ts#describeTypeForCompany` used to call `evaluateCountryPolicy` once per
+ * declared action (`Promise.all(descriptor.actions.map(...))`) — ~20 actions on the invoice
+ * descriptor alone, so ~40 Prisma round trips to describe ONE document type to ONE screen, every time
+ * that screen opens, when the company's own country resolution and its full rule set are IDENTICAL
+ * for every one of those actions and only need fetching once. This function is that fetch-once path;
+ * `evaluateCountryPolicy` itself is UNCHANGED and stays exactly as it is for its own single-action
+ * callers (`runAction`, `downloadDocumentFormat`, `share-links.service.ts`), where there is only ever
+ * one action to decide and nothing to batch.
+ *
+ * Returns decisions in the SAME order as `actionIds`, one per entry — never fewer, never reordered,
+ * so a caller can zip the result back onto `actionIds` (or the actions array it came from) by index.
+ */
+export async function evaluateCountryPolicyForActions(
+  companyId: string,
+  typeId: string,
+  actionIds: readonly string[],
+): Promise<CountryPolicyDecision[]> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { country: true, countryCode: true },
+  });
+
+  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+
+  if (!resolvedCode) {
+    const decision: CountryPolicyDecision = {
+      allowed: false,
+      reason:
+        `This company's country ("${company?.country ?? 'unknown'}") does not resolve to a ` +
+        'recognized ISO 3166-1 country code, so no document action policy can be found for it. ' +
+        'Set an explicit country code in company settings, or use a recognized country name.',
+    };
+    return actionIds.map(() => decision);
+  }
+
+  const rules = await prisma.documentCountryActionRule.findMany({ where: { countryCode: resolvedCode } });
+  return actionIds.map((actionId) => decideFromRules(rules, resolvedCode, typeId, actionId));
 }
 
 export interface AvailableDocumentTypesDecision {

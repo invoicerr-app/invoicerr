@@ -122,6 +122,56 @@ describe('PdpClient', () => {
       expect(token).toBe('new-token');
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
+
+    // The measured defect: a 200 OAuth response with no usable `access_token` used to be cast
+    // unchecked and CACHED — every call for up to an hour would then silently reuse that same
+    // unusable value instead of re-authenticating.
+    it('authenticate() refuses a 200 response with no access_token, rather than caching an unusable one', async () => {
+      // `mockResolvedValue` (not `Once`): BOTH assertions below make their own `authenticate()` call,
+      // and each must independently see the same malformed response — nothing was cached (that is
+      // exactly the property under test), so each is a fresh fetch.
+      mockFetch.mockResolvedValue(mockTokenResponse({ access_token: undefined }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      await expect(client.authenticate()).rejects.toThrow(/no usable access_token/);
+    });
+
+    it('authenticate() refuses a 200 response with a blank access_token the same way', async () => {
+      mockFetch.mockResolvedValue(mockTokenResponse({ access_token: '' }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+    });
+
+    it('a refused (no access_token) authentication never caches anything — the NEXT call re-authenticates too', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse({ access_token: undefined }) as unknown as Response)
+        .mockResolvedValueOnce(mockTokenResponse({ access_token: 'recovered-token' }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      const token = await client.authenticate();
+
+      expect(token).toBe('recovered-token');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('a 401 on an ordinary request clears the cached token, so the NEXT call re-authenticates', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response) // initial auth
+        .mockResolvedValueOnce(mockJsonResponse({ error: 'invalid_token' }, 401) as unknown as Response) // 401 on the real call
+        .mockResolvedValueOnce(mockTokenResponse({ access_token: 'fresh-token' }) as unknown as Response) // re-auth
+        .mockResolvedValueOnce(mockJsonResponse({ id: 'inv-1' }) as unknown as Response); // succeeds now
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await expect(client.request('GET', '/v1/invoices/inv-1')).rejects.toThrow(PdpApiError);
+      const result = await client.request('GET', '/v1/invoices/inv-1');
+
+      expect(result).toEqual({ id: 'inv-1' });
+      // 1 initial auth + 1 failed call + 1 re-auth + 1 successful call
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
   });
 
   describe('SuperPDP proprietary API', () => {

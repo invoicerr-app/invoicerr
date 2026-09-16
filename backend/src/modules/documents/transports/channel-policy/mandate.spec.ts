@@ -36,6 +36,18 @@ describe('activeChannelMandateFor — the real, shipped FR/PDP mandate', () => {
     expect(activeChannelMandateFor('FR', '2026-08-31T23:59:59.999Z')).toBeUndefined();
   });
 
+  // The measured defect: a non-UTC OFFSET issueDate ("2026-09-01T00:00:00+02:00") converts, through
+  // `getTime()`, to an EARLIER UTC instant than the SAME calendar day's own UTC midnight — an epoch
+  // comparison would miss this invoice's own mandate by a full day. Comparing the literal calendar
+  // date instead (mandate.ts's own `isOnOrAfter`) must treat this exactly like the bare "2026-09-01"
+  // case just above, never like "2026-08-31".
+  it('an issueDate carrying an explicit non-UTC offset is judged by its own written calendar day, never shifted to UTC', () => {
+    expect(activeChannelMandateFor('FR', '2026-09-01T00:00:00+02:00')?.providerId).toBe('pdp');
+    // The day BEFORE mandatedFrom, same offset shape, must still be free — this is not "always active
+    // now", it is "the offset itself is never consulted".
+    expect(activeChannelMandateFor('FR', '2026-08-31T00:00:00+02:00')).toBeUndefined();
+  });
+
   it(
     'a country with no mandated fact at all (PL — still merely "suggested", even with real legal ' +
       "provenance now — see data/pl.json's own notes for why arming it would refuse still-lawful " +

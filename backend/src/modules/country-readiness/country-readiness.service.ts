@@ -9,9 +9,10 @@ import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel
 
 /**
  * The six CŒUR mechanisms a country needs to be "complete" — a business decision, NOT something
- * discovered from disk. Twelve catalogs exist under `documents/`; the other six are deliberately left
- * out, and — unlike the historical version of this comment — each one for its OWN stated reason,
- * because the reasons genuinely differ:
+ * discovered from disk. Thirteen catalogs exist under `documents/` (one `data/all.ts` aggregator
+ * each — see `ALL_DOCUMENT_CATALOG_DIRS` below, which this comment's own count is checked against);
+ * the other seven are deliberately left out, and — unlike the historical version of this comment —
+ * each one for its OWN stated reason, because the reasons genuinely differ:
  *
  *  - `mentions/` and `content-requirements/` are FR-specific extras: no other in-scope jurisdiction's
  *    law has been found to require either one, so counting them would make every non-FR country
@@ -47,6 +48,14 @@ import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel
  *    the other four in-scope countries (DE/FR/IT/PL) has been evaluated for a genuinely separate
  *    post-send declaration obligation distinct from their own transmission channel — an unresearched
  *    gap, not a finding that only Portugal has one.
+ *  - `domestic-reverse-charge/` is excluded for a DIFFERENT reason than the six above: it is not
+ *    conditional, nor a sourcing gap — it is sourced (DE/FR/IT/PT, 32 categories) but wired into
+ *    NOTHING yet. `tax/tax-engine.ts` has no domestic-reverse-charge branch at all (see that catalog's
+ *    own `DESIGN.md`, "Step 1 of the task brief… the only implementation this wave carries out"), so a
+ *    country having this catalog's file says nothing about what an actual invoice from that country
+ *    does — unlike the six CORE_MECHANISMS below, every one of which IS read by a real request-serving
+ *    code path today. Counting it as core would make "complete" claim a behaviour that does not exist
+ *    yet; promote it once a tax-engine branch actually reads it.
  *
  * What IS fully data-driven is which countries satisfy each of the six mechanisms below: every entry's
  * `countryCodes` is read straight from that mechanism's own `ALL_*_FILES` catalog (the same
@@ -61,6 +70,10 @@ interface CoreMechanism {
    *  `documents/`, so a caller (or a support issue) can go straight from this string to the exact
    *  `data/xx.json` file that would need to be added. */
   id: string;
+  /** Path to this mechanism's own directory, relative to `documents/` — differs from `id` for the two
+   *  nested catalogs (`tax/tax-systems`, `transports/channel-policy`). Used only to build
+   *  `ALL_DOCUMENT_CATALOG_DIRS` below; never read by `getReadiness` itself. */
+  dir: string;
   countryCodes: ReadonlySet<string>;
 }
 
@@ -69,12 +82,53 @@ function toCountryCodeSet(files: readonly { countryCode: string }[]): ReadonlySe
 }
 
 const CORE_MECHANISMS: readonly CoreMechanism[] = [
-  { id: 'country-policy', countryCodes: toCountryCodeSet(ALL_COUNTRY_POLICY_FILES) },
-  { id: 'vat-rates', countryCodes: toCountryCodeSet(ALL_VAT_RATE_FILES) },
-  { id: 'tax-systems', countryCodes: toCountryCodeSet(ALL_TAX_SYSTEM_FILES) },
-  { id: 'correction-routes', countryCodes: toCountryCodeSet(ALL_CORRECTION_ROUTES_FILES) },
-  { id: 'country-identifiers', countryCodes: toCountryCodeSet(ALL_COUNTRY_IDENTIFIER_FILES) },
-  { id: 'channel-policy', countryCodes: toCountryCodeSet(ALL_CHANNEL_POLICY_FILES) },
+  { id: 'country-policy', dir: 'country-policy', countryCodes: toCountryCodeSet(ALL_COUNTRY_POLICY_FILES) },
+  { id: 'vat-rates', dir: 'vat-rates', countryCodes: toCountryCodeSet(ALL_VAT_RATE_FILES) },
+  { id: 'tax-systems', dir: 'tax/tax-systems', countryCodes: toCountryCodeSet(ALL_TAX_SYSTEM_FILES) },
+  {
+    id: 'correction-routes',
+    dir: 'correction-routes',
+    countryCodes: toCountryCodeSet(ALL_CORRECTION_ROUTES_FILES),
+  },
+  {
+    id: 'country-identifiers',
+    dir: 'country-identifiers',
+    countryCodes: toCountryCodeSet(ALL_COUNTRY_IDENTIFIER_FILES),
+  },
+  {
+    id: 'channel-policy',
+    dir: 'transports/channel-policy',
+    countryCodes: toCountryCodeSet(ALL_CHANNEL_POLICY_FILES),
+  },
+];
+
+/** Catalog directories deliberately excluded from `CORE_MECHANISMS` — one entry per bullet in the
+ *  comment above, same order, each for the reason its own bullet documents. */
+const EXCLUDED_CATALOG_DIRS: readonly string[] = [
+  'mentions',
+  'content-requirements',
+  'country-fields',
+  'b2g-routing',
+  'archive/retention',
+  'reporting',
+  'domestic-reverse-charge',
+];
+
+/**
+ * Every catalog directory under `documents/` that ships a `data/all.ts` aggregator — the six core
+ * mechanisms above PLUS the seven deliberately-excluded ones — exported so
+ * `country-readiness.service.spec.ts` can auto-discover the REAL set on disk (scanning for
+ * `data/all.ts` files, the same signature every catalog's own loader uses — see e.g.
+ * `country-policy/data/all.ts`'s header) and assert it matches this list one-for-one. That is the
+ * actual fix for this file's own past bug: the catalog count used to live only as prose in the
+ * comment above ("Twelve catalogs…") and silently went stale the day `domestic-reverse-charge/` was
+ * added without a corresponding update here — a thirteenth catalog invisible to both this list and
+ * that count. A spec that re-derives the total from disk turns that class of drift into a failing
+ * test instead of a stale comment.
+ */
+export const ALL_DOCUMENT_CATALOG_DIRS: readonly string[] = [
+  ...CORE_MECHANISMS.map((m) => m.dir),
+  ...EXCLUDED_CATALOG_DIRS,
 ];
 
 export interface CountryReadiness {

@@ -215,7 +215,21 @@ export class PdpClient {
       );
     }
 
-    const accessToken = json.access_token as string;
+    // A 200 with no (or a blank/non-string) `access_token` is a malformed response, not a rare edge
+    // case worth papering over: `json.access_token as string` used to cast it unchecked, so a bad
+    // response cached `undefined`/`""` here for up to an hour (`expiresIn`'s own default) — every
+    // subsequent call would read that SAME unusable value back out of `this.token` below, never
+    // re-authenticate, and fail Bearer auth silently until the cache happened to expire. Refusing
+    // loudly HERE, before caching anything, turns that into one immediate, diagnosable failure instead.
+    const accessToken = typeof json.access_token === 'string' ? json.access_token : '';
+    if (!accessToken) {
+      throw new PdpApiError(
+        'OAuth token response carried no usable access_token — refusing to cache an unusable token.',
+        res.status,
+        json,
+        'oauth2/token',
+      );
+    }
     const expiresIn = (json.expires_in as number) ?? 3600;
     this.token = {
       accessToken,
@@ -224,7 +238,9 @@ export class PdpClient {
     return accessToken;
   }
 
-  /** Force re-authentication (used by poll() — KSeF lesson: no in-memory cache as source of truth). */
+  /** Force re-authentication (used by poll() — KSeF lesson: no in-memory cache as source of truth —
+   *  and by `request()` below, on a 401, so a token invalidated server-side mid-TTL self-heals on the
+   *  VERY NEXT call instead of failing every call until this process happens to restart). */
   clearToken(): void {
     this.token = null;
   }
@@ -289,6 +305,13 @@ export class PdpClient {
             (respBody as { error?: string })?.error ??
             (respBody as { message?: string })?.message ??
             res.statusText;
+          // A 401 invalidates whatever this instance has cached — see `clearToken()`'s own header:
+          // the token could have been revoked/expired server-side before OUR `expiresAt` margin says
+          // it should be, and this instance would otherwise keep handing the exact same bad token to
+          // every call until the cache happens to expire on its own. This attempt still fails (401 is
+          // in the "never retry" 4xx range just below), but the NEXT call re-authenticates instead of
+          // repeating it.
+          if (res.status === 401) this.clearToken();
           throw new PdpApiError(msg, res.status, respBody, path);
         }
 

@@ -28,6 +28,17 @@
  *  3. No declared `pattern` means the scheme has no stated shape, not "nothing may be entered" — most
  *     schemes ship with none at all (schema.ts's own header) — so an absent/`null` pattern always
  *     passes.
+ *  4. Copy-paste noise a spreadsheet or an official document routinely adds — a cell's own trailing
+ *     whitespace, or a digit-grouped number's typeset separators (a French SIREN/SIRET is commonly
+ *     written "552 100 554", a US-style EIN "12-3456789") — is never a reason to refuse a value that
+ *     is otherwise exactly right. `matchesPattern` below tries the trimmed value FIRST, and only
+ *     falls back to a whitespace/dash-stripped candidate if that fails. This is deliberately a
+ *     FALLBACK, never a replacement: for a scheme whose pattern actually requires a literal space or
+ *     dash at a given position, a correctly-formatted value already matches on the first, unmodified
+ *     try — the fallback is only ever reached, and can only ever help, for a scheme whose pattern has
+ *     no such requirement at all, since stripping a character a pattern demands can only make that
+ *     pattern fail, never pass. No `pattern` shipped today declares a literal space or dash, so this
+ *     is forward cover for the day one does, not a change of behaviour for FR/DE/IT.
  *
  * VAT is EXEMPT (see the guard below): `tax/vat-syntax.ts#validateVat` is already the authoritative,
  * checksum-based syntax check for that one scheme, wired into `clients.service.ts`. Its own failure
@@ -44,6 +55,17 @@
 import { BadRequestException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
+
+/** DECISION 4 above — the trimmed value tried first, a whitespace/dash-stripped one only as a
+ *  fallback. Never mutates `value`; only decides whether it PASSES, the same contract this function
+ *  always had. */
+function matchesPattern(pattern: string, value: string): boolean {
+  const regex = new RegExp(pattern);
+  const trimmed = value.trim();
+  if (regex.test(trimmed)) return true;
+  const stripped = trimmed.replace(/[\s-]/g, '');
+  return stripped !== trimmed && regex.test(stripped);
+}
 
 export interface IdentifierPatternCheckInput {
   /** The party's own country — a client's, or the active company's own. */
@@ -85,11 +107,13 @@ export async function assertIdentifierValueMatchesPattern({
   });
   if (!fact?.pattern) return; // DECISION 3 — no stated shape for this (country, scheme)
 
-  if (new RegExp(fact.pattern).test(value)) return;
+  if (matchesPattern(fact.pattern, value)) return; // DECISION 4 — trim, then a stripped fallback
 
   // Names the scheme, the shape in WORDS (never the raw regex — assertPatternIsExplainable
-  // guarantees `helpText` exists whenever `pattern` does), and the value actually received.
+  // guarantees `helpText` exists whenever `pattern` does), and the value actually received — shown
+  // TRIMMED (not `value` raw) so a genuine refusal is never visually indistinguishable from what the
+  // user believes they typed, now that surrounding whitespace alone is never the reason for it.
   throw new BadRequestException(
-    `Invalid ${fact.label} (${scheme}): expected ${fact.helpText} — received "${value}".`,
+    `Invalid ${fact.label} (${scheme}): expected ${fact.helpText} — received "${trimmed}".`,
   );
 }

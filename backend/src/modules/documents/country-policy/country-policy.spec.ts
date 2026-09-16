@@ -12,6 +12,7 @@ import prisma from '@/prisma/prisma.service';
 
 import {
   evaluateCountryPolicy,
+  evaluateCountryPolicyForActions,
   resolveAvailableDocumentTypes,
   resolveCompanyCountryCode,
 } from './country-policy';
@@ -227,6 +228,100 @@ describe('evaluateCountryPolicy', () => {
       expect(decision.allowed).toBe(false);
       expect(decision).not.toHaveProperty('restrictedToStatuses');
     });
+  });
+});
+
+/**
+ * `evaluateCountryPolicyForActions` — the measured fix: `documents.service.ts#describeTypeForCompany`
+ * used to call `evaluateCountryPolicy` once PER declared action (~20 on the invoice descriptor alone,
+ * 2 Prisma queries each — ~40 round trips to describe ONE type). This proves BOTH halves: the decision
+ * for each action id is identical to what `evaluateCountryPolicy` would say on its own, AND the
+ * company/rules lookups happen EXACTLY ONCE no matter how many action ids are asked for.
+ */
+describe('evaluateCountryPolicyForActions', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('decides every action id from ONE company lookup and ONE rules lookup — never one pair per action', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([{ typeId: 'invoice', actionId: 'send', allowed: true }]);
+
+    const decisions = await evaluateCountryPolicyForActions('company-1', 'invoice', [
+      'save-draft',
+      'send',
+      'delete',
+      'download-pdf',
+    ]);
+
+    expect(findCompany).toHaveBeenCalledTimes(1);
+    expect(findRules).toHaveBeenCalledTimes(1);
+    expect(decisions).toHaveLength(4);
+  });
+
+  it('matches evaluateCountryPolicy exactly, action by action, for a mix of allowed/forbidden/undeclared', async () => {
+    const rules = [
+      { typeId: 'invoice', actionId: 'send', allowed: true },
+      { typeId: 'invoice', actionId: 'cancel', allowed: false, provenanceKind: 'legal', sourceText: 'x' },
+      // no rule at all for 'delete' — "not declared" branch
+    ];
+    const actionIds = ['send', 'cancel', 'delete'];
+
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue(rules);
+    const batched = await evaluateCountryPolicyForActions('company-1', 'invoice', actionIds);
+
+    for (let i = 0; i < actionIds.length; i++) {
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      findRules.mockResolvedValue(rules);
+      const single = await evaluateCountryPolicy('company-1', 'invoice', actionIds[i]);
+      expect(batched[i]).toEqual(single);
+    }
+  });
+
+  it('returns decisions in the SAME order as the requested action ids', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([
+      { typeId: 'invoice', actionId: 'a', allowed: true },
+      { typeId: 'invoice', actionId: 'b', allowed: false },
+    ]);
+
+    const decisions = await evaluateCountryPolicyForActions('company-1', 'invoice', ['b', 'a']);
+
+    expect(decisions[0].allowed).toBe(false); // 'b'
+    expect(decisions[1].allowed).toBe(true); // 'a'
+  });
+
+  it('an unresolvable country blocks every action id with the SAME message, and never even queries rules', async () => {
+    findCompany.mockResolvedValue({ country: 'Atlantis', countryCode: null });
+
+    const decisions = await evaluateCountryPolicyForActions('company-1', 'invoice', ['a', 'b', 'c']);
+
+    expect(decisions).toHaveLength(3);
+    for (const decision of decisions) {
+      expect(decision.allowed).toBe(false);
+      expect(decision.reason).toMatch(/Atlantis/);
+    }
+    expect(findRules).not.toHaveBeenCalled();
+  });
+
+  it('a country with no policy rows at all blocks every action id, each naming the country', async () => {
+    findCompany.mockResolvedValue({ country: 'Japan', countryCode: 'JP' });
+    findRules.mockResolvedValue([]);
+
+    const decisions = await evaluateCountryPolicyForActions('company-1', 'invoice', ['save-draft', 'send']);
+
+    for (const decision of decisions) {
+      expect(decision.allowed).toBe(false);
+      expect(decision.reason).toMatch(/"JP"/);
+    }
+  });
+
+  it('an empty action id list is a valid (if pointless) call — resolves to an empty array, still one rules query', async () => {
+    findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+    findRules.mockResolvedValue([]);
+
+    const decisions = await evaluateCountryPolicyForActions('company-1', 'invoice', []);
+
+    expect(decisions).toEqual([]);
   });
 });
 

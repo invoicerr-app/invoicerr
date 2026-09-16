@@ -220,9 +220,15 @@ describe('DocumentsService.runAction — composed with the country policy', () =
 
   describe('describeTypeForCompany — the frontend-facing view', () => {
     it('leaves an allowed action untouched, and annotates a forbidden one with policyBlockedReason', async () => {
-      (countryPolicy.evaluateCountryPolicy as jest.Mock).mockImplementation(
-        async (_companyId: string, _typeId: string, actionId: string) =>
-          actionId === 'send' ? { allowed: false, reason: 'forbidden for "ZZ"' } : { allowed: true },
+      // `describeTypeForCompany` decides every action's policy in ONE batched call
+      // (`evaluateCountryPolicyForActions`, country-policy.ts's own header on why), never one
+      // `evaluateCountryPolicy` call per action — see this spec's own
+      // `country-policy.spec.ts#evaluateCountryPolicyForActions` for the DECISION LOGIC itself.
+      (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+        async (_companyId: string, _typeId: string, actionIds: string[]) =>
+          actionIds.map((actionId) =>
+            actionId === 'send' ? { allowed: false, reason: 'forbidden for "ZZ"' } : { allowed: true },
+          ),
       );
 
       const service = buildService();

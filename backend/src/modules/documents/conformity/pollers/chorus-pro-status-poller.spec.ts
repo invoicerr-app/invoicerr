@@ -228,6 +228,66 @@ describe('buildChorusProStatusPoller', () => {
     });
   });
 
+  // The measured defect this de-dup fixes: a poller retried every 60s over a multi-day give-up
+  // window used to write ONE `Log` row per pass for as long as the SAME unrecognized status kept
+  // coming back — on the order of ten thousand near-identical rows for a single deposit.
+  it('never re-logs the SAME unrecognized statutFlux for the SAME deposit across repeated polls', async () => {
+    mockConsulterCr.mockResolvedValue({
+      numeroFluxDepot: '375037',
+      statutFlux: 'IN_SOME_FUTURE_STATE_NOBODY_HAS_SEEN_YET',
+      erreursDP: [],
+      erreursTechniques: [],
+      raw: {},
+    });
+    const poller = buildChorusProStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await poller.poll('company-9', '375037');
+    await poller.poll('company-9', '375037');
+    await poller.poll('company-9', '375037');
+
+    expect(mockLoggerError).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs AGAIN when the unrecognized statutFlux for the SAME deposit changes to a different one', async () => {
+    mockConsulterCr.mockResolvedValueOnce({
+      numeroFluxDepot: '375037',
+      statutFlux: 'IN_UNKNOWN_ONE',
+      erreursDP: [],
+      erreursTechniques: [],
+      raw: {},
+    });
+    const poller = buildChorusProStatusPoller({ channelCredentials: buildChannelCredentials() });
+    await poller.poll('company-9', '375037');
+
+    mockConsulterCr.mockResolvedValueOnce({
+      numeroFluxDepot: '375037',
+      statutFlux: 'IN_UNKNOWN_TWO',
+      erreursDP: [],
+      erreursTechniques: [],
+      raw: {},
+    });
+    await poller.poll('company-9', '375037');
+
+    expect(mockLoggerError).toHaveBeenCalledTimes(2);
+    expect(mockLoggerError.mock.calls[1][0]).toContain('IN_UNKNOWN_TWO');
+  });
+
+  it('de-dup is scoped PER DEPOSIT — a different transportRef with the same unrecognized status still logs', async () => {
+    mockConsulterCr.mockResolvedValue({
+      numeroFluxDepot: 'x',
+      statutFlux: 'IN_SOME_FUTURE_STATE_NOBODY_HAS_SEEN_YET',
+      erreursDP: [],
+      erreursTechniques: [],
+      raw: {},
+    });
+    const poller = buildChorusProStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await poller.poll('company-9', '375037');
+    await poller.poll('company-9', '999999'); // a DIFFERENT deposit, first sighting for IT
+
+    expect(mockLoggerError).toHaveBeenCalledTimes(2);
+  });
+
   it('throws ChannelNotConnectedError when chorus-pro has no connected credentials for this company', async () => {
     const poller = buildChorusProStatusPoller({
       channelCredentials: buildChannelCredentials(jest.fn().mockResolvedValue(null)),

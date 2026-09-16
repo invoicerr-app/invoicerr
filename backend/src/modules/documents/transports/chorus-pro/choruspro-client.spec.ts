@@ -15,6 +15,7 @@
  *  - _getToken() sends correct OAuth2 client_credentials request.
  *  - _getToken() caches token; does NOT call /token twice within TTL.
  *  - _getToken() throws when auth returns 4xx.
+ *  - _getToken() refuses (never caches) a 200 response carrying no usable access_token.
  *  - deposerFlux() posts to the correct path with correct body.
  *  - deposerFlux() includes Authorization + cpro-account headers.
  *  - cpro-account header is base64(login:password).
@@ -213,6 +214,37 @@ describe('ChorusProClient — authentication', () => {
     await client.deposerFlux(FACTURX_BYTES, 'test.pdf');
     await client.deposerFlux(FACTURX_BYTES, 'test.pdf');
     expect(tokenCallCount).toBe(1);
+  });
+
+  // The measured defect: a 200 OAuth response with no `access_token` used to be silently cached as
+  // an EMPTY STRING (`String(undefined ?? '')`) — every subsequent call would then send
+  // `Authorization: Bearer ` (blank) and fail, without this client ever knowing why.
+  it('refuses a 200 response with no access_token, rather than caching an unusable one', async () => {
+    const http = makeHttp({
+      post: async () => ({ status: 200, data: { expires_in: 3600 } }), // no access_token at all
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+    await expect(client._getToken()).rejects.toThrow('no usable access_token');
+  });
+
+  it('a refused (no access_token) authentication never caches anything — the NEXT call re-authenticates too', async () => {
+    let tokenCallCount = 0;
+    const http = makeHttp({
+      post: async (url) => {
+        if (String(url).includes('/token')) {
+          tokenCallCount++;
+          return tokenCallCount === 1 ? { status: 200, data: { expires_in: 3600 } } : TOKEN_RESPONSE;
+        }
+        return { status: 200, data: {} };
+      },
+    });
+    const client = new ChorusProClient(BASE_CONFIG, http);
+
+    await expect(client._getToken()).rejects.toThrow('no usable access_token');
+    const token = await client._getToken();
+
+    expect(token).toBe('tok123');
+    expect(tokenCallCount).toBe(2);
   });
 });
 

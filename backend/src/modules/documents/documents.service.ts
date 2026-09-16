@@ -52,6 +52,7 @@ import { Widget } from './contributions/widgets';
 import {
   CountryPolicyDecision,
   evaluateCountryPolicy,
+  evaluateCountryPolicyForActions,
   resolveAvailableDocumentTypes,
   resolveCompanyCountryCode,
 } from './country-policy/country-policy';
@@ -614,10 +615,32 @@ export class DocumentsService implements OnModuleInit {
     clientId?: string,
   ): Promise<DocumentTypeDescriptorView> {
     const descriptor = this.mergedDescriptor(typeId);
-    const [decisions, countryCode] = await Promise.all([
-      Promise.all(descriptor.actions.map((action) => this.resolveActionPolicy(companyId, typeId, action.id))),
+
+    // Batched, not one `resolveActionPolicy` call per action — that call's own `evaluateCountryPolicy`
+    // is 2 Prisma queries (company, then that country's full rule set) EVERY time, so calling it once
+    // per declared action (~20 on the invoice descriptor alone) meant ~40 round trips to describe ONE
+    // type to ONE screen, every time it opens, for a company/rule-set that is IDENTICAL across every
+    // one of those actions. `evaluateCountryPolicyForActions` fetches both exactly once and decides
+    // every non-"cancel" action id from them in memory. "invoice"/"cancel" stays the one, deliberate
+    // exception this class's own header documents (routed through `resolveCancelPolicyForCountry`,
+    // correction-routes/ rather than the ordinary DB-mirrored policy) — a pure, in-memory lookup, so it
+    // costs nothing extra to keep out of the Promise.all below and evaluate separately, reusing the
+    // SAME `countryCode` this method already resolves rather than `resolveActionPolicy`'s own
+    // redundant extra company lookup for that one action.
+    const isCancel = (actionId: string) => typeId === 'invoice' && actionId === 'cancel';
+    const batchedActionIds = descriptor.actions.map((a) => a.id).filter((id) => !isCancel(id));
+
+    const [batchedDecisions, countryCode] = await Promise.all([
+      evaluateCountryPolicyForActions(companyId, typeId, batchedActionIds),
       resolveCompanyCountryCode(companyId),
     ]);
+    const decisionByActionId = new Map(batchedActionIds.map((id, index) => [id, batchedDecisions[index]]));
+    const cancelDecision = descriptor.actions.some((a) => isCancel(a.id))
+      ? resolveCancelPolicyForCountry(countryCode)
+      : undefined;
+    const decisions = descriptor.actions.map((action) =>
+      isCancel(action.id) ? cancelDecision! : decisionByActionId.get(action.id)!,
+    );
 
     const companyViewFields = applyCompanyFieldView({
       typeId,

@@ -44,6 +44,50 @@ function hasStatusCode(event: SuperPdpInvoiceEvent): event is SuperPdpInvoiceEve
   return typeof event.status_code === 'string' && event.status_code.length > 0;
 }
 
+/**
+ * `event.created_at` is authority-supplied text, never validated by anything before it reaches here —
+ * a MISSING value already fell back to `new Date()` (unchanged below), but an unparseable-yet-PRESENT
+ * one used to become `new Date(garbage)`, i.e. `Invalid Date`, and get written straight into
+ * `RawAuthorityEvent.observedAt`. `authority-events.persistence.ts#createAuthorityEvents` journals a
+ * whole poll pass's events in ONE `createMany` call — a single `Invalid Date` in that array fails the
+ * ENTIRE batch at the database, so one bad timestamp could silently swallow every OTHER, genuinely
+ * good event observed in the same pass, not merely the one with the bad date. Falling back to "now"
+ * for an unparseable value is the same honest degrade `mandate.ts`'s own `isOnOrAfter` already applies
+ * to a value it cannot trust — never a hard block, since a bad `created_at` on an otherwise-legitimate
+ * platform event is not a reason to stop journaling that event's own status change at all.
+ */
+function parseEventDate(rawCreatedAt: string | null | undefined): Date {
+  if (!rawCreatedAt) return new Date();
+  const parsed = new Date(rawCreatedAt);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+/**
+ * `transportRef` is whatever `documents.service.ts` stored as this deposit's PDP-side reference at
+ * send time — always a genuine SuperPDP invoice id in practice, but nothing enforces that STATICALLY
+ * (it is a bare `string` end to end). `Number(transportRef)` on anything that isn't cleanly numeric
+ * (blank, whitespace, a non-numeric external id) silently produces `NaN`, which
+ * `PdpClient#getInvoice` would then interpolate straight into the URL
+ * (`/v1.beta/invoices/NaN`) — PDP 404s, and the sweep runner's own generic `catch` (
+ * `conformity-sweep-runner.ts`) journals that as an ordinary `poll:blocked`, indistinguishable from a
+ * transient outage, retried every sweep for as long as this deposit keeps being polled. Refusing HERE,
+ * by name, means the `poll:blocked` reason an admin actually reads says "this transportRef is not a
+ * valid PDP invoice id" instead of an opaque 404 on a URL containing the literal string "NaN".
+ */
+function parseInvoiceId(transportRef: string): number {
+  // `Number('')` (and `Number('   ')`) is `0`, not `NaN` — trimmed-empty must be rejected explicitly
+  // BEFORE the numeric checks below, or a blank transportRef would pass as invoice id 0.
+  const trimmed = transportRef.trim();
+  const invoiceId = trimmed === '' ? NaN : Number(trimmed);
+  if (!Number.isFinite(invoiceId) || !Number.isInteger(invoiceId) || invoiceId < 0) {
+    throw new Error(
+      `PDP transportRef "${transportRef}" is not a valid PDP invoice id (expected a non-negative ` +
+        'integer) — refusing to poll an invoice id that could only ever 404.',
+    );
+  }
+  return invoiceId;
+}
+
 async function resolvePdpConfig(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
@@ -66,7 +110,7 @@ export function buildPdpStatusPoller(deps: PdpStatusPollerDeps): AuthorityStatus
       const credentials = extractPdpCredentials(resolved)!; // resolvePdpConfig already proved non-null
 
       const client = new PdpClient({ ...credentials, apiStyle: 'superpdp' });
-      const invoiceId = Number(transportRef);
+      const invoiceId = parseInvoiceId(transportRef);
       const invoice = await client.getInvoice(invoiceId);
 
       // `events[]` — see this file's own header. An invoice with none yet (a very fresh deposit the
@@ -77,7 +121,7 @@ export function buildPdpStatusPoller(deps: PdpStatusPollerDeps): AuthorityStatus
           statusCode: event.status_code,
           statusText: event.status_text,
           reason: event.data?.reason,
-          observedAt: event.created_at ? new Date(event.created_at) : new Date(),
+          observedAt: parseEventDate(event.created_at),
           rawPayload: event,
         }),
       );

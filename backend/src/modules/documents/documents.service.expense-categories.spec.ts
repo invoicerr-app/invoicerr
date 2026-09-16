@@ -98,6 +98,13 @@ describe('DocumentsService — wiring expense categories into the expense type',
 
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as jest.Mock).mockResolvedValue({ allowed: true });
+    // `describeTypeForCompany` decides every action in ONE batched call — see country-policy.ts's
+    // own header on `evaluateCountryPolicyForActions` for why it, not `evaluateCountryPolicy`, is
+    // what that method actually calls.
+    (countryPolicy.evaluateCountryPolicyForActions as jest.Mock).mockImplementation(
+      async (_companyId: string, _typeId: string, actionIds: string[]) =>
+        actionIds.map(() => ({ allowed: true })),
+    );
     (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue(undefined);
   });
   afterEach(() => jest.resetAllMocks());

@@ -179,6 +179,45 @@ function parseVatRate(value: unknown): number | null {
 }
 
 /**
+ * The invoice's OWN `issueDate` (`descriptors/invoice.descriptor.ts`'s required 'date' field,
+ * `data.issueDate`) — never the server clock. `tax-engine.ts` does not read `TransactionContext
+ * .issueDate` from any branch today (grepped), so this has no observable effect yet — but
+ * `determineTax` still REQUIRES a `Date`, and passing `new Date()` there was silently building a
+ * `TransactionContext` describing "the moment this function happened to run", never the invoice's own
+ * legal date, exactly the class of bug `channel-policy/mandate.ts`'s own header holds a mandate
+ * decision to (a worker retrying `deliver()` minutes or hours later must compute the EXACT SAME tax
+ * treatment as the original preflight did — a clock-keyed value cannot promise that). A missing or
+ * unparseable `issueDate` falls back to `new Date()` rather than a hard block: since nothing reads it
+ * yet, refusing a send over an unreadable placeholder value would be inventing a new failure mode this
+ * fix's own scope never asked for — promote this to a named hard block (matching the three this file's
+ * header already documents) the day a real branch starts keying behaviour on it.
+ */
+export function extractIssueDate(data: Record<string, unknown>): Date {
+  const raw = data.issueDate;
+  if (typeof raw === 'string' && raw.trim()) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+}
+
+/**
+ * The invoice's OWN `currency` (`data.currency`, the same top-level field `compute-totals.ts` and
+ * `record-payment` already read) — never a hardcoded `'EUR'`. Same "currently inert, still a real
+ * landmine" reasoning as `extractIssueDate` above: no branch of `tax-engine.ts` reads
+ * `TransactionContext.currency` today, but a PLN or USD invoice was silently being described to the
+ * engine as EUR regardless, which would be flatly wrong the day any currency-sensitive branch (a
+ * threshold expressed in the seller's own currency, say) is added. Falls back to `'EUR'` for a
+ * missing/blank value — the SAME default `compute-totals.ts`'s own header documents ("Missing or not
+ * found → currency: null … amounts calculated with default 2 decimals anyway"), not a new posture
+ * invented here.
+ */
+export function extractCurrency(data: Record<string, unknown>): string {
+  const raw = data.currency;
+  return typeof raw === 'string' && raw.trim() ? raw.trim().toUpperCase() : 'EUR';
+}
+
+/**
  * DOMESTIC guard: a rate foreign to the seller's own known catalog is refused, named. A seller
  * country with NO known catalog at all is left alone — same permissiveness `vat-rates/registry.ts`
  * already documents for `allowCustomValue` countries.
@@ -238,13 +277,45 @@ function resolveBuyerRole(
  *  sidecar keys (see this file's own header, "Never a blind store") from the tax engine's own
  *  per-line `TaxTreatment` — shared by the cross-border branch below and `applyDomesticTaxScheme`, so
  *  the ONE place a `DocumentTaxResult` becomes a rewritten row array never drifts between the two
- *  callers. */
-function applyTaxResult(
+ *  callers.
+ *
+ *  Two invariants are asserted rather than assumed, both currently unreachable through
+ *  `determineTax` (every branch of `tax-engine.ts#determineLineTax` returns exactly one line per
+ *  input line, each with exactly one `components` entry — verified by construction, not merely by
+ *  today's fixtures) but neither is enforced by the TYPE system (`TaxComponent[]` is deliberately
+ *  plural — see `types.ts`'s own "multi-component jurisdiction" comment — and array length is never
+ *  a compile-time guarantee): a `results.lines`/`rows` length mismatch would tax the WRONG row the
+ *  moment either array's own construction ever drifts from the other, and a `components` array whose
+ *  length is not exactly 1 has no correct way to become the SINGLE `vatRate`/`category` this row
+ *  supports today. Silently reading `components[0]` would either under-tax (a second component
+ *  dropped without a trace) or throw an unlabelled `TypeError` (an empty array) far from its actual
+ *  cause. Refusing loudly, named, is this module's own established posture for "cannot safely guess"
+ *  (see the file header's three hard blocks) — not a data problem a user can fix, so a plain `Error`
+ *  (never one of the named `is InvoiceTaxBlockError` classes), surfacing as a 500 that points straight
+ *  at the engine branch responsible instead of a stack trace inside `.map()`. Exported so
+ *  `resolve-invoice-tax.spec.ts` can exercise both guards directly against a crafted
+ *  `DocumentTaxResult`, since no real branch of the engine can produce one today. */
+export function applyTaxResult(
   rows: Record<string, unknown>[],
   result: DocumentTaxResult,
 ): { rows: Record<string, unknown>[]; mentions: LegalMention[] } {
+  if (result.lines.length !== rows.length) {
+    throw new Error(
+      `Tax engine returned ${result.lines.length} line result(s) for ${rows.length} invoice line(s) — ` +
+        'refusing to apply a misaligned tax result rather than risk taxing the wrong row.',
+    );
+  }
   const clonedRows = rows.map((row, index) => {
-    const component = result.lines[index].treatment.components[0];
+    const { components } = result.lines[index].treatment;
+    if (components.length !== 1) {
+      throw new Error(
+        `Tax engine returned ${components.length} tax component(s) for line ${index + 1} — this ` +
+          "wiring only ever writes a SINGLE vatRate/category per row (see this file's own header) " +
+          'and has no correct way to combine or pick among multiple components, so it refuses rather ' +
+          'than silently under-taxing the line with just the first one.',
+      );
+    }
+    const [component] = components;
     return {
       ...row,
       vatRate: String(component.rate),
@@ -323,7 +394,13 @@ function applyDomesticTaxScheme(
   }));
 
   const result = determineTax(
-    { supplier, buyer, lines, issueDate: new Date(), currency: 'EUR' },
+    {
+      supplier,
+      buyer,
+      lines,
+      issueDate: extractIssueDate(input.data),
+      currency: extractCurrency(input.data),
+    },
     sellerProfile,
     vatValidator,
   );
@@ -465,7 +542,13 @@ export function resolveInvoiceCrossBorderTax(
   }));
 
   const result = determineTax(
-    { supplier, buyer, lines, issueDate: new Date(), currency: 'EUR' },
+    {
+      supplier,
+      buyer,
+      lines,
+      issueDate: extractIssueDate(input.data),
+      currency: extractCurrency(input.data),
+    },
     sellerProfile,
     vatValidator,
     buyerProfile,

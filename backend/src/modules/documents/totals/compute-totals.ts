@@ -135,20 +135,39 @@ export function computeDocumentTotals(
 
       if (!moneyField) continue; // Shouldn't happen given detection, but be defensive
 
-      // Extract quantity (default 1)
+      // Extract quantity (default 1) — see this file's own header, "Quantity fallback": a row where
+      // the field is simply ABSENT (a draft still being typed) stays silent, exactly as before. A
+      // value that IS present but is not a usable finite number (a stray string, `NaN`, `Infinity` —
+      // `typeof NaN === 'number'` is true, so the old `typeof` check alone let it straight through
+      // into the arithmetic below) is a genuine data problem, not a draft in progress, and is warned
+      // exactly like a missing/non-numeric VAT rate already is (`extractVatRate` below) rather than
+      // silently guessed as 1 with no trace — this function is called directly on ALREADY-PERSISTED
+      // data at more than one site (`getSettlement`, `record-payment`, `shared-build.ts`) with nothing
+      // re-validating it first.
       let quantity = 1;
       if (numberField) {
         const qtyValue = row[numberField.key];
-        if (typeof qtyValue === 'number') {
+        if (typeof qtyValue === 'number' && Number.isFinite(qtyValue)) {
           quantity = qtyValue;
+        } else if (qtyValue !== undefined && qtyValue !== null && qtyValue !== '') {
+          warnings.push(
+            `line ${globalLineNumber} has a non-numeric quantity ` +
+              `(received ${JSON.stringify(qtyValue)}) — counted as 1`,
+          );
         }
       }
 
-      // Extract unit price
+      // Extract unit price — same "absent stays silent, present-but-unusable is warned" distinction
+      // as quantity just above.
       let unitPriceMinor = 0;
       const priceValue = row[moneyField.key];
-      if (typeof priceValue === 'number') {
+      if (typeof priceValue === 'number' && Number.isFinite(priceValue)) {
         unitPriceMinor = toMinor(priceValue, currency || 'EUR');
+      } else if (priceValue !== undefined && priceValue !== null && priceValue !== '') {
+        warnings.push(
+          `line ${globalLineNumber} has a non-numeric unit price ` +
+            `(received ${JSON.stringify(priceValue)}) — counted as 0`,
+        );
       }
 
       // Extract the line's own discount (default 0 — no discount, the line as it always was).

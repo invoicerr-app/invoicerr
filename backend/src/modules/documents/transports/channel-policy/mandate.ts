@@ -52,22 +52,42 @@ export interface ActiveChannelMandate {
   equivalentProviderIds?: string[];
 }
 
+/** The literal "YYYY-MM-DD" prefix of an ISO date/datetime string — see `isOnOrAfter` below for why
+ *  this is read off the string as WRITTEN rather than through `Date`'s own timezone conversion. */
+function calendarDatePart(value: string): string | undefined {
+  return /^\d{4}-\d{2}-\d{2}/.exec(value.trim())?.[0];
+}
+
 /**
- * True when `issueDate` is on or after `mandatedFrom`. An `issueDate` that is missing or fails to
- * parse returns `false` — NEVER `true`: this function only ever concludes a mandate is ALREADY active
- * from a genuine, parseable date that has actually reached it. It never treats "I don't know the
- * invoice's own issue date" as license to assume the mandate must already apply — inventing a date to
- * enforce against would be exactly the kind of guess this codebase's own ⚖ discipline forbids, and an
- * invoice descriptor's `issueDate` is a REQUIRED field validated at "save-draft" in the first place
- * (`descriptors/invoice.descriptor.ts`), so this branch is expected to be unreachable in practice, not
- * a normal case this function is designed to paper over.
+ * True when `issueDate` is on or after `mandatedFrom`, compared as CALENDAR DATES — the literal
+ * "YYYY-MM-DD" each ISO string starts with — never as epoch instants. An `issueDate` carrying an
+ * explicit non-UTC offset (`"2026-09-01T00:00:00+02:00"` — never a shape this codebase's own date
+ * field produces, but reachable via a third-party import or API) converts, through `getTime()`, to an
+ * EARLIER UTC instant (2026-08-31T22:00:00Z) than `mandatedFrom`'s own bare-date UTC midnight
+ * (2026-09-01T00:00:00Z) — so an epoch comparison would judge a mandate that legally already applies
+ * on this invoice's own issue day as not yet in force, missing it by exactly one day. The question
+ * this file exists to answer ("was this OPERATION carried out on or after the mandate's date") is
+ * about a calendar day, not a millisecond: the string already states which day it is, so this reads
+ * that day literally rather than translating it through any timezone at all. `getTime()` is used only
+ * to reject a genuinely unparseable value (unchanged from before) — never to decide the >= itself.
+ *
+ * An `issueDate` that is missing or fails to parse returns `false` — NEVER `true`: this function only
+ * ever concludes a mandate is ALREADY active from a genuine, parseable date that has actually reached
+ * it. It never treats "I don't know the invoice's own issue date" as license to assume the mandate
+ * must already apply — inventing a date to enforce against would be exactly the kind of guess this
+ * codebase's own ⚖ discipline forbids, and an invoice descriptor's `issueDate` is a REQUIRED field
+ * validated at "save-draft" in the first place (`descriptors/invoice.descriptor.ts`), so this branch
+ * is expected to be unreachable in practice, not a normal case this function is designed to paper over.
  */
 function isOnOrAfter(issueDate: string | undefined, mandatedFrom: string): boolean {
   if (!issueDate) return false;
-  const issued = new Date(issueDate).getTime();
-  const startsAt = new Date(mandatedFrom).getTime();
-  if (Number.isNaN(issued) || Number.isNaN(startsAt)) return false;
-  return issued >= startsAt;
+  if (Number.isNaN(new Date(issueDate).getTime()) || Number.isNaN(new Date(mandatedFrom).getTime())) {
+    return false;
+  }
+  const issuedDay = calendarDatePart(issueDate);
+  const startsDay = calendarDatePart(mandatedFrom);
+  if (!issuedDay || !startsDay) return false;
+  return issuedDay >= startsDay;
 }
 
 /**

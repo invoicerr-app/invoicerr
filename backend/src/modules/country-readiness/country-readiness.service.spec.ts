@@ -1,3 +1,6 @@
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { ALL_COUNTRY_POLICY_FILES } from '@/modules/documents/country-policy/data/all';
 import { ALL_CORRECTION_ROUTES_FILES } from '@/modules/documents/correction-routes/data/all';
 import { ALL_COUNTRY_IDENTIFIER_FILES } from '@/modules/documents/country-identifiers/data/all';
@@ -5,7 +8,7 @@ import { ALL_TAX_SYSTEM_FILES } from '@/modules/documents/tax/tax-systems/data/a
 import { ALL_VAT_RATE_FILES } from '@/modules/documents/vat-rates/data/all';
 import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel-policy/data/all';
 
-import { CountryReadinessService } from './country-readiness.service';
+import { ALL_DOCUMENT_CATALOG_DIRS, CountryReadinessService } from './country-readiness.service';
 
 /**
  * Deliberately re-derives its expectations from the SAME `ALL_*_FILES` exports the service itself
@@ -38,6 +41,27 @@ function allKnownCountryCodes(): Set<string> {
   return codes;
 }
 
+/**
+ * Walks `documents/` on disk and returns every directory (relative to `root`, `/`-separated) that
+ * ships a `data/all.ts` aggregator — the exact signature every catalog under `documents/` uses (see
+ * e.g. `country-policy/data/all.ts`'s own header). This is the auto-discovery half of the fix for
+ * `ALL_DOCUMENT_CATALOG_DIRS`'s own past bug: the total catalog count used to live only as prose in
+ * `country-readiness.service.ts`'s header comment ("Twelve catalogs…") and silently went stale the day
+ * `domestic-reverse-charge/` shipped a thirteenth. Re-deriving the real set from disk here, instead of
+ * trusting the service's own list, means a fourteenth catalog (or a deleted one) fails THIS test
+ * rather than leaving a comment to drift again.
+ */
+function discoverDocumentCatalogDirs(root: string, relDir = ''): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(join(root, relDir), { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const childRel = relDir ? `${relDir}/${entry.name}` : entry.name;
+    if (existsSync(join(root, childRel, 'data', 'all.ts'))) found.push(childRel);
+    found.push(...discoverDocumentCatalogDirs(root, childRel));
+  }
+  return found;
+}
+
 describe('CountryReadinessService', () => {
   let service: CountryReadinessService;
 
@@ -49,6 +73,18 @@ describe('CountryReadinessService', () => {
     const result = service.getReadiness('ZZ');
     expect([...result.present, ...result.missing].sort()).toEqual([...MECHANISM_IDS].sort());
   });
+
+  it(
+    'the core mechanisms + the documented exclusions together account for EVERY catalog directory ' +
+      'that actually exists under documents/ — found by walking the filesystem for data/all.ts files, ' +
+      "not by trusting the service's own list, so a catalog added (or removed) without updating " +
+      "the header comment's count fails HERE instead of only being wrong in prose",
+    () => {
+      const documentsRoot = join(__dirname, '../documents');
+      const discovered = discoverDocumentCatalogDirs(documentsRoot).sort();
+      expect(discovered).toEqual([...ALL_DOCUMENT_CATALOG_DIRS].sort());
+    },
+  );
 
   it(
     'reports complete=true, with all 6 mechanisms present, for a country that has a data/xx.json ' +

@@ -100,6 +100,18 @@ async function resolveChorusProConfig(
 }
 
 export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): AuthorityStatusPoller {
+  // Per-deposit "last unrecognized status already logged" — see the comment on the `if` below for
+  // why this exists. Deliberately IN-MEMORY, not a DB check: `buildChorusProStatusPoller` is called
+  // ONCE, at boot, so this Map lives for the lifetime of THIS worker process, exactly the boundary a
+  // best-effort de-dup needs — a restart (or, with `docker-compose.scale.yml`'s dedicated workers,
+  // each separate process) simply re-logs once more, which is the acceptable, honest cost of not
+  // adding a new DB query (or a new indexed column — a schema change out of this fix's own scope) to
+  // every single poll tick just to de-duplicate a log line. Grows by one entry per DISTINCT
+  // transportRef that ever hits an unrecognized status while this process is up — an edge case (most
+  // deposits resolve into a KNOWN status), so unbounded growth here is an accepted, proportionate
+  // trade-off, not a general-purpose cache.
+  const lastLoggedUnknownStatus = new Map<string, string>();
+
   return {
     providerId: CHORUS_PRO_PROVIDER_ID,
     isTerminal: isTerminalChorusProStatus,
@@ -118,12 +130,21 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
       // reading server stdout" discipline `reminder-sweep-runner.ts` already holds for its own send
       // failures — this is the ONE place with enough context (`companyId`, `transportRef`, the raw
       // response) to make that log useful; `mapChorusProStatus` itself stays a pure, context-free
-      // mapper. Fires on every poll for as long as the value stays unrecognized, deliberately: a
-      // genuinely new Chorus Pro status must keep surfacing, not be swallowed after the first sighting,
-      // until someone adds it to `mapChorusProStatus`. Never awaited into a failure of the poll itself
-      // — `LoggerService` already never throws (catches its own write failures internally), so this is
+      // mapper.
+      //
+      // Fires on the FIRST poll that observes a given unrecognized value for THIS deposit, and again
+      // if it later CHANGES to a different still-unrecognized value — never on every identical repeat
+      // in between. Measured defect this replaced: logging on literally every poll pass, unconditionally,
+      // for as long as the authority kept answering with the same unrecognized status — a poller
+      // retried every 60s over a multi-day give-up window could write on the order of ten thousand
+      // near-identical `Log` rows (full `raw` response included) for ONE deposit before ever giving up.
+      // A genuinely NEW status (this deposit's first sighting, or a change from one unrecognized value
+      // to another) still surfaces immediately — nothing here waits for `mapChorusProStatus` to be
+      // fixed before speaking up again. Never awaited into a failure of the poll itself —
+      // `LoggerService` already never throws (catches its own write failures internally), so this is
       // belt-and-suspenders, not a new failure mode.
-      if (mapped === 'UNKNOWN') {
+      if (mapped === 'UNKNOWN' && lastLoggedUnknownStatus.get(transportRef) !== cr.statutFlux) {
+        lastLoggedUnknownStatus.set(transportRef, cr.statutFlux);
         await logger.error(
           `Chorus Pro returned an unrecognized flux status "${cr.statutFlux}" for deposit ` +
             `${transportRef} — mapChorusProStatus has no branch for it yet, so it reads as UNKNOWN ` +

@@ -115,6 +115,96 @@ describe('assertIdentifierValueMatchesPattern', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  // DECISION 4 — the measured defect: a value copy-pasted from a spreadsheet cell routinely carries
+  // surrounding whitespace the pattern was never meant to police.
+  it('accepts a value with a trailing space pasted from a spreadsheet, matching after trim', async () => {
+    findRequirement.mockResolvedValue(IT_SDI_FACT);
+
+    await expect(
+      assertIdentifierValueMatchesPattern({ countryCode: 'IT', scheme: 'IT_SDI', value: 'ABCDEFG ' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('accepts a value with a leading space too', async () => {
+    findRequirement.mockResolvedValue(IT_SDI_FACT);
+
+    await expect(
+      assertIdentifierValueMatchesPattern({ countryCode: 'IT', scheme: 'IT_SDI', value: '  ABCDEFG' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('still refuses a value that fails the pattern even once trimmed', async () => {
+    findRequirement.mockResolvedValue(IT_SDI_FACT);
+
+    await expect(
+      assertIdentifierValueMatchesPattern({ countryCode: 'IT', scheme: 'IT_SDI', value: ' ABC ' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('the refusal message shows the value TRIMMED, never with the surrounding whitespace that made it look identical to a valid paste', async () => {
+    findRequirement.mockResolvedValue(IT_SDI_FACT);
+
+    await expect(
+      assertIdentifierValueMatchesPattern({ countryCode: 'IT', scheme: 'IT_SDI', value: ' ABC ' }),
+    ).rejects.toThrow('received "ABC"');
+  });
+
+  it(
+    'falls back to a whitespace/dash-stripped candidate for a pattern that does not itself require ' +
+      'one — a French SIRET pasted with its own official typesetting spaces',
+    async () => {
+      findRequirement.mockResolvedValue({
+        pattern: '^\\d{9}(\\d{5})?$',
+        label: 'SIRET',
+        helpText: '14 digits (or 9 for a SIREN), no separators.',
+      });
+
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'FR',
+          scheme: 'LEGAL_ID',
+          value: '123 456 789 00012',
+        }),
+      ).resolves.toBeUndefined();
+    },
+  );
+
+  it(
+    'never needs the stripped fallback for a value that already matches once trimmed — a pattern ' +
+      'that DOES require a literal dash at a fixed position is satisfied on the first, unmodified try',
+    async () => {
+      findRequirement.mockResolvedValue({
+        pattern: '^\\d{3}-\\d{4}$',
+        label: 'Fictitious dash-shaped identifier',
+        helpText: '3 digits, a dash, then 4 digits.',
+      });
+
+      await expect(
+        assertIdentifierValueMatchesPattern({
+          countryCode: 'ZZ',
+          scheme: 'LEGAL_ID',
+          value: '  123-4567  ', // outer whitespace only — the dash is exactly where the pattern wants it
+        }),
+      ).resolves.toBeUndefined();
+    },
+  );
+
+  it(
+    'still refuses a value missing the dash a pattern actually requires — the stripped fallback can ' +
+      'never manufacture a match the strict pattern does not allow',
+    async () => {
+      findRequirement.mockResolvedValue({
+        pattern: '^\\d{3}-\\d{4}$',
+        label: 'Fictitious dash-shaped identifier',
+        helpText: '3 digits, a dash, then 4 digits.',
+      });
+
+      await expect(
+        assertIdentifierValueMatchesPattern({ countryCode: 'ZZ', scheme: 'LEGAL_ID', value: '1234567' }),
+      ).rejects.toThrow(BadRequestException);
+    },
+  );
+
   it('an empty value is never refused here — presence is `required`s concern, not this one', async () => {
     findRequirement.mockResolvedValue(IT_SDI_FACT);
 

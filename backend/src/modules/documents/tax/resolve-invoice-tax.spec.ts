@@ -1,10 +1,14 @@
 import {
+  applyTaxResult,
+  extractCurrency,
+  extractIssueDate,
   ForeignVatRateError,
   resolveInvoiceCrossBorderTax,
   UnresolvedBuyerCountryError,
   UnresolvedSellerCountryError,
   UnsupportedOssDestinationError,
 } from './resolve-invoice-tax';
+import { DocumentTaxResult } from './tax-engine';
 import { ALL_TAX_SYSTEM_FILES } from './tax-systems/data/all';
 import { TaxSystemRegistry } from './tax-systems/registry';
 
@@ -476,5 +480,86 @@ describe('resolveInvoiceCrossBorderTax — idempotence: re-resolving an ALREADY-
 
     expect(firstPass.data).toBe(draft);
     expect(secondPass.data).toBe(firstPass.data);
+  });
+});
+
+describe('extractIssueDate', () => {
+  it("reads the invoice's own issueDate, never the server clock", () => {
+    const result = extractIssueDate({ issueDate: '2026-03-15' });
+    expect(result.toISOString().slice(0, 10)).toBe('2026-03-15');
+  });
+
+  it('falls back to now for a missing issueDate', () => {
+    const before = Date.now();
+    const result = extractIssueDate({});
+    expect(result.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('falls back to now for an unparseable issueDate rather than propagating an Invalid Date', () => {
+    const result = extractIssueDate({ issueDate: 'not-a-date' });
+    expect(Number.isNaN(result.getTime())).toBe(false);
+  });
+});
+
+describe('extractCurrency', () => {
+  it("reads the invoice's own currency, uppercased", () => {
+    expect(extractCurrency({ currency: 'pln' })).toBe('PLN');
+    expect(extractCurrency({ currency: 'USD' })).toBe('USD');
+  });
+
+  it('falls back to EUR for a missing or blank currency — same default compute-totals.ts uses', () => {
+    expect(extractCurrency({})).toBe('EUR');
+    expect(extractCurrency({ currency: '   ' })).toBe('EUR');
+    expect(extractCurrency({ currency: 42 })).toBe('EUR');
+  });
+});
+
+describe('applyTaxResult — invariant guards against a misaligned or malformed DocumentTaxResult', () => {
+  function fakeResult(lines: DocumentTaxResult['lines']): DocumentTaxResult {
+    return { lines, reportingFlags: [], mentions: [], buyerSelfAssess: false };
+  }
+
+  const oneComponentTreatment = {
+    components: [
+      { taxSystem: 'VAT' as const, name: 'VAT', category: 'S' as const, rate: 20, jurisdiction: 'FR' },
+    ],
+    buyerSelfAssess: false,
+    reportingFlags: [],
+    mentions: [],
+  };
+
+  it('rewrites a row from its matching single-component treatment — the ordinary case', () => {
+    const rows = [{ description: 'x' }];
+    const result = fakeResult([{ lineId: '0', treatment: oneComponentTreatment }]);
+
+    const { rows: clonedRows } = applyTaxResult(rows, result);
+
+    expect(clonedRows[0].vatRate).toBe('20');
+    expect(clonedRows[0].__crossBorderCategory).toBe('S');
+  });
+
+  it('refuses (never silently drops a row) when the engine returns fewer/more line results than rows', () => {
+    const rows = [{ description: 'a' }, { description: 'b' }];
+    const result = fakeResult([{ lineId: '0', treatment: oneComponentTreatment }]); // only 1, for 2 rows
+
+    expect(() => applyTaxResult(rows, result)).toThrow(/returned 1 line result\(s\) for 2 invoice line/);
+  });
+
+  it('refuses (never TypeErrors on an empty array) when a treatment has ZERO components', () => {
+    const rows = [{ description: 'x' }];
+    const result = fakeResult([{ lineId: '0', treatment: { ...oneComponentTreatment, components: [] } }]);
+
+    expect(() => applyTaxResult(rows, result)).toThrow(/returned 0 tax component\(s\) for line 1/);
+  });
+
+  it('refuses (never silently under-taxes with only the first) when a treatment has TWO components', () => {
+    const rows = [{ description: 'x' }];
+    const twoComponents = {
+      ...oneComponentTreatment,
+      components: [...oneComponentTreatment.components, { ...oneComponentTreatment.components[0], rate: 5 }],
+    };
+    const result = fakeResult([{ lineId: '0', treatment: twoComponents }]);
+
+    expect(() => applyTaxResult(rows, result)).toThrow(/returned 2 tax component\(s\) for line 1/);
   });
 });

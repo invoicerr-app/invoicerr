@@ -84,6 +84,17 @@ export async function getReconciliationSettings(companyId: string): Promise<Reco
  * for this reserved typeId (never a second one: a company that already has a row is UPDATED, never
  * duplicated, the same "one settings row per company" invariant a dedicated table's own unique
  * constraint would otherwise enforce structurally).
+ *
+ * `DocumentInstance` has no `@@unique([companyId, typeId])` (by design — an ordinary company has MANY
+ * rows sharing a real typeId, e.g. every invoice), so this find-then-branch cannot be made perfectly
+ * atomic against a genuine race without a schema change, which is out of this fix's own scope. Two
+ * requests racing here CAN both see no `existing` row and both `create`, same as before this comment
+ * was added — what changes is what happens NEXT: every call now (a) resolves `existing` the SAME way
+ * `getReconciliationSettings` resolves its own read (`orderBy updatedAt desc` — the most-recently-
+ * touched row, deterministic even with duplicates already on file) and (b) deletes every OTHER row
+ * for this (companyId, typeId) right after writing. A race can still momentarily create two rows, but
+ * the very NEXT call for this company — a read or a write — collapses back to exactly one, rather than
+ * silently accumulating orphaned duplicates forever. Self-healing, not prevention.
  */
 export async function setReconciliationTolerancePercent(
   companyId: string,
@@ -95,23 +106,28 @@ export async function setReconciliationTolerancePercent(
 
   const existing = await prisma.documentInstance.findFirst({
     where: { companyId, typeId: RECONCILIATION_SETTINGS_TYPE_ID },
+    orderBy: { updatedAt: 'desc' },
   });
 
-  if (existing) {
-    await prisma.documentInstance.update({
-      where: { id: existing.id },
-      data: { data: { tolerancePercent } },
-    });
-  } else {
-    await prisma.documentInstance.create({
-      data: {
-        companyId,
-        typeId: RECONCILIATION_SETTINGS_TYPE_ID,
-        status: 'active',
-        data: { tolerancePercent },
-      },
-    });
-  }
+  const kept = existing
+    ? await prisma.documentInstance.update({
+        where: { id: existing.id },
+        data: { data: { tolerancePercent } },
+      })
+    : await prisma.documentInstance.create({
+        data: {
+          companyId,
+          typeId: RECONCILIATION_SETTINGS_TYPE_ID,
+          status: 'active',
+          data: { tolerancePercent },
+        },
+      });
+
+  // Self-heal — see this function's own header. A no-op the overwhelming majority of the time (no
+  // race ever happened for this company); only ever deletes rows THIS reserved typeId itself owns.
+  await prisma.documentInstance.deleteMany({
+    where: { companyId, typeId: RECONCILIATION_SETTINGS_TYPE_ID, id: { not: kept.id } },
+  });
 
   return { tolerancePercent };
 }

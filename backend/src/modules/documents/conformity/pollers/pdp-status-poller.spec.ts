@@ -187,6 +187,63 @@ describe('buildPdpStatusPoller', () => {
     await expect(poller.poll('company-1', '397536')).rejects.toBeInstanceOf(ChannelNotConnectedError);
   });
 
+  // The measured defect: `Number(transportRef)` on anything non-numeric silently produced `NaN`,
+  // which `getInvoice` would interpolate straight into the URL (`/v1.beta/invoices/NaN`) — a 404
+  // indistinguishable, downstream, from an ordinary transient failure.
+  it('refuses a non-numeric transportRef by name, never reaching getInvoice with a NaN id', async () => {
+    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await expect(poller.poll('company-1', 'not-a-number')).rejects.toThrow(
+      /transportRef "not-a-number" is not a valid PDP invoice id/,
+    );
+    expect(mockGetInvoice).not.toHaveBeenCalled();
+  });
+
+  it('refuses a blank transportRef the same way', async () => {
+    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await expect(poller.poll('company-1', '')).rejects.toThrow(/is not a valid PDP invoice id/);
+    expect(mockGetInvoice).not.toHaveBeenCalled();
+  });
+
+  it('accepts a genuinely numeric transportRef, even if handed as a string', async () => {
+    mockGetInvoice.mockResolvedValue({ ...ACCEPTED_INVOICE_397536, events: [] });
+    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    await poller.poll('company-1', '397536');
+
+    expect(mockGetInvoice).toHaveBeenCalledWith(397536);
+  });
+
+  // The measured defect: `new Date(event.created_at)` on an unparseable-but-present value produced
+  // `Invalid Date`, which `createAuthorityEvents`' own single-batch `createMany` would then fail on —
+  // for the WHOLE pass's events, not merely this one.
+  it("falls back to 'now' for an event whose created_at is present but unparseable, rather than an Invalid Date", async () => {
+    const before = Date.now();
+    mockGetInvoice.mockResolvedValue({
+      ...ACCEPTED_INVOICE_397536,
+      events: [{ status_code: 'fr:200', status_text: 'x', created_at: 'not-a-real-date' }],
+    });
+    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    const events = await poller.poll('company-1', '397536');
+
+    expect(Number.isNaN(events[0].observedAt.getTime())).toBe(false);
+    expect(events[0].observedAt.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('still falls back to now for an event with no created_at at all — unchanged behaviour', async () => {
+    mockGetInvoice.mockResolvedValue({
+      ...ACCEPTED_INVOICE_397536,
+      events: [{ status_code: 'fr:200', status_text: 'x' }],
+    });
+    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    const events = await poller.poll('company-1', '397536');
+
+    expect(Number.isNaN(events[0].observedAt.getTime())).toBe(false);
+  });
+
   describe('isTerminal', () => {
     const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
