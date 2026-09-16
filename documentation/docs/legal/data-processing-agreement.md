@@ -1,8 +1,8 @@
 ---
 title: Data Processing Agreement
 sidebar_position: 3
-version: 2026-09-16
-effectiveDate: 2026-09-16
+version: 2026-09-17
+effectiveDate: 2026-09-17
 ---
 
 :::warning Draft
@@ -22,7 +22,7 @@ documents you create or receive through the Service — in particular your own c
 contacts' names, addresses, and other details on an invoice, quote, or related record ("**Customer
 Personal Data**"). **We** ("**the Processor**", defined as in Terms of Service Section 1.1) process
 Customer Personal Data **solely on your documented instructions**, as described in this DPA. This is
-the exact duality the Terms of Service, Section 9.1 already states; this DPA is the detail Article
+the exact duality the Terms of Service, Section 13.1 already states; this DPA is the detail Article
 28(3) requires for it.
 
 ## 2. Definitions
@@ -68,13 +68,18 @@ We:
 8. make available to you the information reasonably necessary to demonstrate compliance with this
    Article and allow for, and contribute to, audits as described in Section 11.
 
-## 5. Customer Obligations
+## 5. Customer Obligations and Rights
 
-You warrant that you have a lawful basis for the Customer Personal Data you enter into the Service,
-that the data is accurate, and that you enter no more of it than is needed for the document you are
-creating. Your instructions to us are limited to what the Service's own features let you configure —
-we have no independent means of processing Customer Personal Data outside of running the Service as
-built.
+As controller, **you have the right to**: issue us documented instructions regarding the processing of
+Customer Personal Data, which we will follow (Section 1); object to a new sub-processor and, if
+unresolved, end the subscription on that ground (Section 7); receive our assistance with Data Subject
+requests (Section 8); and audit our compliance with this DPA (Section 11).
+
+In turn, **you warrant** that you have a lawful basis for the Customer Personal Data you enter into
+the Service, that the data is accurate, and that you enter no more of it than is needed for the
+document you are creating. Your instructions to us are limited to what the Service's own features let
+you configure — we have no independent means of processing Customer Personal Data outside of running
+the Service as built.
 
 ## 6. Confidentiality
 
@@ -93,7 +98,7 @@ that carry Customer Personal Data:
 - **Resend** — delivery of transactional email that may carry a document, or a link to one, on your
   instruction.
 - **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service (placeholder — see Terms of
-  Service Section 8.1).
+  Service Section 12.1).
 - **Mistral AI** — **only when your instance's OCR feature is configured with `OCR_ENGINE=mistral`**
   (see Privacy Policy Section 4 for the same conditional). `OCR_ENGINE=local` keeps document content
   inside our own infrastructure instead.
@@ -102,11 +107,16 @@ that carry Customer Personal Data:
 subscription and payment data as an independent controller/merchant of record (Privacy Policy
 Sections 3-4), not Customer Personal Data appearing on the documents you issue.
 
+Each sub-processor above is bound, by contract, to data-protection obligations materially equivalent
+to those in this DPA — in particular the confidentiality duty of Section 6 and the security measures
+of Section 9 (**GDPR Art. 28(4)**). We remain fully liable to you for that sub-processor's performance
+of those obligations.
+
 We will give you at least **thirty (30) days' notice by email** before adding a new sub-processor to
-the list above, mirroring the notice period the Terms of Service, Section 12.1 already uses for
+the list above, mirroring the notice period the Terms of Service, Section 18.1 already uses for
 changes to that Agreement. You may object on reasonable data-protection grounds by writing to
 **contact@invoicerr.app** within that window; if we cannot address your objection, either party may
-treat that as grounds to end the subscription under the Terms of Service, Section 6.
+treat that as grounds to end the subscription under the Terms of Service, Section 10.
 
 ## 8. Assistance with Data Subject Requests
 
@@ -125,14 +135,14 @@ you should use it directly; we will otherwise provide reasonable assistance.
 
 ## 10. Deletion or Return of Data at the End of the Provision of Services
 
-At the end of your Company's subscription, the Terms of Service, Section 7 govern what happens to
+At the end of your Company's subscription, the Terms of Service, Section 11 govern what happens to
 your data, and this DPA adopts the same mechanism as the "return" half of Article 28(3)(g):
 
-- **Return**: the zip archive described in Terms of Service Section 7.2 — containing, for every
+- **Return**: the zip archive described in Terms of Service Section 11.2 — containing, for every
   document your Company holds, its stored data and, where renderable, a copy of it — is generated
   automatically and emailed to your Company's Owner. This is the return of Customer Personal Data
   Article 28(3)(g) requires; you may also request a full export at any time before that point (Terms
-  of Service Section 9.4).
+  of Service Section 8.2).
 - **Deletion**: follows the same schedule as the Privacy Policy, Section 6 — immediate after the
   archive for a Company that never had a paid subscription, no earlier than **180 days** after the
   archive for one that did.
@@ -161,7 +171,7 @@ safeguards under GDPR Chapter V.
 ## 14. Term, Liability, and Governing Law
 
 This DPA runs for as long as the Terms of Service do, and terminates automatically with them. The
-liability cap and governing law/jurisdiction of the Terms of Service, Sections 10.3 and 12.2, apply to
+liability cap and governing law/jurisdiction of the Terms of Service, Sections 15 and 18.2, apply to
 this DPA as well.
 
 ---
@@ -169,3 +179,12 @@ this DPA as well.
 ### Changelog
 
 - **2026-09-16** — Initial draft.
+- **2026-09-17** — Restructured against the `dpa-drafting` skill's Article 28(3) checklist; no fact
+  changed. Updated every Terms of Service cross-reference to match that document's 2026-09-17
+  renumbering (9.1→13.1, 8.1→12.1, 12.1→18.1, Section 6→10, 7.2→11.2, 9.4→8.2, 10.3/12.2→15/18.2).
+  Section 5 renamed "Customer Obligations and Rights" and now states the controller's own Article
+  28(3) rights explicitly (instruct, object to a sub-processor, request assistance, audit) rather than
+  leaving them only implicit in Sections 1/7/8/11. Section 7 now states the Article 28(4) flow-down
+  explicitly: each sub-processor is bound to materially equivalent obligations, and we remain fully
+  liable for their performance — the checklist's provision 7, previously only implied by the 30-day
+  notice/objection mechanism.

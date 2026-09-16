@@ -1,8 +1,8 @@
 ---
 title: Cookies & Acceptable Use
 sidebar_position: 5
-version: 2026-09-16
-effectiveDate: 2026-09-16
+version: 2026-09-17
+effectiveDate: 2026-09-17
 ---
 
 :::warning Draft
@@ -51,7 +51,7 @@ You must not use the Service to:
   unauthorized penetration testing or denial-of-service activity;
 - circumvent or interfere with the hosted Service's own access controls or rate limits, beyond the
   rights the software's open-source license already grants you over the source code itself (Terms of
-  Service, Section 11.1);
+  Service, Section 9.1);
 - send spam or unsolicited bulk communications through the Service's outbound email or transmission
   features;
 - resell or sublicense access to the hosted Service to a third party without our written consent;
@@ -60,15 +60,20 @@ You must not use the Service to:
 ### 6. Enforcement
 
 A violation of this Part B may lead to suspension or termination of your access, without prejudice to
-the suspension and termination provisions of the Terms of Service, Section 7.
+the suspension and termination provisions of the Terms of Service, Section 11.
 
 ### 7. Availability
 
 Availability figures we may publish are **indicative only** and do not constitute a contractual
-service level — the same best-effort basis the Terms of Service, Section 10.1 already describes.
+service level — the same best-effort basis the Terms of Service, Section 14.1 already describes.
 
 ---
 
 ### Changelog
 
 - **2026-09-16** — Initial draft.
+- **2026-09-17** — Updated Terms of Service cross-references to match that document's 2026-09-17
+  renumbering (11.1→9.1, 7→11, 10.1→14.1). No other change: this page's cookie disclosure and
+  acceptable-use list already matched the `legal-tos-privacy` skill's cookie and AUP checklists, and
+  is now also the document the Terms of Service, Section 5 incorporates by reference as its own
+  Acceptable Use Policy.

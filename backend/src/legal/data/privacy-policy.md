@@ -1,8 +1,8 @@
 ---
 title: Privacy Policy
 sidebar_position: 2
-version: 2026-09-16
-effectiveDate: 2026-09-16
+version: 2026-09-17
+effectiveDate: 2026-09-17
 ---
 
 :::warning Draft
@@ -23,9 +23,12 @@ sole trader (entrepreneur individuel)**, registered under **SIREN 982 187 676 (S
 00019)**, with registered address at **4 rue du Puits, 26120 Montélier, France** ("**we**", "**us**",
 "**the Provider**"). Contact: **contact@invoicerr.app**.
 
+Given the nature and scale of our processing, we are not required by **GDPR Article 37** to appoint a
+Data Protection Officer. Use the contact above for any question or request under this Policy.
+
 ## 2. Two Roles, Two Kinds of Data
 
-Like the Terms of Service (Section 9.1), this Policy distinguishes two roles:
+Like the Terms of Service (Section 13.1), this Policy distinguishes two roles:
 
 - **We are the data controller** for your own **account data** — the information about you and your
   Company needed to operate your subscription (Section 3 below).
@@ -36,6 +39,9 @@ Like the Terms of Service (Section 9.1), this Policy distinguishes two roles:
   controller of that data, and you are responsible for your own privacy notice to your customers.
 
 ## 3. What We Collect, as Controller, and Why
+
+We collect all of the data below **directly from you**, either when you provide it (registration,
+configuration, support) or automatically as you use the Service (connection and security data).
 
 | Data | Examples | Purpose | Legal basis (GDPR Art. 6) |
 | --- | --- | --- | --- |
@@ -55,11 +61,11 @@ We share the account and billing data above with the following sub-processors, e
 own data-processing terms:
 
 - **Polar Software Inc.** — payment processing and billing; acts as **merchant of record** for your
-  subscription (Terms of Service Section 5.1) and is itself a controller for the payment details it
+  subscription (Terms of Service Section 7.1) and is itself a controller for the payment details it
   collects from you directly.
 - **Resend** — delivery of transactional email sent by the Service (sign-in links, notifications).
 - **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service (placeholder pending the
-  final hosting decision — see Terms of Service Section 8.1).
+  final hosting decision — see Terms of Service Section 12.1).
 - **Mistral AI** — **only when your instance's optical-character-recognition feature is configured
   with `OCR_ENGINE=mistral`** (the default for that feature when enabled at all), the content of a
   document you submit for OCR is sent to Mistral's API for processing. Setting `OCR_ENGINE=local`
@@ -68,7 +74,7 @@ own data-processing terms:
 
 **Not sub-processors of ours:** payment providers you connect so **your own customers** can pay the
 invoices **you** issue — Stripe, Mollie, PayPal — are **your own accounts**, contracted directly
-between you and them (Terms of Service Section 8.3). The **national e-invoicing and government
+between you and them (Terms of Service Section 12.3). The **national e-invoicing and government
 platforms** you choose to connect (the French PDP, Poland's KSeF, Italy's SdI, Portugal's AT, France's
 Chorus Pro) act on your own instruction and mandate to transmit the documents you send; their role
 with respect to the personal data on those documents is addressed in the Data Processing Agreement,
@@ -86,10 +92,10 @@ provider relies on today.
 ## 6. Retention
 
 - **Account and Company data** is kept for as long as your Company exists on the Service, then
-  handled exactly as the Terms of Service, Section 7 describe: a Company that never converts from
-  trial is deleted once its end-of-trial archive has been sent (Section 7.3, first bullet); a Company
+  handled exactly as the Terms of Service, Section 11 describe: a Company that never converts from
+  trial is deleted once its end-of-trial archive has been sent (Section 11.3, first bullet); a Company
   that had a paid subscription is deleted **no earlier than 180 days** after that archive is sent
-  (Section 7.3, second bullet) — the exact grace period this Policy and `billing/lifecycle.ts`'s own
+  (Section 11.3, second bullet) — the exact grace period this Policy and `billing/lifecycle.ts`'s own
   `PAID_ZIP_GRACE_DAYS` constant agree on.
 - **Application logs** and connection/security data are kept only as long as needed for the security
   and diagnostic purpose in Section 3, and are deleted or anonymized on a rolling basis.
@@ -100,7 +106,7 @@ provider relies on today.
 
 Credentials and tokens used to connect your Company to third-party channels and platforms are
 encrypted at rest (AES-256-GCM); all traffic to and from the Service is encrypted in transit (TLS) —
-the same measures the Terms of Service describe in Section 9.3. Access to your data within our own
+the same measures the Terms of Service describe in Section 13.3. Access to your data within our own
 organization is restricted to what is needed to operate and support the Service.
 
 ## 8. Your Rights
@@ -113,8 +119,11 @@ will respond within the timeframe the GDPR sets for a controller. You also have 
 complaint with the French data protection authority, the **CNIL** (www.cnil.fr), or with the
 supervisory authority of your own EU member state.
 
+We do not carry out any processing described in **GDPR Article 22** — there is no automated
+decision-making, including profiling, that produces legal or similarly significant effects on you.
+
 For the accounting ledger export and the automatic end-of-subscription data export, see Terms of
-Service Section 9.4 — both are also how you exercise portability in practice.
+Service Sections 8.2 and 11.2 — both are also how you exercise portability in practice.
 
 ## 9. Cookies
 
@@ -131,7 +140,7 @@ directed at, or knowingly used by, individuals acting outside a professional cap
 
 We may update this Policy from time to time; the version and effective date at the top of this page
 identify the version in force. Where a change is material, we will tell you by email before it takes
-effect, the same way the Terms of Service, Section 12.1 describes for that document.
+effect, the same way the Terms of Service, Section 18.1 describes for that document.
 
 ## 12. Contact
 
@@ -143,3 +152,13 @@ or by post to the address in Section 1.
 ### Changelog
 
 - **2026-09-16** — Initial draft.
+- **2026-09-17** — Restructured against the `legal-tos-privacy`/`gdpr-compliance` skill checklists; no
+  fact changed. Updated every Terms of Service cross-reference to match that document's 2026-09-17
+  renumbering (Sections 5→7, 8.1→12.1, 8.3→12.3, 7→11, 7.3→11.3, 9.1→13.1, 9.3→13.3, 9.4→8.2/11.2,
+  12.1→18.1). Added: a Data Protection Officer statement in Section 1 (none required, GDPR Art. 37,
+  given our size); a "collected directly from you" statement opening Section 3 (GDPR Art. 14 does not
+  apply — nothing here is sourced from a third party); an explicit GDPR Art. 22 statement in Section 8
+  that no automated decision-making or profiling with legal or similarly significant effect takes
+  place. Deliberately did **not** add CCPA/LGPD-specific sections: the Service is marketed strictly
+  B2B out of France/the EU, and no representation targeting California or Brazilian customers exists
+  today to ground one — add them if that changes.
