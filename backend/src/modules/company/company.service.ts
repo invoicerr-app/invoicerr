@@ -17,7 +17,7 @@ import { renderEmailTemplate } from '@/modules/documents/actions/email-template'
 import { assertValidNumberPattern } from '@/modules/documents/numbering/format-number';
 import { assertIdentifierValueMatchesPattern } from '@/modules/documents/country-identifiers/validate-identifier-value';
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
-import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
+import { withSeatReservation } from '@/modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { syncPolarCustomerOnCompanyChange } from '@/modules/billing/customer-sync';
 import prisma from '@/prisma/prisma.service';
@@ -304,12 +304,11 @@ export class CompanyService {
       },
     });
 
-    await prisma.userCompany.create({
-      data: { userId, companyId: newCompany.id, role: 'OWNER' },
-    });
-    // A brand-new company's own OWNER is its first seat — see `billing/seat-sync.ts`'s own header
-    // (a no-op entirely when billing is disabled, never throws).
-    await syncCompanySeatsOnMembershipChange(newCompany.id);
+    // A brand-new company's own OWNER is its first seat — assigned desk 1 on the generative office
+    // plan (`billing/seat-sync.ts#withSeatReservation`, a no-op entirely when billing is disabled).
+    await withSeatReservation(newCompany.id, userId, (tx) =>
+      tx.userCompany.create({ data: { userId, companyId: newCompany.id, role: 'OWNER' } }),
+    );
     // Practically always a no-op here (a brand-new company has no `polarSubscriptionId` yet), kept
     // for the rare case a company row is created for one already billed elsewhere — see
     // `billing/member-sync.ts`'s own header.

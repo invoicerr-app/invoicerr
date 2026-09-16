@@ -6,8 +6,9 @@ import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onb
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
+import { WaitingForSeatScreen } from "@/components/waiting-for-seat-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
-import { useLegalStatus } from "@/hooks/queries"
+import { useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 
 const ALLOWED_PATHS = ["/signature/[^/]+"]
@@ -101,6 +102,9 @@ const Layout = () => {
   // (`legal.service.ts#getStatus`), so this adds nothing to check for a self-hosted instance beyond
   // one extra cheap, always-200 request.
   const { data: legalStatus, isPending: legalStatusPending } = useLegalStatus(!!session)
+  // Same reasoning as `legalStatus` above: gated on a session existing, harmless (a plain 404, `useSeats`'s
+  // own `retry: false`) on a self-hosted instance where this route does not exist at all.
+  const { data: seatsView } = useSeats(!!session)
 
   if (isPending) {
     return null
@@ -140,6 +144,19 @@ const Layout = () => {
   // SaaS mode, so this never fires on a self-hosted instance.
   if (legalStatus?.requiresAcceptance) {
     return <Navigate to="/legal/accept" replace />
+  }
+
+  // No-free-seat gate (an over-capacity company — the OWNER lowered the bought quantity below the
+  // current headcount): blocks the whole app shell exactly like the legal interstitial above, but
+  // renders in place rather than navigating — there is no separate route for it, just a full-screen
+  // component. `seatsView` stays `undefined` on a self-hosted instance (the route 404s) or before the
+  // fetch resolves, so this never fires outside SaaS mode and never flashes before the real check runs.
+  const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
+  const isWaitingForSeat =
+    !!currentUserId && !!seatsView?.waiting.some((member) => member.userId === currentUserId)
+  if (isWaitingForSeat) {
+    const owner = seatsView?.members.find((member) => member.role === "OWNER")
+    return <WaitingForSeatScreen ownerName={owner ? `${owner.firstname} ${owner.lastname}` : null} />
   }
 
   return <AuthenticatedLayout />

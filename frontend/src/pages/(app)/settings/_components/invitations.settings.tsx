@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { NoFreeSeatNotice } from "@/components/no-free-seat-notice"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 import type { CompanyRole } from "@/types"
 import {
@@ -103,6 +104,7 @@ export default function InvitationsSettings() {
 
   return (
     <SettingsPage title={t("settings.invitations.title")} description={t("settings.invitations.description")}>
+      <NoFreeSeatNotice data-cy="invitations-no-free-seat" />
       <SettingsSection
         title={t("settings.invitations.create.title")}
         description={t("settings.invitations.create.description")}

@@ -5,21 +5,28 @@ import { BillingGateExempt } from './billing-gate-exempt.decorator';
 import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { CompanyWriteGuard } from './company-write.guard';
+import { assertUserHasSeatOrThrow } from './seat-gate';
 
 jest.mock('./company-subscription.store');
+jest.mock('./seat-gate');
 
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
+const assertSeat = assertUserHasSeatOrThrow as jest.Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
+// `userId: null` (never a bare `undefined` argument — JS default parameters trigger on `undefined`,
+// which would silently fall back to `'user-1'` instead of producing a userless request) means "no
+// user on this request".
 function createContext(
   method: string,
   companyId: string | null | undefined,
   handler: (...args: unknown[]) => unknown = () => undefined,
+  userId: string | null = 'user-1',
 ): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () => ({ method, companyId }),
+      getRequest: () => ({ method, companyId, user: userId ? { id: userId } : undefined }),
     }),
     getHandler: () => handler,
     getClass: () => class {},
@@ -66,6 +73,25 @@ describe('CompanyWriteGuard', () => {
     it('allows a write from a TRIAL/ACTIVE company', async () => {
       getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
       await expect(guard.canActivate(createContext('POST', 'company-1'))).resolves.toBe(true);
+      expect(assertSeat).toHaveBeenCalledWith('company-1', 'user-1');
+    });
+
+    it('refuses a write from a user with no free seat, named SEAT_REQUIRED', async () => {
+      getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
+      assertSeat.mockRejectedValue(
+        new ForbiddenException({ message: 'no free seat', code: 'SEAT_REQUIRED' }),
+      );
+      const err = await guard.canActivate(createContext('POST', 'company-1')).catch((e) => e);
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
+    });
+
+    it('never checks the seat when the request carries no user (should not normally happen this far)', async () => {
+      getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
+      await expect(
+        guard.canActivate(createContext('POST', 'company-1', () => undefined, null)),
+      ).resolves.toBe(true);
+      expect(assertSeat).not.toHaveBeenCalled();
     });
 
     it('refuses a write from a BLOCKED company, named COMPANY_BLOCKED', async () => {

@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Armchair,
   Building2,
   CreditCard,
   FileSpreadsheet,
@@ -57,6 +58,7 @@ import MembersSettings from "./_components/members.settings"
 import PaymentsSettings from "./_components/payments.settings"
 import PluginsSettings from "./_components/plugins.settings"
 import RecurringSettings from "./_components/recurring.settings"
+import SeatsSettings from "./_components/seats.settings"
 import SigningCertificatesSettings from "./_components/signing-certificates.settings"
 import SsoSettings from "./_components/sso.settings"
 import EmailTemplatesSettings from "./_components/templates.settings"
@@ -84,6 +86,7 @@ type TabId =
   | "atcud"
   | "mail"
   | "members"
+  | "seats"
   | "invitations"
   | "sso"
   | "webhooks"
@@ -191,6 +194,15 @@ const TAB_GROUPS: TabGroup[] = [
     id: "team",
     tabs: [
       { value: "members", labelKey: "settings.tabs.members", icon: Users, adminOnly: true },
+      // Hosted billing only — see `billingAvailable` in the component below: a self-hosted instance
+      // has no `/api/billing/seats` route at all (the same reason "billing" itself is filtered out).
+      {
+        value: "seats",
+        labelKey: "settings.tabs.seats",
+        labelDefault: "Seats",
+        icon: Armchair,
+        adminOnly: true,
+      },
       { value: "invitations", labelKey: "settings.tabs.invitations", icon: TicketIcon, adminOnly: true },
       // The identity provider decides who gets into the company at all, so SSO belongs with
       // members/invitations rather than with the per-user account settings.
@@ -233,6 +245,7 @@ const CONTENT: Record<TabId, ComponentType> = {
   atcud: AtcudSettings,
   mail: MailSettings,
   members: MembersSettings,
+  seats: SeatsSettings,
   invitations: InvitationsSettings,
   sso: SsoSettings,
   webhooks: WebhooksSettings,
@@ -270,6 +283,7 @@ export default function Settings() {
       (item) =>
         (!isMember || !item.adminOnly) &&
         (item.value !== "billing" || billingAvailable) &&
+        (item.value !== "seats" || billingAvailable) &&
         (item.value !== "atcud" || isPortugueseCompany),
     ),
   })).filter((group) => group.tabs.length > 0)

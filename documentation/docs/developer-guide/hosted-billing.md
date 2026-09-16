@@ -19,11 +19,6 @@ portal are plain Nest routes calling the raw `@polar-sh/sdk` client directly
 hard-codes the checkout/portal customer to the session's OWN user, which cannot express "bill this
 company" at all.
 
-Seats (`Company`'s own `UserCompany` rows) and Polar's own seat-based price are kept in sync by
-`seat-sync.ts` on every membership change, and opportunistically reconciled once per lifecycle-sweep
-tick by `seat-reconcile.ts` for every `ACTIVE`, subscribed company — the retry for the rare case a
-membership change's own synchronous push failed and nothing else touched membership afterward.
-
 ### Billing email
 
 A company's Polar customer email defaults to its own contact `email`. Polar requires a customer's
@@ -69,6 +64,40 @@ auto-provisioning, a role change, member removal, and account deletion. Member c
 both go through the SDK's `PolarMembers` operations (`create`/`createExternal`,
 `delete`/`deleteExternal`) — never blocking the membership write itself: a Polar failure here is logged
 and left for the next membership change to retry.
+
+## Seats — Invoicerr only ever READS the quantity, never writes it
+
+Invoicerr never tells Polar how many seats to bill. The bought quantity lives in Polar's own
+subscription and is entirely the OWNER's own affair, changed in the Polar portal — this app only reads
+it, via two paths: a `subscription.*` webhook's own `seats` field (`webhook-handlers.ts`), and
+`seat-reconcile.ts`'s opportunistic SDK read once per lifecycle-sweep tick for every `ACTIVE`,
+subscribed company (the retry for the rare case a webhook was missed). Neither ever calls
+`subscriptions.update` with a seat count — `seat-sync.ts`/`seat-reconcile.ts`'s own file headers, and
+`no-seat-quantity-write.spec.ts`, a standing file-content guard scanning the whole billing module for a
+`subscriptions.update(...)` call that sets a `seats` field. A company still in `TRIAL` (no Polar
+subscription to read from at all) has the schema default of 1 seat — the one seat every plan includes.
+
+**Capacity vs. headcount** are two different numbers: `CompanySubscription.seats` is what was bought,
+`UserCompany` row count is who actually joined. `seat-sync.ts#withSeatReservation` wraps every NEW
+membership (company creation, invitation acceptance, SSO auto-provisioning) in one transaction that
+refuses with `NoFreeSeatError` (surfaced as `NO_FREE_SEAT`) once headcount would exceed the bought
+quantity — invitations.service.ts's own `useInvitation` and lib/auth.ts's
+`markInvitationAsUsed`/`attachSsoProvisionedMembership` translate it into a `403`/`APIError`
+respectively. The SAME transaction assigns the new row the lowest free desk number
+(`UserCompany.seatIndex`), a purely cosmetic position on the company's own generative "Settings > Seats"
+floor plan — a top-view SVG room, desks in face-to-face pairs, one deterministically-furnished desk per
+(`companyId`, `seatIndex`) pair (never `Math.random()` at render — `seats/desk-rng.ts`). A desk number
+never grants or revokes access — `seat-holders.ts#seatHolders` decides who is actually SEATED purely
+from role + arrival order (`UserCompany.createdAt`), completely ignoring `seatIndex`.
+
+**Over capacity** — the OWNER lowers the bought quantity in the Polar portal below the current
+headcount — is handled the same way: the OWNER always keeps their seat; the most-recently-arrived
+non-owner members wait, and get their seat back automatically (no action needed) the moment a seat frees
+up or is bought back. A member currently WAITING is refused every write via
+`company-write.guard.ts`/`seat-gate.ts` (403, `SEAT_REQUIRED`) and sees a full-app "waiting for a seat"
+takeover (`(app)/_layout.tsx`, driven by `GET /api/billing/seats`) naming the OWNER — the same
+gate `write-gate.ts#assertCompanyWritable`'s `COMPANY_BLOCKED` already holds for a blocked company,
+checked right alongside it.
 
 ## Webhooks
 

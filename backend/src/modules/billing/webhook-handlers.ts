@@ -98,6 +98,13 @@ export interface PolarSubscriptionWebhookFacts {
   status: string;
   /** Polar's raw `Subscription.recurringInterval` string, mapped by `mapPolarRecurringInterval` above. */
   recurringInterval: string;
+  /** The subscription's own seat quantity — this is the ONLY direction seat quantity ever flows from
+   *  Polar's own webhook into this app (never the reverse, see `seat-sync.ts`'s own header).
+   *  `undefined` when the wire payload did not carry one (a hand-built
+   *  spec fact, or a genuinely non-seat-based subscription) — left as "leave whatever quantity is
+   *  already stored alone", the same permissive convention `recurringInterval`'s own `null` already
+   *  holds, rather than ever writing `0`/`undefined` over a real value. */
+  seats?: number;
   /** WHEN this fact actually happened, Polar-side — the delivering webhook's own `webhook-timestamp`
    *  header (`polar-webhook.controller.ts`) or, for a `status-reconcile.ts` repair read, the
    *  reconciled subscription's own `modifiedAt`. `undefined` applies UNCONDITIONALLY (the historical
@@ -228,6 +235,7 @@ export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFa
       polarSubscriptionId: facts.polarSubscriptionId,
       polarCustomerId: facts.polarCustomerId,
       ...(interval ? { interval } : {}),
+      ...(facts.seats !== undefined ? { seats: facts.seats } : {}),
       ...(facts.factAt ? { lastPolarFactAt: facts.factAt } : {}),
       ...(status === 'ACTIVE'
         ? { blockedAt: null, zipSentAt: null, deletionDueAt: null, seatPaymentFailedAt: null }
@@ -250,6 +258,10 @@ export interface SubscriptionWebhookPayload {
     customerId: string;
     status: string;
     recurringInterval: string;
+    /** The subscription's own seat quantity — a single word, unaffected by the snake_case remap this
+     *  file's own header describes for the other two fields. See `PolarSubscriptionWebhookFacts.seats`
+     *  for how this flows onward (never the reverse — see `seat-sync.ts`). */
+    seats?: number;
     metadata: Record<string, string | number | boolean>;
     /** The subscription's own customer's `external_id` — option A (product decision 2026-09-16):
      *  `external_id = company.id` for every Polar customer this app creates (`billing-customer.ts`'s
@@ -289,6 +301,7 @@ export async function handleSubscriptionPayload(
     polarCustomerId: payload.data.customerId,
     status: payload.data.status,
     recurringInterval: payload.data.recurringInterval,
+    seats: payload.data.seats,
     factAt,
   });
 }

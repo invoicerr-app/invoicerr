@@ -2,7 +2,7 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { ForbiddenException } from '@nestjs/common';
 import { InvitationsService } from '@/modules/invitations/invitations.service';
 import { PrismaService } from '@/prisma/prisma.service';
-import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
+import { NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 
 jest.mock('@/logger/logger.service', () => ({
   logger: {
@@ -13,13 +13,15 @@ jest.mock('@/logger/logger.service', () => ({
   },
 }));
 jest.mock('@/modules/billing/member-sync');
-// billing/seat-sync.ts's own header: called directly (never via DI) from the four places a
-// UserCompany row changes — `useInvitation` (an EXISTING user accepting an invitation) is one of
-// them. Mocked here so this file's own assertions on it never depend on the real function's
-// behavior (already covered in full by seat-sync.spec.ts).
+// billing/seat-sync.ts's own header: called directly (never via DI) from the three places a
+// membership row is CREATED — `useInvitation` (an EXISTING user accepting an invitation) is one of
+// them. Mocked here so this file's own assertions never depend on the real transaction/lock
+// behavior (already covered in full by seat-sync.spec.ts); the default implementation below just
+// runs the caller's own callback against this file's already-mocked `prisma`, so `tx.*` calls inside
+// `useInvitation` land on the SAME mocks every other assertion here already reads.
 jest.mock('@/modules/billing/seat-sync');
 
-const syncSeats = syncCompanySeatsOnMembershipChange as jest.Mock;
+const seatReservation = withSeatReservation as jest.Mock;
 
 describe('InvitationsService', () => {
   let service: InvitationsService;
@@ -54,6 +56,13 @@ describe('InvitationsService', () => {
       },
     };
     service = new InvitationsService(prisma as unknown as PrismaService);
+    // Default: run the caller's own transaction callback against this file's own `prisma` fake, so
+    // `tx.invitationCode.update`/`tx.userCompany.upsert` inside `useInvitation` land on the same mocks
+    // every assertion below already reads. A test that needs to exercise the `NoFreeSeatError` path
+    // overrides this with `seatReservation.mockRejectedValue(...)` instead.
+    seatReservation.mockImplementation((_companyId: string, _userId: string, fn: (tx: unknown) => unknown) =>
+      fn(prisma),
+    );
   });
 
   describe('createInvitation', () => {
@@ -119,13 +128,35 @@ describe('InvitationsService', () => {
           create: { userId: 'user2', companyId: 'company1', role: CompanyRole.ADMIN },
         }),
       );
-      // Seats recounted for the company the invitation was accepted into (product decision
-      // 2026-09-15, hosted billing) — a no-op in an environment without the billing flag, but the
-      // call itself must always happen.
-      expect(syncSeats).toHaveBeenCalledWith('company1');
+      // The membership write, and marking the code used, both run through the seat reservation for
+      // the company the invitation was accepted into — a no-op in an environment without the billing
+      // flag (`withSeatReservation`'s own header), but the call itself must always happen.
+      expect(seatReservation).toHaveBeenCalledWith('company1', 'user2', expect.any(Function));
+      expect(prisma.invitationCode.update).toHaveBeenCalledWith({
+        where: { id: 'inv1' },
+        data: { usedAt: expect.any(Date), usedById: 'user2' },
+      });
     });
 
-    it('accepting an invitation into a company whose subscription is PAST_DUE/BLOCKED still succeeds, and the seat is still counted — this service never queries CompanySubscription at all', async () => {
+    it('refuses, named NO_FREE_SEAT, when the company has no free seat — the invitation stays unused', async () => {
+      prisma.invitationCode.findUnique.mockResolvedValue({
+        id: 'inv1',
+        code: 'CODE123',
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'full-company',
+        role: CompanyRole.MEMBER,
+      });
+      seatReservation.mockRejectedValue(new NoFreeSeatError('full-company'));
+
+      const action = service.useInvitation('CODE123', 'user2');
+
+      await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+      const err = await action.catch((e) => e);
+      expect(err.getResponse()).toMatchObject({ code: 'NO_FREE_SEAT' });
+    });
+
+    it('accepting an invitation into a company whose subscription is PAST_DUE/BLOCKED still succeeds — this service never queries CompanySubscription at all', async () => {
       // The decision (product brief): an invitee must not be locked out of joining just because the
       // COMPANY they are joining owes money — they land in the same "please regularize" screen every
       // other member of a blocked company already sees (the billing banner reads status off
@@ -152,7 +183,7 @@ describe('InvitationsService', () => {
           create: { userId: 'user3', companyId: 'blocked-company', role: CompanyRole.MEMBER },
         }),
       );
-      expect(syncSeats).toHaveBeenCalledWith('blocked-company');
+      expect(seatReservation).toHaveBeenCalledWith('blocked-company', 'user3', expect.any(Function));
     });
 
     it('rejects an already-used invitation without touching membership', async () => {

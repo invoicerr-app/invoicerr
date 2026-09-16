@@ -87,6 +87,39 @@ describe('applySubscriptionWebhook', () => {
     });
   });
 
+  it('writes the seats field when the webhook carries one — the only direction seat quantity ever flows in', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
+
+    await applySubscriptionWebhook({
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      status: 'active',
+      recurringInterval: 'month',
+      seats: 4,
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ seats: 4 }) }),
+    );
+  });
+
+  it('leaves the stored seats untouched when the webhook carries none', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
+
+    await applySubscriptionWebhook({
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      status: 'active',
+      recurringInterval: 'month',
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.not.objectContaining({ seats: expect.anything() }) }),
+    );
+  });
+
   it('a PAST_DUE status does not touch blockedAt/zipSentAt/deletionDueAt/seatPaymentFailedAt', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
 
@@ -317,6 +350,26 @@ describe('handleSubscriptionPayload', () => {
     findCompany.mockResolvedValue({ id: 'company-1' });
   });
   afterEach(() => jest.resetAllMocks());
+
+  it('threads payload.data.seats through to applySubscriptionWebhook', async () => {
+    getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
+
+    await handleSubscriptionPayload({
+      data: {
+        id: 'sub_1',
+        customerId: 'cus_1',
+        status: 'active',
+        recurringInterval: 'month',
+        seats: 6,
+        metadata: {},
+        customerExternalId: 'company-1',
+      },
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ seats: 6 }) }),
+    );
+  });
 
   it('applies the webhook using the customer external id (primary signal, option A)', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });

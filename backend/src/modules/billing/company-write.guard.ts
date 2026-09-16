@@ -13,7 +13,14 @@
  *
  * One route-level exemption on top of the method/companyId ones above: `@BillingGateExempt()`
  * (`billing-gate-exempt.decorator.ts`) — see that file's own header for why `POST /billing/checkout`/
- * `/billing/portal` must stay reachable for a blocked company.
+ * `/billing/portal` must stay reachable for a blocked company; the same exemption also covers the
+ * seat check below (an OWNER/ADMIN buying more seats must stay reachable even while, in the
+ * degenerate case, THEY are somehow the one waiting).
+ *
+ * Also applies `seat-gate.ts#assertUserHasSeatOrThrow` — a member who has lost their seat (an
+ * over-capacity company) is refused every write the same way a BLOCKED company is, named
+ * `SEAT_REQUIRED` rather than `COMPANY_BLOCKED`. Checked AFTER `assertCompanyWritable`: a company that
+ * is itself BLOCKED/ZIPPED should surface that reason first, regardless of the caller's own seat.
  */
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -21,6 +28,7 @@ import { Reflector } from '@nestjs/core';
 import { RequestWithUser } from '@/types/request';
 
 import { BILLING_GATE_EXEMPT_KEY } from './billing-gate-exempt.decorator';
+import { assertUserHasSeatOrThrow } from './seat-gate';
 import { assertCompanyWritable } from './write-gate';
 
 /** HTTP methods this guard never gates — read-only by construction. Checked case-sensitively against
@@ -46,6 +54,9 @@ export class CompanyWriteGuard implements CanActivate {
     }
 
     await assertCompanyWritable(request.companyId);
+    if (request.user?.id) {
+      await assertUserHasSeatOrThrow(request.companyId, request.user.id);
+    }
     return true;
   }
 }

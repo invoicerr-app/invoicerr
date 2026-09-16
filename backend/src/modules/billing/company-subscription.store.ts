@@ -49,8 +49,9 @@ export async function getOrCreateCompanySubscription(
  * "fields that stop applying get cleared on the status write that invalidates them" discipline
  * `webhook-handlers.ts#applySubscriptionWebhook` already holds for its own ACTIVE branch. Never clears
  * `polarSubscriptionId` — `lifecycle.ts`'s own header on why that field must stay permanent (the
- * never-paid/paid-then-stopped zip-grace discriminator) or `seats` — a LOCAL count of real `UserCompany`
- * rows (`seat-sync.ts`), never something a subscription's own disappearance makes stale.
+ * never-paid/paid-then-stopped zip-grace discriminator) or `seats` — the last KNOWN bought quantity
+ * (`seat-sync.ts`'s own header: this app only ever reads it from Polar, never derives it locally),
+ * never something a subscription's own disappearance makes stale.
  *
  * Stamps `lastPolarFactAt = anchor` too — belt-and-braces alongside the explicit `seatPaymentFailedAt`
  * clear above: `billing-status-view.ts`'s own `seatPaymentFailureExplainsStatus` staleness check is

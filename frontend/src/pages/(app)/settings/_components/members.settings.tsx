@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { NoFreeSeatNotice } from "@/components/no-free-seat-notice"
 import { useCompanies } from "@/hooks/queries"
 import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
 import { authClient } from "@/lib/auth"
@@ -77,6 +78,7 @@ export default function MembersSettings() {
         </Button>
       }
     >
+      <NoFreeSeatNotice data-cy="members-no-free-seat" />
       {loading ? (
         <SettingsListSkeleton rows={3} />
       ) : !members || members.length === 0 ? (

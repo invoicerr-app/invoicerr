@@ -119,6 +119,11 @@ interface PolarSubscriptionWireData {
   customer_id: string;
   status: string;
   recurring_interval: string;
+  /** The subscription's own seat quantity — this webhook field, plus `seat-reconcile.ts`'s own
+   *  periodic SDK read, are the ONLY two places seat quantity ever enters this app; nothing here ever
+   *  writes it back to Polar (`webhook-handlers.ts#PolarSubscriptionWebhookFacts.seats`'s own doc
+   *  comment). */
+  seats?: number | null;
   metadata?: Record<string, string | number | boolean>;
   customer?: { external_id?: string | null };
 }
@@ -141,6 +146,7 @@ function toSubscriptionWebhookPayload(event: PolarWebhookEvent): SubscriptionWeb
       customerId: event.data.customer_id,
       status: event.data.status,
       recurringInterval: event.data.recurring_interval,
+      seats: event.data.seats ?? undefined,
       metadata: event.data.metadata ?? {},
       customerExternalId: event.data.customer?.external_id ?? undefined,
     },

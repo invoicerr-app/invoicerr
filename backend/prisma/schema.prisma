@@ -563,11 +563,19 @@ model CompanySubscription {
   polarCustomerId     String?
   polarSubscriptionId String?
 
-  // One seat == one `UserCompany` row for this company (the OWNER counts; an invitation counts only
-  // once ACCEPTED) — recomputed and pushed to Polar by `seat-sync.ts` on every membership change.
-  // Defaults to 1 (the OWNER, present from the moment the company itself is created) rather than 0,
-  // so a brand-new company's very first seat-sync call is a genuine "seats changed 0→1" no code path
-  // needs to special-case.
+  // The PURCHASED seat quantity. Invoicerr never tells Polar how many seats to bill — it only reads
+  // what Polar says: the quantity is bought in the Polar portal itself and arrives here EXCLUSIVELY via
+  // `webhook-handlers.ts` (a `subscription.*` webhook's own `seats` field) and `seat-reconcile.ts`'s
+  // opportunistic SDK read-and-store retry; `seat-sync.ts` never calls `subscriptions.update` with a
+  // seat count (`seat-sync.spec.ts`'s own no-write guard). Defaults to 1 — the ONE seat every plan
+  // includes, and also what a company still in TRIAL (no Polar subscription to read from at all) has.
+  //
+  // Capacity vs. headcount are two different numbers now: this column is what was BOUGHT,
+  // `UserCompany` row count is who actually joined. `seat-sync.ts#withSeatReservation` refuses a new
+  // membership once headcount reaches this number (`NoFreeSeatError`); `seat-holders.ts#seatHolders`
+  // decides who among existing members keeps access if a later drop in this number (the OWNER lowering
+  // it in the Polar portal) puts the company OVER capacity — the most recently arrived non-OWNER
+  // members wait, never the OWNER.
   seats Int @default(1)
 
   // The billing cadence Polar reports for the active product (`webhook-handlers.ts`) — `null` until a
@@ -709,6 +717,17 @@ model UserCompany {
   company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   role      CompanyRole @default(MEMBER)
   createdAt DateTime    @default(now())
+
+  // A numbered desk on the company's own generative "Settings > Seats" office plan — assigned to the
+  // first free integer (`seat-sync.ts#withSeatReservation`)
+  // the moment this row is created (company creation, invitation acceptance, SSO auto-provisioning),
+  // moved freely between free desks by an OWNER/ADMIN (`seats-view.ts#moveMemberSeat`). Purely
+  // cosmetic/organizational — NEVER read for capacity or billing decisions (`seat-holders.ts#seatHolders`
+  // decides who actually has access from role + `createdAt` alone, deliberately ignoring this column, so
+  // reassigning a desk can never itself grant or revoke access). Nullable: `null` for a row created
+  // before this column existed, backfilled lazily on the first `GET /api/billing/seats`
+  // (`seats-view.ts#ensureSeatIndexesAssigned`) rather than by a data migration.
+  seatIndex Int?
 
   @@unique([userId, companyId])
   @@index([userId])

@@ -34,7 +34,7 @@ import {
   sendChangeEmailMail,
 } from '../modules/auth-extended/account-lifecycle';
 import { registeredCompanyProviderIds } from './sso-registry';
-import { syncCompanySeatsOnMembershipChange } from '../modules/billing/seat-sync';
+import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '../modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
 import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
 import { MailService } from '../mail/mail.service';
@@ -143,31 +143,36 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
   const invitationCode = pendingInvitationCodes.get(email);
   if (invitationCode) {
     try {
-      const invitation = await prisma.invitationCode.update({
-        where: { code: invitationCode },
-        data: {
-          usedAt: new Date(),
-          usedById: userId,
-        },
-      });
+      const invitation = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
+      if (!invitation) throw new Error(`Invitation code "${invitationCode}" not found`);
 
-      // Attach the new user to the company/role the invitation was
-      // issued for. Upsert: re-using an invitation link for a user who
-      // somehow already belongs to that company should be a no-op,
-      // not a unique-constraint failure.
-      await prisma.userCompany.upsert({
-        where: { userId_companyId: { userId, companyId: invitation.companyId } },
-        create: { userId, companyId: invitation.companyId, role: invitation.role },
-        update: {},
+      // Marking the code used and attaching the new user to the company/role it was issued for happen
+      // in the SAME transaction as the seat reservation — a `NoFreeSeatError` (thrown before either
+      // write runs, see `withSeatReservation`'s own header) rolls the invitation's own `usedAt` back
+      // too, so a refused code stays valid to retry once a seat frees up rather than being burned for
+      // nothing. Upsert (not a plain create): re-using an invitation link for a user who somehow
+      // already belongs to that company stays the harmless no-op it always was (no capacity check, no
+      // desk reassignment either — see that same header).
+      await withSeatReservation(invitation.companyId, userId, async (tx) => {
+        await tx.invitationCode.update({
+          where: { id: invitation.id },
+          data: { usedAt: new Date(), usedById: userId },
+        });
+        return tx.userCompany.upsert({
+          where: { userId_companyId: { userId, companyId: invitation.companyId } },
+          create: { userId, companyId: invitation.companyId, role: invitation.role },
+          update: {},
+        });
       });
-      // A brand-new user accepted via invitation code is a new seat — see `seat-sync.ts`'s own
-      // header for why this is a plain, best-effort, never-throwing call (a no-op entirely when
-      // billing is disabled).
-      await syncCompanySeatsOnMembershipChange(invitation.companyId);
       // The invitation can carry OWNER/ADMIN — see `member-sync.ts`'s own header.
       await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
     } catch (error) {
+      pendingInvitationCodes.delete(email);
+      if (error instanceof NoFreeSeatError) {
+        throw new APIError('FORBIDDEN', { message: error.message, code: NO_FREE_SEAT_CODE });
+      }
       console.warn(`Could not mark invitation code as used: ${error}`);
+      return;
     }
     pendingInvitationCodes.delete(email);
   }
@@ -197,15 +202,27 @@ const attachSsoProvisionedMembership = async (companyId: string, userId: string)
     return;
   }
 
-  // Upsert, for the same reason `markInvitationAsUsed` upserts: a user who somehow already belongs to
-  // the company must be a no-op, never a unique-constraint failure mid-callback.
-  await prisma.userCompany.upsert({
-    where: { userId_companyId: { userId, companyId } },
-    create: { userId, companyId, role: SSO_PROVISIONED_ROLE },
-    update: {},
-  });
-  // Same reason `markInvitationAsUsed` syncs — a new SSO-provisioned membership is a new seat.
-  await syncCompanySeatsOnMembershipChange(companyId);
+  // Upsert INSIDE the seat reservation, for the same reason `markInvitationAsUsed` does: a user who
+  // somehow already belongs to the company is a no-op (no capacity check, no desk reassignment), while
+  // a genuinely new membership is refused with `NoFreeSeatError` once the company has no free seat —
+  // translated below into the better-auth `APIError` the SSO callback's own response surfaces. The
+  // account itself was already created by this point (better-auth's `user.create.after` hook), so a
+  // refusal here leaves a real user with zero company memberships rather than blocking sign-up outright
+  // — the same trade-off an over-capacity company already accepts for any OTHER new arrival.
+  try {
+    await withSeatReservation(companyId, userId, (tx) =>
+      tx.userCompany.upsert({
+        where: { userId_companyId: { userId, companyId } },
+        create: { userId, companyId, role: SSO_PROVISIONED_ROLE },
+        update: {},
+      }),
+    );
+  } catch (error) {
+    if (error instanceof NoFreeSeatError) {
+      throw new APIError('FORBIDDEN', { message: error.message, code: NO_FREE_SEAT_CODE });
+    }
+    throw error;
+  }
   // `SSO_PROVISIONED_ROLE` can be OWNER/ADMIN — see `member-sync.ts`'s own header.
   await syncCompanyMemberOnMembershipChange(companyId, userId);
 };

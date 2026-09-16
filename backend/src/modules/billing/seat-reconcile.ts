@@ -1,80 +1,74 @@
 /**
- * Opportunistic seat-count reconciliation (product decision 2026-09-16's multi-user follow-up —
- * "a guy pays for one seat and invites ten people"): `seat-sync.ts` pushes the DB's own seat count to
- * Polar synchronously on every membership change, but that push is BEST-EFFORT (never throws into its
- * caller, see that file's own header). If Polar is unreachable at the exact moment a member is
- * added/removed and NOTHING else changes membership afterward, the two counts silently diverge
- * forever — `seat-sync.ts`'s own header used to describe the periodic lifecycle sweep as a retry that
- * "could also" reconcile seats; this module is that retry, made real.
+ * This module used to PUSH the local `UserCompany` headcount to Polar as a correction whenever it
+ * drifted from what Polar had on file (`seat-sync.ts`'s own header). It now does the exact opposite —
+ * it is the periodic half of "Invoicerr only ever READS the seat quantity from Polar": once per
+ * lifecycle-sweep tick, for every `ACTIVE`, subscribed company
+ * (`billing-lifecycle-sweep-runner.ts`), it re-reads Polar's own subscription and OVERWRITES the local
+ * `CompanySubscription.seats` with whatever Polar reports — the retry for the rare case a
+ * `subscription.*` webhook carrying a `seats` change was never delivered (or was dropped — see
+ * `webhook-handlers.ts`) and nothing else has since re-synced it.
  *
- * `billing-lifecycle-sweep-runner.ts` calls `reconcileCompanySeats` once per tick for every ACTIVE,
- * subscribed company, comparing the DB's own seat count (`countCompanySeats` — one `UserCompany` row
- * per seat, the source of truth) against what Polar's subscription actually has on file
- * (`subscriptions.get`), and re-pushing the correction (`subscriptions.update`, the same call
- * `seat-sync.ts` makes) when they differ. Idempotent (a no-op once the counts already match) — the
- * caller decides whether a single company's failure here should sink the rest of the sweep pass (it
- * does not: `billing-lifecycle-sweep-runner.ts`'s own per-subscription try/catch already isolates one
- * company from the next), this function itself is free to throw on any Polar/DB failure.
+ * Never calls `subscriptions.update` — that would be the exact write this product explicitly rejected;
+ * `no-seat-quantity-write.spec.ts` is a standing, file-content guard against it regressing here or in
+ * `seat-sync.ts`. Idempotent (a no-op once the counts already match) — the caller decides whether a
+ * single company's failure here should sink the rest of the sweep pass (it does not:
+ * `billing-lifecycle-sweep-runner.ts`'s own per-subscription try/catch already isolates one company
+ * from the next); this function itself is free to throw on any Polar/DB failure.
  */
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { getPolarClient } from './polar-client';
-import { countCompanySeats } from './seat-sync';
 
 /** Narrow, mockable subset of the `Polar` SDK client this module calls — same convention every other
- *  billing file narrows its own client shape to. */
+ *  billing file narrows its own client shape to. Read-only: no `update` here any more. */
 export interface SeatReconcileClient {
   subscriptions: {
     get(request: { id: string }): Promise<{ seats?: number | null }>;
-    update(request: { id: string; subscriptionUpdate: { seats: number } }): Promise<unknown>;
   };
 }
 
 export interface SeatReconcileResult {
-  /** `true` when a correction was actually pushed to Polar (the counts had drifted). */
+  /** `true` when the LOCAL row was actually rewritten to match Polar (the two had drifted). */
   corrected: boolean;
   localSeats: number;
   polarSeats: number | null;
 }
 
 /**
- * Reconciles ONE company's seat count. Returns `null` — never even reads `countCompanySeats` — for a
- * subscription with no `polarSubscriptionId` yet (nothing to compare against, `seat-sync.ts`'s own
- * "nothing to push to Polar yet" guard). Callers decide WHICH subscriptions are worth reconciling
- * (`billing-lifecycle-sweep-runner.ts` only calls this for `ACTIVE` ones) — this function itself has
- * no opinion on subscription status.
+ * Reconciles ONE company's seat quantity FROM Polar. Returns `null` — never even calls Polar — for a
+ * subscription with no `polarSubscriptionId` yet (nothing to read; TRIAL keeps whatever `seats`
+ * already holds, which is the schema default of 1 — see `schema.prisma`'s own comment on that column).
+ * Callers decide WHICH subscriptions are worth reconciling (`billing-lifecycle-sweep-runner.ts` only
+ * calls this for `ACTIVE` ones) — this function itself has no opinion on subscription status.
+ *
+ * A `null`/`undefined` `seats` on Polar's own response (should not happen for a real seat-based
+ * subscription, but the SDK types it as optional) is treated the same as "nothing to compare against":
+ * left uncorrected rather than ever writing `null`/`0` over a real local value.
  */
 export async function reconcileCompanySeats(
-  sub: Pick<CompanySubscription, 'companyId' | 'polarSubscriptionId'>,
+  sub: Pick<CompanySubscription, 'companyId' | 'polarSubscriptionId' | 'seats'>,
   client: SeatReconcileClient = getPolarClient() as unknown as SeatReconcileClient,
 ): Promise<SeatReconcileResult | null> {
   if (!sub.polarSubscriptionId) return null;
 
-  const [localSeats, polarSubscription] = await Promise.all([
-    countCompanySeats(sub.companyId),
-    client.subscriptions.get({ id: sub.polarSubscriptionId }),
-  ]);
+  const polarSubscription = await client.subscriptions.get({ id: sub.polarSubscriptionId });
   const polarSeats = polarSubscription.seats ?? null;
 
-  if (polarSeats === localSeats) {
-    return { corrected: false, localSeats, polarSeats };
+  if (polarSeats === null || polarSeats === sub.seats) {
+    return { corrected: false, localSeats: sub.seats, polarSeats };
   }
 
-  await client.subscriptions.update({
-    id: sub.polarSubscriptionId,
-    subscriptionUpdate: { seats: localSeats },
-  });
   await prisma.companySubscription.update({
     where: { companyId: sub.companyId },
-    data: { seats: localSeats },
+    data: { seats: polarSeats },
   });
 
-  logger.warn('Seat drift corrected against Polar', {
+  logger.warn('Seat quantity drift corrected FROM Polar (local row was stale)', {
     category: 'billing',
-    details: { companyId: sub.companyId, polarSeats, localSeats },
+    details: { companyId: sub.companyId, previousLocalSeats: sub.seats, polarSeats },
   });
 
-  return { corrected: true, localSeats, polarSeats };
+  return { corrected: true, localSeats: polarSeats, polarSeats };
 }

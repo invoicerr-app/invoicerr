@@ -7,7 +7,7 @@
  * module's own header), no settings tab, no banner, no BullMQ lifecycle sweep, no Polar plugin
  * registered on `lib/auth.ts`'s `betterAuth()` instance. Every other file in this feature checks
  * this flag FIRST and is a no-op the moment it is unset — `send-gate.ts#assertCanSend`,
- * `seat-sync.ts#syncCompanySeatsOnMembershipChange` — so a stray import of this module never has a
+ * `seat-sync.ts#withSeatReservation` — so a stray import of this module never has a
  * side effect on its own.
  *
  * Pure and synchronous (never throws, never touches Prisma or the network) for the exact reason

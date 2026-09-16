@@ -1798,6 +1798,7 @@
       "signing": "Signing certs",
       "atcud": "ATCUD",
       "members": "Members",
+      "seats": "Seats",
       "recurring": "Recurrences",
       "accountingExport": "Accounting export",
       "sso": "SSO",
@@ -2648,6 +2649,41 @@
         "roleUpdateError": "Failed to update member role",
         "removeSuccess": "Member removed",
         "removeError": "Failed to remove member"
+      }
+    },
+    "seats": {
+      "title": "Seats",
+      "description": "Where each member sits — and who's waiting for a desk.",
+      "viewOffice": "Office",
+      "viewList": "List",
+      "desksTaken": "{{taken}} of {{total}} desks taken",
+      "addDesks": "Add desks in the Polar portal",
+      "free": "Free desk",
+      "officePlanLabel": "Office desks",
+      "waitingBench": "Waiting for a seat",
+      "moveToAria": "Move {{name}} to desk…",
+      "moveToPlaceholder": "Move to desk…",
+      "deskNumber": "Desk {{number}} (current)",
+      "deskNumberPlain": "Desk {{number}}",
+      "moved": "{{name}} moved to desk {{number}}",
+      "memberNotice": "Only the company's owner or an admin can move members between desks.",
+      "list": {
+        "member": "Member",
+        "role": "Role",
+        "desk": "Desk",
+        "status": "Status",
+        "actions": "Move",
+        "statusSeated": "Seated",
+        "statusWaiting": "Waiting",
+        "waitingHint": "Frees up automatically"
+      },
+      "messages": {
+        "moveSuccess": "Desk updated",
+        "moveError": "Failed to move that member"
+      },
+      "noFreeSeatNotice": {
+        "title": "No free seat — add one in the Polar portal",
+        "link": "Open Settings > Seats"
       }
     },
     "sso": {
@@ -4725,6 +4761,12 @@
         "description": "A full export of your documents has been emailed to the account owner. Subscribe now to cancel the deletion."
       }
     }
+  },
+  "seatGate": {
+    "title": "Waiting for a seat",
+    "descriptionWithOwner": "There's no free seat for you right now. Ask {{ownerName}} to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
+    "description": "There's no free seat for you right now. Ask your company's owner to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
+    "signOut": "Sign out"
   },
   "pwaInstall": {
     "dismiss": "Dismiss",

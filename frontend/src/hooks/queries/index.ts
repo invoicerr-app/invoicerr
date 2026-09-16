@@ -183,3 +183,10 @@ export {
   type StartCheckoutBody,
   type BillingEmailView,
 } from "./use-billing"
+export {
+  useSeats,
+  useMoveSeat,
+  type SeatsView,
+  type SeatMemberView,
+  type MoveSeatVariables,
+} from "./use-seats"

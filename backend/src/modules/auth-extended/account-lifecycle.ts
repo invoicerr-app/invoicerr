@@ -13,7 +13,6 @@ import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { MailOptions } from '@/mail/types';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 
 // ===================== Change email =====================
@@ -153,23 +152,24 @@ export interface DeletedAccountIdentity {
  * `.../20251207132152_add_invitation_codes/migration.sql`) — better-auth's own
  * `internalAdapter.deleteUser` issues a real `prisma.user.delete`, which is what fires those
  * constraints. Re-deleting those rows here would be a no-op; what the DB constraint CANNOT do is tell
- * Polar a seat (and, since 2026-09-16, a Polar MEMBER — `billing/member-sync.ts`'s own header) is
- * free, so that is the one thing left for this function — the same calls
- * `companies.service.ts#removeMember` makes when a single membership is removed (see
- * `billing/seat-sync.ts`'s own header, now a fifth call site alongside the four already listed there).
+ * Polar a MEMBER (`billing/member-sync.ts`'s own header) is gone, so that is the one thing left for
+ * this function — the same call `companies.service.ts#removeMember` makes when a single membership is
+ * removed. No seat-sync call here any more (`billing/seat-sync.ts`'s own header): the deleted user's
+ * desk (`UserCompany.seatIndex`) went with their row via the cascade
+ * above, and the bought seat QUANTITY is Polar's own number now, never something a membership change
+ * writes back to it.
  */
 export async function cleanupAfterUserDelete(
   memberships: AccountMembership[],
   deletedUser: DeletedAccountIdentity,
 ): Promise<void> {
   for (const membership of memberships) {
-    await syncCompanySeatsOnMembershipChange(membership.companyId);
     // `member-sync.ts`'s own `prisma.user.findUnique` would find nothing post-cascade — passing the
     // identity explicitly is what lets it still resolve the departed member by EMAIL (its fallback
     // lookup) when it was never backfilled with our own externalId in the first place.
     await syncCompanyMemberOnMembershipChange(membership.companyId, deletedUser.id, undefined, deletedUser);
   }
-  logger.info('Account deleted — memberships cascaded, seats resynced', {
+  logger.info('Account deleted — memberships cascaded, Polar member access resynced', {
     category: 'auth',
     details: { companyIds: memberships.map((m) => m.companyId) },
   });

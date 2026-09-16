@@ -3,7 +3,6 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
-import { syncCompanySeatsOnMembershipChange } from '@/modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -97,9 +96,8 @@ export class CompaniesService {
     await prisma.userCompany.delete({
       where: { userId_companyId: { userId: targetUserId, companyId } },
     });
-    // One fewer seat — see `billing/seat-sync.ts`'s own header (a no-op entirely when billing is
-    // disabled, never throws).
-    await syncCompanySeatsOnMembershipChange(companyId);
+    // One fewer seat, freed automatically — the row (and whatever desk it held) is just gone, nothing
+    // left to sync explicitly (see `billing/seat-sync.ts`'s own header).
     // The removed row is already gone by this point, so this reads as "no membership" and removes
     // any Polar member for them — see `billing/member-sync.ts`'s own header.
     await syncCompanyMemberOnMembershipChange(companyId, targetUserId);

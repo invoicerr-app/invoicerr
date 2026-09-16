@@ -4,20 +4,23 @@
  * ALREADY-SUBSCRIBED company gets a Polar member (via `member-resolution.ts`); demoted to MEMBER, or
  * removed from the company entirely, loses it. A plain MEMBER never gets a Polar member at all — only
  * OWNER/ADMIN can ever open checkout/portal (`@Roles` on `billing.controller.ts`), a MEMBER counts
- * purely as a billed SEAT (`seat-sync.ts`, unchanged).
+ * purely toward the seat HEADCOUNT `seat-sync.ts` checks against the bought quantity — a different
+ * concern this file never touches.
  *
- * Called from the SAME call sites `seat-sync.ts#syncCompanySeatsOnMembershipChange` already is
- * (that file's own header) PLUS `companies.service.ts#changeMemberRole` — a role change alone never
- * touches the SEAT count (the person was already counted), but it DOES gain or lose Polar member
- * access.
+ * Called from every place a `UserCompany` row is created, changed, or removed — company creation,
+ * invitation acceptance, SSO auto-provisioning, `companies.service.ts#changeMemberRole`, member
+ * removal, and account deletion — a broader set than `seat-sync.ts#withSeatReservation`'s own three
+ * call sites (creation only): a role change or removal never creates/destroys a membership row (no new
+ * desk to assign, no capacity to re-check), but it DOES gain or lose Polar member access, which is this
+ * file's own, separate concern.
  *
  * A no-op — never even reads Prisma's `UserCompany` — before the company has ever completed a
- * checkout (`polarSubscriptionId` unset, same "nothing to push to Polar yet" guard `seat-sync.ts`
- * holds) or before Polar has promoted that customer to `type: "team"` (an `individual` customer has no
- * member subsystem — see `portal-session.ts`'s own header on the seat-based-checkout promotion).
- * NEVER throws into its caller — same "a Polar outage must not block a role change/removal/invitation
- * accept" discipline `seat-sync.ts` holds; a failed create/delete is logged and left for the NEXT
- * membership change to retry.
+ * checkout (`polarSubscriptionId` unset, same "nothing to sync yet" guard `seat-sync.ts` holds for its
+ * own capacity check) or before Polar has promoted that customer to `type: "team"` (an `individual`
+ * customer has no member subsystem — see `portal-session.ts`'s own header on the seat-based-checkout
+ * promotion). NEVER throws into its caller — same "a Polar outage must not block a role
+ * change/removal/invitation accept" discipline `seat-sync.ts` holds; a failed create/delete is logged
+ * and left for the NEXT membership change to retry.
  *
  * `PolarMembers.delete`/`deleteExternal` DO exist in `@polar-sh/sdk@0.49` (confirmed by reading
  * `node_modules/@polar-sh/sdk/dist/commonjs/sdk/polarmembers.d.ts` directly, 2026-09-16) — member

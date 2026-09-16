@@ -6,7 +6,7 @@
  *
  * WHAT A GREEN RUN PROVES: that the configured access token authenticates against a real Polar
  * organization and that `@polar-sh/sdk`'s `products.list()` call — the same client
- * `checkout-session.ts`/`portal-session.ts`/`seat-sync.ts` all use via `polar-client.ts`'s own
+ * `checkout-session.ts`/`portal-session.ts`/`seat-reconcile.ts` all use via `polar-client.ts`'s own
  * `getPolarClient()` — actually reaches Polar and gets back real product rows.
  *
  * WHAT IT DOES NOT PROVE: a full checkout → webhook → `CompanySubscription` round-trip. That needs a
