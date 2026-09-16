@@ -263,6 +263,14 @@ export default function BillingSettings() {
           "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
         )}
       </p>
+      {/* Provider is in the French VAT franchise en base (art. 293 B CGI) — Polar, as merchant of
+          record, is the one that determines and adds whatever VAT applies to the buyer at checkout. */}
+      <p className="text-sm text-muted-foreground" data-cy="billing-vat-notice">
+        {t(
+          "settings.billing.vatNotice",
+          "Prices exclude VAT; Polar, the merchant of record, adds the VAT applicable to your company at checkout.",
+        )}
+      </p>
 
       {status.legacySubscription && (
         <Alert variant="warning" data-cy="billing-legacy-notice">

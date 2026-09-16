@@ -2897,6 +2897,7 @@
       "title": "Subscription",
       "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
       "currencyNotice": "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
+      "vatNotice": "Prices exclude VAT; Polar, the merchant of record, adds the VAT applicable to your company at checkout.",
       "currentPlan": "Current plan",
       "noSubscription": "No subscription",
       "seats": "{{count}} seat",

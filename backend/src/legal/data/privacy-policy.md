@@ -64,13 +64,18 @@ own data-processing terms:
   subscription (Terms of Service Section 7.1) and is itself a controller for the payment details it
   collects from you directly.
 - **Resend** — delivery of transactional email sent by the Service (sign-in links, notifications).
-- **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service (placeholder pending the
-  final hosting decision — see Terms of Service Section 12.1).
-- **Mistral AI** — **only when your instance's optical-character-recognition feature is configured
-  with `OCR_ENGINE=mistral`** (the default for that feature when enabled at all), the content of a
-  document you submit for OCR is sent to Mistral's API for processing. Setting `OCR_ENGINE=local`
-  instead runs OCR entirely within our own infrastructure and Mistral never sees the document. Check
-  your instance's configuration if this distinction matters to you.
+- **Cloudflare, Inc.** — inbound email routing for correspondence sent to **contact@invoicerr.app**
+  (support correspondence only; Cloudflare never sees the data contained in the documents you create
+  through the Service).
+- **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
+  is received (support correspondence only; Google never sees the data contained in the documents you
+  create through the Service).
+- **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service. **The Service and Customer
+  Data are hosted in the European Union**; the specific provider and country are still pending the
+  final hosting decision — see Terms of Service Section 12.1.
+
+**OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
+third-party OCR provider.**
 
 **Not sub-processors of ours:** payment providers you connect so **your own customers** can pay the
 invoices **you** issue — Stripe, Mollie, PayPal — are **your own accounts**, contracted directly
@@ -82,8 +87,8 @@ not in this controller-facing Policy.
 
 ## 5. International Transfers
 
-Some of the sub-processors above (Polar, Resend, Mistral AI) may process data outside the European
-Economic Area, including in the United States. Where that is the case, the transfer relies on that
+Some of the sub-processors above (Polar, Resend, Cloudflare, Google LLC) may process data outside the
+European Economic Area, including in the United States. Where that is the case, the transfer relies on that
 provider's own appropriate safeguards under GDPR Chapter V (such as the European Commission's Standard
 Contractual Clauses). This section is a general statement, not a representation about any individual
 provider's current certification — write to contact@invoicerr.app for the specific mechanism a given
@@ -162,3 +167,14 @@ or by post to the address in Section 1.
   place. Deliberately did **not** add CCPA/LGPD-specific sections: the Service is marketed strictly
   B2B out of France/the EU, and no representation targeting California or Brazilian customers exists
   today to ground one — add them if that changes.
+- **2026-09-17** — Owner decisions applied. Section 4: added **Cloudflare, Inc.** (inbound routing for
+  **contact@invoicerr.app**) and **Google LLC (Gmail)** (the mailbox that receives it) as
+  sub-processors, both scoped to support correspondence only — neither ever sees the data contained in
+  the documents you create through the Service. Removed **Mistral AI**: OCR no longer calls any
+  third-party API — it now runs entirely on infrastructure we operate, so there is nothing left to
+  disclose as a sub-processor for that feature (the `OCR_ENGINE=mistral` option this used to describe
+  is gone from the product, not just from this Policy). Section 4's hosting bullet and Section 5 updated
+  to match. Section 4: added an explicit commitment that the Service and Customer Data are hosted in
+  the European Union — the `[HOSTING PROVIDER, COUNTRY]` placeholder itself is unchanged, pending that
+  decision. Section 5: the named US-based sub-processors list dropped Mistral AI and gained Cloudflare
+  and Google LLC.

@@ -21,7 +21,7 @@ license in the `LICENSE` file at the root of the
 - Registered under **SIREN 982 187 676 (SIRET 982 187 676 00019)**.
 - Registered address: **4 rue du Puits, 26120 Montélier, France**.
 - Contact: **contact@invoicerr.app**.
-- VAT: not applicable — VAT franchise (art. 293 B of the French *Code général des impôts*); see
+- VAT: **VAT not applicable — Art. 293 B of the French General Tax Code (franchise en base)**; see
   Terms of Service, Section 1.1 for the same representation.
 
 ## 2. Publication Director
@@ -52,7 +52,9 @@ See the [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md).
 ## 7. Governing Law and Consumer Mediation
 
 This notice is governed by **French law**. Any dispute is submitted to the exclusive jurisdiction of
-the courts of **Montélier**, France — the same clause as Terms of Service, Section 18.2.
+**the Commercial Court of Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère), the court of
+the Provider's registered office**, subject to any mandatory rule of law that provides otherwise — the
+same clause as Terms of Service, Section 18.2.
 
 The Service is offered strictly business-to-business (Terms of Service, Section 1.2). Accordingly, the
 consumer mediation scheme of articles **L.616-1 et seq. of the French Consumer Code** does not apply to
@@ -68,3 +70,9 @@ this Agreement.
   Consumer Code's consumer-mediation scheme (art. L.616-1 et seq.) does not apply, given the
   strictly B2B scope already stated in the Terms of Service — a fact worth stating expressly rather
   than leaving implicit, per the B2B-scope treatment the other four documents already give it.
+- **2026-09-17** — Owner decisions applied. Section 1's VAT mention restated as "VAT not applicable —
+  Art. 293 B of the French General Tax Code (franchise en base)" (wording only, same regime — matches
+  Terms of Service Section 1.1). Section 7's jurisdiction clause restated as the Commercial Court of
+  Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère) — the court with jurisdiction over the
+  Provider's registered office in Montélier, which itself has no commercial court of its own — subject
+  to any mandatory rule of law that provides otherwise, matching Terms of Service Section 18.2.

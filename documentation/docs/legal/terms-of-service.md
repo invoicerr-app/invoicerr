@@ -22,8 +22,8 @@ commitments, fees, or limitations below apply to a self-hosted deployment.
 1.1. These Terms form a binding agreement between **Roméo Chevrier, sole trader (entrepreneur
 individuel)**, an **entrepreneur individuel (micro-entreprise) under French law**, registered under
 number **SIREN 982 187 676 (SIRET 982 187 676 00019)**, with his registered address at **4 rue du
-Puits, 26120 Montélier, France**, VAT number **not applicable — VAT franchise (art. 293 B CGI);
-subscription invoices are issued by Polar as merchant of record** (this VAT status is a representation
+Puits, 26120 Montélier, France**, VAT: **VAT not applicable — Art. 293 B of the French General Tax
+Code (franchise en base)**; subscription invoices are issued by Polar as merchant of record (this VAT status is a representation
 by the Provider — the public Sirene registry does not itself return a VAT regime field) ("**we**",
 "**us**", "**the Provider**"), and the entity that subscribes to the Service ("**you**", "**the
 Customer**"). By creating an account, starting a trial, or subscribing to the Service, you accept
@@ -65,7 +65,8 @@ obligations under this Agreement in full.
 notes, and related records), including country-specific compliance features (tax treatment,
 e-invoicing transmission, legal archiving) described in the product documentation.
 
-3.2. New Companies receive a **fourteen (14)-day free trial**, with no payment card required. During the
+3.2. New Companies receive a **fourteen (14)-day free trial**, with no payment card required — the
+trial itself gives rise to **no payment of any kind**. During the
 trial, every feature of the Service is available **except the ability to send or issue documents** —
 this includes transmission to e-invoicing platforms or government portals (e.g. KSeF, a PDP, SdI,
 Chorus Pro) and any outgoing email the Service sends on your behalf.
@@ -112,10 +113,11 @@ count at the time of billing.
 
 ## 7. Billing, Payment and Taxes
 
-7.1. Subscription payments are processed by **Polar Software Inc.** ("Polar"), our payment
+7.1. **Fees published on our pricing page are exclusive of VAT and any similar tax.** Subscription
+payments are processed by **Polar Software Inc.** ("Polar"), our payment
 infrastructure provider, which acts as the merchant of record for your subscription. Polar
 calculates, collects, and remits any sales tax, VAT, or similar tax applicable to the subscription
-Fee, and issues the corresponding invoice for your subscription. Your use of Polar's checkout and
+Fee at checkout, and issues the corresponding invoice for your subscription. Your use of Polar's checkout and
 billing portal is also subject to Polar's own terms.
 
 7.2. **All Fees are denominated and charged in United States Dollars (USD).**
@@ -192,7 +194,8 @@ the underlying data, beyond the deletion described in Section 11.3.
 
 ## 12. Hosting and Subprocessors
 
-12.1. The Service is hosted with **[HOSTING PROVIDER, COUNTRY]**.
+12.1. **The Service and Customer Data are hosted in the European Union**, with
+**[HOSTING PROVIDER, COUNTRY]**.
 
 12.2. We use the following subprocessors in connection with the Service:
 
@@ -252,9 +255,9 @@ law does not allow us to exclude.
 ## 15. Limitation of Liability
 
 15.1. To the fullest extent permitted by law: (a) neither party is liable for indirect, incidental, or
-consequential damages, including loss of profit, revenue, or data; and (b) our total liability arising
-out of or relating to this Agreement is capped at the **Fees you actually paid us in the twelve (12)
-months preceding the event giving rise to the claim**.
+consequential damages, including loss of profit, revenue, or data; and (b) our total liability **to
+you** arising out of or relating to this Agreement is capped at the **Fees you actually paid us for
+the Service in the twelve (12) months preceding the event giving rise to the claim**.
 
 15.2. Nothing in this Agreement limits or excludes either party's liability for its own gross
 negligence, willful misconduct (*dol*), or death or personal injury, or any other liability that
@@ -282,7 +285,9 @@ notice by email** before a change takes effect. If you do not agree with a chang
 subscription, under Section 10, before it takes effect.
 
 18.2. These Terms are governed by **French law**. Any dispute arising out of or relating to these
-Terms shall be submitted to the exclusive jurisdiction of the courts of **Montélier**, France.
+Terms shall be submitted to the exclusive jurisdiction of **the Commercial Court of Romans-sur-Isère
+(Tribunal de commerce de Romans-sur-Isère), the court of the Provider's registered office**, subject
+to any mandatory rule of law that provides otherwise.
 
 ## 19. Miscellaneous
 
@@ -345,3 +350,14 @@ Questions about these Terms can be sent to **contact@invoicerr.app**.
   own enforceability under French law for a contract of this kind. Also did not add the skill's
   one-year contractual claim-limitation clause: shortening statutory prescription (article 2254 of the
   French Civil Code sets conditions and floors for that) needs counsel sign-off, not a copied default.
+- **2026-09-17** — Owner decisions applied (no other fact changed): Section 1.1's VAT mention restated
+  as "VAT not applicable — Art. 293 B of the French General Tax Code (franchise en base)" (wording
+  only, same regime). Section 7.1 now states explicitly that Fees published on our pricing page are
+  exclusive of VAT and any similar tax, which Polar adds at checkout. Section 3.2 now states explicitly
+  that the free trial gives rise to no payment of any kind. Section 12.1 commits that the Service and
+  Customer Data are hosted in the European Union — the `[HOSTING PROVIDER, COUNTRY]` placeholder itself
+  is unchanged, pending that decision. Section 15.1 clarifies the liability cap runs **to you**
+  specifically (same amount, same 12-month window — wording only). Section 18.2's jurisdiction clause
+  restated as the Commercial Court of Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère) — the
+  court with jurisdiction over the Provider's registered office in Montélier, which itself has no
+  commercial court of its own — subject to any mandatory rule of law that provides otherwise.

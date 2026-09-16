@@ -97,11 +97,18 @@ that carry Customer Personal Data:
   send.
 - **Resend** — delivery of transactional email that may carry a document, or a link to one, on your
   instruction.
-- **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service (placeholder — see Terms of
-  Service Section 12.1).
-- **Mistral AI** — **only when your instance's OCR feature is configured with `OCR_ENGINE=mistral`**
-  (see Privacy Policy Section 4 for the same conditional). `OCR_ENGINE=local` keeps document content
-  inside our own infrastructure instead.
+- **Cloudflare, Inc.** — inbound email routing for correspondence sent to **contact@invoicerr.app**
+  (support correspondence only; never the Customer Personal Data contained in the documents you create
+  through the Service).
+- **Google LLC (Gmail)** — the mailbox where support correspondence sent to **contact@invoicerr.app**
+  is received (support correspondence only; never the Customer Personal Data contained in the documents
+  you create through the Service).
+- **[HOSTING PROVIDER, COUNTRY]** — infrastructure hosting for the Service. **The Service and Customer
+  Data are hosted in the European Union**; the specific provider and country are still pending — see
+  Terms of Service Section 12.1.
+
+**OCR (optical character recognition) runs on infrastructure we operate; no document is sent to a
+third-party OCR provider.**
 
 **Polar Software Inc. is not a sub-processor under this DPA**: it processes your Company's own
 subscription and payment data as an independent controller/merchant of record (Privacy Policy
@@ -188,3 +195,12 @@ this DPA as well.
   explicitly: each sub-processor is bound to materially equivalent obligations, and we remain fully
   liable for their performance — the checklist's provision 7, previously only implied by the 30-day
   notice/objection mechanism.
+- **2026-09-17** — Owner decisions applied. Section 7: added **Cloudflare, Inc.** (inbound routing for
+  **contact@invoicerr.app**) and **Google LLC (Gmail)** (the mailbox that receives it), both scoped to
+  support correspondence only — neither ever processes the Customer Personal Data contained in the
+  documents you create through the Service. Removed **Mistral AI**: OCR no longer calls any
+  third-party API — it now runs entirely on infrastructure we operate (matching the Privacy Policy's
+  own Section 4 change), so there is no third-party OCR sub-processor left to authorize here. Section
+  7's hosting bullet now states explicitly that the Service and Customer Data are hosted in the
+  European Union — the `[HOSTING PROVIDER, COUNTRY]` placeholder itself is unchanged, pending that
+  decision.
