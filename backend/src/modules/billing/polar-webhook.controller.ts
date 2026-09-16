@@ -65,6 +65,11 @@
  * counter or sends a one-off notification) can now rely on this same ledger rather than needing its
  * own.
  *
+ * The reservation is released again if the handler itself throws (see the `catch` around
+ * `handleSubscriptionPayload` below): the row is deleted and the error re-thrown, so Nest answers 500
+ * and Polar's own retry of the SAME `webhook-id` gets a genuine second attempt instead of silently
+ * hitting the "already processed" branch for a fact that was, in truth, never applied.
+ *
  * ## Wiring
  * `@Public()` is `@thallesp/nestjs-better-auth`'s own decorator (the one `AuthGuard`,
  * `src/guards/auth.guard.ts`, actually reads — its own `IS_PUBLIC_KEY = 'PUBLIC'` is deliberately the
@@ -235,7 +240,19 @@ export class PolarWebhookController {
     const timestampSeconds = Number(headers['webhook-timestamp']);
     const factAt = Number.isFinite(timestampSeconds) ? new Date(timestampSeconds * 1000) : undefined;
 
-    await handleSubscriptionPayload(toSubscriptionWebhookPayload(event), factAt);
+    try {
+      await handleSubscriptionPayload(toSubscriptionWebhookPayload(event), factAt);
+    } catch (error) {
+      // The dedup row above was reserved BEFORE this call, so a throw here (a Prisma hiccup, a row
+      // concurrently deleted mid-write…) would otherwise leave a ledger entry for a fact that was
+      // NEVER actually applied — Nest turns this into a 500, Polar retries the SAME delivery, and that
+      // retry would then hit the unique-constraint branch above and 200 as "already processed" without
+      // ever running the handler. Freeing the reservation on failure is what makes the retry actually
+      // retry: this delivery's `webhook-id` is deliberately made available again before the error is
+      // re-thrown, so Polar's own retry has a real second attempt rather than a silently swallowed one.
+      await prisma.polarWebhookEvent.delete({ where: { id: headers['webhook-id'] } }).catch(() => undefined);
+      throw error;
+    }
 
     return { received: true };
   }

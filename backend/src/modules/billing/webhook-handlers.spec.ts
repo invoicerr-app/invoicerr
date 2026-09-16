@@ -120,6 +120,218 @@ describe('applySubscriptionWebhook', () => {
     );
   });
 
+  describe('never downgrading a company still inside its own valid trial window', () => {
+    const trialEndsAt = new Date('2026-09-20T00:00:00Z');
+    const now = new Date('2026-09-16T00:00:00Z'); // still 4 days inside the trial
+
+    it.each([
+      'incomplete',
+      'canceled',
+      'past_due',
+      'unpaid',
+      'paused',
+    ])('keeps TRIAL when a stalled/abandoned checkout reports "%s" mid-trial, instead of writing PAST_DUE', async (polarStatus) => {
+      getOrCreate.mockResolvedValue({
+        companyId: 'company-1',
+        status: 'TRIAL',
+        trialEndsAt,
+        lastPolarFactAt: null,
+      });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: polarStatus,
+          recurringInterval: 'month',
+        },
+        now,
+      );
+
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it(
+      'records NOTHING at all while the status write is held back — not even the ids/interval/' +
+        'lastPolarFactAt this fact also carries — so a later, chronologically OLDER `active` fact for ' +
+        'the SAME subscription (delivered out of order) is never wrongly rejected as stale',
+      async () => {
+        const factAt = new Date('2026-09-16T12:00:00Z');
+        getOrCreate.mockResolvedValue({
+          companyId: 'company-1',
+          status: 'TRIAL',
+          trialEndsAt,
+          lastPolarFactAt: null,
+        });
+
+        await applySubscriptionWebhook(
+          {
+            companyId: 'company-1',
+            polarSubscriptionId: 'sub_1',
+            polarCustomerId: 'cus_1',
+            status: 'incomplete',
+            recurringInterval: 'month',
+            factAt,
+          },
+          now,
+        );
+
+        expect(update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('DOES degrade to PAST_DUE once the trial window has actually ended, even from the same non-active fact', async () => {
+      const trialAlreadyEnded = new Date('2026-09-10T00:00:00Z');
+      getOrCreate.mockResolvedValue({
+        companyId: 'company-1',
+        status: 'TRIAL',
+        trialEndsAt: trialAlreadyEnded,
+        lastPolarFactAt: null,
+      });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: 'canceled',
+          recurringInterval: 'month',
+        },
+        now,
+      );
+
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'PAST_DUE' }) }),
+      );
+    });
+
+    it('still degrades an already-ACTIVE (paying) company to PAST_DUE normally — the guard only protects TRIAL', async () => {
+      getOrCreate.mockResolvedValue({
+        companyId: 'company-1',
+        status: 'ACTIVE',
+        trialEndsAt,
+        lastPolarFactAt: null,
+      });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: 'past_due',
+          recurringInterval: 'month',
+        },
+        now,
+      );
+
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'PAST_DUE' }) }),
+      );
+    });
+
+    it('an ACTIVE-mapped fact (a successful payment) is never held back, even mid-trial', async () => {
+      getOrCreate.mockResolvedValue({
+        companyId: 'company-1',
+        status: 'TRIAL',
+        trialEndsAt,
+        lastPolarFactAt: null,
+      });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: 'active',
+          recurringInterval: 'month',
+        },
+        now,
+      );
+
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'ACTIVE' }) }),
+      );
+    });
+  });
+
+  describe('two webhooks for the SAME subscription, delivered out of order (active vs. canceled)', () => {
+    const trialEndsAt = new Date('2026-09-20T00:00:00Z');
+    const activeFactAt = new Date('2026-09-16T09:00:00Z'); // the OLDER fact: the real activation
+    const canceledFactAt = new Date('2026-09-16T09:05:00Z'); // the NEWER fact: the real cancellation
+    const processingTime = new Date('2026-09-16T09:10:00Z'); // both are being handled here, still mid-trial
+
+    const activeFact = {
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      status: 'active',
+      recurringInterval: 'month',
+      factAt: activeFactAt,
+    };
+    const canceledFact = {
+      companyId: 'company-1',
+      polarSubscriptionId: 'sub_1',
+      polarCustomerId: 'cus_1',
+      status: 'canceled',
+      recurringInterval: 'month',
+      factAt: canceledFactAt,
+    };
+
+    /** A tiny in-memory stand-in for the persisted row, threaded through `getOrCreate`/`update` so two
+     *  SEQUENTIAL `applySubscriptionWebhook` calls in one test see each other's writes — exactly like
+     *  two real webhook deliveries hitting the same DB row would (the plain per-call mocks used
+     *  elsewhere in this file don't carry state between calls, which is exactly wrong for this case). */
+    function wireFakeRow(initial: Record<string, unknown>) {
+      let row = { ...initial };
+      getOrCreate.mockImplementation(async () => row);
+      update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+        row = { ...row, ...data };
+        return row;
+      });
+      return () => row;
+    }
+
+    it('in order (active, then canceled): ends PAST_DUE with the real subscription recorded — the baseline this fix must not regress', async () => {
+      const currentRow = wireFakeRow({
+        companyId: 'company-1',
+        status: 'TRIAL',
+        trialEndsAt,
+        lastPolarFactAt: null,
+      });
+
+      await applySubscriptionWebhook(activeFact, processingTime);
+      await applySubscriptionWebhook(canceledFact, processingTime);
+
+      expect(currentRow()).toMatchObject({ status: 'PAST_DUE', polarSubscriptionId: 'sub_1' });
+    });
+
+    it(
+      'out of order (canceled processed BEFORE the corresponding active — the real bug scenario): the ' +
+        'delayed active still applies, so the company is never left stuck at TRIAL with no memory of ' +
+        'its real subscription',
+      async () => {
+        const currentRow = wireFakeRow({
+          companyId: 'company-1',
+          status: 'TRIAL',
+          trialEndsAt,
+          lastPolarFactAt: null,
+        });
+
+        await applySubscriptionWebhook(canceledFact, processingTime);
+        await applySubscriptionWebhook(activeFact, processingTime);
+
+        // Both orders correctly end up knowing about the real subscription (never permanently lost —
+        // the concrete bug this fix closes) and never leave the row stuck at TRIAL. `status` itself
+        // still depends on delivery order here (ACTIVE rather than the in-order case's PAST_DUE):
+        // making it fully order-independent would require persisting the held-back `canceled` fact for
+        // replay once the row leaves TRIAL, which is a bigger change than this guard — out of scope for
+        // this fix, which targets the "stuck forever, subscription never recorded" failure specifically.
+        expect(currentRow()).toMatchObject({ status: 'ACTIVE', polarSubscriptionId: 'sub_1' });
+      },
+    );
+  });
+
   it('a PAST_DUE status does not touch blockedAt/zipSentAt/deletionDueAt/seatPaymentFailedAt', async () => {
     getOrCreate.mockResolvedValue({ companyId: 'company-1', lastPolarFactAt: null });
 

@@ -31,7 +31,12 @@ jest.mock('@/logger/logger.service', () => ({
 }));
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
-  default: { polarWebhookEvent: { create: jest.fn().mockResolvedValue({}) } },
+  default: {
+    polarWebhookEvent: {
+      create: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+    },
+  },
 }));
 
 import prisma from '@/prisma/prisma.service';
@@ -41,6 +46,7 @@ import { handleSubscriptionPayload } from './webhook-handlers';
 
 const handleMock = handleSubscriptionPayload as jest.Mock;
 const createDedupRow = prisma.polarWebhookEvent.create as jest.Mock;
+const deleteDedupRow = prisma.polarWebhookEvent.delete as jest.Mock;
 
 const CURRENT_ERA_SECRET = 'whsec_BvK1GJTtxRCjrPFTQ9F0vWYiVWJGsquV7uaHOsDwgHc=';
 const PRE_CUTOVER_SECRET = 'whsec_kqzP3nJdV1sYcQmR8wXeH0fLtNbG6aE9pUxWyDoSjKl=';
@@ -251,6 +257,49 @@ describe('PolarWebhookController.handleWebhook', () => {
       'db is down',
     );
     expect(handleMock).not.toHaveBeenCalled();
+  });
+
+  it(
+    'frees the dedup reservation and propagates the error when the handler itself throws, so a ' +
+      "provider retry of the SAME webhook-id gets a real second attempt instead of 200'ing as an " +
+      "'already processed' fact that was never actually applied",
+    async () => {
+      handleMock.mockRejectedValueOnce(new Error('prisma hiccup mid-handler'));
+      const controller = new PolarWebhookController();
+      const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_handler_failed');
+
+      await expect(controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers))).rejects.toThrow(
+        'prisma hiccup mid-handler',
+      );
+
+      expect(deleteDedupRow).toHaveBeenCalledWith({ where: { id: 'msg_handler_failed' } });
+    },
+  );
+
+  it('a REPLAY after a freed reservation actually re-runs the handler (proves the retry is real, not just acknowledged)', async () => {
+    handleMock.mockRejectedValueOnce(new Error('prisma hiccup mid-handler'));
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_retry_1');
+
+    await expect(controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers))).rejects.toThrow();
+
+    // The reservation was freed above (`deleteDedupRow`), so a same-webhook-id retry's own `create`
+    // must NOT be rejected as a duplicate this time — a real, mockable `create` (not still stubbed to
+    // always succeed) proves the row is actually gone rather than merely asserting the delete call.
+    const result = await controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers));
+
+    expect(result).toEqual({ received: true });
+    expect(handleMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('never frees the reservation, and still 200s without dispatching, for an ordinary duplicate delivery', async () => {
+    createDedupRow.mockRejectedValueOnce({ code: 'P2002' });
+    const controller = new PolarWebhookController();
+    const headers = signCurrentEra(SUBSCRIPTION_ACTIVE_BODY, CURRENT_ERA_SECRET, 'msg_ordinary_dup');
+
+    await controller.handleWebhook(fakeRequest(SUBSCRIPTION_ACTIVE_BODY, headers));
+
+    expect(deleteDedupRow).not.toHaveBeenCalled();
   });
 
   it('refuses (400) a request with no captured raw body', async () => {

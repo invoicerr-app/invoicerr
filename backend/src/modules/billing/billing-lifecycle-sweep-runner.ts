@@ -180,6 +180,21 @@ export class BillingLifecycleSweepRunner {
     return result;
   }
 
+  /**
+   * `runSweep` reads its whole worklist in one shot (`listAdvanceableCompanySubscriptions`) and then
+   * walks it one company at a time — by the time this loop reaches a company near the end of a large
+   * instance's list, `sub` can be tens of seconds (or longer) stale. A webhook landing in that window
+   * (the OWNER's card was charged successfully, or a plan change came through the portal) already
+   * wrote a NEWER status straight to the row; `applyOne` must never clobber that with a decision made
+   * from the snapshot it started with. Every write below is therefore a compare-and-set: the `where`
+   * repeats the exact `status`/`lastPolarFactAt` this tick read, so a concurrent write moves the row
+   * out from under the match and the `updateMany` simply touches zero rows — this tick's decision is
+   * silently dropped rather than applied, and the NEXT tick reads the fresh row and decides again from
+   * there. `send_zip_and_enter_zipped` additionally re-reads BEFORE mailing anything: an `updateMany`
+   * guard on the WRITE can undo a wrong status, but it cannot un-send an email already in the OWNER's
+   * inbox, so that one externally-visible side effect gets its own freshness check first.
+   * `delete_company` carries the same idea one step further still — see `deletion.ts`'s own header.
+   */
   private async applyOne(
     sub: CompanySubscription,
     now: Date,
@@ -191,15 +206,21 @@ export class BillingLifecycleSweepRunner {
       case 'none':
         return;
 
-      case 'enter_blocked':
-        await prisma.companySubscription.update({
-          where: { companyId: sub.companyId },
+      case 'enter_blocked': {
+        const { count } = await prisma.companySubscription.updateMany({
+          where: { companyId: sub.companyId, status: sub.status, lastPolarFactAt: sub.lastPolarFactAt },
           data: { status: 'BLOCKED', blockedAt: action.blockedAt },
         });
-        result.blocked++;
+        // count === 0: a webhook already moved this row past the snapshot this tick read — most
+        // commonly the OWNER just paid. Blocking a company that is current on its bill, from a read
+        // that is already known to be wrong, would be worse than doing nothing this tick.
+        if (count > 0) result.blocked++;
         return;
+      }
 
       case 'send_zip_and_enter_zipped': {
+        if (!(await this.matchesCurrentSnapshot(sub))) return;
+
         const sent = await this.sendZipToOwner(sub.companyId);
         if (!sent) {
           // Left in BLOCKED, deliberately — the OWNER must actually receive their data before this
@@ -209,19 +230,32 @@ export class BillingLifecycleSweepRunner {
           result.zipFailed++;
           return;
         }
-        await prisma.companySubscription.update({
-          where: { companyId: sub.companyId },
+        const { count } = await prisma.companySubscription.updateMany({
+          where: { companyId: sub.companyId, status: sub.status, lastPolarFactAt: sub.lastPolarFactAt },
           data: { status: 'ZIPPED', zipSentAt: action.zipSentAt, deletionDueAt: action.deletionDueAt },
         });
-        result.zipped++;
+        if (count > 0) result.zipped++;
         return;
       }
 
-      case 'delete_company':
-        await deleteCompanyPermanently(sub.companyId);
-        result.deleted++;
+      case 'delete_company': {
+        const deleted = await deleteCompanyPermanently(sub.companyId, now);
+        if (deleted) result.deleted++;
         return;
+      }
     }
+  }
+
+  /** Re-reads the row fresh and reports whether it still matches the snapshot `sub` this tick's
+   *  decision was computed from — `false` means some other write (a webhook, almost always) already
+   *  moved it on, and whatever this tick was about to do next no longer applies. */
+  private async matchesCurrentSnapshot(sub: CompanySubscription): Promise<boolean> {
+    const fresh = await prisma.companySubscription.findUnique({
+      where: { companyId: sub.companyId },
+      select: { status: true, lastPolarFactAt: true },
+    });
+    if (!fresh) return false; // the row vanished entirely (deleted) since this tick's own read
+    return fresh.status === sub.status && sameInstant(fresh.lastPolarFactAt, sub.lastPolarFactAt);
   }
 
   /** Builds the export and mails it to the company's OLDEST `OWNER` membership (deterministic when a
@@ -344,4 +378,10 @@ export class BillingLifecycleSweepRunner {
     });
     return sub?.customerSyncFailedAt === null;
   }
+}
+
+/** `Date` equality by value, `null`-safe — `lastPolarFactAt` is the compare-and-set anchor `applyOne`
+ *  reads alongside `status`, and two `Date` instances holding the same instant are never `===`. */
+function sameInstant(a: Date | null, b: Date | null): boolean {
+  return a === null || b === null ? a === b : a.getTime() === b.getTime();
 }

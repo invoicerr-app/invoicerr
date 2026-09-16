@@ -208,7 +208,10 @@ async function recoverLegacySubscriptionCancellation(facts: PolarSubscriptionWeb
   await recomputeStatusForVanishedSubscription(legacyRow.companyId, legacyRow.trialEndsAt, anchor);
 }
 
-export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFacts): Promise<void> {
+export async function applySubscriptionWebhook(
+  facts: PolarSubscriptionWebhookFacts,
+  now: Date = new Date(),
+): Promise<void> {
   const company = await prisma.company.findUnique({ where: { id: facts.companyId }, select: { id: true } });
   if (!company) {
     await recoverLegacySubscriptionCancellation(facts);
@@ -225,7 +228,31 @@ export async function applySubscriptionWebhook(facts: PolarSubscriptionWebhookFa
     return;
   }
 
-  const status = mapPolarSubscriptionStatus(facts.status);
+  const mappedStatus = mapPolarSubscriptionStatus(facts.status);
+
+  // `mapPolarSubscriptionStatus` folds an abandoned/stalled checkout (`incomplete`, `canceled` from a
+  // checkout the buyer never finished) onto the SAME `PAST_DUE` bucket as an actual payment failure —
+  // correct for a company that was already paying, wrong for one that never started: a company still
+  // inside its OWN, still-valid trial window has nothing to do with either, and a checkout attempt
+  // that stalled must never cut that trial short. Only a company this app already considers a paying
+  // (or lapsed-paying) customer — ACTIVE or already PAST_DUE — can be walked further toward PAST_DUE
+  // by a webhook; `computeRecoveredStatus` (`lifecycle.ts`) holds the exact same "still inside the
+  // original trial window" carve-out for the other path that computes a status from a Polar fact.
+  const stillInsideOwnTrial = sub.status === 'TRIAL' && now.getTime() < sub.trialEndsAt.getTime();
+  if (mappedStatus === 'PAST_DUE' && stillInsideOwnTrial) {
+    // A genuine NO-OP — deliberately NOT even `lastPolarFactAt`, nor the subscription id/customer
+    // id/interval/seats this fact also carries. Standard Webhooks gives no ordering guarantee: the
+    // SAME checkout's `subscription.active` can be delivered (and processed) AFTER a later-timestamped
+    // `subscription.canceled` for that same subscription. Advancing `lastPolarFactAt` here — even
+    // though the STATUS write itself was held back — would plant a watermark that permanently rejects
+    // that still-pending `active` fact as "stale" once it finally arrives (the staleness check above
+    // runs before this guard, on every future call), leaving the company stuck at TRIAL forever with
+    // no record of ever having subscribed. Leaving the row completely untouched means a later-arriving,
+    // chronologically OLDER `active` fact is free to apply normally — see the tests covering both
+    // delivery orders for the exact company-facing outcome this produces.
+    return;
+  }
+  const status = mappedStatus;
   const interval = mapPolarRecurringInterval(facts.recurringInterval);
 
   await prisma.companySubscription.update({

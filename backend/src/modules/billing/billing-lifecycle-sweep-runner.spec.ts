@@ -11,7 +11,7 @@ import { reconcileCompanySeats } from './seat-reconcile';
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    companySubscription: { update: jest.fn(), findUnique: jest.fn() },
+    companySubscription: { update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
     userCompany: { findFirst: jest.fn() },
     company: { findUnique: jest.fn() },
   },
@@ -23,6 +23,7 @@ jest.mock('./seat-reconcile');
 jest.mock('./customer-sync');
 
 const update = prisma.companySubscription.update as jest.Mock;
+const updateMany = prisma.companySubscription.updateMany as jest.Mock;
 const findSub = prisma.companySubscription.findUnique as jest.Mock;
 const findFirstOwner = prisma.userCompany.findFirst as jest.Mock;
 const findCompany = prisma.company.findUnique as jest.Mock;
@@ -73,9 +74,18 @@ function subRow(overrides: Record<string, unknown>) {
     deletionDueAt: null,
     polarSubscriptionId: null,
     customerSyncFailedAt: null,
+    lastPolarFactAt: null,
     billingWarningMilestonesSent: [] as string[],
     ...overrides,
   };
+}
+
+/** `findUnique` doubles as the CAS re-read `applyOne#matchesCurrentSnapshot` performs right before
+ *  mailing the zip export — defaults it to "nothing has moved on", matching whatever `subRow` a given
+ *  test already put in `listSubs`, so every pre-existing zip-path scenario (written before that guard
+ *  existed) keeps behaving exactly as before unless a test deliberately says otherwise. */
+function mockUnchangedSnapshot(sub: { status: string; lastPolarFactAt: unknown }) {
+  findSub.mockResolvedValue({ status: sub.status, lastPolarFactAt: sub.lastPolarFactAt });
 }
 
 /** The base `runSweep` result shape every test compares against with `toEqual` — spread with only the
@@ -99,7 +109,12 @@ function baseResult(overrides: Partial<Record<string, number>> = {}) {
 const NOW = new Date('2026-09-15T00:00:00.000Z');
 
 describe('BillingLifecycleSweepRunner.runSweep', () => {
-  beforeEach(() => provisionCustomers.mockResolvedValue(NO_CUSTOMERS_PROVISIONED));
+  beforeEach(() => {
+    provisionCustomers.mockResolvedValue(NO_CUSTOMERS_PROVISIONED);
+    // The CAS write's default "yes, the row still matched" outcome — a test proving the OTHER branch
+    // (a concurrent write already moved the row) overrides this with `{ count: 0 }` explicitly.
+    updateMany.mockResolvedValue({ count: 1 });
+  });
   afterEach(() => jest.resetAllMocks());
 
   it('does nothing for a subscription still mid-trial', async () => {
@@ -119,15 +134,33 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     const result = await runner.runSweep(NOW);
 
     expect(result.blocked).toBe(1);
-    expect(update).toHaveBeenCalledWith({
-      where: { companyId: 'c1' },
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
+      data: { status: 'BLOCKED', blockedAt: NOW },
+    });
+  });
+
+  it('never counts a block, and never advances, when a webhook already moved the row past the snapshot this tick read (race)', async () => {
+    listSubs.mockResolvedValue([subRow({ status: 'TRIAL', trialEndsAt: NOW })]);
+    // The CAS write finds zero matching rows — exactly what happens when a webhook's own write (the
+    // company just paid, `applySubscriptionWebhook`) landed between this tick's read and this write.
+    updateMany.mockResolvedValue({ count: 0 });
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.blocked).toBe(0);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
       data: { status: 'BLOCKED', blockedAt: NOW },
     });
   });
 
   it('sends the zip and enters ZIPPED when a blocked subscription reaches its 14-day mark, mailing the oldest OWNER', async () => {
     const blockedAt = addDays(NOW, -14);
-    listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
+    const sub = subRow({ status: 'BLOCKED', blockedAt });
+    listSubs.mockResolvedValue([sub]);
+    mockUnchangedSnapshot(sub);
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
     const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
     const exportService = fakeExportService();
@@ -144,15 +177,36 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         attachments: [expect.objectContaining({ filename: 'invoicerr-export.zip' })],
       }),
     );
-    expect(update).toHaveBeenCalledWith({
-      where: { companyId: 'c1' },
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'c1', status: 'BLOCKED', lastPolarFactAt: null },
       data: { status: 'ZIPPED', zipSentAt: NOW, deletionDueAt: NOW },
     });
   });
 
-  it('leaves the subscription BLOCKED (retried next tick) when the mail send fails', async () => {
+  it('never mails the zip export, and never advances, when the row moved on since this tick read it (the OWNER already paid)', async () => {
     const blockedAt = addDays(NOW, -14);
     listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
+    // The fresh re-read disagrees with the snapshot this tick started from — a webhook already
+    // reactivated the company.
+    findSub.mockResolvedValue({ status: 'ACTIVE', lastPolarFactAt: null });
+    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.zipped).toBe(0);
+    expect(result.zipFailed).toBe(0);
+    expect(sendForCompany).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'ZIPPED' }) }),
+    );
+  });
+
+  it('leaves the subscription BLOCKED (retried next tick) when the mail send fails', async () => {
+    const blockedAt = addDays(NOW, -14);
+    const sub = subRow({ status: 'BLOCKED', blockedAt });
+    listSubs.mockResolvedValue([sub]);
+    mockUnchangedSnapshot(sub);
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
     const sendForCompany = jest.fn().mockRejectedValue(new Error('no mail server configured'));
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
@@ -164,14 +218,16 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     // The ZIP transition itself never wrote — a blocked-14-days row also crosses both warning
     // milestones in the same tick (an unrelated, independent concern), so `update` legitimately runs
     // for THOSE, just never with a ZIPPED status.
-    expect(update).not.toHaveBeenCalledWith(
+    expect(updateMany).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'ZIPPED' }) }),
     );
   });
 
   it('leaves the subscription untouched when the company has no OWNER membership at all', async () => {
     const blockedAt = addDays(NOW, -14);
-    listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
+    const sub = subRow({ status: 'BLOCKED', blockedAt });
+    listSubs.mockResolvedValue([sub]);
+    mockUnchangedSnapshot(sub);
     findFirstOwner.mockResolvedValue(null);
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
 
@@ -190,12 +246,30 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
         blockedAt: addDays(NOW, -15),
       }),
     ]);
+    deleteCompany.mockResolvedValue(true);
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
 
     const result = await runner.runSweep(NOW);
 
     expect(result.deleted).toBe(1);
-    expect(deleteCompany).toHaveBeenCalledWith('c1');
+    expect(deleteCompany).toHaveBeenCalledWith('c1', NOW);
+  });
+
+  it('never counts a deletion the guarded deleteCompanyPermanently refused (the row moved on since the sweep read it)', async () => {
+    listSubs.mockResolvedValue([
+      subRow({
+        status: 'ZIPPED',
+        zipSentAt: addDays(NOW, -1),
+        deletionDueAt: NOW,
+        blockedAt: addDays(NOW, -15),
+      }),
+    ]);
+    deleteCompany.mockResolvedValue(false); // deletion.ts's own re-read found it no longer due
+    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.deleted).toBe(0);
   });
 
   it('one failing subscription does not stop the rest of the pass', async () => {
@@ -203,14 +277,14 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       subRow({ companyId: 'bad', status: 'TRIAL', trialEndsAt: NOW }),
       subRow({ companyId: 'good', status: 'TRIAL', trialEndsAt: NOW }),
     ]);
-    update.mockRejectedValueOnce(new Error('db hiccup')).mockResolvedValueOnce({});
+    updateMany.mockRejectedValueOnce(new Error('db hiccup')).mockResolvedValueOnce({ count: 1 });
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
 
     const result = await runner.runSweep(NOW);
 
     expect(result.processed).toBe(2);
     expect(result.blocked).toBe(1); // only "good" succeeded
-    expect(update).toHaveBeenCalledTimes(2);
+    expect(updateMany).toHaveBeenCalledTimes(2);
   });
 
   it('reconciles seats for every ACTIVE, subscribed company and counts a correction', async () => {
@@ -363,8 +437,8 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       // transition below it still ran and is reflected in the result untouched.
       expect(result.customersProvisioned).toBeUndefined();
       expect(result.blocked).toBe(1);
-      expect(update).toHaveBeenCalledWith({
-        where: { companyId: 'c1' },
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
         data: { status: 'BLOCKED', blockedAt: NOW },
       });
     });
