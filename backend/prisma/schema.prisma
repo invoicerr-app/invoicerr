@@ -1129,8 +1129,37 @@ model User {
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
   usedInvitation     InvitationCode?  @relation("UsedInvitation")
 
+  // Legal document acceptances (Terms of Service, Privacy Policy — see backend/src/legal/) — SaaS
+  // mode only (`billing-flag.ts#isBillingEnabled`); empty on every self-hosted instance.
+  legalAcceptances LegalAcceptance[]
+
   @@unique([email])
   @@map("user")
+}
+
+/// One row per (user, document, version) a user has explicitly accepted — the checkbox at sign-up
+/// ("I accept the Terms of Service and the Privacy Policy", SaaS mode only) and the re-acceptance
+/// interstitial a later version triggers at sign-in (`frontend/src/pages/legal/accept.tsx`). Never
+/// written on a self-hosted instance: `isBillingEnabled()` gates every write path
+/// (`backend/src/legal/legal.service.ts`). `version` is the document's own front-matter `version`
+/// field (`documentation/docs/legal/*.md`, mirrored at build time into `backend/src/legal/data/` —
+/// see that directory's own sync spec) at the moment of acceptance, so an operator can always answer
+/// "which exact text did this user agree to", and a later text change (a new `version`) is a new row,
+/// never an overwrite of this one. `ipAddress`/`userAgent` are best-effort evidence, not a data point
+/// the acceptance check itself ever reads.
+model LegalAcceptance {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentSlug String
+  version      String
+  acceptedAt   DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@unique([userId, documentSlug, version])
+  @@index([userId])
+  @@map("legal_acceptance")
 }
 
 model ApiKey {

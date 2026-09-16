@@ -36,6 +36,14 @@ export {
   type DeclarationsListResponse,
 } from "./use-declarations"
 export {
+  useLegalDocuments,
+  useLegalStatus,
+  useAcceptLegal,
+  type LegalDocumentView,
+  type LegalDocumentsView,
+  type LegalStatusView,
+} from "./use-legal"
+export {
   useDocumentTypesList,
   useAvailableDocumentTypes,
   useDocumentType,

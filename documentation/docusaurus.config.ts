@@ -112,6 +112,12 @@ const config: Config = {
           position: 'left',
         },
         {
+          type: 'docSidebar',
+          sidebarId: 'legalSidebar',
+          label: 'Legal',
+          position: 'left',
+        },
+        {
           to: '/changelog',
           label: 'Changelog',
           position: 'left',

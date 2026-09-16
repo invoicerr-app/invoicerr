@@ -66,4 +66,8 @@ export const queryKeys = {
   declarations: {
     list: (page: number, status?: string) => ["declarations", "list", page, status] as const,
   },
+  legal: {
+    documents: () => ["legal", "documents"] as const,
+    status: () => ["legal", "status"] as const,
+  },
 } as const

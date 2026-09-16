@@ -7,6 +7,7 @@ import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-head
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
+import { useLegalStatus } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 
 const ALLOWED_PATHS = ["/signature/[^/]+"]
@@ -95,6 +96,11 @@ const UnauthenticatedLayout = () => {
 const Layout = () => {
   const location = useLocation()
   const { data: session, isPending } = authClient.useSession()
+  // `enabled: !!session` — no point asking before a session even exists, and this hook must never be
+  // the thing that delays the sign-in redirect below. Always the empty/false shape outside SaaS mode
+  // (`legal.service.ts#getStatus`), so this adds nothing to check for a self-hosted instance beyond
+  // one extra cheap, always-200 request.
+  const { data: legalStatus, isPending: legalStatusPending } = useLegalStatus(!!session)
 
   if (isPending) {
     return null
@@ -112,6 +118,28 @@ const Layout = () => {
 
   if (!session) {
     return <Navigate to="/auth/sign-in" />
+  }
+
+  // Wait for the legal check before rendering ANYTHING authenticated — without this, a user due for
+  // the re-acceptance interstitial would see a flash of the real sidebar/dashboard (and mount its own
+  // SSE connection via `useDocumentEventsSse` below) for the one render before this query resolves.
+  // `enabled: !!session` above means this reflects a genuine fetch now that we know a session exists,
+  // never a permanently-disabled query's own `isPending: true`.
+  if (legalStatusPending) {
+    return null
+  }
+
+  // SaaS-mode re-acceptance interstitial (product decision 2026-09-16): a required legal document
+  // (Terms of Service / Privacy Policy) has a newer version than what this user last accepted. Blocks
+  // the WHOLE app shell — no sidebar, no `<Outlet/>` — rather than a dismissible banner the way
+  // `BillingBanner` handles a trial/blocked subscription: unlike that read-only state, this is meant
+  // to be a binary "not until you've reviewed the update" gate, so it redirects instead of rendering
+  // alongside the app. `/legal/accept` is a top-level, non-`(app)` route (this file's own `Layout`
+  // wraps ONLY `(app)/*` routes — see the module header), so it renders through none of this file's
+  // chrome once reached; this redirect is what actually gets a visitor there. Always `false` outside
+  // SaaS mode, so this never fires on a self-hosted instance.
+  if (legalStatus?.requiresAcceptance) {
+    return <Navigate to="/legal/accept" replace />
   }
 
   return <AuthenticatedLayout />

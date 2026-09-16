@@ -553,6 +553,12 @@ Cypress.Commands.add('resetAndSeed', () => {
             lastname: 'Doe',
             email: 'john.doe@acme.org',
             password: 'Super_Secret_Password123!',
+            // Ignored entirely outside SaaS mode (the ordinary e2e stack — see backend's own
+            // `legal-signup-policy.ts`), but required WHEN that flag is set, or this seed sign-up
+            // itself gets the very 400 `LEGAL_ACCEPTANCE_REQUIRED` `75-legal-acceptance.cy.ts` tests
+            // for. Sending it unconditionally is what keeps every OTHER spec's baseline seed working
+            // unchanged in either mode.
+            acceptLegal: true,
         },
         failOnStatusCode: false,
     }).then((signup) => {

@@ -12,10 +12,20 @@ import {
   companyForOAuthSignup,
   deriveUserNames,
   isOidcOnly,
+  providerIdFromEndpointContext,
   resolveEnvOidcProvider,
   resolveOidcEndpoints,
   trustedProviderIds,
 } from './sso-policy';
+import {
+  LEGAL_ACCEPTANCE_REQUIRED_CODE,
+  LEGAL_ACCEPTANCE_REQUIRED_MESSAGE,
+  acceptLegalFromEndpointContext,
+  legalAcceptanceRequiredAtSignup,
+} from './legal-signup-policy';
+import { recordLegalAcceptance } from '../legal/legal-acceptance';
+import { REQUIRED_ACCEPTANCE_SLUGS } from '../legal/legal-documents';
+import { isBillingEnabled } from '../modules/billing/billing-flag';
 import {
   AccountMembership,
   SoleOwnerError,
@@ -224,6 +234,22 @@ const userHookFunction = async (user, context) => {
   }
 
   if (user.email) {
+    // Gated to the plain email/password branch — `providerIdFromEndpointContext` is non-null for
+    // BOTH a company-provisioned SSO signup (already returned above) and the instance-wide OIDC
+    // provider's own first-time login, which reaches this point too (it has no company to attach to,
+    // so `companyForOAuthSignup` returns null for it). Neither flow's screen carries the sign-up
+    // checkbox this gate requires, and an OIDC identity provider has no way to answer it — see
+    // `legal-signup-policy.ts`'s own header for why only email/password is in scope.
+    if (
+      providerIdFromEndpointContext(context) === null &&
+      legalAcceptanceRequiredAtSignup(isBillingEnabled(), acceptLegalFromEndpointContext(context))
+    ) {
+      throw new APIError('BAD_REQUEST', {
+        message: LEGAL_ACCEPTANCE_REQUIRED_MESSAGE,
+        code: LEGAL_ACCEPTANCE_REQUIRED_CODE,
+      });
+    }
+
     const validation = await validateInvitationForSignup(user.email);
     if (!validation.valid) {
       throw new Error(validation.message || 'Registration is not allowed');
@@ -243,6 +269,17 @@ const userAfterCreateHook = async (user, context) => {
   if (user.email) {
     await markInvitationAsUsed(user.email, user.id);
   }
+
+  // Reaching here in SaaS mode, on the plain email/password branch, means `userHookFunction` already
+  // let this sign-up through — which, in SaaS mode, means `acceptLegal` WAS `true`. Recorded here
+  // (after-create, once `user.id` exists) rather than in the before-hook itself. No IP/user-agent
+  // captured on this path (better-auth's `after` context carries no reliable request object) — see
+  // `legal.controller.ts`'s own `POST /api/legal/accept` for the path that does capture it, used by
+  // the sign-in re-acceptance interstitial instead.
+  if (isBillingEnabled() && providerIdFromEndpointContext(context) === null) {
+    await recordLegalAcceptance(user.id, REQUIRED_ACCEPTANCE_SLUGS);
+  }
+
   return user;
 };
 

@@ -10,6 +10,7 @@ import { PasswordInput } from "@/pages/auth/_components/password-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LegalLinks } from "@/components/legal-links"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { authClient } from "@/lib/auth"
 import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
@@ -87,29 +88,35 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  const footer =
-    !oidcOnly || envProviderId ? (
-      <>
-        {/* No point offering account creation on an instance where an account can only come from
-          an identity provider. */}
-        {!oidcOnly && (
-          <span className="text-muted-foreground">
-            {t("auth.login.noAccount")}{" "}
-            <AuthLink href="/auth/sign-up" dataCy="auth-signup-link">
-              {t("auth.login.signUpLink")}
-            </AuthLink>
-          </span>
-        )}
-        {envProviderId && (
-          <span className="text-muted-foreground">
-            {t("auth.login.oidc")}{" "}
-            <Button variant="link" onClick={() => signInWithProvider(envProviderId)} className="h-auto p-0">
-              {t("auth.login.oidcLink")}
-            </Button>
-          </span>
-        )}
-      </>
-    ) : undefined
+  const footer = (
+    <>
+      {(!oidcOnly || envProviderId) && (
+        <>
+          {/* No point offering account creation on an instance where an account can only come from
+            an identity provider. */}
+          {!oidcOnly && (
+            <span className="text-muted-foreground">
+              {t("auth.login.noAccount")}{" "}
+              <AuthLink href="/auth/sign-up" dataCy="auth-signup-link">
+                {t("auth.login.signUpLink")}
+              </AuthLink>
+            </span>
+          )}
+          {envProviderId && (
+            <span className="text-muted-foreground">
+              {t("auth.login.oidc")}{" "}
+              <Button variant="link" onClick={() => signInWithProvider(envProviderId)} className="h-auto p-0">
+                {t("auth.login.oidcLink")}
+              </Button>
+            </span>
+          )}
+        </>
+      )}
+      {/* See `components/legal-links.tsx`'s own header for why this sits inside the card's footer
+          rather than genuinely below the card. */}
+      <LegalLinks className="mt-1" />
+    </>
+  )
 
   return (
     <AuthShell

@@ -3157,7 +3157,13 @@
           "hint": "Optional — enter a code to join an existing company. Leave it blank to create your own company instead."
         },
         "creatingAccount": "Creating account...",
-        "createButton": "Create Account"
+        "createButton": "Create Account",
+        "acceptLegal": {
+          "prefix": "I accept the",
+          "terms": "Terms of Service",
+          "and": "and the",
+          "privacy": "Privacy Policy"
+        }
       },
       "hasAccount": "Already have an account?",
       "signInLink": "Sign in",
@@ -3175,7 +3181,8 @@
         "passwordMinLength": "Password must be at least 8 characters",
         "passwordLetter": "Password must contain at least one letter",
         "passwordNumber": "Password must contain at least one number",
-        "passwordSpecial": "Password must contain at least one special character"
+        "passwordSpecial": "Password must contain at least one special character",
+        "legalAcceptanceRequired": "You must accept the Terms of Service and the Privacy Policy to create an account."
       },
       "messages": {
         "accountCreated": "Account created successfully"
@@ -4728,6 +4735,25 @@
     "ios": {
       "title": "Add Invoicerr to your Home Screen",
       "description": "Tap Share, then \"Add to Home Screen\"."
+    }
+  },
+  "legal": {
+    "links": {
+      "navLabel": "Legal",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "dpa": "DPA",
+      "legalNotice": "Legal notice",
+      "cookies": "Cookies"
+    },
+    "document": {
+      "notFound": "This document could not be found.",
+      "version": "Version {{version}} — effective {{date}}"
+    },
+    "accept": {
+      "title": "Updated legal terms",
+      "description": "We've updated the following document(s). Please review them before continuing.",
+      "button": "I accept — continue"
     }
   }
 }

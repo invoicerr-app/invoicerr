@@ -9,13 +9,16 @@ import { PasswordInput } from "@/pages/auth/_components/password-input"
 import { PasswordStrength } from "@/pages/auth/_components/password-strength"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LegalLinks } from "@/components/legal-links"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import type React from "react"
 import { authClient } from "@/lib/auth"
 import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
 import { useBackendHealth } from "@/hooks/use-backend-health"
+import { useLegalDocuments } from "@/hooks/queries"
 
 type SignupFormData = {
   firstname: string
@@ -40,6 +43,15 @@ export default function SignupPage() {
   const [checkingRegistrationStatus, setCheckingRegistrationStatus] = useState(true)
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
+
+  // `saasMode` mirrors `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (backend's own `billing-flag.ts`)
+  // — the checkbox below (and the server-side `LEGAL_ACCEPTANCE_REQUIRED` refusal it exists to avoid)
+  // only apply on a hosted, billing-enabled instance. `undefined` while the request is in flight is
+  // treated as "not required yet" the same permissive-until-resolved way `openSignupAllowed` above
+  // treats an unresolved backend call — the real gate is enforced server-side regardless.
+  const { data: legalDocuments } = useLegalDocuments()
+  const saasMode = legalDocuments?.saasMode ?? false
+  const [acceptLegal, setAcceptLegal] = useState(false)
 
   const backendUrl = getEnvVariable("VITE_BACKEND_URL") || ""
   const oidcOnly = isOidcOnly()
@@ -106,6 +118,15 @@ export default function SignupPage() {
       invitationCode: (formData.get("invitationCode") as string)?.trim(),
     }
 
+    // SaaS mode only (self-hosted has nothing to accept — see `documentation/docs/legal/privacy-policy.md`'s
+    // own Preamble). The backend enforces this too (`lib/auth.ts`'s sign-up hook, 400
+    // `LEGAL_ACCEPTANCE_REQUIRED`) — this is only what lets a visitor find out before typing the
+    // whole form, the same "fail fast" reasoning `openSignupAllowed === false` already gets below.
+    if (saasMode && !acceptLegal) {
+      toast.error(t("auth.signup.errors.legalAcceptanceRequired"))
+      return
+    }
+
     if (data.invitationCode) {
       // A code was typed in: it must check out on its own, regardless of whether open
       // sign-up is currently allowed — a code is its own authorization to join a company.
@@ -133,6 +154,12 @@ export default function SignupPage() {
       // @ts-expect-error additional fields
       firstname: data.firstname,
       lastname: data.lastname,
+      // Not a better-auth `user.additionalFields` (this is never persisted as a column) — read
+      // straight off the raw request body by `lib/auth.ts`'s sign-up hook
+      // (`acceptLegalFromEndpointContext`). Sent unconditionally; the backend only ever ACTS on it in
+      // SaaS mode (`legalAcceptanceRequiredAtSignup`). No separate `@ts-expect-error` needed here —
+      // the ONE suppression above already covers the whole object literal's excess-property check.
+      acceptLegal,
     })
 
     setLoading(false)
@@ -203,6 +230,9 @@ export default function SignupPage() {
               </Button>
             </span>
           )}
+          {/* See `components/legal-links.tsx`'s own header for why this sits inside the card's footer
+              rather than genuinely below the card. */}
+          <LegalLinks className="mt-1" />
         </>
       }
       dataCy="auth-card"
@@ -298,6 +328,32 @@ export default function SignupPage() {
           <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
           {errors.invitationCode && <p className="text-sm text-destructive">{errors.invitationCode[0]}</p>}
         </div>
+
+        {/* SaaS mode only (`saasMode`, mirroring the backend's own `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`)
+            — a self-hosted instance has nothing to accept, so this never renders there at all rather
+            than rendering disabled/hidden. */}
+        {saasMode && (
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="acceptLegal"
+              checked={acceptLegal}
+              onCheckedChange={(checked) => setAcceptLegal(checked === true)}
+              disabled={loading}
+              className="mt-0.5"
+              data-cy="auth-accept-legal-checkbox"
+            />
+            <Label htmlFor="acceptLegal" className="text-sm font-normal leading-snug text-muted-foreground">
+              {t("auth.signup.form.acceptLegal.prefix", "I accept the")}{" "}
+              <AuthLink href="/legal/terms-of-service" dataCy="auth-accept-legal-terms-link">
+                {t("auth.signup.form.acceptLegal.terms", "Terms of Service")}
+              </AuthLink>{" "}
+              {t("auth.signup.form.acceptLegal.and", "and the")}{" "}
+              <AuthLink href="/legal/privacy-policy" dataCy="auth-accept-legal-privacy-link">
+                {t("auth.signup.form.acceptLegal.privacy", "Privacy Policy")}
+              </AuthLink>
+            </Label>
+          </div>
+        )}
 
         <Button
           type="submit"

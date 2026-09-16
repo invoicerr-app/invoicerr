@@ -25,6 +25,7 @@ import { SdiNotificheModule } from './modules/documents/transports/sdi/sdi-notif
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
+import { LegalModule } from './legal/legal.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
 import { Module } from '@nestjs/common';
@@ -165,6 +166,10 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     PluginsModule,
     WebhooksModule,
     InvitationsModule,
+    // Terms of Service / Privacy Policy / DPA / Legal Notice / Cookies — always imported (see this
+    // module's own header for why, unlike BillingModule right above, this one is never conditioned on
+    // `billingEnabled`).
+    LegalModule,
     HealthModule,
     PrismaModule,
     LoggerModule,
