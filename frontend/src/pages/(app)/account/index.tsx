@@ -7,11 +7,11 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth"
+import { SettingsFormFooter, SettingsSection, useSavedFlash } from "../settings/_components/settings-section"
 
 interface SessionUser {
   firstname?: string
@@ -32,6 +32,7 @@ export default function AccountProfilePage() {
   const { t } = useTranslation()
   const { data: session, refetch } = authClient.useSession()
   const user = (session as unknown as { user?: SessionUser } | null)?.user
+  const [profileSaved, flashProfileSaved] = useSavedFlash()
 
   const [searchParams, setSearchParams] = useSearchParams()
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function AccountProfilePage() {
     }
 
     toast.success(t("account.profile.messages.updateSuccess"))
+    flashProfileSaved()
     // Refreshes the shared session (the sidebar reads the SAME `authClient.useSession()` store) so
     // the new name shows up everywhere without a full page reload.
     await refetch()
@@ -124,14 +126,14 @@ export default function AccountProfilePage() {
 
   return (
     <div className="grid gap-6">
-      <Card data-cy="account-profile-card">
-        <CardHeader>
-          <CardTitle>{t("account.profile.title")}</CardTitle>
-          <CardDescription>{t("account.profile.description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...profileForm}>
-            <form onSubmit={handleProfileSubmit} className="grid gap-4 sm:grid-cols-2">
+      <SettingsSection
+        title={t("account.profile.title")}
+        description={t("account.profile.description")}
+        dataCy="account-profile-card"
+      >
+        <Form {...profileForm}>
+          <form onSubmit={handleProfileSubmit} className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={profileForm.control}
                 name="firstname"
@@ -166,70 +168,69 @@ export default function AccountProfilePage() {
                   </FormItem>
                 )}
               />
-              <div className="sm:col-span-2">
-                <Button
-                  type="submit"
-                  loading={profileForm.formState.isSubmitting}
-                  disabled={!profileForm.formState.isDirty}
-                  data-cy="account-profile-save-button"
-                >
-                  {profileForm.formState.isSubmitting
-                    ? t("account.profile.form.saving")
-                    : t("account.profile.form.save")}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      <Card data-cy="account-email-card">
-        <CardHeader>
-          <CardTitle>{t("account.profile.email.title")}</CardTitle>
-          <CardDescription>{t("account.profile.email.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-1.5">
-            <Label className="text-muted-foreground">{t("account.profile.email.currentLabel")}</Label>
-            <p className="text-sm font-medium" data-cy="account-email-current">
-              {user?.email}
-            </p>
-          </div>
-
-          <Form {...emailForm}>
-            <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <FormField
-                control={emailForm.control}
-                name="newEmail"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>{t("account.profile.email.newLabel")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="email"
-                        placeholder={t("account.profile.email.newPlaceholder")}
-                        data-cy="account-email-new-input"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            </div>
+            <SettingsFormFooter saved={profileSaved}>
               <Button
                 type="submit"
-                variant="outline"
-                loading={emailForm.formState.isSubmitting}
-                data-cy="account-email-send-button"
+                loading={profileForm.formState.isSubmitting}
+                disabled={!profileForm.formState.isDirty}
+                data-cy="account-profile-save-button"
               >
-                {emailForm.formState.isSubmitting
-                  ? t("account.profile.email.sending")
-                  : t("account.profile.email.send")}
+                {profileForm.formState.isSubmitting
+                  ? t("account.profile.form.saving")
+                  : t("account.profile.form.save")}
               </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            </SettingsFormFooter>
+          </form>
+        </Form>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t("account.profile.email.title")}
+        description={t("account.profile.email.description")}
+        dataCy="account-email-card"
+        contentClassName="grid gap-4"
+      >
+        <div className="grid gap-1.5">
+          <Label className="text-muted-foreground">{t("account.profile.email.currentLabel")}</Label>
+          <p className="text-sm font-medium" data-cy="account-email-current">
+            {user?.email}
+          </p>
+        </div>
+
+        <Form {...emailForm}>
+          <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <FormField
+              control={emailForm.control}
+              name="newEmail"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormLabel>{t("account.profile.email.newLabel")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder={t("account.profile.email.newPlaceholder")}
+                      data-cy="account-email-new-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              variant="outline"
+              loading={emailForm.formState.isSubmitting}
+              data-cy="account-email-send-button"
+            >
+              {emailForm.formState.isSubmitting
+                ? t("account.profile.email.sending")
+                : t("account.profile.email.send")}
+            </Button>
+          </form>
+        </Form>
+      </SettingsSection>
     </div>
   )
 }

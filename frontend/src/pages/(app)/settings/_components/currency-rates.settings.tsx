@@ -4,18 +4,23 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { Coins } from "lucide-react"
+
 import CurrencySelect from "@/components/currency-select"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import type { CurrencyRate, CurrencyRatePairGap } from "@/types"
 
+import { SettingsList, SettingsListRow, SettingsSection } from "./settings-section"
+
 /** Must match the backend's `EXCHANGERATE_API_SOURCE` (currency-rate-sweep.ts) exactly — the two
  *  are never shared across a language boundary in this repo (backend/frontend are independent npm
  *  projects, no shared package), the same "duplicated literal, not imported" reality this screen
- *  already accepts for the existing 'manual'/'ecb' source strings it just renders as raw text below. */
+ *  already accepts for the existing 'manual'/'ecb' source strings it just renders as a chip below. */
 const EXCHANGERATE_API_SOURCE = "exchangerate-api"
 
 /**
@@ -26,10 +31,10 @@ const EXCHANGERATE_API_SOURCE = "exchangerate-api"
  * posture DocumentPayment already holds.
  *
  * A self-contained data resource, deliberately NOT wired into the surrounding company settings
- * `<form>` (company.settings.tsx, which renders this Card) — a rate has its own endpoint and its own
- * save moment (added immediately on "Add rate", not batched with the rest of the company profile),
- * the same separation webhooks.settings.tsx already draws between the company `<form>` and its own
- * webhook list.
+ * `<form>` (company.settings.tsx, which renders this section) — a rate has its own endpoint and its
+ * own save moment (added immediately on "Add rate", not batched with the rest of the company
+ * profile), the same separation webhooks.settings.tsx already draws between the company `<form>`
+ * and its own webhook list.
  *
  * No auto-derived inverse rate anywhere in this screen either: adding EUR→USD does not fill in
  * USD→EUR for you — see convert.ts's `resolveLatestRate` for why (a derived 1/x would be a silent
@@ -92,97 +97,96 @@ export default function CurrencyRatesSettings() {
   }
 
   return (
-    <Card data-cy="currency-rates-card">
-      <CardHeader>
-        <CardTitle>{t("settings.company.currencyRates.title", "Exchange rates")}</CardTitle>
-        <CardDescription>
+    <SettingsSection
+      title={t("settings.company.currencyRates.title", "Exchange rates")}
+      description={t(
+        "settings.company.currencyRates.description",
+        "Manually-entered rates used to consolidate dashboard totals into your reference currency below. No rate is ever derived automatically — enter both directions if you need them.",
+      )}
+      dataCy="currency-rates-card"
+      contentClassName="grid gap-4"
+    >
+      {rates?.some((r) => r.source === EXCHANGERATE_API_SOURCE) && (
+        <p className="text-xs text-muted-foreground" data-cy="currency-rates-attribution">
           {t(
-            "settings.company.currencyRates.description",
-            "Manually-entered rates used to consolidate dashboard totals into your reference currency below. No rate is ever derived automatically — enter both directions if you need them.",
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {rates?.some((r) => r.source === EXCHANGERATE_API_SOURCE) && (
-          <p className="text-xs text-muted-foreground" data-cy="currency-rates-attribution">
+            "settings.company.currencyRates.attribution.text",
+            "Rates for currencies the European Central Bank does not quote are supplied by",
+          )}{" "}
+          <a
+            href="https://www.exchangerate-api.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4"
+          >
+            {t("settings.company.currencyRates.attribution.linkLabel", "exchangerate-api.com")}
+          </a>
+          .
+        </p>
+      )}
+
+      {rates && rates.length > 0 ? (
+        <SettingsList dataCy="currency-rates-table">
+          {rates.map((r) => (
+            <SettingsListRow
+              key={r.id}
+              dataCy={`currency-rate-row-${r.id}`}
+              title={
+                <span className="font-mono tabular-nums" data-cy={`currency-rate-row-${r.id}-pair`}>
+                  {r.from}→{r.to}
+                </span>
+              }
+              meta={
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span
+                    className="font-mono tabular-nums text-foreground"
+                    data-cy={`currency-rate-row-${r.id}-rate`}
+                  >
+                    {r.rate}
+                  </span>
+                  <span className="font-mono tabular-nums">{new Date(r.asOf).toLocaleDateString()}</span>
+                  <Badge variant="outline">{r.source}</Badge>
+                </span>
+              }
+            />
+          ))}
+        </SettingsList>
+      ) : (
+        <EmptyState
+          size="sm"
+          icon={Coins}
+          title={t("settings.company.currencyRates.empty", "No exchange rate entered yet.")}
+          data-cy="currency-rates-empty"
+        />
+      )}
+
+      {gaps && gaps.length > 0 && (
+        <div className="space-y-2 border-t pt-4" data-cy="currency-rates-gaps">
+          <p className="text-sm font-medium">
+            {t("settings.company.currencyRates.gaps.title", "No automatic rate available")}
+          </p>
+          <p className="text-xs text-muted-foreground text-pretty">
             {t(
-              "settings.company.currencyRates.attribution.text",
-              "Rates for currencies the European Central Bank does not quote are supplied by",
-            )}{" "}
-            <a
-              href="https://www.exchangerate-api.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
-              {t("settings.company.currencyRates.attribution.linkLabel", "exchangerate-api.com")}
-            </a>
-            .
+              "settings.company.currencyRates.gaps.description",
+              "Neither the European Central Bank feed nor the exchangerate-api.com fallback has ever refreshed these pairs automatically. Any rate shown above for them is whatever was last entered by hand.",
+            )}
           </p>
-        )}
-        {rates && rates.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-cy="currency-rates-table">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="py-1 pr-4 font-medium">
-                    {t("settings.company.currencyRates.table.pair", "Pair")}
-                  </th>
-                  <th className="py-1 pr-4 font-medium">
-                    {t("settings.company.currencyRates.table.rate", "Rate")}
-                  </th>
-                  <th className="py-1 pr-4 font-medium">
-                    {t("settings.company.currencyRates.table.asOf", "As of")}
-                  </th>
-                  <th className="py-1 pr-4 font-medium">
-                    {t("settings.company.currencyRates.table.source", "Source")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rates.map((r) => (
-                  <tr key={r.id} data-cy={`currency-rate-row-${r.id}`}>
-                    <td className="py-1 pr-4" data-cy={`currency-rate-row-${r.id}-pair`}>
-                      {r.from}→{r.to}
-                    </td>
-                    <td className="py-1 pr-4" data-cy={`currency-rate-row-${r.id}-rate`}>
-                      {r.rate}
-                    </td>
-                    <td className="py-1 pr-4">{new Date(r.asOf).toLocaleDateString()}</td>
-                    <td className="py-1 pr-4">{r.source}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-wrap gap-2">
+            {gaps.map((g) => (
+              <Badge
+                key={`${g.from}-${g.to}`}
+                variant="warning"
+                className="font-mono tabular-nums"
+                data-cy={`currency-rate-gap-${g.from}-${g.to}`}
+              >
+                {g.from}→{g.to}
+              </Badge>
+            ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground" data-cy="currency-rates-empty">
-            {t("settings.company.currencyRates.empty", "No exchange rate entered yet.")}
-          </p>
-        )}
+        </div>
+      )}
 
-        {gaps && gaps.length > 0 && (
-          <div className="space-y-1 border-t pt-4" data-cy="currency-rates-gaps">
-            <p className="text-sm font-medium">
-              {t("settings.company.currencyRates.gaps.title", "No automatic rate available")}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "settings.company.currencyRates.gaps.description",
-                "Neither the European Central Bank feed nor the exchangerate-api.com fallback has ever refreshed these pairs automatically. Any rate shown above for them is whatever was last entered by hand.",
-              )}
-            </p>
-            <ul className="text-sm list-disc pl-5">
-              {gaps.map((g) => (
-                <li key={`${g.from}-${g.to}`} data-cy={`currency-rate-gap-${g.from}-${g.to}`}>
-                  {g.from}→{g.to}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end border-t pt-4">
+      <div className="grid gap-3 border-t pt-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="space-y-1">
             <span className="text-sm font-medium">
               {t("settings.company.currencyRates.form.from", "From")}
@@ -212,14 +216,25 @@ export default function CurrencyRatesSettings() {
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               placeholder="1.0842"
+              className="font-mono tabular-nums"
               data-cy="currency-rate-rate-input"
             />
           </div>
-          <Button type="button" onClick={handleAdd} loading={creating} data-cy="currency-rate-add-btn">
+        </div>
+        {/* `outline` — this tab's ONE `default` primary is company.settings.tsx's own "Save"; a rate
+         *  is added immediately, on its own endpoint, never batched with that submit. */}
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAdd}
+            loading={creating}
+            data-cy="currency-rate-add-btn"
+          >
             {t("settings.company.currencyRates.form.add", "Add rate")}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   )
 }

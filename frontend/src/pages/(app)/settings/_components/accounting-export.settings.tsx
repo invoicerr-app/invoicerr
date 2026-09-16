@@ -7,8 +7,10 @@ import { format } from "date-fns"
 
 import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+
+import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
 
 /**
  * The GENERIC accounting CSV export's own download UI (the CSV slice only;
@@ -66,31 +68,37 @@ export default function AccountingExportSettings() {
   }
 
   return (
-    <Card data-cy="accounting-export-card">
-      <CardHeader>
-        <CardTitle>{t("settings.accountingExport.title")}</CardTitle>
-        <CardDescription>{t("settings.accountingExport.description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-          <div className="space-y-1">
-            <span className="text-sm font-medium">{t("settings.accountingExport.form.from")}</span>
+    <SettingsPage
+      title={t("settings.accountingExport.title")}
+      description={t("settings.accountingExport.description")}
+      dataCy="accounting-export-section"
+    >
+      <SettingsSection
+        dataCy="accounting-export-card"
+        footer={
+          <SettingsFormFooter>
+            <Button
+              type="button"
+              onClick={() => void handleDownload()}
+              loading={downloading}
+              data-cy="accounting-export-download"
+            >
+              {t("settings.accountingExport.form.download")}
+            </Button>
+          </SettingsFormFooter>
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>{t("settings.accountingExport.form.from")}</Label>
             <DatePicker value={from} onChange={setFrom} data-cy="accounting-export-from" />
           </div>
-          <div className="space-y-1">
-            <span className="text-sm font-medium">{t("settings.accountingExport.form.to")}</span>
+          <div className="space-y-1.5">
+            <Label>{t("settings.accountingExport.form.to")}</Label>
             <DatePicker value={to} onChange={setTo} data-cy="accounting-export-to" />
           </div>
-          <Button
-            type="button"
-            onClick={() => void handleDownload()}
-            loading={downloading}
-            data-cy="accounting-export-download"
-          >
-            {t("settings.accountingExport.form.download")}
-          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </SettingsSection>
+    </SettingsPage>
   )
 }

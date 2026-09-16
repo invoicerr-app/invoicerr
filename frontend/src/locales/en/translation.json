@@ -31,6 +31,9 @@
       "role": {
         "supplier": "Supplier"
       },
+      "kind": {
+        "government": "Government"
+      },
       "tooltips": {
         "view": "View client details",
         "edit": "Edit client",
@@ -38,6 +41,11 @@
         "statement": "Account statement",
         "portalAccess": "Client portal access"
       },
+      "filters": {
+        "ariaLabel": "Filter clients",
+        "all": "All"
+      },
+      "rowMenu": "More actions",
       "title": "All Clients",
       "description": "Manage and view all your clients in one place."
     },
@@ -90,6 +98,13 @@
       "title": {
         "create": "Add New Client",
         "edit": "Edit Client"
+      },
+      "sections": {
+        "classification": "Classification",
+        "identity": "Identity",
+        "business": "Business details",
+        "contact": "Contact",
+        "address": "Address"
       },
       "fields": {
         "contactFirstname": {
@@ -269,6 +284,19 @@
     "view": {
       "title": "Client Details",
       "description": "View all relevant information about this client.",
+      "actions": {
+        "close": "Close",
+        "edit": "Edit",
+        "statement": "View statement"
+      },
+      "sections": {
+        "contact": "Contact",
+        "address": "Address",
+        "documents": "Documents"
+      },
+      "documents": {
+        "empty": "No document yet for this client"
+      },
       "fields": {
         "companyName": "Company Name",
         "contactPerson": "Contact Person",
@@ -1377,13 +1405,26 @@
     "title": "Dashboard"
   },
   "widgets": {
-    "empty": "No widget is available yet.",
+    "emptyTitle": "Nothing to show yet",
+    "emptyDescription": "This will fill in once your company has some documents to report on.",
     "unsupportedKind": "Widget \"{{label}}\" has kind \"{{kind}}\", which no renderer is registered for.",
     "shortList": {
       "empty": "Nothing to show."
     },
     "table": {
       "empty": "Nothing to show."
+    },
+    "metric": {
+      "unchanged": "No change",
+      "variationPercent": "{{sign}}{{percent}}%",
+      "variationAbsolute": "{{sign}}{{value}} {{unit}}"
+    },
+    "period": {
+      "ariaLabel": "Period",
+      "thisMonth": "This month",
+      "last3Months": "Last 3 months",
+      "last12Months": "Last 12 months",
+      "allTime": "All time"
     }
   },
   "articles": {
@@ -1399,6 +1440,11 @@
     },
     "search": {
       "placeholder": "Search articles..."
+    },
+    "filters": {
+      "ariaLabel": "Filter articles",
+      "all": "All",
+      "lowStock": "Low stock"
     },
     "list": {
       "add": "Add Article"
@@ -1653,6 +1699,28 @@
   },
   "settings": {
     "title": "Settings",
+    "common": {
+      "saved": "Saved",
+      "rowMenu": "More actions",
+      "navLabel": "Settings sections",
+      "navSelectLabel": "Settings section",
+      "refresh": "Refresh",
+      "remove": "Remove",
+      "delete": "Delete",
+      "copy": "Copy",
+      "loading": "Loading…",
+      "sourceLabel": "Source"
+    },
+    "nav": {
+      "groups": {
+        "company": "Company",
+        "invoicing": "Invoicing",
+        "compliance": "Sending & compliance",
+        "team": "Team",
+        "integrations": "Integrations",
+        "danger": "Danger"
+      }
+    },
     "tabs": {
       "company": "Company",
       "emailTemplates": "Email Templates",
@@ -1733,7 +1801,13 @@
         "error": "Export failed"
       }
     },
+    "recurring": {
+      "title": "Recurrences",
+      "description": "Every recurring schedule that automatically creates a new document from an existing one, across all document types."
+    },
     "invitations": {
+      "title": "Invitations",
+      "description": "Invite new members to this company with a single-use code.",
       "create": {
         "title": "Create Invitation Code",
         "description": "Generate a new invitation code to invite someone to create an account",
@@ -2093,6 +2167,11 @@
         },
         "step2Title": "Connect your e-invoicing channel",
         "step2Description": "Your company has been created. Connect an e-invoicing channel now, or do it later from Settings.",
+        "summary": {
+          "title": "{{name}} is ready",
+          "country": "Country",
+          "identifier": "Identifier"
+        },
         "connectChannels": "Connect channels",
         "errorTitle": "Couldn't create your company",
         "retry": "Retry"
@@ -2109,14 +2188,17 @@
     "dangerZone": {
       "title": "Danger Zone",
       "description": "Irreversible and destructive actions",
+      "intro": "Each action below asks for a verification code sent to your e-mail before anything is touched. Nothing here can be undone.",
       "resetApp": {
         "title": "Reset Application Data",
         "description": "Remove all quotes, invoices, and clients but keep your account",
+        "detail": "Your account, this company and its settings stay. Every document, client, article and payment is deleted.",
         "button": "Reset App Data"
       },
       "resetDatabase": {
         "title": "Reset Everything",
         "description": "Permanently delete this company and all associated data",
+        "detail": "This company, its members, its documents and every setting are deleted, and you are signed out.",
         "button": "Reset Database"
       },
       "modal": {
@@ -2124,6 +2206,7 @@
         "description": "Please enter the verification code sent to your email to confirm this action.",
         "otpLabel": "Verification Code",
         "otpPlaceholder": "0000-0000",
+        "confirmLabel": "Type {{keyword}} to confirm",
         "warningApp": "This will reset all your application data",
         "warningAppDescription": "All quotes, invoices, and clients will be permanently deleted",
         "warningDatabase": "This will delete this company entirely",
@@ -2143,6 +2226,10 @@
     "plugins": {
       "title": "Plugins ({{count}})",
       "description": "Manage the built-in plugins available to this application",
+      "emptyState": "No plugins available",
+      "actions": {
+        "webhook": "Webhook"
+      },
       "messages": {
         "toggleSuccess": "Plugin toggled successfully",
         "toggleError": "Failed to toggle plugin",
@@ -2275,6 +2362,10 @@
         "delete": "Delete",
         "editPrompt": "Enter new webhook URL"
       },
+      "list": {
+        "title": "Configured webhooks",
+        "empty": "No webhook configured yet."
+      },
       "createdSecretNotice": "This secret will be shown only once. Store it securely.",
       "createdSecretTitle": "Webhook secret",
       "messages": {
@@ -2302,6 +2393,10 @@
         "neverUsed": "Never used",
         "revoke": "Revoke",
         "noScopes": "No scopes granted"
+      },
+      "list": {
+        "title": "Active keys",
+        "empty": "No API key created yet."
       }
     },
     "channels": {
@@ -2411,6 +2506,9 @@
       }
     },
     "signing": {
+      "actions": {
+        "deactivate": "Deactivate"
+      },
       "description": "Upload a PKCS#12 (.pfx / .p12) signing certificate to have this company's document PDFs signed PAdES. This is an optional capability — nothing in this product requires a signed document.",
       "emptyState": "No signing certificate configured — documents are served and sent unsigned.",
       "expires": "Expires",
@@ -2661,6 +2759,42 @@
         "archiveError": "Failed to archive the expense category."
       }
     },
+    "logs": {
+      "title": "Logs",
+      "description": "Live application logs, streamed as they happen — filter, search, and inspect any entry.",
+      "filters": {
+        "searchPlaceholder": "Search logs…",
+        "dateRange": "Date range",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "allCategories": "All categories",
+        "clear": "Clear filters",
+        "showing": "Showing {{filtered}} of {{total}} logs"
+      },
+      "table": {
+        "timestamp": "Timestamp",
+        "level": "Level",
+        "category": "Category",
+        "message": "Message",
+        "userId": "User ID",
+        "path": "Path",
+        "empty": "No log matches the current filters.",
+        "page": "Page {{page}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "details": {
+        "title": "Log details",
+        "timestamp": "Timestamp",
+        "category": "Category",
+        "userId": "User ID",
+        "path": "Path",
+        "message": "Message",
+        "detailsJson": "Details (JSON)",
+        "logId": "Log ID",
+        "notAvailable": "N/A"
+      }
+    },
     "billing": {
       "title": "Subscription",
       "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
@@ -2868,6 +3002,11 @@
       "title": "Service temporarily unavailable",
       "description": "The server can't be reached. Check the logs."
     },
+    "or": "or",
+    "password": {
+      "show": "Show password",
+      "hide": "Hide password"
+    },
     "login": {
       "title": "Sign In",
       "description": "Enter your credentials to access your account",
@@ -2918,7 +3057,14 @@
         "password": {
           "label": "Password",
           "placeholder": "Create a password",
-          "requirements": "Password requirements:"
+          "requirements": "Password requirements:",
+          "strength": {
+            "label": "Password strength:",
+            "weak": "Weak",
+            "fair": "Fair",
+            "good": "Good",
+            "strong": "Strong"
+          }
         },
         "invitationCode": {
           "label": "Invitation Code",
@@ -3033,7 +3179,7 @@
     "valueWithCurrency": "{{amount}} {{currency}}",
     "cancel": "Cancel",
     "previous": "Previous",
-    "next": "Next",
+    "next": "Continue",
     "units": {
       "day": "Day",
       "week": "Week",
@@ -3551,12 +3697,15 @@
       "title": "Your balance",
       "empty": "No invoices yet.",
       "totalOutstanding": "Outstanding",
+      "due": "Due",
+      "paidSoFar": "{{amount}} paid so far",
       "downloadPdf": "Download PDF",
       "downloadError": "The PDF could not be downloaded.",
       "pay": "Pay",
       "payError": "Could not open the payment page. Please try again.",
       "payReturnSuccess": "Payment received — thank you! Your balance will update shortly.",
       "payReturnCancelled": "Payment cancelled — nothing was charged.",
+      "payReturnFailed": "Payment failed — please try again or use a different payment method.",
       "columns": {
         "document": "Document",
         "issueDate": "Issue date",
@@ -3585,6 +3734,9 @@
         "actions": "Actions"
       }
     }
+  },
+  "publicPage": {
+    "poweredBy": "Powered by"
   },
   "documents": {
     "index": {
@@ -4304,9 +4456,15 @@
       "signButton": "Sign",
       "successTitle": "Document signed",
       "successDescription": "Thank you — the document has been signed.",
+      "signedAtLabel": "Signed on {{date}}",
       "unavailableTitle": "Link unavailable",
       "unavailableDescription": "This signature link is invalid, expired, or has already been used.",
-      "genericError": "Something went wrong. Please try again."
+      "genericError": "Something went wrong. Please try again.",
+      "steps": {
+        "review": "Review",
+        "verify": "Verify",
+        "signed": "Signed"
+      }
     },
     "conformity": {
       "title": "Compliance tracking",

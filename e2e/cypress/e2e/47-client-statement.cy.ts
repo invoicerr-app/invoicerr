@@ -106,6 +106,7 @@ describe("Client account statement — aged balance, on screen", () => {
 
 					// 2) On screen: the statement opens from the client record and displays total + buckets + lines.
 					cy.visit("/clients");
+					cy.get(`[data-cy="client-row-menu-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get(`[data-cy="statement-client-button-${CLIENT_EMAIL}"]`, { timeout: 15000 }).click();
 					cy.get('[data-cy="client-statement"]', { timeout: 10000 }).should("be.visible");
 					cy.get('[data-cy="client-statement-total"]').should("be.visible");

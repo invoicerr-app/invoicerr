@@ -63,6 +63,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
         label: 'Expenses this month (EUR)',
         unit: 'EUR',
         value: 100,
+        previousValue: 0,
       },
     ]);
   });
@@ -120,6 +121,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
       label: 'Expenses this month (EUR)',
       unit: 'EUR',
       value: 100,
+      previousValue: 0,
     });
   });
 
@@ -161,6 +163,7 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
         label: 'Expenses this month (EUR)',
         unit: 'EUR',
         value: 100,
+        previousValue: 0,
       },
     ]);
   });

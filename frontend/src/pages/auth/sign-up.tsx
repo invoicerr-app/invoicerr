@@ -1,8 +1,13 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { EyeClosedIcon, EyeIcon, TicketIcon, UserX } from "lucide-react"
+import { TicketIcon, UserX } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
 
+import { AuthLink, AuthShell } from "@/pages/auth/_components/auth-shell"
+import { PasswordInput } from "@/pages/auth/_components/password-input"
+import { PasswordStrength } from "@/pages/auth/_components/password-strength"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,10 +15,7 @@ import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import type React from "react"
 import { authClient } from "@/lib/auth"
 import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
-import { toast } from "sonner"
 import { useBackendHealth } from "@/hooks/use-backend-health"
-import { useNavigate } from "react-router"
-import { useTranslation } from "react-i18next"
 
 type SignupFormData = {
   firstname: string
@@ -28,7 +30,7 @@ export default function SignupPage() {
   const navigate = useNavigate()
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string[]>>>({})
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [password, setPassword] = useState("")
   // Whether an account can be created with NO invitation code right now. `null` means
   // "unknown" (the check hasn't resolved yet, or the backend was unreachable) — treated
   // as permissive on the client, since the actual gate is enforced server-side regardless
@@ -159,177 +161,154 @@ export default function SignupPage() {
   // instead of rendering a form that cannot succeed.
   if (oidcOnly) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">
-              {t("auth.signup.oidcOnly.title", "Single sign-on only")}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {t(
-                "auth.signup.oidcOnly.description",
-                "This instance does not use passwords. Sign in with your organisation's identity provider.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {envProviderId && (
-              <Button className="w-full" onClick={handleOIDCLogin} data-cy="auth-oidc-btn">
-                {t("auth.login.oidcLink")}
-              </Button>
-            )}
-            <div className="text-center text-sm">
-              <a href="/auth/sign-in" className="underline hover:text-primary" data-cy="auth-signin-link">
-                {t("auth.signup.oidcOnly.backToSignIn", "Back to sign in")}
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (checkingRegistrationStatus) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <AuthShell
+        title={t("auth.signup.oidcOnly.title", "Single sign-on only")}
+        description={t(
+          "auth.signup.oidcOnly.description",
+          "This instance does not use passwords. Sign in with your organisation's identity provider.",
+        )}
+        footer={
+          <AuthLink href="/auth/sign-in" dataCy="auth-signin-link">
+            {t("auth.signup.oidcOnly.backToSignIn", "Back to sign in")}
+          </AuthLink>
+        }
+        dataCy="auth-card"
+      >
+        {envProviderId && (
+          <Button className="w-full" onClick={handleOIDCLogin} data-cy="auth-oidc-btn">
+            {t("auth.login.oidcLink")}
+          </Button>
+        )}
+      </AuthShell>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">{t("auth.signup.title")}</CardTitle>
-          <CardDescription className="text-center">{t("auth.signup.description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {backendUnavailable && <ServerUnavailableBanner />}
-          {!backendUnavailable && openSignupAllowed === false && (
-            <Alert className="mb-4" data-cy="auth-signup-closed-banner">
-              <UserX />
-              <AlertTitle>{t("auth.signup.closedBanner.title")}</AlertTitle>
-              <AlertDescription>{t("auth.signup.closedBanner.description")}</AlertDescription>
-            </Alert>
+    <AuthShell
+      title={t("auth.signup.title")}
+      description={t("auth.signup.description")}
+      footer={
+        <>
+          <span className="text-muted-foreground">
+            {t("auth.signup.hasAccount")}{" "}
+            <AuthLink href="/auth/sign-in" dataCy="auth-signin-link">
+              {t("auth.signup.signInLink")}
+            </AuthLink>
+          </span>
+          {envProviderId && (
+            <span className="text-muted-foreground">
+              {t("auth.login.oidc")}{" "}
+              <Button variant="link" onClick={handleOIDCLogin} className="h-auto p-0">
+                {t("auth.login.oidcLink")}
+              </Button>
+            </span>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstname">{t("auth.signup.form.firstname.label")}</Label>
-                <Input
-                  id="firstname"
-                  name="firstname"
-                  placeholder={t("auth.signup.form.firstname.placeholder")}
-                  disabled={loading}
-                  data-cy="auth-firstname-input"
-                />
-                {errors.firstname && <p className="text-sm text-red-600">{errors.firstname[0]}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastname">{t("auth.signup.form.lastname.label")}</Label>
-                <Input
-                  id="lastname"
-                  name="lastname"
-                  placeholder={t("auth.signup.form.lastname.placeholder")}
-                  disabled={loading}
-                  data-cy="auth-lastname-input"
-                />
-                {errors.lastname && <p className="text-sm text-red-600">{errors.lastname[0]}</p>}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">{t("auth.signup.form.email.label")}</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder={t("auth.signup.form.email.placeholder")}
-                disabled={loading}
-                data-cy="auth-email-input"
-              />
-              {errors.email && <p className="text-sm text-red-600">{errors.email[0]}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">{t("auth.signup.form.password.label")}</Label>
+        </>
+      }
+      dataCy="auth-card"
+    >
+      {backendUnavailable && <ServerUnavailableBanner />}
+      {!checkingRegistrationStatus && !backendUnavailable && openSignupAllowed === false && (
+        <Alert data-cy="auth-signup-closed-banner">
+          <UserX />
+          <AlertTitle>{t("auth.signup.closedBanner.title")}</AlertTitle>
+          <AlertDescription>{t("auth.signup.closedBanner.description")}</AlertDescription>
+        </Alert>
+      )}
 
-              <div className="flex items-center justify-between gap-2">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder={t("auth.signup.form.password.placeholder")}
-                  disabled={loading}
-                  data-cy="auth-password-input"
-                />
-                <Button type="button" variant="outline" onClick={() => setShowPassword((prev) => !prev)}>
-                  {showPassword ? <EyeClosedIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                </Button>
-              </div>
-
-              {errors.password && (
-                <div className="space-y-1">
-                  <p className="text-sm text-red-600">{t("auth.signup.form.password.requirements")}</p>
-                  <ul className="text-sm text-red-600 list-disc list-inside">
-                    {errors.password.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="firstname">{t("auth.signup.form.firstname.label")}</Label>
+            <Input
+              id="firstname"
+              name="firstname"
+              placeholder={t("auth.signup.form.firstname.placeholder")}
+              disabled={loading}
+              data-cy="auth-firstname-input"
+            />
+            {errors.firstname && <p className="text-sm text-destructive">{errors.firstname[0]}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="lastname">{t("auth.signup.form.lastname.label")}</Label>
+            <Input
+              id="lastname"
+              name="lastname"
+              placeholder={t("auth.signup.form.lastname.placeholder")}
+              disabled={loading}
+              data-cy="auth-lastname-input"
+            />
+            {errors.lastname && <p className="text-sm text-destructive">{errors.lastname[0]}</p>}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email">{t("auth.signup.form.email.label")}</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder={t("auth.signup.form.email.placeholder")}
+            disabled={loading}
+            data-cy="auth-email-input"
+          />
+          {errors.email && <p className="text-sm text-destructive">{errors.email[0]}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password">{t("auth.signup.form.password.label")}</Label>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="new-password"
+            placeholder={t("auth.signup.form.password.placeholder")}
+            disabled={loading}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            data-cy="auth-password-input"
+          />
+          <PasswordStrength value={password} />
+          {errors.password && (
+            <div className="space-y-1">
+              <p className="text-sm text-destructive">{t("auth.signup.form.password.requirements")}</p>
+              <ul className="list-inside list-disc text-sm text-destructive">
+                {errors.password.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
             </div>
+          )}
+        </div>
 
-            {/* Always shown, always optional: a code only ever serves to join an existing
-                company (see backend/src/lib/registration-policy.ts) — leaving it blank
-                creates a brand-new account that lands on the company-creation onboarding. */}
-            <div className="space-y-2">
-              <Label htmlFor="invitationCode">{t("auth.signup.form.invitationCode.label")}</Label>
-              <div className="flex items-center gap-2">
-                <TicketIcon className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="invitationCode"
-                  name="invitationCode"
-                  placeholder={t("auth.signup.form.invitationCode.placeholder")}
-                  disabled={loading}
-                  className="font-mono uppercase"
-                  data-cy="auth-invitation-code-input"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
-              {errors.invitationCode && <p className="text-sm text-red-600">{errors.invitationCode[0]}</p>}
-            </div>
+        {/* Always shown, always optional: a code only ever serves to join an existing
+            company (see backend/src/lib/registration-policy.ts) — leaving it blank
+            creates a brand-new account that lands on the company-creation onboarding. */}
+        <div className="space-y-1.5">
+          <Label htmlFor="invitationCode">{t("auth.signup.form.invitationCode.label")}</Label>
+          <div className="relative">
+            <TicketIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="invitationCode"
+              name="invitationCode"
+              placeholder={t("auth.signup.form.invitationCode.placeholder")}
+              disabled={loading}
+              className="pl-9 font-mono uppercase"
+              data-cy="auth-invitation-code-input"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">{t("auth.signup.form.invitationCode.hint")}</p>
+          {errors.invitationCode && <p className="text-sm text-destructive">{errors.invitationCode[0]}</p>}
+        </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading || backendUnavailable}
-              data-cy="auth-submit-btn"
-            >
-              {loading ? t("auth.signup.form.creatingAccount") : t("auth.signup.form.createButton")}
-            </Button>
-          </form>
-          <section className="flex flex-col mt-4 gap-1">
-            <div className="text-center text-sm">
-              {t("auth.signup.hasAccount")}{" "}
-              <a
-                href="/auth/sign-in"
-                className="underline hover:text-primary cursor-pointer"
-                data-cy="auth-signin-link"
-              >
-                {t("auth.signup.signInLink")}
-              </a>
-            </div>
-            {envProviderId && (
-              <div className="text-center text-sm">
-                {t("auth.login.oidc")}{" "}
-                <Button variant="link" onClick={handleOIDCLogin} className="underline hover:text-primary p-0">
-                  {t("auth.login.oidcLink")}
-                </Button>
-              </div>
-            )}
-          </section>
-        </CardContent>
-      </Card>
-    </div>
+        <Button
+          type="submit"
+          className="w-full"
+          loading={loading}
+          disabled={backendUnavailable}
+          data-cy="auth-submit-btn"
+        >
+          {loading ? t("auth.signup.form.creatingAccount") : t("auth.signup.form.createButton")}
+        </Button>
+      </form>
+    </AuthShell>
   )
 }

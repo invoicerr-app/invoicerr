@@ -295,7 +295,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Connected",
 		);
-		cy.get('[data-cy="channel-pdp-disconnect-button"]').click();
+		// `force: true` on both clicks — the trigger sits inside a `Tooltip`+`DropdownMenu`
+		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
+		// popover this far down a tall page (it reads the popper's `position: fixed`
+		// ancestor as "overflowed", even though the item is genuinely on screen).
+		cy.get('[data-cy="channel-pdp-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="channel-pdp-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
@@ -468,7 +473,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Connected",
 		);
-		cy.get('[data-cy="channel-ksef-disconnect-button"]').click();
+		// `force: true` on both clicks — the trigger sits inside a `Tooltip`+`DropdownMenu`
+		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
+		// popover this far down a tall page (it reads the popper's `position: fixed`
+		// ancestor as "overflowed", even though the item is genuinely on screen).
+		cy.get('[data-cy="channel-ksef-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="channel-ksef-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
@@ -621,7 +631,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Connected",
 		);
-		cy.get('[data-cy="channel-sdi-disconnect-button"]').click();
+		// `force: true` on both clicks — the trigger sits inside a `Tooltip`+`DropdownMenu`
+		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
+		// popover this far down a tall page (it reads the popper's `position: fixed`
+		// ancestor as "overflowed", even though the item is genuinely on screen).
+		cy.get('[data-cy="channel-sdi-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="channel-sdi-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",
@@ -772,7 +787,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			"contain.text",
 			"Connected",
 		);
-		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').click();
+		// `force: true` on both clicks — the trigger sits inside a `Tooltip`+`DropdownMenu`
+		// pair, and Cypress's own visibility heuristic false-negatives on a Radix portal'd
+		// popover this far down a tall page (it reads the popper's `position: fixed`
+		// ancestor as "overflowed", even though the item is genuinely on screen).
+		cy.get('[data-cy="channel-chorus-pro-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').should("exist").click({ force: true });
 
 		cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 			"contain.text",

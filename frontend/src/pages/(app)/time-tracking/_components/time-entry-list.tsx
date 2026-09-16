@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCompany, useDeleteTimeEntry, useTimeEntries } from "@/hooks/queries"
 import { currencies } from "@/lib/constants/currencies"
@@ -100,13 +101,15 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
       <CardContent className="p-0">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+            <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
           </div>
         ) : entries.length === 0 ? (
-          <div className="text-center py-12" data-cy="time-entry-empty">
-            <Clock className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-foreground">{t("timeTracking.entries.empty")}</h3>
-          </div>
+          <EmptyState
+            icon={Clock}
+            size="sm"
+            title={t("timeTracking.entries.empty")}
+            data-cy="time-entry-empty"
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -146,16 +149,20 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                           />
                         )}
                       </TableCell>
-                      <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
+                      <TableCell className="tabular-nums">
+                        {new Date(entry.date).toLocaleDateString()}
+                      </TableCell>
                       <TableCell>{entry.description || "—"}</TableCell>
-                      <TableCell className="text-right">{(entry.durationMinutes / 60).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {(entry.durationMinutes / 60).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
                         {amountFor(entry).toFixed(2)}
                         {currencySymbol}
                       </TableCell>
                       <TableCell>
                         {entry.invoiceId ? (
-                          <Badge variant="secondary" data-cy={`time-entry-billed-${entry.id}`}>
+                          <Badge variant="success" data-cy={`time-entry-billed-${entry.id}`}>
                             {t("timeTracking.entries.status.billed")}
                           </Badge>
                         ) : !entry.billable ? (
@@ -170,6 +177,8 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                             <Button
                               variant="ghost"
                               size="icon"
+                              tooltip={t("timeTracking.actions.edit")}
+                              aria-label={t("timeTracking.actions.edit")}
                               onClick={() => setEditEntry(entry)}
                               dataCy={`time-entry-edit-${entry.id}`}
                             >
@@ -178,6 +187,8 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                             <Button
                               variant="ghost"
                               size="icon"
+                              tooltip={t("timeTracking.actions.delete")}
+                              aria-label={t("timeTracking.actions.delete")}
                               onClick={() => setDeleteEntryTarget(entry)}
                               dataCy={`time-entry-delete-${entry.id}`}
                             >

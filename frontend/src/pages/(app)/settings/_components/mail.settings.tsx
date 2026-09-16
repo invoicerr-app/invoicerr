@@ -10,7 +10,6 @@ import { z } from "zod"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -31,6 +30,7 @@ import {
   useTestCompanyMailSettings,
 } from "@/hooks/queries"
 import type { SetCompanyMailSettingsInput } from "@/hooks/queries"
+import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
 
 /** Display label for a configured provider — the settings-screen equivalent of
  *  `channels.settings.tsx`'s own `PROVIDER_LABELS`. */
@@ -150,7 +150,8 @@ function buildSchema(t: (key: string, fallback: string) => string) {
  * `channels.settings.tsx`'s `ChannelRow`: `GET /api/company/mail-settings` never carries a secret
  * (`CompanyMailSettingsStatus` has no field for one), so there is nothing to pre-fill a password/API
  * key with. `fromAddress` and `kind` ARE known (not secrets) and are pre-filled from the current
- * status when editing an existing configuration.
+ * status when editing an existing configuration. One 2-column grid throughout: the provider select
+ * governs which of the fields below it are relevant, but never needs a section of its own.
  */
 function MailSettingsForm({
   currentKind,
@@ -214,50 +215,52 @@ function MailSettingsForm({
   })
 
   return (
-    <Card data-cy="mail-settings-form-card">
-      <CardHeader>
-        <CardTitle>
-          {currentKind
-            ? t("settings.mail.form.updateTitle", "Update your mail server")
-            : t("settings.mail.form.connectTitle", "Connect your own mail server")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          {/* `noValidate`: without it, the browser's OWN constraint validation (the `port` input's
-              native `min`/`max` below) runs before this `onSubmit` and can cancel the click's submit
-              event outright on an out-of-range value — see the port field's own comment in
-              `buildSchema` above for the confirmed repro. zod is the only validator this form trusts
-              to ever run, on every browser, so its own errors are the only ones a user can see. */}
-          <form className="space-y-4" onSubmit={onSubmit} noValidate data-cy="mail-settings-form">
-            <FormField
-              control={form.control}
-              name="kind"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("settings.mail.form.provider", "Provider")}</FormLabel>
-                  <FormControl>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger data-cy="mail-settings-provider-select">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="smtp" data-cy="mail-settings-provider-option-smtp">
-                          {PROVIDER_LABELS.smtp}
-                        </SelectItem>
-                        <SelectItem value="resend" data-cy="mail-settings-provider-option-resend">
-                          {PROVIDER_LABELS.resend}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <SettingsSection
+      title={
+        currentKind
+          ? t("settings.mail.form.updateTitle", "Update your mail server")
+          : t("settings.mail.form.connectTitle", "Connect your own mail server")
+      }
+      dataCy="mail-settings-form-card"
+    >
+      <Form {...form}>
+        {/* `noValidate`: without it, the browser's OWN constraint validation (the `port` input's
+            native `min`/`max` below) runs before this `onSubmit` and can cancel the click's submit
+            event outright on an out-of-range value — see the port field's own comment in
+            `buildSchema` above for the confirmed repro. zod is the only validator this form trusts
+            to ever run, on every browser, so its own errors are the only ones a user can see. */}
+        <form onSubmit={onSubmit} noValidate data-cy="mail-settings-form">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <FormField
+                control={form.control}
+                name="kind"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.mail.form.provider", "Provider")}</FormLabel>
+                    <FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger data-cy="mail-settings-provider-select">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="smtp" data-cy="mail-settings-provider-option-smtp">
+                            {PROVIDER_LABELS.smtp}
+                          </SelectItem>
+                          <SelectItem value="resend" data-cy="mail-settings-provider-option-resend">
+                            {PROVIDER_LABELS.resend}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {kind === "smtp" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <>
                 <FormField
                   control={form.control}
                   name="host"
@@ -320,76 +323,77 @@ function MailSettingsForm({
                     </FormItem>
                   )}
                 />
+                <div className="sm:col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="secure"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col space-y-3">
+                        <FormLabel>{t("settings.mail.form.secure", "Use TLS")}</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-cy="mail-settings-secure-switch"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-2">
                 <FormField
                   control={form.control}
-                  name="secure"
+                  name="apiKey"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col space-y-3">
-                      <FormLabel>{t("settings.mail.form.secure", "Use TLS")}</FormLabel>
+                    <FormItem>
+                      <FormLabel>{t("settings.mail.form.apiKey", "Resend API key")}</FormLabel>
                       <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-cy="mail-settings-secure-switch"
-                        />
+                        <Input {...field} type="password" data-cy="mail-settings-apikey-input" />
                       </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-            ) : (
+            )}
+
+            <div className="sm:col-span-2">
               <FormField
                 control={form.control}
-                name="apiKey"
+                name="fromAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings.mail.form.apiKey", "Resend API key")}</FormLabel>
+                    <FormLabel>{t("settings.mail.form.fromAddress", "From address")}</FormLabel>
                     <FormControl>
-                      <Input {...field} type="password" data-cy="mail-settings-apikey-input" />
+                      <Input
+                        {...field}
+                        placeholder="billing@example.com"
+                        data-cy="mail-settings-fromaddress-input"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-
-            <FormField
-              control={form.control}
-              name="fromAddress"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("settings.mail.form.fromAddress", "From address")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="billing@example.com"
-                      data-cy="mail-settings-fromaddress-input"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end gap-2">
-              {showCancel && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={onCancel}
-                  data-cy="mail-settings-cancel-button"
-                >
-                  {t("settings.mail.actions.cancel", "Cancel")}
-                </Button>
-              )}
-              <Button type="submit" loading={setMailSettings.isPending} data-cy="mail-settings-save-button">
-                {t("settings.mail.actions.save", "Save")}
-              </Button>
             </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          </div>
+
+          <SettingsFormFooter className="mt-6">
+            {showCancel && (
+              <Button type="button" variant="ghost" onClick={onCancel} dataCy="mail-settings-cancel-button">
+                {t("settings.mail.actions.cancel", "Cancel")}
+              </Button>
+            )}
+            <Button type="submit" loading={setMailSettings.isPending} dataCy="mail-settings-save-button">
+              {t("settings.mail.actions.save", "Save")}
+            </Button>
+          </SettingsFormFooter>
+        </form>
+      </Form>
+    </SettingsSection>
   )
 }
 
@@ -400,6 +404,11 @@ function MailSettingsForm({
  * it. `GET /api/company/mail-settings` reports status only (`configured`, `kind`, `fromAddress`) —
  * NEVER the SMTP password or Resend API key, which this screen therefore never has to (and never
  * does) render back.
+ *
+ * The status chip only ever carries two real states — `success` (this company's own server) and
+ * `secondary` (falling back to the instance's) — because that is all `CompanyMailSettingsStatus`
+ * exposes (a plain `configured` boolean); there is no signal here for "the instance itself has
+ * nothing configured either", so a third, `warning` state is not fabricated on the client.
  *
  * "Test send" is offered UNCONDITIONALLY (not only once a company server is configured): it exercises
  * whatever this company's cascade ACTUALLY resolves to right now — its own server if one is set, else
@@ -459,52 +468,51 @@ export default function MailSettings() {
   }
 
   return (
-    <div className="space-y-6" data-cy="mail-settings-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.mail.title", "Mail")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.mail.description",
-            "By default this company sends through the instance mail server. Define your own to send from your domain.",
-          )}
-        </p>
-      </div>
-
-      <Card data-cy="mail-settings-status-card">
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
+    <SettingsPage
+      title={t("settings.mail.title", "Mail")}
+      description={t(
+        "settings.mail.description",
+        "By default this company sends through the instance mail server. Define your own to send from your domain.",
+      )}
+      dataCy="mail-settings-section"
+    >
+      <SettingsSection
+        title={
+          <>
             {configured ? (
-              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+              <CheckCircle2 className="size-4 text-success-foreground" aria-hidden="true" />
             ) : (
-              <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
+              <Mail className="size-4 text-muted-foreground" aria-hidden="true" />
             )}
-            <CardTitle className="text-base">
-              {t("settings.mail.status.title", "Current mail server")}
-            </CardTitle>
-            <Badge variant={configured ? "default" : "secondary"} data-cy="mail-settings-status-badge">
-              {isLoading
-                ? t("settings.mail.status.loading", "Loading…")
-                : configured
-                  ? t("settings.mail.status.configured", "Company server ({{kind}})", {
-                      kind: status?.kind ? PROVIDER_LABELS[status.kind] : "",
-                    })
-                  : t("settings.mail.status.usingInstance", "Using the instance's mail server")}
-            </Badge>
-          </div>
-          {configured && status?.fromAddress && (
-            <CardDescription data-cy="mail-settings-from-address">
+            {t("settings.mail.status.title", "Current mail server")}
+          </>
+        }
+        description={
+          configured && status?.fromAddress ? (
+            <span data-cy="mail-settings-from-address">
               {t("settings.mail.status.fromAddress", "From: {{address}}", { address: status.fromAddress })}
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
+            </span>
+          ) : undefined
+        }
+        aside={
+          <Badge variant={configured ? "success" : "secondary"} data-cy="mail-settings-status-badge">
+            {isLoading
+              ? t("settings.mail.status.loading", "Loading…")
+              : configured
+                ? t("settings.mail.status.configured", "Company server ({{kind}})", {
+                    kind: status?.kind ? PROVIDER_LABELS[status.kind] : "",
+                  })
+                : t("settings.mail.status.usingInstance", "Using the instance's mail server")}
+          </Badge>
+        }
+        footer={
           <div className="flex flex-wrap items-center gap-2">
             {configured && !editing && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setEditing(true)}
-                data-cy="mail-settings-edit-button"
+                dataCy="mail-settings-edit-button"
               >
                 {t("settings.mail.actions.edit", "Edit")}
               </Button>
@@ -514,7 +522,7 @@ export default function MailSettings() {
               size="sm"
               onClick={handleTest}
               loading={testMailSettings.isPending}
-              data-cy="mail-settings-test-button"
+              dataCy="mail-settings-test-button"
             >
               {t("settings.mail.actions.test", "Test send")}
             </Button>
@@ -524,14 +532,15 @@ export default function MailSettings() {
                 size="sm"
                 className="text-destructive hover:text-destructive"
                 onClick={() => setConfirmRevertOpen(true)}
-                data-cy="mail-settings-revert-button"
+                dataCy="mail-settings-revert-button"
               >
                 {t("settings.mail.actions.revert", "Revert to instance server")}
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        }
+        dataCy="mail-settings-status-card"
+      />
 
       {showForm && !isLoading && (
         <MailSettingsForm
@@ -563,7 +572,7 @@ export default function MailSettings() {
             <Button
               variant="outline"
               onClick={() => setConfirmRevertOpen(false)}
-              data-cy="mail-settings-revert-cancel-button"
+              dataCy="mail-settings-revert-cancel-button"
             >
               {t("settings.mail.actions.cancel", "Cancel")}
             </Button>
@@ -571,13 +580,13 @@ export default function MailSettings() {
               variant="destructive"
               onClick={handleRevert}
               loading={clearMailSettings.isPending}
-              data-cy="mail-settings-revert-confirm-button"
+              dataCy="mail-settings-revert-confirm-button"
             >
               {t("settings.mail.actions.revert", "Revert to instance server")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </SettingsPage>
   )
 }

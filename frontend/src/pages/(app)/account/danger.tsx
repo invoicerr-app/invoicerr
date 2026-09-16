@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -18,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
+import { SettingsSection } from "../settings/_components/settings-section"
 
 /** The exact shape depends on how the backend's `user.deleteUser.beforeDelete` hook reports the
  *  refusal — checked defensively on both a `code` field (this repo's own convention for a
@@ -73,19 +73,20 @@ export default function AccountDangerPage() {
   }
 
   return (
-    <Card className="border-destructive/30" data-cy="account-danger-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-destructive">
-          <AlertTriangle className="size-4" />
+    <SettingsSection
+      tone="destructive"
+      title={
+        <>
+          <AlertTriangle className="size-4" aria-hidden="true" />
           {t("account.danger.card.title")}
-        </CardTitle>
-        <CardDescription>{t("account.danger.card.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button variant="destructive" onClick={openDialog} data-cy="account-danger-delete-button">
-          {t("account.danger.card.button")}
-        </Button>
-      </CardContent>
+        </>
+      }
+      description={t("account.danger.card.description")}
+      dataCy="account-danger-card"
+    >
+      <Button variant="destructive" onClick={openDialog} data-cy="account-danger-delete-button">
+        {t("account.danger.card.button")}
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md" data-cy="account-danger-dialog">
@@ -141,6 +142,6 @@ export default function AccountDangerPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </SettingsSection>
   )
 }

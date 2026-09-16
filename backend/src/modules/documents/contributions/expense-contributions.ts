@@ -66,15 +66,31 @@ function monthKey(value: unknown): string | null {
  */
 export const buildExpenseDashboardWidgets: ContributionHandler = async ({ companyId }) => {
   const expenses = await listDocuments(companyId, 'expense', CONTRIBUTION_READ_LIMIT);
-  const thisMonth = monthKey(new Date().toISOString());
+  const now = new Date();
+  const thisMonth = monthKey(now.toISOString());
+  // Last month's key, on the same UTC clock as `thisMonth` — feeds `previousValue` below.
+  const lastMonth = monthKey(
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString(),
+  );
 
   const totalsByCurrency = new Map<string, number>();
+  // Last month's totals, per currency, only for the currencies present THIS month: `previousValue`
+  // sits next to a current figure, it never creates a tile of its own for a currency that has
+  // nothing this month (that would be last month's dashboard, not this one's).
+  const lastMonthTotalsByCurrency = new Map<string, number>();
   for (const expense of expenses) {
     const data = (expense.data ?? {}) as Record<string, unknown>;
-    if (monthKey(data.date) !== thisMonth) continue; // last month, next month, unparseable: excluded
-
+    const month = monthKey(data.date);
     const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
-    totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + expenseAmount(data));
+    if (month === thisMonth) {
+      totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + expenseAmount(data));
+    } else if (month === lastMonth) {
+      lastMonthTotalsByCurrency.set(
+        currency,
+        (lastMonthTotalsByCurrency.get(currency) ?? 0) + expenseAmount(data),
+      );
+    }
+    // Any other month (or an unparseable date): excluded from both.
   }
 
   if (totalsByCurrency.size === 0) {
@@ -98,6 +114,7 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
         label: `Expenses this month (${currency})`,
         unit: currency,
         value: Number(total.toFixed(2)),
+        previousValue: Number((lastMonthTotalsByCurrency.get(currency) ?? 0).toFixed(2)),
       }),
     );
 };

@@ -89,7 +89,7 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
                       {project.hourlyRate != null && (
                         <>
                           {" "}
-                          · {project.hourlyRate}
+                          · <span className="font-mono tabular-nums">{project.hourlyRate}</span>
                           {currencySymbol}/{t("timeTracking.units.hourShort")}
                         </>
                       )}
@@ -98,6 +98,7 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
                   <div className="flex items-center gap-1">
                     <Button
                       tooltip={t("timeTracking.actions.edit")}
+                      aria-label={t("timeTracking.actions.edit")}
                       variant="ghost"
                       size="icon"
                       onClick={(e) => {
@@ -110,6 +111,11 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
                     </Button>
                     <Button
                       tooltip={t(
+                        project.isArchived
+                          ? "timeTracking.actions.unarchive"
+                          : "timeTracking.actions.archive",
+                      )}
+                      aria-label={t(
                         project.isArchived
                           ? "timeTracking.actions.unarchive"
                           : "timeTracking.actions.archive",

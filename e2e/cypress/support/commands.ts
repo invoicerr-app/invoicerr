@@ -216,6 +216,55 @@ Cypress.Commands.add('pickToday', (triggerSelector: string) => {
 });
 
 /**
+ * Opens a Radix `Select` trigger and clicks one of its options, retrying the trigger click
+ * (bounded) if the option never becomes visible — the same open-side race `openDatePicker` and
+ * `openDocumentRowMenu` above guard against, hit here when the trigger sits right after a "more"
+ * menu closes (that menu's own `DismissableLayer` still detaching its outside-pointerdown
+ * listener on a deferred passive-effect cleanup): a scripted click on this trigger, fired inside
+ * that window, is swallowed by the stale listener instead of opening the `Select`, so the option
+ * never appears. CI run 35034664790 (spec 29, Electron only — a real user's next click lands well
+ * past the passive-effect flush, and Firefox's own event timing never puts the two clicks in the
+ * same tick, which is why this passed locally there).
+ * @example cy.openSelect('[data-cy="document-field-cadence-input"] button', '[data-cy="document-field-cadence-input-option-yearly"]')
+ */
+Cypress.Commands.add('openSelect', (triggerSelector: string, optionSelector: string) => {
+    const OPEN_POLL_MS = 100;
+    const OPEN_TIMEOUT_MS = 800;
+    const MAX_ATTEMPTS = 3;
+    const isOpen = () =>
+        cy.get('body', { log: false }).then(($body) => $body.find(`${optionSelector}:visible`).length > 0);
+    const pollForOpen = (elapsedMs: number): Cypress.Chainable<boolean> =>
+        isOpen().then((visible) => {
+            if (visible || elapsedMs >= OPEN_TIMEOUT_MS) return cy.wrap(visible, { log: false });
+            cy.wait(OPEN_POLL_MS, { log: false });
+            return pollForOpen(elapsedMs + OPEN_POLL_MS);
+        });
+    const openWithRetries = (attempt: number): void => {
+        cy.get(triggerSelector).scrollIntoView().click();
+        pollForOpen(0).then((opened) => {
+            if (opened || attempt >= MAX_ATTEMPTS) {
+                if (attempt > 1) {
+                    Cypress.log({
+                        name: 'openSelect',
+                        message: opened
+                            ? `option visible after ${attempt} attempt(s)`
+                            : `option still not visible after ${attempt} attempt(s), giving up retries`,
+                    });
+                }
+                return;
+            }
+            Cypress.log({ name: 'openSelect', message: `option did not appear on attempt ${attempt} -- retrying` });
+            openWithRetries(attempt + 1);
+        });
+    };
+    // Same "wait before the click" as `openDatePicker`'s own OPEN-side guard, so a menu that just
+    // closed has a chance to detach its stale listener before this trigger's click can race it.
+    cy.wait(50);
+    openWithRetries(1);
+    cy.get(optionSelector, { timeout: 10000 }).should('be.visible').click();
+});
+
+/**
  * Opens a saved document's OWN page from its type's list: clicks the row's title link
  * (`document-open-link-<id>`, the one keyboard-reachable "open" control document-list.tsx renders)
  * and waits for the page root (`document-detail-page`, document-detail.tsx). The page is what

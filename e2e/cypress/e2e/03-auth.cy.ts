@@ -163,8 +163,10 @@ describe('Authentication E2E', () => {
 
         it('creates an invitation code and lists it as active', () => {
             createInvitationCodeViaUI().should('match', /^[0-9A-F]{32}$/);
-            cy.get('table tbody tr', { timeout: 10000 }).should('have.length.at.least', 1);
-            cy.contains('table tbody tr', /active/i, { timeout: 10000 }).should('exist');
+            // The invitations tab is a `SettingsList` of `SettingsListRow`s (`invitation-row-<id>`),
+            // not a `<table>`, since the redesign.
+            cy.get('[data-cy^="invitation-row-"]', { timeout: 10000 }).should('have.length.at.least', 1);
+            cy.contains('[data-cy^="invitation-row-"]', /active/i, { timeout: 10000 }).should('exist');
         });
 
         it('signing up with a valid code attaches the new user to the right company', () => {

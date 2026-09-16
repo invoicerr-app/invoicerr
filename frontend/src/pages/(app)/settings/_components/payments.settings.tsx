@@ -1,13 +1,12 @@
 "use client"
 
-import { CheckCircle2, Copy, Loader2, XCircle } from "lucide-react"
+import { Copy } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,6 +14,8 @@ import { useCompanies } from "@/hooks/queries"
 import { useGet, usePost, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import type { Company } from "@/types"
+
+import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
 
 type ChannelEnvironment = "TEST" | "PROD"
 
@@ -46,30 +47,30 @@ interface PaymentProviderField {
  *
  * Each provider declares its OWN field list (`PAYMENT_PROVIDERS` below) — adding a fourth provider is
  * exactly one more entry, never a new component. Stripe's own `data-cy` attributes are UNCHANGED from
- * before this refactor (`payment-provider-stripe-*`) — `60-online-payment.cy.ts` depends on them.
+ * before this refactor (`payment-provider-stripe-*`) — `60-online-payment.cy.ts` depends on them. Each
+ * card is its OWN `SettingsSection` with its own "Connect" primary: these are unrelated third-party
+ * accounts a company opts into independently, so — unlike a single-form tab — more than one card's
+ * primary can be on screen at once (a fresh company sees all three at once, unconnected).
  */
 export default function PaymentsSettings() {
   const { t } = useTranslation()
   const { data: channels, mutate } = useGet<ChannelsResponse>("/api/company/channels")
 
   return (
-    <div className="space-y-6" data-cy="payments-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.payments.title", "Payments")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.payments.description",
-            "Connect a payment provider so a Pay link appears on invoices in the client portal.",
-          )}
-        </p>
-      </div>
-
+    <SettingsPage
+      title={t("settings.payments.title", "Payments")}
+      description={t(
+        "settings.payments.description",
+        "Connect a payment provider so a Pay link appears on invoices in the client portal.",
+      )}
+      dataCy="payments-section"
+    >
       <ActiveProviderSelector channels={channels} />
 
       {PAYMENT_PROVIDERS.map((provider) => (
         <PaymentProviderCard key={provider.id} provider={provider} channels={channels} mutate={mutate} />
       ))}
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -93,7 +94,7 @@ const DEFAULT_PAYMENT_PROVIDER_ID = "stripe"
 function ActiveProviderSelector({ channels }: { channels: ChannelsResponse | null | undefined }) {
   const { t } = useTranslation()
   const { data: company, mutate: refetchCompany } = useGet<Company>("/api/company/info")
-  const { trigger: save, loading: saving } = useMutationWithToast(
+  const { trigger: save } = useMutationWithToast(
     usePost<Company>("/api/company/info"),
     t("settings.payments.messages.activeProviderError", "Failed to update the active payment provider"),
   )
@@ -113,37 +114,31 @@ function ActiveProviderSelector({ channels }: { channels: ChannelsResponse | nul
   }
 
   return (
-    <Card data-cy="payment-active-provider-card">
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("settings.payments.activeProvider.title", "Active provider")}
-        </CardTitle>
-        <CardDescription>
-          {t(
-            "settings.payments.activeProvider.description",
-            "Which connected provider the client portal's Pay link opens, when more than one is connected.",
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Select value={current} onValueChange={handleChange} disabled={saving}>
-          <SelectTrigger className="w-full sm:w-64" data-cy="payment-active-provider-select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PAYMENT_PROVIDERS.filter((provider) => connectedIds.has(provider.id)).map((provider) => (
-              <SelectItem
-                key={provider.id}
-                value={provider.id}
-                data-cy={`payment-active-provider-option-${provider.id}`}
-              >
-                {provider.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </CardContent>
-    </Card>
+    <SettingsSection
+      title={t("settings.payments.activeProvider.title", "Active provider")}
+      description={t(
+        "settings.payments.activeProvider.description",
+        "Which connected provider the client portal's Pay link opens, when more than one is connected.",
+      )}
+      dataCy="payment-active-provider-card"
+    >
+      <Select value={current} onValueChange={handleChange}>
+        <SelectTrigger className="w-full sm:w-64" data-cy="payment-active-provider-select">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {PAYMENT_PROVIDERS.filter((provider) => connectedIds.has(provider.id)).map((provider) => (
+            <SelectItem
+              key={provider.id}
+              value={provider.id}
+              data-cy={`payment-active-provider-option-${provider.id}`}
+            >
+              {provider.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </SettingsSection>
   )
 }
 
@@ -298,61 +293,11 @@ function PaymentProviderCard({
     mutate()
   }
 
-  return (
-    <Card data-cy={`payment-provider-${provider.id}`}>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {isConnected ? (
-              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-            ) : (
-              <XCircle className="h-5 w-5 text-muted-foreground shrink-0" />
-            )}
-            <CardTitle className="text-base">{provider.title}</CardTitle>
-            <Badge
-              variant={isConnected ? "default" : "secondary"}
-              data-cy={`payment-provider-${provider.id}-status`}
-            >
-              {isConnected
-                ? t("settings.payments.status.connected", "Connected ({{environment}})", {
-                    environment: configured?.environment,
-                  })
-                : t("settings.payments.status.notConnected", "Not connected")}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            {isConnected && !editing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditing(true)}
-                data-cy={`payment-provider-${provider.id}-edit-button`}
-              >
-                {t("settings.payments.actions.edit", "Edit")}
-              </Button>
-            )}
-            {isConnected && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                data-cy={`payment-provider-${provider.id}-disconnect-button`}
-              >
-                {disconnecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t("settings.payments.actions.disconnect", "Disconnect")
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-        <CardDescription>{t(provider.descriptionKey, provider.descriptionFallback)}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {provider.showWebhookUrl && (
+  const hasWebhookBlock = provider.showWebhookUrl
+  const content =
+    hasWebhookBlock || editing ? (
+      <div className="space-y-4">
+        {hasWebhookBlock && (
           // Needed BEFORE connecting — it is what gets registered as a webhook endpoint in the
           // provider's own dashboard in order to obtain the value one of the fields below asks for.
           <div className="space-y-1.5">
@@ -363,6 +308,7 @@ function PaymentProviderCard({
               <Input
                 id={`payment-webhook-url-${provider.id}`}
                 readOnly
+                className="font-mono"
                 value={webhookUrl}
                 data-cy={`payment-webhook-url-${provider.id}`}
               />
@@ -370,10 +316,11 @@ function PaymentProviderCard({
                 variant="outline"
                 size="icon"
                 onClick={copyWebhookUrl}
-                aria-label={t("settings.payments.actions.copy", "Copy")}
+                aria-label={t("settings.common.copy", "Copy")}
+                tooltip={t("settings.common.copy", "Copy")}
                 data-cy={`payment-webhook-url-${provider.id}-copy-button`}
               >
-                <Copy className="h-4 w-4" />
+                <Copy aria-hidden="true" />
               </Button>
             </div>
             {provider.webhookHintKey && (
@@ -385,7 +332,7 @@ function PaymentProviderCard({
         )}
 
         {editing && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor={`payment-environment-${provider.id}`}>
                 {t("settings.payments.fields.environment", "Environment")}
@@ -427,28 +374,71 @@ function PaymentProviderCard({
                 />
               </div>
             ))}
-            <div className="flex items-end justify-end gap-2 sm:col-span-2">
-              {isConnected && (
-                <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-                  {t("settings.payments.actions.cancel", "Cancel")}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                onClick={handleConnect}
-                disabled={connecting}
-                data-cy={`payment-provider-${provider.id}-connect-button`}
-              >
-                {connecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t("settings.payments.actions.connect", "Connect")
-                )}
-              </Button>
-            </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    ) : null
+
+  return (
+    <SettingsSection
+      dataCy={`payment-provider-${provider.id}`}
+      title={provider.title}
+      description={t(provider.descriptionKey, provider.descriptionFallback)}
+      aside={
+        <>
+          <Badge
+            variant={isConnected ? "success" : "secondary"}
+            data-cy={`payment-provider-${provider.id}-status`}
+          >
+            {isConnected
+              ? t("settings.payments.status.connected", "Connected ({{environment}})", {
+                  environment: configured?.environment,
+                })
+              : t("settings.payments.status.notConnected", "Not connected")}
+          </Badge>
+          {isConnected && !editing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing(true)}
+              data-cy={`payment-provider-${provider.id}-edit-button`}
+            >
+              {t("settings.payments.actions.edit", "Edit")}
+            </Button>
+          )}
+          {isConnected && !editing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDisconnect}
+              loading={disconnecting}
+              data-cy={`payment-provider-${provider.id}-disconnect-button`}
+            >
+              {t("settings.payments.actions.disconnect", "Disconnect")}
+            </Button>
+          )}
+        </>
+      }
+      footer={
+        editing ? (
+          <SettingsFormFooter>
+            {isConnected && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                {t("settings.payments.actions.cancel", "Cancel")}
+              </Button>
+            )}
+            <Button
+              onClick={handleConnect}
+              loading={connecting}
+              data-cy={`payment-provider-${provider.id}-connect-button`}
+            >
+              {t("settings.payments.actions.connect", "Connect")}
+            </Button>
+          </SettingsFormFooter>
+        ) : undefined
+      }
+    >
+      {content}
+    </SettingsSection>
   )
 }

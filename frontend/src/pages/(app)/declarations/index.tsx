@@ -12,7 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useDeclarations } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
-import { cn } from "@/lib/utils"
 
 /**
  * Makes visible what `reporting/report-on-send.ts` already does silently
@@ -36,11 +35,13 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   "report:failed": "declarations.status.failed",
 }
 
-const STATUS_TONE: Record<string, string> = {
-  ACCEPTED: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
-  REJECTED: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
-  "report:blocked": "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300",
-  "report:failed": "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300",
+// Theme tokens only (index.css) — the same success/destructive/warning triad every other status
+// chip in the app already renders through (see document-settlement.tsx's own TONE_CLASSES header).
+const STATUS_VARIANT: Record<string, "success" | "destructive" | "warning"> = {
+  ACCEPTED: "success",
+  REJECTED: "destructive",
+  "report:blocked": "warning",
+  "report:failed": "warning",
 }
 
 const ALL_STATUSES_VALUE = "all"
@@ -141,17 +142,15 @@ export default function DeclarationsPage() {
                     <TableCell className="font-mono text-xs">{declaration.providerId}</TableCell>
                     <TableCell>
                       <Badge
-                        variant="outline"
-                        className={cn(
-                          "border-transparent font-semibold",
-                          STATUS_TONE[declaration.statusCode],
-                        )}
+                        variant={STATUS_VARIANT[declaration.statusCode] ?? "secondary"}
                         data-cy="declaration-status-badge"
                       >
                         {statusLabel(declaration.statusCode)}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(declaration.observedAt).toLocaleString()}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {new Date(declaration.observedAt).toLocaleString()}
+                    </TableCell>
                     <TableCell
                       className="max-w-[280px] truncate text-destructive"
                       data-cy="declaration-error"

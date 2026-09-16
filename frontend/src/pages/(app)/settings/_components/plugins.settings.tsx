@@ -1,17 +1,19 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useGet, usePost, usePut } from "@/hooks/use-fetch"
 
 import { Button } from "@/components/ui/button"
 import { DynamicFormModal } from "@/components/form-modal"
 import type { FormConfig } from "@/components/form-modal"
-import { ExternalLink } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ExternalLink, Puzzle } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { WebhookInstructionsModal } from "@/components/webhook-instructions-modal"
 import { toast } from "sonner"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+
+import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "./settings-section"
 
 interface InAppPlugin {
   id: string
@@ -153,52 +155,59 @@ export default function PluginsSettings() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.plugins.title", { count: pluginCount })}</h1>
-        <p className="text-muted-foreground">{t("settings.plugins.description")}</p>
-      </div>
-
-      {inAppPlugins && inAppPlugins.length > 0 && (
-        <div className="space-y-4">
-          {inAppPlugins.map((category) => (
-            <Card key={category.category}>
-              <CardHeader>
-                <CardTitle className="capitalize">{category.category}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {category.plugins.map((plugin) => (
-                    <div key={plugin.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{plugin.name}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {plugin.isActive && plugin.hasWebhook && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePluginInstructions(plugin.id)}
-                            className="flex items-center gap-2"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Webhook
-                          </Button>
-                        )}
-                        <Switch
-                          checked={plugin.isActive}
-                          onCheckedChange={() => handleToggleInAppPlugin(plugin.id)}
-                          disabled={togglingPluginId === plugin.id}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+    <SettingsPage
+      title={t("settings.plugins.title", { count: pluginCount })}
+      description={t("settings.plugins.description")}
+      dataCy="plugins-section"
+    >
+      {inAppPlugins && inAppPlugins.length > 0 ? (
+        inAppPlugins.map((category) => (
+          <SettingsSection
+            key={category.category}
+            title={<span className="capitalize">{category.category}</span>}
+          >
+            <SettingsList>
+              {category.plugins.map((plugin) => (
+                <SettingsListRow
+                  key={plugin.id}
+                  dataCy={`plugin-row-${plugin.id}`}
+                  title={plugin.name}
+                  primary={
+                    plugin.isActive && plugin.hasWebhook ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePluginInstructions(plugin.id)}
+                        data-cy={`plugin-row-${plugin.id}-webhook-button`}
+                      >
+                        <ExternalLink aria-hidden="true" />
+                        {t("settings.plugins.actions.webhook", "Webhook")}
+                      </Button>
+                    ) : undefined
+                  }
+                  menu={
+                    <Switch
+                      checked={plugin.isActive}
+                      onCheckedChange={() => handleToggleInAppPlugin(plugin.id)}
+                      disabled={togglingPluginId === plugin.id}
+                      aria-label={plugin.name}
+                      data-cy={`plugin-row-${plugin.id}-toggle`}
+                    />
+                  }
+                />
+              ))}
+            </SettingsList>
+          </SettingsSection>
+        ))
+      ) : inAppPlugins ? (
+        <SettingsSection>
+          <EmptyState
+            icon={Puzzle}
+            size="sm"
+            title={t("settings.plugins.emptyState", "No plugins available")}
+          />
+        </SettingsSection>
+      ) : null}
 
       <DynamicFormModal
         open={configModalOpen}
@@ -221,6 +230,6 @@ export default function PluginsSettings() {
         webhookSecret={webhookInstructions?.webhookSecret || ""}
         instructions={webhookInstructions?.instructions || []}
       />
-    </div>
+    </SettingsPage>
   )
 }

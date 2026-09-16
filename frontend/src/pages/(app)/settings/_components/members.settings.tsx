@@ -1,17 +1,23 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
+import { RefreshCwIcon, TrashIcon, Users } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { RefreshCwIcon, TrashIcon, Users } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
-import type { CompanyMember, CompanyRole } from "@/types"
-import { authClient } from "@/lib/auth"
-import { toast } from "sonner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCompanies } from "@/hooks/queries"
-import { useTranslation } from "react-i18next"
+import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
+import { authClient } from "@/lib/auth"
+import type { CompanyMember, CompanyRole } from "@/types"
+import {
+  SettingsIconDisc,
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+} from "./settings-section"
 
 export default function MembersSettings() {
   const { t } = useTranslation()
@@ -53,82 +59,80 @@ export default function MembersSettings() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{t("settings.members.title")}</CardTitle>
-            <CardDescription>{t("settings.members.description")}</CardDescription>
-          </div>
-          <Button variant="outline" size="icon" onClick={() => mutate()} disabled={loading}>
-            <RefreshCwIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : !members || members.length === 0 ? (
-            <EmptyState icon={Users} size="sm" title={t("settings.members.empty")} data-cy="members-empty" />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("settings.members.list.name")}</TableHead>
-                  <TableHead>{t("settings.members.list.email")}</TableHead>
-                  <TableHead>{t("settings.members.list.role")}</TableHead>
-                  <TableHead className="text-right">{t("settings.members.list.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => {
-                  const isSelf = member.userId === currentUserId
-                  return (
-                    <TableRow key={member.userId}>
-                      <TableCell>
-                        {member.firstname} {member.lastname}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{member.email}</TableCell>
-                      <TableCell>
-                        {isOwner && !isSelf ? (
-                          <Select
-                            value={member.role}
-                            onValueChange={(value) => changeMemberRole(member.userId, value as CompanyRole)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
-                              <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
-                              <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline">{member.role}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {!isSelf && (isOwner || activeRole === "ADMIN") && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => removeMember(member.userId)}
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <SettingsPage
+      title={t("settings.members.title")}
+      description={t("settings.members.description")}
+      actions={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t("settings.common.refresh")}
+          tooltip={t("settings.common.refresh")}
+          onClick={() => mutate()}
+          disabled={loading}
+          data-cy="members-refresh"
+        >
+          <RefreshCwIcon className={loading ? "animate-spin" : undefined} />
+        </Button>
+      }
+    >
+      {loading ? (
+        <SettingsListSkeleton rows={3} />
+      ) : !members || members.length === 0 ? (
+        <EmptyState icon={Users} size="sm" title={t("settings.members.empty")} data-cy="members-empty" />
+      ) : (
+        <SettingsList dataCy="members-list">
+          {members.map((member) => {
+            const isSelf = member.userId === currentUserId
+            const canEditRole = isOwner && !isSelf
+            const canRemove = !isSelf && (isOwner || activeRole === "ADMIN")
+            return (
+              <SettingsListRow
+                key={member.userId}
+                dataCy={`member-row-${member.userId}`}
+                leading={<SettingsIconDisc icon={Users} />}
+                title={`${member.firstname} ${member.lastname}`}
+                meta={member.email}
+                badge={!canEditRole ? <Badge variant="outline">{member.role}</Badge> : undefined}
+                primary={
+                  canEditRole ? (
+                    <Select
+                      value={member.role}
+                      onValueChange={(value) => changeMemberRole(member.userId, value as CompanyRole)}
+                    >
+                      <SelectTrigger className="w-32" data-cy={`member-role-select-${member.userId}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
+                        <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
+                        <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : undefined
+                }
+                menu={
+                  canRemove ? (
+                    <SettingsRowMenu
+                      dataCy={`member-menu-${member.userId}`}
+                      items={[
+                        {
+                          label: t("settings.common.remove"),
+                          icon: TrashIcon,
+                          onSelect: () => removeMember(member.userId),
+                          destructive: true,
+                          dataCy: `member-remove-${member.userId}`,
+                        },
+                      ]}
+                    />
+                  ) : undefined
+                }
+              />
+            )
+          })}
+        </SettingsList>
+      )}
+    </SettingsPage>
   )
 }

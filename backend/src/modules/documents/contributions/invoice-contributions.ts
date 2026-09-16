@@ -8,7 +8,14 @@ import { sumPaidMinorByDocument } from '../settlement/payments';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { consolidateByCurrency, loadCurrencyContext } from './currency-consolidation';
-import { MetricWidget, ShortListWidget, TableWidget, TimeSeriesWidget, Widget } from './widgets';
+import {
+  MetricWidget,
+  ShortListItem,
+  ShortListWidget,
+  TableWidget,
+  TimeSeriesWidget,
+  Widget,
+} from './widgets';
 
 /**
  * The FIRST real contribution, written to be the model every other one follows — see this module's
@@ -132,27 +139,68 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
       .settled;
   });
 
-  const pendingItems = pendingInvoices
+  const pendingItems: ShortListItem[] = pendingInvoices
     .map((invoice) => {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const currency = typeof data.currency === 'string' ? data.currency : '';
       const dueDate = typeof data.dueDate === 'string' ? data.dueDate : undefined;
+      const total = invoiceTotal(data);
       return {
         id: invoice.id,
-        primary: `${invoiceTotal(data).toFixed(2)} ${currency}`.trim(),
+        // The invoice's own number when it has one (a "sent" invoice normally does — numbering
+        // happens on send), the plain amount otherwise: the row's title is the FACT that identifies
+        // the record, never a number fabricated from its id. The amount travels structured in
+        // `amount` (below) so the row can right-align it whichever of the two `primary` carries.
+        primary: invoice.displayNumber ?? `${total.toFixed(2)} ${currency}`.trim(),
         secondary: dueDate,
+        status: invoice.status,
+        dueDate,
+        amount: currency ? { value: Number(total.toFixed(2)), currency } : undefined,
         sortKey: dueDate ?? '',
       };
     })
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-    .map(({ id, primary, secondary }) => ({ id, primary, secondary }));
+    .map(({ sortKey: _sortKey, ...item }) => item);
 
   const pendingWidget: ShortListWidget = {
     id: 'invoice:pending',
     kind: 'shortList',
     label: 'Pending invoices',
+    documentTypeId: 'invoice',
     items: pendingItems,
   };
+
+  // "Overdue" — the pending invoices whose due date is already behind us, totalled per currency
+  // with the same never-across-currencies rule as every other sum in this file. Compared as
+  // YYYY-MM-DD strings against a UTC "today", the same clock `monthKey` uses (see its comment): an
+  // invoice due today is not yet overdue, one due yesterday is. Emitted for every currency that has
+  // pending invoices at all — a 0 next to a "pending" total says "nothing late", which a missing
+  // tile would not — and as one currency-less zero when nothing is pending (no currency to label
+  // a zero with, same reasoning as expense-contributions.ts's own empty-month metric).
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const overdueTotalsByCurrency = new Map<string, number>();
+  for (const invoice of pendingInvoices) {
+    const data = (invoice.data ?? {}) as Record<string, unknown>;
+    const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+    const dueDate = typeof data.dueDate === 'string' ? data.dueDate.slice(0, 10) : '';
+    const overdue = dueDate !== '' && dueDate < todayIso;
+    overdueTotalsByCurrency.set(
+      currency,
+      (overdueTotalsByCurrency.get(currency) ?? 0) + (overdue ? invoiceTotal(data) : 0),
+    );
+  }
+  const overdueTotalWidgets: MetricWidget[] =
+    overdueTotalsByCurrency.size === 0
+      ? [{ id: 'invoice:overdue-total', kind: 'metric', label: 'Overdue invoices total', value: 0 }]
+      : [...overdueTotalsByCurrency.entries()]
+          .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+          .map(([currency, total]) => ({
+            id: `invoice:overdue-total:${currency}`,
+            kind: 'metric',
+            label: `Overdue invoices total (${currency})`,
+            unit: currency,
+            value: Number(total.toFixed(2)),
+          }));
 
   // "le total des factures en attente" (the multi-currency wording) — grouped by
   // currency, same discipline as expense-contributions.ts's own monthly totals and this file's own
@@ -190,7 +238,49 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
     points: months.map(({ key, label }) => ({ label, value: countsByMonth.get(key) ?? 0 })),
   };
 
-  return [pendingWidget, curveWidget, ...pendingTotalWidgets];
+  // "Issued this month" — what was actually invoiced this calendar month, per currency, next to
+  // last month's figure in the same currency (`previousValue`) so the tile can show a direction.
+  // Only invoices that REACHED "sent" count: a draft is not issued, a "send_failed" one never left,
+  // and a "cancelled" one is void (the same exclusion the pending list applies above). The curve
+  // just above deliberately keeps counting every invoice by date, whatever its status — it answers
+  // "how busy was each month", this answers "what did we invoice"; two questions, two widgets.
+  const thisMonthKey = months[months.length - 1].key;
+  const lastMonthKey = months[months.length - 2].key;
+  const issuedByCurrency = new Map<string, { thisMonth: number; lastMonth: number }>();
+  for (const invoice of invoices) {
+    if (invoice.status !== 'sent') continue;
+    const data = (invoice.data ?? {}) as Record<string, unknown>;
+    const key = monthKey(data.issueDate);
+    if (key !== thisMonthKey && key !== lastMonthKey) continue;
+    const currency = typeof data.currency === 'string' && data.currency ? data.currency : 'UNKNOWN';
+    const bucket = issuedByCurrency.get(currency) ?? { thisMonth: 0, lastMonth: 0 };
+    if (key === thisMonthKey) bucket.thisMonth += invoiceTotal(data);
+    else bucket.lastMonth += invoiceTotal(data);
+    issuedByCurrency.set(currency, bucket);
+  }
+  const issuedThisMonthWidgets: MetricWidget[] =
+    issuedByCurrency.size === 0
+      ? [{ id: 'invoice:issued-this-month', kind: 'metric', label: 'Invoiced this month', value: 0 }]
+      : [...issuedByCurrency.entries()]
+          .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+          .map(([currency, { thisMonth, lastMonth }]) => ({
+            id: `invoice:issued-this-month:${currency}`,
+            kind: 'metric',
+            label: `Invoiced this month (${currency})`,
+            unit: currency,
+            value: Number(thisMonth.toFixed(2)),
+            previousValue: Number(lastMonth.toFixed(2)),
+          }));
+
+  // Metrics first, then the list, then the curve — the reading order of a dashboard (headline
+  // figures before detail). The frontend groups by `kind` anyway; this order is for API readers.
+  return [
+    ...issuedThisMonthWidgets,
+    ...pendingTotalWidgets,
+    ...overdueTotalWidgets,
+    pendingWidget,
+    curveWidget,
+  ];
 };
 
 /**

@@ -35,10 +35,13 @@ interface ChannelsResponse {
 /** Friendly display names — same map `channels.settings.tsx` keeps for the identical reason. */
 const PROVIDER_LABELS: Record<string, string> = { pdp: "PDP", ksef: "KSeF", sdi: "SdI" }
 
+/** The fragment this banner splices mid-sentence, ahead of its OWN closing period — a legal
+ *  citation kept verbatim in its source language (never translated, per this codebase's "raw legal
+ *  text" discipline) but a citation that already ends in "." would otherwise collide with the
+ *  template's own final period and read as "…prévues.." (found in the 2026-09 UI audit). */
 function sourceLine(channel: SuggestedChannel): string {
-  return channel.provenance.kind === "legal" && channel.provenance.sourceText
-    ? channel.provenance.sourceText
-    : ""
+  const text = channel.provenance.kind === "legal" ? channel.provenance.sourceText : undefined
+  return text ? text.replace(/\.+$/, "") : ""
 }
 
 /**
@@ -134,9 +137,9 @@ export default function ChannelConnectPrompt({ className }: { className?: string
   return (
     <Alert
       data-cy="channel-connect-prompt"
-      className={cn("border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20", className)}
+      className={cn("border-warning-foreground/30 bg-warning", className)}
     >
-      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+      <AlertTriangle className="h-4 w-4 text-warning-foreground" />
       <AlertTitle>{t("settings.channels.prompt.title", "E-invoicing channel suggested")}</AlertTitle>
       <AlertDescription>
         <p>

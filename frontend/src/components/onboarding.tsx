@@ -670,6 +670,36 @@ export default function OnBoarding({
 
         {step === "channels" && (
           <div className="space-y-6">
+            {/* The final résumé: the one fact the wizard exists to produce (the company now exists),
+                stated plainly before the optional channel nudge — a wizard that ends on someone else's
+                prompt (ChannelConnectPrompt) with no acknowledgement of its OWN result reads as
+                unfinished, even though the create call already succeeded a moment earlier. */}
+            {createdCompany && (
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-4" data-cy="onboarding-summary">
+                <p className="flex items-center gap-2 font-medium text-foreground">
+                  <Check className="h-4 w-4 shrink-0 text-success-foreground" />
+                  {t("settings.company.onboarding.summary.title", { name: createdCompany.name })}
+                </p>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <div className="flex justify-between gap-2 sm:justify-start">
+                    <dt>{t("settings.company.onboarding.summary.country")}</dt>
+                    <dd className="text-foreground">{createdCompany.country}</dd>
+                  </div>
+                  {legalIdRequirement &&
+                    (() => {
+                      const legalId = createdCompany.partyIdentifiers?.find((pi) => pi.scheme === "LEGAL_ID")
+                      if (!legalId?.value) return null
+                      return (
+                        <div className="flex justify-between gap-2 sm:justify-start">
+                          <dt>{t("settings.company.onboarding.summary.identifier")}</dt>
+                          <dd className="font-mono text-foreground">{legalId.value}</dd>
+                        </div>
+                      )
+                    })()}
+                </dl>
+              </div>
+            )}
+
             <ChannelConnectPrompt />
 
             <div className="flex justify-between pt-4">

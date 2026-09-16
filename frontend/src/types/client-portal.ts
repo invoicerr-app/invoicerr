@@ -38,6 +38,10 @@ export interface PortalProfile {
   clientId: string
   clientName: string
   companyName: string
+  /** The issuing company's own branding logo as a `data:` URI, or `null` when it never uploaded one —
+   *  see the backend's own `PortalProfile.companyLogo` header for why it is inlined rather than
+   *  served from a URL the portal's bearer-token page could never authenticate against. */
+  companyLogo: string | null
 }
 
 /** One row from `GET /api/portal/quotes` — mirrors the backend's `PortalQuoteRow`. */

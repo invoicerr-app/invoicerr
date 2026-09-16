@@ -192,8 +192,12 @@ describe("Settings — email templates per document type", () => {
 
 	it("revoking via the screen brings back the shipped template, and source is no longer an override", () => {
 		cy.visit("/settings/email");
-		openTemplateEditor("quote");
 
+		// "Reset to default" lives in the row's own "⋯" menu (templates.settings.tsx's row grammar:
+		// only "Edit"/"Close" sits directly on a template row, every other action is one level down) —
+		// it needs no open editor, since it operates on the STORED override, not on unsaved form state.
+		cy.get('[data-cy="email-template-menu-quote"]', { timeout: 15000 }).click();
+		cy.wait(50);
 		cy.get('[data-cy="email-template-reset-quote"]').click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "reset to its default");
 

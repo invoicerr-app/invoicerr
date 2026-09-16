@@ -71,8 +71,20 @@ describe('buildExpenseDashboardWidgets', () => {
     const eur = widgets.find((w) => w.id === 'expense:this-month:EUR');
     const usd = widgets.find((w) => w.id === 'expense:this-month:USD');
 
-    expect(eur).toMatchObject({ label: 'Expenses this month (EUR)', unit: 'EUR', value: 150 });
-    expect(usd).toMatchObject({ label: 'Expenses this month (USD)', unit: 'USD', value: 30 });
+    // `previousValue` is LAST month's total in the same currency (the 9999 EUR excluded from
+    // `value` above); USD had nothing last month, so an honest 0 rather than an absent field.
+    expect(eur).toMatchObject({
+      label: 'Expenses this month (EUR)',
+      unit: 'EUR',
+      value: 150,
+      previousValue: 9999,
+    });
+    expect(usd).toMatchObject({
+      label: 'Expenses this month (USD)',
+      unit: 'USD',
+      value: 30,
+      previousValue: 0,
+    });
   });
 
   it('an empty month produces ONE currency-less zero metric, never a guessed currency', async () => {

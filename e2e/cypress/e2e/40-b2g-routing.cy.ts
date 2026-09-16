@@ -268,10 +268,12 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-kind-government"]').click();
 
 		// The B2G hint — never a wall: the client is created normally, the hint just says what
-		// awaits the sending of an invoice to this client.
-		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
+		// awaits the sending of an invoice to this client. It sits inside FormDialog's own scrolling
+		// body (`form-dialog.tsx`), below the fold at the 1000×660 default viewport — `scrollIntoView()`
+		// before the visibility assertion, same discipline as this file's own currency-select steps.
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 })
+			.scrollIntoView()
+			.should("be.visible");
 		cy.get('[data-cy="client-b2g-hint-channel"]')
 			.should("contain.text", "chorus-pro")
 			.and("contain.text", "facturx");
@@ -355,7 +357,10 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 			"contain.text",
 			"Connected",
 		);
-		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').click();
+		// `force: true` — the trigger sits inside a `Tooltip`+`DropdownMenu` pair; see
+		// 31-national-channels.cy.ts's own identical comment for why.
+		cy.get('[data-cy="channel-chorus-pro-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="channel-chorus-pro-disconnect-button"]').should("exist").click({ force: true });
 		cy.get('[data-cy="channel-chorus-pro-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Not connected",
@@ -379,9 +384,11 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
 
-		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
+		// Below the fold in FormDialog's own scrolling body at the 1000×660 default viewport — see
+		// the FR case above's identical comment.
+		cy.get('[data-cy="client-b2g-hint"]', { timeout: 10000 })
+			.scrollIntoView()
+			.should("be.visible");
 		cy.get('[data-cy="client-b2g-hint-channel"]')
 			.should("contain.text", "zre-ozgre")
 			.and("contain.text", "xrechnung");
@@ -663,7 +670,10 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 			"contain.text",
 			"Connected",
 		);
-		cy.get('[data-cy="channel-sdi-disconnect-button"]').click();
+		// `force: true` — the trigger sits inside a `Tooltip`+`DropdownMenu` pair; see
+		// 31-national-channels.cy.ts's own identical comment for why.
+		cy.get('[data-cy="channel-sdi-menu"]').scrollIntoView().click({ force: true });
+		cy.get('[data-cy="channel-sdi-disconnect-button"]').should("exist").click({ force: true });
 		cy.get('[data-cy="channel-sdi-status"]', { timeout: 10000 }).should(
 			"contain.text",
 			"Not connected",

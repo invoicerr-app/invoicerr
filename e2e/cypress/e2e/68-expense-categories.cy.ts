@@ -156,7 +156,15 @@ describe("Expense categories — Settings screen, and the API it drives", () => 
 
 			cy.visit("/settings/expenseCategories");
 			cy.intercept("DELETE", `${api}/api/documents/expense-categories/${targetId}`).as("archiveCategory");
-			cy.get(`[data-cy="expense-category-archive-button-${targetId}"]`, { timeout: 10000 }).click();
+			// Archive lives in the row's "..." menu (`settings-section.tsx`'s `SettingsRowMenu` grammar)
+			// rather than as a directly-clickable button. The list is long enough (ten seeded categories
+			// plus this spec's own two) that the row sits below the fold at this suite's 1000×660
+			// viewport, so the trigger is scrolled into view first — otherwise the popover it opens
+			// renders past the visible area and Cypress refuses to click it.
+			cy.get(`[data-cy="expense-category-menu-${targetId}"]`, { timeout: 10000 }).scrollIntoView().click();
+			cy.get(`[data-cy="expense-category-archive-button-${targetId}"]`, { timeout: 10000 })
+				.should("be.visible")
+				.click();
 			cy.wait("@archiveCategory", { timeout: 10000 }).then((interception) => {
 				expect(interception.response?.statusCode, "DELETE (archive) must succeed").to.eq(200);
 			});

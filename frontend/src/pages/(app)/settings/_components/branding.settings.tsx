@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -21,6 +20,7 @@ import {
   useUploadBrandingLogo,
 } from "@/hooks/queries"
 import { cn } from "@/lib/utils"
+import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 const ALLOWED_LOGO_MIMES = ["image/jpeg", "image/png", "image/webp"]
@@ -139,10 +139,14 @@ export default function BrandingSettings() {
   }, [preview?.html])
 
   const colorError = accentColor.trim() !== "" && !HEX_COLOR_PATTERN.test(accentColor.trim())
+  const [saved, flashSaved] = useSavedFlash()
 
   const reportSaveOutcome = (promise: Promise<unknown>) => {
     promise
-      .then(() => toast.success(t("settings.branding.messages.saveSuccess", "Branding updated")))
+      .then(() => {
+        toast.success(t("settings.branding.messages.saveSuccess", "Branding updated"))
+        flashSaved()
+      })
       .catch((error) => {
         toast.error(
           error instanceof ApiError
@@ -207,26 +211,26 @@ export default function BrandingSettings() {
   }
 
   return (
-    <div className="space-y-6" data-cy="branding-settings-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.branding.title", "Branding")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.branding.description",
-            "Personalize your documents with a logo, an accent color, and a font — the layout itself never changes.",
-          )}
-        </p>
-      </div>
-
+    <SettingsPage
+      title={t("settings.branding.title", "Branding")}
+      description={t(
+        "settings.branding.description",
+        "Personalize your documents with a logo, an accent color, and a font — the layout itself never changes.",
+      )}
+      dataCy="branding-settings-section"
+    >
       {isLoading || !status ? (
         <p className="text-sm text-muted-foreground">{t("settings.branding.loading", "Loading…")}</p>
       ) : (
-        <>
-          <Card data-cy="branding-presets-card">
-            <CardHeader>
-              <CardTitle className="text-base">{t("settings.branding.presets.title", "Presets")}</CardTitle>
-            </CardHeader>
-            <CardContent>
+        // The live preview sits NEXT TO the form on a wide screen (a color/font pick reads best
+        // seen against the actual document, not scrolled to after saving) and simply stacks below
+        // it once there is no room for two columns.
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <div className="grid gap-6">
+            <SettingsSection
+              title={t("settings.branding.presets.title", "Presets")}
+              dataCy="branding-presets-card"
+            >
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {status.presets.map((preset) => (
                   <button
@@ -248,14 +252,9 @@ export default function BrandingSettings() {
                   </button>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </SettingsSection>
 
-          <Card data-cy="branding-logo-card">
-            <CardHeader>
-              <CardTitle className="text-base">{t("settings.branding.logo.label", "Logo")}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <SettingsSection title={t("settings.branding.logo.label", "Logo")} dataCy="branding-logo-card">
               <div className="flex items-center gap-4">
                 {status.hasLogo ? (
                   logoLoading ? (
@@ -319,16 +318,26 @@ export default function BrandingSettings() {
                   }}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </SettingsSection>
 
-          <Card data-cy="branding-appearance-card">
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t("settings.branding.appearance.title", "Colour & font")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <SettingsSection
+              title={t("settings.branding.appearance.title", "Colour & font")}
+              dataCy="branding-appearance-card"
+              contentClassName="grid gap-4"
+              footer={
+                <SettingsFormFooter saved={saved}>
+                  <Button
+                    type="button"
+                    onClick={handleSave}
+                    loading={setBranding.isPending}
+                    disabled={colorError}
+                    data-cy="branding-save-button"
+                  >
+                    {t("settings.branding.actions.save", "Save")}
+                  </Button>
+                </SettingsFormFooter>
+              }
+            >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="branding-accent-color">
@@ -380,43 +389,32 @@ export default function BrandingSettings() {
                   </Select>
                 </div>
               </div>
+            </SettingsSection>
+          </div>
 
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  loading={setBranding.isPending}
-                  disabled={colorError}
-                  data-cy="branding-save-button"
-                >
-                  {t("settings.branding.actions.save", "Save")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card data-cy="branding-preview-card">
-            <CardHeader>
-              <CardTitle className="text-base">{t("settings.branding.preview.title", "Preview")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {previewLoading || !sanitizedPreviewHtml ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("settings.branding.preview.loading", "Loading preview…")}
-                </p>
-              ) : (
-                <iframe
-                  title={t("settings.branding.preview.title", "Preview")}
-                  sandbox="allow-same-origin"
-                  srcDoc={sanitizedPreviewHtml}
-                  className="h-[600px] w-full rounded border bg-white"
-                  data-cy="branding-preview-iframe"
-                />
-              )}
-            </CardContent>
-          </Card>
-        </>
+          {/* `lg:sticky` keeps the sample document in view while the form column above scrolls —
+              there is no OWN scroll container here, so this simply pins within the page. */}
+          <SettingsSection
+            title={t("settings.branding.preview.title", "Preview")}
+            dataCy="branding-preview-card"
+            className="lg:sticky lg:top-6"
+          >
+            {previewLoading || !sanitizedPreviewHtml ? (
+              <p className="text-sm text-muted-foreground">
+                {t("settings.branding.preview.loading", "Loading preview…")}
+              </p>
+            ) : (
+              <iframe
+                title={t("settings.branding.preview.title", "Preview")}
+                sandbox="allow-same-origin"
+                srcDoc={sanitizedPreviewHtml}
+                className="h-[600px] w-full rounded border bg-white"
+                data-cy="branding-preview-iframe"
+              />
+            )}
+          </SettingsSection>
+        </div>
       )}
-    </div>
+    </SettingsPage>
   )
 }

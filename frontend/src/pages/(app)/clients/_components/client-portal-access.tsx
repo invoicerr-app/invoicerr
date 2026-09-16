@@ -145,6 +145,7 @@ export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalA
                   type="button"
                   variant="outline"
                   size="icon"
+                  aria-label={t("clients.portalAccess.copy")}
                   tooltip={t("clients.portalAccess.copy")}
                   onClick={() => handleCopy(justCreated.url)}
                   dataCy="portal-access-copy-button"

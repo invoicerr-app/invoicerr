@@ -105,5 +105,14 @@ declare namespace Cypress {
          * @example cy.openDatePicker('[data-cy="document-field-firstOccurrenceAt-input"]')
          */
         openDatePicker(triggerSelector: string): Chainable<void>
+
+        /**
+         * Opens a Radix `Select` trigger and clicks one of its options, retrying the trigger click
+         * (bounded) if the option never becomes visible — for a trigger that sits right after a
+         * "more" menu closes, the same open-side race `openDatePicker` guards against on the
+         * `DatePicker` popover.
+         * @example cy.openSelect('[data-cy="document-field-cadence-input"] button', '[data-cy="document-field-cadence-input-option-yearly"]')
+         */
+        openSelect(triggerSelector: string, optionSelector: string): Chainable<void>
     }
 }

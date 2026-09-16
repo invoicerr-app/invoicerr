@@ -15,7 +15,6 @@ import { fromMinor, toMinor } from "@/components/documents/totals-calculator"
 import CurrencyRatesSettings from "./currency-rates.settings"
 import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Form,
   FormControl,
@@ -28,6 +27,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import {
+  SettingsFieldGroup,
+  SettingsList,
+  SettingsListRow,
+  SettingsPage,
+  SettingsSection,
+  SettingsStickyFooter,
+  useSavedFlash,
+} from "./settings-section"
 import {
   useDocumentTransports,
   useReconciliationSettings,
@@ -242,6 +250,7 @@ export default function CompanySettings() {
     t("settings.company.numberFormats.messages.saveError", "Failed to save the number format"),
   )
   const [isLoading, setIsLoading] = useState(false)
+  const [saved, flashSaved] = useSavedFlash()
 
   const form = useForm<z.infer<typeof companySchema>>({
     resolver: zodResolver(companySchema),
@@ -560,6 +569,7 @@ export default function CompanySettings() {
       }
 
       toast.success(t("settings.company.messages.updateSuccess"))
+      flashSaved()
     } finally {
       setIsLoading(false)
     }
@@ -570,235 +580,216 @@ export default function CompanySettings() {
   }
 
   return (
-    <div>
-      <ChannelConnectPrompt className="mb-4" />
-
-      <div className="mb-4">
-        <h1 className="text-3xl font-bold">{t("settings.company.title")}</h1>
-        <p className="text-muted-foreground">{t("settings.company.description")}</p>
-      </div>
+    <SettingsPage title={t("settings.company.title")} description={t("settings.company.description")}>
+      <ChannelConnectPrompt />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.basicInfo")}</CardTitle>
-              <CardDescription>{t("settings.company.basicInfoDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.company.placeholder")}
-                          {...field}
-                          data-cy="company-name-input"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
+          <SettingsSection
+            title={t("settings.company.basicInfo")}
+            description={t("settings.company.basicInfoDescription")}
+            contentClassName="grid gap-5"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.company.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("settings.company.form.company.placeholder")}
+                        {...field}
+                        data-cy="company-name-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.company.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("settings.company.form.description.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.description.placeholder")}
-                          {...field}
-                          data-cy="company-description-input"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.description.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("settings.company.form.description.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("settings.company.form.description.placeholder")}
+                        {...field}
+                        data-cy="company-description-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.description.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="foundedAt"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.foundedAt.label")}</FormLabel>
-                      <FormControl>
-                        <DatePicker
-                          className="w-full bg-opacity-100"
-                          value={field.value || null}
-                          onChange={field.onChange}
-                          placeholder={t("settings.company.form.foundedAt.placeholder")}
-                          data-cy="company-foundedat-input"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.foundedAt.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="foundedAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.foundedAt.label")}</FormLabel>
+                    <FormControl>
+                      <DatePicker
+                        className="w-full bg-opacity-100"
+                        value={field.value || null}
+                        onChange={field.onChange}
+                        placeholder={t("settings.company.form.foundedAt.placeholder")}
+                        data-cy="company-foundedat-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.foundedAt.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
-                      <FormControl>
-                        <CountrySelect
-                          value={field.value}
-                          onChange={(value) => field.onChange(value)}
-                          onCountryCodeChange={(code) => form.setValue("countryCode", code)}
-                          data-cy="company-country-input"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
-                      <FormMessage />
-                      <CountryReadinessAlert countryCode={countryCodeValue} countryName={field.value} />
-                    </FormItem>
-                  )}
-                />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.country.label")}</FormLabel>
+                    <FormControl>
+                      <CountrySelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
+                        onCountryCodeChange={(code) => form.setValue("countryCode", code)}
+                        data-cy="company-country-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.country.description")}</FormDescription>
+                    <FormMessage />
+                    <CountryReadinessAlert countryCode={countryCodeValue} countryName={field.value} />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.currency.label")}</FormLabel>
-                      <FormControl>
-                        <CurrencySelect
-                          value={field.value}
-                          onChange={(value) => field.onChange(value)}
-                          data-cy="company-currency-select"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.currency.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.currency.label")}</FormLabel>
+                    <FormControl>
+                      <CurrencySelect
+                        value={field.value}
+                        onChange={(value) => field.onChange(value)}
+                        data-cy="company-currency-select"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.currency.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-              {requiredIdentifiers?.length ? (
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {t("settings.company.form.identifiers.label") || "Country-specific identifiers"}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {requiredIdentifiers.map((req) => {
-                      const current = form.watch("identifiers") || []
-                      const formIndex = current.findIndex((i) => i.scheme === req.scheme)
-                      if (formIndex < 0) return null
-                      const isLegalId = req.scheme === "LEGAL_ID"
-                      return (
-                        <FormField
-                          key={req.scheme}
-                          control={form.control}
-                          name={`identifiers.${formIndex}.value`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel required={req.required}>{req.label}</FormLabel>
-                              <FormControl>
-                                <div className="flex gap-2">
-                                  <Input
-                                    {...field}
-                                    placeholder={req.label}
-                                    data-cy={
-                                      isLegalId
-                                        ? "company-legalid-input"
-                                        : req.scheme === "VAT"
-                                          ? "company-vat-input"
-                                          : undefined
+            {requiredIdentifiers?.length ? (
+              <SettingsFieldGroup
+                legend={t("settings.company.form.identifiers.label") || "Country-specific identifiers"}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {requiredIdentifiers.map((req) => {
+                    const current = form.watch("identifiers") || []
+                    const formIndex = current.findIndex((i) => i.scheme === req.scheme)
+                    if (formIndex < 0) return null
+                    const isLegalId = req.scheme === "LEGAL_ID"
+                    return (
+                      <FormField
+                        key={req.scheme}
+                        control={form.control}
+                        name={`identifiers.${formIndex}.value`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel required={req.required}>{req.label}</FormLabel>
+                            <FormControl>
+                              <div className="flex gap-2">
+                                <Input
+                                  {...field}
+                                  placeholder={req.label}
+                                  data-cy={
+                                    isLegalId
+                                      ? "company-legalid-input"
+                                      : req.scheme === "VAT"
+                                        ? "company-vat-input"
+                                        : undefined
+                                  }
+                                />
+                                {canLookupScheme(req.scheme) && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    disabled={companyLookupLoading || !String(field.value || "").trim()}
+                                    onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
+                                    aria-label={
+                                      lookupIdentifierLabel
+                                        ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                        : t("clients.upsert.actions.lookupCompany")
                                     }
-                                  />
-                                  {canLookupScheme(req.scheme) && (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      disabled={companyLookupLoading || !String(field.value || "").trim()}
-                                      onClick={() => onCompanyLookup(field.value, req.scheme as LookupScheme)}
-                                      title={
-                                        lookupIdentifierLabel
-                                          ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
-                                          : t("clients.upsert.actions.lookupCompany")
-                                      }
-                                      data-cy="company-lookup"
-                                    >
-                                      {companyLookupLoading ? (
-                                        <Loader2 className="animate-spin" />
-                                      ) : (
-                                        <Search />
-                                      )}
-                                    </Button>
-                                  )}
-                                </div>
-                              </FormControl>
-                              {req.helpText && (
-                                <p className="text-xs text-muted-foreground">{req.helpText}</p>
-                              )}
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )
-                    })}
-                  </div>
-                  {requiredIdentifiersReason && (
-                    // `requiredIdentifiers` is never actually empty any more (withVatIdentifier always
-                    // adds a VAT field), but this reason is still worth surfacing: it says the
-                    // country's OWN catalog has nothing else to add beyond that universal field, which
-                    // is why only VAT (and no country-specific scheme) appears above.
-                    <p
-                      className="text-xs text-muted-foreground"
-                      data-cy="company-identifiers-unknown-country"
-                    >
-                      {t(
-                        "settings.company.form.identifiers.unknownCountry",
-                        "No identifier requirements are known for this country yet — you can save without one.",
-                      )}
-                    </p>
-                  )}
+                                    tooltip={
+                                      lookupIdentifierLabel
+                                        ? `${t("clients.upsert.actions.lookupCompany")} — ${lookupIdentifierLabel}`
+                                        : t("clients.upsert.actions.lookupCompany")
+                                    }
+                                    dataCy="company-lookup"
+                                  >
+                                    {companyLookupLoading ? <Loader2 className="animate-spin" /> : <Search />}
+                                  </Button>
+                                )}
+                              </div>
+                            </FormControl>
+                            {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )
+                  })}
                 </div>
-              ) : null}
+                {requiredIdentifiersReason && (
+                  // `requiredIdentifiers` is never actually empty any more (withVatIdentifier always
+                  // adds a VAT field), but this reason is still worth surfacing: it says the
+                  // country's OWN catalog has nothing else to add beyond that universal field, which
+                  // is why only VAT (and no country-specific scheme) appears above.
+                  <p className="text-xs text-muted-foreground" data-cy="company-identifiers-unknown-country">
+                    {t(
+                      "settings.company.form.identifiers.unknownCountry",
+                      "No identifier requirements are known for this country yet — you can save without one.",
+                    )}
+                  </p>
+                )}
+              </SettingsFieldGroup>
+            ) : null}
 
-              {orphanedIdentifiers.length > 0 && (
-                // Identifiers this company already has ON FILE whose scheme the currently-selected
-                // country no longer asks for — see the sync effect above for why these are kept
-                // instead of silently deleted. Shown explicitly, with a deliberate removal action, so
-                // the user decides their fate instead of an unattended effect.
-                <div
-                  className="space-y-3 border rounded-lg p-4 bg-muted/30"
-                  data-cy="company-identifiers-on-file"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t("settings.company.form.identifiers.onFile.label", "Other identifiers on file")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t(
-                        "settings.company.form.identifiers.onFile.description",
-                        "Saved on this company before, but not requested by the currently selected country. Kept as-is rather than removed automatically — remove one only if you're sure it's no longer needed.",
-                      )}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {orphanedIdentifiers.map((identifier) => (
-                      <div key={identifier.scheme} className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium">{identifier.scheme}</p>
-                          <p className="text-sm text-muted-foreground break-all">{identifier.value}</p>
-                        </div>
+            {orphanedIdentifiers.length > 0 && (
+              // Identifiers this company already has ON FILE whose scheme the currently-selected
+              // country no longer asks for — see the sync effect above for why these are kept
+              // instead of silently deleted. Shown explicitly, with a deliberate removal action, so
+              // the user decides their fate instead of an unattended effect.
+              <SettingsFieldGroup
+                legend={t("settings.company.form.identifiers.onFile.label", "Other identifiers on file")}
+                description={t(
+                  "settings.company.form.identifiers.onFile.description",
+                  "Saved on this company before, but not requested by the currently selected country. Kept as-is rather than removed automatically — remove one only if you're sure it's no longer needed.",
+                )}
+              >
+                <SettingsList dataCy="company-identifiers-on-file">
+                  {orphanedIdentifiers.map((identifier) => (
+                    <SettingsListRow
+                      key={identifier.scheme}
+                      title={identifier.scheme}
+                      meta={<span className="break-all">{identifier.value}</span>}
+                      primary={
                         <Button
                           type="button"
                           variant="outline"
@@ -808,152 +799,187 @@ export default function CompanySettings() {
                         >
                           {t("settings.company.form.identifiers.onFile.remove", "Remove")}
                         </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      }
+                    />
+                  ))}
+                </SettingsList>
+              </SettingsFieldGroup>
+            )}
 
-              {/* Peppol / Electronic routing section (seller) */}
-              <div className="space-y-4 border rounded-lg p-4 bg-muted/30 mt-4">
-                <p className="text-sm font-medium text-muted-foreground">
-                  {t("settings.company.form.peppol.label") || "Peppol / Electronic routing (optional)"}
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="peppolSchemeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {t("settings.company.form.peppolSchemeId.label") || "Peppol scheme"}
-                        </FormLabel>
-                        <FormControl>
-                          <Select value={field.value || "0088"} onValueChange={field.onChange}>
-                            <SelectTrigger data-cy="company-peppol-scheme-select">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0088" data-cy="company-peppol-scheme-option-0088">
-                                0088 — GLN
-                              </SelectItem>
-                              <SelectItem value="0192" data-cy="company-peppol-scheme-option-0192">
-                                0192 — NO org.nr
-                              </SelectItem>
-                              <SelectItem value="0009" data-cy="company-peppol-scheme-option-0009">
-                                0009 — FR SIRET
-                              </SelectItem>
-                              <SelectItem value="9925" data-cy="company-peppol-scheme-option-9925">
-                                9925 — EU VAT
-                              </SelectItem>
-                              <SelectItem value="0007" data-cy="company-peppol-scheme-option-0007">
-                                0007 — SE org.nr
-                              </SelectItem>
-                              <SelectItem value="0208" data-cy="company-peppol-scheme-option-0208">
-                                0208 — BE org.nr
-                              </SelectItem>
-                              {/*
+            <SettingsFieldGroup
+              legend={t("settings.company.form.peppol.label") || "Peppol / Electronic routing (optional)"}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="peppolSchemeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {t("settings.company.form.peppolSchemeId.label") || "Peppol scheme"}
+                      </FormLabel>
+                      <FormControl>
+                        <Select value={field.value || "0088"} onValueChange={field.onChange}>
+                          <SelectTrigger data-cy="company-peppol-scheme-select">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0088" data-cy="company-peppol-scheme-option-0088">
+                              0088 — GLN
+                            </SelectItem>
+                            <SelectItem value="0192" data-cy="company-peppol-scheme-option-0192">
+                              0192 — NO org.nr
+                            </SelectItem>
+                            <SelectItem value="0009" data-cy="company-peppol-scheme-option-0009">
+                              0009 — FR SIRET
+                            </SelectItem>
+                            <SelectItem value="9925" data-cy="company-peppol-scheme-option-9925">
+                              9925 — EU VAT
+                            </SelectItem>
+                            <SelectItem value="0007" data-cy="company-peppol-scheme-option-0007">
+                              0007 — SE org.nr
+                            </SelectItem>
+                            <SelectItem value="0208" data-cy="company-peppol-scheme-option-0208">
+                              0208 — BE org.nr
+                            </SelectItem>
+                            {/*
                                 Same fix as clients/_components/client-
                                 upsert.tsx's own identical selector (see that file's own comment for
                                 the full citation): 0106 is the Dutch KVK in the Peppol v9.7
                                 codelist, not Danish. The real Danish CVR is 0184, added just below.
                               */}
-                              <SelectItem value="0106" data-cy="company-peppol-scheme-option-0106">
-                                0106 — NL KVK
-                              </SelectItem>
-                              <SelectItem value="0184" data-cy="company-peppol-scheme-option-0184">
-                                0184 — DK CVR
-                              </SelectItem>
-                              <SelectItem value="0151" data-cy="company-peppol-scheme-option-0151">
-                                0151 — AU ABN
-                              </SelectItem>
-                              <SelectItem value="0060" data-cy="company-peppol-scheme-option-0060">
-                                0060 — DUNS
-                              </SelectItem>
-                              {/*
+                            <SelectItem value="0106" data-cy="company-peppol-scheme-option-0106">
+                              0106 — NL KVK
+                            </SelectItem>
+                            <SelectItem value="0184" data-cy="company-peppol-scheme-option-0184">
+                              0184 — DK CVR
+                            </SelectItem>
+                            <SelectItem value="0151" data-cy="company-peppol-scheme-option-0151">
+                              0151 — AU ABN
+                            </SelectItem>
+                            <SelectItem value="0060" data-cy="company-peppol-scheme-option-0060">
+                              0060 — DUNS
+                            </SelectItem>
+                            {/*
                                 Same seven EAS as clients/_components/client-
                                 upsert.tsx's own identical selector (see that file's own comment for
                                 the full citation, sourced from the 2026-09-02 B2G audit's
                                 b2g-routing/data/{ee,lt,lv,lu,cy,gr,mt}.json).
                               */}
-                              <SelectItem value="0191" data-cy="company-peppol-scheme-option-0191">
-                                0191 — EE Company code
-                              </SelectItem>
-                              <SelectItem value="0200" data-cy="company-peppol-scheme-option-0200">
-                                0200 — LT Legal entity code
-                              </SelectItem>
-                              <SelectItem value="0218" data-cy="company-peppol-scheme-option-0218">
-                                0218 — LV Unified registration number
-                              </SelectItem>
-                              <SelectItem value="0240" data-cy="company-peppol-scheme-option-0240">
-                                0240 — LU Register of legal persons
-                              </SelectItem>
-                              <SelectItem value="9928" data-cy="company-peppol-scheme-option-9928">
-                                9928 — CY VAT number
-                              </SelectItem>
-                              <SelectItem value="9933" data-cy="company-peppol-scheme-option-9933">
-                                9933 — GR VAT number
-                              </SelectItem>
-                              <SelectItem value="9943" data-cy="company-peppol-scheme-option-9943">
-                                9943 — MT VAT number
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="peppolEndpointId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {t("settings.company.form.peppolEndpointId.label") || "Peppol endpoint ID"}
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder={
-                              t("settings.company.form.peppolEndpointId.placeholder") || "e.g. 7300010000001"
-                            }
-                            data-cy="company-peppol-endpoint-input"
-                          />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          {t("settings.company.form.peppolEndpointId.helpText") ||
-                            "Leave blank if your company is not registered on the Peppol network"}
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                            <SelectItem value="0191" data-cy="company-peppol-scheme-option-0191">
+                              0191 — EE Company code
+                            </SelectItem>
+                            <SelectItem value="0200" data-cy="company-peppol-scheme-option-0200">
+                              0200 — LT Legal entity code
+                            </SelectItem>
+                            <SelectItem value="0218" data-cy="company-peppol-scheme-option-0218">
+                              0218 — LV Unified registration number
+                            </SelectItem>
+                            <SelectItem value="0240" data-cy="company-peppol-scheme-option-0240">
+                              0240 — LU Register of legal persons
+                            </SelectItem>
+                            <SelectItem value="9928" data-cy="company-peppol-scheme-option-9928">
+                              9928 — CY VAT number
+                            </SelectItem>
+                            <SelectItem value="9933" data-cy="company-peppol-scheme-option-9933">
+                              9933 — GR VAT number
+                            </SelectItem>
+                            <SelectItem value="9943" data-cy="company-peppol-scheme-option-9943">
+                              9943 — MT VAT number
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="peppolEndpointId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {t("settings.company.form.peppolEndpointId.label") || "Peppol endpoint ID"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder={
+                            t("settings.company.form.peppolEndpointId.placeholder") || "e.g. 7300010000001"
+                          }
+                          data-cy="company-peppol-endpoint-input"
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        {t("settings.company.form.peppolEndpointId.helpText") ||
+                          "Leave blank if your company is not registered on the Peppol network"}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </CardContent>
-          </Card>
+            </SettingsFieldGroup>
+          </SettingsSection>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.address.title")}</CardTitle>
-              <CardDescription>{t("settings.company.address.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <SettingsSection
+            title={t("settings.company.address.title")}
+            description={t("settings.company.address.description")}
+            contentClassName="grid gap-5"
+          >
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>{t("settings.company.form.address.label")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t("settings.company.form.address.placeholder")}
+                      {...field}
+                      data-cy="company-address-input"
+                    />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.address.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="addressLine2"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.addressLine2.label")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t("settings.company.form.addressLine2.placeholder")}
+                      {...field}
+                      data-cy="company-address-line2-input"
+                    />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.addressLine2.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
-                name="address"
+                name="postalCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>{t("settings.company.form.address.label")}</FormLabel>
+                    <FormLabel required>{t("settings.company.form.postalCode.label")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings.company.form.address.placeholder")}
+                        placeholder={t("settings.company.form.postalCode.placeholder")}
                         {...field}
-                        data-cy="company-address-input"
+                        data-cy="company-postalcode-input"
                       />
                     </FormControl>
-                    <FormDescription>{t("settings.company.form.address.description")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -961,157 +987,115 @@ export default function CompanySettings() {
 
               <FormField
                 control={form.control}
-                name="addressLine2"
+                name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings.company.form.addressLine2.label")}</FormLabel>
+                    <FormLabel required>{t("settings.company.form.city.label")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings.company.form.addressLine2.placeholder")}
+                        placeholder={t("settings.company.form.city.placeholder")}
                         {...field}
-                        data-cy="company-address-line2-input"
+                        data-cy="company-city-input"
                       />
                     </FormControl>
-                    <FormDescription>{t("settings.company.form.addressLine2.description")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <FormField
-                  control={form.control}
-                  name="postalCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.postalCode.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.postalCode.placeholder")}
-                          {...field}
-                          data-cy="company-postalcode-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.city.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.city.placeholder")}
-                          {...field}
-                          data-cy="company-city-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("settings.company.form.state.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.state.placeholder")}
-                          {...field}
-                          data-cy="company-state-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.contact.title")}</CardTitle>
-              <CardDescription>{t("settings.company.contact.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.phone.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="tel"
-                          placeholder={t("settings.company.form.phone.placeholder")}
-                          {...field}
-                          data-cy="company-phone-input"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.phone.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.email.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder={t("settings.company.form.email.placeholder")}
-                          {...field}
-                          data-cy="company-email-input"
-                        />
-                      </FormControl>
-                      <FormDescription>{t("settings.company.form.email.description")}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
               <FormField
                 control={form.control}
-                name="iban"
+                name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings.company.form.iban.label")}</FormLabel>
+                    <FormLabel>{t("settings.company.form.state.label")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings.company.form.iban.placeholder")}
+                        placeholder={t("settings.company.form.state.placeholder")}
                         {...field}
-                        data-cy="company-iban-input"
+                        data-cy="company-state-input"
                       />
                     </FormControl>
-                    <FormDescription>{t("settings.company.form.iban.description")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </SettingsSection>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.numberFormats.title")}</CardTitle>
-              <CardDescription>{t("settings.company.numberFormats.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/*
+          <SettingsSection
+            title={t("settings.company.contact.title")}
+            description={t("settings.company.contact.description")}
+            contentClassName="grid gap-5"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.phone.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        placeholder={t("settings.company.form.phone.placeholder")}
+                        {...field}
+                        data-cy="company-phone-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.phone.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>{t("settings.company.form.email.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder={t("settings.company.form.email.placeholder")}
+                        {...field}
+                        data-cy="company-email-input"
+                      />
+                    </FormControl>
+                    <FormDescription>{t("settings.company.form.email.description")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="iban"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.iban.label")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t("settings.company.form.iban.placeholder")}
+                      {...field}
+                      data-cy="company-iban-input"
+                    />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.iban.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("settings.company.numberFormats.title")}
+            description={t("settings.company.numberFormats.description")}
+            contentClassName="grid gap-5"
+          >
+            {/*
                 No "starting number" fields any more, and no third "payment" format field — see this
                 file's own `SHIPPED_DEFAULT_*` comment. Neither backend field a removed pre-refonte
                 engine used to read (`quoteStartingNumber`/`invoiceStartingNumber`) is honoured by any
@@ -1121,371 +1105,352 @@ export default function CompanySettings() {
                 A company migrating from another product and wanting "start my invoice numbering at
                 500" has no way to do that today — a real gap, not implemented here.
               */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="quoteNumberFormat"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.quoteNumberFormat.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.quoteNumberFormat.placeholder")}
-                          {...field}
-                          data-cy="company-quote-number-format-input"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t("settings.company.form.quoteNumberFormat.description")}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="invoiceNumberFormat"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel required>{t("settings.company.form.invoiceNumberFormat.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={t("settings.company.form.invoiceNumberFormat.placeholder")}
-                          {...field}
-                          data-cy="company-invoice-number-format-input"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t("settings.company.form.invoiceNumberFormat.description")}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.other.title")}</CardTitle>
-              <CardDescription>{t("settings.company.other.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="invoicePDFFormat"
+                name="quoteNumberFormat"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>{t("settings.company.form.invoicePDFFormat.label")}</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="w-full" data-cy="company-pdfformat-select">
-                          <SelectValue
-                            placeholder={t("settings.company.form.invoicePDFFormat.placeholder")}
-                          />
-                        </SelectTrigger>
-                        <SelectContent data-cy="company-pdfformat-options">
-                          <SelectItem value="pdf" data-cy="company-pdfformat-option-pdf">
-                            {t("settings.company.form.invoicePDFFormat.options.pdf")}
-                          </SelectItem>
-                          <SelectItem value="facturx" data-cy="company-pdfformat-option-facturx">
-                            {t("settings.company.form.invoicePDFFormat.options.facturx")}
-                          </SelectItem>
-                          <SelectItem value="zugferd" data-cy="company-pdfformat-option-zugferd">
-                            {t("settings.company.form.invoicePDFFormat.options.zugferd")}
-                          </SelectItem>
-                          <SelectItem value="xrechnung" data-cy="company-pdfformat-option-xrechnung">
-                            {t("settings.company.form.invoicePDFFormat.options.xrechnung")}
-                          </SelectItem>
-                          <SelectItem value="ubl" data-cy="company-pdfformat-option-ubl">
-                            {t("settings.company.form.invoicePDFFormat.options.ubl")}
-                          </SelectItem>
-                          <SelectItem value="cii" data-cy="company-pdfformat-option-cii">
-                            {t("settings.company.form.invoicePDFFormat.options.cii")}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormDescription>
-                      {t("settings.company.form.invoicePDFFormat.description")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoiceTransportId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("settings.company.form.invoiceTransportId.label")}</FormLabel>
-                    <FormControl>
-                      <Select
-                        // NOT `field.onChange` directly — found empirically (a real "no transport
-                        // configured" 501 hit while proving this picker's own e2e coverage, never from a
-                        // guess): `invoiceTransports` (useDocumentTransports) loads ASYNCHRONOUSLY,
-                        // unlike every other <Select>'s options on this page (all static arrays,
-                        // available on the very first render). Radix's own hidden native-`<select>`
-                        // mirror ("SelectBubbleInput", kept in sync for native form semantics) fires
-                        // a REAL `change` event the moment `SelectItem`s go from zero (before the
-                        // fetch resolves) to populated — and since NONE matched the already-loaded
-                        // `field.value` while the list was still empty, that native mirror's own
-                        // value is "", which bubbles up as a SPURIOUS `onValueChange("")` call,
-                        // silently wiping a value this form never touched. A real user selection
-                        // NEVER produces "" here (there is no "none" `SelectItem`), so simply
-                        // ignoring an empty callback drops only that spurious event, never a genuine
-                        // choice.
-                        onValueChange={(value) => {
-                          if (value) field.onChange(value)
-                        }}
-                        value={field.value || ""}
-                      >
-                        <SelectTrigger className="w-full" data-cy="company-invoice-transport-select">
-                          <SelectValue
-                            placeholder={t("settings.company.form.invoiceTransportId.placeholder")}
-                          />
-                        </SelectTrigger>
-                        <SelectContent data-cy="company-invoice-transport-options">
-                          {(invoiceTransports ?? []).map((transport) => (
-                            <SelectItem
-                              key={transport.id}
-                              value={transport.id}
-                              data-cy={`company-invoice-transport-option-${transport.id}`}
-                            >
-                              {transport.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormDescription>
-                      {t("settings.company.form.invoiceTransportId.description")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="dateFormat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel required>{t("settings.company.form.dateFormat.label")}</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="w-full" data-cy="company-dateformat-select">
-                          <SelectValue placeholder={t("settings.company.form.dateFormat.placeholder")} />
-                        </SelectTrigger>
-                        <SelectContent data-cy="company-dateformat-options">
-                          {ALLOWED_DATE_FORMATS.map((format) => (
-                            <SelectItem
-                              key={format}
-                              value={format}
-                              data-cy={`company-dateformat-option-${format.replace(/\//g, "-")}`}
-                            >
-                              {getDateFormatOption(format)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormDescription>{t("settings.company.form.dateFormat.description")}</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="language"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("settings.company.form.language.label")}</FormLabel>
-                    <FormControl>
-                      <DocumentLanguageSelect
-                        value={field.value}
-                        onChange={(value) => field.onChange(value)}
-                        data-cy="company-language-select"
-                      />
-                    </FormControl>
-                    <FormDescription>{t("settings.company.form.language.description")}</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="exemptVat"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col space-y-3">
-                    <FormLabel>{t("settings.company.form.exemptVat.label")}</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={!!field.value}
-                        onCheckedChange={(val) => field.onChange(val)}
-                        data-cy="company-exemptvat-switch"
-                      />
-                    </FormControl>
-                    <FormDescription>{t("settings.company.form.exemptVat.description")}</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.approval.title")}</CardTitle>
-              <CardDescription>{t("settings.company.approval.description")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="approvalThreshold"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("settings.company.form.approvalThreshold.label")}</FormLabel>
+                    <FormLabel required>{t("settings.company.form.quoteNumberFormat.label")}</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder={t("settings.company.form.approvalThreshold.placeholder")}
+                        placeholder={t("settings.company.form.quoteNumberFormat.placeholder")}
                         {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
-                        }
-                        data-cy="company-approval-threshold-input"
+                        data-cy="company-quote-number-format-input"
                       />
                     </FormControl>
                     <FormDescription>
-                      {t("settings.company.form.approvalThreshold.description")}
+                      {t("settings.company.form.quoteNumberFormat.description")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.reconciliation.title")}</CardTitle>
-              <CardDescription>{t("settings.company.reconciliation.description")}</CardDescription>
-            </CardHeader>
-            <CardContent>
               <FormField
                 control={form.control}
-                name="reconciliationTolerancePercent"
+                name="invoiceNumberFormat"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings.company.form.reconciliationTolerancePercent.label")}</FormLabel>
+                    <FormLabel required>{t("settings.company.form.invoiceNumberFormat.label")}</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        min={0}
-                        step="0.1"
+                        placeholder={t("settings.company.form.invoiceNumberFormat.placeholder")}
                         {...field}
-                        value={field.value ?? SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                        data-cy="company-reconciliation-tolerance-input"
+                        data-cy="company-invoice-number-format-input"
                       />
                     </FormControl>
                     <FormDescription>
-                      {t("settings.company.form.reconciliationTolerancePercent.description")}
+                      {t("settings.company.form.invoiceNumberFormat.description")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </SettingsSection>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.reminders.title")}</CardTitle>
-              <CardDescription>{t("settings.company.reminders.description")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="remindersEnabled"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col space-y-3">
-                    <FormLabel>{t("settings.company.form.remindersEnabled.label")}</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={!!field.value}
-                        onCheckedChange={(val) => field.onChange(val)}
-                        data-cy="company-reminders-enabled"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("settings.company.form.remindersEnabled.description")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+          <SettingsSection
+            title={t("settings.company.other.title")}
+            description={t("settings.company.other.description")}
+            contentClassName="grid gap-5 sm:grid-cols-2"
+          >
+            <FormField
+              control={form.control}
+              name="invoicePDFFormat"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>{t("settings.company.form.invoicePDFFormat.label")}</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger className="w-full" data-cy="company-pdfformat-select">
+                        <SelectValue placeholder={t("settings.company.form.invoicePDFFormat.placeholder")} />
+                      </SelectTrigger>
+                      <SelectContent data-cy="company-pdfformat-options">
+                        <SelectItem value="pdf" data-cy="company-pdfformat-option-pdf">
+                          {t("settings.company.form.invoicePDFFormat.options.pdf")}
+                        </SelectItem>
+                        <SelectItem value="facturx" data-cy="company-pdfformat-option-facturx">
+                          {t("settings.company.form.invoicePDFFormat.options.facturx")}
+                        </SelectItem>
+                        <SelectItem value="zugferd" data-cy="company-pdfformat-option-zugferd">
+                          {t("settings.company.form.invoicePDFFormat.options.zugferd")}
+                        </SelectItem>
+                        <SelectItem value="xrechnung" data-cy="company-pdfformat-option-xrechnung">
+                          {t("settings.company.form.invoicePDFFormat.options.xrechnung")}
+                        </SelectItem>
+                        <SelectItem value="ubl" data-cy="company-pdfformat-option-ubl">
+                          {t("settings.company.form.invoicePDFFormat.options.ubl")}
+                        </SelectItem>
+                        <SelectItem value="cii" data-cy="company-pdfformat-option-cii">
+                          {t("settings.company.form.invoicePDFFormat.options.cii")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.invoicePDFFormat.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.company.currency.title", "Multi-currency")}</CardTitle>
-              <CardDescription>
-                {t(
-                  "settings.company.currency.description",
-                  "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged.",
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="referenceCurrency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t("settings.company.form.referenceCurrency.label", "Reference currency")}
-                    </FormLabel>
-                    <FormControl>
-                      <CurrencySelect
-                        value={field.value}
-                        onChange={(value) => field.onChange(value)}
-                        data-cy="company-reference-currency-select"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        "settings.company.form.referenceCurrency.description",
-                        "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears.",
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+            <FormField
+              control={form.control}
+              name="invoiceTransportId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.invoiceTransportId.label")}</FormLabel>
+                  <FormControl>
+                    <Select
+                      // NOT `field.onChange` directly — found empirically (a real "no transport
+                      // configured" 501 hit while proving this picker's own e2e coverage, never from a
+                      // guess): `invoiceTransports` (useDocumentTransports) loads ASYNCHRONOUSLY,
+                      // unlike every other <Select>'s options on this page (all static arrays,
+                      // available on the very first render). Radix's own hidden native-`<select>`
+                      // mirror ("SelectBubbleInput", kept in sync for native form semantics) fires
+                      // a REAL `change` event the moment `SelectItem`s go from zero (before the
+                      // fetch resolves) to populated — and since NONE matched the already-loaded
+                      // `field.value` while the list was still empty, that native mirror's own
+                      // value is "", which bubbles up as a SPURIOUS `onValueChange("")` call,
+                      // silently wiping a value this form never touched. A real user selection
+                      // NEVER produces "" here (there is no "none" `SelectItem`), so simply
+                      // ignoring an empty callback drops only that spurious event, never a genuine
+                      // choice.
+                      onValueChange={(value) => {
+                        if (value) field.onChange(value)
+                      }}
+                      value={field.value || ""}
+                    >
+                      <SelectTrigger className="w-full" data-cy="company-invoice-transport-select">
+                        <SelectValue
+                          placeholder={t("settings.company.form.invoiceTransportId.placeholder")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent data-cy="company-invoice-transport-options">
+                        {(invoiceTransports ?? []).map((transport) => (
+                          <SelectItem
+                            key={transport.id}
+                            value={transport.id}
+                            data-cy={`company-invoice-transport-option-${transport.id}`}
+                          >
+                            {transport.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>
+                    {t("settings.company.form.invoiceTransportId.description")}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="flex justify-end">
+            <FormField
+              control={form.control}
+              name="dateFormat"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>{t("settings.company.form.dateFormat.label")}</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger className="w-full" data-cy="company-dateformat-select">
+                        <SelectValue placeholder={t("settings.company.form.dateFormat.placeholder")} />
+                      </SelectTrigger>
+                      <SelectContent data-cy="company-dateformat-options">
+                        {ALLOWED_DATE_FORMATS.map((format) => (
+                          <SelectItem
+                            key={format}
+                            value={format}
+                            data-cy={`company-dateformat-option-${format.replace(/\//g, "-")}`}
+                          >
+                            {getDateFormatOption(format)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.dateFormat.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="language"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.language.label")}</FormLabel>
+                  <FormControl>
+                    <DocumentLanguageSelect
+                      value={field.value}
+                      onChange={(value) => field.onChange(value)}
+                      data-cy="company-language-select"
+                    />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.language.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="exemptVat"
+              render={({ field }) => (
+                <FormItem className="flex flex-col space-y-3">
+                  <FormLabel>{t("settings.company.form.exemptVat.label")}</FormLabel>
+                  <FormControl>
+                    <Switch
+                      checked={!!field.value}
+                      onCheckedChange={(val) => field.onChange(val)}
+                      data-cy="company-exemptvat-switch"
+                    />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.exemptVat.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("settings.company.approval.title")}
+            description={t("settings.company.approval.description")}
+            contentClassName="grid gap-5"
+          >
+            <FormField
+              control={form.control}
+              name="approvalThreshold"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.approvalThreshold.label")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder={t("settings.company.form.approvalThreshold.placeholder")}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
+                      }
+                      data-cy="company-approval-threshold-input"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t("settings.company.form.approvalThreshold.description")}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("settings.company.reconciliation.title")}
+            description={t("settings.company.reconciliation.description")}
+            contentClassName="grid gap-5"
+          >
+            <FormField
+              control={form.control}
+              name="reconciliationTolerancePercent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("settings.company.form.reconciliationTolerancePercent.label")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      {...field}
+                      value={field.value ?? SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      data-cy="company-reconciliation-tolerance-input"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t("settings.company.form.reconciliationTolerancePercent.description")}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("settings.company.reminders.title")}
+            description={t("settings.company.reminders.description")}
+            contentClassName="grid gap-5"
+          >
+            <FormField
+              control={form.control}
+              name="remindersEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-col space-y-3">
+                  <FormLabel>{t("settings.company.form.remindersEnabled.label")}</FormLabel>
+                  <FormControl>
+                    <Switch
+                      checked={!!field.value}
+                      onCheckedChange={(val) => field.onChange(val)}
+                      data-cy="company-reminders-enabled"
+                    />
+                  </FormControl>
+                  <FormDescription>{t("settings.company.form.remindersEnabled.description")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("settings.company.currency.title", "Multi-currency")}
+            description={t(
+              "settings.company.currency.description",
+              "Choose a reference currency to see a consolidated total alongside your per-currency dashboard figures. Leave empty to keep every aggregate grouped by currency, unchanged.",
+            )}
+            contentClassName="grid gap-5"
+          >
+            <FormField
+              control={form.control}
+              name="referenceCurrency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t("settings.company.form.referenceCurrency.label", "Reference currency")}
+                  </FormLabel>
+                  <FormControl>
+                    <CurrencySelect
+                      value={field.value}
+                      onChange={(value) => field.onChange(value)}
+                      data-cy="company-reference-currency-select"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      "settings.company.form.referenceCurrency.description",
+                      "Requires an exchange rate (below) for every OTHER currency you actually use before a consolidated total appears.",
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsSection>
+
+          <SettingsStickyFooter saved={saved}>
             <Button type="submit" disabled={isLoading} className="min-w-32" data-cy="company-submit-btn">
               {isLoading ? t("settings.company.form.saving") : t("settings.company.form.saveSettings")}
             </Button>
-          </div>
+          </SettingsStickyFooter>
         </form>
 
-        <div className="mt-6">
+        <div className="mt-2">
           <CurrencyRatesSettings />
         </div>
       </Form>
-    </div>
+    </SettingsPage>
   )
 }

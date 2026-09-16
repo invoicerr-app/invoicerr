@@ -94,6 +94,155 @@ describe('buildInvoiceDashboardWidgets', () => {
     expect(pending.items.map((i) => i.id)).toEqual(['sent-1', 'sent-2']);
     expect(pending.items[0]).toMatchObject({ primary: '30.00 USD', secondary: '2026-09-05' });
     expect(pending.items[1]).toMatchObject({ primary: '100.00 EUR', secondary: '2026-09-10' });
+    // The structured facts a dashboard row is drawn from: status badge, due date, right-aligned
+    // amount in the record's own currency — and the type that lets the row open the record.
+    expect(pending.documentTypeId).toBe('invoice');
+    expect(pending.items[0]).toMatchObject({
+      status: 'sent',
+      dueDate: '2026-09-05',
+      amount: { value: 30, currency: 'USD' },
+    });
+  });
+
+  it('titles a pending row with the invoice NUMBER once it has one — the amount stays structured', async () => {
+    listDocuments.mockResolvedValue([
+      invoice({
+        id: 'sent-1',
+        status: 'sent',
+        displayNumber: 'INV-2026-0007',
+        data: { currency: 'EUR', dueDate: '2026-09-10', lines: [{ quantity: 2, unitPrice: 50 }] },
+      }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+    const pending = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(pending.items[0]).toMatchObject({
+      primary: 'INV-2026-0007',
+      amount: { value: 100, currency: 'EUR' },
+    });
+  });
+
+  it('totals OVERDUE pending invoices per currency — due yesterday counts, due today does not', async () => {
+    // System time is 2026-08-30 (see beforeEach).
+    listDocuments.mockResolvedValue([
+      invoice({
+        id: 'late',
+        status: 'sent',
+        data: { currency: 'EUR', dueDate: '2026-08-29', lines: [{ quantity: 1, unitPrice: 100 }] },
+      }),
+      invoice({
+        id: 'due-today',
+        status: 'sent',
+        data: { currency: 'EUR', dueDate: '2026-08-30', lines: [{ quantity: 1, unitPrice: 40 }] },
+      }),
+      invoice({
+        id: 'usd-on-time',
+        status: 'sent',
+        data: { currency: 'USD', dueDate: '2026-09-15', lines: [{ quantity: 1, unitPrice: 30 }] },
+      }),
+      // Late but a DRAFT: never pending, so never overdue either.
+      invoice({
+        id: 'late-draft',
+        status: 'draft',
+        data: { currency: 'EUR', dueDate: '2026-01-01', lines: [{ quantity: 1, unitPrice: 999 }] },
+      }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:overdue-total:EUR')).toMatchObject({
+      kind: 'metric',
+      unit: 'EUR',
+      value: 100,
+    });
+    // A currency with pending invoices but nothing late still gets its tile — a 0 says
+    // "nothing late", a missing tile says nothing.
+    expect(widgets.find((w) => w.id === 'invoice:overdue-total:USD')).toMatchObject({ value: 0 });
+    expect(widgets.find((w) => w.id === 'invoice:overdue-total')).toBeUndefined();
+  });
+
+  it('nothing pending at all: ONE currency-less overdue zero, never a guessed currency', async () => {
+    listDocuments.mockResolvedValue([]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:overdue-total')).toMatchObject({ kind: 'metric', value: 0 });
+    expect(widgets.find((w) => w.id === 'invoice:overdue-total')).not.toHaveProperty('unit');
+  });
+
+  it('sums what was INVOICED this month per currency, next to last month — "sent" only', async () => {
+    // System time is 2026-08-30: this month = 2026-08, last month = 2026-07.
+    listDocuments.mockResolvedValue([
+      invoice({
+        id: 'aug-1',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-05', lines: [{ quantity: 1, unitPrice: 300 }] },
+      }),
+      invoice({
+        id: 'aug-2',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-08-20', lines: [{ quantity: 2, unitPrice: 100 }] },
+      }),
+      invoice({
+        id: 'jul-1',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-07-11', lines: [{ quantity: 1, unitPrice: 250 }] },
+      }),
+      // Same month, other currency: its own tile, never added into EUR's.
+      invoice({
+        id: 'aug-usd',
+        status: 'sent',
+        data: { currency: 'USD', issueDate: '2026-08-08', lines: [{ quantity: 1, unitPrice: 70 }] },
+      }),
+      // Not issued: a draft, a cancelled (void) one, a failed send — all dated this month, all excluded.
+      invoice({
+        id: 'aug-draft',
+        status: 'draft',
+        data: { currency: 'EUR', issueDate: '2026-08-09', lines: [{ quantity: 1, unitPrice: 5000 }] },
+      }),
+      invoice({
+        id: 'aug-cancelled',
+        status: 'cancelled',
+        data: { currency: 'EUR', issueDate: '2026-08-10', lines: [{ quantity: 1, unitPrice: 5000 }] },
+      }),
+      invoice({
+        id: 'aug-failed',
+        status: 'send_failed',
+        data: { currency: 'EUR', issueDate: '2026-08-12', lines: [{ quantity: 1, unitPrice: 5000 }] },
+      }),
+      // Two months back: outside both windows.
+      invoice({
+        id: 'jun-1',
+        status: 'sent',
+        data: { currency: 'EUR', issueDate: '2026-06-01', lines: [{ quantity: 1, unitPrice: 5000 }] },
+      }),
+    ]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+
+    expect(widgets.find((w) => w.id === 'invoice:issued-this-month:EUR')).toMatchObject({
+      kind: 'metric',
+      unit: 'EUR',
+      value: 500,
+      previousValue: 250,
+    });
+    expect(widgets.find((w) => w.id === 'invoice:issued-this-month:USD')).toMatchObject({
+      value: 70,
+      previousValue: 0,
+    });
+    expect(widgets.find((w) => w.id === 'invoice:issued-this-month')).toBeUndefined();
+  });
+
+  it('nothing invoiced this month or last: ONE currency-less zero, no previous value', async () => {
+    listDocuments.mockResolvedValue([]);
+
+    const widgets = await buildInvoiceDashboardWidgets({ companyId: 'c1' });
+    const zero = widgets.find((w) => w.id === 'invoice:issued-this-month');
+
+    expect(zero).toMatchObject({ kind: 'metric', value: 0 });
+    expect(zero).not.toHaveProperty('unit');
+    expect(zero).not.toHaveProperty('previousValue');
   });
 
   it('excludes a "cancelled" invoice — a void invoice owes nothing and is never pending', async () => {

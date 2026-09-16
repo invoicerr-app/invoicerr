@@ -47,6 +47,12 @@ export interface MetricWidget extends WidgetBase {
    *  information, never a replacement"); never set on its own. Absent (falsy) on every ordinary,
    *  un-converted metric — unchanged. */
   approx?: boolean;
+  /** The SAME figure for the period immediately preceding the one `value` covers — last month's
+   *  total next to this month's — so a reader sees a direction, not just a number. Only meaningful
+   *  on a per-period FLOW ("issued this month", "expenses this month"); a stock ("pending total",
+   *  a count of everything) has no previous period and leaves it absent. The frontend renders the
+   *  difference as a chip with an arrow; it never invents one when this is missing. */
+  previousValue?: number;
 }
 
 export interface TimeSeriesPoint {
@@ -70,6 +76,17 @@ export interface ShortListItem {
   primary: string;
   /** Optional second line — e.g. a due date, a status. */
   secondary?: string;
+  /** The record's own status id (`DocumentInstance.status`), so the dashboard row can carry the
+   *  same status badge every document list already shows for it — one status, one look, whichever
+   *  screen it is read on. Plain data, never a closed set (see document-status-badge.tsx). */
+  status?: string;
+  /** ISO date (YYYY-MM-DD) by which the record was expected to be settled. Lets a reader flag the
+   *  row as overdue against today's date; absent on a record that has no such deadline. */
+  dueDate?: string;
+  /** The record's own figure in its OWN currency — the amount a list row right-aligns in the mono
+   *  face. Structured (not folded into `primary`) so the frontend can format and align it without
+   *  parsing a string back into a number. Never a converted or summed figure. */
+  amount?: { value: number; currency: string };
 }
 
 /** A short, unpaginated list — "Pending invoices": the handful a dashboard glance needs, not the
@@ -77,6 +94,11 @@ export interface ShortListItem {
 export interface ShortListWidget extends WidgetBase {
   kind: 'shortList';
   items: ShortListItem[];
+  /** The document type every item is an instance of, when they all are one — the one fact a reader
+   *  needs to open an item (`/documents/<typeId>/<item.id>`). Declared by the contribution that
+   *  built the list (it knows), never inferred by the frontend from the widget id's prefix, which is
+   *  a naming convention and not a contract. Absent on a list whose items are not documents. */
+  documentTypeId?: string;
 }
 
 export interface TableColumn {

@@ -1,18 +1,26 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CopyIcon, PlusIcon, RefreshCwIcon, TicketIcon, TrashIcon } from "lucide-react"
-import { EmptyState } from "@/components/ui/empty-state"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 import type { CompanyRole } from "@/types"
-import { toast } from "sonner"
-import { useState } from "react"
-import { useTranslation } from "react-i18next"
+import {
+  SettingsFormFooter,
+  SettingsIconDisc,
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+} from "./settings-section"
 
 type InvitationCode = {
   id: string
@@ -90,144 +98,148 @@ export default function InvitationsSettings() {
     if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
       return { label: t("settings.invitations.status.expired"), variant: "destructive" as const }
     }
-    return { label: t("settings.invitations.status.active"), variant: "default" as const }
+    return { label: t("settings.invitations.status.active"), variant: "success" as const }
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.invitations.create.title")}</CardTitle>
-          <CardDescription>{t("settings.invitations.create.description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="expiresInDays">{t("settings.invitations.create.expiresIn")}</Label>
-              <Input
-                id="expiresInDays"
-                type="number"
-                min="1"
-                placeholder={t("settings.invitations.create.expiresPlaceholder")}
-                value={expiresInDays}
-                onChange={(e) => setExpiresInDays(e.target.value ? parseInt(e.target.value) : "")}
-              />
-            </div>
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="role">{t("settings.invitations.create.role")}</Label>
-              <Select value={role} onValueChange={(value) => setRole(value as CompanyRole)}>
-                <SelectTrigger id="role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
-                  <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
-                  <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={createInvitation} disabled={creating}>
-              <PlusIcon className="h-4 w-4 mr-2" />
+    <SettingsPage title={t("settings.invitations.title")} description={t("settings.invitations.description")}>
+      <SettingsSection
+        title={t("settings.invitations.create.title")}
+        description={t("settings.invitations.create.description")}
+        contentClassName="grid gap-4 sm:grid-cols-2"
+        footer={
+          <SettingsFormFooter>
+            <Button onClick={createInvitation} loading={creating} data-cy="invitations-create-button">
+              <PlusIcon />
               {creating ? t("settings.invitations.create.creating") : t("settings.invitations.create.button")}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </SettingsFormFooter>
+        }
+      >
+        <div className="grid gap-1.5">
+          <Label htmlFor="expiresInDays">{t("settings.invitations.create.expiresIn")}</Label>
+          <Input
+            id="expiresInDays"
+            type="number"
+            min="1"
+            placeholder={t("settings.invitations.create.expiresPlaceholder")}
+            value={expiresInDays}
+            onChange={(e) => setExpiresInDays(e.target.value ? Number.parseInt(e.target.value, 10) : "")}
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="role">{t("settings.invitations.create.role")}</Label>
+          <Select value={role} onValueChange={(value) => setRole(value as CompanyRole)}>
+            <SelectTrigger id="role" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
+              <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
+              <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </SettingsSection>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{t("settings.invitations.list.title")}</CardTitle>
-            <CardDescription>{t("settings.invitations.list.description")}</CardDescription>
-          </div>
-          <Button variant="outline" size="icon" onClick={() => mutate()} disabled={loading}>
-            <RefreshCwIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+      <SettingsSection
+        title={t("settings.invitations.list.title")}
+        description={t("settings.invitations.list.description")}
+        aside={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("settings.common.refresh")}
+            tooltip={t("settings.common.refresh")}
+            onClick={() => mutate()}
+            disabled={loading}
+            data-cy="invitations-refresh"
+          >
+            <RefreshCwIcon className={loading ? "animate-spin" : undefined} />
           </Button>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : !invitations || invitations.length === 0 ? (
-            <EmptyState
-              icon={TicketIcon}
-              size="sm"
-              title={t("settings.invitations.list.empty")}
-              data-cy="invitations-empty"
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("settings.invitations.list.code")}</TableHead>
-                  <TableHead>{t("settings.invitations.list.role")}</TableHead>
-                  <TableHead>{t("settings.invitations.list.status")}</TableHead>
-                  <TableHead>{t("settings.invitations.list.createdAt")}</TableHead>
-                  <TableHead>{t("settings.invitations.list.expiresAt")}</TableHead>
-                  <TableHead>{t("settings.invitations.list.usedBy")}</TableHead>
-                  <TableHead className="text-right">{t("settings.invitations.list.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invitations.map((invitation) => {
-                  const status = getStatus(invitation)
-                  return (
-                    <TableRow key={invitation.id}>
-                      <TableCell className="font-mono text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate max-w-[120px]">{invitation.code.substring(0, 8)}...</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => copyCode(invitation.code)}
-                          >
-                            <CopyIcon className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{invitation.role}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(invitation.createdAt)}</TableCell>
-                      <TableCell>
+        }
+      >
+        {loading ? (
+          <SettingsListSkeleton rows={3} />
+        ) : !invitations || invitations.length === 0 ? (
+          <EmptyState
+            icon={TicketIcon}
+            size="sm"
+            title={t("settings.invitations.list.empty")}
+            data-cy="invitations-empty"
+          />
+        ) : (
+          <SettingsList dataCy="invitations-list">
+            {invitations.map((invitation) => {
+              const status = getStatus(invitation)
+              return (
+                <SettingsListRow
+                  key={invitation.id}
+                  dataCy={`invitation-row-${invitation.id}`}
+                  leading={<SettingsIconDisc icon={TicketIcon} />}
+                  badge={
+                    <>
+                      <Badge variant="outline">{invitation.role}</Badge>
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </>
+                  }
+                  title={<span className="font-mono tabular-nums">{invitation.code.substring(0, 8)}…</span>}
+                  meta={
+                    <>
+                      {t("settings.invitations.list.createdAt")}:{" "}
+                      <span className="font-mono tabular-nums">{formatDate(invitation.createdAt)}</span>
+                      {" · "}
+                      {t("settings.invitations.list.expiresAt")}:{" "}
+                      <span className="font-mono tabular-nums">
                         {invitation.expiresAt
                           ? formatDate(invitation.expiresAt)
                           : t("settings.invitations.list.noExpiry")}
-                      </TableCell>
-                      <TableCell>
-                        {invitation.usedBy ? (
-                          <span>
-                            {invitation.usedBy.firstname} {invitation.usedBy.lastname}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {!invitation.usedAt && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => deleteInvitation(invitation.id)}
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                      </span>
+                      {invitation.usedBy && (
+                        <>
+                          {" · "}
+                          {t("settings.invitations.list.usedBy")}: {invitation.usedBy.firstname}{" "}
+                          {invitation.usedBy.lastname}
+                        </>
+                      )}
+                    </>
+                  }
+                  primary={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label={t("settings.common.copy")}
+                      tooltip={t("settings.common.copy")}
+                      onClick={() => copyCode(invitation.code)}
+                      data-cy={`invitation-copy-${invitation.id}`}
+                    >
+                      <CopyIcon />
+                    </Button>
+                  }
+                  menu={
+                    !invitation.usedAt ? (
+                      <SettingsRowMenu
+                        dataCy={`invitation-menu-${invitation.id}`}
+                        items={[
+                          {
+                            label: t("settings.common.delete"),
+                            icon: TrashIcon,
+                            onSelect: () => deleteInvitation(invitation.id),
+                            destructive: true,
+                            dataCy: `invitation-delete-${invitation.id}`,
+                          },
+                        ]}
+                      />
+                    ) : undefined
+                  }
+                />
+              )
+            })}
+          </SettingsList>
+        )}
+      </SettingsSection>
+    </SettingsPage>
   )
 }

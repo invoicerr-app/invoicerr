@@ -5,10 +5,32 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useBillingStatus, useOpenCustomerPortal, useStartCheckout } from "@/hooks/queries"
-import { useCompanies } from "@/hooks/queries"
+import {
+  type CompanySubscriptionStatus,
+  useBillingStatus,
+  useCompanies,
+  useOpenCustomerPortal,
+  useStartCheckout,
+} from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
+import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
+
+/** Chip tone per subscription status — a lifecycle, not a binary "good/bad", so this needs more than
+ *  the default/destructive split the old raw `Badge` here used: `success` while paying, `info` for a
+ *  trial (informational, not yet an ask), `warning` once payment itself needs attention, `destructive`
+ *  once the company stopped functioning, `secondary` (muted) once it's gone and there's nothing left
+ *  to act on. */
+const STATUS_VARIANT: Record<
+  CompanySubscriptionStatus,
+  "success" | "info" | "warning" | "destructive" | "secondary"
+> = {
+  ACTIVE: "success",
+  TRIAL: "info",
+  PAST_DUE: "warning",
+  BLOCKED: "destructive",
+  ZIPPED: "destructive",
+  DELETED: "secondary",
+}
 
 /**
  * Settings > Subscription — only ever reached when `-[tab].tsx` decided to show the "billing" tab at
@@ -103,92 +125,87 @@ export default function BillingSettings() {
   }
 
   const statusLabel = t(`settings.billing.status.${status.status}`, status.status)
-  const statusVariant =
-    status.status === "ACTIVE" ? "default" : status.status === "TRIAL" ? "secondary" : "destructive"
 
   return (
-    <div className="space-y-6" data-cy="billing-settings">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.billing.title", "Subscription")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.billing.description",
-            "Manage this company's hosted subscription — seats, plan, and payment method.",
-          )}
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+    <SettingsPage
+      title={t("settings.billing.title", "Subscription")}
+      description={t("settings.billing.description")}
+    >
+      <SettingsSection
+        dataCy="billing-settings"
+        title={
+          <>
             {t("settings.billing.currentPlan", "Current plan")}
-            <Badge variant={statusVariant} data-cy="billing-status-badge">
+            <Badge variant={STATUS_VARIANT[status.status]} data-cy="billing-status-badge">
               {statusLabel}
             </Badge>
-          </CardTitle>
-          <CardDescription>
+          </>
+        }
+        description={
+          <>
             {t("settings.billing.seats", "{{count}} seat(s)", { count: status.seats })}
             {status.interval
               ? ` · ${t(`settings.billing.interval.${status.interval}`, status.interval)}`
               : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {status.daysRemaining !== null && (
-            <p className="text-sm text-muted-foreground" data-cy="billing-days-remaining">
-              {t("settings.billing.daysRemaining", "{{count}} day(s) remaining", {
-                count: status.daysRemaining,
-              })}
-            </p>
-          )}
-
-          {status.status !== "ACTIVE" && (
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => subscribe("monthly")}
-                disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
-                data-cy="billing-subscribe-monthly"
-              >
-                {(startCheckout.isPending && startCheckout.variables?.slug === "monthly") ||
-                navigatingCheckoutSlug === "monthly" ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                )}
-                {t("settings.billing.subscribeMonthly", "Subscribe monthly")}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => subscribe("yearly")}
-                disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
-                data-cy="billing-subscribe-yearly"
-              >
-                {(startCheckout.isPending && startCheckout.variables?.slug === "yearly") ||
-                navigatingCheckoutSlug === "yearly" ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                )}
-                {t("settings.billing.subscribeYearly", "Subscribe yearly")}
-              </Button>
-            </div>
-          )}
-
-          <Button
-            variant="secondary"
-            onClick={manageSubscription}
-            disabled={openPortal.isPending || navigatingPortal}
-            data-cy="billing-manage-portal"
-          >
-            {openPortal.isPending || navigatingPortal ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <ExternalLink className="h-4 w-4 mr-2" />
+          </>
+        }
+        footer={
+          <SettingsFormFooter>
+            {status.status !== "ACTIVE" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => subscribe("yearly")}
+                  disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
+                  data-cy="billing-subscribe-yearly"
+                >
+                  {(startCheckout.isPending && startCheckout.variables?.slug === "yearly") ||
+                  navigatingCheckoutSlug === "yearly" ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ExternalLink />
+                  )}
+                  {t("settings.billing.subscribeYearly", "Subscribe yearly")}
+                </Button>
+                <Button
+                  onClick={() => subscribe("monthly")}
+                  disabled={startCheckout.isPending || navigatingCheckoutSlug !== null}
+                  data-cy="billing-subscribe-monthly"
+                >
+                  {(startCheckout.isPending && startCheckout.variables?.slug === "monthly") ||
+                  navigatingCheckoutSlug === "monthly" ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ExternalLink />
+                  )}
+                  {t("settings.billing.subscribeMonthly", "Subscribe monthly")}
+                </Button>
+              </>
             )}
-            {t("settings.billing.managePortal", "Manage subscription")}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+            <Button
+              variant={status.status === "ACTIVE" ? "default" : "secondary"}
+              onClick={manageSubscription}
+              disabled={openPortal.isPending || navigatingPortal}
+              data-cy="billing-manage-portal"
+            >
+              {openPortal.isPending || navigatingPortal ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <ExternalLink />
+              )}
+              {t("settings.billing.managePortal", "Manage subscription")}
+            </Button>
+          </SettingsFormFooter>
+        }
+      >
+        {status.daysRemaining !== null && (
+          <p className="text-sm text-muted-foreground" data-cy="billing-days-remaining">
+            {t("settings.billing.daysRemaining", "{{count}} day(s) remaining", {
+              count: status.daysRemaining,
+            })}
+          </p>
+        )}
+      </SettingsSection>
+    </SettingsPage>
   )
 }

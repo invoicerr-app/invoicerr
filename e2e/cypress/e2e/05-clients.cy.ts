@@ -650,6 +650,7 @@ describe("Clients E2E", () => {
 			cy.visit("/clients");
 			cy.wait(2000);
 
+			cy.get('[data-cy="client-row-menu-contact@german.de"]').click();
 			cy.get('[data-cy="delete-client-button-contact@german.de"]').click();
 
 			cy.get('[data-cy="confirm-delete-client-button"]', {

@@ -38,7 +38,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
       </div>
     )
   }
@@ -82,19 +82,24 @@ export function StatementLines({ statementId }: StatementLinesProps) {
               <TableRow>
                 <TableHead>{t("bankReconciliation.lines.date")}</TableHead>
                 <TableHead>{t("bankReconciliation.lines.label")}</TableHead>
-                <TableHead className="text-right">{t("bankReconciliation.lines.amount")}</TableHead>
+                <TableHead className="text-right tabular-nums">
+                  {t("bankReconciliation.lines.amount")}
+                </TableHead>
                 <TableHead>{t("bankReconciliation.lines.status")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.map(({ line, suggestions, reconciledInvoiceLabel }) => (
                 <TableRow key={line.id} data-cy={`bank-reconciliation-line-${line.id}`}>
-                  <TableCell>{new Date(line.date).toLocaleDateString()}</TableCell>
+                  <TableCell className="tabular-nums">{new Date(line.date).toLocaleDateString()}</TableCell>
                   <TableCell className="max-w-xs truncate" title={line.label}>
                     {line.label}
                   </TableCell>
                   <TableCell
-                    className={cn("text-right whitespace-nowrap", line.amountMinor < 0 && "text-destructive")}
+                    className={cn(
+                      "text-right font-mono tabular-nums whitespace-nowrap",
+                      line.amountMinor < 0 && "text-destructive",
+                    )}
                   >
                     {formatAmount(line.amountMinor)} {statement.currency}
                   </TableCell>

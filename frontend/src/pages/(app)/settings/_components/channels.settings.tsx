@@ -7,13 +7,14 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useDocumentTransports } from "@/hooks/queries"
 import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import { SettingsPage, SettingsRowMenu, SettingsSection } from "./settings-section"
 
 type ChannelEnvironment = "TEST" | "PROD"
 
@@ -295,146 +296,92 @@ function ChannelRow({
   }
 
   const label = PROVIDER_LABELS[providerId] ?? providerId.toUpperCase()
+  // The chip states requirement #3 asks for: `success` once actually connected, `warning` when this
+  // company's own country wants the channel (suggested or mandated) but it isn't connected yet, and
+  // `secondary` (muted) when the channel is merely AVAILABLE — no country-specific reason to bother.
+  const statusVariant = isConnected ? "success" : suggested ? "warning" : "secondary"
 
   return (
-    <Card data-cy={`channel-${providerId}`}>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {isConnected ? (
-              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-            ) : (
-              <XCircle className="h-5 w-5 text-muted-foreground shrink-0" />
-            )}
-            <CardTitle className="text-base">{label}</CardTitle>
-            <Badge variant={isConnected ? "default" : "secondary"} data-cy={`channel-${providerId}-status`}>
-              {isConnected
-                ? t("settings.channels.status.connected", "Connected ({{environment}})", {
-                    environment: configured?.environment,
-                  })
-                : t("settings.channels.status.notConnected", "Not connected")}
-            </Badge>
-            {/* The concept-distinguishing badge: NEVER a delivery channel, whatever its own
-                connected/not-connected status
-                reads above. Shown unconditionally for a provider this screen classifies as
-                declarative (`REPORTING_PROVIDER_IDS`), independent of `reportingObligations` (a
-                company that already connected one before moving its own registered country
-                elsewhere still sees it correctly labeled). */}
-            {isReporting && (
-              <Badge variant="outline" data-cy={`channel-${providerId}-declarative`}>
-                {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
-              </Badge>
-            )}
-            {suggested && (
-              <Badge variant="outline" data-cy={`channel-${providerId}-suggested`}>
-                {t("settings.channels.status.suggested", "Suggested for your country")}
-              </Badge>
-            )}
-            {/* A STRONGER, visually distinct badge for a channel the country
-                MANDATES, never replacing the "suggested" badge above (a mandate is a strengthened
-                suggestion, not a contradiction of it — see this file's own header on `requirement`).
-                Shown unconditionally whenever the file declares `mandated`, regardless of whether
-                `mandatedFrom` has actually been reached yet — the date itself is spelled out in the
-                badge text so nothing here depends on today's wall-clock date to be TRUTHFUL. */}
-            {suggested?.requirement === "mandated" && (
-              <Badge variant="destructive" data-cy={`channel-${providerId}-mandated`}>
-                {t("settings.channels.status.mandated", "Mandatory from {{date}}", {
-                  date: suggested.mandatedFrom,
-                })}
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {isConnected && !editing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditing(true)}
-                data-cy={`channel-${providerId}-edit-button`}
-              >
-                {t("settings.channels.actions.edit", "Edit")}
-              </Button>
-            )}
-            {isConnected && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                data-cy={`channel-${providerId}-disconnect-button`}
-              >
-                {disconnecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t("settings.channels.actions.disconnect", "Disconnect")
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-        {suggested && (
-          <CardDescription>
-            {suggested.provenance.kind === "unverified"
-              ? suggested.provenance.resolutionNote
-              : suggested.provenance.sourceText}
-          </CardDescription>
-        )}
-        {reportingObligation && (
-          <CardDescription data-cy={`channel-${providerId}-obligation-description`}>
-            {reportingObligation.provenance.kind === "unverified"
-              ? reportingObligation.provenance.resolutionNote
-              : reportingObligation.provenance.sourceText}
-          </CardDescription>
-        )}
-      </CardHeader>
-      {editing && (
-        <CardContent className="space-y-4">
-          {fields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t("settings.channels.messages.noFields", "This channel has no configurable fields yet.")}
-            </p>
+    <SettingsSection
+      dataCy={`channel-${providerId}`}
+      title={
+        <>
+          {isConnected ? (
+            <CheckCircle2 className="size-4 shrink-0 text-success-foreground" aria-hidden="true" />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor={`${providerId}-environment`}>
-                  {t("settings.channels.fields.environment", "Environment")}
-                </Label>
-                <Select value={environment} onValueChange={(v) => setEnvironment(v as ChannelEnvironment)}>
-                  <SelectTrigger
-                    id={`${providerId}-environment`}
-                    className="w-full"
-                    data-cy={`channel-${providerId}-environment-select`}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent data-cy={`channel-${providerId}-environment-options`}>
-                    <SelectItem value="TEST" data-cy={`channel-${providerId}-environment-option-test`}>
-                      {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
-                    </SelectItem>
-                    <SelectItem value="PROD" data-cy={`channel-${providerId}-environment-option-prod`}>
-                      {t("settings.channels.fields.environmentProd", "Production")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {fields.map((field) => (
-                <div className="space-y-1.5" key={field.key}>
-                  <Label htmlFor={`${providerId}-${field.key}`}>
-                    {t(field.labelKey, field.labelDefault)}
-                  </Label>
-                  <Input
-                    id={`${providerId}-${field.key}`}
-                    data-cy={`channel-${providerId}-${field.key.toLowerCase()}-input`}
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    value={config[field.key] ?? ""}
-                    onChange={(e) => setConfig((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                  />
-                </div>
-              ))}
-            </div>
+            <XCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           )}
+          {label}
+          <Badge variant={statusVariant} data-cy={`channel-${providerId}-status`}>
+            {isConnected
+              ? t("settings.channels.status.connected", "Connected ({{environment}})", {
+                  environment: configured?.environment,
+                })
+              : t("settings.channels.status.notConnected", "Not connected")}
+          </Badge>
+          {/* The concept-distinguishing badge: NEVER a delivery channel, whatever its own
+              connected/not-connected status reads above. Shown unconditionally for a provider this
+              screen classifies as declarative (`REPORTING_PROVIDER_IDS`), independent of
+              `reportingObligations` (a company that already connected one before moving its own
+              registered country elsewhere still sees it correctly labeled). */}
+          {isReporting && (
+            <Badge variant="outline" data-cy={`channel-${providerId}-declarative`}>
+              {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
+            </Badge>
+          )}
+          {suggested && (
+            <Badge variant="outline" data-cy={`channel-${providerId}-suggested`}>
+              {t("settings.channels.status.suggested", "Suggested for your country")}
+            </Badge>
+          )}
+          {/* A STRONGER, visually distinct badge for a channel the country MANDATES, never replacing
+              the "suggested" badge above (a mandate is a strengthened suggestion, not a contradiction
+              of it — see this file's own header on `requirement`). Shown unconditionally whenever the
+              file declares `mandated`, regardless of whether `mandatedFrom` has actually been reached
+              yet — the date itself is spelled out in the badge text so nothing here depends on today's
+              wall-clock date to be TRUTHFUL. */}
+          {suggested?.requirement === "mandated" && (
+            <Badge variant="destructive" data-cy={`channel-${providerId}-mandated`}>
+              {t("settings.channels.status.mandated", "Mandatory from {{date}}", {
+                date: suggested.mandatedFrom,
+              })}
+            </Badge>
+          )}
+        </>
+      }
+      description={
+        (suggested &&
+          (suggested.provenance.kind === "unverified"
+            ? suggested.provenance.resolutionNote
+            : suggested.provenance.sourceText)) ||
+        (reportingObligation &&
+          (reportingObligation.provenance.kind === "unverified"
+            ? reportingObligation.provenance.resolutionNote
+            : reportingObligation.provenance.sourceText))
+      }
+      aside={
+        isConnected && !editing ? (
+          <SettingsRowMenu
+            dataCy={`channel-${providerId}-menu`}
+            items={[
+              {
+                label: t("settings.channels.actions.edit", "Edit"),
+                onSelect: () => setEditing(true),
+                dataCy: `channel-${providerId}-edit-button`,
+              },
+              {
+                label: t("settings.channels.actions.disconnect", "Disconnect"),
+                onSelect: handleDisconnect,
+                disabled: disconnecting,
+                destructive: true,
+                dataCy: `channel-${providerId}-disconnect-button`,
+              },
+            ]}
+          />
+        ) : undefined
+      }
+      footer={
+        editing ? (
           <div className="flex justify-end gap-2">
             {isConnected && (
               <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
@@ -448,15 +395,60 @@ function ChannelRow({
               data-cy={`channel-${providerId}-connect-button`}
             >
               {connecting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
                 t("settings.channels.actions.connect", "Connect")
               )}
             </Button>
           </div>
-        </CardContent>
-      )}
-    </Card>
+        ) : undefined
+      }
+    >
+      {editing &&
+        (fields.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("settings.channels.messages.noFields", "This channel has no configurable fields yet.")}
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor={`${providerId}-environment`}>
+                {t("settings.channels.fields.environment", "Environment")}
+              </Label>
+              <Select value={environment} onValueChange={(v) => setEnvironment(v as ChannelEnvironment)}>
+                <SelectTrigger
+                  id={`${providerId}-environment`}
+                  className="w-full"
+                  data-cy={`channel-${providerId}-environment-select`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent data-cy={`channel-${providerId}-environment-options`}>
+                  <SelectItem value="TEST" data-cy={`channel-${providerId}-environment-option-test`}>
+                    {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
+                  </SelectItem>
+                  <SelectItem value="PROD" data-cy={`channel-${providerId}-environment-option-prod`}>
+                    {t("settings.channels.fields.environmentProd", "Production")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {fields.map((field) => (
+              <div className="space-y-1.5" key={field.key}>
+                <Label htmlFor={`${providerId}-${field.key}`}>{t(field.labelKey, field.labelDefault)}</Label>
+                <Input
+                  id={`${providerId}-${field.key}`}
+                  data-cy={`channel-${providerId}-${field.key.toLowerCase()}-input`}
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  value={config[field.key] ?? ""}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+    </SettingsSection>
   )
 }
 
@@ -499,40 +491,31 @@ export default function ChannelsSettings() {
   )
 
   return (
-    <div className="space-y-6" data-cy="channels-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.channels.title", "Channels")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.channels.description",
-            "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
-          )}
-        </p>
-      </div>
+    <SettingsPage
+      title={t("settings.channels.title", "Channels")}
+      description={t(
+        "settings.channels.description",
+        "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
+      )}
+      dataCy="channels-section"
+    >
+      {providerIds.map((id) => (
+        <ChannelRow
+          key={id}
+          providerId={id}
+          configured={configuredMap.get(id)}
+          suggested={suggestedMap.get(id)}
+          reportingObligation={reportingMap.get(id)}
+          onChanged={mutate}
+        />
+      ))}
 
-      <div className="space-y-4">
-        {providerIds.map((id) => (
-          <ChannelRow
-            key={id}
-            providerId={id}
-            configured={configuredMap.get(id)}
-            suggested={suggestedMap.get(id)}
-            reportingObligation={reportingMap.get(id)}
-            onChanged={mutate}
-          />
-        ))}
-
-        {providerIds.length === 0 && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-8">
-              <Radio className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground text-center">
-                {t("settings.channels.emptyState", "No national channel available yet")}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+      {providerIds.length === 0 && (
+        <EmptyState
+          icon={Radio}
+          title={t("settings.channels.emptyState", "No national channel available yet")}
+        />
+      )}
+    </SettingsPage>
   )
 }

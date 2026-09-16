@@ -190,7 +190,7 @@ export class SignaturesService {
    * `otpCodeMatches` at all (no digest comparison is even meaningful against a hash that no longer
    * represents "the current, live challenge").
    */
-  async verifyAndSign(token: string, submittedCode: string): Promise<{ message: string }> {
+  async verifyAndSign(token: string, submittedCode: string): Promise<{ message: string; signedAt: string }> {
     const row = await this.resolveActiveOrThrow(token);
 
     const codeIsLive = !!row.otpCodeHash && !!row.otpExpiresAt && row.otpExpiresAt.getTime() > Date.now();
@@ -207,8 +207,11 @@ export class SignaturesService {
       throw new BadRequestException(GENERIC_BLOCK_MESSAGE);
     }
 
-    await this.markSigned(row);
-    return { message: 'Document signed.' };
+    // `signedAt` is the persisted timestamp (`markSignatureSigned`'s own write), echoed back so the
+    // public page can show the client WHEN their signature was recorded — the same instant the
+    // signature row carries, never a clock the browser read for itself.
+    const signedAt = await this.markSigned(row);
+    return { message: 'Document signed.', signedAt: signedAt.toISOString() };
   }
 
   /**
@@ -237,7 +240,7 @@ export class SignaturesService {
    * in the meantime) with a 409, the same status-conflict vocabulary every other action in this module
    * already uses for the identical shape of problem.
    */
-  private async markSigned(row: SignatureRecord): Promise<void> {
+  private async markSigned(row: SignatureRecord): Promise<Date> {
     const current = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
     if (current.status !== 'sent') {
       throw new ConflictException(
@@ -246,7 +249,7 @@ export class SignaturesService {
     }
 
     const updated = await updateDocumentStatus(row.companyId, row.typeId, row.documentId, 'signed');
-    await markSignatureSigned(row.id);
+    const signed = await markSignatureSigned(row.id);
 
     try {
       await this.webhooks.dispatch(
@@ -264,6 +267,7 @@ export class SignaturesService {
         },
       });
     }
+    return signed.signedAt ?? new Date();
   }
 
   /**

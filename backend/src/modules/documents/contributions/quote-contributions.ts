@@ -74,6 +74,7 @@ export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyI
         // in the list. Same literal wording render-html.ts already uses for the identical fact.
         primary: quote.displayNumber ?? 'Draft — no number yet',
         secondary: issueDate,
+        status: quote.status,
       };
     });
 
@@ -81,10 +82,24 @@ export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyI
     id: 'quote:draft',
     kind: 'shortList',
     label: 'Draft quotes',
+    documentTypeId: 'quote',
     items: draftItems,
   };
 
-  return [widget];
+  // "Open quotes" — the ones still awaiting an outcome: a draft (not yet sent) or a sent one the
+  // client has neither signed nor let lapse. A count, never a sum (see the statistics handler
+  // below for why); "sending"/"send_failed" are transient send states, not an open offer, and
+  // "signed" is closed — so this is a positive list of two statuses, not a "not closed" negation
+  // that would silently absorb any status added later.
+  const openCount = quotes.filter((quote) => quote.status === 'draft' || quote.status === 'sent').length;
+  const openMetric: MetricWidget = {
+    id: 'quote:open-count',
+    kind: 'metric',
+    label: 'Open quotes',
+    value: openCount,
+  };
+
+  return [openMetric, widget];
 };
 
 /**

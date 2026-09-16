@@ -79,7 +79,10 @@ export class PublicSignaturesController {
   @ApiParam({ name: 'token', type: String })
   @ApiResponse({ status: 200, description: 'Document signed' })
   @ApiResponse({ status: 400, description: 'Invalid, expired, locked, or already-used — indistinguishable' })
-  async sign(@Param('token') token: string, @Body('code') code: string): Promise<{ message: string }> {
+  async sign(
+    @Param('token') token: string,
+    @Body('code') code: string,
+  ): Promise<{ message: string; signedAt: string }> {
     return this.signaturesService.verifyAndSign(token, code);
   }
 }

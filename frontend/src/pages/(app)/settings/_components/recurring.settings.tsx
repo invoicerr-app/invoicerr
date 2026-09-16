@@ -3,10 +3,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import {
   useDeleteDocumentSchedule,
@@ -16,6 +13,15 @@ import {
   useSetDocumentScheduleEnabled,
 } from "@/hooks/queries"
 import type { DocumentSchedule } from "@/components/documents/types"
+
+import {
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+} from "./settings-section"
 
 /** The source document's own human-facing label — via the SAME generic 'reference' resolve endpoint
  *  a `DocumentFieldDescriptor` of kind 'reference' already uses (document reference providers are
@@ -61,15 +67,10 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
   }
 
   return (
-    <div
-      className="flex flex-col gap-2 border-b py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-      data-cy={`document-schedule-row-${schedule.id}`}
-    >
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-foreground">{typeLabel}</span>
-          <span className="text-muted-foreground">·</span>
-          <ScheduleSourceLabel typeId={schedule.typeId} sourceDocumentId={schedule.sourceDocumentId} />
+    <SettingsListRow
+      dataCy={`document-schedule-row-${schedule.id}`}
+      badge={
+        <>
           <Badge variant="outline">
             {t(`documents.schedules.cadence.${schedule.cadence}`, schedule.cadence)}
           </Badge>
@@ -78,41 +79,55 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
               {t("documents.schedules.list.disabled")}
             </Badge>
           )}
-        </div>
-        <div className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-          <span data-cy={`document-schedule-next-run-${schedule.id}`}>
+        </>
+      }
+      title={
+        <span className="flex flex-wrap items-center gap-x-2">
+          <span>{typeLabel}</span>
+          <span className="text-muted-foreground">·</span>
+          <ScheduleSourceLabel typeId={schedule.typeId} sourceDocumentId={schedule.sourceDocumentId} />
+        </span>
+      }
+      meta={
+        <span className="flex flex-wrap gap-x-4">
+          <span className="font-mono tabular-nums" data-cy={`document-schedule-next-run-${schedule.id}`}>
             {t("documents.schedules.list.nextRunAt", { date: formatDate(schedule.nextRunAt) })}
           </span>
-          <span data-cy={`document-schedule-last-run-${schedule.id}`}>
+          <span className="font-mono tabular-nums" data-cy={`document-schedule-last-run-${schedule.id}`}>
             {t("documents.schedules.list.lastRunAt", { date: formatDate(schedule.lastRunAt) })}
           </span>
-        </div>
-        {schedule.lastError && (
-          <p className="text-sm text-destructive" data-cy={`document-schedule-last-error-${schedule.id}`}>
-            {t("documents.schedules.list.lastError", { message: schedule.lastError })}
-          </p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Switch
-          checked={schedule.enabled}
-          onCheckedChange={handleToggle}
-          disabled={setEnabled.isPending}
-          data-cy={`document-schedule-toggle-${schedule.id}`}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          loading={deleteSchedule.isPending}
-          onClick={handleDelete}
-          dataCy={`document-schedule-delete-${schedule.id}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+        </span>
+      }
+      menu={
+        <>
+          <Switch
+            checked={schedule.enabled}
+            onCheckedChange={handleToggle}
+            disabled={setEnabled.isPending}
+            aria-label={t(`documents.schedules.cadence.${schedule.cadence}`, schedule.cadence)}
+            data-cy={`document-schedule-toggle-${schedule.id}`}
+          />
+          <SettingsRowMenu
+            items={[
+              {
+                label: t("settings.common.delete"),
+                icon: Trash2,
+                onSelect: handleDelete,
+                disabled: deleteSchedule.isPending,
+                destructive: true,
+                dataCy: `document-schedule-delete-${schedule.id}`,
+              },
+            ]}
+          />
+        </>
+      }
+    >
+      {schedule.lastError && (
+        <p className="text-sm text-destructive" data-cy={`document-schedule-last-error-${schedule.id}`}>
+          {t("documents.schedules.list.lastError", { message: schedule.lastError })}
+        </p>
+      )}
+    </SettingsListRow>
   )
 }
 
@@ -131,36 +146,36 @@ export default function RecurringSettings() {
   const typeLabels = Object.fromEntries(types.map((type) => [type.id, type.label]))
 
   return (
-    <Card data-cy="document-schedules-card">
-      <CardHeader>
-        <CardTitle>{t("settings.tabs.recurring")}</CardTitle>
-        <CardDescription>{t("documents.schedules.list.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : !schedules || schedules.length === 0 ? (
+    <SettingsPage
+      title={t("settings.recurring.title", "Recurrences")}
+      description={t(
+        "settings.recurring.description",
+        "Every recurring schedule that automatically creates a new document from an existing one, across all document types.",
+      )}
+      dataCy="document-schedules-section"
+    >
+      {isLoading ? (
+        <SettingsListSkeleton rows={2} />
+      ) : !schedules || schedules.length === 0 ? (
+        <SettingsSection>
           <EmptyState
             icon={Repeat}
             size="sm"
             title={t("documents.schedules.list.empty")}
             data-cy="document-schedules-empty"
           />
-        ) : (
-          <div data-cy="document-schedules-list">
-            {schedules.map((schedule) => (
-              <ScheduleRow
-                key={schedule.id}
-                schedule={schedule}
-                typeLabel={typeLabels[schedule.typeId] ?? schedule.typeId}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </SettingsSection>
+      ) : (
+        <SettingsList dataCy="document-schedules-list">
+          {schedules.map((schedule) => (
+            <ScheduleRow
+              key={schedule.id}
+              schedule={schedule}
+              typeLabel={typeLabels[schedule.typeId] ?? schedule.typeId}
+            />
+          ))}
+        </SettingsList>
+      )}
+    </SettingsPage>
   )
 }

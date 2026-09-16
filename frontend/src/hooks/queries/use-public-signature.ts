@@ -39,9 +39,10 @@ export function useRequestPublicSignatureOtp(token: string) {
 
 /** Verifies the submitted code and, on success, signs the document — see the backend's own
  *  `SignaturesService.verifyAndSign` header for why every failure reason (wrong code, expired,
- *  locked, already used, unknown token) answers the exact same message. */
+ *  locked, already used, unknown token) answers the exact same message. `signedAt` is the persisted
+ *  write's own timestamp (never the browser's clock) — the public page's own "signed on …" line. */
 export function useSignPublicSignature(token: string) {
-  return useApiMutation<{ code: string }, { message: string }>(
+  return useApiMutation<{ code: string }, { message: string; signedAt: string }>(
     "POST",
     `/api/public/signatures/${encodeURIComponent(token)}/sign`,
   )

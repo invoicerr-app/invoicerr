@@ -62,6 +62,14 @@ function pickSelectOption(fieldKey: string, optionSlug: string) {
 	cy.get(`[data-cy^="document-field-${fieldKey}-input-option-${optionSlug}"]`).first().click();
 }
 
+/** Archive/restore live in the row's "..." menu (`settings-section.tsx`'s `SettingsRowMenu` grammar,
+ *  shared by every settings list in the app) rather than as a directly-clickable button, so reaching
+ *  either action means opening that menu first. */
+function clickRowMenuItem(menuDataCy: string, itemDataCy: string) {
+	cy.get(`[data-cy="${menuDataCy}"]`, { timeout: 15000 }).scrollIntoView().click();
+	cy.get(`[data-cy="${itemDataCy}"]`, { timeout: 10000 }).should("be.visible").click();
+}
+
 function fillMinimalExpenseNativeFields(description: string) {
 	cy.get('[data-cy="document-field-description-input"]').type(description);
 	cy.get('[data-cy="document-field-amount-input"]').type("10");
@@ -315,7 +323,7 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			const costCenter = definitions.find((d) => d.label === "Cost Center")!;
 
 			cy.visit("/settings/customFields");
-			cy.get(`[data-cy="custom-field-archive-button-${costCenter.id}"]`, { timeout: 15000 }).click();
+			clickRowMenuItem(`custom-field-menu-${costCenter.id}`, `custom-field-archive-button-${costCenter.id}`);
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 			cy.get(`[data-cy="custom-field-row-archived-${costCenter.id}"]`).should("be.visible");
 
@@ -351,7 +359,7 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			expect(costCenter.archivedAt, "toujours archivée avant restauration").to.not.be.null;
 
 			cy.visit("/settings/customFields");
-			cy.get(`[data-cy="custom-field-restore-button-${costCenter.id}"]`, { timeout: 15000 }).click();
+			clickRowMenuItem(`custom-field-menu-${costCenter.id}`, `custom-field-restore-button-${costCenter.id}`);
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 			cy.get(`[data-cy="custom-field-row-archived-${costCenter.id}"]`).should("not.exist");
 

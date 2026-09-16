@@ -105,6 +105,24 @@ describe('buildQuoteDashboardWidgets', () => {
 
     expect(shortList.items.map((i) => i.id)).toEqual(['newest', 'oldest']);
   });
+
+  it('"Open quotes" counts drafts and sent ones — signed, sending and failed sends are not open', async () => {
+    listDocuments.mockResolvedValue([
+      quote({ id: 'd1', status: 'draft', data: {} }),
+      quote({ id: 's1', status: 'sent', displayNumber: 'QUO-1', data: {} }),
+      quote({ id: 'signed', status: 'signed', displayNumber: 'QUO-2', data: {} }),
+      quote({ id: 'in-flight', status: 'sending', data: {} }),
+      quote({ id: 'failed', status: 'send_failed', data: {} }),
+    ]);
+
+    const widgets = await buildQuoteDashboardWidgets({ companyId: 'c1' });
+    const shortList = widgets.find((w) => w.kind === 'shortList') as ShortListWidget;
+
+    expect(widgets.find((w) => w.id === 'quote:open-count')).toMatchObject({ kind: 'metric', value: 2 });
+    // The rows carry the status and the type that lets the dashboard badge and open them.
+    expect(shortList.documentTypeId).toBe('quote');
+    expect(shortList.items[0]).toMatchObject({ id: 'd1', status: 'draft' });
+  });
 });
 
 describe('buildQuoteStatisticsWidgets', () => {

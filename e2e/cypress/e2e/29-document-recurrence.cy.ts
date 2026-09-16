@@ -103,8 +103,10 @@ describe("Recurrences — replaying \"Duplicate\" on a document, on a cadence, f
 				// catch-ups (one occurrence per sweep pass) before
 				// coming back into the future, producing SEVERAL duplicates during this test — a yearly
 				// cycle only needs ONE, which is precisely what this test verifies.
-				cy.get('[data-cy="document-field-cadence-input"] button').click();
-				cy.get('[data-cy="document-field-cadence-input-option-yearly"]', { timeout: 10000 }).click();
+				cy.openSelect(
+					'[data-cy="document-field-cadence-input"] button',
+					'[data-cy="document-field-cadence-input-option-yearly"]',
+				);
 
 				// Same open-side race `cy.pickToday` guards against (a still-detaching outside-pointerdown
 				// listener from the PREVIOUS Radix layer swallowing this trigger's click) — this dialog

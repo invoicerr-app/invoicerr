@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, Tags } from "lucide-react"
+import { Tags, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -10,7 +10,6 @@ import { z } from "zod"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -22,6 +21,17 @@ import {
   useExpenseCategories,
   useUpdateExpenseCategory,
 } from "@/hooks/queries"
+
+import {
+  SettingsFormFooter,
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+  useSavedFlash,
+} from "./settings-section"
 
 function buildLabelSchema(t: (key: string) => string) {
   return z.object({
@@ -36,6 +46,7 @@ type LabelFormValues = z.infer<ReturnType<typeof buildLabelSchema>>
 function CreateForm() {
   const { t } = useTranslation()
   const { mutateAsync: create, isPending } = useCreateExpenseCategory()
+  const [saved, flash] = useSavedFlash()
 
   const schema = buildLabelSchema(t)
   const form = useForm<LabelFormValues>({
@@ -48,6 +59,7 @@ function CreateForm() {
       await create({ label: values.label })
       toast.success(t("settings.expenseCategories.messages.created"))
       form.reset({ label: "" })
+      flash()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t("settings.expenseCategories.messages.createError"),
@@ -56,38 +68,37 @@ function CreateForm() {
   })
 
   return (
-    <Card data-cy="expense-category-create-card">
-      <CardHeader>
-        <CardTitle>{t("settings.expenseCategories.create.title")}</CardTitle>
-        <CardDescription>{t("settings.expenseCategories.create.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form className="space-y-4" onSubmit={onSubmit} data-cy="expense-category-create-form">
-            <FormField
-              control={form.control}
-              name="label"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("settings.expenseCategories.form.label")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} data-cy="expense-category-label-input" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isPending} dataCy="expense-category-create-submit">
-                {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+    <Form {...form}>
+      <form onSubmit={onSubmit} data-cy="expense-category-create-form">
+        <SettingsSection
+          title={t("settings.expenseCategories.create.title")}
+          description={t("settings.expenseCategories.create.description")}
+          dataCy="expense-category-create-card"
+          contentClassName="grid gap-4 sm:grid-cols-2"
+          footer={
+            <SettingsFormFooter saved={saved}>
+              <Button type="submit" loading={isPending} dataCy="expense-category-create-submit">
                 {t("settings.expenseCategories.create.button")}
               </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+            </SettingsFormFooter>
+          }
+        >
+          <FormField
+            control={form.control}
+            name="label"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("settings.expenseCategories.form.label")}</FormLabel>
+                <FormControl>
+                  <Input {...field} data-cy="expense-category-label-input" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </SettingsSection>
+      </form>
+    </Form>
   )
 }
 
@@ -143,8 +154,7 @@ function RenameDialog({ category, open, onOpenChange }: RenameDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={isPending} dataCy="expense-category-rename-submit">
-                {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button type="submit" loading={isPending} dataCy="expense-category-rename-submit">
                 {t("settings.expenseCategories.rename.save")}
               </Button>
             </DialogFooter>
@@ -177,15 +187,10 @@ function CategoryRow({ category }: CategoryRowProps) {
   }
 
   return (
-    <div
-      className="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-b-0"
-      data-cy={`expense-category-row-${category.id}`}
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium" data-cy={`expense-category-row-label-${category.id}`}>
-            {category.label}
-          </span>
+    <SettingsListRow
+      dataCy={`expense-category-row-${category.id}`}
+      badge={
+        <>
           <Badge variant="outline" className="font-mono text-[10px]">
             {category.key}
           </Badge>
@@ -194,37 +199,42 @@ function CategoryRow({ category }: CategoryRowProps) {
               {t("settings.expenseCategories.list.archived")}
             </Badge>
           )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {!isArchived && (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setRenameOpen(true)}
-              dataCy={`expense-category-rename-button-${category.id}`}
-            >
-              {t("settings.expenseCategories.list.rename")}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={archiving}
-              onClick={handleArchive}
-              dataCy={`expense-category-archive-button-${category.id}`}
-            >
-              {t("settings.expenseCategories.list.archive")}
-            </Button>
-          </>
-        )}
-      </div>
-
+        </>
+      }
+      title={<span data-cy={`expense-category-row-label-${category.id}`}>{category.label}</span>}
+      primary={
+        !isArchived && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setRenameOpen(true)}
+            dataCy={`expense-category-rename-button-${category.id}`}
+          >
+            {t("settings.expenseCategories.list.rename")}
+          </Button>
+        )
+      }
+      menu={
+        !isArchived && (
+          <SettingsRowMenu
+            dataCy={`expense-category-menu-${category.id}`}
+            items={[
+              {
+                label: t("settings.expenseCategories.list.archive"),
+                icon: Trash2,
+                destructive: true,
+                disabled: archiving,
+                dataCy: `expense-category-archive-button-${category.id}`,
+                onSelect: handleArchive,
+              },
+            ]}
+          />
+        )
+      }
+    >
       {renameOpen && <RenameDialog category={category} open={renameOpen} onOpenChange={setRenameOpen} />}
-    </div>
+    </SettingsListRow>
   )
 }
 
@@ -241,39 +251,31 @@ export default function ExpenseCategoriesSettings() {
   const { data: categories, isLoading } = useExpenseCategories()
 
   return (
-    <div className="space-y-6" data-cy="expense-categories-settings">
-      <div>
-        <h1 className="text-3xl font-bold">{t("settings.expenseCategories.title")}</h1>
-        <p className="text-muted-foreground">{t("settings.expenseCategories.description")}</p>
-      </div>
+    <SettingsPage
+      title={t("settings.expenseCategories.title")}
+      description={t("settings.expenseCategories.description")}
+      dataCy="expense-categories-settings"
+    >
+      <SettingsSection title={t("settings.expenseCategories.list.title")} dataCy="expense-categories-list">
+        {isLoading ? (
+          <SettingsListSkeleton rows={3} />
+        ) : (categories ?? []).length === 0 ? (
+          <EmptyState
+            icon={Tags}
+            size="sm"
+            title={t("settings.expenseCategories.list.empty")}
+            data-cy="expense-categories-empty"
+          />
+        ) : (
+          <SettingsList>
+            {(categories ?? []).map((category) => (
+              <CategoryRow key={category.id} category={category} />
+            ))}
+          </SettingsList>
+        )}
+      </SettingsSection>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card data-cy="expense-categories-list">
-            <CardHeader>
-              <CardTitle>{t("settings.expenseCategories.list.title")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("settings.expenseCategories.list.loading")}
-                </p>
-              ) : (categories ?? []).length === 0 ? (
-                <EmptyState
-                  icon={Tags}
-                  size="sm"
-                  title={t("settings.expenseCategories.list.empty")}
-                  data-cy="expense-categories-empty"
-                />
-              ) : (
-                (categories ?? []).map((category) => <CategoryRow key={category.id} category={category} />)
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <CreateForm />
-      </div>
-    </div>
+      <CreateForm />
+    </SettingsPage>
   )
 }

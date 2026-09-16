@@ -1,6 +1,7 @@
 // biome-ignore-all lint/security/noDangerouslySetInnerHtml: the html preview is sanitized into safeHtml
 import DOMPurify from "dompurify"
-import { ChevronDown, ChevronUp, Mail, RotateCcw, TriangleAlert } from "lucide-react"
+import { ChevronDown, ChevronUp, FileText, Mail, RotateCcw, TriangleAlert } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { type ReactNode, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -9,7 +10,6 @@ import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
@@ -17,6 +17,15 @@ import { Separator } from "@/components/ui/separator"
 import { useCompanies } from "@/hooks/queries"
 import { useDelete, useGet, usePut } from "@/hooks/use-fetch"
 import { descriptorTypeLabel } from "@/lib/descriptor-i18n"
+import {
+  SettingsIconDisc,
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+} from "./settings-section"
 
 /**
  * One SYSTEM email — the signature request and the verification code, the two emails that are not
@@ -108,6 +117,9 @@ function seedEditorHtml(template: { body: string; html?: string }): string {
   return looksLikeHtml(template.body) ? template.body : plainTextToHtml(template.body)
 }
 
+/** The fake mail client the editor's own values are previewed inside — a "paper" surface (`bg-card`)
+ *  on the settings screen's own tray (`bg-muted`), never a hard-coded white/black pair: it renders in
+ *  whichever theme the author is currently reading it in, exactly like the rest of this screen. */
 function EmailPreview({
   subject,
   text,
@@ -127,47 +139,51 @@ function EmailPreview({
   const safeHtml = html?.trim() ? DOMPurify.sanitize(substitutePlaceholders(html, variables)) : null
 
   return (
-    <div className="bg-muted rounded-lg p-4" data-cy="email-template-preview">
-      <div className="bg-white rounded-lg shadow-lg mx-auto max-w-2xl">
+    <div className="rounded-lg bg-muted p-4" data-cy="email-template-preview">
+      <div className="mx-auto max-w-2xl rounded-lg bg-card text-card-foreground shadow-lg">
         <div className="border-b p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Mail className="h-5 w-5 text-blue-600" />
-            <span className="font-semibold text-gray-900">Invoicerr Mail</span>
+          <div className="mb-3 flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-foreground">Invoicerr Mail</span>
           </div>
           <div className="space-y-2 text-sm">
-            <div className="flex gap-2 bg-gray-50 p-2 rounded">
-              <span className="font-medium text-gray-600">{t("settings.emailTemplates.preview.from")}:</span>
-              <span className="text-gray-900">noreply@invoicerr.dev</span>
+            <div className="flex gap-2 rounded bg-muted p-2">
+              <span className="font-medium text-muted-foreground">
+                {t("settings.emailTemplates.preview.from")}:
+              </span>
+              <span className="text-foreground">noreply@invoicerr.dev</span>
             </div>
-            <div className="flex gap-2 bg-gray-50 p-2 rounded">
-              <span className="font-medium text-gray-600">{t("settings.emailTemplates.preview.to")}:</span>
-              <span className="text-gray-900">user@example.com</span>
+            <div className="flex gap-2 rounded bg-muted p-2">
+              <span className="font-medium text-muted-foreground">
+                {t("settings.emailTemplates.preview.to")}:
+              </span>
+              <span className="text-foreground">user@example.com</span>
             </div>
-            <div className="flex gap-2 bg-gray-50 p-2 rounded">
-              <span className="font-medium text-gray-600">
+            <div className="flex gap-2 rounded bg-muted p-2">
+              <span className="font-medium text-muted-foreground">
                 {t("settings.emailTemplates.preview.subject")}:
               </span>
-              <span className="text-gray-900" data-cy="email-template-preview-subject">
+              <span className="text-foreground" data-cy="email-template-preview-subject">
                 {previewSubject}
               </span>
             </div>
           </div>
         </div>
-        <Separator className="bg-neutral-200" orientation="horizontal" />
+        <Separator orientation="horizontal" />
         <div className="p-4" data-cy="email-template-preview-body">
           {safeHtml ? (
             <div
-              className="prose prose-sm max-w-none [*]:text-black"
+              className="prose prose-sm max-w-none [*]:text-foreground"
               style={{ fontFamily: "Arial, sans-serif" }}
               dangerouslySetInnerHTML={{ __html: safeHtml }}
             />
           ) : (
-            <pre className="whitespace-pre-wrap font-sans text-sm text-black">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">
               {substitutePlaceholders(text, variables)}
             </pre>
           )}
         </div>
-        <div className="border-t p-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 border-t p-4">
           <Button type="button" variant="outline" size="sm">
             {t("settings.emailTemplates.preview.reply")}
           </Button>
@@ -228,20 +244,28 @@ function PlaceholderWarnings({ warnings }: { warnings: string[] }) {
 }
 
 /**
- * The collapsed row every template shares, whichever family it belongs to: its name, whether what
- * applies is this company's own text or the shipped default, and the toggle that reveals the editor.
- * One editor is open at a time — a screen that expanded every entry at once would be a wall of
- * textareas.
+ * The collapsed row every template shares, whichever family it belongs to: its name, its current
+ * subject as a one-line preview, whether what applies is this company's own text or the shipped
+ * default, and the toggle that reveals the editor. One editor is open at a time — a screen that
+ * expanded every entry at once would be a wall of textareas. The row's ONE contextual action is
+ * "Edit"/"Close"; anything else a template offers (today: reverting a document type's override)
+ * lives in its own "⋯" menu instead of a second full-width button, the same split every other
+ * settings list in this app makes.
  */
 function TemplateRow({
+  icon,
   name,
+  meta,
   overridden,
   open,
   onToggle,
   idSuffix,
+  menu,
   children,
 }: {
+  icon: LucideIcon
   name: string
+  meta?: ReactNode
   overridden: boolean
   open: boolean
   onToggle: () => void
@@ -249,34 +273,41 @@ function TemplateRow({
    *  row is built from it here, in ONE place, so a system row and a per-type row can never drift into
    *  two different naming schemes for what is structurally the same row. */
   idSuffix: string
+  /** The row's own "⋯" menu — only a document type with an override to drop renders one. */
+  menu?: ReactNode
   children: ReactNode
 }) {
   const { t } = useTranslation()
 
   return (
-    <Card data-cy={`email-template-card-${idSuffix}`}>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle>{name}</CardTitle>
-          <Badge variant={overridden ? "default" : "outline"} data-cy={`email-template-source-${idSuffix}`}>
-            {overridden
-              ? t("settings.emailTemplates.source.customised")
-              : t("settings.emailTemplates.source.shippedDefault")}
-          </Badge>
-        </div>
+    <SettingsListRow
+      dataCy={`email-template-card-${idSuffix}`}
+      leading={<SettingsIconDisc icon={icon} />}
+      badge={
+        <Badge variant={overridden ? "info" : "outline"} data-cy={`email-template-source-${idSuffix}`}>
+          {overridden
+            ? t("settings.emailTemplates.source.customised")
+            : t("settings.emailTemplates.source.shippedDefault")}
+        </Badge>
+      }
+      title={name}
+      meta={meta}
+      primary={
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={onToggle}
           dataCy={`email-template-toggle-${idSuffix}`}
         >
-          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {open ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
           {open ? t("settings.emailTemplates.editor.close") : t("settings.emailTemplates.editor.edit")}
         </Button>
-      </CardHeader>
-      {open && <CardContent className="space-y-6">{children}</CardContent>}
-    </Card>
+      }
+      menu={menu}
+    >
+      {open && <div className="space-y-6 border-t pt-4">{children}</div>}
+    </SettingsListRow>
   )
 }
 
@@ -324,7 +355,9 @@ function SystemTemplateCard({
 
   return (
     <TemplateRow
+      icon={Mail}
       name={name}
+      meta={template.subject}
       overridden={template.source === "company"}
       open={open}
       onToggle={onToggle}
@@ -446,13 +479,35 @@ function DocumentTemplateCard({
     onSaved()
   }
 
+  // Only worth offering once there IS an override to drop: reverting a template that was never
+  // customised is a server-side no-op, so the row's menu would offer an action doing nothing visible.
+  const showResetMenu = canEdit && template.source === "company"
+
   return (
     <TemplateRow
+      icon={FileText}
       name={name}
+      meta={template.subject}
       overridden={template.source === "company"}
       open={open}
       onToggle={onToggle}
       idSuffix={template.typeId}
+      menu={
+        showResetMenu ? (
+          <SettingsRowMenu
+            dataCy={`email-template-menu-${template.typeId}`}
+            items={[
+              {
+                label: t("settings.emailTemplates.resetButton"),
+                icon: RotateCcw,
+                onSelect: handleReset,
+                disabled: resetting,
+                dataCy: `email-template-reset-${template.typeId}`,
+              },
+            ]}
+          />
+        ) : undefined
+      }
     >
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-4">
@@ -499,21 +554,7 @@ function DocumentTemplateCard({
       <PlaceholderWarnings warnings={warnings} />
 
       {canEdit ? (
-        <div className="flex flex-wrap justify-end gap-2">
-          {/* Only worth offering once there IS an override to drop: reverting a template that was
-              never customised is a server-side no-op, so the button would do nothing visible. */}
-          {template.source === "company" && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReset}
-              loading={resetting}
-              dataCy={`email-template-reset-${template.typeId}`}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {t("settings.emailTemplates.resetButton")}
-            </Button>
-          )}
+        <div className="flex justify-end">
           <Button
             onClick={handleSave}
             loading={saving}
@@ -563,57 +604,55 @@ export default function EmailTemplatesSettings() {
   const documentTemplates = Array.isArray(documentData) ? documentData : []
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">{t("settings.emailTemplates.title")}</h1>
-        <p className="text-muted-foreground">{t("settings.emailTemplates.description")}</p>
-      </div>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-xl font-semibold">{t("settings.emailTemplates.system.title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("settings.emailTemplates.system.description")}</p>
-        </div>
+    <SettingsPage
+      title={t("settings.emailTemplates.title")}
+      description={t("settings.emailTemplates.description")}
+    >
+      <SettingsSection
+        title={t("settings.emailTemplates.system.title")}
+        description={t("settings.emailTemplates.system.description")}
+      >
         {systemData === null ? (
-          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+          <SettingsListSkeleton rows={2} />
         ) : (
-          systemTemplates.map((template) => (
-            <SystemTemplateCard
-              key={template.id}
-              template={template}
-              canEdit={canEdit}
-              open={openKey === `system:${template.id}`}
-              onToggle={() => toggle(`system:${template.id}`)}
-              onSaved={refetchSystem}
-            />
-          ))
+          <SettingsList>
+            {systemTemplates.map((template) => (
+              <SystemTemplateCard
+                key={template.id}
+                template={template}
+                canEdit={canEdit}
+                open={openKey === `system:${template.id}`}
+                onToggle={() => toggle(`system:${template.id}`)}
+                onSaved={refetchSystem}
+              />
+            ))}
+          </SettingsList>
         )}
-      </section>
+      </SettingsSection>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-xl font-semibold">{t("settings.emailTemplates.documents.title")}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t("settings.emailTemplates.documents.description")}
-          </p>
-        </div>
+      <SettingsSection
+        title={t("settings.emailTemplates.documents.title")}
+        description={t("settings.emailTemplates.documents.description")}
+      >
         {documentData === null ? (
-          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+          <SettingsListSkeleton rows={3} />
         ) : documentTemplates.length === 0 ? (
           <EmptyState icon={Mail} size="sm" title={t("settings.emailTemplates.documents.empty")} />
         ) : (
-          documentTemplates.map((template) => (
-            <DocumentTemplateCard
-              key={template.typeId}
-              template={template}
-              canEdit={canEdit}
-              open={openKey === `document:${template.typeId}`}
-              onToggle={() => toggle(`document:${template.typeId}`)}
-              onSaved={refetchDocuments}
-            />
-          ))
+          <SettingsList>
+            {documentTemplates.map((template) => (
+              <DocumentTemplateCard
+                key={template.typeId}
+                template={template}
+                canEdit={canEdit}
+                open={openKey === `document:${template.typeId}`}
+                onToggle={() => toggle(`document:${template.typeId}`)}
+                onSaved={refetchDocuments}
+              />
+            ))}
+          </SettingsList>
         )}
-      </section>
-    </div>
+      </SettingsSection>
+    </SettingsPage>
   )
 }

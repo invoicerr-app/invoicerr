@@ -9,6 +9,7 @@ import {
   InvoiceCheckoutSessionResult,
   PaymentSessionsService,
 } from '../documents/payments/payment-sessions.service';
+import { logoDataUriFor } from '../documents/rendering/branding/logo-storage';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 import { SignaturesService } from '../documents/signatures/signatures.service';
 import { computeDocumentTotals } from '../documents/totals/compute-totals';
@@ -28,6 +29,12 @@ export interface PortalProfile {
   clientId: string;
   clientName: string;
   companyName: string;
+  /** The issuing company's own branding logo as a `data:` URI — the SAME bytes `render-html.ts`
+   *  embeds in the PDF (`logoDataUriFor`), so the portal header never shows a logo the invoice
+   *  itself would not carry. `null` when the company never uploaded one. Inlined rather than served
+   *  from a separate route on purpose: the portal's only credential is a bearer token, which an
+   *  `<img src>` cannot send, so a URL here would be unreachable from the very page it is meant for. */
+  companyLogo: string | null;
 }
 
 export interface PortalQuoteRow {
@@ -84,9 +91,17 @@ export class PortalService {
   async getProfile(companyId: string, clientId: string): Promise<PortalProfile> {
     const [client, company] = await Promise.all([
       prisma.client.findFirstOrThrow({ where: { id: clientId, companyId }, select: { name: true } }),
-      prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true } }),
+      prisma.company.findUniqueOrThrow({
+        where: { id: companyId },
+        select: { name: true, brandingLogoId: true },
+      }),
     ]);
-    return { clientId, clientName: client.name, companyName: company.name };
+    return {
+      clientId,
+      clientName: client.name,
+      companyName: company.name,
+      companyLogo: logoDataUriFor(companyId, company.brandingLogoId),
+    };
   }
 
   /**

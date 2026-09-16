@@ -1,17 +1,26 @@
 "use client"
 
-import { CheckCircle2, Copy, Loader2, Plus, ShieldAlert, ShieldCheck, Trash2, XCircle } from "lucide-react"
+import { CheckCircle2, Copy, Plus, ShieldAlert, ShieldCheck, Trash2, XCircle } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authenticatedFetch, useDelete, useGet, usePost, usePut } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
+import {
+  SettingsFormFooter,
+  SettingsIconDisc,
+  SettingsList,
+  SettingsListRow,
+  SettingsPage,
+  SettingsRowMenu,
+  SettingsSection,
+} from "./settings-section"
 
 /**
  * One claimed domain and its verification state — the exact shape
@@ -290,89 +299,91 @@ export default function SsoSettings() {
 
   const directLink = provider ? `/auth/sign-in?sso=${provider.providerId}` : ""
 
-  return (
-    <div className="space-y-6" data-cy="sso-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.sso.title", "Single sign-on (SSO)")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.sso.description",
-            "Let your team sign in with your own identity provider over OpenID Connect, instead of a password here.",
-          )}
-        </p>
-      </div>
+  const active = isConfigured && provider?.isActive === true
+  // Three real states, none fabricated: no provider at all, a provider that is ACTIVE (the normal,
+  // working case), and a provider saved but turned inactive (a genuine "needs attention" state — this
+  // screen always saves `isActive: true`, but a provider can still end up inactive some other way).
+  const statusVariant = active ? "success" : isConfigured ? "warning" : "secondary"
+  const StatusIcon = active ? CheckCircle2 : XCircle
+  const statusIconTone = active
+    ? "text-success-foreground"
+    : isConfigured
+      ? "text-warning-foreground"
+      : "text-muted-foreground"
 
-      <Card data-cy="sso-status-card">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {isConfigured && provider?.isActive ? (
-                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-              ) : (
-                <XCircle className="h-5 w-5 text-muted-foreground shrink-0" />
-              )}
-              <CardTitle className="text-base">
-                {provider?.label ?? t("settings.sso.title", "Single sign-on (SSO)")}
-              </CardTitle>
-              <Badge
-                variant={isConfigured && provider?.isActive ? "default" : "secondary"}
-                data-cy="sso-status"
-              >
-                {isConfigured
-                  ? provider?.isActive
-                    ? t("settings.sso.status.configured", "Active")
-                    : t("settings.sso.status.inactive", "Inactive")
-                  : t("settings.sso.status.notConfigured", "Not configured")}
+  return (
+    <SettingsPage
+      title={t("settings.sso.title", "Single sign-on (SSO)")}
+      description={t(
+        "settings.sso.description",
+        "Let your team sign in with your own identity provider over OpenID Connect, instead of a password here.",
+      )}
+      dataCy="sso-section"
+    >
+      <SettingsSection
+        title={
+          <>
+            <StatusIcon className={`size-4 shrink-0 ${statusIconTone}`} aria-hidden="true" />
+            {provider?.label ?? t("settings.sso.title", "Single sign-on (SSO)")}
+          </>
+        }
+        aside={
+          <>
+            <Badge variant={statusVariant} data-cy="sso-status">
+              {isConfigured
+                ? provider?.isActive
+                  ? t("settings.sso.status.configured", "Active")
+                  : t("settings.sso.status.inactive", "Inactive")
+                : t("settings.sso.status.notConfigured", "Not configured")}
+            </Badge>
+            {provider?.issuerHost && (
+              <Badge variant="outline" data-cy="sso-issuer">
+                {t("settings.sso.issuer", "Issuer: {{host}}", { host: provider.issuerHost })}
               </Badge>
-              {provider?.issuerHost && (
-                <Badge variant="outline" data-cy="sso-issuer">
-                  {t("settings.sso.issuer", "Issuer: {{host}}", { host: provider.issuerHost })}
-                </Badge>
-              )}
-            </div>
+            )}
+          </>
+        }
+        footer={
+          isConfigured && (
             <div className="flex items-center gap-2">
-              {isConfigured && !editing && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditing(true)}
-                  data-cy="sso-edit-button"
-                >
+              {!editing && (
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)} dataCy="sso-edit-button">
                   {t("settings.sso.actions.edit", "Edit")}
                 </Button>
               )}
-              {isConfigured && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={handleRemove}
-                  disabled={removing}
-                  data-cy="sso-remove-button"
-                >
-                  {removing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    t("settings.sso.actions.remove", "Remove")
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={handleRemove}
+                loading={removing}
+                dataCy="sso-remove-button"
+              >
+                {t("settings.sso.actions.remove", "Remove")}
+              </Button>
             </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
+          )
+        }
+        dataCy="sso-status-card"
+      >
+        <div className="space-y-4">
           {/* Needed BEFORE anything is configured — it is what the customer registers at their IdP in
               order to create the application in the first place — so it is always shown. */}
           <div className="space-y-1.5">
             <Label htmlFor="sso-redirect-uri">{t("settings.sso.redirectUri.label", "Redirect URI")}</Label>
             <div className="flex items-center gap-2">
-              <Input id="sso-redirect-uri" readOnly value={redirectUri} data-cy="sso-redirect-uri" />
+              <Input
+                id="sso-redirect-uri"
+                readOnly
+                value={redirectUri}
+                className="font-mono text-xs"
+                data-cy="sso-redirect-uri"
+              />
               <Button
                 variant="outline"
                 size="icon"
+                tooltip={t("settings.sso.actions.copy", "Copy")}
                 onClick={() => copy(redirectUri)}
-                aria-label={t("settings.sso.actions.copy", "Copy")}
               >
                 <Copy className="h-4 w-4" />
               </Button>
@@ -391,12 +402,18 @@ export default function SsoSettings() {
                 {t("settings.sso.directLink.label", "Direct sign-in link")}
               </Label>
               <div className="flex items-center gap-2">
-                <Input id="sso-direct-link" readOnly value={directLink} data-cy="sso-direct-link" />
+                <Input
+                  id="sso-direct-link"
+                  readOnly
+                  value={directLink}
+                  className="font-mono text-xs"
+                  data-cy="sso-direct-link"
+                />
                 <Button
                   variant="outline"
                   size="icon"
+                  tooltip={t("settings.sso.actions.copy", "Copy")}
                   onClick={() => copy(directLink)}
-                  aria-label={t("settings.sso.actions.copy", "Copy")}
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -409,190 +426,160 @@ export default function SsoSettings() {
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </SettingsSection>
 
       {provider && (
-        <Card data-cy="sso-domains-card">
-          <CardHeader>
-            <CardTitle className="text-base">{t("settings.sso.domains.title", "Email domains")}</CardTitle>
-            <CardDescription>
-              {t(
-                "settings.sso.domains.description",
-                "Prove ownership of a domain via a DNS TXT record so matching sign-ins are routed here automatically. Until a domain is verified, the direct sign-in link above is the only way in.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {provider.domains.length === 0 && (
-              <p className="text-sm text-muted-foreground" data-cy="sso-domains-empty">
-                {t("settings.sso.domains.empty", "No domain claimed yet.")}
-              </p>
-            )}
-
-            {provider.domains.map((domainStatus) => (
-              <div key={domainStatus.id} className="rounded-md border p-3 space-y-2" data-cy="sso-domain-row">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {domainStatus.verified ? (
-                      <ShieldCheck className="h-4 w-4 text-green-500 shrink-0" />
-                    ) : (
-                      <ShieldAlert className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                    <span className="font-medium" data-cy="sso-domain-name">
-                      {domainStatus.domain}
-                    </span>
-                    <Badge variant={domainStatus.verified ? "default" : "secondary"}>
-                      {domainStatus.verified
-                        ? t("settings.sso.domains.status.verified", "Verified")
-                        : t("settings.sso.domains.status.pending", "Pending")}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!domainStatus.verified && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleVerifyDomain(domainStatus.id)}
-                        disabled={verifyingId === domainStatus.id}
-                        data-cy="sso-domain-verify-button"
-                      >
-                        {verifyingId === domainStatus.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          t("settings.sso.domains.actions.verify", "Verify")
-                        )}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleRemoveDomain(domainStatus.id)}
-                      disabled={removingDomainId === domainStatus.id}
-                      aria-label={t("settings.sso.domains.actions.remove", "Remove domain")}
-                      data-cy="sso-domain-remove-button"
-                    >
-                      {removingDomainId === domainStatus.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {!domainStatus.verified && (
-                  <div className="space-y-1.5 text-xs text-muted-foreground">
-                    <p>
-                      {t(
-                        "settings.sso.domains.instructions",
-                        "Publish this DNS TXT record, then click Verify.",
-                      )}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        readOnly
-                        value={domainStatus.recordName}
-                        className="font-mono text-xs"
-                        data-cy="sso-domain-record-name"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => copy(domainStatus.recordName)}
-                        aria-label={t("settings.sso.actions.copy", "Copy")}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        readOnly
-                        value={domainStatus.recordValue}
-                        className="font-mono text-xs"
-                        data-cy="sso-domain-record-value"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => copy(domainStatus.recordValue)}
-                        aria-label={t("settings.sso.actions.copy", "Copy")}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-
+        <SettingsSection
+          title={t("settings.sso.domains.title", "Email domains")}
+          description={t(
+            "settings.sso.domains.description",
+            "Prove ownership of a domain via a DNS TXT record so matching sign-ins are routed here automatically. Until a domain is verified, the direct sign-in link above is the only way in.",
+          )}
+          footer={
             <div className="flex items-center gap-2">
               <Input
                 placeholder={t("settings.sso.domains.addPlaceholder", "acme.com")}
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
+                className="flex-1"
                 data-cy="sso-domain-add-input"
               />
               <Button
                 variant="outline"
                 onClick={handleAddDomain}
-                disabled={addingDomain || !newDomain.trim()}
-                data-cy="sso-domain-add-button"
+                loading={addingDomain}
+                disabled={!newDomain.trim()}
+                dataCy="sso-domain-add-button"
               >
-                {addingDomain ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    {t("settings.sso.domains.actions.add", "Claim domain")}
-                  </>
-                )}
+                <Plus className="h-4 w-4" />
+                {t("settings.sso.domains.actions.add", "Claim domain")}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          }
+          dataCy="sso-domains-card"
+        >
+          {provider.domains.length === 0 ? (
+            <EmptyState
+              icon={ShieldAlert}
+              size="sm"
+              title={t("settings.sso.domains.empty", "No domain claimed yet.")}
+              data-cy="sso-domains-empty"
+            />
+          ) : (
+            <SettingsList>
+              {provider.domains.map((domainStatus) => (
+                <SettingsListRow
+                  key={domainStatus.id}
+                  dataCy="sso-domain-row"
+                  leading={
+                    <SettingsIconDisc
+                      icon={domainStatus.verified ? ShieldCheck : ShieldAlert}
+                      tone={domainStatus.verified ? "success" : "default"}
+                    />
+                  }
+                  badge={
+                    <Badge variant={domainStatus.verified ? "success" : "secondary"}>
+                      {domainStatus.verified
+                        ? t("settings.sso.domains.status.verified", "Verified")
+                        : t("settings.sso.domains.status.pending", "Pending")}
+                    </Badge>
+                  }
+                  title={<span data-cy="sso-domain-name">{domainStatus.domain}</span>}
+                  primary={
+                    !domainStatus.verified ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleVerifyDomain(domainStatus.id)}
+                        loading={verifyingId === domainStatus.id}
+                        dataCy="sso-domain-verify-button"
+                      >
+                        {t("settings.sso.domains.actions.verify", "Verify")}
+                      </Button>
+                    ) : undefined
+                  }
+                  menu={
+                    <SettingsRowMenu
+                      dataCy="sso-domain-menu"
+                      items={[
+                        {
+                          label: t("settings.sso.domains.actions.remove", "Remove domain"),
+                          icon: Trash2,
+                          onSelect: () => handleRemoveDomain(domainStatus.id),
+                          disabled: removingDomainId === domainStatus.id,
+                          destructive: true,
+                          dataCy: "sso-domain-remove-button",
+                        },
+                      ]}
+                    />
+                  }
+                >
+                  {!domainStatus.verified && (
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <p>
+                        {t(
+                          "settings.sso.domains.instructions",
+                          "Publish this DNS TXT record, then click Verify.",
+                        )}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          readOnly
+                          value={domainStatus.recordName}
+                          className="font-mono text-xs"
+                          data-cy="sso-domain-record-name"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          tooltip={t("settings.sso.actions.copy", "Copy")}
+                          onClick={() => copy(domainStatus.recordName)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          readOnly
+                          value={domainStatus.recordValue}
+                          className="font-mono text-xs"
+                          data-cy="sso-domain-record-value"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          tooltip={t("settings.sso.actions.copy", "Copy")}
+                          onClick={() => copy(domainStatus.recordValue)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </SettingsListRow>
+              ))}
+            </SettingsList>
+          )}
+        </SettingsSection>
       )}
 
       {showForm && (
-        <Card data-cy="sso-form-card">
-          <CardHeader>
-            <CardTitle className="text-base">
-              {isConfigured
-                ? t("settings.sso.form.editTitle", "Update the identity provider")
-                : t("settings.sso.form.createTitle", "Connect an identity provider")}
-            </CardTitle>
-            <CardDescription>
-              {t(
-                "settings.sso.form.description",
-                "Credentials are encrypted before they are stored and are never shown again, so re-enter them when you edit.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              {FIELDS.map((field) => (
-                <div className="space-y-1.5" key={field.key}>
-                  <Label htmlFor={`sso-${field.key}`}>{t(field.labelKey, field.labelDefault)}</Label>
-                  <Input
-                    id={`sso-${field.key}`}
-                    data-cy={`sso-${field.key.toLowerCase()}-input`}
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    value={form[field.key] ?? ""}
-                    onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                  />
-                  {field.hintKey && (
-                    <p className="text-xs text-muted-foreground">
-                      {t(field.hintKey, field.hintDefault ?? "")}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2">
+        <SettingsSection
+          title={
+            isConfigured
+              ? t("settings.sso.form.editTitle", "Update the identity provider")
+              : t("settings.sso.form.createTitle", "Connect an identity provider")
+          }
+          description={t(
+            "settings.sso.form.description",
+            "Credentials are encrypted before they are stored and are never shown again, so re-enter them when you edit.",
+          )}
+          footer={
+            <SettingsFormFooter>
               {isConfigured && (
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => {
@@ -603,17 +590,33 @@ export default function SsoSettings() {
                   {t("settings.sso.actions.cancel", "Cancel")}
                 </Button>
               )}
-              <Button size="sm" onClick={handleSave} disabled={saving} data-cy="sso-save-button">
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t("settings.sso.actions.save", "Save")
-                )}
+              <Button size="sm" onClick={handleSave} loading={saving} dataCy="sso-save-button">
+                {t("settings.sso.actions.save", "Save")}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </SettingsFormFooter>
+          }
+          dataCy="sso-form-card"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {FIELDS.map((field) => (
+              <div className="space-y-1.5" key={field.key}>
+                <Label htmlFor={`sso-${field.key}`}>{t(field.labelKey, field.labelDefault)}</Label>
+                <Input
+                  id={`sso-${field.key}`}
+                  data-cy={`sso-${field.key.toLowerCase()}-input`}
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  value={form[field.key] ?? ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                />
+                {field.hintKey && (
+                  <p className="text-xs text-muted-foreground">{t(field.hintKey, field.hintDefault ?? "")}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </SettingsSection>
       )}
-    </div>
+    </SettingsPage>
   )
 }

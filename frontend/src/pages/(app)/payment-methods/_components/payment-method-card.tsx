@@ -55,12 +55,7 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
         <CardTitle className="flex items-center gap-2">
           {method.label}
           <Badge
-            variant="outline"
-            className={
-              method.enabled
-                ? "border-transparent bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300"
-                : "border-transparent bg-secondary text-secondary-foreground"
-            }
+            variant={method.enabled ? "success" : "secondary"}
             data-cy={`payment-method-status-${method.id}`}
           >
             {method.enabled ? t("paymentMethods.enabled") : t("paymentMethods.disabled")}

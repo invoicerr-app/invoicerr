@@ -6,13 +6,24 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useGet, usePost, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-import { CheckCircle2, Loader2, ShieldAlert, ShieldCheck, Trash2, Upload } from "lucide-react"
+import { ShieldAlert, ShieldCheck, Trash2, Upload } from "lucide-react"
+
+import {
+  SettingsFormFooter,
+  SettingsIconDisc,
+  SettingsList,
+  SettingsListRow,
+  SettingsListSkeleton,
+  SettingsPage,
+  SettingsSection,
+  useSavedFlash,
+} from "./settings-section"
 
 type Applicability = "*" | "XAdES" | "CAdES" | "PAdES"
 type Environment = "TEST" | "PROD"
@@ -42,11 +53,15 @@ function formatDate(value: string) {
  * "GET never returns the PFX or the password" guarantee `signing-certificates.service.ts#toMeta`
  * enforces server-side (see that file's own header). Deactivation is a SOFT delete
  * (`DELETE /api/company/signing-certificates/:id` really calls `deactivate()`) — the row (and its
- * history) stays; only the badge changes.
+ * history) stays; only the badge changes. There is no "reactivate" — uploading again simply creates
+ * a new active row (see the service's own `deactivate()`/`upload()` split) — so an inactive row's
+ * only action is a "⋯"-free row with no button, never a button that would imply a reversal this
+ * backend does not support.
  */
 function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeactivated: () => void }) {
   const { t } = useTranslation()
   const expired = isExpired(cert.notAfter)
+  const active = cert.isActive && !expired
 
   const { trigger: deactivate, loading: deactivating } = useMutationWithToast(
     useDelete(`/api/company/signing-certificates/${cert.id}`),
@@ -61,71 +76,64 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
   }
 
   return (
-    <Card data-cy={`signing-cert-row-${cert.id}`}>
-      <CardContent className="flex items-center justify-between gap-3 p-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="shrink-0">
-            {cert.isActive && !expired ? (
-              <ShieldCheck className="h-5 w-5 text-green-500" />
-            ) : (
-              <ShieldAlert className="h-5 w-5 text-muted-foreground" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate font-medium" data-cy={`signing-cert-row-${cert.id}-label`}>
-                {cert.label}
-              </p>
-              <Badge variant={cert.environment === "PROD" ? "default" : "secondary"}>
-                {cert.environment}
-              </Badge>
-              <Badge variant="outline">
-                {cert.applicability === "*"
-                  ? t("settings.signing.upload.applicabilityAll", "All formats (*)")
-                  : cert.applicability}
-              </Badge>
-              <Badge
-                variant={cert.isActive && !expired ? "default" : expired ? "destructive" : "secondary"}
-                data-cy={`signing-cert-row-${cert.id}-status`}
-              >
-                {expired
-                  ? t("settings.signing.status.expired", "Expired")
-                  : cert.isActive
-                    ? t("settings.signing.status.active", "Active")
-                    : t("settings.signing.status.inactive", "Inactive")}
-              </Badge>
-            </div>
-            <p
-              className="mt-0.5 truncate text-xs text-muted-foreground"
-              title={cert.subject}
-              data-cy={`signing-cert-row-${cert.id}-subject`}
-            >
-              {cert.subject}
-            </p>
-            <p className="text-xs text-muted-foreground" data-cy={`signing-cert-row-${cert.id}-validity`}>
-              {t("settings.signing.expires", "Expires")}: {formatDate(cert.notAfter)}
-              {" · "}
-              {t("settings.signing.serial", "Serial")}: {cert.serial}
-            </p>
-          </div>
+    <SettingsListRow
+      dataCy={`signing-cert-row-${cert.id}`}
+      leading={
+        <SettingsIconDisc
+          icon={active ? ShieldCheck : ShieldAlert}
+          tone={active ? "success" : expired ? "destructive" : "default"}
+        />
+      }
+      badge={
+        <>
+          <Badge variant="outline">{cert.environment}</Badge>
+          <Badge variant="outline">
+            {cert.applicability === "*"
+              ? t("settings.signing.upload.applicabilityAll", "All formats (*)")
+              : cert.applicability}
+          </Badge>
+          <Badge
+            variant={active ? "success" : expired ? "destructive" : "secondary"}
+            data-cy={`signing-cert-row-${cert.id}-status`}
+          >
+            {expired
+              ? t("settings.signing.status.expired", "Expired")
+              : cert.isActive
+                ? t("settings.signing.status.active", "Active")
+                : t("settings.signing.status.inactive", "Inactive")}
+          </Badge>
+        </>
+      }
+      title={<span data-cy={`signing-cert-row-${cert.id}-label`}>{cert.label}</span>}
+      meta={
+        <div className="grid gap-0.5">
+          <span className="break-words" title={cert.subject} data-cy={`signing-cert-row-${cert.id}-subject`}>
+            {cert.subject}
+          </span>
+          <span data-cy={`signing-cert-row-${cert.id}-validity`}>
+            {t("settings.signing.expires", "Expires")}:{" "}
+            <span className="font-mono tabular-nums">{formatDate(cert.notAfter)}</span>
+            {" · "}
+            {t("settings.signing.serial", "Serial")}:{" "}
+            <span className="font-mono tabular-nums">{cert.serial}</span>
+          </span>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {cert.isActive && !expired && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-          {cert.isActive && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={deactivating}
-              onClick={handleDeactivate}
-              data-cy={`signing-cert-row-${cert.id}-deactivate-button`}
-            >
-              {deactivating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      }
+      primary={
+        cert.isActive ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDeactivate}
+            loading={deactivating}
+            data-cy={`signing-cert-row-${cert.id}-deactivate-button`}
+          >
+            {!deactivating && <Trash2 aria-hidden="true" />}
+            {t("settings.signing.actions.deactivate", "Deactivate")}
+          </Button>
+        ) : undefined
+      }
+    />
   )
 }
 
@@ -144,8 +152,9 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
  */
 export default function SigningCertificatesSettings() {
   const { t } = useTranslation()
-  const { data, mutate } = useGet<CertificateMeta[]>("/api/company/signing-certificates")
+  const { data, loading, mutate } = useGet<CertificateMeta[]>("/api/company/signing-certificates")
   const certs = data ?? []
+  const [saved, flash] = useSavedFlash()
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [label, setLabel] = useState("")
@@ -186,147 +195,140 @@ export default function SigningCertificatesSettings() {
     toast.success(t("settings.signing.upload.success", "Certificate uploaded"))
     resetForm()
     mutate()
+    flash()
   }
 
   return (
-    <div className="space-y-6" data-cy="signing-certificates-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.signing.title", "Signing Certificates")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.signing.description",
-            "Upload a PKCS#12 (.pfx / .p12) signing certificate to have this company's document PDFs signed PAdES. This is an optional capability — nothing in this product requires a signed document.",
-          )}
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.signing.upload.title", "Upload signing certificate")}
-          </CardTitle>
-          <CardDescription>
-            {t(
-              "settings.signing.upload.description",
-              "The file and password are encrypted at rest and never returned by this screen.",
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleUpload} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="signing-cert-label">{t("settings.signing.upload.label", "Label")}</Label>
-                <Input
-                  id="signing-cert-label"
-                  data-cy="signing-cert-label-input"
-                  required
-                  placeholder={t("settings.signing.upload.labelPlaceholder", "e.g. FR production cert 2025")}
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="signing-cert-file">
-                  {t("settings.signing.upload.file", "PFX / P12 file")}
-                </Label>
-                <Input
-                  id="signing-cert-file"
-                  data-cy="signing-cert-file-input"
-                  ref={fileRef}
-                  type="file"
-                  required
-                  accept=".pfx,.p12"
-                  className="cursor-pointer"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="signing-cert-password">
-                  {t("settings.signing.upload.password", "PFX password")}
-                </Label>
-                <Input
-                  id="signing-cert-password"
-                  data-cy="signing-cert-password-input"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder={t("settings.signing.upload.passwordPlaceholder", "Certificate password")}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("settings.signing.upload.applicability", "Applies to")}</Label>
-                <Select value={applicability} onValueChange={(v) => setApplicability(v as Applicability)}>
-                  <SelectTrigger data-cy="signing-cert-applicability-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent data-cy="signing-cert-applicability-options">
-                    <SelectItem value="*" data-cy="signing-cert-applicability-option-all">
-                      {t("settings.signing.upload.applicabilityAll", "All formats (*)")}
-                    </SelectItem>
-                    <SelectItem value="XAdES" data-cy="signing-cert-applicability-option-xades">
-                      XAdES
-                    </SelectItem>
-                    <SelectItem value="CAdES" data-cy="signing-cert-applicability-option-cades">
-                      CAdES
-                    </SelectItem>
-                    <SelectItem value="PAdES" data-cy="signing-cert-applicability-option-pades">
-                      PAdES
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("settings.signing.upload.environment", "Environment")}</Label>
-                <Select value={environment} onValueChange={(v) => setEnvironment(v as Environment)}>
-                  <SelectTrigger data-cy="signing-cert-environment-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent data-cy="signing-cert-environment-options">
-                    <SelectItem value="TEST" data-cy="signing-cert-environment-option-test">
-                      {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
-                    </SelectItem>
-                    <SelectItem value="PROD" data-cy="signing-cert-environment-option-prod">
-                      {t("settings.channels.fields.environmentProd", "Production")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={uploading} data-cy="signing-cert-upload-button">
-                {uploading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="mr-2 h-4 w-4" />
-                )}
-                {t("settings.signing.upload.submit", "Upload")}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3" data-cy="signing-cert-list">
-        {certs.length > 0 ? (
-          certs.map((cert) => <CertificateRow key={cert.id} cert={cert} onDeactivated={mutate} />)
-        ) : (
-          <Card>
-            <CardContent
-              className="flex flex-col items-center justify-center py-10"
-              data-cy="signing-cert-empty-state"
+    <SettingsPage
+      title={t("settings.signing.title", "Signing Certificates")}
+      description={t(
+        "settings.signing.description",
+        "Upload a PKCS#12 (.pfx / .p12) signing certificate to have this company's document PDFs signed PAdES. This is an optional capability — nothing in this product requires a signed document.",
+      )}
+      dataCy="signing-certificates-section"
+    >
+      <SettingsSection
+        title={t("settings.signing.upload.title", "Upload signing certificate")}
+        description={t(
+          "settings.signing.upload.description",
+          "The file and password are encrypted at rest and never returned by this screen.",
+        )}
+        footer={
+          <SettingsFormFooter saved={saved}>
+            <Button
+              type="submit"
+              form="signing-cert-upload-form"
+              loading={uploading}
+              data-cy="signing-cert-upload-button"
             >
-              <ShieldAlert className="mb-4 h-12 w-12 text-muted-foreground" />
-              <p className="text-center text-muted-foreground">
-                {t(
-                  "settings.signing.emptyState",
-                  "No signing certificate configured — documents are served and sent unsigned.",
-                )}
-              </p>
-            </CardContent>
-          </Card>
+              {!uploading && <Upload aria-hidden="true" />}
+              {t("settings.signing.upload.submit", "Upload")}
+            </Button>
+          </SettingsFormFooter>
+        }
+      >
+        <form id="signing-cert-upload-form" onSubmit={handleUpload} className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="signing-cert-label">{t("settings.signing.upload.label", "Label")}</Label>
+            <Input
+              id="signing-cert-label"
+              data-cy="signing-cert-label-input"
+              required
+              placeholder={t("settings.signing.upload.labelPlaceholder", "e.g. FR production cert 2025")}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="signing-cert-file">{t("settings.signing.upload.file", "PFX / P12 file")}</Label>
+            <Input
+              id="signing-cert-file"
+              data-cy="signing-cert-file-input"
+              ref={fileRef}
+              type="file"
+              required
+              accept=".pfx,.p12"
+              className="cursor-pointer"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="signing-cert-password">
+              {t("settings.signing.upload.password", "PFX password")}
+            </Label>
+            <Input
+              id="signing-cert-password"
+              data-cy="signing-cert-password-input"
+              type="password"
+              autoComplete="new-password"
+              placeholder={t("settings.signing.upload.passwordPlaceholder", "Certificate password")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("settings.signing.upload.applicability", "Applies to")}</Label>
+            <Select value={applicability} onValueChange={(v) => setApplicability(v as Applicability)}>
+              <SelectTrigger data-cy="signing-cert-applicability-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent data-cy="signing-cert-applicability-options">
+                <SelectItem value="*" data-cy="signing-cert-applicability-option-all">
+                  {t("settings.signing.upload.applicabilityAll", "All formats (*)")}
+                </SelectItem>
+                <SelectItem value="XAdES" data-cy="signing-cert-applicability-option-xades">
+                  XAdES
+                </SelectItem>
+                <SelectItem value="CAdES" data-cy="signing-cert-applicability-option-cades">
+                  CAdES
+                </SelectItem>
+                <SelectItem value="PAdES" data-cy="signing-cert-applicability-option-pades">
+                  PAdES
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("settings.signing.upload.environment", "Environment")}</Label>
+            <Select value={environment} onValueChange={(v) => setEnvironment(v as Environment)}>
+              <SelectTrigger data-cy="signing-cert-environment-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent data-cy="signing-cert-environment-options">
+                <SelectItem value="TEST" data-cy="signing-cert-environment-option-test">
+                  {t("settings.channels.fields.environmentTest", "Test (sandbox)")}
+                </SelectItem>
+                <SelectItem value="PROD" data-cy="signing-cert-environment-option-prod">
+                  {t("settings.channels.fields.environmentProd", "Production")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </form>
+      </SettingsSection>
+
+      <div data-cy="signing-cert-list">
+        {loading ? (
+          <SettingsListSkeleton rows={2} />
+        ) : certs.length > 0 ? (
+          <SettingsList>
+            {certs.map((cert) => (
+              <CertificateRow key={cert.id} cert={cert} onDeactivated={mutate} />
+            ))}
+          </SettingsList>
+        ) : (
+          <SettingsSection>
+            <EmptyState
+              icon={ShieldAlert}
+              size="sm"
+              title={t(
+                "settings.signing.emptyState",
+                "No signing certificate configured — documents are served and sent unsigned.",
+              )}
+              data-cy="signing-cert-empty-state"
+            />
+          </SettingsSection>
         )}
       </div>
-    </div>
+    </SettingsPage>
   )
 }

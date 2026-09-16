@@ -19,7 +19,7 @@ export default function Dashboard() {
   usePageHeader(t("dashboard.title"))
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="mx-auto max-w-7xl space-y-4 p-6">
       <WidgetGrid widgets={widgets} isLoading={isLoading} emptyDataCy="dashboard-empty" />
     </div>
   )

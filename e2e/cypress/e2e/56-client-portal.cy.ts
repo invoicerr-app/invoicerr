@@ -107,6 +107,7 @@ function createSentQuote(clientId: string, unitPrice: number) {
  *  actual copyable value, never guess it" discipline `37-document-share-link.cy.ts` already holds. */
 function inviteToPortalFromScreen(email: string): Cypress.Chainable<{ url: string; token: string }> {
 	cy.visit("/clients");
+	cy.get(`[data-cy="client-row-menu-${email}"]`, { timeout: 15000 }).click();
 	cy.get(`[data-cy="portal-access-client-button-${email}"]`, { timeout: 15000 }).click();
 	cy.get('[data-cy="portal-access-dialog"]', { timeout: 15000 }).should("be.visible");
 	cy.get('[data-cy="portal-access-empty"]').should("be.visible");

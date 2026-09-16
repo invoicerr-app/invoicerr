@@ -11,6 +11,11 @@ const alertVariants = cva(
         default: "bg-card text-card-foreground",
         destructive:
           "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+        // Soft, tokenized banners for a non-error outcome that still needs to stand out from the
+        // page (a payment return, a background job result) — same tone vocabulary as
+        // document-status-badge.tsx's own success/warning, never a bespoke color here.
+        success: "border-transparent bg-success text-success-foreground",
+        warning: "border-transparent bg-warning text-warning-foreground",
       },
     },
     defaultVariants: {

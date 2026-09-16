@@ -6,12 +6,21 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useGet, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react"
+import { Check, Hash, Info, Trash2, XCircle } from "lucide-react"
+
+import {
+  SettingsFormFooter,
+  SettingsList,
+  SettingsListRow,
+  SettingsPage,
+  SettingsSection,
+  useSavedFlash,
+} from "./settings-section"
 
 interface CompanyInfo {
   country?: string
@@ -60,6 +69,7 @@ function NumberFormatCard({ company, onSaved }: { company: CompanyInfo; onSaved:
   const { t } = useTranslation()
   const currentPattern = company.numberFormats?.invoice ?? SHIPPED_DEFAULT_INVOICE_FORMAT
   const [pattern, setPattern] = useState(currentPattern)
+  const [saved, flash] = useSavedFlash()
 
   useEffect(() => setPattern(currentPattern), [currentPattern])
 
@@ -75,72 +85,69 @@ function NumberFormatCard({ company, onSaved }: { company: CompanyInfo; onSaved:
     if (!result) return // error already toasted by the wrapper
     toast.success(t("settings.atcud.numberFormat.messages.saveSuccess", "Invoice number format saved"))
     onSaved()
+    flash()
   }
 
   return (
-    <Card data-cy="atcud-number-format-card">
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("settings.atcud.numberFormat.title", "Invoice number format")}
-        </CardTitle>
-        <CardDescription>
-          {t(
-            "settings.atcud.numberFormat.description",
-            'The ATCUD sequential number is, by law, "the digits immediately after the / " in your ' +
-              "invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end " +
-              'in a literal "/" immediately followed by "{number}" (or "{number:N}"), e.g. ' +
-              '"FT {year}/{number:4}".',
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[220px] flex-1 space-y-1.5">
-            <Label htmlFor="atcud-invoice-number-format">
-              {t("settings.atcud.numberFormat.label", "Invoice number format")}
-            </Label>
-            <Input
-              id="atcud-invoice-number-format"
-              data-cy="atcud-number-format-input"
-              value={pattern}
-              onChange={(e) => setPattern(e.target.value)}
-              placeholder="FT {year}/{number:4}"
-            />
-          </div>
+    <SettingsSection
+      title={t("settings.atcud.numberFormat.title", "Invoice number format")}
+      description={t(
+        "settings.atcud.numberFormat.description",
+        'The ATCUD sequential number is, by law, "the digits immediately after the / " in your ' +
+          "invoice number (Portaria n.º 195/2020, art. 3.º n.º 3). Your format must therefore end " +
+          'in a literal "/" immediately followed by "{number}" (or "{number:N}"), e.g. ' +
+          '"FT {year}/{number:4}".',
+      )}
+      dataCy="atcud-number-format-card"
+      footer={
+        <SettingsFormFooter saved={saved}>
           <Button
             onClick={handleSave}
-            disabled={saving || pattern.trim().length === 0}
+            disabled={pattern.trim().length === 0}
+            loading={saving}
             data-cy="atcud-number-format-save-button"
           >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("settings.atcud.numberFormat.save", "Save")}
           </Button>
-        </div>
-        <div className="flex items-center gap-2 text-sm" data-cy="atcud-number-format-status">
+        </SettingsFormFooter>
+      }
+    >
+      <div className="max-w-md space-y-1.5">
+        <Label htmlFor="atcud-invoice-number-format">
+          {t("settings.atcud.numberFormat.label", "Invoice number format")}
+        </Label>
+        <Input
+          id="atcud-invoice-number-format"
+          data-cy="atcud-number-format-input"
+          className="font-mono"
+          value={pattern}
+          onChange={(e) => setPattern(e.target.value)}
+          placeholder="FT {year}/{number:4}"
+        />
+        <p
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          data-cy="atcud-number-format-status"
+        >
           {compatible ? (
             <>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-muted-foreground">
-                {t(
-                  "settings.atcud.numberFormat.compatible",
-                  "Compatible with the ATCUD sequential-number rule",
-                )}
-              </span>
+              <Check className="size-3.5 text-success-foreground" aria-hidden="true" />
+              {t(
+                "settings.atcud.numberFormat.compatible",
+                "Compatible with the ATCUD sequential-number rule",
+              )}
             </>
           ) : (
             <>
-              <XCircle className="h-4 w-4 text-destructive" />
-              <span className="text-muted-foreground">
-                {t(
-                  "settings.atcud.numberFormat.incompatible",
-                  'Not compatible yet — it must end in "/" immediately followed by "{number}" or "{number:N}"',
-                )}
-              </span>
+              <XCircle className="size-3.5 text-destructive" aria-hidden="true" />
+              {t(
+                "settings.atcud.numberFormat.incompatible",
+                'Not compatible yet — it must end in "/" immediately followed by "{number}" or "{number:N}"',
+              )}
             </>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+    </SettingsSection>
   )
 }
 
@@ -159,34 +166,28 @@ function SeriesRow({ series, onDeleted }: { series: AtcudSeriesRow; onDeleted: (
   }
 
   return (
-    <Card data-cy={`atcud-series-row-${series.id}`}>
-      <CardContent className="flex items-center justify-between gap-3 p-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-medium" data-cy={`atcud-series-row-${series.id}-seriesId`}>
-              {series.seriesId}
-            </p>
-            <Badge variant="outline">{series.typeId}</Badge>
-          </div>
-          <p
-            className="mt-0.5 truncate font-mono text-xs text-muted-foreground"
-            data-cy={`atcud-series-row-${series.id}-code`}
-          >
-            {series.validationCode}
-          </p>
-        </div>
+    <SettingsListRow
+      dataCy={`atcud-series-row-${series.id}`}
+      badge={<Badge variant="outline">{series.typeId}</Badge>}
+      title={<span data-cy={`atcud-series-row-${series.id}-seriesId`}>{series.seriesId}</span>}
+      meta={
+        <span className="font-mono tabular-nums" data-cy={`atcud-series-row-${series.id}-code`}>
+          {series.validationCode}
+        </span>
+      }
+      primary={
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="shrink-0 text-destructive hover:text-destructive"
-          disabled={removing}
           onClick={handleDelete}
+          loading={removing}
           data-cy={`atcud-series-row-${series.id}-delete-button`}
         >
-          {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          {!removing && <Trash2 aria-hidden="true" />}
+          {t("settings.common.delete", "Delete")}
         </Button>
-      </CardContent>
-    </Card>
+      }
+    />
   )
 }
 
@@ -205,6 +206,7 @@ export default function AtcudSettings() {
   const { data: company, mutate: refetchCompany } = useGet<CompanyInfo>("/api/company/info")
   const { data: seriesList, mutate: refetchSeries } = useGet<AtcudSeriesRow[]>("/api/company/atcud-series")
   const series = seriesList ?? []
+  const [addSaved, flashAdd] = useSavedFlash()
 
   const [seriesId, setSeriesId] = useState("")
   const [validationCode, setValidationCode] = useState("")
@@ -226,114 +228,118 @@ export default function AtcudSettings() {
     toast.success(t("settings.atcud.series.messages.saveSuccess", "Series saved"))
     resetForm()
     refetchSeries()
+    flashAdd()
   }
 
   if (!isPortugal(company ?? null)) {
     return (
-      <div className="space-y-6" data-cy="atcud-section">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">{t("settings.atcud.title", "ATCUD (Portugal)")}</h1>
-        </div>
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground" data-cy="atcud-not-applicable">
-            {t(
+      <SettingsPage title={t("settings.atcud.title", "ATCUD (Portugal)")} dataCy="atcud-section">
+        <SettingsSection>
+          <EmptyState
+            icon={Info}
+            size="sm"
+            title={t(
               "settings.atcud.notApplicable",
               "The ATCUD is a Portuguese legal requirement — this section only applies to a company registered in Portugal.",
             )}
-          </CardContent>
-        </Card>
-      </div>
+            data-cy="atcud-not-applicable"
+          />
+        </SettingsSection>
+      </SettingsPage>
     )
   }
 
   return (
-    <div className="space-y-6" data-cy="atcud-section">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">{t("settings.atcud.title", "ATCUD (Portugal)")}</h1>
-        <p className="text-muted-foreground">
-          {t(
-            "settings.atcud.description",
-            "Portaria n.º 195/2020 requires every Portuguese invoice to carry an ATCUD, obtained per " +
-              "series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
-          )}
-        </p>
-      </div>
-
+    <SettingsPage
+      title={t("settings.atcud.title", "ATCUD (Portugal)")}
+      description={t(
+        "settings.atcud.description",
+        "Portaria n.º 195/2020 requires every Portuguese invoice to carry an ATCUD, obtained per " +
+          "series from the AT (Portal das Finanças), BEFORE any document in that series is issued.",
+      )}
+      dataCy="atcud-section"
+    >
       <NumberFormatCard company={company as CompanyInfo} onSaved={refetchCompany} />
 
-      <Card data-cy="atcud-series-add-card">
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("settings.atcud.series.addTitle", "Register a series validation code")}
-          </CardTitle>
-          <CardDescription>
-            {t(
-              "settings.atcud.series.addDescription",
-              'The series identifier is the part of your invoice number BEFORE the "/" — e.g. "FT ' +
-                '2026" for the format "FT {year}/{number:4}".',
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="atcud-series-id">
-                  {t("settings.atcud.series.seriesId", "Series identifier")}
-                </Label>
-                <Input
-                  id="atcud-series-id"
-                  data-cy="atcud-series-id-input"
-                  required
-                  placeholder="FT 2026"
-                  value={seriesId}
-                  onChange={(e) => setSeriesId(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="atcud-validation-code">
-                  {t("settings.atcud.series.validationCode", "AT validation code")}
-                </Label>
-                <Input
-                  id="atcud-validation-code"
-                  data-cy="atcud-validation-code-input"
-                  required
-                  minLength={8}
-                  placeholder="JCVPTS0J"
-                  value={validationCode}
-                  onChange={(e) => setValidationCode(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={saving} data-cy="atcud-series-save-button">
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("settings.atcud.series.save", "Save")}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3" data-cy="atcud-series-list">
-        {series.length > 0 ? (
-          series.map((row) => <SeriesRow key={row.id} series={row} onDeleted={refetchSeries} />)
-        ) : (
-          <Card>
-            <CardContent
-              className="flex flex-col items-center justify-center py-10"
-              data-cy="atcud-series-empty-state"
+      <SettingsSection
+        title={t("settings.atcud.series.addTitle", "Register a series validation code")}
+        description={t(
+          "settings.atcud.series.addDescription",
+          'The series identifier is the part of your invoice number BEFORE the "/" — e.g. "FT ' +
+            '2026" for the format "FT {year}/{number:4}".',
+        )}
+        dataCy="atcud-series-add-card"
+        footer={
+          <SettingsFormFooter saved={addSaved}>
+            {/* `secondary`, not the tab's own default: the number-format save above is the ONE
+             *  primary this screen has — registering a series is a repeatable "add an item" action,
+             *  the same weight `currency-rates.settings.tsx`'s own "Add rate" carries next to
+             *  `company.settings.tsx`'s primary. */}
+            <Button
+              type="submit"
+              variant="secondary"
+              form="atcud-series-add-form"
+              loading={saving}
+              data-cy="atcud-series-save-button"
             >
-              <p className="text-center text-muted-foreground">
-                {t(
-                  "settings.atcud.series.emptyState",
-                  "No ATCUD series registered yet — invoices cannot be sent until at least one is.",
-                )}
-              </p>
-            </CardContent>
-          </Card>
+              {t("settings.atcud.series.save", "Save")}
+            </Button>
+          </SettingsFormFooter>
+        }
+      >
+        <form id="atcud-series-add-form" onSubmit={handleAdd} className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="atcud-series-id">
+              {t("settings.atcud.series.seriesId", "Series identifier")}
+            </Label>
+            <Input
+              id="atcud-series-id"
+              data-cy="atcud-series-id-input"
+              required
+              placeholder="FT 2026"
+              value={seriesId}
+              onChange={(e) => setSeriesId(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="atcud-validation-code">
+              {t("settings.atcud.series.validationCode", "AT validation code")}
+            </Label>
+            <Input
+              id="atcud-validation-code"
+              data-cy="atcud-validation-code-input"
+              required
+              minLength={8}
+              className="font-mono"
+              placeholder="JCVPTS0J"
+              value={validationCode}
+              onChange={(e) => setValidationCode(e.target.value)}
+            />
+          </div>
+        </form>
+      </SettingsSection>
+
+      <div data-cy="atcud-series-list">
+        {series.length > 0 ? (
+          <SettingsList>
+            {series.map((row) => (
+              <SeriesRow key={row.id} series={row} onDeleted={refetchSeries} />
+            ))}
+          </SettingsList>
+        ) : (
+          <SettingsSection>
+            <EmptyState
+              icon={Hash}
+              size="sm"
+              title={t(
+                "settings.atcud.series.emptyState",
+                "No ATCUD series registered yet — invoices cannot be sent until at least one is.",
+              )}
+              data-cy="atcud-series-empty-state"
+            />
+          </SettingsSection>
         )}
       </div>
-    </div>
+    </SettingsPage>
   )
 }

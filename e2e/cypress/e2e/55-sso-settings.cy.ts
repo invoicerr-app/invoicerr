@@ -243,9 +243,15 @@ describe("Per-company SSO — configuration screen", () => {
 
 	it("removes the domain claim via the screen", () => {
 		cy.visit("/settings/sso");
+		// "Remove domain" lives in the row's own "⋯" menu now (sso.settings.tsx's row grammar: only
+		// "Verify" sits directly on the row) — its content is a Radix Portal, rendered outside the row's
+		// own DOM subtree, so it cannot be found via `.find()` scoped to the row: open the trigger
+		// (still inside the row) first, then reach the item unscoped once the menu is open.
 		cy.contains('[data-cy="sso-domain-row"]', UNVERIFIABLE_DOMAIN, { timeout: 15000 })
-			.find('[data-cy="sso-domain-remove-button"]')
+			.find('[data-cy="sso-domain-menu"]')
 			.click();
+		cy.wait(50);
+		cy.get('[data-cy="sso-domain-remove-button"]').click();
 
 		cy.contains('[data-cy="sso-domain-row"]', UNVERIFIABLE_DOMAIN).should("not.exist");
 

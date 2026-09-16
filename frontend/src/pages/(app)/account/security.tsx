@@ -5,16 +5,17 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
+import { SettingsFormFooter, SettingsSection, useSavedFlash } from "../settings/_components/settings-section"
 
 export default function AccountSecurityPage() {
   const { t } = useTranslation()
   const [hasCredentialAccount, setHasCredentialAccount] = useHasCredentialAccount()
+  const [saved, flashSaved] = useSavedFlash()
 
   const passwordSchema = z
     .object({
@@ -61,6 +62,7 @@ export default function AccountSecurityPage() {
       }
 
       toast.success(t("account.security.messages.updateSuccess"))
+      flashSaved()
       passwordForm.reset()
       return
     }
@@ -74,6 +76,7 @@ export default function AccountSecurityPage() {
       })
       if (!res.ok) throw new Error("failed")
       toast.success(t("account.security.messages.updateSuccess"))
+      flashSaved()
       passwordForm.reset()
       setHasCredentialAccount(true)
     } catch {
@@ -82,108 +85,102 @@ export default function AccountSecurityPage() {
   })
 
   return (
-    <Card data-cy="account-security-card">
-      <CardHeader>
-        <CardTitle>{t("account.security.password.title")}</CardTitle>
-        <CardDescription>{t("account.security.password.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {hasCredentialAccount === null ? (
-          <div className="py-4 text-center text-muted-foreground">
-            {t("account.security.password.loading")}
-          </div>
-        ) : (
-          <>
-            {!hasCredentialAccount && (
-              <div className="mb-4 rounded-md bg-muted p-3">
-                <p className="text-sm text-muted-foreground">
-                  {t("account.security.password.noPasswordSet")}
-                </p>
-              </div>
-            )}
-            <Form {...passwordForm}>
-              <form onSubmit={handlePasswordSubmit} className="grid gap-4 sm:max-w-sm">
-                {hasCredentialAccount && (
-                  <FormField
-                    control={passwordForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("account.security.password.form.currentPassword.label")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="password"
-                            placeholder={t("account.security.password.form.currentPassword.placeholder")}
-                            data-cy="account-security-current-password-input"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+    <SettingsSection
+      title={t("account.security.password.title")}
+      description={t("account.security.password.description")}
+      dataCy="account-security-card"
+    >
+      {hasCredentialAccount === null ? (
+        <div className="py-4 text-center text-muted-foreground">{t("account.security.password.loading")}</div>
+      ) : (
+        <>
+          {!hasCredentialAccount && (
+            <div className="mb-4 rounded-md bg-muted p-3">
+              <p className="text-sm text-muted-foreground">{t("account.security.password.noPasswordSet")}</p>
+            </div>
+          )}
+          <Form {...passwordForm}>
+            <form onSubmit={handlePasswordSubmit} className="grid gap-4 sm:max-w-sm">
+              {hasCredentialAccount && (
+                <FormField
+                  control={passwordForm.control}
+                  name="currentPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("account.security.password.form.currentPassword.label")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          placeholder={t("account.security.password.form.currentPassword.placeholder")}
+                          data-cy="account-security-current-password-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={passwordForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {hasCredentialAccount
+                        ? t("account.security.password.form.password.label")
+                        : t("account.security.password.form.password.labelNew")}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="password"
+                        placeholder={t("account.security.password.form.password.placeholder")}
+                        data-cy="account-security-password-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
 
-                <FormField
-                  control={passwordForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {hasCredentialAccount
-                          ? t("account.security.password.form.password.label")
-                          : t("account.security.password.form.password.labelNew")}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          placeholder={t("account.security.password.form.password.placeholder")}
-                          data-cy="account-security-password-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={passwordForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("account.security.password.form.confirmPassword.label")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="password"
+                        placeholder={t("account.security.password.form.confirmPassword.placeholder")}
+                        data-cy="account-security-confirm-password-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={passwordForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("account.security.password.form.confirmPassword.label")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          placeholder={t("account.security.password.form.confirmPassword.placeholder")}
-                          data-cy="account-security-confirm-password-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div>
-                  <Button
-                    type="submit"
-                    loading={passwordForm.formState.isSubmitting}
-                    data-cy="account-security-submit-button"
-                  >
-                    {passwordForm.formState.isSubmitting
-                      ? t("account.security.password.form.submitting")
-                      : hasCredentialAccount
-                        ? t("account.security.password.form.submit")
-                        : t("account.security.password.form.submitNew")}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </>
-        )}
-      </CardContent>
-    </Card>
+              <SettingsFormFooter saved={saved}>
+                <Button
+                  type="submit"
+                  loading={passwordForm.formState.isSubmitting}
+                  data-cy="account-security-submit-button"
+                >
+                  {passwordForm.formState.isSubmitting
+                    ? t("account.security.password.form.submitting")
+                    : hasCredentialAccount
+                      ? t("account.security.password.form.submit")
+                      : t("account.security.password.form.submitNew")}
+                </Button>
+              </SettingsFormFooter>
+            </form>
+          </Form>
+        </>
+      )}
+    </SettingsSection>
   )
 }

@@ -17,6 +17,11 @@ export interface MetricWidget extends WidgetBase {
   /** Marks `value` as a currency-converted APPROXIMATION rather than an original, exact document
    *  amount — the renderer prefixes it with "≈". See backend's widgets.ts for the full contract. */
   approx?: boolean
+  /** The same figure for the period immediately preceding the one `value` covers — renders as a
+   *  variation chip (arrow + percentage, or an absolute delta when there was nothing to compare a
+   *  percentage against). Absent on a STOCK metric (a running total, a plain count), which has no
+   *  previous period at all — see backend's widgets.ts for the full contract. */
+  previousValue?: number
 }
 
 export interface TimeSeriesPoint {
@@ -34,11 +39,23 @@ export interface ShortListItem {
   id: string
   primary: string
   secondary?: string
+  /** The record's own status id — rendered through the same `DocumentStatusBadge` every document
+   *  list already uses, so a status looks identical whichever screen it is read on. */
+  status?: string
+  /** ISO date (YYYY-MM-DD) the record was expected to be settled by — lets the row flag itself as
+   *  overdue against today's date. */
+  dueDate?: string
+  /** The record's own figure in its OWN currency, right-aligned in the mono face — never a
+   *  converted or summed figure. */
+  amount?: { value: number; currency: string }
 }
 
 export interface ShortListWidget extends WidgetBase {
   kind: "shortList"
   items: ShortListItem[]
+  /** The document type every item is an instance of, when they all are one — lets the row link to
+   *  `/documents/<documentTypeId>/<item.id>`. Absent on a list whose items are not documents. */
+  documentTypeId?: string
 }
 
 export interface TableColumn {
