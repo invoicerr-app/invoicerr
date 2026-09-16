@@ -9,26 +9,14 @@
  *
  * Every case here uses a LITERAL IP (never a hostname) so it never touches DNS — that keeps this
  * file decoupled from `dns.lookup` mocking, which is `webhook-url-guard.spec.ts`'s job alone.
+ *
+ * `WebhooksService`'s own driver list unconditionally constructs `new DiscordDriver()`, which used
+ * to drag in `@teever/ez-hook` (a pure-ESM JSR package ts-jest could not compile — the
+ * "ClientsModule inimportable sous ts-jest" item) and forced a factory mock at `./drivers/
+ * discord.driver` just to import this file at all. `discord.driver.ts` now owns a plain `fetch()`
+ * call instead, so the real driver is used here like every other one — none of the cases below ever
+ * create a DISCORD-typed webhook, so it is constructed but never actually dispatches through.
  */
-// `WebhooksService`'s own driver list unconditionally constructs `new DiscordDriver()`, and
-// `discord.driver.ts` imports `@teever/ez-hook` — a pure-ESM JSR package ts-jest cannot compile (see
-// the known "ClientsModule inimportable sous ts-jest" limit; `clients.vat-validation.spec.ts`
-// hits the identical wall one level up and works around it the same way: a FACTORY mock at the exact
-// import path, so the real `discord.driver.ts` is never `require()`'d/transpiled at all). Unlike
-// that file, this suite constructs `WebhooksService` itself, so the mock has to sit one level
-// deeper — at `./drivers/discord.driver` rather than at the dispatcher.
-jest.mock('./drivers/discord.driver', () => ({
-  __esModule: true,
-  DiscordDriver: class {
-    supports() {
-      return false;
-    }
-    async send() {
-      return true;
-    }
-  },
-}));
-
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 import { PluginsService } from '../plugins/plugins.service';

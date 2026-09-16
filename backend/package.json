@@ -45,7 +45,6 @@
     "@signpdf/placeholder-pdf-lib": "^3.3.0",
     "@signpdf/signer-p12": "^3.3.0",
     "@signpdf/signpdf": "^3.3.0",
-    "@teever/ez-hook": "npm:@jsr/teever__ez-hook@^0.3.5",
     "@thallesp/nestjs-better-auth": "^2.2.0",
     "@types/pdfkit": "^0.14.0",
     "@types/qrcode": "^1.5.6",

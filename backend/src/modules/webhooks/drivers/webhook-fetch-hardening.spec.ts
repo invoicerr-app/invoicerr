@@ -6,13 +6,13 @@
  * `redirect: 'manual'` (never follow) and a bounded timeout — this file is what turns "someone
  * deleted that option while refactoring" into a red test instead of a silent regression.
  *
- * `DiscordDriver` is NOT covered here, even for the `timeoutMs` it does accept: `discord.driver.ts`
- * imports `@teever/ez-hook`, a pure-ESM JSR package ts-jest cannot compile (the
- * pre-existing "ClientsModule inimportable sous ts-jest" note) — merely IMPORTING the file, even to
- * mock the package away, fails ts-jest's own type-check of that import statement. Its hardening
- * (`hook.addEmbed(embed).send({ timeoutMs: WEBHOOK_FETCH_TIMEOUT_MS })`, and the redirect-following
- * gap noted in its own file) is reviewed by eye only.
+ * `DiscordDriver` is covered here too now that it owns a plain `fetch()` call like every other
+ * driver (it used to go through `@teever/ez-hook`, a pure-ESM JSR package ts-jest could not even
+ * import, let alone test — the "ClientsModule inimportable sous ts-jest" item; see
+ * `discord.driver.ts`'s own header). Its 429 bounded-retry handling has its own dedicated coverage
+ * in `discord.driver.spec.ts`.
  */
+import { DiscordDriver } from './discord.driver';
 import { GenericDriver } from './generic.driver';
 import { SlackDriver } from './slack.driver';
 import { TeamsDriver } from './teams.driver';
@@ -56,6 +56,16 @@ describe('drivers hardening their own fetch() call against redirect-based SSRF',
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
 
     await new ZapierDriver().send('https://hooks.example.com/x', { event: WebhookEvent.WEBHOOK_CREATED });
+
+    const [, options] = fetchSpy.mock.calls[0];
+    expect(options?.redirect).toBe('manual');
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("DiscordDriver does the same (full payload shape is discord.driver.spec.ts's job)", async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 200 } as Response);
+
+    await new DiscordDriver().send('https://hooks.example.com/x', { event: WebhookEvent.WEBHOOK_CREATED });
 
     const [, options] = fetchSpy.mock.calls[0];
     expect(options?.redirect).toBe('manual');
