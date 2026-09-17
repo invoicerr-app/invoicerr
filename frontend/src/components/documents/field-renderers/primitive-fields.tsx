@@ -43,6 +43,24 @@ function isPresentValue(value: unknown): boolean {
   return typeof value === "string" ? value.trim() !== "" : value != null
 }
 
+/**
+ * `SearchSelect`'s trigger looks a stored value's label up in `allOptions` (search-input.tsx's own
+ * `getOptionLabel`) — but `field.options` alone can't name a value a document persisted under
+ * `legacyOptions` (types.ts's own header: the VAT-rate catalog migration, a bare percentage like "20"
+ * before `options` switched to catalog ids). Without this, an old document's trigger renders blank —
+ * the value IS accepted (field-kinds.ts's validator, schema.ts's zod mirror both check `legacyOptions`
+ * too), it simply has no label to show. Resolved to the CURRENT catalog's own label (`options[i]`,
+ * same index `legacyOptions[i]` came from — both built together, vat-rates/registry.ts), never
+ * `legacyOptions[i].label` itself, so an old document reads exactly like a freshly picked one.
+ */
+export function legacyOptionLabels(field: FieldRendererProps["field"]): { value: string; label: string }[] {
+  const legacyOptions = field.legacyOptions ?? []
+  const options = field.options ?? []
+  return legacyOptions
+    .map((legacy, index) => (options[index] ? { value: legacy.value, label: options[index].label } : null))
+    .filter((option): option is { value: string; label: string } => option !== null)
+}
+
 /** `requiredIfPresent` (DocumentFieldDescriptor, backend types.ts): this field is required only once
  *  a named SIBLING field is itself set — e.g. a Polish correction invoice's own `correctionReason`,
  *  required the moment `correctsInvoiceId` resolves (country-fields/data/pl.json). Watches a dummy,
@@ -258,6 +276,12 @@ export function SelectField({ field, name }: FieldRendererProps) {
 
   const isLocked = lockedValue !== undefined
 
+  // Label lookup ONLY (search-input.tsx's own `allOptions` prop) — the dropdown itself still lists
+  // `filtered`/`allOptions` above, never these: `legacyOptions` must never be OFFERED as a choice,
+  // only recognized when a value already persisted under it comes back around (legacyOptionLabels's
+  // own header).
+  const labelOptions = [...allOptions, ...legacyOptionLabels(field)]
+
   return (
     <FormField
       control={control}
@@ -269,7 +293,7 @@ export function SelectField({ field, name }: FieldRendererProps) {
         >
           <SearchSelect
             options={filtered}
-            allOptions={allOptions}
+            allOptions={labelOptions}
             value={rhfField.value ?? ""}
             onValueChange={(value) => rhfField.onChange(value)}
             onSearchChange={setSearch}

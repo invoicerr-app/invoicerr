@@ -32,14 +32,37 @@ function detectPriceFields(rowFields: DocumentFieldDescriptor[]) {
 /**
  * A 'select' target's stored value is always a string (field-kinds.ts's own 'select' validator); an
  * entity's raw field (e.g. `Article.vatRate`) might be a plain number. This is the ONE, generic
- * coercion `prefillFrom` needs — keyed by the TARGET field's KIND, never by which entity or document
- * type is involved, the same discipline every other kind-generic piece of this form already holds.
- * Every other kind's value is copied verbatim: a 'money'/'number' field wants a number (which is
- * exactly what an Article's `unitPrice` already is), a 'text' field wants a string either way.
+ * coercion `prefillFrom` needs — keyed by the TARGET field's own descriptor, never by which entity or
+ * document type is involved, the same discipline every other kind-generic piece of this form already
+ * holds. Every other kind's value is copied verbatim: a 'money'/'number' field wants a number (which
+ * is exactly what an Article's `unitPrice` already is), a 'text' field wants a string either way.
+ *
+ * A 'select' field carrying `legacyOptions` (the VAT-rate catalog migration, vat-rates/registry.ts)
+ * is the one case a plain `String(value)` used to get wrong: an Article's `vatRate` is still the OLD
+ * bare percentage (e.g. `20`), but the field's own `options` (what the SearchSelect trigger actually
+ * looks a label up in — primitive-fields.tsx's `SelectField`) now hold catalog ids, not percentages.
+ * Resolved by finding the matching `legacyOptions` index and storing the catalog id at that SAME
+ * index in `options` instead — compared NUMERICALLY (`20` === `20.0`), since an entity's raw field is
+ * never guaranteed to stringify identically to the catalog's own `String(rate.rate)`. Two catalog ids
+ * can legally share one percentage (e.g. two 0% categories, see it.json's `it-esente`/
+ * `it-non-imponibile`) — the FIRST match, catalog order, wins; a one-click convenience the user can
+ * still correct by hand, never a silent wrong pick of legal consequence.
  */
-function coercePrefillValue(targetKind: string | undefined, value: unknown): unknown {
+export function coercePrefillValue(
+  targetField: DocumentFieldDescriptor | undefined,
+  value: unknown,
+): unknown {
   if (value === undefined || value === null) return value
-  return targetKind === "select" ? String(value) : value
+  if (targetField?.kind !== "select") return value
+
+  const legacyOptions = targetField.legacyOptions ?? []
+  const options = targetField.options ?? []
+  const numericValue = Number(value)
+  if (legacyOptions.length && options.length && Number.isFinite(numericValue)) {
+    const legacyIndex = legacyOptions.findIndex((option) => Number(option.value) === numericValue)
+    if (legacyIndex !== -1 && options[legacyIndex]) return options[legacyIndex].value
+  }
+  return String(value)
 }
 
 interface RowPrefillPickerProps {
@@ -85,8 +108,8 @@ function RowPrefillPicker({
 
     const values: Record<string, unknown> = {}
     for (const [rowKey, sourceKey] of Object.entries(map)) {
-      const targetKind = rowFields.find((rowField) => rowField.key === rowKey)?.kind
-      values[rowKey] = coercePrefillValue(targetKind, sourceFields[sourceKey])
+      const targetField = rowFields.find((rowField) => rowField.key === rowKey)
+      values[rowKey] = coercePrefillValue(targetField, sourceFields[sourceKey])
     }
     onPrefill(values)
   }
