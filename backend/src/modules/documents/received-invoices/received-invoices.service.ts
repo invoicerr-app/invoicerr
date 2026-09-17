@@ -35,10 +35,10 @@ const DUPLICATE_CHECK_LIMIT = 500;
 export interface UploadReceivedInvoiceInput {
   fileName: string;
   mime: string;
-  /** Base64-encoded raw file bytes — same wire convention `signing-certificates.controller.ts`'s own
-   *  `pfxBase64` already uses for an uploaded binary in this codebase (no multipart/`FileInterceptor`
-   *  anywhere in this backend today — see that controller's own `UploadCertificateBody`). */
-  base64: string;
+  /** Raw file bytes, already read into memory by multer's `memoryStorage()` at
+   *  `received-invoices.controller.ts#upload` — see `upload-validation.ts`'s own
+   *  `MAX_RECEIVED_INVOICE_BYTES` header for why this is no longer base64-in-JSON. */
+  bytes: Buffer;
 }
 
 export interface UploadReceivedInvoicePreview {
@@ -87,7 +87,7 @@ export class ReceivedInvoicesService {
    * a recognized-but-empty extraction is not an error at all, only a genuine duplicate hash is.
    */
   async upload(companyId: string, input: UploadReceivedInvoiceInput): Promise<UploadReceivedInvoicePreview> {
-    const bytes = Buffer.from(input.base64, 'base64');
+    const bytes = input.bytes;
     if (bytes.length === 0) {
       throw new ConflictException('The uploaded file is empty.');
     }

@@ -13,11 +13,20 @@ export async function authenticatedFetch(input: RequestInfo, init: RequestInit =
       ? `${import.meta.env.VITE_BACKEND_URL || ""}${input}`
       : input
 
+  // A `FormData` body (a multipart file upload — see hooks/queries/use-attachments.ts and
+  // use-received-invoices.ts) must never carry an explicit "Content-Type: application/json" header:
+  // the browser computes its own "multipart/form-data; boundary=..." value from the FormData instance
+  // at send time, and a caller-set Content-Type here would silently override that with an outright
+  // wrong one — the backend's multer/busboy parser would then see a boundary that doesn't match the
+  // body it actually received and refuse the whole request. Every OTHER body shape in this app keeps
+  // the default JSON header exactly as before.
+  const isFormData = init.body instanceof FormData
+
   const res = await fetch(fullUrl, {
     ...init,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(init.headers || {}),
     },
   })

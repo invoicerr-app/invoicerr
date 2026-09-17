@@ -8,26 +8,32 @@ import { authenticatedFetch } from "@/hooks/use-fetch"
  * lives at this generic layer, never duplicated per document type). Backend: documents/attachments/
  * (reusing received-invoices/storage.ts's own persistence — see that module's header).
  */
-export interface UploadAttachmentVariables {
-  fileName: string
-  mime: string
-  /** Base64-encoded raw file bytes — same wire convention every other binary upload in this frontend
-   *  already uses (see file-field.tsx's own `fileToBase64`). */
-  base64: string
-}
-
 export interface AttachmentRef {
   fileRef: string
   fileName: string
   mime: string
 }
 
-/** `POST /api/documents/attachments/upload` — refused (a NAMED ApiError) for a disallowed mime or an
- *  oversized file; an allowed file always succeeds. No `invalidateKeys`: nothing in the documents
- *  list changes until the caller actually saves the field's value onto a document (the same posture
- *  `useUploadReceivedInvoice`'s own header already documents for its own upload). */
+/** `POST /api/documents/attachments/upload` (multipart/form-data, a single `file` part — the 2026-09-17
+ *  decision replacing the old base64-in-JSON convention, which was itself capped at ~750 KiB only
+ *  because it had to fit under the backend's own 1 MiB JSON body-parser limit after base64 inflation)
+ *  — refused (a NAMED ApiError) for a disallowed mime or an oversized file; an allowed file always
+ *  succeeds. No `invalidateKeys`: nothing in the documents list changes until the caller actually saves
+ *  the field's value onto a document (the same posture `useUploadReceivedInvoice`'s own header already
+ *  documents for its own upload). */
 export function useUploadAttachment() {
-  return useApiMutation<UploadAttachmentVariables, AttachmentRef>("POST", "/api/documents/attachments/upload")
+  return useApiMutation<FormData, AttachmentRef>("POST", "/api/documents/attachments/upload")
+}
+
+/** Builds the single-part `FormData` body both upload mutations in this app send — one `file` field,
+ *  the browser's own `File` object untouched (no base64 re-encoding: multer reads the multipart stream
+ *  directly on the backend). Shared here rather than duplicated per caller, unlike the backend's own
+ *  small per-route duplications: this one is genuinely the SAME three-line construction for every
+ *  caller, with nothing route-specific in it. */
+export function buildFileUploadForm(file: File): FormData {
+  const form = new FormData()
+  form.append("file", file)
+  return form
 }
 
 /** `GET /api/documents/attachments/:fileRef?mime=...` — the raw bytes back, as a `Blob` whose own

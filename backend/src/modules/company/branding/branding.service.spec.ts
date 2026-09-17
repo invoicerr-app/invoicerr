@@ -162,8 +162,8 @@ describe('BrandingService', () => {
 
   describe('logo upload / clear / read', () => {
     it('uploadLogo stores the bytes and writes the resulting id onto brandingLogoId', async () => {
-      const base64 = Buffer.from('logo bytes', 'utf-8').toString('base64');
-      const status = await service.uploadLogo('company-1', { mime: 'image/png', base64 });
+      const bytes = Buffer.from('logo bytes', 'utf-8');
+      const status = await service.uploadLogo('company-1', { mime: 'image/png', bytes });
 
       expect(status.hasLogo).toBe(true);
       const call = mockedPrisma.company.update.mock.calls[0][0];
@@ -171,8 +171,8 @@ describe('BrandingService', () => {
     });
 
     it('getLogoBytes reads back exactly what uploadLogo wrote', async () => {
-      const base64 = Buffer.from('logo bytes', 'utf-8').toString('base64');
-      await service.uploadLogo('company-1', { mime: 'image/png', base64 });
+      const uploaded = Buffer.from('logo bytes', 'utf-8');
+      await service.uploadLogo('company-1', { mime: 'image/png', bytes: uploaded });
       const logoId = mockedPrisma.company.update.mock.calls[0][0].data.brandingLogoId;
       mockedPrisma.company.findUnique.mockResolvedValue({ ...BASE_COMPANY, brandingLogoId: logoId });
 

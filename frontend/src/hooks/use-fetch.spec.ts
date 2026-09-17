@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { usePost, useSse } from "./use-fetch"
+import { authenticatedFetch, usePost, useSse } from "./use-fetch"
 
 /**
  * `createMethodHook`'s own `trigger` builds the request in two passes — the caller's raw
@@ -24,6 +24,30 @@ function mockFetchOnce() {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe("authenticatedFetch — Content-Type", () => {
+  it("never forces application/json onto a FormData body — the browser computes its own multipart boundary", async () => {
+    const fetchMock = mockFetchOnce()
+    const form = new FormData()
+    form.append("file", new Blob(["content"]), "file.txt")
+
+    await authenticatedFetch("/api/documents/attachments/upload", { method: "POST", body: form })
+
+    const [, init] = fetchMock.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(headers["Content-Type"]).toBeUndefined()
+  })
+
+  it("still defaults every OTHER body to application/json, unchanged", async () => {
+    const fetchMock = mockFetchOnce()
+
+    await authenticatedFetch("/api/things", { method: "POST", body: JSON.stringify({ a: 1 }) })
+
+    const [, init] = fetchMock.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(headers["Content-Type"]).toBe("application/json")
+  })
 })
 
 describe("createMethodHook (usePost) — request assembly order", () => {

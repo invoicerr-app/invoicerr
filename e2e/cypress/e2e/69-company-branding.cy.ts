@@ -27,6 +27,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl") || "http://localhost:4000";
 
+// `cypress/fixtures/branding/logo-fixture.png` is deliberately plain ASCII, not a real PNG — the
+// backend never inspects a logo's magic bytes (only its declared mime, via `ALLOWED_LOGO_MIMES`;
+// unlike a received-invoice deposit, which DOES get sniffed — see `upload-validation.ts`), and a real
+// PNG's high bytes were observed NOT to round-trip through `cy.request`'s own `encoding: "binary"`
+// response handling for a body this small — the exact same reason `62-expense-attachments.cy.ts`
+// already keeps its own "receipt" fixture ASCII rather than a real JPEG.
+
 interface BrandingStatus {
 	accentColor: string | null;
 	font: string | null;
@@ -190,9 +197,9 @@ describe("Company branding — logo, accent color, font, presets", () => {
 
 		// Exact byte comparison against the fixture actually uploaded — not merely "an image, non
 		// empty": a default logo served in its place, or a truncated/corrupted write, would still be a
-		// non-empty `image/*` response at this fixture's own tiny size (68 bytes) and pass a
-		// length-only check. Same discipline `62-expense-attachments.cy.ts` already holds for its own
-		// content-addressed download.
+		// non-empty `image/*` response at this fixture's own tiny size and pass a length-only check.
+		// Same discipline `62-expense-attachments.cy.ts` already holds for its own content-addressed
+		// download.
 		cy.readFile("cypress/fixtures/branding/logo-fixture.png", "binary").then((original) => {
 			cy.request({ url: `${api}/api/company/branding/logo`, encoding: "binary" }).then(
 				(response) => {

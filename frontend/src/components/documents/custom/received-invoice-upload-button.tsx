@@ -11,18 +11,11 @@ import { DocumentCreateDialog } from "@/components/documents/document-create-dia
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ApiError } from "@/hooks/use-api-query"
-import { useUploadReceivedInvoice, type UploadReceivedInvoicePreview } from "@/hooks/queries"
-
-/** Reads a browser `File` into a base64 string — same technique
- *  settings/_components/signing-certificates.settings.tsx already uses for its own PFX upload (the
- *  one other binary-file upload in this frontend), reused verbatim rather than re-derived. */
-async function fileToBase64(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer()
-  let binary = ""
-  const bytes = new Uint8Array(arrayBuffer)
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
-}
+import {
+  buildFileUploadForm,
+  useUploadReceivedInvoice,
+  type UploadReceivedInvoicePreview,
+} from "@/hooks/queries"
 
 /** `extraction.fields` (received-invoices/extraction.ts) already uses the SAME keys as the
  *  descriptor's own business fields (supplier/supplierNumber/issueDate/currency/netAmount/
@@ -86,12 +79,7 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
 
   const handleFile = async (file: File) => {
     try {
-      const base64 = await fileToBase64(file)
-      const result = await upload.mutateAsync({
-        fileName: file.name,
-        mime: file.type || "application/octet-stream",
-        base64,
-      })
+      const result = await upload.mutateAsync(buildFileUploadForm(file))
       setUploadDialogOpen(false)
       resetUploadDialog()
       setPreview(result)
@@ -124,11 +112,19 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
         toast.error(t("documents.custom.receivedInvoiceUpload.ocrFailed", { message: result.ocr.message }))
       }
     } catch (error) {
-      // The backend's OWN message — it names the exact duplicate (SHA-256 + existing document id)
-      // when that is the refusal, never a generic "upload failed" that would hide it.
-      toast.error(
-        error instanceof ApiError ? error.message : t("documents.custom.receivedInvoiceUpload.error"),
-      )
+      // A 413 is refused by multer at the multipart wire itself (limits.fileSize), before this file
+      // ever reaches ReceivedInvoicesService — its own body carries the generic "File too large"
+      // rather than this app's own byte-counted message, so it gets a dedicated, translated string
+      // instead. Every OTHER refusal keeps the backend's OWN message — it names the exact duplicate
+      // (SHA-256 + existing document id) when that is the refusal, never a generic "upload failed"
+      // that would hide it.
+      if (error instanceof ApiError && error.status === 413) {
+        toast.error(t("documents.custom.receivedInvoiceUpload.tooLarge"))
+      } else {
+        toast.error(
+          error instanceof ApiError ? error.message : t("documents.custom.receivedInvoiceUpload.error"),
+        )
+      }
     }
   }
 
@@ -182,6 +178,9 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
             <FileUp className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {t("documents.custom.receivedInvoiceUpload.dropHint")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("documents.custom.receivedInvoiceUpload.maxSize")}
             </p>
             <input
               ref={fileInputRef}

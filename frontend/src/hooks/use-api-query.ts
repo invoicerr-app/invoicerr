@@ -71,13 +71,18 @@ export function useApiMutation<TVariables = unknown, TData = unknown>(
   return useMutation<TData, ApiError, TVariables>({
     mutationFn: (variables) => {
       const url = typeof urlOrFn === "function" ? urlOrFn(variables) : urlOrFn
-      return apiFetch<TData>(url, {
-        method,
-        // DELETE requests never carry a body in this codebase's convention; a bare
-        // JSON primitive (e.g. just an id string) as the whole body is also rejected
-        // outright by body-parser's default strict mode (only objects/arrays allowed).
-        body: method !== "DELETE" && variables !== undefined ? JSON.stringify(variables) : undefined,
-      })
+      // A file upload mutation (e.g. useUploadAttachment/useUploadReceivedInvoice) passes an already-
+      // built `FormData` as its variables — passed straight through, never `JSON.stringify`-ed (which
+      // would turn it into the useless string `"{}"`, `FormData` exposing none of its entries as
+      // enumerable own properties). `authenticatedFetch`'s own `isFormData` check is what then skips
+      // forcing a JSON Content-Type for it.
+      const body =
+        method === "DELETE" || variables === undefined
+          ? undefined
+          : variables instanceof FormData
+            ? variables
+            : JSON.stringify(variables)
+      return apiFetch<TData>(url, { method, body })
     },
     ...mutationOptions,
     onSuccess: (data, variables, onMutateResult, context) => {

@@ -202,7 +202,7 @@ describe("Expense attachments, category, and mileage", () => {
 		});
 	});
 
-	it("a file over the size limit is refused, named with the actual size, and never attached", () => {
+	it("a file over the size limit is refused (413) with never a byte written, and never attached", () => {
 		openCreateDialog();
 
 		cy.get('[data-cy="document-field-description-input"]').type("Huge scan attempt");
@@ -211,18 +211,22 @@ describe("Expense attachments, category, and mileage", () => {
 		cy.pickToday('[data-cy="document-field-date-input"]');
 		cy.continueDocumentWizard(); // Details -> Options ("attachment" lives there)
 
-		// One byte over the documented 750 KiB limit (attachments.service.ts's own
-		// `MAX_ATTACHMENT_BYTES`) — an ALLOWED mime, refused purely for its size.
+		// One byte over the multipart/form-data ceiling (10 MB — attachments.service.ts's own
+		// `MAX_ATTACHMENT_BYTES`, ALSO multer's own `limits.fileSize` at the interceptor —
+		// documents.controller.ts's `uploadAttachment`) — an ALLOWED mime, refused purely for its
+		// size, aborted at the wire before this attempt ever reaches disk.
+		cy.intercept("POST", `${api}/api/documents/attachments/upload`).as("uploadAttachment");
 		cy.get('[data-cy="document-field-attachment-file-input"]').selectFile(
 			{
-				contents: Cypress.Buffer.alloc(750 * 1024 + 1, 1),
+				contents: Cypress.Buffer.alloc(10 * 1024 * 1024 + 1, 1),
 				fileName: "huge-scan.jpg",
 				mimeType: "image/jpeg",
 			},
 			{ force: true },
 		);
+		cy.wait("@uploadAttachment").its("response.statusCode").should("eq", 413);
 
-		cy.get('[data-sonner-toast]', { timeout: 15000 }).should("contain.text", "byte limit");
+		cy.get('[data-sonner-toast]', { timeout: 15000 }).should("contain.text", "10 MB");
 		cy.get('[data-cy="document-field-attachment-input"]').should("be.visible");
 		cy.get('[data-cy="document-field-attachment-value"]').should("not.exist");
 
@@ -232,7 +236,8 @@ describe("Expense attachments, category, and mileage", () => {
 		listExpenses().then((expenses) => {
 			const created = expenses.find((e) => e.data.description === "Huge scan attempt");
 			expect(created, "l'expense se sauvegarde quand même, simplement sans pièce jointe").to.exist;
-			expect(created?.data.attachment).to.be.oneOf([undefined, null]);
+			expect(created?.data.attachment, "aucun octet écrit pour un dépôt refusé au niveau multipart").to.be
+				.oneOf([undefined, null]);
 		});
 	});
 

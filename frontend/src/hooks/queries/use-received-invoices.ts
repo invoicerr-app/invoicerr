@@ -12,14 +12,6 @@ import { useApiMutation } from "@/hooks/use-api-query"
  * to act on yet), the same reasoning the backend's own `received-invoices/` module gives for not
  * living inside `documents-core.module.ts`.
  */
-export interface UploadReceivedInvoiceVariables {
-  fileName: string
-  mime: string
-  /** Base64-encoded raw file bytes — same wire convention the signing-certificates upload already
-   *  uses (see settings/_components/signing-certificates.settings.tsx's own `pfxBase64`). */
-  base64: string
-}
-
 /** Mirrors the backend's `SupplierMatchResult`
  *  (received-invoices/supplier-reconciliation.ts). `outcome: 'matched'` means `extraction.fields`
  *  below ALSO carries a `supplierClient` id (the SAME generic pre-fill mechanism every other
@@ -64,13 +56,14 @@ export interface UploadReceivedInvoicePreview {
   ocr: OcrOutcome
 }
 
-/** `POST /api/documents/received-invoices/upload` — refuses (a NAMED `ApiError`) only an exact
+/** `POST /api/documents/received-invoices/upload` (multipart/form-data, a single `file` part — see
+ *  `use-attachments.ts#buildFileUploadForm`, reused here) — refuses (a NAMED `ApiError`) only an exact
  *  repeat of an already-received file; an unrecognized file still succeeds, with an empty
  *  `extraction.fields`. No `invalidateKeys`: nothing in the documents list changes until the user
  *  actually confirms via the "receive" action (`useRunDocumentAction`), which already invalidates
  *  `["documents"]` on its own. */
 export function useUploadReceivedInvoice() {
-  return useApiMutation<UploadReceivedInvoiceVariables, UploadReceivedInvoicePreview>(
+  return useApiMutation<FormData, UploadReceivedInvoicePreview>(
     "POST",
     "/api/documents/received-invoices/upload",
   )

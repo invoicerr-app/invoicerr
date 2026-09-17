@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { ApiError } from "@/hooks/use-api-query"
-import { downloadAttachment, useUploadAttachment } from "@/hooks/queries"
+import { buildFileUploadForm, downloadAttachment, useUploadAttachment } from "@/hooks/queries"
 
 import type { FieldRendererProps } from "./registry"
 
@@ -27,18 +27,6 @@ interface AttachmentValue {
 function isAttachmentValue(value: unknown): value is AttachmentValue {
   const v = value as Partial<AttachmentValue> | null | undefined
   return !!v && typeof v.fileRef === "string" && typeof v.fileName === "string" && typeof v.mime === "string"
-}
-
-/** Same technique every OTHER binary upload in this frontend already uses (settings/_components/
- *  signing-certificates.settings.tsx's own PFX upload, custom/received-invoice-upload-button.tsx's
- *  own file) — reused verbatim rather than shared, the same duplication those two already follow
- *  (no multipart/`FileInterceptor` anywhere in this backend — see either file's own header). */
-async function fileToBase64(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer()
-  let binary = ""
-  const bytes = new Uint8Array(arrayBuffer)
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
 }
 
 /**
@@ -156,16 +144,18 @@ export function FileField({ field, name }: FieldRendererProps) {
 
   const handleFile = async (file: File) => {
     try {
-      const base64 = await fileToBase64(file)
-      const result = await upload.mutateAsync({
-        fileName: file.name,
-        mime: file.type || "application/octet-stream",
-        base64,
-      })
+      const result = await upload.mutateAsync(buildFileUploadForm(file))
       setLocalFile(file)
       setValue(name, result, { shouldValidate: true, shouldDirty: true })
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("documents.form.file.uploadError"))
+      // A 413 is refused by multer at the multipart wire itself (limits.fileSize) — its own body
+      // carries the generic "File too large" rather than this app's own byte-counted message, so this
+      // is the one status worth a dedicated, translated string instead of echoing the raw backend text.
+      if (error instanceof ApiError && error.status === 413) {
+        toast.error(t("documents.form.file.tooLarge"))
+      } else {
+        toast.error(error instanceof ApiError ? error.message : t("documents.form.file.uploadError"))
+      }
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
@@ -241,16 +231,19 @@ export function FileField({ field, name }: FieldRendererProps) {
                   </Button>
                 </div>
               ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  loading={upload.isPending}
-                  onClick={() => fileInputRef.current?.click()}
-                  dataCy={`document-field-${field.key}-input`}
-                >
-                  <Paperclip className="h-4 w-4 mr-2" />
-                  {t("documents.form.file.browse")}
-                </Button>
+                <div className="flex flex-col items-start gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    loading={upload.isPending}
+                    onClick={() => fileInputRef.current?.click()}
+                    dataCy={`document-field-${field.key}-input`}
+                  >
+                    <Paperclip className="h-4 w-4 mr-2" />
+                    {t("documents.form.file.browse")}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">{t("documents.form.file.maxSize")}</span>
+                </div>
               )}
               <input
                 ref={fileInputRef}

@@ -37,14 +37,6 @@ export interface SetBrandingInput {
   font?: string | null
 }
 
-export interface UploadBrandingLogoVariables {
-  fileName: string
-  mime: string
-  /** Base64-encoded raw file bytes — same wire convention every other binary upload in this frontend
-   *  already uses (see `file-field.tsx`'s own `fileToBase64`). */
-  base64: string
-}
-
 const STATUS_KEY = ["company", "branding"] as const
 const PREVIEW_KEY = ["company", "branding", "preview"] as const
 
@@ -63,10 +55,11 @@ export function useSetCompanyBranding() {
   })
 }
 
-/** `POST /api/company/branding/logo` — same validation as documents/attachments (mime allow-list,
- *  750 KiB ceiling), refused as a NAMED `ApiError` otherwise. */
+/** `POST /api/company/branding/logo` (multipart/form-data, a single `file` part — build the body with
+ *  `use-attachments.ts#buildFileUploadForm`) — same validation as documents/attachments (mime
+ *  allow-list, 10 MB ceiling), refused as a NAMED `ApiError` otherwise. */
 export function useUploadBrandingLogo() {
-  return useApiMutation<UploadBrandingLogoVariables, BrandingStatus>("POST", "/api/company/branding/logo", {
+  return useApiMutation<FormData, BrandingStatus>("POST", "/api/company/branding/logo", {
     invalidateKeys: [STATUS_KEY, PREVIEW_KEY],
   })
 }

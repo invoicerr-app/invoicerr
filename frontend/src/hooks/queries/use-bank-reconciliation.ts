@@ -15,8 +15,9 @@ import type {
 
 export interface ImportBankStatementVariables {
   fileName: string
-  /** Base64-encoded raw file bytes — same wire convention every other upload in this app already
-   *  uses (see `use-received-invoices.ts`'s own `UploadReceivedInvoiceVariables`). */
+  /** Base64-encoded raw file bytes. Still this app's older upload convention — unlike
+   *  `use-attachments.ts`/`use-received-invoices.ts` (multipart `FormData` since the 2026-09-17
+   *  decision), this route has not been moved. */
   base64: string
   currency: string
   /** Required for a CSV file, omitted for OFX/QFX (self-describing — see the backend's own

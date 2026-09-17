@@ -33,15 +33,13 @@ export const ALLOWED_RECEIVED_INVOICE_MIMES: readonly string[] = [
 ];
 
 /**
- * Same physical ceiling `attachments/attachments.service.ts#MAX_ATTACHMENT_BYTES` documents in full
- * (`main.ts`'s own global `bodyParser.json({ limit: '1mb' })`, this module's upload travelling as
- * base64 inside that SAME JSON body — see `received-invoices.service.ts`'s own header on why there is
- * no multipart/`FileInterceptor` anywhere in this backend). Duplicated here rather than imported: the
- * two allow-lists and the two callers are independent concerns that only happen to share one physical
- * constraint — see that constant's own header for the exact base64-inflation arithmetic behind the
- * figure.
+ * Same product ceiling `attachments/attachments.service.ts#MAX_ATTACHMENT_BYTES` documents in full
+ * (the 2026-09-17 multipart/form-data decision — `received-invoices.controller.ts#upload` enforces
+ * this SAME figure as multer's own `limits.fileSize`, aborting an oversized deposit at the wire before
+ * this function ever runs). Duplicated here rather than imported: the two allow-lists and the two
+ * callers are independent concerns that only happen to share one physical constraint.
  */
-export const MAX_RECEIVED_INVOICE_BYTES = 750 * 1024;
+export const MAX_RECEIVED_INVOICE_BYTES = 10 * 1024 * 1024;
 
 const MAX_FILE_NAME_LENGTH = 255;
 

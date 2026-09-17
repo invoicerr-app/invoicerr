@@ -52,8 +52,8 @@ const MINIMAL_CII_XML = `<?xml version="1.0" encoding="utf-8"?>
  *  fails on it just like it would on a real, malformed scan, degrading honestly to `EMPTY_RESULT`
  *  (`extraction.ts#extractEmbeddedXmlFromPdf`'s own documented behavior) rather than being refused at
  *  the upload gate for having the wrong magic number entirely. */
-function fakeScannedPdfBase64(text: string): string {
-  return Buffer.from(`%PDF-1.4\n${text}`).toString('base64');
+function fakeScannedPdfBytes(text: string): Buffer {
+  return Buffer.from(`%PDF-1.4\n${text}`);
 }
 
 /** Same fixture, plus a seller VAT identifier (`SpecifiedTaxRegistration`) — the supplier-reconciliation
@@ -88,13 +88,13 @@ describe('ReceivedInvoicesService', () => {
 
   describe('upload', () => {
     it('stores the file, extracts CII fields, and returns the SHA-256 as fileRef', async () => {
-      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+      const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
       const expectedHash = computeArtifactHash(Buffer.from(MINIMAL_CII_XML, 'utf-8'));
 
       const preview = await service.upload('company-1', {
         fileName: 'supplier-invoice.xml',
         mime: 'application/xml',
-        base64,
+        bytes,
       });
 
       expect(preview.fileRef).toBe(expectedHash);
@@ -112,12 +112,12 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a plain, unrecognized file is still stored and returned — never a refusal', async () => {
-      const base64 = fakeScannedPdfBase64('just some scanned text');
+      const bytes = fakeScannedPdfBytes('just some scanned text');
 
       const preview = await service.upload('company-1', {
         fileName: 'scan.pdf',
         mime: 'application/pdf',
-        base64,
+        bytes,
       });
 
       expect(preview.fileRef).toHaveLength(64); // a real hex SHA-256
@@ -126,13 +126,17 @@ describe('ReceivedInvoicesService', () => {
 
     it('refuses an empty file, named', async () => {
       await expect(
-        service.upload('company-1', { fileName: 'empty.pdf', mime: 'application/pdf', base64: '' }),
+        service.upload('company-1', {
+          fileName: 'empty.pdf',
+          mime: 'application/pdf',
+          bytes: Buffer.alloc(0),
+        }),
       ).rejects.toThrow(ConflictException);
     });
 
     // Mutation "the hash duplicate is no longer detected" — this is the test that must go red for it.
     it('refuses re-uploading the exact same file (same hash) already on an existing received-invoice, by name', async () => {
-      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+      const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
       const hash = computeArtifactHash(Buffer.from(MINIMAL_CII_XML, 'utf-8'));
       (persistence.listDocuments as jest.Mock).mockResolvedValue([
         {
@@ -146,13 +150,13 @@ describe('ReceivedInvoicesService', () => {
       ]);
 
       await expect(
-        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', base64 }),
+        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', bytes }),
       ).rejects.toThrow(ConflictException);
       await expect(
-        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', base64 }),
+        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', bytes }),
       ).rejects.toThrow(/duplicate/);
       await expect(
-        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', base64 }),
+        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', bytes }),
       ).rejects.toThrow(/ri-existing/); // names WHICH document already has it
     });
 
@@ -167,20 +171,20 @@ describe('ReceivedInvoicesService', () => {
           updatedAt: new Date(),
         },
       ]);
-      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+      const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
 
       await expect(
-        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', base64 }),
+        service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', bytes }),
       ).resolves.toMatchObject({ extraction: { syntax: 'CII' } });
     });
   });
 
   describe('upload — mime allow-list, magic-byte check, size limit, filename sanitizing', () => {
     it('refuses a mime outside the allow-list, named', async () => {
-      const base64 = Buffer.from('<script>alert(1)</script>').toString('base64');
+      const bytes = Buffer.from('<script>alert(1)</script>');
 
       await expect(
-        service.upload('company-1', { fileName: 'payload.html', mime: 'text/html', base64 }),
+        service.upload('company-1', { fileName: 'payload.html', mime: 'text/html', bytes }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -192,40 +196,40 @@ describe('ReceivedInvoicesService', () => {
     // (`received-invoices.controller.ts#downloadFile`) always forces `Content-Disposition: attachment`
     // regardless, so the actual defense belongs HERE: never let the mismatched bytes reach disk at all.
     it('refuses a declared mime whose ACTUAL bytes do not match it, even though the mime itself is allowed', async () => {
-      const base64 = Buffer.from('<html><body>not a pdf at all</body></html>').toString('base64');
+      const bytes = Buffer.from('<html><body>not a pdf at all</body></html>');
 
       await expect(
-        service.upload('company-1', { fileName: 'invoice.pdf', mime: 'application/pdf', base64 }),
+        service.upload('company-1', { fileName: 'invoice.pdf', mime: 'application/pdf', bytes }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('refuses a file over the size limit, named', async () => {
-      const base64 = fakeScannedPdfBase64('a'.repeat(MAX_RECEIVED_INVOICE_BYTES + 1));
+      const bytes = fakeScannedPdfBytes('a'.repeat(MAX_RECEIVED_INVOICE_BYTES + 1));
 
       await expect(
-        service.upload('company-1', { fileName: 'big.pdf', mime: 'application/pdf', base64 }),
+        service.upload('company-1', { fileName: 'big.pdf', mime: 'application/pdf', bytes }),
       ).rejects.toThrow(PayloadTooLargeException);
     });
 
     it('strips a path from an uploaded filename before it is ever stored', async () => {
-      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+      const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
 
       const preview = await service.upload('company-1', {
         fileName: '../../etc/passwd.xml',
         mime: 'application/xml',
-        base64,
+        bytes,
       });
 
       expect(preview.fileName).toBe('passwd.xml');
     });
 
     it('strips control characters from an uploaded filename before it is ever stored', async () => {
-      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+      const bytes = Buffer.from(MINIMAL_CII_XML, 'utf-8');
 
       const preview = await service.upload('company-1', {
         fileName: 'invoice\u0000.xml',
         mime: 'application/xml',
-        base64,
+        bytes,
       });
 
       expect(preview.fileName).toBe('invoice.xml');
@@ -283,12 +287,12 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a deposit whose seller VAT matches an existing client links it automatically — visible in `fields.supplierClient`', async () => {
-      const base64 = Buffer.from(ciiXmlWithSellerVat(KNOWN_VAT), 'utf-8').toString('base64');
+      const bytes = Buffer.from(ciiXmlWithSellerVat(KNOWN_VAT), 'utf-8');
 
       const preview = await service.upload(companyId, {
         fileName: 'known-supplier.xml',
         mime: 'application/xml',
-        base64,
+        bytes,
       });
 
       expect(preview.supplierMatch).toEqual({ outcome: 'matched', clientId, matchedBy: 'vat' });
@@ -299,12 +303,12 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a deposit whose seller VAT matches NOTHING never links — no client created, field left empty', async () => {
-      const base64 = Buffer.from(ciiXmlWithSellerVat('FR99988877701'), 'utf-8').toString('base64');
+      const bytes = Buffer.from(ciiXmlWithSellerVat('FR99988877701'), 'utf-8');
 
       const preview = await service.upload(companyId, {
         fileName: 'unknown-supplier.xml',
         mime: 'application/xml',
-        base64,
+        bytes,
       });
 
       expect(preview.supplierMatch).toEqual({ outcome: 'unmatched', reason: 'not-found' });
@@ -316,12 +320,12 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a deposit with no VAT and no name match at all is reported "no-criteria" once extraction itself yields nothing', async () => {
-      const base64 = fakeScannedPdfBase64('just some scanned text');
+      const bytes = fakeScannedPdfBytes('just some scanned text');
 
       const preview = await service.upload(companyId, {
         fileName: 'scan.pdf',
         mime: 'application/pdf',
-        base64,
+        bytes,
       });
 
       expect(preview.supplierMatch).toEqual({ outcome: 'unmatched', reason: 'no-criteria' });
@@ -404,12 +408,12 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a plain PDF with an active stub extractor comes back pre-filled — never left blank the way a truly unrecognized file stays', async () => {
-      const base64 = fakeScannedPdfBase64('a scanned page, no embedded XML at all');
+      const bytes = fakeScannedPdfBytes('a scanned page, no embedded XML at all');
 
       const preview = await service.upload(companyId, {
         fileName: 'scan.pdf',
         mime: 'application/pdf',
-        base64,
+        bytes,
       });
 
       expect(preview.ocr).toEqual({ outcome: 'extracted', extractorId: STUB_ID });
@@ -419,12 +423,12 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it("the OCR-read supplier VAT auto-reconciles against this company's own client book — the SAME mechanism proved for structural extraction", async () => {
-      const base64 = fakeScannedPdfBase64('another scanned page');
+      const bytes = fakeScannedPdfBytes('another scanned page');
 
       const preview = await service.upload(companyId, {
         fileName: 'scan-2.pdf',
         mime: 'application/pdf',
-        base64,
+        bytes,
       });
 
       expect(preview.supplierMatch).toEqual({ outcome: 'matched', clientId, matchedBy: 'vat' });

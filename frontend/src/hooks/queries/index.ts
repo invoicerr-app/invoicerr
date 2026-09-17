@@ -18,7 +18,6 @@ export {
   type BrandingFontOption,
   type BrandingStatus,
   type SetBrandingInput,
-  type UploadBrandingLogoVariables,
 } from "./use-company-branding"
 export {
   useCompanyMailSettings,
@@ -69,11 +68,7 @@ export {
   type SelectableRowsResult,
 } from "./use-document-types"
 export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
-export {
-  useUploadReceivedInvoice,
-  type UploadReceivedInvoicePreview,
-  type UploadReceivedInvoiceVariables,
-} from "./use-received-invoices"
+export { useUploadReceivedInvoice, type UploadReceivedInvoicePreview } from "./use-received-invoices"
 export {
   useDocumentSchedules,
   useCreateDocumentSchedule,
@@ -135,8 +130,8 @@ export {
 export {
   useUploadAttachment,
   downloadAttachment,
+  buildFileUploadForm,
   type AttachmentRef,
-  type UploadAttachmentVariables,
 } from "./use-attachments"
 export {
   useCompanyCustomFieldDefinitions,

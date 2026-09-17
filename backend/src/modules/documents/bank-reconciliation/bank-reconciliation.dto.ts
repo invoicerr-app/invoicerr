@@ -1,8 +1,8 @@
 import { CsvColumnMapping } from './csv-mapping';
 
-/** Same wire convention every other binary/text upload in this backend already uses (no multipart/
- *  `FileInterceptor` anywhere — see `received-invoices.controller.ts`'s own `UploadReceivedInvoiceInput`
- *  header): base64-encoded raw file bytes, decoded server-side. */
+/** Still base64-in-JSON — unlike `attachments/`, `received-invoices/` and `company/branding/logo`
+ *  (all multipart since the 2026-09-17 decision), this route has not been moved: base64-encoded raw
+ *  file bytes, decoded server-side. */
 export interface ImportBankStatementDto {
   fileName: string;
   base64: string;

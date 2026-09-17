@@ -546,6 +546,42 @@ describe("Receiving invoices", () => {
 		cy.get('[data-cy="document-form"]').should("not.exist");
 	});
 
+	// The 2026-09-17 multipart/form-data decision: an 11 MB deposit is aborted by multer's own
+	// `limits.fileSize` (received-invoices.controller.ts's `upload`) at the wire itself, a real 413,
+	// BEFORE `ReceivedInvoicesService.upload` — and therefore `persistInboundFile` — ever runs. The
+	// intercepted response code is the proof no partial write is even attempted; the API listing
+	// afterward is the proof no document was created either.
+	it("an oversized deposit (11 MB) is refused with a 413, before a single byte reaches disk", () => {
+		cy.visit("/documents/received-invoice");
+		cy.get('[data-cy="received-invoice-upload-button"]', { timeout: 15000 }).click();
+		cy.get('[data-cy="received-invoice-upload-dialog"]', { timeout: 10000 }).should("be.visible");
+
+		cy.intercept("POST", `${api}/api/documents/received-invoices/upload`).as("uploadReceivedInvoice");
+		cy.get('[data-cy="received-invoice-upload-file-input"]').selectFile(
+			{
+				contents: Cypress.Buffer.concat([
+					Cypress.Buffer.from("%PDF-1.4\n"),
+					Cypress.Buffer.alloc(11 * 1024 * 1024, 0x20),
+				]),
+				fileName: "oversized-scan.pdf",
+				mimeType: "application/pdf",
+			},
+			{ force: true },
+		);
+		cy.wait("@uploadReceivedInvoice").its("response.statusCode").should("eq", 413);
+
+		cy.get('[data-sonner-toast]', { timeout: 15000 }).should("contain.text", "10 MB");
+		// Refused at the upload stage: no creation form appears.
+		cy.get('[data-cy="document-form"]').should("not.exist");
+
+		listReceivedInvoices().then((instances) => {
+			expect(
+				instances.find((i) => i.data.fileName === "oversized-scan.pdf"),
+				"un dépôt refusé au niveau multipart ne crée jamais de document",
+			).to.be.undefined;
+		});
+	});
+
 	it("regression 17: 'received-invoice' appears in the list of registered types", () => {
 		cy.request<{ id: string; label: string }[]>({ url: `${api}/api/documents/types` })
 			.its("body")

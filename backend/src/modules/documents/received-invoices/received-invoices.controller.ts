@@ -1,6 +1,20 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Put, Res } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import { memoryStorage } from 'multer';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
@@ -12,6 +26,7 @@ import { DEFAULT_TOLERANCE_PERCENT, ReconciliationService } from '../reconciliat
 import { ReconciliationSettings } from '../reconciliation/reconciliation-settings';
 import { ReceivedInvoiceReconciliationResult } from '../reconciliation/resolve-received-invoice-reconciliation';
 import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './received-invoices.service';
+import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
 
 /**
  * Two bespoke routes — everything else about "received-invoice" (listing,
@@ -29,6 +44,19 @@ import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './receive
  * (`POST /documents/types/:typeId/actions/:actionId`) — see `reconciliation-settings.ts`'s own header
  * for why the tolerance setting itself is stored the way it is, without a schema migration.
  */
+
+/**
+ * The exact shape `multer`'s `memoryStorage()` engine hands a `@UploadedFile()` parameter — see
+ * `documents.controller.ts`'s own identical interface for why this is duplicated rather than shared
+ * (independent callers, no `@types/multer` devDependency pulled in just for a type).
+ */
+interface UploadedMulterFile {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
 @ApiTags('documents')
 @Controller('documents/received-invoices')
 export class ReceivedInvoicesController {
@@ -137,7 +165,15 @@ export class ReceivedInvoicesController {
    * pre-filled "create received-invoice" form; nothing is saved until the user actually confirms via
    * `POST /api/documents/types/received-invoice/actions/receive`.
    */
+  // Same `memoryStorage()` + `limits.fileSize` story as `documents.controller.ts#uploadAttachment` —
+  // see that route's own comment: an oversized deposit is aborted at the multipart wire (a 413, via
+  // `FileInterceptor`'s built-in `MulterError` translation) before this handler, or
+  // `ReceivedInvoicesService`, ever runs.
   @Post('upload')
+  @UseInterceptors(
+    FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_RECEIVED_INVOICE_BYTES } }),
+  )
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload an inbound invoice file (PDF, or XML CII/UBL, or Factur-X)',
     description:
@@ -150,33 +186,29 @@ export class ReceivedInvoicesController {
     schema: {
       type: 'object',
       properties: {
-        fileName: { type: 'string', example: 'supplier-invoice-2026-08.pdf' },
-        mime: { type: 'string', example: 'application/pdf' },
-        base64: { type: 'string', description: 'Base64-encoded raw file bytes.' },
+        file: { type: 'string', format: 'binary' },
       },
-      required: ['fileName', 'mime', 'base64'],
+      required: ['file'],
     },
   })
   @ApiResponse({ status: 201, description: 'File stored, extraction preview returned' })
   @ApiResponse({
     status: 400,
-    description:
-      'Missing fileName/mime/base64, an empty file, a disallowed mime, or a magic-byte mismatch ' +
-      'against the declared mime',
+    description: 'Missing file, an empty file, a disallowed mime, or a magic-byte mismatch against it',
   })
   @ApiResponse({ status: 409, description: 'This exact file was already received (named, by hash)' })
   @ApiResponse({ status: 413, description: 'The file is over the size limit' })
   async upload(
     @ActiveCompany() companyId: string,
-    @Body() body: { fileName?: string; mime?: string; base64?: string },
+    @UploadedFile() file: UploadedMulterFile | undefined,
   ): Promise<UploadReceivedInvoicePreview> {
-    if (!body?.fileName || !body?.mime || !body?.base64) {
-      throw new BadRequestException('fileName, mime and base64 are required');
+    if (!file) {
+      throw new BadRequestException('A file is required.');
     }
     return this.receivedInvoices.upload(companyId, {
-      fileName: body.fileName,
-      mime: body.mime,
-      base64: body.base64,
+      fileName: file.originalname,
+      mime: file.mimetype,
+      bytes: file.buffer,
     });
   }
 

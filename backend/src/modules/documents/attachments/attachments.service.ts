@@ -35,27 +35,25 @@ export const ALLOWED_ATTACHMENT_MIMES: readonly string[] = [
 ];
 
 /**
- * Derived from — not independent of — `main.ts`'s own global `bodyParser.json({ limit: '1mb' })`:
- * every upload here travels as base64 inside that SAME JSON body (this codebase's one convention for
- * a binary upload — see `received-invoices.service.ts`'s own header on why there is no
- * multipart/`FileInterceptor` anywhere in this backend), so a raw file already larger than roughly
- * 3/4 of 1 MiB (base64 inflates by ~4/3, plus the small JSON envelope around it) is refused BY THE
- * BODY PARSER ITSELF, as a bare, unnamed 413 — before this service, or even this controller, ever
- * runs. This constant sits safely under that real ceiling precisely so this service's own, NAMED
- * refusal is the one a caller actually sees. Raising it for real (a phone photo is routinely several
- * MB) needs `main.ts`'s own body-parser limit raised FIRST — a separate, broader decision (it governs
- * every request body in this app, not only this endpoint), not made here. 750 KiB is the simplest
- * value that fits today's real ceiling; flagged in this feature's own report as a product choice to
- * validate, not a sourced constraint.
+ * The product ceiling for one attachment (2026-09-17 decision: multipart/form-data replaces the old
+ * base64-in-JSON wire format, which was itself capped at ~750 KiB only because it had to fit under
+ * `main.ts`'s own global `bodyParser.json({ limit: '1mb' })` after base64's ~4/3 inflation). A real
+ * upload no longer travels through that JSON body at all — `documents.controller.ts#uploadAttachment`
+ * reads it via multer's `FileInterceptor` straight off the multipart stream, buffered in memory
+ * (`memoryStorage()`), with its OWN `limits.fileSize` set to this exact constant — so an oversized
+ * file is aborted at the wire, before a single byte of it ever reaches this service. The check below
+ * is kept anyway, deliberately: it is what actually runs for any OTHER caller of this method (this
+ * file's own spec included) and gives a deterministic, named, byte-counted refusal rather than
+ * depending on multer's own generic "File too large" message being wired correctly everywhere.
  */
-export const MAX_ATTACHMENT_BYTES = 750 * 1024;
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 export interface AttachmentUploadInput {
   fileName: string;
   mime: string;
-  /** Base64-encoded raw file bytes — same wire convention every other binary upload in this backend
-   *  already uses (received-invoices.service.ts's own `UploadReceivedInvoiceInput.base64`). */
-  base64: string;
+  /** Raw file bytes, already read into memory by multer's `memoryStorage()` — never re-encoded
+   *  through base64 (see `MAX_ATTACHMENT_BYTES`'s own header for why that convention is gone). */
+  bytes: Buffer;
 }
 
 export interface AttachmentRef {
@@ -81,7 +79,7 @@ export class AttachmentsService {
       );
     }
 
-    const bytes = Buffer.from(input.base64, 'base64');
+    const bytes = input.bytes;
     if (bytes.length === 0) {
       throw new BadRequestException('The uploaded file is empty.');
     }

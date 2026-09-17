@@ -9,10 +9,12 @@ export interface SetBrandingDto {
   font?: string | null;
 }
 
-/** `POST /api/company/branding/logo` — same wire convention every other binary upload in this backend
- *  already uses (no multipart/`FileInterceptor` anywhere — see `received-invoices/storage.ts`'s own
- *  header): base64 bytes inside the JSON body. */
+/** `POST /api/company/branding/logo` — multipart/form-data, a single `file` part, the same wire
+ *  convention `attachments/attachments.service.ts` and `received-invoices/` already use. `bytes` is
+ *  the buffer multer's `memoryStorage()` handed `branding.controller.ts#uploadLogo`, re-encoded to
+ *  base64 only at the `logo-storage.ts` boundary (that module's own interface is untouched — see its
+ *  header for why it is keyed on content hash + mime, not a caller's wire format). */
 export interface UploadBrandingLogoDto {
   mime: string;
-  base64: string;
+  bytes: Buffer;
 }

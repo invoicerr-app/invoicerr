@@ -1,13 +1,39 @@
-import { BadRequestException, Body, Controller, Delete, Get, Post, Put, Res } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Put,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import { memoryStorage } from 'multer';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
+import { MAX_ATTACHMENT_BYTES } from '@/modules/documents/attachments/attachments.service';
 
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
-import { SetBrandingDto, UploadBrandingLogoDto } from './branding.dto';
+import { SetBrandingDto } from './branding.dto';
 import { BrandingService } from './branding.service';
+
+/**
+ * The exact shape `multer`'s `memoryStorage()` engine hands a `@UploadedFile()` parameter — see
+ * `documents.controller.ts`'s own identical interface for why this is duplicated rather than shared
+ * (independent callers, no `@types/multer` devDependency pulled in just for a type).
+ */
+interface UploadedMulterFile {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
 
 /**
  * Chantier B — document branding settings: accent color, one font from a
@@ -61,32 +87,40 @@ export class BrandingController {
     return this.branding.setBranding(companyId, body ?? {});
   }
 
+  // `memoryStorage()` + `limits.fileSize` — same story as `documents.controller.ts#uploadAttachment`:
+  // an oversized upload is aborted at the wire (a 413, via `FileInterceptor`'s built-in `MulterError`
+  // translation) before this handler, or `BrandingService`, ever runs. Reuses `MAX_ATTACHMENT_BYTES`
+  // rather than a logo-specific constant — a logo is one more image upload sharing the same product
+  // ceiling, not a different physical constraint.
   @Post('logo')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_ATTACHMENT_BYTES } }),
+  )
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload the company logo',
     description:
       'Same validation as documents/attachments: image/jpeg, image/png or image/webp only, up to ' +
-      '750 KiB. Replaces any previously uploaded logo.',
+      '10 MB. Replaces any previously uploaded logo.',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        mime: { type: 'string', example: 'image/png' },
-        base64: { type: 'string', description: 'Base64-encoded raw file bytes.' },
+        file: { type: 'string', format: 'binary' },
       },
-      required: ['mime', 'base64'],
+      required: ['file'],
     },
   })
   @ApiResponse({ status: 201, description: 'Logo uploaded' })
-  @ApiResponse({ status: 400, description: 'Missing mime/base64, an empty file, or a disallowed mime' })
+  @ApiResponse({ status: 400, description: 'Missing file, an empty file, or a disallowed mime' })
   @ApiResponse({ status: 413, description: 'The file is over the size limit' })
-  async uploadLogo(@ActiveCompany() companyId: string, @Body() body: UploadBrandingLogoDto) {
-    if (!body?.mime || !body?.base64) {
-      throw new BadRequestException('mime and base64 are required.');
+  async uploadLogo(@ActiveCompany() companyId: string, @UploadedFile() file: UploadedMulterFile | undefined) {
+    if (!file) {
+      throw new BadRequestException('A file is required.');
     }
-    return this.branding.uploadLogo(companyId, body);
+    return this.branding.uploadLogo(companyId, { mime: file.mimetype, bytes: file.buffer });
   }
 
   @Delete('logo')

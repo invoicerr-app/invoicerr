@@ -129,11 +129,12 @@ export class BrandingService {
 
   async uploadLogo(companyId: string, dto: UploadBrandingLogoDto): Promise<BrandingStatus> {
     await this.findCompanyOrThrow(companyId);
-    if (!dto?.mime || !dto?.base64) {
-      throw new BadRequestException('mime and base64 are required.');
-    }
 
-    const logoId = storeLogo(companyId, { mime: dto.mime, base64: dto.base64 });
+    // `logo-storage.ts#uploadLogo` is keyed on base64 (its own interface, untouched by the move to
+    // multipart at the wire — see that module's header) — the multer buffer is re-encoded here, once,
+    // losslessly; the mime/empty/size refusals it already throws (named, exactly like
+    // `AttachmentsService#upload`) are not duplicated a second time in this layer.
+    const logoId = storeLogo(companyId, { mime: dto.mime, base64: dto.bytes.toString('base64') });
     const updated = await prisma.company.update({
       where: { id: companyId },
       data: { brandingLogoId: logoId },

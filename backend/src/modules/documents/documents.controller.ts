@@ -11,9 +11,21 @@ import {
   Query,
   Res,
   Sse,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
+import { memoryStorage } from 'multer';
 import { Observable } from 'rxjs';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
@@ -26,6 +38,7 @@ import {
   ALLOWED_ATTACHMENT_MIMES,
   AttachmentRef,
   AttachmentsService,
+  MAX_ATTACHMENT_BYTES,
 } from './attachments/attachments.service';
 import { DocumentsService } from './documents.service';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
@@ -47,6 +60,22 @@ const DOCUMENT_EVENTS_HEARTBEAT_MS = 20_000;
 interface MessageEvent {
   data: unknown;
   type?: string;
+}
+
+/**
+ * The exact shape `multer`'s `memoryStorage()` engine hands a `@UploadedFile()` parameter — narrower
+ * than the library's own `Express.Multer.File` (which this backend would otherwise need an extra
+ * `@types/multer` devDependency purely for typings, since multer 2.x ships none of its own) but
+ * exactly the four fields `uploadAttachment` below reads. Duplicated verbatim in
+ * `received-invoices.controller.ts` rather than shared — the two upload routes are independent
+ * concerns that only happen to read the same multer shape, the same reasoning `upload-validation.ts`'s
+ * own header already gives for not importing its sibling allow-list either.
+ */
+interface UploadedMulterFile {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
 }
 
 // Every route below carries `@RequiresDocumentTypeScope('read'|'write')` (`utils/scope-check.ts`) —
@@ -525,8 +554,19 @@ export class DocumentsController {
   // (descriptors/types.ts). Company-scoped only, deliberately never document-id-scoped — see
   // AttachmentsService's own header for why this stays as generic as 'reference's own
   // "references/:entity/..." routes right above, rather than a bespoke "expense attachment" endpoint.
+  // `memoryStorage()` (never `dest: ...`'s default disk storage) — the file never touches this
+  // container's filesystem before `AttachmentsService.upload` content-addresses and writes it itself;
+  // `limits.fileSize` is multer's OWN ceiling, enforced by busboy while the multipart stream is still
+  // being read, so an oversized upload is aborted at the wire (a 413, via `FileInterceptor`'s built-in
+  // `MulterError` translation — see `@nestjs/platform-express/multer/multer/multer.utils.js`) before
+  // this handler, or even `AttachmentsService`, ever runs. `FileInterceptor`'s single-field contract
+  // (`.single('file')`) already refuses more than one file per request on its own.
   @Post('attachments/upload')
   @RequiresDocumentTypeScope('write')
+  @UseInterceptors(
+    FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_ATTACHMENT_BYTES } }),
+  )
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload an attachment (a photo or PDF of a receipt, today)',
     description:
@@ -537,30 +577,28 @@ export class DocumentsController {
     schema: {
       type: 'object',
       properties: {
-        fileName: { type: 'string', example: 'receipt.jpg' },
-        mime: { type: 'string', example: 'image/jpeg' },
-        base64: { type: 'string', description: 'Base64-encoded raw file bytes.' },
+        file: { type: 'string', format: 'binary' },
       },
-      required: ['fileName', 'mime', 'base64'],
+      required: ['file'],
     },
   })
   @ApiResponse({ status: 201, description: 'File stored — { fileRef, fileName, mime }' })
   @ApiResponse({
     status: 400,
-    description: 'Missing fileName/mime/base64, an empty file, or a disallowed mime',
+    description: 'Missing file, an empty file, or a disallowed mime',
   })
   @ApiResponse({ status: 413, description: 'The file is over the size limit' })
   uploadAttachment(
     @ActiveCompany() companyId: string,
-    @Body() body: { fileName?: string; mime?: string; base64?: string },
+    @UploadedFile() file: UploadedMulterFile | undefined,
   ): Promise<AttachmentRef> {
-    if (!body?.fileName || !body?.mime || !body?.base64) {
-      throw new BadRequestException('fileName, mime and base64 are required');
+    if (!file) {
+      throw new BadRequestException('A file is required.');
     }
     return this.attachmentsService.upload(companyId, {
-      fileName: body.fileName,
-      mime: body.mime,
-      base64: body.base64,
+      fileName: file.originalname,
+      mime: file.mimetype,
+      bytes: file.buffer,
     });
   }
 
