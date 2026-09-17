@@ -466,6 +466,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         'doc-1',
         'sending',
         validQuoteData,
+        ['draft', 'send_failed'],
       );
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
         companyId: 'company-1',

@@ -784,7 +784,22 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       throw new Error('Cannot cancel an invoice that has not been saved yet.');
     }
 
-    const document = await updateDocumentStatus(companyId, 'invoice', documentId, 'cancelled');
+    // `fromStatuses` pinned to CANCEL_TRANSITIONS' own `from` (invoice.descriptor.ts) — the descriptor
+    // gate above already checked this a moment ago, but that check and this write are two separate
+    // round trips: two browser tabs (or a double-click) both racing "cancel" on the SAME invoice would
+    // otherwise both read "sent", both pass the gate, and both write "cancelled" — a second, spurious
+    // DOCUMENT_CANCELLED webhook for a cancellation that already happened. Compare-and-swap turns the
+    // loser into a named 409 instead, before it ever reaches the webhook dispatch below.
+    const document = await updateDocumentStatus(
+      companyId,
+      'invoice',
+      documentId,
+      'cancelled',
+      null,
+      undefined,
+      undefined,
+      ['sent', 'send_failed'],
+    );
 
     if (deps.webhooks) {
       try {

@@ -1,3 +1,5 @@
+import { ConflictException } from '@nestjs/common';
+
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import * as archiveOnSend from '../archive/archive-on-send';
@@ -89,6 +91,7 @@ describe('runAsyncSendAction', () => {
         'doc-1',
         'sending',
         baseInput.data,
+        ['draft', 'send_failed'],
       );
       // THE RACE THIS FIX CLOSES (see async-send.ts's own header): numbering must happen BEFORE
       // the job is enqueued, never after — a real worker can be faster than that.
@@ -171,6 +174,59 @@ describe('runAsyncSendAction', () => {
 
       expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
       expect(result.document).toMatchObject({ number: 3, displayNumber: 'QUOTE-2026-0003' });
+    });
+
+    it('two concurrent "send" calls on the SAME draft: the loser 409s instead of both numbering and enqueueing', async () => {
+      (persistence.findOwnedDocument as jest.Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: baseInput.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      // Simulates the real `updateMany({ ..., status: { in: ['draft', 'send_failed'] } })`
+      // compare-and-swap (persistence.ts) losing its second race: only the FIRST caller's write
+      // actually flips "draft" to "sending", the second finds the row already moved on.
+      let calls = 0;
+      (persistence.upsertDocument as jest.Mock).mockImplementation(async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            id: 'doc-1',
+            typeId: 'quote',
+            status: 'sending',
+            data: baseInput.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            number: null,
+            displayNumber: null,
+          };
+        }
+        throw new ConflictException('Document "doc-1" is no longer in one of the expected statuses.');
+      });
+      (takeNumber.takeDocumentNumberForTransition as jest.Mock).mockResolvedValue({
+        number: 3,
+        displayNumber: 'QUOTE-2026-0003',
+      });
+      const queueDispatcher = { enqueueAction: jest.fn().mockResolvedValue(undefined) };
+      const deliver = jest.fn();
+
+      const call = () => runAsyncSendAction({ ...baseInput, queueDispatcher, deliver });
+      const results = await Promise.allSettled([call(), call()]);
+
+      // Which of the two literally wins is a scheduling detail — what matters is that EXACTLY one
+      // does, never both and never neither.
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+      // The exact bug this closes: without the CAS, both calls would have taken a number and enqueued
+      // their own job for the same document.
+      expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledTimes(1);
+      expect(queueDispatcher.enqueueAction).toHaveBeenCalledTimes(1);
+      expect(deliver).not.toHaveBeenCalled();
     });
 
     // `onNumbered` — a generic, type-agnostic hook (see async-send.ts's own header on why this core
@@ -388,6 +444,7 @@ describe('runAsyncSendAction', () => {
         'doc-1',
         'sending',
         resolvedData, // NEVER baseInput.data — this is the whole point of the fix
+        ['draft', 'send_failed'],
       );
       expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith(
         expect.objectContaining({ payload: { data: resolvedData, params: baseInput.params } }),
@@ -422,6 +479,7 @@ describe('runAsyncSendAction', () => {
         'doc-1',
         'sending',
         baseInput.data,
+        ['draft', 'send_failed'],
       );
     });
   });

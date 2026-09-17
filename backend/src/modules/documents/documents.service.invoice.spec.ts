@@ -1311,6 +1311,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
         'doc-1',
         'sending',
         domesticData, // untouched — still 20%, the rate the user actually typed
+        ['draft', 'send_failed'],
       );
     });
 

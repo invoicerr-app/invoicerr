@@ -1,3 +1,5 @@
+import { ConflictException } from '@nestjs/common';
+
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
@@ -215,6 +217,10 @@ describe('registerPurchaseOrderActions', () => {
       'purchase-order',
       'po-1',
       'cancelled',
+      null,
+      undefined,
+      undefined,
+      ['sent', 'send_failed'],
     );
     expect(result.document?.status).toBe('cancelled');
     expect(result.changed).toBe(true);
@@ -228,5 +234,42 @@ describe('registerPurchaseOrderActions', () => {
       handler!({ companyId: 'company-1', typeId: 'purchase-order', data: {}, params: {} }),
     ).rejects.toThrow(/has not been saved yet/);
     expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+  });
+
+  it('two concurrent "cancel-order" calls on the same record: the loser gets the 409 persistence.ts raises, never a second write', async () => {
+    const { registry } = buildDeps();
+    const handler = registry.resolve('purchase-order', 'cancel-order')!;
+
+    // Simulates the real `updateMany({ ..., status: { in: fromStatuses } })` compare-and-swap
+    // (persistence.ts) losing its second race: the first caller commits, the second finds the row
+    // already moved on and gets the named ConflictException persistence.ts raises on `count === 0`.
+    let calls = 0;
+    (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return {
+          id: 'po-1',
+          typeId: 'purchase-order',
+          status: 'cancelled',
+          data: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+      throw new ConflictException('Document "po-1" is no longer in one of the expected statuses.');
+    });
+
+    const call = () =>
+      handler({ companyId: 'company-1', documentId: 'po-1', typeId: 'purchase-order', data: {}, params: {} });
+    const results = await Promise.allSettled([call(), call()]);
+
+    // Which of the two literally wins is a scheduling detail — what matters is that EXACTLY one does,
+    // never both and never neither.
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+    expect(persistence.updateDocumentStatus).toHaveBeenCalledTimes(2);
   });
 });

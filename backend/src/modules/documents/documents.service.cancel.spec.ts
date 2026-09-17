@@ -112,6 +112,10 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
         'invoice',
         'doc-1',
         'cancelled',
+        null,
+        undefined,
+        undefined,
+        ['sent', 'send_failed'],
       );
     });
 
@@ -352,6 +356,54 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
         data: validInvoiceData,
       });
       expect(result.document?.status).toBe('cancelled');
+    });
+  });
+
+  describe('two concurrent "cancel" calls on the SAME invoice — the compare-and-swap this action now passes', () => {
+    it('the loser gets a 409, never a second DOCUMENT_CANCELLED webhook', async () => {
+      (countryPolicy.resolveCompanyCountryCode as jest.Mock).mockResolvedValue('FR');
+      mockDocument({ status: 'sent' }); // BOTH concurrent calls read this same, still-"sent" snapshot.
+
+      // `persistence.updateDocumentStatus` is mocked here, not the real `updateMany` — this proves the
+      // ACTION propagates a 409 and never dispatches a second webhook, the same "compare-and-swap
+      // primitive already proven in persistence.spec.ts" split every other caller in this batch holds.
+      let calls = 0;
+      (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            id: 'doc-1',
+            typeId: 'invoice',
+            status: 'cancelled',
+            data: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        }
+        throw new ConflictException(
+          'Document "doc-1" is no longer in one of the expected statuses (sent, send_failed) — ' +
+            'another request already changed it concurrently.',
+        );
+      });
+      const webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
+      const service = buildService(webhooks);
+
+      const results = await Promise.allSettled([
+        service.runAction('company-1', 'invoice', 'cancel', { documentId: 'doc-1', data: validInvoiceData }),
+        service.runAction('company-1', 'invoice', 'cancel', { documentId: 'doc-1', data: validInvoiceData }),
+      ]);
+
+      // Which of the two literally wins is a scheduling detail (both start from the identical "sent"
+      // snapshot) — what matters is that EXACTLY one does, never both and never neither.
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledTimes(2);
+      // The exact bug this closes: without the CAS, both calls would have committed, each dispatching
+      // its own DOCUMENT_CANCELLED — a third-party integration seeing the cancellation twice.
+      expect(webhooks.dispatch).toHaveBeenCalledTimes(1);
     });
   });
 });

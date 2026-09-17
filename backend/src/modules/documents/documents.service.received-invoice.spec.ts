@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
@@ -139,6 +139,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
         // is something to warn about.
         lineTotalWarnings: [],
       },
+      ['received'],
     );
   });
 
@@ -212,6 +213,32 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     expect(result.document).toMatchObject({ status: 'received' });
   });
 
+  it('a "receive" edit racing a concurrent "approve" on the same record: the loser 409s instead of resetting the record back to "received"', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
+    let calls = 0;
+    (persistence.upsertDocument as jest.Mock).mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) return fakeRecord({ data: { supplier: 'Acme Supplies Ltd' } });
+      throw new ConflictException('Document "ri-1" is no longer in one of the expected statuses.');
+    });
+    const { service } = buildService();
+
+    const call = () =>
+      service.runAction('company-1', 'received-invoice', 'receive', {
+        documentId: 'ri-1',
+        data: { supplier: 'Acme Supplies Ltd' },
+      });
+    const results = await Promise.allSettled([call(), call()]);
+
+    // Which of the two literally wins is a scheduling detail (both start from the identical "received"
+    // snapshot) — what matters is that EXACTLY one does, never both and never neither.
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+  });
+
   // "The role set at link time": both the auto-match (upload time) and a
   // manual pick converge on THIS one handler, so both are proven by the same two tests.
   it('"receive" marks the linked client as a supplier when `data.supplierClient` is set', async () => {
@@ -256,6 +283,10 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
       'received-invoice',
       'ri-1',
       'approved',
+      null,
+      undefined,
+      undefined,
+      ['received'],
     );
   });
 
@@ -297,6 +328,36 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     expect(pusher.pushApproved).not.toHaveBeenCalled();
   });
 
+  it('two concurrent "approve" calls on the same record: the loser 409s and never pushes a second PDP status', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
+    let calls = 0;
+    (persistence.updateDocumentStatus as jest.Mock).mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) return fakeRecord({ status: 'approved', data: { pdpInboundId: '604667' } });
+      throw new ConflictException('Document "ri-1" is no longer in one of the expected statuses.');
+    });
+    const pusher: PdpReceptionStatusPusher = {
+      pushTakenInCharge: jest.fn(),
+      pushApproved: jest.fn(),
+      pushRejected: jest.fn(),
+      pushPaid: jest.fn(),
+    };
+    const { service } = buildService(pusher);
+
+    const call = () =>
+      service.runAction('company-1', 'received-invoice', 'approve', { documentId: 'ri-1', data: {} });
+    const results = await Promise.allSettled([call(), call()]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+    // The exact bug this closes: without the CAS, both calls would have committed, each pushing its
+    // OWN "approved" status to PDP for the same deposit.
+    expect(pusher.pushApproved).toHaveBeenCalledTimes(1);
+  });
+
   it('"reject": received -> rejected, requires and persists a `reason`, pushes PDP\'s "rejected" status', async () => {
     (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
       fakeRecord({ status: 'received', data: { pdpInboundId: '604667' } }),
@@ -327,8 +388,51 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
       'ri-1',
       'rejected',
       expect.objectContaining({ pdpInboundId: '604667', rejectionReason: 'Wrong purchase order' }),
+      ['received'],
     );
     expect(pusher.pushRejected).toHaveBeenCalledWith('company-1', '604667', 'Wrong purchase order');
+  });
+
+  it('two concurrent "reject" calls on the same record: the loser 409s instead of silently discarding the winner\'s rejectionReason', async () => {
+    (persistence.findOwnedDocument as jest.Mock).mockResolvedValue(
+      fakeRecord({ status: 'received', data: { pdpInboundId: '604667' } }),
+    );
+    let calls = 0;
+    (persistence.upsertDocument as jest.Mock).mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return fakeRecord({
+          status: 'rejected',
+          data: { pdpInboundId: '604667', rejectionReason: 'Duplicate' },
+        });
+      }
+      throw new ConflictException('Document "ri-1" is no longer in one of the expected statuses.');
+    });
+    const pusher: PdpReceptionStatusPusher = {
+      pushTakenInCharge: jest.fn(),
+      pushApproved: jest.fn(),
+      pushRejected: jest.fn(),
+      pushPaid: jest.fn(),
+    };
+    const { service } = buildService(pusher);
+
+    const call = (reason: string) =>
+      service.runAction('company-1', 'received-invoice', 'reject', {
+        documentId: 'ri-1',
+        data: {},
+        params: { reason },
+      });
+    const results = await Promise.allSettled([call('Duplicate'), call('Wrong amount')]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+    // The exact bug this closes: without the CAS, the second call's `mergedData` (computed from the
+    // SAME stale `existing` read) would have silently overwritten the first — a real decision replaced
+    // by a stale one, not merely a duplicate.
+    expect(pusher.pushRejected).toHaveBeenCalledTimes(1);
   });
 
   it('"reject" is refused (400) without a reason — the DGFiP buyer-refusal status is "obligatoirement motivé"', async () => {

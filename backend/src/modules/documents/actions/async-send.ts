@@ -381,7 +381,18 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     if (resolved) data = resolved;
   }
 
-  let sending = await upsertDocument(companyId, typeId, documentId, 'sending', data);
+  // `fromStatuses: ['draft', 'send_failed']` — every type's own SEND_TRANSITIONS starts "send" from
+  // exactly these two statuses (this file's own header). Without this guard, two concurrent "send"
+  // calls on the SAME draft (a double-click, a second tab) would both still read a pre-"sending"
+  // status a moment ago and both reach this exact line, each persisting "sending" and each enqueueing
+  // its OWN job below — the phase-2 claim further up in this function only ever protects a record
+  // ALREADY "sending" against a THIRD concurrent caller, it does nothing for two callers racing to
+  // become the FIRST to get there. A `ConflictException` here propagates unchanged: the caller sees
+  // "the document has changed, reload" rather than a silently duplicated send.
+  let sending = await upsertDocument(companyId, typeId, documentId, 'sending', data, [
+    'draft',
+    'send_failed',
+  ]);
 
   // The fact is ACQUIRED right above (Postgres already holds
   // "sending"); publishing here, BEFORE numbering/enqueueing, means a browser's own SSE connection

@@ -28,8 +28,21 @@ export function registerGoodsReceiptActions(
       throw new Error('Cannot record a goods receipt that has not been saved yet.');
     }
 
+    // `fromStatuses: ['draft']` (RECORD_TRANSITIONS, goods-receipt.descriptor.ts) — two concurrent
+    // "record" calls on the same draft would otherwise both pass the earlier `availableWhen: ['draft']`
+    // read and both flip the status; the compare-and-swap makes the second one a named 409 instead of a
+    // silently-repeated recording.
     return {
-      document: await updateDocumentStatus(companyId, 'goods-receipt', documentId, 'recorded'),
+      document: await updateDocumentStatus(
+        companyId,
+        'goods-receipt',
+        documentId,
+        'recorded',
+        null,
+        undefined,
+        undefined,
+        ['draft'],
+      ),
       changed: true,
       message: 'Recorded.',
     };

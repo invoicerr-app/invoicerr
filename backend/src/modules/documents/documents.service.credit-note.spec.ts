@@ -181,6 +181,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       'cn-1',
       'sending',
       validCreditNoteData,
+      ['draft', 'send_failed'],
     );
     expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
       companyId: 'company-1',

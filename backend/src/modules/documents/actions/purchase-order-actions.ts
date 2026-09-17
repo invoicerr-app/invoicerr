@@ -97,7 +97,20 @@ export function registerPurchaseOrderActions(registry: ActionRegistry, deps: Pur
       throw new Error('Cannot cancel a purchase order that has not been saved yet.');
     }
 
-    const document = await updateDocumentStatus(companyId, 'purchase-order', documentId, 'cancelled');
+    // `fromStatuses` — see invoice-actions.ts's own identical "cancel" comment: two concurrent
+    // "cancel-order" calls (or a double-click) would otherwise both pass the earlier country-policy
+    // read and both flip the status, the second one dispatching a spurious second
+    // DOCUMENT_CANCELLED. The compare-and-swap turns that second write into a named 409 instead.
+    const document = await updateDocumentStatus(
+      companyId,
+      'purchase-order',
+      documentId,
+      'cancelled',
+      null,
+      undefined,
+      undefined,
+      ['sent', 'send_failed'],
+    );
 
     if (deps.webhooks) {
       try {

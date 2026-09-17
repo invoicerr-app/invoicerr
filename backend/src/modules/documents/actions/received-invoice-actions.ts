@@ -89,12 +89,21 @@ export function registerReceivedInvoiceActions(
   registry.register('received-invoice', 'receive', async ({ companyId, documentId, data }) => {
     const lineTotalWarnings = checkReceivedInvoiceLineTotals(data);
     const dataWithWarnings = { ...data, lineTotalWarnings };
+    // `fromStatuses: ['received']` — every shipped country's own `receive` rule (country-policy/data/
+    // *.json) narrows re-editing this same way and for the same reason ("once approved or rejected,
+    // the review decision must no longer be silently undone by a new field save"), but that narrowing
+    // is itself just an earlier, separate read: a "receive" edit racing a concurrent "approve"/"reject"
+    // could otherwise still land AFTER the review decision and silently reset the status back to
+    // "received", undoing it. Ignored on the create path just below (`documentId` undefined — nothing
+    // to compare against yet), the same "fromStatuses is a no-op for a genuinely new row" contract
+    // `upsertDocument` (persistence.ts) already documents.
     const document = await upsertDocument(
       companyId,
       'received-invoice',
       documentId,
       'received',
       dataWithWarnings,
+      ['received'],
     );
 
     const supplierClientId = typeof data.supplierClient === 'string' ? data.supplierClient : undefined;
@@ -124,7 +133,21 @@ export function registerReceivedInvoiceActions(
     if (!documentId) {
       throw new Error('Cannot approve a "received-invoice" document that has not been saved yet.');
     }
-    const document = await updateDocumentStatus(companyId, 'received-invoice', documentId, 'approved');
+    // `fromStatuses: ['received']` (APPROVE_TRANSITIONS) — two concurrent "approve" clicks (or an
+    // "approve" racing a "reject" on the same record) would otherwise both pass the earlier
+    // `availableWhen: ['received']` read and both commit, each pushing its OWN "approved" status to
+    // PDP for the same deposit. The compare-and-swap lets only the first through; the second gets a
+    // named 409 before `pdpStatusPusher` is ever reached.
+    const document = await updateDocumentStatus(
+      companyId,
+      'received-invoice',
+      documentId,
+      'approved',
+      null,
+      undefined,
+      undefined,
+      ['received'],
+    );
 
     const pdpInboundId = readPdpInboundId(document.data);
     if (pdpInboundId) {
@@ -149,7 +172,16 @@ export function registerReceivedInvoiceActions(
 
     const existing = await findOwnedDocument(companyId, 'received-invoice', documentId);
     const mergedData = { ...(existing.data as Record<string, unknown> | null), rejectionReason: reason };
-    const document = await upsertDocument(companyId, 'received-invoice', documentId, 'rejected', mergedData);
+    // `fromStatuses: ['received']` (REJECT_TRANSITIONS) — `mergedData` above was computed from
+    // `existing`, read a moment ago: an "approve" (or another "reject") that commits in the gap would
+    // otherwise be silently overwritten by THIS write, which carries none of it — not just the
+    // rejection reason, the entire record reverts to whatever `existing` looked like before the other
+    // call's own change. Folding the guard into this SAME write (rather than a second, separate
+    // status-only call) is what makes it atomic: either this exact `mergedData` — reason included —
+    // lands in one write, or the whole thing 409s and nothing is persisted.
+    const document = await upsertDocument(companyId, 'received-invoice', documentId, 'rejected', mergedData, [
+      'received',
+    ]);
 
     const pdpInboundId = readPdpInboundId(document.data);
     if (pdpInboundId) {
