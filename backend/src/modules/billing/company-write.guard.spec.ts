@@ -17,16 +17,19 @@ const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
 // `userId: null` (never a bare `undefined` argument — JS default parameters trigger on `undefined`,
 // which would silently fall back to `'user-1'` instead of producing a userless request) means "no
-// user on this request".
+// user on this request". `scopes` defaults to `null` — a real human session, per `RequestWithUser`'s
+// own header (`null` for session auth, a `string[]` for an API key) — a test simulating an API-key
+// caller passes an array (possibly empty) explicitly.
 function createContext(
   method: string,
   companyId: string | null | undefined,
   handler: (...args: unknown[]) => unknown = () => undefined,
   userId: string | null = 'user-1',
+  scopes: string[] | null = null,
 ): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () => ({ method, companyId, user: userId ? { id: userId } : undefined }),
+      getRequest: () => ({ method, companyId, user: userId ? { id: userId } : undefined, scopes }),
     }),
     getHandler: () => handler,
     getClass: () => class {},
@@ -92,6 +95,32 @@ describe('CompanyWriteGuard', () => {
         guard.canActivate(createContext('POST', 'company-1', () => undefined, null)),
       ).resolves.toBe(true);
       expect(assertSeat).not.toHaveBeenCalled();
+    });
+
+    it("checks an API-key request's seat against its OWN HOLDER, and allows it when that holder is seated", async () => {
+      getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
+      assertSeat.mockResolvedValue(undefined);
+      // `scopes: []` — an API key, per `AuthGuard` (a `string[]`, possibly empty, vs. `null` for a
+      // real human session). `AuthGuard` sets `request.user` to the KEY'S OWN HOLDER
+      // (`apiKey.user` — never a company-wide identity independent of any member), so the seat check
+      // below is asking exactly the right question: does the member who created this key hold a seat.
+      await expect(
+        guard.canActivate(createContext('POST', 'company-1', () => undefined, 'holder-1', [])),
+      ).resolves.toBe(true);
+      expect(assertSeat).toHaveBeenCalledWith('company-1', 'holder-1');
+    });
+
+    it('refuses an API-key request, named SEAT_REQUIRED, when its holder has lost their own seat — a member with no seat can do nothing, including through a key it created while still seated', async () => {
+      getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
+      assertSeat.mockRejectedValue(
+        new ForbiddenException({ message: 'no free seat', code: 'SEAT_REQUIRED' }),
+      );
+      const err = await guard
+        .canActivate(createContext('POST', 'company-1', () => undefined, 'waiting-holder', []))
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
+      expect(assertSeat).toHaveBeenCalledWith('company-1', 'waiting-holder');
     });
 
     it('refuses a write from a BLOCKED company, named COMPANY_BLOCKED', async () => {

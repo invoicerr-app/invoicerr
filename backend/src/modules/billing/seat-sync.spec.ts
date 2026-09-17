@@ -1,7 +1,7 @@
 import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 import { countCompanySeats, NoFreeSeatError, withSeatReservation } from './seat-sync';
 
 /** A fake interactive-transaction client — `prisma.$transaction(async (tx) => ...)` hands the callback
@@ -41,6 +41,7 @@ jest.mock('./company-subscription.store');
 const count = prisma.userCompany.count as jest.Mock;
 const transaction = prisma.$transaction as jest.Mock;
 const getOrCreate = getOrCreateCompanySubscription as jest.Mock;
+const lockRow = lockCompanySubscriptionRow as jest.Mock;
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
@@ -135,13 +136,13 @@ describe('withSeatReservation', () => {
     expect(createMembership).toHaveBeenCalledWith(tx);
   });
 
-  it('holds a row lock (SELECT … FOR UPDATE) for the whole check-then-create-then-assign sequence', async () => {
+  it('holds a row lock (via the shared lockCompanySubscriptionRow) for the whole check-then-create-then-assign sequence', async () => {
     getOrCreate.mockResolvedValue({});
     const tx = stubTransaction({ alreadyMember: false, sub: { seats: 5 }, headcount: 0 });
 
     await withSeatReservation('company-1', 'user-1', jest.fn().mockResolvedValue(undefined));
 
-    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(lockRow).toHaveBeenCalledWith(tx, 'company-1');
   });
 });
 

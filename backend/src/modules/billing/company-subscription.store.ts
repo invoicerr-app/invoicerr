@@ -7,7 +7,7 @@
  */
 import prisma from '@/prisma/prisma.service';
 
-import { CompanySubscription } from '../../../prisma/generated/prisma/client';
+import { CompanySubscription, Prisma } from '../../../prisma/generated/prisma/client';
 import { computeRecoveredStatus, computeTrialWindow } from './lifecycle';
 
 /**
@@ -75,6 +75,82 @@ export async function recomputeStatusForVanishedSubscription(
       lastPolarFactAt: anchor,
     },
   });
+}
+
+/**
+ * Atomically reserves the "a checkout is in flight for this company" window with a single conditional
+ * `updateMany` — never a read (`findUnique`) followed by a separate `update`, which leaves a gap where
+ * two concurrent requests (a double-click, two tabs, a client retry) both read "nothing in flight" and
+ * both go on to open a competing Polar checkout session. `checkout-session.ts` used to have exactly
+ * that gap: it read `lastCheckoutStartedAt` before ever calling Polar and only wrote it back after a
+ * checkout succeeded — check-then-act, not atomic. Postgres serializes the two `UPDATE`s against the
+ * same row: whichever commits first makes the `WHERE` clause false for the other (its `count` comes
+ * back `0`), so at most one caller ever proceeds to actually call Polar. Returns the timestamp it
+ * stamped on success, `null` when the window was already held by someone else.
+ */
+export async function reserveCheckoutWindow(
+  companyId: string,
+  windowMs: number,
+  now: Date = new Date(),
+): Promise<Date | null> {
+  const cutoff = new Date(now.getTime() - windowMs);
+  const { count } = await prisma.companySubscription.updateMany({
+    where: {
+      companyId,
+      OR: [{ lastCheckoutStartedAt: null }, { lastCheckoutStartedAt: { lt: cutoff } }],
+    },
+    data: { lastCheckoutStartedAt: now },
+  });
+  return count > 0 ? now : null;
+}
+
+/**
+ * Releases a reservation this exact call made — matched by the timestamp `reserveCheckoutWindow`
+ * stamped, so a stale caller (an old attempt that is only now unwinding) can never clobber a fresh
+ * reservation someone else has since taken. Used when the Polar call the reservation was guarding never
+ * actually produced a checkout (a network failure, a non-tax-id 422…), so the genuine next attempt is
+ * not stuck behind the full `CHECKOUT_IN_PROGRESS_WINDOW_MS` for a checkout that was never opened.
+ */
+export async function releaseCheckoutWindow(companyId: string, reservedAt: Date): Promise<void> {
+  await prisma.companySubscription.updateMany({
+    where: { companyId, lastCheckoutStartedAt: reservedAt },
+    data: { lastCheckoutStartedAt: null },
+  });
+}
+
+/**
+ * Records the Polar customer id `customer-provisioning.ts` just confirmed or created for this company —
+ * the ONE write that makes that reconciliation pass idempotent across TICKS, not just within one: once
+ * this lands, the company's own `polarCustomerId` is no longer `null`, so the WHERE filter that pass
+ * queries with never selects this company again, and this app stops re-checking a Polar customer that
+ * was already known to exist. `getOrCreateCompanySubscription` first because a company can be
+ * provisioned a Polar customer before it has ever needed a `CompanySubscription` row of its own (its
+ * very first boot/sweep pass after signup, still TRIAL, no row yet) — a bare `update` would throw on
+ * that company instead of creating the row it needs to hold this fact.
+ */
+export async function recordPolarCustomerId(companyId: string, polarCustomerId: string): Promise<void> {
+  await getOrCreateCompanySubscription(companyId);
+  await prisma.companySubscription.update({ where: { companyId }, data: { polarCustomerId } });
+}
+
+/**
+ * Takes a `SELECT … FOR UPDATE` row lock on this company's own `company_subscription` row, held for
+ * the rest of `tx`'s own transaction — the ONE place this exact lock is issued, shared by every seat
+ * bookkeeping operation that must not race another one for the SAME company:
+ * `seat-sync.ts#withSeatReservation` (a new membership's capacity check + desk assignment),
+ * `seats-view.ts#ensureSeatIndexesAssigned` (backfilling a stale/missing desk number) and
+ * `seats-view.ts#moveMemberSeat` (an OWNER/ADMIN dragging a member onto a specific desk). None of these
+ * callers necessarily need to CHANGE this row itself — they lock it purely to serialize against each
+ * other, because `company_subscription` is the one row per company every seat-related decision is
+ * already scoped by, so it doubles as this lock's own natural key. The caller is responsible for making
+ * sure the row exists first (`getOrCreateCompanySubscription`) — a `SELECT … FOR UPDATE` against a
+ * nonexistent row locks nothing and returns no error, which would silently defeat the whole point.
+ */
+export async function lockCompanySubscriptionRow(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM company_subscription WHERE "companyId" = ${companyId} FOR UPDATE`;
 }
 
 /** Every subscription NOT already terminal (`DELETED`) — what the lifecycle sweep walks each tick.

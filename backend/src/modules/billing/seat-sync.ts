@@ -43,7 +43,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { isBillingEnabled } from './billing-flag';
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 
 export async function countCompanySeats(companyId: string): Promise<number> {
   return prisma.userCompany.count({ where: { companyId } });
@@ -103,8 +103,10 @@ export async function withSeatReservation<T>(
   return prisma.$transaction(
     async (tx) => {
       // Row lock, held through the whole check-then-create-then-assign sequence below — see this
-      // file's own header on why.
-      await tx.$queryRaw`SELECT id FROM company_subscription WHERE "companyId" = ${companyId} FOR UPDATE`;
+      // file's own header on why. `lockCompanySubscriptionRow` is the ONE place this exact lock is
+      // issued (`company-subscription.store.ts`'s own header) — `seats-view.ts` takes the same lock
+      // for its own seat-index bookkeeping, for the same reason.
+      await lockCompanySubscriptionRow(tx, companyId);
 
       const alreadyMember = await tx.userCompany.findUnique({
         where: { userId_companyId: { userId, companyId } },

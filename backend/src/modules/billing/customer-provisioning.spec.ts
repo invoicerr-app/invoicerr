@@ -2,12 +2,15 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { BillingCustomerClient } from './billing-customer';
-import { reconcileMissingCompanyCustomers } from './customer-provisioning';
+import { recordPolarCustomerId } from './company-subscription.store';
+import { CUSTOMER_PROVISIONING_BATCH_SIZE, reconcileMissingCompanyCustomers } from './customer-provisioning';
 
 jest.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: { company: { findMany: jest.fn() } },
 }));
+
+jest.mock('./company-subscription.store');
 
 jest.mock('@/logger/logger.service', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -15,6 +18,10 @@ jest.mock('@/logger/logger.service', () => ({
 
 const findMany = prisma.company.findMany as jest.Mock;
 const warn = logger.warn as jest.Mock;
+const recordCustomerId = recordPolarCustomerId as jest.Mock;
+
+/** The WHERE this file's own query filters on — a company still missing a known Polar customer id. */
+const MISSING_CUSTOMER_WHERE = { OR: [{ subscription: null }, { subscription: { polarCustomerId: null } }] };
 
 function notFoundError(): Error {
   return Object.assign(new Error('ResourceNotFound'), { statusCode: 404 });
@@ -233,5 +240,98 @@ describe('reconcileMissingCompanyCustomers', () => {
         details: { companyId: 'company-a', statusCode: 500, message: 'Internal Server Error' },
       }),
     );
+  });
+
+  it('queries only companies without a known Polar customer id yet — never rescans a provisioned company', async () => {
+    findMany.mockResolvedValue([]);
+
+    await reconcileMissingCompanyCustomers(fakeClient());
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: MISSING_CUSTOMER_WHERE }));
+  });
+
+  it('persists the Polar customer id for an already-existing customer, so the next pass never re-checks it', async () => {
+    findMany.mockResolvedValue([COMPANY_A]);
+    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create: jest.fn() } });
+
+    await reconcileMissingCompanyCustomers(client);
+
+    expect(recordCustomerId).toHaveBeenCalledWith('company-a', 'cus_a');
+  });
+
+  it('persists the Polar customer id for a newly-created customer', async () => {
+    findMany.mockResolvedValue([COMPANY_A]);
+    const getExternal = jest.fn().mockRejectedValue(notFoundError());
+    const create = jest.fn().mockResolvedValue({ id: 'cus_new', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create } });
+
+    await reconcileMissingCompanyCustomers(client);
+
+    expect(recordCustomerId).toHaveBeenCalledWith('company-a', 'cus_new');
+  });
+
+  it('never counts a company as failed just because persisting its confirmed customer id failed', async () => {
+    findMany.mockResolvedValue([COMPANY_A]);
+    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create: jest.fn() } });
+    recordCustomerId.mockRejectedValue(new Error('db is down'));
+
+    const summary = await reconcileMissingCompanyCustomers(client);
+
+    expect(summary).toEqual({
+      total: 1,
+      alreadyExisted: 1,
+      created: 0,
+      emailTaken: 0,
+      skipped: 0,
+      failed: 0,
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to persist'),
+      expect.objectContaining({
+        category: 'billing',
+        details: expect.objectContaining({ companyId: 'company-a' }),
+      }),
+    );
+  });
+
+  it('paginates: fetches a second batch by cursor once a full batch comes back, and stops once a short batch comes back', async () => {
+    const fullBatch = Array.from({ length: CUSTOMER_PROVISIONING_BATCH_SIZE }, (_, i) => ({
+      id: `company-${i}`,
+      name: `Company ${i}`,
+      email: `c${i}@test.com`,
+      billingEmail: null,
+    }));
+    findMany.mockResolvedValueOnce(fullBatch).mockResolvedValueOnce([COMPANY_B]);
+    const getExternal = jest.fn().mockResolvedValue({ id: 'cus_x', type: 'individual' });
+    const client = fakeClient({ customers: { getExternal, create: jest.fn() } });
+
+    const summary = await reconcileMissingCompanyCustomers(client);
+
+    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: MISSING_CUSTOMER_WHERE,
+        cursor: { id: `company-${CUSTOMER_PROVISIONING_BATCH_SIZE - 1}` },
+        skip: 1,
+      }),
+    );
+    expect(summary.total).toBe(CUSTOMER_PROVISIONING_BATCH_SIZE + 1);
+  });
+
+  it('never issues a second query when the first batch comes back short of the batch size', async () => {
+    findMany.mockResolvedValue([COMPANY_A]);
+    const client = fakeClient({
+      customers: {
+        getExternal: jest.fn().mockResolvedValue({ id: 'cus_a', type: 'individual' }),
+        create: jest.fn(),
+      },
+    });
+
+    await reconcileMissingCompanyCustomers(client);
+
+    expect(findMany).toHaveBeenCalledTimes(1);
   });
 });

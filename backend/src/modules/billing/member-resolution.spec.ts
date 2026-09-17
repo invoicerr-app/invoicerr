@@ -97,6 +97,20 @@ describe('findMemberIdForUser', () => {
 
     await expect(findMemberIdForUser(client, 'cus_1', 'company-1', USER)).rejects.toThrow('polar down');
   });
+
+  it('with matchByEmail: false, never even lists members and returns null when no externalId match exists', async () => {
+    // Same fixture as the "auto-created owner member" test above (a member sharing this user's own
+    // email exists) — but with the flag `removeMemberForUser` passes, this must NOT find it.
+    const listMembers = jest
+      .fn()
+      .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
+    const client = fakeClient({ members: { listMembers } });
+
+    const result = await findMemberIdForUser(client, 'cus_1', 'company-1', USER, { matchByEmail: false });
+
+    expect(result).toBeNull();
+    expect(listMembers).not.toHaveBeenCalled();
+  });
 });
 
 describe('resolveOrCreateMemberIdForUser', () => {
@@ -177,5 +191,50 @@ describe('removeMemberForUser', () => {
     await removeMemberForUser(client, 'cus_1', 'company-1', USER);
 
     expect(del).not.toHaveBeenCalled();
+  });
+
+  it(
+    'NEVER deletes a member found only by email — the reproduction of the incident this fix closes: ' +
+      "Polar's own auto-created owner member happens to share this user's own billing email, and a " +
+      'demotion/removal for this user must not strip the company of it',
+    async () => {
+      const del = jest.fn();
+      const listMembers = jest
+        .fn()
+        .mockResolvedValue(asPages([{ id: 'member-auto-owner', email: 'ada@acme.test', externalId: null }]));
+      const client = fakeClient({
+        customers: {
+          members: {
+            getExternal: jest.fn().mockRejectedValue(notFoundError()), // no member under OUR externalId
+            createExternal: jest.fn(),
+            delete: del,
+          },
+        },
+        members: { listMembers },
+      });
+
+      await removeMemberForUser(client, 'cus_1', 'company-1', USER);
+
+      // Not merely "found but declined to delete" — the email lookup never even runs for a deletion.
+      expect(listMembers).not.toHaveBeenCalled();
+      expect(del).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still deletes a member found by OUR OWN externalId — the fix narrows the match, it does not disable deletion entirely', async () => {
+    const del = jest.fn();
+    const client = fakeClient({
+      customers: {
+        members: {
+          getExternal: jest.fn().mockResolvedValue({ id: 'member-ours' }),
+          createExternal: jest.fn(),
+          delete: del,
+        },
+      },
+    });
+
+    await removeMemberForUser(client, 'cus_1', 'company-1', USER);
+
+    expect(del).toHaveBeenCalledWith({ id: 'cus_1', memberId: 'member-ours' });
   });
 });

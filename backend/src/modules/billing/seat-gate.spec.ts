@@ -68,5 +68,17 @@ describe('assertUserHasSeatOrThrow', () => {
 
       await expect(assertUserHasSeatOrThrow('c1', 'owner')).resolves.toBeUndefined();
     });
+
+    it('resolves silently for a caller with no membership row in this company at all — not what this gate exists to judge', async () => {
+      getOrCreate.mockResolvedValue({ seats: 1 });
+      findMany.mockResolvedValue([
+        { userId: 'owner', role: CompanyRole.OWNER, createdAt: new Date('2026-01-01') },
+      ]);
+
+      // 'ghost' is not in `members` at all — this used to fall through to `memberHoldsSeat`, which
+      // also returns `false` for a non-member, and come out as an indistinguishable SEAT_REQUIRED
+      // refusal, contradicting this function's own documented behavior.
+      await expect(assertUserHasSeatOrThrow('c1', 'ghost')).resolves.toBeUndefined();
+    });
   });
 });

@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 import prisma from '@/prisma/prisma.service';
 
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
@@ -5,6 +7,7 @@ import { listAdvanceableCompanySubscriptions } from './company-subscription.stor
 import { reconcileMissingCompanyCustomers } from './customer-provisioning';
 import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
+import { ExportZipTooLargeError } from './export-zip.service';
 import { addDays, BLOCKED_DAYS, PAID_ZIP_GRACE_DAYS } from './lifecycle';
 import { reconcileCompanySeats } from './seat-reconcile';
 
@@ -235,6 +238,65 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
     expect(result.zipFailed).toBe(1);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it('counts a bounded export failure (ExportZipTooLargeError) as zipFailed and logs it by name, distinct from a generic mail failure', async () => {
+    const blockedAt = addDays(NOW, -14);
+    const sub = subRow({ status: 'BLOCKED', blockedAt });
+    listSubs.mockResolvedValue([sub]);
+    mockUnchangedSnapshot(sub);
+    findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
+    const exportService = {
+      buildCompanyZip: jest.fn().mockRejectedValue(new ExportZipTooLargeError('c1', 20 * 1024 * 1024)),
+    } as unknown as import('./export-zip.service').BillingExportService;
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const runner = new BillingLifecycleSweepRunner(exportService, fakeMailService());
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.zipFailed).toBe(1);
+    expect(result.zipped).toBe(0);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('exceeded its size/time bound'),
+      expect.objectContaining({ error: expect.stringContaining('bytes while building') }),
+    );
+    // Never the generic "Failed to send the data export" message this same catch block also logs for
+    // an ordinary mail-send failure — the whole point of the named error is telling the two apart.
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining('Failed to send the data export'), {
+      error: expect.anything(),
+    });
+    errorSpy.mockRestore();
+  });
+
+  it("isolates one company's export failure from the rest of the sweep — the next company is still zipped and mailed", async () => {
+    const blockedAt = addDays(NOW, -14);
+    const failingSub = subRow({ companyId: 'c-fails', status: 'BLOCKED', blockedAt });
+    const okSub = subRow({ companyId: 'c-ok', status: 'BLOCKED', blockedAt });
+    listSubs.mockResolvedValue([failingSub, okSub]);
+    findSub.mockImplementation(async ({ where }: { where: { companyId: string } }) =>
+      where.companyId === 'c-fails'
+        ? { status: failingSub.status, lastPolarFactAt: failingSub.lastPolarFactAt }
+        : { status: okSub.status, lastPolarFactAt: okSub.lastPolarFactAt },
+    );
+    findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
+    const buildCompanyZip = jest
+      .fn()
+      .mockImplementationOnce(() => Promise.reject(new Error('render exploded')))
+      .mockImplementationOnce(() => Promise.resolve(Buffer.from('zip-bytes')));
+    const exportService = {
+      buildCompanyZip,
+    } as unknown as import('./export-zip.service').BillingExportService;
+    const sendForCompany = jest.fn().mockResolvedValue({ message: 'ok' });
+    const runner = new BillingLifecycleSweepRunner(exportService, fakeMailService({ sendForCompany }));
+
+    const result = await runner.runSweep(NOW);
+
+    expect(result.zipFailed).toBe(1);
+    expect(result.zipped).toBe(1);
+    expect(buildCompanyZip).toHaveBeenCalledWith('c-fails');
+    expect(buildCompanyZip).toHaveBeenCalledWith('c-ok');
+    expect(sendForCompany).toHaveBeenCalledWith('c-ok', expect.objectContaining({ to: 'owner@example.com' }));
+    expect(sendForCompany).toHaveBeenCalledTimes(1);
   });
 
   it('deletes the company once a zipped subscription reaches its deletionDueAt', async () => {

@@ -12,7 +12,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { buildBlockedZipWarningEmail, buildDeletionWarningEmail } from '@/mail/system-email-templates';
-import { BillingExportService } from './export-zip.service';
+import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
 import { computeDueBillingWarnings, computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
 import { reconcileMissingCompanyCustomers } from './customer-provisioning';
@@ -283,9 +283,20 @@ export class BillingLifecycleSweepRunner {
       });
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send the data export to company ${companyId}'s OWNER`, {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      // `ExportZipTooLargeError`/`ExportZipTimedOutError` are named on purpose (`export-zip.service.ts`'s
+      // own header): an operator reading this log line can tell "this company's data is too big for an
+      // email attachment" apart from a transient mail-server or rendering outage, which is exactly what
+      // an opaque `error.message` from a generic failure could not distinguish before. Either way this
+      // is still a single company's failure — caught HERE, never propagated past `sendZipToOwner`, so
+      // the sweep loop in `runSweep` moves on to the next company regardless of which kind this was.
+      const isBoundedFailure =
+        error instanceof ExportZipTooLargeError || error instanceof ExportZipTimedOutError;
+      this.logger.error(
+        isBoundedFailure
+          ? `Data export for company ${companyId} exceeded its size/time bound — retried next tick`
+          : `Failed to send the data export to company ${companyId}'s OWNER`,
+        { error: error instanceof Error ? error.message : String(error) },
+      );
       return false;
     }
   }

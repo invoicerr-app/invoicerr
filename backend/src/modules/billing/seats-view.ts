@@ -8,8 +8,8 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 
 import prisma from '@/prisma/prisma.service';
 
-import { CompanyRole } from '../../../prisma/generated/prisma/client';
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import { CompanyRole, Prisma } from '../../../prisma/generated/prisma/client';
+import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 import { seatHolders } from './seat-holders';
 
 export interface SeatMemberView {
@@ -43,8 +43,12 @@ interface MemberRow {
   user: { email: string; firstname: string; lastname: string };
 }
 
-async function loadMembers(companyId: string): Promise<MemberRow[]> {
-  return prisma.userCompany.findMany({
+/** `client` is either the ambient `prisma` singleton (a plain read, outside any transaction) or a
+ *  `Prisma.TransactionClient` (inside `ensureSeatIndexesAssigned`'s own lock below) — the full
+ *  `PrismaClient` is structurally assignable to `Prisma.TransactionClient` (a strict subset of its own
+ *  delegate methods), so one function serves both callers without a second, duplicated query. */
+async function loadMembers(client: Prisma.TransactionClient, companyId: string): Promise<MemberRow[]> {
+  return client.userCompany.findMany({
     where: { companyId },
     orderBy: { createdAt: 'asc' },
     include: { user: { select: { email: true, firstname: true, lastname: true } } },
@@ -71,24 +75,38 @@ function firstFreeIndex(used: Set<number>): number {
  *
  * `used` is built ONLY from SEATED members' own valid (in-range) numbers — a WAITING member's stale
  * `seatIndex` must never block a real desk number from being handed to someone who actually needs it.
+ *
+ * Runs the whole read-then-assign sequence under the SAME `company_subscription` row lock
+ * `seat-sync.ts#withSeatReservation` takes (`lockCompanySubscriptionRow`) — this used to read `used`
+ * from one snapshot and then issue its `userCompany.update` writes with no lock at all, so two
+ * `GET /billing/seats` calls landing close together (two browser tabs on the Seats screen, e.g.) could
+ * both compute `used` from the SAME stale state and hand the SAME free desk number to two different
+ * members. The lock serializes the two calls instead: the second one's transaction only starts once the
+ * first has committed, so it recomputes `used` from what the first one just wrote.
  */
 export async function ensureSeatIndexesAssigned(companyId: string): Promise<void> {
-  const sub = await getOrCreateCompanySubscription(companyId);
-  const rows = await loadMembers(companyId);
-  const { seated } = seatHolders(rows, sub.seats);
+  await getOrCreateCompanySubscription(companyId); // ensures the row exists to lock (brand-new company)
 
-  const inRange = (index: number | null): index is number =>
-    index !== null && index >= 1 && index <= sub.seats;
+  await prisma.$transaction(async (tx) => {
+    await lockCompanySubscriptionRow(tx, companyId);
 
-  const used = new Set(seated.map((row) => row.seatIndex).filter(inRange));
-  const missing = seated.filter((row) => !inRange(row.seatIndex));
-  if (missing.length === 0) return;
+    const sub = await tx.companySubscription.findUniqueOrThrow({ where: { companyId } });
+    const rows = await loadMembers(tx, companyId);
+    const { seated } = seatHolders(rows, sub.seats);
 
-  for (const row of missing) {
-    const index = firstFreeIndex(used);
-    used.add(index);
-    await prisma.userCompany.update({ where: { id: row.id }, data: { seatIndex: index } });
-  }
+    const inRange = (index: number | null): index is number =>
+      index !== null && index >= 1 && index <= sub.seats;
+
+    const used = new Set(seated.map((row) => row.seatIndex).filter(inRange));
+    const missing = seated.filter((row) => !inRange(row.seatIndex));
+    if (missing.length === 0) return;
+
+    for (const row of missing) {
+      const index = firstFreeIndex(used);
+      used.add(index);
+      await tx.userCompany.update({ where: { id: row.id }, data: { seatIndex: index } });
+    }
+  });
 }
 
 function toView(row: MemberRow): SeatMemberView {
@@ -106,7 +124,10 @@ function toView(row: MemberRow): SeatMemberView {
 export async function getSeatsView(companyId: string): Promise<SeatsView> {
   await ensureSeatIndexesAssigned(companyId);
 
-  const [sub, rows] = await Promise.all([getOrCreateCompanySubscription(companyId), loadMembers(companyId)]);
+  const [sub, rows] = await Promise.all([
+    getOrCreateCompanySubscription(companyId),
+    loadMembers(prisma, companyId),
+  ]);
   const { seated, waiting } = seatHolders(rows, sub.seats);
 
   return {
@@ -121,10 +142,21 @@ export const SEAT_TAKEN_CODE = 'SEAT_TAKEN';
 /**
  * Moves `targetUserId` to `seatIndex` — an OWNER/ADMIN re-arranging the office plan. Purely visual: a
  * desk number never grants or revokes access (`seat-holders.ts`'s own header), so this never checks
- * capacity and works exactly the same for a seated or a waiting member. Two concurrent moves onto the
- * SAME free desk are not additionally locked against each other here — the cosmetic worst case (two
- * members briefly sharing a desk number) self-heals the next time either is moved again, which is a
- * trade this file makes deliberately rather than adding a row lock for a value with no billing effect.
+ * WHO is seated vs. waiting, and works exactly the same for either. It DOES check capacity, though —
+ * `seatIndex` must name a desk that actually exists on the current plan (`1..sub.seats`): an
+ * out-of-range value used to be accepted here (only `>= 1` was checked) and then silently REASSIGNED
+ * by `getSeatsView`'s own call to `ensureSeatIndexesAssigned` a few lines below, which treats any
+ * out-of-range index as "missing" and hands the member the first free in-range desk instead — so the
+ * PATCH answered 200 while the member actually landed somewhere else, with no error telling the caller
+ * why. Refusing the out-of-range value outright (400, naming the valid range) instead means
+ * `ensureSeatIndexesAssigned` never has anything to "fix" for a move this function just made.
+ *
+ * The existence check, the "is this desk already taken" check, and the write itself all run inside ONE
+ * transaction, under the SAME `company_subscription` row lock `ensureSeatIndexesAssigned`/
+ * `withSeatReservation` take (`lockCompanySubscriptionRow`) — without it, two concurrent moves onto the
+ * SAME free desk could both pass the "not taken" check before either had written, and both succeed,
+ * leaving two members sharing one desk number (the exact invariant this function's own "already taken"
+ * check exists to guarantee never happens).
  */
 export async function moveMemberSeat(
   companyId: string,
@@ -135,21 +167,34 @@ export async function moveMemberSeat(
     throw new BadRequestException('seatIndex must be a positive integer.');
   }
 
-  const target = await prisma.userCompany.findUnique({
-    where: { userId_companyId: { userId: targetUserId, companyId } },
-  });
-  if (!target) throw new NotFoundException('Member not found.');
+  await getOrCreateCompanySubscription(companyId); // ensures the row exists to lock (brand-new company)
 
-  const takenBy = await prisma.userCompany.findFirst({
-    where: { companyId, seatIndex, userId: { not: targetUserId } },
-  });
-  if (takenBy) {
-    throw new ConflictException({ message: 'That desk is already taken.', code: SEAT_TAKEN_CODE });
-  }
+  await prisma.$transaction(async (tx) => {
+    await lockCompanySubscriptionRow(tx, companyId);
 
-  await prisma.userCompany.update({
-    where: { userId_companyId: { userId: targetUserId, companyId } },
-    data: { seatIndex },
+    const sub = await tx.companySubscription.findUniqueOrThrow({ where: { companyId } });
+    if (seatIndex > sub.seats) {
+      throw new BadRequestException(
+        `seatIndex must be between 1 and ${sub.seats} (this company's own bought seat count).`,
+      );
+    }
+
+    const target = await tx.userCompany.findUnique({
+      where: { userId_companyId: { userId: targetUserId, companyId } },
+    });
+    if (!target) throw new NotFoundException('Member not found.');
+
+    const takenBy = await tx.userCompany.findFirst({
+      where: { companyId, seatIndex, userId: { not: targetUserId } },
+    });
+    if (takenBy) {
+      throw new ConflictException({ message: 'That desk is already taken.', code: SEAT_TAKEN_CODE });
+    }
+
+    await tx.userCompany.update({
+      where: { userId_companyId: { userId: targetUserId, companyId } },
+      data: { seatIndex },
+    });
   });
 
   return getSeatsView(companyId);

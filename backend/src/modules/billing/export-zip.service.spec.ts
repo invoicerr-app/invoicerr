@@ -1,6 +1,6 @@
 import JSZip = require('jszip');
 
-import { BillingExportService } from './export-zip.service';
+import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
 import { listDocuments } from '../documents/persistence';
 
 jest.mock('../documents/persistence');
@@ -63,5 +63,42 @@ describe('BillingExportService.buildCompanyZip', () => {
     const filenames = Object.keys(zip.files).filter((name) => !name.endsWith('/'));
 
     expect(filenames).toContain('expense/doc-9.json');
+  });
+
+  it('aborts with a named ExportZipTooLargeError once the archive crosses the byte cap, instead of finishing an unbounded build', async () => {
+    listDocumentsMock.mockResolvedValue([
+      { id: 'doc-1', typeId: 'invoice', number: 1, data: { text: 'x'.repeat(10_000) } },
+    ]);
+    const service = new BillingExportService(fakeDocumentsService());
+
+    await expect(service.buildCompanyZip('company-1', { maxBytes: 1 })).rejects.toMatchObject({
+      name: 'ExportZipTooLargeError',
+      companyId: 'company-1',
+      maxBytes: 1,
+    });
+    await expect(service.buildCompanyZip('company-1', { maxBytes: 1 })).rejects.toBeInstanceOf(
+      ExportZipTooLargeError,
+    );
+  });
+
+  it('aborts with a named ExportZipTimedOutError once the build exceeds the time cap', async () => {
+    listDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'invoice', number: 1, data: {} }]);
+    const service = new BillingExportService(fakeDocumentsService());
+    // A constant clock (elapsed always 0) combined with a negative cap makes the very first chunk
+    // trip the timeout deterministically — no reliance on real wall-clock timing in this spec.
+    const constantClock = () => 0;
+
+    await expect(
+      service.buildCompanyZip('company-1', { maxDurationMs: -1, now: constantClock }),
+    ).rejects.toBeInstanceOf(ExportZipTimedOutError);
+  });
+
+  it('still builds normally once bytes and duration stay within the (generous, default) bounds', async () => {
+    listDocumentsMock.mockResolvedValue([{ id: 'doc-1', typeId: 'invoice', number: 1, data: {} }]);
+    const service = new BillingExportService(fakeDocumentsService());
+
+    const buffer = await service.buildCompanyZip('company-1');
+
+    expect(buffer.length).toBeGreaterThan(0);
   });
 });

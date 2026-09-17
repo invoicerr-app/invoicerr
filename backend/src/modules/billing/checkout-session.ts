@@ -31,7 +31,11 @@ import {
   loadCompanyBillingIdentity,
 } from './billing-customer';
 import { resolveCheckoutTaxId } from './checkout-tax-id';
-import { getOrCreateCompanySubscription } from './company-subscription.store';
+import {
+  getOrCreateCompanySubscription,
+  releaseCheckoutWindow,
+  reserveCheckoutWindow,
+} from './company-subscription.store';
 import { getPolarClient } from './polar-client';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
@@ -239,7 +243,13 @@ function isTaxIdInvalidError(error: unknown): boolean {
  *
  * Refuses a SECOND concurrent checkout (`SubscriptionAlreadyActiveError`/`CheckoutAlreadyInProgressError`
  * — see their own headers) rather than letting two competing Polar checkout sessions exist for the same
- * company; stamps `lastCheckoutStartedAt` on success so the NEXT call can make that check.
+ * company. The in-progress window is reserved via `reserveCheckoutWindow` — an atomic conditional write
+ * — BEFORE this function ever calls Polar, not stamped afterwards: a read-then-write here would let two
+ * near-simultaneous calls both observe "nothing in flight" and both open a Polar checkout for the same
+ * company (only the LAST `polarSubscriptionId` webhook survives — `webhook-handlers.ts:235` — so the
+ * first one keeps being billed with no reference stored anywhere in this app). A reservation that never
+ * results in a checkout (the whole block below throws) is released so a genuine retry is not blocked for
+ * the rest of the window.
  *
  * TAX ID: `resolveCheckoutTaxId` (`checkout-tax-id.ts`) decides whether a tax id is even attempted. If
  * one IS attempted and Polar still refuses it with the specific 422 `isTaxIdInvalidError` above detects
@@ -256,60 +266,65 @@ export async function createCheckoutSession(
   if (sub.status === 'ACTIVE') {
     throw new SubscriptionAlreadyActiveError();
   }
-  if (
-    sub.lastCheckoutStartedAt &&
-    Date.now() - sub.lastCheckoutStartedAt.getTime() < CHECKOUT_IN_PROGRESS_WINDOW_MS
-  ) {
+
+  // Reserve the window BEFORE calling Polar at all (see this function's own header) — a conditional
+  // write, not a read of `sub.lastCheckoutStartedAt` above, because `sub` was read a moment ago and is
+  // already stale by the time two concurrent callers reach this line.
+  const reservedAt = await reserveCheckoutWindow(params.companyId, CHECKOUT_IN_PROGRESS_WINDOW_MS);
+  if (!reservedAt) {
     throw new CheckoutAlreadyInProgressError();
   }
 
-  const company = await loadCompanyBillingIdentity(params.companyId);
-  await getOrCreatePolarCustomerForCompany(company, client);
-
-  const { details, vatNumber } = await loadCheckoutBillingDetails(params.companyId);
-  const taxId = resolveCheckoutTaxId({
-    rawVatNumber: vatNumber,
-    countryCode: details.countryCode,
-    exemptVat: details.exemptVat,
-  });
-
-  const baseRequest = {
-    products: [resolveCheckoutProductId(params.slug)],
-    externalCustomerId: params.companyId,
-    metadata: { companyId: params.companyId },
-    successUrl: params.successUrl,
-    returnUrl: params.returnUrl,
-  };
-
-  let checkout: { url: string };
-  let taxIdRejected: true | undefined;
   try {
-    checkout = await client.checkouts.create({
-      ...baseRequest,
-      ...buildCheckoutCustomerFields(company.name, details, taxId),
+    const company = await loadCompanyBillingIdentity(params.companyId);
+    await getOrCreatePolarCustomerForCompany(company, client);
+
+    const { details, vatNumber } = await loadCheckoutBillingDetails(params.companyId);
+    const taxId = resolveCheckoutTaxId({
+      rawVatNumber: vatNumber,
+      countryCode: details.countryCode,
+      exemptVat: details.exemptVat,
     });
+
+    const baseRequest = {
+      products: [resolveCheckoutProductId(params.slug)],
+      externalCustomerId: params.companyId,
+      metadata: { companyId: params.companyId },
+      successUrl: params.successUrl,
+      returnUrl: params.returnUrl,
+    };
+
+    let checkout: { url: string };
+    let taxIdRejected: true | undefined;
+    try {
+      checkout = await client.checkouts.create({
+        ...baseRequest,
+        ...buildCheckoutCustomerFields(company.name, details, taxId),
+      });
+    } catch (error) {
+      if (!taxId || !isTaxIdInvalidError(error)) throw error;
+
+      // Named, no secret: the tax id VALUE itself is never logged, only the fact that this company's
+      // one was refused — see this file's own header for why a checksum-valid number can still land here.
+      logger.warn(
+        "Polar refused this company's VAT number as a checkout tax id (422) — retrying the checkout " +
+          'without it. Likely cause: a checksum-valid number with no active VIES registration (e.g. a ' +
+          'franchise-en-base trader) — see checkout-session.ts / checkout-tax-id.ts.',
+        { category: 'billing', details: { companyId: params.companyId } },
+      );
+      taxIdRejected = true;
+      checkout = await client.checkouts.create({
+        ...baseRequest,
+        ...buildCheckoutCustomerFields(company.name, details, null),
+      });
+    }
+
+    return { url: checkout.url, redirect: true, ...(taxIdRejected ? { taxIdRejected } : {}) };
   } catch (error) {
-    if (!taxId || !isTaxIdInvalidError(error)) throw error;
-
-    // Named, no secret: the tax id VALUE itself is never logged, only the fact that this company's
-    // one was refused — see this file's own header for why a checksum-valid number can still land here.
-    logger.warn(
-      "Polar refused this company's VAT number as a checkout tax id (422) — retrying the checkout " +
-        'without it. Likely cause: a checksum-valid number with no active VIES registration (e.g. a ' +
-        'franchise-en-base trader) — see checkout-session.ts / checkout-tax-id.ts.',
-      { category: 'billing', details: { companyId: params.companyId } },
-    );
-    taxIdRejected = true;
-    checkout = await client.checkouts.create({
-      ...baseRequest,
-      ...buildCheckoutCustomerFields(company.name, details, null),
-    });
+    // This attempt never produced a checkout — free the window so the next genuine attempt (a retry
+    // after a network blip, a non-tax-id 422) is not refused for up to CHECKOUT_IN_PROGRESS_WINDOW_MS
+    // by a reservation that guarded nothing.
+    await releaseCheckoutWindow(params.companyId, reservedAt);
+    throw error;
   }
-
-  await prisma.companySubscription.update({
-    where: { companyId: params.companyId },
-    data: { lastCheckoutStartedAt: new Date() },
-  });
-
-  return { url: checkout.url, redirect: true, ...(taxIdRejected ? { taxIdRejected } : {}) };
 }

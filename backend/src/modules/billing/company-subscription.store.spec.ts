@@ -4,6 +4,8 @@ import {
   getOrCreateCompanySubscription,
   listAdvanceableCompanySubscriptions,
   recomputeStatusForVanishedSubscription,
+  releaseCheckoutWindow,
+  reserveCheckoutWindow,
 } from './company-subscription.store';
 import { addDays, BLOCKED_DAYS, computeTrialWindow, TRIAL_DAYS } from './lifecycle';
 
@@ -15,6 +17,7 @@ jest.mock('@/prisma/prisma.service', () => ({
       upsert: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
   },
 }));
@@ -23,6 +26,7 @@ const findUnique = prisma.companySubscription.findUnique as jest.Mock;
 const upsert = prisma.companySubscription.upsert as jest.Mock;
 const findMany = prisma.companySubscription.findMany as jest.Mock;
 const update = prisma.companySubscription.update as jest.Mock;
+const updateMany = prisma.companySubscription.updateMany as jest.Mock;
 
 describe('getOrCreateCompanySubscription', () => {
   afterEach(() => jest.resetAllMocks());
@@ -124,5 +128,58 @@ describe('recomputeStatusForVanishedSubscription', () => {
     const data = update.mock.calls[0][0].data;
     expect(data).not.toHaveProperty('polarSubscriptionId');
     expect(data).not.toHaveProperty('seats');
+  });
+});
+
+describe('reserveCheckoutWindow', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  const NOW = new Date('2026-09-17T12:00:00.000Z');
+  const WINDOW_MS = 10 * 60 * 1000;
+
+  it('claims the window with a single conditional updateMany, matching a null or stale lastCheckoutStartedAt', async () => {
+    updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await reserveCheckoutWindow('company-1', WINDOW_MS, NOW);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        OR: [
+          { lastCheckoutStartedAt: null },
+          { lastCheckoutStartedAt: { lt: new Date(NOW.getTime() - WINDOW_MS) } },
+        ],
+      },
+      data: { lastCheckoutStartedAt: NOW },
+    });
+    expect(result).toEqual(NOW);
+  });
+
+  it('returns null (claims nothing) when the conditional write matches no row — the window is already held', async () => {
+    // This is the race this function exists to close: two callers both call `updateMany` with the same
+    // WHERE clause against the same row. Postgres serializes the two UPDATEs, so only the first can
+    // still see the row as eligible; the second's WHERE clause is now false and its `count` is 0 — it
+    // must NOT fall back to a separate read that could observe the first caller's own fresh write.
+    updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await reserveCheckoutWindow('company-1', WINDOW_MS, NOW);
+
+    expect(result).toBeNull();
+  });
+});
+
+describe('releaseCheckoutWindow', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it('clears lastCheckoutStartedAt, matched by the exact timestamp this call reserved', async () => {
+    const reservedAt = new Date('2026-09-17T12:00:00.000Z');
+    updateMany.mockResolvedValue({ count: 1 });
+
+    await releaseCheckoutWindow('company-1', reservedAt);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-1', lastCheckoutStartedAt: reservedAt },
+      data: { lastCheckoutStartedAt: null },
+    });
   });
 });

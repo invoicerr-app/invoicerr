@@ -22,8 +22,12 @@ export const SEAT_REQUIRED_CODE = 'SEAT_REQUIRED';
 /**
  * Throws (403, `{ message, code: SEAT_REQUIRED }`) when `userId` is currently WAITING for a seat in
  * `companyId` — resolves silently otherwise, including for a user with no membership row in this
- * company at all (nothing this gate is meant to catch; a route reaching this far already has an active
- * company on the request, which normally implies membership).
+ * company at all. That last case is checked EXPLICITLY, before ever consulting `memberHoldsSeat` (which
+ * would also return `false` for it): a caller with no membership row is not over capacity, it simply
+ * is not the kind of caller this gate exists to judge at all — a route reaching this far already has an
+ * active company on the request, which normally implies membership, so this is a defensive no-op for an
+ * edge case (a removal racing this very request, e.g.), never a real "no seat" refusal wearing the
+ * wrong reason.
  */
 export async function assertUserHasSeatOrThrow(companyId: string, userId: string): Promise<void> {
   if (!isBillingEnabled()) return;
@@ -34,6 +38,7 @@ export async function assertUserHasSeatOrThrow(companyId: string, userId: string
     select: { userId: true, role: true, createdAt: true },
   });
 
+  if (!members.some((member) => member.userId === userId)) return;
   if (memberHoldsSeat(members, sub.seats, userId)) return;
 
   throw new ForbiddenException({
