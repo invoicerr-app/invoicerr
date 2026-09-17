@@ -1,3 +1,4 @@
+%PDF-1.4
 Not a real PDF, deliberately — the test-only OCR stub
 (backend/src/modules/documents/received-invoices/ocr/fake-extractor.ts) answers ANY byte stream
 carrying its exact marker, regardless of real PDF structure (it never parses PDF at all, only scans

@@ -252,4 +252,124 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     );
     expect(result).toEqual({ syntax: null, fields: {} });
   });
+
+  describe('entity decoding and adversarial input — never a literal entity, never a stall', () => {
+    // Hand-written on purpose, unlike the rest of this file's own "never a hand-written fixture"
+    // rule (see this file's own header): these three tests prove a MECHANICAL parser property
+    // (entity decoding, resilience to a pathological shape, the size bound) rather than a
+    // field-mapping fact about what our own providers emit — the same reasoning
+    // `received-invoices.service.spec.ts`'s own hand-written `MINIMAL_CII_XML` fixture already relies on.
+    const CII_WITH_ENTITIES = `<?xml version="1.0" encoding="utf-8"?>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">
+  <rsm:SupplyChainTradeTransaction>
+    <ram:ApplicableHeaderTradeAgreement>
+      <ram:SellerTradeParty><ram:Name>Boulangerie Caf&#233; &amp; Fils</ram:Name></ram:SellerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+
+    it('decodes the predefined entity (&amp;) and a numeric character reference (&#233;) — never left literal', async () => {
+      const result = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(CII_WITH_ENTITIES),
+        'application/xml',
+        'supplier.xml',
+      );
+
+      expect(result.syntax).toBe('CII');
+      // Never `Boulangerie Caf&#233; &amp; Fils` — the literal, un-decoded text the old regex-based
+      // reader used to hand `supplier-reconciliation.ts`, which could then never match it against a
+      // Client's own, properly-decoded `name`.
+      expect(result.fields.supplier).toBe('Boulangerie Café & Fils');
+    });
+
+    it('a deposit rich in never-closed opening tags is rejected fast — no catastrophic backtracking', async () => {
+      const bomb =
+        '<?xml version="1.0"?><rsm:CrossIndustryInvoice ' +
+        'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" ' +
+        'xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">' +
+        '<ram:IncludedSupplyChainTradeLineItem>'.repeat(20_000); // deliberately never closed
+      const bytes = new TextEncoder().encode(bomb);
+
+      const start = performance.now();
+      const result = await extractReceivedInvoiceFields(bytes, 'application/xml', 'bomb.xml');
+      const elapsedMs = performance.now() - start;
+
+      // The old regex-based `extractAllBlocks` re-scanned the remaining document from every one of
+      // these 20 000 opening tags looking for a close tag that never comes — quadratic over the byte
+      // count. A real parser fails fast on the same input instead of stalling the event loop.
+      expect(elapsedMs).toBeLessThan(100);
+      // Malformed (never actually closed) — an honest empty extraction, never a thrown error.
+      expect(result).toEqual({ syntax: null, fields: {} });
+    });
+
+    it('never resolves an external entity (XXE) — the file it points at is never read', async () => {
+      const xxe = `<?xml version="1.0"?>
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/hostname">]>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">
+  <rsm:SupplyChainTradeTransaction>
+    <SellerTradeParty><Name>&xxe;</Name></SellerTradeParty>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+
+      const result = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(xxe),
+        'application/xml',
+        'xxe.xml',
+      );
+
+      // `@xmldom/xmldom` never fetches a SYSTEM/PUBLIC entity at all (see this file's own header) —
+      // it reports the reference as a plain parse error instead, which `parseXmlDocument` treats as
+      // malformed. The point of this test is not the exact outcome shape, it is what must NEVER
+      // appear anywhere in it: the target file's own content, or the unresolved entity being silently
+      // dropped and leaving a false empty string that could be mistaken for "no supplier name at all".
+      expect(JSON.stringify(result)).not.toMatch(/root:|nobody|localhost/); // typical /etc/hostname content
+      expect(result).toEqual({ syntax: null, fields: {} });
+    });
+
+    it('a billion-laughs entity blowup is refused fast, never expanded', async () => {
+      const billionLaughs = `<?xml version="1.0"?>
+<!DOCTYPE lolz [
+ <!ENTITY lol "lol">
+ <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+ <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+ <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+]>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">
+  <rsm:SupplyChainTradeTransaction>
+    <SellerTradeParty><Name>&lol4;</Name></SellerTradeParty>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+
+      const start = performance.now();
+      const result = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(billionLaughs),
+        'application/xml',
+        'lol.xml',
+      );
+      const elapsedMs = performance.now() - start;
+
+      // Same underlying reason as the XXE test above: `@xmldom/xmldom` does not expand ANY custom
+      // entity (predefined + numeric references only — see this file's own header), so a
+      // exponentially-nested one never actually multiplies out in memory; it is reported as an
+      // "entity not found" parse error instead, same as any other malformed document.
+      expect(elapsedMs).toBeLessThan(100);
+      expect(result).toEqual({ syntax: null, fields: {} });
+    });
+
+    it('a deposit far over the size bound is refused before it reaches the parser at all', async () => {
+      const oversized =
+        '<?xml version="1.0"?><rsm:CrossIndustryInvoice ' +
+        'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">' +
+        'a'.repeat(6 * 1024 * 1024) +
+        '</rsm:CrossIndustryInvoice>';
+      const bytes = new TextEncoder().encode(oversized);
+
+      const start = performance.now();
+      const result = await extractReceivedInvoiceFields(bytes, 'application/xml', 'huge.xml');
+      const elapsedMs = performance.now() - start;
+
+      expect(elapsedMs).toBeLessThan(100);
+      expect(result).toEqual({ syntax: null, fields: {} });
+    });
+  });
 });

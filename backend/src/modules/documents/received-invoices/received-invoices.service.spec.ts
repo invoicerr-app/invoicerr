@@ -2,7 +2,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  PayloadTooLargeException,
+} from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
 
@@ -12,6 +17,7 @@ import * as persistence from '../persistence';
 import { receivedDocumentExtractorRegistry } from './ocr/extractor';
 import { ReceivedInvoicesService } from './received-invoices.service';
 import { persistInboundFile } from './storage';
+import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
 
 jest.mock('../persistence');
 
@@ -39,6 +45,16 @@ const MINIMAL_CII_XML = `<?xml version="1.0" encoding="utf-8"?>
     </ram:ApplicableHeaderTradeSettlement>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;
+
+/** A fake "scanned, no embedded structure" PDF deposit — real enough to pass `upload-validation.ts`'s
+ *  own magic-byte check (`%PDF-` — see that file's own header) without being a genuinely parseable
+ *  PDF, which is exactly the case every test using this helper means to exercise: `PDFDocument.load`
+ *  fails on it just like it would on a real, malformed scan, degrading honestly to `EMPTY_RESULT`
+ *  (`extraction.ts#extractEmbeddedXmlFromPdf`'s own documented behavior) rather than being refused at
+ *  the upload gate for having the wrong magic number entirely. */
+function fakeScannedPdfBase64(text: string): string {
+  return Buffer.from(`%PDF-1.4\n${text}`).toString('base64');
+}
 
 /** Same fixture, plus a seller VAT identifier (`SpecifiedTaxRegistration`) — the supplier-reconciliation
  *  wiring test below needs the ONE extra fact `reconcileSupplierClient` reads. */
@@ -96,7 +112,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a plain, unrecognized file is still stored and returned — never a refusal', async () => {
-      const base64 = Buffer.from('just some scanned text').toString('base64');
+      const base64 = fakeScannedPdfBase64('just some scanned text');
 
       const preview = await service.upload('company-1', {
         fileName: 'scan.pdf',
@@ -156,6 +172,63 @@ describe('ReceivedInvoicesService', () => {
       await expect(
         service.upload('company-1', { fileName: 'supplier-invoice.xml', mime: 'application/xml', base64 }),
       ).resolves.toMatchObject({ extraction: { syntax: 'CII' } });
+    });
+  });
+
+  describe('upload — mime allow-list, magic-byte check, size limit, filename sanitizing', () => {
+    it('refuses a mime outside the allow-list, named', async () => {
+      const base64 = Buffer.from('<script>alert(1)</script>').toString('base64');
+
+      await expect(
+        service.upload('company-1', { fileName: 'payload.html', mime: 'text/html', base64 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    // The actual scenario this whole check exists for: a THIRD PARTY declares "application/pdf" (or
+    // any other allowed mime) for content that is not that at all — an HTML page, here — hoping it
+    // gets stored under a trusted label. `storage.ts`'s inbound store is shared with the generic
+    // `documents.controller.ts#downloadAttachment` route, which only echoes back a Content-Type it
+    // itself trusts (`ALLOWED_ATTACHMENT_MIMES`) — but this deposit's OWN download route
+    // (`received-invoices.controller.ts#downloadFile`) always forces `Content-Disposition: attachment`
+    // regardless, so the actual defense belongs HERE: never let the mismatched bytes reach disk at all.
+    it('refuses a declared mime whose ACTUAL bytes do not match it, even though the mime itself is allowed', async () => {
+      const base64 = Buffer.from('<html><body>not a pdf at all</body></html>').toString('base64');
+
+      await expect(
+        service.upload('company-1', { fileName: 'invoice.pdf', mime: 'application/pdf', base64 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('refuses a file over the size limit, named', async () => {
+      const base64 = fakeScannedPdfBase64('a'.repeat(MAX_RECEIVED_INVOICE_BYTES + 1));
+
+      await expect(
+        service.upload('company-1', { fileName: 'big.pdf', mime: 'application/pdf', base64 }),
+      ).rejects.toThrow(PayloadTooLargeException);
+    });
+
+    it('strips a path from an uploaded filename before it is ever stored', async () => {
+      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+
+      const preview = await service.upload('company-1', {
+        fileName: '../../etc/passwd.xml',
+        mime: 'application/xml',
+        base64,
+      });
+
+      expect(preview.fileName).toBe('passwd.xml');
+    });
+
+    it('strips control characters from an uploaded filename before it is ever stored', async () => {
+      const base64 = Buffer.from(MINIMAL_CII_XML, 'utf-8').toString('base64');
+
+      const preview = await service.upload('company-1', {
+        fileName: 'invoice\u0000.xml',
+        mime: 'application/xml',
+        base64,
+      });
+
+      expect(preview.fileName).toBe('invoice.xml');
     });
   });
 
@@ -243,7 +316,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a deposit with no VAT and no name match at all is reported "no-criteria" once extraction itself yields nothing', async () => {
-      const base64 = Buffer.from('just some scanned text').toString('base64');
+      const base64 = fakeScannedPdfBase64('just some scanned text');
 
       const preview = await service.upload(companyId, {
         fileName: 'scan.pdf',
@@ -331,7 +404,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it('a plain PDF with an active stub extractor comes back pre-filled — never left blank the way a truly unrecognized file stays', async () => {
-      const base64 = Buffer.from('a scanned page, no embedded XML at all').toString('base64');
+      const base64 = fakeScannedPdfBase64('a scanned page, no embedded XML at all');
 
       const preview = await service.upload(companyId, {
         fileName: 'scan.pdf',
@@ -346,7 +419,7 @@ describe('ReceivedInvoicesService', () => {
     });
 
     it("the OCR-read supplier VAT auto-reconciles against this company's own client book — the SAME mechanism proved for structural extraction", async () => {
-      const base64 = Buffer.from('another scanned page').toString('base64');
+      const base64 = fakeScannedPdfBase64('another scanned page');
 
       const preview = await service.upload(companyId, {
         fileName: 'scan-2.pdf',

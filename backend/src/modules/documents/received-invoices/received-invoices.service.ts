@@ -22,6 +22,7 @@ import { extractReceivedInvoiceFields } from './extraction';
 import { applyOcrFallback, OcrOutcome } from './ocr/apply-ocr-fallback';
 import { persistInboundFile, readInboundFile } from './storage';
 import { reconcileSupplierClient, SupplierMatchResult } from './supplier-reconciliation';
+import { sanitizeFileName, validateInboundFile } from './upload-validation';
 
 const TYPE_ID = 'received-invoice';
 
@@ -90,6 +91,13 @@ export class ReceivedInvoicesService {
     if (bytes.length === 0) {
       throw new ConflictException('The uploaded file is empty.');
     }
+    // Mime allow-list, size ceiling, and a magic-byte check against the ACTUAL bytes — never trusts
+    // the caller's own declared mime/extension alone. See `upload-validation.ts`'s own header for why
+    // the allow-list is narrower than `attachments/attachments.service.ts`'s (no images: nothing
+    // downstream of THIS upload — `extraction.ts`, the OCR extension point — ever reads one) and why
+    // this runs before a single byte reaches disk.
+    validateInboundFile(bytes, input.mime);
+    const fileName = sanitizeFileName(input.fileName);
     const fileRef = computeArtifactHash(bytes);
 
     const existing = await listDocuments(companyId, TYPE_ID, DUPLICATE_CHECK_LIMIT);
@@ -105,7 +113,7 @@ export class ReceivedInvoicesService {
 
     persistInboundFile(companyId, fileRef, input.mime, bytes);
 
-    const structural = await extractReceivedInvoiceFields(bytes, input.mime, input.fileName);
+    const structural = await extractReceivedInvoiceFields(bytes, input.mime, fileName);
     // OCR fallback — tried ONLY when `structural` found nothing at all AND this deposit is
     // a PDF (see that function's own header): a working CII/UBL/Factur-X read is never
     // second-guessed by OCR, and OCR is never attempted for anything but a PDF.
@@ -113,7 +121,7 @@ export class ReceivedInvoicesService {
       syntax,
       fields: extractedFields,
       ocr,
-    } = await applyOcrFallback(structural, bytes, input.mime, input.fileName);
+    } = await applyOcrFallback(structural, bytes, input.mime, fileName);
 
     // Supplier reconciliation "at upload": the ONLY point this runs. `data.supplierClient` (a
     // 'reference' field, see received-invoice.descriptor.ts) is filled in HERE, exactly like every
@@ -132,7 +140,7 @@ export class ReceivedInvoicesService {
 
     return {
       fileRef,
-      fileName: input.fileName,
+      fileName,
       mime: input.mime,
       extraction: { syntax, fields },
       supplierMatch,

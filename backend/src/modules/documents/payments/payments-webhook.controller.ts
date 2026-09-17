@@ -79,7 +79,15 @@ export class PaymentsWebhookController {
           category: 'documents',
           details: { providerId, companyId, message: error.message },
         });
-        throw new BadRequestException(error.message);
+        // ONE fixed, generic message for every verification failure — never `error.message` itself.
+        // `handleWebhookEvent` throws this SAME error type for genuinely distinct reasons ("this
+        // provider was never connected for this company" vs. "the signature doesn't match" vs. a
+        // provider-specific check failing) whose TEXT differs; an anonymous caller of this `@Public()`
+        // route (see this controller's own header) reading that text back would turn the endpoint
+        // into an oracle for which companyId exists and which payment provider it has connected,
+        // without ever needing to pass verification. The real reason stays in the log line above,
+        // server-side only.
+        throw new BadRequestException('Webhook verification failed.');
       }
       // Anything else (a "record-payment" failure surfaced by `handleWebhookEvent`) is a genuine 5xx —
       // the provider's own retry schedule is the recovery path, see that method's own header.

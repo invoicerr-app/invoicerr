@@ -142,8 +142,9 @@ export class ReceivedInvoicesController {
     summary: 'Upload an inbound invoice file (PDF, or XML CII/UBL, or Factur-X)',
     description:
       'Stores the file content-addressed and attempts structural field extraction — never refused ' +
-      'for an unrecognized file (a plain scanned PDF still stores and returns empty fields), only ' +
-      'for an exact repeat of an already-received file (same SHA-256).',
+      'for an unrecognized STRUCTURE (a plain scanned PDF still stores and returns empty fields), ' +
+      'only for a disallowed mime, a magic-byte mismatch, an oversized file, or an exact repeat of ' +
+      'an already-received file (same SHA-256) — see ReceivedInvoicesService/upload-validation.ts.',
   })
   @ApiBody({
     schema: {
@@ -157,8 +158,14 @@ export class ReceivedInvoicesController {
     },
   })
   @ApiResponse({ status: 201, description: 'File stored, extraction preview returned' })
-  @ApiResponse({ status: 400, description: 'Missing fileName/mime/base64, or an empty file' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Missing fileName/mime/base64, an empty file, a disallowed mime, or a magic-byte mismatch ' +
+      'against the declared mime',
+  })
   @ApiResponse({ status: 409, description: 'This exact file was already received (named, by hash)' })
+  @ApiResponse({ status: 413, description: 'The file is over the size limit' })
   async upload(
     @ActiveCompany() companyId: string,
     @Body() body: { fileName?: string; mime?: string; base64?: string },

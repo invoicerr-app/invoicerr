@@ -11,11 +11,45 @@
  * ## Never `fromXml` — the documented CII round-trip bug
  *
  * Per this repo's own operating memory: `@fin.cx/einvoice`/`@e-invoice-eu/core`'s `fromXml` has a
- * known round-trip bug on CII. This module NEVER calls it, on either syntax — every field below is
- * read with plain, namespace-agnostic REGEX tag extraction (`extractText`/`extractBlock`), exactly
- * the technique the removed compliance engine's own parser used and for the same stated reason:
- * CII's `rsm:`/`ram:`/`udt:` namespace prefixes vary by producer, and a bare tag-name match
- * sidesteps that variance entirely rather than depending on any one XML library's prefix handling.
+ * known round-trip bug on CII. This module NEVER calls it, on either syntax.
+ *
+ * ## DOM parsing, not hand-rolled regex — the tag lookup itself
+ *
+ * Every field below used to be read with plain, namespace-agnostic REGEX tag extraction. That broke
+ * two ways on a THIRD PARTY's own XML (a PDP, an email attachment, a raw upload — never our own
+ * output on this path):
+ *  - `&amp;`/`&#233;`/etc. were never decoded, so a supplier whose name legitimately contains `&`,
+ *    `<`, `'` or `"` (very ordinary in FR/IT/PL business names — "Dupont & Associés") came back
+ *    literally as `Dupont &amp; Associés`, which `supplier-reconciliation.ts`'s exact-match lookup
+ *    then NEVER matched against the same supplier's `Client.name` (which never went through this
+ *    module's own escaping at all).
+ *  - `extractAllBlocks`'s global, non-greedy `[\s\S]*?` re-scans the remaining document from EVERY
+ *    candidate opening tag until it finds (or fails to find) a matching close tag. A deposit rich in
+ *    opening tags that never close (a genuinely malformed document, or one deliberately built to be
+ *    one) turns that into quadratic work over the whole byte count — a few MB is enough to visibly
+ *    stall the event loop this runs on (a `bytes.length` check alone does not catch it: the document
+ *    does not need to be huge, only richly, adversarially unclosed).
+ *
+ * Both are fixed by using a REAL XML parser instead: `@xmldom/xmldom`'s `DOMParser`, the exact same
+ * already-whitelisted dependency `formats/structural-check.ts` uses for the identical "parse
+ * third-party-shaped XML defensively" job (see that file's own header) — no new npm dependency, and
+ * the same "collect fatal AND non-fatal parse errors, treat either as malformed" discipline reused
+ * verbatim (`parseXmlDocument` below). `@xmldom/xmldom` never resolves an external entity or a DTD's
+ * own `SYSTEM`/`PUBLIC` subset at all (verified against the installed `sax.js`: its `entityMap` for
+ * an `application/xml` parse is the five XML-predefined entities ONLY — `amp`/`apos`/`gt`/`lt`/
+ * `quot` — plus numeric character references, `&#233;`/`&#xE9;`, decoded by
+ * `String.fromCharCode`; anything else, including a document's own custom or external `<!ENTITY>`,
+ * is reported through `onError` as a plain "entity not found" and left untouched, never fetched) —
+ * so there is no separate flag to disable external entities/DTD resolution here: the library is
+ * structurally incapable of it, the same reasoning that already let `structural-check.ts` adopt it
+ * with no extra hardening. A malformed document (unclosed tags, a bad entity reference) is treated as
+ * `EMPTY_RESULT` — same "never throws, never blocks" contract this module has always held — rather
+ * than degrading to a partial, unpredictable read.
+ *
+ * `MAX_XML_INPUT_BYTES` below is a SEPARATE, defense-in-depth bound checked before a single byte
+ * reaches the parser: even a real, well-formed parser still has to walk every byte at least once, so
+ * an upload with no plausible reason to be that large (no real EN 16931 invoice is) is refused
+ * up front, named, rather than silently spending CPU proving it.
  *
  * Every one of this module's own extraction paths is proven, in `extraction.spec.ts`, against XML
  * this branch's OWN providers (`cii-provider.ts`/`ubl-provider.ts`/`facturx-provider.ts`) produce —
@@ -27,12 +61,12 @@
  * BG-25 (invoice line) is repeated per line in both syntaxes — `ram:IncludedSupplyChainTradeLineItem`
  * (CII) / `cac:InvoiceLine` (UBL), verified by dumping this branch's OWN `cii-provider.ts`/
  * `ubl-provider.ts` output for a real two-line fixture (see `extraction.spec.ts`) rather than assumed
- * from the standard's own name tables. `extractAllBlocks` below is the same non-greedy,
- * namespace-agnostic technique as `extractBlock`, only repeated (global flag) to pick up every
- * sibling occurrence instead of the first — every per-line lookup below then re-scopes `extractText`/
- * `extractBlock` to ONE already-isolated line block, the same way the header-level fields above scope
- * to `SellerTradeParty`/`AccountingSupplierParty`, so a same-named element on a DIFFERENT line (or in
- * the header) is never mistaken for this one's.
+ * from the standard's own name tables. `collectByLocalName` below walks the parsed tree in document
+ * order, namespace-agnostic (matching on `Element.localName` only — see `firstByLocalName`'s own
+ * comment), the DOM equivalent of the old `extractBlock`/`extractAllBlocks` pair: every per-line
+ * lookup below re-scopes its own search to ONE already-isolated line `Element`, the same way the
+ * header-level fields above scope to `SellerTradeParty`/`AccountingSupplierParty`, so a same-named
+ * element on a DIFFERENT line (or in the header) is never mistaken for this one's.
  *
  * Four facts per line, read from BT-153/BT-129/BT-146/BT-152 (never BT-131, the line's OWN net total):
  *  - `description`  — CII `SpecifiedTradeProduct/Name`      · UBL `Item/Name`
@@ -62,11 +96,11 @@
  *
  * BT-31 (seller VAT identifier), read one level deeper than `supplier` (the name) already scopes:
  *  - CII: `SellerTradeParty/SpecifiedTaxRegistration/ID` (`schemeID="VA"` — the attribute itself is
- *    never checked, since `extractText` reads by tag name only, same discipline as every other field
- *    here: a producer that always sets `schemeID="VA"` for THIS element, per the standard, is not a
- *    fact worth re-verifying by attribute matching).
+ *    never checked, since lookups below match by tag local name only, same discipline as every other
+ *    field here: a producer that always sets `schemeID="VA"` for THIS element, per the standard, is
+ *    not a fact worth re-verifying by attribute matching).
  *  - UBL: `AccountingSupplierParty/.../PartyTaxScheme/CompanyID` — scoped to the `PartyTaxScheme`
- *    block specifically, never a bare `extractText(supplierBlock, 'CompanyID')`: `PartyLegalEntity`
+ *    block specifically, never a bare lookup straight on the supplier block: `PartyLegalEntity`
  *    (sibling block, same party) ALSO carries its own `CompanyID` (the seller's registration/SIRET —
  *    see `build-semantic-invoice.ts`), and reading unscoped would risk picking that one up instead the
  *    moment a producer emits `PartyLegalEntity` before `PartyTaxScheme` (both extraction and dump both
@@ -76,6 +110,7 @@
  * otherwise interpreted here: this module stays a pure structural reader, exactly like every other
  * field it produces.
  */
+import { DOMParser, Element as XmlElement, Node as XmlNode } from '@xmldom/xmldom';
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
 const { decodePDFRawStream } = require('pdf-lib/cjs/core');
 
@@ -125,51 +160,88 @@ export interface ExtractionResult {
 const EMPTY_RESULT: ExtractionResult = { syntax: null, fields: {} };
 
 // ---------------------------------------------------------------------------
-// Namespace-agnostic XML tag extraction — see this file's own header.
+// DOM-based, namespace-agnostic XML tag lookup — see this file's own header.
 // ---------------------------------------------------------------------------
 
-/** The text content of the FIRST occurrence of a tag (any namespace prefix). Handles `<Tag>text
- *  </Tag>`, `<ns:Tag>text</ns:Tag>`, `<Tag attr="…">text</Tag>` — not CDATA/mixed content, which
- *  none of the atomic fields this module reads ever use in our own or any real EN 16931 producer's
- *  output. */
-function extractText(xml: string, ...tagNames: string[]): string | undefined {
-  for (const tag of tagNames) {
-    const esc = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(
-      `<(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}(?:\\s[^>]*)?>((?:(?!<)[\\s\\S])*)<\\/(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}>`,
-      'i',
-    );
-    const m = xml.match(re);
-    const text = m?.[1]?.trim();
-    if (text) return text;
+/** No genuine EN 16931 CII/UBL invoice — our own output included — comes anywhere near this. A
+ *  deposit over it is refused, named, before a single byte reaches the parser: defense in depth on
+ *  top of switching away from the old backtracking-prone regex (see this file's own header) — a real
+ *  parser still has to walk every byte at least once, so there is no reason to spend that walk on an
+ *  upload with no plausible reason to be this large. */
+const MAX_XML_INPUT_BYTES = 5 * 1024 * 1024;
+
+type XmlDocument = ReturnType<DOMParser['parseFromString']>;
+
+/** Parses `xml` defensively — `undefined` (never throws) for anything oversized, malformed, or
+ *  without a root element, the same "collect fatal AND non-fatal errors, either means malformed"
+ *  discipline `formats/structural-check.ts#validateStructural` already holds for the identical job of
+ *  parsing third-party-shaped XML. Callers treat `undefined` exactly like the old regex path treated
+ *  "nothing matched": an honest `EMPTY_RESULT`, never an exception. */
+function parseXmlDocument(xml: string): XmlDocument | undefined {
+  if (Buffer.byteLength(xml, 'utf-8') > MAX_XML_INPUT_BYTES) return undefined;
+
+  const parseErrors: string[] = [];
+  const parser = new DOMParser({
+    onError: (level: string, message: string) => {
+      if (level === 'error' || level === 'fatalError') parseErrors.push(message);
+    },
+  });
+  let doc: XmlDocument | undefined;
+  try {
+    doc = parser.parseFromString(xml, 'application/xml');
+  } catch (error) {
+    parseErrors.push(error instanceof Error ? error.message : String(error));
+  }
+  if (parseErrors.length > 0 || !doc?.documentElement) return undefined;
+  return doc;
+}
+
+/** `Element.localName` is set by `createElementNS` for every element `@xmldom/xmldom` builds
+ *  (verified against the installed `dom.js`), prefixed or not — the `|| nodeName` fallback mirrors
+ *  `structural-check.ts#validateStructural`'s own identical guard rather than assuming that always
+ *  holds. */
+function localNameOf(el: XmlElement): string {
+  return el.localName || el.nodeName;
+}
+
+/** Every DESCENDANT element of `root` whose local name (any namespace prefix) is `tagName`, in
+ *  document order — the DOM equivalent of the old `extractAllBlocks`'s global regex scan, without its
+ *  quadratic-on-adversarial-input cost (see this file's own header). Never includes `root` itself:
+ *  every call site below searches for a tag distinct from whatever block it is already scoped to. */
+function collectByLocalName(root: XmlNode, tagName: string, out: XmlElement[] = []): XmlElement[] {
+  for (const child of root.childNodes) {
+    if (child.nodeType !== XmlNode.ELEMENT_NODE) continue;
+    const el = child as unknown as XmlElement;
+    if (localNameOf(el) === tagName) out.push(el);
+    collectByLocalName(el, tagName, out);
+  }
+  return out;
+}
+
+/** The FIRST descendant matching `tagName`, in document order — the DOM equivalent of the old
+ *  `extractBlock` (locating a block to scope further lookups into). */
+function firstByLocalName(root: XmlNode, tagName: string): XmlElement | undefined {
+  for (const child of root.childNodes) {
+    if (child.nodeType !== XmlNode.ELEMENT_NODE) continue;
+    const el = child as unknown as XmlElement;
+    if (localNameOf(el) === tagName) return el;
+    const nested = firstByLocalName(el, tagName);
+    if (nested) return nested;
   }
   return undefined;
 }
 
-/** The full XML block (opening tag through closing tag) for a given local name — scopes a later
- *  `extractText` lookup to a sub-element (e.g. `SellerTradeParty`) so a same-named tag elsewhere in
- *  the document (an `<ID>` inside a DIFFERENT party block) is never mistaken for the one wanted. */
-function extractBlock(xml: string, tagName: string): string | undefined {
-  const esc = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(
-    `(<(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}(?:\\s[^>]*)?>)[\\s\\S]*?(<\\/(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}>)`,
-    'i',
-  );
-  const m = xml.match(re);
-  return m ? m[0] : undefined;
-}
-
-/** Every occurrence of a tag (any namespace prefix), each returned as its own full block (opening
- *  tag through closing tag) — the plural, GLOBAL sibling of `extractBlock` above, for a repeated
- *  element (BG-25's own line) rather than a unique one. Same non-greedy technique, so a line block
- *  never swallows into the next sibling's own content. */
-function extractAllBlocks(xml: string, tagName: string): string[] {
-  const esc = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(
-    `<(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}(?:\\s[^>]*)?>[\\s\\S]*?<\\/(?:[A-Za-z_][A-Za-z0-9_.\\-]*:)?${esc}>`,
-    'gi',
-  );
-  return xml.match(re) ?? [];
+/** The trimmed text content of the FIRST descendant matching one of `tagNames` (first name that
+ *  yields a non-empty result wins) — the DOM equivalent of the old `extractText`, now going through
+ *  `Element.textContent`, which `@xmldom/xmldom` decodes entities into automatically (see this file's
+ *  own header — this is the actual entity-decoding fix, not a separate post-processing step). */
+function textOf(root: XmlNode, ...tagNames: string[]): string | undefined {
+  for (const tag of tagNames) {
+    const el = firstByLocalName(root, tag);
+    const text = el?.textContent?.trim();
+    if (text) return text;
+  }
+  return undefined;
 }
 
 function toFloat(s: string | undefined): number | undefined {
@@ -195,27 +267,31 @@ function normaliseCiiDate(raw: string | undefined): string | undefined {
  * `SpecifiedTradeSettlementHeaderMonetarySummation`'s own `LineTotalAmount`/`TaxBasisTotalAmount`
  * (net), `TaxTotalAmount` (VAT), `GrandTotalAmount` (gross).
  */
-function parseCii(xml: string): ExtractedInvoiceFields {
-  const exchBlock = extractBlock(xml, 'ExchangedDocument');
-  const supplierNumber = exchBlock ? extractText(exchBlock, 'ID') : undefined;
-  const issueDate = normaliseCiiDate(exchBlock ? extractText(exchBlock, 'DateTimeString') : undefined);
+function parseCii(doc: XmlDocument): ExtractedInvoiceFields {
+  // Non-null: `parseXmlDocument` never returns a document without one — see that function's own guard.
+  const root = doc.documentElement as XmlElement;
+  const exchBlock = firstByLocalName(root, 'ExchangedDocument');
+  const supplierNumber = exchBlock ? textOf(exchBlock, 'ID') : undefined;
+  const issueDate = normaliseCiiDate(exchBlock ? textOf(exchBlock, 'DateTimeString') : undefined);
 
-  const sellerBlock = extractBlock(xml, 'SellerTradeParty');
-  const supplier = sellerBlock ? extractText(sellerBlock, 'Name') : undefined;
-  const sellerTaxRegBlock = sellerBlock ? extractBlock(sellerBlock, 'SpecifiedTaxRegistration') : undefined;
-  const supplierVatId = sellerTaxRegBlock ? extractText(sellerTaxRegBlock, 'ID') : undefined;
+  const sellerBlock = firstByLocalName(root, 'SellerTradeParty');
+  const supplier = sellerBlock ? textOf(sellerBlock, 'Name') : undefined;
+  const sellerTaxRegBlock = sellerBlock
+    ? firstByLocalName(sellerBlock, 'SpecifiedTaxRegistration')
+    : undefined;
+  const supplierVatId = sellerTaxRegBlock ? textOf(sellerTaxRegBlock, 'ID') : undefined;
 
-  const currency = extractText(xml, 'InvoiceCurrencyCode');
+  const currency = textOf(root, 'InvoiceCurrencyCode');
 
-  const summBlock = extractBlock(xml, 'SpecifiedTradeSettlementHeaderMonetarySummation');
+  const summBlock = firstByLocalName(root, 'SpecifiedTradeSettlementHeaderMonetarySummation');
   const netAmount = toFloat(
     summBlock
-      ? (extractText(summBlock, 'LineTotalAmount') ?? extractText(summBlock, 'TaxBasisTotalAmount'))
+      ? (textOf(summBlock, 'LineTotalAmount') ?? textOf(summBlock, 'TaxBasisTotalAmount'))
       : undefined,
   );
-  const vatAmount = toFloat(summBlock ? extractText(summBlock, 'TaxTotalAmount') : undefined);
-  const grossAmount = toFloat(summBlock ? extractText(summBlock, 'GrandTotalAmount') : undefined);
-  const lines = parseCiiLines(xml);
+  const vatAmount = toFloat(summBlock ? textOf(summBlock, 'TaxTotalAmount') : undefined);
+  const grossAmount = toFloat(summBlock ? textOf(summBlock, 'GrandTotalAmount') : undefined);
+  const lines = parseCiiLines(root);
 
   return {
     supplierNumber,
@@ -231,18 +307,18 @@ function parseCii(xml: string): ExtractedInvoiceFields {
 }
 
 /** BG-25, CII side — see this file's own header, "Line extraction", for the exact element map. */
-function parseCiiLines(xml: string): ExtractedInvoiceLine[] {
-  return extractAllBlocks(xml, 'IncludedSupplyChainTradeLineItem').map((block) => {
-    const productBlock = extractBlock(block, 'SpecifiedTradeProduct');
-    const description = productBlock ? extractText(productBlock, 'Name') : undefined;
+function parseCiiLines(root: XmlElement): ExtractedInvoiceLine[] {
+  return collectByLocalName(root, 'IncludedSupplyChainTradeLineItem').map((line) => {
+    const productBlock = firstByLocalName(line, 'SpecifiedTradeProduct');
+    const description = productBlock ? textOf(productBlock, 'Name') : undefined;
 
-    const quantity = toFloat(extractText(block, 'BilledQuantity'));
+    const quantity = toFloat(textOf(line, 'BilledQuantity'));
 
-    const priceBlock = extractBlock(block, 'NetPriceProductTradePrice');
-    const unitPrice = toFloat(priceBlock ? extractText(priceBlock, 'ChargeAmount') : undefined);
+    const priceBlock = firstByLocalName(line, 'NetPriceProductTradePrice');
+    const unitPrice = toFloat(priceBlock ? textOf(priceBlock, 'ChargeAmount') : undefined);
 
-    const taxBlock = extractBlock(block, 'ApplicableTradeTax');
-    const vatRate = taxBlock ? extractText(taxBlock, 'RateApplicablePercent') : undefined;
+    const taxBlock = firstByLocalName(line, 'ApplicableTradeTax');
+    const vatRate = taxBlock ? textOf(taxBlock, 'RateApplicablePercent') : undefined;
 
     return { description, quantity, unitPrice, vatRate };
   });
@@ -256,32 +332,36 @@ function parseCiiLines(xml: string): ExtractedInvoiceLine[] {
  * `cbc:DocumentCurrencyCode`, and `LegalMonetaryTotal`'s own `TaxExclusiveAmount` (net),
  * `TaxInclusiveAmount`/`PayableAmount` (gross), plus `TaxTotal/TaxAmount` (VAT).
  */
-function parseUbl(xml: string): ExtractedInvoiceFields {
-  const supplierNumber = extractText(xml, 'ID');
-  const issueDate = extractText(xml, 'IssueDate');
-  const currency = extractText(xml, 'DocumentCurrencyCode');
+function parseUbl(doc: XmlDocument): ExtractedInvoiceFields {
+  // Non-null: `parseXmlDocument` never returns a document without one — see that function's own guard.
+  const root = doc.documentElement as XmlElement;
+  const supplierNumber = textOf(root, 'ID');
+  const issueDate = textOf(root, 'IssueDate');
+  const currency = textOf(root, 'DocumentCurrencyCode');
 
-  const supplierBlock = extractBlock(xml, 'AccountingSupplierParty');
+  const supplierBlock = firstByLocalName(root, 'AccountingSupplierParty');
   const supplier = supplierBlock
-    ? (extractText(supplierBlock, 'Name') ?? extractText(supplierBlock, 'RegistrationName'))
+    ? (textOf(supplierBlock, 'Name') ?? textOf(supplierBlock, 'RegistrationName'))
     : undefined;
   // Scoped to `PartyTaxScheme` specifically, never a bare lookup on `supplierBlock` — see this file's
   // own header, "Supplier VAT extraction", on why `PartyLegalEntity`'s OWN `CompanyID` (a sibling
   // block, the seller's registration number) would otherwise be a real risk of being picked up instead.
-  const supplierTaxSchemeBlock = supplierBlock ? extractBlock(supplierBlock, 'PartyTaxScheme') : undefined;
-  const supplierVatId = supplierTaxSchemeBlock ? extractText(supplierTaxSchemeBlock, 'CompanyID') : undefined;
+  const supplierTaxSchemeBlock = supplierBlock
+    ? firstByLocalName(supplierBlock, 'PartyTaxScheme')
+    : undefined;
+  const supplierVatId = supplierTaxSchemeBlock ? textOf(supplierTaxSchemeBlock, 'CompanyID') : undefined;
 
-  const legalBlock = extractBlock(xml, 'LegalMonetaryTotal');
-  const netAmount = toFloat(legalBlock ? extractText(legalBlock, 'TaxExclusiveAmount') : undefined);
+  const legalBlock = firstByLocalName(root, 'LegalMonetaryTotal');
+  const netAmount = toFloat(legalBlock ? textOf(legalBlock, 'TaxExclusiveAmount') : undefined);
   const grossAmount = toFloat(
     legalBlock
-      ? (extractText(legalBlock, 'PayableAmount') ?? extractText(legalBlock, 'TaxInclusiveAmount'))
+      ? (textOf(legalBlock, 'PayableAmount') ?? textOf(legalBlock, 'TaxInclusiveAmount'))
       : undefined,
   );
 
-  const taxBlock = extractBlock(xml, 'TaxTotal');
-  const vatAmount = toFloat(taxBlock ? extractText(taxBlock, 'TaxAmount') : undefined);
-  const lines = parseUblLines(xml);
+  const taxBlock = firstByLocalName(root, 'TaxTotal');
+  const vatAmount = toFloat(taxBlock ? textOf(taxBlock, 'TaxAmount') : undefined);
+  const lines = parseUblLines(root);
 
   return {
     supplierNumber,
@@ -297,25 +377,29 @@ function parseUbl(xml: string): ExtractedInvoiceFields {
 }
 
 /** BG-25, UBL side — see this file's own header, "Line extraction", for the exact element map. */
-function parseUblLines(xml: string): ExtractedInvoiceLine[] {
-  return extractAllBlocks(xml, 'InvoiceLine').map((block) => {
-    const itemBlock = extractBlock(block, 'Item');
-    const description = itemBlock ? extractText(itemBlock, 'Name') : undefined;
+function parseUblLines(root: XmlElement): ExtractedInvoiceLine[] {
+  return collectByLocalName(root, 'InvoiceLine').map((line) => {
+    const itemBlock = firstByLocalName(line, 'Item');
+    const description = itemBlock ? textOf(itemBlock, 'Name') : undefined;
 
-    const quantity = toFloat(extractText(block, 'InvoicedQuantity'));
+    const quantity = toFloat(textOf(line, 'InvoicedQuantity'));
 
-    const priceBlock = extractBlock(block, 'Price');
-    const unitPrice = toFloat(priceBlock ? extractText(priceBlock, 'PriceAmount') : undefined);
+    const priceBlock = firstByLocalName(line, 'Price');
+    const unitPrice = toFloat(priceBlock ? textOf(priceBlock, 'PriceAmount') : undefined);
 
-    const taxCategoryBlock = itemBlock ? extractBlock(itemBlock, 'ClassifiedTaxCategory') : undefined;
-    const vatRate = taxCategoryBlock ? extractText(taxCategoryBlock, 'Percent') : undefined;
+    const taxCategoryBlock = itemBlock ? firstByLocalName(itemBlock, 'ClassifiedTaxCategory') : undefined;
+    const vatRate = taxCategoryBlock ? textOf(taxCategoryBlock, 'Percent') : undefined;
 
     return { description, quantity, unitPrice, vatRate };
   });
 }
 
 /** Best-effort syntax sniff — same signatures the removed compliance engine's own `detectSyntax` used
- *  for these two syntaxes, narrowed to what this module actually parses. */
+ *  for these two syntaxes, narrowed to what this module actually parses. Plain substring checks on
+ *  the RAW text, deliberately NOT a regex over the whole document: this only ever has to decide WHICH
+ *  parser to hand the document to, so it runs before (and independently of) `parseXmlDocument`, and a
+ *  handful of `String.prototype.includes` calls carry none of the backtracking risk this file's own
+ *  header describes for the old tag-lookup regexes. */
 function detectXmlSyntax(raw: string): 'CII' | 'UBL' | null {
   const trimmed = raw.trimStart();
   if (
@@ -334,12 +418,17 @@ function detectXmlSyntax(raw: string): 'CII' | 'UBL' | null {
 
 /** Parses a raw XML string (already known to be XML — the caller decides that from the upload's own
  *  mime/filename, or from having just unwrapped it out of a PDF) into fields, auto-detecting CII vs
- *  UBL. Returns `EMPTY_RESULT`'s own shape (never throws) for an unrecognized XML dialect. */
+ *  UBL. Returns `EMPTY_RESULT`'s own shape (never throws) for an unrecognized XML dialect, an
+ *  oversized deposit, or one that fails to parse at all — see this file's own header. */
 function extractFromXmlString(xml: string): ExtractionResult {
   const syntax = detectXmlSyntax(xml);
-  if (syntax === 'CII') return { syntax: 'CII', fields: parseCii(xml) };
-  if (syntax === 'UBL') return { syntax: 'UBL', fields: parseUbl(xml) };
-  return EMPTY_RESULT;
+  if (syntax === null) return EMPTY_RESULT;
+
+  const doc = parseXmlDocument(xml);
+  if (!doc) return EMPTY_RESULT;
+
+  if (syntax === 'CII') return { syntax: 'CII', fields: parseCii(doc) };
+  return { syntax: 'UBL', fields: parseUbl(doc) };
 }
 
 /**
